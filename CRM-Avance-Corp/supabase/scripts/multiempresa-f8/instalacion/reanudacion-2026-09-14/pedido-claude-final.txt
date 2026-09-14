@@ -1,0 +1,1303 @@
+ROLE: SECONDARY_REVIEWER.
+Codex is the PRIMARY agent. Provide independent technical review only. Do not modify files, implement, invoke Codex, delegate or create another review chain. You have no tools. Follow .ai/REVIEW_PROTOCOL.md (included by wrapper): VERDICT, SUMMARY, evidence-backed FINDINGS P0-P3, relevant risks/test gaps, NEXT ACTIONS, CONFIDENCE.
+
+Second and final targeted review of F8 installation reconstruction, justified by actual new evidence after your first review. Do not re-review to seek agreement. Review the concrete isolated restoration and the narrowly documented platform differences below. This is NOT a declaration that production may now be merged: remaining explicit gates are listed.
+
+AUTHORIZATION: Miguel approved the two immutable SQL migrations, an exclusive Supabase branch within USD0.01344/hour, and installation OFF in production AFTER gates. No activation, members, real financial writes or new identity repairs authorized. Production ref dctqcbznekcyxhjujuci; exclusively disposable target zgjyapayxvnvrgpiarod, created 2026-09-14. Other branches untouched. Every restore/negative test so far ROLLED BACK; production unchanged; target ledger still original86, Auth/perfiles0, Cron2OFF. Python libpq launcher fixes exact ref, URL, username postgres.<ref>, session pooler hostname, SSL require and does not accept arbitrary connections. Secrets outside Git in0700directory/0600files; no secrets in review.
+
+APP MIGRATIONS, unchanged bytes:
+20260913215240_crm_f8_piloto_controlado.sql SHA256 0807e59bcaccfbce8d7af02dc67fcfa8a64686305aaa976d4840af16c86c18fe
+20260914025926_crm_f8_excluir_fuentes_demo.sql SHA256 0f7daa10f1e1ac1d71501795d0f0d45c64e58fa263426c7e27a56f5c0e73dc08
+Control: private/RLS closed temporal singleton OFF and zero members, exact nominal team1gerencia+1supervisor+2vendedores, F4/F5/F6peractor gates, F7OFF; demo patch adds INVOKER helper filtering es_demo false and replaces8function definitions under shared control lock. Does not change sources/Auth/money/commissions. F8 candidates have no extension/event/Cron/role/Realtime DDL and no outbound calls. Local31SQLtests previouslyPASS, including demo NULL failclosed and reversal/reinstallation on separate disposable local database. Do not repeat reversal on the mergeable branch.
+
+ACTUAL BASE: canonical current parent279migrations latest20260913213842, history arraysMD5 2ba1ba0b80a0d553f4579833acb853ab,630functions full definition/owner/config/comment/ACL MD5 2e36c8294d3de5927df16e6d6701a6bd;14preconditions match. F3ON F4-7OFF;593real sources0identitygaps,5demo4gaps. Normal sales may change volume, never rewrite to match old counts. Schema dump from previous evening reused only after fresh production comparison proved all15schema categories, all630functions,279ledger identical. Fresh paired combined capture is REQUIRED before recording parent ledger in the branch. Parent expected values NEVER normalized.
+
+YOUR FIRST REVIEW DISPOSITIONS WITH EVIDENCE:
+- Dependencies: exact806external objects before cleanup; only6enumerated Storage policies removed,800after. Guard checks exact equality to before minus those6, no unbounded exceptions. Injected a seventh dependent Storage policy: cleanup raised 'Cambios inesperados fuera de schemas de la app', rollback; ledger86 after. Policies are restored AFTER application functions (your initial concern was inferred order from prompt, not actual script).
+- Defaults: preserve public schema and all managed supabase_admin defaults; reset ONLY postgres own defaults using ALTER DEFAULT PRIVILEGES REVOKE from postgres/anon/authenticated/service_role before CREATE. Assert no own global/public rows remain. Never delete pg_default_acl. After restore assert all supabase_admin defaults unchanged.
+- Ownership: keep actual dump ownership (postgres,crm_metricas_bridge,public schema pg_database_owner). Temporarily allow SET bridge and CREATE crm; remove CREATE then restore literal membership array [[postgres,false,true,false],[supabase_admin,true,false,false]]. Assert bridge has no CREATE on any non-temporary namespace.
+- Exact transform: omit13statements ONLY: CREATE SCHEMA public plus12managed default-grants already present verbatim, each enumerated in transformation evidence. Add bridge temporary grants, public PUBLICUSAGE matching source defaults,62explicitowner ACLs pg_dump omits because equivalent to built-in NULL. Preserve34physical active public.perfiles columns and6historically dropped slots via temporary dummy columns dropped immediately after CREATE TABLE. No function body modified. All630definition/owner/ACL/config/comments equal.
+- Maintain all3foreign keys to Auth/users and Storage/objects, unlike discarded old F8 trial. All Auth/Storage catalog objects match parent exactly.
+- Supabase migration ledger initially had3columns. Add parent3nullable text/text/text[] columns and its exact named UNIQUE(idempotency_key) within exclusive reconstruction; parent unchanged. Ledger stays0 until schema equivalence accepted; then copy279exact rows/arrays, no repairing/normalizing versions or names.
+- Copy the8missing Cron definitions exact, allOFFin same transaction, together with2existingOFFjobs. Branch historical replay created one Vault secret named cron_notif_secret; assert exact1/name then delete it in THIS branch only to prevent outbound effects. Final guard requires Vault0, net queue0, Cron10ALL OFF. No production secrets/clients/data copied.
+- Self verifying transaction: final guard compares full15category aggregate JSONB and full1337externalkey->MD5object JSONB to immutable literals from successful v5trial. Exact schema dumpSHA verified by preparation; exact restored scriptSHA will be verified before executing. A mutated expected catalog hash makes full restore raise F8_PARIDAD_FINAL_DISTINTA and rollback; branchledger remains86. Every statement error ends transaction; libpq collects errors, closes connection, no ignore-error continuation to COMMIT. Success v6trial passed with all guards and ROLLBACK.
+
+EXACT6 CORE DIFFERENCES (full key/parent/branchMD5 attached;4748parent objects vs4747branch):
+1-3 Three CHECK strings differ only immutable associative AND parentheses (miembros cardinality+dimensions,monedas cardinality+set+dimensions,capital min/max bounds). Allvalidatedtrue, notdeferrable, unchanged semantics evenNULL. Actual branch6array-member cases,9currency-arraycases,100numericcrosscasesinclNULL/NaN/Infinity all results IS NOT DISTINCT FROM parent expression. These are explicit acceptance of these3pairs, no generic normalization.
+4 Managed event issue_pg_graphql_access: identicalowner/helper/enabled/event, parent CREATE FUNCTION tag vsfreshbranch CREATE EXTENSION tag. pg_graphql absent both; helper identicalMD5 4e6d7efe4aed1b3b92063b648aa7a0cf, immediately returns unless event object is extension named pg_graphql. F8 does notcreate that extension or use GraphQL. Do not alter managed event trigger.
+5 pg_net parent0.20.0/public,branch0.20.4/extensions,owner supabase_admin nonrelocatable. All actual net APIfunction/tabledefinition+ACL hashes match. Managed extensions.grant_pg_net_access() differs parentsearch_path empty, optional CREATE USER and historical legacyversion list; condition only runs on pg_netEXTENSIONevent, no such DDL in F8. Nativebinary version difference is real, not claimed equal. App only outbound private.despertar_push_tasa reads Vault config and returns if missing; Vault0, CronOFF,queue0; F8 paths no net calls. Official Supabase change sinceAug5ignores versionpinning; do not force downgrade. This platform difference is proposed acceptable solely for SQLF8 scope, not proof of network subsystem parity.
+6 Managed publication supabase_realtime_messages_publication present in parent for daily Realtime messages partitions Sep11-17, absent in freshbranch. APPLICATION publication supabase_realtime exactly matches3tables public.novedades,novedades_leidas,audit_log. CodeGraph first failed to locate SQL; focused real source fallback found CRM frontend no channel/realtime calls; portal only postgres_changes public_html/js/novedades-utils.js212/215/225 andadmin/bandeja.js141-142, no Broadcast. F8 changes none. Official Supabase locks managedRealtime schema against modifications; don't mutate it to fake equality.
+
+EXTERNAL172exact differences after reconstructing parent ledger metadata (full manifest attached):153Realtime managed tables/partitions/indexes/physical column slots;13supabase_functions managed webhook schema extras (10objects+3defaultACL) in branch absent parent;3CronACL diffs (postgres TRIGGERgrantmissing onjob_run_details; PUBLICSELECTon2jobsequences extra);same2event/pg_net plus1managedpg_nethelper =172. No user webhooks on app tables in either environment. No F8 access/use of managedwebhook/Cronmetadata or Broadcast. Auth and Storage objects ALL match, all actual net functions match. Cron ACL discrepancies remain REALdocumentedexceptions, not overwritten. Full parent1457externalkeys,branch1337. Do not blanket-exclude any category: only these exact key/MD5pairs may differ; any new/missing/changing pair stops. Literal manifests remain private except safe differences/hashes in repo.
+
+OFFICIAL references previously checked: https://supabase.com/changelog/extension-version-pinning-ignored and https://supabase.com/changelog/realtime-schema-locked-down-against-modification . No reliance on web docs as a replacement for actual catalog evidence.
+
+MEANINGFUL CHECKS: original installation verifier33PASS(24offline+9catalog); new long identifier regression catches PGtype name silentlytruncating UNIONkeys63bytes. Now firstkeycastTEXT, allcomplete keys distinct. v5/v6restore transactionPASS;115CHECKcasesPASS; unexpectedexternaldependency+wrongfingerprintboth rejectedandrollbackPASS. All19Edge/55files bytes, entrypoint/import-map/verify_jwt/bundles match fresh parent+branch fetch.
+
+NEXT ACTUAL GATES (still NOT RUN, must not imply alreadypassed): commit reconstructed empty branch only AFTER this review resolved; fresh paired (<60s) parentcombinedcapture+branchcatalogfullobjects; verify only exact reviewed differences and preserve original strict-comparatorFAIL as diagnostic. Copy exact279ledger only after acceptedparity. Load ONLY synthetic fixtures (Auth15confirmed example-domain users,32StorageFKobjects,sourceF7synthetic business98sources), replica restore followed by ALLFKantijoinvalidation, thenfull598/593/5/4testfixture. Apply exactly2immutable migrations using MCPapply_migration exclusivelybranch, recordremoteversions/arrays; new remoteSQL matrix+realAuth/DataAPIroles+advisors+types. EndtrialOFF. Integrate existing avancecorp/main withouttouching otherworkingtree changes; verified Main/HEAD/remote samecommit and build fromit. Fresh immutable parent schema/history/function preflight <=60s, allEdgebytecomparison and liveMain, then authorizedmerge_branch. If parentdrifts integrate/retest. Postmerge preserve279oldarrays,deltaonly2correctSQL,OFF0members,flags,Auth/money/sourcehashes; normal realactivityinvestigated, notoverwritten. Delete onlyexclusiveF8branch tostopcost.
+
+QUESTIONS: Are the concrete restoration+failclosedguards sound for this disposablebranch? Are these fullyenumerated managedplatform/CHECKdifferences acceptable for the scoped F8SQL rehearsal, given preserved app objects/Auth/Storage and no candidate use of differing services? Identify actionable evidence-backed defects; don't mandate recreating managed internals or a new agent chain. Clearly distinguish installationgates stillpending from defects of the reconstruction.
+
+
+FILE guardas-revisadas.txt
+begin;
+set local lock_timeout='5s';set local statement_timeout='120s';
+do $f8$ begin
+ if (select count(*) from auth.users)<>0 or (select count(*) from public.perfiles)<>0 then raise exception 'Rama con personas: cancelar'; end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>86 or (select md5(jsonb_agg(jsonb_build_array(version,name,statements) order by version)::text) from supabase_migrations.schema_migrations)<>'2250b1bdc10c130e6c31165589027ba3' or exists(select 1 from cron.job where active) then raise exception 'Rama cambio: cancelar';end if;
+end $f8$;
+create temporary table f8_admin_default_antes on commit drop as
+ select d.defaclnamespace::regnamespace::text as schema,d.defaclobjtype,d.defaclacl::text as acl from pg_default_acl d
+ where d.defaclrole='supabase_admin'::regrole;
+grant crm_metricas_bridge to postgres with inherit true, set true, admin false granted by postgres;
+alter extension pg_trgm set schema extensions;
+create extension if not exists unaccent with schema extensions;
+create temporary table f8_externos_antes (valor) on commit drop as select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,v) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+ union all select 'event:'||e.evtname,to_jsonb(e)-'oid' from pg_event_trigger e
+ ) x))::text;
+do $guard$ begin if not (select (valor::jsonb->'objects') ?& array['policy:storage.objects.admin_sube_docs','policy:storage.objects.admin_elimina_docs','policy:storage.objects.admin_descarga_docs','policy:storage.objects.admin_sube_comunicados','policy:storage.objects.admin_borra_comunicados','policy:storage.objects.cliente_descarga_sus_docs'] from f8_externos_antes) then raise exception 'Políticas esperadas ausentes';end if;end $guard$;
+drop policy admin_sube_docs on storage.objects;
+drop policy admin_elimina_docs on storage.objects;
+drop policy admin_descarga_docs on storage.objects;
+drop policy admin_sube_comunicados on storage.objects;
+drop policy admin_borra_comunicados on storage.objects;
+drop policy cliente_descarga_sus_docs on storage.objects;
+
+drop schema crm, private cascade;
+do $clean$ declare r record; begin
+ for r in select c.relname,c.relkind from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in('v','m','r','p','f','S') and not exists(select 1 from pg_depend d where d.classid='pg_class'::regclass and d.objid=c.oid and d.deptype='e') order by case when c.relkind in('v','m') then 0 else 1 end loop
+ execute format('drop %s if exists public.%I cascade',case r.relkind when 'v' then 'view' when 'm' then 'materialized view' when 'S' then 'sequence' when 'f' then 'foreign table' else 'table' end,r.relname);
+ end loop;
+ for r in select p.oid::regprocedure::text as signature,p.prokind from pg_proc p where p.pronamespace='public'::regnamespace and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e') loop
+ execute 'drop '||case r.prokind when 'p' then 'procedure' when 'a' then 'aggregate' else 'function' end||' if exists '||r.signature||' cascade';
+ end loop;
+ for r in select t.typname from pg_type t where t.typnamespace='public'::regnamespace and t.typtype in('e','d','c','r','m') and not exists(select 1 from pg_depend d where d.classid='pg_type'::regclass and d.objid=t.oid and d.deptype='e') loop
+ execute format('drop type if exists public.%I cascade',r.typname);
+ end loop;
+ if exists(select 1 from pg_class where relnamespace='public'::regnamespace) or exists(select 1 from pg_proc where pronamespace='public'::regnamespace) or exists(select 1 from pg_type where typnamespace='public'::regnamespace) then raise exception 'Quedaron objetos public';end if;
+end $clean$;
+create temporary table f8_externos_despues (valor) on commit drop as select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,v) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+ union all select 'event:'||e.evtname,to_jsonb(e)-'oid' from pg_event_trigger e
+ ) x))::text;
+do $guard$ begin if (select valor::jsonb->'objects' from f8_externos_despues) is distinct from (select (valor::jsonb->'objects') - array['policy:storage.objects.admin_sube_docs','policy:storage.objects.admin_elimina_docs','policy:storage.objects.admin_descarga_docs','policy:storage.objects.admin_sube_comunicados','policy:storage.objects.admin_borra_comunicados','policy:storage.objects.cliente_descarga_sus_docs'] from f8_externos_antes) then raise exception 'Cambios inesperados fuera de schemas de la app';end if;end $guard$;
+
+revoke all on schema public from public,postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on tables from postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on sequences from postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on functions from postgres,anon,authenticated,service_role;
+delete from supabase_migrations.schema_migrations;
+select jsonb_build_object('fase','limpio','app_objects',(select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in('public','crm','private')),'ledger',(select count(*) from supabase_migrations.schema_migrations));
+
+do $d$ begin if exists(select 1 from pg_default_acl where defaclrole='postgres'::regrole and (defaclnamespace=0 or defaclnamespace='public'::regnamespace)) then raise exception 'Default postgres no neutralizado';end if;end $d$;
+
+-- RESTAURACIÓN del dump actual del padre: cuerpos no adjuntos.
+-- PostgreSQL database dump complete
+--
+
+\unrestrict XVntPDJtfNd3HAsH66AVeOZJ3ifvxyehCZmq2TXn9xsmT7kPM4LbCg2CypIG5dt
+
+
+DROP POLICY IF EXISTS admin_borra_comunicados ON storage.objects; CREATE POLICY admin_borra_comunicados ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated USING (((bucket_id = 'comunicados'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles p
+  WHERE ((p.id = auth.uid()) AND (p.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_descarga_docs ON storage.objects; CREATE POLICY admin_descarga_docs ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'documentos'::text) AND public.es_gestor_cartera()));
+DROP POLICY IF EXISTS admin_elimina_docs ON storage.objects; CREATE POLICY admin_elimina_docs ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated USING (((bucket_id = 'documentos'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles
+  WHERE ((perfiles.id = ( SELECT auth.uid() AS uid)) AND (perfiles.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_sube_comunicados ON storage.objects; CREATE POLICY admin_sube_comunicados ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'comunicados'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles p
+  WHERE ((p.id = auth.uid()) AND (p.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_sube_docs ON storage.objects; CREATE POLICY admin_sube_docs ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'documentos'::text) AND public.es_gestor_cartera()));
+DROP POLICY IF EXISTS cliente_descarga_sus_docs ON storage.objects; CREATE POLICY cliente_descarga_sus_docs ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'documentos'::text) AND (EXISTS ( SELECT 1
+   FROM public.contratos
+  WHERE ((contratos.id = ((storage.foldername(objects.name))[1])::uuid) AND (contratos.cliente_id = ( SELECT auth.uid() AS uid)))))));
+DROP POLICY IF EXISTS f4_comprobante_delete_frontera ON storage.objects; CREATE POLICY f4_comprobante_delete_frontera ON storage.objects AS RESTRICTIVE FOR DELETE TO authenticated USING ((bucket_id <> 'f4-comprobantes'::text));
+DROP POLICY IF EXISTS f4_comprobante_insert ON storage.objects; CREATE POLICY f4_comprobante_insert ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_autorizado(name)));
+DROP POLICY IF EXISTS f4_comprobante_insert_frontera ON storage.objects; CREATE POLICY f4_comprobante_insert_frontera ON storage.objects AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_autorizado(name)));
+DROP POLICY IF EXISTS f4_comprobante_select ON storage.objects; CREATE POLICY f4_comprobante_select ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_visible(name)));
+DROP POLICY IF EXISTS f4_comprobante_select_frontera ON storage.objects; CREATE POLICY f4_comprobante_select_frontera ON storage.objects AS RESTRICTIVE FOR SELECT TO authenticated USING (((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_visible(name)));
+DROP POLICY IF EXISTS f4_comprobante_update_frontera ON storage.objects; CREATE POLICY f4_comprobante_update_frontera ON storage.objects AS RESTRICTIVE FOR UPDATE TO authenticated USING ((bucket_id <> 'f4-comprobantes'::text)) WITH CHECK ((bucket_id <> 'f4-comprobantes'::text));
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_log;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.novedades;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.novedades_leidas;
+
+
+GRANT ALL ON TABLE crm.ajustes_mes_cerrado TO postgres;
+GRANT ALL ON TABLE crm.backfill_multiempresa_mapa TO postgres;
+GRANT ALL ON TABLE crm.cartera_lecturas TO postgres;
+GRANT ALL ON TABLE crm.cierre_mes_vendedor TO postgres;
+GRANT ALL ON TABLE crm.cierres_avance_anulados TO postgres;
+GRANT ALL ON TABLE crm.cierres_externos TO postgres;
+GRANT ALL ON TABLE crm.conversion_pesos TO postgres;
+GRANT ALL ON TABLE crm.conversion_reservas TO postgres;
+GRANT ALL ON TABLE crm.depositos_reclamados TO postgres;
+GRANT ALL ON TABLE crm.dispositivos_push_tasa TO postgres;
+GRANT ALL ON TABLE crm.empresas TO postgres;
+GRANT ALL ON TABLE crm.envios_push_tasa TO postgres;
+GRANT ALL ON TABLE crm.inversion_ajustes_mes_cerrado TO postgres;
+GRANT ALL ON TABLE crm.inversion_backfill_lotes TO postgres;
+GRANT ALL ON TABLE crm.inversion_cotitular_origenes TO postgres;
+GRANT ALL ON TABLE crm.inversion_eventos TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_correcciones TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_origenes TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_revisiones TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitudes TO postgres;
+GRANT ALL ON TABLE crm.inversion_titulares TO postgres;
+GRANT ALL ON TABLE crm.inversiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_fusiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_gestiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_identificadores TO postgres;
+GRANT ALL ON TABLE crm.inversionista_leads TO postgres;
+GRANT ALL ON TABLE crm.inversionista_operaciones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_responsables TO postgres;
+GRANT ALL ON TABLE crm.inversionistas TO postgres;
+GRANT ALL ON TABLE crm.lead_asignaciones TO postgres;
+GRANT ALL ON TABLE crm.lead_sla_etapa_ajustes TO postgres;
+GRANT ALL ON TABLE crm.multiempresa_flags TO postgres;
+GRANT ALL ON TABLE crm.multiempresa_idempotencia TO postgres;
+GRANT ALL ON TABLE crm.periodos_cerrados TO postgres;
+GRANT ALL ON TABLE crm.postventa_escrituras TO postgres;
+GRANT ALL ON TABLE crm.postventa_operaciones TO postgres;
+GRANT ALL ON TABLE crm.postventa_retiros TO postgres;
+GRANT ALL ON TABLE crm.sla_operacion_control TO postgres;
+GRANT ALL ON TABLE crm.sla_operacion_recibos TO postgres;
+GRANT ALL ON TABLE crm.sla_politica_etapas_operacion TO postgres;
+GRANT ALL ON TABLE crm.tarea_sla_contexto TO postgres;
+GRANT ALL ON TABLE crm.usuario_eventos TO postgres;
+GRANT ALL ON SEQUENCE crm.usuario_eventos_id_seq TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_cambios TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_destinos TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_diaria TO postgres;
+GRANT ALL ON TABLE private.auditoria_alertas TO postgres;
+GRANT ALL ON TABLE private.auditoria_condicionada TO postgres;
+GRANT ALL ON TABLE private.auditoria_exenciones TO postgres;
+GRANT ALL ON TABLE private.auditoria_sello TO postgres;
+GRANT ALL ON TABLE private.ayuda_consultas TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_consultas_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_expresiones TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_expresiones_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_intenciones TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_intenciones_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_reglas_aclaracion TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_reglas_aclaracion_id_seq TO postgres;
+GRANT ALL ON TABLE private.contrato_altas_idempotentes TO postgres;
+GRANT ALL ON TABLE private.contrato_eliminaciones TO postgres;
+GRANT ALL ON TABLE private.contrato_pdf_jobs TO postgres;
+GRANT ALL ON TABLE private.contrato_pdfs TO postgres;
+
+alter table supabase_migrations.schema_migrations
+ add column created_by text,
+ add column idempotency_key text,
+ add column rollback text[];
+alter table supabase_migrations.schema_migrations
+ add constraint schema_migrations_idempotency_key_key unique(idempotency_key);
+-- OCHO definiciones Cron exactas; activación false dentro de la misma transacción.
+do $f8$ begin
+ if (select count(*) from cron.job)<>10 or exists(select 1 from cron.job where active) then
+  raise exception 'Cron debe conservar diez definiciones desactivadas';
+ end if;
+ if (select count(*) from vault.secrets)<>1 or not exists(select 1 from vault.secrets where name='cron_notif_secret') then
+  raise exception 'Inventario Vault de la rama cambió';
+ end if;
+ -- Única fila creada por el replay histórico de esta rama, sin copiar secretos del padre.
+ delete from vault.secrets where name='cron_notif_secret';
+ if (select count(*) from vault.secrets)<>0 or (select count(*) from net.http_request_queue)<>0 then
+  raise exception 'La rama no debe contener secretos Vault ni solicitudes pendientes';
+ end if;
+end $f8$;
+grant crm_metricas_bridge to postgres with inherit true, set false, admin false granted by postgres;
+do $same$ begin
+ if exists((select * from f8_admin_default_antes except select d.defaclnamespace::regnamespace::text,d.defaclobjtype,d.defaclacl::text from pg_default_acl d where d.defaclrole='supabase_admin'::regrole) union all
+ (select d.defaclnamespace::regnamespace::text,d.defaclobjtype,d.defaclacl::text from pg_default_acl d where d.defaclrole='supabase_admin'::regrole except select * from f8_admin_default_antes)) then raise exception 'Cambio ACL administrado'; end if;
+ if (select jsonb_agg(jsonb_build_array(g.rolname,m.admin_option,m.inherit_option,m.set_option) order by g.rolname) from pg_auth_members m join pg_roles g on g.oid=m.grantor where m.roleid='crm_metricas_bridge'::regrole and m.member='postgres'::regrole) <> '[["postgres",false,true,false],["supabase_admin",true,false,false]]'::jsonb then raise exception 'Membresía bridge no coincide';end if;
+ if exists(select 1 from pg_namespace where has_schema_privilege('crm_metricas_bridge',oid,'CREATE') and nspname not like 'pg_temp_%' and nspname not like 'pg_toast_temp_%') then raise exception 'Bridge conserva CREATE';end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>0 then raise exception 'Historial no vacío';end if;
+end $same$;
+select jsonb_build_object('fase','restaurado','ledger',(select count(*) from supabase_migrations.schema_migrations),'auth',(select count(*) from auth.users),'funciones',(select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in('crm','public','private') and p.prokind in('f','p')),'fk_externas',(select count(*) from pg_constraint where conname in('perfiles_id_fkey','cierres_externos_comprobante_objeto_id_fkey','objetivos_vendedores_actualizado_por_fkey')));
+set local search_path='';set local timezone='UTC';
+
+-- Verificación transaccional de todas las categorías y todos los objetos externos.
+-- Valores fijados en el ensayo v5, cotejados contra el padre sin normalizarlos.
+do $f8_guard_final$ begin
+ if (-- Inventario estructural F8; sin datos de negocio ni cuerpos de funciones en
+-- la salida. Ejecutar igual en padre/rama. No excluye diferencias automáticamente.
+-- Sin BEGIN: el ejecutor debe incluirlo en su transacción READ ONLY de captura.
+with objetos as (
+  -- Forzar text: el tipo name del catálogo truncaría las claves de las demás
+  -- ramas UNION a 63 bytes, ocultando sobrecargas y columnas con nombres largos.
+  select 'esquemas' as categoria,n.nspname::text as clave,
+    jsonb_build_array(n.nspowner::regrole::text,n.nspacl::text,
+      obj_description(n.oid,'pg_namespace')) as valor
+  from pg_namespace n where n.nspname in ('public','crm','private')
+  union all
+  select 'relaciones',n.nspname||'.'||c.relname,
+    jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,
+      c.relrowsecurity,c.relforcerowsecurity,c.relreplident,c.relpersistence,
+      c.reloptions,c.relispartition,
+      case when c.relispartition then pg_get_expr(c.relpartbound,c.oid) end,
+      case when c.relkind='p' then pg_get_partkeydef(c.oid) end,
+      obj_description(c.oid,'pg_class'))
+  from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'columnas',n.nspname||'.'||c.relname||'.'||a.attname,
+    jsonb_build_array(a.attnum,format_type(a.atttypid,a.atttypmod),a.attnotnull,
+      a.attidentity,a.attgenerated,a.attacl::text,
+      pg_get_expr(d.adbin,d.adrelid),a.attcollation::regcollation::text,
+      col_description(c.oid,a.attnum))
+  from pg_attribute a join pg_class c on c.oid=a.attrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+  where n.nspname in ('public','crm','private') and a.attnum>0 and not a.attisdropped
+  union all
+  select 'funciones',n.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
+    jsonb_build_array(pg_get_functiondef(p.oid),p.proowner::regrole::text,
+      p.proacl::text,p.proconfig,obj_description(p.oid,'pg_proc'))
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname in ('public','crm','private') and p.prokind in ('f','p')
+  union all
+  select 'triggers',n.nspname||'.'||c.relname||'.'||t.tgname,
+    jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled)
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  -- Incluye triggers de usuario sobre tablas administradas (p. ej. auth.users).
+  where not t.tgisinternal
+  union all
+  select 'politicas',schemaname||'.'||tablename||'.'||policyname,
+    jsonb_build_array(permissive,roles,cmd,qual,with_check)
+  from pg_policies where schemaname in ('public','crm','private','auth','storage')
+  union all
+  select 'constraints',n.nspname||'.'||co.conname||':'||co.conrelid::regclass::text||':'||co.contypid::regtype::text,
+    jsonb_build_array(pg_get_constraintdef(co.oid),co.convalidated,co.condeferrable,co.condeferred)
+  from pg_constraint co join pg_namespace n on n.oid=co.connamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'indices',n.nspname||'.'||c.relname,
+    jsonb_build_array(pg_get_indexdef(i.indexrelid),i.indisvalid,i.indisready)
+  from pg_index i join pg_class c on c.oid=i.indexrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'vistas',n.nspname||'.'||c.relname,
+    jsonb_build_array(pg_get_viewdef(c.oid,true),c.reloptions,c.relowner::regrole::text)
+  from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private') and c.relkind in ('v','m')
+  union all
+  select 'default_acl',a.defaclrole::regrole::text||':'||coalesce(n.nspname,'GLOBAL')||':'||a.defaclobjtype::text,
+    to_jsonb(a.defaclacl::text)
+  from pg_default_acl a left join pg_namespace n on n.oid=a.defaclnamespace
+  where a.defaclnamespace=0 or n.nspname in ('public','crm','private')
+  union all
+  select 'tipos',n.nspname||'.'||t.typname,
+    jsonb_build_array(t.typtype,t.typcategory,t.typowner::regrole::text,
+      t.typacl::text,format_type(t.typbasetype,t.typtypmod),t.typnotnull,t.typdefault,
+      t.typinput::regprocedure::text,t.typoutput::regprocedure::text,
+      t.typcollation::regcollation::text,
+      (select jsonb_agg(jsonb_build_array(e.enumsortorder,e.enumlabel) order by e.enumsortorder)
+        from pg_enum e where e.enumtypid=t.oid))
+  from pg_type t join pg_namespace n on n.oid=t.typnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'secuencias',n.nspname||'.'||c.relname,
+    jsonb_build_array(format_type(s.seqtypid,null),s.seqstart,s.seqincrement,
+      s.seqmax,s.seqmin,s.seqcache,s.seqcycle,
+      (select jsonb_agg(jsonb_build_array(d.deptype,d.refobjid::regclass::text,a.attname)
+        order by d.refobjid::regclass::text,a.attname,d.deptype)
+        from pg_depend d left join pg_attribute a
+          on a.attrelid=d.refobjid and a.attnum=d.refobjsubid
+        where d.classid='pg_class'::regclass and d.objid=c.oid
+          and d.refclassid='pg_class'::regclass and d.deptype in ('a','i')))
+  from pg_sequence s join pg_class c on c.oid=s.seqrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'extensiones',e.extname,
+    jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text,e.extrelocatable)
+  from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+  union all
+  select 'publicaciones',p.pubname,
+    jsonb_build_array(p.pubowner::regrole::text,p.puballtables,p.pubinsert,p.pubupdate,
+      p.pubdelete,p.pubtruncate,p.pubviaroot,
+      (select jsonb_agg(jsonb_build_array(t.schemaname,t.tablename,t.attnames,t.rowfilter)
+        order by t.schemaname,t.tablename) from pg_publication_tables t where t.pubname=p.pubname),
+      (select jsonb_agg(n.nspname order by n.nspname) from pg_publication_namespace pn
+        join pg_namespace n on n.oid=pn.pnnspid where pn.pnpubid=p.oid))
+  from pg_publication p
+  union all
+  select 'event_triggers',e.evtname,
+    jsonb_build_array(e.evtevent,e.evtowner::regrole::text,e.evtfoid::regprocedure::text,
+      e.evtenabled,e.evttags)
+  from pg_event_trigger e
+), categorias as (
+  select unnest(array['esquemas','relaciones','columnas','funciones','triggers',
+    'politicas','constraints','indices','vistas','default_acl','tipos','secuencias',
+    'extensiones','publicaciones','event_triggers']) as categoria
+), resumen as (
+  select c.categoria,count(o.clave)::integer as n,
+    md5(coalesce(string_agg(o.clave||':'||o.valor::text,E'\n' order by o.clave),'')) as md5
+  from categorias c left join objetos o using(categoria) group by c.categoria
+)
+select jsonb_agg(r order by categoria) as paridad from resumen r) is distinct from '<LITERAL JSONB FIJADO: rama-paridad-v5.json SHA256 8f1d1f4b11125b647ea8a22a2435918419e0c6ea9ff4f1d36907fd2d7a1eb591>'::jsonb then
+  raise exception 'F8_PARIDAD_FINAL_DISTINTA';
+ end if;
+ if (select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,md5(v::text)) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+
+ union all select 'column:'||n.nspname||'.'||c.relname||'.'||a.attname,jsonb_build_array(a.attnum,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attidentity,a.attgenerated,a.attacl::text,pg_get_expr(d.adbin,d.adrelid),a.attcollation::regcollation::text) from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where n.nspname in ('auth','storage','realtime') and a.attnum>0 and not a.attisdropped
+ union all select 'default:'||d.defaclrole::regrole::text||'.'||coalesce(n.nspname,'GLOBAL')||'.'||d.defaclobjtype::text,to_jsonb(d.defaclacl::text) from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace where n.nspname not in ('crm','public','private') or d.defaclnamespace=0
+ union all select 'event:'||e.evtname,jsonb_build_array(e.evtevent,e.evtowner::regrole::text,e.evtfoid::regprocedure::text,e.evtenabled,e.evttags) from pg_event_trigger e
+ ) x))) is distinct from '<LITERAL JSONB FIJADO: rama-externo-v5.json SHA256 4e49740232db0c30f9476f83780a58dd1d829153a391b2d0f9374a644d5a931e>'::jsonb then
+  raise exception 'F8_EXTERNOS_FINALES_DISTINTOS';
+ end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>0
+  or (select count(*) from auth.users)<>0
+  or (select count(*) from public.perfiles)<>0
+  or (select count(*) from vault.secrets)<>0
+  or exists(select 1 from cron.job where active) then
+  raise exception 'F8_BASE_DEBE_ESTAR_VACIA_Y_SIN_EGRESO';
+ end if;
+end $f8_guard_final$;
+
+FILE diferencias-reales-v5.json
+[
+  {
+    "key": "constraints|crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+    "parent": "f38b51ed5b804a9d73d1c41e6ce9b1ee",
+    "branch": "f022bf856f2bab730ee28bb6e33ca688"
+  },
+  {
+    "key": "constraints|crm.empresas_monedas_check:crm.empresas:-",
+    "parent": "e2457ffcc976877d507e73cff46269de",
+    "branch": "72d2ad3f33bc015efcbcb5a86e932283"
+  },
+  {
+    "key": "constraints|crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+    "parent": "7a7b807a4bde11bfa298ba5da22e2670",
+    "branch": "8c095904ae661c352e5ff89f22734347"
+  },
+  {
+    "key": "event_triggers|issue_pg_graphql_access",
+    "parent": "893ac630a0c7912ddd12b4f0d2c25da7",
+    "branch": "c4e0a3ef5b77d5feaa52b45bb3f41a25"
+  },
+  {
+    "key": "extensiones|pg_net",
+    "parent": "d5d7972fcee441796ff78d323bedfa02",
+    "branch": "46d7a38fa0717cb4ebc8379985981e89"
+  },
+  {
+    "key": "publicaciones|supabase_realtime_messages_publication",
+    "parent": "0ecb3f8db8a1e44a401dd6b9b6a3605e",
+    "branch": null
+  }
+]
+
+
+FILE diferencias-externas-v5.json
+[
+  {
+    "key": "column:realtime.messages.binary_payload",
+    "parent": "466b330e6e6d55eb3f4e9c1a7b345e22",
+    "branch": "2aa2f602f6da7ca8a39d017eb9e0d8bc"
+  },
+  {
+    "key": "column:realtime.messages.event",
+    "parent": "cb266b858742165c9af1e6c833fd6f69",
+    "branch": "e15cdbf87c479a500e93e41d83bf958e"
+  },
+  {
+    "key": "column:realtime.messages.extension",
+    "parent": "95ef5ab4f5ac50c896bfe0d276106436",
+    "branch": "e88fa166a876b1679c71b14c867b7895"
+  },
+  {
+    "key": "column:realtime.messages.id",
+    "parent": "a067529229a10361e2b0029f6a33fa47",
+    "branch": "35f746b47f1a54bd3daf3dc8b8288b02"
+  },
+  {
+    "key": "column:realtime.messages.inserted_at",
+    "parent": "c8f99663b16a9099767d144ba221580c",
+    "branch": "436b89327dd40be75a6cc6f19cb19e4b"
+  },
+  {
+    "key": "column:realtime.messages.payload",
+    "parent": "c0e72234eba172af7c9e92322be0c94b",
+    "branch": "08df166648fd7d1d378f33055c0b518b"
+  },
+  {
+    "key": "column:realtime.messages.private",
+    "parent": "f2ea04fe2e909b681a107fe7b1cc835e",
+    "branch": "6ba2f1db10ed920cee511142189f62f1"
+  },
+  {
+    "key": "column:realtime.messages.skip_broadcast",
+    "parent": "7eacdda2c122965810a38fb4a3a9dd67",
+    "branch": "3da01713e25fc23487dc390990491833"
+  },
+  {
+    "key": "column:realtime.messages.topic",
+    "parent": "3267092bd2a3ac9033553da97ccbc102",
+    "branch": "be6856077fff764d6a640f567154f6ad"
+  },
+  {
+    "key": "column:realtime.messages.updated_at",
+    "parent": "2726c7476f0103e2dd4faf7fb1b66639",
+    "branch": "7d11d76cfb0cce6eebab6f20a38c0038"
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_11_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_12_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_13_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_14_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_15_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_16_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.binary_payload",
+    "parent": "2aa2f602f6da7ca8a39d017eb9e0d8bc",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.event",
+    "parent": "e15cdbf87c479a500e93e41d83bf958e",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.extension",
+    "parent": "e88fa166a876b1679c71b14c867b7895",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.id",
+    "parent": "35f746b47f1a54bd3daf3dc8b8288b02",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.inserted_at",
+    "parent": "436b89327dd40be75a6cc6f19cb19e4b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.payload",
+    "parent": "08df166648fd7d1d378f33055c0b518b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.private",
+    "parent": "6ba2f1db10ed920cee511142189f62f1",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.skip_broadcast",
+    "parent": "3da01713e25fc23487dc390990491833",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.topic",
+    "parent": "be6856077fff764d6a640f567154f6ad",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17.updated_at",
+    "parent": "7d11d76cfb0cce6eebab6f20a38c0038",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17_inserted_at_topic_idx.inserted_at",
+    "parent": "1042dfa2a49de344b939e4088c26fd05",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17_inserted_at_topic_idx.topic",
+    "parent": "c5a4d84a0a009c8cb5b423f98b6ac456",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17_pkey.id",
+    "parent": "293f396cb0855c789e7f44223439ac98",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.messages_2026_09_17_pkey.inserted_at",
+    "parent": "495fc68890a909ff5d3dcc85a800a92b",
+    "branch": null
+  },
+  {
+    "key": "column:realtime.schema_migrations.inserted_at",
+    "parent": "bef40de91eb343b6b027062ce6ea56d8",
+    "branch": "e4b88e9abc3a2c2fa417fc25f4510d1c"
+  },
+  {
+    "key": "column:realtime.subscription.action_filter",
+    "parent": "72af52334ea4388df8bcc201050034a5",
+    "branch": "6a7cee069fda87aa5aa7c1b461062441"
+  },
+  {
+    "key": "column:realtime.subscription.claims",
+    "parent": "9655d3d4aa091b03d057b3db37010df3",
+    "branch": "21da0a36ec404a7a34c0311d81811c72"
+  },
+  {
+    "key": "column:realtime.subscription.claims_role",
+    "parent": "a05016be31c3c4a26f1c662d2d4b2613",
+    "branch": "da8dc4ad33d8364003b884e901652675"
+  },
+  {
+    "key": "column:realtime.subscription.created_at",
+    "parent": "e7df1e5dfaa1811659169b11c6361e3c",
+    "branch": "c8576c25b3b75f7c9c5046880ad3abad"
+  },
+  {
+    "key": "column:realtime.subscription.entity",
+    "parent": "a970ea454e751c25a208ad2dee954154",
+    "branch": "4f750a7b6f3ba2dc51d18a2e8d63d7a7"
+  },
+  {
+    "key": "column:realtime.subscription.filters",
+    "parent": "9d89c8e39e9a4d1ef8d1453e62123148",
+    "branch": "4d3087b791b9654553444551441428ea"
+  },
+  {
+    "key": "column:realtime.subscription.selected_columns",
+    "parent": "44f5c14a32a53071d671d378dc9a623f",
+    "branch": "6fba49d576b47be187a9a09fb99dbcf3"
+  },
+  {
+    "key": "column:realtime.user_defined_filter.negate",
+    "parent": "4eb0d85c47c3e693e25c2380a9cc39c7",
+    "branch": "a2612684ae2d0fd98d687f924475ab18"
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_11.messages_2026_09_11_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_11.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_12.messages_2026_09_12_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_12.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_13.messages_2026_09_13_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_13.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_14.messages_2026_09_14_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_14.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_15.messages_2026_09_15_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_15.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_16.messages_2026_09_16_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_16.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_17.messages_2026_09_17_pkey",
+    "parent": "245213ce30cafc7c9dcc5f6ede94eeb1",
+    "branch": null
+  },
+  {
+    "key": "constraint:realtime.realtime.messages_2026_09_17.messages_payload_exclusive",
+    "parent": "fcad6bed892e059b054c678426d29553",
+    "branch": null
+  },
+  {
+    "key": "constraint:supabase_functions.supabase_functions.hooks.hooks_pkey",
+    "parent": null,
+    "branch": "4a8cc4bf17c2d8e450c3e64908ef3b8c"
+  },
+  {
+    "key": "constraint:supabase_functions.supabase_functions.migrations.migrations_pkey",
+    "parent": null,
+    "branch": "f3906ef8b82461bf502df5829a12e3a0"
+  },
+  {
+    "key": "default:supabase_admin.supabase_functions.S",
+    "parent": null,
+    "branch": "35bcd8223c78b3fee25c5e6ffa2df0aa"
+  },
+  {
+    "key": "default:supabase_admin.supabase_functions.f",
+    "parent": null,
+    "branch": "7509964a59adab910a91ff0740dcd002"
+  },
+  {
+    "key": "default:supabase_admin.supabase_functions.r",
+    "parent": null,
+    "branch": "f64bb5630b58a3654f725c4386340342"
+  },
+  {
+    "key": "event:issue_pg_graphql_access",
+    "parent": "893ac630a0c7912ddd12b4f0d2c25da7",
+    "branch": "c4e0a3ef5b77d5feaa52b45bb3f41a25"
+  },
+  {
+    "key": "extension:pg_net",
+    "parent": "fc9cf64fede86edc9edd48bf4ef0b84e",
+    "branch": "a61f912ab1b4ed431c9bc3a170cebdb6"
+  },
+  {
+    "key": "function:extensions.grant_pg_net_access()",
+    "parent": "ddbdd987901b06ae2319765780f3f9df",
+    "branch": "3f054ee4576f1bef107ad0e74e37942c"
+  },
+  {
+    "key": "function:supabase_functions.http_request()",
+    "parent": null,
+    "branch": "48ef6a95bd51bdf6bc7e7d1210fd184b"
+  },
+  {
+    "key": "relation:cron.job_run_details",
+    "parent": "db4c1075c475afbdf662a16483a0d686",
+    "branch": "e607728162a627bed6399d17ddeec8db"
+  },
+  {
+    "key": "relation:cron.jobid_seq",
+    "parent": "113d9aaa1d8dc177ad84c8e695d9698e",
+    "branch": "812f4bcdb3dcffed5e46be3866fb3bda"
+  },
+  {
+    "key": "relation:cron.runid_seq",
+    "parent": "113d9aaa1d8dc177ad84c8e695d9698e",
+    "branch": "812f4bcdb3dcffed5e46be3866fb3bda"
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_11",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_11_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_11_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_12",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_12_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_12_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_13",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_13_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_13_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_14",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_14_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_14_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_15",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_15_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_15_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_16",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_16_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_16_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_17",
+    "parent": "3d61599cdcb2fed109a123b0d71b37f4",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_17_inserted_at_topic_idx",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.messages_2026_09_17_pkey",
+    "parent": "b8ab7a2a8019a5690aceff40a8ec05d1",
+    "branch": null
+  },
+  {
+    "key": "relation:realtime.schema_migrations",
+    "parent": "f8f0d9c7e2327b03d9ca7b05c30520b3",
+    "branch": "3bf839a25f5d3cdd12fb1b4affffb1bb"
+  },
+  {
+    "key": "relation:supabase_functions.hooks",
+    "parent": null,
+    "branch": "ed4b2f6c4851ce1c28482b2b49ff0082"
+  },
+  {
+    "key": "relation:supabase_functions.hooks_id_seq",
+    "parent": null,
+    "branch": "48d00b9af627ce8992c0c49316494f42"
+  },
+  {
+    "key": "relation:supabase_functions.hooks_pkey",
+    "parent": null,
+    "branch": "0fad010ac259f270f47dc4b03a4db318"
+  },
+  {
+    "key": "relation:supabase_functions.migrations",
+    "parent": null,
+    "branch": "ed4b2f6c4851ce1c28482b2b49ff0082"
+  },
+  {
+    "key": "relation:supabase_functions.migrations_pkey",
+    "parent": null,
+    "branch": "0fad010ac259f270f47dc4b03a4db318"
+  },
+  {
+    "key": "relation:supabase_functions.supabase_functions_hooks_h_table_id_h_name_idx",
+    "parent": null,
+    "branch": "0fad010ac259f270f47dc4b03a4db318"
+  },
+  {
+    "key": "relation:supabase_functions.supabase_functions_hooks_request_id_idx",
+    "parent": null,
+    "branch": "0fad010ac259f270f47dc4b03a4db318"
+  }
+]
+
+
+FILE checks-equivalentes.txt
+{"casos": 6, "check": "miembros", "equivalentes": true}
+{"casos": 9, "check": "monedas", "equivalentes": true}
+{"casos": 100, "check": "capital", "equivalentes": true}
+
+
+FILE pruebas-guardas.txt
+PASS restauración v6: transacción completa revertida; 630 funciones, tres FK externas, Auth/perfiles/ledger vacíos.
+PASS dependencia externa inesperada: ERROR Cambios inesperados fuera de schemas de la app; rollback.
+PASS huella esperada alterada: ERROR F8_PARIDAD_FINAL_DISTINTA; rollback.
+PASS lectura tras ambos rechazos: ledger original 86.
+
+
+FILE artefactos-privados-sha256.json
+{
+  "padre-esquema.dump": "4f1509cd4b0485fab0a939959b2edd9ae68235f5f0a6f219003a08b5768691e8",
+  "padre-esquema.sql": "f6c8af47b18a11e2e1c7abe4ad55fd9edcb7fc3a7522890fec326acc3877199c",
+  "padre-historial.sql": "c7f0a97c0a488887c984c4e2b04020ea51f05b7c0051967cb3dbc65e0940de4f",
+  "restaurar-rama-v6.sql": "b49daaab69564339ad51a80c8ecb04f86302150ce4c7b2444fe2db164c126302",
+  "cron-apagados.sql": "b9be1e5406c710b7c17b406af656eda873f80a1bb951262b6f6339a5042f5bbf",
+  "rama-paridad-v5.json": "8f1d1f4b11125b647ea8a22a2435918419e0c6ea9ff4f1d36907fd2d7a1eb591",
+  "rama-externo-v5.json": "4e49740232db0c30f9476f83780a58dd1d829153a391b2d0f9374a644d5a931e"
+}

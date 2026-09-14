@@ -1,0 +1,417 @@
+-- Completado dirigido F8. El generador inserta un lote privado revisable.
+-- No instala funciones permanentes, no activa banderas ni crea inversiones.
+-- El mismo cuerpo sirve para aplicar y para la reversa operativa conservando historia.
+begin isolation level read committed;
+set local search_path = '';
+set local standard_conforming_strings = on;
+set local lock_timeout = '3s';
+set local statement_timeout = '30s';
+set local idle_in_transaction_session_timeout = '60s';
+
+create temporary table f8_lote (datos jsonb not null) on commit drop;
+insert into f8_lote values (__LOTE_JSON__::jsonb);
+
+-- Los candados de tabla cubren también los escritores que no comparten los
+-- advisories del resolutor. Si hay actividad incompatible se aborta a los 3 s.
+lock table crm.multiempresa_flags, public.perfiles, crm.equipo, public.contratos,
+  public.contrato_titulares, crm.cierres_externos, crm.leads,
+  crm.inversionistas, crm.inversionista_identificadores,
+  crm.inversionista_leads, crm.inversionista_responsables,
+  crm.backfill_multiempresa_mapa, crm.inversiones, crm.inversion_titulares,
+  crm.inversionista_gestiones, crm.tareas
+in share row exclusive mode;
+
+create temporary table f8_enlaces (
+  fuente text not null, origen uuid not null, inversionista uuid not null
+) on commit drop;
+-- Bloquea también las referencias de extensiones presentes en este esquema:
+-- una reversa no puede dejar actividad nueva apuntando a una identidad bloqueada.
+create temporary table f8_referencias on commit drop as
+select n.nspname esquema,c.relname tabla,a.attname columna
+from pg_constraint k join pg_class c on c.oid=k.conrelid
+join pg_namespace n on n.oid=c.relnamespace
+join pg_attribute a on a.attrelid=k.conrelid and a.attnum=k.conkey[1]
+where k.contype='f' and k.confrelid='crm.inversionistas'::regclass;
+do $candados$
+declare r record;
+begin
+  if exists(select 1 from pg_constraint where contype='f'
+    and confrelid='crm.inversionistas'::regclass and array_length(conkey,1)<>1) then
+    raise exception 'F8: revisar la nueva referencia compuesta antes del mantenimiento';
+  end if;
+  for r in select distinct esquema,tabla from pg_temp.f8_referencias order by esquema,tabla loop
+    execute format('lock table %I.%I in share row exclusive mode',r.esquema,r.tabla);
+  end loop;
+end;
+$candados$;
+create temporary table f8_antes on commit drop as
+select jsonb_build_object(
+  'perfiles',(select md5(coalesce(jsonb_agg(p order by id)::text,'')) from public.perfiles p),
+  'contratos',(select md5(coalesce(jsonb_agg(c order by id)::text,'')) from public.contratos c),
+  'titulares',(select md5(coalesce(jsonb_agg(t order by id)::text,'')) from public.contrato_titulares t),
+  'cierres',(select md5(coalesce(jsonb_agg(to_jsonb(c)-'inversionista_id' order by id)::text,'')) from crm.cierres_externos c),
+  'leads',(select md5(coalesce(jsonb_agg(to_jsonb(l)-'inversionista_id'-'actualizado_en' order by id)::text,'')) from crm.leads l),
+  'inversiones',(select md5(coalesce(jsonb_agg(i order by id)::text,'')) from crm.inversiones i),
+  'titulares_relacionales',(select md5(coalesce(jsonb_agg(i order by id)::text,'')) from crm.inversion_titulares i),
+  'capital',(select md5(coalesce(jsonb_agg(to_jsonb(e) order by to_jsonb(e)::text)::text,''))
+    from private.capital_episodios('-infinity','infinity',true,'{}') e)
+) huella;
+
+do $completado$
+declare
+  v_lote jsonb; v_p jsonb; v_actual jsonb; v_ids jsonb;
+  v_i uuid; v_id_previo uuid; v_lead uuid; v_responsable uuid; v_creador uuid;
+  v_num integer; v_n integer; v_etiqueta text; v_aplicar boolean; v_ref record;
+  v_anterior_priv text := current_setting('crm.op_privilegiada',true);
+begin
+  select datos into strict v_lote from pg_temp.f8_lote;
+  if current_user <> 'postgres' or auth.uid() is not null then
+    raise exception 'F8: ejecución administrativa sin suplantar una sesión humana requerida';
+  end if;
+  if jsonb_typeof(v_lote) is distinct from 'object'
+    or not coalesce(v_lote ?& array['version','lote_id','operacion','evidencia_sha256',
+      'conformidad_multirrol','personas','fuentes'],false)
+    or jsonb_typeof(v_lote->'personas') is distinct from 'array'
+    or jsonb_typeof(v_lote->'fuentes') is distinct from 'array' then
+    raise exception 'F8: faltan claves o tipos obligatorios del lote';
+  end if;
+  if current_setting('transaction_isolation') <> 'read committed'
+    or (v_lote->>'version')::integer is distinct from 1
+    or coalesce(v_lote->>'operacion','') not in ('aplicar','revertir')
+    or nullif(v_lote->>'lote_id','') is null then
+    raise exception 'F8: lote o aislamiento inválido';
+  end if;
+  v_aplicar := v_lote->>'operacion' = 'aplicar';
+  v_etiqueta := 'f8-identidades:' || (v_lote->>'lote_id')::uuid::text;
+  if jsonb_array_length(v_lote->'personas') <> 7
+    or jsonb_array_length(v_lote->'fuentes') <> 10
+    or v_lote->>'conformidad_multirrol' is distinct from 'misma_persona_confirmada'
+    or not coalesce(v_lote->>'evidencia_sha256' ~ '^[0-9a-f]{64}$',false) then
+    raise exception 'F8: el lote exige siete personas, diez fuentes y conformidad multirrol';
+  end if;
+  if exists(select 1 from jsonb_array_elements(v_lote->'personas') p
+    where jsonb_typeof(p) is distinct from 'object'
+      or not coalesce(p ?& array['origen','fuente','perfil_id','lead_id','tipo_documento',
+        'documento','responsable_id','multirrol','mapa_previo','lead','perfiles_coincidentes',
+        'cierres_coincidentes','leads_coincidentes','fuentes_ids','procedencia'],false)
+      or jsonb_typeof(p->'multirrol') is distinct from 'boolean'
+      or jsonb_typeof(p->'fuentes_ids') is distinct from 'array'
+      or jsonb_typeof(p->'perfiles_coincidentes') is distinct from 'array'
+      or jsonb_typeof(p->'cierres_coincidentes') is distinct from 'array'
+      or jsonb_typeof(p->'leads_coincidentes') is distinct from 'array'
+      or jsonb_typeof(p->'procedencia') is distinct from 'object') then
+    raise exception 'F8: faltan claves o tipos obligatorios de persona';
+  end if;
+  if (select count(distinct p->>'documento') from jsonb_array_elements(v_lote->'personas') p)<>7
+    or (select count(distinct (p->>'origen')::uuid) from jsonb_array_elements(v_lote->'personas') p)<>7
+    or (select count(*) from jsonb_array_elements(v_lote->'personas') p where p->'multirrol'='true')<>1
+    or (select count(distinct (f->>'fuente_id')::uuid) from jsonb_array_elements(v_lote->'fuentes') f)<>10 then
+    raise exception 'F8: documentos, orígenes y fuentes deben ser distintos; un solo multirrol';
+  end if;
+  if exists(select 1 from jsonb_array_elements(v_lote->'personas') p
+    where (p->>'multirrol')::boolean is distinct from (jsonb_array_length(p->'perfiles_coincidentes')>1)
+      or (p->>'multirrol')::boolean is distinct from (p->'mapa_previo'<>'null'::jsonb)) then
+    raise exception 'F8: la marca multirrol no corresponde a la colisión y revisión confirmadas';
+  end if;
+  select jsonb_agg(x order by x) into v_ids
+  from jsonb_array_elements(v_lote->'personas') p
+  cross join lateral jsonb_array_elements(p->'fuentes_ids') x;
+  if v_ids is distinct from (select jsonb_agg(f->'fuente_id' order by f->'fuente_id')
+    from jsonb_array_elements(v_lote->'fuentes') f) then
+    raise exception 'F8: las fuentes de las personas no particionan el lote exacto';
+  end if;
+  if (select count(*) from crm.multiempresa_flags where nombre in
+      ('resolver_en_puertas','inversiones_escritura','ficha_360_neutral',
+       'postventa_neutral','metricas_multiempresa_sombra')) <> 5
+    or not (select activo from crm.multiempresa_flags where nombre='resolver_en_puertas')
+    or exists(select 1 from crm.multiempresa_flags where nombre in
+      ('inversiones_escritura','ficha_360_neutral','postventa_neutral','metricas_multiempresa_sombra') and activo) then
+    raise exception 'F8: el completado requiere F3 ON y F4-F7 OFF';
+  end if;
+  if to_regclass('crm.piloto_f8_control') is not null then
+    execute 'lock table crm.piloto_f8_control in share row exclusive mode';
+    execute 'select count(*) from crm.piloto_f8_control where activo' into v_num;
+    if v_num <> 0 then raise exception 'F8: apagar el piloto antes del mantenimiento'; end if;
+  end if;
+
+  -- El conjunto económico debe coincidir exactamente con la fotografía aprobada.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'fuente_id',f.fuente_id,'empresa',f.empresa,'perfil_id',f.perfil_id,'lead_id',f.lead_id,
+    'numero',f.numero,'capital',f.capital,'moneda',f.moneda,'estado',f.estado,
+    'fecha_comercial',f.fecha_comercial,'fecha_imputacion',f.fecha_imputacion,
+    'vence_en',f.vence_en,'analista_origen_id',f.analista_origen_id,'es_demo',f.es_demo
+  ) order by f.fuente_id),'[]') into v_actual
+  from private.cartera_f5_fuentes() f
+  where f.fuente_id in (select (x->>'fuente_id')::uuid from jsonb_array_elements(v_lote->'fuentes') x);
+  if v_actual is distinct from v_lote->'fuentes' then
+    raise exception 'F8: cambió una fuente económica; se requiere otra previsualización';
+  end if;
+  if exists(select 1 from private.cartera_f5_fuentes() f
+    where not f.es_demo and (not coalesce(f.identidad_coherente,false) or f.inversionista_id is null)
+    and f.fuente_id not in (select (x->>'fuente_id')::uuid from jsonb_array_elements(v_lote->'fuentes') x)) then
+    raise exception 'F8: hay otro hueco real fuera del lote; actualizar el censo';
+  end if;
+
+  for v_p in select value from jsonb_array_elements(v_lote->'personas') order by value->>'origen' loop
+    if v_p->>'tipo_documento' is distinct from 'DNI'
+      or not coalesce(v_p->>'documento' ~ '^[0-9]{8}$',false)
+      or coalesce(v_p->>'fuente','') not in ('perfil','cierre') then
+      raise exception 'F8: documento o fuente fuera del lote DNI revisado';
+    end if;
+    v_responsable := (v_p->>'responsable_id')::uuid;
+    if v_p->>'fuente'='perfil' then
+      if (v_p->>'perfil_id')::uuid is distinct from (v_p->>'origen')::uuid
+        or v_p->>'lead_id' is not null
+        or not exists(select 1 from public.perfiles p where p.id=(v_p->>'origen')::uuid
+          and p.rol='cliente' and p.activo and p.asesor_perfil_id=v_responsable
+          and p.tipo_documento='DNI'
+          and upper(regexp_replace(coalesce(p.dni,''),'[^A-Za-z0-9]','','g'))=v_p->>'documento') then
+        raise exception 'F8: perfil, documento o responsable no corresponden a la fuente';
+      end if;
+    elsif v_p->>'perfil_id' is not null or not exists(
+      select 1 from crm.cierres_externos c where c.id=(v_p->>'origen')::uuid
+        and c.lead_id=(v_p->>'lead_id')::uuid and c.vendedor_id=v_responsable
+        and c.cooperativa='qorilazo' and c.documento_tipo='DNI'
+        and upper(regexp_replace(c.documento,'[^A-Za-z0-9]','','g'))=v_p->>'documento') then
+      raise exception 'F8: cierre, lead, documento o vendedor no corresponden a la fuente';
+    end if;
+    if not exists(select 1 from public.perfiles p join crm.equipo e on e.perfil_id=p.id
+      where p.id=v_responsable and p.activo and e.activo) then
+      raise exception 'F8: el responsable original dejó de estar activo';
+    end if;
+    -- Mismo número incluso entre tipos: no heredar automáticamente otra identidad.
+    select coalesce(jsonb_agg(jsonb_build_object('id',p.id,'rol',p.rol,
+      'tipo_documento',p.tipo_documento,'dni',p.dni,'activo',p.activo,
+      'asesor_perfil_id',p.asesor_perfil_id) order by p.id),'[]') into v_actual
+    from public.perfiles p
+    where upper(regexp_replace(coalesce(p.dni,''),'[^A-Za-z0-9]','','g'))=v_p->>'documento';
+    if v_actual is distinct from v_p->'perfiles_coincidentes' then
+      raise exception 'F8: cambió el conjunto de perfiles del documento';
+    end if;
+    select coalesce(jsonb_agg(c.id order by c.id),'[]') into v_ids
+    from crm.cierres_externos c
+    where upper(regexp_replace(c.documento,'[^A-Za-z0-9]','','g'))=v_p->>'documento';
+    if v_ids is distinct from v_p->'cierres_coincidentes' then
+      raise exception 'F8: cambió el conjunto de cierres del documento';
+    end if;
+    if exists(select 1 from public.contrato_titulares t
+      where upper(regexp_replace(coalesce(t.documento,''),'[^A-Za-z0-9]','','g'))=v_p->>'documento') then
+      raise exception 'F8: apareció una coincidencia en titulares; revisar antes de enlazar';
+    end if;
+    select coalesce(jsonb_agg(l.id order by l.id),'[]') into v_ids
+    from crm.leads l where upper(regexp_replace(coalesce(l.dni,''),'[^A-Za-z0-9]','','g'))=v_p->>'documento'
+      or l.perfil_id=(v_p->>'perfil_id')::uuid or l.id=(v_p->>'lead_id')::uuid;
+    if v_ids is distinct from v_p->'leads_coincidentes' then
+      raise exception 'F8: cambió el conjunto de leads; no se infiere otra identidad';
+    end if;
+    -- Procedencia capturada: INSERT auditado con el documento original vigente.
+    if v_p->>'fuente'='perfil' then
+      select creado_por into v_creador from public.perfiles where id=(v_p->>'origen')::uuid;
+    else
+      select creado_por into v_creador from crm.cierres_externos where id=(v_p->>'origen')::uuid;
+    end if;
+    if v_creador is distinct from (v_p->'procedencia'->>'creador_registrado')::uuid then
+      raise exception 'F8: cambió el autor registrado de la fuente';
+    end if;
+    if not exists(select 1 from public.audit_log a
+      where a.id=(v_p->'procedencia'->>'auditoria_id')::uuid
+        and a.fila_id=v_p->>'origen' and a.operacion='INSERT'
+        and ((v_p->>'fuente'='perfil' and a.tabla in ('perfiles','public.perfiles'))
+          or (v_p->>'fuente'='cierre' and a.tabla='crm.cierres_externos'))
+        and upper(regexp_replace(coalesce(a.data_despues->>case when v_p->>'fuente'='perfil'
+          then 'dni' else 'documento' end,''),'[^A-Za-z0-9]','','g'))=v_p->>'documento') then
+      raise exception 'F8: no coincide la evidencia de captura documental';
+    end if;
+    v_lead := (v_p->>'lead_id')::uuid;
+    if v_lead is not null then
+      select jsonb_build_object('id',l.id,'dni',l.dni,'perfil_id',l.perfil_id,
+        'activo',l.activo,'etapa',l.etapa,'no_contactar',l.no_contactar,'vendedor_id',l.vendedor_id)
+        into v_actual from crm.leads l where l.id=v_lead;
+      if v_actual is distinct from v_p->'lead' then
+        raise exception 'F8: cambió el lead del cierre';
+      end if;
+    end if;
+    if v_p->>'fuente'='perfil' then
+      select i.id into v_id_previo from crm.inversionistas i where i.perfil_id=(v_p->>'origen')::uuid;
+    else
+      select c.inversionista_id into v_id_previo from crm.cierres_externos c where c.id=(v_p->>'origen')::uuid;
+    end if;
+    if v_aplicar then
+      if v_id_previo is not null or exists(select 1 from crm.inversionista_identificadores d
+        where d.documento_normalizado=v_p->>'documento') then
+        raise exception 'F8: identidad ya existente o lote ya aplicado; no se duplica ni se reutiliza';
+      end if;
+      if v_lead is not null and (exists(select 1 from crm.leads where id=v_lead and inversionista_id is not null)
+        or exists(select 1 from crm.inversionista_leads where lead_id=v_lead)
+        or exists(select 1 from crm.backfill_multiempresa_mapa where fuente='lead' and fila_id=v_lead)) then
+        raise exception 'F8: el lead ya tiene un enlace';
+      end if;
+      select to_jsonb(m)-'id'-'creado_en'-'actualizado_en' into v_actual
+      from crm.backfill_multiempresa_mapa m where fuente=v_p->>'fuente' and fila_id=(v_p->>'origen')::uuid;
+      if v_actual is distinct from nullif(v_p->'mapa_previo','null'::jsonb) then
+        raise exception 'F8: cambió la revisión histórica de la fuente';
+      end if;
+    else
+      select d.inversionista_id into v_i from crm.inversionista_identificadores d
+      where d.documento_normalizado=v_p->>'documento' and d.tipo_documento='DNI'
+        and d.fuente=v_etiqueta and d.estado='vigente' and d.verificado;
+      if v_i is null or v_id_previo is distinct from v_i then
+        raise exception 'F8: el enlace ya no coincide con el lote a revertir';
+      end if;
+      if not exists(select 1 from crm.backfill_multiempresa_mapa m
+        where m.fuente=v_p->>'fuente' and m.fila_id=(v_p->>'origen')::uuid
+          and m.inversionista_id=v_i and m.confianza='alta'
+          and m.clase=case when (v_p->>'multirrol')::boolean then 'E'
+            when v_p->>'fuente'='perfil' then 'A' else 'B' end
+          and m.revisor is not distinct from (v_p->'mapa_previo'->>'revisor')::uuid
+          and m.regla=(case when (v_p->>'multirrol')::boolean then 'Revisión humana multirrol resuelta; '
+            else 'Completado histórico; ' end)||v_etiqueta||'; evidencia '||(v_lote->>'evidencia_sha256'))
+        or (select count(*) from crm.backfill_multiempresa_mapa where inversionista_id=v_i)
+          <> (case when v_lead is null then 1 else 2 end) then
+        raise exception 'F8: la revisión histórica cambió después del lote';
+      end if;
+      if exists(select 1 from crm.leads where inversionista_id=v_i and id is distinct from v_lead)
+        or (v_lead is not null and (not exists(select 1 from crm.leads where id=v_lead and inversionista_id=v_i)
+          or not exists(select 1 from crm.inversionista_leads where lead_id=v_lead
+            and inversionista_id=v_i and rol='canonico' and hasta is null)
+          or not exists(select 1 from crm.backfill_multiempresa_mapa where fuente='lead'
+            and fila_id=v_lead and inversionista_id=v_i and clase='C' and confianza='alta'
+            and revisor is null and regla='Completado dirigido '||v_etiqueta)))
+        or (select count(*) from crm.inversionista_leads where inversionista_id=v_i) <> (case when v_lead is null then 0 else 1 end) then
+        raise exception 'F8: el puente o el lead cambiaron después del completado';
+      end if;
+      for v_ref in select * from pg_temp.f8_referencias
+        where not (esquema='crm' and tabla in ('inversionista_identificadores',
+          'inversionista_responsables','inversionista_leads','leads',
+          'backfill_multiempresa_mapa','inversionista_gestiones','cierres_externos'))
+      loop
+        execute format('select count(*) from %I.%I where %I=$1',v_ref.esquema,v_ref.tabla,v_ref.columna)
+          into v_num using v_i;
+        if v_num<>0 then raise exception 'F8: una referencia posterior impide la reversa automática'; end if;
+      end loop;
+      insert into pg_temp.f8_enlaces values(v_p->>'fuente',(v_p->>'origen')::uuid,v_i);
+      if not exists(select 1 from crm.inversionistas i where i.id=v_i and i.estado='activo'
+        and not i.no_contactar and i.inversionista_canonico_id is null
+        and i.responsable_relacion_id=v_responsable
+        and i.perfil_id is not distinct from (v_p->>'perfil_id')::uuid)
+        or (select count(*) from crm.inversionista_identificadores where inversionista_id=v_i)<>1
+        or (select count(*) from crm.inversionista_responsables where inversionista_id=v_i)<>1
+        or not exists(select 1 from crm.inversionista_responsables where inversionista_id=v_i
+          and responsable_id=v_responsable and hasta is null and motivo='Completado histórico '||v_etiqueta)
+        or exists(select 1 from crm.inversiones where inversionista_id=v_i)
+        or exists(select 1 from crm.inversion_titulares where inversionista_id=v_i)
+        or exists(select 1 from crm.tareas where inversionista_id=v_i)
+        or (select count(*) from crm.inversionista_gestiones where inversionista_id=v_i)<>1
+        or exists(select 1 from crm.inversionista_gestiones where inversionista_id=v_i and tipo<>'responsable') then
+        raise exception 'F8: la persona tuvo actividad posterior; preparar una reversa nueva';
+      end if;
+      select coalesce(jsonb_agg(f.fuente_id order by f.fuente_id),'[]') into v_ids
+      from private.cartera_f5_fuentes() f where f.inversionista_id=v_i;
+      if v_ids is distinct from v_p->'fuentes_ids' then
+        raise exception 'F8: cambió la cartera de la persona';
+      end if;
+    end if;
+  end loop;
+
+  perform set_config('crm.op_privilegiada','on',true);
+  for v_p in select value from jsonb_array_elements(v_lote->'personas') order by value->>'origen' loop
+    v_lead := (v_p->>'lead_id')::uuid;
+    v_responsable := (v_p->>'responsable_id')::uuid;
+    if v_aplicar then
+      v_i := private.inversionista_resolver('DNI',v_p->>'documento',true,v_etiqueta);
+      if not exists(select 1 from crm.inversionista_identificadores d where d.inversionista_id=v_i
+        and d.fuente=v_etiqueta and d.estado='vigente' and d.verificado)
+        or exists(select 1 from pg_temp.f8_enlaces where inversionista=v_i)
+        or not exists(select 1 from crm.inversionistas where id=v_i
+          and perfil_id is null and responsable_relacion_id is null) then
+        raise exception 'F8: el resolutor devolvió una identidad no creada por este lote';
+      end if;
+      insert into pg_temp.f8_enlaces values(v_p->>'fuente',(v_p->>'origen')::uuid,v_i);
+      insert into crm.inversionista_responsables(inversionista_id,responsable_id,motivo)
+      values(v_i,v_responsable,'Completado histórico '||v_etiqueta);
+      update crm.inversionistas set perfil_id=(v_p->>'perfil_id')::uuid,
+        responsable_relacion_id=v_responsable where id=v_i;
+      if v_lead is not null then
+        update crm.cierres_externos set inversionista_id=v_i where id=(v_p->>'origen')::uuid;
+        update crm.leads set inversionista_id=v_i where id=v_lead;
+        -- F3 ya construye el puente desde trg_leads_zz_puente_identidad.
+        if not exists(select 1 from crm.inversionista_leads where lead_id=v_lead
+          and inversionista_id=v_i and rol='canonico' and hasta is null) then
+          raise exception 'F8: el trigger F3 no construyó el puente esperado';
+        end if;
+        perform private.f2_mapear('lead',v_lead,v_i,'C','Completado dirigido '||v_etiqueta,'alta');
+      end if;
+      perform private.f2_mapear(v_p->>'fuente',(v_p->>'origen')::uuid,v_i,
+        case when (v_p->>'multirrol')::boolean then 'E' when v_p->>'fuente'='perfil' then 'A' else 'B' end,
+        case when (v_p->>'multirrol')::boolean then 'Revisión humana multirrol resuelta; ' else 'Completado histórico; ' end
+          ||v_etiqueta||'; evidencia '||(v_lote->>'evidencia_sha256'),'alta');
+    else
+      select inversionista into strict v_i from pg_temp.f8_enlaces where origen=(v_p->>'origen')::uuid;
+      if v_lead is not null then
+        update crm.cierres_externos set inversionista_id=null where id=(v_p->>'origen')::uuid;
+        update crm.leads set inversionista_id=null where id=v_lead;
+        -- Conserva el puente como historia; un lead no se borra de su historial.
+        update crm.inversionista_leads set rol='historico',hasta=now() where inversionista_id=v_i;
+        perform private.f2_mapear('lead',v_lead,null,'E','Reversa operativa '||v_etiqueta,'revision');
+      end if;
+      update crm.inversionista_identificadores set estado='historico',vigente_hasta=now()
+      where inversionista_id=v_i and fuente=v_etiqueta;
+      update crm.inversionista_responsables set hasta=now() where inversionista_id=v_i and hasta is null;
+      update crm.inversionistas set estado='bloqueado',perfil_id=null,responsable_relacion_id=null where id=v_i;
+      if v_p->'mapa_previo' <> 'null'::jsonb then
+        update crm.backfill_multiempresa_mapa set inversionista_id=null,
+          clase=v_p->'mapa_previo'->>'clase',regla=v_p->'mapa_previo'->>'regla',
+          confianza=v_p->'mapa_previo'->>'confianza',revisor=(v_p->'mapa_previo'->>'revisor')::uuid
+        where fuente=v_p->>'fuente' and fila_id=(v_p->>'origen')::uuid;
+      else
+        perform private.f2_mapear(v_p->>'fuente',(v_p->>'origen')::uuid,null,'E',
+          'Reversa operativa '||v_etiqueta,'revision');
+      end if;
+    end if;
+  end loop;
+  perform set_config('crm.op_privilegiada',coalesce(v_anterior_priv,'off'),true);
+  if v_aplicar then
+    for v_p in select value from jsonb_array_elements(v_lote->'personas') loop
+      select inversionista into strict v_i from pg_temp.f8_enlaces where origen=(v_p->>'origen')::uuid;
+      select coalesce(jsonb_agg(f.fuente_id order by f.fuente_id),'[]') into v_ids
+      from private.cartera_f5_fuentes() f where f.inversionista_id=v_i;
+      if v_ids is distinct from v_p->'fuentes_ids' then
+        raise exception 'F8: la cartera posterior no coincide por persona';
+      end if;
+    end loop;
+  end if;
+  select count(*) into v_num from private.cartera_f5_fuentes() f
+  left join crm.inversionistas i on i.id=f.inversionista_id
+  where not f.es_demo and (not coalesce(f.identidad_coherente,false) or i.id is null or i.inversionista_canonico_id is not null);
+  v_n := case when v_aplicar then 0 else 10 end;
+  if v_num <> v_n then raise exception 'F8: cobertura posterior inesperada'; end if;
+end;
+$completado$;
+
+-- La reversa conserva auditoría e identidades bloqueadas; los hechos económicos
+-- y los perfiles Auth/Portal deben permanecer idénticos en ambos sentidos.
+do $paridad$
+declare v_despues jsonb;
+begin
+  select jsonb_build_object(
+    'perfiles',(select md5(coalesce(jsonb_agg(p order by id)::text,'')) from public.perfiles p),
+    'contratos',(select md5(coalesce(jsonb_agg(c order by id)::text,'')) from public.contratos c),
+    'titulares',(select md5(coalesce(jsonb_agg(t order by id)::text,'')) from public.contrato_titulares t),
+    'cierres',(select md5(coalesce(jsonb_agg(to_jsonb(c)-'inversionista_id' order by id)::text,'')) from crm.cierres_externos c),
+    'leads',(select md5(coalesce(jsonb_agg(to_jsonb(l)-'inversionista_id'-'actualizado_en' order by id)::text,'')) from crm.leads l),
+    'inversiones',(select md5(coalesce(jsonb_agg(i order by id)::text,'')) from crm.inversiones i),
+    'titulares_relacionales',(select md5(coalesce(jsonb_agg(i order by id)::text,'')) from crm.inversion_titulares i),
+    'capital',(select md5(coalesce(jsonb_agg(to_jsonb(e) order by to_jsonb(e)::text)::text,''))
+      from private.capital_episodios('-infinity','infinity',true,'{}') e)
+  ) into v_despues;
+  if v_despues is distinct from (select huella from pg_temp.f8_antes) then
+    raise exception 'F8: la operación alteró una superficie protegida; se revierte toda la transacción';
+  end if;
+end;
+$paridad$;
+select jsonb_build_object('lote_id',datos->>'lote_id','operacion',datos->>'operacion',
+  'ejecutor_sql',session_user,'personas',7,'fuentes_reales',10,
+  'hechos_economicos_conservados',true,
+  'enlaces',(select jsonb_agg(e order by origen) from pg_temp.f8_enlaces e)) as comprobante
+from pg_temp.f8_lote;
+__FIN_TRANSACCION__;

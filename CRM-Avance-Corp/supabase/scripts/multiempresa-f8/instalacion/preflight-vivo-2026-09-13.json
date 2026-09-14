@@ -1,0 +1,212 @@
+{
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "procedencia": {
+    "herramienta": "supabase_execute_sql",
+    "project_id": "dctqcbznekcyxhjujuci",
+    "proyecto_anadido_por_ejecutor": true
+  },
+  "paridad": [
+    {
+      "n": 1704,
+      "md5": "c4bcf274f8f39b5e7e9697a4e94e912a",
+      "categoria": "columnas"
+    },
+    {
+      "n": 828,
+      "md5": "a1bb5f12dd991b07f5b6f5bd4cc27a4c",
+      "categoria": "constraints"
+    },
+    {
+      "n": 6,
+      "md5": "b89eab500a783850e7b12aafa01f4606",
+      "categoria": "default_acl"
+    },
+    {
+      "n": 3,
+      "md5": "b39dcd378fd24288a767f110c02d0c03",
+      "categoria": "esquemas"
+    },
+    {
+      "n": 6,
+      "md5": "ba691b18ce7acc3c88b7420699fa3c82",
+      "categoria": "event_triggers"
+    },
+    {
+      "n": 12,
+      "md5": "76a4a792d34bec05eecfa6e4a1b42915",
+      "categoria": "extensiones"
+    },
+    {
+      "n": 630,
+      "md5": "a846216968b833d90afcac762590bd68",
+      "categoria": "funciones"
+    },
+    {
+      "n": 415,
+      "md5": "d52163f4b5ac2a85f9103302543368ae",
+      "categoria": "indices"
+    },
+    {
+      "n": 112,
+      "md5": "c0311a90731f0c50b43441763002cff1",
+      "categoria": "politicas"
+    },
+    {
+      "n": 2,
+      "md5": "7d4f6828a6b6c01ba43203b4052a305c",
+      "categoria": "publicaciones"
+    },
+    {
+      "n": 535,
+      "md5": "0d0032529fc8eebc716a7422a2624c91",
+      "categoria": "relaciones"
+    },
+    {
+      "n": 9,
+      "md5": "09ae4d0b0328e8f75f4dc715e9acb9e0",
+      "categoria": "secuencias"
+    },
+    {
+      "n": 222,
+      "md5": "084559acdfd18a8700cb5f46e9c7037e",
+      "categoria": "tipos"
+    },
+    {
+      "n": 261,
+      "md5": "7f53084d10e9a134969250ad9e3cf4b6",
+      "categoria": "triggers"
+    },
+    {
+      "n": 3,
+      "md5": "015c5253568be35ef9295d8e10238d84",
+      "categoria": "vistas"
+    }
+  ],
+  "precondiciones": {
+    "alcance": "precondiciones-produccion-sin-autorizacion-de-merge",
+    "fuentes": [
+      {
+        "es_demo": false,
+        "fuentes": 593,
+        "brechas_identidad": 0
+      },
+      {
+        "es_demo": true,
+        "fuentes": 5,
+        "brechas_identidad": 4
+      }
+    ],
+    "version": 1,
+    "banderas": {
+      "ficha_360_neutral": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false,
+      "metricas_multiempresa_sombra": false
+    },
+    "funciones": [
+      {
+        "firma": "crm.cartera_inversionistas_estado_fn()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "crm.cartera_inversionistas_fn(integer,integer,text,text,uuid,boolean)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "crm.inversionista_documento_fn(uuid,uuid,uuid)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "crm.inversionista_ficha_fn(uuid,integer,integer)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "crm.postventa_vencimientos_fn(text,integer)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.cartera_f5_fuentes()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.cartera_f5_personas_visibles()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.inversion_persona_autorizada(uuid)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.inversiones_escritura_bajo_candado()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.postventa_fuente(uuid,uuid,text)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.postventa_modo()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.postventa_visible_actor(uuid,uuid)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "private.trg_contratos_demo_solo_por_la_puerta()",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      },
+      {
+        "firma": "public.marcar_contrato_demo(uuid,boolean,text)",
+        "definicion_coincide": true,
+        "acl_exigida_coincide": true,
+        "propietario_postgres": true
+      }
+    ],
+    "historial": {
+      "n": 279,
+      "ultima": "20260913213842",
+      "md5_arrays": "2ba1ba0b80a0d553f4579833acb853ab"
+    },
+    "instalacion": {
+      "control": false,
+      "miembros": false,
+      "exclusion_demo": false
+    },
+    "fin_captura_utc": "2026-09-14T04:39:47.003388+00:00",
+    "es_demo_not_null": true,
+    "catalogo_funciones": {
+      "n": 630,
+      "md5": "2e36c8294d3de5927df16e6d6701a6bd"
+    },
+    "inicio_captura_utc": "2026-09-14T04:39:46.983805+00:00",
+    "proteccion_demo_presente": true
+  }
+}

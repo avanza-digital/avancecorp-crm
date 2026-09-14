@@ -1,0 +1,43 @@
+npm notice run avancecorp-crm-tools@0.0.0 test:multiempresa:f8:instalacion
+npm notice run node --test --test-concurrency=1 supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs supabase/scripts/multiempresa-f8/paridad-instalacion.test.mjs
+▶ el catálogo detecta cambios materiales y conserva el banco tras cada rollback
+  ✔ default_acl (238.58225ms)
+  ✔ triggers (213.635292ms)
+  ✔ politicas (222.255167ms)
+  ✔ columnas (228.91075ms)
+  ✔ relaciones (223.409959ms)
+  ✔ tipos (236.903ms)
+  ✔ secuencias (515.747709ms)
+✔ el catálogo detecta cambios materiales y conserva el banco tras cada rollback (1986.172625ms)
+✔ acepta la base observada y cambios normales de volumen; no autoriza merge (6.784958ms)
+✔ rechaza captura vencida (0.624167ms)
+✔ rechaza captura futura (0.124625ms)
+✔ rechaza otro proyecto (0.259292ms)
+✔ rechaza nueva brecha real (0.127625ms)
+✔ rechaza marca NULL incluso con identidad coherente (0.179541ms)
+✔ rechaza falta universo real (0.115583ms)
+✔ rechaza falta función (0.275459ms)
+✔ rechaza firma duplicada (0.155833ms)
+✔ rechaza cuerpo cambiado (0.132666ms)
+✔ rechaza ACL sin comprobar (0.099042ms)
+✔ rechaza dueño cambiado (0.089792ms)
+✔ rechaza F7 encendida (0.174166ms)
+✔ rechaza F6 encendida (0.142625ms)
+✔ rechaza instalación parcial (0.097583ms)
+✔ rechaza historial cambió (0.118375ms)
+✔ rechaza otra función ajena cambió (0.106166ms)
+✔ rechaza permisos por defecto distintos (0.353625ms)
+✔ rechaza inventario incompleto (0.278416ms)
+✔ rechaza protección demo ausente (0.10975ms)
+✔ rechaza reutilizar como actual la misma base fresca (0.198459ms)
+✔ paridad registra ambos proyectos y liga los archivos por SHA (0.483083ms)
+✔ paridad rechaza ref ajeno, comparación consigo misma y captura de otra ventana (0.179041ms)
+✔ paridad rechaza categorías ausentes y cambios de default ACL en la rama (0.223291ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2079.664

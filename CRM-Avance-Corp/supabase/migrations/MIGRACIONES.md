@@ -1,6 +1,40 @@
 # Ledger de migraciones — esquema `crm`
 
 > **Tasas inferiores — CANDIDATA LOCAL, SIN DEPLOY (14/09):** `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql` permite ingresar 0,01 % hasta la base vigente en inversiones nuevas. Conserva aprobación superior, pendientes, herencia y correcciones. Tres funciones privadas, `public.crear_contrato` y un helper privado; cuatro huellas previas cotejadas mediante lectura, ACL/owner/firma preservados. Banco local con precisión, conversión, PDF, RLS propia y reversa concurrente PASS; frontend 3.540 pruebas tras integrar Main, Playwright 182 PASS/26 SKIP. Dos reviews de Claude evaluados y corregidos. Falta ciclo remoto/RLS general/advisors y sincronizar el commit de preparación. Última instrucción: «todavia no hagas deploy». [Paquete y límites](../scripts/tasa-baja/README.md).
+> **F8 — ensayo combinado completo el 14/09:** dos SQL exactos instalados solo en
+> la rama exclusiva, versiones `20260914161616` y `20260914161816`. 279 entradas
+> originales conservadas, 27 pruebas SQL remotas, 31 locales y 12 grupos Auth PASS.
+> Producción sin instalar; sigue Main/build/preflight/merge OFF.
+> [Evidencia y límites](../scripts/multiempresa-f8/ENSAYO-2026-09-14.md).
+
+## 20260913215240 — Control nominal y temporal del piloto económico F8
+
+**Estado:** candidata probada en PostgreSQL 17 local y en Supabase aislado, sin
+instalar ni activar en producción.
+
+Crea `crm.piloto_f8_control` y `crm.piloto_f8_miembros`, RLS deny-by-default,
+sin grants Data API y con auditoría. Nace OFF y exige exactamente Gerencia, un
+supervisor y dos vendedores vigentes, ventana máxima de 30 días, F3 ON,
+F4–F7 globales OFF y cobertura completa del lector F5. Revalida actor, perfil,
+membresía CRM y rol en cada llamada. Adapta cuatro funciones centrales para que
+F4/F5/F6 puedan operar solo para el equipo nominal mientras las banderas
+globales siguen apagadas; F7 no se abre en el piloto. Un trigger adicional hace
+mutuamente excluyentes el piloto y el rollout global usando la misma llave
+transaccional. No modifica objetos de `public`, fuentes económicas, Auth,
+periodos cerrados ni comisiones.
+
+PASS local y remoto: instalación exacta y repetición rechazada, RLS/ACL, equipo
+incompleto, perfil inactivo, usuario ajeno, revocación individual, cinco carreras
+concurrentes de encendido y reversa. Siete huellas de datos permanecen idénticas.
+Banco cerrado a `multiempresa_f8_20260913` dentro del contenedor sintético F5;
+no acepta destinos externos. `npm run test:multiempresa:f8` ejecuta 11 pruebas.
+La rama Supabase repitió las 11 pruebas y verificó advisors y tipos, pero el
+replay histórico del proyecto se detuvo después de `20260811210049`; el ensayo
+con banco sintético no fue mergeable. Pendientes: enlaces de cobertura (14 al
+corte: diez reales y cuatro demo), equipo nominal, resolver el ciclo de
+instalación, instalación OFF, activación y evidencia real de G7. Detalle:
+`../scripts/multiempresa-f8/README.md` y
+`../scripts/multiempresa-f8/VERIFICACION-RAMA-2026-09-13.md`.
 
 > **Citas — PREPARACIÓN SIN DEPLOY (13/09):** cuatro candidatas nuevas (`20260911212756`, `20260913204847`, `20260913225042`, `20260913225755`) conectan base mensual, configuración de Superadmin, entrevistas, clientes y ticket/proyección. Ensayadas sólo en banco propio: SQL y 48 comprobaciones Auth/HTTP PASS; frontend 3.512 pruebas y 14 E2E específicos PASS. RLS general: 55/1.828 FAIL, pendiente de diagnóstico. Tres decisiones de negocio y vigencia siguen sin aplicar. No instaladas en producción. Evidencia: `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
 
@@ -18,7 +52,7 @@
 > del SQL aprobado. Edge v1, frontend y cron activos. Banco eliminado; teléfono
 > real pendiente de permiso/prueba. [Acta](../scripts/push-tasa/PUBLICACION-2026-09-11.md).
 
-> **F7 MULTIEMPRESA PUBLICADA E INSTALADA — 11/09/2026, apagada:** `20260911163243_crm_multiempresa_f7_metricas_sombra.sql`, SHA-256 `7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7`, SQL y coste autorizados por Miguel. Instalada por merge del banco Supabase propio, registro remoto **`20260911212526`**; el archivo versionado se conserva intacto. Cuatro funciones nuevas y bandera `metricas_multiempresa_sombra=false`; 274 migraciones previas íntegras (total 275), 619 funciones y ACL previas conservadas. Las 18 sentencias productivas mantienen los bytes y orden aprobados; el ejecutor solo separó las sentencias y registró `created_by=null` en la nueva entrada. Datos financieros, Auth, Vault, cron y 19 Edge Functions conservados. Frontend publicado desde Main/remoto `32eae8a`; 90 recursos cotejados. 16 SQL + 12 HTTP remotos PASS, 3.355 pruebas frontend y 172 E2E PASS (26 SKIP). RLS general conserva 1.772 PASS / 57 FAIL antes/después, sin regresiones; no se declara PASS global. Banco temporal eliminado. **F3 ON; F4/F5/F6/F7 OFF; G6 humano pendiente.** Sin backfill, reescritura de periodos sellados ni comisiones. [Publicación y evidencia](../scripts/multiempresa-f7/PUBLICACION-2026-09-11.md). No es el antiguo «F7 de altas».
+> **F7 MULTIEMPRESA PUBLICADA E INSTALADA — 11/09/2026, apagada:** `20260911163243_crm_multiempresa_f7_metricas_sombra.sql`, SHA-256 `7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7`, SQL y coste autorizados por Miguel. Instalada por merge del banco Supabase propio, registro remoto **`20260911212526`**; el archivo versionado se conserva intacto. Cuatro funciones nuevas y bandera `metricas_multiempresa_sombra=false`; 274 migraciones previas íntegras (total 275), 619 funciones y ACL previas conservadas. Las 18 sentencias productivas mantienen los bytes y orden aprobados; el ejecutor solo separó las sentencias y registró `created_by=null` en la nueva entrada. Datos financieros, Auth, Vault, cron y 19 Edge Functions conservados. Frontend publicado desde Main/remoto `32eae8a`; 90 recursos cotejados. 16 SQL + 12 HTTP remotos PASS, 3.355 pruebas frontend y 172 E2E PASS (26 SKIP). RLS general conserva 1.772 PASS / 57 FAIL antes/después, sin regresiones; no se declara PASS global. Banco temporal eliminado. **F3 ON; F4/F5/F6/F7 OFF; G6 cerrado el 13/09/2026 para el corte conciliado.** Sin backfill, reescritura de periodos sellados ni comisiones. [Publicación y evidencia](../scripts/multiempresa-f7/PUBLICACION-2026-09-11.md). No es el antiguo «F7 de altas».
 
 > **F6 PUBLICADA — 10/09/2026, apagada; ajustes frontend publicados el 11/09:** SQL de postventa y dos correctivas HTTP instalados y verificados, 43 pruebas remotas iniciales PASS con observaciones explícitas del gate general/Auth. La revisión manual terminó con VoiceOver omitido por Miguel (NOT RUN). F3 ON; F4/F5/F6 OFF. [Publicación SQL](../scripts/f6/PUBLICACION-2026-09-10.md), [cierre de ajustes](../scripts/f6/CIERRE-2026-09-11.md). La antigua entrada de candidata no era el estado productivo vigente.
 
@@ -9462,6 +9496,33 @@ tests frontend PASS y 173 E2E PASS / 26 SKIP. [Gates y límites](../scripts/FILT
 Las cuatro definiciones/ACL resultantes coinciden con la rama probada. Se
 conservan las 278 migraciones anteriores, las funciones ajenas y las 19 Edge.
 El frontend se publica como artefacto desde el commit único verificado de Main.
+
+## 20260914025926 — F8: excluir fuentes demo de cobertura y lecturas
+
+**Estado:** candidata local, sin aplicar en producción. Requiere el control F8
+`20260913215240` instalado OFF; F4–F7 también OFF. La aprobación del lote anterior
+de diez enlaces reales no sustituye la aprobación de este SQL nuevo.
+
+Helper privado INVOKER `private.cartera_f5_fuentes_reales()`, sin permisos API,
+sobre el lector bruto conservado. Ocho consumidores se ajustan con huellas
+exactas previas y posteriores: activación F8, capacidad F5, personas visibles,
+lista, ficha, documentos, origen de postventa y vencimientos. Persona solo demo
+no reaparece por tener perfil; perfil cliente sin fuentes conserva su ficha.
+No cambia clasificaciones demo, tablas de negocio, Auth, firmas expuestas ni
+banderas. F7 y las fuentes administrativas conservan sus huellas.
+
+31 pruebas locales PASS (20 demos, 11 control), fixture de 598 fuentes,
+incluidas permisos, cuatro huecos demo frente a un hueco real, NULL fail-closed,
+clientes mixtos/solo demo/sin fuentes, Directorio, enlaces contradictorios,
+lead vivo/histórico, rechazos de instalación/reversa por estado/deriva/dependencia
+y reversa aplicada sin pérdida de historia. Preflights backend PASS.
+Revisión de Claude evaluada por PRIMARY. [Paquete, SQL, evidencia y límites](../scripts/multiempresa-f8/demos/README.md).
+
+**NOT RUN:** ciclo remoto/advisors/Auth Data API de esta candidata. No cambia
+el contrato generado de public/crm; hashes de firmas y ACL idénticos, sin cambios
+de frontend ni regeneración de tipos. La [reversa](../scripts/multiempresa-f8/demos/reversa.sql)
+no modifica el ledger; cualquier compensación/reinstalación publicada requiere
+nuevas migraciones por el ciclo de rama autorizado.
 
 ## 20260913204847 — Citas: base mensual asignada y meta interna
 

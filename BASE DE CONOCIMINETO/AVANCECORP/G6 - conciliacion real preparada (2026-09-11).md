@@ -89,4 +89,5 @@ invalidan ese corte y no quedan aprobadas anticipadamente.
 Con las confirmaciones previas de que los diez registros son clientes reales y
 que sus nombres/referencias son correctos, queda completada la revisión humana
 visible. Las diez vinculaciones técnicas siguen pendientes, sin afectar el
-capital conciliado. **G6 CERRADO; F8 pendiente de preparación y autorización.**
+capital conciliado. **G6 CERRADO; F8 preparada localmente y pendiente de
+enlaces, equipo, rama e inicio autorizado.**

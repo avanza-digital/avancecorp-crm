@@ -1,0 +1,72 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The core design is sound and matches the business contract. It adds one private INVOKER filter (`es_demo is not true`, so NULL fails closed) and makes hash-guarded textual swaps in seven consumers. It also adds a `con_historia` guard so pure-demo people cannot come back through the client-profile exception. The raw reader and F7 stay byte-identical, and the tests support this. I found no P0 or P1 issues. The requested changes are narrow: gaps in the lock and consumer-scan guards, the reversal's operational contract, and a few high-value tests. The full test rerun that includes the concrete reversal is still running, so this review assumes it passes.
+
+FINDINGS:
+
+[P2] Preflight does not serialize against F4–F7 global flag writers
+File: `supabase/migrations/20260914025926_crm_f8_excluir_fuentes_demo.sql` (and `demos/reversa.sql`)
+Lines: migration 19–24; reversa 13–17
+Problem: The migration takes only `hashtext('crm_piloto_f8_control')` and then reads `crm.multiempresa_flags` without a lock. Flag toggles use their own lock, not this one.
+Evidence: `crm.cartera_inversionistas_estado_fn()` line 27 takes `pg_advisory_xact_lock_shared(hashtext('crm_flag_ficha_360_neutral'))`. That implies the `ficha_360_neutral` writer holds the exclusive form of a different key. The comment at migration line 17–18 claims "nadie puede encenderlos", but that is true only for the F8 control, not for F4–F7.
+Impact: Under READ COMMITTED, a concurrent commit can turn on `ficha_360_neutral` (or another F4–F7 flag) after the preflight check. The eight definitions would then commit while a global flag is ON, which breaks the stated "F4–F7 apagados" invariant. Severity is limited because nothing opens the gate by itself, but the guard does not deliver what it claims.
+Recommendation: In both forward and reverse, also lock the flag rows, e.g. `select ... from crm.multiempresa_flags where nombre in (...) for share` or `for update`. Alternatively, take exclusive advisory locks on each flag's key in a fixed order. Then re-check the flags. Or narrow the comment to what is actually guaranteed.
+
+[P2] The "unreviewed consumer" scans cover only `crm`/`private` function bodies
+File: migration postflight; `reversa.sql`
+Lines: migration 144–149; reversa 56–59
+Problem: Both scans use `n.nspname in ('crm','private')` on `pg_proc.prosrc`. They miss functions in `public` and other app schemas, views and materialized views (`pg_get_viewdef`), and RLS policy expressions (`pg_policy`).
+Evidence: `pg_depend` does not record dependencies for non-ATOMIC SQL or plpgsql bodies. The `drop function private.cartera_f5_fuentes_reales()` in reversa line 62 therefore succeeds even if a `public.*` function still calls it, and that caller fails only at runtime. `public.marcar_contrato_demo` shows that `public` holds CRM business functions.
+Impact: Forward can miss a raw-reader consumer that still counts demos. Reverse can leave a caller that breaks at runtime.
+Recommendation: Scan all non-system namespaces (`nspname not in ('pg_catalog','information_schema') and nspname not like 'pg_%'`). Also check `pg_views`/`pg_matviews` definitions and `pg_policy` `polqual`/`polwithcheck` for both identifiers.
+
+[P2] The reversal leaves migration history saying "applied"
+File: `supabase/scripts/multiempresa-f8/demos/reversa.sql`
+Lines: 1–3, 62
+Problem: The reversal drops the helper and restores the definitions. `supabase_migrations.schema_migrations` still lists `20260914025926`, and the script does not document this.
+Evidence: The reversal lives outside `migrations/`, and the test re-applies it with raw `sql(migracionDemo)` (demos.test.mjs:239) rather than through the CLI.
+Impact: After a production reversal, `db push` will not reinstall the migration. A later migration that assumes `_reales` exists would then fail or behave differently.
+Recommendation: Add the required follow-up to the reversal header and runbook, e.g. `supabase migration repair --status reverted 20260914025926`. Otherwise, state explicitly that forward re-installation must be done manually.
+
+[P3] Forward does not assert the post-install hashes that the reversal requires
+File: migration `$lectores$`/`$personas$`/postflight; `reversa.sql` lines 20–27 (`actual` column)
+Problem: The reversal refuses unless each definition matches an exact post-install md5 (e.g. `47585a27…`, `db749fbf…`). The forward migration never checks that it produced those hashes.
+Impact: If production `pg_get_functiondef` output differs (different PG minor version or formatting), the forward migration succeeds but the reversal is unusable. You would discover this only during an incident.
+Recommendation: In the postflight, assert the same eight "actual" hashes. Separately, before approval, compare read-only `md5(pg_get_functiondef(...))` in production against the preflight hashes, after installing 20260913215240.
+
+[P3] `es_demo` NULL semantics diverge between coverage and capital (established behavior, now visible)
+File: `crm.inversionista_ficha_fn` lines 108–110; `crm.cartera_inversionistas_fn` lines 36–37; `crm.postventa_vencimientos_fn` line 20
+Problem: The helper treats NULL as real (it is included in coverage and `cantidad`). The older `filter(where not f.es_demo)` and `and not f.es_demo` treat NULL as excluded from capital and vencimientos.
+Evidence: The raw reader returns `c.es_demo` for contracts and a non-null expression for cierres, so NULL is reachable only if `contratos.es_demo` is nullable. The mutant test at demos.test.mjs:141–145 exercises exactly this case.
+Impact: This is not a regression introduced here. If NULL ever occurs, `cantidad` and `capital_registrado` disagree.
+Recommendation: No change is required in this task. Confirm `public.contratos.es_demo` is NOT NULL, or note the divergence as known.
+
+TEST GAPS:
+- Forward and reverse gates are not tested for refusal. Missing cases: (a) migration aborts when `crm.piloto_f8_control.activo`; (b) migration aborts when any F4–F7 flag is ON; (c) reversal aborts when the pilot or a flag is ON; (d) reversal aborts on a drifted definition. These gates are the main rollout safety claims, and only "ya existe" is covered (line 121).
+- In the postventa test (216–224), the `vencimientos` assertion does not distinguish old from new behavior. `postventa_vencimientos_fn` already filtered `not f.es_demo`. Only the `private.postventa_fuente` 42501 assertion proves new behavior.
+- The `con_historia` branches for demo cierres (`leads.inversionista_id` and `crm.inversionista_leads` through the demo cierre's lead) are not tested. The "contradictorios" test covers only the contract and `inversiones.contrato_id` paths.
+- There is no global-reader (`es_lector_global`) case for pure-demo exclusion or mixed-person totals. That path uses `cliente_ids_visibles_crm` and the `f.empresa='avance'` filter.
+- There is no non-Gerencia (vendedor/supervisor) case where a mixed person's demo document returns NULL. Only Gerencia is exercised (159–160).
+- The final full rerun with the concrete reversal is pending. Its PASS output should be attached before production SQL is approved.
+
+ARCHITECTURE RISKS:
+- Textual `replace` on `pg_get_functiondef` is safe only because of the exact-hash guards, which fail closed. Every future change to these eight functions must update both the forward and reversal hash tables. Consider noting this coupling in the migration header.
+- `con_historia` re-scans all contratos, inversiones, and cierres with a per-row `private.inversionista_canonica` on every `personas_visibles` call. The ficha calls it twice, and vencimientos joins it. That is acceptable at about 600 sources, but it is a scaling hotspot to keep in mind.
+
+SECURITY RISKS:
+- No new API surface. The helper is INVOKER, revoked from `public`/`anon`/`authenticated`/`service_role`, and verified by postflight and the test at 226–231. Callers keep their definer authorization, and the demo-classification authority is hash-pinned and unchanged.
+- One residual hypothesis, low confidence: `private.postventa_fuente` is INVOKER and now calls the revoked helper. If any non-owner role calls it directly (not through a definer RPC), that call now fails with 42501 where the raw reader's ACL may have allowed it. Please confirm its callers are only definer functions owned by the same role.
+
+REGRESSION RISKS:
+- Intended behavior changes: people with only demo history disappear from the list, ficha, cuentas and document access. Mixed totals and counts drop the demo rows, and demo cierres can no longer be a postventa origin. All of these match the stated contract.
+- The raw reader and `metricas_f7_fuentes` output hashes are proven unchanged (lines 114–116).
+
+RECOMMENDED NEXT ACTIONS:
+1. Extend the forward and reverse locks and re-checks to cover the F4–F7 flag rows, and widen both consumer scans to all app schemas plus views and policies.
+2. Assert the post-install definition hashes in the forward postflight, and document the `migration repair` step in the reversal.
+3. Add refusal tests for the pilot/flag gates in both directions, plus the demo-cierre lead-link `con_historia` case. Then attach the full rerun output and read-only production hash parity before requesting approval for production SQL.
+
+CONFIDENCE:
+MEDIUM. The SQL and tests were reviewed in full. The flag-writer lock key and the callers of `postventa_fuente` are inferred, not shown.

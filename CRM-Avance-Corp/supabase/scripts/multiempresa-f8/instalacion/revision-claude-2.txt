@@ -1,0 +1,69 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Nada de lo revisado impide mostrar los enlaces al SQL exacto y pedir la aprobación para iniciar el ensayo remoto con la instalación apagada. La consulta, el verificador y los tests son coherentes con lo que declaran: `PASS_PRECONDICIONES_PADRE` con `autoriza_merge:false`, fail-closed y sin mutaciones. Los hallazgos P2 afectan a la herramienta del paso 4 (paridad rama↔padre) y a la ambigüedad sobre qué es la "base del ensayo". Conviene resolverlos antes de ejecutar ese paso, no antes de pedir la aprobación. No encontré ningún caso que produzca un falso PASS del padre.
+
+FINDINGS:
+
+[P2] La paridad rama↔padre no tiene comprobación automática, y el único verificador no puede usarse sobre la rama
+File: `verificar-base-instalacion.mjs`; `INSTALACION-2026-09-13.md`
+Lines: mjs 37, 41-42, 81-86; md 94-105, 143-146, 205-207
+Problem: `validar()` exige `proyecto === 'dctqcbznekcyxhjujuci'`, `instalacion` todo false y `historial` idéntico. Por eso una captura de la rama falla por diseño: tiene otro project_id, ledger vacío en el paso 4 y las dos migraciones F8 tras el paso 6. El paso 4 queda, entonces, como comparación manual de 15 md5. Además, la línea 145 habla de "la base del ensayo", pero la 205-206 dice que ambos JSON son capturas del padre. Nada liga esa base al ensayo real de la rama.
+Evidence: `comprobarBase` solo compara padre contra padre (líneas 81-86). La nota de la línea 207 reconoce que la base actual "todavía no es una base de ensayo remoto firmado".
+Impact: Un operador podría usar la captura revisada de las 23:25 como base y obtener PASS si el padre no cambió. Ese PASS no dice nada sobre la equivalencia de la rama, y el nombre "base del ensayo" sugiere lo contrario.
+Recommendation: Definir la base como la captura del padre tomada en la misma ventana que la paridad de la rama del paso 4. Añadir un modo explícito, por ejemplo `--paridad-rama padre.json rama.json`, que compare solo `paridad` (sin exigir `proyecto` ni `historial`) y registre ambos project_id. Exigir en el modo final que `base.inicio_captura_utc < actual.inicio_captura_utc`; hoy `node … x.json x.json` con una captura fresca pasa sin detectar ninguna deriva.
+
+[P2] Los md5 agregados por categoría no permiten "inspeccionar toda diferencia" y no hay criterio previo para diferencias gestionadas por la plataforma
+File: `paridad-instalacion.sql`
+Lines: 36-41 (triggers de todos los schemas), 91-93 (extensiones con versión), 104-107 (event triggers), 112-115 (solo `count` + `md5`)
+Problem: La salida es un md5 por categoría. Un cambio en una de las 1704 columnas o en uno de los 261 triggers solo se ve como "columnas distinto". Por otro lado, triggers de `auth`/`storage`, versiones de extensiones y event triggers de plataforma pueden diferir legítimamente en una rama recién creada. Esto es una hipótesis: no hay evidencia de una rama nueva. El documento dice "inspeccionar toda diferencia" (línea 96) y "si no se demuestra paridad, detener" (línea 105), pero no define cómo se hace ninguna de las dos cosas.
+Evidence: El JSON de producción solo contiene `n`/`md5` (líneas 8-84). `estado-permisos.sql` de F5 da detalle de permisos, pero no cubre `default_acl`, `extensiones`, `publicaciones`, `event_triggers` ni `tgenabled`.
+Impact: El gate puede quedar impasable o terminar resuelto con una excepción subjetiva no documentada, que es el tipo de riesgo que el procedimiento quiere evitar.
+Recommendation: Añadir un modo de detalle que emita `categoria, clave, md5(valor)` por objeto, sin cuerpos ni datos, para hacer el diff clave a clave. Documentar antes del ensayo qué diferencias fuera de public/crm/private se aceptarían (por ejemplo, versión de extensión gestionada) y con qué evidencia. Si no se acepta ninguna, dejarlo escrito.
+
+[P3] El hash depende de `search_path` y del orden bruto de las ACL
+File: `paridad-instalacion.sql`
+Lines: 3, 6, 12, 22, 32, 47, 64, 70
+Problem: `::regclass::text`, `::regrole::text`, `format_type` y `pg_get_*def` cambian de representación con `search_path`. El archivo no fija ninguna configuración: dice "el ejecutor debe incluirlo". Además, `nspacl/relacl/attacl/proacl/typacl/defaclacl::text` dependen del orden de los items. `catalogo_funciones` en el preflight sí normaliza con `aclexplode` ordenado (líneas 45-48).
+Evidence: `consultaCaptura` y el test fijan `search_path=''`, pero el paso 4 remite a `paridad-instalacion.sql` directamente (md línea 95). Que un dump/restore reordene ACL equivalentes es una hipótesis.
+Impact: Falsas discrepancias (fail-closed), no falsos PASS. Aun así pueden generar presión para aceptar diferencias "de representación".
+Recommendation: Capturar siempre la rama con el mismo envoltorio que el padre (un `--consulta-paridad` desde el CLI). En el modo de detalle, normalizar las ACL con `aclexplode` ordenado.
+
+[P3] Cobertura de detección parcial y conteo de tests impreciso
+File: `paridad-instalacion.test.mjs`; `INSTALACION-2026-09-13.md`
+Lines: test 20-28; md 189
+Problem: Hay 7 mutaciones (default_acl, triggers, politicas, columnas, relaciones, tipos, secuencias). Las "8 pruebas" son esas 7 subpruebas más la prueba contenedora. Sin mutación probada quedan esquemas, funciones, constraints, índices, vistas, extensiones, publicaciones y event_triggers.
+Impact: Si una categoría tuviera un error de consulta, por ejemplo una subconsulta siempre NULL, no se detectaría. Riesgo bajo, porque son lecturas directas del catálogo.
+Recommendation: Registrar "7 mutaciones" y añadir al menos constraints (`NOT VALID`/`deferrable`), índice (`indisvalid`) y un `alter publication … add table` o equivalente sobre el fixture, dentro del mismo rollback.
+
+[P3] La ventana de 60 s es sensible al desfase de reloj y no cubre el intervalo hasta el merge
+File: `verificar-base-instalacion.mjs`
+Lines: 77-80
+Problem: `inicio`/`fin` usan el reloj del servidor y `ahora` el reloj local. Un desfase positivo pequeño produce "captura futura". Tampoco hay relación temporal entre el PASS y `merge_branch`, que ocurre después del inventario Edge y de Main.
+Impact: Rechazos espurios y un TOCTOU residual. El TOCTOU está aceptado porque el resultado no autoriza el merge.
+Recommendation: Admitir una tolerancia explícita de pocos segundos para el desfase. Repetir la captura inmediatamente antes de `merge_branch` y compararla con la captura posterior al merge.
+
+TEST GAPS:
+- Falta un caso que rechace base y actual idénticas o invertidas en el tiempo.
+- No hay test del modo de paridad rama↔padre, porque ese modo aún no existe.
+- No hay mutaciones para extensiones, publicaciones, event_triggers, constraints, índices ni vistas.
+
+ARCHITECTURE RISKS:
+- Las versiones asignadas por MCP que difieren de los nombres en Git dejan una divergencia duradera entre repo y ledger para futuros replays de rama. La decisión del PRIMARY está aceptada; conviene registrar el mapeo versión local → versión remota en el acta del cierre.
+- La configuración fuera del catálogo (`pg_db_role_setting`, schemas expuestos por PostgREST, cron, buckets de Storage) sigue sin artefacto propio aunque el documento la menciona (línea 100-101).
+
+SECURITY RISKS:
+- No encontré ninguno nuevo. La salida no contiene cuerpos, PII ni secretos. La ACL NULL de la función trigger implica EXECUTE para PUBLIC por defecto, lo cual es inocuo en funciones trigger, y está documentado.
+
+REGRESSION RISKS:
+- Sin cambios de runtime frontend ni migraciones modificadas. Los hashes SHA-256 de las candidatas están verificados en `verificarSql()`.
+
+RECOMMENDED NEXT ACTIONS:
+1. Presentar los enlaces del SQL y pedir la aprobación. Ningún hallazgo lo impide.
+2. Antes del paso 4: añadir el modo de paridad rama↔padre con detalle por objeto y el mismo envoltorio de sesión, y aclarar en las líneas 143-146 y 205-207 qué captura es la "base".
+3. Documentar de antemano el criterio para diferencias en objetos gestionados, o declarar explícitamente que no se acepta ninguna.
+4. Añadir las mutaciones faltantes y el caso base==actual, y corregir "8 pruebas" → "7 mutaciones".
+
+CONFIDENCE:
+MEDIUM. Es alta para la lógica del verificador y de la consulta. Es menor para el comportamiento real de una rama Supabase nueva (orden de ACL, versiones de extensiones), que es hipótesis sin evidencia adjunta.

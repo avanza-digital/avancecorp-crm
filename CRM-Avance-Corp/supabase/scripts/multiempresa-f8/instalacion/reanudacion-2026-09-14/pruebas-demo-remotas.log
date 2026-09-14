@@ -1,0 +1,25 @@
+▶ F8 remoto: demo y cobertura real, sin ejecutar reversas
+  ✔ instala apagado y conserva datos, Auth, firmas, permisos y métricas F7 (7420.134209ms)
+  ✔ cuatro huecos demo permiten el piloto solo al equipo nominal (4611.930375ms)
+  ✔ F5 global aplica la misma cobertura real con el piloto apagado (2450.180917ms)
+  ✔ un hueco real bloquea tanto el encendido como la cartera ya activa (2572.245833ms)
+  ✔ es_demo NULL no permite eludir el bloqueo de identidad (1640.015666ms)
+  ✔ persona mixta: lista, ficha, cantidades y capital solo incluyen fuentes reales (7106.106584ms)
+  ✔ perfil con solo demos queda fuera incluso de ficha y cuentas por UUID (4056.671709ms)
+  ✔ cliente legítimo sin fuentes conserva su ficha y respeta el responsable (3019.365042ms)
+  ✔ un filtro futuro del lector no excluye perfiles con historia exclusivamente real (3020.852875ms)
+  ✔ cierre demo enlazado por lead vivo o histórico no crea una ficha vacía (2695.950292ms)
+  ✔ Directorio conserva lectura Avance real y excluye perfiles solo demo (2768.801375ms)
+  ✔ demos contradictorios no reaparecen como perfiles sin inversiones (1390.35025ms)
+  ✔ la clasificación demo sigue reservada a Gerencia con motivo y rastro (2426.659292ms)
+  ✔ el cierre demo tampoco sirve de origen de postventa o renovación (2259.280625ms)
+  ✔ ningún rol de API obtiene acceso al lector privado (2334.516ms)
+✔ F8 remoto: demo y cobertura real, sin ejecutar reversas (49776.147791ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49820.750875

@@ -1,0 +1,40 @@
+{
+  "fecha": "2026-09-14",
+  "parent": "dctqcbznekcyxhjujuci",
+  "branch_deleted": {
+    "id": "cf0f8eb1-1930-47f2-b81a-f8e8e46b54af",
+    "ref": "nyfufsyrtukwhbaezley",
+    "created_utc": "2026-09-14T04:48:46.104591+00:00",
+    "cost_usd_hour": 0.01344,
+    "deletion_verified": true,
+    "verified_during_pause_date": "2026-09-14"
+  },
+  "production": {
+    "migrations": 279,
+    "latest": "20260913213842",
+    "f8_control": false,
+    "f8_members": false,
+    "f8_demo_filter": false,
+    "F3": true,
+    "F4": false,
+    "F5": false,
+    "F6": false,
+    "F7": false
+  },
+  "reconstruction": {
+    "ledger_before": 86,
+    "failed_rolled_back_attempts": 3,
+    "errors": [
+      "must be able to SET ROLE crm_metricas_bridge",
+      "permission denied for schema crm",
+      "permission denied to change default privileges"
+    ],
+    "v2_prepared": true,
+    "v2_executed": false
+  },
+  "review": {
+    "verdict": "CHANGES_REQUESTED",
+    "completed": true,
+    "installation_approved_by_reviewer": false
+  }
+}

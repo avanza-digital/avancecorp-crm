@@ -1,0 +1,32 @@
+[
+  {
+    "key": "constraints|crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+    "parent": "f38b51ed5b804a9d73d1c41e6ce9b1ee",
+    "branch": "f022bf856f2bab730ee28bb6e33ca688"
+  },
+  {
+    "key": "constraints|crm.empresas_monedas_check:crm.empresas:-",
+    "parent": "e2457ffcc976877d507e73cff46269de",
+    "branch": "72d2ad3f33bc015efcbcb5a86e932283"
+  },
+  {
+    "key": "constraints|crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+    "parent": "7a7b807a4bde11bfa298ba5da22e2670",
+    "branch": "8c095904ae661c352e5ff89f22734347"
+  },
+  {
+    "key": "event_triggers|issue_pg_graphql_access",
+    "parent": "893ac630a0c7912ddd12b4f0d2c25da7",
+    "branch": "c4e0a3ef5b77d5feaa52b45bb3f41a25"
+  },
+  {
+    "key": "extensiones|pg_net",
+    "parent": "d5d7972fcee441796ff78d323bedfa02",
+    "branch": "46d7a38fa0717cb4ebc8379985981e89"
+  },
+  {
+    "key": "publicaciones|supabase_realtime_messages_publication",
+    "parent": "0ecb3f8db8a1e44a401dd6b9b6a3605e",
+    "branch": null
+  }
+]

@@ -1,0 +1,4 @@
+PASS restauración v6: transacción completa revertida; 630 funciones, tres FK externas, Auth/perfiles/ledger vacíos.
+PASS dependencia externa inesperada: ERROR Cambios inesperados fuera de schemas de la app; rollback.
+PASS huella esperada alterada: ERROR F8_PARIDAD_FINAL_DISTINTA; rollback.
+PASS lectura tras ambos rechazos: ledger original 86.

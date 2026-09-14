@@ -1,0 +1,138 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El procedimiento está mejor planteado que el ensayo F8 anterior: no reutiliza evidencia vieja, conserva las FK externas y separa la reversa. La consulta es de solo lectura y no se presenta como gate de merge. Antes de pedir la aprobación del SQL hay que corregir cinco puntos:
+- No explica cómo partir de una base limpia después de un replay fallido.
+- La paridad reutilizada de F5 no detecta varios atributos que afectan la seguridad de las tablas nuevas de F8.
+- La captura adjunta contiene un campo que la consulta no produce.
+- La consulta no se vuelve a ejecutar de forma obligatoria dentro de la ventana de premerge.
+- La paridad de Edge y configuración no mira lo que realmente despliega el merge.
+
+Nota de rol: esta sesión está en modo de planificación, pero como SECONDARY_REVIEWER no escribo archivos, tampoco el plan, ni uso herramientas. Devuelvo la revisión directamente.
+
+FINDINGS:
+
+[P1] Falta partir de una base limpia tras un replay fallido; contradice el paso 4
+File: INSTALACION-2026-09-13.md
+Lines: 68-76, 80-81, 85-88
+Problem: Los pasos 2 y 3 restauran el dump de estructura "en la rama nueva" después de observar el fallo del replay. No dicen que antes haya que eliminar lo que el replay parcial dejó aplicado.
+Evidence:
+- El replay anterior se detuvo en 20260811210049. Todo lo anterior a esa versión ya estaría creado en la rama, junto con sus filas en `supabase_migrations.schema_migrations`.
+- La línea 81 afirma "La ausencia del ledger en esta etapa es esperada". Con un replay parcial, el ledger no estará ausente: tendrá filas parciales.
+- El paso 5 dice "copiar el conjunto exacto" sin aclarar si se reemplaza o se combina con esas filas.
+Impact:
+- La restauración puede fallar por objetos ya existentes.
+- Una restauración con errores ignorados puede dejar objetos mezclados.
+- El ledger final puede combinar filas del replay con filas copiadas.
+- Pueden quedar restos en schemas que no se cotejan, como extensions, storage o cron.
+Recommendation: Añadir un paso explícito:
+1. Documentar el estado tras el fallo: filas del ledger y objetos presentes en public, crm y private.
+2. Llevar esos schemas y el ledger a vacío mediante un método documentado, o crear la rama sin replay si la plataforma lo permite.
+3. Verificar que el ledger tiene 0 filas antes del paso 4.
+4. Restaurar con `ON_ERROR_STOP` y no aceptar errores ignorados.
+5. En el paso 5, exigir reemplazo completo del ledger y comprobar n=279 y el MD5 de arrays con la misma expresión que usa `preflight-instalacion.sql:73-76`.
+
+[P1] La paridad reutilizada de F5 no cubre privilegios por defecto ni otros atributos que F8 hereda
+File: f5/estado-esquema.sql, f5/estado-permisos.sql, usados en INSTALACION:78-84
+Lines: estado-esquema 19-20, 39, 49-50; estado-permisos 9-23
+Problem: El paso 4 promete "inspeccionar toda diferencia", pero los scripts no pueden ver varias diferencias relevantes.
+Evidence:
+- No se consulta `pg_default_acl`. Las tablas y funciones nuevas del control F8 reciben sus grants iniciales de ALTER DEFAULT PRIVILEGES. Si la rama y producción difieren, las pruebas de "ACL/RLS cerradas" del paso 7 pueden pasar en la rama y no reflejar producción.
+- La línea 39 compara `pg_get_triggerdef`, que no incluye `tgenabled`. Un trigger deshabilitado durante la restauración, por ejemplo la protección demo, pasaría la paridad.
+- Las líneas 49-50 omiten `pg_policies.permissive`, así que un cambio entre PERMISSIVE y RESTRICTIVE es invisible.
+- La línea 20 usa `data_type` sin `udt_name`, longitud ni precisión. Un cambio de `numeric(14,2)` a `numeric` o de enum no se detecta, y eso importa en columnas financieras.
+- No se cotejan dueños de tablas, enums, dominios, tipos, secuencias, extensiones y sus versiones, publicaciones ni event triggers.
+Impact: Se podría declarar paridad sobre una base que difiere justo en los permisos o en la protección que F8 debe verificar.
+Recommendation: Antes de ejecutar el ensayo, crear una variante F8 de la paridad, sin editar los scripts F5 si están citados como evidencia histórica. Debe añadir:
+- `pg_default_acl` de los tres schemas y globales;
+- `tgenabled`;
+- `permissive`;
+- `format_type(atttypid, atttypmod)`;
+- `relowner`;
+- `pg_enum` y `pg_type` de los schemas;
+- `pg_sequence`;
+- `pg_extension` con versión;
+- `pg_publication_rel`;
+- `pg_event_trigger`.
+
+[P2] La captura "real" contiene `proyecto`, que la consulta no genera
+File: instalacion/preflight-produccion-2026-09-13.json; preflight-instalacion.sql
+Lines: JSON 2; SQL 51-80
+Problem: `jsonb_build_object` no incluye la clave `proyecto`.
+Evidence: Postgres ordena las claves de jsonb por longitud y luego por bytes. Con esa regla, `alcance` (7) debería ir antes que `fuentes` y `version`, y `proyecto` (8) junto a `banderas`. En el archivo, `proyecto` aparece primero y `alcance` segundo. El resto del archivo sí respeta el orden jsonb. Por lo tanto, un envoltorio añadió `proyecto` a mano.
+Impact: El documento presenta la captura como salida real, pero la identidad del destino no está atestiguada por la base. `preflight-merge.mjs:10` muestra que el proyecto es un control de destino en este repo.
+Recommendation: Declarar en el documento que `proyecto` lo añade el ejecutor. Mejor aún, incluir en la consulta un dato verificable del destino y describir cómo se liga al ref del proyecto.
+
+[P2] La consulta F8 no se vuelve a ejecutar de forma obligatoria dentro de la ventana de premerge
+File: INSTALACION-2026-09-13.md
+Lines: 44-47, 118-125
+Problem: Las líneas 45-47 exigen "cero brechas reales al verificar el momento de instalación", pero las líneas 118-122 solo repiten capturas de padre, Edge e historial.
+Evidence: El único gate automatizado existente es `preflight-merge.mjs:40`, que fija banderas F5 y no conoce `postventa_neutral`, `metricas_multiempresa_sombra`, `instalacion.*` ni las brechas. El documento reconoce que no debe usarse sin adaptarlo, pero ningún paso exige tener esa adaptación antes de fusionar.
+Impact: Una venta nueva con brecha de identidad o un cambio en alguna de las 14 funciones entre el ensayo y el merge podría romper la migración a mitad de camino. Eso lleva al caso "primera instalada, segunda falló" de las líneas 135-137. Además, una verificación manual dentro de 60 segundos es propensa a errores.
+Recommendation: Hacer obligatoria una variante F8 de `comprobarPremerge` antes de solicitar el merge. Debe exigir, sobre la ejecución de `preflight-instalacion.sql` en la misma ventana:
+- las 14 funciones con `definicion_coincide=true`;
+- las ACL exigidas con `true`;
+- `fuentes[es_demo=false].brechas_identidad=0`;
+- `instalacion.*=false`;
+- F3 ON y F4–F7 OFF;
+- el MD5 del historial igual a la base del ensayo.
+
+Si las candidatas contienen aserciones sobre datos, documentar cuáles son. No lo puedo verificar porque el SQL de las candidatas no está adjunto.
+
+[P2] La paridad Edge compara runtimes, no lo que el merge despliega
+File: INSTALACION-2026-09-13.md
+Lines: 100-103
+Problem: Se compara "padre y rama por archivos, JWT e import map". Con la integración de ramas basada en git, el merge despliega `supabase/functions` y la configuración de `config.toml` del commit fusionado, no el runtime de la rama. Esto es una hipótesis: depende del modo de integración, que no está en la evidencia.
+Impact: El runtime de la rama puede coincidir con el padre mientras el árbol git del commit contiene una versión distinta de una Edge o de su configuración de JWT o Auth.
+Recommendation: Añadir un tercer lado a la comparación: el árbol del commit exacto que se fusiona, con `supabase/functions/**` y `config.toml`, contra producción. Registrar el modo de integración.
+
+[P2] Riesgo de orden de versiones si el padre avanza
+File: INSTALACION-2026-09-13.md
+Lines: 10-13, 118-121
+Problem: Las candidatas tienen versiones 20260913215240 y 20260914025926, y el ledger productivo termina en 20260913213842. Si producción recibe una migración con versión posterior a 20260913215240 antes del merge, las candidatas quedan fuera de orden.
+Impact: Corregirlo exige cambiar el timestamp, lo que cambia el nombre y posiblemente el hash, y obliga a una nueva revisión. El texto actual solo dice "integrar y volver a verificar".
+Recommendation: Declararlo como condición de parada explícita: una nueva versión en el padre posterior a 20260913215240 exige renombrar, recalcular hashes y pedir nueva aprobación del SQL.
+
+[P3] Nueve ACL sin expectativa en funciones que se reemplazan
+File: preflight-instalacion.sql
+Lines: 16-24, 29-30
+Problem: `CREATE OR REPLACE` conserva la ACL existente. Una deriva actual de permisos, por ejemplo EXECUTE a anon en `public.marcar_contrato_demo`, pasaría silenciosamente a la instalación. `catalogo_funciones.md5` solo es una huella del corte, no se contrasta con ninguna expectativa.
+Recommendation: Fijar la ACL esperada de las 14 funciones, o documentar por qué cada una de las nueve queda sin expectativa.
+
+[P3] Grupo `es_demo` NULL no clasificado
+File: preflight-instalacion.sql
+Lines: 34-38, 64
+Problem: Si `cartera_f5_fuentes()` devuelve `es_demo` NULL para alguna fuente, se forma un tercer grupo que el criterio "cero brechas reales" no contempla. Es una hipótesis: depende del JOIN interno de la función, que no está adjunto.
+Recommendation: Exigir que no exista un grupo NULL, o contarlo como brecha real.
+
+[P3] Manejo de dumps y enlace no verificado
+File: INSTALACION-2026-09-13.md
+Lines: 69-72, 155-156
+Problem:
+- No se indica dónde se guardan los dumps de estructura, que deben quedar fuera del repositorio, ni cuándo se eliminan. Los cuerpos de funciones pueden contener URLs o credenciales de pg_net o vault.
+- Se enlaza `instalacion/REVISION.md`, que no se adjuntó como evidencia.
+Recommendation: Fijar ubicación privada fuera del repo y borrado al cierre. Verificar que el enlace existe antes del commit.
+
+TEST GAPS:
+- No hay prueba de que la variante de paridad detecte un trigger deshabilitado, una política RESTRICTIVE o una diferencia de `pg_default_acl`. Conviene un par rama/rama con un cambio sembrado a propósito.
+- El SQL de las candidatas no está adjunto, así que no puedo confirmar que las 14 firmas son todas las funciones que reemplazan o de las que dependen.
+- No se ha probado el comportamiento de las candidatas si producción tiene una brecha real en el momento de aplicar.
+
+SECURITY RISKS:
+- Grants por defecto no cotejados para las tablas nuevas `crm.piloto_f8_*` (P1).
+- Dumps de estructura con posibles secretos en cuerpos de funciones (P3).
+
+REGRESSION RISKS:
+- Instalación parcial por cambios de datos o de funciones entre el ensayo y el merge (P2).
+- Despliegue de Edge o configuración no cotejado contra el árbol git (P2).
+
+RECOMMENDED NEXT ACTIONS:
+1. Añadir al procedimiento la limpieza tras el replay fallido y el reemplazo completo del ledger, corrigiendo la contradicción de la línea 81.
+2. Especificar la paridad ampliada F8 como requisito previo del paso 4.
+3. Exigir la ejecución de `preflight-instalacion.sql` dentro de la ventana de 60 segundos y un `comprobarPremerge` F8 como entregable antes del merge.
+4. Corregir la procedencia de `proyecto` en la captura.
+5. Añadir las condiciones de parada por orden de versiones y la comparación de Edge contra el commit git.
+
+CONFIDENCE:
+MEDIUM. El análisis del SQL, de los scripts y del orden de claves jsonb tiene evidencia directa. Lo relativo a la integración git de ramas y al contenido de las candidatas es hipótesis por falta de evidencia adjunta.

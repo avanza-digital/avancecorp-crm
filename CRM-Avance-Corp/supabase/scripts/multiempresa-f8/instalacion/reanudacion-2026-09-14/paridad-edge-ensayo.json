@@ -1,0 +1,397 @@
+{
+  "estado": "PASS",
+  "comparacion": "Igualdad completa de respuestas get_edge_function, incluido contenido de cada archivo; no solo tamaños.",
+  "padre": "dctqcbznekcyxhjujuci",
+  "rama": "zgjyapayxvnvrgpiarod",
+  "funciones": [
+    {
+      "slug": "crear-cliente",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_b65c8aaf-dc2b-4988-8c5b-17cb38950e98_33/source/supabase/functions/crear-cliente/index.ts",
+      "ezbr_sha256": "41ab8c34dacf38586ab34ffbe9b3b1845376784a3e5b591d853ce9c66d751941",
+      "files": [
+        {
+          "name": "functions/crear-cliente/index.ts",
+          "bytes": 43366
+        },
+        {
+          "name": "functions/_shared/documento.ts",
+          "bytes": 3665
+        },
+        {
+          "name": "functions/_shared/bancarios.mjs",
+          "bytes": 8792
+        },
+        {
+          "name": "functions/_shared/domicilio.mjs",
+          "bytes": 3481
+        },
+        {
+          "name": "functions/crear-cliente/autorizacion.mjs",
+          "bytes": 1896
+        },
+        {
+          "name": "functions/_shared/acceso-crm.mjs",
+          "bytes": 806
+        },
+        {
+          "name": "functions/_shared/saga-auth.mjs",
+          "bytes": 4084
+        }
+      ]
+    },
+    {
+      "slug": "crear-admin",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_xoyeqftdfxmshjqswdey_4acabcfa-d1a7-46fb-b651-4e5a1ab96f9f_17/source/supabase/functions/crear-admin/index.ts",
+      "ezbr_sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340",
+      "files": [
+        {
+          "name": "crear-admin/index.ts",
+          "bytes": 5276
+        }
+      ]
+    },
+    {
+      "slug": "enviar-comunicado",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_a1199ced-9915-4095-9e39-68ed6a00115a_10/source/index.ts",
+      "ezbr_sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 15116
+        }
+      ]
+    },
+    {
+      "slug": "enviar-push",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_ed7341cd-bf2e-42c6-b42d-f3675cc1540d_2/source/index.ts",
+      "ezbr_sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 4793
+        }
+      ]
+    },
+    {
+      "slug": "diagnostico-push",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_ae83c926-2099-40a0-9d6b-3e52042c8b48_2/source/index.ts",
+      "ezbr_sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 56
+        }
+      ]
+    },
+    {
+      "slug": "resetear-password",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_f5c3da7d-020c-425b-bd5d-90c5204886f0_2/source/index.ts",
+      "ezbr_sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 3789
+        }
+      ]
+    },
+    {
+      "slug": "eliminar-cliente",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_bdf860a0-5f58-41b4-9320-c886f1af2d80_8/source/supabase/functions/eliminar-cliente/index.ts",
+      "ezbr_sha256": "039cdb07ba6821754dc7e21525a1aacdc6f42bbb8520f5b6dd1bdf0542eae60a",
+      "files": [
+        {
+          "name": "eliminar-cliente/index.ts",
+          "bytes": 7523
+        }
+      ]
+    },
+    {
+      "slug": "notificar-pagos",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_2b12a2a1-94c4-4563-85c8-d3ce4b20ce92_4/source/index.ts",
+      "ezbr_sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 18209
+        }
+      ]
+    },
+    {
+      "slug": "importar-clientes",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_faf96e8c-1fc3-4c21-a13f-0b66fd47cf6e_15/source/supabase/functions/importar-clientes/index.ts",
+      "ezbr_sha256": "f5b3b2c98a8956f0af85e0f9a31625673c588dfc3f5ed2e75bb4b97051a2b640",
+      "files": [
+        {
+          "name": "functions/importar-clientes/index.ts",
+          "bytes": 23557
+        },
+        {
+          "name": "functions/_shared/saga-auth.mjs",
+          "bytes": 4084
+        },
+        {
+          "name": "functions/_shared/documento.ts",
+          "bytes": 3665
+        }
+      ]
+    },
+    {
+      "slug": "ciclo-contratos",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_irkjrcotuxnbshvjqyfc_0c5874f3-81db-4678-9fc5-467b7db2eb43_4/source/index.ts",
+      "ezbr_sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 21858
+        }
+      ]
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_ehzftpvxuwuzinvkyhzz_7da287c5-0e8b-4b6b-b4f4-ff92d0bf20d6_17/source/functions/crm-convertir-lead/index.ts",
+      "ezbr_sha256": "7fc27ab95b8253197c5185a3de9894c27509f1b4a66e17c6c0444a24f5153083",
+      "files": [
+        {
+          "name": "functions/crm-convertir-lead/index.ts",
+          "bytes": 45358
+        },
+        {
+          "name": "functions/_shared/acceso-crm.mjs",
+          "bytes": 806
+        },
+        {
+          "name": "functions/crm-convertir-lead/preflight.mjs",
+          "bytes": 772
+        },
+        {
+          "name": "functions/_shared/bancarios.mjs",
+          "bytes": 8792
+        },
+        {
+          "name": "functions/_shared/domicilio.mjs",
+          "bytes": 3481
+        },
+        {
+          "name": "functions/_shared/saga-auth.mjs",
+          "bytes": 4084
+        }
+      ]
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_21f4fdf2-1157-4de6-a69d-591c732542f4_8/source/supabase/functions/crm-tipo-cambio/index.ts",
+      "ezbr_sha256": "694edeec8026de0839dabd1a8e0c85e281338b288c53c2a82bf9c5e9db75dce9",
+      "files": [
+        {
+          "name": "crm-tipo-cambio/index.ts",
+          "bytes": 459
+        },
+        {
+          "name": "crm-tipo-cambio/handler.ts",
+          "bytes": 9202
+        }
+      ]
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dctqcbznekcyxhjujuci_013735cc-5192-4599-a43f-7565b5bda97f_4/source/CRM-Avance-Corp/supabase/functions/crm-agenda-ics/index.ts",
+      "ezbr_sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5",
+      "files": [
+        {
+          "name": "crm-agenda-ics/index.ts",
+          "bytes": 7878
+        }
+      ]
+    },
+    {
+      "slug": "crm-importar-leads",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_b826cd35-8041-4abc-b5ea-e2017850426b_20/source/supabase/functions/crm-importar-leads/index.ts",
+      "ezbr_sha256": "9d7ca8d8087f2bfe8a14a3f73245ee1924bacf1fcf7369effd84ac9b31d05669",
+      "files": [
+        {
+          "name": "crm-importar-leads/index.ts",
+          "bytes": 21555
+        },
+        {
+          "name": "crm-importar-leads/autorizacion-contacto.ts",
+          "bytes": 1089
+        },
+        {
+          "name": "crm-importar-leads/destinos.ts",
+          "bytes": 1229
+        },
+        {
+          "name": "crm-importar-leads/resultado-importacion.ts",
+          "bytes": 9746
+        },
+        {
+          "name": "crm-importar-leads/catalogo.ts",
+          "bytes": 571
+        },
+        {
+          "name": "crm-importar-leads/telefonos.ts",
+          "bytes": 8999
+        }
+      ]
+    },
+    {
+      "slug": "crm-usuarios",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_xoyeqftdfxmshjqswdey_2fe20750-4167-4db0-a89f-4c9debc1da6a_6/source/index.ts",
+      "ezbr_sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658",
+      "files": [
+        {
+          "name": "index.ts",
+          "bytes": 3403
+        },
+        {
+          "name": "handler.ts",
+          "bytes": 9750
+        },
+        {
+          "name": "auth-attributes.ts",
+          "bytes": 662
+        }
+      ]
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "verify_jwt": true,
+      "import_map": true,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_0d5942fa-d3bf-40c4-b511-8dc0ce1f039c_14/source/supabase/functions/crm-contrato-pdf-v2/index.ts",
+      "ezbr_sha256": "60603203db0f6c51576b6113c6f279dfaded1353fbb7112b45a43ba98d143dba",
+      "files": [
+        {
+          "name": "crm-contrato-pdf-v2/index.ts",
+          "bytes": 4032
+        },
+        {
+          "name": "crm-contrato-pdf-v2/handler.ts",
+          "bytes": 37762
+        },
+        {
+          "name": "crm-contrato-pdf-v2/renderer.ts",
+          "bytes": 17233
+        },
+        {
+          "name": "crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+          "bytes": 1193450
+        },
+        {
+          "name": "crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+          "bytes": 830106
+        },
+        {
+          "name": "crm-contrato-pdf-v2/assets-v2.ts",
+          "bytes": 189957
+        },
+        {
+          "name": "crm-contrato-pdf-v2/template-v2.ts",
+          "bytes": 42593
+        },
+        {
+          "name": "crm-contrato-pdf-v2/storage.ts",
+          "bytes": 5215
+        },
+        {
+          "name": "crm-contrato-pdf-v2/deno.json",
+          "bytes": 303
+        }
+      ]
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_plaeuugsybujzymrcvgj_dfe55cb9-24a7-4d2d-bf89-1e71c05126ed_1/source/functions/crm-inversion-portal/index.ts",
+      "ezbr_sha256": "bfa917af846466011e2d1cb4b992c8335fff830d53c3f09ca6bc591454ce8723",
+      "files": [
+        {
+          "name": "functions/crm-inversion-portal/index.ts",
+          "bytes": 416
+        },
+        {
+          "name": "functions/crm-inversion-portal/handler.mjs",
+          "bytes": 8653
+        },
+        {
+          "name": "functions/_shared/documento.ts",
+          "bytes": 3665
+        },
+        {
+          "name": "functions/_shared/domicilio.mjs",
+          "bytes": 3481
+        },
+        {
+          "name": "functions/_shared/saga-auth.mjs",
+          "bytes": 4084
+        }
+      ]
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "verify_jwt": true,
+      "entrypoint_path": "/tmp/user_fn_suzyimzjeybeaqozqifi_7f76fc6b-920e-44fb-9c4d-f802a213e864_4/source/crm-inversion-documento/index.ts",
+      "ezbr_sha256": "12ce3e2aea4546acec3050eb32414a4f8068dcc9e0e41738d9036ba58b4c1df7",
+      "files": [
+        {
+          "name": "crm-inversion-documento/index.ts",
+          "bytes": 407
+        },
+        {
+          "name": "crm-inversion-documento/handler.mjs",
+          "bytes": 6278
+        }
+      ]
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "verify_jwt": false,
+      "entrypoint_path": "/tmp/user_fn_pdummdtfablfkdgrmauo_1da734ac-8898-43b6-9b31-99c42bd54ca3_1/source/supabase/functions/crm-notificaciones-tasa/index.ts",
+      "ezbr_sha256": "85c19897308847cb1e412f1e3417aa6252997fb18833d47a8162607af4415ea8",
+      "files": [
+        {
+          "name": "crm-notificaciones-tasa/index.ts",
+          "bytes": 2376
+        },
+        {
+          "name": "crm-notificaciones-tasa/handler.ts",
+          "bytes": 7990
+        },
+        {
+          "name": "crm-notificaciones-tasa/transporte.ts",
+          "bytes": 929
+        }
+      ]
+    }
+  ]
+}

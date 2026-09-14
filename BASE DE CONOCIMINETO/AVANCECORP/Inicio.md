@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-13
+actualizado: 2026-09-14
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -12,9 +12,26 @@ actualizado: 2026-09-13
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[G6 - conciliacion real preparada (2026-09-11)]].
+Estado F8 vigente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
+Ensayo remoto y Auth terminados; sigue instalación OFF autorizada.
+
+Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
+[[F8 - instalacion autorizada en curso (2026-09-14)]],
+[[F8 - instalacion apagada preparada (2026-09-13)]],
+[[F8 - exclusion demo preparada (2026-09-13)]],
+[[F8 - enlaces reales aplicados (2026-09-13)]],
+[[F8 - enlaces historicos preparados (2026-09-13)]],
+[[F8 - revision de identidades pendientes (2026-09-13)]] y
+[[F8 - piloto economico preparado localmente (2026-09-13)]].
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
-Sigue preparar y autorizar el piloto F8.
+F8 tiene control probado en banco y rama. Los diez movimientos reales ya están
+enlazados en producción, con veinte comprobaciones posteriores aprobadas.
+Los cuatro huecos demo tienen corrección probada localmente; paquete y
+procedimiento de instalación preparados. Miguel aprobó los dos SQL y después
+pidió pausar. Trabajo guardado; rama exclusiva eliminada para cerrar su costo.
+La reconstrucción revisada queda pendiente. No volver a pedir esa aprobación.
+La lectura de las 23:08 Lima confirmó cero huecos reales y compatibilidad de las
+14 definiciones previas examinadas. F8 no está instalada ni activa.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
@@ -37,6 +54,15 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[F8 - pausa segura de instalacion (2026-09-14)]] — pausa solicitada, producción sin F8, rama propia eliminada, revisión recibida y punto exacto de retoma guardado.
+- [[F8 - instalacion autorizada en curso (2026-09-14)]] — dos SQL aprobados; rama propia creada, reconstrucción y verificación en curso; F8 productiva sin instalar ni activar.
+- [[F8 - instalacion apagada preparada (2026-09-13)]] — SQL exacto y procedimiento para rama con paridad de esquema/historial/Edge; precondiciones actuales verificadas; instalación pendiente.
+- [[F8 - exclusion demo preparada (2026-09-13)]] — 31 pruebas locales; SQL y reversa listos para revisión, sin aplicar ni activar producción.
+- [[F8 - enlaces reales aplicados (2026-09-13)]] — SQL aprobado y aplicado; siete personas / diez movimientos, cero huecos reales y cuatro demo pendientes. F8 sigue OFF.
+- [[F8 - enlaces historicos preparados (2026-09-13)]] — historial del ensayo de siete personas / diez movimientos; aplicación productiva completada después.
+- [[F8 - revision de identidades pendientes (2026-09-13)]] — diagnóstico cerrado: ocho movimientos reales para completado, dos del caso multirrol y cuatro pruebas. Informe privado en el escritorio; correcciones pendientes.
+- [[F8 - piloto economico preparado localmente (2026-09-13)]] — control nominal F8 probado en banco sintético; producción intacta y piloto todavía OFF. Faltan enlaces, equipo, rama e inicio autorizado.
+
 - [[Citas Gerencia - preparacion verificada 2026-09-13]] — publicación existente comprobada: tres migraciones y 72 archivos HTTP coincidentes con `d3ce2c1`; deuda de pruebas generales y nuevas metas/proyección pendientes.
 - [[Citas Gerencia - publicacion pausada 2026-09-12]] — preparación detenida por Miguel; candidatas ensayadas en rama propia, validaciones incompletas, sin commit ni publicación.
 - [[Citas Gerencia - conexiones corregidas en local 2026-09-12]] — caché y lector canónico preparados y probados; SQL sin instalar, nuevas metas/proyección y gate global pendientes.
@@ -45,7 +71,7 @@ Hay **tres capas**, complementarias:
 - [[Citas Gerencia - control de Superadmin en borrador 2026-09-11]] — panel local para metas y reglas; guardado compartido pendiente de SQL autorizado y nuevas métricas aún sin activar.
 - [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
-- [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas; diez identidades pendientes; conformidad humana/financiera recibida para el corte del 11/09. G6 cerrado, F8 pendiente.
+- [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas y conformidad humana/financiera recibida para el corte del 11/09. G6 cerrado; los diez enlaces pendientes se completaron después en F8.
 - [[F7 - publicada y apagada (2026-09-11)]] — informe Empresas publicado y SQL instalado OFF; pruebas específicas PASS, cero regresiones sobre los 57 fallos de la matriz general, banco cerrado; G6 cerrado el 13/09/2026.
 - [[F7 - informe multiempresa en sombra preparado (2026-09-11)]] — historial de construcción, decisiones, revisiones y autorizaciones previas a la publicación.
 - [[F6 - cierre y ajustes publicados (2026-09-11)]] — últimos ajustes publicados y verificados, revisión manual cerrada con VoiceOver omitido; F4/F5/F6 apagadas y F7 siguiente.

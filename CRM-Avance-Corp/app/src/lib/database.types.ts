@@ -2790,6 +2790,72 @@ export type Database = {
         }
         Relationships: []
       }
+      piloto_f8_control: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          actualizado_por: string | null
+          inicia_en: string | null
+          motivo: string | null
+          revision: number
+          singleton: boolean
+          vence_en: string | null
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          inicia_en?: string | null
+          motivo?: string | null
+          revision?: number
+          singleton?: boolean
+          vence_en?: string | null
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          inicia_en?: string | null
+          motivo?: string | null
+          revision?: number
+          singleton?: boolean
+          vence_en?: string | null
+        }
+        Relationships: []
+      }
+      piloto_f8_miembros: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          actualizado_por: string | null
+          habilitado_desde: string
+          motivo: string
+          perfil_id: string
+          rol_esperado: string
+          vence_en: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          habilitado_desde?: string
+          motivo: string
+          perfil_id: string
+          rol_esperado: string
+          vence_en: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          habilitado_desde?: string
+          motivo?: string
+          perfil_id?: string
+          rol_esperado?: string
+          vence_en?: string
+        }
+        Relationships: []
+      }
       politica_abandono: {
         Row: {
           actualizado_en: string
