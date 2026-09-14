@@ -11,8 +11,8 @@ actualizado: 2026-09-14
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado F8 vigente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
-Ensayo remoto y Auth terminados; sigue instalación OFF autorizada.
+Estado F8 vigente: [[F8 - instalada y apagada (2026-09-14)]].
+Instalación OFF verificada; sin participantes. Siguen equipo, activación y G7.
 
 Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - instalacion autorizada en curso (2026-09-14)]],
@@ -23,14 +23,15 @@ Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - revision de identidades pendientes (2026-09-13)]] y
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
-F8 tiene control probado en banco y rama. Los diez movimientos reales ya están
-enlazados en producción, con veinte comprobaciones posteriores aprobadas.
-Los cuatro huecos demo tienen corrección probada localmente; paquete y
-procedimiento de instalación preparados. Miguel aprobó los dos SQL y después
-pidió pausar. Trabajo guardado; rama exclusiva eliminada para cerrar su costo.
-La reconstrucción revisada queda pendiente. No volver a pedir esa aprobación.
-La lectura de las 23:08 Lima confirmó cero huecos reales y compatibilidad de las
-14 definiciones previas examinadas. F8 no está instalada ni activa.
+F8 tiene control y exclusión demo instalados. Los diez movimientos reales ya
+están enlazados; no se repite ese lote. El ensayo combinado pasó 31 pruebas SQL
+locales, 27 remotas y 12 grupos Auth/Data API. Producción: 600 fuentes reales,
+cero huecos y cinco demo conservadas fuera de la operación al corte del 14/09.
+Las fuentes previas, hechos económicos, Vault y Cron conservaron sus huellas.
+Rama exclusiva eliminada después de verificar. Main integrado y artefacto
+construido desde el commit verificado; 3.513 pruebas frontend PASS.
+No volver a pedir autorización de instalación. F8 sigue apagada y G7 abierto;
+faltan cuatro participantes nominales, configuración/activación y evidencia real.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 

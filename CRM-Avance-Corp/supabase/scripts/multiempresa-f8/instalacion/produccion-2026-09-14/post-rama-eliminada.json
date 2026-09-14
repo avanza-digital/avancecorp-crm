@@ -1,0 +1,31 @@
+{
+  "estado": "PASS",
+  "id_eliminada": "1d5c256d-a7a2-4031-9242-1292ffd37be2",
+  "ref_eliminada": "zgjyapayxvnvrgpiarod",
+  "respuesta": {
+    "success": true
+  },
+  "restantes": [
+    {
+      "id": "dff61d67-6c6e-4564-811b-e0458ed12747",
+      "nombre": "banco-f7",
+      "ref": "cwkiejoaqadcnaieghnf"
+    },
+    {
+      "id": "07531654-e80e-47ef-ac36-02ce61d93d41",
+      "nombre": "citas-validacion-20260912",
+      "ref": "xhgsjtzpmwlqfkninphl"
+    },
+    {
+      "id": "e8dd9b77-b6dd-49a0-b452-a971efb4e8ba",
+      "nombre": "main",
+      "ref": "dctqcbznekcyxhjujuci"
+    },
+    {
+      "id": "3d023eaa-5999-4e1a-8f3e-6c1c7c600d79",
+      "nombre": "tasas-inferiores-20260914",
+      "ref": "gvstgldssatszdovumhe"
+    }
+  ],
+  "verificado_en": "2026-09-14T17:18:59.635Z"
+}

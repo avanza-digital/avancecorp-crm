@@ -1,0 +1,15 @@
+{
+  "verificado_en": "2026-09-14T17:18:59.666Z",
+  "sitios": [
+    {
+      "url": "https://crm.miavance.com/",
+      "status": 200
+    },
+    {
+      "url": "https://miavance.com/",
+      "status": 200
+    }
+  ],
+  "login_real": "Confirmado por Miguel; no se crea otra sesión productiva de prueba",
+  "causa_error_conexion": "NO DETERMINADA"
+}

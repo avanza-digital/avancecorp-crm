@@ -1,7 +1,8 @@
 # F8 multiempresa — piloto económico controlado
 
-Estado al 13/09/2026: **control probado en banco y rama; corrección demo probada
-localmente; no instalados ni activados en producción**. G6 está
+Estado al 14/09/2026: **control y exclusión demo instalados y verificados en
+producción, apagados y sin participantes**. [Acta de publicación](PUBLICACION-2026-09-14.md).
+La rama exclusiva fue eliminada. G6 está
 cerrado. F8 y G7 siguen abiertos hasta completar casos reales, conciliaciones y
 firmas.
 
@@ -13,7 +14,7 @@ sistema.
 
 ## Qué añade
 
-- [Migración candidata](../../migrations/20260913215240_crm_f8_piloto_controlado.sql):
+- [Migración instalada](../../migrations/20260913215240_crm_f8_piloto_controlado.sql):
   control temporal del piloto y cuatro membresías nominales, ambas tablas RLS
   y sin acceso por Data API; nace apagada y sin miembros.
 - Revalidación de perfil activo, membresía CRM activa y rol esperado en cada
@@ -29,7 +30,7 @@ sistema.
   membresías sin borrar inversiones, postventa, auditoría ni historia.
 - [Corrección demo y SQL revisable](demos/README.md): excluye las fuentes de prueba
   de la cobertura y los lectores operativos, conserva historia y bloquea cualquier
-  hueco real. Nueva migración posterior al control, ensayada solo localmente.
+  hueco real. Migración posterior al control, ensayada localmente y en rama e instalada OFF.
 
 El control exige F3 encendida, F4–F7 globales apagadas, ventana vigente de
 máximo 30 días, equipo exacto y cobertura completa de la Ficha 360. Si cambia
@@ -60,11 +61,12 @@ enlaces reales están [aplicados y verificados](identidades/APLICACION-2026-09-1
 la lectura de las 21:29 Lima encontró cero huecos reales y cuatro demo,
 conservando las 598 fuentes, los hechos económicos, las cuentas y las banderas.
 
-El gate instalado todavía exige coherencia a las cuatro fuentes demo. La
-[corrección preparada](demos/README.md) alinea cartera, ficha, documentos,
-postventa y cobertura con las fuentes reales. Pasó 20 pruebas específicas y las
-11 del control F8 en el banco; falta aprobar su SQL, ensayarlo en el ciclo remoto
-e instalarlo. Los diez bloqueos reales sí están resueltos en producción.
+La [corrección demo instalada](demos/README.md) alinea cartera, ficha, documentos,
+postventa y cobertura con las fuentes reales. El ensayo combinado pasó 31
+pruebas SQL locales, 27 remotas y 12 grupos Auth/Data API. La lectura posterior
+del 14/09 a las 12:09 Lima encontró 600 fuentes reales, cero brechas y cinco
+demos conservadas fuera de la operación. Los diez bloqueos reales ya estaban
+resueltos en producción; sus enlaces no se repitieron.
 Prodelco necesita al menos una quinta
 identidad real durante el piloto y los seis recorridos multiempresa deben
 ejecutarse con evidencia.
@@ -103,28 +105,26 @@ reconstruir automáticamente el historial posterior al 11/08 porque una
 migración histórica exige datos que las ramas no copian. Por eso el ensayo usó
 el banco sintético y **no produjo una rama mergeable**.
 
+Ese ensayo anterior fue sustituido por la [reconstrucción revisada y el ensayo
+completo del 14/09](ENSAYO-2026-09-14.md). La rama resultante se integró y la
+instalación OFF productiva está verificada; se conservaron las 279 entradas
+anteriores y solo se añadieron los dos SQL aprobados.
+
 El acceso temporal de la CLI que apareció en la salida del ensayo fue retirado
 y verificado, con el servicio saludable. La contraseña principal y las claves
 API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-09-13.md).
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Aprobar el [SQL de exclusión demo](demos/README.md), ya implementado y ensayado
-   localmente; verificarlo en el ciclo de rama antes de instalar OFF.
-   El lote de los diez movimientos reales ya fue aprobado, aplicado y verificado.
-2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
+1. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.
-3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible
-   con el ciclo obligatorio; el ensayo remoto aislado ya pasó, pero la rama no
-   fue mergeable. [Paquete y procedimiento de instalación](INSTALACION-2026-09-13.md)
-   preparados: reconstrucción de estructura y paridad de historial/Edge en una
-   rama exclusiva; todavía no ejecutados para este paquete.
-4. Con autorización concreta, integrar e instalar OFF, verificar producción y
-   publicar desde el mismo commit de `avancecorp/main`.
-5. Cargar las cuatro membresías con vencimiento, comprobar soporte/reversa y
-   pedir la autorización concreta para encender el piloto.
-6. Ejecutar los casos reales y completar [ACTA-G7.md](ACTA-G7.md). No hay una
+2. Preparar ventana y SQL exacto de configuración/activación para su aprobación,
+   con soporte y reversa comprobados; instalar los participantes y encender
+   únicamente cuando esa aprobación exista.
+3. Ejecutar los casos reales y completar [ACTA-G7.md](ACTA-G7.md). No hay una
    espera de cinco días: G7 cierra al cumplir toda la evidencia.
+
+La instalación está completada y no requiere otra autorización ni otro merge.
 
 La preparación no autoriza un backfill ni una inversión real. La activación se
 hará con el equipo y el SQL de configuración exactos, revisables antes del paso.

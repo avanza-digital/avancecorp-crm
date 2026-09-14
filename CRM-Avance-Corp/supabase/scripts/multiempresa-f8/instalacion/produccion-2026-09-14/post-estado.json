@@ -1,0 +1,21 @@
+{
+  "n": 281,
+  "demo": true,
+  "nuevas": [
+    {
+      "name": "crm_f8_piloto_controlado",
+      "partes": 43,
+      "sha256": "77c66738dcb8fa71dde25bac80be5951bb492efa5fc96ae7b4af58ac22c88ce0",
+      "version": "20260914161616"
+    },
+    {
+      "name": "crm_f8_excluir_fuentes_demo",
+      "partes": 10,
+      "sha256": "ff3600d2838ffd0fc56fd06056a700e4b971d5327a9cba7f96c941529d63eb35",
+      "version": "20260914161816"
+    }
+  ],
+  "control": true,
+  "miembros": true,
+  "originales_md5": "576597950066582f3269ea9cc0672771"
+}

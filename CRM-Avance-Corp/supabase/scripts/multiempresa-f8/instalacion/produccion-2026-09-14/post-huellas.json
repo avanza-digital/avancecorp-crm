@@ -1,0 +1,53 @@
+{
+  "auth": {
+    "n": 497,
+    "md5": "8cfb278db0d8410f5a6f3a4aff4e46ee",
+    "md5_sin_tiempos_sesion": "e17478449c9ae8537f006223e4bc820d"
+  },
+  "cron": {
+    "n": 10,
+    "md5": "93937b9808816115aab8c37adc2ca9cc",
+    "activos": 10
+  },
+  "vault": {
+    "n": 2,
+    "md5": "5627691d1f5794349085e9c226a4c774"
+  },
+  "equipo": {
+    "n": 28,
+    "md5": "9f56217d5fe62cb2c7ce16ae34cd6893"
+  },
+  "inicio": "2026-09-14T17:00:54.278907+00:00",
+  "cierres": {
+    "n": 24,
+    "md5": "65dda3f24a74bedec232cbd4bc969db6"
+  },
+  "fuentes": {
+    "n": 605,
+    "md5": "0396229f680e47cd6b91e3bafc7a121f"
+  },
+  "perfiles": {
+    "n": 497,
+    "md5": "a1e46329fa8e7763786c9bc3eb67ad27"
+  },
+  "periodos": {
+    "n": 1,
+    "md5": "b3936d7c517c70530df228a7ceaf3a6f"
+  },
+  "personas": {
+    "n": 487,
+    "md5": "d2830e373cfc35d3c2d7bc33e6ee40af"
+  },
+  "contratos": {
+    "n": 581,
+    "md5": "7791a70a3ccff30821c8d4f81fc24257"
+  },
+  "titulares": {
+    "n": 14,
+    "md5": "c039d4e2610d2a1bd148493b64f75f60"
+  },
+  "inversiones": {
+    "n": 14,
+    "md5": "cac7cffef89edd24f77e97ae3ffc3596"
+  }
+}
