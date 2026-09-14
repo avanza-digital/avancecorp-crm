@@ -1,7 +1,7 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-g6-cerrado-f8-pendiente
+estado: plan-vigente-g6-cerrado-f8-instalada-off-g7-pendiente
 actualizado: 2026-09-14
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F8 probada en rama, cobertura diagnosticada y sin activar
+## Estado vigente — F8 instalada y verificada, piloto sin activar
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
@@ -31,18 +31,19 @@ Instalación y publicación verificadas el 11/09/2026; banco propio eliminado.
 La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
 regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias;
 conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
-cerrado. F8 tiene un control nominal probado en banco y rama, todavía sin instalar ni
-activar. Los diez huecos reales de cobertura ya están corregidos; la exclusión
-de cuatro huecos demo está implementada y probada localmente. Los dos SQL ya
-fueron aprobados; Miguel pausó el ensayo el 14/09. Avance guardado y rama exclusiva
-eliminada. Faltan resolver la reconstrucción, terminar la instalación OFF,
-equipo y evidencia G7.**
-Punto vigente: [[F8 - pausa segura de instalacion (2026-09-14)]].
+cerrado. F8 quedó instalada y verificada OFF el 14/09, sin participantes.
+Los diez huecos reales están corregidos y la exclusión demo ya está instalada.
+El ensayo combinado pasó 31 pruebas SQL locales, 27 remotas y 12 grupos Auth;
+Main integrado, 3.513 pruebas frontend y artefacto verificado. Producción:
+600 fuentes reales sin brechas al corte de las 12:09 Lima y cinco demos
+conservadas fuera del lector operativo. Rama exclusiva eliminada tras verificar.
+Faltan equipo, configuración/activación autorizadas y evidencia G7.**
+Punto vigente: [[F8 - instalada y apagada (2026-09-14)]].
 Corrección demo: [[F8 - exclusion demo preparada (2026-09-13)]].
 Paquete y procedimiento de instalación: [[F8 - instalacion apagada preparada (2026-09-13)]].
-Precondiciones de las dos candidatas comprobadas en producción a las 23:08 Lima;
-la aprobación posterior ya está recibida; el ensayo quedó pausado:
-[[F8 - instalacion autorizada en curso (2026-09-14)]].
+El preflight vivo pasó antes del merge y el catálogo posterior coincide con el
+ensayo dentro de las diferencias administradas revisadas:
+[[F8 - ensayo completo antes de instalar (2026-09-14)]].
 Miguel confirmó el caso multirrol y aprobó el SQL de los diez movimientos reales.
 La aplicación productiva pasó veinte verificaciones posteriores:
 [[F8 - enlaces reales aplicados (2026-09-13)]].
@@ -72,10 +73,10 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; quedan cuatro bloqueos demo. [[F8 - enlaces reales aplicados (2026-09-13)]] |
+| F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; la exclusión demo se instaló el 14/09. [[F8 - instalada y apagada (2026-09-14)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias y conformidad humana/financiera recibida. Los diez enlaces técnicos pendientes se completaron en F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | SQL aprobados; instalación pausada; piloto OFF | Enlaces reales completos. Resolver reconstrucción de rama e instalar OFF; después elegir equipo y completar G7. [[F8 - pausa segura de instalacion (2026-09-14)]] |
+| F8 — piloto económico | Instalada y verificada OFF; G7 abierto | Enlaces y exclusión demo completos. Elegir Gerencia, supervisor y dos vendedores; aprobar configuración/activación y completar evidencia real G7. [[F8 - instalada y apagada (2026-09-14)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;

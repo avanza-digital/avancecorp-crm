@@ -1,0 +1,17 @@
+{
+  "estado": "PASS_PARIDAD_REVISADA",
+  "autoriza_merge": false,
+  "padre": "dctqcbznekcyxhjujuci",
+  "rama": "zgjyapayxvnvrgpiarod",
+  "diferencias_catalogo": 6,
+  "diferencias_externas": 172,
+  "sha256_padre": "8206fe7d996a37da2f9664bc2de5388741723b67d79dc93c30a38f251faf8da8",
+  "sha256_rama": "1af840cb5ac2b41d243be4dc521b1f09c3340b57c8adb613e4ad20f090607c53",
+  "sha256_revision": "882535683dacc1e68fce6afd61cb9dd2b3678f6fabb52334179046e0f28fbbee",
+  "modo": "COMPARACION_POSTERIOR_DE_CAPTURAS_POST_MERGE",
+  "fechas_captura": [
+    "2026-09-14T17:09:05.475595+00:00",
+    "2026-09-14T17:08:53.187523+00:00"
+  ],
+  "comparado_en": "2026-09-14T17:15:05.371Z"
+}

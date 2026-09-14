@@ -1,0 +1,14 @@
+{
+  "cola": 0,
+  "vault": 0,
+  "activo": false,
+  "ledger": 281,
+  "sql_sha": [
+    "0807e59bcaccfbce8d7af02dc67fcfa8a64686305aaa976d4840af16c86c18fe",
+    "0f7daa10f1e1ac1d71501795d0f0d45c64e58fa263426c7e27a56f5c0e73dc08"
+  ],
+  "cron_total": 10,
+  "cron_activo": 0,
+  "originales_md5": "576597950066582f3269ea9cc0672771",
+  "miembros_activos": 0
+}

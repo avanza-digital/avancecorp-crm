@@ -1,0 +1,274 @@
+{
+  "eventos": [
+    {
+      "n": 1,
+      "tabla": "contratos",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 45,
+      "tabla": "crm.actividades",
+      "con_actor": 45,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 2,
+      "tabla": "crm.cierres_externos",
+      "con_actor": 2,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.contrato_cuentas_pago",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.conversion_reservas",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 2,
+      "tabla": "crm.conversion_reservas",
+      "con_actor": 2,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.cuentas_bancarias",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 2,
+      "tabla": "crm.depositos_reclamados",
+      "con_actor": 2,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.envios_push_tasa",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 6,
+      "tabla": "crm.envios_push_tasa",
+      "con_actor": 0,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.inversionista_gestiones",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.inversionista_identificadores",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.inversionista_leads",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.inversionista_responsables",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.inversionistas",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 4,
+      "tabla": "crm.inversionistas",
+      "con_actor": 4,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 5,
+      "tabla": "crm.lead_asignacion_sla_hitos",
+      "con_actor": 5,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 9,
+      "tabla": "crm.lead_asignacion_sla_hitos",
+      "con_actor": 9,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 5,
+      "tabla": "crm.lead_asignaciones",
+      "con_actor": 5,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 8,
+      "tabla": "crm.lead_asignaciones",
+      "con_actor": 8,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 5,
+      "tabla": "crm.lead_sla_ciclos",
+      "con_actor": 5,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 9,
+      "tabla": "crm.lead_sla_ciclos",
+      "con_actor": 9,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 14,
+      "tabla": "crm.lead_sla_etapas",
+      "con_actor": 14,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 17,
+      "tabla": "crm.lead_sla_etapas",
+      "con_actor": 17,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.leads",
+      "con_actor": 3,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 19,
+      "tabla": "crm.leads",
+      "con_actor": 19,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.ledger_rentabilidad",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 4,
+      "tabla": "crm.multiempresa_idempotencia",
+      "con_actor": 4,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "crm.multiempresa_idempotencia",
+      "con_actor": 3,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.producto_condiciones",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.producto_versiones",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.producto_versiones",
+      "con_actor": 1,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 22,
+      "tabla": "crm.sla_operacion_recibos",
+      "con_actor": 22,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 22,
+      "tabla": "crm.sla_operacion_recibos",
+      "con_actor": 22,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 1,
+      "tabla": "crm.solicitudes_tasa",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 4,
+      "tabla": "crm.solicitudes_tasa",
+      "con_actor": 4,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 20,
+      "tabla": "crm.tarea_sla_contexto",
+      "con_actor": 20,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 20,
+      "tabla": "crm.tareas",
+      "con_actor": 20,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 14,
+      "tabla": "crm.tareas",
+      "con_actor": 14,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 7,
+      "tabla": "crm.verificaciones_lead",
+      "con_actor": 7,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 13,
+      "tabla": "cronograma_pagos",
+      "con_actor": 13,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 1,
+      "tabla": "perfiles",
+      "con_actor": 0,
+      "operacion": "INSERT"
+    },
+    {
+      "n": 3,
+      "tabla": "perfiles",
+      "con_actor": 3,
+      "operacion": "UPDATE"
+    },
+    {
+      "n": 1,
+      "tabla": "public.suscripciones_push",
+      "con_actor": 1,
+      "operacion": "INSERT"
+    }
+  ],
+  "campos_perfil": [
+    "actualizado_en",
+    "debe_cambiar_password",
+    "pwa_instalada_at"
+  ],
+  "actualizaciones_f8": 0
+}
