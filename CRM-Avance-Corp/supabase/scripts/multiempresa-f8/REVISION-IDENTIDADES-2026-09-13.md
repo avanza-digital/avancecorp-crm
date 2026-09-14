@@ -16,7 +16,7 @@ demo, con diez reales y cuatro demo sin identidad coherente.
 |---|---:|---:|---|---|
 | Avance posterior a la carga F2 | 7 | 5 perfiles cliente | DNI con formato válido y único entre todos los perfiles; sin identificador ni lead asociado | Preparar completado dirigido por perfil y documento de la fuente |
 | Qorilazo posterior a F2 | 1 | 1 lead | El cierre tiene DNI válido; el lead convertido tiene DNI vacío. No hay otro perfil, identificador ni lead con ese DNI | Preparar identidad desde el documento del cierre y enlace coherente del lead y cierre |
-| Avance multirrol | 2 | 1 perfil cliente | El DNI aparece también en una cuenta de analista. F2 lo dejó en revisión por esa razón | Confirmar si ambas cuentas corresponden a la misma persona; mantener permisos separados |
+| Avance multirrol | 2 | 1 perfil cliente | El DNI aparece también en una cuenta de analista. Miguel confirmó que es la misma persona | Enlazar el perfil cliente y conservar la cuenta y permisos de analista separados |
 | Demo Avance | 3 | 2 perfiles | Un perfil sin documento y otro con un DNI de cuatro caracteres | Mantenerlos clasificados como prueba; resolver el tratamiento de cobertura demo |
 | Demo Qorilazo | 1 | 1 lead | Cierre de prueba ya clasificado técnicamente; documento con formato válido, sin identidad | Mantener la clasificación demo, sin convertirlo en identidad real |
 
@@ -45,8 +45,9 @@ no demuestra por sí sola el comportamiento de todas las puertas de alta actuale
 Los dos movimientos multirrol comparten **un mismo perfil cliente**, con una
 entrada F2 clase E: `documento compartido con otro perfil (multirrol/colision)`.
 La segunda cuenta es de analista, está activa, tiene cero contratos y tampoco
-tiene identidad neutral. Se consultó a Miguel la correspondencia entre ambas
-cuentas; los nombres se conservan únicamente en el anexo privado.
+tiene identidad neutral. Miguel confirmó «sii son la misma» a la pregunta
+específica sobre ambas cuentas. Los nombres se conservan únicamente en el
+anexo privado; la confirmación resuelve la correspondencia, no aplica enlaces.
 
 El cierre real Qorilazo ya referencia su lead convertido. El nombre coincidente
 es contexto, no prueba de identidad. El DNI que puede sustentar el enlace está
@@ -68,13 +69,12 @@ el vendedor, su pertenencia activa al equipo y cualquier cambio concurrente.
    pertinentes. No se ejecuta el backfill global. La conformidad comercial y
    financiera G6 se conserva, con el alcance de su corte; no se usa como prueba
    documental nueva.
-2. **Dos movimientos multirrol:** decidir el tratamiento tras la respuesta
-   específica sobre la cuenta de analista y la cliente. Si es la misma persona,
+2. **Dos movimientos multirrol:** con la correspondencia confirmada por Miguel,
    `crm.inversionistas.perfil_id` será el **perfil cliente**. La cuenta de
    analista no se enlazará a esa identidad ni obtendrá permisos por su DNI.
    La decisión multirrol quedará registrada con motivo y autor; se comprobará
-   por RLS que el analista conserva únicamente su ámbito. Si es distinta, hace falta corregir el documento erróneo
-   por el circuito de Gerencia; no elegirlo por semejanza del nombre.
+   por RLS que el analista conserva únicamente su ámbito. No se fusionan
+   cuentas Auth ni se amplía acceso por coincidencia de documento.
 3. **Cuatro fuentes demo:** el gate actual de F5 y la candidata F8 comprueban
    todas las fuentes, también las demo. Tres movimientos demo carecen de
    documento válido, mientras el contrato F0 §4.3 prohíbe crear identidades

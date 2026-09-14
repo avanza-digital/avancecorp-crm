@@ -20,9 +20,9 @@ La revisión está completada; los enlaces todavía no están corregidos:
   cierre conserva el documento. Son seis fichas candidatas al completado
   dirigido con la procedencia documental histórica F2, auditoría y preimagen.
 - **Dos movimientos reales:** una sola ficha cliente comparte documento con
-  una cuenta de analista. Se consultó si ambas cuentas representan a la misma
-  persona. La cuenta cliente será el enlace económico; la de analista conserva
-  su acceso separado. Respuesta pendiente, sin inferir identidad por nombre.
+  una cuenta de analista. Miguel confirmó «sii son la misma». La cuenta cliente
+  será el enlace económico; la de analista conserva su acceso separado.
+  Correspondencia multirrol confirmada; enlace técnico todavía pendiente.
 - **Cuatro movimientos demo:** tres contratos de dos perfiles sin documento
   válido y un cierre de prueba. El gate actual los incluye, pero el contrato
   prohíbe crear identidades operativas con documentos inventados o no verificados.
@@ -38,8 +38,8 @@ aceptación documental que deberá hacer explícitas el SQL de completado.
 
 La conformidad comercial/financiera de [[G6 - conciliacion real preparada (2026-09-11)]]
 sigue vigente para el corte aceptado. No se pide revisar de nuevo todos los
-clientes ni los montos. La pregunta nueva trata exclusivamente la
-correspondencia de las dos cuentas multirrol.
+clientes ni los montos. La correspondencia de las dos cuentas multirrol ya
+quedó confirmada expresamente por Miguel.
 
 Informe nominativo privado en el escritorio:
 `~/Desktop/Revision F8 - identidades 2026-09-13/Revision de identidades F8.html`.
