@@ -15,8 +15,8 @@ actualizado: 2026-09-14
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado F8 vigente: [[F8 - instalada y apagada (2026-09-14)]].
-Instalación OFF verificada; sin participantes. Siguen equipo, activación y G7.
+Estado F8 vigente: [[F8 - equipo elegido y activacion preparada (2026-09-14)]].
+Equipo nominal completo y verificado; SQL de encendido preparado. F8 sigue OFF.
 
 Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - instalacion autorizada en curso (2026-09-14)]],
@@ -35,7 +35,7 @@ Las fuentes previas, hechos económicos, Vault y Cron conservaron sus huellas.
 Rama exclusiva eliminada después de verificar. Main integrado y artefacto
 construido desde el commit verificado; 3.513 pruebas frontend PASS.
 No volver a pedir autorización de instalación. F8 sigue apagada y G7 abierto;
-faltan cuatro participantes nominales, configuración/activación y evidencia real.
+equipo de cuatro elegido; faltan aprobación del encendido, ejecución y evidencia real.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 

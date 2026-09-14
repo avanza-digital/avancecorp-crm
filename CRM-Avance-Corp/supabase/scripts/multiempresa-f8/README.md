@@ -2,6 +2,7 @@
 
 Estado al 14/09/2026: **control y exclusión demo instalados y verificados en
 producción, apagados y sin participantes**. [Acta de publicación](PUBLICACION-2026-09-14.md).
+Equipo nominal elegido y cuentas verificadas; [activación preparada](activacion/README.md), pendiente de aprobación y ejecución.
 La rama exclusiva fue eliminada. G6 está
 cerrado. F8 y G7 siguen abiertos hasta completar casos reales, conciliaciones y
 firmas.
@@ -116,8 +117,8 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Elegir nominalmente un representante de Gerencia, un supervisor y dos
-   vendedores. No se versionan nombres ni UUID reales en Git.
+1. Equipo nominal elegido por Miguel y verificado. No se versionan nombres ni
+   UUID reales en Git; la selección privada está guardada.
 2. Preparar ventana y SQL exacto de configuración/activación para su aprobación,
    con soporte y reversa comprobados; instalar los participantes y encender
    únicamente cuando esa aprobación exista.

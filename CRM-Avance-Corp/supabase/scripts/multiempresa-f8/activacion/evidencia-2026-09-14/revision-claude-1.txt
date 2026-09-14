@@ -1,0 +1,89 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El DML es atómico, parte de un estado sin cambios y sirve para una sola ejecución. Toma la misma llave consultiva que el motor antes de leer el estado. Revalida cuentas, rol y supervisor contra la selección renderizada. El orden INSERT de miembros → UPDATE del control es el único que el trigger acepta. La plantilla sin renderizar falla al hacer el cast a `jsonb`, y la inyección está cerrada: solo se aceptan UUID validados y roles de una lista fija. El banco cubre el camino feliz, la repetición, cuatro precondiciones de cuenta y la reversa.
+
+No encontré P0 ni P1. Pido cambios en tres puntos:
+- **Atribución:** `actualizado_por` se deriva automáticamente del participante de Gerencia, y el `motivo` afirma una aprobación que el SQL no referencia.
+- **Jerarquía:** la estructura elegida (un vendedor del supervisor y otro ajeno) no se afirma en ningún lugar.
+- **Evidencia incompleta:** `package.json` está modificado y no se adjuntó.
+
+Nota: la sesión llegó en modo plan. Por el rol de SECONDARY_REVIEWER no uso herramientas, no creo archivos de plan y entrego el review directamente.
+
+FINDINGS:
+
+[P2] El responsable se infiere de la composición, no de una aprobación explícita
+File: `activacion/activar.sql`
+Lines: 3-4, 29-31, 76-83; motor en `20260913215240_crm_f8_piloto_controlado.sql:117,147,178-181`
+Problem: `v_responsable` es `min(perfil_id) filter (rol_esperado='gerencia')` del propio equipo, así que quien firma es siempre el participante de Gerencia. Ese valor no proviene de un dato independiente de aprobación. Además, el `motivo` fijo dice "equipo nominal y vigencia aprobados" sin ninguna referencia verificable a esa aprobación.
+Evidence:
+- El motor admite a propósito que una sesión administrativa declare al responsable: `coalesce(auth.uid(), new.actualizado_por)`. La decisión de dejar `auth.uid()` en NULL y no simular una sesión es correcta, y el test de la línea 53 lo protege.
+- `public.audit_log.usuario_id` queda NULL en los 5 registros (test, línea 62). La base no guarda quién ejecutó; solo guarda a quién se nombra.
+- Hipótesis, porque no se adjuntó `reversa-operativa.sql`: en actualizaciones administrativas posteriores, `NEW.actualizado_por` hereda el valor anterior salvo que se asigne. La suspensión automática (`migración:112-114`) y probablemente la reversa quedarían atribuidas también a esa persona de Gerencia.
+Impact: El control de "responsable no NULL" queda satisfecho de forma estructural. El registro atribuye a una persona concreta una aprobación y, luego, apagados que quizá no hizo. Si quien aprobó es otra persona (Directorio u otra Gerencia), la atribución es incorrecta y nada lo detecta.
+Recommendation:
+1. Separar `responsable_id` como entrada explícita en `crear-sql.mjs`. En SQL, validar que es un perfil activo con rol `gerencia`; puede coincidir o no con el participante.
+2. Incluir en `motivo` una referencia de aprobación verificable (identificador o fecha del acta, nombre de quien ejecuta) con un marcador validado, en vez de un texto que afirma la aprobación de antemano.
+3. Registrar en el acta quién ejecutó el SQL, porque la base no lo guarda.
+4. Confirmar con la persona de Gerencia nombrada que acepta figurar como responsable.
+5. Verificar que la reversa asigne su propio responsable y no herede el de la activación.
+
+[P2] La jerarquía elegida no se afirma; solo se comprueba que no cambió desde el render
+File: `activacion/crear-sql.mjs`, `activacion/activar.sql`
+Lines: `crear-sql.mjs:11-16`; `activar.sql:46-57`
+Problem: El requisito es que un vendedor pertenezca al supervisor elegido y el otro a otro equipo. Ninguno de los dos archivos lo comprueba. El SQL compara `supervisor_id` contra el JSON, y ese JSON se generó leyendo el estado de la propia base.
+Evidence: El test fuerza esa estructura con `UPDATE`s previos (`activar.test.mjs:17-18`), pero `crearActivacion` aceptaría también dos vendedores del mismo supervisor o ninguno de él.
+Impact: Un error al elegir los UUID produciría un piloto válido para el motor pero distinto del aprobado. Por ejemplo, perdería el recorrido entre equipos.
+Recommendation: En JS y en SQL, afirmar que exactamente un vendedor tiene `supervisor_id = <id del supervisor participante>` y el otro `supervisor_id` no NULL y distinto. Agregar un subtest negativo.
+
+[P3] La llave exclusiva se mantiene durante dos escaneos completos de cobertura
+File: `activacion/activar.sql`
+Lines: 21, 69-74, 81-90; trigger en `migración F8:203-207` (reescrito a `_reales` por `20260914025926:72`)
+Problem: Tras tomar `pg_advisory_xact_lock` exclusivo, el DO escanea `cartera_f5_fuentes_reales()` y el trigger del control lo vuelve a escanear. Después, `piloto_f8_actor_activo` se ejecuta por cada fila de `crm.equipo`, y cada llamada repite `modo_activo`.
+Evidence: `piloto_f8_control_activo` toma la llave compartida con `lock_timeout='5s'`. La invocan `inversiones_escritura_bajo_candado`, F5 y F6. Según `CONTRATO.md:38-40`, los observadores acompañan también las altas legadas de todo el CRM.
+Impact: Mientras dura la transacción, esas llamadas esperan. Si la activación tarda más de 5 s en producción, fallan con `lock_not_available`, incluidas escrituras legadas de usuarios ajenos al piloto. Hay además un riesgo hipotético de deadlock (PostgreSQL lo detecta y aborta una parte): un writer que ya tiene bloqueada una fila de `perfiles`, `equipo` o `auth.users` de un participante y después pide la llave compartida.
+Recommendation:
+- Mover la comprobación de cobertura del DO a un preflight previo a la llave, solo para fallar rápido; el trigger ya la repite bajo la llave.
+- Sustituir el bucle sobre `crm.equipo` por comprobar que `piloto_f8_miembros` contiene exactamente `v_ids`.
+- Medir la duración con datos de volumen realista y ejecutar en una ventana de bajo tráfico.
+
+[P3] Ejecución del script completo ante un fallo
+File: `activacion/activar.sql`
+Lines: 5, 93-96
+Problem: En `psql` sin `ON_ERROR_STOP`, un fallo del DO aborta la transacción. El SELECT final da error y `COMMIT` hace ROLLBACK, así que no hay riesgo de datos, pero la salida resulta confusa. El banco solo prueba los fallos con `cuerpo` dentro de `begin; … rollback;`, no con el texto completo.
+Recommendation: Documentar la forma exacta de ejecución (por ejemplo, `psql -v ON_ERROR_STOP=1 -f`, sin `-1`) y agregar un subtest que ejecute `texto` completo con una precondición rota y compruebe el estado `cerrado`.
+
+[P3] Falta evidencia: `CRM-Avance-Corp/package.json` modificado
+File: `CRM-Avance-Corp/package.json`
+Problem: El git status lo muestra modificado y no se adjuntó.
+Impact: No puedo confirmar que el cambio se limite a registrar el test ni que no afecte a otros scripts o dependencias.
+Recommendation: Adjuntar el diff o revertirlo si no pertenece a esta tarea.
+
+TEST GAPS:
+- Faltan negativos de las demás precondiciones del SQL: email sin confirmar, `deleted_at` no NULL, sin identidad `email`, F3 OFF, control con `revision>0` o `inicia_en` no NULL, y una fuente real sin identidad coherente (`activar.sql:69-74`).
+- Expiración: nada prueba que, pasada `vence_en`, F5/F6/F4 queden deshabilitados aunque `activo` siga en `true`. Tampoco que el rollout global siga bloqueado (`trg_multiempresa_flags_bloquear_piloto_f8` mira `activo`, no la vigencia). Es posible acortar la ventana con UPDATE, que el trigger permite, y comprobarlo.
+- No se prueba F4 para no participantes: `inversion_persona_autorizada` debe rechazar con 42501 a un vendedor ajeno y a `supervisor_ajeno`. Tampoco se prueba `postventa_estado_fn` para `supervisor_ajeno`.
+- Concurrencia: no se prueba la activación en paralelo con la reversa o con el encendido de una bandera global. Puede que ya esté cubierto en el banco de la migración, pero no se adjuntó.
+- Falta el caso de jerarquía incorrecta del hallazgo P2.
+
+ARCHITECTURE RISKS:
+- Tras expirar, el control queda `activo=true`. Una reactivación futura exige otro script, porque este rechaza `revision<>0` y miembros existentes. Conviene documentar que la vigencia se corta por tiempo y que el estado se cierra con la reversa.
+- Alcance de datos (respaldado por `CONTRATO.md:10-11`, no es un defecto): las capacidades se limitan a cuatro actores, pero el supervisor opera sobre todo su equipo (`vendedor_ids_visibles`), también sobre vendedores fuera del piloto, y Gerencia sobre la cartera global. Conviene que el usuario lo tenga explícito al aprobar.
+
+SECURITY RISKS:
+- Inyección: sin riesgo observado (UUID con regex, roles en lista fija, marcador único, cast a `jsonb` dentro del literal).
+- `FOR SHARE` sobre `auth.users` puede retrasar hasta el commit las actualizaciones de GoTrue (inicio de sesión) de los cuatro participantes. Es breve y falla de forma segura.
+
+REGRESSION RISKS:
+- Espera o timeout de las rutas legadas que consultan la llave F8 mientras dura la activación (ver P3).
+
+RECOMMENDED NEXT ACTIONS:
+1. Separar `responsable_id` explícito y validado, con referencia de aprobación en `motivo`. Registrar quién ejecuta en el acta y confirmar la reversa.
+2. Afirmar la jerarquía elegida en JS y SQL, con su test negativo.
+3. Reducir el trabajo hecho bajo la llave exclusiva y medir la duración con volumen realista.
+4. Añadir los negativos de expiración, F4 ajeno y precondiciones faltantes, y ejecutar `texto` completo en un caso de fallo.
+5. Adjuntar el diff de `package.json`.
+
+CONFIDENCE:
+MEDIUM. El análisis del DML y del motor adjunto es de confianza alta. No vi `reversa-operativa.sql`, `banco-local.mjs`, `log_audit_crm`, `vendedor_ids_visibles`, `package.json` ni los consumidores legados de la llave.

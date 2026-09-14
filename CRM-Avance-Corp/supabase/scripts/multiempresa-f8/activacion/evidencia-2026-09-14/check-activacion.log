@@ -1,0 +1,63 @@
+npm notice run avancecorp-crm-tools@0.0.0 check:multiempresa:f8
+npm notice run node --check supabase/scripts/multiempresa-f8/banco-local.mjs && node --check supabase/scripts/multiempresa-f8/piloto.test.mjs && node --check supabase/scripts/multiempresa-f8/demos.test.mjs && node --check supabase/scripts/multiempresa-f8/verificar-base-instalacion.mjs && node --check supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs && node --check supabase/scripts/multiempresa-f8/paridad-instalacion.test.mjs && npm run test:multiempresa:f8:base && node --check supabase/scripts/multiempresa-f8/paridad-revisada.mjs && node --test supabase/scripts/multiempresa-f8/paridad-revisada.test.mjs && node --check supabase/scripts/multiempresa-f8/activacion/crear-sql.mjs && node --check supabase/scripts/multiempresa-f8/activacion/activar.test.mjs
+npm notice run avancecorp-crm-tools@0.0.0 test:multiempresa:f8:base
+npm notice run node --test supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs
+✔ acepta la base observada y cambios normales de volumen; no autoriza merge (6.379042ms)
+✔ rechaza captura vencida (0.382458ms)
+✔ rechaza captura futura (0.100167ms)
+✔ rechaza otro proyecto (0.22875ms)
+✔ rechaza nueva brecha real (0.123833ms)
+✔ rechaza marca NULL incluso con identidad coherente (0.097916ms)
+✔ rechaza falta universo real (0.07975ms)
+✔ rechaza falta función (0.235ms)
+✔ rechaza firma duplicada (0.146625ms)
+✔ rechaza cuerpo cambiado (0.121167ms)
+✔ rechaza ACL sin comprobar (0.090041ms)
+✔ rechaza dueño cambiado (0.085459ms)
+✔ rechaza F7 encendida (0.158ms)
+✔ rechaza F6 encendida (0.119333ms)
+✔ rechaza instalación parcial (0.0955ms)
+✔ rechaza historial cambió (0.128709ms)
+✔ rechaza otra función ajena cambió (0.110166ms)
+✔ rechaza permisos por defecto distintos (0.182333ms)
+✔ rechaza inventario incompleto (0.102875ms)
+✔ rechaza protección demo ausente (0.084458ms)
+✔ rechaza reutilizar como actual la misma base fresca (0.127167ms)
+✔ paridad registra ambos proyectos y liga los archivos por SHA (0.241958ms)
+✔ paridad rechaza ref ajeno, comparación consigo misma y captura de otra ventana (0.191792ms)
+✔ paridad rechaza categorías ausentes y cambios de default ACL en la rama (0.220375ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54.411458
+✔ solo acepta exactamente las diferencias documentadas y no autoriza merge (1.951875ms)
+✔ rechaza diferencia adicional en la misma categoría (5.091042ms)
+✔ rechaza diferencia adicional externa (0.215542ms)
+✔ rechaza hash de la excepción cambió (0.159042ms)
+✔ rechaza hash del padre cambió (0.215167ms)
+✔ rechaza objeto desaparecido (0.202875ms)
+✔ rechaza excepción ya inexistente (0.146958ms)
+✔ rechaza claves duplicadas por truncamiento (0.101417ms)
+✔ rechaza excepción duplicada (0.194625ms)
+✔ rechaza categoría duplicada (0.146916ms)
+✔ rechaza resumen alterado sin detalle (0.1765ms)
+✔ rechaza conteo incoherente (0.144708ms)
+✔ rechaza rama incorrecta (0.098583ms)
+✔ rechaza producción como rama (0.07825ms)
+✔ rechaza captura antigua (0.072833ms)
+✔ rechaza captura futura (0.071667ms)
+✔ rechaza revisión pendiente (0.056875ms)
+✔ rechaza dictamen sin huella (0.078583ms)
+✔ distingue dos sobrecargas con prefijo mayor de 63 caracteres (0.317583ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47.763708

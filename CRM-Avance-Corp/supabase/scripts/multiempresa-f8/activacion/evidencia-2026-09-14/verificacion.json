@@ -1,0 +1,37 @@
+{
+  "registrado_en": "2026-09-14T18:19:52.143Z",
+  "sha256_archivos": {
+    "crear-sql.mjs": "2ef818d8dc60e37a955b4010b2484ace400cb2b838b6811b8ea467b8a335b64d",
+    "activar.sql": "7e6b26943a8f8286b98dc22d2515ccd2c72f720434c26f9e7cefdb3c2be1cd3e",
+    "revertir.sql": "c1e14e95cfe6fdfffd1cb9b17cbd7dd4887439b2562bf1db7d84495dccd9e1b9",
+    "activar.test.mjs": "74e7aca408125cfa6c88b000474cb7baaf6b9291ac9e50ad010165997aafa78a"
+  },
+  "pruebas": {
+    "comando": "node --test supabase/scripts/multiempresa-f8/activacion/activar.test.mjs",
+    "entorno": "banco local sintético cerrado",
+    "salida": 0,
+    "pruebas": 24,
+    "pass": 24,
+    "fail": 0
+  },
+  "estatico": {
+    "comando": "npm run check:multiempresa:f8",
+    "salida": 0,
+    "tests_base": 24,
+    "tests_paridad": 19,
+    "sintaxis": "PASS"
+  },
+  "preflight": "preflight-seleccion.json",
+  "produccion_sql": "NOT RUN; autorización de encendido pendiente",
+  "auth_http_real": "NOT RUN en esta preparación",
+  "rls_general": "NOT RUN en esta preparación",
+  "build_frontend": "No aplica: ningún archivo de frontend o dependencias cambia",
+  "schema_tipos": "No aplica: no se modifica schema ni migración versionada",
+  "revision_claude": {
+    "consultas": 2,
+    "primera": "CHANGES_REQUESTED",
+    "segunda": "PASS",
+    "correcciones_adicionales": "Test ampliado a cuatro banderas con espera observada, COMMIT y cobertura; comentario FK aclarado"
+  },
+  "preflight_conexion": "preflight-conexion.json"
+}

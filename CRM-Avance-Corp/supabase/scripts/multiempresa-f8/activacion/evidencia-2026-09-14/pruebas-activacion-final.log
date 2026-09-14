@@ -1,0 +1,33 @@
+▶ F8: configuración nominal en banco sintético aislado
+  ✔ rechaza identificadores, duplicados y composición distintos del equipo aprobado (0.911166ms)
+  ✔ exige responsable explícito y referencia válida en activación y cierre (64.334417ms)
+  ✔ el SQL completo rechaza un supervisor desactualizado y revierte sin miembros (105.069791ms)
+  ✔ perfil inactivo impide activar sin dejar cambios parciales (112.916542ms)
+  ✔ cuenta suspendida impide activar sin dejar cambios parciales (114.13425ms)
+  ✔ correo sin confirmar impide activar sin dejar cambios parciales (102.040666ms)
+  ✔ cuenta eliminada impide activar sin dejar cambios parciales (104.029209ms)
+  ✔ identidad email ausente impide activar sin dejar cambios parciales (108.242625ms)
+  ✔ supervisor cambiado impide activar sin dejar cambios parciales (103.676834ms)
+  ✔ rol cambiado impide activar sin dejar cambios parciales (106.101584ms)
+  ✔ F3 OFF y revisión previa impiden la primera activación (139.298125ms)
+  ✔ rollout global encendido impide el piloto y revierte la transacción (99.915042ms)
+  ✔ no atribuye la ejecución administrativa a una sesión de otra persona (61.09375ms)
+  ✔ una fuente sin identidad falla en el prechequeo y revierte todo (164.96425ms)
+  ✔ activación simultánea con inversiones_escritura termina sin bloqueo circular (1638.8755ms)
+  ✔ activación simultánea con ficha_360_neutral termina sin bloqueo circular (1644.81425ms)
+  ✔ activación simultánea con postventa_neutral termina sin bloqueo circular (1637.658209ms)
+  ✔ activación simultánea con metricas_multiempresa_sombra termina sin bloqueo circular (1649.862208ms)
+  ✔ activación simultánea con reversa administrativa termina sin bloqueo circular (1643.638625ms)
+  ✔ dos activaciones concurrentes permiten una sola: cuatro miembros, siete días y cinco auditorías (1909.11225ms)
+  ✔ habilita F5/F6 a los seleccionados y conserva el ámbito entre equipos (322.948042ms)
+  ✔ una segunda ejecución no amplía la vigencia ni repite miembros (99.090833ms)
+  ✔ reversa apaga y conserva datos y asignaciones (378.478792ms)
+✔ F8: configuración nominal en banco sintético aislado (14308.603583ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14355.460208
