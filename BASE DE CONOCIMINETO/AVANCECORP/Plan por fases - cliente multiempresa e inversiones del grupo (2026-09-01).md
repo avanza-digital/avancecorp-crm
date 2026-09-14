@@ -34,6 +34,9 @@ conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
 cerrado. F8 tiene un control nominal probado en banco y rama, todavía sin instalar ni
 activar. La revisión de los catorce bloqueos de cobertura está cerrada; las
 correcciones, el equipo y el mecanismo de instalación siguen pendientes.**
+El caso multirrol ya fue confirmado por Miguel y el SQL de los diez movimientos
+reales está preparado y ensayado, todavía sin aplicar:
+[[F8 - enlaces historicos preparados (2026-09-13)]].
 Diagnóstico: [[F8 - revision de identidades pendientes (2026-09-13)]].
 Evidencia y punto de retoma:
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
@@ -63,7 +66,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. El preflight F8 cuenta hoy 14 bloqueos exactos: diez reales y cuatro demo. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias; diez identidades técnicas pendientes. Conformidad humana/financiera recibida para ese corte. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Control probado en rama; cobertura diagnosticada; producción OFF | Corregir ocho movimientos reales sin colisión, resolver dos del caso multirrol y el tratamiento de cuatro pruebas; elegir equipo, resolver la instalación y completar G7. [[F8 - revision de identidades pendientes (2026-09-13)]] |
+| F8 — piloto económico | Control probado en rama; enlaces reales preparados; producción OFF | Multirrol confirmado. Aprobar/aplicar SQL ensayado de diez movimientos reales y resolver el tratamiento de cuatro pruebas; elegir equipo, resolver instalación y completar G7. [[F8 - enlaces historicos preparados (2026-09-13)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;

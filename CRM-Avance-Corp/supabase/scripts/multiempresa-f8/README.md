@@ -51,6 +51,10 @@ posteriores a la carga F2, dos de una misma ficha multirrol y cuatro demo.
 Los diez reales corresponden a siete fichas. No hay un identificador existente
 coincidente que permita elegir automáticamente otra identidad.
 
+Miguel confirmó la correspondencia multirrol. La [propuesta de los diez enlaces
+reales](identidades/README.md) ya está preparada y ensayada en banco sintético;
+su SQL productivo sigue pendiente de aprobación y aplicación.
+
 El gate actual también exige coherencia a las cuatro fuentes demo. Tres de
 ellas no tienen documento válido: hay que alinear el tratamiento de pruebas
 con el universo real previsto en el plan, conservando el bloqueo de cualquier
@@ -99,11 +103,10 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Preparar y ensayar el completado de los ocho movimientos reales sin
-   colisión, resolver la confirmación multirrol de los otros dos y corregir el
-   tratamiento de las cuatro pruebas. El diagnóstico está cerrado; las
-   correcciones de cobertura siguen pendientes. No unir personas por nombre,
-   teléfono o correo.
+1. Aprobar/aplicar la propuesta exacta para los diez movimientos reales,
+   preparada y probada con el caso multirrol confirmado, y verificar su
+   resultado. Corregir y ensayar el tratamiento de las cuatro pruebas. Las
+   correcciones de cobertura aún no están aplicadas en producción.
 2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.
 3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible

@@ -40,8 +40,9 @@ los seis recorridos deben suceder con evidencia durante el piloto.
 
 La [[F8 - revision de identidades pendientes (2026-09-13)]] ya individualizó
 los catorce movimientos: ocho reales para completado dirigido, dos de una ficha
-multirrol que requiere confirmar la correspondencia de cuentas y cuatro demo
-cuyo tratamiento en la cobertura debe corregirse. No se aplicaron enlaces.
+multirrol cuya correspondencia Miguel ya confirmó y cuatro demo cuyo tratamiento
+en la cobertura debe corregirse. El SQL de los diez reales está ensayado en
+[[F8 - enlaces historicos preparados (2026-09-13)]]. No se aplicaron enlaces.
 El informe nominativo está fuera de Git, en el escritorio de Miguel.
 
 Sigue: resolver esa cobertura sin inferir identidad por datos blandos; elegir

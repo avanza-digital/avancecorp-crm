@@ -5,6 +5,12 @@ Revisión administrativa **de solo lectura**, completada el 13/09/2026 a las
 ni activar. El resultado identifica las correcciones; **no certifica que los
 enlaces ya estén resueltos**.
 
+Seguimiento del mismo día: correspondencia multirrol confirmada y procedencia
+documental investigada. El [SQL de los diez reales](identidades/README.md) está
+preparado y ensayado; no aplicado. Los resultados siguientes describen el
+diagnóstico original; las pruebas de escritura posteriores están en
+[la verificación del completado](identidades/VERIFICACION.md).
+
 ## Resultado
 
 La consulta [revision-identidades.sql](revision-identidades.sql) se ejecutó en
@@ -116,8 +122,9 @@ La candidata F8 **ya incorpora sincronización de altas legadas, incluso de
 usuarios ajenos al equipo piloto**, mientras el control está vigente:
 `private.inversiones_escritura_bajo_candado()` usa
 `private.piloto_f8_control_activo()` y la operación nueva se restringe por actor
-en `private.inversion_persona_autorizada()`. Esa sincronización pasó los bancos
-local y remoto anteriores. No está instalada en producción. Entre la corrección
+en `private.inversion_persona_autorizada()`. Los bancos local y remoto comprobaron
+el control y los ámbitos de esa sincronización, no un alta económica completa
+de extremo a extremo. No está instalada en producción. Entre la corrección
 de datos y el encendido todavía hay que repetir el censo y cerrar la carrera
 con el protocolo de activación; no se afirma que una fotografía antigua cubra
 las ventas posteriores. No hay evidencia en esta revisión para declarar que

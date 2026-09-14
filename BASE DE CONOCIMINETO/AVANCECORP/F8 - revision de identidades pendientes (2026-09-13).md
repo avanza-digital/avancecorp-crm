@@ -51,8 +51,11 @@ Contrato del diagnóstico y verificaciones:
 La consulta reutilizable está al lado, en `revision-identidades.sql`, y su salida
 contiene PII que debe seguir guardándose fuera de Git.
 
-Sigue: preparar las correcciones concretas y ensayarlas, mostrar su SQL antes
-de la escritura, actualizar el censo, resolver la instalación, elegir el equipo
+La propuesta concreta de los diez reales ya está preparada y probada:
+[[F8 - enlaces historicos preparados (2026-09-13)]]. Producción sigue intacta.
+
+Sigue: confirmar el SQL mostrado antes de la escritura, actualizar el censo,
+corregir el tratamiento demo, resolver la instalación, elegir el equipo
 y completar los casos reales de G7. F8 sigue sin instalar ni activar; no hay
 cambios en las fases cerradas ni en la decisión de comisiones fuera del CRM.
 
