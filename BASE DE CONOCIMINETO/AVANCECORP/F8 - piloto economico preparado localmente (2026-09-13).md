@@ -25,6 +25,12 @@ se detuvo después de `20260811210049`, antes de F3–F7. Para el ensayo se rest
 el banco sintético, sin PII ni hechos reales, y se aplicó el SQL exacto. Este
 resultado valida F8, pero no resuelve todavía el mecanismo de instalación.
 
+Después del ensayo se retiró el acceso temporal `cli_login_postgres` que había
+aparecido en la salida técnica. El aviso inicial lo confundió con la contraseña
+principal: la credencial era temporal y ya había caducado. Se verificaron rol
+ausente, cero sesiones y servicio saludable. Detalle en
+[[Credencial temporal CLI - retirada tras ensayo F8 (2026-09-13)]].
+
 El preflight real de las 17:09 Lima encontró F3 ON; F4–F7 OFF; 598 fuentes
 totales. La cobertura exacta todavía tiene 14 bloqueos: diez fuentes reales ya
 revisadas comercialmente en [[G6 - conciliacion real preparada (2026-09-11)]]

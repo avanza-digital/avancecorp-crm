@@ -83,6 +83,10 @@ reconstruir automáticamente el historial posterior al 11/08 porque una
 migración histórica exige datos que las ramas no copian. Por eso el ensayo usó
 el banco sintético y **no produjo una rama mergeable**.
 
+El acceso temporal de la CLI que apareció en la salida del ensayo fue retirado
+y verificado, con el servicio saludable. La contraseña principal y las claves
+API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-09-13.md).
+
 ## Secuencia pendiente antes de iniciar el piloto
 
 1. Resolver con evidencia los 14 enlaces que bloquean la cobertura, sin unir
