@@ -42,4 +42,3 @@ Acta técnica: `CRM-Avance-Corp/supabase/scripts/multiempresa-f8/PUBLICACION-202
 Antecedente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
 Enlaces ya completados: [[F8 - enlaces reales aplicados (2026-09-13)]].
 Plan: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
-

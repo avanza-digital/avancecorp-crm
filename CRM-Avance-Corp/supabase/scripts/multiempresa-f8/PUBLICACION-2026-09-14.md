@@ -98,4 +98,3 @@ La rama `zgjyapayxvnvrgpiarod`, ID
 `1d5c256d-a7a2-4031-9242-1292ffd37be2`, fue eliminada después de las
 comprobaciones, cerrando su coste. No se repite el lote de diez enlaces ya
 aplicado. [Evidencia saneada](instalacion/produccion-2026-09-14/README.md).
-
