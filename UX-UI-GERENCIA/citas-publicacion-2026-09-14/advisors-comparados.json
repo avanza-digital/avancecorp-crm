@@ -1,0 +1,770 @@
+{
+  "nuevosSeguridad": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`crm.control_citas_aplicaciones\\` has RLS enabled, but no policies exist",
+      "metadata": {
+        "name": "control_citas_aplicaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`crm.control_citas_versiones\\` has RLS enabled, but no policies exist",
+      "metadata": {
+        "name": "control_citas_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.aplicar_control_citas_fn(p_version_esperada integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/aplicar_control_citas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "aplicar_control_citas_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_version_esperada integer",
+        "security_definer": true
+      }
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.control_citas_configuracion_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_citas_configuracion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "control_citas_configuracion_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "",
+        "security_definer": true
+      }
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.guardar_control_citas_fn(p_version_esperada integer, p_configuracion jsonb, p_nota text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/guardar_control_citas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "guardar_control_citas_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_version_esperada integer, p_configuracion jsonb, p_nota text",
+        "security_definer": true
+      }
+    }
+  ],
+  "nuevosRendimiento": [
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`actividades_reasignacion_historial_idx\\` on table \\`crm.actividades\\` has not been used",
+      "metadata": {
+        "name": "actividades",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_citas_aplicaciones_actor\\` on table \\`crm.control_citas_aplicaciones\\` has not been used",
+      "metadata": {
+        "name": "control_citas_aplicaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_citas_versiones_actor\\` on table \\`crm.control_citas_versiones\\` has not been used",
+      "metadata": {
+        "name": "control_citas_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_cierres_avance_anulados_en\\` on table \\`crm.cierres_avance_anulados\\` has not been used",
+      "metadata": {
+        "name": "cierres_avance_anulados",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_depositos_reclamados_cierre\\` on table \\`crm.depositos_reclamados\\` has not been used",
+      "metadata": {
+        "name": "depositos_reclamados",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`envios_push_tasa_dispositivo_idx\\` on table \\`crm.envios_push_tasa\\` has not been used",
+      "metadata": {
+        "name": "envios_push_tasa",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`envios_push_tasa_pendientes_idx\\` on table \\`crm.envios_push_tasa\\` has not been used",
+      "metadata": {
+        "name": "envios_push_tasa",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`backfill_mapa_clase_idx\\` on table \\`crm.backfill_multiempresa_mapa\\` has not been used",
+      "metadata": {
+        "name": "backfill_multiempresa_mapa",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contrato_cuentas_pago_cuenta_idx\\` on table \\`crm.contrato_cuentas_pago\\` has not been used",
+      "metadata": {
+        "name": "contrato_cuentas_pago",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_asignaciones_asignado_por_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+      "metadata": {
+        "name": "lead_asignaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_asignaciones_convertido_analista_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+      "metadata": {
+        "name": "lead_asignaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_sla_ciclos_periodo_idx\\` on table \\`crm.lead_sla_ciclos\\` has not been used",
+      "metadata": {
+        "name": "lead_sla_ciclos",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_sla_etapas_periodo_idx\\` on table \\`crm.lead_sla_etapas\\` has not been used",
+      "metadata": {
+        "name": "lead_sla_etapas",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_leads_clasificacion_auto\\` on table \\`crm.leads\\` has not been used",
+      "metadata": {
+        "name": "leads",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`leads_nombre_trgm_idx\\` on table \\`crm.leads\\` has not been used",
+      "metadata": {
+        "name": "leads",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`ledger_rentabilidad_contrato_idx\\` on table \\`crm.ledger_rentabilidad\\` has not been used",
+      "metadata": {
+        "name": "ledger_rentabilidad",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`meta_periodos_publicada_por_idx\\` on table \\`crm.meta_periodos\\` has not been used",
+      "metadata": {
+        "name": "meta_periodos",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`objetivos_actualizado_por_idx\\` on table \\`crm.objetivos_legacy_archivo\\` has not been used",
+      "metadata": {
+        "name": "objetivos_legacy_archivo",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_asignaciones_rescate_descartes_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+      "metadata": {
+        "name": "lead_asignaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`lead_asignaciones_rescate_descartes_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+      "metadata": {
+        "name": "lead_asignaciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_condiciones_creado_por_idx\\` on table \\`crm.producto_condiciones\\` has not been used",
+      "metadata": {
+        "name": "producto_condiciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_condiciones_retirada_por_idx\\` on table \\`crm.producto_condiciones\\` has not been used",
+      "metadata": {
+        "name": "producto_condiciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_condiciones_selector_idx\\` on table \\`crm.producto_condiciones\\` has not been used",
+      "metadata": {
+        "name": "producto_condiciones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_leads_tenencia\\` on table \\`crm.leads\\` has not been used",
+      "metadata": {
+        "name": "leads",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_leads_vendedor_creado_en\\` on table \\`crm.leads\\` has not been used",
+      "metadata": {
+        "name": "leads",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_versiones_actualizado_por_idx\\` on table \\`crm.producto_versiones\\` has not been used",
+      "metadata": {
+        "name": "producto_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_versiones_creado_por_idx\\` on table \\`crm.producto_versiones\\` has not been used",
+      "metadata": {
+        "name": "producto_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_versiones_publicada_por_idx\\` on table \\`crm.producto_versiones\\` has not been used",
+      "metadata": {
+        "name": "producto_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`producto_versiones_retirada_por_idx\\` on table \\`crm.producto_versiones\\` has not been used",
+      "metadata": {
+        "name": "producto_versiones",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`productos_inversion_actualizado_por_idx\\` on table \\`crm.productos_inversion\\` has not been used",
+      "metadata": {
+        "name": "productos_inversion",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`productos_inversion_archivado_por_idx\\` on table \\`crm.productos_inversion\\` has not been used",
+      "metadata": {
+        "name": "productos_inversion",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`sla_politica_etapas_politica_idx\\` on table \\`crm.sla_politica_etapas\\` has not been used",
+      "metadata": {
+        "name": "sla_politica_etapas",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`sla_politicas_publicada_por_idx\\` on table \\`crm.sla_politicas\\` has not been used",
+      "metadata": {
+        "name": "sla_politicas",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`productos_inversion_creado_por_idx\\` on table \\`crm.productos_inversion\\` has not been used",
+      "metadata": {
+        "name": "productos_inversion",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`tareas_creado_por_idx\\` on table \\`crm.tareas\\` has not been used",
+      "metadata": {
+        "name": "tareas",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`usuario_eventos_objetivo_fecha_idx\\` on table \\`crm.usuario_eventos\\` has not been used",
+      "metadata": {
+        "name": "usuario_eventos",
+        "type": "table",
+        "schema": "crm"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agenda_reparto_cambios_fecha_idx\\` on table \\`private.agenda_reparto_cambios\\` has not been used",
+      "metadata": {
+        "name": "agenda_reparto_cambios",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`ayuda_consultas_retencion_idx\\` on table \\`private.ayuda_consultas\\` has not been used",
+      "metadata": {
+        "name": "ayuda_consultas",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`ayuda_expresiones_intencion_idx\\` on table \\`private.ayuda_expresiones\\` has not been used",
+      "metadata": {
+        "name": "ayuda_expresiones",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contrato_eliminaciones_solicitado_por_idx\\` on table \\`private.contrato_eliminaciones\\` has not been used",
+      "metadata": {
+        "name": "contrato_eliminaciones",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contrato_pdf_jobs_estado_idx\\` on table \\`private.contrato_pdf_jobs\\` has not been used",
+      "metadata": {
+        "name": "contrato_pdf_jobs",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contrato_pdf_jobs_solicitado_por_idx\\` on table \\`private.contrato_pdf_jobs\\` has not been used",
+      "metadata": {
+        "name": "contrato_pdf_jobs",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contrato_pdfs_generado_por_idx\\` on table \\`private.contrato_pdfs\\` has not been used",
+      "metadata": {
+        "name": "contrato_pdfs",
+        "type": "table",
+        "schema": "private"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contratos_es_demo_idx\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`contratos_producto_condicion_idx\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_cerrado_por\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_creado_en\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_creado_por\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_estado\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_estado_venc\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_contratos_vencimiento\\` on table \\`public.contratos\\` has not been used",
+      "metadata": {
+        "name": "contratos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_cronograma_estado\\` on table \\`public.cronograma_pagos\\` has not been used",
+      "metadata": {
+        "name": "cronograma_pagos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_cronograma_fecha\\` on table \\`public.cronograma_pagos\\` has not been used",
+      "metadata": {
+        "name": "cronograma_pagos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_cronograma_registrado_por\\` on table \\`public.cronograma_pagos\\` has not been used",
+      "metadata": {
+        "name": "cronograma_pagos",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_novedades_creado\\` on table \\`public.novedades\\` has not been used",
+      "metadata": {
+        "name": "novedades",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_novedades_destinatario\\` on table \\`public.novedades\\` has not been used",
+      "metadata": {
+        "name": "novedades",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_novedades_enviado_por\\` on table \\`public.novedades\\` has not been used",
+      "metadata": {
+        "name": "novedades",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_novedades_leidas_novedad\\` on table \\`public.novedades_leidas\\` has not been used",
+      "metadata": {
+        "name": "novedades_leidas",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_novedades_leidas_usuario\\` on table \\`public.novedades_leidas\\` has not been used",
+      "metadata": {
+        "name": "novedades_leidas",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_perfiles_correo_trgm\\` on table \\`public.perfiles\\` has not been used",
+      "metadata": {
+        "name": "perfiles",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_perfiles_listado_admin\\` on table \\`public.perfiles\\` has not been used",
+      "metadata": {
+        "name": "perfiles",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_perfiles_nombre_trgm\\` on table \\`public.perfiles\\` has not been used",
+      "metadata": {
+        "name": "perfiles",
+        "type": "table",
+        "schema": "public"
+      }
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_suscripciones_push_cliente\\` on table \\`public.suscripciones_push\\` has not been used",
+      "metadata": {
+        "name": "suscripciones_push",
+        "type": "table",
+        "schema": "public"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "slug": "crear-cliente",
+      "coincide": true
+    },
+    {
+      "slug": "crear-admin",
+      "coincide": true
+    },
+    {
+      "slug": "enviar-comunicado",
+      "coincide": true
+    },
+    {
+      "slug": "enviar-push",
+      "coincide": true
+    },
+    {
+      "slug": "diagnostico-push",
+      "coincide": true
+    },
+    {
+      "slug": "resetear-password",
+      "coincide": true
+    },
+    {
+      "slug": "eliminar-cliente",
+      "coincide": true
+    },
+    {
+      "slug": "notificar-pagos",
+      "coincide": true
+    },
+    {
+      "slug": "importar-clientes",
+      "coincide": true
+    },
+    {
+      "slug": "ciclo-contratos",
+      "coincide": true
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "coincide": true
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "coincide": true
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "coincide": true
+    },
+    {
+      "slug": "crm-importar-leads",
+      "coincide": true
+    },
+    {
+      "slug": "crm-usuarios",
+      "coincide": true
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "coincide": true
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "coincide": true
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "coincide": true
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "coincide": true
+    }
+  ]
+}

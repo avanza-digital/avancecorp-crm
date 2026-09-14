@@ -1,0 +1,52 @@
+{
+  "tablas": [
+    {
+      "n": 497,
+      "tipo": "auth",
+      "nuevos": 1,
+      "sin_fecha": 0,
+      "md5_anteriores": "e21663b2f72b1a116b40368f6d6419a5",
+      "anteriores_actualizados": 10,
+      "md5_anteriores_sin_tiempos_sesion": "3e3d3267b9bac9ce87281ad8a3f4d481"
+    },
+    {
+      "n": 24,
+      "tipo": "cierres",
+      "nuevos": 2,
+      "sin_fecha": 0,
+      "md5_anteriores": "aa08a75e1611dee07a4b104b7e4febae",
+      "anteriores_actualizados": 0,
+      "md5_anteriores_sin_tiempos_sesion": "aa08a75e1611dee07a4b104b7e4febae"
+    },
+    {
+      "n": 581,
+      "tipo": "contratos",
+      "nuevos": 1,
+      "sin_fecha": 0,
+      "md5_anteriores": "8db00ab66b8a855a90512da8a93ff82d",
+      "anteriores_actualizados": 0,
+      "md5_anteriores_sin_tiempos_sesion": "8db00ab66b8a855a90512da8a93ff82d"
+    },
+    {
+      "n": 497,
+      "tipo": "perfiles",
+      "nuevos": 1,
+      "sin_fecha": 0,
+      "md5_anteriores": "0b048fedf3a6ce51f2ef19f701a36123",
+      "anteriores_actualizados": 1,
+      "md5_anteriores_sin_tiempos_sesion": "0b048fedf3a6ce51f2ef19f701a36123"
+    },
+    {
+      "n": 487,
+      "tipo": "personas",
+      "nuevos": 3,
+      "sin_fecha": 0,
+      "md5_anteriores": "ceaa28bd17dfe3999cd20a5443fb5f1c",
+      "anteriores_actualizados": 0,
+      "md5_anteriores_sin_tiempos_sesion": "ceaa28bd17dfe3999cd20a5443fb5f1c"
+    }
+  ],
+  "momento": "2026-09-14T17:16:04.757268+00:00",
+  "auditoria_columnas": null,
+  "creados_auth_prueba": 0
+}

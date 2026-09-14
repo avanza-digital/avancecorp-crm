@@ -7,14 +7,16 @@ actualizado: 2026-09-14
 
 - [[Rentabilidades menores a 15 - publicacion autorizada 2026-09-14]] — despliegue autorizado; banco propio hasta US$1, comparación remota en curso.
 - [[Rentabilidades menores a 15 - entrega local sin deploy 2026-09-14]] — candidata corregida y verificada en local, 3.540 pruebas y reversa concurrente PASS; falta ciclo remoto y sincronizar el commit de preparación. Miguel indicó no desplegar.
+- [[Citas Gerencia - decisiones finales para publicar 2026-09-14]] — reglas confirmadas, preparación reanudada y pruebas cerradas; publicación coordinada con la sesión F8.
+
 - [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — módulo real y Superadmin preparados en local/banco; 3.512 pruebas y 48 comprobaciones HTTP PASS. Tres decisiones comerciales y diagnóstico del gate general pendientes; Miguel pidió no desplegar.
 - [[Citas Gerencia - reglas confirmadas y propuesta revisada 2026-09-13]] — cuentan manuales y sus citas, cada asistencia cuenta como entrevista y el ticket es mensual por analista; historial de la propuesta aprobada.
 - [[Citas Gerencia - meta incorrecta detectada y correccion local 2026-09-13]] — reclamo de Miguel: meta anterior publicada; corrección local y métricas aún pendientes.
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado F8 vigente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
-Ensayo remoto y Auth terminados; sigue instalación OFF autorizada.
+Estado F8 vigente: [[F8 - instalada y apagada (2026-09-14)]].
+Instalación OFF verificada; sin participantes. Siguen equipo, activación y G7.
 
 Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - instalacion autorizada en curso (2026-09-14)]],
@@ -25,14 +27,15 @@ Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - revision de identidades pendientes (2026-09-13)]] y
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
-F8 tiene control probado en banco y rama. Los diez movimientos reales ya están
-enlazados en producción, con veinte comprobaciones posteriores aprobadas.
-Los cuatro huecos demo tienen corrección probada localmente; paquete y
-procedimiento de instalación preparados. Miguel aprobó los dos SQL y después
-pidió pausar. Trabajo guardado; rama exclusiva eliminada para cerrar su costo.
-La reconstrucción revisada queda pendiente. No volver a pedir esa aprobación.
-La lectura de las 23:08 Lima confirmó cero huecos reales y compatibilidad de las
-14 definiciones previas examinadas. F8 no está instalada ni activa.
+F8 tiene control y exclusión demo instalados. Los diez movimientos reales ya
+están enlazados; no se repite ese lote. El ensayo combinado pasó 31 pruebas SQL
+locales, 27 remotas y 12 grupos Auth/Data API. Producción: 600 fuentes reales,
+cero huecos y cinco demo conservadas fuera de la operación al corte del 14/09.
+Las fuentes previas, hechos económicos, Vault y Cron conservaron sus huellas.
+Rama exclusiva eliminada después de verificar. Main integrado y artefacto
+construido desde el commit verificado; 3.513 pruebas frontend PASS.
+No volver a pedir autorización de instalación. F8 sigue apagada y G7 abierto;
+faltan cuatro participantes nominales, configuración/activación y evidencia real.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 

@@ -1,21 +1,26 @@
 # G7 — aceptación del piloto económico F8
 
-**Estado: ABIERTO / NOT RUN en producción.** Esta acta se completa con evidencia
+**Estado: ABIERTO; instalación OFF verificada, piloto real NOT RUN.** Esta acta se completa con evidencia
 real; el banco sintético no firma ni reemplaza la aceptación humana.
 
 ## Preparación técnica
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Control nominal y temporal instalado | PASS rama nueva / NOT RUN producción | [Ensayo combinado del 14/09](ENSAYO-2026-09-14.md), historial exacto y dos SQL verificados |
+| Control nominal y temporal instalado | PASS producción OFF | [Publicación del 14/09](PUBLICACION-2026-09-14.md), dos SQL literales y 279 entradas previas intactas |
 | RLS, ACL y autorización por actor | PASS local y rama nueva | 31 pruebas SQL locales, 27 remotas y 12 grupos Auth/Data API |
 | F8 y rollout global mutuamente excluyentes | PASS local y rama | Cinco carreras del control en cada entorno |
 | Reversa conserva hechos económicos | PASS local y rama | Seis superficies económicas remotas sin diferencias |
-| Enlaces de las fuentes reales | PASS producción | Diez enlaces aprobados aplicados; lectura del 13/09 a las 23:08 Lima: 593 fuentes reales y cero brechas |
-| Exclusión demo de la cobertura y operación F5/F8 | PASS local y rama / NOT RUN producción | Cinco fuentes demo, cuatro con brechas; dos SQL aprobados, pendientes de merge OFF |
-| Compatibilidad para instalar el paquete combinado | PASS precondiciones y rama nueva | Paridad documentada, 279 entradas previas intactas; repetir preflight vivo antes del merge |
+| Enlaces de las fuentes reales | PASS producción | Diez enlaces aprobados ya aplicados; lectura del 14/09 a las 12:09 Lima: 600 fuentes reales y cero brechas |
+| Exclusión demo de la cobertura y operación F5/F8 | PASS producción | Cinco fuentes demo conservadas y excluidas; lector operativo con 600 reales |
+| Compatibilidad del paquete instalado | PASS producción/rama | Preflight vivo antes del merge y paridad posterior: únicamente las diferencias administradas revisadas |
 | Equipo nominal | PENDIENTE | Elegir Gerencia, un supervisor y dos vendedores |
 | Advisors y tipos de rama | PASS paquete combinado | WARN sin cambios; INFO de RLS cerrado y FK en tablas pequeñas documentados; tipos F8 coincidentes |
+
+La rama de instalación fue eliminada tras verificar producción. La suite RLS
+general heredada completa no se ejecutó en el ensayo combinado; la matriz
+específica F8 pasó. La instalación OFF no sustituye ninguno de los casos o
+firmas pendientes que siguen.
 
 ## Evidencia mínima real
 

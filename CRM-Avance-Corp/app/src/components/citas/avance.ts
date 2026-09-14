@@ -40,6 +40,10 @@ function coincidePersona(p: Persona, f: FiltrosCitas, todas: CitaEjemplo[]) {
 export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[], filtros: FiltrosCitas, corte: string, moneda: 'PEN' | 'USD') {
   const datos = gestion.avance!
   const config = datos.control.configuracion
+  const perfiles = new Map(datos.conversiones.map(c => [c.lead_id, c.perfil_id]))
+  const identidades = new Map(datos.poblacion.map(p => [p.lead_id,
+    p.identidad_persona ?? (perfiles.has(p.lead_id) ? `perfil:${perfiles.get(p.lead_id)}` : `lead:${p.lead_id}`)]))
+  const personaEntrevistada = (lead: string) => identidades.get(lead) ?? `lead:${lead}`
   const periodo = periodoAvance(filtros.mes, corte)
   const personas = new Map(datos.poblacion.filter(p => coincidePersona(p, filtros, todas)).map(p => [p.lead_id, p]))
   const roster = new Map([
@@ -74,22 +78,25 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const cierres = datos.conversiones.filter(c => personas.has(c.lead_id)
     && ambito(owner(c.lead_id, c.analista_id)) && actividad(c.lead_id, owner(c.lead_id, c.analista_id))
     && Date.parse(c.convertido_en) <= limiteResultado && mesResultado(personas.get(c.lead_id)!, c.convertido_en))
-  const reglasListas = config.mes_resultado !== null && config.analista_resultado !== null && config.base_depositos !== null
+  const reglasListas = datos.control.version > 0 && datos.control.mes_inicio !== null && config.mes_inicio !== null
+    && config.mes_resultado !== null && config.analista_resultado !== null && config.base_depositos !== null
     && config.base_avance !== null && config.conteo_entrevistas !== null && config.actividad_manuales !== null
   const resultados = (id?: string) => {
     const base = asignados.filter(p => !id || p.id === id)
     const citas = registradas.filter(c => !id || c.analista === id)
     const resultado = resueltas.filter(c => !id || owner(c.leadId, c.analista) === id)
     const visitas = entrevistas.filter(c => !id || owner(c.leadId, c.analista) === id)
-    const gente = new Set(visitas.map(c => c.leadId))
+    const gente = new Set(visitas.map(c => personaEntrevistada(c.leadId)))
     const clientesMes = cierres.filter(c => !id || owner(c.lead_id, c.analista_id) === id)
-    // Relación verificable con las entrevistas del mismo responsable. Un
-    // cierre transferido sin entrevista propia conserva su cantidad aparte.
-    const vinculados = clientesMes.filter(c => visitas.some(v => v.leadId === c.lead_id
-      && owner(v.leadId, v.analista) === owner(c.lead_id, c.analista_id)
+    // Cada fila compara entrevistas propias. El total del ámbito reconoce
+    // también la colaboración entre analistas incluidos en la consulta.
+    const vinculados = clientesMes.filter(c => visitas.some(v => personaEntrevistada(v.leadId) === personaEntrevistada(c.lead_id)
+      && (!id || owner(v.leadId, v.analista) === owner(c.lead_id, c.analista_id))
       && instanteEntrevista(v) <= Date.parse(c.convertido_en)))
-    const clientes = new Set(vinculados.map(c => c.perfil_id)).size
-    const fuera = new Set(clientesMes.filter(c => !vinculados.includes(c)).map(c => c.perfil_id)).size
+    const perfilesVinculados = new Set(vinculados.map(c => personaEntrevistada(c.lead_id)))
+    const clientes = perfilesVinculados.size
+    const clientesPeriodo = new Set(clientesMes.map(c => personaEntrevistada(c.lead_id))).size
+    const fuera = new Set(clientesMes.filter(c => !perfilesVinculados.has(personaEntrevistada(c.lead_id))).map(c => personaEntrevistada(c.lead_id))).size
     const leads = new Set(base.map(p => p.leadId)).size
     const nEntrevistas = config.conteo_entrevistas === 'personas_unicas' ? gente.size : visitas.length
     const baseEntrevistas = config.base_avance === 'meta_proyectada' ? leads * config.citas_por_lead : resultado.length
@@ -102,17 +109,17 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
       && Date.parse(c.convertido_en) >= periodo.inicio && Date.parse(c.convertido_en) <= periodo.corte)
     const capital = datos.capital.filter(k => k.moneda === moneda && (!id || k.analista_id === id)
       && cierresTicket.some(c => c.perfil_id === k.perfil_id && c.analista_id === k.analista_id))
-    const capitalPerfiles = new Set(capital.map(k => k.perfil_id))
-    const sinImporte = new Set(cierresTicket.filter(c => !datos.capital.some(k => k.perfil_id === c.perfil_id)).map(c => c.perfil_id)).size
-    const atribucionPendiente = new Set(cierresTicket.filter(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.analista_id !== c.analista_id)).map(c => c.perfil_id)).size
+    const capitalPerfiles = new Set(capital.map(k => personaEntrevistada(k.lead_id)))
+    const sinImporte = new Set(cierresTicket.filter(c => !datos.capital.some(k => k.perfil_id === c.perfil_id)).map(c => personaEntrevistada(c.lead_id))).size
+    const atribucionPendiente = new Set(cierresTicket.filter(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.analista_id !== c.analista_id)).map(c => personaEntrevistada(c.lead_id))).size
     const otraMoneda = cierresTicket.some(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.moneda !== moneda))
     const monto = capital.reduce((n, k) => n + k.monto, 0)
     const ticket = capitalPerfiles.size && !sinImporte && !atribucionPendiente ? monto / capitalPerfiles.size : null
     const tasaObservada = resultado.length ? visitas.length / resultado.length : null
-    const clientesReales = new Set(cierresTicket.map(c => c.perfil_id)).size
+    const clientesReales = new Set(cierresTicket.map(c => personaEntrevistada(c.lead_id))).size
     // Generar una cita para otro mes suma cumplimiento, pero no acelera este cierre.
     const citasDelCierre = citas.filter(c => instanteCita(c) >= periodo.inicio && instanteCita(c) <= periodo.fin)
-    const poblacion = new Set([...citasDelCierre.map(c => c.leadId), ...visitas.map(v => v.leadId), ...cierresTicket.map(c => c.lead_id)])
+    const poblacion = new Set([...citasDelCierre.map(c => c.leadId), ...visitas.map(v => v.leadId), ...cierresTicket.map(c => c.lead_id)].map(personaEntrevistada))
     const citasEsperadas = periodo.transcurridos ? citasDelCierre.length / periodo.transcurridos * periodo.dias : null
     const entrevistasEsperadas = citasEsperadas !== null && tasaObservada !== null ? citasEsperadas * tasaObservada : null
     const personasEsperadas = entrevistasEsperadas !== null && visitas.length
@@ -128,11 +135,11 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     return { leads, citas: citas.length, promedio: leads ? citas.length / leads : null,
       cumplimiento: leads ? citas.length / (leads * config.citas_por_lead) * 100 : null,
       entrevistas: visitas.length, unicas: gente.size, resueltas: resultado.length, baseEntrevistas,
-      tasaEntrevistas, conversion, clientes, clientesFueraCohorte: fuera, baseConversion,
+      tasaEntrevistas, conversion, clientes, clientesPeriodo, clientesFueraCohorte: fuera, baseConversion,
       ticket, capital: monto, clientesTicket: capitalPerfiles.size, sinImporte, atribucionPendiente, proyeccion, clientesEsperados, motivoProyeccion,
       manuales: base.filter(p => p.registroManual ?? p.manualPropio).length,
       sinCita: base.filter(p => !citas.some(c => c.leadId === p.leadId)),
-      base, actividad: citas, visitas, vinculados, reglasListas }
+      base, actividad: citas, visitas, vinculados, cierres: clientesMes, reglasListas }
   }
   const ids = new Set([...asignados.map(p => p.id), ...registradas.map(c => c.analista),
     ...resueltas.map(c => owner(c.leadId, c.analista)), ...cierres.map(c => owner(c.lead_id, c.analista_id))])

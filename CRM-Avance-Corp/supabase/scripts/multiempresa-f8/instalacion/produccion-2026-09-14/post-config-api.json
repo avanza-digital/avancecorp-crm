@@ -1,0 +1,104 @@
+{
+  "dctqcbznekcyxhjujuci": {
+    "auth_settings": {
+      "status": 200,
+      "body": {
+        "external": {
+          "anonymous_users": false,
+          "apple": false,
+          "azure": false,
+          "bitbucket": false,
+          "discord": false,
+          "facebook": false,
+          "snapchat": false,
+          "figma": false,
+          "fly": false,
+          "github": false,
+          "gitlab": false,
+          "google": false,
+          "keycloak": false,
+          "kakao": false,
+          "linkedin": false,
+          "linkedin_oidc": false,
+          "notion": false,
+          "spotify": false,
+          "slack": false,
+          "slack_oidc": false,
+          "workos": false,
+          "twitch": false,
+          "twitter": false,
+          "email": true,
+          "phone": false,
+          "zoom": false
+        },
+        "disable_signup": false,
+        "mailer_autoconfirm": true,
+        "phone_autoconfirm": false,
+        "sms_provider": "twilio",
+        "saml_enabled": false,
+        "saml_private_key_next_configured": true,
+        "passkeys_enabled": false
+      }
+    },
+    "schemas": {
+      "status": 406,
+      "body": {
+        "code": "PGRST106",
+        "details": null,
+        "hint": "Only the following schemas are exposed: public, graphql_public, crm",
+        "message": "Invalid schema: __f8_comprobar_exposicion"
+      }
+    }
+  },
+  "zgjyapayxvnvrgpiarod": {
+    "auth_settings": {
+      "status": 200,
+      "body": {
+        "external": {
+          "anonymous_users": false,
+          "apple": false,
+          "azure": false,
+          "bitbucket": false,
+          "discord": false,
+          "facebook": false,
+          "snapchat": false,
+          "figma": false,
+          "fly": false,
+          "github": false,
+          "gitlab": false,
+          "google": false,
+          "keycloak": false,
+          "kakao": false,
+          "linkedin": false,
+          "linkedin_oidc": false,
+          "notion": false,
+          "spotify": false,
+          "slack": false,
+          "slack_oidc": false,
+          "workos": false,
+          "twitch": false,
+          "twitter": false,
+          "email": true,
+          "phone": false,
+          "zoom": false
+        },
+        "disable_signup": false,
+        "mailer_autoconfirm": true,
+        "phone_autoconfirm": false,
+        "sms_provider": "twilio",
+        "saml_enabled": false,
+        "saml_private_key_next_configured": true,
+        "passkeys_enabled": false
+      }
+    },
+    "schemas": {
+      "status": 406,
+      "body": {
+        "code": "PGRST106",
+        "details": null,
+        "hint": "Only the following schemas are exposed: public, graphql_public, crm",
+        "message": "Invalid schema: __f8_comprobar_exposicion"
+      }
+    }
+  }
+}

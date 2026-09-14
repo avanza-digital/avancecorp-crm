@@ -1,0 +1,94 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Los defaults nuevos (`control-citas.ts:29-36`) coinciden con las reglas confirmadas: manuales incluidos, cada cita con asistencia cuenta como entrevista, base de personas, y mes y analista del evento. El reparto `clientes` / `clientesPeriodo` / `clientesFueraCohorte` es consistente por fila: `clientes + fuera = clientesPeriodo` gracias a `perfilesVinculados`, y conserva el total mensual cuando la entrevista es de otro mes o de otro analista. No encontré P0 ni P1.
+
+Hay tres puntos accionables:
+- La deduplicación de personas solo funciona para quien tiene conversión, así que es asimétrica.
+- La tasa del total del equipo excluye cierres transferidos dentro del mismo mes, y no hay una decisión explícita ni un test sobre eso.
+- Falta evidencia de que `controlCitasInicial()` no se use como configuración efectiva sin una versión aplicada.
+
+FINDINGS:
+
+[P2] La identidad de persona depende de que exista una conversión, lo que sesga el denominador
+File: `CRM-Avance-Corp/app/src/components/citas/avance.ts`
+Lines: 43-44, 86, 100
+Problem: `perfiles` se construye solo desde `datos.conversiones`. Un lead sin conversión siempre queda como `lead:<id>`.
+Evidence: supongamos una persona con `lead-1` y `lead-2`, ambos entrevistados, y una única conversión registrada en `lead-1` (perfil X).
+- `gente` queda como `{perfil:X, lead:lead-2}`, es decir 2 personas.
+- `clientes` es 1, así que `conversion` da 0.5 en vez de 1.0.
+
+El test nuevo "una persona con dos leads vinculados…" (avance.test.ts, +96-102) solo cubre el caso en que ambos leads tienen conversión. Si el modelo registra una conversión por perfil y no por lead, ese test no refleja el caso real.
+Impact: con base `personas_entrevistadas`, la tasa baja justo para las personas que sí se convirtieron por otro lead. Además, a una persona que no se convierte nunca se la deduplica. Esto contradice "70% de personas distintas".
+Recommendation:
+- Si `poblacion` o el lead exponen un `perfil_id` o un vínculo de persona, derivar la identidad de ahí y no de las conversiones.
+- Si no existe ese dato, documentar la limitación en la ayuda de la UI y añadir un test del caso asimétrico con el valor esperado explícito.
+
+[P2] La tasa del total del equipo omite a clientes entrevistados y cerrados por analistas distintos en el mismo mes
+File: `avance.ts`
+Lines: 90-92, 146
+Problem: en `resultados()` sin `id`, el vínculo sigue exigiendo `owner(v) === owner(c)`.
+Evidence: en el test "un cierre cuenta para Luis…", Ana entrevista y Luis cierra. `total.gente` es 1, pero `total.clientes` es 0 y `total.conversion` es 0, mientras `total.clientesPeriodo` es 1. El test solo verifica `total.clientesPeriodo`.
+Impact: el equipo muestra 0% de conversión sobre 1 persona entrevistada que sí se convirtió en el mes. Puede ser intencional porque mantiene la aditividad de las filas, pero no está confirmado por el usuario ni cubierto por un test.
+Recommendation: decidir de forma explícita entre dos opciones.
+- (a) Mantener la aditividad y fijarla con `expect(r.total).toMatchObject({ clientes: 0, conversion: 0 })` más un texto en la UI del total.
+- (b) Para el total, vincular solo por persona e instante, sin exigir el mismo responsable.
+
+[P2] Hipótesis: los defaults ahora completos podrían activar métricas sin versión aplicada
+File: `CRM-Avance-Corp/app/src/lib/control-citas.ts`
+Lines: 29-36, 73-78; `avance.ts:79-80`
+Problem: antes, los `null` hacían `reglasListas = false` hasta guardar. Ahora `controlCitasInicial()` pasa `reglasListas` (que no revisa `mes_inicio`). `pendientesControlCitas` solo reporta "Mes de inicio".
+Evidence: no se adjuntó cómo se llena `datos.control.configuracion`. Si con `version_actual === 0` el backend o el cliente usan `controlCitasInicial()` como fallback, se calcularán tasas y proyecciones con reglas nunca guardadas ni aplicadas. También puede ocurrir lo contrario: versiones ya guardadas en producción con `null` seguirán mostrando "Completa las reglas de gestión" aunque el default haya cambiado.
+Impact: se mostrarían métricas "oficiales" sin vigencia, o habría una inconsistencia entre instalaciones nuevas y existentes.
+Recommendation: confirmar con el código del origen de `datos.control` que este default solo precarga el editor. Además, verificar qué versión está vigente en producción y si requiere guardar y aplicar una versión nueva como paso de release.
+
+[P3] Posible conversión mayor al 100% si un lead tiene varias conversiones con perfiles distintos
+File: `avance.ts`
+Lines: 43, 90-94
+Problem: `new Map(conversiones.map(c => [lead_id, perfil_id]))` se queda con el último valor. Dos conversiones del mismo lead con `perfil_id` X e Y comparten la identidad `perfil:Y`. Entonces `gente` es 1, pero `clientes` cuenta {X, Y} = 2.
+Evidence: es una hipótesis, porque no se adjuntó el contrato de `conversiones` sobre la unicidad lead→perfil.
+Recommendation:
+- Confirmar la unicidad en el contrato del RPC.
+- Si no está garantizada, derivar la identidad del cliente desde `c.perfil_id`, o acotar con `Math.min(clientes, baseConversion)` cuando la base sea de personas.
+
+[P3] El filtro "solo sin cita" ahora incluye leads que no son de la base
+File: `avance-mensual.tsx`
+Lines: hunk @@ -37 (`ids` y `lista`)
+Problem: `ids` añade `fila.visitas` y `fila.cierres`, pero `soloSin` sigue filtrando por `!fila.actividad.some(...)`. Un lead con solo una entrevista o un cierre en el mes, cuya cita se creó el mes anterior, aparece como "sin cita".
+Evidence: el texto dice `{fila.sinCita.length} leads asignados todavía sin una cita`, y `sinCita` sale de `base`. La lista filtrada puede tener más elementos.
+Recommendation: con `soloSin`, restringir a los ids de `fila.base`, o reutilizar `fila.sinCita`.
+
+[P3] Etiqueta desalineada con la nueva deduplicación
+File: `control-citas.ts`
+Lines: 57
+Problem: la opción dice `'Personas entrevistadas, una vez por lead'`, pero ahora se deduplica por perfil cuando existe vínculo.
+Recommendation: cambiarla a "una vez por persona", explicando que se usa el perfil vinculado cuando existe.
+
+TEST GAPS:
+- Persona con dos leads de los que solo uno tiene conversión (el caso asimétrico del P2).
+- Valores de `total.clientes` y `total.conversion` en el escenario Ana entrevista / Luis cierra.
+- Mismo analista: entrevista en agosto y cierre en septiembre, verificando la fila, no solo el total. El test existente cubre el total.
+- `base_depositos: 'entrevistas'` combinado con dedup de perfil, para confirmar que `unicas` no afecta la base.
+- Proyección con leads deduplicados: `poblacion.size` y `personasEsperadas`.
+- Render y CSV: la columna "Clientes del periodo", el `<small>` condicional y el texto de `DatosDelAnalista` cuando `clientesFueraCohorte > 0`.
+- Filtros `analista` y `equipo` con cierres transferidos (`ambito(owner(...))`).
+
+ARCHITECTURE RISKS:
+- La identidad de persona se infiere en el frontend a partir de conversiones. Sería más robusto que el servidor entregue `persona_id` o `perfil_id` en `poblacion`.
+
+SECURITY RISKS:
+- Ninguno nuevo en el alcance revisado. El CSV conserva el saneo contra fórmulas.
+
+REGRESSION RISKS:
+- La columna Conversión ahora muestra `clientesPeriodo` y no `clientes`. Lectores o capturas previos pueden interpretar el número junto al % como su numerador.
+- El CSV insertó dos columnas en medio. Cualquier consumidor posicional de ese export se rompe.
+- Las configuraciones guardadas con `null` no heredan los defaults (ver el P2 de hipótesis).
+
+RECOMMENDED NEXT ACTIONS:
+1. Aportar la evidencia de dónde sale `datos.control.configuracion` sin versión aplicada y del estado de la versión vigente en producción.
+2. Resolver la identidad asimétrica, con un origen de identidad en `poblacion` o una limitación documentada, y añadir su test.
+3. Fijar con un test la semántica de la tasa del total ante transferencias y ajustar el `soloSin` y la etiqueta.
+
+CONFIDENCE:
+MEDIUM. Sin el contrato de `conversiones` ni el origen de `control.configuracion`, dos hallazgos quedan como hipótesis.

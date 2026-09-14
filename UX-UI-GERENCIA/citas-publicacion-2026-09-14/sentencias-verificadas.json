@@ -1,0 +1,27 @@
+[
+  {
+    "version": "20260911212756",
+    "sentencias": 19,
+    "bytes_sql_en_orden": true
+  },
+  {
+    "version": "20260913204847",
+    "sentencias": 10,
+    "bytes_sql_en_orden": true
+  },
+  {
+    "version": "20260913225042",
+    "sentencias": 19,
+    "bytes_sql_en_orden": true
+  },
+  {
+    "version": "20260913225755",
+    "sentencias": 10,
+    "bytes_sql_en_orden": true
+  },
+  {
+    "version": "20260914044939",
+    "sentencias": 9,
+    "bytes_sql_en_orden": true
+  }
+]

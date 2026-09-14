@@ -1,0 +1,22 @@
+[
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql",
+    "sha256": "3434b208bf1edb2a9bd655bb86d2424b7b4d80b62e6fd1c0957bc55b207ab554"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260913204847_crm_citas_base_asignada_meta_interna.sql",
+    "sha256": "ebee873152da067b2a40b4031924828d4ede35809ca34946195a21e36ffb3984"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225042_crm_citas_gestion_mensual_configurada.sql",
+    "sha256": "59200f37259b56aa0e1958b446bf5b3edd2d734e2c650a447d2bb339d40f41b3"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225755_crm_citas_avance_fuentes.sql",
+    "sha256": "7ca6dc909e1de111e54f58f2bc40b78d13cbc38dc246cf269c3f44ab092e27ae"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260914044939_crm_citas_identidad_personas.sql",
+    "sha256": "5900b1da8074e14432e0705c80f5b11d65ee5499fa6649af77a7169c27237f5a"
+  }
+]

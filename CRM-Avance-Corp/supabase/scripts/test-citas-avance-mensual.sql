@@ -2,6 +2,11 @@
 -- El lote completo debe enviarse en una sesión. No deja datos de prueba.
 begin;
 set local statement_timeout='180s';
+do $$ begin
+  if exists(select 1 from auth.users where email not like '%@pruebas.example' and email not like '%@demo.avancecorp.pe') then
+    raise exception 'Sólo banco de pruebas';
+  end if;
+end $$;
 create temporary table citas_avance_ids as
 select n,gen_random_uuid() lead_id,gen_random_uuid() tarea_id,gen_random_uuid() cliente_id,gen_random_uuid() contrato_id,
   (select id from public.perfiles where correo='vend1.crm@demo.avancecorp.pe') analista,
@@ -44,7 +49,7 @@ end $$;
 select set_config('request.jwt.claim.sub',(select gerencia::text from citas_avance_ids limit 1),true);
 create temporary table citas_avance_resultado as
 select crm.citas_gerencia_consulta_fn(date_trunc('month',current_date)::date,(date_trunc('month',current_date)+interval '1 month -1 day')::date) r;
-do $$declare r jsonb; c jsonb; k jsonb; v_caso record; begin
+do $$declare r jsonb; c jsonb; k jsonb; v_caso record; v_identidad text; v_inversionista uuid; begin
   select t.r into r from citas_avance_resultado t;
   assert r->'gestion'->>'version'='2','Contrato mensual V2';
   assert r->'gestion'->>'citas_por_lead'='1.25','Meta interna correcta';
@@ -59,6 +64,15 @@ do $$declare r jsonb; c jsonb; k jsonb; v_caso record; begin
   assert k is not null and (k->>'monto')::numeric=12000 and k->>'moneda'='USD','Capital real separado de monto estimado PEN';
   assert k->>'perfil_id'=v_caso.cliente_id::text,'Importe del mismo cliente';
   assert (select count(*) from jsonb_array_elements(r->'gestion'->'poblacion') p join citas_avance_ids i on i.lead_id=(p->>'lead_id')::uuid where p->>'analista_origen_id'=i.analista::text)=4,'Origen acreditado en ledger';
+  select p->>'identidad_persona' into v_identidad from jsonb_array_elements(r->'gestion'->'poblacion') p where p->>'lead_id'=v_caso.lead_id::text;
+  if (select activo from crm.multiempresa_flags where nombre='resolver_en_puertas') then
+    select inversionista_id into v_inversionista from crm.leads where id=v_caso.lead_id;
+    assert v_inversionista is not null,'La conversión nativa con F3 enlaza la identidad';
+    assert v_identidad='persona:'||private.inversionista_canonica(v_inversionista)::text,'Identidad canónica de la conversión con F3';
+  else
+    assert v_identidad='perfil:'||v_caso.cliente_id::text,'Identidad del perfil en el modo anterior sin F3';
+  end if;
+  assert not exists(select 1 from jsonb_array_elements(r->'gestion'->'poblacion') p where p->>'identidad_persona' is null),'Identidad presente también sin conversión';
 end $$;
 -- Puertas y anulación: ningún rol distinto de Gerencia recibe la población.
 do $$declare p record; begin

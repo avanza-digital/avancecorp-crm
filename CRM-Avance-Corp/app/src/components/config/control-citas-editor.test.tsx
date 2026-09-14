@@ -73,7 +73,7 @@ describe('Editor del Control de Citas', () => {
     await userEvent.click(screen.getByText('Reglas de avance'))
     await userEvent.selectOptions(screen.getByLabelText('Cómo contar las entrevistas'), 'personas_unicas')
     expect(screen.getByLabelText('Cómo contar las entrevistas')).toHaveValue('personas_unicas')
-    expect(screen.getByText('4 por definir')).toBeInTheDocument()
+    expect(screen.getByText('1 por definir')).toBeInTheDocument()
   })
   it('abre las reglas y enfoca un mes inválido aunque el navegador acepte texto', async () => {
     const guardar = vi.fn(async (input: GuardarControlCitasInput) => guardada(input))

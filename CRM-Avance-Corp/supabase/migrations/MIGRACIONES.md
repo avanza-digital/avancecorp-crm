@@ -1,16 +1,20 @@
 # Ledger de migraciones — esquema `crm`
 
 > **Tasas inferiores — PUBLICACIÓN AUTORIZADA EN CURSO (14/09):** SQL fuente `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql`, intacto; instalada solo en rama propia como `20260914174353`. Banco reconstruido con 637 funciones y 281 migraciones de producción, incluyendo F8; ACL/owners/RLS/triggers verificados. Frontend integrado: 3.540 pruebas PASS. Comparación general y ensayo específico remoto en curso; producción todavía sin esta candidata. [Paquete, comportamiento y límites](../scripts/tasa-baja/README.md).
-> **F8 — ensayo combinado completo el 14/09:** dos SQL exactos instalados solo en
-> la rama exclusiva, versiones `20260914161616` y `20260914161816`. 279 entradas
-> originales conservadas, 27 pruebas SQL remotas, 31 locales y 12 grupos Auth PASS.
-> Producción sin instalar; sigue Main/build/preflight/merge OFF.
-> [Evidencia y límites](../scripts/multiempresa-f8/ENSAYO-2026-09-14.md).
+
+> **F8 — instalada y verificada OFF el 14/09:** versiones productivas
+> `20260914161616` y `20260914161816`, 43 y 10 sentencias literales de los dos
+> SQL aprobados. 279 entradas originales conservadas; 281 en total. Control OFF,
+> sin participantes, F3 ON y F4–F7 globales OFF. 600 fuentes reales sin brechas
+> y cinco demos conservadas fuera de la operación al corte de las 12:09 Lima.
+> Rama propia eliminada. 31 SQL locales, 27 remotas, 12 grupos Auth y 3.513
+> pruebas frontend PASS. Equipo, activación y G7 pendientes.
+> [Evidencia y límites](../scripts/multiempresa-f8/PUBLICACION-2026-09-14.md).
 
 ## 20260913215240 — Control nominal y temporal del piloto económico F8
 
-**Estado:** candidata probada en PostgreSQL 17 local y en Supabase aislado, sin
-instalar ni activar en producción.
+**Estado:** instalada OFF y verificada en producción el 14/09/2026, registro
+`20260914161616`; archivo versionado intacto. Sin participantes ni activación.
 
 Crea `crm.piloto_f8_control` y `crm.piloto_f8_miembros`, RLS deny-by-default,
 sin grants Data API y con auditoría. Nace OFF y exige exactamente Gerencia, un
@@ -28,11 +32,12 @@ incompleto, perfil inactivo, usuario ajeno, revocación individual, cinco carrer
 concurrentes de encendido y reversa. Siete huellas de datos permanecen idénticas.
 Banco cerrado a `multiempresa_f8_20260913` dentro del contenedor sintético F5;
 no acepta destinos externos. `npm run test:multiempresa:f8` ejecuta 11 pruebas.
-La rama Supabase repitió las 11 pruebas y verificó advisors y tipos, pero el
+En el ensayo inicial, la rama Supabase repitió las 11 pruebas y verificó advisors y tipos, pero el
 replay histórico del proyecto se detuvo después de `20260811210049`; el ensayo
-con banco sintético no fue mergeable. Pendientes: enlaces de cobertura (14 al
-corte: diez reales y cuatro demo), equipo nominal, resolver el ciclo de
-instalación, instalación OFF, activación y evidencia real de G7. Detalle:
+con banco sintético no fue mergeable. La reconstrucción revisada del 14/09
+resolvió el ciclo y el paquete combinado se instaló con pruebas SQL/Auth y
+paridad verificadas. Los diez enlaces reales y la exclusión demo están
+completados. Pendientes: equipo nominal, activación y evidencia real de G7. Detalle:
 `../scripts/multiempresa-f8/README.md` y
 `../scripts/multiempresa-f8/VERIFICACION-RAMA-2026-09-13.md`.
 
@@ -9499,9 +9504,10 @@ El frontend se publica como artefacto desde el commit único verificado de Main.
 
 ## 20260914025926 — F8: excluir fuentes demo de cobertura y lecturas
 
-**Estado:** candidata local, sin aplicar en producción. Requiere el control F8
-`20260913215240` instalado OFF; F4–F7 también OFF. La aprobación del lote anterior
-de diez enlaces reales no sustituye la aprobación de este SQL nuevo.
+**Estado:** instalada y verificada en producción el 14/09/2026, registro
+`20260914161816`, después del control F8 OFF. F4–F7 también OFF. Miguel aprobó
+este SQL por separado del lote de diez enlaces, que no se repitió. Archivo
+versionado intacto; [acta](../scripts/multiempresa-f8/PUBLICACION-2026-09-14.md).
 
 Helper privado INVOKER `private.cartera_f5_fuentes_reales()`, sin permisos API,
 sobre el lector bruto conservado. Ocho consumidores se ajustan con huellas
@@ -9577,3 +9583,23 @@ sin A/B contemporáneo. No se declara cero regresiones ni se omite la deuda.
 Advisors: guardas RLS/DEFINER intencionales comprobadas, FK indexadas; dos INFO
 de índices recién creados sin uso. Evidencias, capturas, SQL exacto y pendientes:
 `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
+
+## 20260914044939 — Citas: identidad de personas independiente de la conversión
+
+**Ensayada y preparada para el deploy autorizado; aún sin publicar Citas.**
+Extiende la población con `identidad_persona`. Prioriza inversionista canónico,
+resuelve perfiles vinculados y conserva perfil/lead cuando no hay vínculo.
+No infiere una persona desde una conversión ni fusiona por datos personales.
+Cada entrevista sigue contando; personas, clientes y ticket comparten identidad.
+
+Preflight de lector exacto, permisos conservados y actualización exclusiva de su
+huella/sello. Sin cambios de tablas u objetos `public`. SQL de identidad mixta y
+conversión nativa PASS, también con F3 ON y F8 OFF como producción. Las cuatro
+candidatas anteriores y ésta están en la rama propia con historial canónico:
+281 entradas del padre intactas y cinco extras, tras incorporar la instalación F8.
+
+Frontend integrado: 3519 tests PASS; nueve E2E afectados PASS. Control: 48 Auth/HTTP
+PASS y concurrencia local PASS. RLS general conserva los mismos 49/1827 FAIL en
+el A/B previo a F8, sin aserciones nuevas; no se declara PASS global. Advisors,
+huellas, límites, revisiones resueltas, activación y reversa en
+`UX-UI-GERENCIA/citas-publicacion-2026-09-14/README.md` desde la raíz del repositorio.

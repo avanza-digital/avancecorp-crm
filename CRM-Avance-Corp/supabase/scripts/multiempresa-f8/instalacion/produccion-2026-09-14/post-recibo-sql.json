@@ -1,0 +1,18 @@
+[
+  {
+    "version": "20260914161616",
+    "archivo": "20260913215240_crm_f8_piloto_controlado.sql",
+    "sentencias": 43,
+    "sha256_archivo": "0807e59bcaccfbce8d7af02dc67fcfa8a64686305aaa976d4840af16c86c18fe",
+    "estado": "PASS_TODAS_LAS_SENTENCIAS_LITERALES_EN_ORDEN",
+    "diferencia": "Solo separadores de sentencias SQL, punto y coma y espacios externos"
+  },
+  {
+    "version": "20260914161816",
+    "archivo": "20260914025926_crm_f8_excluir_fuentes_demo.sql",
+    "sentencias": 10,
+    "sha256_archivo": "0f7daa10f1e1ac1d71501795d0f0d45c64e58fa263426c7e27a56f5c0e73dc08",
+    "estado": "PASS_TODAS_LAS_SENTENCIAS_LITERALES_EN_ORDEN",
+    "diferencia": "Solo separadores de sentencias SQL, punto y coma y espacios externos"
+  }
+]

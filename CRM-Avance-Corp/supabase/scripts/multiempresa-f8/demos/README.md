@@ -1,7 +1,8 @@
 # F8 — exclusión consistente de fuentes demo
 
-Estado: candidata local preparada el 13/09/2026 (14/09 UTC), **sin aplicar en
-producción**. Los diez enlaces reales autorizados anteriormente ya están
+Estado al 14/09/2026: **instalada y verificada en producción**, con el control
+F8 apagado y sin participantes. [Acta](../PUBLICACION-2026-09-14.md).
+Los diez enlaces reales autorizados anteriormente ya están
 aplicados; este paquete no los vuelve a ejecutar.
 
 ## Resultado previsto
@@ -25,9 +26,9 @@ La migración no reclasifica registros ni cambia cuentas, permisos o banderas.
 ## SQL exacto y orden
 
 1. [Control F8 apagado](../../../migrations/20260913215240_crm_f8_piloto_controlado.sql),
-   candidato anterior, todavía no instalado en producción.
+   instalado OFF en producción como `20260914161616`.
 2. [Exclusión demo](../../../migrations/20260914025926_crm_f8_excluir_fuentes_demo.sql),
-   objeto de esta entrega. Requiere el control anterior instalado OFF y F4–F7 OFF.
+   instalado como `20260914161816`. Control anterior y F4–F7 conservados OFF.
 3. Verificar firmas, ACL, cobertura real/demo y banderas después de instalar.
    El encendido nominal del piloto pertenece a otro paso autorizado del plan.
 

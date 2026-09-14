@@ -1,0 +1,38 @@
+{
+  "frontend": {
+    "estado": "PASS",
+    "archivos": 243,
+    "tests": 3519,
+    "log_sha256": "d30f016b684ca66f44de4dc77070df53671c51d57ceeedebcb65fecf2863f50f"
+  },
+  "e2e_afectados": {
+    "estado": "PASS",
+    "tests": 9,
+    "log_sha256": "b5b3f7e66072b2a6e63fdd9507bb415f9c64d5f19f6800a1f777c2b17ac984f9"
+  },
+  "e2e_completos_previos": {
+    "pass": 179,
+    "skip": 26
+  },
+  "control_http": {
+    "estado": "PASS",
+    "pruebas": 48
+  },
+  "rls_general": {
+    "estado": "FAIL",
+    "referencia": 49,
+    "candidato": 49,
+    "casos_nuevos": 0
+  },
+  "dominio_con_f3_y_f8": {
+    "estado": "PASS",
+    "casos": [
+      "conversion nativa e identidad",
+      "identidad mixta sin conversion"
+    ]
+  },
+  "activacion_auditada": {
+    "estado": "PASS",
+    "ensayo": "Superadmin sint\u00e9tico, vigente septiembre, auditor\u00eda comprobada, ROLLBACK"
+  }
+}

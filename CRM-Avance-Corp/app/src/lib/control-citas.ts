@@ -25,13 +25,13 @@ export interface GuardarControlCitasInput {
   nota: string
 }
 
-/** Acuerdos del usuario; null conserva una decisión pendiente, no la inventa. */
+/** Acuerdos del usuario. La vigencia se elige al guardar y aplicar la versión. */
 export function controlCitasInicial(): ControlCitas {
   return {
     ...METAS_CITAS_INICIALES,
     excluir_manuales_base: false, actividad_manuales: 'incluir', conteo_entrevistas: 'citas_realizadas',
-    base_avance: 'actividad_real', mes_resultado: null, analista_resultado: null, mes_inicio: null,
-    mostrar_meta_citas: false, base_depositos: null,
+    base_avance: 'actividad_real', mes_resultado: 'evento', analista_resultado: 'evento', mes_inicio: null,
+    mostrar_meta_citas: false, base_depositos: 'personas_entrevistadas',
   }
 }
 
@@ -53,8 +53,8 @@ export const OPCIONES_CONTROL_CITAS = {
   },
   base_depositos: {
     etiqueta: 'Base del objetivo de depósitos',
-    ayuda: 'El cliente se cuenta una sola vez. Aquí eliges con qué base compararlo.',
-    opciones: { entrevistas: 'Todas las entrevistas realizadas', personas_entrevistadas: 'Personas entrevistadas, una vez por lead' },
+    ayuda: 'Con la base de personas: 7 clientes de 10 personas entrevistadas son 70%, aunque algunas hayan venido varias veces.',
+    opciones: { entrevistas: 'Todas las entrevistas realizadas', personas_entrevistadas: 'Personas entrevistadas, una vez por persona' },
   },
   mes_resultado: {
     etiqueta: 'Mes al que corresponde el resultado',
