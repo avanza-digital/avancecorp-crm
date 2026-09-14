@@ -17,7 +17,7 @@ const denegado = async (peticion, nombre) => { const r = await peticion; comprob
 const config = { citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70,
   excluir_manuales_base: false, actividad_manuales: 'incluir', conteo_entrevistas: 'citas_realizadas',
   base_avance: 'actividad_real', mes_resultado: 'evento', analista_resultado: 'evento',
-  mes_inicio: '2099-01', mostrar_meta_citas: false, base_depositos: 'entrevistas' };
+  mes_inicio: '2099-01', mostrar_meta_citas: false, base_depositos: 'personas_entrevistadas' };
 for (const u of USERS) {
   const c = cliente();
   await ok(c.auth.signInWithPassword({ email: u.email, password }));

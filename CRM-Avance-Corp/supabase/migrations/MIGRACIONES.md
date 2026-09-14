@@ -9575,3 +9575,23 @@ sin A/B contemporáneo. No se declara cero regresiones ni se omite la deuda.
 Advisors: guardas RLS/DEFINER intencionales comprobadas, FK indexadas; dos INFO
 de índices recién creados sin uso. Evidencias, capturas, SQL exacto y pendientes:
 `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
+
+## 20260914044939 — Citas: identidad de personas independiente de la conversión
+
+**Ensayada y preparada para el deploy autorizado; aún sin publicar Citas.**
+Extiende la población con `identidad_persona`. Prioriza inversionista canónico,
+resuelve perfiles vinculados y conserva perfil/lead cuando no hay vínculo.
+No infiere una persona desde una conversión ni fusiona por datos personales.
+Cada entrevista sigue contando; personas, clientes y ticket comparten identidad.
+
+Preflight de lector exacto, permisos conservados y actualización exclusiva de su
+huella/sello. Sin cambios de tablas u objetos `public`. SQL de identidad mixta y
+conversión nativa PASS, también con F3 ON y F8 OFF como producción. Las cuatro
+candidatas anteriores y ésta están en la rama propia con historial canónico:
+281 entradas del padre intactas y cinco extras, tras incorporar la instalación F8.
+
+Frontend integrado: 3519 tests PASS; nueve E2E afectados PASS. Control: 48 Auth/HTTP
+PASS y concurrencia local PASS. RLS general conserva los mismos 49/1827 FAIL en
+el A/B previo a F8, sin aserciones nuevas; no se declara PASS global. Advisors,
+huellas, límites, revisiones resueltas, activación y reversa en
+`UX-UI-GERENCIA/citas-publicacion-2026-09-14/README.md` desde la raíz del repositorio.

@@ -1,0 +1,77 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Las correcciones cubren bien mis hallazgos anteriores. La identidad ya sale de la población en el servidor. `soloSin` usa `fila.sinCita`. Las tasas exigen `version>0`, y el test SQL comprueba el servidor sin defaults. La hipótesis "un lead → dos perfiles" queda descartada con la evidencia aportada.
+
+Queda un riesgo concreto en la **precedencia de la expresión de identidad**. Una misma persona puede recibir dos claves distintas cuando solo uno de sus leads está convertido, y eso rompería el denominador de personas que confirmó el usuario. La evidencia adjunta no demuestra el invariante que lo evitaría, y el test SQL no cubre la rama `perfil:`. El SQL de dominio y el rerun final siguen pendientes; no hay afirmación de readiness.
+
+FINDINGS:
+
+[P1] La identidad puede partirse entre `perfil:` y `persona:` para la misma persona canónica
+File: CRM-Avance-Corp/supabase/migrations/20260914044939_crm_citas_identidad_personas.sql
+Lines: 12-16
+Problem: la expresión prioriza `p.perfil_id` del lead y, en su defecto, `perfil_id` del inversionista **canónico**. Solo después usa `persona:<canónico>`.
+- Lead A convertido: `perfil_id=X`, `inversionista_id=P`. Resultado: `perfil:X`.
+- Lead B sin convertir: `perfil_id=null`, `inversionista_id=alias→P`. Si `crm.inversionistas(P).perfil_id` es null, el resultado es `persona:P`.
+
+Son la misma persona con dos claves.
+Evidence:
+- La expresión SQL (líneas 13-15) solo lee `i.perfil_id` del canónico. No lee el del alias ni vincula el perfil con el inversionista.
+- `test-citas-identidad-personas.sql:17-22` crea inversionistas sin `perfil_id` y leads sin `perfil_id`. Solo ejercita la rama `persona:`.
+- `avance.test.ts:98-107` inyecta a mano `identidad_persona='perfil:cliente-1'` en ambos leads. Simula el resultado deseado, no el que produce el SQL.
+- No se adjunta evidencia de que el flujo de conversión escriba `crm.inversionistas.perfil_id` en el canónico, ni de que sea único.
+
+Impact: en `avance.ts:89,103`, `gente` contaría 2 personas y `clientes` 1. Con `personas_entrevistadas`, la conversión sale 50% en vez de 100%, justo en el caso "deduplica aunque solo uno de sus leads se convierta". Además, `vinculados` (línea 93) no enlaza la entrevista del lead B con el cierre del lead A: el cliente saldría como "de otros cierres".
+Recommendation: elegir una de dos vías.
+- (a) Adjuntar evidencia del invariante: la conversión fija `inversionistas.perfil_id` en el canónico de forma atómica, con unicidad, y las fusiones lo propagan.
+- (b) Hacer la precedencia determinista por persona: `persona:<canónico>` cuando exista `inversionista_id` o un inversionista cuyo `perfil_id` coincida con el del lead; `perfil:` solo sin inversionista; `lead:` al final.
+
+En ambos casos, añadir al SQL de dominio este caso: canónico P sin `perfil_id`, lead1 `perfil_id=X` e `inversionista_id=P`, lead2 con `inversionista_id=alias` y sin perfil. Afirmar que ambas identidades son iguales. Añadir también un alias cuyo `perfil_id` difiere del canónico.
+
+[P2] Clientes y personas se cuentan con claves distintas
+File: CRM-Avance-Corp/app/src/components/citas/avance.ts
+Lines: 89, 96-99, 103
+Problem: `gente` deduplica por `identidad_persona`, pero `clientes`, `clientesPeriodo` y `fuera` deduplican por `perfil_id`. Dos perfiles distintos bajo la misma identidad darían 2 clientes sobre 1 persona (200%). A la inversa, el P1 da 1 cliente sobre 2 personas.
+Evidence: `perfilesVinculados = new Set(vinculados.map(c => c.perfil_id))` frente a `new Set(visitas.map(c => personaEntrevistada(c.leadId)))`.
+Impact: la conversión puede superar el 100% o quedar subestimada si la identidad y el perfil no coinciden 1:1. La probabilidad depende del mismo invariante que el P1; trátese como hipótesis.
+Recommendation: contar clientes con `personaEntrevistada(c.lead_id)` para que numerador y denominador usen la misma clave. Añadir un test unitario con dos `perfil_id` bajo una misma identidad.
+
+[P3] Coste por fila del resolvedor canónico
+File: migración, líneas 13-15
+Problem: `private.inversionista_canonica` (SECURITY DEFINER, no inlineable, hasta 16 saltos) se invoca dos veces por fila de población, más una subconsulta correlacionada.
+Impact: es menor con el censo actual, pero escala linealmente con la población en cada consulta de Gerencia.
+Recommendation: resolver el canónico una sola vez, con un `LATERAL`, si la población crece. No bloquea.
+
+[P3] Superficie de información nueva en el payload
+File: migración, líneas 12-16; `gestion-citas.ts` (`identidad_persona`)
+Problem: el payload expone ahora el UUID del inversionista canónico. También expone el `perfil_id` de leads no convertidos cuyo inversionista ya es cliente.
+Impact: un llamador con alcance limitado podría inferir que un lead suyo corresponde a un cliente existente o a una persona de otro analista. Es una hipótesis: no se adjuntan los grants de `crm.citas_gerencia_consulta_fn`.
+Recommendation: confirmar que el lector solo lo invocan roles con visibilidad total (Gerencia/Superadmin). Si no, usar una clave opaca, por ejemplo `md5` del identificador con un prefijo.
+
+TEST GAPS:
+- SQL: ramas `perfil:` (directa y vía canónico) y `lead:` para un lead sin vínculo. Hoy solo se prueba `persona:`.
+- SQL: caso mixto de un lead convertido y un hermano sin convertir bajo el mismo canónico (P1).
+- Unitario: identidades derivadas de conversiones reales, no inyectadas a mano. También dos perfiles con una misma identidad (P2).
+- Unitario: equipo seleccionado con traspaso Ana→Luis. Comprobar que `total.clientes` reconoce el traspaso y que la fila de Luis no lo hace. Existe para el total sin filtro de equipo (test línea 87), no con `filtros.equipo`.
+- El SQL de dominio y el rerun completo del frontend están pendientes. No hay evidencia de su resultado.
+- No se adjuntaron los cambios de `control-citas.test.ts` ni de `control-citas-editor.test.tsx`, así que no puedo valorar su cobertura.
+
+ARCHITECTURE RISKS:
+- La migración reescribe el lector por reemplazo textual contra un MD5 exacto. Es robusta ante deriva (aborta), pero cualquier cambio futuro del lector obliga a otro parche con huella. Conviene que la próxima modificación sustancial redefina la función de forma explícita.
+
+SECURITY RISKS:
+- No hay cambios de permisos, RLS ni tablas. `CREATE OR REPLACE` a partir de `pg_get_functiondef` conserva SECURITY DEFINER, `search_path` y los grants. Las referencias están calificadas por esquema. Solo queda la exposición de identificadores del P3.
+
+REGRESSION RISKS:
+- `controlCitasInicial()` ahora trae valores completos. El servidor y `reglasListas` (versión > 0) impiden que se activen solos, pero un Superadmin que guarde sin revisar los aplicará tal cual. Es aceptable porque coincide con las decisiones del usuario.
+- En la columna de conversión, el número visible (`clientesPeriodo`) ya no es el numerador del % (`clientes`). La línea secundaria solo aparece si `clientesFueraCohorte>0`, y está bien explicado en la ayuda.
+- `total.proyeccion` suma filas individuales, mientras `total.clientes` reconoce traspasos. Son coherentes con el texto, pero no se pueden comparar directamente.
+
+RECOMMENDED NEXT ACTIONS:
+1. Resolver el P1: adjuntar evidencia del invariante `inversionistas.perfil_id` o cambiar la precedencia antes de sellar el MD5 del lector. Añadir el caso mixto al SQL de dominio.
+2. Unificar la clave de clientes con la de personas en `avance.ts` (P2) y añadir los tests indicados.
+3. Ejecutar el SQL de dominio y el rerun final, y reportar sus resultados antes de declarar readiness.
+
+CONFIDENCE:
+MEDIUM. El P1 depende de un invariante del flujo de conversión y fusión que no está en la evidencia adjunta.

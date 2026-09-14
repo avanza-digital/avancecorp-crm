@@ -5,6 +5,8 @@ actualizado: 2026-09-14
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Citas Gerencia - decisiones finales para publicar 2026-09-14]] — reglas confirmadas, preparación reanudada y pruebas cerradas; publicación coordinada con la sesión F8.
+
 - [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — módulo real y Superadmin preparados en local/banco; 3.512 pruebas y 48 comprobaciones HTTP PASS. Tres decisiones comerciales y diagnóstico del gate general pendientes; Miguel pidió no desplegar.
 - [[Citas Gerencia - reglas confirmadas y propuesta revisada 2026-09-13]] — cuentan manuales y sus citas, cada asistencia cuenta como entrevista y el ticket es mensual por analista; historial de la propuesta aprobada.
 - [[Citas Gerencia - meta incorrecta detectada y correccion local 2026-09-13]] — reclamo de Miguel: meta anterior publicada; corrección local y métricas aún pendientes.

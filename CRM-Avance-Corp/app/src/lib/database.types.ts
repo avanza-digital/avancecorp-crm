@@ -3601,10 +3601,7 @@ export type Database = {
         Args: { p_version_esperada: number }
         Returns: Json
       }
-      control_citas_configuracion_fn: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      control_citas_configuracion_fn: { Args: never; Returns: Json }
       guardar_control_citas_fn: {
         Args: {
           p_version_esperada: number

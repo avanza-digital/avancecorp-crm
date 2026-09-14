@@ -1,0 +1,34 @@
+{
+  "estado": "PASS",
+  "produccion": 281,
+  "banco": 286,
+  "anteriores_identicas": 281,
+  "extras": [
+    {
+      "version": "20260911212756",
+      "name": "crm_control_citas_superadmin_borradores",
+      "hash": "a10ccd94b27cfae2245db5678ff31da6"
+    },
+    {
+      "version": "20260913204847",
+      "name": "crm_citas_base_asignada_meta_interna",
+      "hash": "24ed1fac49cb5ff1d559dbe9492a3a00"
+    },
+    {
+      "version": "20260913225042",
+      "name": "crm_citas_gestion_mensual_configurada",
+      "hash": "9ccc5f256bbdb3a70c40f44fe31f090e"
+    },
+    {
+      "version": "20260913225755",
+      "name": "crm_citas_avance_fuentes",
+      "hash": "2d72e436c2fca5a0a39ceaec3096fb28"
+    },
+    {
+      "version": "20260914044939",
+      "name": "crm_citas_identidad_personas",
+      "hash": "4a73d69f90265f04ed5ba09968a2b6c1"
+    }
+  ],
+  "derivas": []
+}

@@ -3,15 +3,17 @@ import * as v from 'valibot'
 import { ControlCitasSchema, controlCitasInicial, ejemploControlCitas, numeroControlCitas, pendientesControlCitas, validarConsultaControlCitas } from './control-citas'
 
 describe('Control de Citas: acuerdos y borradores', () => {
-  it('parte de 1,25 / 70 / 70, incluye manuales y no decide lo pendiente', () => {
+  it('parte de los acuerdos confirmados y conserva la elección de vigencia', () => {
     const config = controlCitasInicial()
     expect(v.safeParse(ControlCitasSchema, config).success).toBe(true)
     expect(ejemploControlCitas(config)).toEqual({ leadsBase: 100, citas: 125 })
     expect(ejemploControlCitas({ ...config, excluir_manuales_base: true })).toEqual({ leadsBase: 80, citas: 100 })
-    expect(pendientesControlCitas(config)).toHaveLength(4)
+    expect(pendientesControlCitas(config)).toEqual(['Mes de inicio'])
     expect(config.actividad_manuales).toBe('incluir')
     expect(config.conteo_entrevistas).toBe('citas_realizadas')
-    expect(config.base_depositos).toBeNull()
+    expect(config.base_depositos).toBe('personas_entrevistadas')
+    expect(config.mes_resultado).toBe('evento')
+    expect(config.analista_resultado).toBe('evento')
     expect(config.mostrar_meta_citas).toBe(false)
   })
   it.each(['', ' ', '1,25%', '1.25x', '1,2,5', 'NaN', 'Infinity', '-1', '1e2', '1.251'])('rechaza entradas ambiguas %s', texto => {

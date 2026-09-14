@@ -1,0 +1,14 @@
+{
+  "estado": "PASS",
+  "produccion_intacta": 279,
+  "ensayos_retirados": 15,
+  "canonicas": [
+    "20260911212756",
+    "20260913204847",
+    "20260913225042",
+    "20260913225755",
+    "20260914044939"
+  ],
+  "total": 284,
+  "lector": "4ad2b90baf96b11b63a626122bd5d64b"
+}

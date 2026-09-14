@@ -1,0 +1,57 @@
+{
+  "nuevas": [
+    {
+      "firma": "crm.aplicar_control_citas_fn(p_version_esperada integer)",
+      "hash": "47fd5b575a6a09440f079d24e98f937f",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "crm.control_citas_configuracion_fn()",
+      "hash": "5faa0735c6a25c5e3b0b3e09af1e1e9b",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "crm.guardar_control_citas_fn(p_version_esperada integer, p_configuracion jsonb, p_nota text)",
+      "hash": "66c93c91e92fed34d6e34d8705858edc",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "private.control_citas_config_valida(p_config jsonb)",
+      "hash": "d2bfaefa7392c8b5538c52b212f0b2bd",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "firma": "private.control_citas_version_inmutable()",
+      "hash": "098b742c0a5e9a05a19ed98a412ba9ce",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "firma": "private.control_citas_vigente(p_mes date)",
+      "hash": "14701a4962f4beec4c64bdffbac5fcb5",
+      "propietario": "postgres",
+      "acl": "{postgres=X/postgres}"
+    }
+  ],
+  "cambios": [
+    {
+      "antes": {
+        "firma": "private.citas_gerencia_consulta(p_desde date, p_hasta date)",
+        "hash": "8b2eeffc547a1c095926ddb76876d262",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+      },
+      "despues": {
+        "firma": "private.citas_gerencia_consulta(p_desde date, p_hasta date)",
+        "hash": "4ad2b90baf96b11b63a626122bd5d64b",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+      }
+    }
+  ],
+  "faltan": []
+}

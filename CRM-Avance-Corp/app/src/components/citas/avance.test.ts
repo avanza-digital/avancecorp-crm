@@ -63,13 +63,65 @@ describe('Avance mensual conectado a hechos de Citas', () => {
     delete e.cita.asistioEn
     expect(e.calcular().total).toMatchObject({ entrevistas: 0, clientes: 0, conversion: null })
   })
+  it('7 clientes de 10 personas cumplen el 70%, aunque realicen 15 entrevistas', () => {
+    const e = ejemplo()
+    e.config.base_depositos = controlCitasInicial().base_depositos
+    for (let i = 2; i <= 10; i++) {
+      const leadId = `lead-${i}`
+      e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: leadId })
+      e.citas.push({ ...e.cita, id: `cita-${i}`, leadId })
+      if (i <= 7) e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: leadId, perfil_id: `cliente-${i}` })
+    }
+    for (let i = 1; i <= 5; i++) e.citas.push({ ...e.cita, id: `segunda-visita-${i}`, leadId: `lead-${i}` })
+    expect(e.calcular().total).toMatchObject({ entrevistas: 15, unicas: 10, clientes: 7, baseConversion: 10, conversion: 0.7 })
+    expect(e.calcular().filas.find(f => f.id === 'ana')).toMatchObject({ entrevistas: 15, clientes: 7, conversion: 0.7 })
+  })
   it('el mes del evento usa la entrevista registrada aunque la cita estuviera prevista antes', () => {
     const e = ejemplo()
     e.cita.fecha = '2026-08-31'
     e.cita.creadoEn = '2026-08-30T12:00:00Z'
     expect(e.calcular().total).toMatchObject({ citas: 0, entrevistas: 1, clientes: 1, conversion: 1 })
     e.cita.asistioEn = '2026-08-31T12:00:00Z'
-    expect(e.calcular().total).toMatchObject({ entrevistas: 0, clientes: 0 })
+    expect(e.calcular().total).toMatchObject({ entrevistas: 0, clientes: 0, clientesPeriodo: 1, clientesFueraCohorte: 1 })
+  })
+  it('un cierre cuenta para Luis aunque Ana recibiera y entrevistara antes al lead', () => {
+    const e = ejemplo()
+    Object.assign(e.datos.conversiones[0]!, { analista_id: 'luis', analista_nombre: 'Luis' })
+    e.datos.capital[0]!.analista_id = 'luis'
+    const r = e.calcular()
+    expect(r.filas.find(f => f.id === 'luis')).toMatchObject({ clientesPeriodo: 1, clientesFueraCohorte: 1, clientes: 0, entrevistas: 0, conversion: null, ticket: 1000 })
+    expect(r.filas.find(f => f.id === 'ana')).toMatchObject({ clientesPeriodo: 0, entrevistas: 1 })
+    expect(r.total).toMatchObject({ clientesPeriodo: 1, clientes: 1, unicas: 1, conversion: 1 })
+    e.filtros.analista = 'luis'
+    expect(e.calcular().total).toMatchObject({ clientesPeriodo: 1, conversion: null, entrevistas: 0 })
+  })
+  it('deduplica la identidad vinculada aunque solo uno de sus leads se convierta', () => {
+    const e = ejemplo()
+    e.config.base_depositos = 'personas_entrevistadas'
+    e.datos.poblacion[0]!.identidad_persona = 'perfil:cliente-1'
+    e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-2' })
+    e.citas.push({ ...e.cita, id: 'cita-2', leadId: 'lead-2' })
+    expect(e.calcular().total).toMatchObject({ entrevistas: 2, unicas: 1, clientes: 1, conversion: 1 })
+    e.datos.conversiones = []
+    expect(e.calcular().total).toMatchObject({ entrevistas: 2, unicas: 1, clientes: 0, conversion: 0 })
+  })
+  it('una persona con dos leads vinculados al mismo perfil sigue siendo una persona y un cliente', () => {
+    const e = ejemplo()
+    e.config.base_depositos = 'personas_entrevistadas'
+    e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-2' })
+    e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: 'lead-2' })
+    e.citas.push({ ...e.cita, id: 'cita-2', leadId: 'lead-2' })
+    expect(e.calcular().total).toMatchObject({ entrevistas: 2, unicas: 1, clientes: 1, clientesPeriodo: 1, clientesFueraCohorte: 0, conversion: 1 })
+  })
+  it('dos perfiles bajo la misma persona no inflan clientes ni reducen el ticket mensual', () => {
+    const e = ejemplo()
+    e.config.base_depositos = 'personas_entrevistadas'
+    e.datos.poblacion[0]!.identidad_persona = 'persona:persona-1'
+    e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-2' })
+    e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: 'lead-2', perfil_id: 'cliente-2' })
+    e.datos.capital.push({ ...e.datos.capital[0]!, lead_id: 'lead-2', perfil_id: 'cliente-2', contrato_id: 'contrato-2', monto: 500 })
+    e.citas.push({ ...e.cita, id: 'cita-2', leadId: 'lead-2' })
+    expect(e.calcular().total).toMatchObject({ entrevistas: 2, unicas: 1, clientes: 1, clientesPeriodo: 1, conversion: 1, clientesTicket: 1, capital: 1500, ticket: 1500 })
   })
   it('ignora filtros operativos para conservar el acumulado y su base mensual', () => {
     const e = ejemplo()
@@ -132,6 +184,11 @@ describe('Avance mensual conectado a hechos de Citas', () => {
     const e = ejemplo()
     e.config.base_depositos = null
     expect(e.calcular().total).toMatchObject({ entrevistas: 1, clientes: 1, tasaEntrevistas: null, conversion: null, proyeccion: null })
+  })
+  it('una configuración completa sin aplicación no activa las tasas', () => {
+    const e = ejemplo()
+    e.datos.control.version = 0
+    expect(e.calcular().total).toMatchObject({ clientesPeriodo: 1, tasaEntrevistas: null, conversion: null, proyeccion: null, reglasListas: false })
   })
   it('el calendario respeta Lima, febrero bisiesto y meses completos', () => {
     expect(periodoAvance('2026-09', '2026-09-14T02:00:00Z')).toMatchObject({ dias: 30, transcurridos: 13, cerrado: false })

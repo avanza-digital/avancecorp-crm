@@ -12,6 +12,7 @@ export const CamposGestionMensualSchema = {
   }),
   poblacion: v.pipe(v.array(v.object({
     lead_id: Id, nombre: v.string(), telefono: v.string(), origen: v.string(),
+    identidad_persona: v.optional(v.pipe(v.string(), v.regex(/^(perfil|persona|lead):[0-9a-f-]{36}$/i))),
     moneda: v.picklist(['PEN', 'USD']), monto_estimado: Importe,
     registro_manual: v.boolean(), creado_por: v.nullable(Id),
     analista_origen_id: v.nullable(Id), primera_asignacion_en: v.nullable(Instante),
