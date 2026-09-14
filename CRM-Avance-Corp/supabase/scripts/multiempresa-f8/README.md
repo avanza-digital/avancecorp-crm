@@ -45,10 +45,20 @@ Lectura administrativa, sin PII, del 13/09/2026 a las 17:09 Lima:
 
 Los diez casos reales son los revisados comercialmente durante G6. Esa
 conformidad no decide por sí sola la ficha canónica; faltan los enlaces técnicos.
-Las cuatro fuentes demo también deben quedar coherentes porque F8 conserva sin
-rebajas el gate completo de F5. Prodelco necesita al menos una quinta identidad
-real durante el piloto y los seis recorridos multiempresa deben ejecutarse; no
-se fabrican para adelantar G7.
+La [revisión dirigida de identidades](REVISION-IDENTIDADES-2026-09-13.md),
+completada a las 20:02 Lima, clasificó los catorce movimientos: ocho reales
+posteriores a la carga F2, dos de una misma ficha multirrol y cuatro demo.
+Los diez reales corresponden a siete fichas. No hay un identificador existente
+coincidente que permita elegir automáticamente otra identidad.
+
+El gate actual también exige coherencia a las cuatro fuentes demo. Tres de
+ellas no tienen documento válido: hay que alinear el tratamiento de pruebas
+con el universo real previsto en el plan, conservando el bloqueo de cualquier
+hueco real y el control de quién puede clasificar una fuente como demo. Esa
+corrección todavía no está implementada; no se fabrican documentos ni se
+declaran resueltos los 14 bloqueos. Prodelco necesita al menos una quinta
+identidad real durante el piloto y los seis recorridos multiempresa deben
+ejecutarse con evidencia.
 
 ## Verificación local
 
@@ -89,8 +99,11 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Resolver con evidencia los 14 enlaces que bloquean la cobertura, sin unir
-   personas por nombre, teléfono o correo.
+1. Preparar y ensayar el completado de los ocho movimientos reales sin
+   colisión, resolver la confirmación multirrol de los otros dos y corregir el
+   tratamiento de las cuatro pruebas. El diagnóstico está cerrado; las
+   correcciones de cobertura siguen pendientes. No unir personas por nombre,
+   teléfono o correo.
 2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.
 3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible

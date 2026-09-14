@@ -38,7 +38,13 @@ y cuatro demo. Prodelco tiene cuatro identidades coherentes y todavía no existe
 personas multiempresa conocidas, de modo que la quinta identidad de Prodelco y
 los seis recorridos deben suceder con evidencia durante el piloto.
 
-Sigue: resolver los 14 enlaces sin inferir identidad por datos blandos; elegir
+La [[F8 - revision de identidades pendientes (2026-09-13)]] ya individualizó
+los catorce movimientos: ocho reales para completado dirigido, dos de una ficha
+multirrol que requiere confirmar la correspondencia de cuentas y cuatro demo
+cuyo tratamiento en la cobertura debe corregirse. No se aplicaron enlaces.
+El informe nominativo está fuera de Git, en el escritorio de Miguel.
+
+Sigue: resolver esa cobertura sin inferir identidad por datos blandos; elegir
 el equipo nominal; resolver el historial de ramas; instalar OFF por un ciclo
 autorizado; y recién después presentar el encendido exacto para autorización. G7 no se
 cierra por calendario: exige casos reales, conciliaciones y firmas del

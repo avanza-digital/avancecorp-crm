@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F8 preparada localmente, sin activar
+## Estado vigente — F8 probada en rama, cobertura diagnosticada y sin activar
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
@@ -31,9 +31,11 @@ Instalación y publicación verificadas el 11/09/2026; banco propio eliminado.
 La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
 regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias;
 conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
-cerrado. F8 tiene un control nominal probado localmente, todavía sin instalar ni
-activar; corresponde resolver cobertura, elegir equipo y completar el ciclo de
-rama.** Evidencia y punto de retoma:
+cerrado. F8 tiene un control nominal probado en banco y rama, todavía sin instalar ni
+activar. La revisión de los catorce bloqueos de cobertura está cerrada; las
+correcciones, el equipo y el mecanismo de instalación siguen pendientes.**
+Diagnóstico: [[F8 - revision de identidades pendientes (2026-09-13)]].
+Evidencia y punto de retoma:
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
@@ -61,7 +63,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. El preflight F8 cuenta hoy 14 bloqueos exactos: diez reales y cuatro demo. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias; diez identidades técnicas pendientes. Conformidad humana/financiera recibida para ese corte. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Preparación local probada; producción OFF | Resolver 14 enlaces de cobertura, elegir equipo, ensayar/instalar el control y completar volúmenes, recorridos, conciliaciones y firmas de G7. [[F8 - piloto economico preparado localmente (2026-09-13)]] |
+| F8 — piloto económico | Control probado en rama; cobertura diagnosticada; producción OFF | Corregir ocho movimientos reales sin colisión, resolver dos del caso multirrol y el tratamiento de cuatro pruebas; elegir equipo, resolver la instalación y completar G7. [[F8 - revision de identidades pendientes (2026-09-13)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;

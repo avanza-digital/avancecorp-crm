@@ -7,9 +7,11 @@ actualizado: 2026-09-13
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F8 - piloto economico preparado localmente (2026-09-13)]].
+Estado vigente: [[F8 - revision de identidades pendientes (2026-09-13)]] y
+[[F8 - piloto economico preparado localmente (2026-09-13)]].
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
-F8 tiene control local probado y sigue sin instalar ni activar en producción.
+F8 tiene control probado en banco y rama; sus 14 bloqueos ya están
+diagnosticados y siguen pendientes de corrección. No está instalada ni activa.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
@@ -32,6 +34,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[F8 - revision de identidades pendientes (2026-09-13)]] — diagnóstico cerrado: ocho movimientos reales para completado, dos del caso multirrol y cuatro pruebas. Informe privado en el escritorio; correcciones pendientes.
 - [[F8 - piloto economico preparado localmente (2026-09-13)]] — control nominal F8 probado en banco sintético; producción intacta y piloto todavía OFF. Faltan enlaces, equipo, rama e inicio autorizado.
 - [[Citas Gerencia - preparacion verificada 2026-09-13]] — frontend y dos migraciones ensayados en banco; cero regresiones, 49 fallos globales previos; producción sin instalar ni publicar.
 - [[Citas Gerencia - publicacion pausada 2026-09-12]] — preparación detenida por Miguel; candidatas ensayadas en rama propia, validaciones incompletas, sin commit ni publicación.
