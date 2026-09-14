@@ -33,3 +33,17 @@ Main local/remoto, artefacto final de ese commit, merge y verificación producti
 publicación en Hostinger y eliminación de la rama propia. El respaldo frontend
 anterior se verificó contra el `version.json` público. No publicar migraciones
 pendientes de otros trabajos ni ejecutar `db push` general.
+
+## Integración final previa a publicar
+
+Citas se instaló en paralelo: el banco incorporó sus cinco migraciones por rebase.
+Referencia final: 643 funciones / 286 migraciones productivas; candidata: 644 / 287.
+Las cuatro funciones de tasas seguían con sus huellas originales en producción.
+El ensayo específico remoto se repitió con Citas/F8 presentes: siete tasas, cuatro
+regresiones, tres escenarios concurrentes, permisos y reversa antes/después del
+uso PASS. Frontend integrado: 3546 tests con cobertura y 16 E2E de tasas/Citas PASS.
+La comparación general anterior a Citas mantiene exactamente 42/1828 fallos en
+ambos lados. Es PASS de no regresión, no PASS global. Incluye un test R1 que espera
+observación aunque la política vigente ya usa enforcement, y contratos antiguos
+de métricas/identidad. No se cambian permisos ni políticas para hacerlos pasar.
+La comprobación HTTP y la publicación aún están en curso.
