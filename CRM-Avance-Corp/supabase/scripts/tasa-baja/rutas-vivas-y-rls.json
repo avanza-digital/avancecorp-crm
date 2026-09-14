@@ -1,0 +1,59 @@
+{
+  "accesos": {
+    "jobs_reservas": null,
+    "permisos_insert": [
+      {
+        "rol": "authenticated",
+        "insert": true
+      },
+      {
+        "rol": "anon",
+        "insert": true
+      },
+      {
+        "rol": "service_role",
+        "insert": true
+      }
+    ],
+    "policies_insert": [
+      {
+        "cmd": "INSERT",
+        "check": "es_admin()",
+        "roles": [
+          "authenticated"
+        ],
+        "nombre": "contratos_admin_modifica"
+      }
+    ],
+    "rutas_insert_contrato": [
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres",
+          "service_role=X/postgres"
+        ],
+        "firma": "crear_contrato(jsonb,jsonb)",
+        "owner": "postgres",
+        "definer": true
+      }
+    ]
+  },
+  "reserva": {
+    "rls": {
+      "forced": false,
+      "enabled": true
+    },
+    "es_admin": {
+      "firma": "es_admin()",
+      "owner": "postgres",
+      "cuerpo": "\n  SELECT EXISTS (\n    SELECT 1 FROM public.perfiles\n    WHERE id = auth.uid()\n      AND rol IN ('admin', 'superadmin')\n      AND activo = true\n  );\n",
+      "definer": true
+    },
+    "borradores_reservas": [
+      {
+        "firma": "crm.abandonar_conversion_gerencia_fn(uuid,text)",
+        "cuerpo": "\ndeclare\n  v_uid    uuid := (select auth.uid());\n  v_inv    uuid;\n  v_r      crm.conversion_reservas%rowtype;\n  v_lead   crm.leads%rowtype;\n  v_est    jsonb;\n  v_clave  text;\n  v_motivo text := nullif(pg_catalog.btrim(p_motivo), '');\n  v_previo text;\nbegin\n  -- F2.b [D-5] (Codex E2 #12): una reserva SELLADA (punto de no retorno) cuyo edge murió ANTES de crear la cuenta de Auth\n  -- deja a la persona «en conversión» para siempre (persona_en_conversion: sellada y sin convertir): nadie puede darle un\n  -- lead, tomarla, reabrirla ni convertirla. Gerencia la ABANDONA con motivo: solo si NADA externo existe (claim en\n  -- `reclamado`: sin cuenta de acceso ni ficha) y la ejecución ya no está viva (reserva o lease vencidos): se borran la\n  -- reserva y el claim (bitácora en audit_log por sus triggers) y queda una nota en el lead. Con cuenta o ficha creadas\n  -- el camino es RETOMAR (crm.retomar_conversion_gerencia_fn); consumada (perfil enlazado) no hay nada que abandonar.\n  -- Orden de candados: persona → lead → reserva → claim (el de la conversión en cooperativa y del sellado).\n  if not private.es_gerencia_crm_activa() then\n    raise exception 'Solo Gerencia abandona una conversión' using errcode = '42501';\n  end if;\n  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then\n    raise exception 'Abandonar requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';\n  end if;\n  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));\n  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then\n    raise exception 'Identidad unificada apagada' using errcode = 'P0409';\n  end if;\n  if p_lead_id is null then\n    raise exception 'El lead es obligatorio' using errcode = '22023';\n  end if;\n  if v_motivo is null or pg_catalog.length(v_motivo) < 5 or pg_catalog.length(v_motivo) > 300 then\n    raise exception 'El motivo es obligatorio (entre 5 y 300 caracteres)' using errcode = '22023';\n  end if;\n  select r.inversionista_id into v_inv from crm.conversion_reservas r where r.lead_id = p_lead_id;\n  if v_inv is null then\n    raise exception 'Este lead no tiene una reserva por persona' using errcode = 'P0002';\n  end if;\n  -- Orden de candados (Codex v5 #3): persona → lead → reserva → claim, el de la conversión en cooperativa y del sellado\n  -- (lead antes que reserva); las revalidaciones van después de cada candado.\n  perform 1 from crm.inversionistas i where i.id = v_inv for update;\n  select * into v_lead from crm.leads l where l.id = p_lead_id for update;\n  if not found then\n    raise exception 'Lead no encontrado' using errcode = 'P0002';\n  end if;\n  select * into v_r from crm.conversion_reservas r where r.lead_id = p_lead_id for update;\n  -- Revalidación tras los candados (auditor v1 #3): la reserva pudo borrarse (doble clic) o cambiar de persona mientras se esperaba.\n  if not found then\n    raise exception 'Este lead ya no tiene una reserva por persona' using errcode = 'P0002';\n  end if;\n  if v_r.inversionista_id is distinct from v_inv then\n    raise exception 'La reserva cambió de persona mientras se bloqueaba; vuelve a intentarlo' using errcode = '40001';\n  end if;\n  if v_r.efectos_iniciados_en is null then\n    raise exception 'La reserva no está sellada: caduca sola a los pocos minutos, no hay nada que abandonar' using errcode = 'P0409';\n  end if;\n  if v_lead.etapa = 'convertido' then\n    raise exception 'El lead ya está convertido: la conversión se consumó, no se abandona' using errcode = 'P0409';\n  end if;\n  v_clave := 'auth_persona:' || v_inv::text;\n  select i.resultado into v_est from crm.multiempresa_idempotencia i where i.clave = v_clave for update;\n  if v_est is null and v_r.claim_id is not null then\n    raise exception 'La reserva apunta a un claim que ya no existe (anomalía de datos): revisar antes de abandonar' using errcode = 'P0409';\n  end if;\n  if v_est is not null then\n    if (v_est->>'lead_id')::uuid is distinct from p_lead_id or v_r.claim_id is distinct from (v_est->>'claim_id')::uuid then\n      raise exception 'La reserva y el claim de esta persona no corresponden a este lead' using errcode = 'P0409';\n    end if;\n    if v_est->>'estado' = 'enlazado' then\n      raise exception 'La conversión ya se consumó (ficha enlazada): no se abandona' using errcode = 'P0409';\n    end if;\n    if v_est->>'estado' in ('auth_creado', 'perfil_creado') then\n      raise exception 'Ya existe la cuenta de acceso (o la ficha) de esta persona: retoma la conversión en vez de abandonarla'\n        using errcode = 'P0409', hint = 'crm.retomar_conversion_gerencia_fn(p_lead_id)';\n    end if;\n    if v_est->>'estado' <> 'reclamado' then\n      raise exception 'Estado de saga desconocido (%): revisar antes de abandonar', v_est->>'estado' using errcode = 'P0409';\n    end if;\n  end if;\n  -- Nunca expulsa a una ejecución viva (Codex E2 #10): abandonar es destructivo, así que exige los DOS plazos vencidos\n  -- (el tope de la reserva Y el lease del claim; sin lease escrito se trata como vivo). Codex v3 #2: un reintento del dueño\n  -- renueva el lease diez minutos aunque el tope original haya pasado; con «uno u otro» se le borraba el claim en vuelo.\n  if v_est is not null and v_est->>'lease_hasta' is null then\n    raise exception 'El claim de esta conversión no tiene lease (anomalía de datos): revisar antes de abandonar' using errcode = 'P0409';\n  end if;\n  if v_r.vence_absoluto_en > pg_catalog.now()\n     or (v_est is not null and (v_est->>'lease_hasta')::timestamptz > pg_catalog.now()) then\n    raise exception 'La conversión sigue viva (reserva o claim vigentes): espera a que venzan los dos antes de abandonarla' using errcode = 'P0409';\n  end if;\n  -- Auditor v1 #1 (ALTO): el edge crea el usuario de Auth ANTES de registrar el paso (createUser con app_metadata.claim_id\n  -- → registrar_auth). Si murió entre medias, el claim sigue en «reclamado» pero la cuenta EXISTE con la marca de este claim;\n  -- borrar el claim la dejaría huérfana para siempre (el reintento la adopta por la marca). Con la marca viva: retomar.\n  if v_r.claim_id is not null and exists (select 1 from auth.users u where u.raw_app_meta_data->>'claim_id' = v_r.claim_id::text) then\n    raise exception 'Ya existe la cuenta de acceso creada por esta conversión (aún sin registrar en la saga): retoma la conversión en vez de abandonarla'\n      using errcode = 'P0409', hint = 'crm.retomar_conversion_gerencia_fn(p_lead_id)';\n  end if;\n  delete from crm.multiempresa_idempotencia where clave = v_clave;\n  delete from crm.conversion_reservas where lead_id = p_lead_id;\n  -- Nota administrativa en el lead (no es contacto). La válvula es PREVISIÓN (hoy ningún trigger de crm.actividades veta una\n  -- «nota» ni mira la válvula; trg_gestion_lead_serializada exige creado_por = auth.uid(), lead activo y rol, que se cumplen).\n  if v_lead.activo then\n    v_previo := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true), 'off');\n    perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);\n    insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por)\n    values (p_lead_id, 'nota', 'Conversión abandonada por Gerencia: ' || v_motivo,\n            pg_catalog.jsonb_build_object('evento', 'conversion_abandonada', 'inversionista_id', v_inv, 'claim_id', v_r.claim_id,\n              'estado_previo', coalesce(v_est->>'estado', 'sin_claim'), 'reservado_por', v_r.reservado_por,\n              'sellada_en', v_r.efectos_iniciados_en, 'motivo', v_motivo),\n            v_uid);\n    perform pg_catalog.set_config('crm.op_privilegiada', v_previo, true);\n  end if;\n  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'inversionista_id', v_inv, 'claim_id', v_r.claim_id,\n    'estado_previo', coalesce(v_est->>'estado', 'sin_claim'), 'abandonada_por', v_uid, 'abandonada_en', pg_catalog.now());\nend;\n"
+      }
+    ]
+  }
+}

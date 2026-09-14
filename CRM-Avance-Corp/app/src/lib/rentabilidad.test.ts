@@ -31,7 +31,7 @@ describe('etiquetaModoPolitica / detalleModoPolitica: el modo se nombra sin ment
     expect(etiquetaModoPolitica('observacion')).toBe('Observación')
     expect(etiquetaModoPolitica('enforcement')).toBe('Candado activo')
     expect(detalleModoPolitica('observacion')).toMatch(/todavía no se bloquea nada/)
-    expect(detalleModoPolitica('enforcement')).toMatch(/rechaza cualquier tasa distinta/)
+    expect(detalleModoPolitica('enforcement')).toMatch(/exige una autorización vigente de Gerencia para superar la tasa base/)
   })
 
   it('un modo que este CRM no conoce se declara como tal (no se hace pasar por observación)', () => {
@@ -41,4 +41,10 @@ describe('etiquetaModoPolitica / detalleModoPolitica: el modo se nombra sin ment
     expect(detalleModoPolitica('candado_total')).toMatch(/no conoce este modo/)
     expect(detalleModoPolitica('candado_total')).not.toMatch(/no se bloquea/)
   })
+})
+
+it('caducar una autorización superior conserva el rango inferior de una inversión nueva', () => {
+  expect(rangoEfectivo({ modo: 'autorizada', base: 15, minimo: 0.01, maximo: 18,
+    solicitud: { vigente: true, vence_en: '2026-09-13T10:00:00Z' } }, Date.parse('2026-09-13T11:00:00Z')))
+    .toEqual({ minimo: 0.01, maximo: 15, caducada: true })
 })

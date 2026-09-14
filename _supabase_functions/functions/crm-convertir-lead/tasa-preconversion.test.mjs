@@ -21,13 +21,17 @@ const cuerpo = {
   condiciones_tasa: condiciones,
 };
 
-async function ejecutar(bandera, errorReserva, omitirCondiciones = false, documento = cuerpo.documento) {
+async function ejecutar(bandera, errorReserva, omitirCondiciones = false, documento = cuerpo.documento, tasa = condiciones.tasa_anual, conversionPermitida = false) {
   const llamadas = [];
   let handler;
   const cliente = {
     auth: { getUser: async () => ({ data: { user: { id: actor } } }), admin: new Proxy({}, { get: (_, accion) => async () => { llamadas.push(`auth:${String(accion)}`); throw new Error('Efecto inesperado'); } }) },
     schema: () => cliente,
     from: (tabla) => {
+      if (conversionPermitida && tabla === 'perfiles') {
+        const consulta = { select: () => consulta, eq: () => consulta, maybeSingle: async () => ({ data: { id: 'd7140000-0000-4000-8000-000000000002', activo: true } }) };
+        return consulta;
+      }
       assert.equal(tabla, 'leads', 'no debe escribir ni consultar perfiles antes de la validación');
       const consulta = { select: () => consulta, eq: () => consulta, maybeSingle: async () => ({ data: { id: actor, activo: true, etapa: 'negociacion', dni: '70909001', telefono: '+51999009001', vendedor_id: actor, perfil_id: null } }) };
       return consulta;
@@ -36,7 +40,11 @@ async function ejecutar(bandera, errorReserva, omitirCondiciones = false, docume
       llamadas.push({ nombre, args });
       if (nombre === 'mi_acceso_fn') return { data: { estado: 'miembro', perfil_id: actor, rol_crm: 'vendedor', puede_contratar: true } };
       if (nombre === 'bandera_activa') return { data: bandera };
-      if (nombre === (bandera ? 'reservar_conversion_lead' : 'reservar_conversion_lead_tasa_fn')) return { error: errorReserva };
+      if (nombre === (bandera ? 'reservar_conversion_lead' : 'reservar_conversion_lead_tasa_fn')) return {
+        error: errorReserva,
+        ...(conversionPermitida ? { data: { estado: 'ya_existia', perfil_id: 'd7140000-0000-4000-8000-000000000002' } } : {}),
+      };
+      if (conversionPermitida && nombre === 'convertir_lead_con_domicilio') return { data: { ok: true, domicilio_accion: 'conservado' } };
       throw new Error(`RPC inesperada: ${nombre}`);
     },
   };
@@ -46,13 +54,32 @@ async function ejecutar(bandera, errorReserva, omitirCondiciones = false, docume
     Request, Response, Headers, console,
     fetch: async () => { llamadas.push('correo'); throw new Error('Correo inesperado'); },
   });
-  const body = { ...cuerpo, documento };
+  const body = { ...cuerpo, documento, condiciones_tasa: { ...condiciones, tasa_anual: tasa } };
   if (omitirCondiciones) delete body.condiciones_tasa;
   const respuesta = await handler(new Request('https://local.invalid', { method: 'POST', headers: { Authorization: 'Bearer prueba', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   return { respuesta, llamadas };
 }
 
 for (const bandera of [false, true]) {
+  test(`identidad ${bandera}: el handler convierte a 12.5 cuando el servidor lo admite`, async () => {
+    const { respuesta, llamadas } = await ejecutar(bandera, null, false, cuerpo.documento, 12.5, true);
+    assert.equal(respuesta.status, 200);
+    assert.deepEqual(await respuesta.json(), { ok: true, perfil_id: 'd7140000-0000-4000-8000-000000000002',
+      ya_existia: true, domicilio_accion: 'conservado', email_enviado: false });
+    assert.equal(llamadas.length, 4);
+    const enviada = bandera ? llamadas[2].args.p_payload.condiciones_tasa : llamadas[2].args.p_condiciones;
+    assert.equal(enviada.tasa_anual, 12.5);
+    assert.equal(llamadas[3].nombre, 'convertir_lead_con_domicilio');
+  });
+  test(`identidad ${bandera}: transporta 12.5 intacta al servidor y respeta una solicitud pendiente`, async () => {
+    const { respuesta, llamadas } = await ejecutar(bandera, { code: 'P0411', message: 'Solicitud pendiente' }, false, cuerpo.documento, 12.5);
+    assert.equal(respuesta.status, 409);
+    assert.equal((await respuesta.json()).error, 'Solicitud pendiente');
+    assert.equal(llamadas.length, 3, 'cero efectos externos antes de la respuesta del servidor');
+    const enviada = bandera ? llamadas[2].args.p_payload.condiciones_tasa : llamadas[2].args.p_condiciones;
+    assert.equal(enviada.tasa_anual, 12.5);
+    assert.deepEqual(JSON.parse(JSON.stringify(enviada)), { ...condiciones, tasa_anual: 12.5 });
+  });
   for (const codigo of ['P0411', 'P0410', 'PGRST202']) {
     test(`identidad ${bandera}: ${codigo} impide Auth, perfiles y correo antes de convertir`, async () => {
       const { respuesta, llamadas } = await ejecutar(bandera, { code: codigo, message: 'Validación de tasa bloqueada' });

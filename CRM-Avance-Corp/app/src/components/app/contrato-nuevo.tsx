@@ -580,8 +580,7 @@ export function ContratoNuevo({
       reportarError('Selecciona el contrato que se amplía (upgrade).')
       return
     }
-    // Rentabilidad R3: la tasa la fija la política. Sin autorización de Gerencia, solo la base;
-    // con ella, entre la base y la tasa autorizada. (El candado del servidor llega en R4.)
+    // El servidor define el mínimo sin excepción y la base; superar la base exige autorización.
     if (!esDemo) {
       if (!rangoTasa || rangoTasa.minimo == null || rangoTasa.maximo == null || rangoTasa.modo === 'cargando' || rangoTasa.modo === 'error') {
         reportarError('Todavía no se conoce la tasa base de la política. Espera o reintenta antes de crear el contrato.')
@@ -589,14 +588,14 @@ export function ContratoNuevo({
       }
       // La vigencia se comprueba con el reloj de AHORA (el bloque solo refresca el suyo cada minuto): caducada → base.
       const rango = rangoEfectivo(rangoTasa)
-      if (rango.caducada && rango.minimo != null && tasaNum > rango.minimo + 1e-9) {
-        reportarError(`La autorización de Gerencia venció: la tasa vuelve a la base (${rango.minimo}%). Vuelve a solicitarla si la necesitas.`)
+      if (rango.caducada && rangoTasa.base != null && tasaNum > rangoTasa.base + 1e-9) {
+        reportarError(`La autorización de Gerencia venció: puedes usar hasta ${rangoTasa.base}%. Vuelve a solicitarla si necesitas una tasa superior.`)
         return
       }
       if (rango.minimo != null && rango.maximo != null && (tasaNum < rango.minimo - 1e-9 || tasaNum > rango.maximo + 1e-9)) {
         reportarError(rango.minimo === rango.maximo
           ? `La tasa de este contrato la fija la política: ${rango.minimo}%. Para otra tasa, solicita autorización a Gerencia.`
-          : `La tasa debe estar entre ${rango.minimo}% (base) y ${rango.maximo}% (autorizada por Gerencia).`)
+          : `La tasa debe estar entre ${rango.minimo}% y ${rango.maximo}%. Para superar la tasa base, solicita autorización a Gerencia.`)
         return
       }
     }
