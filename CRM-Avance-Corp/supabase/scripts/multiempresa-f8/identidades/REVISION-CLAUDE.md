@@ -64,5 +64,6 @@ La lectura productiva confirma para la cuenta analista multirrol rol Portal
 dependiendo del ámbito asignado; una coincidencia de DNI no concede permisos.
 El censo de las 21:16 Lima coincide exactamente con el lote congelado.
 
-La aprobación del SQL productivo sigue pendiente. Ningún review autoriza por sí
-solo aplicación, publicación, encendido F8 ni el tratamiento de las cuatro demos.
+Miguel aprobó después el SQL exacto y su [aplicación quedó verificada](APLICACION-2026-09-13.md).
+La autorización vino del usuario; el review no autoriza por sí solo aplicación,
+publicación, encendido F8 ni el tratamiento de las cuatro demos.

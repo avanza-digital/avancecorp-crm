@@ -1,5 +1,8 @@
 # Verificación del completado F8 — 13/09/2026
 
+**Aplicación productiva completada:** [acta y veinte comprobaciones posteriores](APLICACION-2026-09-13.md).
+El banco y preflights descritos a continuación corresponden a la preparación.
+
 **PASS, banco sintético local:** 34 comprobaciones con 598 fuentes, SQL generado
 desde la plantilla real, restricciones y triggers activos:
 
@@ -63,10 +66,11 @@ privado congelado. No se actualizaron preimágenes silenciosamente.
 y destino loopback: no abrieron conexiones. Su primer intento falló por falta
 de `SUPABASE_URL`; no se cargaron secretos ni se confundió preflight con RLS real.
 
-**NOT RUN:** SQL productivo (incluido el ensayo con ROLLBACK), matriz RLS HTTP
-completa, prueba visual F5, alta económica completa durante F8 y activación.
-La propuesta requiere aprobación del SQL exacto. Los cuatro casos demo y F8
-OFF impiden afirmar cobertura operativa completa. Build frontend no aplica:
+**PASS:** SQL productivo aprobado, aplicado con COMMIT y verificado en lecturas
+nuevas. **NOT RUN:** ensayo/reversa en producción, matriz RLS HTTP completa,
+prueba visual F5, alta económica completa durante F8 y activación.
+Los cuatro casos demo y F8 OFF impiden afirmar cobertura operativa completa.
+Build frontend no aplica:
 no se modificaron producto web, dependencias ni tipos de esquema.
 
 La revisión de Claude y las decisiones del PRIMARY quedan por separado en

@@ -5,6 +5,9 @@ actualizado: 2026-09-13
 
 # F8 — enlaces históricos preparados
 
+Esta nota conserva la preparación. El lote fue aprobado, aplicado y verificado
+después: [[F8 - enlaces reales aplicados (2026-09-13)]].
+
 Miguel confirmó «sii son la misma» para las dos cuentas del caso multirrol.
 El enlace económico usará el perfil cliente; la cuenta analista conservará sus
 permisos separados. No se vuelven a pedir la conformidad financiera G6 ni esa
@@ -31,9 +34,9 @@ y contrato: `CRM-Avance-Corp/supabase/scripts/multiempresa-f8/identidades/README
 Claude emitió PASS con confianza MEDIUM; el PRIMARY incorporó observaciones
 menores adicionales y repitió el banco final. Decisiones en `REVISION-CLAUDE.md`.
 
-**No aplicado en producción.** [[Inicio]] exige mostrar el SQL primero y esperar
-confirmación. Sigue aprobar/aplicar ese lote exacto, verificar el resultado y
-resolver el tratamiento de cuatro fuentes demo, que aún bloquean el gate actual.
+**Aplicación productiva completada.** Se cumplió la confirmación exigida por
+[[Inicio]] y las veinte verificaciones posteriores pasaron. Sigue resolver el
+tratamiento de cuatro fuentes demo, que aún bloquean el gate actual.
 No se inventan documentos ni se presentan pruebas como clientes reales.
 
 F8 sigue sin instalar ni activar. Continúan pendientes la clasificación demo

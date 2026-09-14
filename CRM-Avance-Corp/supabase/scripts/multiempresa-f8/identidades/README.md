@@ -1,8 +1,10 @@
 # F8 — propuesta de enlaces históricos
 
-Preparación del 13/09/2026. **No aplicada a producción.** Miguel confirmó que
+**Aplicada y verificada en producción el 13/09/2026**, tras la aprobación de Miguel.
+Acta y resultado: [APLICACION-2026-09-13.md](APLICACION-2026-09-13.md).
+Miguel confirmó que
 las dos cuentas del caso multirrol corresponden a la misma persona. El lote
-privado propone crear siete identidades y enlazar diez movimientos reales:
+privado permitió crear siete identidades y enlazar diez movimientos reales:
 nueve contratos Avance de seis perfiles cliente y un cierre Qorilazo de un
 lead convertido. El diagnóstico previo está en
 [REVISION-IDENTIDADES-2026-09-13.md](../REVISION-IDENTIDADES-2026-09-13.md).
@@ -100,15 +102,14 @@ anterior al enmascaramiento; no modifica datos reales ni debilita el SQL.
 Verificación: [VERIFICACION.md](VERIFICACION.md). Revisión independiente:
 [REVISION-CLAUDE.md](REVISION-CLAUDE.md).
 
-## Paso productivo pendiente
+## Estado productivo y siguiente paso
 
-Mostrar el `aplicar-propuesta.sql` privado exacto y obtener la confirmación
-requerida por el vault `Inicio.md`. Antes de ejecutar, comprobar su hash,
-vigencia del censo y compatibilidad del esquema/funciones actuales; conservar
-el comprobante privado y verificar el resultado en una lectura nueva.
+Miguel aprobó el `aplicar-propuesta.sql` exacto. Se comprobaron su hash, censo y
+funciones; se aplicó una vez y se verificó el COMMIT con veinte comprobaciones
+en lecturas nuevas. El comprobante permanece privado. No volver a aplicar el lote.
 
-**Producción no está corregida y F8 no está instalada/activa.** Tras aplicar,
-se esperan cero huecos reales y cuatro demo. El tratamiento controlado de las
+**Los diez huecos reales están corregidos; F8 no está instalada/activa.** La
+lectura posterior encontró cero huecos reales y cuatro demo. El tratamiento de las
 pruebas en gate/listados/ficha/conteos sigue pendiente; este lote no permite
 encender F5 ni F8. El equipo, instalación compatible y evidencia real G7 siguen
 en el [plan F8](../README.md).

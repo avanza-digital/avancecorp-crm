@@ -6,10 +6,10 @@ ni activar. El resultado identifica las correcciones; **no certifica que los
 enlaces ya estén resueltos**.
 
 Seguimiento del mismo día: correspondencia multirrol confirmada y procedencia
-documental investigada. El [SQL de los diez reales](identidades/README.md) está
-preparado y ensayado; no aplicado. Los resultados siguientes describen el
-diagnóstico original; las pruebas de escritura posteriores están en
-[la verificación del completado](identidades/VERIFICACION.md).
+documental investigada. El [SQL de los diez reales](identidades/README.md) fue
+aprobado y [aplicado con verificación posterior](identidades/APLICACION-2026-09-13.md).
+Quedan cuatro huecos demo. Los resultados siguientes conservan el diagnóstico
+original; las pruebas están en [la verificación del completado](identidades/VERIFICACION.md).
 
 ## Resultado
 
@@ -94,7 +94,8 @@ fuentes históricas y el bloqueo de cualquier hueco **real**. No basta añadir u
 filtro al encendido: hay que comprobar listados, ficha, conteos, detalle,
 permisos y el caso de una persona con fuentes reales y demo. **Esa corrección
 de comportamiento todavía no está implementada ni ensayada.** La candidata
-actual conserva los 14 bloqueos.
+actual sigue bloqueada por las cuatro fuentes demo; los diez huecos reales se
+resolvieron posteriormente mediante el lote dirigido autorizado.
 
 La clasificación demo tampoco puede convertirse en una salida para un hueco
 real. La futura corrección deberá comprobar su procedencia y la autorización

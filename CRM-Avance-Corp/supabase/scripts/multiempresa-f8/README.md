@@ -39,28 +39,30 @@ Lectura administrativa, sin PII, del 13/09/2026 a las 17:09 Lima:
 - F3 ON; F4/F5/F6/F7 OFF.
 - Equipo disponible: 2 Gerencia, 3 supervisores y 18 vendedores activos.
 - 598 fuentes totales: 593 reales y 5 demo.
-- 14 fuentes bloquean hoy la cobertura exacta de F5/F8: **10 reales y 4 demo**.
+- En ese corte, 14 fuentes bloqueaban la cobertura F5/F8: **10 reales y 4 demo**.
 - Identidades coherentes conocidas: Avance 425, Qorilazo 16 y Prodelco 4.
 - Cero personas multiempresa conocidas y 14 inversiones relacionales F4.
 
 Los diez casos reales son los revisados comercialmente durante G6. Esa
-conformidad no decide por sí sola la ficha canónica; faltan los enlaces técnicos.
+conformidad no decidía por sí sola la ficha canónica; los enlaces técnicos
+requirieron el diagnóstico y la aprobación específicos completados después.
 La [revisión dirigida de identidades](REVISION-IDENTIDADES-2026-09-13.md),
 completada a las 20:02 Lima, clasificó los catorce movimientos: ocho reales
 posteriores a la carga F2, dos de una misma ficha multirrol y cuatro demo.
 Los diez reales corresponden a siete fichas. No hay un identificador existente
 coincidente que permita elegir automáticamente otra identidad.
 
-Miguel confirmó la correspondencia multirrol. La [propuesta de los diez enlaces
-reales](identidades/README.md) ya está preparada y ensayada en banco sintético;
-su SQL productivo sigue pendiente de aprobación y aplicación.
+Miguel confirmó la correspondencia multirrol y aprobó el SQL exacto. Los diez
+enlaces reales están [aplicados y verificados](identidades/APLICACION-2026-09-13.md):
+la lectura de las 21:29 Lima encontró cero huecos reales y cuatro demo,
+conservando las 598 fuentes, los hechos económicos, las cuentas y las banderas.
 
 El gate actual también exige coherencia a las cuatro fuentes demo. Tres de
 ellas no tienen documento válido: hay que alinear el tratamiento de pruebas
 con el universo real previsto en el plan, conservando el bloqueo de cualquier
 hueco real y el control de quién puede clasificar una fuente como demo. Esa
-corrección todavía no está implementada; no se fabrican documentos ni se
-declaran resueltos los 14 bloqueos. Prodelco necesita al menos una quinta
+corrección demo todavía no está implementada; los diez bloqueos reales sí están
+resueltos. Prodelco necesita al menos una quinta
 identidad real durante el piloto y los seis recorridos multiempresa deben
 ejecutarse con evidencia.
 
@@ -103,10 +105,9 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Aprobar/aplicar la propuesta exacta para los diez movimientos reales,
-   preparada y probada con el caso multirrol confirmado, y verificar su
-   resultado. Corregir y ensayar el tratamiento de las cuatro pruebas. Las
-   correcciones de cobertura aún no están aplicadas en producción.
+1. Corregir y ensayar el tratamiento controlado de las cuatro fuentes de prueba
+   en gates y lecturas, conservando el bloqueo de cualquier hueco real.
+   El lote de los diez movimientos reales ya fue aprobado, aplicado y verificado.
 2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.
 3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible

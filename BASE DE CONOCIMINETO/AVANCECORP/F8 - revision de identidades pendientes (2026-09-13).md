@@ -11,7 +11,8 @@ confirmaron 598 fuentes, 593 reales y cinco demo. Se ejecutaron en transacción
 `REPEATABLE READ READ ONLY` y terminaron con `ROLLBACK`. No se escribió en
 producción.
 
-La revisión está completada; los enlaces todavía no están corregidos:
+Resultado del diagnóstico, antes de la corrección. Los diez enlaces reales se
+aplicaron después: [[F8 - enlaces reales aplicados (2026-09-13)]].
 
 - **Ocho movimientos reales:** siete contratos Avance de cinco perfiles y un
   cierre Qorilazo de otro lead. Se crearon después de la carga inicial F2. Sus
@@ -22,7 +23,7 @@ La revisión está completada; los enlaces todavía no están corregidos:
 - **Dos movimientos reales:** una sola ficha cliente comparte documento con
   una cuenta de analista. Miguel confirmó «sii son la misma». La cuenta cliente
   será el enlace económico; la de analista conserva su acceso separado.
-  Correspondencia multirrol confirmada; enlace técnico todavía pendiente.
+  Correspondencia multirrol confirmada; enlace técnico aplicado posteriormente.
 - **Cuatro movimientos demo:** tres contratos de dos perfiles sin documento
   válido y un cierre de prueba. El gate actual los incluye, pero el contrato
   prohíbe crear identidades operativas con documentos inventados o no verificados.
@@ -51,11 +52,11 @@ Contrato del diagnóstico y verificaciones:
 La consulta reutilizable está al lado, en `revision-identidades.sql`, y su salida
 contiene PII que debe seguir guardándose fuera de Git.
 
-La propuesta concreta de los diez reales ya está preparada y probada:
-[[F8 - enlaces historicos preparados (2026-09-13)]]. Producción sigue intacta.
+La propuesta se preparó y probó en [[F8 - enlaces historicos preparados (2026-09-13)]].
+Su aplicación productiva quedó completada con autorización de Miguel:
+[[F8 - enlaces reales aplicados (2026-09-13)]].
 
-Sigue: confirmar el SQL mostrado antes de la escritura, actualizar el censo,
-corregir el tratamiento demo, resolver la instalación, elegir el equipo
+Sigue: corregir el tratamiento demo, resolver la instalación, elegir el equipo
 y completar los casos reales de G7. F8 sigue sin instalar ni activar; no hay
 cambios en las fases cerradas ni en la decisión de comisiones fuera del CRM.
 

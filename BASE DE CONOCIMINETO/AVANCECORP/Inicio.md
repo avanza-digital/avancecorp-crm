@@ -7,13 +7,14 @@ actualizado: 2026-09-13
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F8 - enlaces historicos preparados (2026-09-13)]],
+Estado vigente: [[F8 - enlaces reales aplicados (2026-09-13)]],
+[[F8 - enlaces historicos preparados (2026-09-13)]],
 [[F8 - revision de identidades pendientes (2026-09-13)]] y
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
-F8 tiene control probado en banco y rama; sus 14 bloqueos ya están
-diagnosticados. El SQL para los diez reales está preparado y probado, pendiente
-de aprobar/aplicar; cuatro demos requieren otro ajuste. No está instalada ni activa.
+F8 tiene control probado en banco y rama. Los diez movimientos reales ya están
+enlazados en producción, con veinte comprobaciones posteriores aprobadas.
+Quedan cuatro huecos demo. F8 no está instalada ni activa.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
@@ -36,7 +37,8 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
-- [[F8 - enlaces historicos preparados (2026-09-13)]] — multirrol confirmado, propuesta para siete personas / diez movimientos ensayada; SQL productivo pendiente de confirmación.
+- [[F8 - enlaces reales aplicados (2026-09-13)]] — SQL aprobado y aplicado; siete personas / diez movimientos, cero huecos reales y cuatro demo pendientes. F8 sigue OFF.
+- [[F8 - enlaces historicos preparados (2026-09-13)]] — historial del ensayo de siete personas / diez movimientos; aplicación productiva completada después.
 - [[F8 - revision de identidades pendientes (2026-09-13)]] — diagnóstico cerrado: ocho movimientos reales para completado, dos del caso multirrol y cuatro pruebas. Informe privado en el escritorio; correcciones pendientes.
 - [[F8 - piloto economico preparado localmente (2026-09-13)]] — control nominal F8 probado en banco sintético; producción intacta y piloto todavía OFF. Faltan enlaces, equipo, rama e inicio autorizado.
 - [[Citas Gerencia - preparacion verificada 2026-09-13]] — frontend y dos migraciones ensayados en banco; cero regresiones, 49 fallos globales previos; producción sin instalar ni publicar.
@@ -45,7 +47,7 @@ Hay **tres capas**, complementarias:
 - [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Leads recibidos por dia para analistas 2026-09-12]] — rango y conteo diario de entradas operativas a la cartera; rama preview verificada, pendiente de publicación.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
-- [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas; diez identidades pendientes; conformidad humana/financiera recibida para el corte del 11/09. G6 cerrado y F8 preparada localmente.
+- [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas y conformidad humana/financiera recibida para el corte del 11/09. G6 cerrado; los diez enlaces pendientes se completaron después en F8.
 - [[F7 - publicada y apagada (2026-09-11)]] — informe Empresas publicado y SQL instalado OFF; pruebas específicas PASS, cero regresiones sobre los 57 fallos de la matriz general, banco cerrado; G6 cerrado el 13/09/2026.
 - [[F7 - informe multiempresa en sombra preparado (2026-09-11)]] — historial de construcción, decisiones, revisiones y autorizaciones previas a la publicación.
 - [[F6 - cierre y ajustes publicados (2026-09-11)]] — últimos ajustes publicados y verificados, revisión manual cerrada con VoiceOver omitido; F4/F5/F6 apagadas y F7 siguiente.

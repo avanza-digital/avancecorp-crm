@@ -32,7 +32,7 @@ ausente, cero sesiones y servicio saludable. Detalle en
 [[Credencial temporal CLI - retirada tras ensayo F8 (2026-09-13)]].
 
 El preflight real de las 17:09 Lima encontró F3 ON; F4–F7 OFF; 598 fuentes
-totales. La cobertura exacta todavía tiene 14 bloqueos: diez fuentes reales ya
+totales. En ese corte la cobertura exacta tenía 14 bloqueos: diez fuentes reales ya
 revisadas comercialmente en [[G6 - conciliacion real preparada (2026-09-11)]]
 y cuatro demo. Prodelco tiene cuatro identidades coherentes y todavía no existen
 personas multiempresa conocidas, de modo que la quinta identidad de Prodelco y
@@ -41,8 +41,9 @@ los seis recorridos deben suceder con evidencia durante el piloto.
 La [[F8 - revision de identidades pendientes (2026-09-13)]] ya individualizó
 los catorce movimientos: ocho reales para completado dirigido, dos de una ficha
 multirrol cuya correspondencia Miguel ya confirmó y cuatro demo cuyo tratamiento
-en la cobertura debe corregirse. El SQL de los diez reales está ensayado en
-[[F8 - enlaces historicos preparados (2026-09-13)]]. No se aplicaron enlaces.
+en la cobertura debe corregirse. El SQL de los diez reales se ensayó en
+[[F8 - enlaces historicos preparados (2026-09-13)]] y ya se aplicó con autorización:
+[[F8 - enlaces reales aplicados (2026-09-13)]]. Quedan cuatro huecos demo.
 El informe nominativo está fuera de Git, en el escritorio de Miguel.
 
 Sigue: resolver esa cobertura sin inferir identidad por datos blandos; elegir

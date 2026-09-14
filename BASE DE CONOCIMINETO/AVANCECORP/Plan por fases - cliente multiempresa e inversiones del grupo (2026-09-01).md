@@ -32,11 +32,11 @@ La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
 regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias;
 conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
 cerrado. F8 tiene un control nominal probado en banco y rama, todavía sin instalar ni
-activar. La revisión de los catorce bloqueos de cobertura está cerrada; las
-correcciones, el equipo y el mecanismo de instalación siguen pendientes.**
-El caso multirrol ya fue confirmado por Miguel y el SQL de los diez movimientos
-reales está preparado y ensayado, todavía sin aplicar:
-[[F8 - enlaces historicos preparados (2026-09-13)]].
+activar. Los diez huecos reales de cobertura ya están corregidos; quedan cuatro
+demos, el equipo y el mecanismo de instalación.**
+Miguel confirmó el caso multirrol y aprobó el SQL de los diez movimientos reales.
+La aplicación productiva pasó veinte verificaciones posteriores:
+[[F8 - enlaces reales aplicados (2026-09-13)]].
 Diagnóstico: [[F8 - revision de identidades pendientes (2026-09-13)]].
 Evidencia y punto de retoma:
 [[F8 - piloto economico preparado localmente (2026-09-13)]].
@@ -63,10 +63,10 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. El preflight F8 cuenta hoy 14 bloqueos exactos: diez reales y cuatro demo. [[F5 - instalada y apagada (2026-09-10)]] |
+| F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; quedan cuatro bloqueos demo. [[F8 - enlaces reales aplicados (2026-09-13)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
-| F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias; diez identidades técnicas pendientes. Conformidad humana/financiera recibida para ese corte. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Control probado en rama; enlaces reales preparados; producción OFF | Multirrol confirmado. Aprobar/aplicar SQL ensayado de diez movimientos reales y resolver el tratamiento de cuatro pruebas; elegir equipo, resolver instalación y completar G7. [[F8 - enlaces historicos preparados (2026-09-13)]] |
+| F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias y conformidad humana/financiera recibida. Los diez enlaces técnicos pendientes se completaron en F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
+| F8 — piloto económico | Control probado en rama; enlaces reales aplicados; piloto OFF | Siete personas / diez movimientos enlazados en producción. Resolver el tratamiento de cuatro pruebas; elegir equipo, resolver instalación y completar G7. [[F8 - enlaces reales aplicados (2026-09-13)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;
@@ -715,14 +715,15 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 11/09/2026
+## 13. Orden inmediato — actualizado al 13/09/2026
 
 1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
    posterior de comisiones externas. No repetir pendientes ya resueltos.
 2. **F5 instalada y apagada:** revisión manual aprobada, salto corregido y SQL
    adicional autorizado e instalado. Datos y permisos verificados; banco eliminado.
    Conservar los 65 fallos anteriores del gate general como pendientes explícitos,
-   sin etiquetarlo PASS. Antes de encender, conciliar las 15 fuentes pendientes.
+   sin etiquetarlo PASS. Los diez huecos reales ya se corrigieron; antes de
+   encender, resolver el tratamiento de los cuatro demo y repetir el censo.
    Evidencia en [[F5 - instalada y apagada (2026-09-10)]].
 3. **F6 publicada e instalada OFF:** conservar los tres SQL y la reversa.
    Los ajustes y la revisión manual quedaron cerrados el 11/09, con VoiceOver
@@ -731,14 +732,16 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 4. **F7 publicada e instalada OFF; G6 cerrado:** comparativo real aceptado por
    Miguel como responsable financiero para el corte del 11/09. SQL, ensayo,
    publicación y banco propio completados. [[G6 - conciliacion real preparada (2026-09-11)]].
-5. **F8 preparada localmente, producción OFF:** resolver cobertura, elegir el
-   equipo, completar el ciclo de rama e iniciar el piloto autorizado. Después
+5. **F8 preparada localmente, piloto OFF; enlaces reales aplicados:** resolver
+   los cuatro huecos demo, elegir equipo, completar el ciclo de rama e iniciar
+   el piloto autorizado. Después
    sigue F9/G8 con activación progresiva y un ciclo mensual completo.
 
-F3 permanece encendida; F4/F5/F6/F7 permanecen apagadas. El preflight F8 del
-13/09 cuenta 14 bloqueos exactos de cobertura: diez fuentes reales y cuatro demo.
-La lectura G6 autorizada confirma el carácter comercial de las diez reales; no
-decide sus fichas canónicas ni autoriza backfill o activación.
+F3 permanece encendida; F4/F5/F6/F7 permanecen apagadas. El preflight F8 inicial
+del 13/09 contó diez huecos reales y cuatro demo. El lote exacto aprobado por
+Miguel resolvió los diez reales, con lectura posterior a las 21:29 Lima:
+[[F8 - enlaces reales aplicados (2026-09-13)]]. Quedan cuatro huecos demo.
+La conformidad G6 conserva su corte; el completado no activa el piloto.
 La modalidad de captura de documento web sigue como decisión
 comercial independiente. Cierre y alcance: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 
