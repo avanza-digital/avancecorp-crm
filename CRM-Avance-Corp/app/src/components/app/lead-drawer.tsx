@@ -1,4 +1,6 @@
 import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
+import { CondicionesCoopac } from './condiciones-coopac'
+import { condicionesCoopac } from '@/lib/coopac-condiciones'
 import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
@@ -1755,13 +1757,15 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
   // por cooperativa, y una vez enviado solo gerencia lo corrige.
   const [transaccionCoop, setTransaccionCoop] = useState('')
   const [referenciaCoop, setReferenciaCoop] = useState('')
-  const [venceCoop, setVenceCoop] = useState('')
+  const [plazoCoop, setPlazoCoop] = useState('')
+  const [tasaCoop, setTasaCoop] = useState('')
+  const fechaCoop = fechaLima(Date.now())
   const [notaCoop, setNotaCoop] = useState('')
   // Qué campo del formulario coop falló: enlaza el error (cx-error) al input
   // culpable con aria-invalid/aria-describedby — sin esto, quien navega campo
   // a campo oye el alert pero no sabe cuál corregir (hallazgo M2 a11y).
   const [campoErrorCoop, setCampoErrorCoop] = useState<
-    'monto' | 'documento' | 'nombre' | 'transaccion' | 'vence' | null
+    'monto' | 'documento' | 'nombre' | 'transaccion' | 'fecha' | 'plazo' | 'tasa' | null
   >(null)
   /** Las tarjetas del paso «¿Dónde invirtió?», para devolverles el foco al
    *  pulsar «Volver» desde el formulario de la cooperativa. */
@@ -1979,13 +1983,10 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
       setError('El N.° de operación del depósito es obligatorio — es la prueba del cierre')
       return
     }
-    // Hoy EN LIMA (en-CA = YYYY-MM-DD): a las 7 pm de Lima el reloj UTC ya va
-    // por mañana y compararía mal — el servidor valida con el reloj de Lima.
-    const hoyLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' })
-      .format(new Date())
-    if (venceCoop && venceCoop <= hoyLima) {
-      setCampoErrorCoop('vence')
-      setError('El vencimiento de la inversión debe ser una fecha futura')
+    const condiciones = condicionesCoopac(fechaCoop, plazoCoop, tasaCoop)
+    if (!condiciones.ok) {
+      setCampoErrorCoop(condiciones.campo)
+      setError(condiciones.error)
       return
     }
 
@@ -1994,6 +1995,9 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
         cooperativa: coop,
         monto,
         numeroTransaccion: transaccionLimpia,
+        plazoMeses: condiciones.plazoMeses,
+        tasaAnual: condiciones.tasaAnual,
+        venceEn: condiciones.venceEn,
       })
       if (!res.ok) {
         if (res.error) setError(res.error)
@@ -2016,7 +2020,10 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
         nombre: nombreLimpio,
         numeroTransaccion: transaccionLimpia,
         referencia: referenciaCoop.trim() || null,
-        venceEn: venceCoop || null,
+        // El núcleo fija el inicio en Lima. Omitir la fecha derivada mantiene
+        // estable el reintento si el reloj local difiere o cambia el día.
+        plazoMeses: condiciones.plazoMeses,
+        tasaAnual: condiciones.tasaAnual,
         nota: notaCoop.trim() || null,
       })
       // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo
@@ -2317,8 +2324,7 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
               Es lo que permite verificar el cierre. Después solo gerencia puede corregirlo.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="space-y-1.5">
+          <div className="space-y-1.5">
               <Label htmlFor="cx-ref">Certificado de la coop (opcional)</Label>
               <Input
                 id="cx-ref"
@@ -2327,20 +2333,14 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
                 placeholder="N° de contrato/certificado"
                 disabled={enviando}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cx-vence">Vencimiento (opcional)</Label>
-              <Input
-                id="cx-vence"
-                type="date"
-                value={venceCoop}
-                onChange={(e) => setVenceCoop(e.target.value)}
-                disabled={enviando}
-                aria-invalid={campoErrorCoop === 'vence'}
-                aria-describedby={campoErrorCoop === 'vence' ? 'cx-error' : undefined}
-              />
-            </div>
           </div>
+          <fieldset aria-label="Condiciones de la inversión">
+            <CondicionesCoopac prefijo="cx" fecha={fechaCoop} plazo={plazoCoop} tasa={tasaCoop} ocupado={enviando}
+              invalido={campoErrorCoop === 'fecha' || campoErrorCoop === 'plazo' || campoErrorCoop === 'tasa' ? campoErrorCoop : null}
+              errorId="cx-error"
+              onPlazo={v => {setPlazoCoop(v); setCampoErrorCoop(null); setError(null)}}
+              onTasa={v => {setTasaCoop(v); setCampoErrorCoop(null); setError(null)}} />
+          </fieldset>
           <div className="space-y-1.5">
             <Label htmlFor="cx-nota">Nota (opcional)</Label>
             <Textarea

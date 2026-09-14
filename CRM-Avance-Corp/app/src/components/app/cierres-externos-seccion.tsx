@@ -53,6 +53,9 @@ interface FilaCoop {
   telefono: string | null
   numeroTransaccion: string
   creadoEn: string
+  plazoMeses?: number | null
+  tasaAnual?: number | null
+  venceEn?: string | null
   /** Anulado por gerencia: la fila se sigue viendo, marcada, pero no suma. */
   anuladoEn: string | null
   motivoAnulacion: string | null
@@ -87,7 +90,9 @@ function MiniFicha({ fila, onClose }: { fila: FilaCoop; onClose: () => void }) {
   if (d) filas.push(['Documento', `${d.documento_tipo} ${d.documento}`])
   if (fila.telefono) filas.push(['Teléfono', fila.telefono])
   if (d?.referencia_externa) filas.push(['Certificado de la coop', d.referencia_externa])
-  if (d?.vence_en) filas.push(['Vence', fmtFecha(d.vence_en)])
+  if (fila.venceEn) filas.push(['Vence', fmtFecha(fila.venceEn)])
+  if (fila.plazoMeses != null) filas.push(['Plazo', `${fila.plazoMeses} meses`])
+  if (fila.tasaAnual != null) filas.push(['Rentabilidad anual', `${fila.tasaAnual}% anual`])
   if (d?.vendedor_nombre) filas.push(['Cerró', d.vendedor_nombre])
   if (anulado) filas.push(['Anulado el', fmtFecha(fila.anuladoEn!)])
   return (
@@ -153,6 +158,9 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
         telefono: c.telefono,
         numeroTransaccion: c.numeroTransaccion,
         creadoEn: c.creadoEn,
+        plazoMeses: c.plazoMeses ?? null,
+        tasaAnual: c.tasaAnual ?? null,
+        venceEn: c.venceEn ?? null,
         anuladoEn: c.anuladoEn,
         motivoAnulacion: c.motivoAnulacion,
         detalle: null,
@@ -167,6 +175,9 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
       telefono: c.telefono,
       numeroTransaccion: c.numero_transaccion,
       creadoEn: c.fecha_comercial ?? c.creado_en,
+      plazoMeses: c.plazo_meses ?? null,
+      tasaAnual: c.tasa_anual ?? null,
+      venceEn: c.vence_en ?? null,
       anuladoEn: c.anulado_en,
       motivoAnulacion: c.motivo_anulacion,
       detalle: c,
@@ -602,7 +613,9 @@ export function DesglosePorEmpresa({
         telefono: c.telefono,
         numero_transaccion: c.numeroTransaccion,
         referencia_externa: null,
-        vence_en: null,
+        vence_en: c.venceEn ?? null,
+        plazo_meses: c.plazoMeses ?? null,
+        tasa_anual: c.tasaAnual ?? null,
         nota: null,
         vendedor_id: c.vendedorId,
         vendedor_nombre: c.vendedorNombre,

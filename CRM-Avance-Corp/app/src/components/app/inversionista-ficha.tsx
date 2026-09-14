@@ -2,15 +2,15 @@ import { PostventaPersona } from './postventa-persona'
 // La ficha neutral comparte la cabecera, las secciones, la banca y el Sheet
 // publicados. Una cooperativa nunca se adapta a un perfil ficticio de Avance.
 import { useEffect, useRef, useState } from 'react'
-import { CalendarClock, FileText, History, Landmark, Mail, Phone, Plus, UserRound, WalletCards } from 'lucide-react'
+import { CalendarClock, FileText, History, Landmark, Plus, UserRound, WalletCards } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SheetBody, SheetFooter } from '@/components/ui/sheet'
 import { Paginacion } from '@/components/common/paginacion'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
-import { FichaComercialCabecera, FichaComercialSeccion, FichaComercialSeccionPlegable } from './ficha-comercial'
-import { CuentasClienteMoneda, DatoCliente } from './cliente-cuentas-vista'
+import { FichaComercialCabecera, FichaComercialContacto, FichaComercialContinuidad, FichaComercialSeccion, FichaComercialSeccionPlegable } from './ficha-comercial'
+import { CuentasClienteMoneda, DatoCliente, DatoClienteCopiable } from './cliente-cuentas-vista'
 import { cuentaClienteDesdeRpc } from '@/lib/cliente-cuentas-modelo'
 import { useCuentasInversionista, useFichaInversionista } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
@@ -68,6 +68,11 @@ function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf, 
     <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
       <div><dt className="text-muted-foreground">Fecha comercial</dt><dd>{fmtFecha(i.fecha_comercial)}</dd></div>
       <div><dt className="text-muted-foreground">Vencimiento</dt><dd>{fmtFecha(i.vence_en)}</dd></div>
+      {i.condiciones_coopac && <>
+        <div><dt className="text-muted-foreground">Plazo</dt><dd>{i.condiciones_coopac.plazo_meses} meses</dd></div>
+        <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.condiciones_coopac.tasa_anual}% anual</dd></div>
+      </>}
+      {i.contrato && <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.contrato.tasa_anual}% · {i.contrato.modalidad}</dd></div>}
       {i.fecha_comercial !== i.fecha_imputacion && <div><dt className="text-muted-foreground">Fecha de imputación</dt><dd>{fmtFecha(i.fecha_imputacion)}</dd></div>}
       <div><dt className="text-muted-foreground">Analista de la operación</dt><dd>{i.analista_origen_nombre || 'Sin información'}</dd></div>
       {i.numero_transaccion && <div><dt className="text-muted-foreground">Depósito</dt><dd>{i.numero_transaccion}</dd></div>}
@@ -97,8 +102,9 @@ function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf, 
   </article>
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, enfocarInversiones = false}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
+  enfocarInversiones?: boolean
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onNuevaInversion?: ((ficha: FichaInversionista) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
@@ -108,13 +114,37 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
   const [bancaAbierta, setBancaAbierta] = useState(false)
-  const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [historialAbierto, setHistorialAbierto] = useState(true)
+  const inversionesRef = useRef<HTMLElement>(null)
+  const focoAplicado = useRef(false)
   const q = useFichaInversionista(actor, inversionistaId, paginaInversiones, paginaHistorial)
   const revocar = useRef(onRevocado)
   revocar.current = onRevocado
-  useEffect(() => {if (q.error instanceof CrmApiError && q.error.code === '42501') revocar.current()}, [q.error])
-  // Nunca pintar identidad, banca o acciones desde una fotografía de la lista.
-  const ficha = q.isFetchedAfterMount && q.isSuccess ? q.data : null
+  const clave = `${actor}:${inversionistaId}:${paginaInversiones}:${paginaHistorial}`
+  const [confirmada, setConfirmada] = useState<{clave: string; ficha: FichaInversionista} | null>(null)
+  const accesoRevocado = q.error instanceof CrmApiError && ['42501', 'NO_ENCONTRADO'].includes(q.error.code)
+  useEffect(() => {if (accesoRevocado) revocar.current()}, [accesoRevocado])
+  useEffect(() => {
+    if (q.isFetchedAfterMount && q.isSuccess && q.data) setConfirmada({clave, ficha: q.data})
+  }, [clave, q.data, q.isFetchedAfterMount, q.isSuccess])
+  // Reutiliza la regla de frescura de Ficha 360: solo una lectura confirmada
+  // DURANTE esta apertura puede sobrevivir a un error transitorio. Actor,
+  // persona y páginas forman la clave. Una revocación se oculta de inmediato.
+  const ficha = accesoRevocado ? null : q.isFetchedAfterMount && q.isSuccess ? q.data
+    : q.isError && confirmada?.clave === clave ? confirmada.ficha : null
+  const desactualizada = Boolean(ficha && q.isError)
+  useEffect(() => {
+    if (!enfocarInversiones || focoAplicado.current || !ficha) return
+    let segundo = 0
+    const primero = requestAnimationFrame(() => {
+      segundo = requestAnimationFrame(() => {
+        inversionesRef.current?.focus({preventScroll: true})
+        inversionesRef.current?.scrollIntoView?.({block: 'nearest'})
+        focoAplicado.current = true
+      })
+    })
+    return () => {cancelAnimationFrame(primero); cancelAnimationFrame(segundo)}
+  }, [enfocarInversiones, ficha])
   if (!ficha) return <>
     <FichaComercialCabecera avatar={<UserRound aria-hidden />} titulo="Ficha del inversionista" onCerrar={onCerrar} />
     <SheetBody>{q.isError
@@ -128,55 +158,76 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     const k = `${i.empresa}:${i.moneda}`
     grupos.set(k, [...(grupos.get(k) ?? []), i])
   }
+  const siguiente = ficha.tareas[0]
+  const vencimiento = ficha.continuidad?.proximo_vencimiento
+  const pendiente = Boolean(vencimiento && vencimiento <= fechaLima(Date.now()))
   return <>
     <FichaComercialCabecera avatar={<Avatar nombre={p.nombre} />} titulo={p.nombre} onCerrar={onCerrar}
-      badges={<><Badge>{p.estado === 'activo' ? 'En gestión' : p.estado}</Badge>
+      badges={<><Badge>{p.estado === 'activo' ? 'Cliente activo' : p.estado}</Badge>
+        <Badge>Analista: {p.responsable_nombre || 'Sin responsable'}</Badge>
         {p.no_contactar && <Badge color="amber">No contactar</Badge>}
         {!p.documento_verificado && <Badge color="amber">Documento pendiente</Badge>}</>}
-      acciones={onNuevaInversion && <div className="space-y-1">
-        <Button onClick={() => onNuevaInversion(ficha)} disabled={!ficha.capacidades.nueva_inversion}><Plus aria-hidden />Nueva inversión</Button>
-        {!ficha.capacidades.nueva_inversion && <p className="text-xs text-muted-foreground">{ficha.capacidades.motivo_no_operable}</p>}
-      </div>} />
+      acciones={ficha.capacidades.contactar && <FichaComercialContacto nombre={p.nombre}
+        telefono={p.telefono} correo={p.correo} habilitado={!desactualizada} />} />
     <SheetBody className="space-y-6">
+      <FichaComercialContinuidad items={[
+        {etiqueta: ficha.totales.some(t => t.empresa !== 'avance') ? 'Capital por empresa' : 'Capital vigente',
+          contenido: <div className="space-y-1">{ficha.totales.map(t => <p key={`${t.empresa}:${t.moneda}`}
+            className="text-sm font-extrabold tabular-nums text-primary">
+            <span className="font-medium">{EMPRESA_NOMBRE[t.empresa]}</span> · {money(t.capital_activo ?? t.capital_registrado, t.moneda)}
+          </p>)}</div>,
+          ayuda: `${ficha.inversiones_total} ${ficha.inversiones_total === 1 ? 'inversión registrada' : 'inversiones registradas'}`},
+        {etiqueta: pendiente ? 'Renovación pendiente' : 'Próximo vencimiento',
+          contenido: <span className="text-sm font-extrabold">{vencimiento ? fmtFecha(vencimiento) : 'Sin vencimiento próximo'}</span>,
+          ayuda: pendiente ? 'Revisa la continuidad de la inversión con el cliente' : 'Anticipa la siguiente renovación'},
+        {etiqueta: 'Siguiente contacto',
+          contenido: <span className="text-sm font-extrabold">{siguiente ? fechaHora(siguiente.vence_en) : 'Sin contacto programado'}</span>,
+          ayuda: siguiente?.titulo ?? 'Agenda una acción para mantener la relación activa'},
+      ]} />
+      {desactualizada && <div role="status" className="space-y-2 rounded-xl border border-warning/25 bg-warning/5 p-3 text-sm">
+        <p>No pudimos actualizar la ficha. Se conservan los últimos datos confirmados.</p>
+        <Button variant="outline" size="sm" disabled={q.isFetching} onClick={() => void q.refetch()}>
+          {q.isFetching ? 'Actualizando…' : 'Reintentar actualización'}
+        </Button>
+      </div>}
       {ficha.identidad_fusionada && <p role="status" className="text-xs text-muted-foreground">Esta ficha reúne los antecedentes de la identidad unificada.</p>}
-      <FichaComercialSeccion icono={UserRound} titulo="Identidad y responsable">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <DatoCliente etiqueta={p.documento_tipo || 'Documento'}>{p.documento || 'Pendiente de completar'}</DatoCliente>
-          <DatoCliente etiqueta="Responsable actual">{p.responsable_nombre || 'Sin responsable'}</DatoCliente>
-          <DatoCliente etiqueta="Teléfono">{p.telefono || 'Sin teléfono'}</DatoCliente>
-          <DatoCliente etiqueta="Correo">{p.correo || 'Sin correo'}</DatoCliente>
-        </div>
-        {ficha.capacidades.contactar && <div className="flex flex-wrap gap-2">
-          {p.telefono && <a className="inline-flex min-h-10 items-center gap-2 text-sm text-accent underline" href={`tel:${p.telefono.replace(/[^+0-9]/g, '')}`}><Phone className="size-4" aria-hidden />Llamar</a>}
-          {p.correo && <a className="inline-flex min-h-10 items-center gap-2 text-sm text-accent underline" href={`mailto:${encodeURIComponent(p.correo)}`}><Mail className="size-4" aria-hidden />Escribir</a>}
-        </div>}
-      </FichaComercialSeccion>
-      {ficha.capacidades.postventa && <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido}
-        onRetiroCerrado={() => setRetiroElegido(null)} />}
-      <FichaComercialSeccion icono={CalendarClock} titulo="Próximas tareas">
-        {ficha.tareas.length ? <ul className="space-y-2">{ficha.tareas.map(t => <li key={t.id} className="text-sm [overflow-wrap:anywhere]">
+      <FichaComercialSeccion icono={CalendarClock} titulo="Seguimiento">
+        {ficha.capacidades.postventa && <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido} deshabilitado={desactualizada}
+          onRetiroCerrado={() => setRetiroElegido(null)} />}
+        {ficha.tareas.length ? <ul className="space-y-2">{ficha.tareas.map(t => <li key={t.id} className="rounded-xl border border-border bg-muted/20 p-3 text-sm [overflow-wrap:anywhere]">
           <p className="font-medium">{t.titulo}</p><p className="text-xs text-muted-foreground">{fechaHora(t.vence_en)}</p>
         </li>)}</ul> : <p className="text-sm text-muted-foreground">No hay tareas pendientes.</p>}
         {ficha.tareas_total > ficha.tareas.length && <p className="text-xs text-muted-foreground">Mostrando {ficha.tareas.length} de {ficha.tareas_total}. Consulta la agenda para ver las demás.</p>}
       </FichaComercialSeccion>
-      <FichaComercialSeccion icono={WalletCards} titulo="Inversiones" descripcion={`${ficha.inversiones_total} ${ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha`}>
+      <FichaComercialSeccion icono={WalletCards} titulo="Inversiones y contratos"
+        sectionRef={inversionesRef}
+        descripcion={`${ficha.inversiones_total} ${ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha`}
+        accion={onNuevaInversion && <Button onClick={() => onNuevaInversion(ficha)}
+          disabled={desactualizada || !ficha.capacidades.nueva_inversion}><Plus aria-hidden />
+          {ficha.inversiones_total ? 'Registrar nueva inversión' : 'Registrar primera inversión'}
+        </Button>}>
+        {onNuevaInversion && !ficha.capacidades.nueva_inversion && <p className="text-xs text-muted-foreground">{ficha.capacidades.motivo_no_operable}</p>}
         <ResumenEmpresas totales={ficha.totales} />
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
           <h4 className="text-sm font-semibold">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
-          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} postventa={ficha.capacidades.postventa} onRetiro={setRetiroElegido} onDocumento={onDocumento} onRecuperarPdf={onRecuperarPdf} onOperacion={ficha.capacidades.nueva_inversion ? onOperacion : undefined} />)}
+          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} postventa={ficha.capacidades.postventa && !desactualizada}
+            onRetiro={setRetiroElegido} onDocumento={ficha.capacidades.documentos && !desactualizada ? onDocumento : undefined}
+            onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
+            onOperacion={ficha.capacidades.nueva_inversion && !desactualizada ? onOperacion : undefined} />)}
         </div>)}
         {ficha.inversiones_total === 0 && <p className="text-sm text-muted-foreground">Todavía no registra inversiones.</p>}
         <Paginacion paginaActual={paginaInversiones - 1} paginas={Math.max(1, Math.ceil(ficha.inversiones_total / 25))}
           total={ficha.inversiones_total} onCambio={n => setPaginaInversiones(n + 1)} ariaLabel="Paginación de inversiones" />
       </FichaComercialSeccion>
-      {ficha.capacidades.cuentas_perfil_ids.length > 0 && <FichaComercialSeccionPlegable icono={Landmark}
-        titulo="Cuentas de pago Avance" resumen="Cuentas autorizadas para los contratos Avance"
-        abierta={bancaAbierta} onAbiertaChange={setBancaAbierta}>
-        {bancaAbierta && ficha.capacidades.cuentas_perfil_ids.map(perfil => <CuentasAvance
-          key={`${perfil}:${p.responsable_id}`} actor={actor}
-          identidad={p.inversionista_id} perfil={perfil} onRevocado={onRevocado} />)}
-      </FichaComercialSeccionPlegable>}
-      <FichaComercialSeccionPlegable icono={History} titulo="Historial" resumen={`${ficha.historial_total} actividades registradas`}
+      <FichaComercialSeccion icono={UserRound} titulo="Información del cliente">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DatoCliente etiqueta={p.documento_tipo || 'Documento'}>{p.documento || 'Pendiente de completar'}</DatoCliente>
+          <DatoCliente etiqueta="Responsable actual">{p.responsable_nombre || 'Sin responsable'}</DatoCliente>
+          <DatoCliente etiqueta="Teléfono">{p.telefono || 'Sin teléfono'}</DatoCliente>
+          <DatoClienteCopiable etiqueta="Correo" valor={p.correo} />
+        </div>
+      </FichaComercialSeccion>
+      <FichaComercialSeccionPlegable icono={History} titulo="Historial de gestiones" resumen={`${ficha.historial_total} actividades registradas`}
         abierta={historialAbierto} onAbiertaChange={setHistorialAbierto}>
         <ul className="space-y-3">{ficha.historial.map(h => <li key={`${h.origen}:${h.id}`} className="text-sm [overflow-wrap:anywhere]">
           <p className="text-xs text-muted-foreground">{h.origen === 'lead' ? 'Captación' : h.origen === 'postventa' ? 'Postventa' : 'Cliente Avance'}{h.empresa ? ` · ${EMPRESA_NOMBRE[h.empresa]}` : ''}</p>
@@ -187,6 +238,13 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         <Paginacion paginaActual={paginaHistorial - 1} paginas={Math.max(1, Math.ceil(ficha.historial_total / 25))}
           total={ficha.historial_total} onCambio={n => setPaginaHistorial(n + 1)} ariaLabel="Paginación del historial" />
       </FichaComercialSeccionPlegable>
+      {ficha.capacidades.cuentas_perfil_ids.length > 0 && <FichaComercialSeccionPlegable icono={Landmark}
+        titulo="Cuentas de pago Avance" resumen="Cuentas autorizadas para los contratos Avance"
+        abierta={bancaAbierta} onAbiertaChange={setBancaAbierta}>
+        {bancaAbierta && ficha.capacidades.cuentas_perfil_ids.map(perfil => <CuentasAvance
+          key={`${perfil}:${p.responsable_id}`} actor={actor}
+          identidad={p.inversionista_id} perfil={perfil} onRevocado={onRevocado} />)}
+      </FichaComercialSeccionPlegable>}
     </SheetBody>
     <SheetFooter><Button variant="outline" onClick={onCerrar}>Cerrar ficha</Button></SheetFooter>
   </>

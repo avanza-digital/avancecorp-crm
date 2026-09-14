@@ -46,6 +46,9 @@ export const InversionFuenteSchema = v.object({
   cotitulares: v.array(v.object({orden: Entero, nombre: v.string(), tipo_documento: v.string(), documento: v.string()})),
   proxima_cuota: v.nullable(v.object({fecha: v.string(), moneda: Moneda, monto: Importe, estado: v.string(), tipo: v.string()})),
   numero_transaccion: TextoOpcional,
+  condiciones_coopac: v.optional(v.nullable(v.object({
+    plazo_meses: v.pipe(Entero, v.minValue(1)), tasa_anual: Importe,
+  }))),
 })
 export const FichaInversionistaSchema = v.object({
   version: v.literal(1), persona: v.object({...Identidad, perfil_id: IdOpcional}),
@@ -54,6 +57,7 @@ export const FichaInversionistaSchema = v.object({
     contactar: v.boolean(), cuentas_perfil_ids: v.array(Uuid), documentos: v.boolean()}),
   inversiones: v.array(InversionFuenteSchema), inversiones_total: Entero, pagina_inversiones: Entero,
   totales: v.array(ResumenEmpresaSchema),
+  continuidad: v.optional(v.object({proximo_vencimiento: TextoOpcional})),
   historial: v.array(v.object({id: Uuid, origen: v.picklist(['lead', 'cliente', 'postventa']), tipo: v.string(),
     empresa: v.optional(v.nullable(Empresa)),
     detalle: TextoOpcional, creado_en: v.string()})),

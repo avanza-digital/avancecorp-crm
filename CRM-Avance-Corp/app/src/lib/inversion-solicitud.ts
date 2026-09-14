@@ -9,6 +9,8 @@ export const DatosInversionSchema = v.object({
   empresa: v.picklist(['avance', 'qorilazo', 'prodelco']),
   monto: v.optional(v.number()), moneda: v.optional(v.picklist(['PEN', 'USD'])),
   fecha_comercial: v.optional(v.string()), vence_en: v.optional(v.string()),
+  plazo_meses: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1200))),
+  tasa_anual: v.optional(v.pipe(v.number(), v.finite(), v.minValue(0))),
   numero_transaccion: v.optional(v.string()), referencia: v.optional(v.string()),
   evidencia: v.optional(v.object({ruta: v.string()})),
   contrato: v.optional(v.record(v.string(), v.unknown())),

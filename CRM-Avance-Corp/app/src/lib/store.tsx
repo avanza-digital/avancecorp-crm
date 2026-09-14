@@ -277,6 +277,9 @@ export interface CierreExternoDemo {
   nombre: string
   telefono: string
   numeroTransaccion: string
+  plazoMeses?: number | null
+  tasaAnual?: number | null
+  venceEn?: string | null
   creadoEn: string
   /** Quién cobra el cierre (foto del analista del lead al convertir). */
   vendedorId: string
@@ -397,6 +400,9 @@ export interface StoreDataApi {
       cooperativa: Cooperativa
       monto: number
       numeroTransaccion: string
+      plazoMeses?: number
+      tasaAnual?: number
+      venceEn?: string
     },
   ): ResultadoMut
   /** Anulación de gerencia — SOLO demo (en real es crm.anular_cierre_externo).
@@ -2509,6 +2515,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             nombre: actual.nombre_completo,
             telefono: actual.telefono,
             numeroTransaccion: datosCierre.numeroTransaccion,
+            plazoMeses: datosCierre.plazoMeses ?? null,
+            tasaAnual: datosCierre.tasaAnual ?? null,
+            venceEn: datosCierre.venceEn ?? null,
             creadoEn: new Date().toISOString(),
             vendedorId: vendedorFoto,
             vendedorNombre: actual.vendedor_nombre ?? null,

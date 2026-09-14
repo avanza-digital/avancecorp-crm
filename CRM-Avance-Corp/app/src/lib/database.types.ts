@@ -849,7 +849,9 @@ export type Database = {
           nombre_completo: string
           nota: string | null
           numero_transaccion: string
+          plazo_meses: number | null
           referencia_externa: string | null
+          tasa_anual: number | null
           vence_en: string | null
           vendedor_id: string
         }
@@ -874,7 +876,9 @@ export type Database = {
           nombre_completo: string
           nota?: string | null
           numero_transaccion: string
+          plazo_meses?: number | null
           referencia_externa?: string | null
+          tasa_anual?: number | null
           vence_en?: string | null
           vendedor_id: string
         }
@@ -899,7 +903,9 @@ export type Database = {
           nombre_completo?: string
           nota?: string | null
           numero_transaccion?: string
+          plazo_meses?: number | null
           referencia_externa?: string | null
+          tasa_anual?: number | null
           vence_en?: string | null
           vendedor_id?: string
         }
@@ -4204,7 +4210,9 @@ export type Database = {
           p_nombre: string
           p_nota?: string
           p_numero_transaccion: string
+          p_plazo_meses?: number
           p_referencia?: string
+          p_tasa_anual?: number
           p_vence_en?: string
         }
         Returns: Json

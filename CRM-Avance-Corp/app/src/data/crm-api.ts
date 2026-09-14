@@ -5526,6 +5526,8 @@ export interface ConvertirLeadExternoDatos {
   referencia?: string | null
   /** 'YYYY-MM-DD'; el servidor exige fecha futura. */
   venceEn?: string | null
+  plazoMeses?: number
+  tasaAnual?: number
   nota?: string | null
 }
 
@@ -5584,6 +5586,8 @@ export async function convertirLeadExterno(datos: ConvertirLeadExternoDatos): Pr
         p_numero_transaccion: numeroTransaccion,
         p_referencia: datos.referencia?.trim() || undefined,
         p_vence_en: datos.venceEn ?? undefined,
+        p_plazo_meses: datos.plazoMeses,
+        p_tasa_anual: datos.tasaAnual,
         p_nota: datos.nota?.trim() || undefined,
       }),
     )

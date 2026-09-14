@@ -7,7 +7,7 @@ import type {RetiroPostventa} from '../src/lib/postventa'
 
 async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vendedor') {
   await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
-  const estado={on:true,vetada:false,cortar:false,rechazarConfirmacion:false,negarFicha:false,altas:0,financieras:0,claves:[] as string[],tareas:[] as Tarea[],retiros:[] as RetiroPostventa[],recibos:new Set<string>()}
+  const estado={on:true,vetada:false,cortar:false,rechazarConfirmacion:false,negarFicha:false,fichaSinConexion:false,altas:0,financieras:0,claves:[] as string[],tareas:[] as Tarea[],retiros:[] as RetiroPostventa[],recibos:new Set<string>()}
   const habilitada=()=>estado.on&&rol!=='directorio'
   function tarea(id:string,datos:Record<string,unknown>):Tarea {
     return {id,inversionista_id:PERSONA_F5,inversionista_canonico_id:PERSONA_F5,postventa_revision:1,
@@ -23,6 +23,7 @@ async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vended
     if(nombre==='cartera_inversionistas_estado_fn')return json({version:1,habilitada:true,escritura_habilitada:rol!=='directorio',motivo:null})
     if(nombre==='cartera_inversionistas_fn')return json({...carteraF5,pagina:b.p_pagina,tamano:b.p_tamano})
     if(nombre==='inversionista_ficha_fn'){
+      if(estado.fichaSinConexion)return json({message:'Interrupción temporal'},503)
       const f=structuredClone(fichaF5); f.persona.responsable_id=UID;f.persona.no_contactar=estado.vetada
       f.capacidades.postventa=habilitada();f.capacidades.contactar=habilitada()&&!estado.vetada
       f.capacidades.nueva_inversion=habilitada()&&!estado.vetada;f.tareas=estado.tareas.filter(t=>t.estado==='pendiente');f.tareas_total=f.tareas.length
@@ -79,6 +80,20 @@ async function agendar(page:Page,titulo='Seguimiento F6'){
   await page.getByRole('button',{name:'Agendar gestión',exact:true}).click()
 }
 
+test('un fallo de ficha conserva postventa visible y bloquea nuevas acciones hasta recuperar',async({page})=>{
+  const s=await montarF6(page,'gerencia');await abrir(page)
+  s.fichaSinConexion=true
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
+  await expect(page.getByText(/Se conservan los últimos datos confirmados/)).toBeVisible({timeout:18000})
+  for(const name of ['Agendar gestión','Cambiar responsable','Marcar No contactar']) {
+    await expect(page.getByRole('button',{name,exact:true})).toBeDisabled()
+  }
+  s.fichaSinConexion=false
+  await page.getByRole('button',{name:'Reintentar actualización'}).click()
+  await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeEnabled()
+  expect(s.altas).toBe(0);expect(s.financieras).toBe(0)
+})
+
 test('agenda compartida, cierre con siguiente y enlace persistente a la ficha',async({page},info)=>{
   const s=await montarF6(page);await abrir(page);await agendar(page)
   await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
@@ -94,8 +109,8 @@ test('agenda compartida, cierre con siguiente y enlace persistente a la ficha',a
   expect(s.tareas[0]?.estado).toBe('completada');expect(s.tareas).toHaveLength(2);expect(s.financieras).toBe(0)
   await page.getByRole('button',{name:'Abrir ficha — Segunda gestión F6',exact:true}).click()
   await expect(page).toHaveURL(new RegExp(`#/mi-cartera/inversionista/${PERSONA_F5}$`))
-  await expect(page.getByText('Identidad y responsable')).toBeVisible();await page.reload()
-  await expect(page.getByText('Identidad y responsable')).toBeVisible()
+  await expect(page.getByText('Información del cliente')).toBeVisible();await page.reload()
+  await expect(page.getByText('Información del cliente')).toBeVisible()
   await expect(page.getByText(/Preparando tu espacio de trabajo/)).toBeHidden()
   await page.screenshot({path:info.outputPath('f6-ficha-desktop.png'),fullPage:true})
 })
@@ -164,7 +179,7 @@ test('Gerencia consulta vencimientos y revisa retiros; reinversión conserva ori
 test('Directorio no recibe acciones ni agenda neutral',async({page})=>{
   await montarF6(page,'directorio')
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
-  await expect(page.getByText('Identidad y responsable')).toBeVisible()
+  await expect(page.getByText('Información del cliente')).toBeVisible()
   await expect(page.getByText('Gestión de postventa',{exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Registrar solicitud de retiro',exact:true})).toHaveCount(0)
 })
@@ -185,7 +200,7 @@ test('un rechazo de postventa no cierra una ficha F5 que sigue autorizada',async
   const s=await montarF6(page);s.negarFicha=true
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
   await expect(page.getByText('Ya no tienes acceso a esta información.',{exact:true})).toBeVisible()
-  await expect(page.getByText('Identidad y responsable')).toBeVisible()
-  await expect(page.getByRole('button',{name:'Nueva inversión',exact:true})).toBeVisible()
+  await expect(page.getByText('Información del cliente')).toBeVisible()
+  await expect(page.getByRole('button',{name:'Registrar nueva inversión',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'Cerrar ficha',exact:true}).last()).toBeVisible()
 })

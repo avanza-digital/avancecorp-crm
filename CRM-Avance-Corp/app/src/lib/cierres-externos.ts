@@ -75,6 +75,8 @@ const CierreExternoSchema = v.object({
   /** Certificado que emitió la coop: opcional, para papeleo. */
   referencia_externa: v.nullable(v.string()),
   vence_en: v.nullable(FechaSchema),
+  plazo_meses: v.optional(v.nullable(v.pipe(EnteroNoNegativoRpcSchema, v.minValue(1)))),
+  tasa_anual: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
   nota: v.nullable(v.string()),
   vendedor_id: UuidSchema,
   /** null si el perfil del analista ya no se puede resolver (left join). */

@@ -18,7 +18,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversionista-ficha'
 import { InversionNueva, type OperacionInversion } from '@/components/app/inversion-nueva'
 import { useCRMData } from '@/lib/store-context'
-import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
+import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
@@ -33,12 +33,14 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
   const [filtros, setFiltros] = useState<FiltrosInversionistas>(FILTROS_INVERSIONISTAS_INICIALES)
   const [busqueda, setBusqueda] = useState('')
   const [seleccion, setSeleccion] = useState<string | null>(() => leerHash().inversionistaId ?? null)
+  const [volverAInversiones, setVolverAInversiones] = useState(false)
   useEffect(() => {
-    const cambiar = () => setSeleccion(leerHash().inversionistaId ?? null)
+    const cambiar = () => {setVolverAInversiones(false); setSeleccion(leerHash().inversionistaId ?? null)}
     window.addEventListener('hashchange', cambiar)
     return () => window.removeEventListener('hashchange', cambiar)
   }, [])
   const seleccionar = (id: string | null) => {
+    setVolverAInversiones(false)
     setSeleccion(id)
     if (id) abrirInversionista(id)
     else escribirHash('mi-cartera')
@@ -50,7 +52,14 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
   const documento = useRef<AbortController | null>(null)
   const titulo = useRef<HTMLHeadingElement>(null)
   const q = useInversionistas(actor, filtros)
-  const datos = q.isFetchedAfterMount && q.isSuccess ? q.data : null
+  const claveLista = JSON.stringify([actor, filtros])
+  const [listaConfirmada, setListaConfirmada] = useState<{clave: string; datos: DatosCartera} | null>(null)
+  useEffect(() => {
+    if (q.isFetchedAfterMount && q.isSuccess) setListaConfirmada({clave: claveLista, datos: q.data})
+  }, [claveLista, q.data, q.isFetchedAfterMount, q.isSuccess])
+  const accesoRevocado = q.error instanceof CrmApiError && q.error.code === '42501'
+  const datos = accesoRevocado ? null : q.isFetchedAfterMount && q.isSuccess ? q.data
+    : q.isError && listaConfirmada?.clave === claveLista ? listaConfirmada.datos : null
   const filtro = (c: Partial<FiltrosInversionistas>) => setFiltros(f => ({...f, ...c, pagina: 1}))
   useEffect(() => {
     const t = setTimeout(() => setFiltros(f => f.texto === busqueda ? f : {...f, texto: busqueda, pagina: 1}), 300)
@@ -125,8 +134,9 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
         <div className="space-y-1"><Label htmlFor="f5-tamano">Por página</Label><Select id="f5-tamano" value={filtros.tamano} onChange={e => filtro({tamano: Number(e.target.value) as FiltrosInversionistas['tamano']})}>
           {[10,25,50].map(n => <option key={n} value={n}>{n}</option>)}</Select></div>
       </div>
-      {q.isError ? <PanelError mensaje={mensajeDeError(q.error, 'No pudimos cargar la cartera.')} onReintentar={() => void q.refetch()} reintentando={q.isFetching} />
-        : !datos ? <PanelCargando filas={6} /> : <>
+      {q.isError && <PanelError mensaje={datos ? 'No pudimos actualizar la cartera. Se muestran los últimos datos confirmados.' : mensajeDeError(q.error, 'No pudimos cargar la cartera.')}
+        onReintentar={() => void q.refetch()} reintentando={q.isFetching} />}
+      {!datos ? !q.isError && <PanelCargando filas={6} /> : <>
           <div className="border-t border-border px-5 py-4"><ResumenEmpresas totales={datos.totales} /></div>
           <p role="status" className="border-t border-border px-5 py-3 text-xs text-muted-foreground">{datos.total} {datos.total === 1 ? 'persona' : 'personas'} · página {datos.pagina}</p>
           {datos.filas.length === 0 ? <PanelVacio icono={Users2}
@@ -148,12 +158,13 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); seleccionar(null)}} ariaLabel="Ficha del inversionista" className="w-[760px]">
       {descargando && <p role="status" className="px-5 pt-3 text-sm">Comprobando acceso y descargando documento…</p>}
       <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => seleccionar(null)} onRevocado={revocar}
+        enfocarInversiones={volverAInversiones}
         onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
         onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
     </Sheet>}
     {nueva && <InversionNueva key={nueva.persona} actor={actor} persona={nueva.persona} operacion={nueva.operacion}
-      onCerrar={() => {setNueva(null); setSeleccion(nueva.persona)}} onRevocado={revocar}
+      onCerrar={() => {setVolverAInversiones(true); setNueva(null); setSeleccion(nueva.persona)}} onRevocado={revocar}
       onConfirmada={() => {void qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)})}} />}
   </div>
 }

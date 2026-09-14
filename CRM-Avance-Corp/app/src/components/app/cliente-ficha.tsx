@@ -7,9 +7,6 @@ import {
   FileText,
   History,
   Landmark,
-  Mail,
-  MessageCircle,
-  Phone,
   RotateCcw,
   TrendingUp,
   UserRound,
@@ -33,6 +30,8 @@ import {
 } from '@/lib/cliente-cuentas-modelo'
 import {
   FichaComercialCabecera,
+  FichaComercialContacto,
+  FichaComercialContinuidad,
   FichaComercialSeccion,
   FichaComercialSeccionPlegable,
 } from '@/components/app/ficha-comercial'
@@ -42,7 +41,6 @@ import { tasaTxt } from '@/lib/rentabilidad'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, money } from '@/lib/format'
 import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
-import { numeroWhatsapp, enlaceTel } from '@/lib/telefono'
 import { tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
 import { construirVistaCliente360, type VistaCliente360 } from '@/lib/cliente-ficha-modelo'
@@ -112,9 +110,6 @@ const ACTIVIDAD_LABEL = {
   reasignacion: 'Asignación actualizada',
 } as const
 
-const CLASE_CONTACTO =
-  'inline-flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-[11px] font-bold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35 [&_svg]:size-3.5'
-
 function fechaCorta(iso: string | null): string {
   if (!iso) return 'Sin vencimiento próximo'
   const [anio, mes, dia] = iso.split('-').map(Number)
@@ -125,44 +120,6 @@ function fechaCorta(iso: string | null): string {
     year: 'numeric',
     timeZone: 'UTC',
   })
-}
-
-function EnlacesContactoCliente({
-  nombre,
-  telefono,
-  correo,
-}: {
-  nombre: string
-  telefono: string | null
-  correo: string | null
-}) {
-  const tel = telefono ? enlaceTel(telefono) : null
-  const wa = telefono ? numeroWhatsapp(telefono) : null
-  return (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label="Formas de contactar al cliente">
-      {tel && (
-        <a href={tel} className={CLASE_CONTACTO} aria-label={`Llamar a ${nombre}`}>
-          <Phone aria-hidden /> Llamar
-        </a>
-      )}
-      {wa && (
-        <a
-          href={`https://wa.me/${wa}`}
-          target="_blank"
-          rel="noreferrer"
-          className={CLASE_CONTACTO}
-          aria-label={`Abrir WhatsApp de ${nombre}`}
-        >
-          <MessageCircle aria-hidden /> Abrir WhatsApp
-        </a>
-      )}
-      {correo && (
-        <a href={`mailto:${correo}`} className={CLASE_CONTACTO} aria-label={`Escribir correo a ${nombre}`}>
-          <Mail aria-hidden /> Escribir correo
-        </a>
-      )}
-    </div>
-  )
 }
 
 function CapitalVigente({ vista }: { vista: VistaCliente360 }) {
@@ -214,28 +171,7 @@ function RielContinuidad({
     },
   ]
 
-  return (
-    <section
-      aria-label="Continuidad comercial del cliente"
-      className="overflow-hidden rounded-2xl border border-primary/10 bg-primary/[0.035] shadow-[inset_3px_0_0_var(--accent)]"
-    >
-      <div className="border-b border-primary/10 px-4 py-2.5">
-        <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">Continuidad comercial</p>
-      </div>
-      <div className="grid sm:grid-cols-3">
-        {items.map((item) => (
-          <div
-            key={item.etiqueta}
-            className="border-t border-primary/10 px-4 py-3 first:border-t-0 sm:border-l sm:border-t-0 sm:first:border-l-0"
-          >
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{item.etiqueta}</p>
-            <div className="mt-1">{item.contenido}</div>
-            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{item.ayuda}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
+  return <FichaComercialContinuidad items={items} />
 }
 
 /**
@@ -623,7 +559,7 @@ export function ClienteFicha({
         }
         acciones={
           detalle && puedeContactar ? (
-            <EnlacesContactoCliente nombre={nombre} telefono={detalle.telefono} correo={detalle.correo} />
+            <FichaComercialContacto nombre={nombre} telefono={detalle.telefono} correo={detalle.correo} />
           ) : undefined
         }
         onCerrar={onCerrar}

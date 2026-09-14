@@ -631,6 +631,38 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('pide plazo y rentabilidad anual manuales; calcula el vencimiento al cambiar el plazo', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    const inicio=screen.getByLabelText('Fecha comercial (inicio)') as HTMLInputElement
+    expect(inicio).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Plazo (meses)')).toHaveValue('')
+    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveValue('')
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'),'1000')
+    await user.type(screen.getByLabelText('N° de documento'),'45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'),'OP-CONDICIONES')
+    await user.click(screen.getByRole('button',{name:/Cerrar en QORILAZO/}))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/plazo/)
+    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-invalid','true')
+    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-describedby','cx-error')
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('Plazo (meses)'),'12')
+    const vencimiento=screen.getByLabelText('Vencimiento') as HTMLInputElement
+    const anual=vencimiento.value
+    expect(anual).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(anual).not.toBe(inicio.value)
+    await user.clear(screen.getByLabelText('Plazo (meses)'))
+    await user.type(screen.getByLabelText('Plazo (meses)'),'6')
+    expect(vencimiento.value).not.toBe(anual)
+    expect(screen.getByLabelText('Vencimiento')).toHaveAttribute('readonly')
+    await user.click(screen.getByRole('button',{name:/Cerrar en QORILAZO/}))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/rentabilidad anual pactada/)
+    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveAttribute('aria-invalid','true')
+    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveAttribute('aria-describedby','cx-ayuda-tasa cx-error')
+    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-invalid','false')
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
   it('el flujo arranca preguntando el destino, con las TRES empresas a la vista', () => {
     montar()
     expect(screen.getByRole('dialog', { name: '¿Dónde invirtió?' })).toBeInTheDocument()
@@ -680,6 +712,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.03')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
     expect(mutarCierreExterno).toHaveBeenCalledWith(
@@ -693,6 +727,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.035')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC3')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('máximo 2 decimales')
@@ -712,6 +748,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-REPETIDA')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/ya esta registrado/)
@@ -758,6 +796,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '12500.50')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-2026-9')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.type(screen.getByLabelText('Certificado de la coop (opcional)'), 'PRO-2026-9')
     await user.click(screen.getByRole('button', { name: /Cerrar en PRODELCO/ }))
 
@@ -771,7 +811,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
       nombre: 'JUAN PEREZ ROJAS',
       numeroTransaccion: 'OP-2026-9',
       referencia: 'PRO-2026-9',
-      venceEn: null,
+      plazoMeses: 12,
+      tasaAnual: 12,
       nota: null,
     })
     // El lead quedó convertido en el servidor: el pipeline se refresca y NO
@@ -792,6 +833,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '1000')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-1')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('El lead ya está cerrado.')
@@ -806,12 +849,17 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '8000')
     await user.type(screen.getByLabelText('N° de documento'), '45781234')
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEMO')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
     expect(convertirExterno).toHaveBeenCalledWith('lead-1', {
       cooperativa: 'qorilazo',
       monto: 8000,
       numeroTransaccion: 'OP-DEMO',
+      plazoMeses: 12,
+      tasaAnual: 12,
+      venceEn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     })
     expect(mutarCierreExterno).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()

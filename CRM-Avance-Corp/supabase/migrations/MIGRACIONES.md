@@ -1,5 +1,23 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260914213634 / 20260914213928 — Cartera F8 y condiciones anuales COOPAC
+
+**PREPARADAS LOCALMENTE, SIN INSTALAR NI PUBLICAR.** SQL exacto pendiente de
+aprobación y gates del banco Supabase. G7 sigue abierto.
+
+`20260914213634_crm_f8_cartera_lectura_eficiente.sql` sustituye el núcleo privado
+de personas F5 por resolución canónica por conjuntos, conservando firma, ACL,
+ámbitos, fusiones, datos y demos. `20260914213928_crm_coopac_condiciones_anuales.sql`
+añade plazo en meses y porcentaje anual manual a cierres COOPAC; adapta los
+escritores F3/F4 y lectores existentes con compatibilidad de payloads/hashes.
+Incluye coherencia de vencimiento por meses naturales y guarda de deriva previa.
+Sin backfill, comisiones, cambios de `public`, importes ni banderas.
+
+PASS: 3.579 tests frontend, 15 E2E afectados, paridad SQL de siete contextos y
+siete enlaces demo/fusión, condiciones/reintentos/ACL completa, replay en otra
+copia local y huellas de fuentes conservadas. SQL/Auth/RLS/advisors remotos
+pendientes, no se declaran PASS. [Evidencia y SQL](../scripts/multiempresa-f8/ajustes-2026-09-14/README.md).
+
 > **Tasas inferiores — PUBLICADO (14/09):** SQL fuente `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql`, intacto; instalada por merge como `20260914174353`. Las 286 entradas previas se conservaron, total 287; 644 funciones/atributos coinciden con el banco probado. Ensayo específico SQL y 15 Auth/HTTP PASS; 3.546 tests y 16 E2E integrados PASS. Matriz general: mismos 42/1.828 fallos, sin nuevos; no es PASS global. Frontend publicado desde `faa1059` y conservado por la publicación posterior de Citas `32d57b5`. Banco eliminado, estimación US$0,059. [Acta y límites](../scripts/tasa-baja/PUBLICACION-2026-09-14.md).
 > **Citas PUBLICADA — 14/09/2026:** cinco migraciones canónicas instaladas por
 > merge de la rama propia: `20260911212756`, `20260913204847`, `20260913225042`,

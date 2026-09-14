@@ -21,9 +21,10 @@ import { RETIRO_ETIQUETA, type EstadoRetiro, type RetiroPostventa } from '@/lib/
 import { fechaHora, money } from '@/lib/format'
 
 type AccionPersona = {tipo: 'agendar'} | {tipo: 'asignar'} | {tipo: 'veto'} | {tipo: 'solicitar_retiro'; fuente: InversionFuente} | {tipo: 'revisar_retiro'; retiro: RetiroPostventa}
-export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado}: {
+export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, deshabilitado = false}: {
   actor: string; ficha: FichaInversionista; retiroElegido: InversionFuente | null;
   onRetiroCerrado: () => void
+  deshabilitado?: boolean
 }) {
   const {yo} = useAuth()
   const q = useFichaPostventa(actor, ficha.persona.inversionista_id)
@@ -39,9 +40,9 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado}:
   return <>
     <FichaComercialSeccion icono={CalendarPlus} titulo="Gestión de postventa">
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={ficha.persona.no_contactar || !ficha.persona.responsable_id} onClick={() => setAccion({tipo: 'agendar'})}>Agendar gestión</Button>
-        {yo?.rol === 'gerencia' && <Button size="sm" variant="outline" onClick={() => setAccion({tipo: 'asignar'})}>{ficha.persona.responsable_id ? 'Cambiar responsable' : 'Asignar responsable'}</Button>}
-        {(!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <Button size="sm" variant="outline" onClick={() => setAccion({tipo: 'veto'})}>{ficha.persona.no_contactar ? 'Levantar No contactar' : 'Marcar No contactar'}</Button>}
+        <Button size="sm" disabled={deshabilitado || ficha.persona.no_contactar || !ficha.persona.responsable_id} onClick={() => setAccion({tipo: 'agendar'})}>Agendar gestión</Button>
+        {yo?.rol === 'gerencia' && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'asignar'})}>{ficha.persona.responsable_id ? 'Cambiar responsable' : 'Asignar responsable'}</Button>}
+        {(!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'veto'})}>{ficha.persona.no_contactar ? 'Levantar No contactar' : 'Marcar No contactar'}</Button>}
       </div>
       {!ficha.persona.responsable_id && <p className="text-xs text-muted-foreground">Gerencia debe asignar un responsable antes de programar el contacto.</p>}
     </FichaComercialSeccion>
@@ -49,7 +50,7 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado}:
       <ul className="space-y-3">{q.data.retiros.map(r => <li key={r.id} className="space-y-1 rounded-lg border border-border p-3 text-sm">
         <p className="font-semibold">{EMPRESA_NOMBRE[r.empresa]} · {RETIRO_ETIQUETA[r.estado]}</p><p>{r.motivo}</p>
         {r.resolucion && <p>{r.resolucion}</p>}<p className="text-xs text-muted-foreground">{fechaHora(r.actualizado_en)}</p>
-        {['solicitada', 'en_revision'].includes(r.estado) && <Button size="sm" variant="outline" onClick={() => setAccion({tipo: 'revisar_retiro', retiro: r})}>
+        {['solicitada', 'en_revision'].includes(r.estado) && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'revisar_retiro', retiro: r})}>
           {yo?.rol === 'gerencia' ? 'Revisar solicitud' : 'Cancelar solicitud'}
         </Button>}
       </li>)}</ul>

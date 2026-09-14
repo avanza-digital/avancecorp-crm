@@ -6,6 +6,9 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { ContratoNuevo } from './contrato-nuevo'
+import { CondicionesCoopac } from './condiciones-coopac'
+import { condicionesCoopac, type CampoCondicionesCoopac } from '@/lib/coopac-condiciones'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { useFichaInversionista } from '@/data/inversionistas-queries'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { CrmApiError, mensajeDeError, prepararPayloadContrato, type CrearContratoInput } from '@/data/crm-api'
@@ -18,7 +21,7 @@ import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type Inversi
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
 import { parseMonto, ERROR_MONTO } from '@/lib/numero'
 import { fmtFecha, money } from '@/lib/format'
-import { type CuotaCronograma, formatDateLocal } from '@/lib/cronograma'
+import { type CuotaCronograma } from '@/lib/cronograma'
 import { archivarContratoPdfConfirmado } from '@/lib/contrato-pdf-archivo'
 
 export interface OperacionInversion {tipo: 'upgrade' | 'renovacion' | 'reinversion'; fuente: InversionFuente}
@@ -281,37 +284,45 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
   onGuardar: (datos: DatosInversion, archivo: File | null, clave: string) => Promise<void>
 }) {
   const [monto, setMonto] = useState(datos.monto?.toString() ?? '')
-  const [fecha, setFecha] = useState(datos.fecha_comercial ?? formatDateLocal(new Date()))
-  const [vence, setVence] = useState(datos.vence_en ?? '')
+  const [fecha, setFecha] = useState(datos.fecha_comercial ?? fechaLima(Date.now()))
+  const [plazo, setPlazo] = useState(datos.plazo_meses?.toString() ?? '')
+  const [tasa, setTasa] = useState(datos.tasa_anual?.toString() ?? '')
   const [deposito, setDeposito] = useState(datos.numero_transaccion ?? '')
   const [referencia, setReferencia] = useState(datos.referencia ?? '')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [error, setError] = useState('')
+  const [campoError, setCampoError] = useState<CampoCondicionesCoopac | null>(null)
   const [id] = useState(() => crypto.randomUUID())
   const enviar = (e: FormEvent) => {
-    e.preventDefault(); const capital = parseMonto(monto)
+    e.preventDefault(); setCampoError(null); const capital = parseMonto(monto)
     if (capital === null || capital <= 0) {setError(ERROR_MONTO); return}
+    const condiciones = condicionesCoopac(fecha, plazo, tasa)
+    if (!condiciones.ok) {setCampoError(condiciones.campo); setError(condiciones.error); return}
     if (!datos.evidencia && !archivo) {setError('Selecciona el comprobante de depósito.'); return}
     if (archivo && (!['application/pdf','image/jpeg','image/png'].includes(archivo.type) || archivo.size > 10485760 || !archivo.size)) {
       setError('Usa un PDF, JPG o PNG de hasta 10 MB.'); return
     }
     const ext = archivo?.type === 'application/pdf' ? 'pdf' : archivo?.type === 'image/png' ? 'png' : 'jpg'
     const ruta = datos.evidencia?.ruta ?? `${datos.inversionista_id}/${id}/comprobante.${ext}`
-    setError(''); void onGuardar({...datos, monto: capital, moneda: 'PEN', fecha_comercial: fecha, vence_en: vence,
+    setError(''); void onGuardar({...datos, monto: capital, moneda: 'PEN', fecha_comercial: fecha,
+      vence_en: condiciones.venceEn, plazo_meses: condiciones.plazoMeses, tasa_anual: condiciones.tasaAnual,
       numero_transaccion: deposito.trim(), referencia: referencia.trim(), evidencia: {ruta}}, archivo, id)
   }
   return <form onSubmit={enviar} className="space-y-3">
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">Capital en soles (PEN)</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
       <div className="min-w-0 space-y-1"><Label htmlFor="f5-deposito">Número de operación del depósito</Label><Input id="f5-deposito" required maxLength={64} value={deposito} onChange={e => setDeposito(e.target.value)} disabled={ocupado} /></div>
-      <div className="min-w-0 space-y-1"><Label htmlFor="f5-fecha">Fecha comercial</Label><Input id="f5-fecha" type="date" required max={formatDateLocal(new Date())} value={fecha} onChange={e => setFecha(e.target.value)} disabled={ocupado} /></div>
-      <div className="min-w-0 space-y-1"><Label htmlFor="f5-vence">Vencimiento</Label><Input id="f5-vence" type="date" required min={fecha} value={vence} onChange={e => setVence(e.target.value)} disabled={ocupado} /></div>
     </div>
+    <CondicionesCoopac prefijo="f5" fecha={fecha} plazo={plazo} tasa={tasa} ocupado={ocupado}
+      invalido={campoError} errorId="f5-condiciones-error"
+      onFecha={v => {setFecha(v); setCampoError(null); setError('')}}
+      onPlazo={v => {setPlazo(v); setCampoError(null); setError('')}}
+      onTasa={v => {setTasa(v); setCampoError(null); setError('')}} />
     <div className="space-y-1"><Label htmlFor="f5-referencia-externa">Referencia de la inversión</Label><Input id="f5-referencia-externa" required maxLength={64} value={referencia} onChange={e => setReferencia(e.target.value)} disabled={ocupado} /></div>
     <div className="space-y-1"><Label htmlFor="f5-comprobante">Comprobante PDF, JPG o PNG (hasta 10 MB)</Label><Input id="f5-comprobante" type="file" accept="application/pdf,image/jpeg,image/png"
       required={!datos.evidencia} onChange={e => setArchivo(e.target.files?.[0] ?? null)} disabled={ocupado} /></div>
     {correccion && <div className="space-y-1"><Label htmlFor="f5-motivo">Motivo de la corrección, sin datos personales</Label><Input id="f5-motivo" required minLength={10} maxLength={500} value={motivo} onChange={e => onMotivo(e.target.value)} /></div>}
-    {error && <p role="alert" className="text-sm text-destructive-text">{error}</p>}
+    {error && <p id="f5-condiciones-error" role="alert" className="text-sm text-destructive-text">{error}</p>}
     <Button type="submit" disabled={ocupado}>Revisar inversión</Button>
   </form>
 }
@@ -328,6 +339,8 @@ function ResumenRevision({datos}: {datos: DatosInversion}) {
       <div><dt className="text-muted-foreground">Tasa anual</dt><dd>{String(c?.tasa_anual ?? '')}% · {String(c?.modalidad ?? '')} · {String(c?.tipo_interes ?? '')}</dd></div>
       <div><dt className="text-muted-foreground">Operación</dt><dd>{String(c?.categoria ?? '')}</dd></div>
       <div><dt className="text-muted-foreground">Cuenta de pago</dt><dd>{datos.cuenta?.tipo === 'existente' ? 'Cuenta Avance seleccionada' : `${String(datos.cuenta?.banco ?? (datos.cuenta?.cuenta_esperada as Record<string, unknown> | undefined)?.banco ?? '')} · cuenta revisada en el formulario`}</dd></div></>
-      : <><div><dt className="text-muted-foreground">Depósito</dt><dd>{datos.numero_transaccion}</dd></div><div><dt className="text-muted-foreground">Referencia</dt><dd>{datos.referencia}</dd></div></>}
+      : <><div><dt className="text-muted-foreground">Plazo</dt><dd>{datos.plazo_meses ? `${datos.plazo_meses} meses` : 'Sin plazo registrado'}</dd></div>
+        <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{datos.tasa_anual != null ? `${datos.tasa_anual}% anual` : 'Sin rentabilidad registrada'}</dd></div>
+        <div><dt className="text-muted-foreground">Depósito</dt><dd>{datos.numero_transaccion}</dd></div><div><dt className="text-muted-foreground">Referencia</dt><dd>{datos.referencia}</dd></div></>}
   </dl>
 }

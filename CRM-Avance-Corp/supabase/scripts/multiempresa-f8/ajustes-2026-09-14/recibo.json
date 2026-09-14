@@ -1,0 +1,72 @@
+{
+  "fecha": "2026-09-14",
+  "estado": "PREPARADO_LOCAL_SIN_PUBLICAR",
+  "g7": "ABIERTO",
+  "entorno": {
+    "origen": "multiempresa_f8_20260913",
+    "ensayo": "multiempresa_f8_ajustes_20260914",
+    "replay": "multiempresa_f8_replay_20260914"
+  },
+  "replay": {
+    "resultado": "PASS",
+    "antes": {
+      "flags": "3172efe8a2f592495f20ceaeb768f7ef",
+      "leads": "fa75a3f4b850b005f772e188867108cd",
+      "cierres": "09a1efd6889b7b29b63d43a305db7f11",
+      "perfiles": "372d1126ae5e199df4bc19b8cf0c1f94",
+      "contratos": "c41dd05ba731a1946bf305627df6d282",
+      "identidades": "3f5256ed626ed4ba21f4f0d9acc3533d",
+      "inversiones": "81c2e200b35cf47cb813b9c8f9f0ceda",
+      "atributos_acl": "a7b31e60880049148050d8a987de910b",
+      "funciones_conservadas": "2d35d0a2e634dcca0e9ee38d842a3153"
+    },
+    "despues": {
+      "flags": "3172efe8a2f592495f20ceaeb768f7ef",
+      "leads": "fa75a3f4b850b005f772e188867108cd",
+      "cierres": "09a1efd6889b7b29b63d43a305db7f11",
+      "perfiles": "372d1126ae5e199df4bc19b8cf0c1f94",
+      "contratos": "c41dd05ba731a1946bf305627df6d282",
+      "identidades": "3f5256ed626ed4ba21f4f0d9acc3533d",
+      "inversiones": "81c2e200b35cf47cb813b9c8f9f0ceda",
+      "atributos_acl": "a7b31e60880049148050d8a987de910b",
+      "funciones_conservadas": "2d35d0a2e634dcca0e9ee38d842a3153"
+    }
+  },
+  "realidad": {
+    "metodo": "SQL de conteos, solo lectura; no equivale a ejecutar el script Auth/Data API",
+    "personas": 492,
+    "leads": 1691,
+    "actividades": 11334,
+    "tareas_pendientes_activas": 1059,
+    "miembros_equipo": 21,
+    "metas_publicadas": 21,
+    "vendedores_sin_supervisor": 0,
+    "metas_bajo_sello": 0,
+    "clientes_activos_sin_domicilio": 296
+  },
+  "gates": {
+    "frontend_check": {
+      "estado": "PASS",
+      "archivos": 245,
+      "tests": 3579
+    },
+    "e2e_completo_inicial": {
+      "pass": 181,
+      "skip": 26,
+      "fail": 3,
+      "causa": "Localizadores antiguos de F6; corregidos sin retirar aserciones"
+    },
+    "e2e_f5_f6_final": {
+      "estado": "PASS",
+      "tests": 15
+    },
+    "backend_scripts": "PASS",
+    "edge_preflight": "PASS",
+    "seed_preflight": "NOT RUN: falta SUPABASE_URL",
+    "rls_preflight": "NOT RUN: falta SUPABASE_URL",
+    "gate_realidad_script": "NOT RUN: falta SUPABASE_URL",
+    "sql_auth_http_remoto": "NOT RUN: requiere banco Supabase y aprobación SQL",
+    "advisors_remotos": "NOT RUN: requiere banco Supabase",
+    "publicacion": "NO REALIZADA"
+  }
+}

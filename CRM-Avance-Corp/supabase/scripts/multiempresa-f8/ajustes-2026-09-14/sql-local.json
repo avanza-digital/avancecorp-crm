@@ -1,0 +1,87 @@
+{
+  "banco": "multiempresa_f8_ajustes_20260914",
+  "paridad": [
+    {
+      "rol": "gerencia",
+      "activo": true,
+      "personas": 18
+    },
+    {
+      "rol": "supervisor",
+      "activo": true,
+      "personas": 1
+    },
+    {
+      "rol": "supervisor",
+      "activo": true,
+      "personas": 17
+    },
+    {
+      "rol": "vendedor",
+      "activo": true,
+      "personas": 1
+    },
+    {
+      "rol": "directorio",
+      "activo": true,
+      "personas": 9
+    },
+    {
+      "rol": "vendedor",
+      "activo": true,
+      "personas": 17
+    },
+    {
+      "rol": "sin_sesion",
+      "activo": false,
+      "personas": 0
+    }
+  ],
+  "rendimiento": [
+    {
+      "version": "anterior",
+      "rol": "gerencia",
+      "ms": 8270,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "anterior",
+      "rol": "supervisor",
+      "ms": 8141,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "anterior",
+      "rol": "analista",
+      "ms": 8245,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "corregida",
+      "rol": "gerencia",
+      "ms": 355,
+      "resultado": "PASS"
+    },
+    {
+      "version": "corregida",
+      "rol": "supervisor",
+      "ms": 423,
+      "resultado": "PASS"
+    },
+    {
+      "version": "corregida",
+      "rol": "analista",
+      "ms": 374,
+      "resultado": "PASS"
+    }
+  ],
+  "condiciones": [
+    "alta_inicial_idempotente_y_conflictos",
+    "acl_propietario_y_config_rpc_identicos_para_todos_los_roles",
+    "operacion_anterior_reintenta_tras_migracion_sin_cambiar_hash",
+    "preparar_corregir_confirmar_reintentar_leer_por_nucleos",
+    "fin_de_mes_y_bisiesto",
+    "sin_grants_directos_ni_rpc_anonima"
+  ],
+  "paridad_demo": "PASS: perfil, inversión, cierre, lead, puente, fusión y mezcla real/demo; todos los actores"
+}

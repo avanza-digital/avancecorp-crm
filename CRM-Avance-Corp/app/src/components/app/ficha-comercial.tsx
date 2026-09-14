@@ -1,7 +1,84 @@
 import { useId, type ReactNode, type Ref } from 'react'
-import { ChevronDown, X, type LucideIcon } from 'lucide-react'
+import { ChevronDown, Mail, MessageCircle, Phone, X, type LucideIcon } from 'lucide-react'
+import { numeroWhatsapp, enlaceTel } from '@/lib/telefono'
 import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+
+const CLASE_CONTACTO =
+  'inline-flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-[11px] font-bold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35 [&_svg]:size-3.5'
+
+
+export function FichaComercialContacto({
+  nombre,
+  telefono,
+  correo,
+  habilitado = true,
+}: {
+  nombre: string
+  telefono: string | null
+  correo: string | null
+  habilitado?: boolean
+}) {
+  const tel = telefono ? enlaceTel(telefono) : null
+  const wa = telefono ? numeroWhatsapp(telefono) : null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" aria-label="Formas de contactar al cliente">
+      {tel && (
+        <a href={habilitado ? tel : undefined} role="link" tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Llamar a ${nombre}`}>
+          <Phone aria-hidden /> Llamar
+        </a>
+      )}
+      {wa && (
+        <a
+          href={habilitado ? `https://wa.me/${wa}` : undefined}
+          role="link" tabIndex={0}
+          aria-disabled={!habilitado}
+          target={habilitado ? '_blank' : undefined}
+          rel="noreferrer"
+          className={CLASE_CONTACTO}
+          aria-label={`Abrir WhatsApp de ${nombre}`}
+        >
+          <MessageCircle aria-hidden /> Abrir WhatsApp
+        </a>
+      )}
+      {correo && (
+        <a href={habilitado ? `mailto:${correo}` : undefined} role="link" tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Escribir correo a ${nombre}`}>
+          <Mail aria-hidden /> Escribir correo
+        </a>
+      )}
+    </div>
+  )
+}
+
+
+/** Presentación original de Ficha 360; cada núcleo aporta sus cifras autorizadas. */
+export function FichaComercialContinuidad({items}: {
+  items: {etiqueta: string; contenido: ReactNode; ayuda: string}[]
+}) {
+  return (
+    <section
+      aria-label="Continuidad comercial del cliente"
+      className="overflow-hidden rounded-2xl border border-primary/10 bg-primary/[0.035] shadow-[inset_3px_0_0_var(--accent)]"
+    >
+      <div className="border-b border-primary/10 px-4 py-2.5">
+        <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">Continuidad comercial</p>
+      </div>
+      <div className="grid sm:grid-cols-3">
+        {items.map((item) => (
+          <div
+            key={item.etiqueta}
+            className="border-t border-primary/10 px-4 py-3 first:border-t-0 sm:border-l sm:border-t-0 sm:first:border-l-0"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{item.etiqueta}</p>
+            <div className="mt-1">{item.contenido}</div>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{item.ayuda}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 
 /**
  * Cabecera común de las fichas comerciales. Comparte la jerarquía y el cierre,
