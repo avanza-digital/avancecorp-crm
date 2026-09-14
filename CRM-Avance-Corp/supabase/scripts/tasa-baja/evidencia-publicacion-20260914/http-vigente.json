@@ -1,0 +1,690 @@
+{
+  "verificado_en": "2026-09-14T21:45:27.136087+00:00",
+  "build_id": "build-20260914T211412536Z",
+  "release_id": "crm-20260914T211416Z-32d57b5b3e15",
+  "archivos_http": 67,
+  "coincidentes": 67,
+  "raiz": {
+    "ruta": "",
+    "status": 200,
+    "sha256": "14759f8318e405b9df2e2bf26002a7c4c6c022b225bb376b3d89b06376d05a24",
+    "esperado": "14759f8318e405b9df2e2bf26002a7c4c6c022b225bb376b3d89b06376d05a24",
+    "bytes": 1276,
+    "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+    "content_type": "text/html",
+    "ok": true
+  },
+  "resultados": [
+    {
+      "ruta": "404.html",
+      "status": 200,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "esperado": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "bytes": 1910,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/html",
+      "ok": true
+    },
+    {
+      "ruta": "assets/agenda-HVa-xYJd.js",
+      "status": 200,
+      "sha256": "06fde22cbe49c2feed4dc095d50e60f928ce21a91fcc1a7e0e4589bede44db95",
+      "esperado": "06fde22cbe49c2feed4dc095d50e60f928ce21a91fcc1a7e0e4589bede44db95",
+      "bytes": 30805,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/agenda-vistas-DAGP-iLO.js",
+      "status": 200,
+      "sha256": "dc5d5444e4be05e58e5850be0312455e737c847200211c0ebafc5c70e74503be",
+      "esperado": "dc5d5444e4be05e58e5850be0312455e737c847200211c0ebafc5c70e74503be",
+      "bytes": 3652,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/alertas-IOXYXMDy.js",
+      "status": 200,
+      "sha256": "e6c433edfbdedf3c43f47ea1e440d978e2b87d1fcc3e4b9686b88945c0e7c38e",
+      "esperado": "e6c433edfbdedf3c43f47ea1e440d978e2b87d1fcc3e4b9686b88945c0e7c38e",
+      "bytes": 15220,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "esperado": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "bytes": 947,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion-lhoh6XTm.js",
+      "status": 200,
+      "sha256": "4016589fe5e5412e0ecb7821e3bf528fe0dbbede1c2b14d4b521d844ccdbb467",
+      "esperado": "4016589fe5e5412e0ecb7821e3bf528fe0dbbede1c2b14d4b521d844ccdbb467",
+      "bytes": 1199,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/card-CoLtd9_n.js",
+      "status": 200,
+      "sha256": "ba85d859329872c7a045b785add27948cd2f14223ba0523ad2b99ee6426b3d42",
+      "esperado": "ba85d859329872c7a045b785add27948cd2f14223ba0523ad2b99ee6426b3d42",
+      "bytes": 743,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/cartera-DDk5NfWn.js",
+      "status": 200,
+      "sha256": "696d2fddbca2254f04a66e177006b686ce93e01ed9432005dbb1a9b51d75e5a8",
+      "esperado": "696d2fddbca2254f04a66e177006b686ce93e01ed9432005dbb1a9b51d75e5a8",
+      "bytes": 14228,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-S_ENAm-J.js",
+      "status": 200,
+      "sha256": "5e28ba9af5312c23a4fe0b1824bb58460ddd506581738f33b98c91f32edf5f5a",
+      "esperado": "5e28ba9af5312c23a4fe0b1824bb58460ddd506581738f33b98c91f32edf5f5a",
+      "bytes": 14760,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "status": 200,
+      "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "esperado": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "bytes": 304,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-citas-BmzUl0LM.js",
+      "status": 200,
+      "sha256": "69cc536844f6ed86b718c5ba779ac58b9b239f16f8ef04a92f84ec12eb61d3f2",
+      "esperado": "69cc536844f6ed86b718c5ba779ac58b9b239f16f8ef04a92f84ec12eb61d3f2",
+      "bytes": 16892,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-metas-PmzbbGoN.js",
+      "status": 200,
+      "sha256": "e51a03ee0ef23421f0596cc431d2e0e605b014465ab0580ac23b6dd63c43cf07",
+      "esperado": "e51a03ee0ef23421f0596cc431d2e0e605b014465ab0580ac23b6dd63c43cf07",
+      "bytes": 15938,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-productos-B4OmR23b.js",
+      "status": 200,
+      "sha256": "9377098e2d9689f5d6a514e7597184d71c190b1ffd22a48f1b7be5a8f24947d1",
+      "esperado": "9377098e2d9689f5d6a514e7597184d71c190b1ffd22a48f1b7be5a8f24947d1",
+      "bytes": 27038,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-qZNc_E7g.js",
+      "status": 200,
+      "sha256": "57c243080f5fe30d16e63c68aca860929043a7977838fda2c052c4c0f1ab9c2d",
+      "esperado": "57c243080f5fe30d16e63c68aca860929043a7977838fda2c052c4c0f1ab9c2d",
+      "bytes": 11844,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-rentabilidad-YXU1gTog.js",
+      "status": 200,
+      "sha256": "b2c681c9e20123de475d82a5937e2f914e4ca56379edebb066807921788dc164",
+      "esperado": "b2c681c9e20123de475d82a5937e2f914e4ca56379edebb066807921788dc164",
+      "bytes": 14284,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-sla-B8RlNtva.js",
+      "status": 200,
+      "sha256": "d0b745717bd0594206b14c02480e3df81700a223d10591aefe0568f17468ce0e",
+      "esperado": "d0b745717bd0594206b14c02480e3df81700a223d10591aefe0568f17468ce0e",
+      "bytes": 17100,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-usuarios-DDov-E29.js",
+      "status": 200,
+      "sha256": "8b90e636a5d7fd365cacdef63f5542fef9de4595fb5a3ad2b1e3f9ac6023ad88",
+      "esperado": "8b90e636a5d7fd365cacdef63f5542fef9de4595fb5a3ad2b1e3f9ac6023ad88",
+      "bytes": 23797,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-DD2gXrDT.js",
+      "status": 200,
+      "sha256": "b22eeda7daf7a5e5325babd4ea6d7280f3e2fb70bb884d386a7c187a1dd585ba",
+      "esperado": "b22eeda7daf7a5e5325babd4ea6d7280f3e2fb70bb884d386a7c187a1dd585ba",
+      "bytes": 1805,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/control-citas-CYMmYYoY.js",
+      "status": 200,
+      "sha256": "b3ac35ea72c82bb642e0c6bc131faed203acdc2c38da1dbeac1ae76f3c4f87b3",
+      "esperado": "b3ac35ea72c82bb642e0c6bc131faed203acdc2c38da1dbeac1ae76f3c4f87b3",
+      "bytes": 4187,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-CUBUzmvj.js",
+      "status": 200,
+      "sha256": "f37ff16ed95d728f9df7f8b94d18055825c8bcde81a3c4b3cf682100ec780d13",
+      "esperado": "f37ff16ed95d728f9df7f8b94d18055825c8bcde81a3c4b3cf682100ec780d13",
+      "bytes": 2533,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/crm-api-7wUYIW52.js",
+      "status": 200,
+      "sha256": "1d614b04fc809f6ecb6c3c2861611f9d71f75a62c784612960b422c66057412a",
+      "esperado": "1d614b04fc809f6ecb6c3c2861611f9d71f75a62c784612960b422c66057412a",
+      "bytes": 217193,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "esperado": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "bytes": 244552,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/derivaciones-dLpxIxXi.js",
+      "status": 200,
+      "sha256": "681ac385919381214d077ba367a940d24641aa5c6188c24502103458c73efc73",
+      "esperado": "681ac385919381214d077ba367a940d24641aa5c6188c24502103458c73efc73",
+      "bytes": 13048,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-BFR2M0Yv.js",
+      "status": 200,
+      "sha256": "7616175f4bdf064ea9f56d781bdf689a17b90c121308fbb898b908422609ce5e",
+      "esperado": "7616175f4bdf064ea9f56d781bdf689a17b90c121308fbb898b908422609ce5e",
+      "bytes": 702,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "esperado": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "bytes": 12574,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-CVGLuNv7.js",
+      "status": 200,
+      "sha256": "11f36c48a86810960d47bdb42f12a7dc0e3fb5703bfce3938c69392ebc5b054d",
+      "esperado": "11f36c48a86810960d47bdb42f12a7dc0e3fb5703bfce3938c69392ebc5b054d",
+      "bytes": 7528,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-Cx7ZkINr.js",
+      "status": 200,
+      "sha256": "d83b180300182f396c36ad98e6611019e111809cf8c207a374013a3dd4cb6b89",
+      "esperado": "d83b180300182f396c36ad98e6611019e111809cf8c207a374013a3dd4cb6b89",
+      "bytes": 487202,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-bar-Cf_qM6Qx.js",
+      "status": 200,
+      "sha256": "44e8be89493f1e625b554615eeef185e7eef94bb5fcda7d65b57ff04f95ea8e2",
+      "esperado": "44e8be89493f1e625b554615eeef185e7eef94bb5fcda7d65b57ff04f95ea8e2",
+      "bytes": 21988,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-line-BlmkyeQu.js",
+      "status": 200,
+      "sha256": "051e1b2e9a5b1733ab3c4e4bc61254a7ff6f4c17ee8d7c03b9b1705f1e494b72",
+      "esperado": "051e1b2e9a5b1733ab3c4e4bc61254a7ff6f4c17ee8d7c03b9b1705f1e494b72",
+      "bytes": 45314,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/equipo-CrD78SZs.js",
+      "status": 200,
+      "sha256": "75a6b4ea346c5bf09805b8bb1a46d468a2cc3cb0c2b58ffbcbb8e7b86abdf84a",
+      "esperado": "75a6b4ea346c5bf09805b8bb1a46d468a2cc3cb0c2b58ffbcbb8e7b86abdf84a",
+      "bytes": 26136,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "esperado": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "bytes": 84559,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/estado-panel-Qqq_Igez.js",
+      "status": 200,
+      "sha256": "3a0448fb18f66a47b089640bda5826187ee9340f78adec78ef0e6ecf970bab09",
+      "esperado": "3a0448fb18f66a47b089640bda5826187ee9340f78adec78ef0e6ecf970bab09",
+      "bytes": 2910,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/facturacion-Bw7Dnoxt.js",
+      "status": 200,
+      "sha256": "c9f4cab0480b6c4d99fd2d40cd286380bd7a8c28b936bf006f31a01fc9914a7e",
+      "esperado": "c9f4cab0480b6c4d99fd2d40cd286380bd7a8c28b936bf006f31a01fc9914a7e",
+      "bytes": 30901,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "status": 200,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "esperado": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "bytes": 17293,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "text/css",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-DqWJ8-Cj.js",
+      "status": 200,
+      "sha256": "40da91ea774a24d2707e801ef585b84908f4f15e719216aa5a19c36075ce49e0",
+      "esperado": "40da91ea774a24d2707e801ef585b84908f4f15e719216aa5a19c36075ce49e0",
+      "bytes": 190233,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-nIHnCu2H.js",
+      "status": 200,
+      "sha256": "9497d3399526df477488cff0b98b0bb153ef55227bcbb8a274948360d12f071f",
+      "esperado": "9497d3399526df477488cff0b98b0bb153ef55227bcbb8a274948360d12f071f",
+      "bytes": 97999,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-BXrH8vgJ.js",
+      "status": 200,
+      "sha256": "a4b5781863f6e062be60202afeb69538eba644538991e530874114d8732f9024",
+      "esperado": "a4b5781863f6e062be60202afeb69538eba644538991e530874114d8732f9024",
+      "bytes": 14141,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/hoy-RZH805M5.js",
+      "status": 200,
+      "sha256": "ce1b62bb190b0fe9bcf3d90abf859afec013426ff80eb28682906c61450f2de0",
+      "esperado": "ce1b62bb190b0fe9bcf3d90abf859afec013426ff80eb28682906c61450f2de0",
+      "bytes": 92782,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/index-CBFoIK8G.css",
+      "status": 200,
+      "sha256": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "esperado": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "bytes": 149248,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "text/css",
+      "ok": true
+    },
+    {
+      "ruta": "assets/index-DJP7B-sn.js",
+      "status": 200,
+      "sha256": "3ed482ba7170cd94a1975830747c298efbbf55f3dcae0c64e3a492bf5a287ad3",
+      "esperado": "3ed482ba7170cd94a1975830747c298efbbf55f3dcae0c64e3a492bf5a287ad3",
+      "bytes": 662625,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/kpi-card-CyGw-6jG.js",
+      "status": 200,
+      "sha256": "14d865571e2a770b0f692a6de15f19b60a07ee5ed6e7824841c855e5cf524f05",
+      "esperado": "14d865571e2a770b0f692a6de15f19b60a07ee5ed6e7824841c855e5cf524f05",
+      "bytes": 1141,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-BHASfm0k.js",
+      "status": 200,
+      "sha256": "29f0477cd410b2f888313417da463341aa06134bc600a695b24a320d37ddc9b8",
+      "esperado": "29f0477cd410b2f888313417da463341aa06134bc600a695b24a320d37ddc9b8",
+      "bytes": 33785,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-BFrznKbf.js",
+      "status": 200,
+      "sha256": "1544f331abdf57a4d60e461f28ee41932d4118d6f8843596a0fec4994dfa8386",
+      "esperado": "1544f331abdf57a4d60e461f28ee41932d4118d6f8843596a0fec4994dfa8386",
+      "bytes": 19826,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/mi-cartera-BIaG9fY_.js",
+      "status": 200,
+      "sha256": "16fbae52c60d7d193019264bc7e2f17601ad45dca6c5bcaf43c66d24e4348012",
+      "esperado": "16fbae52c60d7d193019264bc7e2f17601ad45dca6c5bcaf43c66d24e4348012",
+      "bytes": 196000,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-B7zVzHWD.js",
+      "status": 200,
+      "sha256": "b21af6bb03a089f0ac168ff1d8b2464d4e0fbd0310c39810c21af370865452a7",
+      "esperado": "b21af6bb03a089f0ac168ff1d8b2464d4e0fbd0310c39810c21af370865452a7",
+      "bytes": 4142,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/paginacion-Gy5w9928.js",
+      "status": 200,
+      "sha256": "811618b7db2cc1d1555f747101e1bd370d08272af743219ad419618764930bf5",
+      "esperado": "811618b7db2cc1d1555f747101e1bd370d08272af743219ad419618764930bf5",
+      "bytes": 995,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/pipeline-u3zCm8nR.js",
+      "status": 200,
+      "sha256": "f123f58f0660ea4657baa8a77031c94bf198a38bc91263e07e8f0eb54d562740",
+      "esperado": "f123f58f0660ea4657baa8a77031c94bf198a38bc91263e07e8f0eb54d562740",
+      "bytes": 15172,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/progress-BykDP_1S.js",
+      "status": 200,
+      "sha256": "4d962d688d6a95c22c72ee1241d853d3302c7975578be8a8f55bf1c92bb24502",
+      "esperado": "4d962d688d6a95c22c72ee1241d853d3302c7975578be8a8f55bf1c92bb24502",
+      "bytes": 432,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-Ijf21Km3.js",
+      "status": 200,
+      "sha256": "0c725fd0fd142132c67321318aba0b6d4de03753ebb9925db8c74ac60e88dd2d",
+      "esperado": "0c725fd0fd142132c67321318aba0b6d4de03753ebb9925db8c74ac60e88dd2d",
+      "bytes": 36571,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "esperado": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "bytes": 190815,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/repartir-oqL3uSWk.js",
+      "status": 200,
+      "sha256": "9b47af18ac42d8588ae31933aeba0b794343422644dd5f69dd5eb1205055f19c",
+      "esperado": "9b47af18ac42d8588ae31933aeba0b794343422644dd5f69dd5eb1205055f19c",
+      "bytes": 50654,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-CorrywxH.js",
+      "status": 200,
+      "sha256": "13fc12c089c3f5396d4495a7b87aa523263e955fde7755ed8de5cf8a0efa2061",
+      "esperado": "13fc12c089c3f5396d4495a7b87aa523263e955fde7755ed8de5cf8a0efa2061",
+      "bytes": 205,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-DjrqB2qj.js",
+      "status": 200,
+      "sha256": "0ce083128b7ecfc0433290e3dcb053b430af584077a1cd6df9640c61bd084bff",
+      "esperado": "0ce083128b7ecfc0433290e3dcb053b430af584077a1cd6df9640c61bd084bff",
+      "bytes": 30740,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "esperado": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "bytes": 694,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/section-head-D9DhqlHr.js",
+      "status": 200,
+      "sha256": "3b5c0b2b1825aad50a69678a4c3eabbafa00b630064f8b83a5d378ffb715831d",
+      "esperado": "3b5c0b2b1825aad50a69678a4c3eabbafa00b630064f8b83a5d378ffb715831d",
+      "bytes": 438,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/seguimiento-Dl3ZOHTu.js",
+      "status": 200,
+      "sha256": "246c8922f5072aa626d710a31273a75ae095af70598ec2fc4a6a966f40e35777",
+      "esperado": "246c8922f5072aa626d710a31273a75ae095af70598ec2fc4a6a966f40e35777",
+      "bytes": 815,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/stat-strip-DHYswZWe.js",
+      "status": 200,
+      "sha256": "6c0abde0035c51e5236fe5be148f225a1f1bfa3b06267faa5f1747c53fe5a10a",
+      "esperado": "6c0abde0035c51e5236fe5be148f225a1f1bfa3b06267faa5f1747c53fe5a10a",
+      "bytes": 2202,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/tabla-DCUED0zS.js",
+      "status": 200,
+      "sha256": "d84b7a789e8dd6c595d758b9dd9c630eb67172fec1b971672327c57939ff7abe",
+      "esperado": "d84b7a789e8dd6c595d758b9dd9c630eb67172fec1b971672327c57939ff7abe",
+      "bytes": 707,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ui-vendor-B49GjcGN.js",
+      "status": 200,
+      "sha256": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "esperado": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "bytes": 92035,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-DKpjcgJr.js",
+      "status": 200,
+      "sha256": "d0588eb0a0690ada79eac97c18ad209819c6c0fc8ccec223d0f1ea17e3637aa2",
+      "esperado": "d0588eb0a0690ada79eac97c18ad209819c6c0fc8ccec223d0f1ea17e3637aa2",
+      "bytes": 1526,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-Bukx2qaf.js",
+      "status": 200,
+      "sha256": "f3d2213ecb29957d173bd68a7c6d4e84e6856a6c4c03bc0954d7e8df515a01e5",
+      "esperado": "f3d2213ecb29957d173bd68a7c6d4e84e6856a6c4c03bc0954d7e8df515a01e5",
+      "bytes": 289,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-9rIa6Yxa.js",
+      "status": 200,
+      "sha256": "41e0eb8d1a30e437c4959dbc25275c7d3344819592030b83962bea65770f131a",
+      "esperado": "41e0eb8d1a30e437c4959dbc25275c7d3344819592030b83962bea65770f131a",
+      "bytes": 488,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "esperado": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "bytes": 298,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "sha256": "14759f8318e405b9df2e2bf26002a7c4c6c022b225bb376b3d89b06376d05a24",
+      "esperado": "14759f8318e405b9df2e2bf26002a7c4c6c022b225bb376b3d89b06376d05a24",
+      "bytes": 1276,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/html",
+      "ok": true
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "status": 200,
+      "sha256": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "esperado": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "bytes": 483,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/plain",
+      "ok": true
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "esperado": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "bytes": 3742,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "sha256": "35b152355f3fd6d0c58244a653e9efb94e3403ae572546c19f07aced7e1b75a5",
+      "esperado": "35b152355f3fd6d0c58244a653e9efb94e3403ae572546c19f07aced7e1b75a5",
+      "bytes": 51,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "application/json",
+      "ok": true
+    }
+  ],
+  "ok": true
+}

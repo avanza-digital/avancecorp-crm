@@ -1,0 +1,350 @@
+{
+  "verificado_en": "2026-09-14T21:41:50.879722+00:00",
+  "build_id": "build-20260914T211412536Z",
+  "release_id": "crm-20260914T211416Z-32d57b5b3e15",
+  "archivos_http": 67,
+  "coincidentes": 0,
+  "raiz": {
+    "ruta": "",
+    "ok": false,
+    "error": "HTTP Error 504: Gateway Time-out"
+  },
+  "resultados": [
+    {
+      "ruta": "404.html",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/agenda-HVa-xYJd.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/agenda-vistas-DAGP-iLO.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/alertas-IOXYXMDy.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-lhoh6XTm.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/card-CoLtd9_n.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/cartera-DDk5NfWn.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-S_ENAm-J.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-citas-BmzUl0LM.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-metas-PmzbbGoN.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-productos-B4OmR23b.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-qZNc_E7g.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-YXU1gTog.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-sla-B8RlNtva.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/config-usuarios-DDov-E29.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/configuracion-shell-DD2gXrDT.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/control-citas-CYMmYYoY.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-CUBUzmvj.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/crm-api-7wUYIW52.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/derivaciones-dLpxIxXi.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/desglose-monedas-BFR2M0Yv.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-CVGLuNv7.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/echart-Cx7ZkINr.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/echart-bar-Cf_qM6Qx.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/echart-line-BlmkyeQu.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/equipo-CrD78SZs.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/estado-panel-Qqq_Igez.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/facturacion-Bw7Dnoxt.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/gerencia-DqWJ8-Cj.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/gerencia-nIHnCu2H.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-BXrH8vgJ.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/hoy-RZH805M5.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/index-CBFoIK8G.css",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/index-DJP7B-sn.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/kpi-card-CyGw-6jG.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/lead-hover-card-BHASfm0k.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-BFrznKbf.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/mi-cartera-BIaG9fY_.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-B7zVzHWD.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/paginacion-Gy5w9928.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/pipeline-u3zCm8nR.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/progress-BykDP_1S.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-Ijf21Km3.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/repartir-oqL3uSWk.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-CorrywxH.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/rescate-descartados-DjrqB2qj.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/section-head-D9DhqlHr.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/seguimiento-Dl3ZOHTu.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/stat-strip-DHYswZWe.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/tabla-DCUED0zS.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/ui-vendor-B49GjcGN.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-DKpjcgJr.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-Bukx2qaf.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-9rIa6Yxa.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "index.html",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "sw-crm.js",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    },
+    {
+      "ruta": "version.json",
+      "ok": false,
+      "error": "HTTP Error 504: Gateway Time-out"
+    }
+  ],
+  "ok": false
+}

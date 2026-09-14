@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "build_vigente": "build-20260914T211412536Z",
+  "fuente_vigente": "32d57b5b3e155dd49a212afba40cd84056186581",
+  "fuente_tasas_publicada": "faa1059745aa852c4fb8275ff23f5a039f09e2a4",
+  "fuente_tasas_es_ancestro": true,
+  "rutas_modificadas_despues": [
+    "CRM-Avance-Corp/app/src/components/citas/avance-mensual.css",
+    "CRM-Avance-Corp/app/src/components/citas/avance-mensual.tsx",
+    "CRM-Avance-Corp/app/src/components/citas/avance.test.ts",
+    "CRM-Avance-Corp/app/src/components/citas/avance.ts",
+    "CRM-Avance-Corp/app/src/lib/tipo-cambio.test.ts"
+  ],
+  "codigo_tasas_conservado": true,
+  "migracion_tasas_presente": true,
+  "cuatro_funciones_siguen_iguales": true,
+  "http_codigo_coincidente": 67,
+  "raiz_html_coincide": true,
+  "version_worker_manifest_sin_cache": true,
+  "imagenes_no_modificadas": "11 PNG tuvieron huellas HTTP distintas al ZIP; no se declara igualdad binaria de im\u00e1genes. Ver diagn\u00f3stico previo."
+}

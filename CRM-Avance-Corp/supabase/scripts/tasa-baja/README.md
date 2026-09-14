@@ -1,12 +1,11 @@
-# Tasas inferiores — candidata verificada en local
+# Tasas inferiores — publicado
 
-**Publicación autorizada y en preparación (14/09/2026).** Miguel indicó después
-«haz depoloy» y autorizó el banco temporal de PortalAvanceCorp hasta US$1, con
-eliminación al terminar. Esa instrucción reemplaza la pausa anterior. La candidata
-está instalada únicamente en la rama propia `gvstgldssatszdovumhe`, versión remota
-`20260914174353`; se conserva intacto el archivo SQL versionado. Producción aún
-no recibe esta candidata. El acta local anterior queda como evidencia histórica.
-Estado detallado: [verificacion.md](verificacion.md).
+**Publicado y verificado el 14/09/2026.** SQL instalado en producción como
+`20260914174353`, conservando intacto el archivo fuente `20260914042114`.
+El banco temporal autorizado fue eliminado; coste estimado US$0,059 de US$1.
+La publicación posterior de Citas conserva este cambio. Estado vigente, builds,
+pruebas y límites: [acta de publicación](PUBLICACION-2026-09-14.md).
+La pausa y la preparación de [verificacion.md](verificacion.md) son historial.
 
 ## Comportamiento
 
@@ -55,11 +54,15 @@ Las dos carreras observan la espera real en `pg_stat_activity` antes de liberar
 la primera transacción. La limpieza de su reserva sintética ocurre después de
 las aserciones y exclusivamente en la copia desechable.
 
-## Publicación posterior
+## Secuencia histórica de publicación
+
+La siguiente receta ya se completó en el alcance descrito en el acta. No volver
+a instalar esta migración. La inspección manual autenticada del paso 7 sigue
+marcada NOT RUN; las verificaciones productivas efectuadas fueron de lectura.
 
 1. Recibir la nueva instrucción de Miguel y completar el ciclo autorizado de banco
    Supabase: seed previo, candidata, oráculos, matriz RLS pertinente y advisors.
-   Esta preparación no completó ese ciclo remoto.
+   El resultado y los límites del ciclo remoto constan en el acta publicada.
 2. Integrar Main con `avancecorp/main` preservando las demás tareas. No usar
    `origin/main`, `tronco`, ramas de release ni force push. Main local y remoto
    deben coincidir antes de publicar. Si avanzan, verificar y reconstruir.

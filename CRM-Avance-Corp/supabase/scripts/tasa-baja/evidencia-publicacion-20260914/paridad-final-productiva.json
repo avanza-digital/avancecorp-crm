@@ -1,0 +1,71 @@
+{
+  "capturado_en": "2026-09-14T20:56:17.977Z",
+  "produccion": "dctqcbznekcyxhjujuci",
+  "banco": "gvstgldssatszdovumhe",
+  "migraciones": 287,
+  "funciones": 644,
+  "diferencias_funciones": [],
+  "candidata_identica": true,
+  "edge": 19,
+  "edge_diferencias": [],
+  "vault_produccion_preservado": true,
+  "vault_banco_vacio": true,
+  "minimo_nuevo": 0.01,
+  "minimo_renovacion": 17,
+  "historial_previo_286_identico": true,
+  "migracion_candidata_mismo_sql": true,
+  "nota_historial": "Supabase segmentó la candidata en 11 statements al fusionar; reconstruir sus separadores y retirar líneas vacías reproduce el SQL fuente.",
+  "advisors": {
+    "identicos": false,
+    "grupos_produccion": [
+      {
+        "name": "rls_enabled_no_policy",
+        "count": 64,
+        "level": "INFO"
+      },
+      {
+        "name": "extension_in_public",
+        "count": 1,
+        "level": "WARN"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "count": 2,
+        "level": "WARN"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "count": 202,
+        "level": "WARN"
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "count": 1,
+        "level": "WARN"
+      }
+    ],
+    "grupos_banco": [
+      {
+        "name": "rls_enabled_no_policy",
+        "count": 64,
+        "level": "INFO"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "count": 2,
+        "level": "WARN"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "count": 202,
+        "level": "WARN"
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "count": 1,
+        "level": "WARN"
+      }
+    ],
+    "nota": "Producción tiene además un aviso por pg_net en public, ajeno a esta migración que no crea ni mueve extensiones."
+  }
+}

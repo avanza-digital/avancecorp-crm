@@ -1,0 +1,13 @@
+{
+  "rama": "tasas-inferiores-20260914",
+  "branch_id": "3d023eaa-5999-4e1a-8f3e-6c1c7c600d79",
+  "project_ref": "gvstgldssatszdovumhe",
+  "eliminacion_exitosa": true,
+  "ausente_en_listado": true,
+  "eliminada_en": "2026-09-14 21:05:56 UTC",
+  "creada_en": "2026-09-14T16:42:34.521025Z",
+  "tarifa_hora_usd": 0.01344,
+  "coste_estimado_usd": 0.059,
+  "limite_autorizado_usd": 1,
+  "nota": "Estimación por duración y tarifa confirmada, no importe facturado. Se eliminó exclusivamente la rama de esta tarea."
+}

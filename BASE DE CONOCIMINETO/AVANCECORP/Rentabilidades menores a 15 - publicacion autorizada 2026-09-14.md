@@ -3,7 +3,30 @@ tags: [crm, tasas, publicacion]
 actualizado: 2026-09-14
 ---
 
-# Rentabilidades menores a 15 — publicación autorizada
+# Rentabilidades menores a 15 — publicado
+
+**Estado vigente: PUBLICADO y verificado el 14/09.** Nuevas inversiones admiten
+0,01 %–15 % con dos decimales sin solicitar aprobación; superar la base sigue
+requiriendo la aprobación exacta. Una solicitud pendiente continúa bloqueando
+la conversión. Renovaciones y contratos emitidos conservan sus protecciones.
+
+SQL productivo `20260914174353`, fuente inmutable `20260914042114`; 287 migraciones
+y cuatro funciones verificadas. Ensayo específico SQL/HTTP PASS; 3.546 tests y
+16 E2E PASS. La matriz general conserva 42/1.828 fallos previos, cero nuevos.
+No se declara PASS global ni inspección manual autenticada de producción.
+
+Se publicó desde `faa1059` y Citas publicó después `32d57b5`, conservando todo el
+código de tasas. Build vigente al cierre: `build-20260914T211412536Z`; 67 archivos
+de código cotejados por HTTP. Se integró Main sin sobrescribir Citas ni F8.
+[[Citas Gerencia - ticket unificado en soles 2026-09-14]]
+
+Banco propio eliminado y ausencia confirmada a las 21:05:56 UTC. Coste estimado
+US$0,059, dentro del máximo US$1; no es el importe facturado. Acta y evidencia:
+`CRM-Avance-Corp/supabase/scripts/tasa-baja/PUBLICACION-2026-09-14.md`.
+Respaldo fuera del web root: `CRM-Avance-Corp/releases/tasas-inferiores-20260914/`.
+No reaplicar SQL ni restaurar paquetes anteriores automáticamente.
+
+## Historial de preparación, sustituido por el cierre anterior
 
 Miguel indicó «haz depoloy» después de la pausa y autorizó usar la organización
 actual de PortalAvanceCorp para un banco temporal hasta US$1, eliminándolo al

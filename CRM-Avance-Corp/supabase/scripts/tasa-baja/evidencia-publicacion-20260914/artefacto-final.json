@@ -1,0 +1,22 @@
+{
+  "release_id": "crm-20260914T210900Z-faa1059745aa",
+  "fuente": {
+    "commit": "faa1059745aa852c4fb8275ff23f5a039f09e2a4",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "archivo": {
+    "nombre": "crm-20260914T210900Z-faa1059745aa.zip",
+    "bytes": 2071157,
+    "sha256": "80fbb3b5788177c357062689997144d21de65b1ffcc0084dc6d6b08e50904d41"
+  },
+  "build_id": "tasas-faa1059-20260914",
+  "archivos": 92,
+  "rollback_frontend": {
+    "nombre": "crm-20260914T173227Z-582358883c1a.zip",
+    "bytes": 2070539,
+    "sha256": "24cac39af05d438407c466478df47d2c3240d79aecded8640157b30fd7ee708a"
+  },
+  "artefacto_preparacion_anterior": "crm-20260914T183112Z-f52a63c8337e",
+  "runtime_sin_cambios_desde_f52a63c": true
+}

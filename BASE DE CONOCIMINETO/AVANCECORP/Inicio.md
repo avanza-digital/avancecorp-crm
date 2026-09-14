@@ -7,8 +7,8 @@ actualizado: 2026-09-14
 
 - [[Citas Gerencia - ticket unificado en soles 2026-09-14]] — **PUBLICADO:** totales PEN/USD visibles y ticket/proyección en soles; 3555 tests, 7 E2E y 67 recursos HTTP verificados.
 
-- [[Rentabilidades menores a 15 - publicacion autorizada 2026-09-14]] — despliegue autorizado; banco propio hasta US$1, comparación remota en curso.
-- [[Rentabilidades menores a 15 - entrega local sin deploy 2026-09-14]] — candidata corregida y verificada en local, 3.540 pruebas y reversa concurrente PASS; falta ciclo remoto y sincronizar el commit de preparación. Miguel indicó no desplegar.
+- [[Rentabilidades menores a 15 - publicacion autorizada 2026-09-14]] — **PUBLICADO 14/09:** nuevas inversiones desde 0,01 %; aprobaciones superiores y bloqueo de pendientes conservados. Banco eliminado, coste estimado US$0,059; cambio conservado por Citas, 67 recursos de código HTTP verificados.
+- [[Rentabilidades menores a 15 - entrega local sin deploy 2026-09-14]] — historial del ensayo local y la pausa, sustituidos por la autorización y publicación del 14/09.
 - [[Citas Gerencia - decisiones finales para publicar 2026-09-14]] — **PUBLICADO 14/09:** reglas 1,25 internas y 70/70 activas desde septiembre; clientes por persona, mes/analista del evento. Build `build-20260914T173227102Z`; acta y banco temporal cerrado.
 
 - [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — historial de preparación local/banco del 13/09 y orden anterior de no desplegar, sustituida por la autorización y publicación del 14/09.

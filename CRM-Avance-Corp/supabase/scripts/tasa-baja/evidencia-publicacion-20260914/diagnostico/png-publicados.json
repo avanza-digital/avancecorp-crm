@@ -1,0 +1,183 @@
+{
+  "ok": false,
+  "imagenes": 11,
+  "nota": "Bytes PNG distintos en HTTP servido por hcdn; dimensiones y p\u00edxeles RGBA, despu\u00e9s de aplicar orientaci\u00f3n EXIF, id\u00e9nticos a los del ZIP. No se considera coincidencia binaria.",
+  "resultados": [
+    {
+      "ruta": "aliados/belysh.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1600,
+        1484
+      ],
+      "bytes_origen": 212660,
+      "bytes_http": 257370,
+      "sha256_archivo_origen": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+      "sha256_archivo_http": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "sha256_rgba_origen": "7bad1404615e49ba84109d77d94fc95aa62fcaf2b2e777bde20bb9d7b0f95233",
+      "sha256_rgba_http": "7d89a01cbb847e551bb3f649fe08d09d8a6c4010fd721914a6e8af7723957c0b",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        852,
+        368
+      ],
+      "bytes_origen": 21196,
+      "bytes_http": 23135,
+      "sha256_archivo_origen": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+      "sha256_archivo_http": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "sha256_rgba_origen": "6d1488d16c160de1f9df967480a8dae058b236748ccb51030e02fb1bcec38f9a",
+      "sha256_rgba_http": "6d1488d16c160de1f9df967480a8dae058b236748ccb51030e02fb1bcec38f9a",
+      "ok": true
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1600,
+        1484
+      ],
+      "bytes_origen": 133622,
+      "bytes_http": 143241,
+      "sha256_archivo_origen": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+      "sha256_archivo_http": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "sha256_rgba_origen": "08d8346b6ae10cbc0fedc3813fc03aefdf76e3b84a3491f977f530b398a0b002",
+      "sha256_rgba_http": "be97ed286e16127d7b35e0eb350660e15c6ad62b28e5596cfbe87761421e0c55",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1600,
+        1484
+      ],
+      "bytes_origen": 112725,
+      "bytes_http": 100601,
+      "sha256_archivo_origen": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+      "sha256_archivo_http": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "sha256_rgba_origen": "cc7bf1215cbe289065748ef076be6525e51132da6c4a3723a972ea20faf6ce2f",
+      "sha256_rgba_http": "87d7cd934837c83349eb58d266010bde4f9e3bc3577a67ddfeeb55caa82ee8ca",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1600,
+        1484
+      ],
+      "bytes_origen": 237650,
+      "bytes_http": 245744,
+      "sha256_archivo_origen": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+      "sha256_archivo_http": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "sha256_rgba_origen": "0aac774fb6f38387cbac49094e16eb04f8cc660330799b1b02eda6bc8c254e3d",
+      "sha256_rgba_http": "f47a36a92a2cda116012cb718946e1b105697709ab6744bdd66a842f1bec951f",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1187,
+        267
+      ],
+      "bytes_origen": 39491,
+      "bytes_http": 42375,
+      "sha256_archivo_origen": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+      "sha256_archivo_http": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "sha256_rgba_origen": "b557ef6010a7022bfad81609945ee6dd6aff6ce1ae6c84bf34db6e7b52c3e3be",
+      "sha256_rgba_http": "b557ef6010a7022bfad81609945ee6dd6aff6ce1ae6c84bf34db6e7b52c3e3be",
+      "ok": true
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1600,
+        1484
+      ],
+      "bytes_origen": 188016,
+      "bytes_http": 217135,
+      "sha256_archivo_origen": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+      "sha256_archivo_http": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "sha256_rgba_origen": "1355cd2dce3c5e325dd56b5d141acdce814b2a627fc8c8559e75e185e4e15730",
+      "sha256_rgba_http": "92e3fe84e5d7ac2a47eccc90cbb6494508dcb182cf468b30723c6fc2763e2d59",
+      "ok": false
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        512,
+        512
+      ],
+      "bytes_origen": 30652,
+      "bytes_http": 22966,
+      "sha256_archivo_origen": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256_archivo_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "sha256_rgba_origen": "cba7c1db0ac82766e19c32cc55c03d7f294c9c47c2cec45304e4bc08d678ed3d",
+      "sha256_rgba_http": "cba7c1db0ac82766e19c32cc55c03d7f294c9c47c2cec45304e4bc08d678ed3d",
+      "ok": true
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        512,
+        512
+      ],
+      "bytes_origen": 30652,
+      "bytes_http": 22966,
+      "sha256_archivo_origen": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256_archivo_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "sha256_rgba_origen": "cba7c1db0ac82766e19c32cc55c03d7f294c9c47c2cec45304e4bc08d678ed3d",
+      "sha256_rgba_http": "cba7c1db0ac82766e19c32cc55c03d7f294c9c47c2cec45304e4bc08d678ed3d",
+      "ok": true
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1200,
+        1200
+      ],
+      "bytes_origen": 33721,
+      "bytes_http": 35493,
+      "sha256_archivo_origen": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+      "sha256_archivo_http": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "sha256_rgba_origen": "727d06d2a02837071c8f12a9792b92233a0be092c12862aa00127e95674e6821",
+      "sha256_rgba_http": "727d06d2a02837071c8f12a9792b92233a0be092c12862aa00127e95674e6821",
+      "ok": true
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "status": 200,
+      "servidor": "hcdn",
+      "dimensiones": [
+        1449,
+        2048
+      ],
+      "bytes_origen": 108685,
+      "bytes_http": 108883,
+      "sha256_archivo_origen": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+      "sha256_archivo_http": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "sha256_rgba_origen": "9519fd6d3f4b3710bde2a948f58a1247296794d66fce7e896fea70a27a393137",
+      "sha256_rgba_http": "9519fd6d3f4b3710bde2a948f58a1247296794d66fce7e896fea70a27a393137",
+      "ok": true
+    }
+  ]
+}

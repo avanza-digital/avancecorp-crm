@@ -1,6 +1,6 @@
 # Ledger de migraciones — esquema `crm`
 
-> **Tasas inferiores — PUBLICACIÓN AUTORIZADA EN CURSO (14/09):** SQL fuente `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql`, intacto; instalada solo en rama propia como `20260914174353`. Banco reconstruido con 637 funciones y 281 migraciones de producción, incluyendo F8; ACL/owners/RLS/triggers verificados. Frontend integrado: 3.540 pruebas PASS. Comparación general y ensayo específico remoto en curso; producción todavía sin esta candidata. [Paquete, comportamiento y límites](../scripts/tasa-baja/README.md).
+> **Tasas inferiores — PUBLICADO (14/09):** SQL fuente `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql`, intacto; instalada por merge como `20260914174353`. Las 286 entradas previas se conservaron, total 287; 644 funciones/atributos coinciden con el banco probado. Ensayo específico SQL y 15 Auth/HTTP PASS; 3.546 tests y 16 E2E integrados PASS. Matriz general: mismos 42/1.828 fallos, sin nuevos; no es PASS global. Frontend publicado desde `faa1059` y conservado por la publicación posterior de Citas `32d57b5`. Banco eliminado, estimación US$0,059. [Acta y límites](../scripts/tasa-baja/PUBLICACION-2026-09-14.md).
 > **Citas PUBLICADA — 14/09/2026:** cinco migraciones canónicas instaladas por
 > merge de la rama propia: `20260911212756`, `20260913204847`, `20260913225042`,
 > `20260913225755` y `20260914044939`. Las 281 entradas anteriores se conservaron;
@@ -103,7 +103,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 
 | Versión | Qué toca de `public` | OK de Miguel |
 |---------|----------------------|--------------|
-| 20260914042114 — candidata local, NO APLICADA | `public.crear_contrato`: rechaza más de dos decimales antes del INSERT a numeric(5,2); conserva firma, dueño, ACL, tablas y policies. Adapta también el observador privado de rentabilidad existente. | Preparación y ensayo local dentro del encargo de tasas inferiores. Última instrucción 14/09: «todavia no hagas deploy». Sin autorización vigente para instalar en producción. |
+| 20260914042114 — APLICADA como 20260914174353 | `public.crear_contrato`: rechaza más de dos decimales antes del INSERT a numeric(5,2); conserva firma, dueño, ACL, tablas y policies. Adapta también el observador privado de rentabilidad existente. | Sí, 14/09: «haz depoloy», posterior a la pausa; banco PortalAvanceCorp hasta US$1 autorizado. Instalada y verificada, banco eliminado. |
 | 20260908211349 — revisión publicable | Mismo alcance F4 sobre `public` que la candidata técnica; conserva además el origen de Rentabilidad R4 en el wrapper PDF. | Sí, 08/09: «publica f4 y dame el plan de implementacion para f5». Instalar con escritores/ficha neutral apagados; no constituye encendido comercial general. |
 | 20260907191832 — preparada, NO APLICADA | `public.crear_contrato`, excepción acotada en `public.proteger_campos_inmutables`, triggers de identidad/vínculo en contratos y procedencia en contrato_titulares; REVOKE API de `_sync_contrato_titulares`; referencias a las fuentes contractuales | Desarrollo y ensayos locales dentro del encargo explícito de terminar F4 (08/09). No constituye OK para aplicar/publicar/encender en producción ni cambiar el PDF. |
 | 20260711000001 | `perfiles_rol_check` acepta `'comercial'` | sí, 2026-07-11 |

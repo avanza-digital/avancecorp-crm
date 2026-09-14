@@ -1,5 +1,9 @@
 # Verificación local — 14/09/2026, sin deploy
 
+> Registro histórico del ensayo local. La pausa fue sustituida por la autorización
+> posterior y la publicación del 14/09. Los NOT RUN de esta nota describen aquel
+> corte; el alcance vigente está en [PUBLICACION-2026-09-14.md](PUBLICACION-2026-09-14.md).
+
 Implementación y correcciones verificadas en local. Miguel indicó «todavia no
 hagas deploy». Se conserva la candidata; **no se declara completado el ciclo
 de validación/publicación remoto**.

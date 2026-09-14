@@ -1,0 +1,930 @@
+{
+  "verificado_en": "2026-09-14T21:15:22.404118+00:00",
+  "build_id": "tasas-faa1059-20260914",
+  "release_id": "crm-20260914T210900Z-faa1059745aa",
+  "archivos_http": 91,
+  "coincidentes": 80,
+  "raiz": {
+    "ruta": "",
+    "status": 200,
+    "sha256": "d509c4230850ab0ef1716e2946f464fdba40ff3ed84c3cfbd45369216f33ded0",
+    "esperado": "d509c4230850ab0ef1716e2946f464fdba40ff3ed84c3cfbd45369216f33ded0",
+    "bytes": 1276,
+    "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+    "content_type": "text/html",
+    "ok": true
+  },
+  "resultados": [
+    {
+      "ruta": "404.html",
+      "status": 200,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "esperado": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "bytes": 1910,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/html",
+      "ok": true
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "status": 200,
+      "sha256": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "esperado": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+      "bytes": 257370,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "status": 200,
+      "sha256": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "esperado": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+      "bytes": 23135,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "status": 200,
+      "sha256": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "esperado": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+      "bytes": 143241,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "status": 200,
+      "sha256": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "esperado": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+      "bytes": 100601,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "status": 200,
+      "sha256": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "esperado": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+      "bytes": 245744,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "status": 200,
+      "sha256": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "esperado": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+      "bytes": 42375,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "status": 200,
+      "sha256": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "esperado": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+      "bytes": 217135,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "assets/agenda-D62YiGsn.js",
+      "status": 200,
+      "sha256": "868d42b04160cdb1ed84da4bbf3adaf7db24743f51a5e32f853805a449c9dfcf",
+      "esperado": "868d42b04160cdb1ed84da4bbf3adaf7db24743f51a5e32f853805a449c9dfcf",
+      "bytes": 30801,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/agenda-vistas-CWrawx3W.js",
+      "status": 200,
+      "sha256": "c6d6e79ab8d460cc465357ffa1de41ebfe65c3addaa78d601e524fe02aa4c576",
+      "esperado": "c6d6e79ab8d460cc465357ffa1de41ebfe65c3addaa78d601e524fe02aa4c576",
+      "bytes": 3652,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/alertas-BVBWUYyQ.js",
+      "status": 200,
+      "sha256": "de22fd97c0120093b4cfa4abf0b0fb7c1e5f4f4730cfc6eee880cf5ec81eda67",
+      "esperado": "de22fd97c0120093b4cfa4abf0b0fb7c1e5f4f4730cfc6eee880cf5ec81eda67",
+      "bytes": 15220,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "esperado": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "bytes": 947,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion-CQa5ZGtX.js",
+      "status": 200,
+      "sha256": "66a63c44ba8f6abce74db98ce6619779e2b539c9ffb7abe5a89308dfdabbebe8",
+      "esperado": "66a63c44ba8f6abce74db98ce6619779e2b539c9ffb7abe5a89308dfdabbebe8",
+      "bytes": 1199,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/card-CV_pQxC4.js",
+      "status": 200,
+      "sha256": "8ca52f94c48ca70fe8b60567d6917afc4b13203b6b99b4aef6d375298ee1e236",
+      "esperado": "8ca52f94c48ca70fe8b60567d6917afc4b13203b6b99b4aef6d375298ee1e236",
+      "bytes": 743,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/cartera-Dc3unIB-.js",
+      "status": 200,
+      "sha256": "348a4dc16da0a5575b2745c99f66caa4c6e85a5eabf0fb24f13d7982fdaf56bd",
+      "esperado": "348a4dc16da0a5575b2745c99f66caa4c6e85a5eabf0fb24f13d7982fdaf56bd",
+      "bytes": 14229,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-CMeE0Tjv.js",
+      "status": 200,
+      "sha256": "c61c82d1a0afb7546c336daa071bf75a5245b31fb36038e7261b9e3f737e9140",
+      "esperado": "c61c82d1a0afb7546c336daa071bf75a5245b31fb36038e7261b9e3f737e9140",
+      "bytes": 14760,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "status": 200,
+      "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "esperado": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "bytes": 304,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-Dd07Cj3H.js",
+      "status": 200,
+      "sha256": "23fdebe613b02075ea276fdfa512de75bfb65cf56d6adc1d7db75ba4a58c6a00",
+      "esperado": "23fdebe613b02075ea276fdfa512de75bfb65cf56d6adc1d7db75ba4a58c6a00",
+      "bytes": 11844,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-citas-Dkgaquta.js",
+      "status": 200,
+      "sha256": "f62809d49e3404d7c3426003548c867e0f288cf871a2e07ee2d7fe04856a5274",
+      "esperado": "f62809d49e3404d7c3426003548c867e0f288cf871a2e07ee2d7fe04856a5274",
+      "bytes": 16892,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-metas-DKZ_NXJ1.js",
+      "status": 200,
+      "sha256": "7deb03043744cf34543597510885ccfb55169a2be18e963abb0cd4557acd4978",
+      "esperado": "7deb03043744cf34543597510885ccfb55169a2be18e963abb0cd4557acd4978",
+      "bytes": 15938,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-productos-Dvf4838V.js",
+      "status": 200,
+      "sha256": "efacb22aac15b073b17eb1f465b9d35b86e38aa70e646b831c78781c354db918",
+      "esperado": "efacb22aac15b073b17eb1f465b9d35b86e38aa70e646b831c78781c354db918",
+      "bytes": 27038,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-rentabilidad-CquO2Snz.js",
+      "status": 200,
+      "sha256": "1286119c3fae2c4ea09a98e264dc8113638f36437699603595dc0c91d8784ab4",
+      "esperado": "1286119c3fae2c4ea09a98e264dc8113638f36437699603595dc0c91d8784ab4",
+      "bytes": 14284,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-sla-k23ts-a_.js",
+      "status": 200,
+      "sha256": "d6af88d5efe37eb6c26914f7d83ffc9def8c0538949eddc17af2dcdf4dd48dd1",
+      "esperado": "d6af88d5efe37eb6c26914f7d83ffc9def8c0538949eddc17af2dcdf4dd48dd1",
+      "bytes": 17100,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/config-usuarios-Dm4EZybg.js",
+      "status": 200,
+      "sha256": "9dca954bd025c02d96c42dc37e133a98ea88693fb195eaf3bb62b24dba9783a8",
+      "esperado": "9dca954bd025c02d96c42dc37e133a98ea88693fb195eaf3bb62b24dba9783a8",
+      "bytes": 23797,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-NIrMYS9u.js",
+      "status": 200,
+      "sha256": "5f508cf5e85cbe66566076853ddf2843cc4a868ecb59f4986a481bcf9111a188",
+      "esperado": "5f508cf5e85cbe66566076853ddf2843cc4a868ecb59f4986a481bcf9111a188",
+      "bytes": 1805,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/control-citas-CSopHHq4.js",
+      "status": 200,
+      "sha256": "20a77e2b98cc64d97b2626fe8a81a4934affa4050b633b7a85cb21c0e0d3b694",
+      "esperado": "20a77e2b98cc64d97b2626fe8a81a4934affa4050b633b7a85cb21c0e0d3b694",
+      "bytes": 4187,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-E9o-pvEm.js",
+      "status": 200,
+      "sha256": "95b7270abd689033cd2094b796bc48c8b9aa263b555fdcc97a497930470a6005",
+      "esperado": "95b7270abd689033cd2094b796bc48c8b9aa263b555fdcc97a497930470a6005",
+      "bytes": 2533,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/crm-api-BRGwxaD6.js",
+      "status": 200,
+      "sha256": "efd1276b11095520b74f838395df0b9485550a2b61e0989c80226d8e9af386b8",
+      "esperado": "efd1276b11095520b74f838395df0b9485550a2b61e0989c80226d8e9af386b8",
+      "bytes": 217185,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "esperado": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "bytes": 244552,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/derivaciones-CH9Au1lJ.js",
+      "status": 200,
+      "sha256": "4ea13dec75f3cd7f8eaa8ff6b4a5ac57d0b7eec105f6bd6698dfa3187afc1831",
+      "esperado": "4ea13dec75f3cd7f8eaa8ff6b4a5ac57d0b7eec105f6bd6698dfa3187afc1831",
+      "bytes": 13048,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-Cr5wxkfw.js",
+      "status": 200,
+      "sha256": "43a14c60f61177782986c98a0179acb128d90e93228d5dfa23d5ec3c1a745af2",
+      "esperado": "43a14c60f61177782986c98a0179acb128d90e93228d5dfa23d5ec3c1a745af2",
+      "bytes": 702,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "esperado": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "bytes": 12574,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-aTbq4XyE.js",
+      "status": 200,
+      "sha256": "3dce7a756da5d53a83c7b539db76866f024101286966cee7197de2ec082375bb",
+      "esperado": "3dce7a756da5d53a83c7b539db76866f024101286966cee7197de2ec082375bb",
+      "bytes": 7528,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-Cjtk4MP-.js",
+      "status": 200,
+      "sha256": "9f4e7a336eb0551390bd753995efbf9033480231ce7a8339e86573c8c8185365",
+      "esperado": "9f4e7a336eb0551390bd753995efbf9033480231ce7a8339e86573c8c8185365",
+      "bytes": 487202,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-bar-C953NLQO.js",
+      "status": 200,
+      "sha256": "01eef808efb462f7a020f3c460e0fe1ba1629dda1777117e901b4f5d3f44a853",
+      "esperado": "01eef808efb462f7a020f3c460e0fe1ba1629dda1777117e901b4f5d3f44a853",
+      "bytes": 21988,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/echart-line-DXsv0VWw.js",
+      "status": 200,
+      "sha256": "10cb7937420ce0c960e170e27cb51385de502bc650209da5bbb4decaf3b5c0a5",
+      "esperado": "10cb7937420ce0c960e170e27cb51385de502bc650209da5bbb4decaf3b5c0a5",
+      "bytes": 45314,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/equipo-BYl9wdW6.js",
+      "status": 200,
+      "sha256": "4c3f5cb9d29e2596b015c46f7ca05a699c98e3204f7abaca100f5b7f4568a590",
+      "esperado": "4c3f5cb9d29e2596b015c46f7ca05a699c98e3204f7abaca100f5b7f4568a590",
+      "bytes": 26134,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "esperado": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "bytes": 84559,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/estado-panel-DMuPrjW-.js",
+      "status": 200,
+      "sha256": "b0ed1d97918b3dc0330746cf5b1f2b18b2af49f44442a40768c90b99f3481356",
+      "esperado": "b0ed1d97918b3dc0330746cf5b1f2b18b2af49f44442a40768c90b99f3481356",
+      "bytes": 2910,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/facturacion-Bqe80YAS.js",
+      "status": 200,
+      "sha256": "f28339b3ea94333cd4d6cc19550422e299d4c38c16d070c2202bd95105bccf06",
+      "esperado": "f28339b3ea94333cd4d6cc19550422e299d4c38c16d070c2202bd95105bccf06",
+      "bytes": 30901,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-CijrrW27.css",
+      "status": 200,
+      "sha256": "454f8fe05d24c4037dc2d1d921ef8fdccc877d6cfb2428acc07775ca2599077e",
+      "esperado": "454f8fe05d24c4037dc2d1d921ef8fdccc877d6cfb2428acc07775ca2599077e",
+      "bytes": 17358,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "text/css",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-CizD61gI.js",
+      "status": 200,
+      "sha256": "256a1dfc18a0cfd3b0008a3ff0e096515babd0839f086e77a1394b27511b35c2",
+      "esperado": "256a1dfc18a0cfd3b0008a3ff0e096515babd0839f086e77a1394b27511b35c2",
+      "bytes": 95946,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/gerencia-D5MAj-Sd.js",
+      "status": 200,
+      "sha256": "743fcb1f1ca82df0a248255731723d405cd06b5e48d824845fe2976cf772ccfd",
+      "esperado": "743fcb1f1ca82df0a248255731723d405cd06b5e48d824845fe2976cf772ccfd",
+      "bytes": 190225,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-Dwkv37lV.js",
+      "status": 200,
+      "sha256": "3c96582416f1b6748e83350d330e68d739abe872021b71797cca28217a0023d9",
+      "esperado": "3c96582416f1b6748e83350d330e68d739abe872021b71797cca28217a0023d9",
+      "bytes": 14141,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/hoy-Cj8peUD1.js",
+      "status": 200,
+      "sha256": "24c6870aaf4f240f95fee8a86b616daf61b43feeb417704f990dd3aad35b0dfb",
+      "esperado": "24c6870aaf4f240f95fee8a86b616daf61b43feeb417704f990dd3aad35b0dfb",
+      "bytes": 92778,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "status": 200,
+      "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "esperado": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "bytes": 22588,
+      "cache_control": "public, max-age=604800",
+      "content_type": "font/woff2",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "status": 200,
+      "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "esperado": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "bytes": 22104,
+      "cache_control": null,
+      "content_type": "application/font-woff",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "status": 200,
+      "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "esperado": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "bytes": 24184,
+      "cache_control": "public, max-age=604800",
+      "content_type": "font/woff2",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "status": 200,
+      "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "esperado": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "bytes": 23916,
+      "cache_control": null,
+      "content_type": "application/font-woff",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "status": 200,
+      "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "esperado": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "bytes": 23876,
+      "cache_control": null,
+      "content_type": "application/font-woff",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "status": 200,
+      "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "esperado": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "bytes": 24252,
+      "cache_control": "public, max-age=604800",
+      "content_type": "font/woff2",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "status": 200,
+      "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "esperado": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "bytes": 22280,
+      "cache_control": null,
+      "content_type": "application/font-woff",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "status": 200,
+      "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "esperado": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "bytes": 22832,
+      "cache_control": "public, max-age=604800",
+      "content_type": "font/woff2",
+      "ok": true
+    },
+    {
+      "ruta": "assets/index-CBFoIK8G.css",
+      "status": 200,
+      "sha256": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "esperado": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "bytes": 149248,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "text/css",
+      "ok": true
+    },
+    {
+      "ruta": "assets/index-_6klUl4W.js",
+      "status": 200,
+      "sha256": "25e1b36ccfb9cb98808734d0936fd1a44128cc0e9be0d283439b12d268e9d78a",
+      "esperado": "25e1b36ccfb9cb98808734d0936fd1a44128cc0e9be0d283439b12d268e9d78a",
+      "bytes": 662618,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/kpi-card-Du-f2Z44.js",
+      "status": 200,
+      "sha256": "6fc3f1eb4db62d9f72a2153004b574f7f0e9b258291d179b3882f3e8ce53fb35",
+      "esperado": "6fc3f1eb4db62d9f72a2153004b574f7f0e9b258291d179b3882f3e8ce53fb35",
+      "bytes": 1141,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-BIB_GkuX.js",
+      "status": 200,
+      "sha256": "156502769507e7756b500b1deec188ac04136b7b67da80deeeea6addfc36f616",
+      "esperado": "156502769507e7756b500b1deec188ac04136b7b67da80deeeea6addfc36f616",
+      "bytes": 33785,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-DrSXJfPC.js",
+      "status": 200,
+      "sha256": "b9b8b1209124e37466e5bd5b40bc48f3c673e0bbcd0b187ec8ef81e43f1bf01e",
+      "esperado": "b9b8b1209124e37466e5bd5b40bc48f3c673e0bbcd0b187ec8ef81e43f1bf01e",
+      "bytes": 19826,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/mi-cartera-JeILTPBY.js",
+      "status": 200,
+      "sha256": "311c988f873b6f72c44abb2ad3e16d7d88566880d27705653ae6a67be141c212",
+      "esperado": "311c988f873b6f72c44abb2ad3e16d7d88566880d27705653ae6a67be141c212",
+      "bytes": 195991,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-CFdMy1JL.js",
+      "status": 200,
+      "sha256": "b2e26868763fc9d65bb3c003858b79d817e5765dfe1d21149019bb3eb42a2a6c",
+      "esperado": "b2e26868763fc9d65bb3c003858b79d817e5765dfe1d21149019bb3eb42a2a6c",
+      "bytes": 4142,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/paginacion-DsjqayxW.js",
+      "status": 200,
+      "sha256": "000574866905758a2aa2620bc61da3d1e761f96074d33af094355e7c7f5d28cb",
+      "esperado": "000574866905758a2aa2620bc61da3d1e761f96074d33af094355e7c7f5d28cb",
+      "bytes": 995,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/pipeline-Bc_EF2o8.js",
+      "status": 200,
+      "sha256": "eb4eadaf2871cadf22b48a2931e4abba1a65c6facb103e29763f1fc60bc8abb0",
+      "esperado": "eb4eadaf2871cadf22b48a2931e4abba1a65c6facb103e29763f1fc60bc8abb0",
+      "bytes": 15172,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/progress-DNVHIgHO.js",
+      "status": 200,
+      "sha256": "68172548c5874f352745acabfd93ca1a713af4a9e35562601302dd5e0c1e779f",
+      "esperado": "68172548c5874f352745acabfd93ca1a713af4a9e35562601302dd5e0c1e779f",
+      "bytes": 432,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-n_JY8bP7.js",
+      "status": 200,
+      "sha256": "083a5845e9bcb4d64cc6eedfb2a21822ab3f259f27947b74c638097ca7c58661",
+      "esperado": "083a5845e9bcb4d64cc6eedfb2a21822ab3f259f27947b74c638097ca7c58661",
+      "bytes": 36571,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "esperado": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "bytes": 190815,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/repartir-DtvwliTP.js",
+      "status": 200,
+      "sha256": "488bc04478f1947a008a2c680f046cdeb451137d94421a979dae13529f30220c",
+      "esperado": "488bc04478f1947a008a2c680f046cdeb451137d94421a979dae13529f30220c",
+      "bytes": 50655,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-fVai-v53.js",
+      "status": 200,
+      "sha256": "9c8f7bb7491cd32b93c1eac4280026c028c20b5160f8e70ceb8b157d9f8a8dc1",
+      "esperado": "9c8f7bb7491cd32b93c1eac4280026c028c20b5160f8e70ceb8b157d9f8a8dc1",
+      "bytes": 205,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-r3GT4eH8.js",
+      "status": 200,
+      "sha256": "151b734bb40de454950a9f24bf3cf1b4a1d539d2ccd682d988224551a415e452",
+      "esperado": "151b734bb40de454950a9f24bf3cf1b4a1d539d2ccd682d988224551a415e452",
+      "bytes": 30740,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "esperado": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "bytes": 694,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/section-head-Dm-Wa1V4.js",
+      "status": 200,
+      "sha256": "b3635abff93599c6adbd105e2dda79a54f1097f5399d74b56d7d62c7dd8620ca",
+      "esperado": "b3635abff93599c6adbd105e2dda79a54f1097f5399d74b56d7d62c7dd8620ca",
+      "bytes": 438,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/seguimiento-6rnTER9P.js",
+      "status": 200,
+      "sha256": "1c377408ad76d3aa529da9366427af895bf05b76b3464a5e38086e977c6a92f3",
+      "esperado": "1c377408ad76d3aa529da9366427af895bf05b76b3464a5e38086e977c6a92f3",
+      "bytes": 815,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/stat-strip-DfaW9JH5.js",
+      "status": 200,
+      "sha256": "7a772666a318672965faa70418fd5ad675209ca59453b89321335e07ec8da91b",
+      "esperado": "7a772666a318672965faa70418fd5ad675209ca59453b89321335e07ec8da91b",
+      "bytes": 2202,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/tabla-Crcnag-p.js",
+      "status": 200,
+      "sha256": "38ccb11cab544df1e1f222b376ad848c7393fead7ee92723a857630e2b82f351",
+      "esperado": "38ccb11cab544df1e1f222b376ad848c7393fead7ee92723a857630e2b82f351",
+      "bytes": 707,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/ui-vendor-B49GjcGN.js",
+      "status": 200,
+      "sha256": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "esperado": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "bytes": 92035,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-DD5BQejI.js",
+      "status": 200,
+      "sha256": "77449cca97f6dd412a0c6bb7a3750e9d51ee18f261007d028783ae31da825691",
+      "esperado": "77449cca97f6dd412a0c6bb7a3750e9d51ee18f261007d028783ae31da825691",
+      "bytes": 1526,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DWRCPPeG.js",
+      "status": 200,
+      "sha256": "51d82c2113692fa4618268246114302cd5c54e90a76cdf56dabbc4dcfb567f3c",
+      "esperado": "51d82c2113692fa4618268246114302cd5c54e90a76cdf56dabbc4dcfb567f3c",
+      "bytes": 289,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-D8VmJSNh.js",
+      "status": 200,
+      "sha256": "31e75c7ab52db4336e8f07952487b542fdf69561b6d7d00a653e0786af72dad5",
+      "esperado": "31e75c7ab52db4336e8f07952487b542fdf69561b6d7d00a653e0786af72dad5",
+      "bytes": 488,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "esperado": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "bytes": 298,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "status": 200,
+      "sha256": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d",
+      "esperado": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d",
+      "bytes": 8476,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": true
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "status": 200,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "bytes": 22966,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "status": 200,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "bytes": 22966,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "status": 200,
+      "sha256": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "esperado": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+      "bytes": 35493,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "status": 200,
+      "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "esperado": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "bytes": 2097,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": true
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "status": 200,
+      "sha256": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "esperado": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+      "bytes": 108883,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/png",
+      "ok": false
+    },
+    {
+      "ruta": "favicon.svg",
+      "status": 200,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "esperado": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "bytes": 9522,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/svg+xml",
+      "ok": true
+    },
+    {
+      "ruta": "icons.svg",
+      "status": 200,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "esperado": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "bytes": 5031,
+      "cache_control": "public, max-age=604800",
+      "content_type": "image/svg+xml",
+      "ok": true
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "sha256": "d509c4230850ab0ef1716e2946f464fdba40ff3ed84c3cfbd45369216f33ded0",
+      "esperado": "d509c4230850ab0ef1716e2946f464fdba40ff3ed84c3cfbd45369216f33ded0",
+      "bytes": 1276,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/html",
+      "ok": true
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "status": 200,
+      "sha256": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "esperado": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "bytes": 483,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "text/plain",
+      "ok": true
+    },
+    {
+      "ruta": "robots.txt",
+      "status": 200,
+      "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "esperado": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "bytes": 26,
+      "cache_control": null,
+      "content_type": "text/plain",
+      "ok": true
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "esperado": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "bytes": 3742,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "application/x-javascript",
+      "ok": true
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "sha256": "c6a1b2630ce474d0ae2a74ae000477771a8174ac1042d16c2a9131e0dd8ada2e",
+      "esperado": "c6a1b2630ce474d0ae2a74ae000477771a8174ac1042d16c2a9131e0dd8ada2e",
+      "bytes": 48,
+      "cache_control": "no-store, no-cache, must-revalidate, max-age=0",
+      "content_type": "application/json",
+      "ok": true
+    }
+  ],
+  "ok": false
+}

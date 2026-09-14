@@ -1,0 +1,9 @@
+{
+  "ruta": ".htaccess",
+  "bytes_con_salto_final": 2977,
+  "bytes_servidor": 2977,
+  "sha256": "c70380da325b9dcc9c18f2f504910694085865a02bb8eae2c6515f3bceef5510",
+  "esperado": "c70380da325b9dcc9c18f2f504910694085865a02bb8eae2c6515f3bceef5510",
+  "ok": true,
+  "nota": "El lector de contenido omite el salto final; se repone \u00fanicamente ese byte, confirmado por el tama\u00f1o del archivo del servidor."
+}

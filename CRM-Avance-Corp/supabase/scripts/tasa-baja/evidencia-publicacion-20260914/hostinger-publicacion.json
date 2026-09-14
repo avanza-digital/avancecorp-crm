@@ -1,0 +1,17 @@
+{
+  "upload": {
+    "status": "success",
+    "data": {
+      "filename": "crm-20260914T210900Z-faa1059745aa.zip"
+    }
+  },
+  "deploy": {
+    "status": "success",
+    "data": {
+      "message": "Request accepted"
+    }
+  },
+  "removeArchive": {
+    "status": "skipped"
+  }
+}

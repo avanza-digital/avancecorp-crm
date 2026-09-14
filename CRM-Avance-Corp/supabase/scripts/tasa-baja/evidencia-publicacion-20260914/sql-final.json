@@ -1,0 +1,24 @@
+{
+  "funciones": [
+    {
+      "firma": "crear_contrato(jsonb,jsonb)",
+      "body_md5": "1adfbe1a72739a1863c7321c3fd20439"
+    },
+    {
+      "firma": "private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)",
+      "body_md5": "12456bd7ecb3fa4673885bd468ba9339"
+    },
+    {
+      "firma": "private.trg_contratos_observar_rentabilidad()",
+      "body_md5": "24846a709156006298e10edd65ee3ef9"
+    },
+    {
+      "firma": "private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)",
+      "body_md5": "fba3d4ed01dc9fd440ab945d63010099"
+    }
+  ],
+  "migraciones": 287,
+  "minimo_nuevo": 0.01,
+  "version_tasas": "20260914174353",
+  "minimo_renovacion": 17
+}
