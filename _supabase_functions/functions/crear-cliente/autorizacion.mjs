@@ -19,14 +19,26 @@ const ESTADOS_ACCESO_CONOCIDOS = new Set([
  * - compatibilidad del Portal para sus roles históricos;
  * - capacidad operativa CRM publicada por crm.mi_acceso_fn().
  *
- * Una revocación CRM explícita gana sobre el fallback Portal. Los usuarios
- * `comercial + vendedor` quedan autoasignados igual que un Analista legacy.
+ * Una revocación CRM explícita gana sobre el fallback Portal.
+ *
+ * 15/09/2026 (decisión de Miguel): el ANALISTA del CRM (`rol_crm = vendedor`)
+ * NO da de alta clientes sin lead — su cliente nuevo nace convirtiendo un lead
+ * (crm-convertir-lead), para que el capital del ranking no entre por fuera de
+ * la conversión. El veto se evalúa ANTES de la compatibilidad del Portal porque
+ * la mayoría de los analistas conserva el rol Portal legacy `analista`, que
+ * hasta hoy los autorizaba por esa vía. Supervisión, Gerencia y los roles
+ * administrativos del Portal no cambian.
  *
  * @param {unknown} perfil
  * @param {unknown} acceso
  * @param {string} callerId
  * @returns {{ asesorId: string | null, via: 'portal' | 'crm' } | null}
  */
+/** @param {unknown} rolCrm */
+function esVendedorCrm(rolCrm) {
+  return typeof rolCrm === 'string' && rolCrm.trim().toLowerCase() === 'vendedor';
+}
+
 export function resolverAutorizacionAltaCliente(perfil, acceso, callerId) {
   if (!perfil || typeof perfil !== 'object' || Array.isArray(perfil)) return null;
   const perfilSeguro = /** @type {Record<string, unknown>} */ (perfil);
@@ -40,6 +52,11 @@ export function resolverAutorizacionAltaCliente(perfil, acceso, callerId) {
     || typeof accesoSeguro.puede_contratar !== 'boolean'
     || accesoSeguro.estado === 'revocado'
   ) return null;
+
+  // Veto del analista: cualquier contrato que lo identifique como vendedor del
+  // CRM cierra la puerta, sea cual sea su rol Portal (fail-closed). Se compara
+  // normalizado para no depender de que la RPC entregue el literal exacto.
+  if (esVendedorCrm(accesoSeguro.rol_crm)) return null;
 
   if (ROLES_PORTAL_ALTA_CLIENTE.has(perfilSeguro.rol)) {
     return {

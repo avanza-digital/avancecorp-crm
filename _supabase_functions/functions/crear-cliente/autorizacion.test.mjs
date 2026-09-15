@@ -5,20 +5,109 @@ import { resolverAutorizacionAltaCliente } from './autorizacion.mjs';
 
 const fuenteEdge = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
 
-test('autoriza y autoasigna al nuevo Comercial/Vendedor del CRM', () => {
+test('rechaza al analista del CRM (vendedor) aunque pueda contratar, con rol Portal nuevo o legacy', () => {
+  // 15/09/2026: el alta directa (sin lead) ya no es del analista. Su cliente
+  // nuevo nace convirtiendo un lead. Ni el `comercial` nuevo ni el `analista`
+  // legacy del Portal (que hasta hoy autorizaba por la vía Portal) lo reabren.
+  for (const rolPortal of ['comercial', 'analista']) {
+    assert.equal(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: rolPortal },
+        {
+          estado: 'miembro',
+          perfil_id: 'vendedor-1',
+          rol_crm: 'vendedor',
+          puede_contratar: true,
+        },
+        'vendedor-1',
+      ),
+      null,
+    );
+  }
+  // Fail-closed: basta con que el contrato lo identifique como vendedor, aunque
+  // el estado no sea el esperado.
+  assert.equal(
+    resolverAutorizacionAltaCliente(
+      { activo: true, rol: 'analista' },
+      { estado: 'no_enrolado', perfil_id: 'vendedor-2', rol_crm: 'vendedor', puede_contratar: false },
+      'vendedor-2',
+    ),
+    null,
+  );
+  // Ni un rol Portal ADMINISTRATIVO reabre la puerta a un vendedor del CRM: el
+  // veto va antes de la compatibilidad del Portal (revisión Codex 15/09/2026).
+  for (const rolPortal of ['admin', 'superadmin', 'operaciones']) {
+    assert.equal(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: rolPortal },
+        { estado: 'miembro', perfil_id: 'vendedor-3', rol_crm: 'vendedor', puede_contratar: true },
+        'vendedor-3',
+      ),
+      null,
+      `rol Portal ${rolPortal} no debe autorizar a un vendedor`,
+    );
+  }
+  // El veto no depende del literal exacto que entregue la RPC.
+  for (const variante of ['Vendedor', 'VENDEDOR', ' vendedor ', 'vendedor\n']) {
+    assert.equal(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: 'admin' },
+        { estado: 'miembro', perfil_id: 'vendedor-4', rol_crm: variante, puede_contratar: true },
+        'vendedor-4',
+      ),
+      null,
+      `variante ${JSON.stringify(variante)} debe quedar vetada`,
+    );
+  }
+});
+
+test('los roles administrativos del Portal conservan el alta directa, con o sin membresía CRM', () => {
+  // Sin membresía (los dos admin no enrolados del censo): vía Portal, sin
+  // apropiarse de la cartera.
+  for (const rolPortal of ['admin', 'superadmin', 'operaciones']) {
+    assert.deepEqual(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: rolPortal },
+        { estado: 'no_enrolado', perfil_id: `${rolPortal}-1`, puede_contratar: false },
+        `${rolPortal}-1`,
+      ),
+      { asesorId: null, via: 'portal' },
+    );
+  }
+  // Gerencia CRM con rol Portal admin/superadmin (los dos gerentes del censo):
+  // resuelve por la vía Portal, también sin apropiarse de la cartera.
+  for (const rolPortal of ['admin', 'superadmin']) {
+    assert.deepEqual(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: rolPortal },
+        { estado: 'miembro', perfil_id: `ger-${rolPortal}`, rol_crm: 'gerencia', puede_contratar: true },
+        `ger-${rolPortal}`,
+      ),
+      { asesorId: null, via: 'portal' },
+    );
+  }
+  // Superadmin que solo administra roles (sin membresía operativa).
   assert.deepEqual(
     resolverAutorizacionAltaCliente(
-      { activo: true, rol: 'comercial' },
-      {
-        estado: 'miembro',
-        perfil_id: 'vendedor-nuevo',
-        rol_crm: 'vendedor',
-        puede_contratar: true,
-      },
-      'vendedor-nuevo',
+      { activo: true, rol: 'superadmin' },
+      { estado: 'administrador_roles', perfil_id: 'sa-1', puede_contratar: false },
+      'sa-1',
     ),
-    { asesorId: 'vendedor-nuevo', via: 'crm' },
+    { asesorId: null, via: 'portal' },
   );
+});
+
+test('un supervisor o gerente comercial SIN capacidad de contratar no da de alta (la rama CRM exige puede_contratar)', () => {
+  for (const rolCrm of ['supervisor', 'gerencia']) {
+    assert.equal(
+      resolverAutorizacionAltaCliente(
+        { activo: true, rol: 'comercial' },
+        { estado: 'miembro', perfil_id: `${rolCrm}-sin`, rol_crm: rolCrm, puede_contratar: false },
+        `${rolCrm}-sin`,
+      ),
+      null,
+    );
+  }
 });
 
 test('conserva los roles históricos del Portal y su autoasignación', () => {
@@ -37,6 +126,20 @@ test('conserva los roles históricos del Portal y su autoasignación', () => {
       'ops-1',
     ),
     { asesorId: null, via: 'portal' },
+  );
+});
+
+test('un supervisor con el rol Portal legacy `analista` conserva exactamente la vía de hoy', () => {
+  // Dos supervisores reales tienen todavía rol Portal `analista`: el veto del
+  // analista no los toca, y su comportamiento (vía Portal, autoasignado) no
+  // cambia con esta entrega.
+  assert.deepEqual(
+    resolverAutorizacionAltaCliente(
+      { activo: true, rol: 'analista' },
+      { estado: 'miembro', perfil_id: 'sup-legacy', rol_crm: 'supervisor', puede_contratar: true },
+      'sup-legacy',
+    ),
+    { asesorId: 'sup-legacy', via: 'portal' },
   );
 });
 
