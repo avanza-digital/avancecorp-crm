@@ -270,7 +270,7 @@ Deno.test("respuesta de reclamo futura devuelve el lease identificable sin hacer
         data: estado("procesando", {
           adquirido: true,
           lease_token: LEASE_TOKEN,
-          template_version: "contrato-aep-17-v9",
+          template_version: "contrato-aep-17-v10",
         }),
         error: null,
       },
@@ -749,6 +749,45 @@ Deno.test("status conserva descarga de PDFs v6 históricos ya sellados", async (
     request({ action: "status", contratoId: CONTRATO_ID }),
   );
   igual(res.status, 200, "histórico v6 legible bajo la constante v7");
+  assert(
+    calls.indexOf("download") < calls.indexOf("sign"),
+    "también verifica el histórico antes de firmar",
+  );
+});
+
+Deno.test("status conserva descarga de PDFs v8 históricos ya sellados", async () => {
+  const blob = new Blob(["%PDF-1.7\nhistorico-v8"], {
+    type: "application/pdf",
+  });
+  const hash = await sha256(blob);
+  const templateVersion = "contrato-aep-17-v8";
+  const archivo = {
+    contrato_id: CONTRATO_ID,
+    job_id: JOB_ID,
+    storage_bucket: "contratos-generados",
+    storage_path: PATH,
+    nombre_archivo: "Contrato-2026-01-000777.pdf",
+    sha256: hash,
+    bytes: blob.size,
+    template_version: templateVersion,
+    generado_en: "2026-09-08T20:00:00Z",
+  };
+  const { deps, calls } = fake({
+    actor: [{
+      data: estado("sellado", {
+        template_version: templateVersion,
+        sha256: hash,
+        bytes: blob.size,
+        archivo,
+      }),
+      error: null,
+    }],
+    downloads: [blob],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "status", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 200, "histórico v8 legible bajo la constante v9");
   assert(
     calls.indexOf("download") < calls.indexOf("sign"),
     "también verifica el histórico antes de firmar",

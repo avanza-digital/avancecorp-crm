@@ -46,6 +46,15 @@ Ante dos lecturas posibles de "mancomunada", Miguel eligió (vía pregunta direc
   ANTES** de abrir el modal (si no, un guardado ultrarrápido con el editor vacío los
   borraría).
 
+## En el contrato PDF (cambio del 14/09/2026)
+
+Hasta la plantilla v8 el PDF imprimía y hacía firmar **solo al titular principal**; los
+co-titulares viajaban en el snapshot pero no salían («por decisión legal»). **Miguel lo cambia
+el 14/09/2026**: desde la plantilla v9 el contrato nombra a los co-titulares en la comparecencia
+(actúan de manera conjunta como EL ASOCIADO) y cada uno firma al final, rotulado EL ASOCIADO.
+Solo nombre y documento; solo contratos nuevos (los PDF sellados no cambian). Detalle y estado en
+[[Plantilla v9 del PDF - cotitulares en el contrato (2026-09-14)]].
+
 ## Estado
 
 - **Completo en producción** (2026-07-14): BD (migración

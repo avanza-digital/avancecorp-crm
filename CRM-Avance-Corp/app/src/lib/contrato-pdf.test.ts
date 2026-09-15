@@ -1,3 +1,4 @@
+import type { TDocumentDefinitions } from 'pdfmake/interfaces'
 import { describe, expect, it } from 'vitest'
 import { construirContratoPdf, nombreArchivoContrato, type ContratoPdfDatos } from './contrato-pdf'
 
@@ -32,6 +33,16 @@ const DATOS: ContratoPdfDatos = {
   ],
 }
 
+/** El bloque de firmas es el único nodo del contenido que apila filas de columnas. */
+function nodoFirmas(definicion: TDocumentDefinitions): Record<string, unknown> | undefined {
+  const contenido = definicion.content as unknown as Array<Record<string, unknown>>
+  return contenido.find(
+    (nodo) =>
+      Array.isArray(nodo.stack) &&
+      (nodo.stack as Array<Record<string, unknown>>).some((fila) => Array.isArray(fila?.columns)),
+  )
+}
+
 function todosLosTextos(valor: unknown): string {
   if (typeof valor === 'string') return valor
   if (Array.isArray(valor)) return valor.map(todosLosTextos).join(' ')
@@ -48,7 +59,7 @@ describe('contrato PDF legal', () => {
     )
   })
 
-  it('construye las 17 cláusulas con los datos variables del titular y excluye cotitulares', () => {
+  it('construye las 17 cláusulas con los datos variables del titular e incluye a los co-titulares', () => {
     const definicion = construirContratoPdf(DATOS, {
       fondo: 'data:image/png;base64,FONDO',
       firmaAsociante: 'data:image/png;base64,FIRMA',
@@ -64,7 +75,42 @@ describe('contrato PDF legal', () => {
     expect(texto).toContain('diez por ciento (10.00 %)')
     expect(texto).toContain('ANALISTA UNO')
     expect(texto).toContain('DÉCIMA SÉTIMA: DECLARACIÓN FINAL DE LAS PARTES')
-    expect(texto).not.toContain('CÉSAR AUGUSTO ROMERO DELGADO')
+    expect(texto).toContain('CÉSAR AUGUSTO ROMERO DELGADO')
+    expect(texto).toContain('DNI N.° 41563209')
+    expect(texto).toContain('quienes actúan de manera conjunta y a quienes se les denominará EL ASOCIADO')
+    expect(texto).not.toContain('a quien se le denominará EL ASOCIADO')
+  })
+
+  it('sin co-titulares la comparecencia y la firma son las de siempre', () => {
+    const definicion = construirContratoPdf(
+      { ...DATOS, cotitulares: [] },
+      { fondo: 'data:image/png;base64,FONDO', firmaAsociante: 'data:image/png;base64,FIRMA' },
+    )
+    const texto = todosLosTextos(definicion)
+    const firmas = JSON.stringify(nodoFirmas(definicion))
+
+    expect(texto).toContain('a quien se le denominará EL ASOCIADO')
+    expect(texto).not.toContain('actúan de manera conjunta')
+    expect(firmas.match(/____________________________/g)).toHaveLength(1)
+    expect(firmas.match(/"EL ASOCIADO"/g)).toHaveLength(1)
+    expect(firmas).toContain('"EL ASOCIANTE"')
+  })
+
+  it('hace firmar al titular y a cada co-titular, todos como EL ASOCIADO, en un bloque indivisible', () => {
+    const definicion = construirContratoPdf(DATOS, {
+      fondo: 'data:image/png;base64,FONDO',
+      firmaAsociante: 'data:image/png;base64,FIRMA',
+    })
+    const bloque = nodoFirmas(definicion)
+    const firmas = JSON.stringify(bloque)
+
+    expect(bloque).toMatchObject({ unbreakable: true })
+    expect(bloque?.stack).toHaveLength(2)
+    expect(firmas.match(/____________________________/g)).toHaveLength(2)
+    expect(firmas.match(/"EL ASOCIADO"/g)).toHaveLength(2)
+    expect(firmas).toContain('"CÉSAR AUGUSTO ROMERO DELGADO"')
+    expect(firmas).toContain('"DNI N.° 41563209"')
+    expect(firmas.indexOf('GLADYS')).toBeLessThan(firmas.indexOf('CÉSAR'))
   })
 
   it('adapta la identificación cuando el titular usa Carné de Extranjería', () => {
@@ -152,9 +198,10 @@ describe('contrato PDF legal', () => {
     const declaracionFinal = contenido.find(
       (nodo) => nodo.text === 'DÉCIMA SÉTIMA: DECLARACIÓN FINAL DE LAS PARTES',
     )
-    const firmas = contenido.find((nodo) => Array.isArray(nodo.columns))
+    const firmas = nodoFirmas(definicion)
 
     expect(declaracionFinal).toMatchObject({ pageBreak: 'before' })
+    expect(firmas).toBeDefined()
     expect(firmas).not.toHaveProperty('pageBreak')
   })
 

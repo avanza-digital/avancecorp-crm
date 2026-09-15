@@ -332,7 +332,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs v8 byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v9 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -348,10 +348,10 @@ Deno.test("PdfPrinter produce dos PDFs v8 byte-idénticos con fecha fija", async
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "e0a320531bc66882c9aec0c42b418af77dd08d23184c9ec79f13b792e35feb52",
-    "golden byte a byte del template v8",
+    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
+    "golden byte a byte del template v9 (sin co-titulares)",
   );
-  igual(primero.bytes, 218672, "tamaño golden del template v8");
+  igual(primero.bytes, 218672, "tamaño golden del template v9");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,
@@ -364,4 +364,159 @@ Deno.test("PdfPrinter produce dos PDFs v8 byte-idénticos con fecha fija", async
   igual(a.length, b.length, "misma longitud");
   assert(a.every((byte, indice) => byte === b[indice]), "igualdad byte a byte");
   igual(new TextDecoder().decode(a.slice(0, 5)), "%PDF-", "cabecera PDF");
+});
+
+// ── Plantilla v9: co-titulares (cuenta mancomunada) ────────────────────────
+
+const ASSETS_PRUEBA = {
+  fondo: "data:image/png;base64,fondo",
+  firmaAsociante: "data:image/png;base64,firma-kirk",
+};
+
+function cotitularesDePrueba(cantidad: number) {
+  return Array.from({ length: cantidad }, (_, indice) => ({
+    id: `77777777-7777-4777-8777-7777777777${
+      String(indice + 1).padStart(2, "0")
+    }`,
+    orden: indice + 1,
+    nombreCompleto: `COTITULAR PRUEBA ${indice + 1}`,
+    tipoDocumento: "DNI" as const,
+    documento: String(40000000 + indice + 1),
+  }));
+}
+
+function datosConCotitulares(cantidad: number) {
+  return {
+    contrato: {
+      numero: SNAPSHOT.contrato.numero,
+      capital: SNAPSHOT.contrato.capital,
+      moneda: "PEN" as const,
+      porcentaje: SNAPSHOT.contrato.porcentaje,
+      fechaInicio: SNAPSHOT.contrato.fechaInicio,
+      fechaVencimiento: SNAPSHOT.contrato.fechaVencimiento,
+    },
+    titular: {
+      nombreCompleto: SNAPSHOT.titular.nombreCompleto,
+      tipoDocumento: "DNI" as const,
+      documento: SNAPSHOT.titular.documento,
+      domicilio: SNAPSHOT.titular.domicilio,
+      correo: SNAPSHOT.titular.correo,
+    },
+    analista: SNAPSHOT.analista,
+    cotitulares: cotitularesDePrueba(cantidad).map((cotitular) => ({
+      nombreCompleto: cotitular.nombreCompleto,
+      tipoDocumento: cotitular.tipoDocumento,
+      documento: cotitular.documento,
+    })),
+  };
+}
+
+function contar(texto: string, aguja: string): number {
+  return texto.split(aguja).length - 1;
+}
+
+/** El bloque de firmas es siempre el último nodo del contenido. */
+function bloqueFirmasDe(
+  definicion: { content: unknown },
+): Record<string, unknown> {
+  const contenido = definicion.content as Array<Record<string, unknown>>;
+  return contenido[contenido.length - 1];
+}
+
+async function paginasDe(resultado: { blob: Blob }): Promise<number> {
+  const bytes = new Uint8Array(await resultado.blob.arrayBuffer());
+  const texto = new TextDecoder("latin1").decode(bytes).replace(
+    /\/Type \/Pages/g,
+    "",
+  );
+  return contar(texto, "/Type /Page");
+}
+
+const ROTULO_ASOCIADO =
+  '"text":"EL ASOCIADO","bold":true,"alignment":"center","fontSize":10.5';
+const RAYA_FIRMA = "____________________________";
+const CIERRE_CONJUNTO =
+  ", quienes actúan de manera conjunta y a quienes se les denominará EL ASOCIADO, bajo los términos y condiciones siguientes:";
+const CIERRE_SINGULAR =
+  ", a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:";
+
+Deno.test("template v9 nombra al co-titular en la comparecencia y lo hace firmar como EL ASOCIADO", () => {
+  const con = JSON.stringify(
+    construirContratoPdf(datosConCotitulares(1), ASSETS_PRUEBA).content,
+  );
+  const sin = JSON.stringify(
+    construirContratoPdf(datosConCotitulares(0), ASSETS_PRUEBA).content,
+  );
+
+  assert(
+    con.includes('"text":"COTITULAR PRUEBA 1","bold":true'),
+    "nombre del co-titular en negrita",
+  );
+  assert(
+    con.includes('"text":"DNI N° 40000001","bold":true'),
+    "documento del co-titular en negrita",
+  );
+  assert(con.includes('"text":"; y "'), "conjunción antes del último");
+  assert(con.includes(CIERRE_CONJUNTO), "cierre conjunto de la comparecencia");
+  assert(
+    !con.includes(CIERRE_SINGULAR),
+    "el cierre singular desaparece con co-titulares",
+  );
+  igual(contar(con, ROTULO_ASOCIADO), 2, "dos rótulos EL ASOCIADO");
+  igual(contar(con, RAYA_FIRMA), 2, "dos rayas de firma");
+  igual(contar(con, '"text":"EL ASOCIANTE"'), 1, "Avance Corp firma una vez");
+  assert(
+    con.includes('"unbreakable":true,"margin":[0,24,0,5]'),
+    "bloque de firmas indivisible con el margen de siempre",
+  );
+  const bloque = bloqueFirmasDe(
+    construirContratoPdf(datosConCotitulares(1), ASSETS_PRUEBA),
+  );
+  igual(
+    (bloque.stack as unknown[]).length,
+    2,
+    "fila del titular + fila del co-titular",
+  );
+
+  assert(sin.includes(CIERRE_SINGULAR), "sin co-titulares, cierre singular");
+  assert(
+    !sin.includes("actúan de manera conjunta"),
+    "sin co-titulares no hay texto conjunto",
+  );
+  igual(contar(sin, ROTULO_ASOCIADO), 1, "un solo EL ASOCIADO");
+  igual(contar(sin, RAYA_FIRMA), 1, "una sola raya");
+});
+
+Deno.test("template v9 hace caber cinco co-titulares (tope del CRM) en la hoja de firmas", async () => {
+  const definicion = construirContratoPdf(
+    datosConCotitulares(5),
+    ASSETS_PRUEBA,
+  );
+  const bloque = bloqueFirmasDe(definicion);
+  const texto = JSON.stringify(bloque);
+  igual(
+    (bloque.stack as unknown[]).length,
+    4,
+    "titular + Avance, y tres filas de pares",
+  );
+  igual(contar(texto, ROTULO_ASOCIADO), 6, "seis rótulos EL ASOCIADO");
+  igual(contar(texto, RAYA_FIRMA), 6, "seis rayas de firma");
+  assert(
+    texto.includes('"text":"COTITULAR PRUEBA 5"'),
+    "el quinto co-titular firma",
+  );
+
+  const fecha = "2026-08-17T20:00:00.000Z";
+  const sin = await renderizarContratoPdfV2(SNAPSHOT, fecha);
+  const con = await renderizarContratoPdfV2(
+    { ...SNAPSHOT, cotitulares: cotitularesDePrueba(5) },
+    fecha,
+  );
+  const paginasSin = await paginasDe(sin);
+  const paginasCon = await paginasDe(con);
+  assert(paginasSin >= 8, `el contrato base ocupa ${paginasSin} hojas`);
+  assert(
+    paginasCon <= paginasSin + 1,
+    `cinco co-titulares añaden a lo sumo una hoja (${paginasSin} → ${paginasCon})`,
+  );
 });

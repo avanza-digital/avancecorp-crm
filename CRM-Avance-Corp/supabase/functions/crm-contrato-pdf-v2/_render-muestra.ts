@@ -1,6 +1,45 @@
 // Uso puntual: renderiza un contrato de muestra con el renderer REAL de la edge
-// (plantilla v5, fondo y firma verificados por SHA-256). No toca producción.
+// (la plantilla vigente, la de CONTRATO_PDF_TEMPLATE_VERSION, con fondo y firma
+// verificados por SHA-256). No toca producción.
+//
+//   deno run -A _render-muestra.ts [destino.pdf] [fechaISO] [--cotitulares=N]
+//
+// --cotitulares=N (0 por defecto, máximo 20) añade N co-titulares ficticios al
+// snapshot para ver cómo los nombra la comparecencia y cómo firman al final.
 import { renderizarContratoPdfV2 } from "./renderer.ts";
+
+const NOMBRES_COTITULARES = [
+  "COTITULAR PRUEBA UNO",
+  "COTITULAR PRUEBA DOS",
+  "COTITULAR PRUEBA TRES",
+  "COTITULAR PRUEBA CUATRO",
+  "COTITULAR PRUEBA CINCO",
+];
+
+function cotitularesDeMuestra(cantidad: number) {
+  return Array.from({ length: cantidad }, (_, indice) => ({
+    id: `77777777-7777-4777-8777-7777777777${
+      String(indice + 1).padStart(2, "0")
+    }`,
+    orden: indice + 1,
+    nombreCompleto: NOMBRES_COTITULARES[indice] ??
+      `COTITULAR PRUEBA ${indice + 1}`,
+    tipoDocumento: "DNI",
+    documento: String(40000000 + indice + 1),
+  }));
+}
+
+const posicionales = Deno.args.filter((arg) => !arg.startsWith("--"));
+const flagCotitulares = Deno.args.find((arg) =>
+  arg.startsWith("--cotitulares=")
+);
+const cantidadCotitulares = Number(flagCotitulares?.split("=")[1] ?? "0");
+if (
+  !Number.isInteger(cantidadCotitulares) || cantidadCotitulares < 0 ||
+  cantidadCotitulares > 20
+) {
+  throw new Error("--cotitulares debe ser un entero entre 0 y 20");
+}
 
 const SNAPSHOT = {
   snapshotVersion: 2,
@@ -34,7 +73,7 @@ const SNAPSHOT = {
     celular: "999111222",
     correo: "analista@example.test",
   },
-  cotitulares: [],
+  cotitulares: cotitularesDeMuestra(cantidadCotitulares),
   cronograma: [{
     id: "55555555-5555-4555-8555-555555555555",
     numeroCuota: 1,
@@ -56,10 +95,10 @@ const SNAPSHOT = {
   },
 };
 
-const destino = Deno.args[0] ?? "contrato-muestra.pdf";
+const destino = posicionales[0] ?? "contrato-muestra.pdf";
 const resultado = await renderizarContratoPdfV2(
   SNAPSHOT,
-  Deno.args[1] ?? "2026-09-01T12:00:00Z",
+  posicionales[1] ?? "2026-09-01T12:00:00Z",
 );
 await Deno.writeFile(
   destino,
@@ -68,6 +107,7 @@ await Deno.writeFile(
 console.log(
   JSON.stringify({
     destino,
+    cotitulares: cantidadCotitulares,
     bytes: resultado.bytes,
     sha256: resultado.sha256,
   }),

@@ -7,12 +7,14 @@ import {
 } from './demo-clientes'
 
 describe('datos demo para el contrato PDF', () => {
-  it('conserva la mancomunación internamente pero identifica un titular principal', () => {
+  it('identifica un titular principal y lleva aparte a su co-titular (nunca al principal repetido)', () => {
     const datos = DATOS_PDF_DEMO['dc-ct-c']
 
     expect(datos?.titular.nombreCompleto).toBe('GLADYS PILAR YUPANQUI ROJAS')
     expect(datos?.titular.domicilio).toContain('Lima')
-    expect(datos?.cotitulares).toHaveLength(2)
+    expect(datos?.cotitulares).toHaveLength(1)
+    expect(datos?.cotitulares?.[0]?.nombreCompleto).toBe('CÉSAR AUGUSTO ROMERO DELGADO')
+    expect(datos?.cotitulares?.map((c) => c.documento)).not.toContain(datos?.titular.documento)
   })
 
   it('ofrece identidad legal con domicilio para cada cliente que puede contratar', () => {

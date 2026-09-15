@@ -1,4 +1,5 @@
 import type {
+  Column,
   Content,
   ContentColumns,
   ContentTable,
@@ -29,7 +30,11 @@ export interface ContratoPdfDatos {
     celular: string;
     correo: string;
   };
-  /** Se conservan en el CRM, pero por decisión legal no aparecen en el PDF. */
+  /**
+   * Co-titulares de la cuenta mancomunada. Desde la plantilla v9 (decisión de
+   * Miguel, 14/09/2026) aparecen en la comparecencia y firman al final. Solo
+   * nombre y documento: no se guarda su domicilio ni su correo.
+   */
   cotitulares?: Array<{
     nombreCompleto: string;
     tipoDocumento: TipoDocumento;
@@ -484,14 +489,163 @@ export function nombreArchivoContrato(datos: ContratoPdfDatos): string {
   return `Contrato-${datos.contrato.numero}-${nombre}.pdf`;
 }
 
+type Cotitular = NonNullable<ContratoPdfDatos["cotitulares"]>[number];
+
+function documentoDe(
+  persona: { tipoDocumento: TipoDocumento; documento: string },
+): string {
+  return `${etiquetaDocumento(persona.tipoDocumento)} N° ${persona.documento}`;
+}
+
+/**
+ * Comparecencia del ASOCIADO. Sin co-titulares devuelve exactamente los seis
+ * fragmentos de la v8 (el texto no cambia ni un carácter). Con co-titulares
+ * los nombra a todos y declara que actúan de manera conjunta; de ellos solo
+ * se conocen nombre y documento, así que no se afirma ningún domicilio suyo.
+ */
+function comparecenciaAsociado(
+  titular: ContratoPdfDatos["titular"],
+  documento: string,
+  cotitulares: Cotitular[],
+): Content {
+  const fragmentos: ContentText[] = [
+    { text: titular.nombreCompleto, bold: true },
+    { text: ", con " },
+    { text: documento, bold: true },
+    { text: " y con domicilio en " },
+    { text: titular.domicilio.toUpperCase(), bold: true },
+  ];
+  if (cotitulares.length === 0) {
+    fragmentos.push({
+      text:
+        ", a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:",
+    });
+    return parrafo(fragmentos);
+  }
+  cotitulares.forEach((cotitular, indice) => {
+    fragmentos.push(
+      { text: indice === cotitulares.length - 1 ? "; y " : "; " },
+      { text: cotitular.nombreCompleto, bold: true },
+      { text: ", con " },
+      { text: documentoDe(cotitular), bold: true },
+    );
+  });
+  fragmentos.push({
+    text:
+      ", quienes actúan de manera conjunta y a quienes se les denominará EL ASOCIADO, bajo los términos y condiciones siguientes:",
+  });
+  return parrafo(fragmentos);
+}
+
+function firmaAsociado(nombre: string, documento: string): Column {
+  return {
+    width: "48%",
+    stack: [
+      {
+        text: "____________________________",
+        alignment: "center",
+        margin: [0, 42, 0, 0],
+      },
+      {
+        text: nombre,
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+      },
+      {
+        text: documento,
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+      },
+      {
+        text: "EL ASOCIADO",
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+      },
+    ],
+  };
+}
+
+function firmaAsociante(): Column {
+  return {
+    width: "48%",
+    stack: [
+      {
+        image: "firmaAsociante",
+        cover: {
+          width: 93,
+          height: 65,
+          align: "center",
+          valign: "center",
+        },
+        alignment: "center",
+        margin: [0, 0, 0, -3],
+      },
+      {
+        text: "AVANCE CORP SAC",
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+        lineHeight: 1,
+      },
+      {
+        text: "RUC N° 20611392088",
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+        lineHeight: 1,
+      },
+      {
+        text: "EL ASOCIANTE",
+        bold: true,
+        alignment: "center",
+        fontSize: TIPOGRAFIA.firma,
+        lineHeight: 1,
+      },
+    ],
+  };
+}
+
+/**
+ * Bloque de firmas. La primera fila es la de siempre (titular + Avance Corp);
+ * los co-titulares firman debajo, de dos en dos y rotulados EL ASOCIADO. Todo
+ * va en un solo nodo indivisible para que ninguna firma caiga en otra hoja.
+ */
+function bloqueFirmas(
+  titular: ContratoPdfDatos["titular"],
+  documento: string,
+  cotitulares: Cotitular[],
+): Content {
+  const filas: ContentColumns[] = [
+    {
+      columns: [
+        firmaAsociado(titular.nombreCompleto, documento),
+        firmaAsociante(),
+      ],
+      columnGap: 18,
+    },
+  ];
+  for (let inicio = 0; inicio < cotitulares.length; inicio += 2) {
+    const par: Column[] = cotitulares
+      .slice(inicio, inicio + 2)
+      .map((cotitular) =>
+        firmaAsociado(cotitular.nombreCompleto, documentoDe(cotitular))
+      );
+    if (par.length === 1) par.push({ width: "48%", text: "" });
+    filas.push({ columns: par, columnGap: 18 });
+  }
+  return { stack: filas, unbreakable: true, margin: [0, 24, 0, 5] };
+}
+
 export function construirContratoPdf(
   datos: ContratoPdfDatos,
   assets: ContratoPdfAssets,
 ): TDocumentDefinitions {
   const { contrato, titular, analista } = datos;
-  const documento = `${
-    etiquetaDocumento(titular.tipoDocumento)
-  } N° ${titular.documento}`;
+  const cotitulares = datos.cotitulares ?? [];
+  const documento = documentoDe(titular);
   const porcentajeLetras = enteroEnLetras(contrato.porcentaje);
   const fechaFirma = fechaPartes(contrato.fechaInicio);
 
@@ -528,17 +682,7 @@ export function construirContratoPdf(
         text: ", a quien se le denominará EL ASOCIANTE y, de la otra parte;",
       },
     ]),
-    parrafo([
-      { text: titular.nombreCompleto, bold: true },
-      { text: ", con " },
-      { text: documento, bold: true },
-      { text: " y con domicilio en " },
-      { text: titular.domicilio.toUpperCase(), bold: true },
-      {
-        text:
-          ", a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:",
-      },
-    ]),
+    comparecenciaAsociado(titular, documento, cotitulares),
     ...clausulaEstatica(1),
     ...clausulaEstatica(2),
     {
@@ -711,78 +855,7 @@ export function construirContratoPdf(
     parrafo(
       `Las partes suscriben el presente documento en señal de conformidad a los ${fechaFirma.dia} días del mes de ${fechaFirma.mes} del ${fechaFirma.anio}.`,
     ),
-    {
-      columns: [
-        {
-          width: "48%",
-          stack: [
-            {
-              text: "____________________________",
-              alignment: "center",
-              margin: [0, 42, 0, 0],
-            },
-            {
-              text: titular.nombreCompleto,
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-            },
-            {
-              text: documento,
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-            },
-            {
-              text: "EL ASOCIADO",
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-            },
-          ],
-        },
-        {
-          width: "48%",
-          stack: [
-            {
-              image: "firmaAsociante",
-              cover: {
-                width: 93,
-                height: 65,
-                align: "center",
-                valign: "center",
-              },
-              alignment: "center",
-              margin: [0, 0, 0, -3],
-            },
-            {
-              text: "AVANCE CORP SAC",
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-              lineHeight: 1,
-            },
-            {
-              text: "RUC N° 20611392088",
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-              lineHeight: 1,
-            },
-            {
-              text: "EL ASOCIANTE",
-              bold: true,
-              alignment: "center",
-              fontSize: TIPOGRAFIA.firma,
-              lineHeight: 1,
-            },
-          ],
-        },
-      ],
-      columnGap: 18,
-      unbreakable: true,
-      margin: [0, 24, 0, 5],
-    } as ContentColumns,
+    bloqueFirmas(titular, documento, cotitulares),
   ];
 
   return {

@@ -461,18 +461,21 @@ export const CRONOGRAMAS_DEMO: Record<string, Cuota[]> = {
   ),
 }
 
-/** Co-titulares por contrato_id — solo el contrato C es mancomunado (2 titulares). */
+/**
+ * Co-titulares por contrato_id — solo el contrato C es mancomunado. Como en
+ * `public.contrato_titulares`, aquí van SOLO los co-titulares: la titular principal
+ * (GLADYS) es `contratos.cliente_id` y no se repite en esta lista.
+ */
 export const TITULARES_DEMO: Record<string, Titular[]> = {
   [CONTRATO_C.id]: [
-    { nombre_completo: 'GLADYS PILAR YUPANQUI ROJAS', tipo_documento: 'DNI', documento: '40928175', orden: 1 },
-    { nombre_completo: 'CÉSAR AUGUSTO ROMERO DELGADO', tipo_documento: 'DNI', documento: '41563209', orden: 2 },
+    { nombre_completo: 'CÉSAR AUGUSTO ROMERO DELGADO', tipo_documento: 'DNI', documento: '41563209', orden: 1 },
   ],
 }
 
 // ── Fotografía legal para el PDF demo ────────────────────────────────────────
 // Domicilios y datos del analista son deliberadamente ficticios. Esta foto se
-// entrega al generador; los co-titulares viajan para demostrar que el sistema
-// conserva la mancomunación, aunque el PDF imprime y firma SOLO el principal.
+// entrega al generador; desde la plantilla v9 (14/09/2026) el PDF nombra a los
+// co-titulares en la comparecencia y los hace firmar junto al principal.
 const DOMICILIOS_PDF_DEMO: Record<string, string> = {
   'dc-cli-1': 'Av. Los Laureles 456, San Isidro, Lima',
   'dc-cli-2': 'Jr. Las Begonias 789, Santiago de Surco, Lima',

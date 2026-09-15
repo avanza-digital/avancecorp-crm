@@ -9637,3 +9637,61 @@ PASS y concurrencia local PASS. RLS general conserva los mismos 49/1827 FAIL en
 el A/B previo a F8, sin aserciones nuevas; no se declara PASS global. Advisors,
 huellas, límites, revisiones resueltas, activación y reversa en
 `UX-UI-GERENCIA/citas-publicacion-2026-09-14/README.md` desde la raíz del repositorio.
+
+## 20260915005752 — Contrato PDF · plantilla v9: co-titulares en comparecencia y firmas
+
+**Estado: 🟡 PENDIENTE de publicar.** Muestras (PDF con y sin co-titular, datos ficticios)
+enviadas a Miguel el 14/09/2026 por la noche; falta su aprobación del texto y la ubicación
+(regla del 07/09: nada de co-titulares en el PDF sin verlo antes) y su `!` para publicar en
+ventana muerta, en este orden: edge → esta migración → `scripts/registrar-pdf-v9.sql` →
+release del front. Mientras tanto NADA se ha desplegado ni aplicado.
+
+`20260915005752_crm_contrato_pdf_plantilla_v9_cotitulares.sql`. Cuando el contrato tiene cuenta
+mancomunada, la plantilla nombra a los co-titulares en la comparecencia («…; y NOMBRE, con DNI N° X,
+quienes actúan de manera conjunta y a quienes se les denominará EL ASOCIADO, bajo los términos y
+condiciones siguientes:») y los hace firmar al final, rotulados EL ASOCIADO, debajo de la fila
+titular + Avance Corp (de dos en dos, todo en un solo bloque indivisible). De cada co-titular van
+solo nombre y documento — no se guarda domicilio ni correo — y ya viajaban en el snapshot desde la
+v2: la plantilla los descartaba por la decisión de julio, que Miguel anula el 14/09. Decisiones de
+Miguel del 14/09: solo nombre y documento; **solo contratos nuevos** (los sellados no se tocan);
+ambos rotulados EL ASOCIADO. **Sin co-titulares el PDF es idéntico a la v8 píxel a píxel** (8/8
+hojas a 100 dpi; texto 22 233 caracteres, hash `80c69029404fdf9e`; con la constante aún en v8 la
+plantilla nueva reprodujo el golden v8 exacto).
+
+**Qué hace en la base.** Espejo exacto de la v8: declara `contrato-aep-17-v9` en los dos CHECK
+(v2..v9, aditivo), la fija como default, convierte de v8 a v9 solo las reservas sin bytes (sin
+lease, sin sha256, sin bytes, sin `subido_en`) con el trigger de inmutabilidad apagado por nombre
+dentro de la transacción, y reescribe el literal en el CUERPO VIVO de
+`private.crear_job_contrato_pdf_base` y `private.crear_revision_contrato_pdf_base` (conjunto
+exacto, una ocurrencia, huella y OID medidos antes y después; desde la v8 ninguna migración del
+árbol redefinió esos cuerpos, `20260908211349` solo los llama). Guarda de `public`, preflight de
+reservas en vuelo, candados antes de contar, `begin`/`commit` explícitos. **No crea revisiones.**
+Postcheck `CONTRATO_PDF_V9_MIGRATION_OK`. Nada en `public`, ningún dato ni snapshot se toca.
+
+**Foto de producción el 14/09 (solo lectura).** 19 contratos mancomunados, todos con 1 co-titular,
+8 del régimen nuevo; 17 con PDF sellado (1 v2, 6 v5, 1 v6, 6 v7, 3 v8; en 6 de ellos el snapshot
+ni siquiera lleva al co-titular porque se añadió después del sello) y **1 reserva `pendiente` v8
+con el co-titular en el snapshot**: la migración la pasa a v9 y saldrá con los dos titulares si
+nadie la abre antes. Ningún co-titular coincide con su titular principal. `contrato_titulares` no
+limita `orden` (máximo real hoy: 1); el tope 5 lo ponen CRM y portal; el renderer admite 20.
+
+**Edge.** `crm-contrato-pdf-v2`: `CONTRATO_PDF_TEMPLATE_VERSION = 'contrato-aep-17-v9'`, v8 añadida
+a `versionJobLegible` (v2/v5/v6/v7/v8 + la propia). `template-v2.ts`: `documentoDe`,
+`comparecenciaAsociado`, `firmaAsociado`/`firmaAsociante`/`bloqueFirmas`; el comentario «por
+decisión legal no aparecen» se sustituye por la decisión del 14/09. Golden v9 sin co-titular
+`6ffb935d…`, 218 672 bytes. `_render-muestra.ts [destino] [fecha] --cotitulares=N`. Tests
+**52/52** (nuevos: co-titular nombrado en negrita y firmando con 2 rótulos; 5 co-titulares caben
+en la hoja, 8→9 páginas; histórico v8 sigue descargable; la «versión futura» del handler pasa a
+v10). Función viva contrastada por la API de gestión antes de tocar: **9/9 módulos byte a byte =
+HEAD** (ojo: `functions download` del CLI devuelve código transpilado y NO sirve para contrastar).
+
+**Front (gemela del modo demo).** `app/src/lib/contrato-pdf.ts` con los mismos helpers (texto
+plano, «N.°»); fixture demo corregido: `TITULARES_DEMO` listaba a la titular principal como
+co-titular y habría impreso a GLADYS dos veces. Tests 29/29 en los módulos tocados, typecheck y
+oxlint limpios; `npm run check` completo antes del release.
+
+**Ensayo.** `scripts/banco-pdf-v9/` (copia de la v8 con la siembra en v2..v8 y el mutante del
+CHECK con `v10`): **45/45** en los 10 casos. Registrador `scripts/registrar-pdf-v9.sql` (md5
+`26534a4a1cfa9a7bb111504c4c7a8515`, migración embebida byte a byte). Reversa
+`scripts/rollback-pdf-v9.sql` + edge del árbol con constante v8, v9 en lectura y la
+`template-v2.ts` de la v8 (nunca el binario v13).

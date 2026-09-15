@@ -1,4 +1,4 @@
-import type { Content, ContentColumns, ContentTable, ContentText, TDocumentDefinitions } from 'pdfmake/interfaces'
+import type { Column, Content, ContentColumns, ContentTable, ContentText, TDocumentDefinitions } from 'pdfmake/interfaces'
 import type { TipoDocumento } from './documento'
 
 export interface ContratoPdfDatos {
@@ -23,7 +23,11 @@ export interface ContratoPdfDatos {
     celular: string
     correo: string
   }
-  /** Se conservan en el CRM, pero por decisión legal no aparecen en el PDF. */
+  /**
+   * Co-titulares de la cuenta mancomunada. Desde la plantilla v9 (decisión de
+   * Miguel, 14/09/2026) aparecen en la comparecencia y firman al final. Solo
+   * nombre y documento: no se guarda su domicilio ni su correo.
+   */
   cotitulares?: Array<{
     nombreCompleto: string
     tipoDocumento: TipoDocumento
@@ -318,12 +322,88 @@ export function nombreArchivoContrato(datos: ContratoPdfDatos): string {
   return `Contrato-${datos.contrato.numero}-${nombre}.pdf`
 }
 
+type Cotitular = NonNullable<ContratoPdfDatos['cotitulares']>[number]
+
+function documentoDe(persona: { tipoDocumento: TipoDocumento; documento: string }): string {
+  return `${etiquetaDocumento(persona.tipoDocumento)} N.° ${persona.documento}`
+}
+
+/**
+ * Comparecencia del ASOCIADO — gemela de la edge. Sin co-titulares el texto es el de
+ * siempre; con co-titulares los nombra a todos y declara que actúan de manera conjunta
+ * (de ellos solo se conocen nombre y documento: no se afirma ningún domicilio suyo).
+ */
+function comparecenciaAsociado(
+  titular: ContratoPdfDatos['titular'],
+  documento: string,
+  cotitulares: Cotitular[],
+): Content {
+  const principal = `${titular.nombreCompleto}, con ${documento} y con domicilio en ${titular.domicilio}`
+  if (cotitulares.length === 0) {
+    return parrafo(`${principal}, a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:`)
+  }
+  const resto = cotitulares
+    .map((c, i) => `${i === cotitulares.length - 1 ? '; y ' : '; '}${c.nombreCompleto}, con ${documentoDe(c)}`)
+    .join('')
+  return parrafo(
+    `${principal}${resto}, quienes actúan de manera conjunta y a quienes se les denominará EL ASOCIADO, bajo los términos y condiciones siguientes:`,
+  )
+}
+
+function firmaAsociado(nombre: string, documento: string): Column {
+  return {
+    width: '48%',
+    stack: [
+      { text: '\n____________________________', alignment: 'center' },
+      { text: nombre, bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+      { text: documento, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+      { text: 'EL ASOCIADO', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+    ],
+  }
+}
+
+function firmaAsociante(assets: ContratoPdfAssets): Column {
+  return {
+    width: '48%',
+    stack: [
+      ...(assets.firmaAsociante
+        ? [{ image: 'firmaAsociante', width: 92, height: 85, alignment: 'center', margin: [0, 0, 0, -14] }]
+        : [{ text: 'FIRMA OMITIDA · DEMOSTRACIÓN', italics: true, alignment: 'center', fontSize: 7, margin: [0, 36, 0, 26] }]),
+      { text: 'EL ASOCIANTE', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+    ],
+  } as Column
+}
+
+/**
+ * Bloque de firmas — gemela de la edge. Fila 1: titular + Avance Corp; los co-titulares
+ * firman debajo, de dos en dos, rotulados EL ASOCIADO. Un solo nodo indivisible.
+ */
+function bloqueFirmas(
+  titular: ContratoPdfDatos['titular'],
+  documento: string,
+  cotitulares: Cotitular[],
+  assets: ContratoPdfAssets,
+): Content {
+  const filas: ContentColumns[] = [
+    { columns: [firmaAsociado(titular.nombreCompleto, documento), firmaAsociante(assets)], columnGap: 18 },
+  ]
+  for (let inicio = 0; inicio < cotitulares.length; inicio += 2) {
+    const par: Column[] = cotitulares
+      .slice(inicio, inicio + 2)
+      .map((c) => firmaAsociado(c.nombreCompleto, documentoDe(c)))
+    if (par.length === 1) par.push({ width: '48%', text: '' })
+    filas.push({ columns: par, columnGap: 18 })
+  }
+  return { stack: filas, unbreakable: true, margin: [0, 6, 0, 5] } as Content
+}
+
 export function construirContratoPdf(
   datos: ContratoPdfDatos,
   assets: ContratoPdfAssets,
 ): TDocumentDefinitions {
   const { contrato, titular, analista } = datos
-  const documento = `${etiquetaDocumento(titular.tipoDocumento)} N.° ${titular.documento}`
+  const cotitulares = datos.cotitulares ?? []
+  const documento = documentoDe(titular)
   const porcentajeLetras = enteroEnLetras(contrato.porcentaje).toLowerCase()
   const fechaFirma = fechaPartes(contrato.fechaInicio)
 
@@ -331,7 +411,7 @@ export function construirContratoPdf(
     { text: 'CONTRATO DE ASOCIACIÓN EN PARTICIPACIÓN', style: 'titulo', margin: [0, 5, 0, 12] },
     parrafo('Conste por el presente documento, el Contrato de Asociación en Participación que celebran:'),
     parrafo('De una parte, AVANCE CORP S.A.C. con RUC N.° 20611392088, debidamente representada por su Gerente General, Sr. Kirk Edilberto Sánchez Ríos, con DNI N.° 44232474, según poderes inscritos en la partida electrónica N.° 15370250 del Registro de Personas Jurídicas de Lima, con domicilio en Av. República de Panamá N.° 3635, Urb. El Palomar, distrito de San Isidro, provincia y departamento de Lima, a quien se le denominará EL ASOCIANTE y, de la otra parte;'),
-    parrafo(`${titular.nombreCompleto}, con ${documento} y con domicilio en ${titular.domicilio}, a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:`),
+    comparecenciaAsociado(titular, documento, cotitulares),
     ...clausulaEstatica(1),
     ...clausulaEstatica(2),
     {
@@ -378,31 +458,7 @@ export function construirContratoPdf(
     },
     parrafo('Las partes declaran haber leído íntegramente el presente contrato, comprender su naturaleza asociativa, aceptar el riesgo empresarial inherente a las actividades empresariales materia del presente contrato y reconocer que no existe rendimiento fijo, utilidad garantizada ni devolución automática de la contribución.'),
     parrafo(`Las partes suscriben el presente documento en señal de conformidad a los ${fechaFirma.dia} días del mes de ${fechaFirma.mes} del ${fechaFirma.anio}.`),
-    {
-      columns: [
-        {
-          width: '48%',
-          stack: [
-            { text: '\n____________________________', alignment: 'center' },
-            { text: titular.nombreCompleto, bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
-            { text: documento, alignment: 'center', fontSize: TIPOGRAFIA.firma },
-            { text: 'EL ASOCIADO', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
-          ],
-        },
-        {
-          width: '48%',
-          stack: [
-            ...(assets.firmaAsociante
-              ? [{ image: 'firmaAsociante', width: 92, height: 85, alignment: 'center', margin: [0, 0, 0, -14] }]
-              : [{ text: 'FIRMA OMITIDA · DEMOSTRACIÓN', italics: true, alignment: 'center', fontSize: 7, margin: [0, 36, 0, 26] }]),
-            { text: 'EL ASOCIANTE', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
-          ],
-        },
-      ],
-      columnGap: 18,
-      unbreakable: true,
-      margin: [0, 6, 0, 5],
-    } as ContentColumns,
+    bloqueFirmas(titular, documento, cotitulares, assets),
   ]
 
   return {
