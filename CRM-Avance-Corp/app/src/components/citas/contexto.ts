@@ -22,7 +22,13 @@ export function useDatosCitas() {
   const cierres = (datos.gestion?.avance?.conversiones ?? []).filter(c => c.analista_id).map(c => ({
     id: c.analista_id!, nombre: c.analista_nombre, supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor',
   }))
-  const equipo = [...new Map([...origen, ...cierres, ...equipoCitas(datos.citas), ...(datos.gestion?.asignaciones ?? [])].map(p => [p.id, p])).values()]
+  // Un analista con capital en el mes pero sin leads ni citas también se puede
+  // seleccionar; las fuentes con actividad conservan la prioridad del nombre.
+  const capital = (datos.gestion?.avance?.capital ?? []).filter(k => k.analista_id).map(k => ({
+    id: k.analista_id!, nombre: k.analista_nombre ?? 'Sin analista',
+    supervisor: k.supervisor_nombre ?? 'Sin supervisor', supervisorId: k.supervisor_id ?? 'sin_supervisor',
+  }))
+  const equipo = [...new Map([...capital, ...origen, ...cierres, ...equipoCitas(datos.citas), ...(datos.gestion?.asignaciones ?? [])].map(p => [p.id, p])).values()]
     .sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'))
   return { ...datos, equipo, nombreAnalista: (id: string) => equipo.find(p => p.id === id)?.nombre ?? 'Sin analista' }
 }

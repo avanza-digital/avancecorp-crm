@@ -4,6 +4,9 @@ import type { GestionMensualCitas } from '@/lib/gestion-citas'
 import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
 
 type Persona = GestionMensualCitas['poblacion'][number]
+type Capital = GestionMensualCitas['capital'][number]
+const TIPOS_CAPITAL = { contrato_nuevo: 'nuevos', contrato_upgrade: 'upgrades', contrato_renovacion: 'renovaciones', cooperativa: 'cooperativas' } as const
+export type OperacionesCapital = Record<(typeof TIPOS_CAPITAL)[keyof typeof TIPOS_CAPITAL], number>
 const instanteCita = (c: CitaEjemplo) => Date.parse(`${c.fecha}T${c.hora}:00-05:00`)
 // El registro de entrevista acredita la relación; la fecha prevista sola no.
 const instanteEntrevista = (c: CitaEjemplo) => c.asistioEn ? Date.parse(c.asistioEn) : Number.POSITIVE_INFINITY
@@ -45,9 +48,17 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const identidades = new Map(datos.poblacion.map(p => [p.lead_id,
     p.identidad_persona ?? (perfiles.has(p.lead_id) ? `perfil:${perfiles.get(p.lead_id)}` : `lead:${p.lead_id}`)]))
   const personaEntrevistada = (lead: string) => identidades.get(lead) ?? `lead:${lead}`
+  // El capital se cuenta por persona: identidad canónica del servidor o, si falta,
+  // la del lead vinculado, el perfil cliente o el cierre externo.
+  const personaCapital = (k: Capital) => k.identidad_persona ?? (k.lead_id && identidades.has(k.lead_id) ? identidades.get(k.lead_id)!
+    : k.perfil_id ? `perfil:${k.perfil_id}` : k.lead_id ? `lead:${k.lead_id}` : `externo:${k.cierre_externo_id}`)
   const periodo = periodoAvance(filtros.mes, corte)
   const personas = new Map(datos.poblacion.filter(p => coincidePersona(p, filtros, todas)).map(p => [p.lead_id, p]))
   const roster = new Map([
+    ...datos.capital.filter(k => k.analista_id).map(k => [k.analista_id!, {
+      id: k.analista_id!, nombre: k.analista_nombre ?? 'Sin analista',
+      supervisor: k.supervisor_nombre ?? 'Sin supervisor', supervisorId: k.supervisor_id ?? 'sin_supervisor',
+    }] as const),
     ...datos.poblacion.filter(p => p.analista_origen_id).map(p => [p.analista_origen_id!, {
       id: p.analista_origen_id!, nombre: p.analista_origen_nombre,
       supervisor: p.supervisor_origen_nombre, supervisorId: p.supervisor_origen_id ?? 'sin_supervisor',
@@ -79,6 +90,18 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const cierres = datos.conversiones.filter(c => personas.has(c.lead_id)
     && ambito(owner(c.lead_id, c.analista_id)) && actividad(c.lead_id, owner(c.lead_id, c.analista_id))
     && Date.parse(c.convertido_en) <= limiteResultado && mesResultado(personas.get(c.lead_id)!, c.convertido_en))
+  // Todo el capital del mes cuenta para el ticket: contratos nuevos, upgrades,
+  // renovaciones y cooperativas, atribuidos al analista del núcleo (Miguel,
+  // 15/09/2026: «nada debe quedar fuera»). No exige que el cliente venga de un
+  // lead. Los filtros de persona, origen, registro y moneda estimada acotan el
+  // capital a los leads que los cumplen; sin ellos entra todo lo cerrado.
+  const acotaPersonas = Boolean(normalizar(filtros.q) || filtros.leadId || filtros.origen || filtros.registro || filtros.moneda)
+  const capitalPeriodo = datos.capital.filter(k => (!acotaPersonas || (k.lead_id !== null && personas.has(k.lead_id)))
+    && Date.parse(k.fecha) >= periodo.inicio && Date.parse(k.fecha) <= periodo.fin)
+  const capitalMes = capitalPeriodo.filter(k => ambito(k.analista_id))
+  // Personas con capital en el mes, antes del recorte por analista o equipo: un
+  // cliente convertido por Ana cuyo contrato firmó Luis no «carece» de capital.
+  const conCapital = new Set(capitalPeriodo.map(personaCapital))
   const reglasListas = datos.control.version > 0 && datos.control.mes_inicio !== null && config.mes_inicio !== null
     && config.mes_resultado !== null && config.analista_resultado !== null && config.base_depositos !== null
     && config.base_avance !== null && config.conteo_entrevistas !== null && config.actividad_manuales !== null
@@ -108,22 +131,21 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     const cierresTicket = datos.conversiones.filter(c => personas.has(c.lead_id) && ambito(c.analista_id)
       && (!id || c.analista_id === id) && actividad(c.lead_id, c.analista_id)
       && Date.parse(c.convertido_en) >= periodo.inicio && Date.parse(c.convertido_en) <= periodo.corte)
-    const capital = datos.capital.filter(k => (!id || k.analista_id === id)
-      && cierresTicket.some(c => c.perfil_id === k.perfil_id && c.analista_id === k.analista_id))
-    const capitalPerfiles = new Set(capital.map(k => personaEntrevistada(k.lead_id)))
-    const sinImporte = new Set(cierresTicket.filter(c => !datos.capital.some(k => k.perfil_id === c.perfil_id)).map(c => personaEntrevistada(c.lead_id))).size
-    const atribucionPendiente = new Set(cierresTicket.filter(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.analista_id !== c.analista_id)).map(c => personaEntrevistada(c.lead_id))).size
+    const capital = capitalMes.filter(k => !id || k.analista_id === id)
+    const capitalPerfiles = new Set(capital.map(personaCapital))
+    const operaciones: OperacionesCapital = { nuevos: 0, upgrades: 0, renovaciones: 0, cooperativas: 0 }
+    for (const k of capital) operaciones[TIPOS_CAPITAL[k.tipo ?? 'contrato_nuevo']]++
+    // Un cliente convertido sin capital en el mes ya no anula el ticket: se informa aparte.
+    const sinContrato = new Set(cierresTicket.map(c => personaEntrevistada(c.lead_id)).filter(p => !conCapital.has(p))).size
     const capitalPen = capital.filter(k => k.moneda === 'PEN').reduce((n, k) => n + k.monto, 0)
     const capitalUsd = capital.filter(k => k.moneda === 'USD').reduce((n, k) => n + k.monto, 0)
     const unificado = totalEnSoles(capitalPen, capitalUsd, tipoCambio)
     const faltaTipoCambio = capitalUsd > 0 && unificado.tc === null
     // Un promedio parcial excluiría dinero de clientes que sí están en el divisor.
     const monto = faltaTipoCambio ? null : unificado.total
-    const ticket = monto !== null && capitalPerfiles.size && !sinImporte && !atribucionPendiente ? monto / capitalPerfiles.size : null
+    const ticket = monto !== null && capitalPerfiles.size ? monto / capitalPerfiles.size : null
     const motivoTicket = faltaTipoCambio ? 'Falta el tipo de cambio para incluir dólares'
-      : sinImporte ? 'Faltan importes reales del mes'
-        : atribucionPendiente ? 'Revisa la atribución de capital al analista'
-          : ticket === null ? 'Sin clientes con importe en el mes' : null
+      : ticket === null ? 'Sin capital cerrado en el mes' : null
     const tasaObservada = resultado.length ? visitas.length / resultado.length : null
     const clientesReales = new Set(cierresTicket.map(c => personaEntrevistada(c.lead_id))).size
     // Generar una cita para otro mes suma cumplimiento, pero no acelera este cierre.
@@ -135,22 +157,31 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
       ? Math.min(poblacion.size, entrevistasEsperadas * gente.size / visitas.length) : null
     const clientesEsperados = conversion !== null && personasEsperadas !== null && entrevistasEsperadas !== null
       ? Math.max(clientesReales, clientes, Math.min(personasEsperadas, (config.base_depositos === 'entrevistas' ? entrevistasEsperadas : personasEsperadas) * conversion)) : null
-    const motivoProyeccion = !reglasListas ? 'Completa las reglas de gestión'
-      : motivoTicket ?? (clientesEsperados === null ? 'Sin base de entrevistas' : null)
-    const proyeccion = motivoProyeccion === null && ticket !== null && clientesEsperados !== null && monto !== null
-      ? periodo.cerrado ? monto : Math.max(monto, clientesEsperados * ticket) : null
+    // Cierre proyectado = capital ya cerrado + clientes que aún se esperan del flujo
+    // de citas × ticket. En un mes cerrado es el capital realizado, con o sin
+    // entrevistas: el dinero conocido no depende de la base para pronosticar.
+    const motivoProyeccion = faltaTipoCambio ? 'Falta el tipo de cambio para incluir dólares'
+      : periodo.cerrado ? null
+        : !reglasListas ? 'Completa las reglas de gestión'
+          : ticket === null ? 'Sin capital cerrado en el mes'
+            : clientesEsperados === null ? 'Sin base de entrevistas' : null
+    const proyeccion = monto === null || motivoProyeccion !== null ? null
+      : periodo.cerrado ? monto
+        : monto + Math.max(0, clientesEsperados! - clientesReales) * ticket!
     return { leads, citas: citas.length, promedio: leads ? citas.length / leads : null,
       cumplimiento: leads ? citas.length / (leads * config.citas_por_lead) * 100 : null,
       entrevistas: visitas.length, unicas: gente.size, resueltas: resultado.length, baseEntrevistas,
       tasaEntrevistas, conversion, clientes, clientesPeriodo, clientesFueraCohorte: fuera, baseConversion,
       ticket, motivoTicket, capital: monto, capitalPen, capitalUsd, faltaTipoCambio,
-      clientesTicket: capitalPerfiles.size, sinImporte, atribucionPendiente, proyeccion, clientesEsperados, motivoProyeccion,
+      clientesTicket: capitalPerfiles.size, sinContrato, operaciones, proyeccion, clientesEsperados, motivoProyeccion,
       manuales: base.filter(p => p.registroManual ?? p.manualPropio).length,
       sinCita: base.filter(p => !citas.some(c => c.leadId === p.leadId)),
       base, actividad: citas, visitas, vinculados, cierres: clientesMes, reglasListas }
   }
+  // Un analista con capital en el mes tiene fila aunque no tenga leads ni citas.
   const ids = new Set([...asignados.map(p => p.id), ...registradas.map(c => c.analista),
-    ...resueltas.map(c => owner(c.leadId, c.analista)), ...cierres.map(c => owner(c.lead_id, c.analista_id))])
+    ...resueltas.map(c => owner(c.leadId, c.analista)), ...cierres.map(c => owner(c.lead_id, c.analista_id)),
+    ...capitalMes.map(k => k.analista_id)])
   const filas = [...roster.values()].filter(a => ids.has(a.id) && ambito(a.id))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(a => ({ ...a, ...resultados(a.id) }))
   const calculables = filas.filter(f => f.proyeccion !== null)

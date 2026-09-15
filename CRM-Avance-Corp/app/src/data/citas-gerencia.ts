@@ -134,11 +134,15 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
       const cierres=new Map(g.conversiones.map(c=>[c.lead_id,c]))
       const cfg=g.control.configuracion
       if (poblacion.size!==g.poblacion.length || cierres.size!==g.conversiones.length
-        || new Set(g.capital.map(k=>k.contrato_id)).size!==g.capital.length
+        // Cada episodio de capital es un contrato O un cierre externo, una sola vez.
+        || g.capital.some(k=>(k.contrato_id==null)===(k.cierre_externo_id==null))
+        || new Set(g.capital.map(k=>k.contrato_id ?? k.cierre_externo_id)).size!==g.capital.length
         || g.asignaciones.some(p=>!poblacion.has(p.lead_id))
         || datos.citas.some(c=>!poblacion.has(c.lead_id) || c.registro_manual===undefined)
         || g.conversiones.some(c=>!poblacion.has(c.lead_id) || Date.parse(c.convertido_en)>Date.parse(datos.generado_en))
-        || g.capital.some(k=>cierres.get(k.lead_id)?.perfil_id!==k.perfil_id
+        // El capital del mes no exige lead; si lo trae y ese lead se convirtió,
+        // el perfil cliente tiene que coincidir.
+        || g.capital.some(k=>(k.lead_id!==null && k.perfil_id!==null && cierres.has(k.lead_id) && cierres.get(k.lead_id)!.perfil_id!==k.perfil_id)
           || fechaLima(k.fecha)<desde || fechaLima(k.fecha)>hasta || Date.parse(k.fecha)>Date.parse(datos.generado_en))
         || cfg.citas_por_lead!==g.citas_por_lead || cfg.entrevistas_porcentaje!==g.entrevistas_porcentaje
         || cfg.depositos_porcentaje!==g.depositos_porcentaje) {

@@ -42,16 +42,30 @@ describe('frontera de la consulta detallada de Citas',() => {
     }
     mocks.rpc.mockResolvedValue({ data: datos, error: null })
     expect(adaptarGestion(await cargarCitasGerencia('2026-09'))?.avance?.capital[0]?.moneda).toBe('USD')
-    for (const defecto of ['capital_duplicado', 'cliente_ajeno', 'otro_mes', 'meta_distinta', 'poblacion_incompleta']) {
+    // Todo el capital del mes: un upgrade de un cliente sin lead y un cierre en
+    // cooperativa sin perfil también pasan la frontera.
+    const completo = structuredClone(datos)
+    ;(completo.gestion as typeof datos.gestion).capital.push(
+      { contrato_id: id(71), cierre_externo_id: null, tipo: 'contrato_upgrade', lead_id: null, perfil_id: id(41), identidad_persona: `perfil:${id(41)}`,
+        analista_id: id(21), analista_nombre: 'Otra analista', supervisor_id: id(30), supervisor_nombre: 'Supervisor', moneda: 'PEN', monto: 20000, fecha: '2026-09-02T05:00:00Z' },
+      { contrato_id: null, cierre_externo_id: id(72), tipo: 'cooperativa', lead_id: id(10), perfil_id: null, identidad_persona: `lead:${id(10)}`,
+        analista_id: id(20), moneda: 'PEN', monto: 5000, fecha: '2026-09-03T05:00:00Z' })
+    mocks.rpc.mockResolvedValue({ data: completo, error: null })
+    expect(adaptarGestion(await cargarCitasGerencia('2026-09'))?.avance?.capital).toHaveLength(3)
+    for (const defecto of ['capital_duplicado', 'capital_sin_clave', 'capital_doble_clave', 'capital_tipo_desconocido', 'cliente_ajeno', 'otro_mes', 'meta_distinta', 'poblacion_incompleta']) {
       const rota = structuredClone(datos)
       const g = rota.gestion as typeof datos.gestion
       if (defecto === 'capital_duplicado') g.capital.push(g.capital[0]!)
+      if (defecto === 'capital_sin_clave') g.capital.push({ ...g.capital[0]!, contrato_id: null, cierre_externo_id: null })
+      if (defecto === 'capital_doble_clave') g.capital.push({ ...g.capital[0]!, contrato_id: id(73), cierre_externo_id: id(74) })
+      if (defecto === 'capital_tipo_desconocido') g.capital.push({ ...g.capital[0]!, contrato_id: id(75), tipo: 'desglose_renovado' as 'cooperativa' })
       if (defecto === 'cliente_ajeno') g.capital[0]!.perfil_id = id(99)
       if (defecto === 'otro_mes') g.capital[0]!.fecha = '2026-08-31T05:00:00Z'
       if (defecto === 'meta_distinta') g.citas_por_lead = 3
       if (defecto === 'poblacion_incompleta') g.poblacion = []
       mocks.rpc.mockResolvedValue({ data: rota, error: null })
-      await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('fuentes de gestión')
+      // Un tipo fuera del contrato lo rechaza el esquema; el resto, la frontera de gestión.
+      await expect(cargarCitasGerencia('2026-09')).rejects.toThrow(defecto === 'capital_tipo_desconocido' ? 'incompleta' : 'fuentes de gestión')
     }
   })
   it('consulta el mes completo, incluye futuras citas y propaga cancelación',async () => {

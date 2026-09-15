@@ -9733,3 +9733,48 @@ CHECK con `v10`): **45/45** en los 10 casos. Registrador `scripts/registrar-pdf-
 `26534a4a1cfa9a7bb111504c4c7a8515`, migración embebida byte a byte). Reversa
 `scripts/rollback-pdf-v9.sql` + edge del árbol con constante v8, v9 en lectura y la
 `template-v2.ts` de la v8 (nunca el binario v13).
+
+## 20260915170017 — Analítica: re-declara la exención de `crm.cierres_externos_fn` tras F8
+
+**Estado: CANDIDATA (15/09/2026), ensayada en producción dentro de un bloque deshecho.**
+F8 (`20260914213928`) recreó `crm.cierres_externos_fn(date)` en producción (añade
+`plazo_meses` y `tasa_anual` al listado) sin renovar su huella en
+`private.analitica_leads_citas_exenciones`; desde entonces
+`private.assert_analitica_leads_citas()` falla («cuerpo CAMBIÓ desde que se
+declararon») y bloquea cualquier migración de Citas. Sólo bendice el cuerpo vivo
+(md5 `d44dec0ba4b92ecd1991a7ff204dc57e`, idéntico al texto de F8 salvo el `;`
+final del archivo) y exige la huella declarada el 30/08. No toca la función ni datos.
+Ensayo con el gate después: `OK: 34 candidatos declarados y con huella vigente;
+30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar`.
+
+## 20260915170018 — Citas: el ticket del mes cuenta TODO el capital del analista
+
+**Estado: CANDIDATA (15/09/2026), ensayada en producción dentro de un bloque deshecho.**
+Decisión de Miguel: «todo debe contar al ticket medio, nada debe quedar fuera».
+Origen: Adelayda con S/ 230 000 cerrados en septiembre (2 contratos nuevos de
+clientes de alta directa sin lead, 2 upgrades, 1 renovación) y ticket «Sin base»,
+porque el lector sólo cruzaba contratos nuevos con leads convertidos en el mes y
+su única conversión (cliente desde mayo, sin contrato nuevo) anulaba la fila.
+
+Sustituye en sitio el único bloque de capital de `private.citas_gerencia_consulta`
+(mismo patrón que `20260914044939`): devuelve los episodios «stock» no anulados del
+mes de `capital_episodios` (contratos nuevos, upgrades, renovaciones y
+cooperativas) con `tipo`, `cierre_externo_id`, `lead_id` (o el lead vinculado al
+perfil), `perfil_id`, `identidad_persona` (inversionista canónico → perfil → lead →
+externo), analista y supervisor del núcleo, moneda, monto y fecha. El front divide
+el capital del mes entre personas únicas con capital; una conversión sin capital ya
+no anula el ticket (se informa aparte). La población incorpora además los leads
+vinculados a ese capital aunque no tengan actividad en el mes, para que los filtros
+de persona puedan acotarlo (hallazgo P2 de la revisión de Codex). Preflight: md5 del
+lector vivo (`4ad2b90baf96b11b63a626122bd5d64b`), md5 del núcleo de capital
+(`c9e58c1da9dd7a5d52991c9e47dc19d5`), gate analítico y los dos bloques únicos;
+renueva huella y sello. Requiere `20260915170017` antes.
+
+Ensayo (deshecho) leyendo como Gerencia septiembre 2026: 77 episodios, 72
+identidades, 0 sin identidad, 29/29 leads de capital presentes en la población con
+la misma identidad; Adelayda 5 operaciones, 4 clientes, S/ 230 000; total
+S/ 3 553 304 y US$ 90 500 (= Mi cartera/Ranking); 173 citas, 1 015 personas,
+15 conversiones. Orden de publicación: **front primero** (la validación del front
+anterior rechaza filas sin lead), luego las dos migraciones con
+`aplicar-ticket-capital-completo-prod.sh`. Las pestañas de Gerencia abiertas con el
+front anterior verán el aviso «Actualiza para reintentar» hasta recargar.

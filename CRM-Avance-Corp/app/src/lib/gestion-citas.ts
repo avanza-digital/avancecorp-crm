@@ -23,8 +23,16 @@ export const CamposGestionMensualSchema = {
     analista_nombre: v.string(), supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
     contrato_id: v.nullable(Id),
   })), v.maxLength(10000)),
+  // Todo el capital del mes por analista (contratos nuevos, upgrades, renovaciones
+  // y cooperativas). Los campos nuevos son opcionales para leer también la
+  // respuesta del lector anterior, que sólo traía contratos nuevos de leads.
   capital: v.pipe(v.array(v.object({
-    contrato_id: Id, lead_id: Id, perfil_id: Id, analista_id: v.nullable(Id),
+    contrato_id: v.nullable(Id), cierre_externo_id: v.nullish(Id),
+    tipo: v.nullish(v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion', 'cooperativa'])),
+    lead_id: v.nullable(Id), perfil_id: v.nullable(Id),
+    identidad_persona: v.nullish(v.pipe(v.string(), v.regex(/^(perfil|persona|lead|externo):[0-9a-f-]{36}$/i))),
+    analista_id: v.nullable(Id), analista_nombre: v.nullish(v.string()),
+    supervisor_id: v.nullish(Id), supervisor_nombre: v.nullish(v.string()),
     moneda: v.picklist(['PEN', 'USD']), monto: Importe, fecha: Instante,
   })), v.maxLength(10000)),
 }

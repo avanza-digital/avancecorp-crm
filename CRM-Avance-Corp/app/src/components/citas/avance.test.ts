@@ -197,19 +197,95 @@ describe('Avance mensual conectado a hechos de Citas', () => {
     expect(e.calcular()).toMatchObject({ tc: null, total: { ticket: 1000, capital: 1000, proyeccion: 1000, faltaTipoCambio: false, capitalPen: 1000, capitalUsd: 0 } })
     expect(e.calcular(4).tc).toBeNull()
   })
-  it('distingue un importe ausente de una atribución monetaria contradictoria', () => {
+  it('el capital cuenta para el analista del núcleo y una conversión sin capital no anula el ticket', () => {
     const e = ejemplo()
     e.datos.capital[0]!.analista_id = 'otro'
-    expect(e.calcular().total).toMatchObject({ ticket: null, sinImporte: 0, atribucionPendiente: 1, proyeccion: null })
+    const r = e.calcular()
+    expect(r.filas.find(f => f.id === 'ana')).toMatchObject({ ticket: null, motivoTicket: 'Sin capital cerrado en el mes', sinContrato: 0, proyeccion: null })
+    expect(r.filas.find(f => f.id === 'otro')).toMatchObject({ ticket: 1000, clientesTicket: 1, leads: 0, citas: 0 })
+    expect(r.total).toMatchObject({ ticket: 1000, capital: 1000, sinContrato: 0 })
     e.datos.capital = []
-    expect(e.calcular().total).toMatchObject({ ticket: null, sinImporte: 1, atribucionPendiente: 0, proyeccion: null })
+    expect(e.calcular().total).toMatchObject({ ticket: null, motivoTicket: 'Sin capital cerrado en el mes', sinContrato: 1, proyeccion: null })
   })
   it('varios contratos suman capital una vez y varios leads del mismo perfil no duplican clientes ni anulan el ticket', () => {
     const e = ejemplo()
     e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-2' })
     e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: 'lead-2' })
     e.datos.capital.push({ ...e.datos.capital[0]!, contrato_id: 'contrato-2', monto: 500 })
-    expect(e.calcular().total).toMatchObject({ capital: 1500, ticket: 1500, clientesTicket: 1, sinImporte: 0 })
+    expect(e.calcular().total).toMatchObject({ capital: 1500, ticket: 1500, clientesTicket: 1, sinContrato: 0 })
+  })
+  it('todo el capital del mes cuenta: clientes sin lead, upgrades, renovaciones y cooperativas, una vez por persona', () => {
+    const e = ejemplo()
+    e.datos.capital.push(
+      { contrato_id: 'contrato-2', lead_id: null, perfil_id: 'cliente-9', identidad_persona: 'persona:9', analista_id: 'ana', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 130000, fecha: '2026-09-10T05:00:00Z' },
+      { contrato_id: 'contrato-3', lead_id: null, perfil_id: 'cliente-9', identidad_persona: 'persona:9', analista_id: 'ana', tipo: 'contrato_upgrade', moneda: 'PEN', monto: 20000, fecha: '2026-09-12T05:00:00Z' },
+      { contrato_id: 'contrato-4', lead_id: null, perfil_id: 'cliente-8', analista_id: 'ana', tipo: 'contrato_renovacion', moneda: 'PEN', monto: 10000, fecha: '2026-09-08T05:00:00Z' },
+      { contrato_id: null, cierre_externo_id: 'coop-1', lead_id: null, perfil_id: null, analista_id: 'ana', tipo: 'cooperativa', moneda: 'PEN', monto: 5000, fecha: '2026-09-09T05:00:00Z' },
+    )
+    expect(e.calcular().total).toMatchObject({ capital: 166000, clientesTicket: 4, ticket: 41500, proyeccion: 166000, sinContrato: 0,
+      operaciones: { nuevos: 2, upgrades: 1, renovaciones: 1, cooperativas: 1 } })
+  })
+  it('un analista con capital pero sin leads ni citas aparece con su ticket, y el filtro de equipo lo respeta', () => {
+    const e = ejemplo()
+    e.datos.capital.push({ contrato_id: 'contrato-2', lead_id: null, perfil_id: 'cliente-9', analista_id: 'luis', analista_nombre: 'Luis',
+      supervisor_id: 'sup2', supervisor_nombre: 'Otro supervisor', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 4000, fecha: '2026-09-10T05:00:00Z' })
+    const r = e.calcular()
+    expect(r.filas.find(f => f.id === 'luis')).toMatchObject({ nombre: 'Luis', supervisor: 'Otro supervisor', leads: 0, citas: 0, ticket: 4000, clientesTicket: 1 })
+    expect(r.total).toMatchObject({ capital: 5000, clientesTicket: 2, ticket: 2500 })
+    e.filtros.equipo = 'sup2'
+    expect(e.calcular().total).toMatchObject({ capital: 4000, clientesTicket: 1, ticket: 4000 })
+  })
+  it('los filtros de persona acotan el capital a los leads que los cumplen; un texto en blanco no acota', () => {
+    const e = ejemplo()
+    e.datos.capital.push({ contrato_id: 'contrato-2', lead_id: null, perfil_id: 'cliente-9', analista_id: 'ana', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 4000, fecha: '2026-09-10T05:00:00Z' })
+    expect(e.calcular().total).toMatchObject({ capital: 5000, clientesTicket: 2 })
+    e.filtros.q = '   '
+    expect(e.calcular().total).toMatchObject({ capital: 5000, clientesTicket: 2 })
+    e.filtros.q = 'Persona uno'
+    expect(e.calcular().total).toMatchObject({ capital: 1000, clientesTicket: 1, ticket: 1000 })
+    e.filtros.q = 'Persona inexistente'
+    expect(e.calcular().total).toMatchObject({ capital: 0, clientesTicket: 0, ticket: null })
+  })
+  it('el lead de una renovación sin citas en el mes llega en la población y su capital responde al filtro por lead', () => {
+    const e = ejemplo()
+    e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-9', nombre: 'Cliente antiguo', analista_origen_id: null, primera_asignacion_en: null })
+    e.datos.capital.push({ contrato_id: 'contrato-9', lead_id: 'lead-9', perfil_id: 'cliente-9', analista_id: 'ana', tipo: 'contrato_renovacion', moneda: 'PEN', monto: 4000, fecha: '2026-09-10T05:00:00Z' })
+    e.filtros.leadId = 'lead-9'
+    expect(e.calcular().total).toMatchObject({ capital: 4000, clientesTicket: 1, ticket: 4000, leads: 0, citas: 0 })
+    e.filtros.leadId = 'lead-1'
+    expect(e.calcular().total).toMatchObject({ capital: 1000, clientesTicket: 1 })
+  })
+  it('«convertidos sin capital» no cambia al filtrar por analista: mira el capital del mes antes del recorte', () => {
+    const e = ejemplo()
+    e.datos.capital[0]!.analista_id = 'otro'
+    expect(e.calcular().filas.find(f => f.id === 'ana')).toMatchObject({ sinContrato: 0, ticket: null })
+    e.filtros.analista = 'ana'
+    expect(e.calcular().total).toMatchObject({ sinContrato: 0, ticket: null, capital: 0 })
+  })
+  it('en un mes cerrado el resultado es el capital realizado aunque no haya entrevistas ni reglas', () => {
+    const e = ejemplo()
+    e.datos.capital.push({ contrato_id: 'contrato-2', lead_id: null, perfil_id: 'cliente-9', analista_id: 'luis', analista_nombre: 'Luis', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 4000, fecha: '2026-09-10T05:00:00Z' })
+    const cerrado = calcularAvanceCitas(e.gestion, e.citas, e.filtros, '2026-10-04T15:00:00Z', null)
+    expect(cerrado.filas.find(f => f.id === 'luis')).toMatchObject({ entrevistas: 0, capital: 4000, proyeccion: 4000, motivoProyeccion: null })
+    expect(cerrado.total).toMatchObject({ capital: 5000, proyeccion: 5000, parciales: 2, analistas: 2 })
+    e.config.base_depositos = null
+    expect(calcularAvanceCitas(e.gestion, e.citas, e.filtros, '2026-10-04T15:00:00Z', null).total).toMatchObject({ proyeccion: 5000, reglasListas: false })
+    expect(e.calcular().total).toMatchObject({ proyeccion: null, motivoProyeccion: 'Completa las reglas de gestión' })
+  })
+  it('la proyección suma al capital cerrado los clientes que aún se esperan del flujo × ticket', () => {
+    const e = ejemplo()
+    for (const n of [2, 3]) {
+      e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: `lead-${n}` })
+      e.citas.push({ ...e.cita, id: `cita-${n}`, leadId: `lead-${n}` })
+    }
+    // 3 citas al día 13 → 6,92 esperadas; conversión 1/3 → 2,31 clientes esperados, 1 ya real.
+    const antes = e.calcular().total
+    expect(antes.clientesEsperados).toBeCloseTo(2.3077, 3)
+    expect(antes.proyeccion).toBeCloseTo(1000 + 1.3077 * 1000, 0)
+    e.datos.capital.push({ contrato_id: 'contrato-9', lead_id: null, perfil_id: 'cliente-9', analista_id: 'ana', tipo: 'contrato_renovacion', moneda: 'PEN', monto: 9000, fecha: '2026-09-08T05:00:00Z' })
+    const despues = e.calcular().total
+    expect(despues).toMatchObject({ capital: 10000, clientesTicket: 2, ticket: 5000 })
+    expect(despues.proyeccion).toBeCloseTo(10000 + 1.3077 * 5000, 0)
   })
   it('una cita creada para octubre suma citas pero no incrementa el pronóstico de septiembre', () => {
     const e = ejemplo()
