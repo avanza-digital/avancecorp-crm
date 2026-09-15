@@ -1,9 +1,18 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260915015315 — Conflictos F4 sin reintento automático
+
+**ENSAYADA EN BANCO AUTORIZADO; PUBLICACIÓN PENDIENTE.** Cambia únicamente cuatro
+RAISE de negocio 40001 a PT409 en confirmar/corregir una solicitud. PostgREST 14.5
+reintentaba indefinidamente una revisión obsoleta. Guardia MD5 por firma y conteo,
+transacción íntegra, search_path vacío; sin cambios de datos, ACL ni objetos public.
+HTTP de revisión antigua, confirmación concurrente e idempotencia PASS.
+[Pruebas, revisión de Claude y huellas](../scripts/multiempresa-f8/ajustes-2026-09-15/README.md).
+
 ## 20260914213634 / 20260914213928 — Cartera F8 y condiciones anuales COOPAC
 
-**PREPARADAS LOCALMENTE, SIN INSTALAR NI PUBLICAR.** SQL exacto pendiente de
-aprobación y gates del banco Supabase. G7 sigue abierto.
+**APROBADAS Y ENSAYADAS EN BANCO SUPABASE; PUBLICACIÓN PENDIENTE.**
+Se conservan los SQL exactos. G7 sigue abierto. [Ensayo remoto y corrección PT409](../scripts/multiempresa-f8/ajustes-2026-09-15/README.md).
 
 `20260914213634_crm_f8_cartera_lectura_eficiente.sql` sustituye el núcleo privado
 de personas F5 por resolución canónica por conjuntos, conservando firma, ACL,

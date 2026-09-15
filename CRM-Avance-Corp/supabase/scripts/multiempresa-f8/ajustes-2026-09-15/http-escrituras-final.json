@@ -1,0 +1,131 @@
+{
+  "peticiones": [
+    {
+      "rpc": "convertir_lead_externo",
+      "status": 200,
+      "codigo": null,
+      "ms": 622
+    },
+    {
+      "rpc": "convertir_lead_externo",
+      "status": 200,
+      "codigo": null,
+      "ms": 143
+    },
+    {
+      "rpc": "convertir_lead_externo",
+      "status": 500,
+      "codigo": "P0409",
+      "ms": 266
+    },
+    {
+      "rpc": "cartera_inversionistas_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 210
+    },
+    {
+      "rpc": "inversionista_ficha_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 290
+    },
+    {
+      "rpc": "preparar_inversion_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 182
+    },
+    {
+      "rpc": "corregir_solicitud_inversion_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 186
+    },
+    {
+      "rpc": "corregir_solicitud_inversion_fn",
+      "status": 409,
+      "codigo": "PT409",
+      "ms": 174
+    },
+    {
+      "rpc": "confirmar_inversion_revisada_fn",
+      "status": 409,
+      "codigo": "PT409",
+      "ms": 158
+    },
+    {
+      "rpc": "confirmar_inversion_revisada_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 181
+    },
+    {
+      "rpc": "confirmar_inversion_revisada_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 159
+    },
+    {
+      "rpc": "confirmar_inversion_revisada_fn",
+      "status": 403,
+      "codigo": "42501",
+      "ms": 155
+    },
+    {
+      "rpc": "inversionista_ficha_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 278
+    },
+    {
+      "rpc": "inversionista_ficha_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 363
+    },
+    {
+      "rpc": "inversionista_ficha_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 278
+    }
+  ],
+  "inicioUTC": "2026-09-15T01:59:44.486Z",
+  "casos": [
+    "alta inicial con 12% anual",
+    "reintento inicial",
+    "cambio de tasa en reintento rechazado",
+    "identidad resuelta por Cartera",
+    "ficha inicial desde núcleo",
+    "preparación adicional",
+    "comprobante sintético subido como analista",
+    "corrección de plazo y tasa anual",
+    "corrección con revisión anterior rechazada",
+    "revisión anterior rechazada",
+    "confirmación adicional",
+    "reintento adicional",
+    "otro analista no confirma",
+    "ficha con condiciones por rol 0ad9b9e4-59cd-413a-903b-1b23dd516fa7",
+    "ficha con condiciones por rol 9c0ce9db-3552-40fb-af0e-eb6b476ab0df",
+    "ficha con condiciones por rol 0ea17e82-00da-4691-90c0-78bd702f86fa",
+    "descarga íntegra del comprobante",
+    "comprobante ajeno bloqueado"
+  ],
+  "inicial": {
+    "inicio": "2026-09-14",
+    "vence": "2027-09-14",
+    "plazo": 12,
+    "tasa": 12
+  },
+  "resultado": "PASS",
+  "comprobante": {
+    "bytes": 583,
+    "sha256": "0aed12f29aabef13cb1f694233f3c1c396c0f2d72fa409e05ba6baf898b4f740"
+  },
+  "adicional": {
+    "plazo": 6,
+    "tasa": 12.5,
+    "vence": "2024-08-29"
+  }
+}

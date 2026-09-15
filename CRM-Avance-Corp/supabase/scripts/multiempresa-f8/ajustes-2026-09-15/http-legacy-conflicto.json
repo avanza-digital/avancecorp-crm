@@ -1,0 +1,36 @@
+{
+  "peticiones": [
+    {
+      "rpc": "cartera_inversionistas_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 735
+    },
+    {
+      "rpc": "preparar_inversion_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 370
+    },
+    {
+      "rpc": "corregir_solicitud_inversion_fn",
+      "status": 200,
+      "codigo": null,
+      "ms": 230
+    },
+    {
+      "rpc": "confirmar_inversion_fn",
+      "status": 409,
+      "codigo": "PT409",
+      "ms": 176
+    }
+  ],
+  "inicioUTC": "2026-09-15T02:11:39.182Z",
+  "casos": [
+    "persona por núcleo",
+    "preparar legado",
+    "corregir legado",
+    "wrapper anterior también responde PT409"
+  ],
+  "resultado": "PASS"
+}

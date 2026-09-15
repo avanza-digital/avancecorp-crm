@@ -1,0 +1,2 @@
+PASS guard con search_path vacío; cuatro cambios exactos; ACL/owner/config/seguridad intactos
+PASS drift en segunda función revierte ambas

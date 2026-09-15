@@ -1,0 +1,266 @@
+{
+  "casos": 62,
+  "fichas": [
+    {
+      "actor": "0ad9b9e4-59cd-413a-903b-1b23dd516fa7",
+      "persona": "6e81c382-127d-4594-84ec-f05e3c886991",
+      "fuentes": 1,
+      "paginas": 1,
+      "vencimiento": "2027-09-07"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "a11f3c84-f438-4edc-811c-2344b518ad11",
+      "fuentes": 1,
+      "paginas": 1,
+      "vencimiento": "2027-09-07"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "6e81c382-127d-4594-84ec-f05e3c886991",
+      "fuentes": 1,
+      "paginas": 1,
+      "vencimiento": "2027-09-07"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "1236062f-a28e-4fe7-a6ba-feb45a63c798",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "62526ca7-9f05-4209-9cc1-bb8fc98a3820",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "6eeb5004-a443-4732-bf1e-23e1af35e9a8",
+      "fuentes": 14,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "87919609-6e78-46f3-9c4e-a7b7be14201a",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "a031cd89-20f5-4690-8ce6-b8dc2e64a0e5",
+      "fuentes": 5,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "a7280667-a6b1-44a5-8694-f07a1e6122a9",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "d155c0cc-2fa9-4ec9-b2c9-2ac6f67525bf",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "eef28213-d197-438a-a139-ce42713b6b13",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "3cd10af3-b984-4641-9676-7c574d339cc2",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "97ef5426-52ab-4140-a7cf-905ef2671448",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "bcfd026c-0da7-49b7-bfa5-6ecaa851316f",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "dbbee11e-505c-41a7-993d-3a2a0fc28448",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "f91fcdc3-7133-4b08-8184-8c9e976ced29",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "521c1f3c-c90b-4141-a251-301a3f74a589",
+      "fuentes": 7,
+      "paginas": 1,
+      "vencimiento": "2026-09-01"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+      "fuentes": 3,
+      "paginas": 1,
+      "vencimiento": "2026-09-17"
+    },
+    {
+      "actor": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+      "persona": "b2aa2e53-227c-41de-96a6-fee6d4cf130f",
+      "fuentes": 3,
+      "paginas": 1,
+      "vencimiento": "2026-09-17"
+    },
+    {
+      "actor": "9c0ce9db-3552-40fb-af0e-eb6b476ab0df",
+      "persona": "6e81c382-127d-4594-84ec-f05e3c886991",
+      "fuentes": 1,
+      "paginas": 1,
+      "vencimiento": "2027-09-07"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "a11f3c84-f438-4edc-811c-2344b518ad11",
+      "fuentes": 1,
+      "paginas": 1,
+      "vencimiento": "2027-09-07"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "1236062f-a28e-4fe7-a6ba-feb45a63c798",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "62526ca7-9f05-4209-9cc1-bb8fc98a3820",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "6eeb5004-a443-4732-bf1e-23e1af35e9a8",
+      "fuentes": 14,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "87919609-6e78-46f3-9c4e-a7b7be14201a",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "a031cd89-20f5-4690-8ce6-b8dc2e64a0e5",
+      "fuentes": 5,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "a7280667-a6b1-44a5-8694-f07a1e6122a9",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "d155c0cc-2fa9-4ec9-b2c9-2ac6f67525bf",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "eef28213-d197-438a-a139-ce42713b6b13",
+      "fuentes": 9,
+      "paginas": 1,
+      "vencimiento": "2027-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "3cd10af3-b984-4641-9676-7c574d339cc2",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "97ef5426-52ab-4140-a7cf-905ef2671448",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "bcfd026c-0da7-49b7-bfa5-6ecaa851316f",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "dbbee11e-505c-41a7-993d-3a2a0fc28448",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "f91fcdc3-7133-4b08-8184-8c9e976ced29",
+      "fuentes": 2,
+      "paginas": 1,
+      "vencimiento": "2027-09-10"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "521c1f3c-c90b-4141-a251-301a3f74a589",
+      "fuentes": 7,
+      "paginas": 1,
+      "vencimiento": "2026-09-01"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+      "fuentes": 3,
+      "paginas": 1,
+      "vencimiento": "2026-09-17"
+    },
+    {
+      "actor": "ed3bf307-f569-4a31-8eb8-d31b79166f5d",
+      "persona": "b2aa2e53-227c-41de-96a6-fee6d4cf130f",
+      "fuentes": 3,
+      "paginas": 1,
+      "vencimiento": "2026-09-17"
+    }
+  ],
+  "condiciones_historicas": 197,
+  "resultado": "PASS"
+}

@@ -1,0 +1,87 @@
+{
+  "banco": "hqazubfaznppkfelctej",
+  "paridad": [
+    {
+      "rol": "gerencia",
+      "activo": true,
+      "personas": 22
+    },
+    {
+      "rol": "supervisor",
+      "activo": true,
+      "personas": 5
+    },
+    {
+      "rol": "supervisor",
+      "activo": true,
+      "personas": 17
+    },
+    {
+      "rol": "vendedor",
+      "activo": true,
+      "personas": 5
+    },
+    {
+      "rol": "directorio",
+      "activo": true,
+      "personas": 9
+    },
+    {
+      "rol": "vendedor",
+      "activo": true,
+      "personas": 17
+    },
+    {
+      "rol": "sin_sesion",
+      "activo": false,
+      "personas": 0
+    }
+  ],
+  "rendimiento": [
+    {
+      "version": "anterior",
+      "rol": "gerencia",
+      "ms": 8972,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "anterior",
+      "rol": "supervisor",
+      "ms": 8991,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "anterior",
+      "rol": "analista",
+      "ms": 9077,
+      "resultado": "TIMEOUT_8S"
+    },
+    {
+      "version": "corregida",
+      "rol": "gerencia",
+      "ms": 1614,
+      "resultado": "PASS"
+    },
+    {
+      "version": "corregida",
+      "rol": "supervisor",
+      "ms": 1521,
+      "resultado": "PASS"
+    },
+    {
+      "version": "corregida",
+      "rol": "analista",
+      "ms": 1465,
+      "resultado": "PASS"
+    }
+  ],
+  "condiciones": [
+    "alta_inicial_idempotente_y_conflictos",
+    "acl_propietario_y_config_rpc_identicos_para_todos_los_roles",
+    "operacion_anterior_reintenta_tras_migracion_sin_cambiar_hash",
+    "preparar_corregir_confirmar_reintentar_leer_por_nucleos",
+    "fin_de_mes_y_bisiesto",
+    "sin_grants_directos_ni_rpc_anonima"
+  ],
+  "paridad_demo": "PASS: perfil, inversión, cierre, lead, puente, fusión y mezcla real/demo; todos los actores"
+}

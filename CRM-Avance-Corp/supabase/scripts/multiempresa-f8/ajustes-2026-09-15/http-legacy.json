@@ -1,0 +1,10 @@
+{
+  "inicioUTC": "2026-09-15T01:52:40.346Z",
+  "casos": [
+    "HTTP antiguo con once argumentos",
+    "HTTP antiguo reintento idempotente",
+    "Cartera antigua",
+    "Ficha antigua"
+  ],
+  "resultado": "PASS"
+}

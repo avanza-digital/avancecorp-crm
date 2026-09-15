@@ -1,0 +1,12 @@
+{
+  "resultado": "PASS",
+  "padre": 288,
+  "rama": 291,
+  "anteriores_exactas": 287,
+  "pdf_segmentado_literal": 22,
+  "delta": [
+    "20260915010349",
+    "20260915010350",
+    "20260915015315"
+  ]
+}

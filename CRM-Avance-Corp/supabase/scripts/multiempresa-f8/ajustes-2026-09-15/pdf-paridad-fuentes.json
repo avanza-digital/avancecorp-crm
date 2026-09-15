@@ -1,0 +1,43 @@
+{
+  "resultado": "PASS",
+  "archivos": {
+    "assets-v2.ts": {
+      "bytes": 189957,
+      "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847"
+    },
+    "deno.json": {
+      "bytes": 303,
+      "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0"
+    },
+    "handler.ts": {
+      "bytes": 37854,
+      "sha256": "c7fb5c600830ba0b03905f5edf107be040e9c49f6f27cf60ac3b8ff65d44a1e3"
+    },
+    "index.ts": {
+      "bytes": 4032,
+      "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4"
+    },
+    "pdfmake-0.2.20-pdfprinter.js": {
+      "bytes": 1331324,
+      "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4"
+    },
+    "renderer.ts": {
+      "bytes": 17247,
+      "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8"
+    },
+    "storage.ts": {
+      "bytes": 5223,
+      "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f"
+    },
+    "template-v2.ts": {
+      "bytes": 45220,
+      "sha256": "33c8e055d9ac5070c6e6b9a806b0c0e4b1b0358aee413caaef67b14ec1156f61"
+    },
+    "vfs-fonts-0.2.20.js": {
+      "bytes": 830106,
+      "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1"
+    }
+  },
+  "padre_bundle": "b82f9044352de31c95c13d93b05f5a666b597e1a85c3eb60927873d69d27e3dc",
+  "rama_bundle": "dd297784d1274c0926a36478d0d21f5cf242cb03ad88e11b50cf1a0bea13aaa1"
+}

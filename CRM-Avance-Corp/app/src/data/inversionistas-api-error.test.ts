@@ -13,8 +13,8 @@ describe('errores mostrables de cartera y postventa', () => {
       expect(error).toMatchObject({ code: 'RESPUESTA_NO_RECIBIDA', message: 'No se pudo recibir la respuesta del servidor. Comprueba tu conexión.' })
     }
   })
-  it('conserva el código y detalle de un rechazo explícito del servidor', () => {
-    expect(() => respuestaInversionistas(v.unknown(), { data: null, error: { code: 'P0409', message: 'La solicitud cambió. Vuelve a consultarla.' } }))
+  it.each(['P0409', 'PT409'])('conserva el código y detalle del conflicto %s', (code) => {
+    expect(() => respuestaInversionistas(v.unknown(), { data: null, error: { code, message: 'La solicitud cambió. Vuelve a consultarla.' } }))
       .toThrow('La solicitud cambió. Vuelve a consultarla.')
   })
 })

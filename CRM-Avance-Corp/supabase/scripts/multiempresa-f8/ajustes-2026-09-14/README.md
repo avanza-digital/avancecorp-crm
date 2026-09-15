@@ -1,6 +1,6 @@
 # F8 — Cartera, Ficha 360 y condiciones COOPAC preparadas
 
-**Estado: implementado y verificado localmente, sin instalar ni publicar.**
+**Acta histórica del ensayo local.** La autorización y el ensayo remoto posteriores se documentan en [ajustes del 15/09](../ajustes-2026-09-15/README.md).
 G7-R01 y G7 siguen abiertos hasta repetir la comprobación en el entorno remoto
 y el recorrido real. Esta entrega responde a las observaciones del solicitante
 sobre el [primer caso real](../recorrido-real-2026-09-14/README.md).
@@ -88,7 +88,7 @@ Evidencia: [recibo](recibo.json), [ensayo SQL](sql-local.json),
 
 El banco exige Docker `supabase_db_avancecorp-f5-bank` y las bases sintéticas
 `multiempresa_f8_20260913` (origen) y `multiempresa_f8_ajustes_20260914`
-(copia con los dos SQL aplicados). No acepta URL ni destinos remotos. Todas las
+(copia con los dos SQL aplicados y la corrección posterior `20260915015315`). No acepta URL ni destinos remotos. Todas las
 fixtures, cambios temporales de funciones y banderas del test hacen ROLLBACK.
 No reutilizar el preparador F8 para borrar/resembrar un banco compartido.
 

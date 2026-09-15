@@ -237,7 +237,7 @@ const adicional=sql(`begin;${flags}
   ${rechazo('22023',`perform crm.preparar_inversion_fn(gen_random_uuid(),(select datos||'{"vence_en":"2025-03-01"}'::jsonb from payload))`)}
   select crm.corregir_solicitud_inversion_fn('${solicitud}','${correccion}',0,
     (select datos||${json({plazo_meses:6,tasa_anual:12.5,vence_en:corregidos.vence_en})} from payload),'Corregir plazo y tasa pactados');
-  ${rechazo('40001',`perform crm.confirmar_inversion_revisada_fn('${solicitud}',0)`)}
+  ${rechazo('PT409',`perform crm.confirmar_inversion_revisada_fn('${solicitud}',0)`)}
   select crm.confirmar_inversion_revisada_fn('${solicitud}',1);
   select crm.confirmar_inversion_revisada_fn('${solicitud}',1);
   select crm.inversionista_ficha_fn((select (datos->>'inversionista_id')::uuid from payload));
