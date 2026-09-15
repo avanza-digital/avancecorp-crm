@@ -1,0 +1,68 @@
+[
+  {
+    "prueba": "aplicacion_repetida",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "deriva_previa",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "reversa_con_deriva",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "acl_no_ensayada",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "codigo_final_alterado",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "reversa_exacta_incluye_acl",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "nucleo_privado_anon",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "nucleo_privado_authenticated",
+    "resultado": "PASS"
+  },
+  {
+    "prueba": "nucleo_privado_service_role",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "antes",
+    "prueba": "revocacion_bandera",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "antes",
+    "prueba": "revocacion_reasignacion",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "antes",
+    "prueba": "revocacion_fusion",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "despues",
+    "prueba": "revocacion_bandera",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "despues",
+    "prueba": "revocacion_reasignacion",
+    "resultado": "PASS"
+  },
+  {
+    "fase": "despues",
+    "prueba": "revocacion_fusion",
+    "resultado": "PASS"
+  }
+]

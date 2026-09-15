@@ -1,0 +1,220 @@
+{
+  "security": {
+    "antes": 268,
+    "despues": 269,
+    "added": [
+      {
+        "name": "auth_leaked_password_protection",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+        "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+        "metadata": {
+          "type": "auth",
+          "entity": "Auth"
+        }
+      }
+    ],
+    "removed": [],
+    "evaluacion": "El único aviso añadido es Auth leaked-password protection: ya estaba presente en producción antes de esta tarea. La migración no modifica Auth/configuración; ninguna advertencia nueva de funciones, permisos o RLS."
+  },
+  "performance": {
+    "antes": 283,
+    "despues": 267,
+    "added": [],
+    "removed": [
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`actividades_cliente_cliente_fecha_idx\\` on table \\`crm.actividades_cliente\\` has not been used",
+        "metadata": {
+          "name": "actividades_cliente",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`cartera_lecturas_actor_fecha_idx\\` on table \\`crm.cartera_lecturas\\` has not been used",
+        "metadata": {
+          "name": "cartera_lecturas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_actividades_lead\\` on table \\`crm.actividades\\` has not been used",
+        "metadata": {
+          "name": "actividades",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_equipo_supervisor\\` on table \\`crm.equipo\\` has not been used",
+        "metadata": {
+          "name": "equipo",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_leads_parkeo\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`inversionista_leads_inv_idx\\` on table \\`crm.inversionista_leads\\` has not been used",
+        "metadata": {
+          "name": "inversionista_leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`inversionistas_canonico_idx\\` on table \\`crm.inversionistas\\` has not been used",
+        "metadata": {
+          "name": "inversionistas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`tareas_perfil_idx\\` on table \\`crm.tareas\\` has not been used",
+        "metadata": {
+          "name": "tareas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`contrato_pdfs_generado_por_idx\\` on table \\`private.contrato_pdfs\\` has not been used",
+        "metadata": {
+          "name": "contrato_pdfs",
+          "type": "table",
+          "schema": "private"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_contrato_titulares_contrato\\` on table \\`public.contrato_titulares\\` has not been used",
+        "metadata": {
+          "name": "contrato_titulares",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_contratos_estado_venc\\` on table \\`public.contratos\\` has not been used",
+        "metadata": {
+          "name": "contratos",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_cronograma_contrato\\` on table \\`public.cronograma_pagos\\` has not been used",
+        "metadata": {
+          "name": "cronograma_pagos",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_cronograma_fecha\\` on table \\`public.cronograma_pagos\\` has not been used",
+        "metadata": {
+          "name": "cronograma_pagos",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_documentos_contrato\\` on table \\`public.documentos\\` has not been used",
+        "metadata": {
+          "name": "documentos",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_perfiles_listado_admin\\` on table \\`public.perfiles\\` has not been used",
+        "metadata": {
+          "name": "perfiles",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "detail": "Index \\`idx_perfiles_rol\\` on table \\`public.perfiles\\` has not been used",
+        "metadata": {
+          "name": "perfiles",
+          "type": "table",
+          "schema": "public"
+        },
+        "observed_at": "2026-09-15T18:36:10.240Z"
+      }
+    ],
+    "evaluacion": "No hay avisos nuevos. Desaparecen 16 INFO de índices sin uso porque los ensayos los utilizan; no se presentan como correcciones de índices."
+  }
+}

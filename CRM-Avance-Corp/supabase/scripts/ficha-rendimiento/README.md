@@ -1,6 +1,8 @@
 # Ficha canónica: lectura individual
 
-Preparada en local el 15/09/2026. **No publicada. Meta productiva pendiente.**
+**Publicada y verificada el 15/09/2026.** La ficha SQL de Gerencia pasó de 2674,505 a 723,414 ms (−73 %), con los mismos datos y permisos. [Acta de publicación, pruebas remotas y límites](PUBLICACION.md). Banco eliminado, coste estimado US$0,021.
+
+Las secciones de prueba local que siguen documentan la preparación previa. El resultado productivo vigente es el del acta.
 
 ## Objetivo y cambio
 
@@ -74,16 +76,15 @@ Los tres scripts anteriores terminan en ROLLBACK. Las fuentes no pueden ser de p
 se usan exclusivamente registros sintéticos de la copia local. Replica se usa
 solo para preparar estados históricos/artificiales dentro de esas transacciones.
 
-## Pendientes antes del cierre
+## Publicación y trabajo siguiente
 
-1. Autorización del SQL exacto y del banco Supabase temporal; creación, ensayo
-   Auth/Data API, matriz RLS proporcional, advisors y tipos en ese banco.
-2. Preflight de deriva del esquema/historial/Edge del banco frente al padre.
-   Merge del único SQL autorizado, sin aplicar migraciones directamente a prod.
-3. Medir de nuevo las mismas fichas/roles, confirmar <1 s, datos/ACL iguales
-   y ausencia de esperas problemáticas. Eliminar solo el banco propio.
+SQL y banco autorizados por Miguel, ensayo remoto y merge completados. Registro
+productivo `20260915185535`, nueve segmentos literales; 294 entradas anteriores
+intactas. 649 funciones y 20 Edge verificadas. La ficha permanece visualmente igual.
 
-No necesita publicación de frontend. F8/G7 mantienen su estado previo.
+La meta SQL productiva de menos de un segundo está cumplida. La apertura general
+solicitada para los 18 analistas se organiza en [ESTADO.md](ESTADO.md); conserva
+los pendientes reales de G7 y no se declara aprobada por estas pruebas sintéticas.
 
 ## Cierre local y revisión
 
@@ -112,12 +113,14 @@ las huellas y que no queden sesiones de la prueba. Si se interrumpe el proceso
 externamente, verificar ese estado antes de reutilizar la copia; no toca el
 banco original ni acepta otro destino.
 
-PASS: sintaxis de los cinco scripts nuevos, check:scripts, seed:preflight,
-test:rls:preflight y test:edge-preflight. Los preflights seed/RLS usaron valores
-ficticios de loopback y no abrieron conexiones. La matriz RLS general REAL y
-Auth/Data API, tipos, advisors y replay remoto permanecen NOT RUN hasta autorizar
-el banco. Build/E2E visuales NOT RUN: no hay cambio de frontend.
+PASS: sintaxis de los scripts, check:scripts, seed:preflight,
+test:rls:preflight y test:edge-preflight. Los preflights seed/RLS iniciales usaron
+valores ficticios de loopback; posteriormente pasó la matriz remota específica:
+640 fichas, 328 resultados de núcleo, 15 controles de seguridad, 154 comparaciones
+Auth/API y seis solicitudes HTTP en oleadas 1/2/3. Tipos public/crm idénticos y
+advisors revisados. Los [adaptadores](ensayo-remoto/README.md) y evidencias
+permiten distinguir el alcance SQL, Auth/API y de concurrencia.
 
-La tarifa de un banco nuevo de PortalAvanceCorp se volvió a consultar:
-US$0,01344/h. No se creó ni se facturó un banco remoto en este trabajo.
-La rama preexistente banco-f7 es ajena; no debe alterarse ni eliminarse.
+Matriz RLS general heredada y Build/E2E visuales NOT RUN en esta tarea: no hay
+cambios de frontend. Banco propio eliminado el 15/09 a las 19:33:48 UTC; estimación
+US$0,021 frente al máximo de US$1. La rama ajena banco-f7 permanece intacta.

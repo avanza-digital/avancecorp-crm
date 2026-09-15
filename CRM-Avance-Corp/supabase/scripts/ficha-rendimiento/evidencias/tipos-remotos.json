@@ -1,0 +1,11 @@
+{
+  "resultado": "PASS",
+  "schemas": [
+    "public",
+    "crm"
+  ],
+  "antes_bytes": 190594,
+  "despues_bytes": 190594,
+  "sha256": "1f581eaddd79fc1c9560f37c8e9ad15cbb82f95faf8b069ccba18e0747a69aa5",
+  "cambio": "Ningún cambio en los tipos expuestos; sobrecarga nueva solo en private."
+}

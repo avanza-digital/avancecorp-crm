@@ -1,0 +1,13 @@
+{
+  "resultado": "PASS",
+  "branch_id": "79dff48b-0636-4d4c-84f3-66d63fb40dd0",
+  "project_ref": "tufxjboalbtekbszckcf",
+  "creado_en": "2026-09-15T18:01:34.722207+00:00",
+  "eliminacion_confirmada_en": "2026-09-15T19:33:48+00:00",
+  "tarifa_usd_hora": 0.01344,
+  "coste_estimado_usd": 0.02066,
+  "limite_usd": 1,
+  "es_factura": false,
+  "rama_ajena_conservada": "banco-f7",
+  "credenciales_sesiones_y_copias_privadas_eliminadas": true
+}

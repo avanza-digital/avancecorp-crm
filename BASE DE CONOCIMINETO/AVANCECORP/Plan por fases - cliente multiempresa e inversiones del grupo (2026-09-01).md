@@ -20,6 +20,8 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 
 ## Estado vigente — F8 piloto nominal activo; G7 abierto
 
+**15/09 — rendimiento cerrado:** [[Ficha rapida - publicada y verificada (2026-09-15)]] — ficha Gerencia 2,67 → 0,72 s, datos y permisos conservados, banco eliminado. Miguel solicitó preparar la apertura general a los 18 analistas; G7 mantiene sus pendientes reales y conformidades.
+
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
 primeras/posteriores registradas, conversión y atribución conservadas,

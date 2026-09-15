@@ -1,0 +1,30 @@
+{
+  "resultado": "PASS",
+  "mediciones": [
+    {
+      "rol": "gerencia",
+      "antes_ms": 2674.505,
+      "despues_ms": 723.414,
+      "reduccion_pct": 73.0,
+      "muestras_medidas": 3,
+      "json_identico": true
+    },
+    {
+      "rol": "analista",
+      "antes_ms": 786.208,
+      "despues_ms": 718.032,
+      "reduccion_pct": 8.7,
+      "muestras_medidas": 3,
+      "json_identico": true
+    },
+    {
+      "rol": "supervisor",
+      "antes_ms": 1674.235,
+      "despues_ms": 813.641,
+      "reduccion_pct": 51.4,
+      "muestras_medidas": 3,
+      "json_identico": true
+    }
+  ],
+  "alcance": "SQL authenticated, misma persona con dos inversiones, tres roles, 1 calentamiento y 3 muestras, READ COMMITTED y ROLLBACK. No mide navegación del navegador."
+}

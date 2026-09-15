@@ -1,0 +1,87 @@
+{
+  "resultado": "PASS",
+  "funciones": 649,
+  "triggers": 275,
+  "diferencias_revisadas": [
+    {
+      "categoria": "constraints",
+      "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+        "md5": "f38b51ed5b804a9d73d1c41e6ce9b1ee"
+      },
+      "banco": {
+        "md5": "f022bf856f2bab730ee28bb6e33ca688",
+        "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "constraints",
+      "clave": "crm.empresas_monedas_check:crm.empresas:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.empresas_monedas_check:crm.empresas:-",
+        "md5": "e2457ffcc976877d507e73cff46269de"
+      },
+      "banco": {
+        "md5": "72d2ad3f33bc015efcbcb5a86e932283",
+        "clave": "crm.empresas_monedas_check:crm.empresas:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "constraints",
+      "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+        "md5": "7a7b807a4bde11bfa298ba5da22e2670"
+      },
+      "banco": {
+        "md5": "8c095904ae661c352e5ff89f22734347",
+        "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "event_triggers",
+      "clave": "issue_pg_graphql_access",
+      "padre": {
+        "categoria": "event_triggers",
+        "clave": "issue_pg_graphql_access",
+        "md5": "893ac630a0c7912ddd12b4f0d2c25da7"
+      },
+      "banco": {
+        "md5": "c4e0a3ef5b77d5feaa52b45bb3f41a25",
+        "clave": "issue_pg_graphql_access",
+        "categoria": "event_triggers"
+      }
+    },
+    {
+      "categoria": "extensiones",
+      "clave": "pg_net",
+      "padre": {
+        "categoria": "extensiones",
+        "clave": "pg_net",
+        "md5": "d5d7972fcee441796ff78d323bedfa02"
+      },
+      "banco": {
+        "md5": "46d7a38fa0717cb4ebc8379985981e89",
+        "clave": "pg_net",
+        "categoria": "extensiones"
+      }
+    },
+    {
+      "categoria": "publicaciones",
+      "clave": "supabase_realtime_messages_publication",
+      "padre": {
+        "categoria": "publicaciones",
+        "clave": "supabase_realtime_messages_publication",
+        "md5": "13d6820e30f3606ff132f9185ee091db"
+      },
+      "banco": null
+    }
+  ]
+}

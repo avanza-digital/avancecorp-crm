@@ -1,0 +1,20 @@
+{
+  "piloto": {
+    "comparaciones": 62,
+    "resultado": "PASS",
+    "sesiones_auth": 15,
+    "fichas": 37,
+    "acceso_privado": "denegado",
+    "ficha_ajena": "denegada",
+    "json_completos_iguales": true
+  },
+  "general": {
+    "comparaciones": 92,
+    "resultado": "PASS",
+    "sesiones_auth": 15,
+    "fichas": 63,
+    "acceso_privado": "denegado",
+    "ficha_ajena": "denegada",
+    "json_completos_iguales": true
+  }
+}

@@ -1,0 +1,122 @@
+[
+  {
+    "actor_hash": "e466921b0b2ba48782057e8eb40de94b",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 2860.226,
+    "muestra": 0,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "gerencia"
+  },
+  {
+    "actor_hash": "e466921b0b2ba48782057e8eb40de94b",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 2691.829,
+    "muestra": 1,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "gerencia"
+  },
+  {
+    "actor_hash": "e466921b0b2ba48782057e8eb40de94b",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 2669.049,
+    "muestra": 2,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "gerencia"
+  },
+  {
+    "actor_hash": "e466921b0b2ba48782057e8eb40de94b",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 2674.505,
+    "muestra": 3,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "gerencia"
+  },
+  {
+    "actor_hash": "c470f5d0c7b285c599c0c3c3cf687fc7",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 784.239,
+    "muestra": 0,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "analista"
+  },
+  {
+    "actor_hash": "c470f5d0c7b285c599c0c3c3cf687fc7",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 786.208,
+    "muestra": 1,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "analista"
+  },
+  {
+    "actor_hash": "c470f5d0c7b285c599c0c3c3cf687fc7",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 787.281,
+    "muestra": 2,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "analista"
+  },
+  {
+    "actor_hash": "c470f5d0c7b285c599c0c3c3cf687fc7",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 781.623,
+    "muestra": 3,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "analista"
+  },
+  {
+    "actor_hash": "5253572efc31b94efca6b6298b9b4e16",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 3210.564,
+    "muestra": 0,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "supervisor"
+  },
+  {
+    "actor_hash": "5253572efc31b94efca6b6298b9b4e16",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 2608.733,
+    "muestra": 1,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "supervisor"
+  },
+  {
+    "actor_hash": "5253572efc31b94efca6b6298b9b4e16",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 1674.235,
+    "muestra": 2,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "supervisor"
+  },
+  {
+    "actor_hash": "5253572efc31b94efca6b6298b9b4e16",
+    "bytes": 4088,
+    "huella": "9f1d653e1b8ea4e25ab7da50a541284b",
+    "inversiones": 2,
+    "ms": 1666.614,
+    "muestra": 3,
+    "persona_hash": "34a8c7635bddb10818c6f17a5e282617",
+    "rol": "supervisor"
+  }
+]

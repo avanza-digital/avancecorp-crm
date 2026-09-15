@@ -50,3 +50,7 @@ Ante una interrupción externa, verificar restauración antes de reutilizarla.
 [[F8 - piloto nominal activado (2026-09-14)]] y
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]
 mantienen su estado anterior; esta mejora no cierra G7.
+
+## Resultado posterior
+
+Autorización, ensayo remoto y publicación completados. Estado vigente en [[Ficha rapida - publicada y verificada (2026-09-15)]]: Gerencia 723,414 ms, mismos datos y permisos; banco eliminado. Esta nota conserva la preparación local histórica.

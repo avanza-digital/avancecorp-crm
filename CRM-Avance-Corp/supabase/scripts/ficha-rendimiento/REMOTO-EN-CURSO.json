@@ -1,0 +1,21 @@
+{
+  "estado": "PUBLICADO_VERIFICADO_BANCO_ELIMINADO",
+  "autorizacion": "Miguel: sii sql Y BANCO; SQL 20260915170237 exacto, publicación condicionada a pruebas remotas, hasta US$1",
+  "commit_sql": "8f3dd993a83c692d4b266ee8d8ffd125ee06182a",
+  "proyecto_padre": "dctqcbznekcyxhjujuci",
+  "rama_nombre": "ficha-rapida-20260915",
+  "rama_id": "79dff48b-0636-4d4c-84f3-66d63fb40dd0",
+  "proyecto_rama": "tufxjboalbtekbszckcf",
+  "creada_utc": "2026-09-15T18:01:34.722207+00:00",
+  "tarifa_usd_hora": 0.01344,
+  "limite_usd": 1,
+  "eliminar_al_terminar": true,
+  "no_tocar": "banco-f7 / cwkiejoaqadcnaieghnf / dff61d67-6c6e-4564-811b-e0458ed12747",
+  "credenciales": "Solo en directorio privado temporal; nunca en este archivo",
+  "actualizado_en": "2026-09-15T19:40:49.020658+00:00",
+  "migracion_remota": "20260915185535",
+  "autorizacion_ultima": "Usuario aprobó SQL exacto, banco hasta US$1 y publicación tras pruebas. Solicitó preparar liberación para todos los analistas y organizar los cierres.",
+  "siguiente": "Revisar pendientes reales G7 y preparar apertura general solicitada para 18 analistas.",
+  "migracion_productiva": "20260915185535",
+  "meta_productiva": "PASS: Gerencia 723.414 ms, mismos datos; SQL, no navegación."
+}

@@ -1,0 +1,73 @@
+{
+  "resultado": "PASS",
+  "banco": "tufxjboalbtekbszckcf",
+  "alcance": "6 solicitudes HTTP en oleadas de 1/2/3; intervalos cliente superpuestos. No acredita solapamiento SQL interno.",
+  "resultados": [
+    {
+      "cantidad": 1,
+      "solapamiento_solicitudes_ms": 1225,
+      "muestras": [
+        {
+          "rol": "gerencia",
+          "inicio": 1789498671009,
+          "fin": 1789498672234,
+          "ms": 1225,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        }
+      ]
+    },
+    {
+      "cantidad": 2,
+      "solapamiento_solicitudes_ms": 453,
+      "muestras": [
+        {
+          "rol": "gerencia",
+          "inicio": 1789498672235,
+          "fin": 1789498672688,
+          "ms": 453,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        },
+        {
+          "rol": "vendedor",
+          "inicio": 1789498672235,
+          "fin": 1789498672980,
+          "ms": 745,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        }
+      ]
+    },
+    {
+      "cantidad": 3,
+      "solapamiento_solicitudes_ms": 480,
+      "muestras": [
+        {
+          "rol": "gerencia",
+          "inicio": 1789498672981,
+          "fin": 1789498673742,
+          "ms": 761,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        },
+        {
+          "rol": "vendedor",
+          "inicio": 1789498672982,
+          "fin": 1789498673462,
+          "ms": 480,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        },
+        {
+          "rol": "supervisor",
+          "inicio": 1789498672982,
+          "fin": 1789498673567,
+          "ms": 585,
+          "status": 200,
+          "huella": "e9dce360f42e96708462b3963ec44b21b99640895fbecfe660735c4b3b378b9a"
+        }
+      ]
+    }
+  ]
+}

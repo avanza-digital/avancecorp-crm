@@ -1,0 +1,23 @@
+{
+  "resultado": "PASS",
+  "migracion": "20260915185535",
+  "nombre": "crm_ficha_lectura_individual",
+  "historial_previo_conservado": 294,
+  "historial_final": 295,
+  "sentencias_productivas": 9,
+  "segmentos_literales_iguales": true,
+  "nota_serializacion": "El merge separa el SQL único del banco en nueve sentencias; cada segmento coincide literalmente con el archivo aprobado, omitiendo únicamente los separadores entre sentencias.",
+  "sql_fuente_sha256": "18f23dfdd8c71aba4cff23bb2bb7f297303401b8bdc92314e25d4f291842ee21",
+  "controles": {
+    "schemas": true,
+    "default_acl": true,
+    "extensiones": true,
+    "politicas_externas": true,
+    "triggers_externos": true,
+    "publicaciones": true,
+    "cron": true,
+    "ledger_columnas": true
+  },
+  "edge_bundles_identicos": 20,
+  "gate_citas": "PASS: 34 candidatos, 30 sujetos al techo 30, 4 auxiliares, cero sin declarar"
+}

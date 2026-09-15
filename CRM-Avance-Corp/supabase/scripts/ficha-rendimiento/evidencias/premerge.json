@@ -1,0 +1,135 @@
+{
+  "resultado": "PASS",
+  "ledger_previo_identico": 294,
+  "migracion_remota": "20260915185535",
+  "sentencias": 1,
+  "sql_literal_igual": true,
+  "sql_sha256": "18f23dfdd8c71aba4cff23bb2bb7f297303401b8bdc92314e25d4f291842ee21",
+  "diferencias_catalogo": [
+    {
+      "categoria": "constraints",
+      "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+        "md5": "f38b51ed5b804a9d73d1c41e6ce9b1ee"
+      },
+      "banco": {
+        "md5": "f022bf856f2bab730ee28bb6e33ca688",
+        "clave": "crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "constraints",
+      "clave": "crm.empresas_monedas_check:crm.empresas:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.empresas_monedas_check:crm.empresas:-",
+        "md5": "e2457ffcc976877d507e73cff46269de"
+      },
+      "banco": {
+        "md5": "72d2ad3f33bc015efcbcb5a86e932283",
+        "clave": "crm.empresas_monedas_check:crm.empresas:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "constraints",
+      "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+      "padre": {
+        "categoria": "constraints",
+        "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+        "md5": "7a7b807a4bde11bfa298ba5da22e2670"
+      },
+      "banco": {
+        "md5": "8c095904ae661c352e5ff89f22734347",
+        "clave": "crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+        "categoria": "constraints"
+      }
+    },
+    {
+      "categoria": "event_triggers",
+      "clave": "issue_pg_graphql_access",
+      "padre": {
+        "categoria": "event_triggers",
+        "clave": "issue_pg_graphql_access",
+        "md5": "893ac630a0c7912ddd12b4f0d2c25da7"
+      },
+      "banco": {
+        "md5": "c4e0a3ef5b77d5feaa52b45bb3f41a25",
+        "clave": "issue_pg_graphql_access",
+        "categoria": "event_triggers"
+      }
+    },
+    {
+      "categoria": "extensiones",
+      "clave": "pg_net",
+      "padre": {
+        "categoria": "extensiones",
+        "clave": "pg_net",
+        "md5": "d5d7972fcee441796ff78d323bedfa02"
+      },
+      "banco": {
+        "md5": "46d7a38fa0717cb4ebc8379985981e89",
+        "clave": "pg_net",
+        "categoria": "extensiones"
+      }
+    },
+    {
+      "categoria": "funciones",
+      "clave": "crm.inversionista_ficha_fn(p_inversionista uuid, p_pagina_inversiones integer, p_pagina_historial integer)",
+      "padre": {
+        "categoria": "funciones",
+        "clave": "crm.inversionista_ficha_fn(p_inversionista uuid, p_pagina_inversiones integer, p_pagina_historial integer)",
+        "md5": "b98be0cf018d6d133e4b9e22af02ec35"
+      },
+      "banco": {
+        "md5": "d2023470e3e93938ba897b6bc62808cb",
+        "clave": "crm.inversionista_ficha_fn(p_inversionista uuid, p_pagina_inversiones integer, p_pagina_historial integer)",
+        "categoria": "funciones"
+      }
+    },
+    {
+      "categoria": "funciones",
+      "clave": "private.cartera_f5_personas_visibles()",
+      "padre": {
+        "categoria": "funciones",
+        "clave": "private.cartera_f5_personas_visibles()",
+        "md5": "6332bff93c8c8b265c7876e1f5052ed4"
+      },
+      "banco": {
+        "md5": "94d0f5414a68be3a244bbdd9aaa23f33",
+        "clave": "private.cartera_f5_personas_visibles()",
+        "categoria": "funciones"
+      }
+    },
+    {
+      "categoria": "funciones",
+      "clave": "private.cartera_f5_personas_visibles(p_inversionista uuid)",
+      "padre": null,
+      "banco": {
+        "md5": "b2a0cd8ad5028384790a3a47c3eed29c",
+        "clave": "private.cartera_f5_personas_visibles(p_inversionista uuid)",
+        "categoria": "funciones"
+      }
+    },
+    {
+      "categoria": "publicaciones",
+      "clave": "supabase_realtime_messages_publication",
+      "padre": {
+        "categoria": "publicaciones",
+        "clave": "supabase_realtime_messages_publication",
+        "md5": "13d6820e30f3606ff132f9185ee091db"
+      },
+      "banco": null
+    }
+  ],
+  "edge": "20 bundles y configuración iguales",
+  "usuarios_sinteticos": 15,
+  "cron_activos": 0,
+  "cambios_concurrentes_conservados": [
+    "correo atomico 20260915181818",
+    "Citas 20260915170017/20260915170018"
+  ]
+}

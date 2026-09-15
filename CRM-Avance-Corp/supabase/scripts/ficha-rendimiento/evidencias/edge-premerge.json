@@ -1,0 +1,146 @@
+{
+  "resultado": "PASS",
+  "cantidad": 20,
+  "funciones": [
+    {
+      "slug": "crear-cliente",
+      "version": 36,
+      "sha256": "eb089c7459f3d65e915c59d62910b84971f996552c0aef12f64896c3306d2c6a",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crear-admin",
+      "version": 18,
+      "sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "enviar-comunicado",
+      "version": 15,
+      "sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "enviar-push",
+      "version": 7,
+      "sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "diagnostico-push",
+      "version": 7,
+      "sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "resetear-password",
+      "version": 7,
+      "sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "eliminar-cliente",
+      "version": 9,
+      "sha256": "039cdb07ba6821754dc7e21525a1aacdc6f42bbb8520f5b6dd1bdf0542eae60a",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "notificar-pagos",
+      "version": 9,
+      "sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6",
+      "verify_jwt": false,
+      "import_map": false
+    },
+    {
+      "slug": "importar-clientes",
+      "version": 16,
+      "sha256": "f5b3b2c98a8956f0af85e0f9a31625673c588dfc3f5ed2e75bb4b97051a2b640",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "ciclo-contratos",
+      "version": 6,
+      "sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb",
+      "verify_jwt": false,
+      "import_map": false
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "version": 16,
+      "sha256": "7fc27ab95b8253197c5185a3de9894c27509f1b4a66e17c6c0444a24f5153083",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "version": 9,
+      "sha256": "694edeec8026de0839dabd1a8e0c85e281338b288c53c2a82bf9c5e9db75dce9",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "version": 7,
+      "sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5",
+      "verify_jwt": false,
+      "import_map": false
+    },
+    {
+      "slug": "crm-importar-leads",
+      "version": 21,
+      "sha256": "9d7ca8d8087f2bfe8a14a3f73245ee1924bacf1fcf7369effd84ac9b31d05669",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-usuarios",
+      "version": 7,
+      "sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "version": 17,
+      "sha256": "dd297784d1274c0926a36478d0d21f5cf242cb03ad88e11b50cf1a0bea13aaa1",
+      "verify_jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "version": 2,
+      "sha256": "bfa917af846466011e2d1cb4b992c8335fff830d53c3f09ca6bc591454ce8723",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "version": 1,
+      "sha256": "12ce3e2aea4546acec3050eb32414a4f8068dcc9e0e41738d9036ba58b4c1df7",
+      "verify_jwt": true,
+      "import_map": false
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "version": 1,
+      "sha256": "85c19897308847cb1e412f1e3417aa6252997fb18833d47a8162607af4415ea8",
+      "verify_jwt": false,
+      "import_map": false
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "version": 1,
+      "sha256": "5c51779d7b72f2649282c796614a1b6d900785cfedf52a637de963deaba4e253",
+      "verify_jwt": true,
+      "import_map": false
+    }
+  ]
+}
