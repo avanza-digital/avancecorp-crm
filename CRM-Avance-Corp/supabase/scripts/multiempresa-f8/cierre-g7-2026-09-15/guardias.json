@@ -1,0 +1,17 @@
+{
+  "funciones": {
+    "private.postventa_modo()": "6d3ed5c34544ef824ca5f491c64e2b74",
+    "private.piloto_f8_modo_activo()": "5884ee282aa39cd2b9c6c0928bd231d2",
+    "private.cartera_f5_fuentes_reales()": "21406e2362a2d2cb35622633467911d4",
+    "private.piloto_f8_actor_activo(uuid)": "1b61c0ce38a4c9e71b8cc9bb92441b93",
+    "crm.cartera_inversionistas_estado_fn()": "83575873409d51508753fa6405ffcc92",
+    "private.trg_piloto_f8_control_validar()": "47585a27b991a442bb09b3477be5f224",
+    "private.inversiones_escritura_bajo_candado()": "2122bbf3b22996f2e8373081a259db9b",
+    "private.trg_multiempresa_flags_serializa_puertas()": "316ba7a3690bceba7e2c1361982192c2",
+    "private.trg_multiempresa_flags_bloquear_piloto_f8()": "4a7a15a7c1a8df54b47e3bae751948eb"
+  },
+  "roster_hash": "6b42465c504041d48874ebd75e417a45",
+  "miembros_hash": "76c9378c54ddcc085ac17b97f8627972",
+  "lectores_sin_equipo": 0
+}
+

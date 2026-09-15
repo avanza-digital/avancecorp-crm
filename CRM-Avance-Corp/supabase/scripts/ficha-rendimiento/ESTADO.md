@@ -18,6 +18,11 @@ El control productivo sigue en piloto nominal; banderas globales F4/F5/F6/F7 OFF
 La [acta G7](../multiempresa-f8/ACTA-G7.md) conserva pendientes de muestreo real y conformidad; no se declaran cumplidos con las pruebas sintéticas de la ficha.
 Revisar evidencia real vigente, identificar pendientes que afecten la apertura y preparar la activación concreta con comprobación de cada rol y reversa. No crear inversiones reales de prueba ni firmar conformidades en nombre de Miguel.
 
+Revisión del 15/09 completada: [613 fuentes, 19 fichas y 24 cuentas](../multiempresa-f8/cierre-g7-2026-09-15/README.md).
+Coherencia interna PASS; G7 conserva recorridos operativos/conformidades. Se
+consultó el ajuste de evidencia y se continúa con pruebas técnicas aisladas.
+[Ruta de apertura](../multiempresa-f8/cierre-g7-2026-09-15/APERTURA.md).
+
 ## 3. Entrega y guardado de la mejora
 
 Registrar el resultado real y sus límites, actualizar MIGRACIONES y el vault, guardar únicamente archivos propios, integrar avancecorp/main sin sobrescribir trabajo concurrente y confirmar eliminación del banco y coste estimado.

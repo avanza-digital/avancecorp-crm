@@ -1,0 +1,435 @@
+{
+  "corte": "2026-09-15T20:09:18.856012+00:00",
+  "roles": [
+    {
+      "rol": "coordinador",
+      "actor": "25a1ec4ad11d92f4663f2d8a99e4d181",
+      "piloto": false,
+      "cartera": null,
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": "42501",
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "gerencia",
+      "actor": "0aa50e6570960bd2d8f07fa115f800bb",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "gerencia",
+      "actor": "d617c44f76bcb5d078c41b4851cf1eac",
+      "piloto": true,
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "supervisor",
+      "actor": "aa278f32d170761b8388c7caa48ce42c",
+      "piloto": true,
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "supervisor",
+      "actor": "9d7639c2f651f6280003b7ebefa3ad78",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "supervisor",
+      "actor": "646d5c7ccb39ce7b17d24c82735c235f",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "26597bb59729bfdc0e37680da10b8ff2",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "90ce0cc425efac5ba76b54459452257c",
+      "piloto": true,
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "5b914a1c8f6dade4bcd9c800e3fd026e",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "5eed4212202a5cf224446b456f5821f2",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "7c0a85a231655d1456a30b2ed67075a4",
+      "piloto": true,
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "42a531899cf6acefc8c9d098639f91b4",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "45d82548db5e9afbb08bfb7ba54fb3bc",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "e52ec6ea6850a1bff95c0187e636292b",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "cbb0deb5f607e43cf538ca3ac53aa37c",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "41bc59dc1adbc445a6de41f93411ad1c",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "10184db9d73ae3519565925dbaf987b3",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "38cdf4b231563a98c193a26ff70cd05f",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "02db5f043ac70cac3b82db391794cf4e",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "fbd1a71f2470a960f2e5a5f961b499bb",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "819a959919df2726ff71f0fb5739ab16",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "1cedc4088f09b524cb3b3aa8ab235c9a",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "9926332375dc9f8e4fe7c3ba9fe924e9",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "61e9fe25fe3a79abf297d09a75e0c903",
+      "piloto": false,
+      "cartera": {
+        "motivo": "La cartera multiempresa aún no está habilitada",
+        "version": 1,
+        "habilitada": false,
+        "escritura_habilitada": false
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": null,
+      "error_postventa": null,
+      "cuenta_auth_vigente": true
+    }
+  ],
+  "metodo": "Claims SQL locales, SET LOCAL ROLE authenticated y ROLLBACK. No login Auth/HTTP ni navegación humana.",
+  "transaction_read_only": "off"
+}
+

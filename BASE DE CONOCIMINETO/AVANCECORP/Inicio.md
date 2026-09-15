@@ -23,6 +23,10 @@ Adaptación visual aprobada y publicada: [[F8 - ficha anterior recuperada para m
 Rendimiento medido: [[Rendimiento ligero - medicion de Cartera y Hoy (2026-09-15)]] — 39 consultas; ficha Gerencia 2,7 s / Analista 0,8 s. Optimización del núcleo propuesta; web y concurrencia real no acreditadas. Sin cambios de producto.
 Optimización publicada: [[Ficha rapida - publicada y verificada (2026-09-15)]] — ficha SQL Gerencia 2,67 → 0,72 s; datos/permisos idénticos, Auth/API remoto y producción verificados. Banco eliminado, coste estimado US$0,021. Siguiente: preparar apertura a los 18 analistas y cerrar pendientes reales G7.
 Piloto nominal ON para cuatro personas hasta el 21/09 a las 13:23 Lima; G7 abierto.
+Revisión para apertura: [[G7 - revision real y apertura pendiente (2026-09-15)]] —
+613 inversiones/467 personas coherentes internamente; 19 fichas y 24 cuentas
+verificadas. Pendiente decidir cómo acreditar casos reales ausentes; siguen
+pruebas técnicas aisladas y conformidades. Sin apertura general.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:
 timeout corregido en banco local, Ficha 360 recuperada y plazo/rentabilidad anual

@@ -1,0 +1,70 @@
+{
+  "altas": [
+    {
+      "empresa": "avance",
+      "fuentes": 10,
+      "sin_autor": 0,
+      "autor_del_piloto": 0,
+      "atribuidas_al_piloto": 0
+    },
+    {
+      "empresa": "prodelco",
+      "fuentes": 0,
+      "sin_autor": 0,
+      "autor_del_piloto": 0,
+      "atribuidas_al_piloto": 0
+    },
+    {
+      "empresa": "qorilazo",
+      "fuentes": 1,
+      "sin_autor": 0,
+      "autor_del_piloto": 1,
+      "atribuidas_al_piloto": 1
+    }
+  ],
+  "corte": "2026-09-15T20:23:03.387438+00:00",
+  "limite": "Coherencia interna por fuentes compartidas. No ejecución de una reasignación, autenticación documental ni aceptación financiera.",
+  "desglose": {
+    "diferencias": 0,
+    "filas_nucleo": 6,
+    "filas_esperadas": 6,
+    "renovaciones_completas": 3,
+    "upgrades_sin_puente_renovacion": 89,
+    "renovaciones_con_suma_incorrecta": 0,
+    "renovaciones_historicas_sin_desglose": 9
+  },
+  "pk_cierre_mes": "PRIMARY KEY (periodo, vendedor_id)",
+  "ancla_coincide": true,
+  "ancla_acumulada": "2026-09-14T18:23:51.712435+00:00",
+  "confirmaciones_f4": [
+    {
+      "estado": "confirmada",
+      "solicitudes": 1,
+      "preparadas_por_piloto": 1,
+      "confirmadas_por_piloto": 1
+    }
+  ],
+  "funciones_contexto": {
+    "private.rol_crm(uuid)": "99827f3fe2fbc3cfae5668c30015c758",
+    "crm.postventa_estado_fn()": "2d1e2176a210fae2ec12215447ea8c0f",
+    "private.es_lector_global()": "c8be602f84348a0125617995802db618",
+    "private.piloto_f8_actor_activo(uuid)": "1b61c0ce38a4c9e71b8cc9bb92441b93",
+    "private.analista_atribuido_cadena(uuid)": "3c9cec305b014ad8c933df25057d3e8b",
+    "private.puede_gestionar_contratos_crm()": "94b5fb2af92bf4187802b1f3d26659c5",
+    "private.inversiones_escritura_bajo_candado()": "2122bbf3b22996f2e8373081a259db9b",
+    "crm.inversionista_ficha_fn(uuid,integer,integer)": "d0c6543bc7226e027fb8364f137fd02a"
+  },
+  "inicio_control_vivo": "2026-09-14T18:23:51.712435+00:00",
+  "candidato_reasignado": [
+    {
+      "empresa": "avance",
+      "persona": "d2d81dbd1e2cdc76ae9823bb281eecea",
+      "operacion": "6542a7bbd6dafb4981e7824d1160afc2",
+      "stock_coincide": true,
+      "atribucion_coincide": true,
+      "autor_preservado_coincide": true,
+      "analista_actual_difiere_vendedor_registrado": true
+    }
+  ]
+}
+

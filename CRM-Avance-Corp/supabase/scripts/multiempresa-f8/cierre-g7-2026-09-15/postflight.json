@@ -1,0 +1,294 @@
+{
+  "corte": "2026-09-15T20:16:43.282889+00:00",
+  "piloto": {
+    "activo": true,
+    "revision": 1,
+    "vence_en": "2026-09-21T18:23:51.712435+00:00",
+    "inicia_en": "2026-09-14T18:23:51.712435+00:00"
+  },
+  "alcance": "Paridad interna de núcleos y datos existentes; no contabilidad externa ni firma G7.",
+  "version": 1,
+  "banderas": {
+    "ficha_360_neutral": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "metricas_multiempresa_sombra": false
+  },
+  "snapshot": "167368:167368:",
+  "funciones": {
+    "private.cartera_f5_fuentes()": "94fa33cfcca657f70a1a94f98c3bf482",
+    "private.metricas_f7_fuentes()": "260337e6aa59f90ad1c7158123770366",
+    "private.cartera_f5_fuentes_reales()": "21406e2362a2d2cb35622633467911d4",
+    "private.inversionista_canonica(uuid)": "34702897135078893b7d3a726b0c1816",
+    "crm.cartera_inversionistas_estado_fn()": "83575873409d51508753fa6405ffcc92",
+    "crm.inversionista_ficha_fn(uuid,integer,integer)": "d0c6543bc7226e027fb8364f137fd02a",
+    "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])": "c9e58c1da9dd7a5d52991c9e47dc19d5"
+  },
+  "identidades": {
+    "total": 467,
+    "estados": [
+      {
+        "estado": "activo",
+        "cantidad": 467
+      }
+    ],
+    "sin_perfil": 23,
+    "multiempresa": 1,
+    "sin_responsable": 2,
+    "sin_documento_verificado": 0
+  },
+  "por_empresa": [
+    {
+      "empresa": "avance",
+      "identidades": 444,
+      "inversiones": 589,
+      "sin_atribucion": 9,
+      "con_relacion_f4": 10,
+      "legado_sin_relacion_f4": 579
+    },
+    {
+      "empresa": "prodelco",
+      "identidades": 6,
+      "inversiones": 6,
+      "sin_atribucion": 0,
+      "con_relacion_f4": 3,
+      "legado_sin_relacion_f4": 3
+    },
+    {
+      "empresa": "qorilazo",
+      "identidades": 18,
+      "inversiones": 18,
+      "sin_atribucion": 0,
+      "con_relacion_f4": 12,
+      "legado_sin_relacion_f4": 6
+    }
+  ],
+  "conciliacion": {
+    "fuentes_capital": 613,
+    "fuentes_cartera": 613,
+    "fuentes_metricas": 613,
+    "fuentes_duplicadas": 0,
+    "sin_identidad_coherente": 0,
+    "diferencias_cartera_capital": 0,
+    "diferencias_metricas_capital": 0,
+    "identidades_metricas_distintas": 0
+  },
+  "solo_lectura": "on",
+  "fotos_selladas": [
+    {
+      "filas": 16,
+      "periodo": "2026-08-01",
+      "huella_filas": "c67847e078955ca4b6190544d043b387",
+      "huella_periodo": "336e1099df6bb36de7a79c32edff8a4a"
+    }
+  ],
+  "casos_existentes": {
+    "retiros": 0,
+    "upgrades": 89,
+    "cotitulares": 0,
+    "anulaciones_coopac": 0,
+    "upgrades_atribuidos_a_otro": 1
+  },
+  "altas_desde_inicio": [
+    {
+      "todas": 10,
+      "empresa": "avance",
+      "equipo_piloto": 0
+    },
+    {
+      "todas": 0,
+      "empresa": "prodelco",
+      "equipo_piloto": 0
+    },
+    {
+      "todas": 1,
+      "empresa": "qorilazo",
+      "equipo_piloto": 1
+    }
+  ],
+  "solicitudes_nuevas": [
+    {
+      "estado": "confirmada",
+      "cantidad": 1
+    }
+  ],
+  "muestra_retrospectiva": {
+    "fuentes": 20,
+    "identidades": 19,
+    "por_empresa": [
+      {
+        "empresa": "avance",
+        "fuentes": 10,
+        "identidades": 10
+      },
+      {
+        "empresa": "prodelco",
+        "fuentes": 5,
+        "identidades": 5
+      },
+      {
+        "empresa": "qorilazo",
+        "fuentes": 5,
+        "identidades": 5
+      }
+    ],
+    "fuentes_hash": [
+      {
+        "fuente": "39a145b5fe6572c5c23bfe792df3fa86",
+        "empresa": "avance",
+        "persona": "32eb2adebcb2ae55fce168a9e4140667",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-14T17:53:22.174979+00:00"
+      },
+      {
+        "fuente": "fad7fe1008e88a2e0e4d9d05cddb6f91",
+        "empresa": "avance",
+        "persona": "94a4f8012ef55481c279f47735066d94",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-14T19:11:20.18013+00:00"
+      },
+      {
+        "fuente": "efc4211b4357163ce903c1c014dffa21",
+        "empresa": "avance",
+        "persona": "28c883d2b5948d6ba701bef5338d8e81",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-14T20:02:44.950692+00:00"
+      },
+      {
+        "fuente": "49879841f795e9ff4a36c865af7fbc8a",
+        "empresa": "avance",
+        "persona": "8b8c94db2df50cee07300a04f29a9a65",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-14T20:53:27.738386+00:00"
+      },
+      {
+        "fuente": "5175837e91d640f8e3d0a9cadece5d14",
+        "empresa": "avance",
+        "persona": "4c696cec54398fdae37fc14ce94fbdab",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-14T21:12:16.342205+00:00"
+      },
+      {
+        "fuente": "1138329e31711365ede2ce910b952d01",
+        "empresa": "avance",
+        "persona": "8110aeffb3e790d223f33e403e35eb62",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-15T14:19:41.252248+00:00"
+      },
+      {
+        "fuente": "fc7b71213fc5760cebf71a83ca39be7d",
+        "empresa": "avance",
+        "persona": "a0607b69829bd5bec7f29f9407290cc9",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-15T15:09:34.211032+00:00"
+      },
+      {
+        "fuente": "ef59effc887b6fcd2e94a61923edc298",
+        "empresa": "avance",
+        "persona": "07a0eaae1907b7f72b8054a5ea504554",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-15T16:17:50.424506+00:00"
+      },
+      {
+        "fuente": "5b03f0b603cd5787b89e35a63246840b",
+        "empresa": "avance",
+        "persona": "1eea5517ff5b8b95e49643742ccbfe1e",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-15T18:11:38.123676+00:00"
+      },
+      {
+        "fuente": "c29b564fc4100414842c04fc964405b2",
+        "empresa": "avance",
+        "persona": "ede357a3712d64e14170eb6f27fac5c6",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-15T18:35:11.976441+00:00"
+      },
+      {
+        "fuente": "1ba5a0d9e7f0da59cec8619b6dcdd4a1",
+        "empresa": "prodelco",
+        "persona": "b82ebec7e14173981236a1a840d34b08",
+        "desde_inicio": false,
+        "fecha_registro": "2026-08-28T15:17:09.439467+00:00"
+      },
+      {
+        "fuente": "faaf419c5009a03358db08724d18d36b",
+        "empresa": "prodelco",
+        "persona": "446eb764f302ff30a8845fa4a2e1e41d",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-01T22:42:58.742567+00:00"
+      },
+      {
+        "fuente": "6b01dde3e95fe69cd318fd6090756f15",
+        "empresa": "prodelco",
+        "persona": "43c4d1d1a77e076e83d8ed0c2b517338",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-09T16:55:23.520948+00:00"
+      },
+      {
+        "fuente": "1b99d97e89ae052de6337a881f4620c4",
+        "empresa": "prodelco",
+        "persona": "f40422364703537f4c268365d67ad3b4",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-14T16:53:25.541802+00:00"
+      },
+      {
+        "fuente": "450a7a1e4d64b25775eeab32a04b2d46",
+        "empresa": "prodelco",
+        "persona": "ff369985fa7539a2daa4b36ef66393e2",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-14T16:59:55.029818+00:00"
+      },
+      {
+        "fuente": "bfed49c8aab65a149a813328073bf226",
+        "empresa": "qorilazo",
+        "persona": "a9dd0b0519aed56bdaa5982a5482ef81",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-09T15:41:41.971334+00:00"
+      },
+      {
+        "fuente": "bae05bdddcd2c833440cb028b025d208",
+        "empresa": "qorilazo",
+        "persona": "758c59871f621d31213b1f70c2da31fc",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-10T21:14:11.997085+00:00"
+      },
+      {
+        "fuente": "eed34fac7543f23796763f929aa0918e",
+        "empresa": "qorilazo",
+        "persona": "6496dbd4f6364d96e1073a3f7f8f07d7",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-12T14:14:34.608487+00:00"
+      },
+      {
+        "fuente": "cf076440db31ae2775f1a3f7c8c68822",
+        "empresa": "qorilazo",
+        "persona": "450283c48765afb9b958d322524b43ff",
+        "desde_inicio": false,
+        "fecha_registro": "2026-09-12T16:12:31.689124+00:00"
+      },
+      {
+        "fuente": "35b850174a3d57f8eec5f19fee10ed32",
+        "empresa": "qorilazo",
+        "persona": "f40422364703537f4c268365d67ad3b4",
+        "desde_inicio": true,
+        "fecha_registro": "2026-09-14T19:56:04.064204+00:00"
+      }
+    ]
+  },
+  "recorridos_historicos": [
+    {
+      "previa": "avance",
+      "empresa": "avance",
+      "personas": 103,
+      "transiciones": 145
+    },
+    {
+      "previa": "prodelco",
+      "empresa": "qorilazo",
+      "personas": 1,
+      "transiciones": 1
+    }
+  ]
+}
+

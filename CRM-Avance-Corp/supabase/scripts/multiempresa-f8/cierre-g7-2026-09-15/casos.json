@@ -1,0 +1,23 @@
+{
+  "corte": "2026-09-15T20:16:40.273616+00:00",
+  "metodo": "Lecturas SQL con Gerencia, roles y ROLLBACK. No reasignaciones ni escrituras económicas.",
+  "sin_responsable": [
+    {
+      "persona": "4c51ccceaffd01ad6626087a87d965b5",
+      "visible": true,
+      "inversiones": 2,
+      "nueva_inversion": false
+    },
+    {
+      "persona": "bdfb4e54044366beafb3a3dc4181132d",
+      "visible": true,
+      "inversiones": 1,
+      "nueva_inversion": false
+    }
+  ],
+  "gestiones_postventa": 39,
+  "depositos_reclamados": 24,
+  "cotitulares_contractuales": 0,
+  "contratos_con_anulacion_comercial": 0
+}
+

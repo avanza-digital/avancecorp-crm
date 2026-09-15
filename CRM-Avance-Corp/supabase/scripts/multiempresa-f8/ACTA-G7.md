@@ -30,31 +30,43 @@ pasa con límite SQL de ocho segundos por sentencia. Miguel aprobó la adaptaci�
 visual de la ficha, ya publicada; UI/Auth/HTTP de sesiones reales siguen NOT RUN.
 Datos/totales deben salir de los núcleos canónicos, sin lecturas o cálculos paralelos.
 
+Revisión del **15/09, corte 15:07 Lima**: [613 fuentes reales y muestra retrospectiva](cierre-g7-2026-09-15/README.md)
+comprobadas; 19 fichas con 25 inversiones y capacidades de 24 cuentas. Cero
+diferencias internas entre Cartera/Capital/F7; los lectores comparten fuentes,
+por lo que esto no sustituye contabilidad externa ni conformidad financiera.
+La ficha rápida ya está publicada. El piloto sigue nominal y G7 abierto.
+
 ## Evidencia mínima real
 
 | Requisito | Resultado | Evidencia / responsable |
 |---|---|---|
-| 15 identidades verificadas; al menos 5 por empresa | PARCIAL | Una identidad canónica comprobada por SQL en el primer caso; no completa el muestreo |
-| 20 inversiones confirmadas y consecutivamente conciliadas; al menos 5 por empresa | PARCIAL | Una inversión nueva Qorilazo durante F8, conciliada con su antecedente Prodelco previo al encendido |
-| 6 recorridos multiempresa obligatorios | PARCIAL | Prodelco→Qorilazo aporta un recorrido adicional representativo; revisión visual pendiente |
-| Multirrol | PASS SQL / parcial real | Cartera y primera ficha de cuatro contextos vigentes PASS el 15/09 tras corregir G7-R01; rol SQL authenticated, timeout 8s y ROLLBACK. Login JWT/HTTP y recorrido humano productivo pendientes |
-| Sin responsable | PENDIENTE | |
+| 15 identidades verificadas; al menos 5 por empresa | PASS técnico retrospectivo / conformidad documental pendiente | Muestra de 19 personas, 10 Avance/5 Prodelco/5 Qorilazo con una compartida; identificador vigente marcado verificado y ficha coherente. No se autenticó el documento físico |
+| 20 inversiones confirmadas y consecutivamente conciliadas; al menos 5 por empresa | PARCIAL; lectura retrospectiva PASS | 20 fuentes seleccionadas, 25 inversiones en sus fichas, 613 fuentes internamente coherentes. Solo una solicitud F4 confirmada por un participante durante el piloto; no se acredita con la lectura el flujo operativo completo |
+| 6 recorridos multiempresa obligatorios | PARCIAL | Única persona multiempresa: Prodelco→Qorilazo. Avance→Avance histórico incluye renovaciones/upgrades; no se equipara a una nueva inversión F8. Tres direcciones obligatorias no existen en los datos reales |
+| Multirrol | PASS SQL / parcial real | 24 cuentas vigentes; F5/F6 habilitados solo a los cuatro nominales. SQL authenticated y ROLLBACK, sin login JWT/HTTP ni recorrido humano productivo |
+| Sin responsable | PASS lectura SQL Gerencia / gestión real pendiente | Dos personas, tres inversiones; fichas visibles y nueva inversión bloqueada hasta asignación. No se modificó su responsable |
 | Identidad provisional | PENDIENTE | |
 | Cotitularidad | PENDIENTE | |
 | Anulación | PENDIENTE | |
 | Solicitud de retiro | PENDIENTE | |
-| Upgrade reasignado | PENDIENTE | |
-| Mes sellado sin reescritura | PENDIENTE | |
+| Upgrade reasignado | PARCIAL | Un candidato real, stock/atribución/autor coinciden entre fuentes; no se ejecutó ni aceptó una reasignación. Seis filas de desglose y tres renovaciones completas conciliadas internamente; nueve renovaciones históricas sin desglose explícitas |
+| Mes sellado sin reescritura | PASS estabilidad entre lecturas / operación pendiente | Agosto conserva las 16 filas y ambas huellas entre 15:07 y 15:16 Lima; no sustituye una nueva prueba de escritura contra el sello |
 | 10 reintentos idempotentes | PENDIENTE | |
 | 5 carreras económicas aisladas | PENDIENTE | No confundir con carreras del control ya probadas |
 | Fallo Auth y depósito repetido | PENDIENTE | |
 | Cero P0/P1 abiertos | G7-R01 resuelto técnicamente; revisión del resto pendiente | Corrección publicada y lecturas de supervisor/Gerencia verificadas el 15/09; esta comprobación no sustituye los casos G7 todavía pendientes |
-| Cero diferencias financieras | PARCIAL | Sin diferencias en el caso de PEN 9,000; no equivale a conciliación completa del piloto |
+| Cero diferencias financieras | PARCIAL; coherencia interna PASS | 613 fuentes sin divergencias entre lectores compartidos. Conformidad financiera del corte F8 pendiente; no es validación de documentos/contabilidad externa |
 | Soporte y reversa comprobados | PENDIENTE | |
 
 Recorridos obligatorios: Avance→Qorilazo, Qorilazo→Avance,
 Qorilazo→Prodelco, segunda inversión en la misma empresa y dos recorridos
 multiempresa adicionales representativos.
+
+Miguel tiene pendiente decidir si acepta la muestra real existente para el
+volumen y completa los recorridos/casos ausentes en un banco aislado. El pedido
+de retomar no se toma como aprobación de ese ajuste. [Ruta de apertura y
+pendientes técnicos](cierre-g7-2026-09-15/APERTURA.md). No se exige crear ventas
+ficticias reales ni se declaran firmadas casillas por las pruebas automáticas.
 
 ## Firmas G7
 

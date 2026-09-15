@@ -2,7 +2,7 @@
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
 estado: plan-vigente-g6-cerrado-f8-piloto-activo-g7-pendiente
-actualizado: 2026-09-14
+actualizado: 2026-09-15
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -21,6 +21,13 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 ## Estado vigente — F8 piloto nominal activo; G7 abierto
 
 **15/09 — rendimiento cerrado:** [[Ficha rapida - publicada y verificada (2026-09-15)]] — ficha Gerencia 2,67 → 0,72 s, datos y permisos conservados, banco eliminado. Miguel solicitó preparar la apertura general a los 18 analistas; G7 mantiene sus pendientes reales y conformidades.
+
+**15/09 — revisión real:** [[G7 - revision real y apertura pendiente (2026-09-15)]] —
+613 inversiones y 467 personas coherentes entre lectores; 19 fichas verificadas,
+24 cuentas vigentes y cuatro capacidades nominales. Solo una confirmación F4 en
+el piloto; varios recorridos/casos reales no existen. G7 abierto y decisión de
+Miguel pendiente sobre usar muestra histórica y casos aislados. No se modifican
+los criterios ni se encienden banderas generales por esta revisión.
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,

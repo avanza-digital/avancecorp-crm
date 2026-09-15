@@ -1,0 +1,178 @@
+{
+  "corte": "2026-09-15T20:10:47.521875+00:00",
+  "fichas": [
+    {
+      "error": null,
+      "persona": "f40422364703537f4c268365d67ad3b4",
+      "ficha_hash": "9cf9cc67c197ab3062b6c8f2095ea1d6",
+      "inversiones": 2,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "a9dd0b0519aed56bdaa5982a5482ef81",
+      "ficha_hash": "75fbdbe0d2555038c544c7197e77b5c8",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "446eb764f302ff30a8845fa4a2e1e41d",
+      "ficha_hash": "072cb6e5919741f778a71067340b12bd",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "450283c48765afb9b958d322524b43ff",
+      "ficha_hash": "7eb206c2c0e673daf1005978f9ba8d44",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "8b8c94db2df50cee07300a04f29a9a65",
+      "ficha_hash": "332de3fbf4fac6430213d6a7372ce14b",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "8110aeffb3e790d223f33e403e35eb62",
+      "ficha_hash": "543f4ddb22fb46843bcaf46fc382ac1c",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "a0607b69829bd5bec7f29f9407290cc9",
+      "ficha_hash": "a734110de2281906f194324424fabe34",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "94a4f8012ef55481c279f47735066d94",
+      "ficha_hash": "52b83a1529eca7395fe3f7dac6f47a6e",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "07a0eaae1907b7f72b8054a5ea504554",
+      "ficha_hash": "a7d0a99b2e169aeb36ddfb7bcc708a64",
+      "inversiones": 4,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "43c4d1d1a77e076e83d8ed0c2b517338",
+      "ficha_hash": "265cd642c57c92e12435c24da897133e",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "32eb2adebcb2ae55fce168a9e4140667",
+      "ficha_hash": "0c20b014b0ef9d3b4e55628086d29f3f",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "1eea5517ff5b8b95e49643742ccbfe1e",
+      "ficha_hash": "ddb0df4eecd2401a6015ebc381afa5e5",
+      "inversiones": 2,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "758c59871f621d31213b1f70c2da31fc",
+      "ficha_hash": "87fc49dcb398b0ae2b6c84634aed5954",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "6496dbd4f6364d96e1073a3f7f8f07d7",
+      "ficha_hash": "d3cbbc8951926cebe2606b8411b3a26f",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "b82ebec7e14173981236a1a840d34b08",
+      "ficha_hash": "ca78a0dbbb6b309b682b514c31cd2dce",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "28c883d2b5948d6ba701bef5338d8e81",
+      "ficha_hash": "2c41d767661fc6e4c8ccfc6ea41a88d5",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "4c696cec54398fdae37fc14ce94fbdab",
+      "ficha_hash": "a650953c7f65d9be1d3d8a7ca8d73138",
+      "inversiones": 2,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "ff369985fa7539a2daa4b36ef66393e2",
+      "ficha_hash": "03e6f7ad76a79a1dabfb11d107581b1b",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    },
+    {
+      "error": null,
+      "persona": "ede357a3712d64e14170eb6f27fac5c6",
+      "ficha_hash": "fd37618f76b3dfeb80a722ca6bf79fe8",
+      "inversiones": 1,
+      "fuente_estable": true,
+      "diferencias_fuentes": 0,
+      "diferencias_totales": 0
+    }
+  ],
+  "metodo": "RPC productiva con rol authenticated, Gerencia nominal, comparación NUMERIC y ROLLBACK; no Auth/HTTP ni UI."
+}
+

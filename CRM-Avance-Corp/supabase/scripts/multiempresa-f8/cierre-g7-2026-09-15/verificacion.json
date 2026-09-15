@@ -1,0 +1,24 @@
+{
+  "estado": "PASS",
+  "alcance": "Consistencia de la evidencia técnica retrospectiva; G7 permanece ABIERTO.",
+  "corte": "2026-09-15T20:07:13.831586+00:00",
+  "postflight": "2026-09-15T20:16:43.282889+00:00",
+  "fuentes": 613,
+  "identidades": 467,
+  "muestra_fuentes": 20,
+  "fichas": 19,
+  "inversiones_en_fichas": 25,
+  "cuentas": 24,
+  "analistas": 18,
+  "capacidades_piloto": 4,
+  "funciones_banderas_y_sello_conservados": true,
+  "sha256": {
+    "conciliacion.json": "b0c42ccd7e775854ef1ed3c67071c34dd6e9074cb9716ec6d294b6338244e7e0",
+    "roles.json": "ea2d1d55b525adcb41ba1beecfdc78fcca0d1240d9365f92b35a5cb9276d6f7f",
+    "fichas.json": "8daf7a4451e03ccf476933832c64194f3345059092b7025d91a93658d227e708",
+    "casos.json": "0aa10c9facf5a1099e7f6689516f414058846df7864ab39f98c741e8b81622e7",
+    "postflight.json": "8d13bba7a1ac158899502f0f4b560baff97cb194b40cbe0097ab50c620f35699",
+    "guardias.json": "bf169777edc3e9a733bfaac818e02e9efc1a54aa934a6eb291b91c6ce9a69647",
+    "complemento.json": "9986e2feaa120427becc3b9a35cbc9a7662f144583dabf3062f7b8867d5cbbaa"
+  }
+}
