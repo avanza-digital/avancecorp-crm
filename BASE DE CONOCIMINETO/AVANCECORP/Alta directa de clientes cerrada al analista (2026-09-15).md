@@ -65,12 +65,39 @@ corrección sobre clientes que ya existen en su cartera; y convertir leads desde
   el bundle vivo contiene la capacidad y el texto nuevo; raíz 200; el ZIP no quedó público (404).
 - Rollback inmediato: `releases/crm-20260915T021656Z-95804fc8d83d.zip` (mismo carril).
 
+## Servidor cerrado también: edge `crear-cliente` v35 (15/09/2026, ~11:40 Lima)
+
+Miguel pidió «apaga esa función desde el servidor, pero no la elimines» y eligió el alcance
+**solo al analista**. La función no se borró: se publicó la v35 con el veto.
+
+- Cambio (commit `98bfd74`): en `_supabase_functions/functions/crear-cliente/autorizacion.mjs` el veto
+  `esVendedorCrm(acceso.rol_crm)` se evalúa ANTES de la compatibilidad del Portal, porque 15 de los 18
+  analistas activos conservan el rol Portal legacy `analista`, que hasta hoy los autorizaba por esa vía.
+  Comparación normalizada (trim + minúsculas) como defensa extra; en prod `crm.equipo.rol_crm` tiene un
+  CHECK con los cinco literales exactos. `index.ts` y `_shared` no cambian.
+- Quién conserva el alta directa: Supervisión (incluidos los dos supervisores con rol Portal `analista`,
+  que siguen resolviendo por la vía Portal y autoasignándose), Gerencia (resuelve por la vía Portal:
+  admin/superadmin) y admin/superadmin/operaciones del Portal sin membresía CRM.
+- Lo que no toca: `crm-convertir-lead` (la conversión de leads no usa esta edge).
+- Revisión Codex (SECONDARY_REVIEWER, CLI en sandbox de solo lectura porque el MCP estaba caído):
+  CHANGES_REQUESTED con dos P2 —cobertura de roles administrativos y dependencia del literal exacto—,
+  ambos atendidos. Gate `npm run test:edge-preflight` (node --test + deno check) PASS.
+- Despliegue: `npx supabase@2.114.0 functions deploy crear-cliente --project-ref … --use-api` desde un
+  workdir con copia exacta de `_supabase_functions/functions/{crear-cliente,_shared}` y el `config.toml`
+  del CRM (drift cero antes y después). Antes de desplegar, la v34 viva era byte a byte igual al árbol.
+- Verificación: v35 ACTIVE, `verify_jwt=true`, 7 archivos idénticos al árbol, veto presente en la
+  `autorizacion.mjs` viva. Smoke: OPTIONS con origen del CRM 200; POST sin sesión 401; POST con la llave
+  pública y sin sesión de usuario → 401 «Sesión inválida» desde nuestro código.
+- Hueco declarado: no se ejercitó el 403 con una sesión real de analista (habría que llamar la edge a
+  mano con esa sesión). La conducta está probada en unidad con 10 casos y el código vivo es el del árbol.
+- Reversa: republicar la v34 (`autorizacion.mjs` del commit `d96ed0a`), mismo carril. **Ojo: la reversa
+  vuelve a permitir el alta al analista aunque el botón siga oculto.**
+
 ## Lo que queda abierto
 
-- **La edge `crear-cliente` sigue aceptando al `comercial + vendedor`** (fuente canónica
-  `private.puede_gestionar_contratos_crm()`). Hoy solo se llega por el botón, pero es un
-  candado de UX, no de servidor. Cerrarla al analista es un cambio de autorización
-  (LEVEL 3: edge + posiblemente `mi_acceso_fn`) que se decide aparte.
+- ~~La edge `crear-cliente` sigue aceptando al `comercial + vendedor`~~ → cerrada en la v35 (ver arriba).
+  `private.puede_gestionar_contratos_crm()` / `mi_acceso_fn().puede_contratar` NO cambiaron: el analista
+  los sigue necesitando para convertir leads.
 - Los contratos de clientes ya existentes (Huarcaya S/ 120 000, Centeno S/ 10 000)
   están categorizados `nuevo` aunque el cliente existía; no cambia el total del ranking
   pero sí el conteo de «nuevos».
