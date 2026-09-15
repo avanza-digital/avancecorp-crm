@@ -9736,7 +9736,10 @@ CHECK con `v10`): **45/45** en los 10 casos. Registrador `scripts/registrar-pdf-
 
 ## 20260915170017 — Analítica: re-declara la exención de `crm.cierres_externos_fn` tras F8
 
-**Estado: CANDIDATA (15/09/2026), ensayada en producción dentro de un bloque deshecho.**
+**Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 15/09/2026 (~13:15 Lima) por Miguel con
+`aplicar-ticket-capital-completo-prod.sh` (`db query --linked --file` + registro); gate
+después: «OK: 34 candidatos declarados y con huella vigente…».** Ensayada antes en
+producción dentro de un bloque deshecho.
 F8 (`20260914213928`) recreó `crm.cierres_externos_fn(date)` en producción (añade
 `plazo_meses` y `tasa_anual` al listado) sin renovar su huella en
 `private.analitica_leads_citas_exenciones`; desde entonces
@@ -9749,7 +9752,13 @@ Ensayo con el gate después: `OK: 34 candidatos declarados y con huella vigente;
 
 ## 20260915170018 — Citas: el ticket del mes cuenta TODO el capital del analista
 
-**Estado: CANDIDATA (15/09/2026), ensayada en producción dentro de un bloque deshecho.**
+**Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 15/09/2026 (~13:15 Lima) por Miguel con
+`aplicar-ticket-capital-completo-prod.sh`, justo después del front
+`crm-20260915T180647Z-2553466ee15a` (`build-20260915T180646711Z`, chunk de Gerencia vivo =
+ZIP byte a byte). Comprobación leyendo septiembre como Gerencia: 2 registradas, gate OK,
+lector cambiado y huella vigente, 79 episodios, Adelayda 5 operaciones / S/ 230 000,
+0 sin identidad, 0 leads de capital fuera de la población; 290 migraciones.**
+Ensayada antes en producción dentro de un bloque deshecho.
 Decisión de Miguel: «todo debe contar al ticket medio, nada debe quedar fuera».
 Origen: Adelayda con S/ 230 000 cerrados en septiembre (2 contratos nuevos de
 clientes de alta directa sin lead, 2 upgrades, 1 renovación) y ticket «Sin base»,

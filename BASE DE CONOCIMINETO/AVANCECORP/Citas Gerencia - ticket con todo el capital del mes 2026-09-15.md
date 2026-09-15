@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-15
-estado: implementado-verificado-pendiente-publicar
+estado: publicado-verificado
 tags: [crm, citas, gerencia, ticket, capital, adelayda]
 ---
 
@@ -69,12 +69,18 @@ acepta con mitigación: front primero, SQL inmediatamente después, aviso de rec
   capital en la población con la misma identidad; Adelayda 5 operaciones, 4 clientes,
   S/ 230 000.
 
-## Cómo se publica
+## Publicado el 15/09/2026 (~13:00–13:15 Lima)
 
-1. Front: `npm run release:crm` → preflight → deploy con el token de Miguel.
-2. Servidor: `CRM-Avance-Corp/aplicar-ticket-capital-completo-prod.sh` (aplica, registra
-   y comprueba leyendo como Gerencia). Nunca `db push` ni `merge_branch`.
-3. Reversa: front = ZIP anterior; servidor = reponer los bloques `v_buscar*` de la migración.
+1. Front: commit `2553466` en `main`, construido en un worktree limpio (`git worktree add
+   --detach` + symlinks de `node_modules` + `.env` copiado por Miguel, porque otra sesión
+   tenía cambios sin commitear en `app/`). Release `crm-20260915T180647Z-2553466ee15a`,
+   preflight OK, deploy con el token de Miguel. Vivo: `build-20260915T180646711Z`; el chunk
+   de Gerencia servido es byte a byte el del ZIP.
+2. Servidor: `aplicar-ticket-capital-completo-prod.sh` (Miguel con `!`): las dos migraciones
+   aplicadas y registradas (290 migraciones); comprobación leyendo septiembre como Gerencia:
+   gate OK, 79 episodios, Adelayda 5 operaciones / S/ 230 000, 0 sin identidad.
+3. Reversa: front = ZIP anterior (`crm-20260915T160349Z-d93d8057e91d`); servidor = reponer
+   los bloques `v_buscar*` de la migración. Nunca `db push` ni `merge_branch`.
 
 Relacionado: [[Citas Gerencia - ticket unificado en soles 2026-09-14]],
 [[Citas Gerencia - decisiones finales para publicar 2026-09-14]],
