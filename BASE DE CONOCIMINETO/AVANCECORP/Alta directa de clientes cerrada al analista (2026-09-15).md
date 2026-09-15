@@ -1,7 +1,7 @@
 ---
 tags: [crm, roles, conversion, ranking, mi-cartera, decision]
 actualizado: 2026-09-15
-estado: implementado-en-front-pendiente-publicar
+estado: publicado-y-verificado-en-produccion
 ---
 
 # Alta directa de clientes cerrada al analista (2026-09-15)
@@ -51,6 +51,19 @@ corrección sobre clientes que ya existen en su cartera; y convertir leads desde
 - Tests: `roles.test.ts` (quién tiene la puerta), `mi-cartera.test.tsx` (analista sin
   botón y con sus acciones; supervisor y gerencia con botón) y `e2e/cliente-form.spec.ts`
   (los casos de alta corren como supervisor; caso nuevo: el analista no ve el botón).
+
+## Publicación
+
+- Commit `cdf03f2` en `main` y en `avancecorp/main` (main contiene el commit vivo anterior `95804fc`).
+- Release `crm-20260915T154200Z-cdf03f266805`, SHA-256 del ZIP
+  `574641dfa9641fd44f9cfd7648db6a9b170957bd6958c6ffad5a35281f3b1061`, construido en un
+  worktree limpio del commit (el árbol compartido tenía cambios ajenos sin confirmar).
+- Preflight OK contra lo vivo; deploy por el carril `_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs`
+  con el token de Miguel, el 15/09/2026 ~10:45 Lima.
+- Smoke: `version.json` → `build-20260915T154159564Z`; `index.html`,
+  `assets/index-YVCMKWK1.js` y `assets/mi-cartera-BhzN8yuD.js` coinciden con el manifiesto;
+  el bundle vivo contiene la capacidad y el texto nuevo; raíz 200; el ZIP no quedó público (404).
+- Rollback inmediato: `releases/crm-20260915T021656Z-95804fc8d83d.zip` (mismo carril).
 
 ## Lo que queda abierto
 
