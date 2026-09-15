@@ -33,3 +33,14 @@ como `20260915181818`, Edge activa y nueve grupos remotos PASS. La rama propia
 fue eliminada. Acta: `CRM-Avance-Corp/supabase/scripts/correo-admin/PUBLICADO-20260915.md`.
 El frontend CRM tiene el permiso guardado en Main; esta publicación fue del
 portal miavance.com.
+
+## Cierre de sesión solicitado por Miguel
+
+- Implementación y publicación guardadas en `5bde86f`; tipos y evidencia final
+  guardados en `dc5ae96`. Ambos commits están en `avancecorp/main`.
+- Portal guardado y sincronizado en `0e0d205` de su repositorio.
+- Último gate de guardado: lint, TypeScript y 3605 pruebas aprobadas.
+- Banco remoto eliminado, banco local detenido y sus datos sintéticos
+  eliminados. Credenciales y copias privadas temporales eliminadas.
+- Miguel pidió guardar el trabajo y cerrar la sesión después de recibir
+  la confirmación de activación. El acta enlazada conserva alcance y límites.
