@@ -1,0 +1,173 @@
+{
+  "resultado": "PASS",
+  "base": "ficha_rapida_20260915",
+  "fecha": "2026-09-15T17:53:39.190Z",
+  "restauracion": "PASS",
+  "alcance": "12 lecturas SQL en seis oleadas de 1/2/3 sesiones, misma persona, tres roles. Banco sintético pequeño; no equivale a concurrencia productiva ni HTTP.",
+  "oleadas": [
+    {
+      "fase": "antes",
+      "cantidad": 1,
+      "solapamiento_ms": 44
+    },
+    {
+      "fase": "antes",
+      "cantidad": 2,
+      "solapamiento_ms": 44
+    },
+    {
+      "fase": "antes",
+      "cantidad": 3,
+      "solapamiento_ms": 46
+    },
+    {
+      "fase": "despues",
+      "cantidad": 1,
+      "solapamiento_ms": 45
+    },
+    {
+      "fase": "despues",
+      "cantidad": 2,
+      "solapamiento_ms": 43
+    },
+    {
+      "fase": "despues",
+      "cantidad": 3,
+      "solapamiento_ms": 48
+    }
+  ],
+  "medidas": [
+    {
+      "ms": 44.241,
+      "fin": "2026-09-15T17:53:31.038527+00:00",
+      "pid": 26773,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:30.994286+00:00",
+      "oleada": 1,
+      "operable": true
+    },
+    {
+      "ms": 45.227,
+      "fin": "2026-09-15T17:53:32.592646+00:00",
+      "pid": 26787,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:32.547419+00:00",
+      "oleada": 2,
+      "operable": true
+    },
+    {
+      "ms": 63.903,
+      "fin": "2026-09-15T17:53:32.612268+00:00",
+      "pid": 26786,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:32.548365+00:00",
+      "oleada": 2,
+      "operable": true
+    },
+    {
+      "ms": 46.203,
+      "fin": "2026-09-15T17:53:34.170094+00:00",
+      "pid": 26806,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:34.123891+00:00",
+      "oleada": 3,
+      "operable": true
+    },
+    {
+      "ms": 88.973,
+      "fin": "2026-09-15T17:53:34.213805+00:00",
+      "pid": 26808,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:34.124832+00:00",
+      "oleada": 3,
+      "operable": true
+    },
+    {
+      "ms": 65.693,
+      "fin": "2026-09-15T17:53:34.189318+00:00",
+      "pid": 26807,
+      "rol": "supervisor",
+      "fase": "antes",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:34.123625+00:00",
+      "oleada": 3,
+      "operable": true
+    },
+    {
+      "ms": 44.79,
+      "fin": "2026-09-15T17:53:35.81364+00:00",
+      "pid": 26822,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:35.76885+00:00",
+      "oleada": 1,
+      "operable": true
+    },
+    {
+      "ms": 46.883,
+      "fin": "2026-09-15T17:53:37.371262+00:00",
+      "pid": 26834,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:37.324379+00:00",
+      "oleada": 2,
+      "operable": true
+    },
+    {
+      "ms": 70.138,
+      "fin": "2026-09-15T17:53:37.39828+00:00",
+      "pid": 26835,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:37.328142+00:00",
+      "oleada": 2,
+      "operable": true
+    },
+    {
+      "ms": 50.652,
+      "fin": "2026-09-15T17:53:38.962214+00:00",
+      "pid": 26855,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:38.911562+00:00",
+      "oleada": 3,
+      "operable": true
+    },
+    {
+      "ms": 98.761,
+      "fin": "2026-09-15T17:53:39.013648+00:00",
+      "pid": 26856,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:38.914887+00:00",
+      "oleada": 3,
+      "operable": true
+    },
+    {
+      "ms": 66.401,
+      "fin": "2026-09-15T17:53:38.981288+00:00",
+      "pid": 26854,
+      "rol": "supervisor",
+      "fase": "despues",
+      "huella": "5862bf628903d2620b06bc310fb8a7f2",
+      "inicio": "2026-09-15T17:53:38.914887+00:00",
+      "oleada": 3,
+      "operable": true
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+[
+  {
+    "base": "ficha_rapida_20260915",
+    "aliases": 10,
+    "por_rol": [
+      {
+        "rol": "cliente",
+        "total": 80,
+        "visibles": 0,
+        "denegadas": 80
+      },
+      {
+        "rol": "directorio",
+        "total": 80,
+        "visibles": 44,
+        "denegadas": 0
+      },
+      {
+        "rol": "gerencia",
+        "total": 80,
+        "visibles": 62,
+        "denegadas": 0
+      },
+      {
+        "rol": "sin_sesion",
+        "total": 80,
+        "visibles": 0,
+        "denegadas": 80
+      },
+      {
+        "rol": "supervisor",
+        "total": 160,
+        "visibles": 62,
+        "denegadas": 0
+      },
+      {
+        "rol": "vendedor",
+        "total": 160,
+        "visibles": 60,
+        "denegadas": 0
+      }
+    ],
+    "contextos": 8,
+    "resultado": "PASS",
+    "nucleo_privado": "PASS",
+    "personas_entrada": 40,
+    "fichas_comparaciones": 640,
+    "nucleo_comparaciones": 328,
+    "contrato_publico_y_acl": "PASS"
+  },
+  {
+    "funciones": [
+      {
+        "md5": "d0c6543bc7226e027fb8364f137fd02a",
+        "firma": "crm.inversionista_ficha_fn(uuid,integer,integer)"
+      },
+      {
+        "md5": "0d7aee4cf344e3e81e6f77f060075d5e",
+        "firma": "private.cartera_f5_personas_visibles()"
+      },
+      {
+        "md5": "f99c0aaec6e676061c1c53940729b822",
+        "firma": "private.cartera_f5_personas_visibles(uuid)"
+      }
+    ],
+    "casos_limite": "PASS",
+    "huellas_conservadas": 8,
+    "inactivos_denegados": 4
+  }
+]

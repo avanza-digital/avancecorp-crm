@@ -1,0 +1,443 @@
+{
+  "base": "ficha_rapida_20260915",
+  "fecha": "2026-09-15T17:23:35.764674+00:00",
+  "medidas": [
+    {
+      "ms": 59.497,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 0,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 285.144,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 0,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 49.649,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 1,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 260.414,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 1,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 48.636,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 2,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 262.963,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 2,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 48.641,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 3,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 262.229,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 3,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 51.65,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 4,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 274.291,
+      "rol": "gerencia",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 4,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 36.34,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 0,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 247.122,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 0,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.583,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 1,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 242.699,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 1,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 37.864,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 2,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 239.238,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 2,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.516,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 3,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 236.484,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 3,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.418,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 4,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 236.392,
+      "rol": "analista",
+      "fase": "antes",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 4,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 49.771,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 0,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 237.456,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 0,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 49.345,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 1,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 235.357,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 1,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 49.584,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 2,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 236.047,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 2,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 48.997,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 3,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 237.541,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 3,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 48.966,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "f972bfefaa3d12893632f5c0b4b35d71",
+      "muestra": 4,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 236.749,
+      "rol": "gerencia",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 4,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.845,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 0,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 241.541,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 0,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 38.667,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 1,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 240.413,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 1,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.579,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 2,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 237.346,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 2,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.486,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 3,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 248.7,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 3,
+      "operacion": "ficha_completa"
+    },
+    {
+      "ms": 35.932,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "d5589e74602dafcbe24e01ec9f4d449d",
+      "muestra": 4,
+      "operacion": "nucleo_listado"
+    },
+    {
+      "ms": 236.41,
+      "rol": "analista",
+      "fase": "despues",
+      "huella": "3858aeec72418ecf0e0ab9c1090ac475",
+      "muestra": 4,
+      "operacion": "ficha_completa"
+    }
+  ],
+  "volumen": {
+    "leads": 1750,
+    "cuotas": 7093,
+    "fuentes": [
+      {
+        "total": 587,
+        "empresa": "avance"
+      },
+      {
+        "total": 12,
+        "empresa": "prodelco"
+      },
+      {
+        "total": 37,
+        "empresa": "qorilazo"
+      }
+    ],
+    "perfiles": 475,
+    "personas": 490
+  },
+  "visibles": [
+    {
+      "rol": "gerencia",
+      "fase": "antes",
+      "total": 478
+    },
+    {
+      "rol": "analista",
+      "fase": "antes",
+      "total": 15
+    },
+    {
+      "rol": "gerencia",
+      "fase": "despues",
+      "total": 478
+    },
+    {
+      "rol": "analista",
+      "fase": "despues",
+      "total": 15
+    }
+  ],
+  "resultado": "PASS",
+  "estadisticas": [
+    {
+      "rol": "analista",
+      "fase": "antes",
+      "muestras": 4,
+      "maximo_ms": 242.699,
+      "minimo_ms": 236.392,
+      "operacion": "ficha_completa",
+      "mediana_ms": 237.861
+    },
+    {
+      "rol": "analista",
+      "fase": "despues",
+      "muestras": 4,
+      "maximo_ms": 248.7,
+      "minimo_ms": 236.41,
+      "operacion": "ficha_completa",
+      "mediana_ms": 238.88
+    },
+    {
+      "rol": "analista",
+      "fase": "antes",
+      "muestras": 4,
+      "maximo_ms": 37.864,
+      "minimo_ms": 35.418,
+      "operacion": "nucleo_listado",
+      "mediana_ms": 35.55
+    },
+    {
+      "rol": "analista",
+      "fase": "despues",
+      "muestras": 4,
+      "maximo_ms": 38.667,
+      "minimo_ms": 35.486,
+      "operacion": "nucleo_listado",
+      "mediana_ms": 35.756
+    },
+    {
+      "rol": "gerencia",
+      "fase": "antes",
+      "muestras": 4,
+      "maximo_ms": 274.291,
+      "minimo_ms": 260.414,
+      "operacion": "ficha_completa",
+      "mediana_ms": 262.596
+    },
+    {
+      "rol": "gerencia",
+      "fase": "despues",
+      "muestras": 4,
+      "maximo_ms": 237.541,
+      "minimo_ms": 235.357,
+      "operacion": "ficha_completa",
+      "mediana_ms": 236.398
+    },
+    {
+      "rol": "gerencia",
+      "fase": "antes",
+      "muestras": 4,
+      "maximo_ms": 51.65,
+      "minimo_ms": 48.636,
+      "operacion": "nucleo_listado",
+      "mediana_ms": 49.145
+    },
+    {
+      "rol": "gerencia",
+      "fase": "despues",
+      "muestras": 4,
+      "maximo_ms": 49.584,
+      "minimo_ms": 48.966,
+      "operacion": "nucleo_listado",
+      "mediana_ms": 49.171
+    }
+  ]
+}

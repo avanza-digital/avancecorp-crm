@@ -1,0 +1,27 @@
+{
+  "metodo": "EXPLAIN ANALYZE BUFFERS TIMING ON del cuerpo vigente, READ ONLY, Gerencia activa. Nodos anidados: los tiempos acumulados no se suman.",
+  "execution_ms": 1054.606,
+  "planning_ms": 6.747,
+  "filas": 492,
+  "nodos": [
+    {
+      "node": "Function Scan",
+      "funcion": "cartera_f5_fuentes",
+      "loops": 1,
+      "rows": 616,
+      "hits": 14438,
+      "tiempo_por_iteracion_ms": 72.936,
+      "tiempo_acumulado_aproximado_ms": 72.936
+    },
+    {
+      "node": "CTE Scan",
+      "cte": "fuentes",
+      "loops": 12278,
+      "rows": 0,
+      "removed": 611,
+      "hits": 0,
+      "tiempo_por_iteracion_ms": 0.075,
+      "tiempo_acumulado_aproximado_ms": 920.85
+    }
+  ]
+}

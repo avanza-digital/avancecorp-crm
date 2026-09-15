@@ -1,5 +1,23 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260915170237 — Lectura individual de la ficha canónica
+
+**PREPARADA EN LOCAL; NO PUBLICADA.** El núcleo F5 acepta un UUID opcional
+mediante una sobrecarga privada sin argumento por defecto; la firma histórica
+de listado delega al mismo núcleo. La ficha conserva ambas comprobaciones
+de visibilidad y utiliza el UUID canónico en las dos. No cambia la firma pública,
+datos financieros, permisos, banderas, objetos `public` ni frontend.
+
+Guardias MD5 previas/finales y transacción completa; nueva sobrecarga accesible solo al
+propietario. PASS local: 640 comparaciones de fichas, 328 del núcleo,
+10 aliases, demos/mixtos, bandeja del supervisor, identidad provisional,
+inactivos, ocho huellas y 15 controles de seguridad/reversa.
+La meta productiva de menos de un segundo **todavía no está acreditada**.
+Claude: CHANGES_REQUESTED, sin P0/P1. Codex evaluó el dictamen y verificó
+poscondiciones, NULL, mutantes y 12 lecturas con sesiones simultáneas.
+Pendientes: rama remota, validación productiva y autorización del SQL exacto.
+[SQL, límites y evidencias](../scripts/ficha-rendimiento/README.md).
+
 ## 20260915015315 — Conflictos F4 sin reintento automático
 
 **PUBLICADA Y VERIFICADA**, registro `20260915015315` (6 sentencias). Cambia únicamente cuatro

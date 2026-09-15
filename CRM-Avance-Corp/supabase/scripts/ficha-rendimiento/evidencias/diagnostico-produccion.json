@@ -1,0 +1,27 @@
+{
+  "execution_ms": 1045.347,
+  "planning_ms": 16.143,
+  "result_rows": 492,
+  "heavy_nodes": [
+    {
+      "path": "Nested Loop/Function Scan",
+      "node": "Function Scan",
+      "function": "cartera_f5_fuentes",
+      "loops": 1,
+      "rows": 616,
+      "hits": 14438
+    },
+    {
+      "path": "Nested Loop/Nested Loop/Limit/Incremental Sort/Result/Nested Loop/CTE Scan",
+      "node": "CTE Scan",
+      "cte": "fuentes",
+      "loops": 12278,
+      "rows": 0,
+      "removed": 611,
+      "hits": 0
+    }
+  ],
+  "fecha": "2026-09-15",
+  "metodo": "EXPLAIN ANALYZE BUFFERS TIMING OFF del cuerpo SQL vigente, como owner con actor Gerencia activo; READ ONLY; no migración candidata",
+  "limites": "No es RPC autenticada ni medición del cambio instalado; sin nombres, documentos, montos ni UUID reales."
+}
