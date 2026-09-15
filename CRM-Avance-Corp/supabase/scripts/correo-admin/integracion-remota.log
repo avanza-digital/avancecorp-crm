@@ -1,0 +1,30 @@
+Check file:///private/tmp/avance-correo-admin-bank/remote.integration.test.ts
+running 1 test from ../../../../../../private/tmp/avance-correo-admin-bank/remote.integration.test.ts
+Corrección de clientes con Auth y Postgres reales ...
+  admin cambia correo: nuevo login, misma clave, identidad y perfil alineados ... ok (2s)
+  superadmin también puede corregir ... ok (1s)
+  rechaza cliente, analista, admin inactivo y sesión inválida ... ok (1s)
+  rechaza objetivos del equipo, duplicados y motivo ausente ... ok (1s)
+  el navegador no puede suplantar actor por RPC ni editar correo por tabla ... ok (404ms)
+  un rechazo del perfil revierte Auth y el reintento posterior funciona ... ok (4s)
+  recupera un commit cuya respuesta se perdió ...
+------- output -------
+Error: Pérdida simulada después del commit
+    at fetch (file:///private/tmp/avance-correo-admin-bank/remote.integration.test.ts:255:23)
+    at async _handleRequest (file:///Users/usuario/Library/Caches/deno/npm/registry.npmjs.org/@supabase/auth-js/2.110.2/dist/main/lib/fetch.js:119:18)
+    at async _request (file:///Users/usuario/Library/Caches/deno/npm/registry.npmjs.org/@supabase/auth-js/2.110.2/dist/main/lib/fetch.js:109:18)
+    at async GoTrueAdminApi.updateUserById (file:///Users/usuario/Library/Caches/deno/npm/registry.npmjs.org/@supabase/auth-js/2.110.2/dist/main/GoTrueAdminApi.js:689:20)
+    at async corregirCorreoCliente (file:///Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/_supabase_functions/functions/corregir-correo-cliente/handler.ts:115:25)
+    at async invocar (file:///private/tmp/avance-correo-admin-bank/remote.integration.test.ts:53:10)
+    at async file:///private/tmp/avance-correo-admin-bank/remote.integration.test.ts:261:19
+    at async innerWrapped (ext:cli/40_test.js:300:5)
+    at async exitSanitizer (ext:cli/40_test.js:201:27)
+    at async Object.outerWrapped [as fn] (ext:cli/40_test.js:239:22)
+----- output end -----
+  recupera un commit cuya respuesta se perdió ... ok (1s)
+  dos correcciones simultáneas conservan Auth, identidad y perfil alineados ... ok (1s)
+  cambiar contraseña y metadatos de usuario conserva el correo ... ok (660ms)
+Corrección de clientes con Auth y Postgres reales ... ok (22s)
+
+ok | 1 passed (9 steps) | 0 failed (22s)
+

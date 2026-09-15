@@ -9791,3 +9791,7 @@ front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
   no aplicar aquellas junto con esta migración.
 - Verificación y resultado productivo: `../scripts/correo-admin/README.md` y
   acta de publicación en el mismo directorio.
+
+- Instalación 15/09 confirmada: remoto `20260915181818`; 9 grupos Auth/RLS y
+  HTTP Edge PASS. Portal publicado y rama propia eliminada. Acta:
+  `../scripts/correo-admin/PUBLICADO-20260915.md`.

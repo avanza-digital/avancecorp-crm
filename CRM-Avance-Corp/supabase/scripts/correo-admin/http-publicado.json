@@ -1,0 +1,22 @@
+[
+  {
+    "ruta": "admin/clientes.html",
+    "igual": true,
+    "sha256": "bfa9390833f5da8088275c83933aa055de2df7e46ec516af928339253dbc0bfe"
+  },
+  {
+    "ruta": "js/admin/clientes.js",
+    "igual": true,
+    "sha256": "2a81ead6f5c435ed453a1025b382caf4bb1ae444417a06b05d1692f2c164b2a4"
+  },
+  {
+    "ruta": "js/admin/correo-cliente-core.js",
+    "igual": true,
+    "sha256": "79f9b923dc873f3ecaf773fcbba9d958077e72b25ce3b497f4a0b66c62cc25f8"
+  },
+  {
+    "ruta": "service-worker.js",
+    "igual": true,
+    "sha256": "880a905787924c896085c35506681706cf6a8e1737f03f681d40f38e5e0f0e6f"
+  }
+]

@@ -1,0 +1,85 @@
+{
+  "estado": "PUBLICADO_Y_VERIFICADO",
+  "fecha": "2026-09-15",
+  "portal": "https://miavance.com/admin/clientes.html",
+  "commit_raiz": "5bde86fea578b857b2ba743a47a931e00c5cfd0c",
+  "commit_portal": "0e0d205482a15ec6013d90635310f8656d07a076",
+  "migracion_fuente": "20260915173423_crm_correo_cliente_admin_atomico.sql",
+  "migracion_remota": {
+    "version": "20260915181818",
+    "name": "crm_correo_cliente_admin_atomico",
+    "md5": "dad4f1522ef487bb18840e06a34c5308"
+  },
+  "paridad_objetos_afectados": [
+    {
+      "categoria": "columnas",
+      "igual": true,
+      "cantidad": 34
+    },
+    {
+      "categoria": "triggers",
+      "igual": true,
+      "cantidad": 11
+    },
+    {
+      "categoria": "funciones",
+      "igual": true,
+      "cantidad": 13
+    },
+    {
+      "categoria": "constraints",
+      "igual": true,
+      "cantidad": 11
+    }
+  ],
+  "paridad_historial": {
+    "match": true,
+    "extras": [
+      {
+        "version": "20260915181818",
+        "name": "crm_correo_cliente_admin_atomico",
+        "md5": "dad4f1522ef487bb18840e06a34c5308"
+      }
+    ],
+    "parent": 291,
+    "branch": 292
+  },
+  "funcion_publicada": {
+    "id": "bb3c3553-9c93-410b-ab58-c53981757ddf",
+    "slug": "corregir-correo-cliente",
+    "name": "corregir-correo-cliente",
+    "status": "ACTIVE",
+    "version": 1,
+    "created_at": 1789496466762,
+    "updated_at": 1789496471677,
+    "verify_jwt": true,
+    "entrypoint_path": "file:///tmp/user_fn_ybznzugnoqlsizkbbqly_c76bde8c-150e-4f80-875c-f76995281556_1/source/index.ts",
+    "ezbr_sha256": "5c51779d7b72f2649282c796614a1b6d900785cfedf52a637de963deaba4e253"
+  },
+  "crear_cliente": {
+    "sameSources": true,
+    "files": 7,
+    "versionBefore": 35,
+    "versionAfter": 36
+  },
+  "produccion": [
+    {
+      "estado": {
+        "rls": true,
+        "anon_rpc": false,
+        "service_rpc": true,
+        "trigger_auth": true,
+        "trigger_perfil": true,
+        "authenticated_rpc": false
+      }
+    }
+  ],
+  "rama_propia_eliminada": true,
+  "pruebas_remotas": {
+    "integracion": "PASS: 9 grupos",
+    "http_edge": "PASS: JWT, CORS, nuevo login misma contraseña",
+    "http_anon_produccion": 401
+  },
+  "revision_independiente": "NOT RUN: wrapper no devolvió VERDICT válido",
+  "crm_frontend": "Cambios de permiso guardados; esta publicación corresponde al portal miavance.com"
+}

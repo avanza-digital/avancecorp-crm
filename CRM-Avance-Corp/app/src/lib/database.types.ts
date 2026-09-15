@@ -14,6 +14,42 @@ export type Database = {
   }
   crm: {
     Tables: {
+      correcciones_correo_acceso: {
+        Row: {
+          auth_confirmado_en: string | null
+          cliente_id: string
+          correo_anterior: string
+          correo_nuevo: string
+          creado_en: string
+          id: string
+          motivo: string
+          por: string
+          transaccion_confirmada: unknown
+        }
+        Insert: {
+          auth_confirmado_en?: string | null
+          cliente_id: string
+          correo_anterior: string
+          correo_nuevo: string
+          creado_en?: string
+          id?: string
+          motivo: string
+          por: string
+          transaccion_confirmada?: unknown
+        }
+        Update: {
+          auth_confirmado_en?: string | null
+          cliente_id?: string
+          correo_anterior?: string
+          correo_nuevo?: string
+          creado_en?: string
+          id?: string
+          motivo?: string
+          por?: string
+          transaccion_confirmada?: unknown
+        }
+        Relationships: []
+      }
       control_citas_versiones: {
         Row: {
           configuracion: Json
@@ -3603,6 +3639,15 @@ export type Database = {
       }
     }
     Functions: {
+      preparar_correccion_correo_acceso_fn: {
+        Args: {
+          p_actor_id: string
+          p_cliente_id: string
+          p_correo: string
+          p_motivo: string
+        }
+        Returns: string
+      }
       aplicar_control_citas_fn: {
         Args: { p_version_esperada: number }
         Returns: Json

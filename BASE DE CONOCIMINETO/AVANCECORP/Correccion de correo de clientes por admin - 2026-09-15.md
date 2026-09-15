@@ -24,3 +24,12 @@ Pruebas locales: Auth real (9 grupos), interfaz del portal (5 pruebas), CRM
 desactualizadas. La revisión independiente no produjo un dictamen válido.
 Resultado remoto y publicación: ver el acta en
 `CRM-Avance-Corp/supabase/scripts/correo-admin/`.
+
+## Resultado: activo en el portal
+
+Publicado y verificado en https://miavance.com/admin/clientes.html. Recargar
+la página para recibir Clientes v48 / caché v117. SQL productivo registrado
+como `20260915181818`, Edge activa y nueve grupos remotos PASS. La rama propia
+fue eliminada. Acta: `CRM-Avance-Corp/supabase/scripts/correo-admin/PUBLICADO-20260915.md`.
+El frontend CRM tiene el permiso guardado en Main; esta publicación fue del
+portal miavance.com.
