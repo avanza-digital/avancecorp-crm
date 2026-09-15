@@ -25,8 +25,9 @@ Optimización publicada: [[Ficha rapida - publicada y verificada (2026-09-15)]] 
 Piloto nominal ON para cuatro personas hasta el 21/09 a las 13:23 Lima; G7 abierto.
 Revisión para apertura: [[G7 - revision real y apertura pendiente (2026-09-15)]] —
 613 inversiones/467 personas coherentes internamente; 19 fichas y 24 cuentas
-verificadas. Pendiente decidir cómo acreditar casos reales ausentes; siguen
-pruebas técnicas aisladas y conformidades. Sin apertura general.
+verificadas; diez reintentos, cinco carreras, veintiún contextos y transición/reversa
+locales PASS. Pendiente decidir cómo acreditar casos reales ausentes y completar
+sus verificaciones/conformidades. Sin apertura general.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:
 timeout corregido en banco local, Ficha 360 recuperada y plazo/rentabilidad anual

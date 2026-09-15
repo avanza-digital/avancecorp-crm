@@ -432,4 +432,3 @@
   "metodo": "Claims SQL locales, SET LOCAL ROLE authenticated y ROLLBACK. No login Auth/HTTP ni navegación humana.",
   "transaction_read_only": "off"
 }
-

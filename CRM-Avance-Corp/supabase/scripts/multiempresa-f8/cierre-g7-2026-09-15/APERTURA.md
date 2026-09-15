@@ -15,9 +15,10 @@ económicas ficticias en producción para acelerar la aceptación.
 
 ## Trabajo técnico autorizado que puede continuar
 
-1. Consolidar las pruebas aisladas de diez reintentos idempotentes, cinco carreras
-   económicas, recuperación ante fallo Auth y depósito repetido. Vincular cada
-   resultado al código vigente; repetir solo lo que no cubran los ensayos anteriores.
+1. **PASS local:** diez reintentos, cinco carreras económicas y depósito repetido,
+   con 65 definiciones seleccionadas iguales a producción. [Recibos y límites](PRUEBAS-LOCALES.md).
+   Falta vincular/completar recuperación ante fallo Auth; repetir solo lo que no
+   cubran los ensayos anteriores.
 2. Completar las rutas Avance → Qorilazo, Qorilazo → Avance, Qorilazo → Prodelco,
    una segunda inversión en la misma empresa y las dos adicionales. Probar los
    permisos de vendedor, supervisor, Gerencia y Directorio; el coordinador no
@@ -26,7 +27,10 @@ económicas ficticias en producción para acelerar la aceptación.
    upgrade reasignado y sello mensual en un entorno aislado. Registrar por
    separado la evidencia real que exista. Sin responsable ya tiene lectura SQL
    comprobada en dos personas reales, sin crear inversiones.
-4. Ensayar activación y reversa del modo general con el mismo código instalado.
+4. **PASS local:** 21 contextos del modo general y cinco controles de
+   transición/reversa; estados atómicos, fallo/contención sin cambios parciales y
+   dieciséis superficies conservadas. Falta el SQL productivo exacto con sus
+   guardias vigentes y la verificación posterior de las cuentas reales.
    Hay un antecedente de [92 comparaciones Auth/API en modo general](../../ficha-rendimiento/evidencias/http-remoto.json),
    pero no representa la futura operación de las 18 cuentas productivas ni una
    aprobación de sus permisos. Conservar los ensayos de denegación y alcance ajeno.

@@ -175,4 +175,3 @@
   ],
   "metodo": "RPC productiva con rol authenticated, Gerencia nominal, comparación NUMERIC y ROLLBACK; no Auth/HTTP ni UI."
 }
-

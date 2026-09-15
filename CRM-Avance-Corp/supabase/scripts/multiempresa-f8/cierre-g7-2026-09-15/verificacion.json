@@ -1,6 +1,6 @@
 {
   "estado": "PASS",
-  "alcance": "Consistencia de la evidencia técnica retrospectiva; G7 permanece ABIERTO.",
+  "alcance": "Coherencia retrospectiva real y controles SQL sintéticos separados; G7 permanece ABIERTO.",
   "corte": "2026-09-15T20:07:13.831586+00:00",
   "postflight": "2026-09-15T20:16:43.282889+00:00",
   "fuentes": 613,
@@ -12,13 +12,28 @@
   "analistas": 18,
   "capacidades_piloto": 4,
   "funciones_banderas_y_sello_conservados": true,
+  "banco_local": {
+    "reintentos": 10,
+    "carreras": 5,
+    "contextos_roles": 21,
+    "controles_transicion": 5,
+    "superficies_conservadas": 16,
+    "funciones_cotejadas": 65
+  },
   "sha256": {
-    "conciliacion.json": "b0c42ccd7e775854ef1ed3c67071c34dd6e9074cb9716ec6d294b6338244e7e0",
-    "roles.json": "ea2d1d55b525adcb41ba1beecfdc78fcca0d1240d9365f92b35a5cb9276d6f7f",
-    "fichas.json": "8daf7a4451e03ccf476933832c64194f3345059092b7025d91a93658d227e708",
-    "casos.json": "0aa10c9facf5a1099e7f6689516f414058846df7864ab39f98c741e8b81622e7",
-    "postflight.json": "8d13bba7a1ac158899502f0f4b560baff97cb194b40cbe0097ab50c620f35699",
-    "guardias.json": "bf169777edc3e9a733bfaac818e02e9efc1a54aa934a6eb291b91c6ce9a69647",
-    "complemento.json": "9986e2feaa120427becc3b9a35cbc9a7662f144583dabf3062f7b8867d5cbbaa"
+    "conciliacion.json": "ac46161dd6d7f57d3284aa8749e92f86b6a25a8e964ef9ff80d02e6097c7fc3b",
+    "roles.json": "85c0acb13dfaf4574b870db4c2d998e9a3084a549748449d69f3ab542f3ae338",
+    "fichas.json": "35b690d2a77d7add612d5727620b1342fb8f81fa3958ba390e6cb15159aa4941",
+    "casos.json": "f7da742bc6300040bd9fbd6d2413436a0b78566e826a721009f71f092c97edd9",
+    "postflight.json": "7025717cfe3a9398f16a70a103a1da35a9914c9f7f1004fd568511d2ca614ea7",
+    "guardias.json": "a305768bffbd329b436b5a1119471053c3e51fd1ee5bc44cab9fa469f2926583",
+    "complemento.json": "927320a657a683c71bf958df41de5a7a119798b8bfb69e6233dbc836f7930713",
+    "ensayo-local.mjs": "58bc2f3b0a4df32d7634ed16641e60de41c69dab6ab480a5cba4b3855cbe97cb",
+    "ensayo-local.json": "f39570772ce6aa23cfe9a24b4527aa3c1904ca5d23b82f061ecaf02db5c6bdd0",
+    "roles-general-local.sql": "6f65d522fa27b4065b71fcb71585eac2b38318ab644fd92be4fb38e5117ab542",
+    "roles-general-local.json": "006d3f0cdc5d65314d43729c077dc187266c49b013907aa6ac6e4138808d0a33",
+    "transicion-local.mjs": "04f2b00f30a5b09af53d2c1fea48491a77d12d3b2b1a7eb657e354ab259c8e0e",
+    "transicion-local.json": "1bec1ff54a715f4c4b9fd28e9358c84750b6fe1575991ad1e47c15156f2f42c5",
+    "versiones-nucleo.json": "8e6231777b4a788097f53bb3ac7238695724fc1b7219198ea2d985e2127c7b66"
   }
 }

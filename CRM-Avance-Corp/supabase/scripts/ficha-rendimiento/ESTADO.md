@@ -20,7 +20,9 @@ Revisar evidencia real vigente, identificar pendientes que afecten la apertura y
 
 Revisión del 15/09 completada: [613 fuentes, 19 fichas y 24 cuentas](../multiempresa-f8/cierre-g7-2026-09-15/README.md).
 Coherencia interna PASS; G7 conserva recorridos operativos/conformidades. Se
-consultó el ajuste de evidencia y se continúa con pruebas técnicas aisladas.
+consultó el ajuste de evidencia. [Pruebas técnicas aisladas](../multiempresa-f8/cierre-g7-2026-09-15/PRUEBAS-LOCALES.md)
+PASS: diez reintentos, cinco carreras económicas, veintiún contextos del modo
+general y cinco controles de transición/reversa. No son autorización productiva.
 [Ruta de apertura](../multiempresa-f8/cierre-g7-2026-09-15/APERTURA.md).
 
 ## 3. Entrega y guardado de la mejora

@@ -1,0 +1,262 @@
+[
+  {
+    "firma": "crm.acceso_inversion_fn(uuid,text,jsonb)",
+    "huella": "02cf922aff3aa75e86a09d2c53d328fc"
+  },
+  {
+    "firma": "crm.actualizar_borrador_producto_inversion(uuid,bigint,text,text,date,date,jsonb)",
+    "huella": "59872a0a3db61884cc36a2820a83315a"
+  },
+  {
+    "firma": "crm.archivar_producto_inversion(uuid,bigint)",
+    "huella": "3d7fe5c6b67cbd3da66515b3cc178788"
+  },
+  {
+    "firma": "crm.cartera_inversionistas_estado_fn()",
+    "huella": "83575873409d51508753fa6405ffcc92"
+  },
+  {
+    "firma": "crm.cartera_inversionistas_fn(integer,integer,text,text,uuid,boolean)",
+    "huella": "e02e89b5a920c8388d77a01c07f13198"
+  },
+  {
+    "firma": "crm.conciliar_cotitulares_inversion_fn(uuid)",
+    "huella": "c590acb717f98bc458eb4790e99ebee0"
+  },
+  {
+    "firma": "crm.confirmar_inversion_fn(uuid)",
+    "huella": "e69358303d4b6220354460965179c28d"
+  },
+  {
+    "firma": "crm.confirmar_inversion_revisada_fn(uuid,integer)",
+    "huella": "8ab0be625fecb7916de44286425c0688"
+  },
+  {
+    "firma": "crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)",
+    "huella": "45077ddc61bd59ab5f435116de292b05"
+  },
+  {
+    "firma": "crm.corregir_solicitud_inversion_fn(uuid,uuid,integer,jsonb,text)",
+    "huella": "3de3d2689706371cdc46f0a29836cb5c"
+  },
+  {
+    "firma": "crm.crear_producto_inversion(text,text,text,date,date,jsonb)",
+    "huella": "c279922e69c4ecd6f5143ba8db84d22a"
+  },
+  {
+    "firma": "crm.crear_version_producto_inversion(uuid,bigint,text,text,date,date,jsonb)",
+    "huella": "170e159ee8510e3686997ac892005c57"
+  },
+  {
+    "firma": "crm.enlazar_lead_inversionista_fn(uuid,uuid,text)",
+    "huella": "1159aa8443c117c8c9384a2bcf17ae2b"
+  },
+  {
+    "firma": "crm.fusionar_inversionistas_fn(uuid,uuid,text,text)",
+    "huella": "6919e7ce8960f7d985ac03ba033c347e"
+  },
+  {
+    "firma": "crm.inversion_cotitulares_fn(uuid)",
+    "huella": "8bdd331bd4269ee0986aeec6ab2e1916"
+  },
+  {
+    "firma": "crm.inversionista_cuentas_fn(uuid,uuid,text)",
+    "huella": "bfd1f198a4e05440ea57f6344ac1c78b"
+  },
+  {
+    "firma": "crm.inversionista_documento_fn(uuid,uuid,uuid)",
+    "huella": "18db225353031f1afc67a8263c281494"
+  },
+  {
+    "firma": "crm.inversionista_ficha_fn(uuid,integer,integer)",
+    "huella": "d0c6543bc7226e027fb8364f137fd02a"
+  },
+  {
+    "firma": "crm.preparar_inversion_fn(uuid,jsonb)",
+    "huella": "ae1611fabfeb20c665b370c160abecf6"
+  },
+  {
+    "firma": "crm.preparar_reinversion_fn(uuid,uuid,jsonb)",
+    "huella": "db317253d25bc9115d28bfb388be02a7"
+  },
+  {
+    "firma": "crm.productos_inversion_gestion_fn()",
+    "huella": "e37a49397aa300008ab405142e959357"
+  },
+  {
+    "firma": "crm.productos_inversion_seleccion_fn()",
+    "huella": "fdf56b94aa5fbde4b47a2bf2e7bb841e"
+  },
+  {
+    "firma": "crm.publicar_version_producto_inversion(uuid,bigint)",
+    "huella": "c15d37eda6471923d104d7a3b98a9791"
+  },
+  {
+    "firma": "crm.revisar_solicitud_inversion_fn(uuid,uuid,integer,text)",
+    "huella": "7132ea4a4e4bf5edfd07ccfa191a3cb5"
+  },
+  {
+    "firma": "crm.solicitud_inversion_fn(uuid)",
+    "huella": "e049912bb20453eaf019363c2c09d95a"
+  },
+  {
+    "firma": "private.cartera_f5_exigir()",
+    "huella": "8f8a157081f5dbfec57cd979c255bea7"
+  },
+  {
+    "firma": "private.cartera_f5_fuentes_reales()",
+    "huella": "21406e2362a2d2cb35622633467911d4"
+  },
+  {
+    "firma": "private.cartera_f5_fuentes()",
+    "huella": "94fa33cfcca657f70a1a94f98c3bf482"
+  },
+  {
+    "firma": "private.cartera_f5_personas_visibles()",
+    "huella": "0d7aee4cf344e3e81e6f77f060075d5e"
+  },
+  {
+    "firma": "private.cartera_f5_personas_visibles(uuid)",
+    "huella": "f99c0aaec6e676061c1c53940729b822"
+  },
+  {
+    "firma": "private.cartera_f5_registrar(text,uuid)",
+    "huella": "cb582fee5d825ced90281e9a3d9b8b71"
+  },
+  {
+    "firma": "private.coopac_validar_condiciones(date,integer,numeric)",
+    "huella": "10ad4aaf7e96013a50273fd1ac47f5b7"
+  },
+  {
+    "firma": "private.es_lector_global()",
+    "huella": "c8be602f84348a0125617995802db618"
+  },
+  {
+    "firma": "private.inversion_cotitular_estado(uuid)",
+    "huella": "c9d5903ba6d2e7ecdc241f5fc683059c"
+  },
+  {
+    "firma": "private.inversion_cotitulares_historicos(uuid)",
+    "huella": "69e2079b2e269cd9fb6cc50470a1dc87"
+  },
+  {
+    "firma": "private.inversion_cotitulares_vincular(uuid,text)",
+    "huella": "b12325e29c1c17191abdc9645a56a20a"
+  },
+  {
+    "firma": "private.inversion_datos_portal(jsonb)",
+    "huella": "170faaab19c7cc78e187909ffe039adb"
+  },
+  {
+    "firma": "private.inversion_historica_aplicar(uuid,jsonb)",
+    "huella": "a33595d4ac8c2c12ad6fcf9463db605e"
+  },
+  {
+    "firma": "private.inversion_historica_estado(text,uuid)",
+    "huella": "2b57432c993eaa8e1599bf874427b743"
+  },
+  {
+    "firma": "private.inversion_persona_autorizada(uuid)",
+    "huella": "215503bf4d84c10e0662c014dddd9780"
+  },
+  {
+    "firma": "private.inversion_persona_contexto(uuid)",
+    "huella": "3b950c0ed8f4faa07695bc8ea05d3f17"
+  },
+  {
+    "firma": "private.inversion_solicitud_resultado(uuid,jsonb)",
+    "huella": "5f561ade14f05b43ce04edee2c8bc53f"
+  },
+  {
+    "firma": "private.inversion_titular_coherente()",
+    "huella": "091a94211146b0826e4e66afeeb16ac6"
+  },
+  {
+    "firma": "private.inversion_validar_datos(uuid,jsonb,jsonb)",
+    "huella": "96b4e342df9cc08a875bac34ca17a829"
+  },
+  {
+    "firma": "private.inversion_vincular_fuente(uuid,uuid,uuid,uuid,boolean)",
+    "huella": "a05cc3b655d508fa1831b101632bd1f7"
+  },
+  {
+    "firma": "private.inversiones_empresa_coherente()",
+    "huella": "4873bebdf14f507e7f9200aa5b676b7f"
+  },
+  {
+    "firma": "private.inversiones_escritura_bajo_candado()",
+    "huella": "2122bbf3b22996f2e8373081a259db9b"
+  },
+  {
+    "firma": "private.inversionista_canonica(uuid)",
+    "huella": "34702897135078893b7d3a726b0c1816"
+  },
+  {
+    "firma": "private.inversionista_fusion_destino_activo()",
+    "huella": "861f359c23ab031945f4bad75f8dc3a7"
+  },
+  {
+    "firma": "private.inversionista_fusiones_append_only()",
+    "huella": "190f193d2f432d58303b0648caf53bc9"
+  },
+  {
+    "firma": "private.inversionista_operaciones_append_only()",
+    "huella": "909d41d42674ccb6775597fd4235ebca"
+  },
+  {
+    "firma": "private.inversionista_por_documento(text,text)",
+    "huella": "5b254a86ed5b503768ef5fe4485f553f"
+  },
+  {
+    "firma": "private.inversionista_resolver(text,text,boolean,text)",
+    "huella": "95d502fcae257bf2a439ec3e4aa6a2dc"
+  },
+  {
+    "firma": "private.leads_protege_inversionista_id()",
+    "huella": "6151f6d4da6c80fc62ad7f131ea398a4"
+  },
+  {
+    "firma": "private.piloto_f8_actor_activo(uuid)",
+    "huella": "1b61c0ce38a4c9e71b8cc9bb92441b93"
+  },
+  {
+    "firma": "private.piloto_f8_control_activo()",
+    "huella": "b2b02a24f879f6cc3cdc6fe5bb0317ad"
+  },
+  {
+    "firma": "private.piloto_f8_modo_activo()",
+    "huella": "5884ee282aa39cd2b9c6c0928bd231d2"
+  },
+  {
+    "firma": "private.postventa_reinversion_guard()",
+    "huella": "67cd2a68660ff4e71767464497c00f02"
+  },
+  {
+    "firma": "private.producto_inversion_tiene_version_visible(uuid)",
+    "huella": "9d4b222b7dabe0c1707f64a825941d6e"
+  },
+  {
+    "firma": "private.puede_gestionar_contratos_crm()",
+    "huella": "94b5fb2af92bf4187802b1f3d26659c5"
+  },
+  {
+    "firma": "private.rol_crm(uuid)",
+    "huella": "99827f3fe2fbc3cfae5668c30015c758"
+  },
+  {
+    "firma": "private.trg_multiempresa_flags_bloquear_piloto_f8()",
+    "huella": "4a7a15a7c1a8df54b47e3bae751948eb"
+  },
+  {
+    "firma": "private.trg_piloto_f8_control_validar()",
+    "huella": "47585a27b991a442bb09b3477be5f224"
+  },
+  {
+    "firma": "private.trg_piloto_f8_miembros_controlar()",
+    "huella": "67bfcb1c12ad6cc621287fc46fe266d8"
+  },
+  {
+    "firma": "private.trg_productos_inversion_inmutables()",
+    "huella": "5744c098002fec83caf6b27b312b70b2"
+  }
+]

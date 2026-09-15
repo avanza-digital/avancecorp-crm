@@ -68,4 +68,3 @@ select jsonb_build_object('corte',statement_timestamp(),'ancla_acumulada',(selec
   'limite','Coherencia interna por fuentes compartidas. No ejecución de una reasignación, autenticación documental ni aceptación financiera.'
 ) evidencia;
 rollback;
-

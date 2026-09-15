@@ -1,7 +1,7 @@
 ---
 tags: [crm, multiempresa, f8, g7, conciliacion, retomar]
 fecha: 2026-09-15
-estado: revision-real-pasada-g7-abierto
+estado: revision-real-y-ensayos-locales-g7-abierto
 ---
 
 # G7: revisión real y preparación de apertura
@@ -35,6 +35,20 @@ para el volumen y los casos faltantes en pruebas aisladas, o mantiene la
 recolección de casos reales del maestro. «Retoma este objetivo» reanuda trabajo,
 no firma ese ajuste. Las pruebas técnicas aisladas de reintentos/concurrencia
 pueden continuar porque ya forman parte del plan autorizado.
+
+**Ensayos técnicos completados el 15/09:** diez reintentos, cinco carreras
+económicas y veintiún contextos de permisos del modo general PASS. Coordinación,
+cuentas inactivas y Directorio conservan sus límites. Cinco controles de
+transición/reversa PASS; estado visible íntegro tras COMMIT y dieciséis
+superficies conservadas. Copia local propia `g7_cierre_20260915`, sin coste remoto,
+con 65 definiciones seleccionadas iguales a producción. La copia fuente no se
+modificó; piloto/miembros de la copia de ensayo quedan OFF.
+
+Estos resultados cierran las casillas técnicas de reintentos y carreras. Fallo
+Auth, los recorridos/casos ausentes, soporte y conformidades siguen pendientes.
+No son login real ni pruebas completas de todos los servicios. El ensayo local
+de transición tampoco es el SQL exacto de activación productiva.
+[Pruebas y límites](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f8/cierre-g7-2026-09-15/PRUEBAS-LOCALES.md).
 
 Claude entregó CHANGES_REQUESTED. Se ampliaron autoría, ancla temporal, desglose
 y procedencia de las lecturas; se preservó el dictamen y se evaluaron sus límites.

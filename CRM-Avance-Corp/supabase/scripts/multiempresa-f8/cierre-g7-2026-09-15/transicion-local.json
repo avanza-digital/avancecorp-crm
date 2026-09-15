@@ -1,0 +1,52 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-15T21:26:25.250Z",
+  "fin": "2026-09-15T21:26:27.106Z",
+  "banco": "g7_cierre_20260915",
+  "resultados": [
+    {
+      "caso": "Fallo después de cambiar control y banderas revierte todo",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Puerta económica en curso impide el cambio sin dejarlo parcial",
+      "estado": "PASS"
+    },
+    {
+      "caso": "El modo general solo aparece íntegro después del COMMIT",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Reversa al piloto vigente conserva su ventana y los hechos",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Apagado de capacidades nuevas conserva 16 superficies",
+      "estado": "PASS"
+    }
+  ],
+  "huellas_economicas_conservadas": {
+    "crm.leads": "f3f2aa5fbc20bfa30bfb6de833f411f1",
+    "auth.users": "dbd0287ece1531db427a348fbc72e3c5",
+    "crm.tareas": "d9c2f213b0f7e0c285f5a061d9557231",
+    "crm.inversiones": "53f39d1d2eef8cfb68f98920cf5579c0",
+    "public.contratos": "c41dd05ba731a1946bf305627df6d282",
+    "crm.inversionistas": "8eaa8b8a0522599e66339566e93d2c28",
+    "crm.cierres_externos": "e5fe62576c76ed038f496548e8caac96",
+    "crm.inversion_eventos": "eb454a362360589e46296c89d16da7f7",
+    "crm.periodos_cerrados": "e455ab4bc9e41f9556b9d2c4df94b065",
+    "private.contrato_pdfs": "5ad49ca502ccdffcc7bfed03f39a3c04",
+    "crm.cierre_mes_vendedor": "d41d8cd98f00b204e9800998ecf8427e",
+    "crm.inversion_titulares": "4e78fac9c78e7ee49262281999c5a07c",
+    "public.cronograma_pagos": "41aab0f4c10e5d5c00ae62b5ed4c84c2",
+    "crm.depositos_reclamados": "95fad129d94821ba6d095a02e25a03c4",
+    "crm.inversion_solicitudes": "f93c2b785f78c5b46cd0a55a90d5fa72",
+    "crm.inversionista_gestiones": "83b605f62ad6b472f89b741b89388582"
+  },
+  "limites": [
+    "Banco local SQL, sin activación productiva ni aprobación G7.",
+    "Reversa nominal probada dentro de su ventana vigente; no extiende vencimiento.",
+    "No sustituye las guardias de roster/versiones del futuro SQL exacto de producción.",
+    "Ensayo de estados y atomicidad; la matriz de capacidades está en roles-general-local.json."
+  ]
+}

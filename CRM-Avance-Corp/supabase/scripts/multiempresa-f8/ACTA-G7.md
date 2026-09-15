@@ -51,16 +51,21 @@ La ficha rápida ya está publicada. El piloto sigue nominal y G7 abierto.
 | Solicitud de retiro | PENDIENTE | |
 | Upgrade reasignado | PARCIAL | Un candidato real, stock/atribución/autor coinciden entre fuentes; no se ejecutó ni aceptó una reasignación. Seis filas de desglose y tres renovaciones completas conciliadas internamente; nueve renovaciones históricas sin desglose explícitas |
 | Mes sellado sin reescritura | PASS estabilidad entre lecturas / operación pendiente | Agosto conserva las 16 filas y ambas huellas entre 15:07 y 15:16 Lima; no sustituye una nueva prueba de escritura contra el sello |
-| 10 reintentos idempotentes | PENDIENTE | |
-| 5 carreras económicas aisladas | PENDIENTE | No confundir con carreras del control ya probadas |
-| Fallo Auth y depósito repetido | PENDIENTE | |
+| 10 reintentos idempotentes | PASS aislado SQL | [Ensayo local del 15/09](cierre-g7-2026-09-15/PRUEBAS-LOCALES.md): cinco reintentos Qorilazo y cinco Prodelco sin duplicar ni cambiar hechos |
+| 5 carreras económicas aisladas | PASS aislado SQL | Dos sesiones coincidentes observadas por caso: confirmación, depósito cruzado, clave/importe, corrección y conversión inicial; una sola operación válida |
+| Fallo Auth y depósito repetido | PARCIAL | Depósito repetido PASS en la carrera SQL entre empresas/personas; fallo Auth no ejecutado de nuevo, conserva los antecedentes F4 |
 | Cero P0/P1 abiertos | G7-R01 resuelto técnicamente; revisión del resto pendiente | Corrección publicada y lecturas de supervisor/Gerencia verificadas el 15/09; esta comprobación no sustituye los casos G7 todavía pendientes |
 | Cero diferencias financieras | PARCIAL; coherencia interna PASS | 613 fuentes sin divergencias entre lectores compartidos. Conformidad financiera del corte F8 pendiente; no es validación de documentos/contabilidad externa |
-| Soporte y reversa comprobados | PENDIENTE | |
+| Soporte y reversa comprobados | PARCIAL | Cinco controles locales de transición/reversa PASS, dieciséis superficies conservadas; falta soporte y procedimiento productivo exacto aprobado |
 
 Recorridos obligatorios: Avance→Qorilazo, Qorilazo→Avance,
 Qorilazo→Prodelco, segunda inversión en la misma empresa y dos recorridos
 multiempresa adicionales representativos.
+
+Modo general ensayado localmente: 21 contextos, incluidas Coordinación,
+inactividad y Directorio sin equipo. No hubo ampliación de acceso fuera de rol.
+Las 65 funciones seleccionadas coinciden con producción; no se afirma paridad
+completa del banco ni sesiones Auth de usuarios reales. [Evidencia local](cierre-g7-2026-09-15/PRUEBAS-LOCALES.md).
 
 Miguel tiene pendiente decidir si acepta la muestra real existente para el
 volumen y completa los recorridos/casos ausentes en un banco aislado. El pedido

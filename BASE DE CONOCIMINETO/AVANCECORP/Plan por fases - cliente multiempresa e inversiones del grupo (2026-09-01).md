@@ -28,6 +28,9 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 el piloto; varios recorridos/casos reales no existen. G7 abierto y decisión de
 Miguel pendiente sobre usar muestra histórica y casos aislados. No se modifican
 los criterios ni se encienden banderas generales por esta revisión.
+Pruebas técnicas aisladas del 15/09: diez reintentos, cinco carreras económicas,
+veintiún contextos de permisos y cinco controles de transición/reversa PASS.
+No sustituyen las casillas operativas/firmas ni autorizan activar producción.
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,

@@ -2,8 +2,9 @@
 
 Estado: **conciliación retrospectiva PASS; G7 ABIERTO; apertura general pendiente**.
 Miguel autorizó continuar la revisión y preparar la apertura a todos los analistas.
-Esta entrega no activa banderas, no registra inversiones, no modifica permisos y
-no atribuye firmas humanas. No creó un banco remoto ni generó un cargo adicional.
+Esta entrega no activa banderas ni registra inversiones en producción, no modifica
+permisos productivos y no atribuye firmas humanas. Los nuevos ensayos escriben
+solo datos sintéticos en una copia local. No creó un banco remoto ni generó un cargo adicional.
 
 ## Resultado comprobado
 
@@ -57,11 +58,17 @@ Avance no tienen analista histórico; esto es distinto de las dos personas sin
 responsable actual. No se reasignó ni corrigió ninguna por inferencia.
 
 G7 conserva pendientes los recorridos operativos, la aplicación de la evidencia
-de casos especiales a esta fase, la cobertura específica de reintentos/carreras,
-Auth/HTTP/UI productivos, soporte/reversa operativa y las conformidades humanas.
+de casos especiales a esta fase, fallo Auth, Auth/HTTP/UI productivos,
+soporte/reversa operativa y las conformidades humanas.
 Las pruebas sintéticas anteriores son antecedentes técnicos, no firmas ni
 operaciones reales. No deben crearse ventas, retiros o anulaciones ficticias en
 producción para completar una casilla.
+
+Los [nuevos ensayos locales](PRUEBAS-LOCALES.md) pasan diez reintentos, cinco
+carreras económicas, veintiún contextos de permisos generales y cinco controles
+de transición/reversa. Hay igualdad de 65 definiciones seleccionadas con
+producción; no es una comparación de todo el esquema/ACL. Las pruebas SQL no
+reemplazan los recorridos reales ni la aprobación de cambiar su evidencia.
 
 [Complemento tras revisión](complemento.json): se fijó el inicio del acta para
 el recuento acumulado y se comprobó la autoría, separada de la atribución. Las
@@ -106,10 +113,17 @@ no prueban login JWT/HTTP, clics, caché o visualización humana.
 ## Validación de esta entrega
 
 SQL de conciliación, roles, fichas y casos: PASS con los límites anteriores.
-Verificador de recibos: PASS. Build/frontend, RLS general, nuevas carreras
-económicas y Auth/UI productivos: NOT RUN; este cambio agrega diagnóstico y
+Verificador de recibos y `npm run check:scripts`: PASS. Carreras económicas y
+roles/transición locales: PASS con los límites documentados. Build/frontend,
+RLS general y Auth/UI productivos: NOT RUN; este cambio agrega diagnóstico y
 documentación, sin cambiar producto ni esquema. No se reabrieron ni reinstalaron
 los bancos cerrados de F4–F8.
+
+Refresco productivo al terminar los ensayos: **NOT RUN**, el conector
+`supabase_execute_sql` devolvió `-32603 Internal error` en dos intentos de solo
+lectura. No es evidencia de caída del CRM ni de un cambio de sus datos. Se
+conservan las capturas verificadas de 15:07/15:16 Lima; actualizar el preflight
+antes de cualquier futura activación. Las pruebas locales sí terminaron PASS.
 
 La apertura sigue el [procedimiento pendiente](APERTURA.md) y la
 [acta G7](../ACTA-G7.md). No se han ejecutado cambios productivos de activación.

@@ -1,0 +1,61 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-15T21:27:58.289Z",
+  "fin": "2026-09-15T21:28:02.047Z",
+  "banco": "g7_cierre_20260915",
+  "funciones_verificadas": 65,
+  "huella_funciones": "dc6bda6179244b5a35b514e23f2465a4c68da0e69979e55227f23bda1b461b83",
+  "resultados": [
+    {
+      "caso": "10 reintentos confirmados, dos empresas",
+      "reintentos": 10,
+      "historia_sin_cambios": true
+    },
+    {
+      "caso": "Misma confirmación simultánea",
+      "sesiones_coincidentes": 2,
+      "codigos": [
+        "OK",
+        "OK"
+      ]
+    },
+    {
+      "caso": "Depósito simultáneo entre dos empresas y personas",
+      "sesiones_coincidentes": 2,
+      "codigos": [
+        "P0409",
+        "OK"
+      ]
+    },
+    {
+      "caso": "Misma clave con dos importes",
+      "sesiones_coincidentes": 2,
+      "codigos": [
+        "OK",
+        "P0409"
+      ]
+    },
+    {
+      "caso": "Confirmar y corregir la misma revisión",
+      "sesiones_coincidentes": 2,
+      "codigos": [
+        "PT409",
+        "OK"
+      ]
+    },
+    {
+      "caso": "Conversión inicial repetida simultáneamente",
+      "sesiones_coincidentes": 2,
+      "codigos": [
+        "OK",
+        "OK"
+      ]
+    }
+  ],
+  "limites": [
+    "SQL authenticated; no login Auth/HTTP.",
+    "Metadatos Storage ficticios; no subida/descarga real de bytes.",
+    "No acredita operaciones económicas reales ni firma G7.",
+    "La copia conserva sus fixtures para inspección; la base fuente no se modifica."
+  ]
+}
