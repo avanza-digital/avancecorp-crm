@@ -1,0 +1,1304 @@
+{
+  "fecha": "2026-09-15",
+  "alcance": "Servidor y consultas; usuario excluyó navegador durante la prueba",
+  "resultado": "MEDICION_COMPLETADA_CON_LIMITES_Y_MEJORA_IDENTIFICADA",
+  "producto_modificado": false,
+  "datos_economicos_modificados": false,
+  "navegador": {
+    "estado": "NOT_RUN",
+    "motivo": "Sin navegador conectado; usuario eligió seguir con servidor y consultas."
+  },
+  "web": {
+    "estado": "NOT_RUN_RENDIMIENTO_APP",
+    "http_observados": [
+      {
+        "ruta": "/",
+        "http": 403,
+        "ttfb_ms": 157.628,
+        "total_ms": 157.658,
+        "cliente": "curl"
+      },
+      {
+        "ruta": "/",
+        "http": 403,
+        "ttfb_ms": 205.836,
+        "total_ms": 206.147,
+        "cliente": "Mozilla/5.0 AvanceCorpPerf/1.0"
+      },
+      {
+        "ruta": "/version.json",
+        "http": 403,
+        "ttfb_ms": 112.603,
+        "total_ms": 112.805,
+        "cliente": "curl"
+      }
+    ],
+    "diagnostico": "Respuesta hcdn: Checking your browser before accessing; requiere JavaScript. Son tiempos del desafío, no del CRM. No se aumentó carga HTTP."
+  },
+  "metodo": {
+    "roles_sql": "authenticated, identidad local de Gerencia/Carlos Valles y Analista/Vladimir Jurado",
+    "autenticacion_http_real": false,
+    "medicion": "clock_timestamp alrededor de la invocación real del núcleo, sin contar transporte MCP ni renderizado",
+    "cache": "No se vaciaron cachés",
+    "limites": {
+      "statement_timeout_s": 8,
+      "lock_timeout_s": 1,
+      "idle_in_transaction_s": 10,
+      "parada_ms": 3000
+    },
+    "persistencia": "BEGIN READ COMMITTED y ROLLBACK por lote; los efectos transitorios de auditoría se revierten. Sin llamadas económicas.",
+    "muestras_principales_por_rol": 3,
+    "percentiles_de_carga": "No calculados; la muestra es pequeña.",
+    "composicion": "2 sondas CTE iniciales y 37 invocaciones medidas en DO. La tabla principal usa solo resumen_base.",
+    "bloqueos_operativos": "La ficha invoca inversion_persona_contexto: puede adquirir su bloqueo operativo real hasta ROLLBACK. lock_timeout=1s no limita lo que esperen otros usuarios. No se midió la duración del bloqueo ni las esperas durante los lotes; 8s limita el DO completo, no acredita ausencia de impacto.",
+    "futuras_mediciones_ficha": "Una invocación por transacción, o banco aislado, para reducir retención."
+  },
+  "concurrencia": {
+    "solicitudes_enviadas_juntas": 2,
+    "solapamiento_servidor_ms": 0,
+    "estado": "NOT_RUN_CONCURRENCIA_REAL",
+    "motivo": "Las dos llamadas se ejecutaron en intervalos separados en el servidor; no acredita dos usuarios simultáneos. No se intentó la etapa de tres.",
+    "usuarios_simultaneos_demostrados": 1
+  },
+  "resumen": {
+    "gerencia/cartera": {
+      "n": 5,
+      "min_ms": 1242.992,
+      "mediana_ms": 1249.264,
+      "max_ms": 1280.304,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3",
+        "concurrencia_2",
+        "primera"
+      ]
+    },
+    "analista/cartera": {
+      "n": 5,
+      "min_ms": 303.001,
+      "mediana_ms": 306.81,
+      "max_ms": 491.753,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3",
+        "concurrencia_2",
+        "primera"
+      ]
+    },
+    "gerencia/estado_cartera": {
+      "n": 1,
+      "min_ms": 98.926,
+      "mediana_ms": 98.926,
+      "max_ms": 98.926,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "gerencia/busqueda": {
+      "n": 3,
+      "min_ms": 1218.853,
+      "mediana_ms": 1220.717,
+      "max_ms": 1249.266,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3"
+      ]
+    },
+    "gerencia/ficha": {
+      "n": 3,
+      "min_ms": 2663.375,
+      "mediana_ms": 2723.258,
+      "max_ms": 2894.332,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3"
+      ]
+    },
+    "gerencia/postventa_ficha": {
+      "n": 1,
+      "min_ms": 88.392,
+      "mediana_ms": 88.392,
+      "max_ms": 88.392,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "gerencia/conversion_mensual": {
+      "n": 2,
+      "min_ms": 109.774,
+      "mediana_ms": 123.4915,
+      "max_ms": 137.209,
+      "fases": [
+        "base_1",
+        "hoy_1"
+      ]
+    },
+    "analista/estado_cartera": {
+      "n": 1,
+      "min_ms": 92.339,
+      "mediana_ms": 92.339,
+      "max_ms": 92.339,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "analista/busqueda": {
+      "n": 3,
+      "min_ms": 277.47,
+      "mediana_ms": 289.182,
+      "max_ms": 292.131,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3"
+      ]
+    },
+    "analista/ficha": {
+      "n": 3,
+      "min_ms": 808.071,
+      "mediana_ms": 819.517,
+      "max_ms": 841.292,
+      "fases": [
+        "base_1",
+        "base_2",
+        "base_3"
+      ]
+    },
+    "analista/postventa_ficha": {
+      "n": 1,
+      "min_ms": 89.752,
+      "mediana_ms": 89.752,
+      "max_ms": 89.752,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "analista/conversion_mensual": {
+      "n": 1,
+      "min_ms": 103.069,
+      "mediana_ms": 103.069,
+      "max_ms": 103.069,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "analista/resumen_hoy": {
+      "n": 1,
+      "min_ms": 35.914,
+      "mediana_ms": 35.914,
+      "max_ms": 35.914,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "analista/cola_hoy": {
+      "n": 1,
+      "min_ms": 21.74,
+      "mediana_ms": 21.74,
+      "max_ms": 21.74,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "analista/agenda_postventa": {
+      "n": 1,
+      "min_ms": 163.71,
+      "mediana_ms": 163.71,
+      "max_ms": 163.71,
+      "fases": [
+        "base_1"
+      ]
+    },
+    "gerencia/cumplimiento_metas": {
+      "n": 1,
+      "min_ms": 202.122,
+      "mediana_ms": 202.122,
+      "max_ms": 202.122,
+      "fases": [
+        "hoy_1"
+      ]
+    },
+    "gerencia/reuniones_mes": {
+      "n": 1,
+      "min_ms": 100.115,
+      "mediana_ms": 100.115,
+      "max_ms": 100.115,
+      "fases": [
+        "hoy_1"
+      ]
+    },
+    "gerencia/conversiones_mes": {
+      "n": 1,
+      "min_ms": 499.745,
+      "mediana_ms": 499.745,
+      "max_ms": 499.745,
+      "fases": [
+        "hoy_1"
+      ]
+    },
+    "gerencia/busqueda_con_resultado": {
+      "n": 1,
+      "min_ms": 1329.952,
+      "mediana_ms": 1329.952,
+      "max_ms": 1329.952,
+      "fases": [
+        "hoy_1"
+      ]
+    },
+    "gerencia/ficha_misma_persona": {
+      "n": 1,
+      "min_ms": 2722.269,
+      "mediana_ms": 2722.269,
+      "max_ms": 2722.269,
+      "fases": [
+        "contraste"
+      ]
+    },
+    "analista/ficha_misma_persona": {
+      "n": 1,
+      "min_ms": 840.33,
+      "mediana_ms": 840.33,
+      "max_ms": 840.33,
+      "fases": [
+        "contraste"
+      ]
+    },
+    "analista/busqueda_con_resultado": {
+      "n": 1,
+      "min_ms": 294.862,
+      "mediana_ms": 294.862,
+      "max_ms": 294.862,
+      "fases": [
+        "contraste"
+      ]
+    }
+  },
+  "medidas": [
+    {
+      "actor": "gerencia",
+      "operacion": "cartera",
+      "fase": "primera",
+      "tiempo_sql_ms": 1280.304,
+      "bytes_json": 12044,
+      "total": 492,
+      "filas": 25,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "inicio_utc": null,
+      "fin_utc": null,
+      "error_codigo": null,
+      "presente": true,
+      "metodo": "CTE materializado con clock_timestamp; respuesta SQL exitosa con filas",
+      "timestamps": "No exportados por la sonda inicial; no reconstruidos."
+    },
+    {
+      "actor": "analista",
+      "operacion": "cartera",
+      "fase": "primera",
+      "tiempo_sql_ms": 306.81,
+      "bytes_json": 10173,
+      "total": 21,
+      "filas": 21,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "inicio_utc": null,
+      "fin_utc": null,
+      "error_codigo": null,
+      "presente": true,
+      "metodo": "CTE materializado con clock_timestamp; respuesta SQL exitosa con filas",
+      "timestamps": "No exportados por la sonda inicial; no reconstruidos."
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:15.618636+00:00",
+      "presente": true,
+      "operacion": "estado_cartera",
+      "bytes_json": 80,
+      "inicio_utc": "2026-09-15T16:33:15.51971+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 98.926,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": 25,
+      "total": 492,
+      "fin_utc": "2026-09-15T16:33:16.862584+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 12044,
+      "inicio_utc": "2026-09-15T16:33:15.619592+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1242.992,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": 15,
+      "total": 15,
+      "fin_utc": "2026-09-15T16:33:18.083632+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 7285,
+      "inicio_utc": "2026-09-15T16:33:16.862915+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1220.717,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:33:20.807215+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2384,
+      "inicio_utc": "2026-09-15T16:33:18.083957+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 2723.258,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:20.895876+00:00",
+      "presente": true,
+      "operacion": "postventa_ficha",
+      "bytes_json": 49,
+      "inicio_utc": "2026-09-15T16:33:20.807484+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 88.392,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:21.005882+00:00",
+      "presente": true,
+      "operacion": "conversion_mensual",
+      "bytes_json": 14662,
+      "inicio_utc": "2026-09-15T16:33:20.896108+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 109.774,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:50.971329+00:00",
+      "presente": true,
+      "operacion": "estado_cartera",
+      "bytes_json": 80,
+      "inicio_utc": "2026-09-15T16:33:50.87899+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 92.339,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": 21,
+      "total": 21,
+      "fin_utc": "2026-09-15T16:33:51.463983+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 10173,
+      "inicio_utc": "2026-09-15T16:33:50.97223+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 491.753,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": 0,
+      "total": 0,
+      "fin_utc": "2026-09-15T16:33:51.741745+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 81,
+      "inicio_utc": "2026-09-15T16:33:51.464275+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 277.47,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:33:52.550086+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2072,
+      "inicio_utc": "2026-09-15T16:33:51.742015+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 808.071,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:52.640129+00:00",
+      "presente": true,
+      "operacion": "postventa_ficha",
+      "bytes_json": 49,
+      "inicio_utc": "2026-09-15T16:33:52.550377+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 89.752,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:52.743438+00:00",
+      "presente": true,
+      "operacion": "conversion_mensual",
+      "bytes_json": 2386,
+      "inicio_utc": "2026-09-15T16:33:52.640369+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 103.069,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:52.779594+00:00",
+      "presente": true,
+      "operacion": "resumen_hoy",
+      "bytes_json": 1047,
+      "inicio_utc": "2026-09-15T16:33:52.74368+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 35.914,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:52.801563+00:00",
+      "presente": true,
+      "operacion": "cola_hoy",
+      "bytes_json": 64691,
+      "inicio_utc": "2026-09-15T16:33:52.779823+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 21.74,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_1",
+      "actor": "analista",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:33:52.966026+00:00",
+      "presente": true,
+      "operacion": "agenda_postventa",
+      "bytes_json": 2,
+      "inicio_utc": "2026-09-15T16:33:52.802316+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 163.71,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "gerencia",
+      "filas": 25,
+      "total": 492,
+      "fin_utc": "2026-09-15T16:34:21.722489+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 12044,
+      "inicio_utc": "2026-09-15T16:34:20.466427+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1256.062,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "gerencia",
+      "filas": 15,
+      "total": 15,
+      "fin_utc": "2026-09-15T16:34:22.942258+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 7285,
+      "inicio_utc": "2026-09-15T16:34:21.723405+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1218.853,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "gerencia",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:34:25.605939+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2384,
+      "inicio_utc": "2026-09-15T16:34:22.942564+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 2663.375,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "analista",
+      "filas": 21,
+      "total": 21,
+      "fin_utc": "2026-09-15T16:34:27.659661+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 10173,
+      "inicio_utc": "2026-09-15T16:34:27.33925+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 320.411,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "analista",
+      "filas": 0,
+      "total": 0,
+      "fin_utc": "2026-09-15T16:34:27.952691+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 81,
+      "inicio_utc": "2026-09-15T16:34:27.66056+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 292.131,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_2",
+      "actor": "analista",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:34:28.794274+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2072,
+      "inicio_utc": "2026-09-15T16:34:27.952982+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 841.292,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "gerencia",
+      "filas": 25,
+      "total": 492,
+      "fin_utc": "2026-09-15T16:35:07.995052+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 12044,
+      "inicio_utc": "2026-09-15T16:35:06.745788+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1249.264,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "gerencia",
+      "filas": 15,
+      "total": 15,
+      "fin_utc": "2026-09-15T16:35:09.245146+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 7285,
+      "inicio_utc": "2026-09-15T16:35:07.99588+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1249.266,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "gerencia",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:35:12.140061+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2384,
+      "inicio_utc": "2026-09-15T16:35:09.245729+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 2894.332,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "analista",
+      "filas": 21,
+      "total": 21,
+      "fin_utc": "2026-09-15T16:35:13.928688+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 10173,
+      "inicio_utc": "2026-09-15T16:35:13.625687+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 303.001,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "analista",
+      "filas": 0,
+      "total": 0,
+      "fin_utc": "2026-09-15T16:35:14.218733+00:00",
+      "presente": true,
+      "operacion": "busqueda",
+      "bytes_json": 81,
+      "inicio_utc": "2026-09-15T16:35:13.929551+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 289.182,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "MARIA",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "base_3",
+      "actor": "analista",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:35:15.038517+00:00",
+      "presente": true,
+      "operacion": "ficha",
+      "bytes_json": 2072,
+      "inicio_utc": "2026-09-15T16:35:14.219+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 819.517,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "hoy_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:35:16.300739+00:00",
+      "presente": true,
+      "operacion": "conversion_mensual",
+      "bytes_json": 14662,
+      "inicio_utc": "2026-09-15T16:35:16.16353+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 137.209,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "hoy_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:35:16.503696+00:00",
+      "presente": true,
+      "operacion": "cumplimiento_metas",
+      "bytes_json": 29950,
+      "inicio_utc": "2026-09-15T16:35:16.301574+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 202.122,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "hoy_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:35:16.604325+00:00",
+      "presente": true,
+      "operacion": "reuniones_mes",
+      "bytes_json": 8529,
+      "inicio_utc": "2026-09-15T16:35:16.50421+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 100.115,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "hoy_1",
+      "actor": "gerencia",
+      "filas": null,
+      "total": null,
+      "fin_utc": "2026-09-15T16:35:17.104382+00:00",
+      "presente": true,
+      "operacion": "conversiones_mes",
+      "bytes_json": 25011,
+      "inicio_utc": "2026-09-15T16:35:16.604637+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 499.745,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "hoy_1",
+      "actor": "gerencia",
+      "filas": 25,
+      "total": 492,
+      "fin_utc": "2026-09-15T16:35:18.434873+00:00",
+      "presente": true,
+      "operacion": "busqueda_con_resultado",
+      "bytes_json": 12044,
+      "inicio_utc": "2026-09-15T16:35:17.104921+00:00",
+      "error_codigo": null,
+      "tiempo_sql_ms": 1329.952,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "a",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "concurrencia_2",
+      "actor": "gerencia",
+      "filas": 25,
+      "total": 492,
+      "fin_utc": "2026-09-15T16:36:07.908086+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 12044,
+      "inicio_utc": "2026-09-15T16:36:06.664764+00:00",
+      "backend_pid": 2897180,
+      "error_codigo": null,
+      "tiempo_sql_ms": 1243.322,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "concurrencia_2",
+      "actor": "analista",
+      "filas": 21,
+      "total": 21,
+      "fin_utc": "2026-09-15T16:36:12.12261+00:00",
+      "presente": true,
+      "operacion": "cartera",
+      "bytes_json": 10173,
+      "inicio_utc": "2026-09-15T16:36:11.819+00:00",
+      "backend_pid": 2897181,
+      "error_codigo": null,
+      "tiempo_sql_ms": 303.61,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "contraste",
+      "actor": "gerencia",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:37:52.49504+00:00",
+      "presente": true,
+      "operacion": "ficha_misma_persona",
+      "bytes_json": 2072,
+      "inicio_utc": "2026-09-15T16:37:49.772771+00:00",
+      "backend_pid": 2897243,
+      "error_codigo": null,
+      "tiempo_sql_ms": 2722.269,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "contraste",
+      "actor": "analista",
+      "filas": null,
+      "total": 1,
+      "fin_utc": "2026-09-15T16:37:57.051808+00:00",
+      "presente": true,
+      "operacion": "ficha_misma_persona",
+      "bytes_json": 2072,
+      "inicio_utc": "2026-09-15T16:37:56.211478+00:00",
+      "backend_pid": 2897245,
+      "error_codigo": null,
+      "tiempo_sql_ms": 840.33,
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    },
+    {
+      "fase": "contraste",
+      "actor": "analista",
+      "filas": 21,
+      "total": 21,
+      "fin_utc": "2026-09-15T16:37:57.347424+00:00",
+      "presente": true,
+      "operacion": "busqueda_con_resultado",
+      "bytes_json": 10173,
+      "inicio_utc": "2026-09-15T16:37:57.052562+00:00",
+      "backend_pid": 2897245,
+      "error_codigo": null,
+      "tiempo_sql_ms": 294.862,
+      "parametros": {
+        "p_pagina": 1,
+        "p_tamano": 25,
+        "p_texto": "a",
+        "p_empresa": null,
+        "p_responsable": null,
+        "p_sin_responsable": false
+      },
+      "metodo": "DO, clock_timestamp alrededor de EXECUTE de la función"
+    }
+  ],
+  "planes_nucleo": [
+    {
+      "actor": "gerencia",
+      "rows": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Aggregate",
+                "Strategy": "Plain",
+                "Partial Mode": "Simple",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 12.75,
+                "Total Cost": 12.76,
+                "Plan Rows": 1,
+                "Plan Width": 8,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 23225,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Function Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Function Name": "cartera_f5_personas_visibles",
+                    "Alias": "cartera_f5_personas_visibles",
+                    "Startup Cost": 0.25,
+                    "Total Cost": 10.25,
+                    "Plan Rows": 1000,
+                    "Plan Width": 0,
+                    "Actual Rows": 492,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 23225,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.048,
+              "Triggers": [],
+              "Execution Time": 1216.032
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "actor": "analista",
+      "rows": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Aggregate",
+                "Strategy": "Plain",
+                "Partial Mode": "Simple",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 12.75,
+                "Total Cost": 12.76,
+                "Plan Rows": 1,
+                "Plan Width": 8,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 18859,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Function Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Function Name": "cartera_f5_personas_visibles",
+                    "Alias": "cartera_f5_personas_visibles",
+                    "Startup Cost": 0.25,
+                    "Total Cost": 10.25,
+                    "Plan Rows": 1000,
+                    "Plan Width": 0,
+                    "Actual Rows": 21,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 18859,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.052,
+              "Triggers": [],
+              "Execution Time": 153.037
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "salud_inicial": [
+    {
+      "observado_utc": "2026-09-15 16:29:29.97525+00",
+      "otras_sesiones_activas": 1,
+      "esperando_lock": 0,
+      "idle_en_transaccion": 0,
+      "stats_reset": "2026-04-08 11:45:51.451016+00",
+      "deadlocks_acumulados": 0
+    }
+  ],
+  "salud_antes_concurrencia": [
+    {
+      "fecha_utc": "2026-09-15 16:36:02.881721+00",
+      "otras_activas": 1,
+      "esperando_lock": 0,
+      "idle_en_transaccion": 0
+    }
+  ],
+  "salud_final": [
+    {
+      "fecha_utc": "2026-09-15 16:37:59.394035+00",
+      "otras_sesiones_activas": 1,
+      "esperando_lock": 0,
+      "idle_en_transaccion": 0,
+      "sesiones_prueba_restantes": 0,
+      "deadlocks_acumulados": 0,
+      "funciones": [
+        {
+          "md5": "63a36c13296fd6337d63f298bcc2bc9e",
+          "funcion": "cartera_f5_personas_visibles",
+          "propietario": "postgres"
+        },
+        {
+          "md5": "e02e89b5a920c8388d77a01c07f13198",
+          "funcion": "cartera_inversionistas_fn",
+          "propietario": "postgres"
+        },
+        {
+          "md5": "d937fdc0f8515cc9f408324f707e19f1",
+          "funcion": "inversionista_ficha_fn",
+          "propietario": "postgres"
+        }
+      ]
+    }
+  ],
+  "limitaciones": [
+    "No incluye login/JWT/Data API, red del usuario ni renderizado.",
+    "Hoy tiene muestras exploratorias, no un recorrido completo ni tres repeticiones de todas sus consultas.",
+    "Búsqueda MARIA: Gerencia 15 resultados, Analista 0; búsqueda adicional a: 492 y 21 totales, respectivamente.",
+    "Fichas base distintas con una inversión cada una; contraste de una misma persona: Gerencia 2722.269 ms y Analista 840.330 ms.",
+    "Sin certificado de capacidad, p95/p99 ni conclusión de escalabilidad.",
+    "Build HTTP vigente no verificado debido al desafío de hcdn; último build frontend documentado d93d805."
+  ],
+  "fuentes": [
+    "CRM-Avance-Corp/app/src/data/inversionistas-api.ts",
+    "CRM-Avance-Corp/app/src/data/inversionistas-queries.ts:14",
+    "CRM-Avance-Corp/supabase/migrations/20260914213634_crm_f8_cartera_lectura_eficiente.sql:19",
+    "CRM-Avance-Corp/supabase/migrations/20260914213928_crm_coopac_condiciones_anuales.sql:799",
+    "CRM-Avance-Corp/supabase/migrations/20260914213928_crm_coopac_condiciones_anuales.sql:910"
+  ],
+  "resumen_base": {
+    "gerencia/estado_cartera": {
+      "n": 1,
+      "min_ms": 98.926,
+      "mediana_ms": 98.926,
+      "max_ms": 98.926
+    },
+    "gerencia/cartera": {
+      "n": 3,
+      "min_ms": 1242.992,
+      "mediana_ms": 1249.264,
+      "max_ms": 1256.062
+    },
+    "gerencia/busqueda": {
+      "n": 3,
+      "min_ms": 1218.853,
+      "mediana_ms": 1220.717,
+      "max_ms": 1249.266
+    },
+    "gerencia/ficha": {
+      "n": 3,
+      "min_ms": 2663.375,
+      "mediana_ms": 2723.258,
+      "max_ms": 2894.332
+    },
+    "gerencia/postventa_ficha": {
+      "n": 1,
+      "min_ms": 88.392,
+      "mediana_ms": 88.392,
+      "max_ms": 88.392
+    },
+    "gerencia/conversion_mensual": {
+      "n": 1,
+      "min_ms": 109.774,
+      "mediana_ms": 109.774,
+      "max_ms": 109.774
+    },
+    "analista/estado_cartera": {
+      "n": 1,
+      "min_ms": 92.339,
+      "mediana_ms": 92.339,
+      "max_ms": 92.339
+    },
+    "analista/cartera": {
+      "n": 3,
+      "min_ms": 303.001,
+      "mediana_ms": 320.411,
+      "max_ms": 491.753
+    },
+    "analista/busqueda": {
+      "n": 3,
+      "min_ms": 277.47,
+      "mediana_ms": 289.182,
+      "max_ms": 292.131
+    },
+    "analista/ficha": {
+      "n": 3,
+      "min_ms": 808.071,
+      "mediana_ms": 819.517,
+      "max_ms": 841.292
+    },
+    "analista/postventa_ficha": {
+      "n": 1,
+      "min_ms": 89.752,
+      "mediana_ms": 89.752,
+      "max_ms": 89.752
+    },
+    "analista/conversion_mensual": {
+      "n": 1,
+      "min_ms": 103.069,
+      "mediana_ms": 103.069,
+      "max_ms": 103.069
+    },
+    "analista/resumen_hoy": {
+      "n": 1,
+      "min_ms": 35.914,
+      "mediana_ms": 35.914,
+      "max_ms": 35.914
+    },
+    "analista/cola_hoy": {
+      "n": 1,
+      "min_ms": 21.74,
+      "mediana_ms": 21.74,
+      "max_ms": 21.74
+    },
+    "analista/agenda_postventa": {
+      "n": 1,
+      "min_ms": 163.71,
+      "mediana_ms": 163.71,
+      "max_ms": 163.71
+    }
+  },
+  "resumen_base_filtro": [
+    "base_1",
+    "base_2",
+    "base_3"
+  ],
+  "revision": {
+    "revisor": "Claude por scripts/claude-review",
+    "dictamen": "CHANGES_REQUESTED",
+    "p0": 0,
+    "p1": 0,
+    "alcance": "Método, cifras, conclusiones y documentación; sin cambios de producto",
+    "respuesta_primary": "Se incorporaron límites de bloqueos, agregación completa y base por separado, método de sondas iniciales, parámetros de búsqueda y alcance de mejora. No se adopta porcentaje causal como techo demostrado.",
+    "segunda_revision": "No solicitada; no hay nueva implementación ni riesgo que la justifique."
+  },
+  "verificacion_documental": {
+    "json": "PASS",
+    "medianas_recalculadas": "PASS",
+    "sin_uuid_clientes_ni_claves": "PASS",
+    "plantilla_psql_literal": "NOT_RUN; método equivalente sí ejecutado en las sondas iniciales",
+    "tests_producto": "NOT_RUN; solo documentación y evidencia"
+  }
+}
