@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react'
+import {act, cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {CarteraInversionistas} from './cartera-inversionistas'
@@ -9,10 +9,11 @@ import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, PERFIL_F5} from '@/
 import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
-vi.mock('@/data/postventa-api', () => ({estadoPostventa: vi.fn().mockResolvedValue({version: 1, habilitada: false})}))
+vi.mock('@/data/postventa-api', () => ({estadoPostventa: vi.fn().mockResolvedValue({version: 1, habilitada: false}), fichaPostventa: (...args: unknown[]) => api.postventa(...args)}))
+vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: 'gerencia', demo: false}})}))
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
-  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn()}))
+  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn()}))
 vi.mock('@/data/inversionistas-api', () => ({listarInversionistas:api.lista, obtenerFichaInversionista:api.ficha,
   obtenerCuentasInversionista:api.bancos, descargarDocumentoInversionista:api.documento}))
 vi.mock('@/data/inversion-solicitud-api', () => ({consultarSolicitudInversion:api.consultar, prepararSolicitudInversion:api.preparar,
@@ -34,6 +35,7 @@ const solicitud = (id=FUENTE_F5): SolicitudInversion => ({solicitud_id:id,estado
   necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:`${PERSONA_F5}/${id}/comprobante.pdf`,resultado:null})
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
+  api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
   api.lista.mockResolvedValue(structuredClone(carteraF5)); api.ficha.mockResolvedValue(structuredClone(fichaF5)); api.bancos.mockResolvedValue([])
 })
 afterEach(() => {cleanup(); vi.restoreAllMocks()})
@@ -54,9 +56,161 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     const informacion=screen.getByRole('heading',{name:'Información del cliente'})
     expect(seguimiento.compareDocumentPosition(inversiones)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(inversiones.compareDocumentPosition(informacion)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('12.5% anual')).toBeInTheDocument()
+    expect(screen.getByText('12.5% anual')).not.toBeVisible()
+    await user.click(screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'}))
+    expect(screen.getByText('12.5% anual')).toBeVisible()
     expect(screen.getByText('12 meses')).toBeInTheDocument()
     expect(screen.getByRole('button',{name:/Copiar correo/i})).toBeInTheDocument()
+  })
+  it('conserva los totales del núcleo aunque la página solo contenga una inversión', async () => {
+    const d=structuredClone(fichaF5)
+    d.inversiones_total=40
+    d.totales=[{empresa:'avance',moneda:'USD',cantidad:12,capital_activo:17000,capital_registrado:22000},
+      {empresa:'qorilazo',moneda:'PEN',cantidad:28,capital_activo:null,capital_registrado:90000}]
+    api.ficha.mockResolvedValue(d)
+    const {user,qc}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const r=await screen.findByRole('region',{name:'Continuidad comercial del cliente'})
+    expect(r).toHaveTextContent('US$ 17,000')
+    expect(r).toHaveTextContent('S/ 90,000')
+    expect(r).toHaveTextContent('40 inversiones registradas')
+    expect(r).toHaveTextContent('Capital activo · 12 inversiones')
+    expect(r).toHaveTextContent('Capital registrado · 28 inversiones')
+    expect(within(r).queryByText('S/ 1,200')).not.toBeInTheDocument()
+    const abrir=screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    await user.click(abrir)
+    await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    expect(abrir).toHaveAttribute('aria-expanded','true')
+    expect(screen.getByText('DEPÓSITO SINTÉTICO')).toBeVisible()
+    await user.click(abrir)
+    expect(screen.getByText('DEPÓSITO SINTÉTICO')).not.toBeVisible()
+  })
+  it('un capital Avance sin saldo activo confirmado se identifica como registrado', async () => {
+    const d=structuredClone(fichaF5)
+    d.totales=[{empresa:'avance',moneda:'PEN',cantidad:1,capital_activo:null,capital_registrado:4000}]
+    api.ficha.mockResolvedValue(d)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const r=await screen.findByRole('region',{name:'Continuidad comercial del cliente'})
+    expect(r).toHaveTextContent('Capital registrado')
+    expect(r).not.toHaveTextContent('Capital vigente')
+    expect(r).toHaveTextContent('S/ 4,000')
+  })
+  it('el resumen de la cartera distingue capital activo y registrado según el dato del núcleo', async () => {
+    api.lista.mockResolvedValue({...structuredClone(carteraF5),totales:[
+      {empresa:'avance',moneda:'PEN',cantidad:2,capital_activo:null,capital_registrado:4000},
+      {empresa:'qorilazo',moneda:'USD',cantidad:3,capital_activo:0,capital_registrado:1200},
+    ]})
+    montar()
+    const avance=(await screen.findByText('Avance · PEN')).parentElement!
+    expect(avance).toHaveTextContent('S/ 4,000')
+    expect(avance).toHaveTextContent('Capital registrado · 2 inversiones')
+    const coopac=screen.getByText('Qorilazo · USD').parentElement!
+    expect(coopac).toHaveTextContent('US$ 0')
+    expect(coopac).toHaveTextContent('Capital activo · 3 inversiones')
+  })
+  it('distingue inversiones sin número por posición dentro de su empresa y moneda', async () => {
+    const d=structuredClone(fichaF5)
+    d.inversiones[0]!.numero=null
+    d.inversiones.push({...d.inversiones[0]!,fuente_id:PERFIL_F5,moneda:'USD'})
+    d.inversiones_total=2
+    api.ficha.mockResolvedValue(d)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const pen=await screen.findByRole('button',{name:'Ver inversión registro 1 de Qorilazo PEN en esta página'})
+    const usd=screen.getByRole('button',{name:'Ver inversión registro 1 de Qorilazo USD en esta página'})
+    await user.click(usd)
+    expect(usd).toHaveAttribute('aria-expanded','true')
+    expect(pen).toHaveAttribute('aria-expanded','false')
+  })
+  it('la tarjeta compacta avisa de PDF pendiente y anulación antes de abrir detalles', async () => {
+    const d=structuredClone(fichaF5)
+    d.inversiones[0]!.pdf={estado:'reservado',reintentable:true}
+    d.inversiones[0]!.estado='anulado_comercialmente'
+    api.ficha.mockResolvedValue(d)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    expect(await screen.findByRole('button',{name:'Recuperar PDF pendiente'})).toBeVisible()
+    expect(screen.getByText('PDF pendiente')).toBeVisible()
+    expect(screen.getByText('Anulación comercial. El capital registrado se conserva.')).toBeVisible()
+    expect(screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})).toHaveAttribute('aria-expanded','false')
+  })
+  it('una caída F6 conserva el detalle y el foco, retira sus controles y permite recuperarlos', async () => {
+    const d=structuredClone(fichaF5);d.capacidades.postventa=true
+    api.ficha.mockResolvedValue(d)
+    const {user,qc}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    const detalle=screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    await user.click(detalle)
+    api.postventa.mockRejectedValue(new CrmApiError('Corte F6','RED'))
+    await act(async()=>{await qc.invalidateQueries({queryKey:['crm','postventa',ACTOR_F5]})})
+    await screen.findByText('Corte F6')
+    expect(screen.queryByRole('button',{name:'Agendar gestión'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Cambiar responsable'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Marcar No contactar'})).not.toBeInTheDocument()
+    expect(detalle).toHaveFocus()
+    expect(detalle).toHaveAttribute('aria-expanded','true')
+    api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
+    await user.click(screen.getByRole('button',{name:/Reintentar/}))
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    expect(detalle).toHaveAttribute('aria-expanded','true')
+  })
+  it('cambiar la habilitación F6 mantiene la ficha y exige otra lectura al reactivar', async () => {
+    const d=structuredClone(fichaF5);d.capacidades.postventa=true
+    api.ficha.mockResolvedValue(d)
+    const {user,qc}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    const detalle=screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    await user.click(detalle)
+    api.ficha.mockResolvedValue({...d,capacidades:{...d.capacidades,postventa:false}})
+    await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    await waitFor(()=>expect(screen.queryByRole('button',{name:'Agendar gestión'})).not.toBeInTheDocument())
+    expect(detalle).toHaveFocus()
+    expect(detalle).toHaveAttribute('aria-expanded','true')
+    const lecturas=api.postventa.mock.calls.length
+    api.ficha.mockResolvedValue(d)
+    await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    expect(api.postventa.mock.calls.length).toBeGreaterThan(lecturas)
+    expect(detalle).toHaveFocus()
+    expect(detalle).toHaveAttribute('aria-expanded','true')
+  })
+  it.each([
+    ['Agendar gestión','error'],
+    ['Registrar solicitud de retiro','capacidad'],
+  ])('recuperar F6 no vuelve a abrir %s después de perder %s', async (boton,corte) => {
+    const d=structuredClone(fichaF5);d.capacidades.postventa=true
+    const titulo=boton==='Agendar gestión' ? 'Gestionar a ANA SINTÉTICA F5' : 'Registrar solicitud de retiro'
+    api.ficha.mockResolvedValue(d)
+    const {user,qc}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    await user.click(screen.getByRole('button',{name:boton}))
+    expect(await screen.findByRole('dialog',{name:titulo})).toBeVisible()
+    if (corte==='error') {
+      api.postventa.mockRejectedValue(new CrmApiError('Corte F6','RED'))
+      await act(async()=>{await qc.invalidateQueries({queryKey:['crm','postventa',ACTOR_F5]})})
+    } else {
+      api.ficha.mockResolvedValue({...d,capacidades:{...d.capacidades,postventa:false}})
+      await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    }
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:titulo})).not.toBeInTheDocument())
+    // Completar la restitución de foco del modal antes de seguir navegando.
+    await act(async()=>{await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())))})
+    await waitFor(()=>expect(screen.getByRole('dialog')).toHaveFocus())
+    const detalle=screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    await user.click(detalle)
+    api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
+    api.ficha.mockResolvedValue(d)
+    await act(async()=>{await qc.invalidateQueries({queryKey:corte==='error'
+      ? ['crm','postventa',ACTOR_F5] : inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    await screen.findByRole('button',{name:'Agendar gestión'})
+    expect(screen.queryByRole('dialog',{name:titulo})).not.toBeInTheDocument()
+    expect(detalle).toHaveFocus()
+    await user.click(screen.getByRole('button',{name:boton}))
+    expect(await screen.findByRole('dialog',{name:titulo})).toBeVisible()
   })
   it('un fallo transitorio conserva la ficha y el foco, deshabilita sus acciones y permite recuperar', async () => {
     const {user,qc}=montar()
@@ -94,7 +248,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(screen.getByRole('navigation',{name:'Paginación de inversionistas'})).toBeInTheDocument()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await screen.findByText('Información del cliente')
-    expect(screen.queryByText('Cuentas de pago Avance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cuentas para recibir pagos')).not.toBeInTheDocument()
     expect(api.bancos).not.toHaveBeenCalled()
     await user.click(screen.getAllByRole('button',{name:'Cerrar ficha'})[0]!)
     expect(screen.getByLabelText('Buscar persona')).toHaveValue('9333')
@@ -129,10 +283,12 @@ describe('F5: cartera y ficha con acceso vigente', () => {
       signal.addEventListener('abort',()=>reject(new DOMException('Cancelada','AbortError')),{once:true})
     })).mockResolvedValue(undefined)
     const {user}=montar();await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'}))
     await user.click(await screen.findByRole('button',{name:'Documento del ensayo'}))
     await user.click(screen.getByRole('button',{name:'Registrar nueva inversión'}))
     await user.click(await screen.findByRole('button',{name:'Cerrar y continuar después'}))
     await waitFor(()=>expect(screen.getByRole('region',{name:'Inversiones y contratos'})).toHaveFocus())
+    await user.click(await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'}))
     await user.click(await screen.findByRole('button',{name:'Documento del ensayo'}))
     await waitFor(()=>expect(api.documento).toHaveBeenCalledTimes(2))
     expect(screen.queryByText('Comprobando acceso y descargando documento…')).not.toBeInTheDocument()
@@ -141,7 +297,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     const d=structuredClone(fichaF5);d.capacidades.cuentas_perfil_ids=[PERFIL_F5]
     api.ficha.mockResolvedValue(d)
     const {user,qc}=montar();await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
-    await user.click(await screen.findByLabelText(/Cuentas de pago Avance\. Cuentas autorizadas/))
+    await user.click(await screen.findByLabelText(/Cuentas para recibir pagos\. Cuentas autorizadas/))
     await waitFor(()=>expect(api.bancos).toHaveBeenCalledTimes(2))
     await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
     expect(api.bancos).toHaveBeenCalledTimes(2)

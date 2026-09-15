@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ficha anterior y adaptación multiempresa</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#111e3d;font:15px/1.5 system-ui,sans-serif}
+  main{max-width:1320px;margin:auto;padding:28px 24px}h1{font-size:26px;line-height:1.2;margin:0 0 10px}p{color:#56647b;margin:0 0 18px}
+  .controles{display:flex;flex-wrap:wrap;gap:18px;margin:24px 0}label{display:grid;gap:5px;font-size:13px;font-weight:600}
+  select{background:white;color:#111e3d;border:1px solid #ccd5e4;border-radius:8px;min-height:44px;padding:8px 12px;font:inherit}
+  .comparacion{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  figure{min-width:0;margin:0}figcaption{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+  h2{font-size:17px;margin:0}a{color:#174ec9;font-size:13px;text-underline-offset:3px}
+  .captura{overflow:hidden;background:white;border:1px solid #d9e1ed;border-radius:12px;--captura:1440;--panel:620}
+  img{display:block;width:calc(100% * var(--captura) / var(--panel));max-width:none;margin-left:calc(100% * (1 - var(--captura) / var(--panel)))}
+  .nota{margin-top:20px;font-size:13px}select:focus-visible,a:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+  @media(max-width:760px){main{padding:20px 14px}.comparacion{grid-template-columns:1fr}h1{font-size:23px}}
+</style>
+<main>
+  <h1>La ficha anterior, adaptada a multiempresa</h1>
+  <p>Compara el diseño con la misma persona y contrato de demostración. Esta vista previa todavía no está publicada en el CRM.</p>
+  <div class="controles">
+    <label>Usuario<select aria-label="Usuario" id="rol"><option value="analista">Analista</option><option value="gerencia">Gerencia</option></select></label>
+    <label>Pantalla<select aria-label="Pantalla" id="tamano"><option value="escritorio">Computadora</option><option value="movil">Celular</option></select></label>
+    <label>Vista multiempresa<select aria-label="Vista multiempresa" id="vista"><option value="multiempresa">Ficha</option><option value="detalle">Detalle de la inversión abierto</option></select></label>
+  </div>
+  <div class="comparacion">
+    <figure><figcaption><h2>Ficha anterior</h2><a id="enlace-anterior" href="analista-escritorio-anterior.png" target="_blank" rel="noopener">Captura completa</a></figcaption>
+      <div class="captura"><img id="anterior" src="analista-escritorio-anterior.png" alt="Ficha anterior del cliente de demostración"></div></figure>
+    <figure><figcaption><h2>Adaptación multiempresa</h2><a id="enlace-nueva" href="analista-escritorio-multiempresa.png" target="_blank" rel="noopener">Captura completa</a></figcaption>
+      <div class="captura"><img id="nueva" src="analista-escritorio-multiempresa.png" alt="Ficha multiempresa con el diseño recuperado"></div></figure>
+  </div>
+  <p class="nota">Las imágenes muestran datos sintéticos. Los permisos y acciones disponibles se prueban por separado para cada rol.</p>
+  <p><a href="tres-empresas-dos-monedas.png" target="_blank" rel="noopener">Ver también una ficha con tres empresas y dos monedas</a></p>
+</main>
+<script>
+  const rol=document.getElementById('rol'),tamano=document.getElementById('tamano'),vista=document.getElementById('vista');
+  function mostrar(){
+    const prefijo=rol.value+'-'+tamano.value;
+    document.getElementById('anterior').src=prefijo+'-anterior.png';
+    document.getElementById('enlace-anterior').href=prefijo+'-anterior.png';
+    document.getElementById('nueva').src=prefijo+'-'+vista.value+'.png';
+    document.getElementById('enlace-nueva').href=prefijo+'-'+vista.value+'.png';
+    document.querySelectorAll('.captura').forEach(el=>{el.style.setProperty('--captura',tamano.value==='movil'?'390':'1440');el.style.setProperty('--panel',tamano.value==='movil'?'390':'620')});
+  }
+  [rol,tamano,vista].forEach(el=>el.addEventListener('change',mostrar));
+</script>
+</html>

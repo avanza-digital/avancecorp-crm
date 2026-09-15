@@ -1,0 +1,71 @@
+{
+  "fecha_utc": "2026-09-15T15:47:23.190467+00:00",
+  "base_commit": "de7cb97ac004583c9effdb46a0cf734c731ace6c",
+  "estado": "preparado_localmente_revision_visual_pendiente",
+  "publicado": false,
+  "checks": [
+    {
+      "comando": "npm run check",
+      "estado": "PASS",
+      "exit_code": 0,
+      "pruebas_pass": 3596,
+      "log_local": "/private/tmp/avancecorp-ficha-visual-20260915/check-final.log",
+      "log_sha256": "e3dcfa70760f7d5f02ca55217132e7b59d99aa9cfc5a8b5d179cc7c2d69f5583"
+    },
+    {
+      "comando": "npm test -- --run src/screens/cartera-inversionistas.test.tsx src/components/app/cliente-ficha.test.tsx",
+      "estado": "PASS",
+      "exit_code": 0,
+      "pruebas_pass": 54,
+      "log_local": "/private/tmp/avancecorp-ficha-visual-20260915/focal-cierre.log",
+      "log_sha256": "3d6a5f1784487d83bde8345b54bb28c3b58b9150b5e09d0948a96232c57a8b6f"
+    },
+    {
+      "comando": "23 recorridos F5/F6/ClienteFicha/comparación; comando íntegro en README.md",
+      "estado": "PASS",
+      "exit_code": 0,
+      "pruebas_pass": 23,
+      "log_local": "/private/tmp/avancecorp-ficha-visual-20260915/e2e-final.log",
+      "log_sha256": "cfbb92d6914a1c1ed94aec076840b5b716cc0bd8290947c9c12f219f57f5d317"
+    }
+  ],
+  "not_run": [
+    "gate:realidad: falta SUPABASE_URL; intento finalizó antes de consultar datos",
+    "matriz E2E completa",
+    "recorrido manual de producción y conformidad G7"
+  ],
+  "revision_claude": {
+    "consultas": 2,
+    "dictamenes": [
+      "CHANGES_REQUESTED",
+      "CHANGES_REQUESTED"
+    ],
+    "resolucion_primary": "Hallazgos corregidos y verificados después; aceptación documentada del ajuste responsive; sin tercer dictamen."
+  },
+  "codigo_sha256": {
+    "CRM-Avance-Corp/app/e2e/f6-postventa.spec.ts": "833fdd73c6a0b4418d5a2d5febaf41974366b7352e34271c2e43c73e2e942ed5",
+    "CRM-Avance-Corp/app/e2e/ficha-multiempresa-visual.spec.ts": "92e2ba171909a35dd4d5e0a59440cb52a0d40c42eeb969bcbc526867f0e26fd9",
+    "CRM-Avance-Corp/app/src/components/app/cliente-ficha.tsx": "542b4584fee1c6745a72ea07323a8ff4a7e115fea99eb9f261ea8d151dffda31",
+    "CRM-Avance-Corp/app/src/components/app/ficha-comercial.tsx": "6280e85e7fb575e0c8af581cc1bc2b2e293e03c960ad264c32f25549b868687b",
+    "CRM-Avance-Corp/app/src/components/app/inversionista-ficha.tsx": "ffe6c0f29558a6346a83130dbaf0ec47c804c04f4cca360572c3b6fa0f4bedb0",
+    "CRM-Avance-Corp/app/src/components/app/postventa-persona.tsx": "eb6ac80d03b6a4bd92154025c743d3389602cb00b797e6225ecedc46d5869374",
+    "CRM-Avance-Corp/app/src/data/postventa-queries.ts": "e64828b1775733b3d54dd248a5011193d1894200213949322131dee4a2b2a2c2",
+    "CRM-Avance-Corp/app/src/screens/cartera-inversionistas.test.tsx": "84384108c1d4906cab54008efd2c656bfee09dc082902bd661091bb2fcefdc5f",
+    "CRM-Avance-Corp/app/src/screens/cartera-inversionistas.tsx": "5c3224f24c13074af46008c78f3d1fb5c2f8cac9cb1f2300d14ee559ea5dc535"
+  },
+  "capturas_sha256": {
+    "analista-escritorio-anterior.png": "67ccd707f03a953668ca0b38abd1ff72fc7c340c5ef1d5be3dd2f774209bc98c",
+    "analista-escritorio-detalle.png": "5e421b7e77dc6ddb3e46c7f90b4532fc31c8ca3d05d1e81811f322404951a6c7",
+    "analista-escritorio-multiempresa.png": "4ded509edc923777f431bccde73e9d47762d1a3eacdd3a3b092b70bdb52dd1de",
+    "analista-movil-anterior.png": "dee6c053e4fc6fe8615442e1e926641cbabb47857af2be0680b3622000115aa1",
+    "analista-movil-detalle.png": "97a60ec991085c5d5c9dd3288f9aa917e2716a1942f897d2604aed6b40e87b21",
+    "analista-movil-multiempresa.png": "7b14cbd44ea2b00781f3c361342f590029bf1d5f714a63b65a79936887e11856",
+    "gerencia-escritorio-anterior.png": "c060315f9b4126b6437adb38db54fe0871763cc5abf41f6e05f705525c2600bc",
+    "gerencia-escritorio-detalle.png": "ac89a2f84d4af221a5d56dff843cd3b5c2067d10287780bf36152a1d0449c48c",
+    "gerencia-escritorio-multiempresa.png": "dfc7767aeb5886c0a79f8f4ed3bf404f04e5380fbf1aadbbbe2b4afae888999e",
+    "gerencia-movil-anterior.png": "dee6c053e4fc6fe8615442e1e926641cbabb47857af2be0680b3622000115aa1",
+    "gerencia-movil-detalle.png": "c556f06fbbcc42a35980b5d7bc9e4fefd1951dde9491cbde54a2c1fc9809b958",
+    "gerencia-movil-multiempresa.png": "7b14cbd44ea2b00781f3c361342f590029bf1d5f714a63b65a79936887e11856",
+    "tres-empresas-dos-monedas.png": "61a1d051d52e27306a57c4d59cd942013d89be27646d3f0a7ab3597b4e8eab42"
+  }
+}

@@ -3,9 +3,47 @@ import { ChevronDown, Mail, MessageCircle, Phone, X, type LucideIcon } from 'luc
 import { numeroWhatsapp, enlaceTel } from '@/lib/telefono'
 import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { fechaHora } from '@/lib/format'
 
 const CLASE_CONTACTO =
   'inline-flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-[11px] font-bold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35 [&_svg]:size-3.5'
+
+/** Tarjeta de la ficha anterior. Los lectores de cada dominio aportan sus datos y acciones. */
+export function FichaComercialInversion({badges, titulo, referencia, capital, observacion, detalle, acciones}: {
+  badges: ReactNode; titulo: string; referencia: ReactNode; capital: ReactNode
+  observacion?: ReactNode; detalle?: ReactNode; acciones?: ReactNode
+}) {
+  return <div className="min-w-0 rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 flex-1 basis-40">
+        <div className="flex flex-wrap items-center gap-1.5">{badges}</div>
+        <p className="mt-2 text-xs font-extrabold text-foreground [overflow-wrap:anywhere]">{titulo}</p>
+        <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground [overflow-wrap:anywhere]">{referencia}</p>
+        {observacion}
+      </div>
+      <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">{capital}</p>
+    </div>
+    {detalle}
+    {acciones && <div className="mt-3 flex flex-wrap justify-end gap-1.5 border-t border-border/60 pt-2.5">{acciones}</div>}
+  </div>
+}
+
+/** Cronología comercial original, compartida sin recomponer hechos económicos. */
+export function FichaComercialHistorial({eventos}: {
+  eventos: {id: string; titulo: string; detalle: string | null; creadoEn: string; contexto?: string}[]
+}) {
+  return <ol className="relative space-y-2 border-l-2 border-primary/10 pl-4">
+    {eventos.map(evento => <li key={evento.id}
+      className="relative rounded-xl border border-border bg-muted/20 px-3 py-2.5 before:absolute before:-left-[21px] before:top-3 before:size-2 before:rounded-full before:bg-accent before:ring-4 before:ring-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-bold text-foreground">{evento.titulo}</p>
+        <time className="text-[11px] tabular-nums text-muted-foreground" dateTime={evento.creadoEn}>{fechaHora(evento.creadoEn)}</time>
+      </div>
+      {evento.contexto && <p className="mt-0.5 text-[11px] text-muted-foreground">{evento.contexto}</p>}
+      {evento.detalle && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground [overflow-wrap:anywhere]">{evento.detalle}</p>}
+    </li>)}
+  </ol>
+}
 
 
 export function FichaComercialContacto({

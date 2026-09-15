@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { CalendarPlus, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -21,41 +21,60 @@ import { RETIRO_ETIQUETA, type EstadoRetiro, type RetiroPostventa } from '@/lib/
 import { fechaHora, money } from '@/lib/format'
 
 type AccionPersona = {tipo: 'agendar'} | {tipo: 'asignar'} | {tipo: 'veto'} | {tipo: 'solicitar_retiro'; fuente: InversionFuente} | {tipo: 'revisar_retiro'; retiro: RetiroPostventa}
-export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, deshabilitado = false}: {
+export interface ControlesPostventa {
+  acciones: ReactNode
+  agendar: ReactNode
+  retiros: ReactNode
+  aviso: ReactNode
+}
+const SIN_CONTROLES: ControlesPostventa = {acciones: null, agendar: null, retiros: null, aviso: null}
+
+export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, deshabilitado = false, children}: {
   actor: string; ficha: FichaInversionista; retiroElegido: InversionFuente | null;
   onRetiroCerrado: () => void
   deshabilitado?: boolean
+  children: (controles: ControlesPostventa) => ReactNode
 }) {
   const {yo} = useAuth()
-  const q = useFichaPostventa(actor, ficha.persona.inversionista_id)
+  const activa = ficha.capacidades.postventa === true && !yo?.demo
+  const q = useFichaPostventa(actor, ficha.persona.inversionista_id, activa)
   const [accion, setAccion] = useState<AccionPersona | null>(null)
   const [ocupado, setOcupado] = useState(false)
   // La cola de supervisor es visible en F5 sin habilitar F6. Un rechazo de
   // esta sección no borra borradores F4; la propia ficha F5 revalida su ámbito.
-  if (q.error) return <PanelError mensaje={mensajeDeError(q.error, 'No pudimos consultar las gestiones.')}
-    onReintentar={() => void q.refetch()} reintentando={q.isFetching} />
-  if (!q.isFetchedAfterMount || !q.isSuccess || !q.data.habilitada || yo?.demo) return null
+  const habilitada = activa && q.isFetchedAfterMount && q.isSuccess && q.data.habilitada
   const actual: AccionPersona | null = retiroElegido ? {tipo: 'solicitar_retiro', fuente: retiroElegido} : accion
   const cerrar = () => {setAccion(null); onRetiroCerrado()}
-  return <>
-    <FichaComercialSeccion icono={CalendarPlus} titulo="Gestión de postventa">
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={deshabilitado || ficha.persona.no_contactar || !ficha.persona.responsable_id} onClick={() => setAccion({tipo: 'agendar'})}>Agendar gestión</Button>
-        {yo?.rol === 'gerencia' && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'asignar'})}>{ficha.persona.responsable_id ? 'Cambiar responsable' : 'Asignar responsable'}</Button>}
-        {(!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'veto'})}>{ficha.persona.no_contactar ? 'Levantar No contactar' : 'Marcar No contactar'}</Button>}
-      </div>
-      {!ficha.persona.responsable_id && <p className="text-xs text-muted-foreground">Gerencia debe asignar un responsable antes de programar el contacto.</p>}
-    </FichaComercialSeccion>
-    {q.data.retiros.length > 0 && <FichaComercialSeccion icono={ClipboardList} titulo="Solicitudes de retiro">
-      <ul className="space-y-3">{q.data.retiros.map(r => <li key={r.id} className="space-y-1 rounded-lg border border-border p-3 text-sm">
+  useEffect(() => {
+    if (!habilitada && (accion !== null || retiroElegido !== null)) {
+      // Recuperar F6 no debe reabrir una gestión elegida antes del corte.
+      // Un envío en curso conserva su registro recuperable y termina por su cauce.
+      setAccion(null)
+      onRetiroCerrado()
+    }
+  }, [habilitada, accion, retiroElegido, onRetiroCerrado])
+  const controles: ControlesPostventa = {
+    aviso: !ficha.persona.responsable_id && <p className="text-xs text-muted-foreground">Gerencia debe asignar un responsable antes de programar el contacto.</p>,
+    agendar: <Button className="min-h-11" disabled={deshabilitado || ficha.persona.no_contactar || !ficha.persona.responsable_id}
+      onClick={() => setAccion({tipo: 'agendar'})}><CalendarPlus aria-hidden />Agendar gestión</Button>,
+    acciones: (!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <div className="flex flex-wrap justify-end gap-1.5">
+        {yo?.rol === 'gerencia' && <Button size="xs" className="min-h-10" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'asignar'})}>{ficha.persona.responsable_id ? 'Cambiar responsable' : 'Asignar responsable'}</Button>}
+        {(!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <Button size="xs" className="min-h-10" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'veto'})}>{ficha.persona.no_contactar ? 'Levantar No contactar' : 'Marcar No contactar'}</Button>}
+    </div>,
+    retiros: (q.data?.retiros.length ?? 0) > 0 && <FichaComercialSeccion icono={ClipboardList} titulo="Solicitudes de retiro">
+      <ul className="space-y-3">{q.data?.retiros.map(r => <li key={r.id} className="space-y-1 rounded-lg border border-border p-3 text-sm">
         <p className="font-semibold">{EMPRESA_NOMBRE[r.empresa]} · {RETIRO_ETIQUETA[r.estado]}</p><p>{r.motivo}</p>
         {r.resolucion && <p>{r.resolucion}</p>}<p className="text-xs text-muted-foreground">{fechaHora(r.actualizado_en)}</p>
         {['solicitada', 'en_revision'].includes(r.estado) && <Button size="sm" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'revisar_retiro', retiro: r})}>
           {yo?.rol === 'gerencia' ? 'Revisar solicitud' : 'Cancelar solicitud'}
         </Button>}
       </li>)}</ul>
-    </FichaComercialSeccion>}
-    <Dialog open={actual !== null} onClose={() => {if (!ocupado) cerrar()}} ariaLabel="Gestión de postventa">
+    </FichaComercialSeccion>,
+  }
+  return <>
+    {children(activa && q.error ? {...SIN_CONTROLES, retiros: <PanelError mensaje={mensajeDeError(q.error, 'No pudimos consultar las gestiones.')}
+      onReintentar={() => void q.refetch()} reintentando={q.isFetching} />} : habilitada ? controles : SIN_CONTROLES)}
+    <Dialog open={habilitada && actual !== null} onClose={() => {if (!ocupado) cerrar()}} ariaLabel="Gestión de postventa">
       {actual?.tipo === 'agendar' ? <ClienteGestion inversionistaId={ficha.persona.inversionista_id} clienteNombre={ficha.persona.nombre}
         onCerrar={cerrar} onEnviandoCambio={setOcupado} />
         : actual?.tipo === 'asignar' ? <AsignarResponsable ficha={ficha} actor={actor} onCerrar={cerrar} onOcupado={setOcupado} />

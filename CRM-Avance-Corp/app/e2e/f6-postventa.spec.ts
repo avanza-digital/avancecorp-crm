@@ -73,7 +73,7 @@ async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vended
   await loginReal(page);await irAMiCartera(page)
   return estado
 }
-async function abrir(page:Page){await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click();await expect(page.getByText('Gestión de postventa',{exact:true})).toBeVisible()}
+async function abrir(page:Page){await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click();await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeVisible()}
 async function agendar(page:Page,titulo='Seguimiento F6'){
   await page.getByRole('button',{name:'Agendar gestión',exact:true}).click()
   await page.getByLabel('Gestión',{exact:true}).fill(titulo)
@@ -118,7 +118,7 @@ test('móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarl
   const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Ocultar menú'}).click()
   await abrir(page);s.cortar=true;await agendar(page,'Gestión con respuesta interrumpida')
   await expect(page.getByRole('button',{name:'Verificar envío guardado'})).toBeVisible()
-  await page.reload();await expect(page.getByText('Gestión de postventa',{exact:true})).toBeVisible()
+  await page.reload();await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Agendar gestión',exact:true}).click()
   await expect(page.getByRole('dialog',{name:'Gestionar a ANA SINTÉTICA F5'}).getByText('Gestión con respuesta interrumpida',{exact:true})).toBeVisible()
   await expect(page.getByText(/Preparando tu espacio de trabajo/)).toBeHidden()
@@ -180,8 +180,10 @@ test('Directorio no recibe acciones ni agenda neutral',async({page})=>{
   await montarF6(page,'directorio')
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
   await expect(page.getByText('Información del cliente')).toBeVisible()
-  await expect(page.getByText('Gestión de postventa',{exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Registrar solicitud de retiro',exact:true})).toHaveCount(0)
+  for(const name of ['Cambiar responsable','Marcar No contactar']) await expect(page.getByRole('button',{name,exact:true})).toHaveCount(0)
+  await expect(page.getByRole('heading',{name:'Solicitudes de retiro'})).toHaveCount(0)
 })
 test('un rechazo al confirmar reunión neutral muestra el error y conserva la tarea',async({page})=>{
   const s=await montarF6(page);await abrir(page);await agendar(page)

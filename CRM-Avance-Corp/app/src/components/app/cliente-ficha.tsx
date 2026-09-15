@@ -31,6 +31,8 @@ import {
 import {
   FichaComercialCabecera,
   FichaComercialContacto,
+  FichaComercialInversion,
+  FichaComercialHistorial,
   FichaComercialContinuidad,
   FichaComercialSeccion,
   FichaComercialSeccionPlegable,
@@ -705,27 +707,16 @@ export function ClienteFicha({
               {vista.contratos.map(({ contrato, renovable: llegoFechaFin }) => {
                 const renovable = operable && onRenovarContrato != null && llegoFechaFin
                 return (
-                  <li
-                    key={contrato.id}
-                    className="rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge color={ESTADO_COLOR[contrato.estado]} dot>
-                            {ESTADO_CONTRATO_LABEL[contrato.estado]}
-                          </Badge>
-                          {contrato.categoria && (
-                            <Badge color="var(--chart-4)">{CATEGORIA_LABEL[contrato.categoria]}</Badge>
-                          )}
-                        </div>
-                        <p className="mt-2 truncate text-xs font-extrabold text-foreground">
-                          {contrato.producto_nombre}
-                        </p>
-                        <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-                          Contrato {contrato.numero_contrato} · Vencimiento: {fechaCorta(contrato.fecha_vencimiento)}
-                        </p>
-                        {(() => {
+                  <li key={contrato.id}>
+                    <FichaComercialInversion
+                      badges={<>
+                        <Badge color={ESTADO_COLOR[contrato.estado]} dot>{ESTADO_CONTRATO_LABEL[contrato.estado]}</Badge>
+                        {contrato.categoria && <Badge color="var(--chart-4)">{CATEGORIA_LABEL[contrato.categoria]}</Badge>}
+                      </>}
+                      titulo={contrato.producto_nombre}
+                      referencia={<>Contrato {contrato.numero_contrato} · Vencimiento: {fechaCorta(contrato.fecha_vencimiento)}</>}
+                      capital={money(contrato.capital, contrato.moneda)}
+                      observacion={(() => {
                           const obs = observacionPorContrato.get(contrato.id)
                           if (!obs) return null
                           const puntos = obs.tasa_final - obs.tasa_base
@@ -742,12 +733,7 @@ export function ClienteFicha({
                             </p>
                           )
                         })()}
-                      </div>
-                      <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">
-                        {money(contrato.capital, contrato.moneda)}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex flex-wrap justify-end gap-1.5 border-t border-border/60 pt-2.5">
+                      acciones={<>
                       {onDetalleContrato && (
                         <Button
                           ref={(elemento) => {
@@ -775,7 +761,8 @@ export function ClienteFicha({
                           Renovar inversión
                         </Button>
                       )}
-                    </div>
+                      </>}
+                    />
                   </li>
                 )
               })}
@@ -914,24 +901,7 @@ export function ClienteFicha({
                   </p>
                 )}
               {eventosHistorial.length > 0 && (
-                <ol className="relative space-y-2 border-l-2 border-primary/10 pl-4">
-                  {eventosHistorial.map((evento) => (
-                    <li
-                      key={evento.id}
-                      className="relative rounded-xl border border-border bg-muted/20 px-3 py-2.5 before:absolute before:-left-[21px] before:top-3 before:size-2 before:rounded-full before:bg-accent before:ring-4 before:ring-card"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs font-bold text-foreground">{evento.titulo}</p>
-                        <time className="text-[11px] tabular-nums text-muted-foreground" dateTime={evento.creadoEn}>
-                          {fechaHora(evento.creadoEn)}
-                        </time>
-                      </div>
-                      {evento.detalle && (
-                        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{evento.detalle}</p>
-                      )}
-                    </li>
-                  ))}
-                </ol>
+                <FichaComercialHistorial eventos={eventosHistorial} />
               )}
             </div>
           )}

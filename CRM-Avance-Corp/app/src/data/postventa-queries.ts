@@ -11,9 +11,11 @@ export function usePostventa(actor: string, habilitada = true) {
   return useQuery({...vigente, queryKey: [...postventaKeys.actor(actor), 'estado'],
     enabled: Boolean(actor) && habilitada, queryFn: ({signal}) => estadoPostventa(signal)})
 }
-export function useFichaPostventa(actor: string, persona: string) {
-  return useQuery({...vigente, queryKey: [...postventaKeys.actor(actor), 'persona', persona],
-    enabled: Boolean(actor && persona), queryFn: ({signal}) => fichaPostventa(persona, signal)})
+export function useFichaPostventa(actor: string, persona: string, habilitada = true) {
+  // Al apagar F6 la observación cambia de clave; gcTime: 0 retira la lectura
+  // anterior. Reactivarlo exige una lectura nueva sin desmontar la ficha F5.
+  return useQuery({...vigente, queryKey: [...postventaKeys.actor(actor), 'persona', persona, habilitada],
+    enabled: Boolean(actor && persona) && habilitada, queryFn: ({signal}) => fichaPostventa(persona, signal)})
 }
 export function useVencimientosPostventa(actor: string, empresa: EmpresaInversion | '', pagina: number, habilitada: boolean) {
   return useQuery({...vigente, queryKey: [...postventaKeys.actor(actor), 'vencimientos', empresa, pagina],
