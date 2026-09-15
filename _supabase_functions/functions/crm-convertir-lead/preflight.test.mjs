@@ -9,10 +9,20 @@ test('rechaza un lead parqueado antes de crear cliente', () => {
   );
 });
 
-test('rechaza al supervisor/caller que no es el analista responsable', () => {
+test('rechaza a un analista (vendedor) que no es el responsable del lead', () => {
   assert.equal(
-    errorResponsabilidadConversion({ vendedor_id: 'analista-1' }, 'supervisor-1'),
+    errorResponsabilidadConversion({ vendedor_id: 'analista-1' }, 'otro-analista-1'),
     'La conversión la realiza el analista responsable; reasígnate el lead primero',
+  );
+});
+
+// El ámbito del supervisor (su equipo) ya lo garantizó la RLS `leads_select`
+// al leer el lead en index.ts (misma vendedor_ids_visibles que usan las RPC de
+// conversión) — esta función solo decide el rol, no vuelve a filtrar ámbito.
+test('acepta a un supervisor sobre un lead de un analista de su equipo', () => {
+  assert.equal(
+    errorResponsabilidadConversion({ vendedor_id: 'analista-1' }, 'supervisor-1', 'supervisor'),
+    null,
   );
 });
 

@@ -189,6 +189,7 @@ export function LeadDrawer() {
 function Ficha({ l }: { l: Lead }) {
   const { cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
+  const { obtenerTareaParaRevision, ambito } = useCRMData()
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
   const puedeReasignar = escribe && can(rol, 'reasignar')
@@ -198,8 +199,12 @@ function Ficha({ l }: { l: Lead }) {
   const tieneAnalista = l.vendedor_id != null
   const seraMiCliente = l.vendedor_id === yo?.id
   const operaGlobal = escribe && can(rol, 'verTodo')
+  // Supervisor: mismo criterio que ya usa el selector de reasignar (ambito.vendedores) —
+  // el lead está en su equipo aunque él mismo no sea el analista asignado.
+  const enMiEquipo = tieneAnalista && ambito.vendedores.some((m) => m.perfil_id === l.vendedor_id)
+  const operaEquipo = escribe && can(rol, 'verEquipo') && enMiEquipo
   const puedeConvertir =
-    escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista))
+    escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista) || operaEquipo)
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
   const [condicionesLead, setCondicionesLead] = useState<EstadoCondicionesLead | null>(null)
@@ -209,7 +214,6 @@ function Ficha({ l }: { l: Lead }) {
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
   const [componiendoGestion, setComponiendoGestion] = useState(false)
   const [tareaAviso, setTareaAviso] = useState<Tarea | null>(null)
-  const { obtenerTareaParaRevision } = useCRMData()
   const refEtapa = useRef<HTMLDivElement>(null)
   const refDatos = useRef<HTMLDivElement>(null)
   const refActividad = useRef<HTMLDivElement>(null)
@@ -320,6 +324,8 @@ function Ficha({ l }: { l: Lead }) {
             <p className="max-w-[62%] text-right text-[11px] leading-tight text-muted-foreground">
               {!tieneAnalista
                 ? 'Asigna primero el lead a un analista; una conversión necesita responsable comercial.'
+                : rol === 'supervisor' && yo?.puede_contratar
+                ? `La conversión la cierra el equipo de ${primerNombre(l.vendedor_nombre) || 'otro supervisor'}, fuera de tu equipo.`
                 : yo?.puede_contratar && !operaGlobal
                 ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el analista del lead'}. Para hacerla tú, reasígnate el lead.`
                 : 'El alta del cliente la registra el analista.'}
