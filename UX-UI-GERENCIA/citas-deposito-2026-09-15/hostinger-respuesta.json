@@ -1,0 +1,24 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": {
+        "upload": {
+          "status": "success",
+          "data": {
+            "filename": "crm-20260915T215520Z-b278d0ba40a6.zip"
+          }
+        },
+        "deploy": {
+          "status": "success",
+          "data": {
+            "message": "Request accepted"
+          }
+        },
+        "removeArchive": {
+          "status": "skipped"
+        }
+      }
+    }
+  ]
+}
