@@ -71,6 +71,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[Correccion de correo de clientes por admin - 2026-09-15]] — corrección de acceso autorizada; pruebas y acta de publicación.
 - [[F8 - pausa segura de instalacion (2026-09-14)]] — pausa solicitada, producción sin F8, rama propia eliminada, revisión recibida y punto exacto de retoma guardado.
 - [[F8 - instalacion autorizada en curso (2026-09-14)]] — dos SQL aprobados; rama propia creada, reconstrucción y verificación en curso; F8 productiva sin instalar ni activar.
 - [[F8 - instalacion apagada preparada (2026-09-13)]] — SQL exacto y procedimiento para rama con paridad de esquema/historial/Edge; precondiciones actuales verificadas; instalación pendiente.

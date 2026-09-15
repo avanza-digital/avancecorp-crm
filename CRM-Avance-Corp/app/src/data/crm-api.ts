@@ -3128,7 +3128,7 @@ export async function corregirDocumentoClienteAdmin(
 }
 
 /**
- * Corrige el CORREO DE ACCESO de un cliente por la puerta del superadmin.
+ * Corrige el correo de acceso de un cliente como admin o superadmin.
  *
  * Va por una edge y no por una RPC porque el correo vive en TRES sitios que
  * tienen que moverse juntos —`auth.users`, `auth.identities` y
@@ -3136,8 +3136,8 @@ export async function corregirDocumentoClienteAdmin(
  * de administracion, que necesita la service_role. Cambiar uno solo deja al
  * cliente sin poder entrar al portal SIN NINGUN ERROR VISIBLE.
  *
- * La edge hace el espejo primero y `auth` despues, y revierte el espejo si
- * `auth` falla; el mensaje que llega ya viene en es-PE y dice si revirtio.
+ * La Edge usa la Admin API; el servidor confirma Auth y perfil en la misma
+ * transacción. Antes de responder se comprueban los tres correos.
  */
 export async function corregirCorreoClienteAdmin(
   id: string,

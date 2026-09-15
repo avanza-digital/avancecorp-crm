@@ -292,7 +292,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     // real se leía como un texto de ejemplo) y el navegador no deja copiarlo.
     expect(correo).toHaveAttribute('readonly')
     expect(correo).not.toBeDisabled()
-    expect(screen.getByText(/solo un superadministrador puede corregirla/i)).toBeInTheDocument()
+    expect(screen.getByText(/solo un administrador puede corregirla/i)).toBeInTheDocument()
     expect(screen.getByLabelText('Apellidos *')).toHaveValue('PORTAL UNO')
     expect(screen.getByLabelText('Tipo de documento *')).toBeDisabled()
     expect(screen.getByLabelText('Documento *')).toBeDisabled()
@@ -607,25 +607,18 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     )
   })
 
-  // ── El correo de acceso: la puerta MÁS ESTRECHA (solo superadmin) ─────────
-  //
-  // El correo no es un dato de contacto: vive a la vez en `auth.users`,
-  // `auth.identities` y `perfiles.correo`, y moverlo mal deja al cliente sin
-  // poder entrar SIN ningún error visible. Por eso su puerta es más angosta
-  // que la del documento, que sí admite `admin`.
+  // Corrección de acceso: admin y superadmin; los otros roles no la operan.
 
-  it('Admin (no superadmin) NO puede tocar el correo: sigue de solo lectura', async () => {
+  it('Gerencia sin rol admin Portal no puede tocar el correo', async () => {
     obtenerDetalle.mockResolvedValue(detalleBase())
-    montar({ modo: 'corregir', clienteId: 'cli-1', rol: 'gerencia', rolPortal: 'admin' })
+    montar({ modo: 'corregir', clienteId: 'cli-1', rol: 'gerencia', rolPortal: 'comercial' })
 
-    // El mismo admin que SÍ puede corregir el documento aquí no puede.
     const correo = await screen.findByLabelText('Correo electrónico (cuenta de acceso)')
     expect(correo).toHaveAttribute('readonly')
-    expect(screen.getByLabelText('Documento *')).toBeEnabled()
     expect(screen.queryByLabelText('Motivo del cambio de correo *')).not.toBeInTheDocument()
   })
 
-  it('Superadmin cambia el correo con motivo: la edge lo recibe recortado y el patch no lo lleva', async () => {
+  it.each(['admin', 'superadmin'] as const)('%s cambia el correo con motivo: la edge lo recibe recortado y el patch no lo lleva', async (rolPortal) => {
     const user = userEvent.setup()
     obtenerDetalle.mockResolvedValue(detalleBase())
     actualizarCliente.mockResolvedValue(true)
@@ -634,7 +627,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
       modo: 'corregir',
       clienteId: 'cli-1',
       rol: 'gerencia',
-      rolPortal: 'superadmin',
+      rolPortal,
     })
 
     const correo = await screen.findByLabelText('Correo electrónico *')

@@ -287,7 +287,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     const correoCambio = esCorregir && detalle !== null
       && c.correo.toLowerCase() !== (detalle.correo ?? '').trim().toLowerCase()
     if (correoCambio && !puedeCorregirCorreo) {
-      const mensaje = 'Solo un superadministrador puede corregir el correo de acceso de un cliente.'
+      const mensaje = 'Solo un administrador puede corregir el correo de acceso de un cliente.'
       setError(mensaje)
       throw new ErrorYaMostrado(mensaje)
     }
@@ -617,8 +617,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             {esCorregir && (
               <p id="cf-correo-nota" className="text-[10px] text-muted-foreground">
                 {puedeCorregirCorreo
-                  ? 'Es la cuenta con la que el cliente entra al portal. Al guardar cambia su acceso; el motivo quedará registrado en auditoría.'
-                  : 'Es la cuenta de acceso del cliente: solo un superadministrador puede corregirla.'}
+                  ? 'Al guardar, el cliente iniciará sesión con este correo y su misma contraseña. El motivo quedará registrado.'
+                  : 'Es la cuenta de acceso del cliente: solo un administrador puede corregirla.'}
               </p>
             )}
           </div>

@@ -9778,3 +9778,16 @@ S/ 3 553 304 y US$ 90 500 (= Mi cartera/Ranking); 173 citas, 1 015 personas,
 anterior rechaza filas sin lead), luego las dos migraciones con
 `aplicar-ticket-capital-completo-prod.sh`. Las pestañas de Gerencia abiertas con el
 front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
+
+## 20260915173423 — Correo de acceso de clientes por admin
+
+- SQL nuevo: `20260915173423_crm_correo_cliente_admin_atomico.sql`.
+- Aprobación explícita de Miguel: «Sí, instálalo y actívalo ahora», incluyendo
+  los triggers sobre Auth/perfiles y banco temporal de US$0,01344/h.
+- Admin y superadmin activos; solo clientes; JWT verificado por Edge; motivo
+  obligatorio, unicidad y auditoría. Auth, identidad y perfil se confirman en
+  una transacción mediante trigger diferido. Misma contraseña.
+- Supersede las propuestas NO instaladas `20260908221500`/`20260908221501`;
+  no aplicar aquellas junto con esta migración.
+- Verificación y resultado productivo: `../scripts/correo-admin/README.md` y
+  acta de publicación en el mismo directorio.
