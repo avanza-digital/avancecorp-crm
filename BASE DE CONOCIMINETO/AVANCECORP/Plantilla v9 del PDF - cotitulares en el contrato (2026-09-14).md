@@ -2,7 +2,7 @@
 tags: [crm, contratos, pdf, mancomunadas, retomar]
 fecha: 2026-09-14
 actualizado: 2026-09-14T20:30:00-05:00
-estado: construida-pendiente-de-aprobacion-y-publicacion
+estado: en-produccion
 ---
 
 # Plantilla v9 del PDF — los co-titulares salen en el contrato
@@ -42,14 +42,18 @@ viajaban: el snapshot del PDF lleva `cotitulares` desde la v2; solo la plantilla
 
 ## Estado
 
-- **Construida y ensayada el 14/09** (edge 52/52, front 29/29 + typecheck, banco local 45/45,
-  registrador y reversa probados). **Nada publicado.**
-- **Compuerta**: muestras en PDF (con y sin co-titular, datos ficticios) enviadas a Miguel; por la
-  regla del 07/09 ([[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]]) hace falta
-  su aprobación del texto y la ubicación antes de publicar.
-- **Publicación** (con su `!`, en ventana muerta): edge → migración → registrador → front. Después:
-  el contrato mancomunado que hoy tiene el PDF pendiente sale con los dos titulares; los sellados
-  antiguos se siguen descargando iguales.
+- **Construida y ensayada el 14/09** (edge 52/52, front `npm run check` completo, banco local
+  45/45, registrador y reversa probados; auditor de la migración PASS).
+- **Compuerta cumplida**: Miguel vio las muestras en PDF (con y sin co-titular, datos ficticios)
+  y aprobó texto y ubicación esa misma noche («ok me gusta»), como exige la regla del 07/09
+  ([[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]]).
+- **EN PRODUCCIÓN desde el 14/09/2026 ~20:45 Lima**, publicado por Miguel con `!` en este orden:
+  edge → migración `20260915005752` → registrador (288 migraciones). Verificado en solo lectura:
+  default v9, 19 reservas convertidas (incluida la del contrato mancomunado pendiente), 36 jobs
+  v8 sellados y 159 PDF intactos. El front (solo la gemela demo) sale con el siguiente release.
+- **Qué ve el negocio**: el contrato mancomunado que tenía el PDF pendiente sale con los dos
+  titulares al abrirlo; todo contrato nuevo o corregido con co-titular, igual; los sellados
+  antiguos se siguen descargando exactamente iguales.
 
 ## Foto de producción el 14/09
 

@@ -9640,11 +9640,20 @@ huellas, límites, revisiones resueltas, activación y reversa en
 
 ## 20260915005752 — Contrato PDF · plantilla v9: co-titulares en comparecencia y firmas
 
-**Estado: 🟡 PENDIENTE de publicar.** Muestras (PDF con y sin co-titular, datos ficticios)
-enviadas a Miguel el 14/09/2026 por la noche; falta su aprobación del texto y la ubicación
-(regla del 07/09: nada de co-titulares en el PDF sin verlo antes) y su `!` para publicar en
-ventana muerta, en este orden: edge → esta migración → `scripts/registrar-pdf-v9.sql` →
-release del front. Mientras tanto NADA se ha desplegado ni aplicado.
+**Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 14/09/2026 (~20:45 Lima) por Miguel con
+`db query --linked --file` (migración + `scripts/registrar-pdf-v9.sql`), tras aprobar la muestra
+(PDF con y sin co-titular) esa misma noche; registro md5 `26534a4a…` = archivo; **288
+migraciones**. Edge `crm-contrato-pdf-v2` **v16** desplegada justo antes con `--use-api` desde
+`CRM-Avance-Corp/` y contrastada por la API de gestión: 9/9 módulos byte a byte = árbol,
+constante viva `contrato-aep-17-v9`; smoke: POST sin sesión → 401, OPTIONS con origen del CRM
+→ 204. Verificación en solo lectura tras aplicar: default `'contrato-aep-17-v9'`, **0**
+funciones con v8 en todo el servidor y **2** con v9 en `private`, trigger
+`contrato_pdf_jobs_transiciones_validas` en `tgenabled='O'`, los dos CHECK con v9, **19
+reservas** convertidas (todas `pendiente`, sin bytes; entre ellas la del contrato mancomunado)
+y **36 jobs v8 intactos** (todos `sellado`) sobre **159 PDFs sellados** sin tocar. El front (solo
+la gemela demo) queda para el siguiente release normal. Vuelta atrás: `scripts/rollback-pdf-v9.sql`
++ la edge del árbol con `TEMPLATE_VERSION = v8`, v9 en la lista de LECTURA y la `template-v2.ts`
+del commit `6175616`.**
 
 `20260915005752_crm_contrato_pdf_plantilla_v9_cotitulares.sql`. Cuando el contrato tiene cuenta
 mancomunada, la plantilla nombra a los co-titulares en la comparecencia («…; y NOMBRE, con DNI N° X,
