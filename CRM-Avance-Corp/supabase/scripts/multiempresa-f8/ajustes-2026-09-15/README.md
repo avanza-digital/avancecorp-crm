@@ -1,6 +1,6 @@
 # F8 — ensayo remoto y corrección de conflictos
 
-Estado: banco autorizado verificado; publicación pendiente. Continúa la [entrega inicial](../ajustes-2026-09-14/README.md).
+**PUBLICADO Y VERIFICADO.** Banco eliminado; credenciales temporales retiradas. [Acta y punto de retoma](PUBLICACION.md). Continúa la [entrega inicial](../ajustes-2026-09-14/README.md).
 
 El banco Supabase propio usa datos ficticios y las definiciones actuales de producción. La copia incluye sus 287 migraciones iniciales y la actualización concurrente de PDF v9 (288). Las dos migraciones F8 conservan sus bytes aprobados. Una tercera migración corrige un bloqueo detectado por HTTP: confirmar o corregir una revisión antigua responde PT409 / HTTP 409 en vez de lanzar el 40001 que PostgREST 14.5 reintenta indefinidamente.
 
@@ -13,7 +13,7 @@ El banco Supabase propio usa datos ficticios y las definiciones actuales de prod
 - PASS: cliente antiguo con once argumentos nombrados y reintento, condiciones históricas NULL y fecha original. Su wrapper de confirmación también devuelve PT409 al recibir una revisión obsoleta.
 - PASS: guardas de la tercera migración, search_path vacío, delta exacto de cuatro códigos, propietario/ACL/configuración intactos y rollback íntegro si la segunda función cambia.
 - PASS: actualización del banco para conservar PDF v9. Las otras 18 Edge conservan su bundle; los nueve archivos del PDF son idénticos byte a byte al padre y al repositorio. El EZBR recompilado tiene una huella distinta; no se declara identidad binaria.
-- PASS: check integral del Main a38f267 (3.581 tests, lint, tipos, cobertura, build, bundle y duplicación). El test adicional del código PT409 pasó aparte; el gate de push repetirá la suite.
+- PASS: check integral del Main a38f267 (3.581 tests, lint, tipos, cobertura, build, bundle y duplicación). El test adicional del código PT409 pasó aparte; el gate de push completó 3.582 pruebas.
 - PASS: cuatro preflights backend y tipos afectados generados desde la rama. Advisors: 209 antes / 210 después; única advertencia adicional, protección de contraseñas filtradas, ya existe en producción. No se modificó Auth.
 - NOT RUN: matriz RLS general, cuya semilla no corresponde a este banco. Se usa la matriz específica SQL/Auth/Storage y se conserva esta limitación.
 
@@ -29,4 +29,4 @@ El banco Supabase propio usa datos ficticios y las definiciones actuales de prod
 
 Claude emitió CHANGES_REQUESTED sobre hipótesis del proceso de publicación y PASS sobre la nueva corrección PT409. La [evaluación del PRIMARY](EVALUACION-REVIEW.md) documenta las decisiones y fuentes. El banco tiene seis diferencias gestionadas respecto al padre (CHECK equivalentes, pg_net/event trigger/publicación interna); nunca se añadieron al historial ni al payload de merge.
 
-G7-R01 requiere comprobar Cartera/ficha en producción tras publicar. G7 mantiene pendiente la conformidad visual del solicitante y sus observaciones. Los datos reales siguen cambiando con la operación diaria.
+G7-R01 tiene comprobación SQL productiva en los cuatro roles. G7 mantiene pendiente el recorrido visual, la conformidad del solicitante y sus observaciones. Los datos reales siguen cambiando con la operación diaria.

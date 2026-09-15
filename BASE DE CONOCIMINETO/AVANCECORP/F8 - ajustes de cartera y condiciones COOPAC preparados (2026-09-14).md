@@ -1,4 +1,7 @@
 ---
+
+> Acta histórica de preparación. La entrega ya se publicó: [[F8 - ensayo remoto y correccion de conflictos (2026-09-15)]].
+
 tags: [crm, multiempresa, f8, cartera, coopac]
 fecha: 2026-09-14
 estado: preparado-local-sql-pendiente-aprobacion

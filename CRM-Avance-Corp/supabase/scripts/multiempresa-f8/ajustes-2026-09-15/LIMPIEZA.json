@@ -1,0 +1,24 @@
+{
+  "banco_eliminado": true,
+  "credenciales_temporales_eliminadas": true,
+  "archivos_eliminados": [
+    "fixtures-importar.sql",
+    "restore-banco.sql",
+    "rama-premerge.json",
+    "rama-estructura.json",
+    "fixtures-auth.sql",
+    "ultimo-error-privado.txt",
+    "rama-postmerge-canonica.json",
+    "ledger.sql",
+    "restore-banco-bulk.sql",
+    "auth-fixture-password.txt",
+    "padre-postmerge.json",
+    "rama-privada.json",
+    "http-sesiones.json",
+    "padre-premerge.json",
+    "padre-inmediato.json",
+    "esquema-productivo.sql",
+    "padre-estructura.json"
+  ],
+  "alcance": "Sólo directorio temporal de esta tarea; credenciales existentes del usuario intactas"
+}

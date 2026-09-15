@@ -1,0 +1,204 @@
+{
+  "resultado": "PASS",
+  "imagenes": [
+    {
+      "ruta": "aliados/belysh.png",
+      "original": [
+        3508,
+        3253
+      ],
+      "servida": [
+        1600,
+        1484
+      ],
+      "error_medio_rgba": [
+        0.5596773921832884,
+        0.5613380222371968,
+        0.5148963948787062,
+        0.09108743261455525
+      ],
+      "pixels_identicos": false
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "original": [
+        852,
+        368
+      ],
+      "servida": [
+        852,
+        368
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "original": [
+        3508,
+        3253
+      ],
+      "servida": [
+        1600,
+        1484
+      ],
+      "error_medio_rgba": [
+        0.026942806603773586,
+        0.22283945417789758,
+        0.3210112028301887,
+        0.04815785040431267
+      ],
+      "pixels_identicos": false
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "original": [
+        3508,
+        3253
+      ],
+      "servida": [
+        1600,
+        1484
+      ],
+      "error_medio_rgba": [
+        0.1158338948787062,
+        0.05338864555256065,
+        0.1089588948787062,
+        0.015522658355795148
+      ],
+      "pixels_identicos": false
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "original": [
+        3508,
+        3253
+      ],
+      "servida": [
+        1600,
+        1484
+      ],
+      "error_medio_rgba": [
+        0.4748799696765499,
+        0.2641126179245283,
+        0.11005222371967655,
+        0.08432993598382749
+      ],
+      "pixels_identicos": false
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "original": [
+        1187,
+        267
+      ],
+      "servida": [
+        1187,
+        267
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "original": [
+        3508,
+        3253
+      ],
+      "servida": [
+        1600,
+        1484
+      ],
+      "error_medio_rgba": [
+        0.07855079177897574,
+        0.25556266846361186,
+        0.1720779986522911,
+        0.08935141509433962
+      ],
+      "pixels_identicos": false
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "original": [
+        512,
+        512
+      ],
+      "servida": [
+        512,
+        512
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "original": [
+        512,
+        512
+      ],
+      "servida": [
+        512,
+        512
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "original": [
+        1200,
+        1200
+      ],
+      "servida": [
+        1200,
+        1200
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "original": [
+        1449,
+        2048
+      ],
+      "servida": [
+        1449,
+        2048
+      ],
+      "error_medio_rgba": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pixels_identicos": true
+    }
+  ],
+  "metodo": "Comparaci\u00f3n RGBA; seis id\u00e9nticas, cinco redimensionadas por CDN con aspecto conservado y error medio <2/255"
+}

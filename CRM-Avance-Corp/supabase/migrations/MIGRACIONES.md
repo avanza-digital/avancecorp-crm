@@ -2,7 +2,7 @@
 
 ## 20260915015315 — Conflictos F4 sin reintento automático
 
-**ENSAYADA EN BANCO AUTORIZADO; PUBLICACIÓN PENDIENTE.** Cambia únicamente cuatro
+**PUBLICADA Y VERIFICADA**, registro `20260915015315` (6 sentencias). Cambia únicamente cuatro
 RAISE de negocio 40001 a PT409 en confirmar/corregir una solicitud. PostgREST 14.5
 reintentaba indefinidamente una revisión obsoleta. Guardia MD5 por firma y conteo,
 transacción íntegra, search_path vacío; sin cambios de datos, ACL ni objetos public.
@@ -11,8 +11,9 @@ HTTP de revisión antigua, confirmación concurrente e idempotencia PASS.
 
 ## 20260914213634 / 20260914213928 — Cartera F8 y condiciones anuales COOPAC
 
-**APROBADAS Y ENSAYADAS EN BANCO SUPABASE; PUBLICACIÓN PENDIENTE.**
-Se conservan los SQL exactos. G7 sigue abierto. [Ensayo remoto y corrección PT409](../scripts/multiempresa-f8/ajustes-2026-09-15/README.md).
+**PUBLICADAS Y VERIFICADAS**, registros `20260915010349` / `20260915010350`
+(4/19 sentencias); archivos fuente intactos. Con la corrección PT409 hay 291 entradas;
+las 288 previas se conservaron. [Acta de publicación](../scripts/multiempresa-f8/ajustes-2026-09-15/PUBLICACION.md). G7 sigue abierto. [Ensayo remoto y corrección PT409](../scripts/multiempresa-f8/ajustes-2026-09-15/README.md).
 
 `20260914213634_crm_f8_cartera_lectura_eficiente.sql` sustituye el núcleo privado
 de personas F5 por resolución canónica por conjuntos, conservando firma, ACL,
@@ -24,8 +25,9 @@ Sin backfill, comisiones, cambios de `public`, importes ni banderas.
 
 PASS: 3.579 tests frontend, 15 E2E afectados, paridad SQL de siete contextos y
 siete enlaces demo/fusión, condiciones/reintentos/ACL completa, replay en otra
-copia local y huellas de fuentes conservadas. SQL/Auth/RLS/advisors remotos
-pendientes, no se declaran PASS. [Evidencia y SQL](../scripts/multiempresa-f8/ajustes-2026-09-14/README.md).
+copia local y huellas de fuentes conservadas. El ensayo remoto específico SQL/Auth/Storage
+y los advisors ya se ejecutaron; 3.582 pruebas finales y comprobación SQL productiva
+en los cuatro roles PASS. La matriz RLS general con otra semilla permanece NOT RUN. [Evidencia y SQL](../scripts/multiempresa-f8/ajustes-2026-09-14/README.md).
 
 > **Tasas inferiores — PUBLICADO (14/09):** SQL fuente `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql`, intacto; instalada por merge como `20260914174353`. Las 286 entradas previas se conservaron, total 287; 644 funciones/atributos coinciden con el banco probado. Ensayo específico SQL y 15 Auth/HTTP PASS; 3.546 tests y 16 E2E integrados PASS. Matriz general: mismos 42/1.828 fallos, sin nuevos; no es PASS global. Frontend publicado desde `faa1059` y conservado por la publicación posterior de Citas `32d57b5`. Banco eliminado, estimación US$0,059. [Acta y límites](../scripts/tasa-baja/PUBLICACION-2026-09-14.md).
 > **Citas PUBLICADA — 14/09/2026:** cinco migraciones canónicas instaladas por

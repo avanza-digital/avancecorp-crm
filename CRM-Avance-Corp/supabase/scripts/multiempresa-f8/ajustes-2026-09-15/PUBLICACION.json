@@ -1,0 +1,56 @@
+{
+  "resultado": "PASS",
+  "commit_publicado": "95804fc8d83dad8d7be7168a6cdea24e95b0f45d",
+  "build": "build-20260915T021656174Z",
+  "zip_sha256": "f65a2b044d21f6f6c68f84c328fdc5933b09005e35f66dfea4f010317359adad",
+  "migraciones": {
+    "total": 291,
+    "previas_intactas": 288,
+    "nuevas": {
+      "20260915010349": 4,
+      "20260915010350": 19,
+      "20260915015315": 6
+    }
+  },
+  "funciones_identicas_al_banco": 645,
+  "fuentes_historicas_intactas": [
+    "auth",
+    "cierres",
+    "contratos",
+    "inversiones",
+    "periodos",
+    "personas",
+    "titulares"
+  ],
+  "flags_piloto_miembros_intactos": true,
+  "edge": {
+    "total": 19,
+    "sin_cambios": 18,
+    "pdf_version": 17,
+    "pdf_bundle": "dd297784d1274c0926a36478d0d21f5cf242cb03ad88e11b50cf1a0bea13aaa1",
+    "pdf_fuentes_identicas": 9
+  },
+  "advisors": {
+    "antes": 211,
+    "despues": 211,
+    "delta": "Misma advertencia SECURITY DEFINER con firma extendida de convertir_lead_externo; sin nuevo permiso"
+  },
+  "frontend_tests": 3582,
+  "archivos_http": 92,
+  "banco": {
+    "ref": "hqazubfaznppkfelctej",
+    "id": "60b904c8-28ed-4b61-bfe4-879ce1ce7988",
+    "eliminado_confirmado": "2026-09-15T02:26:51Z",
+    "coste_estimado_total_dos_bancos_usd": 0.04,
+    "limite_autorizado_usd": 1
+  },
+  "pendientes": [
+    "G7: revisión visual y observaciones del solicitante",
+    "Navegador no conectado; no comprobación visual nueva en producción",
+    "Inventario de otros 40001: analizar por recorrido antes de ampliar correcciones"
+  ],
+  "no_ejecutado": [
+    "Matriz RLS general con semilla distinta",
+    "Auth/JWT HTTP productivo; se probaron cuatro roles SQL con ROLLBACK"
+  ]
+}
