@@ -1,0 +1,674 @@
+{
+  "fecha_utc": "2026-09-15T16:09:20.212911+00:00",
+  "resultado": "PASS",
+  "release_id": "crm-20260915T154200Z-cdf03f266805",
+  "commit": "cdf03f266805f64a4c80b7fe40e21dd176e701c9",
+  "raiz": {
+    "status": 200,
+    "sha256": "71bc0b24b8fdee03f65dedf8d28a653ab2fb97b42e1d30518df4678d13fef622",
+    "coincide_index": true
+  },
+  "portal_status": 200,
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "status": 403,
+      "resultado": "PASS_PROTEGIDO"
+    },
+    {
+      "ruta": "404.html",
+      "status": 200,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "esperado": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "status": 200,
+      "sha256": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "esperado": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "status": 200,
+      "sha256": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "esperado": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "status": 200,
+      "sha256": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "esperado": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "status": 200,
+      "sha256": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "esperado": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "status": 200,
+      "sha256": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "esperado": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "status": 200,
+      "sha256": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "esperado": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "status": 200,
+      "sha256": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "esperado": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "assets/agenda-fpAQ6wuX.js",
+      "status": 200,
+      "sha256": "b4510b7531bac07f326f26d960fc573f0b1a99ae121f3c8329faf94fac201bb9",
+      "esperado": "b4510b7531bac07f326f26d960fc573f0b1a99ae121f3c8329faf94fac201bb9",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/agenda-vistas-BqWNrWgu.js",
+      "status": 200,
+      "sha256": "7f92e7d058da5ee10f237058351af645e6d8b19da24aa14c36a59ca967898b21",
+      "esperado": "7f92e7d058da5ee10f237058351af645e6d8b19da24aa14c36a59ca967898b21",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/alertas-DJ5I__nP.js",
+      "status": 200,
+      "sha256": "b6607cb5767f79f793c087bdedce711d3e7cde6929cb226d59ef3c7b10859a7b",
+      "esperado": "b6607cb5767f79f793c087bdedce711d3e7cde6929cb226d59ef3c7b10859a7b",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "esperado": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-CGubYTTH.js",
+      "status": 200,
+      "sha256": "3db8c0bcf5a4569126b511ce27f339945c9c39ebfe95f19e40933eaf60385a88",
+      "esperado": "3db8c0bcf5a4569126b511ce27f339945c9c39ebfe95f19e40933eaf60385a88",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/card-D0gc8NBO.js",
+      "status": 200,
+      "sha256": "11c7ab12610285a1f3237fcd2ce7d7f55308ae1c4a288c82b09d4138497bdee2",
+      "esperado": "11c7ab12610285a1f3237fcd2ce7d7f55308ae1c4a288c82b09d4138497bdee2",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/cartera-CV2vruag.js",
+      "status": 200,
+      "sha256": "1a741b4172c64a8f5c9a14047c9991b3b4444a556aa6715db0ebd07100e6ec5e",
+      "esperado": "1a741b4172c64a8f5c9a14047c9991b3b4444a556aa6715db0ebd07100e6ec5e",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-BzsgurQ5.js",
+      "status": 200,
+      "sha256": "641ff5b42cabb4b65fff681f56a0d0db8a7e75329cebad3c7549cf80ca6b070a",
+      "esperado": "641ff5b42cabb4b65fff681f56a0d0db8a7e75329cebad3c7549cf80ca6b070a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "status": 200,
+      "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "esperado": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-citas-D2lKURa4.js",
+      "status": 200,
+      "sha256": "d6c09d3566fcbfe15b6de7047d7a386af0a022568f1f9467670190e85a967811",
+      "esperado": "d6c09d3566fcbfe15b6de7047d7a386af0a022568f1f9467670190e85a967811",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-DMteigAh.js",
+      "status": 200,
+      "sha256": "f9e13bf4d3291999440b2f15b25e579b1664a62330b28daa78bb3111b20d8639",
+      "esperado": "f9e13bf4d3291999440b2f15b25e579b1664a62330b28daa78bb3111b20d8639",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-metas-DDQQCUC6.js",
+      "status": 200,
+      "sha256": "795839cfee43fcec2d8849803e719f5d4bcb34ff1d1037f51c0c0707d3a5bb0a",
+      "esperado": "795839cfee43fcec2d8849803e719f5d4bcb34ff1d1037f51c0c0707d3a5bb0a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-productos-ktOQoJBh.js",
+      "status": 200,
+      "sha256": "c3236f3f9c9db5d3cae072f9c8750457c4d88d7af73bc7e3b8544afd280c8e2d",
+      "esperado": "c3236f3f9c9db5d3cae072f9c8750457c4d88d7af73bc7e3b8544afd280c8e2d",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-D1zlY76W.js",
+      "status": 200,
+      "sha256": "bf81d887abbc845c7e752681fd07b4e11bb454d099fcd2f5dc6110671a918457",
+      "esperado": "bf81d887abbc845c7e752681fd07b4e11bb454d099fcd2f5dc6110671a918457",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-sla-BLHtYEpP.js",
+      "status": 200,
+      "sha256": "e15ac74fe3919f46290f3a504f5e7a316e45e560f06556cb2fd9522fb5c2fbdb",
+      "esperado": "e15ac74fe3919f46290f3a504f5e7a316e45e560f06556cb2fd9522fb5c2fbdb",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/config-usuarios-B4khoj8n.js",
+      "status": 200,
+      "sha256": "302624dc7ca6eb6bbd10848d84f1e6395f6a234dff82614937f093455c454e81",
+      "esperado": "302624dc7ca6eb6bbd10848d84f1e6395f6a234dff82614937f093455c454e81",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/configuracion-shell-DYRXQfZj.js",
+      "status": 200,
+      "sha256": "c785687a6db5a23293492c7ca75cbd75c4be788b7b1c56ebf0bbc9d9c7a043a9",
+      "esperado": "c785687a6db5a23293492c7ca75cbd75c4be788b7b1c56ebf0bbc9d9c7a043a9",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/control-citas-BGjHg7l9.js",
+      "status": 200,
+      "sha256": "69cdbf4fab154f64c4d6841ca624bb6dedb8098c399f45f0cb3916b7f76d250a",
+      "esperado": "69cdbf4fab154f64c4d6841ca624bb6dedb8098c399f45f0cb3916b7f76d250a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-BRkcQamR.js",
+      "status": 200,
+      "sha256": "bfcccea0b5054f85172ef675874dde2d857857c2119e723c2d85ed5b19e24987",
+      "esperado": "bfcccea0b5054f85172ef675874dde2d857857c2119e723c2d85ed5b19e24987",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/crm-api-D8IKorxO.js",
+      "status": 200,
+      "sha256": "7231f7a1e94f45d900e813b9b3b561cc6bf9971cc4db3a682eba588648d0cf9f",
+      "esperado": "7231f7a1e94f45d900e813b9b3b561cc6bf9971cc4db3a682eba588648d0cf9f",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "esperado": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/derivaciones-DKnkMihv.js",
+      "status": 200,
+      "sha256": "74209d8028db55a1fdc2b8b412389e3f851b91ed3a3c0d64870e4021cf644b35",
+      "esperado": "74209d8028db55a1fdc2b8b412389e3f851b91ed3a3c0d64870e4021cf644b35",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/desglose-monedas-DLlLvRED.js",
+      "status": 200,
+      "sha256": "de5eef6719445bd9bac304cc940e24c3d34217d7eea795413736dbd472de176c",
+      "esperado": "de5eef6719445bd9bac304cc940e24c3d34217d7eea795413736dbd472de176c",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "esperado": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-D5tlSPPW.js",
+      "status": 200,
+      "sha256": "d5c14e5250f8e7f8e4dae95f5c9cb7ec2b03c1b39bc8b3ca53db11868d76c509",
+      "esperado": "d5c14e5250f8e7f8e4dae95f5c9cb7ec2b03c1b39bc8b3ca53db11868d76c509",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/echart-bar-BcNR5G8V.js",
+      "status": 200,
+      "sha256": "61c68b20cb697664652f8539ce9f97d1552207d4206bb3cc42f3be1a173590a5",
+      "esperado": "61c68b20cb697664652f8539ce9f97d1552207d4206bb3cc42f3be1a173590a5",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/echart-HjvJTvWQ.js",
+      "status": 200,
+      "sha256": "7ed9d0e3849223dc872bb7089184b981259613f86385969871c6971e96b2ebc0",
+      "esperado": "7ed9d0e3849223dc872bb7089184b981259613f86385969871c6971e96b2ebc0",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/echart-line-Cf3aXt7H.js",
+      "status": 200,
+      "sha256": "f92d887055e53482a317f2deddf347843f3aa8ce70abb1243c385ccea559e0d4",
+      "esperado": "f92d887055e53482a317f2deddf347843f3aa8ce70abb1243c385ccea559e0d4",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/equipo-DLIMdCg5.js",
+      "status": 200,
+      "sha256": "af44ded167a77db9877c3d6c5f0568709d5d4f7a3be147d51f563de531b5714a",
+      "esperado": "af44ded167a77db9877c3d6c5f0568709d5d4f7a3be147d51f563de531b5714a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "esperado": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/estado-panel-uhEc9Bhf.js",
+      "status": 200,
+      "sha256": "b0715650e2c47014192f0085fbd4917d5e71d8c540bf2bc8f7bf90c1cddf33ad",
+      "esperado": "b0715650e2c47014192f0085fbd4917d5e71d8c540bf2bc8f7bf90c1cddf33ad",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/facturacion-BMcU_g78.js",
+      "status": 200,
+      "sha256": "d950b672b793e051c2f59c71bd7b1ba00f15db83ef26bdafcbf75e3db034cfb4",
+      "esperado": "d950b672b793e051c2f59c71bd7b1ba00f15db83ef26bdafcbf75e3db034cfb4",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/gerencia-53D2fFsh.js",
+      "status": 200,
+      "sha256": "7e8c8cbac39750415567aacfb0f13ebd52c39110a1b51e2c398012bb95f1ced6",
+      "esperado": "7e8c8cbac39750415567aacfb0f13ebd52c39110a1b51e2c398012bb95f1ced6",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "status": 200,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "esperado": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/gerencia-k0KAv_yw.js",
+      "status": 200,
+      "sha256": "6a77c45ff8b689331e77caff9133637668ce9e0b93c6226328f3d8bdcb6901a1",
+      "esperado": "6a77c45ff8b689331e77caff9133637668ce9e0b93c6226328f3d8bdcb6901a1",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-BjlXqh-3.js",
+      "status": 200,
+      "sha256": "860dd6e9da7eb8a881307aa507c17bbdf0117eadaab073b1b2b1be5cd219c4e9",
+      "esperado": "860dd6e9da7eb8a881307aa507c17bbdf0117eadaab073b1b2b1be5cd219c4e9",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/hoy-DR4pXQdC.js",
+      "status": 200,
+      "sha256": "f3c27f94d07a556fe25dc795b8baddcfb341135b6924a2f1932f927714e585e7",
+      "esperado": "f3c27f94d07a556fe25dc795b8baddcfb341135b6924a2f1932f927714e585e7",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "status": 200,
+      "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "esperado": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "status": 200,
+      "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "esperado": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "status": 200,
+      "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "esperado": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "status": 200,
+      "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "esperado": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "status": 200,
+      "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "esperado": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "status": 200,
+      "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "esperado": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "status": 200,
+      "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "esperado": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "status": 200,
+      "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "esperado": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/index-CBFoIK8G.css",
+      "status": 200,
+      "sha256": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "esperado": "62cd3495167eb5d8fcd7e084612e6ba7980edc90567d3003e9094e8e4fbdfd82",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/index-YVCMKWK1.js",
+      "status": 200,
+      "sha256": "32f6c69f1a3f6aedeec5946b2bf00aa007162e3416478875de8565241b1c110a",
+      "esperado": "32f6c69f1a3f6aedeec5946b2bf00aa007162e3416478875de8565241b1c110a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/kpi-card-D21PRqb8.js",
+      "status": 200,
+      "sha256": "9ca931b9f7a314b3d0fb3b90fc98af2a391d5977a806e11e9309266ae3a15084",
+      "esperado": "9ca931b9f7a314b3d0fb3b90fc98af2a391d5977a806e11e9309266ae3a15084",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/lead-hover-card-BP-Ee1oo.js",
+      "status": 200,
+      "sha256": "42d17b8887bbfbe5db9eab33a6da9fae656328595cee1745cc35cf39efce40e5",
+      "esperado": "42d17b8887bbfbe5db9eab33a6da9fae656328595cee1745cc35cf39efce40e5",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-Co2algq6.js",
+      "status": 200,
+      "sha256": "c048045a1c9d153a81cd8d5a989a1a0e6496465886dd9f38ee85ad121faa3133",
+      "esperado": "c048045a1c9d153a81cd8d5a989a1a0e6496465886dd9f38ee85ad121faa3133",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/mi-cartera-BhzN8yuD.js",
+      "status": 200,
+      "sha256": "55bf6142725d6d24d50de18b66852220a399ae5f4e9aae746a882bfb2e46da5d",
+      "esperado": "55bf6142725d6d24d50de18b66852220a399ae5f4e9aae746a882bfb2e46da5d",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-ug1KvfdB.js",
+      "status": 200,
+      "sha256": "e4ceb90910cf404cd503bf3b9a409cb527c526039e1acb996cfe387d1f0c41d2",
+      "esperado": "e4ceb90910cf404cd503bf3b9a409cb527c526039e1acb996cfe387d1f0c41d2",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/paginacion-CdIOMKPc.js",
+      "status": 200,
+      "sha256": "03005741dfb3fda40b00a1529801d79150480f96eb3551c0ce9b158a596973b2",
+      "esperado": "03005741dfb3fda40b00a1529801d79150480f96eb3551c0ce9b158a596973b2",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/pipeline-CUamS0k3.js",
+      "status": 200,
+      "sha256": "ffc1ed4dac66d523413b9b3b1663294d13efd2ec66c6197943beed62204a3ef5",
+      "esperado": "ffc1ed4dac66d523413b9b3b1663294d13efd2ec66c6197943beed62204a3ef5",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/progress-lOzKz1VA.js",
+      "status": 200,
+      "sha256": "94133282ba68b25228d97f9968979ee3d8655c9024b0cbb1cbdcd51ab199cac5",
+      "esperado": "94133282ba68b25228d97f9968979ee3d8655c9024b0cbb1cbdcd51ab199cac5",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-CtSYn0qa.js",
+      "status": 200,
+      "sha256": "a2b6de35949929a5afd12f6bf81de81ed0d3ab88d58431027e034fefb29514e2",
+      "esperado": "a2b6de35949929a5afd12f6bf81de81ed0d3ab88d58431027e034fefb29514e2",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "esperado": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/repartir-ea9pFRSP.js",
+      "status": 200,
+      "sha256": "78f758de3d9fe01e10aae5fc56cdeac7d845d2bd29188f9e29890681dd4947b9",
+      "esperado": "78f758de3d9fe01e10aae5fc56cdeac7d845d2bd29188f9e29890681dd4947b9",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-D4XzV49x.js",
+      "status": 200,
+      "sha256": "3127a427bb28fc0fb5268de19bef453f878cd3284f2032c802a095ce1aaa5d49",
+      "esperado": "3127a427bb28fc0fb5268de19bef453f878cd3284f2032c802a095ce1aaa5d49",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/rescate-descartados-DA8aI6Sf.js",
+      "status": 200,
+      "sha256": "8d4528209d2dd2b905debf31f1589c28d9c0394c99bfc689a806bfc9901d01f4",
+      "esperado": "8d4528209d2dd2b905debf31f1589c28d9c0394c99bfc689a806bfc9901d01f4",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "esperado": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/section-head-DfEQSwqT.js",
+      "status": 200,
+      "sha256": "d17c3fbe98e4463b652f53d1378a4026af093b6422765ed0a9c936d51d8e1cf2",
+      "esperado": "d17c3fbe98e4463b652f53d1378a4026af093b6422765ed0a9c936d51d8e1cf2",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/seguimiento-C8MmVzb6.js",
+      "status": 200,
+      "sha256": "74f8bc1b7818336c86eee41faa6a7435a247426084f96e01bcd74377ac9fa69b",
+      "esperado": "74f8bc1b7818336c86eee41faa6a7435a247426084f96e01bcd74377ac9fa69b",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/stat-strip-BOMd2JoF.js",
+      "status": 200,
+      "sha256": "58ab6e03efc0689437e111e5e8fa69734d13b5609c2f5034de9ef1ba1b04c98e",
+      "esperado": "58ab6e03efc0689437e111e5e8fa69734d13b5609c2f5034de9ef1ba1b04c98e",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/tabla-DoJG2DSf.js",
+      "status": 200,
+      "sha256": "00bad0e2b3e0b43f3c5b5d0201e81743a921a2dd4e583721f72114e27bed8b9d",
+      "esperado": "00bad0e2b3e0b43f3c5b5d0201e81743a921a2dd4e583721f72114e27bed8b9d",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/ui-vendor-B49GjcGN.js",
+      "status": 200,
+      "sha256": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "esperado": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-CIY6fyXx.js",
+      "status": 200,
+      "sha256": "fc0b0500ef0c859e0c9f9b8d9d40c74275183e6937dc2b9f2f1cb1f271a88679",
+      "esperado": "fc0b0500ef0c859e0c9f9b8d9d40c74275183e6937dc2b9f2f1cb1f271a88679",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-KI2N3w8a.js",
+      "status": 200,
+      "sha256": "eee4a06f3bbd8ae2f1b4e4ba26a7cd7bda8c183338db76fae5026f0295660d1f",
+      "esperado": "eee4a06f3bbd8ae2f1b4e4ba26a7cd7bda8c183338db76fae5026f0295660d1f",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-BRxuscCE.js",
+      "status": 200,
+      "sha256": "478af070fd29fceadd8ac742004ae9c987fe760bd9924043091026182b0f7923",
+      "esperado": "478af070fd29fceadd8ac742004ae9c987fe760bd9924043091026182b0f7923",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "esperado": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "status": 200,
+      "sha256": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d",
+      "esperado": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "status": 200,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "status": 200,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "status": 200,
+      "sha256": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "esperado": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "status": 200,
+      "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "esperado": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "status": 200,
+      "sha256": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "esperado": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+      "resultado": "HTTP_200_IMAGEN_CDN"
+    },
+    {
+      "ruta": "favicon.svg",
+      "status": 200,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "esperado": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "icons.svg",
+      "status": 200,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "esperado": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "sha256": "71bc0b24b8fdee03f65dedf8d28a653ab2fb97b42e1d30518df4678d13fef622",
+      "esperado": "71bc0b24b8fdee03f65dedf8d28a653ab2fb97b42e1d30518df4678d13fef622",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "status": 200,
+      "sha256": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "esperado": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "robots.txt",
+      "status": 200,
+      "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "esperado": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "esperado": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "resultado": "PASS_EXACTO"
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "sha256": "933f59f347452fa03e7534175644d22f0dd38e0b97b7c93d5b22b1396c704e6e",
+      "esperado": "933f59f347452fa03e7534175644d22f0dd38e0b97b7c93d5b22b1396c704e6e",
+      "resultado": "PASS_EXACTO"
+    }
+  ],
+  "rutas_protegidas": [
+    {
+      "ruta": ".env",
+      "status": 403,
+      "protegido": true
+    },
+    {
+      "ruta": "package.json",
+      "status": 404,
+      "protegido": true
+    },
+    {
+      "ruta": "crm-20260915T154200Z-cdf03f266805.zip",
+      "status": 404,
+      "protegido": true
+    }
+  ],
+  "nota_imagenes": "Las imágenes con hash distinto son PNG sin cambios respecto al artefacto productivo anterior; HTTP 200. No se repitió comparación de píxeles CDN."
+}

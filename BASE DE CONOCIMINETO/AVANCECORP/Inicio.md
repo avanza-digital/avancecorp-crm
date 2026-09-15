@@ -19,7 +19,7 @@ Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C
 
 Estado F8 vigente: [[F8 - piloto nominal activado (2026-09-14)]].
 Publicación y punto de retoma: [[F8 - ensayo remoto y correccion de conflictos (2026-09-15)]].
-Adaptación visual preparada: [[F8 - ficha anterior recuperada para multiempresa (2026-09-15)]] — 3.596 pruebas y 23 recorridos PASS; pendiente de revisión visual, todavía sin publicar.
+Adaptación visual aprobada y publicada: [[F8 - ficha anterior recuperada para multiempresa (2026-09-15)]] — commit `d93d805`, 3.596 pruebas y 23 recorridos PASS; cuatro contextos reales y 80 archivos de código/configuración verificados. G7 abierto.
 Piloto nominal ON para cuatro personas hasta el 21/09 a las 13:23 Lima; G7 abierto.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:

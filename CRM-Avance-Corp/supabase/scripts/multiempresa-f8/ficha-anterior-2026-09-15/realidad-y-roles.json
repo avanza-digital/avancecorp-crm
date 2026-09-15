@@ -1,0 +1,161 @@
+{
+  "estado": "PREPUBLICACION_VERIFICADA",
+  "metodo_roles": "SQL READ COMMITTED, SET LOCAL ROLE authenticated, UID local, timeout 8s, ROLLBACK. No login JWT/HTTP ni prueba visual; duración MCP incluye transporte y cola.",
+  "roles": [
+    {
+      "actor": 0,
+      "rol": "gerencia",
+      "estado": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "cartera_total": 492,
+      "filas": 25,
+      "ficha_inversiones": 1,
+      "inversiones_en_pagina": 1,
+      "capacidades": {
+        "contactar": true,
+        "postventa": true,
+        "documentos": true,
+        "nueva_inversion": true,
+        "motivo_no_operable": null,
+        "cuentas_perfiles_permitidos": 1
+      },
+      "estructura_presente": true,
+      "capitales_tipados": true,
+      "sin_demo": true,
+      "transporte_mcp_ms": 5650
+    },
+    {
+      "actor": 1,
+      "rol": "supervisor",
+      "estado": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "cartera_total": 237,
+      "filas": 25,
+      "ficha_inversiones": 1,
+      "inversiones_en_pagina": 1,
+      "capacidades": {
+        "contactar": true,
+        "postventa": true,
+        "documentos": true,
+        "nueva_inversion": true,
+        "motivo_no_operable": null,
+        "cuentas_perfiles_permitidos": 1
+      },
+      "estructura_presente": true,
+      "capitales_tipados": true,
+      "sin_demo": true,
+      "transporte_mcp_ms": 9782
+    },
+    {
+      "actor": 2,
+      "rol": "vendedor",
+      "estado": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "cartera_total": 50,
+      "filas": 25,
+      "ficha_inversiones": 2,
+      "inversiones_en_pagina": 2,
+      "capacidades": {
+        "contactar": true,
+        "postventa": true,
+        "documentos": true,
+        "nueva_inversion": true,
+        "motivo_no_operable": null,
+        "cuentas_perfiles_permitidos": 1
+      },
+      "estructura_presente": true,
+      "capitales_tipados": true,
+      "sin_demo": true,
+      "transporte_mcp_ms": 12796
+    },
+    {
+      "actor": 3,
+      "rol": "vendedor",
+      "estado": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "cartera_total": 21,
+      "filas": 21,
+      "ficha_inversiones": 1,
+      "inversiones_en_pagina": 1,
+      "capacidades": {
+        "contactar": true,
+        "postventa": true,
+        "documentos": true,
+        "nueva_inversion": true,
+        "motivo_no_operable": null,
+        "cuentas_perfiles_permitidos": 1
+      },
+      "estructura_presente": true,
+      "capitales_tipados": true,
+      "sin_demo": true,
+      "transporte_mcp_ms": 15461
+    }
+  ],
+  "gate": {
+    "metodo": "Conteos SQL equivalentes a los ocho supuestos de gate-realidad; perfiles en public.perfiles. El script original presupone crm.perfiles, que no existe.",
+    "medidas": [
+      {
+        "clave": "actividades",
+        "valor": 11599,
+        "diverge": false
+      },
+      {
+        "clave": "clientes_con_domicilio_legal",
+        "valor": 296,
+        "diverge": true
+      },
+      {
+        "clave": "equipo_operativo",
+        "valor": 21,
+        "diverge": false
+      },
+      {
+        "clave": "leads_en_cartera",
+        "valor": 1743,
+        "diverge": false
+      },
+      {
+        "clave": "metas_bajo_el_sello",
+        "valor": 0,
+        "diverge": false
+      },
+      {
+        "clave": "metas_publicadas",
+        "valor": 21,
+        "diverge": false
+      },
+      {
+        "clave": "roster_metas_completo",
+        "valor": 0,
+        "diverge": false
+      },
+      {
+        "clave": "tareas_pendientes",
+        "valor": 1089,
+        "diverge": false
+      }
+    ]
+  },
+  "piloto": {
+    "vigente": true,
+    "miembros": 4,
+    "vence_en": "2026-09-21T18:23:51.712435+00:00"
+  },
+  "navegador_conectado": false
+}

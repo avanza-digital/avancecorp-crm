@@ -1,0 +1,97 @@
+{
+  "estado": "PUBLICADO_VERIFICADO",
+  "fecha_verificacion_utc": "2026-09-15T16:12:25.134224+00:00",
+  "aprobacion_humana": "Miguel: aprobado, en respuesta a revisión visual, comprobación real y publicación",
+  "fuente": {
+    "commit": "d93d8057e91d70b825722b77f395b525df35c21e",
+    "worktree_sucio": true,
+    "cambios": [
+      "?? \"BASE DE CONOCIMINETO/AVANCECORP/Terminales de AVANCECORP - recuperacion y sesiones.md\"",
+      "?? CRM-Avance-Corp/supabase/scripts/evidencia-f7/2026-09-11T20-20-59-444Z.json",
+      "?? CRM-Avance-Corp/supabase/scripts/evidencia-f7/2026-09-14T22-20-49-263Z.json"
+    ]
+  },
+  "release_id": "crm-20260915T160349Z-d93d8057e91d",
+  "build_id": "build-20260915T160348830Z",
+  "main_local_y_avancecorp_main_iguales_antes_de_build": true,
+  "zip": {
+    "nombre": "crm-20260915T160349Z-d93d8057e91d.zip",
+    "bytes": 2074962,
+    "sha256": "f59c72d0dfd7e54d8f11f8200c0c263e3339c84e45807f631b6af5e807aa49a6"
+  },
+  "manifiesto": "CRM-Avance-Corp/releases/crm-20260915T160349Z-d93d8057e91d.manifest.json",
+  "manifiesto_sha256": "6a720b8c592a909d85df6990b6b5ecd18dab39b4b665a49f9605b1e183ec49c6",
+  "previo_rollback": "crm-20260915T154200Z-cdf03f266805",
+  "checks": {
+    "check": "PASS",
+    "pruebas": 3596,
+    "e2e_relacionados": 23,
+    "pre_push_pruebas": 3596,
+    "config_build_bundle": "PASS",
+    "zip_manifiesto_y_archivos": "PASS",
+    "http": "PASS",
+    "archivos_http": 92,
+    "archivos_hash_exacto": 80,
+    "lecturas_reales_roles": "PASS: cuatro contextos SQL con ROLLBACK; no JWT HTTP"
+  },
+  "gate_realidad": {
+    "metodo": "Conteos SQL equivalentes a los ocho supuestos de gate-realidad; perfiles en public.perfiles. El script original presupone crm.perfiles, que no existe.",
+    "medidas": [
+      {
+        "clave": "actividades",
+        "valor": 11599,
+        "diverge": false
+      },
+      {
+        "clave": "clientes_con_domicilio_legal",
+        "valor": 296,
+        "diverge": true
+      },
+      {
+        "clave": "equipo_operativo",
+        "valor": 21,
+        "diverge": false
+      },
+      {
+        "clave": "leads_en_cartera",
+        "valor": 1743,
+        "diverge": false
+      },
+      {
+        "clave": "metas_bajo_el_sello",
+        "valor": 0,
+        "diverge": false
+      },
+      {
+        "clave": "metas_publicadas",
+        "valor": 21,
+        "diverge": false
+      },
+      {
+        "clave": "roster_metas_completo",
+        "valor": 0,
+        "diverge": false
+      },
+      {
+        "clave": "tareas_pendientes",
+        "valor": 1089,
+        "diverge": false
+      }
+    ]
+  },
+  "piloto_post": {
+    "activo": true,
+    "revision": 1,
+    "miembros_vigentes": 4,
+    "vence_en": "2026-09-21T18:23:51.712435+00:00"
+  },
+  "cambios_sql": false,
+  "operaciones_economicas_de_prueba": false,
+  "not_run": [
+    "login JWT/HTTP de participantes",
+    "recorrido visual de producción: navegador no conectado",
+    "matriz E2E completa",
+    "nueva matriz RLS general"
+  ],
+  "g7": "ABIERTO; diseño aprobado y G7-R01 resuelto técnicamente; resto de evidencias y firmas pendiente"
+}

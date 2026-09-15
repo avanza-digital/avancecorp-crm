@@ -1,6 +1,6 @@
 # Ficha anterior adaptada a multiempresa — 15/09/2026
 
-**Estado: preparada y verificada localmente; pendiente de revisión visual de Miguel. No publicada.**
+**Estado: diseño aprobado por Miguel y publicado el 15/09/2026.** La autorización respondió a la secuencia explícita «verificar datos reales → publicar la ficha → retomar F8». Véase [PUBLICACION.md](PUBLICACION.md) para la verificación productiva y el punto de retoma; los apartados siguientes conservan el detalle de la preparación local.
 
 Abrir [COMPARACION.html](COMPARACION.html) para comparar la ficha anterior y la adaptación por rol y tamaño de pantalla. Incluye el detalle abierto y un ejemplo con tres empresas y dos monedas. Las capturas usan datos sintéticos y llamadas interceptadas al banco local de Playwright; no contienen clientes de producción.
 
@@ -58,4 +58,4 @@ El PRIMARY ejecutó el gate y los recorridos finales después de esas correccion
 
 ## Retoma
 
-Revisar la comparación con Miguel. Después, si corresponde publicar, integrar `avancecorp/main`, comprobar el commit común y construir/publicar únicamente desde él siguiendo el procedimiento del proyecto. Esta entrega no cierra G7 ni F8; la publicación productiva previa y el piloto nominal continúan como estaban documentados.
+El diseño fue aprobado y la publicación está verificada. La comprobación real por SQL actualiza el límite previo de entorno sin configurar; no fue login JWT/HTTP ni recorrido visual de producción. G7/F8 siguen abiertos para los casos y conformidades del piloto. El siguiente paso se detalla en [PUBLICACION.md](PUBLICACION.md).

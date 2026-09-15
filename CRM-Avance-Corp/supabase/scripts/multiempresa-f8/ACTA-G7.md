@@ -23,9 +23,11 @@ general heredada completa no se ejecutó en el ensayo combinado; la matriz
 específica F8 pasó. El encendido nominal y las capacidades SQL verificadas no sustituyen los casos
 o firmas pendientes que siguen. El solicitante ya ejecutó el primer caso desde
 el analista del supervisor piloto: [resultado del 14/09](recorrido-real-2026-09-14/README.md).
-Identidad y PEN 9,000 conciliados con los núcleos; lista/ficha de supervisor y
-Gerencia fallan por timeout (P1 G7-R01). UI/Auth/HTTP NOT RUN; observaciones
-humanas pendientes.
+Identidad y PEN 9,000 conciliados con los núcleos. El timeout de lista/ficha de
+supervisor y Gerencia (G7-R01) fue corregido y publicado el 15/09; la nueva
+[verificación productiva de los cuatro contextos](ficha-anterior-2026-09-15/PUBLICACION.md)
+pasa con límite SQL de ocho segundos por sentencia. Miguel aprobó la adaptación
+visual de la ficha, ya publicada; UI/Auth/HTTP de sesiones reales siguen NOT RUN.
 Datos/totales deben salir de los núcleos canónicos, sin lecturas o cálculos paralelos.
 
 ## Evidencia mínima real
@@ -35,7 +37,7 @@ Datos/totales deben salir de los núcleos canónicos, sin lecturas o cálculos p
 | 15 identidades verificadas; al menos 5 por empresa | PARCIAL | Una identidad canónica comprobada por SQL en el primer caso; no completa el muestreo |
 | 20 inversiones confirmadas y consecutivamente conciliadas; al menos 5 por empresa | PARCIAL | Una inversión nueva Qorilazo durante F8, conciliada con su antecedente Prodelco previo al encendido |
 | 6 recorridos multiempresa obligatorios | PARCIAL | Prodelco→Qorilazo aporta un recorrido adicional representativo; revisión visual pendiente |
-| Multirrol | FAIL lista/ficha amplia / parcial | Analista PASS; otra analista excluida; postventa de tres roles PASS; lista/ficha supervisor/Gerencia con 57014; verificación SQL, no Auth/HTTP |
+| Multirrol | PASS SQL / parcial real | Cartera y primera ficha de cuatro contextos vigentes PASS el 15/09 tras corregir G7-R01; rol SQL authenticated, timeout 8s y ROLLBACK. Login JWT/HTTP y recorrido humano productivo pendientes |
 | Sin responsable | PENDIENTE | |
 | Identidad provisional | PENDIENTE | |
 | Cotitularidad | PENDIENTE | |
@@ -46,7 +48,7 @@ Datos/totales deben salir de los núcleos canónicos, sin lecturas o cálculos p
 | 10 reintentos idempotentes | PENDIENTE | |
 | 5 carreras económicas aisladas | PENDIENTE | No confundir con carreras del control ya probadas |
 | Fallo Auth y depósito repetido | PENDIENTE | |
-| Cero P0/P1 abiertos | FAIL | P1 G7-R01 abierto: timeout de lista/ficha F5 para supervisor y Gerencia, con review de Claude |
+| Cero P0/P1 abiertos | G7-R01 resuelto técnicamente; revisión del resto pendiente | Corrección publicada y lecturas de supervisor/Gerencia verificadas el 15/09; esta comprobación no sustituye los casos G7 todavía pendientes |
 | Cero diferencias financieras | PARCIAL | Sin diferencias en el caso de PEN 9,000; no equivale a conciliación completa del piloto |
 | Soporte y reversa comprobados | PENDIENTE | |
 
