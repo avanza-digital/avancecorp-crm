@@ -127,12 +127,19 @@ describe('capacidades por rol', () => {
       verReportes: true,
       editarMetas: true,
       editarCapacidad: true,
+      altaDirectaCliente: true,
       soloLecturaTotal: false,
     })
   })
 
   it('la toma directa es SOLO del analista (espejo del guard del servidor)', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
+  })
+
+  it('el alta directa de clientes (sin lead) es de Supervisión y Gerencia; el analista convierte leads', () => {
+    expect(ROLES.filter((rol) => CAPS[rol].altaDirectaCliente)).toEqual(['supervisor', 'gerencia'])
+    expect(can('vendedor', 'altaDirectaCliente')).toBe(false)
+    expect(can(null, 'altaDirectaCliente')).toBe(false)
   })
 })
 

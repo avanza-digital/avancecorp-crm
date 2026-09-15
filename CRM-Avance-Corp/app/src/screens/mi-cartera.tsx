@@ -971,6 +971,12 @@ function VistaMiCartera({
   const lecturaCarteraHabilitada = can(yo?.rol, 'verCartera')
   const escrituraHabilitada = puedeEscribir(yo?.rol)
   const accionesContractualesHabilitadas = puedeContratar && escrituraHabilitada
+  // «Nuevo cliente» es el alta SIN lead. El analista ya no la tiene (decisión de
+  // Miguel, 15/09/2026): su cliente nuevo nace convirtiendo un lead, y así el
+  // capital del ranking no puede entrar por fuera de la conversión. Lo que se
+  // hace sobre clientes que YA existen (nueva inversión, upgrade, renovación,
+  // corrección) no cambia: sigue colgando de accionesContractualesHabilitadas.
+  const altaDirectaHabilitada = accionesContractualesHabilitadas && can(yo?.rol, 'altaDirectaCliente')
   const ambitoGlobal = can(yo?.rol, 'verTodo')
   const edicionGlobal = accionesContractualesHabilitadas && ambitoGlobal
   const titulo = verEquipo ? 'Cartera' : 'Mi cartera'
@@ -1497,7 +1503,7 @@ function VistaMiCartera({
                     }`
                   : '—'}
               </span>
-              {accionesContractualesHabilitadas && (
+              {altaDirectaHabilitada && (
                 <Button size="sm" onClick={onNuevoCliente}>
                   <Users2 aria-hidden /> Nuevo cliente
                 </Button>
@@ -1528,7 +1534,13 @@ function VistaMiCartera({
             icono={Inbox}
             titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no tienes clientes en tu cartera.'}
           >
-            {accionesContractualesHabilitadas && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
+            {altaDirectaHabilitada ? (
+              <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>
+            ) : accionesContractualesHabilitadas ? (
+              <p className="text-xs text-muted-foreground">
+                Tus clientes nuevos nacen al convertir un lead desde «Leads».
+              </p>
+            ) : null}
           </PanelVacio>
         ) : (
           <>
@@ -2073,7 +2085,9 @@ export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolea
         onCorregirContrato={abrirCorreccionContrato}
       />
 
-      {overlay?.tipo === 'cliente-crear' && (
+      {/* Doble candado: aunque algo dejara el overlay en 'cliente-crear', el
+          formulario de alta directa no se monta para quien no tiene la puerta. */}
+      {overlay?.tipo === 'cliente-crear' && can(yo?.rol, 'altaDirectaCliente') && (
         <Dialog open onClose={cerrarAlta} ariaLabel="Nuevo cliente">
           <ClienteForm
             modo="crear"

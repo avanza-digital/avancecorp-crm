@@ -15,6 +15,11 @@ import { clienteReal, irAMiCartera, loginReal, montarBackendReal, verTodaLaCarte
 // Fase 6.1 (2026-07-21): la entrada al ClienteForm migró a la cartera unificada
 // (#/mi-cartera, la vista por defecto de una cuenta real). El MISMO modal se abre
 // con "Nuevo cliente" / "Corregir cliente"; los asserts del modal no cambian.
+//
+// 15/09/2026: el alta directa («Nuevo cliente» = cliente SIN lead) se cerró al
+// analista — su cliente nuevo nace convirtiendo un lead. Por eso los casos de
+// ALTA corren como Supervisión (que la conserva) y los de CORRECCIÓN siguen
+// como analista, cuya ventana de 5 h no cambió.
 
 /** Entra con sesión real y abre el modal de alta desde la pantalla Clientes. */
 async function abrirNuevoCliente(page: Page): Promise<Locator> {
@@ -53,7 +58,7 @@ async function llenarAltaMinima(modal: Locator): Promise<void> {
 }
 
 test('alta feliz: UNA llamada y el cliente nace CON su cuenta bancaria', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
+  const estado = await montarBackendReal(page, { rolCrm: 'supervisor' })
   const modal = await abrirNuevoCliente(page)
 
   // El aviso de la clave temporal se muestra como en el portal.
@@ -77,7 +82,7 @@ test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', asy
   // aquí se salta la validación local escribiendo directo en el estado del form
   // no es posible, así que se comprueba el otro extremo — que el alta no viaja
   // y, si viajara sin cuentas, la edge la rechazaría (mock espejo de la real).
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
+  const estado = await montarBackendReal(page, { rolCrm: 'supervisor' })
   const modal = await abrirNuevoCliente(page)
 
   await modal.locator('#cf-apellidos').fill('QA PRUEBA')
@@ -100,7 +105,7 @@ test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', asy
 })
 
 test('alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PATCH', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', fallarProximaAlta: true })
+  const estado = await montarBackendReal(page, { rolCrm: 'supervisor', fallarProximaAlta: true })
   const modal = await abrirNuevoCliente(page)
 
   await llenarAltaMinima(modal)
@@ -109,6 +114,16 @@ test('alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PAT
   await expect(modal.getByText('Este documento ya está registrado para otro cliente.')).toBeVisible()
   await expect.poll(() => estado.llamadas.altaCliente).toBe(1)
   expect(estado.llamadas.patchPerfil).toBe(0)
+})
+
+test('el analista ya no tiene «Nuevo cliente»: su cliente nuevo nace convirtiendo un lead', async ({ page }) => {
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
+  await loginReal(page)
+  await irAMiCartera(page)
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Mi cartera' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /nuevo cliente/i })).toHaveCount(0)
+  expect(estado.llamadas.altaCliente).toBe(0)
 })
 
 test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servidor', async ({ page }) => {

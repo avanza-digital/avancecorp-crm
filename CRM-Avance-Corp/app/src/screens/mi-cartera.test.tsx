@@ -2650,3 +2650,38 @@ describe('MiCartera — filtro por mes de cierre', () => {
     expect(screen.getByText('CLIENTE DE ANTES')).toBeInTheDocument()
   })
 })
+
+describe('MiCartera — alta directa de clientes solo para Supervisión y Gerencia (15/09/2026)', () => {
+  it('el analista NO ve «Nuevo cliente» aunque pueda contratar, y conserva las acciones sobre SUS clientes', () => {
+    montar() // vendedor · puede_contratar: true · cliente y contrato propios del mes en curso
+
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+  })
+
+  it('con la cartera vacía, al analista se le indica convertir un lead, no un alta directa', () => {
+    montar({ clientes: [], contratos: [] })
+
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Usa “Nuevo cliente”.')).not.toBeInTheDocument()
+    expect(screen.getByText('Tus clientes nuevos nacen al convertir un lead desde «Leads».')).toBeInTheDocument()
+  })
+
+  it('Supervisión conserva «Nuevo cliente» y su aviso en la cartera vacía', () => {
+    montar({
+      yo: { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false },
+      clientes: [],
+      contratos: [],
+    })
+
+    expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeInTheDocument()
+    expect(screen.getByText('Usa “Nuevo cliente”.')).toBeInTheDocument()
+  })
+
+  it('Gerencia conserva «Nuevo cliente»', () => {
+    montar({ yo: { id: 'ger', rol: 'gerencia', puede_contratar: true, demo: false } })
+
+    expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeInTheDocument()
+  })
+})

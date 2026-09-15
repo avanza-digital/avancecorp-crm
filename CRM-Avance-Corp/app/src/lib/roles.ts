@@ -34,6 +34,13 @@ export const ACCIONES = [
                         // del guard de crm.tomar_lead_libre: supervisión
                         // asigna por el reparto, jamás por esta puerta)
   'verCartera',         // pantalla unificada Clientes+Contratos ('mi-cartera')
+  'altaDirectaCliente', // «Nuevo cliente» en Mi cartera = alta SIN lead. Cerrada
+                        // al analista (decisión de Miguel, 15/09/2026): su
+                        // cliente nuevo nace CONVIRTIENDO un lead, para que el
+                        // capital del ranking no entre por fuera de la
+                        // conversión (caso real: S/ 222 450 en el puesto 1 del
+                        // ranking con 0 % de conversión, todo por esta puerta).
+                        // Supervisión y Gerencia la conservan: no rankean.
   'verConfiguracion',   // pantalla 'config' — incluye la suscripción ICS PROPIA
   'editarConfiguracion',
   'verReportes',
@@ -57,6 +64,7 @@ export const CAPS: Record<Rol, Caps> = {
   // RLS "cada quien SU fila" en crm.agenda_ics): nadie exporta agenda ajena.
   vendedor: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
+    altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
     verDerivacionesEquipo: false,
@@ -66,6 +74,7 @@ export const CAPS: Record<Rol, Caps> = {
   },
   supervisor: {
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
+    altaDirectaCliente: true,
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: true,
@@ -75,6 +84,7 @@ export const CAPS: Record<Rol, Caps> = {
   },
   gerencia: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
+    altaDirectaCliente: true,
     reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
@@ -84,6 +94,7 @@ export const CAPS: Record<Rol, Caps> = {
   },
   directorio: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
+    altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
@@ -97,6 +108,7 @@ export const CAPS: Record<Rol, Caps> = {
   // ni equipo: su único destino es la pantalla "Repartir leads".
   coordinador: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
+    altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
     verDerivacionesEquipo: false,
