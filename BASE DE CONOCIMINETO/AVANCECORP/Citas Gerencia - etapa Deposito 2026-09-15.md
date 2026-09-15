@@ -21,3 +21,9 @@ Publicado desde Main local/remoto `b278d0ba40a634d46846e695c661654de5aa032f`, co
 Evidencia: `UX-UI-GERENCIA/citas-deposito-2026-09-15/`. Acceso manual autenticado a Citas en producción NOT RUN; la evidencia visual procede del recorrido local y la publicación se verificó mediante hashes HTTP.
 
 Relacionado: [[Citas Gerencia - decisiones finales para publicar 2026-09-14]], [[Citas Gerencia - ticket con todo el capital del mes 2026-09-15]], [[Citas Gerencia - ticket unificado en soles 2026-09-14]].
+
+## Cierre de sesión — 15/09/2026
+
+Miguel pidió guardar todo y cerrar la sesión. La corrección queda publicada y verificada: implementación `b278d0b` y acta/evidencia `8cf7ed5`, sincronizadas en Main. No hay cambios propios de producto, pruebas ni publicaciones pendientes de esta tarea.
+
+El archivo publicado y su reversa permanecen en `CRM-Avance-Corp/releases/`; los logs, el adaptador OAuth y la copia de trabajo están guardados en `_dev_artifacts/citas-ticket-soles/`. Se conservaron los cambios de otras sesiones en la carpeta compartida. Para un nuevo trabajo, revisar Main/remoto y la versión productiva vigente antes de actuar.
