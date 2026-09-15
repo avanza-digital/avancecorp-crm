@@ -86,3 +86,12 @@ Relacionado: [[Citas Gerencia - ticket unificado en soles 2026-09-14]],
 [[Citas Gerencia - decisiones finales para publicar 2026-09-14]],
 [[Alta directa de clientes cerrada al analista (2026-09-15)]],
 [[Contrato de la capa semantica - Capital (F4, 2026-08-29)]].
+
+## Cierre de sesión — 15/09/2026
+
+Miguel pidió «ok guarda todo y cierra sesion». Todo está publicado, aplicado y en `main`
+(`avancecorp/main` al mismo commit). No queda código, prueba ni despliegue pendiente de
+esta tarea. El worktree temporal de build se eliminó; el ZIP, el manifiesto y la reversa
+inmediata siguen en `CRM-Avance-Corp/releases/`. Pendiente sólo de Miguel: rotar el token
+de Hostinger que quedó visible en el terminal. Al retomar: leer esta nota y `MIGRACIONES.md`
+(entradas `20260915170017` y `20260915170018`).
