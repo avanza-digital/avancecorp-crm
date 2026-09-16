@@ -79,5 +79,8 @@ toque policies, funciones o grants pasa por el subagente `auditor-rls` antes del
 ## Deploy
 
 `npm run release:crm` genera ZIP + manifiesto SHA-256 en `releases/` (no versionado).
-La publicación a crm.miavance.com se hace SOLO vía el skill `/release-crm` (invocación
-humana; el modelo no puede auto-invocarlo).
+La publicación a crm.miavance.com se hace SOLO vía el skill de release, con
+invocación humana: `/release-crm` en Claude o `$release-crm` en Codex. El modelo
+no puede auto-invocarlo. La adaptación de Codex está en
+[`.agents/skills/release-crm/SKILL.md`](../.agents/skills/release-crm/SKILL.md);
+ambas invocaciones autorizan el mismo flujo, sin pedir el comando del otro entorno.

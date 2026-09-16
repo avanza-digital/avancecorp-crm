@@ -7,7 +7,10 @@ disable-model-invocation: true
 # Release del CRM a crm.miavance.com
 
 Publica a **PRODUCCIÓN**. Por eso `disable-model-invocation: true`: solo Miguel lo invoca
-con `/release-crm`. No saltarse pasos ni publicar un ZIP que no haya pasado la verificación.
+con `/release-crm` en Claude. En Codex, la invocación humana equivalente es
+`$release-crm`, implementada en `.agents/skills/release-crm/SKILL.md` de la raíz
+del repositorio. No exigir ambas invocaciones. No saltarse pasos ni publicar
+un ZIP que no haya pasado la verificación.
 
 ## Pasos
 

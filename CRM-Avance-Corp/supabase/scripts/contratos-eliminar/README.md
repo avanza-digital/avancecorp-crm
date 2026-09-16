@@ -3,11 +3,12 @@
 ## Estado
 
 Implementado y validado localmente y en rama remota el 15/09/2026 (Lima).
-**Sin instalar SQL, desplegar Edge ni publicar frontend en producción.**
+**SQL y Edge instalados en producción el 15/09 a las 21:44 Lima, con autorización.**
+La interfaz web queda pendiente de `/release-crm`. [Readback productivo](PRODUCCION.json).
 Miguel pidió permitir eliminar contratos al administrador y confirmó expresamente
 «Eliminar también contratos con pagos, conservando una copia de auditoría».
 
-SQL para revisar, en este orden:
+SQL aprobado, ensayado e instalado, en este orden:
 
 1. [20260915222925_crm_eliminacion_contrato_con_auditoria.sql](../../migrations/20260915222925_crm_eliminacion_contrato_con_auditoria.sql).
 2. [20260916003000_crm_eliminacion_auditada_guardas.sql](../../migrations/20260916003000_crm_eliminacion_auditada_guardas.sql).
@@ -101,7 +102,36 @@ tablas es `documentos.storage_path`. Los triggers PDF/documentos inspeccionados
 solo bloquean modificaciones; ninguno encola borrados. No hay jobs Cron de
 limpieza de esos objetos. Las referencias quedan expresamente bajo retención.
 
-## Activación y pausa
+## Instalación productiva y publicación pendiente
+
+Miguel autorizó «ok hazlo para poder publicar» después de recibir los dos SQL
+exactos y el artefacto. Se promovieron literalmente las migraciones ensayadas:
+registros remotos `20260916024417` y `20260916024423`. No se ejecutó un db push
+general. El SQL fuente conserva sus nombres y huellas aprobados.
+
+Edge `crm-contrato-pdf-v2` versión 18 ACTIVE, con `verify_jwt=true` como antes;
+sus nueve archivos coinciden byte a byte con el commit `2145f27`.
+PASS: huella SQL final, RLS/grants, tres triggers de protección/auditoría,
+Admin/Superadmin con contrato nulo, actor nulo rechazado y accesos directos
+anon/authenticated denegados. Cinco comprobaciones HTTP PASS: Edge sin sesión,
+CORS, RPC anónima denegada, auditoría privada y disponibilidad del CRM existente.
+594 contratos, 5.320 cuotas y 26 inversiones de `crm.inversiones` antes/después;
+cero auditorías y cero eliminaciones reales durante la verificación.
+
+Advisors: cero nuevos WARN/ERROR; solo el INFO esperado de RLS sin policies para
+la nueva copia privada. La matriz RLS global mantiene la limitación documentada.
+El ensayo completo Auth → eliminación → Storage corresponde a la rama sintética;
+no se repitió sobre contratos de clientes reales.
+
+**Pendiente:** publicar la interfaz desde Main verificado mediante invocación
+humana de `/release-crm` (Claude) o `$release-crm` (Codex). La regla está en
+[SKILL.md](../../../.claude/skills/release-crm/SKILL.md): «solo Miguel lo invoca
+con `/release-crm`». La actualización de actas requiere reconstruir el ZIP desde
+el nuevo Main antes de publicarlo; no usar un manifiesto de otro commit.
+
+## Procedimiento de activación y pausa
+
+Los pasos 1, 2 y la instalación SQL/Edge del paso 4 ya están completados.
 
 1. Obtener conformidad al SQL exacto (regla del vault: mostrar SQL primero).
 2. Ensayo remoto completado en la rama autorizada, con datos ficticios. Usar

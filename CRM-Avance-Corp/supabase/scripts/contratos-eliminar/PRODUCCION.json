@@ -1,0 +1,231 @@
+{
+  "estado": "BACKEND_INSTALADO_FRONTEND_PENDIENTE",
+  "fuente_commit": "2145f278245da5b0c795908c66a96d92e930892c",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "instalado_utc": "2026-09-16T02:44:23Z",
+  "autorizacion": "Miguel: «ok hazlo para poder publicar», después de recibir el paquete y los dos SQL concretos.",
+  "metodo": "Promoción literal de los dos SQL aprobados y ya ensayados en rama. Sin db push general ni datos de prueba en producción.",
+  "sql": [
+    {
+      "archivo": "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
+      "sha256": "62343b68dbc42f04b93e2126830e3deb77d4ceda30c55568ce7eb635d29d61c0",
+      "registro_remoto": "20260916024417"
+    },
+    {
+      "archivo": "20260916003000_crm_eliminacion_auditada_guardas.sql",
+      "sha256": "a8a95580e46b9ed2b9ad07bcb6aab6dee28b1eb24e887051a2564fd3f6bdd4a3",
+      "registro_remoto": "20260916024423"
+    }
+  ],
+  "antes": {
+    "rpc": null,
+    "cuotas": 5320,
+    "auditoria": null,
+    "contratos": 594,
+    "funciones": [
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "service_role=X/postgres"
+        ],
+        "md5": "77987eab1ae5b58cba1a4124947d24fc",
+        "args": "p_contrato_id uuid, p_actor_id uuid",
+        "nombre": "contrato_eliminacion_preparar",
+        "schema": "crm"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "service_role=X/postgres"
+        ],
+        "md5": "c1eba8d9b7af8dbb84a22ba91e19fc70",
+        "args": "p_contrato_id uuid, p_token uuid, p_actor_id uuid",
+        "nombre": "contrato_eliminacion_finalizar",
+        "schema": "crm"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "d77128a7e0ad7799336b60bf80e8217d",
+        "args": "p_contrato_id uuid",
+        "nombre": "bloquear_fila_contrato_pdf",
+        "schema": "private"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "c37a037971018f49b19ba12e8148d614",
+        "args": "",
+        "nombre": "log_audit_sin_secretos",
+        "schema": "private"
+      }
+    ],
+    "inversiones": 26
+  },
+  "despues": {
+    "rls": true,
+    "cuotas": 5320,
+    "grants": [
+      {
+        "rol": "anon",
+        "rpc": false,
+        "tabla_write": false,
+        "tabla_select": false,
+        "legacy_preparar": false,
+        "legacy_finalizar": false
+      },
+      {
+        "rol": "authenticated",
+        "rpc": false,
+        "tabla_write": false,
+        "tabla_select": false,
+        "legacy_preparar": false,
+        "legacy_finalizar": false
+      },
+      {
+        "rol": "service_role",
+        "rpc": true,
+        "tabla_write": false,
+        "tabla_select": false,
+        "legacy_preparar": false,
+        "legacy_finalizar": false
+      }
+    ],
+    "funcion": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "md5": "2d8210b77d1f6f1e3a4e06a1242cf85d",
+      "config": [
+        "search_path=\"\"",
+        "lock_timeout=5s"
+      ],
+      "security_definer": true
+    },
+    "policies": 0,
+    "triggers": [
+      "CREATE TRIGGER trg_audit_contratos_eliminados AFTER INSERT ON crm.contratos_eliminados_auditoria FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos('snapshot', 'archivos')",
+      "CREATE TRIGGER trg_contratos_eliminados_inmutables BEFORE DELETE OR UPDATE ON crm.contratos_eliminados_auditoria FOR EACH ROW EXECUTE FUNCTION private.proteger_auditoria_contrato_eliminado()",
+      "CREATE TRIGGER trg_contratos_eliminados_no_truncate BEFORE TRUNCATE ON crm.contratos_eliminados_auditoria FOR EACH STATEMENT EXECUTE FUNCTION private.proteger_auditoria_contrato_eliminado()"
+    ],
+    "contratos": 594,
+    "auditorias": 0,
+    "inversiones": 26,
+    "migraciones": [
+      {
+        "nombre": "crm_eliminacion_contrato_con_auditoria",
+        "version": "20260916024417"
+      },
+      {
+        "nombre": "crm_eliminacion_auditada_guardas",
+        "version": "20260916024423"
+      }
+    ]
+  },
+  "edge": {
+    "estado": "PASS",
+    "version": 18,
+    "verify_jwt": true,
+    "archivos": [
+      {
+        "name": "crm-contrato-pdf-v2/index.ts",
+        "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/handler.ts",
+        "sha256": "b878d6fd8852dcf053d85e8bffc4ebbdfe644badc3b4e4fa0e223df3fcb0151f"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/renderer.ts",
+        "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+        "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+        "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/assets-v2.ts",
+        "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/template-v2.ts",
+        "sha256": "33c8e055d9ac5070c6e6b9a806b0c0e4b1b0358aee413caaef67b14ec1156f61"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/storage.ts",
+        "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f"
+      },
+      {
+        "name": "crm-contrato-pdf-v2/deno.json",
+        "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0"
+      }
+    ],
+    "ezbr_sha256": "1127c1c041744bdf3568f8406d56351af3e43348dad2459fe0055c020c1048d5"
+  },
+  "gate_sql": {
+    "estado": "PASS",
+    "admin_y_superadmin": "Autorizados y rechazo P0002 de contrato nulo",
+    "actor_nulo": "42501",
+    "anon": "42501",
+    "authenticated": "42501",
+    "auditorias": 0
+  },
+  "advisors": {
+    "before": 270,
+    "after": 271,
+    "added": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "metadata": {
+          "name": "contratos_eliminados_auditoria",
+          "type": "table",
+          "schema": "crm"
+        },
+        "detail": "Table \\`crm.contratos_eliminados_auditoria\\` has RLS enabled, but no policies exist",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      }
+    ],
+    "removed": []
+  },
+  "limite": "La eliminación completa con pagos fue probada en rama sintética; producción solo se comprobó sin eliminar contratos. Interfaz web todavía sin publicar.",
+  "publicacion_web": "Invocación humana: /release-crm en Claude o $release-crm en Codex. Adaptación Codex en .agents/skills/release-crm/SKILL.md. Construir desde Main idéntico a avancecorp/main.",
+  "http": {
+    "momento": "2026-09-16T02:49:26.387Z",
+    "checks": [
+      {
+        "nombre": "Edge sin sesión",
+        "http": 401,
+        "estado": "PASS"
+      },
+      {
+        "nombre": "Preflight CORS",
+        "http": 204,
+        "estado": "PASS"
+      },
+      {
+        "nombre": "RPC anónima denegada",
+        "http": 401,
+        "estado": "PASS"
+      },
+      {
+        "nombre": "Auditoría privada",
+        "http": 401,
+        "estado": "PASS"
+      },
+      {
+        "nombre": "CRM existente disponible",
+        "http": 200,
+        "estado": "PASS"
+      }
+    ],
+    "limite": "No se autenticó ni eliminó un contrato real. Las pruebas de eliminación completas se hicieron en la rama sintética."
+  }
+}

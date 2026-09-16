@@ -5,6 +5,8 @@ actualizado: 2026-09-15
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Eliminar contratos con pagos por administrador - preparado 2026-09-15]] — **SQL y Edge instalados y verificados**; auditoría privada y archivos retenidos. Interfaz pendiente de `/release-crm` (Claude) o `$release-crm` (Codex).
+
 - [[Citas Gerencia - ticket unificado en soles 2026-09-14]] — **PUBLICADO:** totales PEN/USD visibles y ticket/proyección en soles; 3555 tests, 7 E2E y 67 recursos HTTP verificados.
 
 - [[Rentabilidades menores a 15 - publicacion autorizada 2026-09-14]] — **PUBLICADO 14/09:** nuevas inversiones desde 0,01 %; aprobaciones superiores y bloqueo de pendientes conservados. Banco eliminado, coste estimado US$0,059; cambio conservado por Citas, 67 recursos de código HTTP verificados.

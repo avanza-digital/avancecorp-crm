@@ -1,5 +1,5 @@
 {
-  "estado": "VALIDADO_CAMBIO_PREPARADO_SIN_PUBLICAR",
+  "estado": "BACKEND_INSTALADO_FRONTEND_PENDIENTE",
   "proyecto_produccion": "dctqcbznekcyxhjujuci",
   "rama_prueba": {
     "id": "0416f02e-9e8b-4bb8-98dd-71c4f7a00831",
@@ -14,12 +14,12 @@
     {
       "archivo": "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
       "sha256": "62343b68dbc42f04b93e2126830e3deb77d4ceda30c55568ce7eb635d29d61c0",
-      "produccion_instalada": false
+      "produccion_instalada": true
     },
     {
       "archivo": "20260916003000_crm_eliminacion_auditada_guardas.sql",
       "sha256": "a8a95580e46b9ed2b9ad07bcb6aab6dee28b1eb24e887051a2564fd3f6bdd4a3",
-      "produccion_instalada": false
+      "produccion_instalada": true
     }
   ],
   "checks": {
@@ -107,13 +107,13 @@
     "No permite eliminar fuentes ligadas a historial F4.",
     "Conserva bloqueos de meses cerrados, renovaciones y FK restrictivas.",
     "Los archivos permanecen privados en sus rutas originales; no se duplica su contenido.",
-    "No se publica ni se instala SQL en producción durante este ensayo."
+    "Ensayo inicial sin producción; SQL y Edge instalados después con autorización. Interfaz web pendiente de /release-crm."
   ],
   "edge_rama": {
     "version": 19,
     "handler_identico": true,
     "index_identico": true,
-    "produccion_desplegada": false
+    "produccion_desplegada": true
   },
   "sql_rama": {
     "prosrc_md5": "2d8210b77d1f6f1e3a4e06a1242cf85d",
@@ -125,5 +125,11 @@
     "consultas": 2,
     "dictamen": "CHANGES_REQUESTED",
     "evaluacion": "Hallazgos concretos corregidos y verificados; hipótesis evaluadas en REVISION.md"
+  },
+  "produccion": {
+    "acta": "PRODUCCION.json",
+    "edge_version": 18,
+    "verify_jwt": true,
+    "frontend_publicado": false
   }
 }

@@ -1,0 +1,6 @@
+interface:
+  display_name: "release-crm"
+  short_description: "Verifica y publica el CRM en crm.miavance.com"
+  default_prompt: "Usa $release-crm para verificar y publicar el CRM en crm.miavance.com."
+policy:
+  allow_implicit_invocation: false
