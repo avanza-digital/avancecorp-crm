@@ -1,0 +1,62 @@
+{
+  "captura_utc": "2026-09-16T01:57:15.842303+00:00",
+  "dominio": "https://crm.miavance.com",
+  "archivos": [
+    {
+      "ruta": "assets/index-CP86R6DP.js",
+      "http": 200,
+      "bytes": 665778,
+      "sha256": "f0865e4103377d8e608cfe73a22cc7c10dd62a3c5829d24c20152ab77022d9c9",
+      "marcas": {
+        "cartera_inversionistas_estado_fn": true,
+        "postventa_estado_fn": true,
+        "cartera_inversionistas_fn": true,
+        "inversionista_ficha_fn": true,
+        "escritura_habilitada": true,
+        "refetchOnMount": true
+      }
+    },
+    {
+      "ruta": "assets/crm-api-DmrN5_-C.js",
+      "http": 200,
+      "bytes": 217659,
+      "sha256": "eeb7a8b1ceb173b487e7b97a6add47c208ff4e039d0907b374d9a8db505280eb",
+      "marcas": {
+        "cartera_inversionistas_estado_fn": false,
+        "postventa_estado_fn": false,
+        "cartera_inversionistas_fn": false,
+        "inversionista_ficha_fn": false,
+        "escritura_habilitada": false,
+        "refetchOnMount": false
+      }
+    },
+    {
+      "ruta": "assets/mi-cartera-DbUPIgAB.js",
+      "http": 200,
+      "bytes": 203755,
+      "sha256": "7201171b0c345c0a8c042f51a1eadf3b650e1a8bedb51350c0a8848efd6a70dc",
+      "marcas": {
+        "cartera_inversionistas_estado_fn": false,
+        "postventa_estado_fn": false,
+        "cartera_inversionistas_fn": false,
+        "inversionista_ficha_fn": false,
+        "escritura_habilitada": true,
+        "refetchOnMount": false
+      }
+    },
+    {
+      "ruta": "assets/hoy-CZpg0t5Y.js",
+      "http": 200,
+      "bytes": 92778,
+      "sha256": "4b112270e387515956a26d3120ad43b6649f442a5861f102963824647f3dc6fc",
+      "marcas": {
+        "cartera_inversionistas_estado_fn": false,
+        "postventa_estado_fn": false,
+        "cartera_inversionistas_fn": false,
+        "inversionista_ficha_fn": false,
+        "escritura_habilitada": false,
+        "refetchOnMount": false
+      }
+    }
+  ]
+}

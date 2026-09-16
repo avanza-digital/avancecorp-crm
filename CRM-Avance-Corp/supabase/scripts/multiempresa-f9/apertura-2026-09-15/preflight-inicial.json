@@ -1,0 +1,2172 @@
+{
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "corte": "2026-09-16T00:30:09.973047+00:00",
+  "equipo": [
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "0705094c-42f4-4f25-8f5e-0ce215213d29",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "supervisor",
+      "perfil_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "1de5eba1-e6bb-435d-9eff-74286e881d01",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "1f22b1e3-9b75-4bab-bb41-433964c25e56",
+      "rol_portal": "comercial",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "244439ac-dbc7-4d27-91d1-941c5dbc6dd5",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "2ec5954f-0490-44f2-87cd-af6210f3426f",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "supervisor",
+      "perfil_id": "3a4f3c2a-271d-478c-8625-16225e932c46",
+      "rol_portal": "comercial",
+      "auth_vigente": true,
+      "supervisor_id": null
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "76b76c37-e2c2-427c-9196-fdbf6a663986",
+      "rol_portal": "comercial",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "7c124080-c310-40d3-b245-794657852968",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "coordinador",
+      "perfil_id": "8821227a-add2-4e75-83bc-8f7c30070062",
+      "rol_portal": "comercial",
+      "auth_vigente": true,
+      "supervisor_id": null
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "94f6d213-2037-4df6-af06-42816326a0bd",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "ad36b962-5175-4e4e-b644-e546897c3a85",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "b1943c83-ffa1-4693-806a-eb2aaacd72a3",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "bed9fc40-cb59-4264-9ce2-84c78364a332",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "gerencia",
+      "perfil_id": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127",
+      "rol_portal": "superadmin",
+      "auth_vigente": true,
+      "supervisor_id": null
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "c7917328-6525-42d5-bb22-d8efa8755095",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "supervisor",
+      "perfil_id": "cc8b660a-49e9-49b2-a939-c12b5078911b",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    },
+    {
+      "rol_crm": "gerencia",
+      "perfil_id": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "rol_portal": "admin",
+      "auth_vigente": true,
+      "supervisor_id": null
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "fa2996d6-4d51-4316-be2e-297590b5756e",
+      "rol_portal": "analista",
+      "auth_vigente": true,
+      "supervisor_id": "cc8b660a-49e9-49b2-a939-c12b5078911b"
+    },
+    {
+      "rol_crm": "vendedor",
+      "perfil_id": "fc9c3b91-eabb-4411-81e9-3ae428298e46",
+      "rol_portal": "comercial",
+      "auth_vigente": true,
+      "supervisor_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+    }
+  ],
+  "control": {
+    "activo": true,
+    "motivo": "Piloto F8 ref:F8-20260914-01; responsable operativo declarado; ejecución administrativa Codex",
+    "revision": 1,
+    "vence_en": "2026-09-21T18:23:51.712435+00:00",
+    "inicia_en": "2026-09-14T18:23:51.712435+00:00",
+    "singleton": true,
+    "actualizado_en": "2026-09-14T18:23:51.712435+00:00",
+    "actualizado_por": "ebb19751-5976-4446-91ec-03382247d8b8"
+  },
+  "banderas": [
+    {
+      "activo": false,
+      "nombre": "ficha_360_neutral",
+      "descripcion": "F5: la Ficha 360 y Mi cartera pasan a la identidad neutral",
+      "actualizado_en": "2026-09-03T17:45:33.238658+00:00",
+      "actualizado_por": null
+    },
+    {
+      "activo": false,
+      "nombre": "inversiones_escritura",
+      "descripcion": "F4: se registran filas en crm.inversiones/inversion_titulares",
+      "actualizado_en": "2026-09-03T17:45:33.238658+00:00",
+      "actualizado_por": null
+    },
+    {
+      "activo": false,
+      "nombre": "metricas_multiempresa_sombra",
+      "descripcion": "F7: informe de Gerencia por empresa, solo lectura en sombra",
+      "actualizado_en": "2026-09-11T21:41:17.106541+00:00",
+      "actualizado_por": null
+    },
+    {
+      "activo": false,
+      "nombre": "postventa_neutral",
+      "descripcion": "Gestiones, agenda y solicitudes de postventa por persona",
+      "actualizado_en": "2026-09-10T19:34:11.438806+00:00",
+      "actualizado_por": null
+    },
+    {
+      "activo": true,
+      "nombre": "resolver_en_puertas",
+      "descripcion": "F3: las puertas de alta/conversion resuelven identidad via private.inversionista_resolver",
+      "actualizado_en": "2026-09-07T15:09:16.120943+00:00",
+      "actualizado_por": null
+    }
+  ],
+  "miembros": [
+    {
+      "activo": true,
+      "motivo": "Piloto F8 ref:F8-20260914-01; responsable operativo declarado; ejecución administrativa Codex",
+      "vence_en": "2026-09-21T18:23:51.712435+00:00",
+      "perfil_id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+      "rol_esperado": "supervisor",
+      "actualizado_en": "2026-09-14T18:23:51.712435+00:00",
+      "actualizado_por": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "habilitado_desde": "2026-09-14T18:23:51.712435+00:00"
+    },
+    {
+      "activo": true,
+      "motivo": "Piloto F8 ref:F8-20260914-01; responsable operativo declarado; ejecución administrativa Codex",
+      "vence_en": "2026-09-21T18:23:51.712435+00:00",
+      "perfil_id": "1de5eba1-e6bb-435d-9eff-74286e881d01",
+      "rol_esperado": "vendedor",
+      "actualizado_en": "2026-09-14T18:23:51.712435+00:00",
+      "actualizado_por": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "habilitado_desde": "2026-09-14T18:23:51.712435+00:00"
+    },
+    {
+      "activo": true,
+      "motivo": "Piloto F8 ref:F8-20260914-01; responsable operativo declarado; ejecución administrativa Codex",
+      "vence_en": "2026-09-21T18:23:51.712435+00:00",
+      "perfil_id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "rol_esperado": "vendedor",
+      "actualizado_en": "2026-09-14T18:23:51.712435+00:00",
+      "actualizado_por": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "habilitado_desde": "2026-09-14T18:23:51.712435+00:00"
+    },
+    {
+      "activo": true,
+      "motivo": "Piloto F8 ref:F8-20260914-01; responsable operativo declarado; ejecución administrativa Codex",
+      "vence_en": "2026-09-21T18:23:51.712435+00:00",
+      "perfil_id": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "rol_esperado": "gerencia",
+      "actualizado_en": "2026-09-14T18:23:51.712435+00:00",
+      "actualizado_por": "ebb19751-5976-4446-91ec-03382247d8b8",
+      "habilitado_desde": "2026-09-14T18:23:51.712435+00:00"
+    }
+  ],
+  "triggers": [
+    {
+      "tabla": "crm.multiempresa_flags",
+      "funcion": "private.log_audit_crm()",
+      "trigger": "CREATE TRIGGER trg_audit_multiempresa_flags AFTER INSERT OR DELETE OR UPDATE ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()"
+    },
+    {
+      "tabla": "crm.multiempresa_flags",
+      "funcion": "private.trg_multiempresa_flags_serializa_puertas()",
+      "trigger": "CREATE TRIGGER trg_multiempresa_flags_00_serializa_puertas BEFORE UPDATE OF activo ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.trg_multiempresa_flags_serializa_puertas()"
+    },
+    {
+      "tabla": "crm.multiempresa_flags",
+      "funcion": "private.trg_multiempresa_flags_bloquear_piloto_f8()",
+      "trigger": "CREATE TRIGGER trg_multiempresa_flags_01_bloquear_piloto_f8 BEFORE INSERT OR UPDATE ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.trg_multiempresa_flags_bloquear_piloto_f8()"
+    },
+    {
+      "tabla": "crm.multiempresa_flags",
+      "funcion": "private.set_actualizado_en_crm()",
+      "trigger": "CREATE TRIGGER trg_multiempresa_flags_touch BEFORE UPDATE ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.set_actualizado_en_crm()"
+    },
+    {
+      "tabla": "crm.piloto_f8_control",
+      "funcion": "private.log_audit_crm()",
+      "trigger": "CREATE TRIGGER trg_audit_piloto_f8_control AFTER INSERT OR DELETE OR UPDATE ON crm.piloto_f8_control FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()"
+    },
+    {
+      "tabla": "crm.piloto_f8_control",
+      "funcion": "private.trg_piloto_f8_control_validar()",
+      "trigger": "CREATE TRIGGER trg_piloto_f8_control_00_validar BEFORE DELETE OR UPDATE ON crm.piloto_f8_control FOR EACH ROW EXECUTE FUNCTION private.trg_piloto_f8_control_validar()"
+    },
+    {
+      "tabla": "crm.piloto_f8_miembros",
+      "funcion": "private.log_audit_crm()",
+      "trigger": "CREATE TRIGGER trg_audit_piloto_f8_miembros AFTER INSERT OR DELETE OR UPDATE ON crm.piloto_f8_miembros FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()"
+    },
+    {
+      "tabla": "crm.piloto_f8_miembros",
+      "funcion": "private.trg_piloto_f8_miembros_controlar()",
+      "trigger": "CREATE TRIGGER trg_piloto_f8_miembros_00_controlar BEFORE INSERT OR DELETE OR UPDATE ON crm.piloto_f8_miembros FOR EACH ROW EXECUTE FUNCTION private.trg_piloto_f8_miembros_controlar()"
+    }
+  ],
+  "catalogo": {
+    "base": "postgres",
+    "corte": "2026-09-16T00:31:43.742228+00:00",
+    "metodo": "Catálogo PostgreSQL: definiciones/ACL y columnas/restricciones tocadas",
+    "tablas": [
+      {
+        "tabla": "crm.conversion_reservas",
+        "columnas": [
+          {
+            "tipo": "uuid",
+            "nombre": "id",
+            "default": "gen_random_uuid()",
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "lead_id",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "reservado_por",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "reservado_en",
+            "default": "now()",
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "expira_en",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "efectos_iniciados_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "vence_absoluto_en",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "inversionista_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "claim_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "hash_payload",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "jsonb",
+            "nombre": "condiciones_tasa",
+            "default": null,
+            "not_null": false
+          }
+        ],
+        "restricciones": [
+          {
+            "nombre": "conversion_reservas_inversionista_id_fkey",
+            "definicion": "FOREIGN KEY (inversionista_id) REFERENCES crm.inversionistas(id)"
+          },
+          {
+            "nombre": "conversion_reservas_lead_id_fkey",
+            "definicion": "FOREIGN KEY (lead_id) REFERENCES crm.leads(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "conversion_reservas_lead_id_key",
+            "definicion": "UNIQUE (lead_id)"
+          },
+          {
+            "nombre": "conversion_reservas_pkey",
+            "definicion": "PRIMARY KEY (id)"
+          },
+          {
+            "nombre": "conversion_reservas_reservado_por_fkey",
+            "definicion": "FOREIGN KEY (reservado_por) REFERENCES public.perfiles(id) ON DELETE RESTRICT"
+          }
+        ]
+      },
+      {
+        "tabla": "crm.solicitudes_tasa",
+        "columnas": [
+          {
+            "tipo": "uuid",
+            "nombre": "id",
+            "default": "gen_random_uuid()",
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "politica_id",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "cliente_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "categoria",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "contrato_origen_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "contrato_origen_numero",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "producto_condicion_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "numeric",
+            "nombre": "capital",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "moneda",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "modalidad",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "tipo_interes",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "date",
+            "nombre": "fecha_inicio",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "date",
+            "nombre": "fecha_vencimiento",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "huella",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "numeric",
+            "nombre": "tasa_base",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "regla_base",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "integer",
+            "nombre": "contratos_previos",
+            "default": "0",
+            "not_null": true
+          },
+          {
+            "tipo": "boolean",
+            "nombre": "prioridad_bandeja",
+            "default": "false",
+            "not_null": true
+          },
+          {
+            "tipo": "numeric",
+            "nombre": "tasa_solicitada",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "motivo",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "estado",
+            "default": "'pendiente'::text",
+            "not_null": true
+          },
+          {
+            "tipo": "numeric",
+            "nombre": "tasa_maxima_autorizada",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "motivo_resolucion",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "solicitada_por",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "solicitada_en",
+            "default": "statement_timestamp()",
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "vence_en",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "resuelta_por",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "resuelta_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "respondida_por_analista_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "motivo_analista",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "consumida_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "contrato_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "actualizado_en",
+            "default": "statement_timestamp()",
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "lead_id",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "huella_preconversion",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "documento_lead",
+            "default": null,
+            "not_null": false
+          }
+        ],
+        "restricciones": [
+          {
+            "nombre": "solicitudes_tasa_capital_check",
+            "definicion": "CHECK (((capital >= (100)::numeric) AND (capital <= (100000000)::numeric)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_categoria_check",
+            "definicion": "CHECK ((categoria = ANY (ARRAY['nuevo'::text, 'renovacion'::text, 'upgrade'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_cliente_id_fkey",
+            "definicion": "FOREIGN KEY (cliente_id) REFERENCES public.perfiles(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "solicitudes_tasa_contratos_previos_check",
+            "definicion": "CHECK ((contratos_previos >= 0))"
+          },
+          {
+            "nombre": "solicitudes_tasa_estado_check",
+            "definicion": "CHECK ((estado = ANY (ARRAY['pendiente'::text, 'aprobada'::text, 'aprobada_con_tope'::text, 'rechazada'::text, 'aceptada_por_analista'::text, 'declinada_por_analista'::text, 'consumida'::text, 'vencida'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_estado_coherente",
+            "definicion": "CHECK (\nCASE estado\n    WHEN 'pendiente'::text THEN ((resuelta_por IS NULL) AND (tasa_maxima_autorizada IS NULL) AND (respondida_por_analista_en IS NULL) AND (consumida_en IS NULL))\n    WHEN 'rechazada'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada IS NULL) AND (consumida_en IS NULL))\n    WHEN 'aprobada'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada = tasa_solicitada) AND (consumida_en IS NULL))\n    WHEN 'aprobada_con_tope'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada < tasa_solicitada) AND (respondida_por_analista_en IS NULL) AND (consumida_en IS NULL))\n    WHEN 'aceptada_por_analista'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada < tasa_solicitada) AND (respondida_por_analista_en IS NOT NULL) AND (consumida_en IS NULL))\n    WHEN 'declinada_por_analista'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada < tasa_solicitada) AND (respondida_por_analista_en IS NOT NULL) AND (consumida_en IS NULL))\n    WHEN 'consumida'::text THEN ((resuelta_por IS NOT NULL) AND (tasa_maxima_autorizada IS NOT NULL) AND (consumida_en IS NOT NULL) AND (contrato_id IS NOT NULL))\n    WHEN 'vencida'::text THEN (consumida_en IS NULL)\n    ELSE false\nEND)"
+          },
+          {
+            "nombre": "solicitudes_tasa_lead_id_fkey",
+            "definicion": "FOREIGN KEY (lead_id) REFERENCES crm.leads(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "solicitudes_tasa_modalidad_check",
+            "definicion": "CHECK ((modalidad = ANY (ARRAY['mensual'::text, 'trimestral'::text, 'semestral'::text, 'anual'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_moneda_check",
+            "definicion": "CHECK ((moneda = ANY (ARRAY['PEN'::text, 'USD'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_motivo_analista_check",
+            "definicion": "CHECK (((motivo_analista IS NULL) OR ((length(btrim(motivo_analista)) >= 1) AND (length(btrim(motivo_analista)) <= 500))))"
+          },
+          {
+            "nombre": "solicitudes_tasa_motivo_check",
+            "definicion": "CHECK (((length(btrim(motivo)) >= 5) AND (length(btrim(motivo)) <= 500)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_motivo_resolucion_check",
+            "definicion": "CHECK (((motivo_resolucion IS NULL) OR ((length(btrim(motivo_resolucion)) >= 1) AND (length(btrim(motivo_resolucion)) <= 500))))"
+          },
+          {
+            "nombre": "solicitudes_tasa_nadie_se_aprueba",
+            "definicion": "CHECK (((resuelta_por IS NULL) OR (resuelta_por <> solicitada_por)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_origen_por_categoria",
+            "definicion": "CHECK ((((categoria = 'nuevo'::text) AND (contrato_origen_id IS NULL)) OR ((categoria <> 'nuevo'::text) AND (contrato_origen_id IS NOT NULL))))"
+          },
+          {
+            "nombre": "solicitudes_tasa_pkey",
+            "definicion": "PRIMARY KEY (id)"
+          },
+          {
+            "nombre": "solicitudes_tasa_plazo",
+            "definicion": "CHECK ((fecha_vencimiento > fecha_inicio))"
+          },
+          {
+            "nombre": "solicitudes_tasa_politica_id_fkey",
+            "definicion": "FOREIGN KEY (politica_id) REFERENCES crm.politica_rentabilidad(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "solicitudes_tasa_regla_base_check",
+            "definicion": "CHECK ((regla_base = ANY (ARRAY['primera_inversion'::text, 'heredada_renovacion'::text, 'heredada_upgrade'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_resuelta_por_fkey",
+            "definicion": "FOREIGN KEY (resuelta_por) REFERENCES public.perfiles(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "solicitudes_tasa_solicitada_por_fkey",
+            "definicion": "FOREIGN KEY (solicitada_por) REFERENCES public.perfiles(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "solicitudes_tasa_solo_eleva",
+            "definicion": "CHECK ((tasa_solicitada > tasa_base))"
+          },
+          {
+            "nombre": "solicitudes_tasa_sujeto",
+            "definicion": "CHECK (((cliente_id IS NOT NULL) OR (lead_id IS NOT NULL)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_tasa_base_check",
+            "definicion": "CHECK (((tasa_base > (0)::numeric) AND (tasa_base <= (50)::numeric)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_tasa_maxima_autorizada_check",
+            "definicion": "CHECK (((tasa_maxima_autorizada IS NULL) OR ((tasa_maxima_autorizada > (0)::numeric) AND (tasa_maxima_autorizada <= (50)::numeric) AND (scale(tasa_maxima_autorizada) <= 2))))"
+          },
+          {
+            "nombre": "solicitudes_tasa_tasa_solicitada_check",
+            "definicion": "CHECK (((tasa_solicitada > (0)::numeric) AND (tasa_solicitada <= (50)::numeric) AND (scale(tasa_solicitada) <= 2)))"
+          },
+          {
+            "nombre": "solicitudes_tasa_tipo_interes_check",
+            "definicion": "CHECK ((tipo_interes = ANY (ARRAY['simple'::text, 'compuesto'::text])))"
+          },
+          {
+            "nombre": "solicitudes_tasa_tope_en_rango",
+            "definicion": "CHECK (((tasa_maxima_autorizada IS NULL) OR ((tasa_maxima_autorizada > tasa_base) AND (tasa_maxima_autorizada <= tasa_solicitada))))"
+          },
+          {
+            "nombre": "solicitudes_tasa_vence_despues",
+            "definicion": "CHECK ((vence_en > solicitada_en))"
+          }
+        ]
+      },
+      {
+        "tabla": "private.contrato_pdf_jobs",
+        "columnas": [
+          {
+            "tipo": "uuid",
+            "nombre": "id",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "contrato_id",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "estado",
+            "default": "'pendiente'::text",
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "storage_bucket",
+            "default": "'contratos-generados'::text",
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "storage_path",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "nombre_archivo",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "template_version",
+            "default": "'contrato-aep-17-v9'::text",
+            "not_null": true
+          },
+          {
+            "tipo": "jsonb",
+            "nombre": "snapshot",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "text",
+            "nombre": "sha256",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "bigint",
+            "nombre": "bytes",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "solicitado_por",
+            "default": null,
+            "not_null": true
+          },
+          {
+            "tipo": "integer",
+            "nombre": "intentos",
+            "default": "0",
+            "not_null": true
+          },
+          {
+            "tipo": "uuid",
+            "nombre": "lease_token",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "lease_expira_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "text",
+            "nombre": "ultimo_error",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "creado_en",
+            "default": "statement_timestamp()",
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "actualizado_en",
+            "default": "statement_timestamp()",
+            "not_null": true
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "subido_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "timestamp with time zone",
+            "nombre": "sellado_en",
+            "default": null,
+            "not_null": false
+          },
+          {
+            "tipo": "integer",
+            "nombre": "revision",
+            "default": "1",
+            "not_null": true
+          }
+        ],
+        "restricciones": [
+          {
+            "nombre": "contrato_pdf_jobs_bucket_valido",
+            "definicion": "CHECK ((storage_bucket = 'contratos-generados'::text))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_bytes_pareados",
+            "definicion": "CHECK ((((sha256 IS NULL) AND (bytes IS NULL)) OR ((sha256 ~ '^[a-f0-9]{64}$'::text) AND (bytes > 0) AND (bytes <= 10485760))))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_contrato_id_fkey",
+            "definicion": "FOREIGN KEY (contrato_id) REFERENCES public.contratos(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_estado_valido",
+            "definicion": "CHECK ((estado = ANY (ARRAY['pendiente'::text, 'procesando'::text, 'subido_verificado'::text, 'sellado'::text, 'error_reintentable'::text, 'integridad_bloqueada'::text])))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_intentos_valido",
+            "definicion": "CHECK ((intentos >= 0))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_lease_coherente",
+            "definicion": "CHECK ((((estado = ANY (ARRAY['procesando'::text, 'subido_verificado'::text])) AND (lease_token IS NOT NULL) AND (lease_expira_en IS NOT NULL)) OR ((estado <> ALL (ARRAY['procesando'::text, 'subido_verificado'::text])) AND (lease_token IS NULL) AND (lease_expira_en IS NULL))))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_nombre_valido",
+            "definicion": "CHECK (((nombre_archivo = btrim(nombre_archivo)) AND ((length(nombre_archivo) >= 5) AND (length(nombre_archivo) <= 255)) AND (nombre_archivo ~* '\\.pdf$'::text)))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_pkey",
+            "definicion": "PRIMARY KEY (id)"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_revision_unica",
+            "definicion": "UNIQUE (contrato_id, revision)"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_revision_valida",
+            "definicion": "CHECK ((revision > 0))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_ruta_server_side",
+            "definicion": "CHECK ((storage_path = ((((contrato_id)::text || '/v2/'::text) || (id)::text) || '/contrato.pdf'::text)))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_sello_coherente",
+            "definicion": "CHECK ((((estado = 'sellado'::text) AND (sellado_en IS NOT NULL)) OR ((estado <> 'sellado'::text) AND (sellado_en IS NULL))))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_snapshot_objeto",
+            "definicion": "CHECK ((jsonb_typeof(snapshot) = 'object'::text))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_solicitado_por_fkey",
+            "definicion": "FOREIGN KEY (solicitado_por) REFERENCES public.perfiles(id) ON DELETE RESTRICT"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_subida_coherente",
+            "definicion": "CHECK ((((estado = ANY (ARRAY['pendiente'::text, 'procesando'::text])) AND (sha256 IS NULL) AND (bytes IS NULL) AND (subido_en IS NULL)) OR ((estado = ANY (ARRAY['subido_verificado'::text, 'sellado'::text])) AND (sha256 IS NOT NULL) AND (bytes IS NOT NULL) AND (subido_en IS NOT NULL)) OR (estado = ANY (ARRAY['error_reintentable'::text, 'integridad_bloqueada'::text]))))"
+          },
+          {
+            "nombre": "contrato_pdf_jobs_template_valido",
+            "definicion": "CHECK ((template_version = ANY (ARRAY['contrato-aep-17-v2'::text, 'contrato-aep-17-v3'::text, 'contrato-aep-17-v4'::text, 'contrato-aep-17-v5'::text, 'contrato-aep-17-v6'::text, 'contrato-aep-17-v7'::text, 'contrato-aep-17-v8'::text, 'contrato-aep-17-v9'::text])))"
+          }
+        ]
+      }
+    ],
+    "funciones": [
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.abandonar_conversion_gerencia_fn(uuid,text)",
+        "huella": "d268d96dfac732e0fe045c1f4b47784a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.acceso_inversion_fn(uuid,text,jsonb)",
+        "huella": "02cf922aff3aa75e86a09d2c53d328fc",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.actualizar_borrador_producto_inversion(uuid,bigint,text,text,date,date,jsonb)",
+        "huella": "59872a0a3db61884cc36a2820a83315a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.actualizar_contrato_con_cuenta_pdf_v3(uuid,jsonb,jsonb)",
+        "huella": "2315bb59725e3366fff1a7e04ce0fbad",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+        "huella": "956fb5f32191291d4b7ebafce5abbdb1",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)",
+        "huella": "0d393f49dad1d1539e0a94e734e529b2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+        "huella": "1d884ef9f60a55dd4d0613a256e3ea71",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.actualizar_numero_contrato_pdf_v3(uuid,text,text,text)",
+        "huella": "e4f9db0d219d794d658de6ebfe6ec2f4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.alta_cliente_identidad_fn(text,jsonb)",
+        "huella": "2d3a058e674281c8e59906897800ddaf",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.archivar_producto_inversion(uuid,bigint)",
+        "huella": "3d7fe5c6b67cbd3da66515b3cc178788",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.atribucion_contrato_fn(uuid)",
+        "huella": "02ad7d7247859fcf9e2c1ece9e2bc22e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.cartera_inversionistas_estado_fn()",
+        "huella": "83575873409d51508753fa6405ffcc92",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.cartera_inversionistas_fn(integer,integer,text,text,uuid,boolean)",
+        "huella": "e02e89b5a920c8388d77a01c07f13198",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.cerrar_periodo(date)",
+        "huella": "9efc07b35e9b34fdb8d84e9bad019d8e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.conciliar_cotitulares_inversion_fn(uuid)",
+        "huella": "c590acb717f98bc458eb4790e99ebee0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.confirmar_inversion_fn(uuid)",
+        "huella": "e69358303d4b6220354460965179c28d",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.confirmar_inversion_revisada_fn(uuid,integer)",
+        "huella": "8ab0be625fecb7916de44286425c0688",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_eliminacion_finalizar(uuid,uuid,uuid)",
+        "huella": "5e398eaff1aef4a557e7ebb31d19fcf0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_eliminacion_preparar(uuid,uuid)",
+        "huella": "af442522c5e04ea7556c5d3e2ec25c22",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.contrato_pdf_archivo_fn(uuid)",
+        "huella": "348ecc21bdd661bbc1b2868b4f2c75c0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.contrato_pdf_estado_fn(uuid)",
+        "huella": "29686f2ade933bd1b543c986aa0b7c63",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_pdf_finalizar(uuid,uuid,uuid)",
+        "huella": "c10114e0a51dd31e1ccced7f6b078de9",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_pdf_marcar_error(uuid,uuid,uuid,text)",
+        "huella": "8140745f9020819046d8bba4f847cb30",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_pdf_marcar_subido(uuid,uuid,uuid,text,bigint)",
+        "huella": "6a2dda7df305f7476dc50d62d6989ef4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_pdf_reclamar(uuid,uuid,integer)",
+        "huella": "c990f5c3293c2ac1f4857ece6db21a31",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contrato_pdf_reservar(uuid,uuid)",
+        "huella": "47948ead54e7a1440ca5545db8703015",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.contrato_pdf_snapshot_v2(uuid)",
+        "huella": "3fbb99ab42a1bc991d6b4fb6c0ab82bc",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contratos_cartera_fn()",
+        "huella": "afa02c967897b50312d1a963deed0d44",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.contratos_cartera_v2_fn()",
+        "huella": "0543dfd4fbbc933d5fdea1cf8385a527",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.contratos_por_periodo_comercial_fn(date)",
+        "huella": "c5a98dc8879b519b9a094c50b45a9f01",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "crm.conversion_mensual_fn(date)",
+        "huella": "e8b7bbfa62e46bcd5a680a9a5996a8d0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.conversion_mensual_sin_cartera_fn(date)",
+        "huella": "e2e2bf8fe3c71620a3db01de3cddc33b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)",
+        "huella": "45077ddc61bd59ab5f435116de292b05",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.corregir_solicitud_inversion_fn(uuid,uuid,integer,jsonb,text)",
+        "huella": "3de3d2689706371cdc46f0a29836cb5c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)",
+        "huella": "4fc1e308a8b1c263543c2b9271da5af7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.crear_contrato_con_cuenta_producto(uuid,jsonb,jsonb,jsonb)",
+        "huella": "a93f2db825cc26c19b1756cde0cdc435",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)",
+        "huella": "e52e632b340992c18d09e8aad18ed67e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "crm.crear_contrato_producto(uuid,jsonb,jsonb)",
+        "huella": "230bcc46e72191600cbd5fc789e1d503",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.crear_producto_inversion(text,text,text,date,date,jsonb)",
+        "huella": "c279922e69c4ecd6f5143ba8db84d22a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.crear_version_producto_inversion(uuid,bigint,text,text,date,date,jsonb)",
+        "huella": "170e159ee8510e3686997ac892005c57",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.cronograma_contrato_fn(uuid)",
+        "huella": "9f4c6690ed029325aed51b403d864a03",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.cuentas_pago_contratos_fn(uuid[])",
+        "huella": "f23628fcf32fe934ff3507cd600ccfb4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.datos_legales_contrato_fn(uuid)",
+        "huella": "7eab5cd09d1b90075e692cbd822d2d27",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.enlazar_lead_inversionista_fn(uuid,uuid,text)",
+        "huella": "1159aa8443c117c8c9384a2bcf17ae2b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.fusionar_inversionistas_fn(uuid,uuid,text,text)",
+        "huella": "6919e7ce8960f7d985ac03ba033c347e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.inversion_cotitulares_fn(uuid)",
+        "huella": "8bdd331bd4269ee0986aeec6ab2e1916",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.inversionista_cuentas_fn(uuid,uuid,text)",
+        "huella": "bfd1f198a4e05440ea57f6344ac1c78b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.inversionista_documento_fn(uuid,uuid,uuid)",
+        "huella": "18db225353031f1afc67a8263c281494",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.inversionista_ficha_fn(uuid,integer,integer)",
+        "huella": "d0c6543bc7226e027fb8364f137fd02a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.marcar_efectos_conversion(uuid,uuid,text)",
+        "huella": "667f74f36e2e3549da698cae9d504abb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.marcar_efectos_conversion(uuid)",
+        "huella": "cd960688f464e22413145d79d145c2a7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.metricas_capital_mes_fn(integer)",
+        "huella": "c872d4be13e8284a64e70861318cb9be",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.metricas_conversiones_equipo_fn(date,date)",
+        "huella": "d67db4c1204456b57d3271d6c94064b6",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.metricas_conversiones_fn(date,date,text)",
+        "huella": "5edb160355011bd0485661485c9317df",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_agenda_fn()",
+        "huella": "f8d4c94e9449698ab5f4e7cb0830ada7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_agendar_fn(uuid,uuid,jsonb,uuid)",
+        "huella": "3790f449478658f2123ba17ac92aec42",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_estado_fn()",
+        "huella": "2d1e2176a210fae2ec12215447ea8c0f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_ficha_fn(uuid)",
+        "huella": "062772ac595c41ac0b8954c905e9a766",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_operacion_estado_fn(uuid,uuid)",
+        "huella": "321a87610ae92f72c31295bac6d31b15",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_perfil_fn(uuid)",
+        "huella": "f744ef782b3c6ebd8cb9fc6e26da3a42",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_revisar_retiro_fn(uuid,uuid,integer,text,text,uuid)",
+        "huella": "30eea9da64b76a5e3f5191742a30c3ad",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_solicitar_retiro_fn(uuid,uuid,uuid,text,uuid)",
+        "huella": "ce0233044e4907ecc9d4e15909ddd96b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_tarea_fn(uuid,uuid,integer,text,jsonb,uuid)",
+        "huella": "ff93c7f9d4193c65848e82412d11abe2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_vencimientos_fn(text,integer)",
+        "huella": "d8d3aa51705748888e5dfffc347f98ee",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.postventa_veto_fn(uuid,uuid,boolean,text,uuid)",
+        "huella": "aa3a6876ef18c7d7c90df9da0ae6317f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.preparar_inversion_fn(uuid,jsonb)",
+        "huella": "ae1611fabfeb20c665b370c160abecf6",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.preparar_reinversion_fn(uuid,uuid,jsonb)",
+        "huella": "db317253d25bc9115d28bfb388be02a7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.productos_inversion_gestion_fn()",
+        "huella": "e37a49397aa300008ab405142e959357",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.productos_inversion_seleccion_fn()",
+        "huella": "fdf56b94aa5fbde4b47a2bf2e7bb841e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.publicar_version_producto_inversion(uuid,bigint)",
+        "huella": "c15d37eda6471923d104d7a3b98a9791",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.reasignar_responsable_relacion_fn(uuid,uuid,text)",
+        "huella": "8d5f2dc4630ba00bf5dc26d7cbef82a8",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.reservar_conversion_lead_tasa_fn(uuid,jsonb)",
+        "huella": "beb01ae0c24589b9ed80a5b4f5c7ad66",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.reservar_conversion_lead(uuid,text,text,jsonb)",
+        "huella": "2cab0b99fcccc812314b28f9046239c2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.reservar_conversion_lead(uuid)",
+        "huella": "d408a22334cf70e5cb805d1e3b83b749",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.retomar_conversion_gerencia_fn(uuid)",
+        "huella": "3bd9ba15e2aba2848eacf95d18a48bc4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.revisar_solicitud_inversion_fn(uuid,uuid,integer,text)",
+        "huella": "7132ea4a4e4bf5edfd07ccfa191a3cb5",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.saga_conversion_fn(text,jsonb)",
+        "huella": "d744ebe8d9b6ccf00342201d886bd945",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.solicitud_inversion_fn(uuid)",
+        "huella": "e049912bb20453eaf019363c2c09d95a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.titulares_contrato_fn(uuid)",
+        "huella": "dd6b39dfb373a9e4e9e15a8330c94585",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.asegurar_identidad_perfil(uuid,text)",
+        "huella": "c7969b5762619a67be2e8dd547e4c6de",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.bloquear_contratos_hijo_documental(uuid,uuid)",
+        "huella": "ca0d6dae824474c5c9055311d32429f5",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.bloquear_fila_contrato_pdf(uuid)",
+        "huella": "b0f32dd001b7afaf7449a7eb49a157bb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.bloquear_mutacion_contrato_pdf()",
+        "huella": "b73c21e08421501d9c324e5d4ee84732",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.capital_autorizada(date,date,text)",
+        "huella": "ca5ff42cefa7a9d87a615883fb358b43",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])",
+        "huella": "c9e58c1da9dd7a5d52991c9e47dc19d5",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_exigir()",
+        "huella": "8f8a157081f5dbfec57cd979c255bea7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_fuentes_reales()",
+        "huella": "21406e2362a2d2cb35622633467911d4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_fuentes()",
+        "huella": "94fa33cfcca657f70a1a94f98c3bf482",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_personas_visibles()",
+        "huella": "0d7aee4cf344e3e81e6f77f060075d5e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_personas_visibles(uuid)",
+        "huella": "f99c0aaec6e676061c1c53940729b822",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cartera_f5_registrar(text,uuid)",
+        "huella": "cb582fee5d825ced90281e9a3d9b8b71",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_documental_congelado(uuid)",
+        "huella": "a3e9b19959f0c0d6c02681c928d8d464",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_documental_regimen(uuid)",
+        "huella": "0bd655cf8d60bd5aa43f52f2527c4f84",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_en_eliminacion(uuid)",
+        "huella": "a359830b9cc889532d6aa31036d8eb8f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_pdf_archivo_base(uuid)",
+        "huella": "d6644e3964f1d9d5423c718ca1fcbe10",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_pdf_estado_base(uuid)",
+        "huella": "b3f07e0017a0564f042d0053cdd9ba81",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contrato_pdf_snapshot_v2_base(uuid)",
+        "huella": "6f187b3cafc2090cc0bd19603d1f101c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.contratos_afectados_por_anulacion(uuid)",
+        "huella": "efbe1fbb1ceb1a1bb8b5d5c03baf3897",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_cierres(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric,uuid[])",
+        "huella": "2898d61d586704a79249ff6cc18bdf22",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_con_ajuste(numeric,numeric)",
+        "huella": "f6fef6c10958ea0a0e193a4e31b2f253",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+        "huella": "851a5b9e70bc97b9664f5fd38a9c41c4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_mensual_pct_para_series(date)",
+        "huella": "edba2730bb493ecb83323c9ba6697fda",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_mensual_por_vendedor(timestamp with time zone,timestamp with time zone,boolean,uuid[],numeric)",
+        "huella": "bbbf7c29e7fcf90945a0735bdc4ea25c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.conversion_punteria(integer,integer)",
+        "huella": "9ac93512dc0a46d92fd4c368e55ff46c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.coopac_validar_condiciones(date,integer,numeric)",
+        "huella": "10ad4aaf7e96013a50273fd1ac47f5b7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.crear_job_contrato_pdf_base(uuid,uuid)",
+        "huella": "9a9c18303271d4c8e0bb7510449ed64d",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.crear_revision_contrato_pdf_base(uuid,uuid)",
+        "huella": "4c59f8da32c295dfe9b5e2fbf842c6b2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.definir_periodo_comercial_contrato()",
+        "huella": "e46146ce46b1876d4d1b86a1912a669b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.documento_es_de_identidad(uuid,text,text)",
+        "huella": "724c4c781b1ed289a5320ab6c9d2eea8",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "private.es_lector_global()",
+        "huella": "c8be602f84348a0125617995802db618",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.exigir_sin_conversion_tasa(uuid,uuid)",
+        "huella": "4d758f135a7957fd169c2c8dccfb8257",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.f4_contrato_reconocer()",
+        "huella": "b73f3e61366b1b93f7be8258bd364b3f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.f4_contrato_vincular()",
+        "huella": "bf2739e0311c0766868a249ea6408760",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.identidad_bloquear_documento(text,text)",
+        "huella": "9c08b500af7bc11aeba5e0e7d3a63330",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.identidad_bloquear_documentos_de(uuid[])",
+        "huella": "81dffba49b46f2defc723e53a9a96d67",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.identidad_bloquear_persona(text,text)",
+        "huella": "216ce14e8a901c378da55cd9ded77a7a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.identidad_documentos_vigentes_cantidad(uuid,text)",
+        "huella": "801485a9b42f3605eb87ebe6d30a5fa0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_cotitular_estado(uuid)",
+        "huella": "c9d5903ba6d2e7ecdc241f5fc683059c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_cotitulares_historicos(uuid)",
+        "huella": "69e2079b2e269cd9fb6cc50470a1dc87",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_cotitulares_vincular(uuid,text)",
+        "huella": "b12325e29c1c17191abdc9645a56a20a",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_datos_portal(jsonb)",
+        "huella": "170faaab19c7cc78e187909ffe039adb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_historica_aplicar(uuid,jsonb)",
+        "huella": "a33595d4ac8c2c12ad6fcf9463db605e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_historica_estado(text,uuid)",
+        "huella": "2b57432c993eaa8e1599bf874427b743",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_persona_autorizada(uuid)",
+        "huella": "215503bf4d84c10e0662c014dddd9780",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_persona_contexto(uuid)",
+        "huella": "3b950c0ed8f4faa07695bc8ea05d3f17",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_solicitud_resultado(uuid,jsonb)",
+        "huella": "5f561ade14f05b43ce04edee2c8bc53f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_titular_coherente()",
+        "huella": "091a94211146b0826e4e66afeeb16ac6",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_validar_datos(uuid,jsonb,jsonb)",
+        "huella": "96b4e342df9cc08a875bac34ca17a829",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversion_vincular_fuente(uuid,uuid,uuid,uuid,boolean)",
+        "huella": "a05cc3b655d508fa1831b101632bd1f7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversiones_empresa_coherente()",
+        "huella": "4873bebdf14f507e7f9200aa5b676b7f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversiones_escritura_bajo_candado()",
+        "huella": "2122bbf3b22996f2e8373081a259db9b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_canonica(uuid)",
+        "huella": "34702897135078893b7d3a726b0c1816",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_fusion_destino_activo()",
+        "huella": "861f359c23ab031945f4bad75f8dc3a7",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_fusiones_append_only()",
+        "huella": "190f193d2f432d58303b0648caf53bc9",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_operaciones_append_only()",
+        "huella": "909d41d42674ccb6775597fd4235ebca",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_por_documento(text,text)",
+        "huella": "5b254a86ed5b503768ef5fe4485f553f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.inversionista_resolver(text,text,boolean,text)",
+        "huella": "95d502fcae257bf2a439ec3e4aa6a2dc",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.leads_de_identidades(uuid[])",
+        "huella": "2421b2b78b02b8e93fd01598e2f54128",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.leads_protege_inversionista_id()",
+        "huella": "6151f6d4da6c80fc62ad7f131ea398a4",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.metricas_conversiones_implementacion(date,date,text)",
+        "huella": "a7bbf47ebc9e03a1ec67cf4088152382",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.nombre_archivo_contrato_pdf(uuid)",
+        "huella": "7b50e04c7ddb7588f2b9b312724593c9",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.persona_en_conversion(uuid,uuid)",
+        "huella": "cc7e1e046a8affebe19ab1166d4b96cd",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.peso_referido_conversion(date)",
+        "huella": "3a80775b21767839e524880d419689f3",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.piloto_f8_actor_activo(uuid)",
+        "huella": "1b61c0ce38a4c9e71b8cc9bb92441b93",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.piloto_f8_control_activo()",
+        "huella": "b2b02a24f879f6cc3cdc6fe5bb0317ad",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.piloto_f8_modo_activo()",
+        "huella": "5884ee282aa39cd2b9c6c0928bd231d2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.poder_eliminar_contrato_como(uuid,uuid)",
+        "huella": "cc4adb0d3edadbc6677491a087f37b56",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_cambio_persona()",
+        "huella": "af8326c41d6de88cd95eb1c5ffd52670",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_fuente(uuid,uuid,text)",
+        "huella": "07fb5ace10e00eeedd123306d791d086",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_insertar_tarea(uuid,uuid,jsonb,uuid)",
+        "huella": "aa71b3e83c54eba81c3e95dbb46cb5fc",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_modo()",
+        "huella": "6d3ed5c34544ef824ca5f491c64e2b74",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_persona(uuid,boolean)",
+        "huella": "18e8825763383f44d5765b4a604ccf95",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_recibo(uuid,uuid,text,jsonb)",
+        "huella": "23b8da055edd1173745fdb84c7135ef6",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_reinversion_guard()",
+        "huella": "67cd2a68660ff4e71767464497c00f02",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_responder(uuid,jsonb)",
+        "huella": "435e3a9a038f32ef7a98b10a23c2dfa5",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_sincronizar(uuid)",
+        "huella": "93c834ba3d36fe516b180ba42f304e16",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_tarea_guard()",
+        "huella": "5839deb8b3381321b179457536729541",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_tarea_json(crm.tareas)",
+        "huella": "c29fd1d25ab775ecd63ab2660a847d0e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.postventa_visible_actor(uuid,uuid)",
+        "huella": "01efc27ef1752ab3f8049e9925a2cb8c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "private.postventa_visible(uuid)",
+        "huella": "94ad968d2ef91b699d5c3d98610de906",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "private.producto_inversion_tiene_version_visible(uuid)",
+        "huella": "9d4b222b7dabe0c1707f64a825941d6e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.proteger_contrato_documental()",
+        "huella": "ad8ebbb6fd6fe738195bc1c91c1a54e9",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.proteger_documento_contrato_eliminacion()",
+        "huella": "381afd79e95a7c05cce47d52979ef0d2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.proteger_job_contrato_pdf()",
+        "huella": "dc60b996c04b8c2fb6e4fef9d0758976",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.puede_gestionar_contratos_crm()",
+        "huella": "94b5fb2af92bf4187802b1f3d26659c5",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.puede_leer_contrato_pdf_como(uuid,uuid)",
+        "huella": "f4027d31663302929422e2550864b675",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.puede_leer_contrato_pdf(uuid)",
+        "huella": "1a00a0f081755fda27b46b372dad4851",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.rango_capital_pen(numeric)",
+        "huella": "dd56dfe58071ee6767677b1fd919265f",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "private.rol_crm(uuid)",
+        "huella": "99827f3fe2fbc3cfae5668c30015c758",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.siguiente_numero_contrato(integer)",
+        "huella": "aa58116f05312e54b466b0cd6cc654d1",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_contrato_cuenta_pago_coherente()",
+        "huella": "6bb72f15cf9e10a753ccd2bfdc4e0404",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_contrato_cuenta_pago_inmutable()",
+        "huella": "5fa67a1d82bf92e6f75170d37b6103ed",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_contrato_exige_operacion_cartera()",
+        "huella": "05eb8f83c80398bed044e46715763d90",
+        "propietario": "postgres"
+      },
+      {
+        "acl": null,
+        "firma": "private.trg_contratos_analista_solo_por_la_puerta()",
+        "huella": "237dff5a6520eee127aba5be067d0523",
+        "propietario": "postgres"
+      },
+      {
+        "acl": null,
+        "firma": "private.trg_contratos_demo_no_nace_marcado()",
+        "huella": "ee91262a7462c2facbb8af3e2d43d78b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": null,
+        "firma": "private.trg_contratos_demo_solo_por_la_puerta()",
+        "huella": "37651e917b240da1dd7768a927e22d32",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_contratos_observar_rentabilidad()",
+        "huella": "8bf2636ffe3a9073f31eea49dc8b3afb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_contratos_producto_snapshot()",
+        "huella": "c4c222984db5bf6232edae70b0ee19f1",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_leads_zz_enlaza_identidad()",
+        "huella": "6ea5abfcc7bc7113f62f175df4e65879",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_leads_zz_puente_identidad()",
+        "huella": "e96f21d1c58623f6c2a84e7c04683a5c",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_multiempresa_flags_bloquear_piloto_f8()",
+        "huella": "4a7a15a7c1a8df54b47e3bae751948eb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_piloto_f8_control_validar()",
+        "huella": "47585a27b991a442bb09b3477be5f224",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_piloto_f8_miembros_controlar()",
+        "huella": "67bfcb1c12ad6cc621287fc46fe266d8",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_productos_inversion_inmutables()",
+        "huella": "5744c098002fec83caf6b27b312b70b2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.trg_restaurar_operacion_antes_borrar_contrato()",
+        "huella": "ccaa7f8e007f8a4feffaf9dea5c0d435",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)",
+        "huella": "8378b2b5649682cb3c319c3b6c4a3a8e",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "public._sync_contrato_titulares(uuid,jsonb)",
+        "huella": "833f09e11e2c1289739613074b07965b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+        "huella": "c786d25a9aca26f6a818dd57abe6ef72",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+        "huella": "7128b0ebb65497e67c56d5383988b512",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "public.actualizar_contrato(uuid,jsonb,jsonb)",
+        "huella": "6184aad4be1b234db83b096e08e92428",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "public.actualizar_numero_contrato(uuid,text,text,text)",
+        "huella": "84ba035d9888b7d4b5494c82b8e04b00",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.cerrar_contrato(uuid,text,uuid)",
+        "huella": "ddd192d8885e2ed03cb11b45a20f3041",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.contrato_tiene_pagos(uuid)",
+        "huella": "32deb794457ff78b9d1affe655fec589",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "public.crear_contrato_producto(uuid,jsonb,jsonb)",
+        "huella": "58f41209f1cedf46198e7c76903f7bbb",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.crear_contrato(jsonb,jsonb)",
+        "huella": "dce8f0dd6d6776b960096c56bdc29173",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.marcar_contrato_demo(uuid,boolean,text)",
+        "huella": "8f3ebaefbf88f1edfdc15e7f5444b1c0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "firma": "public.marcar_contratos_vencidos()",
+        "huella": "445402aecf9f40e785b5923397bcb700",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.pagos_admin_resumen_contratos(text,text,text,integer,integer)",
+        "huella": "3d82e35c325ebb244f0a6db994782dd3",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "public.productos_inversion_seleccion_fn(uuid)",
+        "huella": "8f3e9a6344568345c3f848b44ebfa6a2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.proteger_cuotas_contrato_cerrado()",
+        "huella": "eae0f5c2e228ce14ce6b362fbd1ce0d8",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.puede_ver_contrato(uuid)",
+        "huella": "dc36051c4bfb1aa4e32d95d3c141e05b",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.reasignar_analista_contrato(uuid,uuid,text)",
+        "huella": "f37824754c5beb905065f47f8ef5fafe",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "firma": "public.validar_transicion_estado_contrato()",
+        "huella": "4d8048569c10ef635614143d3c147fe2",
+        "propietario": "postgres"
+      }
+    ],
+    "dependencias": [
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.cliente_tasa_lead(uuid)",
+        "huella": "75cde0857d0b4dc3b6bd0a2450479bb2",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.rentabilidad_minimo_alta(text,numeric)",
+        "huella": "16035988be07d26455c2c48f1f59c8c0",
+        "propietario": "postgres"
+      },
+      {
+        "acl": "{postgres=X/postgres}",
+        "firma": "private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)",
+        "huella": "3355d8d7eb61c4ff981f149f803e1094",
+        "propietario": "postgres"
+      }
+    ],
+    "solo_lectura": "on"
+  }
+}

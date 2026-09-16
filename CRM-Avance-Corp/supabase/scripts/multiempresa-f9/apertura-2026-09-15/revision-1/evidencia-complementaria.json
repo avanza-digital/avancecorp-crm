@@ -1,0 +1,149 @@
+{
+  "captura": "2026-09-16 01:45:31.094532+00",
+  "funciones": [
+    {
+      "firma": "private.cartera_f5_fuentes_reales()",
+      "definicion": "CREATE OR REPLACE FUNCTION private.cartera_f5_fuentes_reales()\n RETURNS TABLE(fuente_id uuid, inversionista_id uuid, inversion_id uuid, empresa text, perfil_id uuid, lead_id uuid, numero text, capital numeric, moneda text, estado text, fecha_comercial date, fecha_imputacion date, vence_en date, analista_origen_id uuid, es_inicial boolean, es_demo boolean, identidad_coherente boolean, creado_en timestamp with time zone)\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  select * from private.cartera_f5_fuentes() f where f.es_demo is not true;\n$function$\n"
+    },
+    {
+      "firma": "private.es_lector_global()",
+      "definicion": "CREATE OR REPLACE FUNCTION private.es_lector_global()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  with actor as materialized (\n    select (select auth.uid()) as uid\n  )\n  select coalesce(private.rol_crm(a.uid) = 'directorio', false)\n    or exists (\n      select 1\n      from public.perfiles p\n      where p.id = a.uid\n        and p.activo is true\n        and p.rol = 'directorio'\n        -- El fallback histórico solo aplica sin membresía. Una fila CRM\n        -- inactiva o desalineada es revocación, nunca una segunda puerta.\n        and not exists (\n          select 1 from crm.equipo e where e.perfil_id = p.id\n        )\n    )\n  from actor a;\n$function$\n"
+    },
+    {
+      "firma": "private.inversiones_escritura_bajo_candado()",
+      "definicion": "CREATE OR REPLACE FUNCTION private.inversiones_escritura_bajo_candado()\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nbegin\n  if not private.resolver_en_puertas_bajo_candado() then return false; end if;\n  perform pg_advisory_xact_lock_shared(hashtext('crm_flag_inversiones_escritura'));\n  if coalesce((select activo from crm.multiempresa_flags\n      where nombre='inversiones_escritura'),false) then\n    return true;\n  end if;\n  return private.piloto_f8_control_activo();\nend;\n$function$\n"
+    },
+    {
+      "firma": "private.postventa_modo()",
+      "definicion": "CREATE OR REPLACE FUNCTION private.postventa_modo()\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\n SET lock_timeout TO '5s'\nAS $function$\ndeclare v_f3 boolean; v_flag record; v_total integer:=0; v_global boolean:=true;\nbegin\n  v_f3:=private.resolver_en_puertas_bajo_candado();\n  for v_flag in select nombre,activo from crm.multiempresa_flags\n    where nombre in ('ficha_360_neutral','postventa_neutral')\n    order by nombre for share nowait\n  loop v_total:=v_total+1; v_global:=v_global and v_flag.activo; end loop;\n  if not v_f3 or v_total<>2 then return false; end if;\n  return v_global or private.piloto_f8_actor_activo(auth.uid());\nexception when lock_not_available then\n  raise exception 'Está cambiando la disponibilidad de postventa; vuelve a intentar'\n    using errcode='40001';\nend;\n$function$\n"
+    },
+    {
+      "firma": "private.resolver_en_puertas_bajo_candado()",
+      "definicion": "CREATE OR REPLACE FUNCTION private.resolver_en_puertas_bajo_candado()\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_aisl text := pg_catalog.current_setting('transaction_isolation');\nbegin\n  -- F2.b [D-19]. Un solo sitio para el invariante «leer la bandera implica tener su candado».\n  -- 1) READ COMMITTED obligatorio: bajo REPEATABLE READ o SERIALIZABLE la transacción vería una foto anterior al\n  --    encendido aunque el candado la hubiese hecho esperar, que es justo el error que esto viene a impedir.\n  if v_aisl <> 'read committed' then\n    raise exception 'La identidad unificada requiere READ COMMITTED (aislamiento actual: %)', v_aisl\n      using errcode = '0A000';\n  end if;\n  -- 2) El COMPARTIDO del encendido. Es de transacción: una vez tomado, el valor no puede cambiar hasta el commit, y\n  --    el UPDATE de la bandera (que toma el EXCLUSIVO por el trigger de D-5) espera a que esta llamada termine.\n  --    Reentrante: tomarlo dos veces en la misma transacción no cuesta nada.\n  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));\n  -- 3) Y ahora sí, el valor.\n  return coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);\nend;\n$function$\n"
+    }
+  ],
+  "lectores_globales": [],
+  "medicion_fuentes": [
+    {
+      "QUERY PLAN": [
+        {
+          "Plan": {
+            "Node Type": "Aggregate",
+            "Strategy": "Plain",
+            "Partial Mode": "Simple",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 101.39,
+            "Total Cost": 101.41,
+            "Plan Rows": 1,
+            "Plan Width": 48,
+            "Actual Startup Time": 95.723,
+            "Actual Total Time": 95.726,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 88.89,
+                "Total Cost": 91.39,
+                "Plan Rows": 1000,
+                "Plan Width": 170,
+                "Actual Startup Time": 81.916,
+                "Actual Total Time": 81.996,
+                "Actual Rows": 614,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "f.empresa",
+                  "f.fuente_id"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 154,
+                "Sort Space Type": "Memory",
+                "Plans": [
+                  {
+                    "Node Type": "Hash Join",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Join Type": "Left",
+                    "Startup Cost": 26.41,
+                    "Total Cost": 39.06,
+                    "Plan Rows": 1000,
+                    "Plan Width": 170,
+                    "Actual Startup Time": 80.353,
+                    "Actual Total Time": 80.852,
+                    "Actual Rows": 614,
+                    "Actual Loops": 1,
+                    "Inner Unique": true,
+                    "Hash Cond": "(f.inversionista_id = i.id)",
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Function Name": "cartera_f5_fuentes_reales",
+                        "Alias": "f",
+                        "Startup Cost": 0.25,
+                        "Total Cost": 10.25,
+                        "Plan Rows": 1000,
+                        "Plan Width": 154,
+                        "Actual Startup Time": 80.156,
+                        "Actual Total Time": 80.502,
+                        "Actual Rows": 614,
+                        "Actual Loops": 1
+                      },
+                      {
+                        "Node Type": "Hash",
+                        "Parent Relationship": "Inner",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Startup Cost": 19.96,
+                        "Total Cost": 19.96,
+                        "Plan Rows": 496,
+                        "Plan Width": 32,
+                        "Actual Startup Time": 0.189,
+                        "Actual Total Time": 0.19,
+                        "Actual Rows": 496,
+                        "Actual Loops": 1,
+                        "Hash Buckets": 1024,
+                        "Original Hash Buckets": 1024,
+                        "Hash Batches": 1,
+                        "Original Hash Batches": 1,
+                        "Peak Memory Usage": 32,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "inversionistas",
+                            "Alias": "i",
+                            "Startup Cost": 0,
+                            "Total Cost": 19.96,
+                            "Plan Rows": 496,
+                            "Plan Width": 32,
+                            "Actual Startup Time": 0.011,
+                            "Actual Total Time": 0.098,
+                            "Actual Rows": 496,
+                            "Actual Loops": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning Time": 0.684,
+          "Triggers": [],
+          "Execution Time": 96.188
+        }
+      ]
+    }
+  ]
+}

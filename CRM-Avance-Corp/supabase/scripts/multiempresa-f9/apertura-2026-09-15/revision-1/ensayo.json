@@ -1,0 +1,453 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-16T00:44:42.712Z",
+  "fin": "2026-09-16T00:44:48.818Z",
+  "banco": "f9_apertura_20260915",
+  "resultados": [
+    {
+      "caso": "Fallo intermedio revierte piloto y banderas completos",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Cambio real de supervisor aborta apertura",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Permiso de RPC distinto aborta apertura",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Trigger deshabilitado aborta apertura",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Captura vencida aborta apertura",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Operación en curso bloquea y aborta sin estado parcial",
+      "estado": "PASS"
+    },
+    {
+      "caso": "COMMIT atómico habilita 23 gestores y conserva exclusión de Coordinación",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Segunda activación no sobrescribe el estado ya abierto",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Reversa exacta apaga capacidades y conserva 17 superficies",
+      "estado": "PASS"
+    }
+  ],
+  "apertura": {
+    "base": "f9_apertura_20260915",
+    "fecha": "2026-09-16T00:44:47.833152+00:00",
+    "roles": [
+      {
+        "rol": "vendedor",
+        "actor": "01b20a44ffb3d7b969d9aa55e62d31c7",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "supervisor",
+        "actor": "79de780268f7bd04c2971e8e9842c866",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "45d49f9903b09ce95f36f5d86b750bf9",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "7bdbbf686ce85af49e49aa28ae719ea2",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "36e09d43035607ec4c27c70c269bcbdc",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "0f2fe1e49cd7c0edcd5f1844a40c7d8b",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "4b9766e690be751340c641a30c62f980",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "supervisor",
+        "actor": "9585cbab56f106fa25b7125d827cd819",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "24dcff80ddfa5ff0d3d8f6751941c256",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "a0be1ca0fb3c54db6e61fb3640dbe963",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "0c8ce486c2ad0eacaac0578eb910e1fc",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "coordinador",
+        "actor": "b51dc1161e77a9cf0bd7b2f7d261eb77",
+        "cartera": null,
+        "postventa": {
+          "version": 1,
+          "habilitada": false
+        },
+        "error_cartera": "42501"
+      },
+      {
+        "rol": "vendedor",
+        "actor": "ecf79f2ad3e2397a2cdf8fa5ba06979a",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "de31a65baa2b0e2fcd1f4b30beeadd03",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "352951b63ed7af5c80b0358fccd4be6b",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "48ab09cb256eaf99f0e231110c0fa34e",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "gerencia",
+        "actor": "b79fa9100672e55b4166b023520120a5",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "4bd363592030bb3509ffa50c90c283be",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "supervisor",
+        "actor": "f6e17a8012f6194b0aca6fc84a8be9fb",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "cb13cf3621bd7e5fb1fe329a7dc0505d",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "2fc850f05add5eb099c7b94afcea26ff",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "gerencia",
+        "actor": "118a3dc5204eeaba8948334c2bccde64",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "febb9d78f368b009d17f07f074fad3b9",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      },
+      {
+        "rol": "vendedor",
+        "actor": "ffe3fda98f95c47d51fe9e485dbc5ebc",
+        "cartera": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "postventa": {
+          "version": 1,
+          "habilitada": true
+        },
+        "error_cartera": null
+      }
+    ],
+    "estado": "PASS",
+    "cuentas": 24,
+    "fuentes": 231,
+    "banderas": {
+      "ficha_360_neutral": true,
+      "postventa_neutral": true,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": true,
+      "metricas_multiempresa_sombra": false
+    },
+    "revision": 2,
+    "referencia": "F9-20260915-01",
+    "huella_fuentes": "3be84c9e8d738b130ecb6d5b1e8647d9",
+    "fuentes_conservadas": true
+  },
+  "superficies_conservadas": {
+    "crm.leads": "3a4c7ca20b820834591758bea0533db4",
+    "auth.users": "ac8a5311faf3c3efbacb09eab73b9083",
+    "crm.tareas": "d9c2f213b0f7e0c285f5a061d9557231",
+    "crm.inversiones": "146416a2e29e9489355f899e36e301e4",
+    "public.perfiles": "fd7aede5dfa95446339269ebf7b4ce2e",
+    "public.contratos": "f92f0ac69f8c1fb764de8f001b9d3da4",
+    "crm.inversionistas": "c529d9c4d886cce137feaded7bd379da",
+    "crm.cierres_externos": "502b1d280a86a79ab5de91bfd6a5ed98",
+    "crm.inversion_eventos": "3fb4833e2e69942cddce52d2a8f74463",
+    "crm.periodos_cerrados": "e455ab4bc9e41f9556b9d2c4df94b065",
+    "private.contrato_pdfs": "5ad49ca502ccdffcc7bfed03f39a3c04",
+    "crm.cierre_mes_vendedor": "d41d8cd98f00b204e9800998ecf8427e",
+    "crm.inversion_titulares": "a9cff784b1576a54603935ddc4c4fcb7",
+    "public.cronograma_pagos": "cbab5265fc4958e971472212bf6017c4",
+    "crm.depositos_reclamados": "c89d20de5298bded8b518441c5d4df03",
+    "crm.inversion_solicitudes": "8022ea7d6e797d0715bbe7888b9a9e94",
+    "crm.inversionista_gestiones": "5ec2b1985c0c499a78e5777ab5e822a1"
+  },
+  "sha256": {
+    "ACTIVAR.sql": "52cb303849b31c456a08a8d52826b9daef8103cc8b777cbeb76162b897119d4a",
+    "REVERTIR.sql": "78542a7609ad1634bca8fb0040447a8db89e07c594eb119fbea3a74d3f6f5aae",
+    "config.json": "38fde2107b7b5b08480fc10beb9ea323638c6fb64cdfb6b0b40f1568948f187e",
+    "crear-sql.mjs": "c04d9484482ec7f93021daa309ed13d9c306b495a75a7f3cb406165fa8f512e3",
+    "banco.mjs": "5d4a4dc5a224dab9e46d0cfd415e00aec1fde780f78b7c835ab3bad28d844f7e",
+    "ensayo.mjs": "79e581d9ce190bec6c80b73cc40c83a5139468165dbd464c97323f8d7fcc03c0",
+    "preparar-banco.mjs": "579f3905dce8b409a6a40c46c24e953a15ada3f1d1792c6a6836db84895e94d8"
+  },
+  "limites": [
+    "Copia sintética SQL; no login Auth/HTTP ni navegador.",
+    "UUID/roles del equipo con nombres y correos ficticios. No copia credenciales.",
+    "Fixture anterior conserva dependencias inactivas; validadores reactivados antes del ensayo.",
+    "No operaciones financieras de prueba en producción."
+  ]
+}
