@@ -1,0 +1,19 @@
+{
+  "fecha": "2026-09-16",
+  "codigo_verificado": "a2243c4e",
+  "gate_app": "PASS",
+  "tests": 3654,
+  "archivos_test": 248,
+  "e2e_pass": 199,
+  "e2e_skipped": 26,
+  "grupos_http_sql": 24,
+  "bases_propias_eliminadas": [
+    "gestion_multiempresa_20260916",
+    "gestion_multiempresa_20260918"
+  ],
+  "servicios_propios_restantes": 0,
+  "snapshot_compartido_conservado": "rls_vigente_20260916",
+  "produccion_mutada": false,
+  "banco_remoto_creado": false,
+  "ajuste_visual_posterior": "Cancelar acortado; cuatro E2E con límites de botones, lint/typecheck y build final"
+}

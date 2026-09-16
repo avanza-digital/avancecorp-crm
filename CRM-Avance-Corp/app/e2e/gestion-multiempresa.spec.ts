@@ -47,6 +47,12 @@ for(const ancho of [1440,390]){
     await modal.getByLabel('Nombres y apellidos').fill('ANA CORREGIDA SINTÉTICA')
     await modal.getByLabel('Domicilio').fill('DOMICILIO SINTÉTICO CONSERVADO')
     expect(await modal.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+    expect(await modal.evaluate(el=>{
+      const caja=el.getBoundingClientRect()
+      return [...el.querySelectorAll('button')].every(b=>{
+        const r=b.getBoundingClientRect();return r.left>=caja.left && r.right<=caja.right
+      })
+    })).toBe(true)
     await page.screenshot({path:info.outputPath('correccion-contacto.png'),fullPage:true})
     await modal.getByRole('button',{name:'Guardar corrección'}).click()
     await expect(modal).toHaveCount(0);expect(estado.guardados).toBe(1)

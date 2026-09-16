@@ -40,7 +40,7 @@ export function CorregirContactoNeutral({actor,persona,datos,permitido,onCerrar,
         {envio.error && <p role="alert" className="text-sm text-destructive">{envio.error}</p>}
       </>}
     </DialogBody>
-    <DialogFooter><Button variant="outline" onClick={onCerrar} disabled={envio.ocupado}>Cancelar corrección</Button>
+    <DialogFooter><Button variant="outline" onClick={onCerrar} disabled={envio.ocupado}>Cancelar</Button>
       {!envio.pendiente && <Button onClick={()=>void guardar()} disabled={!permitido || envio.ocupado || envio.bloqueado || nombre.trim().length<2 || (!base.sin_limite && !ventana.vigente)}>{envio.ocupado ? 'Guardando…' : 'Guardar corrección'}</Button>}
     </DialogFooter>
   </>
