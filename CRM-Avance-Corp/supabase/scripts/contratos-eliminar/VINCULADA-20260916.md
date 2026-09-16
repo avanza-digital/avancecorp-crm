@@ -30,6 +30,15 @@ funciones coincidentes con producción; sin nuevos advisors.
 La rama exclusiva `pteyuzyzcpavqefiqidg` está eliminada, con ausencia verificada
 16/09 16:27:43 UTC. Coste estimado US$0,006882. No tocar el banco-f7 ajeno.
 
+## Integración requerida por GitHub
+
+[PR #1](https://github.com/avanza-digital/avancecorp-crm/pull/1) contiene la
+corrección. La regla de la organización exige una aprobación y el check `verify`.
+Se alineó el nombre del job que ejecuta `npm run check` con esa regla y se retiró
+el filtro de rutas de pull_request para que no quede pendiente en otras PR.
+No se cambió la regla ni se eludió la revisión. Mientras la PR no esté integrada,
+el ZIP de su commit es solo candidato y debe reconstruirse desde Main verificado.
+
 ## Publicación pendiente
 
 1. Miguel aprueba el SQL exacto y su promoción literal. El ensayo reconstruyó
