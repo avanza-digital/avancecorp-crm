@@ -31,4 +31,3 @@ for(const clave of claves){
 }
 if(!process.argv.includes('--verificar')) writeFileSync(destino,actual);
 console.log(`Tipos gestión: ${claves.length} nodos ${process.argv.includes('--verificar')?'verificados':'integrados'}; contratos ajenos conservados.`);
-
