@@ -112,29 +112,24 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(asomado(panel)).toBe(true)
   })
 
-  it('Gerencia ve inteligencia y toda la navegación operativa', () => {
+  // Plan UX Gerencia (06/09/2026, §5.10): tres grupos con una pregunta cada uno,
+  // en vez de una lista plana. Fija el grupo Y el orden de cada entrada.
+  it('Gerencia ve su menú en tres grupos: Dirección, Operación y Administración', () => {
     montar({ movil: false, rol: 'gerencia' })
     const navegacion = screen.getByRole('navigation')
 
-    const nombres = [
-      'Resumen',
-      'Seguimiento',
-      'Conversiones',
-      'Ranking',
-      'Citas',
-      'Metas',
-      'Rendimiento',
-      'Facturación',
-      'Empresas',
-      'Pipeline',
-      'Leads',
-      'Agenda',
-      'Cartera',
-      'Repartir leads',
-      'Base para gestión',
-      'Gestión de equipo',
-      'Configuración',
-    ]
+    const grupos = {
+      Dirección: ['Resumen', 'Ranking', 'Rendimiento', 'Conversiones', 'Citas', 'Facturación', 'Empresas'],
+      Operación: ['Seguimiento', 'Pipeline', 'Leads', 'Agenda', 'Cartera', 'Repartir leads', 'Base para gestión', 'Gestión de equipo'],
+      Administración: ['Metas', 'Configuración'],
+    }
+    const nombres = Object.values(grupos).flat()
+    expect(within(navegacion).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(Object.keys(grupos))
+    for (const [grupo, entradas] of Object.entries(grupos)) {
+      const seccion = within(navegacion).getByRole('group', { name: grupo })
+      expect(within(seccion).getByText(grupo)).toBeVisible()
+      expect(within(seccion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(entradas)
+    }
     expect(within(navegacion).getAllByRole('button')).toHaveLength(nombres.length)
     expect(within(navegacion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(nombres)
     for (const nombre of nombres) {
@@ -143,6 +138,20 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Derivar leads' })).not.toBeInTheDocument()
+    expect(within(navegacion).queryByText('Principal')).not.toBeInTheDocument()
+  })
+
+  it('los demás roles conservan el menú histórico (Principal, y Administración si aplica)', () => {
+    const { unmount } = montar({ movil: false, rol: 'supervisor' })
+    let navegacion = screen.getByRole('navigation')
+    expect(within(navegacion).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Principal'])
+    expect(within(navegacion).queryByText('Dirección')).not.toBeInTheDocument()
+    unmount()
+
+    montar({ movil: false, rol: 'directorio' })
+    navegacion = screen.getByRole('navigation')
+    expect(within(navegacion).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Principal', 'Administración'])
+    expect(within(navegacion).getByRole('group', { name: 'Administración' }).textContent).toContain('Configuración')
   })
 
   it('Supervisión abre Derivar leads como módulo separado de Gestión de equipo', () => {
