@@ -9969,3 +9969,55 @@ front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
 - Instalación 15/09 confirmada: remoto `20260915181818`; 9 grupos Auth/RLS y
   HTTP Edge PASS. Portal publicado y rama propia eliminada. Acta:
   `../scripts/correo-admin/PUBLICADO-20260915.md`.
+
+## 20260916220124 — Filtro de origen en Leads
+
+**✅ INSTALADA, REGISTRADA Y PUBLICADA EN PRODUCCIÓN el 16/09/2026** (Miguel con
+`!`). Solicitud de Miguel del 16/09: la pantalla Leads filtra por origen y todos
+sus componentes lo obedecen.
+
+**Acta de instalación (16/09, hora UTC):**
+- 23:24 SQL aplicado con `db query --linked --file`. Verificado en producción:
+  una sola firma (10 args), md5 `be330214…` y ACL `{postgres,authenticated}`
+  idénticos al ensayo; exención movida con su `declarado_en` del 13/09; sello
+  coherente; censo 35 y rojo ajeno sin cambios; resumen general intacto.
+- Sonda PostgREST anónima: `p_origen` pasó de `PGRST202` a `42501` (firma nueva
+  en caché); argumento inexistente sigue `PGRST202`.
+- ~23:35 versión registrada con `scripts/registrar-20260916220124.sql` (cuerpo
+  md5 `3b73e861…`, idéntico al archivo).
+- ~23:45 front publicado: release `crm-20260916T231007Z-322ca2fcf373` (commit
+  `322ca2fc`), build vivo `build-20260916T231006590Z`. Smoke: `version.json`,
+  `index.html`, `index-DqtKE1bc.js` y `cartera-Cl9oNkms.js` byte a byte contra
+  el manifiesto; textos del selector presentes; ZIP 404; raíz 200.
+
+- `crm.cartera_filtrada_fn` pasa a 10 argumentos (`p_origen text default null`);
+  la firma de 9 se retira en la misma transacción (una sola candidata para
+  PostgREST). Sin `p_origen` la respuesta es la vigente más la clave `origen`
+  nula. Dominio = los 8 valores del CHECK de `crm.leads.origen`; otro valor → 22023.
+- Preflight: huella de la declaración del 13/09 (`daa8d49a…`), huella y md5 del
+  resumen general (`8019aab3…` / `b4ffcf91…`), CHECK de origen exacto, sello
+  coherente. Postflight: contrato de seguridad (invoker, stable, `search_path`
+  vacío, ACL idéntica), firma vieja ausente, censo con el mismo número de
+  contadores, firma nueva declarada y vigente, el conjunto en rojo idéntico al
+  previo (ver abajo), otras exenciones/techo/resumen intactos.
+- La declaración analítica se **mueve** a la firma nueva (la lista no admite
+  borrados) conservando `declarado_en`; se re-sella.
+- Ensayo local a paridad (`../scripts/cartera-origen/`): equivalencia sin filtro
+  para 11 actores (RPC y `resumen_cartera_fn()` antes/después), instalación con
+  un contador ajeno en rojo (conserva el rojo, declara la firma nueva),
+  instalación, oráculo propio (con empates de sello), guardas de la reversa
+  (sello alterado y función corregida rechazadas), reversa con el oráculo del
+  13/09 y reinstalación. Resultado en `verificacion.json`.
+- Revisión de Codex (CLI read-only, MCP caído): CHANGES_REQUESTED con un P2
+  (la reversa re-sellaba sin comprobar lo que retiraba) → atendido con guardas y
+  pruebas negativas; huecos de prueba atendidos: resumen general antes/después,
+  rojo preexistente, cambio de origen tras varias páginas (hook), empates de
+  keyset. Pendiente al instalar: comprobar por HTTP anónimo que PostgREST sirve
+  la firma nueva (`p_origen` → 42501; argumento inexistente → PGRST202).
+- ⚠️ Estado del gate al preparar: producción tiene 35 contadores y
+  `crm.contrato_eliminar_auditado(uuid,uuid)` (`20260916160000`) sin declarar, así
+  que `assert_analitica_leads_citas()` está en rojo por causa ajena. Esta
+  migración no llama al assert global; exige que lo rojo quede igual.
+- Orden: **servidor primero**, luego el front (`«Todos los orígenes»` no viaja;
+  con un origen elegido el cliente exige el eco y rechaza respuestas viejas).
+- Reversa: `../scripts/cartera-origen/reversa.sql` (tras retirar el front).

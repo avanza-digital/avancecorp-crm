@@ -1,0 +1,19 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_origen_20260916",
+  "fecha": "2026-09-16T23:06:31.910Z",
+  "migracion_sha256": "4363d9525140a94e0aec5af13fdfc9faeeafc4c5155a3bdc000fd18d03f19fcf",
+  "reversa_sha256": "671103db8be9af9c39cc81822bd5eb617c88548915e79beebf701a286cf9fe29",
+  "actores_comparados": 11,
+  "lecturas_por_actor": 4,
+  "resumen_general_comparado": true,
+  "pasos": [
+    "gate verde antes",
+    "equivalencia sin filtro (RPC + resumen general) deshecha",
+    "instalación con rojo ajeno preexistente (deshecha)",
+    "instalación + gate + oráculo",
+    "guardas de la reversa: sello alterado y función corregida rechazadas; rojo ajeno conservado",
+    "reversa + gate + oráculo 13/09",
+    "reinstalación + gate + oráculo"
+  ]
+}

@@ -57,6 +57,38 @@ describe('cartera integrada: listado y total del mismo filtro', () => {
     server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(caso === 'nulo' ? null : payload)))
     await expect(listarCarteraPagina(filtros, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
+
+  it('el origen viaja solo cuando recorta y vuelve aplicado en el payload', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json({ ...payloadFiltrado(), origen: 'landing' })
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, origen: 'landing' }, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03', p_origen: 'landing' })
+    expect(pagina.resumen?.totales.vivos).toBe(60)
+    expect(pagina.items.every((l) => l.origen === 'landing')).toBe(true)
+  })
+
+  it('«todos» no viaja y un servidor sin eco de origen sigue siendo válido', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(payloadFiltrado())
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, origen: 'todos' }, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03' })
+    expect(pagina.items).toHaveLength(50)
+  })
+
+  it.each(['sin eco', 'otro origen', 'fila ajena'])('con origen pedido rechaza el payload que no lo honra: %s', async (caso) => {
+    const payload: Record<string, unknown> = { ...payloadFiltrado(), origen: 'landing' }
+    if (caso === 'sin eco') delete payload.origen
+    if (caso === 'otro origen') payload.origen = 'formulario'
+    if (caso === 'fila ajena') (payload.items as Array<Record<string, unknown>>)[3]!.origen = 'referido'
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
+    await expect(listarCarteraPagina({ ...filtros, origen: 'landing' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
 })
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

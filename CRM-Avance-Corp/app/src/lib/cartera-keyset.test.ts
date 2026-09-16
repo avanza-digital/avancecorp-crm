@@ -102,6 +102,18 @@ describe('filtrarCarteraLocal', () => {
     expect(filtrarCarteraLocal(leads, { etapa: 'convertido' }).map((l) => l.id)).toEqual(['b'])
   })
 
+  it('filtra por origen (históricos incluidos) y «todos» no recorta', () => {
+    const porOrigen = [
+      lead({ id: 'a', origen: 'landing' }),
+      lead({ id: 'b', origen: 'web' }),
+      lead({ id: 'c', origen: 'referido', etapa: 'contactado' }),
+    ]
+    expect(filtrarCarteraLocal(porOrigen, { origen: 'todos' })).toHaveLength(3)
+    expect(filtrarCarteraLocal(porOrigen, { origen: 'web' }).map((l) => l.id)).toEqual(['b'])
+    expect(filtrarCarteraLocal(porOrigen, { origen: 'referido', etapa: 'contactado' }).map((l) => l.id)).toEqual(['c'])
+    expect(filtrarCarteraLocal(porOrigen, { origen: 'referido', etapa: 'nuevo' })).toHaveLength(0)
+  })
+
   it('«sin_asignar» son los parkeados, no los de un analista cualquiera', () => {
     expect(filtrarCarteraLocal(leads, { vendedorId: 'sin_asignar' }).map((l) => l.id)).toEqual(['c'])
   })
