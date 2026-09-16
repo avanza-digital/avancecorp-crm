@@ -3777,6 +3777,22 @@ export type Database = {
         }
         Returns: Json
       }
+      cartera_inversionistas_filtrada_fn: {
+        Args: {
+          p_contacto?: string
+          p_empresa?: string
+          p_estado?: string
+          p_mes?: string
+          p_moneda?: string
+          p_pagina?: number
+          p_por_vencer?: boolean
+          p_responsable?: string
+          p_sin_responsable?: boolean
+          p_tamano?: number
+          p_texto?: string
+        }
+        Returns: Json
+      }
       cartera_inversionistas_fn: {
         Args: {
           p_empresa?: string

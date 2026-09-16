@@ -1,0 +1,19 @@
+{
+  "sql_sha256": "8164cdc4203999a916d494fe1c2149a499e553e5b9227f6012514f9b9458de86",
+  "sql_grupos": 17,
+  "compatibilidad_v1_casos": 7,
+  "reversa_y_reinstalacion": "PASS",
+  "frontend_archivos": 247,
+  "frontend_tests": 3632,
+  "cobertura_lineas": 78.92,
+  "e2e": 26,
+  "http_peticiones": 6,
+  "advisors": {
+    "ERROR": 0,
+    "WARN": 0,
+    "INFO_preexistentes": 60
+  },
+  "claude": "CHANGES_REQUESTED; hallazgos corregidos y evaluación documentada",
+  "tipo": "local_sintetico",
+  "produccion": "NO INSTALADO"
+}

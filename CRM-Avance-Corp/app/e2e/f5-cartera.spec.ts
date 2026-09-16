@@ -10,9 +10,10 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
     const body=route.request().postDataJSON() ?? {}
     const json=(data:unknown,status=200)=>route.fulfill({status,json:data})
     if(nombre==='cartera_inversionistas_estado_fn') return json({version:1,habilitada:true,escritura_habilitada:rol!=='directorio',motivo:null})
-    if(nombre==='cartera_inversionistas_fn') {
-      const filas=estado.revocado?[]:carteraF5.filas.map(p=>({...p,empresas:rol==='directorio'?['avance']:p.empresas}))
-      return json({...carteraF5,filas,total:filas.length,tamano:body.p_tamano,pagina:body.p_pagina,totales:estado.revocado?[]:carteraF5.totales})
+    if(nombre==='cartera_inversionistas_filtrada_fn') {
+      const totales=carteraF5.totales.map(t=>({...t,empresa:rol==='directorio'?'avance':t.empresa}))
+      const filas=estado.revocado?[]:carteraF5.filas.map(p=>({...p,empresas:rol==='directorio'?['avance']:p.empresas,resumen:totales}))
+      return json({...carteraF5,solo_avance:rol==='directorio',filas,total:filas.length,tamano:body.p_tamano,pagina:body.p_pagina,totales:estado.revocado?[]:totales})
     }
     if(nombre==='inversionista_ficha_fn') {
       if(estado.revocado) return json(null)
@@ -129,4 +130,49 @@ test('tres empresas y dos monedas: la ficha mantiene cada capital separado',asyn
   }
   await expect(dialog.getByText('4 inversiones en esta ficha')).toBeVisible()
   await page.screenshot({path:testInfo.outputPath('f5-tres-empresas.png'),fullPage:true})
+})
+
+for(const movil of [false,true]) test(`filtros comerciales: ${movil?'móvil':'escritorio'}, selección completa y ficha conservada`,async({page},testInfo)=>{
+  await montarF5(page,'supervisor')
+  await page.setViewportSize({width:movil?390:1440,height:movil?844:1000})
+  if(movil) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  const peticiones:Record<string,unknown>[]=[]
+  const resumen=[
+    {empresa:'avance',moneda:'PEN',cantidad:2,capital_registrado:25000,capital_activo:15000},
+    {empresa:'avance',moneda:'USD',cantidad:1,capital_registrado:3500,capital_activo:3500},
+    {empresa:'qorilazo',moneda:'PEN',cantidad:1,capital_registrado:12000,capital_activo:null},
+  ]
+  await page.route('**/rest/v1/rpc/cartera_inversionistas_filtrada_fn',async route=>{
+    const b=route.request().postDataJSON();peticiones.push(b)
+    const vacio=b.p_mes==='2026-07'
+    const nombres=['ANA SINTÉTICA F5','BRUNO CLIENTE DE PRUEBA','CARMEN CLIENTE DE PRUEBA','DANIEL CLIENTE DE PRUEBA','ELENA CLIENTE DE PRUEBA']
+    return route.fulfill({json:{...carteraF5,pagina:b.p_pagina,tamano:b.p_tamano,total:vacio?0:5,
+      opciones_meses:['2026-09','2026-08','2026-07'],
+      filas:vacio?[]:nombres.map((nombre,n)=>({...carteraF5.filas[0],nombre,
+        inversionista_id:n===0?PERSONA_F5:`55555555-5555-4555-8555-${String(n).padStart(12,'0')}`,
+        empresas:['avance','qorilazo'],resumen})),totales:vacio?[]:resumen}})
+  })
+  await page.getByRole('button',{name:'Actualizar cartera'}).click()
+  await expect(page.getByText('5 personas · página 1')).toBeVisible()
+  if(movil) await expect(page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).toBeInViewport()
+  await page.screenshot({path:testInfo.outputPath(`cartera-filtros-${movil?'movil':'escritorio'}.png`),fullPage:true})
+  await page.getByLabel('Mes de cierre comercial').selectOption('2026-08')
+  await page.getByRole('button',{name:'Más filtros',exact:true}).click()
+  await page.getByLabel('Moneda',{exact:true}).selectOption('USD')
+  await page.getByLabel('Estado de inversión').selectOption('vigente')
+  await expect.poll(()=>peticiones.at(-1)).toMatchObject({p_mes:'2026-08',p_moneda:'USD',p_estado:'vigente',p_pagina:1})
+  await page.screenshot({path:testInfo.outputPath(`cartera-filtros-abiertos-${movil?'movil':'escritorio'}.png`),fullPage:true})
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  const filtro=page.getByLabel('Moneda',{exact:true});await filtro.focus()
+  await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
+  await expect(page.getByRole('dialog',{name:'ANA SINTÉTICA F5'})).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByLabel('Mes de cierre comercial')).toHaveValue('2026-08')
+  await expect(filtro).toHaveValue('USD')
+  await page.getByLabel('Mes de cierre comercial').selectOption('2026-07')
+  await expect(page.getByText('No hay personas que coincidan con estos filtros.')).toBeVisible()
+  await expect(page.getByText('US$ 3,500')).toHaveCount(0)
+  await page.getByRole('button',{name:'Ver toda la cartera'}).click()
+  await expect(page.getByLabel('Mes de cierre comercial')).toHaveValue('')
+  await expect(page.getByText('5 personas · página 1')).toBeVisible()
 })

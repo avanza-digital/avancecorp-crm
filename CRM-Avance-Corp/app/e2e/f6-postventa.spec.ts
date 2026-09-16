@@ -21,7 +21,7 @@ async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vended
     const b=route.request().postDataJSON()??{}
     const json=(data:unknown,status=200)=>route.fulfill({status,json:data})
     if(nombre==='cartera_inversionistas_estado_fn')return json({version:1,habilitada:true,escritura_habilitada:rol!=='directorio',motivo:null})
-    if(nombre==='cartera_inversionistas_fn')return json({...carteraF5,pagina:b.p_pagina,tamano:b.p_tamano})
+    if(nombre==='cartera_inversionistas_filtrada_fn')return json({...carteraF5,pagina:b.p_pagina,tamano:b.p_tamano})
     if(nombre==='inversionista_ficha_fn'){
       if(estado.fichaSinConexion)return json({message:'Interrupción temporal'},503)
       const f=structuredClone(fichaF5); f.persona.responsable_id=UID;f.persona.no_contactar=estado.vetada

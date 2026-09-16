@@ -1,10 +1,14 @@
 ---
 tags: [crm, cartera, multiempresa, ux, pendiente]
 fecha: 2026-09-15
-estado: pendiente-sin-implementar
+estado: implementado-local-pendiente-publicacion
 ---
 
 # Cartera de inversionistas: filtros y distribución
+
+Retomado por Miguel («ahora vamos con los pendientes»). Implementación y
+verificación en [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]].
+La publicación sigue pendiente; no confundir con la apertura general F9 ya realizada.
 
 Miguel pidió **guardar como pendiente** esta observación el 15/09/2026 durante
 las pruebas de apertura de [[G7 - revision real y apertura pendiente (2026-09-15)]].

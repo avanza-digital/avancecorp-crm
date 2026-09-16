@@ -3,9 +3,8 @@ import { VencimientosPostventa } from '@/components/app/postventa-vencimientos'
 import { postventaKeys } from '@/data/postventa-queries'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Users2, RefreshCw } from 'lucide-react'
+import { Users2, RefreshCw, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -14,11 +13,12 @@ import { Card } from '@/components/ui/card'
 import { Sheet } from '@/components/ui/sheet'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
-import { SectionHead } from '@/components/common/section-head'
 import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversionista-ficha'
 import { InversionNueva, type OperacionInversion } from '@/components/app/inversion-nueva'
-import { useCRMData } from '@/lib/store-context'
-import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
+import { FiltrosCarteraInversionistas } from '@/components/app/cartera-inversionistas-filtros'
+import { fechaLima } from '@/lib/agenda-derivada'
+import { fmtFecha, money } from '@/lib/format'
+import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
@@ -31,12 +31,12 @@ import { crmQueryKeys } from '@/data/crm-queries'
 export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: {
   actor: string; permiteInversion: boolean; gestionAvance: ReactNode
 }) {
-  const {equipo} = useCRMData()
   const {yo} = useAuth()
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const qc = useQueryClient()
-  const [filtros, setFiltros] = useState<FiltrosInversionistas>(FILTROS_INVERSIONISTAS_INICIALES)
+  const [filtros, setFiltros] = useState<FiltrosInversionistas>(() => ({...FILTROS_INVERSIONISTAS_INICIALES, mes:fechaLima(Date.now()).slice(0,7)}))
   const [busqueda, setBusqueda] = useState('')
+  const [resumenAbierto, setResumenAbierto] = useState(false)
   const [seleccion, setSeleccion] = useState<string | null>(() => leerHash().inversionistaId ?? null)
   const [volverAInversiones, setVolverAInversiones] = useState(false)
   useEffect(() => {
@@ -58,13 +58,16 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
   const titulo = useRef<HTMLHeadingElement>(null)
   const q = useInversionistas(actor, filtros)
   const claveLista = JSON.stringify([actor, filtros])
-  const [listaConfirmada, setListaConfirmada] = useState<{clave: string; datos: DatosCartera} | null>(null)
+  const [listaConfirmada, setListaConfirmada] = useState<{actor: string; clave: string; datos: DatosCartera} | null>(null)
   useEffect(() => {
-    if (q.isFetchedAfterMount && q.isSuccess) setListaConfirmada({clave: claveLista, datos: q.data})
-  }, [claveLista, q.data, q.isFetchedAfterMount, q.isSuccess])
+    if (q.isFetchedAfterMount && q.isSuccess) setListaConfirmada({actor, clave: claveLista, datos: q.data})
+  }, [actor, claveLista, q.data, q.isFetchedAfterMount, q.isSuccess])
   const accesoRevocado = q.error instanceof CrmApiError && q.error.code === '42501'
+  useEffect(() => {if (accesoRevocado) setListaConfirmada(null)}, [accesoRevocado])
   const datos = accesoRevocado ? null : q.isFetchedAfterMount && q.isSuccess ? q.data
     : q.isError && listaConfirmada?.clave === claveLista ? listaConfirmada.datos : null
+  const catalogo = accesoRevocado ? null : datos ?? (listaConfirmada?.actor === actor ? listaConfirmada.datos : null)
+  const limpiar = () => {setBusqueda(''); setFiltros(FILTROS_INVERSIONISTAS_INICIALES)}
   const filtro = (c: Partial<FiltrosInversionistas>) => setFiltros(f => ({...f, ...c, pagina: 1}))
   useEffect(() => {
     const t = setTimeout(() => setFiltros(f => f.texto === busqueda ? f : {...f, texto: busqueda, pagina: 1}), 300)
@@ -89,9 +92,14 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     titulo.current?.focus()
   }
   const revocarRef = useRef(revocar); revocarRef.current = revocar
+  const revocacionLista = useRef<string | null>(null)
   useEffect(() => {
-    if (q.error instanceof CrmApiError && q.error.code === '42501') revocarRef.current()
-  }, [q.error])
+    if (q.isSuccess) revocacionLista.current = null
+    if (accesoRevocado && revocacionLista.current !== claveLista) {
+      revocacionLista.current = claveLista
+      revocarRef.current()
+    }
+  }, [accesoRevocado, claveLista, q.isSuccess])
   async function abrirDocumento(i: InversionFuente, id: string, recuperar = false) {
     if (!seleccion || descargando) return
     const abort = new AbortController(); documento.current?.abort(); documento.current = abort
@@ -127,51 +135,66 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     <p className="text-sm text-muted-foreground">Consulta cronogramas y gestiona los clientes y contratos Avance existentes.</p>
     {gestionAvance}
   </div>
-  return <div className="@container/cartera mx-auto max-w-[1240px] space-y-4">
+  return <div className="@container/cartera mx-auto max-w-[1440px] space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Una ficha por persona, con sus inversiones en cada empresa.</p></div>
-      <Button variant="outline" size="sm" onClick={() => {seleccionar(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button>
+        <p className="mt-1 text-sm text-muted-foreground">{catalogo?.solo_avance ? 'Una ficha por persona, con sus inversiones Avance.' : 'Una ficha por persona, con sus inversiones en cada empresa.'}</p></div>
+      <div className="flex items-center gap-2"><Button variant="ghost" size="sm" aria-label="Actualizar cartera"
+        disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>
+        <Button variant="outline" size="sm" onClick={() => {seleccionar(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button></div>
     </div>
     {aviso && <p role="status" className="rounded-lg bg-muted p-3 text-sm">{aviso}</p>}
-    <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />
     <Card className="overflow-hidden">
-      <SectionHead icon={Users2} title="Inversionistas" right={<Button variant="ghost" size="sm" aria-label="Actualizar cartera"
-        disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>} />
-      <div className="grid gap-3 px-5 pb-4 @lg/cartera:grid-cols-2 @4xl/cartera:grid-cols-[2fr_1fr_1fr_auto]">
-        <div className="min-w-0 space-y-1"><Label htmlFor="f5-buscar">Buscar persona</Label><div className="relative">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
-          <Input id="f5-buscar" type="search" placeholder="Nombre, documento, contacto o empresa" className="pl-9" maxLength={120}
-            value={busqueda} onChange={e => setBusqueda(e.target.value)} /></div></div>
-        <div className="space-y-1"><Label htmlFor="f5-empresa">Empresa</Label><Select id="f5-empresa" value={filtros.empresa} onChange={e => filtro({empresa: e.target.value as FiltrosInversionistas['empresa']})}>
-          <option value="">Todas las empresas</option>{EMPRESAS_INVERSION.map(e => <option value={e} key={e}>{EMPRESA_NOMBRE[e]}</option>)}</Select></div>
-        <div className="space-y-1"><Label htmlFor="f5-responsable">Responsable actual</Label><Select id="f5-responsable" value={filtros.responsable} onChange={e => filtro({responsable: e.target.value})}>
-          <option value="">Todos los visibles</option><option value="sin_responsable">Sin responsable</option>
-          {equipo.filter(e => e.activo).map(e => <option key={e.perfil_id} value={e.perfil_id}>{e.nombre_completo}</option>)}</Select></div>
-        <div className="space-y-1"><Label htmlFor="f5-tamano">Por página</Label><Select id="f5-tamano" value={filtros.tamano} onChange={e => filtro({tamano: Number(e.target.value) as FiltrosInversionistas['tamano']})}>
-          {[10,25,50].map(n => <option key={n} value={n}>{n}</option>)}</Select></div>
-      </div>
+      <FiltrosCarteraInversionistas filtros={filtros} busqueda={busqueda} catalogo={catalogo}
+        verResponsable={yo?.rol !== 'vendedor'} onBusqueda={setBusqueda} onCambio={filtro} onLimpiar={limpiar} />
       {q.isError && <PanelError mensaje={datos ? 'No pudimos actualizar la cartera. Se muestran los últimos datos confirmados.' : mensajeDeError(q.error, 'No pudimos cargar la cartera.')}
         onReintentar={() => void q.refetch()} reintentando={q.isFetching} />}
       {!datos ? !q.isError && <PanelCargando filas={6} /> : <>
-          <div className="border-t border-border px-5 py-4"><ResumenEmpresas totales={datos.totales} /></div>
-          <p role="status" className="border-t border-border px-5 py-3 text-xs text-muted-foreground">{datos.total} {datos.total === 1 ? 'persona' : 'personas'} · página {datos.pagina}</p>
+          {datos.totales.length > 0 && <div aria-label="Capital de las inversiones filtradas" className="border-t border-border bg-muted/30 px-4 py-2 @lg/cartera:py-3">
+            <Button variant="ghost" size="sm" className="min-h-10 w-full whitespace-normal px-0 text-left @lg/cartera:hidden"
+              aria-expanded={resumenAbierto} aria-controls="f5-resumen" onClick={() => setResumenAbierto(v => !v)}>
+              Capital por empresa y moneda <ChevronDown aria-hidden className={resumenAbierto ? 'rotate-180' : ''} /></Button>
+            <div id="f5-resumen" className={resumenAbierto ? 'pb-2' : 'hidden @lg/cartera:block'}>
+              <ResumenEmpresas totales={datos.totales} compacto registrado /></div></div>}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
+            <p role="status" className="text-xs text-muted-foreground">{datos.total} {datos.total === 1 ? 'persona' : 'personas'} · página {datos.pagina}
+              {datos.sin_inversiones_total > 0 && ` · ${datos.sin_inversiones_total} sin inversiones${datos.solo_avance ? ' Avance' : ''}`}</p>
+            <div className="flex items-center gap-2"><Label htmlFor="f5-tamano" className="whitespace-nowrap text-xs">Por página</Label>
+              <div className="w-20"><Select id="f5-tamano" className="h-9" value={filtros.tamano} onChange={e => filtro({tamano:Number(e.target.value) as FiltrosInversionistas['tamano']})}>
+                {[10,25,50].map(n => <option key={n} value={n}>{n}</option>)}</Select></div></div>
+          </div>
           {datos.filas.length === 0 ? <PanelVacio icono={Users2}
             titulo={datos.total === 0 ? 'No hay personas que coincidan con estos filtros.' : 'Esta página ya no tiene resultados.'}>
-            <Button variant="outline" size="sm" className="mt-2 min-h-10" onClick={() => {setBusqueda(''); setFiltros(FILTROS_INVERSIONISTAS_INICIALES)}}>Restablecer filtros</Button>
-          </PanelVacio> : <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
-            <button type="button" className="grid min-h-20 w-full gap-2 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:grid-cols-[2fr_1fr_1fr]"
-              onClick={() => {setAviso(''); setDescargando(false); seleccionar(p.inversionista_id)}} aria-label={`Abrir ficha de ${p.nombre}`}>
-              <span className="min-w-0"><span className="block text-sm font-semibold [overflow-wrap:anywhere]">{p.nombre}</span>
-                <span className="block text-xs text-muted-foreground">{p.documento_tipo} {p.documento || 'Documento pendiente'}</span></span>
-              <span className="flex flex-wrap items-center gap-1">{p.empresas.map(e => <Badge key={e}>{EMPRESA_NOMBRE[e]}</Badge>)}</span>
-              <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{p.responsable_nombre || 'Sin responsable'}{p.no_contactar && <span className="block text-warning-text">No contactar</span>}</span>
-            </button>
-          </li>)}</ul>}
-          <div className="px-5 py-3"><Paginacion paginaActual={filtros.pagina - 1} paginas={Math.max(1, Math.ceil(datos.total / filtros.tamano))} total={datos.total}
+            <Button variant="outline" size="sm" className="mt-2 min-h-10" onClick={limpiar}>Ver toda la cartera</Button>
+          </PanelVacio> : <>
+            <div aria-hidden className="hidden grid-cols-[2fr_1.5fr_1fr_1fr] gap-4 border-t border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground-strong @4xl/cartera:grid">
+              <span>Cliente · todas sus empresas</span><span>Capital registrado · filtros</span><span>Último cierre · filtros</span><span>Responsable actual</span>
+            </div>
+            <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
+              <button type="button" className="grid min-h-16 w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @lg/cartera:grid-cols-2 @4xl/cartera:grid-cols-[2fr_1.5fr_1fr_1fr] @4xl/cartera:gap-4"
+                onClick={() => {setAviso(''); setDescargando(false); seleccionar(p.inversionista_id)}} aria-label={`Abrir ficha de ${p.nombre}`}
+                aria-describedby={`documento-${p.inversionista_id} capital-${p.inversionista_id} fecha-${p.inversionista_id} responsable-${p.inversionista_id}`}>
+                <span className="min-w-0"><span className="block text-sm font-semibold [overflow-wrap:anywhere]">{p.nombre}</span>
+                  <span id={`documento-${p.inversionista_id}`} className="block text-xs text-muted-foreground">{p.documento_tipo} {p.documento || 'Documento pendiente'}</span>
+                  <span className="mt-1 flex flex-wrap gap-1">{p.empresas.map(e => <Badge key={e}>{EMPRESA_NOMBRE[e]}</Badge>)}</span></span>
+                <span id={`capital-${p.inversionista_id}`} className="min-w-0 space-y-1 text-xs">
+                  <span className="sr-only">Capital registrado según los filtros:</span>{' '}
+                  {p.resumen.length === 0 ? <span className="text-muted-foreground">Sin inversiones{datos.solo_avance ? ' Avance' : ''}</span> : p.resumen.map(t =>
+                    <span key={`${t.empresa}:${t.moneda}`} className="flex flex-wrap items-baseline justify-between gap-x-2">
+                      <span className="text-muted-foreground">{EMPRESA_NOMBRE[t.empresa]} · {t.moneda}</span>{' '}
+                      <span className="font-semibold tabular-nums">{money(t.capital_registrado,t.moneda)}</span>
+                    </span>)}
+                </span>
+                <span id={`fecha-${p.inversionista_id}`} className="text-xs text-muted-foreground"><span className="@4xl/cartera:sr-only">Último cierre:</span>{' '}{p.ultima_fecha_comercial ? fmtFecha(p.ultima_fecha_comercial) : 'Sin cierre'}</span>
+                <span id={`responsable-${p.inversionista_id}`} className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]"><span className="sr-only">Responsable actual:</span>{' '}{p.responsable_nombre || 'Sin responsable'}{p.no_contactar && <span className="block text-warning-text"><span className="sr-only">. </span>No contactar</span>}</span>
+              </button>
+            </li>)}</ul>
+          </>}
+          <div className="px-4 py-2"><Paginacion paginaActual={filtros.pagina - 1} paginas={Math.max(1, Math.ceil(datos.total / filtros.tamano))} total={datos.total}
             onCambio={n => setFiltros(f => ({...f, pagina: n + 1}))} mostrarSiempre ariaLabel="Paginación de inversionistas" /></div>
         </>}
     </Card>
+    <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />
     {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); seleccionar(null)}} ariaLabel="Ficha del inversionista" className="w-[620px] max-w-full">
       {descargando && <p role="status" className="px-5 pt-3 text-sm">Comprobando acceso y descargando documento…</p>}
       <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => seleccionar(null)} onRevocado={revocar}

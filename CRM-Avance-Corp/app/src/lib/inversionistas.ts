@@ -27,10 +27,15 @@ export const ResumenEmpresaSchema = v.object({
   empresa: Empresa, moneda: Moneda, cantidad: Entero, capital_registrado: Importe,
   capital_activo: v.nullable(Importe),
 })
-export const FilaInversionistaSchema = v.object({...Identidad, empresas: v.array(Empresa)})
+export const FilaInversionistaSchema = v.object({...Identidad, empresas: v.array(Empresa),
+  ultima_fecha_comercial: TextoOpcional, resumen: v.array(ResumenEmpresaSchema),
+})
 export const CarteraInversionistasSchema = v.object({
-  version: v.literal(1), pagina: v.pipe(Entero, v.minValue(1)), tamano: v.picklist([10, 25, 50]),
+  version: v.literal(2), pagina: v.pipe(Entero, v.minValue(1)), tamano: v.picklist([10, 25, 50]),
   total: Entero, filas: v.array(FilaInversionistaSchema), totales: v.array(ResumenEmpresaSchema),
+  sin_inversiones_total: Entero, solo_avance: v.boolean(),
+  opciones_meses: v.array(v.pipe(v.string(), v.regex(/^\d{4}-(0[1-9]|1[0-2])$/))),
+  opciones_responsables: v.array(v.object({id: Uuid, nombre: TextoOpcional})),
 })
 export const InversionFuenteSchema = v.object({
   fuente_id: Uuid, inversionista_id: Uuid, inversion_id: IdOpcional, empresa: Empresa,
@@ -77,9 +82,15 @@ export interface FiltrosInversionistas {
   texto: string
   empresa: EmpresaInversion | ''
   responsable: string
+  mes: string
+  moneda: '' | 'PEN' | 'USD'
+  estado: '' | 'vigente' | 'vencido' | 'renovado' | 'retirado' | 'anulado_comercialmente' | 'sin_inversiones'
+  contacto: '' | 'sin_restriccion' | 'no_contactar'
+  porVencer: boolean
 }
 export const FILTROS_INVERSIONISTAS_INICIALES: FiltrosInversionistas = {
   pagina: 1, tamano: 25, texto: '', empresa: '', responsable: '',
+  mes: '', moneda: '', estado: '', contacto: '', porVencer: false,
 }
 
 /** La respuesta incompleta se bloquea; nunca se convierte en una cartera vacía. */

@@ -39,11 +39,16 @@ export async function obtenerEstadoCarteraInversionistas(signal: AbortSignal): P
   return respuestaInversionistas(EstadoCarteraInversionistasSchema, r)
 }
 export async function listarInversionistas(filtros: FiltrosInversionistas, signal: AbortSignal) {
-  const r = await cliente().schema('crm').rpc('cartera_inversionistas_fn', {
+  const r = await cliente().schema('crm').rpc('cartera_inversionistas_filtrada_fn', {
     p_pagina: filtros.pagina, p_tamano: filtros.tamano, p_texto: filtros.texto.trim(),
     ...(filtros.empresa ? {p_empresa: filtros.empresa} : {}),
     ...(filtros.responsable && filtros.responsable !== 'sin_responsable' ? {p_responsable: filtros.responsable} : {}),
     p_sin_responsable: filtros.responsable === 'sin_responsable',
+    ...(filtros.mes ? {p_mes: filtros.mes} : {}),
+    ...(filtros.moneda ? {p_moneda: filtros.moneda} : {}),
+    ...(filtros.estado ? {p_estado: filtros.estado} : {}),
+    ...(filtros.contacto ? {p_contacto: filtros.contacto} : {}),
+    p_por_vencer: filtros.porVencer,
   }).abortSignal(signal)
   const pagina = respuestaInversionistas(CarteraInversionistasSchema, r)
   if (!validarPaginaInversionistas(pagina)) {

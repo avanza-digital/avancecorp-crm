@@ -11,8 +11,8 @@ import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
 vi.mock('@/data/postventa-api', () => ({estadoPostventa: vi.fn().mockResolvedValue({version: 1, habilitada: false}), fichaPostventa: (...args: unknown[]) => api.postventa(...args)}))
-const sesion = vi.hoisted(() => ({rolPortal: 'directorio', demo: false}))
-vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: 'gerencia', rol_portal: sesion.rolPortal, demo: sesion.demo}})}))
+const sesion = vi.hoisted(() => ({rolPortal: 'directorio', rol:'gerencia', demo: false}))
+vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: sesion.rol, rol_portal: sesion.rolPortal, demo: sesion.demo}})}))
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
   corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn()}))
@@ -37,7 +37,7 @@ const solicitud = (id=FUENTE_F5): SolicitudInversion => ({solicitud_id:id,estado
   responsable_actual_id:ACTOR_F5,requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'hash',
   necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:`${PERSONA_F5}/${id}/comprobante.pdf`,resultado:null})
 beforeEach(() => {
-  vi.clearAllMocks(); sesion.rolPortal='directorio'; sesion.demo=false; sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
+  vi.clearAllMocks(); sesion.rolPortal='directorio'; sesion.rol='gerencia'; sesion.demo=false; sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
   api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
   api.lista.mockResolvedValue(structuredClone(carteraF5)); api.ficha.mockResolvedValue(structuredClone(fichaF5)); api.bancos.mockResolvedValue([])
 })
@@ -99,7 +99,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(r).not.toHaveTextContent('Capital vigente')
     expect(r).toHaveTextContent('S/ 4,000')
   })
-  it('el resumen de la cartera distingue capital activo y registrado según el dato del núcleo', async () => {
+  it('el resumen comercial usa capital registrado del núcleo aunque el capital activo sea distinto', async () => {
     api.lista.mockResolvedValue({...structuredClone(carteraF5),totales:[
       {empresa:'avance',moneda:'PEN',cantidad:2,capital_activo:null,capital_registrado:4000},
       {empresa:'qorilazo',moneda:'USD',cantidad:3,capital_activo:0,capital_registrado:1200},
@@ -109,8 +109,8 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(avance).toHaveTextContent('S/ 4,000')
     expect(avance).toHaveTextContent('Capital registrado · 2 inversiones')
     const coopac=screen.getByText('Qorilazo · USD').parentElement!
-    expect(coopac).toHaveTextContent('US$ 0')
-    expect(coopac).toHaveTextContent('Capital activo · 3 inversiones')
+    expect(coopac).toHaveTextContent('US$ 1,200')
+    expect(coopac).toHaveTextContent('Capital registrado · 3 inversiones')
   })
   it('distingue inversiones sin número por posición dentro de su empresa y moneda', async () => {
     const d=structuredClone(fichaF5)
@@ -255,6 +255,97 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(api.bancos).not.toHaveBeenCalled()
     await user.click(screen.getAllByRole('button',{name:'Cerrar ficha'})[0]!)
     expect(screen.getByLabelText('Buscar persona')).toHaveValue('9333')
+  })
+  it('combina filtros en servidor, reinicia página y muestra los totales recibidos completos',async () => {
+    api.lista.mockImplementation(f => Promise.resolve({...carteraF5,pagina:f.pagina,total:60,
+      totales:[{empresa:'avance',moneda:'USD',cantidad:60,capital_activo:200,capital_registrado:90000}]}))
+    const {user}=montar()
+    await screen.findByText(/60 personas/)
+    await user.click(screen.getByRole('button',{name:/Siguiente/i}))
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0].pagina).toBe(2))
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'2026-08')
+    await user.selectOptions(screen.getByLabelText('Empresa'),'avance')
+    await user.click(screen.getByRole('button',{name:'Más filtros'}))
+    await user.selectOptions(screen.getByLabelText('Moneda'),'USD')
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),'vigente')
+    await user.selectOptions(screen.getByLabelText('Responsable actual'),ACTOR_F5)
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({pagina:1,mes:'2026-08',empresa:'avance',moneda:'USD',estado:'vigente',responsable:ACTOR_F5}))
+    expect(await screen.findByText('US$ 90,000')).toBeVisible()
+    expect(screen.getByText(/60 personas/)).toBeVisible()
+    await user.click(screen.getByRole('button',{name:/Más filtros/}))
+    expect(screen.getByRole('button',{name:'Más filtros (3)'})).toHaveAttribute('aria-expanded','false')
+  })
+  it('los clientes sin inversiones y el radar de 30 días limpian recortes incompatibles',async () => {
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    await user.selectOptions(screen.getByLabelText('Empresa'),'qorilazo')
+    await user.click(screen.getByRole('button',{name:'Más filtros'}))
+    await user.selectOptions(screen.getByLabelText('Moneda'),'USD')
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),'sin_inversiones')
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({estado:'sin_inversiones',mes:'',empresa:'',moneda:'',porVencer:false}))
+    expect(screen.getByLabelText('Mes de cierre comercial')).toBeDisabled()
+    expect(screen.getByText('Clientes sin inversiones. Mes, empresa y moneda no se aplican.')).not.toHaveClass('hidden')
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),'')
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'2026-08')
+    await user.click(screen.getByLabelText('Por vencer en 30 días'))
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({mes:'',estado:'vigente',porVencer:true}))
+    await user.click(screen.getByLabelText('Por vencer en 30 días'))
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({mes:'2026-08',estado:'',porVencer:false}))
+    await user.click(screen.getByLabelText('Por vencer en 30 días'))
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),'vencido')
+    expect(screen.getByLabelText('Por vencer en 30 días')).not.toBeChecked()
+    await user.click(screen.getByRole('button',{name:'Limpiar filtros'}))
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({mes:'',estado:'',porVencer:false}))
+  })
+  it('Directorio explica que sus clientes sin inversiones pertenecen al ámbito Avance',async () => {
+    api.lista.mockResolvedValue({...carteraF5,solo_avance:true,sin_inversiones_total:1,totales:[],
+      filas:[{...carteraF5.filas[0],empresas:[],resumen:[],ultima_fecha_comercial:null}]})
+    const {user}=montar()
+    await screen.findByText(/1 sin inversiones Avance/)
+    expect(within(screen.getByLabelText('Empresa')).queryByRole('option',{name:'Qorilazo'})).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Más filtros'}))
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),'sin_inversiones')
+    expect(screen.getByRole('option',{name:'Sin inversiones Avance'})).toBeInTheDocument()
+    expect(screen.getByText('Clientes sin inversiones Avance. Mes, empresa y moneda no se aplican.')).not.toHaveClass('hidden')
+  })
+  it('la fila anuncia documento, capital, cierre, responsable y No contactar al lector de pantalla',async () => {
+    api.lista.mockResolvedValue({...carteraF5,filas:[{...carteraF5.filas[0],no_contactar:true}]})
+    montar()
+    const fila=await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    expect(fila).toHaveAccessibleDescription(/DNI 93334444.*Capital registrado.*Qorilazo.*S\/ 1,200.*Último cierre:.*Responsable actual: ANALISTA F5.*No contactar/)
+  })
+  it('un rechazo persistente retira los datos sin encadenar reconsultas de revocación',async () => {
+    api.lista.mockImplementation(()=>Promise.reject(new CrmApiError('No autorizado','42501')))
+    const {user}=montar()
+    await screen.findByText('No autorizado')
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,100))})
+    expect(api.lista.mock.calls.length).toBeLessThanOrEqual(2)
+    expect(screen.queryByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).not.toBeInTheDocument()
+    api.lista.mockResolvedValue(carteraF5)
+    await user.click(screen.getByRole('button',{name:/Reintentar/}))
+    expect(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).toBeVisible()
+  })
+  it('un analista filtra su cartera sin selector de responsables ajenos',async () => {
+    sesion.rol='vendedor'
+    const {user}=montar()
+    await user.click(screen.getByRole('button',{name:'Más filtros'}))
+    expect(screen.queryByLabelText('Responsable actual')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Mes de cierre comercial')).toBeVisible()
+  })
+  it('cambiar mes cancela la consulta anterior y no presenta sus importes como actuales',async () => {
+    let resolver!: (v:typeof carteraF5)=>void
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    api.lista.mockImplementation(f => f.mes==='2026-08' ? new Promise(r=>{resolver=r}) : Promise.resolve({...carteraF5,total:0,filas:[],totales:[]}))
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'2026-08')
+    const signal=api.lista.mock.calls.at(-1)?.[1] as AbortSignal
+    expect(screen.queryByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'2026-09')
+    await screen.findByText('No hay personas que coincidan con estos filtros.')
+    expect(signal.aborted).toBe(true)
+    await act(async()=>resolver(carteraF5))
+    expect(screen.queryByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).not.toBeInTheDocument()
+    expect(screen.queryByText('S/ 1,200')).not.toBeInTheDocument()
   })
   it('la ficha no pinta PII de la lista mientras espera su propia respuesta',async () => {
     let resolver!: (v:typeof fichaF5)=>void

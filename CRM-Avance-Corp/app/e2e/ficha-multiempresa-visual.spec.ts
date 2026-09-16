@@ -36,7 +36,7 @@ for (const rol of ['vendedor', 'gerencia'] as const) {
       await page.route('**/rest/v1/rpc/*', async route => {
         const nombre = new URL(route.request().url()).pathname.split('/').at(-1)
         if (nombre === 'cartera_inversionistas_estado_fn') return route.fulfill({json: {version: 1, habilitada: true, escritura_habilitada: true, motivo: null}})
-        if (nombre === 'cartera_inversionistas_fn') return route.fulfill({json: {...carteraF5, filas: [{...ficha.persona, empresas: ['avance']}], totales: ficha.totales}})
+        if (nombre === 'cartera_inversionistas_filtrada_fn') return route.fulfill({json: {...carteraF5, filas: [{...carteraF5.filas[0], ...ficha.persona, empresas: ['avance'], resumen:ficha.totales}], totales: ficha.totales}})
         if (nombre === 'inversionista_ficha_fn') return route.fulfill({json: ficha})
         if (nombre === 'postventa_ficha_fn') return route.fulfill({json: {version: 1, habilitada: true, retiros: []}})
         return route.fallback()

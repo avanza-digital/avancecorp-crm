@@ -74,7 +74,7 @@ test('la comprobación periódica sigue detectando F5 cuando el servidor la habi
     status: habilitada ? 200 : 404,
     json: habilitada ? { version: 1, habilitada: true, escritura_habilitada: false, motivo: null } : rpcAusente,
   }))
-  await page.route('**/rest/v1/rpc/cartera_inversionistas_fn', route => route.fulfill({ json: carteraF5 }))
+  await page.route('**/rest/v1/rpc/cartera_inversionistas_filtrada_fn', route => route.fulfill({ json: carteraF5 }))
   await loginReal(page)
   await irAMiCartera(page)
   await expect(page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })).toBeVisible()

@@ -1,5 +1,21 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916023055 — Filtros comerciales de cartera multiempresa
+
+**CANDIDATA LOCAL; NO INSTALADA EN PRODUCCIÓN.** Mes de cierre comercial,
+empresa, moneda, estado, responsable, marca No contactar y vencimientos de
+30 días. Núcleo `private.cartera_f5_listar` sobre fuentes e identidades F5:
+listado, capital y opciones siempre dentro del ámbito autorizado. RPC v2 con
+respuesta completa y firma v1 conservada mediante el mismo núcleo. Sin cambios
+en `public`, flags, RLS de tablas o cierres mensuales. Propietario `postgres`,
+search_path vacío y núcleo sin acceso de clientes; RPC solo authenticated.
+
+Ensayo: copia local `cartera_filtros_20260916`, 17 grupos SQL, 6 peticiones HTTP
+y 7 comparaciones completas de compatibilidad v1 tras instalar, revertir y
+reinstalar PASS; propietario y ACL intactos. Tipos generados desde esa copia. Evidencias,
+reversa y orden de publicación: [cartera-filtros](../scripts/cartera-filtros/README.md).
+Instalar SQL antes del frontend; las pestañas anteriores conservan la RPC v1.
+
 ## 20260916003000 — Guardas finales de eliminación auditada
 
 **INSTALADA Y VERIFICADA 15/09/2026 21:44 Lima**, registro remoto `20260916024423`.

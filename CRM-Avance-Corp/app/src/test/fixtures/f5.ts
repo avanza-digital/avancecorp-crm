@@ -16,5 +16,6 @@ export const fichaF5: FichaInversionista = {version: 1, persona: {...personaF5, 
   capacidades: {nueva_inversion: true, motivo_no_operable: null, contactar: true, cuentas_perfil_ids: [], documentos: true},
   inversiones: [inversionF5], inversiones_total: 1, pagina_inversiones: 1, totales: totalesF5,
   historial: [], historial_total: 0, pagina_historial: 1, tareas: [], tareas_total: 0}
-export const carteraF5: CarteraInversionistas = {version: 1, pagina: 1, tamano: 25, total: 1,
-  filas: [{...personaF5, empresas: ['qorilazo']}], totales: totalesF5}
+export const carteraF5: CarteraInversionistas = {version: 2, pagina: 1, tamano: 25, total: 1,
+  filas: [{...personaF5, empresas: ['qorilazo'], ultima_fecha_comercial:'2026-09-01', resumen:totalesF5}], totales: totalesF5,
+  sin_inversiones_total:0, solo_avance:false, opciones_meses:['2026-09','2026-08'], opciones_responsables:[{id:ACTOR_F5,nombre:'ANALISTA F5'}]}

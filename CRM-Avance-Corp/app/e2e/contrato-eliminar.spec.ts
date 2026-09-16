@@ -9,7 +9,7 @@ for (const ancho of [1440,390]) test(`Admin elimina con confirmaciÃ³n y auditorÃ
   await page.route('**/rest/v1/rpc/*',async route=>{
     const nombre=new URL(route.request().url()).pathname.split('/').at(-1)
     if(nombre==='cartera_inversionistas_estado_fn') return route.fulfill({json:{version:1,habilitada:true,escritura_habilitada:true,motivo:null}})
-    if(nombre==='cartera_inversionistas_fn') return route.fulfill({json:carteraF5})
+    if(nombre==='cartera_inversionistas_filtrada_fn') return route.fulfill({json:carteraF5})
     if(nombre==='inversionista_ficha_fn') return route.fulfill({json:{...fichaF5,
       inversiones:eliminado?[]:[{...inversionF5,empresa:'avance',perfil_id:PERFIL_F5,numero:'2026-01-999999',contrato:{fecha_inicio:'2026-09-01',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}],
       inversiones_total:eliminado?0:1,totales:eliminado?[]:fichaF5.totales}})

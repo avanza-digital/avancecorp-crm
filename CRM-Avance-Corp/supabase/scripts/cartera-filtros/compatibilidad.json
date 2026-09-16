@@ -1,0 +1,34 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_filtros_20260916",
+  "migracion_sha256": "8164cdc4203999a916d494fe1c2149a499e553e5b9227f6012514f9b9458de86",
+  "casos": [
+    {},
+    {
+      "p_empresa": "avance"
+    },
+    {
+      "p_empresa": "qorilazo"
+    },
+    {
+      "p_empresa": "prodelco"
+    },
+    {
+      "p_pagina": 2
+    },
+    {
+      "p_texto": "qorilazo",
+      "p_empresa": "avance"
+    },
+    {
+      "p_texto": "AC-2026-0016"
+    }
+  ],
+  "reversa": "PASS: respuestas v1, owner, ACL y retirada de funciones nuevas",
+  "reinstalacion": "PASS",
+  "permisos": {
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+    "owner": "postgres",
+    "security_definer": true
+  }
+}

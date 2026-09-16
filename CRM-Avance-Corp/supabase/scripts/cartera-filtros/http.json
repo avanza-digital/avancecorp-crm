@@ -1,0 +1,10 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_filtros_20260916",
+  "resultados": [
+    "RPC v2 descubierta por PostgREST; mes, moneda, empresa y JSON correctos",
+    "RPC v1 mantiene su firma y respuesta",
+    "Anon, coordinador y cliente rechazados sin datos",
+    "Filtros inválidos rechazados por HTTP"
+  ]
+}
