@@ -115,6 +115,7 @@ describe('capacidades por rol', () => {
       // El reparto diario por analista es un espacio operativo propio de
       // Supervisión, aunque Gerencia conserve otras puertas de reparto.
       verDerivacionesEquipo: false,
+      verFacturacion: true,
       verAlertas: true,
       // La ÚNICA excepción del operador total, y es deliberada (F2 lead
       // libre): la toma directa es del ANALISTA para sí mismo — espejo del
@@ -134,6 +135,14 @@ describe('capacidades por rol', () => {
 
   it('la toma directa es SOLO del analista (espejo del guard del servidor)', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
+  })
+
+  it('Facturación es de Gerencia y de Supervisión (su equipo); nadie más', () => {
+    expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia'])
+    expect(can('vendedor', 'verFacturacion')).toBe(false)
+    expect(can('directorio', 'verFacturacion')).toBe(false)
+    expect(can('coordinador', 'verFacturacion')).toBe(false)
+    expect(can(null, 'verFacturacion')).toBe(false)
   })
 
   it('el alta directa de clientes (sin lead) es de Supervisión y Gerencia; el analista convierte leads', () => {

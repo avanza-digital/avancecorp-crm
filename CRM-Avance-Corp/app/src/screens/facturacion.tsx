@@ -1,5 +1,8 @@
 // screens/facturacion.tsx — Facturación: el mes entero, día a día, por
-// supervisor y por analista. Pantalla de Gerencia.
+// supervisor y por analista. Pantalla de Gerencia y, desde el 16/09/2026, de
+// Supervisión: el supervisor ve el avance de SU equipo (el servidor recorta el
+// ámbito a las filas cuyo supervisor de entonces es él, más sus ventas propias;
+// aquí no se filtra nada por rol).
 //
 // La malla es el diseño: 30 columnas de día × filas de equipo con sus analistas
 // anidados. La columna de nombres y la de total quedan congeladas; la cabecera
@@ -540,7 +543,8 @@ export function Facturacion({
   }, [fuente, esDemo, demo, filasDeMeses, diasVisiblesSet])
 
   // El organigrama que ya tiene el store (`crm.equipo_visible_fn`, con el mismo
-  // alcance que la RLS: Gerencia ve la empresa entera). Se proyecta a la forma
+  // alcance que la RLS: Gerencia ve la empresa entera; el supervisor, su
+  // subárbol — el mismo recorte que hace la RPC). Se proyecta a la forma
   // mínima del modelo para que `lib/facturacion.ts` no dependa de los tipos del CRM.
   // En DEMO no se siembra: el fixture trae su propio reparto inventado y el
   // organigrama del store es otro (EQUIPO_DEMO). Mezclarlos pondría dos repartos

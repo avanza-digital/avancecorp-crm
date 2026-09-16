@@ -27,7 +27,8 @@ const CAPACIDAD_POR_VISTA = {
   reuniones: null,
   metas: null,
   rendimiento: null,
-  facturacion: null,
+  // Gerencia y Supervisión (su equipo), 16/09/2026. El servidor recorta el ámbito.
+  facturacion: 'verFacturacion',
   'informes-empresas': null,
   pipeline: 'verPipeline',
   cartera: 'verLeads',

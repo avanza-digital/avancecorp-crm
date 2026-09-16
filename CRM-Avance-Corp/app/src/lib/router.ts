@@ -61,14 +61,17 @@ export function esVistaConfiguracion(vista: Vista): vista is VistaConfiguracion 
   return (VISTAS_CONFIGURACION as readonly Vista[]).includes(vista)
 }
 
-/** Vistas de inteligencia exclusivas de Gerencia; no son operación de leads. */
+/**
+ * Vistas de inteligencia exclusivas de Gerencia; no son operación de leads.
+ * 'facturacion' NO está aquí desde el 16/09/2026: la comparte Supervisión (ve su
+ * equipo) y se gatea por la capacidad `verFacturacion` en vistas.ts.
+ */
 export const VISTAS_GERENCIA = [
   'conversiones',
   'ranking-vendedores',
   'reuniones',
   'metas',
   'rendimiento',
-  'facturacion',
   'informes-empresas',
 ] as const satisfies readonly Vista[]
 

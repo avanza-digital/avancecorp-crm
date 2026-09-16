@@ -10,6 +10,11 @@
 -- Siembra un cambio de equipo real sobre datos del banco, comprueba la
 -- atribución antes y después, y DESHACE TODO.
 --
+-- Desde el 16/09/2026 (migración 20260916205617) prueba también el ÁMBITO DEL
+-- SUPERVISOR: ve las filas cuyo supervisor de entonces es él (o su subárbol) y
+-- sus ventas propias, y NADA más (casos 10 a 12). Y la verja del caso 8 deja de
+-- ser «ve o no ve» para el supervisor: es «ve exactamente lo suyo».
+--
 -- ⚠ AVISO DE CANDADO: baja y sube el trigger de la fecha de cierre, y
 -- `ALTER TABLE ... DISABLE/ENABLE TRIGGER` toma un SHARE ROW EXCLUSIVE sobre
 -- `public.contratos` que NO se libera al volver a habilitarlo: dura hasta el
@@ -245,6 +250,75 @@ begin
   end if;
   raise notice 'ORACULO 7 OK: el tramo de EN MEDIO se atribuye al supervisor de entonces, que no es el de hoy';
 
+  -- ── CASO 10 — EL ÁMBITO DEL SUPERVISOR SIGUE LA REGLA DE «ENTONCES» ───────
+  --    Con la historia del caso 7 (día 5 bajo el VIEJO, día 20 bajo el NUEVO, y
+  --    el analista HOY en el equipo del nuevo): el supervisor VIEJO ve la venta
+  --    del día 5 y NO la del 20; el NUEVO ve la del 20 y NO la del 5. Si el
+  --    recorte fuera por organigrama de hoy, el viejo no vería nada y el nuevo
+  --    lo vería todo: las dos hipótesis dan respuestas distintas.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
+    into v_ops, v_filas
+  from crm.facturacion_diaria_fn(v_mes) f
+  where f.analista_id = v_analista and f.tipo = 'contrato_nuevo';
+  if v_ops = 0 or v_filas > 0 then
+    raise exception 'ORACULO 10 FALLA: el supervisor VIEJO ve % filas del dia % (debia >0) y % del % (debia 0)',
+      v_ops, v_antes, v_filas, v_despues;
+  end if;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_sup_nuevo, 'role', 'authenticated')::text, true);
+  select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
+    into v_ops, v_filas
+  from crm.facturacion_diaria_fn(v_mes) f
+  where f.analista_id = v_analista and f.tipo = 'contrato_nuevo';
+  if v_ops > 0 or v_filas = 0 then
+    raise exception 'ORACULO 10 FALLA: el supervisor NUEVO ve % filas del dia % (debia 0) y % del % (debia >0)',
+      v_ops, v_antes, v_filas, v_despues;
+  end if;
+  raise notice 'ORACULO 10 OK: cada supervisor ve las ventas hechas BAJO EL, no las del organigrama de hoy';
+
+  -- ── CASO 11 — NI UNA FILA AJENA, y el nombre del otro no viaja ────────────
+  --    Todo lo que recibe el supervisor nuevo lleva como supervisor a alguien de
+  --    su subárbol (o lo vendió él). En particular, la venta del día 5 —que HOY
+  --    es de un analista suyo— no le llega rotulada con el nombre del viejo.
+  select count(*) into v_malas
+  from crm.facturacion_diaria_fn(v_mes) f
+  where not (
+    f.supervisor_id in (
+      with recursive sub as (
+        select v_sup_nuevo as perfil_id
+        union
+        select e.perfil_id from crm.equipo e join sub s on e.supervisor_id = s.perfil_id
+      ) select perfil_id from sub)
+    or f.analista_id = v_sup_nuevo);
+  if v_malas > 0 then
+    raise exception 'ORACULO 11 FALLA: el supervisor nuevo recibio % filas ajenas', v_malas;
+  end if;
+  select count(*) into v_malas
+  from crm.facturacion_diaria_fn(v_mes) f where f.supervisor_id = v_sup_viejo;
+  if v_malas > 0 then
+    raise exception 'ORACULO 11 FALLA: el supervisor nuevo ve % filas rotuladas con el VIEJO', v_malas;
+  end if;
+  raise notice 'ORACULO 11 OK: el supervisor no recibe filas ajenas ni el nombre del otro equipo';
+
+  -- ── CASO 12 — EL MUTANTE del ámbito: si el recorte se cayera al organigrama
+  --    de hoy, la venta del día 5 aparecería para el NUEVO. Se comprueba la
+  --    dirección contraria también: mover al analista al equipo del VIEJO hoy
+  --    no le regala al viejo la venta del día 20, que fue bajo el nuevo.
+  update crm.equipo set supervisor_id = v_sup_viejo where perfil_id = v_analista;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  select count(*) into v_malas
+  from crm.facturacion_diaria_fn(v_mes) f
+  where f.analista_id = v_analista and f.dia = v_despues and f.tipo = 'contrato_nuevo';
+  if v_malas > 0 then
+    raise exception 'ORACULO 12 FALLA: con el analista HOY en su equipo, el viejo ve % filas del dia %, hechas bajo el nuevo',
+      v_malas, v_despues;
+  end if;
+  update crm.equipo set supervisor_id = v_sup_nuevo where perfil_id = v_analista;
+  raise notice 'ORACULO 12 OK: el organigrama de hoy no cambia lo que cada supervisor ve';
+
   -- ── CASO 5 — el gate: sin sesión, ni una fila ─────────────────────────────
   perform set_config('request.jwt.claims', '', true);
   select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
@@ -256,13 +330,20 @@ begin
   -- ── CASO 8 — LA VERJA, IDENTIDAD POR IDENTIDAD. Se cambia de identidad como
   --    lo hace PostgREST (claim `sub` del JWT) y se recorre TODO el equipo del
   --    banco. La intención se escribe como afirmación —la ven Gerencia y el
-  --    Directorio, nadie más— en vez de copiar la condición de la función, que
-  --    sería tautológico.
+  --    Directorio enteras, cada supervisor exactamente lo suyo, nadie más— en
+  --    vez de copiar la condición de la función, que sería tautológico.
   declare
-    r        record;
-    v_ident  bigint := 0;
-    v_mal    bigint := 0;
+    r          record;
+    v_ident    bigint := 0;
+    v_mal      bigint := 0;
+    v_esperado bigint;
   begin
+    -- La foto de Gerencia, para medir a cada supervisor contra ella.
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', v_gerencia, 'role', 'authenticated')::text, true);
+    create temp table zz_verja_gerencia on commit drop as
+      select * from crm.facturacion_diaria_fn(v_mes);
+
     for r in
       select e.perfil_id, e.rol_crm, (e.rol_crm in ('gerencia','directorio')) as deberia_ver
       from crm.equipo e where e.activo order by e.rol_crm, e.perfil_id
@@ -271,11 +352,27 @@ begin
         json_build_object('sub', r.perfil_id, 'role', 'authenticated')::text, true);
       select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
       v_ident := v_ident + 1;
-      if (v_filas > 0) <> r.deberia_ver then
+      if r.rol_crm = 'supervisor' then
+        -- Desde el 16/09/2026 el supervisor VE, pero exactamente lo suyo: las
+        -- filas de Gerencia cuyo supervisor de entonces cae en su subarbol, o
+        -- que vendio el. Ni una mas, ni una menos.
+        with recursive sub as (
+          select r.perfil_id
+          union
+          select e.perfil_id from crm.equipo e join sub s on e.supervisor_id = s.perfil_id
+        )
+        select count(*) into v_esperado from zz_verja_gerencia g
+        where g.supervisor_id in (select perfil_id from sub) or g.analista_id = r.perfil_id;
+        if v_filas <> v_esperado then
+          v_mal := v_mal + 1;
+          raise warning 'VERJA MAL: el supervisor % vio % filas y le tocaban %', r.perfil_id, v_filas, v_esperado;
+        end if;
+      elsif (v_filas > 0) <> r.deberia_ver then
         v_mal := v_mal + 1;
         raise warning 'VERJA MAL: el rol % vio % filas (deberia_ver=%)', r.rol_crm, v_filas, r.deberia_ver;
       end if;
     end loop;
+    drop table zz_verja_gerencia;
 
     -- Un uuid que no es nadie tampoco entra.
     perform set_config('request.jwt.claims',
@@ -299,7 +396,7 @@ begin
   end if;
   raise notice 'ORACULO 9 OK: anon no ejecuta, authenticated si';
 
-  raise notice '── LOS 9 ORACULOS DE FACTURACION PASAN ──';
+  raise notice '── LOS 12 ORACULOS DE FACTURACION PASAN ──';
 end
 $oraculo$;
 

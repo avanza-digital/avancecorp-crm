@@ -7252,12 +7252,13 @@ async function testAltasNuevasPorAnalista(sessions, seed) {
   }
 }
 
-// Facturación diaria (pantalla de Gerencia). VERJA, no cierre: quien no es
-// Gerencia ni lector global recibe 0 filas, no un 42501 (criterio auditor-rls
-// M-1 del 04/09). El gate SQL es exclusivo de Gerencia a propósito, igual que
-// VISTAS_GERENCIA en el front: por mínimo privilegio, y porque el supervisor que
-// devuelve sale de rebobinar crm.usuario_eventos y no debe poder leerse desde
-// fuera de Gerencia a qué equipo pertenecía alguien.
+// Facturación diaria (pantalla de Gerencia y, desde el 16/09/2026, de
+// Supervisión). VERJA, no cierre: quien no tiene ámbito recibe 0 filas, no un
+// 42501 (criterio auditor-rls M-1 del 04/09). Gerencia y el lector global la ven
+// ENTERA; el SUPERVISOR ve exactamente lo suyo (filas cuyo supervisor de
+// entonces —rebobinado de crm.usuario_eventos— cae en su subárbol, o que vendió
+// él), y por eso a qué equipo pertenecía alguien de OTRO equipo sigue sin poder
+// leerse desde fuera de Gerencia. Vendedor, coordinador y ajenos: vacío.
 async function testFacturacionDiaria(sessions, seed) {
   console.log('\n— Facturación diaria (día x analista x supervisor) —');
   const FN = 'facturacion_diaria_fn';
@@ -7288,13 +7289,65 @@ async function testFacturacionDiaria(sessions, seed) {
       `gerencia lee ${FN} (${error?.code ?? filasGerencia.length + ' filas'})`);
   }
 
-  // B-F. TODO lo que no es Gerencia recibe VACIO. Un vendedor y un supervisor
-  //      tambien: la pantalla es de Gerencia y el gate dice lo mismo.
-  for (const quien of ['vend1', 'sup1', 'coordinador', 'clientBank', 'vendInactive']) {
+  // B-E. Vendedor, coordinador, cliente del banco y el analista dado de baja
+  //      reciben VACIO: verja de visibilidad, no cierre (criterio M-1).
+  for (const quien of ['vend1', 'coordinador', 'clientBank', 'vendInactive']) {
     const { data, error } = await sessions[quien].client
       .schema('crm').rpc(FN, { p_mes: MES });
     check(!error && Array.isArray(data) && data.length === 0,
       `${quien} recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // E2. El lector global (Directorio) ve EXACTAMENTE lo mismo que Gerencia:
+  //     por definicion lee toda la empresa, y negarselo aqui seria una
+  //     excepcion sin motivo (mismo criterio que sus hermanas).
+  {
+    const ordenar = (filas) => (filas ?? []).map((f) => JSON.stringify(f)).sort();
+    const { data, error } = await sessions.directorio.client
+      .schema('crm').rpc(FN, { p_mes: MES });
+    check(!error && JSON.stringify(ordenar(data)) === JSON.stringify(ordenar(filasGerencia)),
+      `directorio lee ${FN} igual que gerencia (${error?.code ?? (data?.length ?? 0) + ' vs ' + filasGerencia.length + ' filas'})`);
+  }
+
+  // F. EL SUPERVISOR YA NO RECIBE VACIO (16/09/2026): ve SU equipo. Cada fila
+  //    que recibe tiene que ser suya —supervisor de entonces en su subarbol, o
+  //    vendida por el— y tiene que recibir EXACTAMENTE las que Gerencia ve bajo
+  //    ese mismo predicado: ni una de mas (fuga) ni una de menos (agujero). El
+  //    subarbol se reconstruye desde el fixture (supervisorKey), no desde el
+  //    servidor: dos fuentes, un oraculo. Se prueban los DOS supervisores del
+  //    banco para que el caso no pase por casualidad con uno vacio.
+  {
+    const subarbolDe = (raiz) => {
+      const ids = new Set([seed.profileIdByKey[raiz]]);
+      let creció = true;
+      while (creció) {
+        creció = false;
+        for (const u of USERS) {
+          const id = seed.profileIdByKey[u.key];
+          if (u.supervisorKey && ids.has(seed.profileIdByKey[u.supervisorKey]) && !ids.has(id)) {
+            ids.add(id);
+            creció = true;
+          }
+        }
+      }
+      return ids;
+    };
+    const clave = (f) => JSON.stringify([f.dia, f.tipo, f.moneda, f.analista_id, f.supervisor_id, f.operaciones, f.capital]);
+    for (const quien of ['sup1', 'sup2']) {
+      const yo = seed.profileIdByKey[quien];
+      const sub = subarbolDe(quien);
+      const suya = (f) => sub.has(f.supervisor_id) || f.analista_id === yo;
+      const { data, error } = await sessions[quien].client.schema('crm').rpc(FN, { p_mes: MES });
+      const mias = data ?? [];
+      const ajenas = mias.filter((f) => !suya(f));
+      const esperadas = filasGerencia.filter(suya).map(clave).sort();
+      const recibidas = mias.map(clave).sort();
+      check(!error && ajenas.length === 0,
+        `${quien} no recibe NINGUNA fila ajena de ${FN} (${error?.code ?? ajenas.length + ' ajenas de ' + mias.length})`,
+        ajenas.length ? `ajenas: ${ajenas.slice(0, 3).map(clave).join(' | ')}` : '');
+      check(!error && JSON.stringify(recibidas) === JSON.stringify(esperadas),
+        `${quien} recibe EXACTAMENTE sus filas de ${FN}: las de Gerencia bajo su predicado (${recibidas.length} vs ${esperadas.length})`);
+    }
   }
 
   // G. anon: sin EXECUTE -> error de AUTORIZACION, no cualquier error.
