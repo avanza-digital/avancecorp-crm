@@ -20,6 +20,14 @@ import {
 import { vistaPermitida } from '@/lib/vistas'
 
 type SeccionNav = 'principal' | 'administracion'
+/** Grupos del menú. Los dos primeros son los históricos; Gerencia usa los tres últimos. */
+type GrupoNav = SeccionNav | 'direccion' | 'operacion'
+const GRUPO_LABEL: Record<GrupoNav, string> = {
+  principal: 'Principal',
+  administracion: 'Administración',
+  direccion: 'Dirección',
+  operacion: 'Operación',
+}
 
 interface NavMeta {
   label: string
@@ -60,6 +68,58 @@ const VISTAS_SIDEBAR = VISTAS.filter(
     id !== 'alertas' && !esVistaConfiguracion(id) && !esVistaInterna(id),
 )
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
+
+/**
+ * Plan UX Gerencia (06/09/2026, §5.10): de una lista plana a tres grupos con
+ * una pregunta cada uno. DIRECCIÓN responde «cómo va el negocio», OPERACIÓN es
+ * el trabajo sobre leads y cartera, ADMINISTRACIÓN gobierna. Metas baja junto
+ * a Configuración (el plan la integra ahí). Exhaustivo a propósito: una vista
+ * nueva obliga a decidir su grupo. El ORDEN de las claves es el orden del menú.
+ * Solo agrupa lo que `vistaPermitida` ya dejó pasar; no concede nada.
+ */
+const GRUPO_GERENCIA = {
+  hoy: 'direccion',
+  'ranking-vendedores': 'direccion',
+  rendimiento: 'direccion',
+  conversiones: 'direccion',
+  reuniones: 'direccion',
+  facturacion: 'direccion',
+  'informes-empresas': 'direccion',
+  seguimiento: 'operacion',
+  pipeline: 'operacion',
+  cartera: 'operacion',
+  agenda: 'operacion',
+  'mi-cartera': 'operacion',
+  repartir: 'operacion',
+  rescate: 'operacion',
+  derivaciones: 'operacion',
+  equipo: 'operacion',
+  metas: 'administracion',
+  config: 'administracion',
+} as const satisfies Record<VistaSidebar, GrupoNav>
+const ORDEN_GERENCIA = Object.keys(GRUPO_GERENCIA) as VistaSidebar[]
+const GRUPOS_GERENCIA: readonly GrupoNav[] = ['direccion', 'operacion', 'administracion']
+const GRUPOS_HISTORICOS: readonly GrupoNav[] = ['principal', 'administracion']
+
+interface ItemNav {
+  id: Vista
+  label: string
+  icon: typeof LayoutDashboard
+  seccion: SeccionNav
+}
+
+/** Reparte los ítems ya autorizados en grupos con etiqueta; omite grupos vacíos. */
+function agruparNav(items: readonly ItemNav[], rol: string | undefined) {
+  const esGerencia = rol === 'gerencia'
+  const grupoDe = (n: ItemNav): GrupoNav =>
+    esGerencia && n.id in GRUPO_GERENCIA ? GRUPO_GERENCIA[n.id as VistaSidebar] : n.seccion
+  const ordenados = esGerencia
+    ? [...items].sort((a, b) => ORDEN_GERENCIA.indexOf(a.id as VistaSidebar) - ORDEN_GERENCIA.indexOf(b.id as VistaSidebar))
+    : items
+  return (esGerencia ? GRUPOS_GERENCIA : GRUPOS_HISTORICOS)
+    .map((grupo) => ({ grupo, label: GRUPO_LABEL[grupo], items: ordenados.filter((n) => grupoDe(n) === grupo) }))
+    .filter((g) => g.items.length > 0)
+}
 const NAV_GOBIERNO_ROLES = [{
   id: 'config-usuarios',
   label: 'Usuarios y roles',
@@ -229,8 +289,17 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
         ? { ...n, label: 'Cartera' }
         : n
     })
-  const itemsPrincipales = items.filter((n) => n.seccion === 'principal')
-  const itemsAdministracion = items.filter((n) => n.seccion === 'administracion')
+  // La marca acompaña a la navegación operativa; el gobierno de roles va sin ella.
+  const muestraMarca = items.some((n) => n.seccion === 'principal')
+  const grupos = agruparNav(items, rol)
+  // Índice de cascada: cada cabecera y cada ítem entran escalonados, en orden.
+  let cascada = 1
+  const gruposConIndice = grupos.map((g) => ({
+    ...g,
+    indiceCabecera: cascada++,
+    items: g.items.map((n) => ({ ...n, indice: cascada++ })),
+  }))
+  const indiceUsuario = cascada
 
   return (
     <aside
@@ -269,7 +338,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
               expandido ? 'left-4' : 'left-[13px]',
             )}
           />
-          {expandido && itemsPrincipales.length > 0 && (
+          {expandido && muestraMarca && (
             <div data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(0) : undefined}>
               <BrandLockup tone="dark" size={38} />
             </div>
@@ -287,31 +356,21 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
 
         {/* Nav por capacidad (lo que can() oculta, la RLS también lo niega) */}
         <nav className={cn('ac-scroll flex-1 space-y-1 overflow-y-auto pt-4', expandido ? 'px-3' : 'px-2')}>
-          {expandido && (
-            <p
-              className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45"
-              data-peek-anim={animar ? '' : undefined}
-              style={animar ? estiloCascada(1) : undefined}
-            >
-              Principal
-            </p>
-          )}
-          {itemsPrincipales.map((n, i) => (
-            <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => navegar(n.id)} expandido={expandido} animar={animar} indice={i + 2} />
-          ))}
-
-          {itemsAdministracion.length > 0 && (
-            <>
+          {gruposConIndice.map((g, gi) => (
+            <div key={g.grupo} role="group" aria-label={g.label} className="space-y-1">
               {expandido && (
                 <p
-                  className="px-2 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45"
+                  className={cn(
+                    'px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45',
+                    gi > 0 && 'pt-5',
+                  )}
                   data-peek-anim={animar ? '' : undefined}
-                  style={animar ? estiloCascada(itemsPrincipales.length + 2) : undefined}
+                  style={animar ? estiloCascada(g.indiceCabecera) : undefined}
                 >
-                  Administración
+                  {g.label}
                 </p>
               )}
-              {itemsAdministracion.map((n, i) => (
+              {g.items.map((n) => (
                 <NavButton
                   key={n.id}
                   item={n}
@@ -319,11 +378,11 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
                   onClick={() => navegar(n.id)}
                   expandido={expandido}
                   animar={animar}
-                  indice={itemsPrincipales.length + i + 3}
+                  indice={n.indice}
                 />
               ))}
-            </>
-          )}
+            </div>
+          ))}
         </nav>
 
         {/* Autoridad visible sin confundir gobierno de roles con auditoría CRM. */}
@@ -348,7 +407,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
         >
           <Avatar nombre={yo?.nombre_completo} color="#7aa6ff" className="size-9" />
           {expandido && (
-            <div className="min-w-0 flex-1 leading-tight" data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(itemsPrincipales.length + 4) : undefined}>
+            <div className="min-w-0 flex-1 leading-tight" data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(indiceUsuario) : undefined}>
               <p className="truncate text-[13px] font-semibold text-white">{yo?.nombre_completo ?? '—'}</p>
               <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
                 {rol ? ROL_LABEL[rol] : ''}{yo?.demo ? ' · demo' : ''}
