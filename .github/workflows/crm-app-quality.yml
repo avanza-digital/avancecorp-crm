@@ -1,10 +1,8 @@
 name: CRM app quality
 
 on:
+  # La regla de Main exige verify en toda PR; un filtro paths lo dejaría pendiente.
   pull_request:
-    paths:
-      - 'CRM-Avance-Corp/app/**'
-      - '.github/workflows/crm-app-quality.yml'
   push:
     branches: [main, tronco]
     paths:
@@ -19,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:

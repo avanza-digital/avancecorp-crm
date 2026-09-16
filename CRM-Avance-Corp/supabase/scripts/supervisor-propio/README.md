@@ -79,3 +79,16 @@ propiedad/capacidad contractual se mantiene y tiene test. Se añadió al comenta
 la referencia del RPC de alta. El reviewer no detectó ampliación de acceso en
 el diff. El PRIMARY cerró los gaps con evidencia, sin repetir consultas para
 obtener un dictamen favorable.
+
+## Integración protegida
+
+GitHub rechazó el push directo: requiere PR, una revisión aprobatoria y el
+check `verify`. El workflow aún llamaba `quality` al mismo gate. Se alinea
+el nombre a `verify` y se quita el filtro de paths de pull_request para no
+dejarlo eternamente pendiente en PR documentales. Los comandos del gate se
+conservan. Este mismo ajuste ya estaba preparado en la tarea paralela; se
+reproduce en la copia aislada sin modificar su árbol.
+
+PR: https://github.com/avanza-digital/avancecorp-crm/pull/2
+La publicación debe esperar aprobación e integración en `avancecorp/main`,
+y reconstruirse desde ese commit. Un ZIP de la rama es solo preparación.
