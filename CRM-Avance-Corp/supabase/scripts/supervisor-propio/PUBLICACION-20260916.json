@@ -1,0 +1,616 @@
+{
+  "estado": "PUBLICADO_VERIFICADO_SESION_CERRADA",
+  "fecha": "2026-09-16",
+  "url": "https://crm.miavance.com/",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/2",
+  "release_id": "crm-20260916T170732Z-1f9e5f83fa08",
+  "fuente": {
+    "commit": "1f9e5f83fa08c371b8e28ef502b89fdb4c135bfc",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "archivo": {
+    "nombre": "crm-20260916T170732Z-1f9e5f83fa08.zip",
+    "bytes": 2078999,
+    "sha256": "6e37f4aa87db16982776e8b0d034534681bed2b13434c60af256ede541f90263"
+  },
+  "build_servido": "build-20260916T170731814Z",
+  "checks": {
+    "frontend_local": "PASS: 3641 pruebas, lint, tipos, cobertura, build y gates",
+    "github_verify": "PASS",
+    "github_e2e": "PASS: 195; 26 omisiones preexistentes",
+    "github_preflight": "PASS",
+    "sql_local": "PASS: 8 casos sintéticos con ROLLBACK",
+    "edge_preflight": "PASS: 32",
+    "gate_realidad_cli": "NOT RUN: faltaron credenciales CLI; conteos y metadatos cotejados por MCP de solo lectura"
+  },
+  "smoke_web": {
+    "release_id": "crm-20260916T170732Z-1f9e5f83fa08",
+    "commit": "1f9e5f83fa08c371b8e28ef502b89fdb4c135bfc",
+    "archivo_sha256": "6e37f4aa87db16982776e8b0d034534681bed2b13434c60af256ede541f90263",
+    "pass": true,
+    "recursos": [
+      {
+        "ruta": ".htaccess",
+        "status": 403,
+        "ok": true,
+        "sha256_servido": null
+      },
+      {
+        "ruta": "404.html",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f"
+      },
+      {
+        "ruta": "aliados/belysh.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce"
+      },
+      {
+        "ruta": "aliados/clinica-alvarez.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb"
+      },
+      {
+        "ruta": "aliados/mascapital.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311"
+      },
+      {
+        "ruta": "aliados/ntc-agency.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429"
+      },
+      {
+        "ruta": "aliados/phoenix.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7"
+      },
+      {
+        "ruta": "aliados/prodelco.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28"
+      },
+      {
+        "ruta": "aliados/qorilazo.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7"
+      },
+      {
+        "ruta": "assets/agenda-aJ6UJgEo.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "0a7fa6929b7ce2301b1a27cb6977c4e3fe17112c62e4742450206f6b0c21eae7"
+      },
+      {
+        "ruta": "assets/agenda-vistas-AUtATepN.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "21504db8fef9d1d5f7b01f4c621b7a4ecf532d1b82a34f10a98cf798dbe73dc5"
+      },
+      {
+        "ruta": "assets/alertas-DGeDzzev.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "7945bad141be66e5275fcbb4f84e98aeb6fb2a9b86ce805fb8bf1379901ad1c1"
+      },
+      {
+        "ruta": "assets/animated-value-CxWwuyas.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258"
+      },
+      {
+        "ruta": "assets/aviso-degradacion-CI1dfaXq.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "615051e9c0674c95519664743aca279eb4a4781f04c6f67ead694a29c01f3b15"
+      },
+      {
+        "ruta": "assets/card-Cflm06B8.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5bba5a2a734cd3eee9eb27c2bccec48a691ff97c4d30634c381fc4eef216637e"
+      },
+      {
+        "ruta": "assets/cartera-CzV8m8sC.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "82b2662936b47d86dac22695d295685a031abec407ec3c238238456736dbf843"
+      },
+      {
+        "ruta": "assets/cierres-externos-seccion-Dhelm-Uj.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5862f0d277f4181b2f5c498e6a9df1756cd9cf48a47fd2665aa0b95c7b6f2b0e"
+      },
+      {
+        "ruta": "assets/clientes-vista-BT9wOPoj.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815"
+      },
+      {
+        "ruta": "assets/config-citas-CaOq3yhX.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "aeb0235585a873a706b81f0b535f27f35eb06931c8554382ff5b3c6caa397ae5"
+      },
+      {
+        "ruta": "assets/config-Ds5AGYdV.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "f48f1ee650264c8f3e12ca44ba75fa2513edc706eb4704f91c7a590836a6595e"
+      },
+      {
+        "ruta": "assets/config-metas-CyfkXcWP.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "f31ea50ca1328838b647af61611929838d6b03cb313904d0fa8fe9b884522672"
+      },
+      {
+        "ruta": "assets/config-productos-CH7HLIkH.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "471ebccfb8041cec7cf28a87c10a8146d472f5ce86154b26f5a42d819d5940e8"
+      },
+      {
+        "ruta": "assets/config-rentabilidad-l_TOhMvp.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "6391199f4edfb7e48e305af2379a20770873e13e61a9ff1cfa206f156b745dce"
+      },
+      {
+        "ruta": "assets/config-sla-DOxHBW2L.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "996fc77c1f51b9692a23c512e2e0ee26075dae13c8643d006d11c9ad70eb44c6"
+      },
+      {
+        "ruta": "assets/config-usuarios-BPB0PNdT.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "b556c9f8aab3c265a7110fdd8db67ac8caee74690bf5e36909ca90ebe2cc01df"
+      },
+      {
+        "ruta": "assets/configuracion-shell-twjapJT_.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "2b036fe8ee5f05c2426600985d9526af09c19311dd07172d714800f6545baa13"
+      },
+      {
+        "ruta": "assets/control-citas-C3Y-cBQ3.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "36f912f3dac5bc3c5c5d5c52077d85d260bb59e7a4e8cd605b9cd1b5e164413c"
+      },
+      {
+        "ruta": "assets/controles-periodo-derivaciones-BhvFvKvY.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "e618c85bcd1368edf5ba85498583eff10ad0ced40fdab53133b09410608a8fb4"
+      },
+      {
+        "ruta": "assets/crm-api-DrlTYmGp.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d64c650148efc2acb73ead8bd66a49cebde9ed1ece29aa8d3c2b2955e4a6860a"
+      },
+      {
+        "ruta": "assets/data-vendor-DTp_zWmI.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6"
+      },
+      {
+        "ruta": "assets/derivaciones-C_o9iok_.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5d5a45482d339d3d4a82ee969ed0e38ad353a7fe5ef5dcf14ed94fb97aacc394"
+      },
+      {
+        "ruta": "assets/desglose-monedas-D8iIV9gI.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "4b594198fad69868b983089611a2ae2e8e69651282503dcce5e55f23de7f1057"
+      },
+      {
+        "ruta": "assets/dist-DAse8jiX.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de"
+      },
+      {
+        "ruta": "assets/distribucion-lecturas-ClKoXU6X.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "04ceca69ced2029e5c178c8998f1dbc529b3d2b0f10a7df93ee076e5dffa39bc"
+      },
+      {
+        "ruta": "assets/echart-bar-D8CsI8wG.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d744823f97816d6cd537069f49f034ce0bb6140a77168962574bd451ecdfcf66"
+      },
+      {
+        "ruta": "assets/echart-Cb-OLGsR.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "bd7948311f11b8269e31fcfb27e24392ff5c47f6666d551ef47f208231be8964"
+      },
+      {
+        "ruta": "assets/echart-line-Cx-cWXRc.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "57875a7e343b661847befdcb94d31c836ef4b6247358a8eb6094d57d97062af2"
+      },
+      {
+        "ruta": "assets/equipo-xhH7GcJ9.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "abcac69f2aa0b1f315163d8654adbd348b85698d00f3891bda1788ddb0b7147e"
+      },
+      {
+        "ruta": "assets/esm-BofDk75c.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722"
+      },
+      {
+        "ruta": "assets/estado-panel-Dalel4fj.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "2f3d28ae2a21ff69e621c1ed5537d0b32800be417a27bdeede3656a359d1b890"
+      },
+      {
+        "ruta": "assets/facturacion-Deluvv8y.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "40596fdc8f111203d159669ccb9aa13100c7accf5b708a6c62ba328ca85a06f6"
+      },
+      {
+        "ruta": "assets/gerencia-BaLUQF8y.css",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293"
+      },
+      {
+        "ruta": "assets/gerencia-Cq5JHcjR.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "141c16b8756a6edbbc9feba098e31f2b2407576f8f4248aeda1aa1937aa571b9"
+      },
+      {
+        "ruta": "assets/gerencia-DYc8Ib56.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "8307bf8979d19647957771d1d1c0d1235410cb094891be4cdee1cd9d9acce056"
+      },
+      {
+        "ruta": "assets/historial-decisiones-tasa-gerencia-CxmSnSjS.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "ada3e67d16b9b8f7342b577bde9e9a846864558e0e2751e23e3b35f23b5e7d73"
+      },
+      {
+        "ruta": "assets/hoy-BpZxXyHU.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "f04810333f5ff4e6443d40cb48f0d0337e2235ea06edc5dcd6576088c2619b3b"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7"
+      },
+      {
+        "ruta": "assets/index-BOfD5cL9.css",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "b73876eea31a2be6bd0b9c6d04bc809867729355966c65919ef6beb8e9e4c7e8"
+      },
+      {
+        "ruta": "assets/index-k_Zh2ykD.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "08134a29263bf5406615f64cf82d0073aa09d16827377af950c2d6f1600a743e"
+      },
+      {
+        "ruta": "assets/kpi-card-DU3OX6x2.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "bfb87da4f677b64c0f4a8745d5aaf1317aabb97f5d04dce9a7b2d91a1d91c435"
+      },
+      {
+        "ruta": "assets/lead-hover-card-PbvJjKWx.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "0a4681adc94e735cd862954dccf1fad98fd04947a90178a1f34746ba5d8c27a8"
+      },
+      {
+        "ruta": "assets/metricas-multiempresa-BASrg92V.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "6354508abcf74ca77e9c00f0e7057259cd1da68ec4ee93d8f2288c5bacfe0271"
+      },
+      {
+        "ruta": "assets/mi-cartera-tFwa-7GN.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "8aafdc0e6fa1719cf6da645de7edd3095408b8876112d3ed5ff6a7855eab1f07"
+      },
+      {
+        "ruta": "assets/notificaciones-tasa-DgVsBtgC.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "079cf88c86f32f5c555a38f6946ae72cb8b0b0e97bd681a954577474a3593ce6"
+      },
+      {
+        "ruta": "assets/paginacion-OKpmc6ro.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "4e7d1d449764c52fdb8ffa903654cac40eb5825dc7ad262fd9329cd8bdd26e0c"
+      },
+      {
+        "ruta": "assets/pipeline-0eRhDc-T.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "e6117dfcd9699d2e1eb523510246525ec28b3b92adbe6981fcef44b57d611497"
+      },
+      {
+        "ruta": "assets/progress-DsxmWqg_.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "0b42852a4d16fe4749b2af2d9465553adc72c8f1695966bf1574b991c853ee44"
+      },
+      {
+        "ruta": "assets/ranking-vendedores-CylHPFjd.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "2eb6a0816ac92b1bb86e4659ae58a7fac12c5a6e1899192e61017192b44b93f9"
+      },
+      {
+        "ruta": "assets/react-vendor-BXy-oECh.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18"
+      },
+      {
+        "ruta": "assets/repartir-BE9t_UpE.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "866b60c1b3ad46179cbab11fafd81ed62846cc5658dba84c66408340678824ee"
+      },
+      {
+        "ruta": "assets/rescate-carpeta-dvDGv_0y.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "228f2db5f1c1c25ac09344cbf94b722df15becde95597948c6b812025a09c120"
+      },
+      {
+        "ruta": "assets/rescate-descartados-DnYfGrE9.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "c99c4ff82b4dee7a91598e4db01a2e86497a24f51a93de2cd7eba42a1d4266ab"
+      },
+      {
+        "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+      },
+      {
+        "ruta": "assets/section-head-QNhgTlH4.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "7b838d3d297231fee45ad6f73affcf511376459a6f2301174751f23de655bc7b"
+      },
+      {
+        "ruta": "assets/seguimiento-5iLDJvL6.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "b4b8dfcdb327c09129454aed0efcd6f4c504306cfda82d98dec80905e95956f7"
+      },
+      {
+        "ruta": "assets/stat-strip-BCBNuJoG.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "5654a36f327b4a37926ffc8dd4a3e8fd244ef896f39cdc7ebc5180ca39bff702"
+      },
+      {
+        "ruta": "assets/tabla-DqluFbOu.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "56c3309a46a3e752b91b3a2a973a57ce0ebab245ff302c0499a29de7ca0c2d36"
+      },
+      {
+        "ruta": "assets/ui-vendor-B49GjcGN.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d"
+      },
+      {
+        "ruta": "assets/use-metricas-vendedores-operativas-DUKTiilm.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "3fdd2457793f0117e99af8ecdb54dc677a042930e7358bba5d5d1e5c38e81699"
+      },
+      {
+        "ruta": "assets/use-periodo-gerencia-DhXUhAaK.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "9508e9a98a43f2c869d33c1426cf3f362b00b056b59fff3344896ace6c418e75"
+      },
+      {
+        "ruta": "assets/use-resumen-cartera-operativo-3emIr_I7.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "af48ae8f9e17b54496c66815bb1d31d0c99561b4058b074c8a90d9d6ac850d93"
+      },
+      {
+        "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f"
+      },
+      {
+        "ruta": "brand/avance-icon-192.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d"
+      },
+      {
+        "ruta": "brand/avance-icon-512.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b"
+      },
+      {
+        "ruta": "brand/avance-icon.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b"
+      },
+      {
+        "ruta": "brand/avance-logo-full.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1"
+      },
+      {
+        "ruta": "brand/favicon-32.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23"
+      },
+      {
+        "ruta": "contrato/fondo-corporativo.png",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37"
+      },
+      {
+        "ruta": "favicon.svg",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+      },
+      {
+        "ruta": "icons.svg",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+      },
+      {
+        "ruta": "index.html",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "3af106a10f6094cd0f479dd1093b965526461954be22b6063754b70884cd476c"
+      },
+      {
+        "ruta": "manifest.webmanifest",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73"
+      },
+      {
+        "ruta": "robots.txt",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1"
+      },
+      {
+        "ruta": "sw-crm.js",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6"
+      },
+      {
+        "ruta": "version.json",
+        "status": 200,
+        "ok": true,
+        "sha256_servido": "352dc62d00be64f345266001b655070ed41654aab983ea16909b0686870d171c"
+      },
+      {
+        "ruta": "/",
+        "status": 200,
+        "ok": true
+      },
+      {
+        "ruta": "crm-20260916T170732Z-1f9e5f83fa08.zip",
+        "status": 404,
+        "ok": true
+      },
+      {
+        "ruta": ".vite/license.md",
+        "status": 404,
+        "ok": true
+      }
+    ]
+  },
+  "navegador_sin_sesion": {
+    "status": 200,
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260916T170731814Z"
+    },
+    "login_visible": true,
+    "errores": []
+  },
+  "recuperacion": {
+    "release_id": "crm-20260916T165912Z-a0c47ebc1d4e",
+    "sha256": "58aa3548076ae892d6a564720c87f36bc26bb88aa075e9a2224da9ddb0736534"
+  },
+  "limite": "No se convirtió ni creó un cliente real para probar; la prueba web de acceso usa un navegador sin sesión."
+}

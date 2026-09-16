@@ -90,5 +90,7 @@ conservan. Este mismo ajuste ya estaba preparado en la tarea paralela; se
 reproduce en la copia aislada sin modificar su árbol.
 
 PR: https://github.com/avanza-digital/avancecorp-crm/pull/2
-La publicación debe esperar aprobación e integración en `avancecorp/main`,
-y reconstruirse desde ese commit. Un ZIP de la rama es solo preparación.
+La PR quedó integrada y el frontend fue publicado desde Main limpio
+`1f9e5f83fa08c371b8e28ef502b89fdb4c135bfc`. La evidencia final de publicación,
+95 comprobaciones HTTP y acceso web sin errores está en
+`PUBLICACION-20260916.json`. No queda publicación pendiente para esta función.
