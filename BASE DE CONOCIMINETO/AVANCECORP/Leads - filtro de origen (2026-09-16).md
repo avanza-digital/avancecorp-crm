@@ -45,5 +45,9 @@ quien lo publicó.
 
 ## Estado
 
-Preparado y ensayado; pendiente de instalar el SQL en producción (Miguel con `!`)
-y de publicar el front. Rama `feat/leads-filtro-origen` desde `avancecorp/main`.
+**En producción desde el 16/09/2026 (~18:45 Lima).** SQL instalado y registrado
+por Miguel con `!` (migración `20260916220124`), front publicado con su token
+(release `crm-20260916T231007Z-322ca2fcf373`, commit `322ca2fc`), smoke byte a
+byte contra el manifiesto. Codex revisó (CHANGES_REQUESTED por la reversa sin
+guardas) y se atendió antes de publicar. Acta completa en `MIGRACIONES.md` y en
+`CRM-Avance-Corp/supabase/scripts/cartera-origen/README.md`.

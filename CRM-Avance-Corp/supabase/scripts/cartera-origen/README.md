@@ -1,5 +1,8 @@
 # Filtro de origen en Leads
 
+Estado: **publicado y verificado el 16/09/2026** (acta en
+`../../migrations/MIGRACIONES.md`, entrada `20260916220124`).
+
 Solicitud de Miguel (16/09/2026): que la pantalla **Leads** tenga un filtro de
 origen y que todos sus componentes lo obedezcan a la vez. Es un filtro más en el
 módulo que ya tiene etapa, analista, búsqueda y recepción (13/09).

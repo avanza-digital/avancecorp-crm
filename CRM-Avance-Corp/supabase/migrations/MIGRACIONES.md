@@ -9972,8 +9972,23 @@ front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
 
 ## 20260916220124 — Filtro de origen en Leads
 
-**PREPARADA Y ENSAYADA; NO INSTALADA EN PRODUCCIÓN.** Solicitud de Miguel del
-16/09: la pantalla Leads filtra por origen y todos sus componentes lo obedecen.
+**✅ INSTALADA, REGISTRADA Y PUBLICADA EN PRODUCCIÓN el 16/09/2026** (Miguel con
+`!`). Solicitud de Miguel del 16/09: la pantalla Leads filtra por origen y todos
+sus componentes lo obedecen.
+
+**Acta de instalación (16/09, hora UTC):**
+- 23:24 SQL aplicado con `db query --linked --file`. Verificado en producción:
+  una sola firma (10 args), md5 `be330214…` y ACL `{postgres,authenticated}`
+  idénticos al ensayo; exención movida con su `declarado_en` del 13/09; sello
+  coherente; censo 35 y rojo ajeno sin cambios; resumen general intacto.
+- Sonda PostgREST anónima: `p_origen` pasó de `PGRST202` a `42501` (firma nueva
+  en caché); argumento inexistente sigue `PGRST202`.
+- ~23:35 versión registrada con `scripts/registrar-20260916220124.sql` (cuerpo
+  md5 `3b73e861…`, idéntico al archivo).
+- ~23:45 front publicado: release `crm-20260916T231007Z-322ca2fcf373` (commit
+  `322ca2fc`), build vivo `build-20260916T231006590Z`. Smoke: `version.json`,
+  `index.html`, `index-DqtKE1bc.js` y `cartera-Cl9oNkms.js` byte a byte contra
+  el manifiesto; textos del selector presentes; ZIP 404; raíz 200.
 
 - `crm.cartera_filtrada_fn` pasa a 10 argumentos (`p_origen text default null`);
   la firma de 9 se retira en la misma transacción (una sola candidata para
