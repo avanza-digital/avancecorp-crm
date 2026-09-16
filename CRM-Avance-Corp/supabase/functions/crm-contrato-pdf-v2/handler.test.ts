@@ -498,6 +498,16 @@ for (
       "El identificador del contrato ya tiene una eliminación auditada y requiere revisión",
       409,
     ],
+    [
+      "55000",
+      "La inversión de este contrato ya tiene historial propio (eventos, solicitudes, ajustes o vínculos históricos de cotitulares) y se conserva; requiere revisión antes de eliminarla",
+      409,
+    ],
+    [
+      "55000",
+      "La inversión del contrato tiene dependencias nuevas; requiere revisión antes de eliminarla",
+      409,
+    ],
   ] as const
 ) {
   Deno.test(`delete conserva el rechazo ${code} sin modificar archivos`, async () => {

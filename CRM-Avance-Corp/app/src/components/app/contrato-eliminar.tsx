@@ -39,7 +39,7 @@ export function ContratoEliminar({ inversion, onConfirmar, onCerrar }: {
     <DialogBody className="space-y-4">
       <p className="text-sm">Capital: <strong>{money(inversion.capital, inversion.moneda)}</strong>.</p>
       <p className="text-sm">El contrato y su cronograma saldrán de la operación del CRM, incluidos los pagos registrados. Se conservará una copia de auditoría de los datos y sus documentos PDF.</p>
-      <p className="text-xs text-muted-foreground">Los contratos vinculados al historial de inversiones o a meses cerrados conservan sus protecciones. El servidor comprobará si este contrato se puede eliminar.</p>
+      <p className="text-xs text-muted-foreground">Si el contrato ya figura en la cartera multiempresa, su inversión se archiva y se retira con él, salvo que tenga eventos, solicitudes, ajustes de mes cerrado o vínculos históricos de cotitulares registrados. El servidor comprobará si este contrato se puede eliminar.</p>
       <div className="space-y-2">
         <Label htmlFor="confirmar-eliminacion-contrato">Escribe {referencia} para confirmar</Label>
         <Input id="confirmar-eliminacion-contrato" value={confirmacion} disabled={enviando}

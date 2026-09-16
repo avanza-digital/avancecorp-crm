@@ -124,11 +124,8 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <ChevronDown aria-hidden className={abierta ? 'rotate-180' : undefined} /> {abierta ? 'Ocultar detalle' : 'Ver inversión'}
       </Button>
       {i.pdf?.reintentable && onRecuperarPdf && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onRecuperarPdf(i)}>Recuperar PDF pendiente</Button>}
-      {onEliminar && i.empresa === 'avance' && i.contrato && <>
-        <Button variant="destructive" size="xs" className="min-h-10" disabled={i.inversion_id !== null}
-          aria-label={`Eliminar contrato ${referenciaAccesible}`} onClick={() => onEliminar(i)}>Eliminar contrato</Button>
-        {i.inversion_id !== null && <p className="text-xs text-muted-foreground">Este contrato se conserva en el historial de inversiones y no se puede eliminar.</p>}
-      </>}
+      {onEliminar && i.empresa === 'avance' && i.contrato && <Button variant="destructive" size="xs" className="min-h-10"
+        aria-label={`Eliminar contrato ${referenciaAccesible}`} onClick={() => onEliminar(i)}>Eliminar contrato</Button>}
     {onOperacion && i.empresa === 'avance' && i.contrato && i.perfil_id && <>
       {i.estado === 'activo' && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>Aumentar inversión</Button>}
       {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}

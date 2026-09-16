@@ -124,7 +124,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     } finally {if (documento.current === abort) setDescargando(false)}
   }
   async function eliminarContrato(i: InversionFuente) {
-    if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato || i.inversion_id !== null) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
+    if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
     const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
     await Promise.all([
       qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),

@@ -557,19 +557,34 @@ describe('Eliminación administrativa de contratos desde la ficha', () => {
     await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
     expect(screen.queryByRole('button',{name:/Eliminar contrato/})).not.toBeInTheDocument()
   })
-  it.each(['demo','sin contrato','historial'] as const)('protege una ficha en estado %s',async(estado)=>{
+  it.each(['demo','sin contrato'] as const)('protege una ficha en estado %s',async(estado)=>{
     sesion.rolPortal='admin'
     const ficha=contratoAvance()
     if(estado==='demo') sesion.demo=true
     if(estado==='sin contrato') ficha.inversiones[0]!.contrato=null
-    if(estado==='historial') ficha.inversiones[0]!.inversion_id=FUENTE_F5
     api.ficha.mockResolvedValue(ficha)
     const {user}=montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await screen.findByRole('button',{name:'Ver inversión 2026-01-999999'})
-    const borrar=screen.queryByRole('button',{name:/Eliminar contrato/})
-    if(estado==='historial') expect(borrar).toBeDisabled()
-    else expect(borrar).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:/Eliminar contrato/})).not.toBeInTheDocument()
     expect(api.eliminar).not.toHaveBeenCalled()
+  })
+  it('un contrato ya enlazado a la cartera multiempresa se elimina igual: el servidor decide',async()=>{
+    sesion.rolPortal='superadmin'
+    const ficha=contratoAvance()
+    ficha.inversiones[0]!.inversion_id=FUENTE_F5
+    api.ficha.mockResolvedValue(ficha)
+    api.eliminar.mockResolvedValue({contratoId:FUENTE_F5,auditoriaId:PERFIL_F5,archivosConservados:0})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const borrar=await screen.findByRole('button',{name:'Eliminar contrato 2026-01-999999'})
+    expect(borrar).toBeEnabled()
+    expect(screen.queryByText(/no se puede eliminar/)).not.toBeInTheDocument()
+    await user.click(borrar)
+    const dialogo=screen.getByRole('dialog',{name:'Eliminar contrato 2026-01-999999'})
+    expect(within(dialogo).getByText(/su inversión se archiva y se retira con él/)).toBeVisible()
+    await user.type(within(dialogo).getByRole('textbox'),'2026-01-999999')
+    await user.click(within(dialogo).getByRole('button',{name:'Eliminar y conservar auditoría'}))
+    await waitFor(()=>expect(api.eliminar).toHaveBeenCalledExactlyOnceWith(FUENTE_F5))
   })
 })

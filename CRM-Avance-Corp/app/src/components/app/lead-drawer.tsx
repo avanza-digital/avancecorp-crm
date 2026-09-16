@@ -1349,15 +1349,21 @@ function Datos({
             {l.categoria_interes && (
               <Fila label="Categoría">Inversión · {CAT_LABEL[l.categoria_interes]}</Fila>
             )}
-            <Fila label="Analista">
+            <Fila label="Responsable comercial">
               {puedeReasignar ? (
                 <Select
-                  aria-label="Reasignar analista"
+                  aria-label="Reasignar responsable comercial"
                   value={l.vendedor_id ?? ''}
                   onChange={(e) => onReasignar(e.target.value)}
                   className="h-8 text-xs"
                 >
                   <option value="">Sin asignar (parkeado)</option>
+                  {/* Conserva al responsable actual si es supervisor o ya no
+                      está en el selector de analistas activos. No ofrece
+                      otros supervisores como destinos de reasignación. */}
+                  {l.vendedor_id && !vendedores.some((m) => m.perfil_id === l.vendedor_id) && (
+                    <option value={l.vendedor_id}>{l.vendedor_nombre ?? 'Responsable actual'}</option>
+                  )}
                   {vendedores.map((m) => (
                     <option key={m.perfil_id} value={m.perfil_id}>
                       {m.nombre_completo}
