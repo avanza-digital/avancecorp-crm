@@ -1,5 +1,50 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916205617 — Facturación para el supervisor: ve el avance de SU equipo
+
+**PREPARADA Y ENSAYADA; PENDIENTE DE INSTALAR EN PRODUCCIÓN (requiere el `!` de Miguel).**
+Miguel, 16/09/2026: «quiero que el módulo de facturación lo tengan los supervisores,
+para ver el avance de sus equipos».
+
+`20260916205617_crm_facturacion_diaria_supervisor.sql` reemplaza `crm.facturacion_diaria_fn(date)`
+conservando firma, columnas, orden, cuenta del dinero y atribución (sigue leyendo
+`private.capital_episodios` y rebobinando `crm.usuario_eventos`). **Lo único que cambia es la
+verja**: además de Gerencia y del lector global entra el rol `supervisor`, y entra con ÁMBITO:
+solo las filas cuyo **supervisor de entonces** es él o alguien de su subárbol de hoy
+(`private.vendedor_ids_visibles`), más sus **ventas propias** (`analista_id = auth.uid()`).
+No se filtra por el organigrama de hoy a propósito: un analista que se fue a mitad de mes deja
+al supervisor lo que vendió bajo él, uno que llegó solo aporta desde que llegó, y el nombre del
+otro supervisor NO viaja a la sesión (criterio M-1 del auditor-rls, 04/09). Vendedor,
+coordinador, ajenos y sin sesión siguen en VACÍO; `anon` sin EXECUTE; DEFINER de `postgres`,
+`search_path` vacío, cero PUBLIC.
+
+**Preflight**: exige que la función viva tenga la huella `f64e92e224fc64f3f0470f31e23aa56c`
+(la de `20260910230000`, leída de producción el 16/09) — una función viva no se reteclea sobre
+otra versión. **Postflight**: además de las 4 comprobaciones estructurales, ENSAYA con los datos
+reales dentro de la misma transacción, identidad por identidad: cada supervisor activo recibe
+EXACTAMENTE las filas que Gerencia ve bajo su predicado (ni fuga ni agujero), un vendedor
+recibe vacío y sin sesión vacío.
+
+**Front** (mismo commit): capacidad nueva `verFacturacion` (Gerencia y Supervisión) en
+`app/src/lib/roles.ts`; `facturacion` sale de `VISTAS_GERENCIA` y se gatea por esa capacidad
+en `vistas.ts`; en el menú histórico del supervisor aparece «Facturación». La pantalla no
+cambia: el servidor recorta y `crm.equipo_visible_fn` ya le da al supervisor solo su subárbol.
+
+**Oráculos**: `scripts/test-facturacion.sql` gana los casos 10–12 (cada supervisor ve las
+ventas hechas BAJO ÉL, no las del organigrama de hoy; ni una fila ajena ni el nombre del otro
+equipo; el mutante «recorte por organigrama de hoy» cae) y el caso 8 pasa a exigir al
+supervisor «exactamente lo suyo». `scripts/test-rls.mjs`, bloque de facturación: `sup1` y `sup2`
+reciben exactamente las filas de Gerencia bajo su predicado (subárbol reconstruido desde el
+fixture); vendedor, coordinador, cliente y baja siguen en vacío.
+
+**Registrador**: `scripts/registrar-20260916205617.sql` (generado por
+`scripts/generar-registrador-facturacion-supervisor.mjs`; se niega a registrar si la función
+viva sigue siendo la de `20260910230000`). Orden: migración con `db query --linked --file`,
+después el registrador.
+
+**Nota del vault**: `Facturacion - modulo del dueno en produccion (2026-09-13).md`, sección del
+16/09.
+
 ## 20260916160000 — Eliminar contrato con inversión sin historial propio
 
 **PREPARADA Y ENSAYADA; NO INSTALADA EN PRODUCCIÓN.** El vínculo simple ya no

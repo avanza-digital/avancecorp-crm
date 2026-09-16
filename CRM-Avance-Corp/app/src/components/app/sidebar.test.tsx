@@ -146,7 +146,17 @@ describe('Sidebar — temporizadores del asomo', () => {
     let navegacion = screen.getByRole('navigation')
     expect(within(navegacion).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Principal'])
     expect(within(navegacion).queryByText('Dirección')).not.toBeInTheDocument()
+    // Facturación (16/09/2026): Supervisión la tiene en su menú histórico, para
+    // ver el avance de su equipo; las demás páginas ejecutivas siguen sin estar.
+    expect(within(navegacion).getByRole('button', { name: 'Facturación' })).toBeVisible()
+    expect(within(navegacion).queryByRole('button', { name: 'Ranking' })).not.toBeInTheDocument()
+    expect(within(navegacion).queryByRole('button', { name: 'Conversiones' })).not.toBeInTheDocument()
     unmount()
+
+    const analista = montar({ movil: false, rol: 'vendedor' })
+    navegacion = screen.getByRole('navigation')
+    expect(within(navegacion).queryByRole('button', { name: 'Facturación' })).not.toBeInTheDocument()
+    analista.unmount()
 
     montar({ movil: false, rol: 'directorio' })
     navegacion = screen.getByRole('navigation')

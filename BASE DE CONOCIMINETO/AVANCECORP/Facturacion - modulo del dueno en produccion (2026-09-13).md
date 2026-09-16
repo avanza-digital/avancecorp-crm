@@ -45,6 +45,40 @@ Y el bloqueo inverso también es real: el empaquetado lee del DISCO, así que ar
 commitear de otra sesión dentro de `app/` impiden publicar (pasó el 11/09 con 21 y el 13/09
 con 39). El árbol compartido obliga a commitear pronto.
 
+## 16/09/2026: el supervisor también la tiene, y ve SU equipo
+
+Miguel: «quiero que el módulo de facturación lo tengan los supervisores, para ver el avance de
+sus equipos». Migración `20260916205617_crm_facturacion_diaria_supervisor` + front en el mismo
+commit (capacidad `verFacturacion`, Gerencia y Supervisión). **Pendiente de instalar y publicar**
+hasta que Miguel dé el `!` (migración → registrador → release del front).
+
+**Qué ve el supervisor (regla de negocio, no de pantalla).** Las filas cuyo *supervisor de
+entonces* es él (o alguien de su subárbol) más sus ventas propias. Es la misma regla con la que
+la función ya acredita cada venta a Gerencia («el supervisor es el de entonces, no el de hoy»,
+Miguel 10/09), aplicada como recorte:
+
+- un analista que **se fue** de su equipo a mitad de mes: lo que vendió bajo él sigue en su
+  pantalla; lo de después, no;
+- un analista que **llegó** a mitad de mes: solo lo vendido desde que llegó; lo anterior es del
+  otro supervisor y **el nombre del otro supervisor no le llega** (criterio M-1: nadie fuera de
+  Gerencia lee a qué equipo pertenecía alguien de otro equipo);
+- vendedor, coordinador y ajenos siguen recibiendo VACÍO.
+
+No se usó el organigrama de hoy (`analista_id = any(visibles)`, lo que hace
+`metricas_capital_mes_fn`) porque rompía las dos cosas: enseñaba al supervisor filas rotuladas
+con OTRO equipo y le quitaba al otro las ventas que la regla de Miguel le acredita.
+
+**La pantalla no cambió.** Recibe del servidor solo lo suyo y el roster (`equipo_visible_fn`) ya
+le trae solo su subárbol. Sus ventas propias entran como una fila más, bajo «Sin supervisor»,
+igual que las ve Gerencia hoy (producción fuera del ranking).
+
+**Cómo se probó.** `test-facturacion.sql` casos 10–12 (con un cambio de equipo real sembrado y
+deshecho) y el bloque de facturación de `test-rls.mjs` (`sup1`/`sup2` reciben exactamente las
+filas de Gerencia bajo su predicado). El postflight de la migración ensaya lo mismo con los
+datos reales de producción dentro de la transacción antes de hacer commit.
+
+Relacionado: [[Lead propio del supervisor - 2026-09-16]] · [[Hoy del supervisor - reparto compacto]].
+
 ## A vigilar
 
 Si a Miguel le molestan los ceros en la vista de dólares (analistas sin venta en USD), la

@@ -13,6 +13,8 @@ import type { FilaFacturacionDia } from '@/lib/facturacion'
 // (RPC + modo demo) lo cubren la matriz de RLS y el oráculo del servidor.
 const dobles = vi.hoisted(() => ({
   demo: false,
+  /** Quién mira. Gerencia por defecto; el supervisor entra desde el 16/09/2026. */
+  yo: { id: 'g1', rol: 'gerencia' } as { id: string; rol: 'gerencia' | 'supervisor' },
   // El organigrama que la pantalla lee del store. Por defecto vacío: así los
   // casos que no hablan del roster siguen midiendo solo lo vendido.
   equipo: [] as Array<{
@@ -35,7 +37,7 @@ const dobles = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({ yo: { id: 'g1', rol: 'gerencia', demo: dobles.demo } }),
+  useAuth: () => ({ yo: { ...dobles.yo, demo: dobles.demo } }),
 }))
 vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ equipo: dobles.equipo }) }))
 vi.mock('@/lib/tipo-cambio', () => ({
@@ -125,6 +127,7 @@ function malla(): HTMLElement {
 
 beforeEach(() => {
   dobles.demo = false
+  dobles.yo = { id: 'g1', rol: 'gerencia' }
   dobles.cargando = false
   dobles.error = false
   dobles.datos = undefined
@@ -292,6 +295,54 @@ describe('estado vacío — el que de verdad se ve en producción', () => {
     expect(screen.queryByText('Ningún cierre coincide con estos filtros.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ver el mes completo de Carla Analista' })).not.toBeInTheDocument()
+  })
+})
+
+describe('el supervisor ve el avance de su equipo — petición de Miguel del 16/09/2026', () => {
+  afterEach(() => {
+    dobles.equipo = []
+  })
+
+  /**
+   * El servidor ya recortó: a Rosa (supervisora) solo le llegan las filas de su
+   * equipo, y `crm.equipo_visible_fn` solo le trae su subárbol. La pantalla no
+   * decide nada por rol; lo que se comprueba es que con ESE mundo pinta a su
+   * gente (incluido quien no vendió) y no inventa a nadie de otro equipo.
+   */
+  it('con las filas y el organigrama de su equipo, la malla es su equipo', () => {
+    dobles.yo = { id: 'sup-rosa', rol: 'supervisor' }
+    dobles.equipo = [
+      { perfil_id: 'sup-rosa', nombre_completo: 'Rosa Uno', rol_crm: 'supervisor', supervisor_id: null, activo: true },
+      { perfil_id: 'ana', nombre_completo: 'Ana Analista', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+      { perfil_id: 'beto', nombre_completo: 'Beto Analista', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+      { perfil_id: 'nuevo', nombre_completo: 'Noe Novato', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+    ]
+    pintar(FILAS.filter((f) => f.supervisorId === 'sup-rosa'))
+    const region = malla()
+    for (const nombre of ['Ana Analista', 'Beto Analista', 'Noe Novato']) {
+      expect(within(region).getByRole('button', { name: `Ver el mes completo de ${nombre}` })).toBeVisible()
+    }
+    expect(within(region).queryByRole('button', { name: 'Ver el mes completo de Carla Analista' })).not.toBeInTheDocument()
+    expect(within(region).queryByText('Sara Dos')).not.toBeInTheDocument()
+    // Y el resumen accesible dice lo mismo: un solo equipo, el suyo.
+    expect(screen.getAllByText(/3 analistas en 1 equipo/).length).toBeGreaterThan(0)
+  })
+
+  it('sus ventas propias entran en la malla como una fila más', () => {
+    dobles.yo = { id: 'sup-rosa', rol: 'supervisor' }
+    dobles.equipo = [
+      { perfil_id: 'sup-rosa', nombre_completo: 'Rosa Uno', rol_crm: 'supervisor', supervisor_id: null, activo: true },
+      { perfil_id: 'ana', nombre_completo: 'Ana Analista', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+    ]
+    pintar([
+      ...FILAS.filter((f) => f.supervisorId === 'sup-rosa' && f.analistaId === 'ana'),
+      // El servidor devuelve la venta propia con el supervisor que le toque
+      // (NULL → «Sin supervisor»); aquí se representa como la trae la RPC.
+      fila({ id: 'propia', dia: '2026-09-05', capital: 25_000, analistaId: 'sup-rosa', analistaNombre: 'Rosa Uno', supervisorId: 'sin-supervisor', supervisorNombre: 'Sin supervisor' }),
+    ])
+    const region = malla()
+    expect(within(region).getByRole('button', { name: 'Ver el mes completo de Rosa Uno' })).toBeVisible()
+    expect(within(region).getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
   })
 })
 

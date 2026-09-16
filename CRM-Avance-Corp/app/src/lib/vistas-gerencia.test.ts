@@ -3,9 +3,22 @@ import { VISTAS_GERENCIA } from './router'
 import { vistaPermitida } from './vistas'
 
 describe('navegación de Gerencia', () => {
-  it('expone Resumen y siete páginas ejecutivas; Alertas es transversal', () => {
-    expect(VISTAS_GERENCIA).toEqual(['conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas'])
+  it('expone Resumen y seis páginas ejecutivas exclusivas; Alertas es transversal', () => {
+    expect(VISTAS_GERENCIA).toEqual(['conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'informes-empresas'])
     expect(vistaPermitida('alertas', 'gerencia', false)).toBe(true)
+  })
+
+  // Miguel, 16/09/2026: «que el módulo de facturación lo tengan los supervisores,
+  // para ver el avance de sus equipos». Deja de ser exclusiva; el servidor
+  // (crm.facturacion_diaria_fn) recorta al supervisor a su equipo.
+  it('Facturación la comparten Gerencia y Supervisión, con la llave abierta o cerrada', () => {
+    for (const llave of [true, false]) {
+      expect(vistaPermitida('facturacion', 'gerencia', llave)).toBe(true)
+      expect(vistaPermitida('facturacion', 'supervisor', llave)).toBe(true)
+      expect(vistaPermitida('facturacion', 'vendedor', llave)).toBe(false)
+      expect(vistaPermitida('facturacion', 'directorio', llave)).toBe(false)
+      expect(vistaPermitida('facturacion', 'coordinador', llave)).toBe(false)
+    }
   })
 
   it('habilita todas las páginas de inteligencia solo para Gerencia', () => {
