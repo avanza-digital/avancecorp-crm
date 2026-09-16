@@ -1,8 +1,8 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-g6-cerrado-f8-piloto-activo-g7-pendiente
-actualizado: 2026-09-15
+estado: plan-vigente-f9-activa-g7-pendiente-g8-en-observacion
+actualizado: 2026-09-16
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -19,6 +19,8 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
 ## Estado vigente — F9 activada para el equipo; G8 en observación
+
+**16/09 — siguiente implementación guardada y pausada:** [[Cartera multiempresa - plan de gestion integral (2026-09-16)]]. Miguel quiere concentrar toda la gestión del cliente en la ficha multiempresa. Inventario y secuencia documentados: correcciones con cinco horas, cronograma, detalle contractual/documental, tasas, desglose y acciones por rol. La implementación no comenzó; retomar en su etapa 1. La pausa no cambia la apertura general ni las conformidades G7/G8.
 
 **15/09, 21:08 Lima — apertura ejecutada:** [[F9 - apertura general autorizada (2026-09-15)]].
 Miguel autorizó «OK ACTIVALO PRO FAVOR» y reanudó con «seguimos». F4/F5/F6 ON
@@ -46,7 +48,7 @@ de permisos PASS; seis rutas y casos especiales cubiertos sintéticamente.
 Refresco 18:32 Lima: 614 inversiones/468 personas, sin diferencias internas.
 Procedimiento exacto, reversa y soporte documentados y ejecutados en F9.
 Conformidades G7 según su evidencia; observación mensual G8 pendiente.
-**Pendiente de producto registrado el 15/09:** [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtros por mes/comerciales y mejor distribución de la cartera. Miguel pidió guardarlo para después; no interrumpe los ensayos G7.
+**Pendiente de filtros resuelto el 15/09:** [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]] — mes comercial, filtros y distribución compacta publicados y verificados; banco cerrado. El siguiente pendiente de producto es la gestión integral de la ficha documentada arriba.
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
@@ -762,6 +764,8 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
 ## 13. Orden inmediato — actualizado al 13/09/2026
+
+> Corte histórico del 13/09. Fue sustituido por el estado vigente al inicio de esta nota: F9 activa, filtros publicados y [[Cartera multiempresa - plan de gestion integral (2026-09-16)]] guardado para retomar. Las menciones a banderas apagadas y piloto pendiente de esta sección describen aquel corte.
 
 1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
    posterior de comisiones externas. No repetir pendientes ya resueltos.
