@@ -25,6 +25,7 @@ let TITULARES: Consulta<Titular[] | null> = consulta([])
 let CRONOGRAMA: Consulta<Cuota[] | null> = consulta([])
 let ATRIBUCION: AtribucionContrato | null = null
 let REFETCH_ATRIBUCION = vi.fn()
+let REFETCH_CONTRATO = vi.fn()
 const MUTACIONES = vi.hoisted(() => ({ reasignar: vi.fn() }))
 
 function consulta<T>(data: T, error: unknown = null): Consulta<T> {
@@ -74,7 +75,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
   return {
     ...actual,
-    useContrato: () => consulta(CONTRATO),
+    useContrato: () => ({...consulta(CONTRATO), refetch: REFETCH_CONTRATO}),
     useCronograma: () => CRONOGRAMA,
     useTitulares: () => TITULARES,
     // P-055 Fase 3: el detalle pregunta de quién es la venta. Sin atribución el
@@ -93,6 +94,7 @@ beforeEach(() => {
   CRONOGRAMA = consulta([])
   ATRIBUCION = null
   REFETCH_ATRIBUCION = vi.fn()
+  REFETCH_CONTRATO = vi.fn()
   MUTACIONES.reasignar.mockReset().mockResolvedValue(undefined)
 })
 
@@ -102,6 +104,7 @@ function montar(
     onEliminar?: () => Promise<void> | void
     analistas?: { perfil_id: string; nombre_completo: string }[]
     puedeReasignar?: boolean
+    contratoVigente?: ContratoRow
   } = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -115,6 +118,16 @@ function montar(
 }
 
 describe('ContratoDetalle · co-titulares', () => {
+  it('reintenta cuotas sin volver a descargar la cartera cuando recibe el contrato concreto', async () => {
+    CRONOGRAMA = consulta(null, new Error('Sin conexión'))
+    const { default: userEvent } = await import('@testing-library/user-event')
+    const user = userEvent.setup()
+    montar({ contratoVigente: CONTRATO })
+    await user.click(screen.getByRole('button', { name: /Reintentar/i }))
+    expect(CRONOGRAMA.refetch).toHaveBeenCalledOnce()
+    expect(REFETCH_CONTRATO).not.toHaveBeenCalled()
+  })
+
   it('no ofrece hard-delete a quien no recibió la capacidad administrativa', () => {
     TITULARES = consulta([])
     montar()

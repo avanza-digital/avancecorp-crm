@@ -1,7 +1,7 @@
 import { abrirInversionista, escribirHash, leerHash } from '@/lib/router'
 import { VencimientosPostventa } from '@/components/app/postventa-vencimientos'
 import { postventaKeys } from '@/data/postventa-queries'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Users2, RefreshCw, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Sheet } from '@/components/ui/sheet'
+import { Dialog } from '@/components/ui/dialog'
+import { ClienteForm } from '@/components/app/cliente-form'
+import { refrescarGestionInversionista } from '@/data/gestion-inversionista'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversionista-ficha'
@@ -25,15 +28,18 @@ import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { puedeEliminarContratos } from '@/lib/roles'
+import { can, puedeEliminarContratos } from '@/lib/roles'
 import { crmQueryKeys } from '@/data/crm-queries'
 
-export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: {
-  actor: string; permiteInversion: boolean; gestionAvance: ReactNode
+export function CarteraInversionistas({actor, permiteInversion}: {
+  actor: string; permiteInversion: boolean
 }) {
   const {yo} = useAuth()
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const qc = useQueryClient()
+  const [alta, setAlta] = useState(false)
+  const altaEnCurso = useRef(false)
+  const puedeAlta = yo?.id===actor && !yo.demo && permiteInversion && can(yo.rol,'altaDirectaCliente') && yo.puede_contratar
   const [filtros, setFiltros] = useState<FiltrosInversionistas>(() => ({...FILTROS_INVERSIONISTAS_INICIALES, mes:fechaLima(Date.now()).slice(0,7)}))
   const [busqueda, setBusqueda] = useState('')
   const [resumenAbierto, setResumenAbierto] = useState(false)
@@ -51,7 +57,6 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     else escribirHash('mi-cartera')
   }
   const [nueva, setNueva] = useState<{persona: string; operacion?: OperacionInversion} | null>(null)
-  const [gestion, setGestion] = useState(false)
   const [aviso, setAviso] = useState('')
   const [descargando, setDescargando] = useState(false)
   const documento = useRef<AbortController | null>(null)
@@ -130,18 +135,14 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     ])
     toast.success(`Contrato ${i.numero || ''} eliminado. Copia de auditoría: ${auditoriaId}.`)
   }
-  if (gestion) return <div className="space-y-4">
-    <Button variant="outline" onClick={() => setGestion(false)}>Volver a la cartera multiempresa</Button>
-    <p className="text-sm text-muted-foreground">Consulta cronogramas y gestiona los clientes y contratos Avance existentes.</p>
-    {gestionAvance}
-  </div>
   return <div className="@container/cartera mx-auto max-w-[1440px] space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
         <p className="mt-1 text-sm text-muted-foreground">{catalogo?.solo_avance ? 'Una ficha por persona, con sus inversiones Avance.' : 'Una ficha por persona, con sus inversiones en cada empresa.'}</p></div>
       <div className="flex items-center gap-2"><Button variant="ghost" size="sm" aria-label="Actualizar cartera"
         disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>
-        <Button variant="outline" size="sm" onClick={() => {seleccionar(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button></div>
+        {puedeAlta && <Button size="sm" onClick={()=>setAlta(true)}>Nuevo cliente</Button>}
+        </div>
     </div>
     {aviso && <p role="status" className="rounded-lg bg-muted p-3 text-sm">{aviso}</p>}
     <Card className="overflow-hidden">
@@ -207,5 +208,10 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     {nueva && <InversionNueva key={nueva.persona} actor={actor} persona={nueva.persona} operacion={nueva.operacion}
       onCerrar={() => {setVolverAInversiones(true); setNueva(null); setSeleccion(nueva.persona)}} onRevocado={revocar}
       onConfirmada={() => {void qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)})}} />}
+    {alta && puedeAlta && <Dialog open ariaLabel="Nuevo cliente" onClose={()=>{if(!altaEnCurso.current)setAlta(false)}}>
+      <ClienteForm modo="crear" onCerrar={()=>{if(!altaEnCurso.current)setAlta(false)}}
+        onEnviandoCambio={valor=>{altaEnCurso.current=valor}}
+        onListo={()=>{altaEnCurso.current=false;setAlta(false);limpiar();void refrescarGestionInversionista(qc,actor);toast.success('Cliente creado. Ya puedes abrir su ficha y registrar la primera inversión.')}} />
+    </Dialog>}
   </div>
 }

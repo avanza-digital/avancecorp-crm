@@ -1,5 +1,26 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916152851 — Gestión integral desde la ficha multiempresa
+
+**CANDIDATA LOCAL REVISADA; NO INSTALADA NI PUBLICADA.** Contacto neutral con
+RLS cerrada y auditoría; contexto de gestión por persona/fuente; corrección de
+contacto e inversión COOPAC con idempotencia, control de versión y permisos del
+núcleo. Extiende bitácora y lector canónico, sin DDL en `public` ni cambios de
+banderas. El salto de seguimiento de lead archivado está limitado al nuevo
+wrapper; la RPC directa mantiene su comportamiento anterior.
+
+Ensayo en dos copias PostgreSQL locales: 24 grupos Auth/HTTP/SQL PASS; instalación,
+reversa, propietarios/ACL y guardas PASS. Con 600 contactos, 29,08 ms y mismos IDs
+visibles; funciones `public` intactas. Tipos introspectados (solo cuatro nodos
+nuevos). Dos revisiones Claude y evaluación del PRIMARY conservadas; correcciones
+posteriores comprobadas por tests, sin atribuir un nuevo dictamen a Claude.
+
+SQL exacto, reversa no destructiva, matriz y procedimiento pendiente en
+[gestion-multiempresa](../scripts/gestion-multiempresa/README.md). La publicación
+requiere ensayo/advisors en banco remoto autorizado y el procedimiento humano de
+release. Esta entrada no acredita autorización ni instalación productiva.
+
+
 ## 20260916040442 — Activación F8 serializada sin interbloqueos
 
 **INSTALADA Y VERIFICADA 16/09/2026 10:31 Lima**, registro remoto

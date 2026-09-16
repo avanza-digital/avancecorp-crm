@@ -5,6 +5,7 @@ import { respuestaInversionistas } from './inversionistas-api'
 import { agendarPostventa, gestionarTareaPostventa, cambiarVetoPostventa, solicitarRetiroPostventa, revisarRetiroPostventa } from './postventa-api'
 import { guardarEnvioPostventa, borrarEnvioPostventa, leerEnvioPostventa, type ComandoPostventa, type EnvioPostventa } from '@/lib/postventa-envios'
 import { jsonInversion } from '@/lib/inversion-solicitud'
+import { corregirContactoInversionista, corregirCoopacInversionista } from './gestion-inversionista'
 const Uuid = v.pipe(v.string(), v.uuid())
 const datos = v.record(v.string(), v.unknown())
 
@@ -21,6 +22,17 @@ export async function enviarPostventa(guardado: EnvioPostventa): Promise<void> {
   guardarEnvioPostventa(e) // Si no puede recuperarse, no se envía.
   try {
     switch (e.comando) {
+      case 'corregir_contacto': {
+        const p = v.parse(v.object({p_inversionista:Uuid, p_revision:v.string(),
+          p_datos:v.object({nombre_completo:v.string(),telefono:v.nullable(v.string()),domicilio:v.nullable(v.string())})}),e.parametros)
+        await corregirContactoInversionista(p.p_inversionista,e.clave,p.p_revision,p.p_datos); break
+      }
+      case 'corregir_coopac': {
+        const p = v.parse(v.object({p_inversionista:Uuid,p_fuente:Uuid,p_revision:v.string(),
+          p_datos:v.object({monto:v.number(),numero_transaccion:v.string(),referencia:v.nullable(v.string()),nota:v.nullable(v.string()),
+            plazo_meses:v.nullable(v.number()),tasa_anual:v.nullable(v.number()),vence_en:v.nullable(v.string())})}),e.parametros)
+        await corregirCoopacInversionista(p.p_inversionista,p.p_fuente,e.clave,p.p_revision,p.p_datos); break
+      }
       case 'agendar': {
         const p = v.parse(v.object({p_inversionista: Uuid, p_datos: datos}), e.parametros)
         await agendarPostventa({...p, p_datos: jsonInversion(p.p_datos), p_clave: e.clave, p_actor: e.actor}); break

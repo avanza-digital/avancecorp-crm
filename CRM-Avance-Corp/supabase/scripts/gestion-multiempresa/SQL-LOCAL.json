@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-09-16T17:01:03.031Z",
+  "db": "gestion_multiempresa_20260918",
+  "sha256": "e2ebc90220da5b671d873a3e5899f6f09f981becad6b1beb0dc7c7a78d7ca361",
+  "originales": {
+    "lector": "d559ddbbfae0474d9eed7d26aedc6d90|postgres|{postgres=X/postgres}",
+    "cierre": "1cd53d7eda89b09c9367a66fc4d27692|postgres|{postgres=X/postgres,authenticated=X/postgres}",
+    "public": "2b0b029e7f2d76b219ec64408661eac3"
+  },
+  "instalado": {
+    "lector": "fdcf98bd97225715961f7efca2e796f0|postgres|{postgres=X/postgres}",
+    "cierre": "c85e6aafbc20df70f907c74010d0c1d5|postgres|{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  "lector600ContactosMs": 29.08,
+  "replay": "PASS",
+  "reversa": "PASS",
+  "guardas": "PASS"
+}

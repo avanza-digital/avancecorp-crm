@@ -3298,7 +3298,7 @@ const COLUMNAS_CONTRATO = [
   'producto_version_estado',
 ].join(',')
 
-const ContratoRowSchema = v.object({
+export const ContratoRowSchema = v.object({
   id: v.string(),
   numero_contrato: v.string(),
   cliente_id: v.string(),
