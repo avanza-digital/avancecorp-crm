@@ -5,6 +5,8 @@ actualizado: 2026-09-16
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Solicitudes de tasa - rechazos solo en notificaciones (2026-09-16)]] — **LISTO EN LOCAL:** los rechazos salen de Mi jornada y permanecen en la campana; 3.659 pruebas y cuatro recorridos de notificaciones PASS. Pendiente de publicación mediante release autorizado.
+
 - [[Eliminar contrato vinculado sin historial - preparado 2026-09-16]] — **PREPARADO, SIN PUBLICAR:** corrige el bloqueo de la captura; inversión/titulares auditados, pruebas completas y rama eliminada. Pendientes SQL autorizado y release.
 
 **Cartera multiempresa, 16/09 — PUBLICADA:** [[Cartera multiempresa - publicacion (2026-09-16)]] — plan de gestión integral completado; SQL instalado, frontend `14be1e0581d8`, 95 comprobaciones web PASS. Banco temporal eliminado, coste estimado US$0,009353. Acta con pruebas, rollback y límites; trabajos ajenos conservados.
