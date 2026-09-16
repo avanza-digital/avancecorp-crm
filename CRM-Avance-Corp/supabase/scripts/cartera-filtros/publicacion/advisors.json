@@ -1,0 +1,33 @@
+{
+  "seguridad_delta": [
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "findings": [
+        {
+          "detail": "Function `crm.cartera_inversionistas_filtrada_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cartera_inversionistas_filtrada_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "cartera_inversionistas_filtrada_fn",
+            "schema": "crm",
+            "language": "sql",
+            "arguments": "p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean",
+            "security_definer": true
+          }
+        },
+        {
+          "detail": "Function `crm.cartera_inversionistas_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cartera_inversionistas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "cartera_inversionistas_fn",
+            "schema": "crm",
+            "language": "sql",
+            "arguments": "p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean",
+            "security_definer": true
+          }
+        }
+      ]
+    }
+  ],
+  "rendimiento_delta": [],
+  "decision": "La RPC authenticated SECURITY DEFINER es intencional, exige acceso F5 y ámbito canónico; v1 mantiene ACL/owner y pasa a wrapper SQL. Matriz específica SQL y Auth/HTTP PASS. Avisos previos se conservan; no se declara cero WARN remoto."
+}

@@ -33,7 +33,7 @@ locales PASS. Miguel aprobó complementar la muestra real en una copia aislada:
 15 grupos HTTP, 3 financieros y matriz ampliada de permisos PASS. Refresco 18:32:
 614 inversiones/468 personas sin diferencias. La preparación productiva y
 apertura se completaron después en F9; conformidades financieras no se inventan.
-Pendiente pedido por Miguel: [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtro mensual, filtros comerciales por rol, menos espacios vacíos y combinación vertical/horizontal. Guardado sin implementar.
+Pendiente resuelto: [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]] — **PUBLICADO 15/09:** mes comercial y filtros por rol, distribución compacta vertical/horizontal; 17 grupos SQL remotos, 20 comprobaciones Auth/HTTP, 23 cuentas y 91 recursos web verificados. Banco eliminado. Conserva la ficha anterior y los núcleos F5.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:
 timeout corregido en banco local, Ficha 360 recuperada y plazo/rentabilidad anual

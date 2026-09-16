@@ -1,0 +1,224 @@
+{
+  "estado": "PASS con diferencias administradas/revisadas",
+  "objetos_prod": 4922,
+  "objetos_banco": 4921,
+  "funciones_negocio_identicas": 651,
+  "diferencias": [
+    {
+      "key": "constraints:crm.alertas_reconocimientos_miembros_check:crm.alertas_reconocimientos:-",
+      "prod": [
+        "CHECK ((((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000)) AND (array_ndims(miembros) = 1)))",
+        true,
+        false,
+        false
+      ],
+      "rama": [
+        "CHECK (((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000) AND (array_ndims(miembros) = 1)))",
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "key": "constraints:crm.empresas_monedas_check:crm.empresas:-",
+      "prod": [
+        "CHECK ((((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5)) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))",
+        true,
+        false,
+        false
+      ],
+      "rama": [
+        "CHECK (((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))",
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "key": "constraints:crm.producto_condiciones_capital_check:crm.producto_condiciones:-",
+      "prod": [
+        "CHECK ((((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric)) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))",
+        true,
+        false,
+        false
+      ],
+      "rama": [
+        "CHECK (((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))",
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "key": "event_triggers:issue_pg_graphql_access",
+      "prod": [
+        "ddl_command_end",
+        "supabase_admin",
+        "grant_pg_graphql_access()",
+        "O",
+        [
+          "CREATE FUNCTION"
+        ]
+      ],
+      "rama": [
+        "ddl_command_end",
+        "supabase_admin",
+        "grant_pg_graphql_access()",
+        "O",
+        [
+          "CREATE EXTENSION"
+        ]
+      ]
+    },
+    {
+      "key": "extensiones:pg_net",
+      "prod": [
+        "0.20.0",
+        "public",
+        "supabase_admin",
+        false
+      ],
+      "rama": [
+        "0.20.4",
+        "extensions",
+        "supabase_admin",
+        false
+      ]
+    },
+    {
+      "key": "publicaciones:supabase_realtime_messages_publication",
+      "prod": [
+        "supabase_admin",
+        false,
+        true,
+        true,
+        true,
+        true,
+        false,
+        [
+          [
+            "realtime",
+            "messages_2026_09_13",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_14",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_15",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_16",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_17",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_18",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ],
+          [
+            "realtime",
+            "messages_2026_09_19",
+            [
+              "topic",
+              "extension",
+              "payload",
+              "event",
+              "private",
+              "updated_at",
+              "inserted_at",
+              "id",
+              "binary_payload",
+              "skip_broadcast"
+            ],
+            null
+          ]
+        ],
+        null
+      ]
+    }
+  ],
+  "explicacion": "Tres CHECK con parentizado AND normalizado al restaurar; pg_net versión/esquema administrados; event trigger pg_graphql administrado; publicación realtime.messages de particiones temporales gestionadas por Supabase. Resto de objetos, funciones, columnas, políticas y grants igualados antes de instalar."
+}

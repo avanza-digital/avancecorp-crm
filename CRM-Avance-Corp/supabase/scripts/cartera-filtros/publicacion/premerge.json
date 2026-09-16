@@ -1,0 +1,11 @@
+{
+  "ledger_anteriores": 297,
+  "version_nueva": "20260916042954",
+  "sql_literal": true,
+  "cambios": [
+    "funciones:crm.cartera_inversionistas_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean)",
+    "funciones:crm.cartera_inversionistas_filtrada_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean)",
+    "funciones:private.cartera_f5_listar(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean, p_compatibilidad boolean)"
+  ],
+  "prod_sin_drift": true
+}

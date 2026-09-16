@@ -1,14 +1,15 @@
 ---
-tags: [crm, cartera, multiempresa, ux, pendiente]
+tags: [crm, cartera, multiempresa, ux, publicado]
 fecha: 2026-09-15
-estado: implementado-local-pendiente-publicacion
+estado: publicado-verificado
 ---
 
 # Cartera de inversionistas: filtros y distribución
 
 Retomado por Miguel («ahora vamos con los pendientes»). Implementación y
 verificación en [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]].
-La publicación sigue pendiente; no confundir con la apertura general F9 ya realizada.
+Publicada y verificada el 15/09: filtros disponibles para los roles habilitados
+en la apertura general F9. El mes representa el cierre comercial.
 
 Miguel pidió **guardar como pendiente** esta observación el 15/09/2026 durante
 las pruebas de apertura de [[G7 - revision real y apertura pendiente (2026-09-15)]].
@@ -38,5 +39,5 @@ los componentes y la similitud visual del CRM. Comprobar filtros, estados vacío
 legibilidad y distribución en escritorio y móvil cuando se implemente.
 
 Relacionado con el [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
-Es un pendiente de producto/UX; no se añade automáticamente como un bloqueo nuevo
-del cierre técnico G7 ni se declara resuelto por las pruebas actuales.
+Este pendiente de producto/UX está resuelto. Su cierre no sustituye las
+conformidades humanas o financieras que conserve el plan principal.

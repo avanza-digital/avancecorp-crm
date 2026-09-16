@@ -2,7 +2,9 @@
 
 ## 20260916023055 — Filtros comerciales de cartera multiempresa
 
-**CANDIDATA LOCAL; NO INSTALADA EN PRODUCCIÓN.** Mes de cierre comercial,
+**PUBLICADA Y VERIFICADA 15/09/2026 23:53 Lima.** Registro remoto
+`20260916042954`, instalado mediante merge del banco autorizado; doce segmentos
+literales y 297 entradas previas intactas. Mes de cierre comercial,
 empresa, moneda, estado, responsable, marca No contactar y vencimientos de
 30 días. Núcleo `private.cartera_f5_listar` sobre fuentes e identidades F5:
 listado, capital y opciones siempre dentro del ámbito autorizado. RPC v2 con
@@ -14,7 +16,12 @@ Ensayo: copia local `cartera_filtros_20260916`, 17 grupos SQL, 6 peticiones HTTP
 y 7 comparaciones completas de compatibilidad v1 tras instalar, revertir y
 reinstalar PASS; propietario y ACL intactos. Tipos generados desde esa copia. Evidencias,
 reversa y orden de publicación: [cartera-filtros](../scripts/cartera-filtros/README.md).
-Instalar SQL antes del frontend; las pestañas anteriores conservan la RPC v1.
+Ensayo remoto: los mismos 17 grupos SQL y siete comparaciones v1/reversa PASS;
+20 verificaciones HTTP con seis sesiones Auth ficticias. Producción: 23 cuentas
+activas verificadas bajo authenticated; contratos, inversiones, identidades,
+flags y secretos conservados. Frontend `a09ecad` publicado, 91 recursos HTTP
+verificados; banco eliminado. [Acta de publicación](../scripts/cartera-filtros/PUBLICACION.md).
+Las pestañas anteriores conservan la RPC v1.
 
 ## 20260916003000 — Guardas finales de eliminación auditada
 

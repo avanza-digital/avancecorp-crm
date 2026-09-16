@@ -1,6 +1,7 @@
 # Filtros comerciales de cartera multiempresa
 
-Estado: candidato local; **sin publicar en producción**. Solicitud de Miguel:
+Estado: **publicado y verificado el 15/09/2026**. [Acta y evidencia](PUBLICACION.md).
+Solicitud de Miguel:
 retomar los pendientes de filtros comerciales y aprovechar mejor la pantalla.
 
 ## Contrato
@@ -27,7 +28,8 @@ retomar los pendientes de filtros comerciales y aprovechar mejor la pantalla.
 ## Banco y verificación
 
 Destino cerrado en `banco.mjs`: copia sintética propia dentro del contenedor
-local existente. Sin credenciales de producción, sin banco remoto de pago.
+local existente. Los comandos siguientes siguen siendo exclusivamente locales.
+El ensayo remoto autorizado y el cierre del banco se documentan en el acta.
 
 ```bash
 node supabase/scripts/cartera-filtros/preparar.mjs
@@ -79,10 +81,15 @@ en la copia real. Capturas de escritorio 1440 px y móvil 390 px. La ficha de
 - PASS: `check:scripts`, `seed:preflight`, `test:rls:preflight`, `test:edge-preflight`.
 - PASS: advisors de seguridad locales, 0 ERROR/WARN; 60 INFO de tablas previas
   con RLS sin policy (acceso por RPC). Sin avisos sobre las funciones candidatas.
-- NOT RUN: publicación, banco remoto y login humano en producción. No se solicitó
-  ni se creó infraestructura de pago para esta mejora.
+- PASS remoto: 17 grupos SQL, siete comparaciones v1/reversa/reinstalación y
+  20 verificaciones HTTP con seis sesiones GoTrue de cuentas ficticias.
+- PASS producción: SQL instalado, 23 cuentas activas comprobadas con rol SQL
+  authenticated, 91 recursos HTTP del frontend y banco temporal eliminado.
+- NOT RUN: login humano/navegación autenticada en producción y matriz RLS general
+  heredada; sí se ejecutó la matriz específica de esta consulta en SQL y Auth/HTTP.
 
 Claude emitió `CHANGES_REQUESTED`; Codex corrigió los hallazgos accionables y
 contrastó las hipótesis con la base y los tests. [Evaluación y decisiones](evaluacion-claude.md).
-`verificacion.json` contiene la huella del SQL probado. Las evidencias no
-acreditan una publicación. Una segunda consulta no fue necesaria.
+`verificacion.json` contiene la huella del SQL probado. La carpeta `publicacion/`
+conserva el recibo de instalación, ensayos remotos y comprobación de archivos.
+Una segunda consulta no fue necesaria.

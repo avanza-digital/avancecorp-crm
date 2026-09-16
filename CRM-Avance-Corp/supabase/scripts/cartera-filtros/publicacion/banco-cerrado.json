@@ -1,0 +1,13 @@
+{
+  "estado": "ELIMINADO",
+  "branch_id": "c16ce83e-8cb3-4236-a3de-6884a89e6705",
+  "project_ref": "ymyynhxwuotwwywpezfp",
+  "creado_utc": "2026-09-16T03:47:49.30745Z",
+  "eliminado_utc": "2026-09-16 04:54:36 UTC",
+  "ausencia_confirmada": true,
+  "limite_usd": 1,
+  "tarifa_usd_hora": 0.01344,
+  "horas": 1.1129702777777777,
+  "coste_estimado_usd": 0.014958,
+  "nota": "Estimación por tiempo transcurrido, no factura. No se eliminaron ramas ajenas."
+}

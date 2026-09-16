@@ -1,0 +1,81 @@
+{
+  "antes": {
+    "flags": [
+      {
+        "activo": true,
+        "nombre": "ficha_360_neutral"
+      },
+      {
+        "activo": true,
+        "nombre": "inversiones_escritura"
+      },
+      {
+        "activo": false,
+        "nombre": "metricas_multiempresa_sombra"
+      },
+      {
+        "activo": true,
+        "nombre": "postventa_neutral"
+      },
+      {
+        "activo": true,
+        "nombre": "resolver_en_puertas"
+      }
+    ],
+    "hechos": {
+      "contratos": {
+        "n": 594,
+        "md5": "c1f7f8dc4f89edeb3b630dc1c7f6c7e0"
+      },
+      "inversiones": {
+        "n": 26,
+        "md5": "6ae8af1b6fdf8a2381ff4141675699d7"
+      },
+      "inversionistas": {
+        "n": 496,
+        "md5": "a48cb040322b33e145ae120ec5f56f6a"
+      }
+    },
+    "piloto": false
+  },
+  "despues": {
+    "flags": [
+      {
+        "activo": true,
+        "nombre": "ficha_360_neutral"
+      },
+      {
+        "activo": true,
+        "nombre": "inversiones_escritura"
+      },
+      {
+        "activo": false,
+        "nombre": "metricas_multiempresa_sombra"
+      },
+      {
+        "activo": true,
+        "nombre": "postventa_neutral"
+      },
+      {
+        "activo": true,
+        "nombre": "resolver_en_puertas"
+      }
+    ],
+    "hechos": {
+      "contratos": {
+        "n": 594,
+        "md5": "c1f7f8dc4f89edeb3b630dc1c7f6c7e0"
+      },
+      "inversiones": {
+        "n": 26,
+        "md5": "6ae8af1b6fdf8a2381ff4141675699d7"
+      },
+      "inversionistas": {
+        "n": 496,
+        "md5": "a48cb040322b33e145ae120ec5f56f6a"
+      }
+    },
+    "piloto": false
+  },
+  "iguales": true
+}

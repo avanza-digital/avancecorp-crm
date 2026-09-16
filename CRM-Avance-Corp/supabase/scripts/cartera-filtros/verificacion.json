@@ -15,5 +15,6 @@
   },
   "claude": "CHANGES_REQUESTED; hallazgos corregidos y evaluación documentada",
   "tipo": "local_sintetico",
-  "produccion": "NO INSTALADO"
+  "produccion": "PUBLICADO Y VERIFICADO",
+  "publicacion": "publicacion/instalacion.json"
 }

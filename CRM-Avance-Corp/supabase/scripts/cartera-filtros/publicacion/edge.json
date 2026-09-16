@@ -1,0 +1,171 @@
+{
+  "antes": [
+    {
+      "slug": "crear-cliente",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "eb089c7459f3d65e915c59d62910b84971f996552c0aef12f64896c3306d2c6a",
+      "rama_sha256": "eb089c7459f3d65e915c59d62910b84971f996552c0aef12f64896c3306d2c6a"
+    },
+    {
+      "slug": "crear-admin",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340",
+      "rama_sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340"
+    },
+    {
+      "slug": "enviar-comunicado",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d",
+      "rama_sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d"
+    },
+    {
+      "slug": "enviar-push",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4",
+      "rama_sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4"
+    },
+    {
+      "slug": "diagnostico-push",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f",
+      "rama_sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f"
+    },
+    {
+      "slug": "resetear-password",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef",
+      "rama_sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef"
+    },
+    {
+      "slug": "eliminar-cliente",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "039cdb07ba6821754dc7e21525a1aacdc6f42bbb8520f5b6dd1bdf0542eae60a",
+      "rama_sha256": "039cdb07ba6821754dc7e21525a1aacdc6f42bbb8520f5b6dd1bdf0542eae60a"
+    },
+    {
+      "slug": "notificar-pagos",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6",
+      "rama_sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6"
+    },
+    {
+      "slug": "importar-clientes",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "f5b3b2c98a8956f0af85e0f9a31625673c588dfc3f5ed2e75bb4b97051a2b640",
+      "rama_sha256": "f5b3b2c98a8956f0af85e0f9a31625673c588dfc3f5ed2e75bb4b97051a2b640"
+    },
+    {
+      "slug": "ciclo-contratos",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb",
+      "rama_sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb"
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "configuracion": "PASS",
+      "bundle_identico": false,
+      "fuentes": "archivos y configuración comparados literalmente",
+      "padre_sha256": "baf6354650c7c0f6b102b474a6a3764b6fe757111afe5e2ad27391f9ba022955",
+      "rama_sha256": "d7a7c7e7c58b6d94a31e981c3e3f7e491d2cadc491c87033356c1ac18f475c28"
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "694edeec8026de0839dabd1a8e0c85e281338b288c53c2a82bf9c5e9db75dce9",
+      "rama_sha256": "694edeec8026de0839dabd1a8e0c85e281338b288c53c2a82bf9c5e9db75dce9"
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5",
+      "rama_sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5"
+    },
+    {
+      "slug": "crm-importar-leads",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "9d7ca8d8087f2bfe8a14a3f73245ee1924bacf1fcf7369effd84ac9b31d05669",
+      "rama_sha256": "9d7ca8d8087f2bfe8a14a3f73245ee1924bacf1fcf7369effd84ac9b31d05669"
+    },
+    {
+      "slug": "crm-usuarios",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658",
+      "rama_sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658"
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "configuracion": "PASS",
+      "bundle_identico": false,
+      "fuentes": "archivos y configuración comparados literalmente",
+      "padre_sha256": "1127c1c041744bdf3568f8406d56351af3e43348dad2459fe0055c020c1048d5",
+      "rama_sha256": "6cc4cf7f179fc11240f6c513efa28472271e179490389d5eae27405d11d700c1"
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "bfa917af846466011e2d1cb4b992c8335fff830d53c3f09ca6bc591454ce8723",
+      "rama_sha256": "bfa917af846466011e2d1cb4b992c8335fff830d53c3f09ca6bc591454ce8723"
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "12ce3e2aea4546acec3050eb32414a4f8068dcc9e0e41738d9036ba58b4c1df7",
+      "rama_sha256": "12ce3e2aea4546acec3050eb32414a4f8068dcc9e0e41738d9036ba58b4c1df7"
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "85c19897308847cb1e412f1e3417aa6252997fb18833d47a8162607af4415ea8",
+      "rama_sha256": "85c19897308847cb1e412f1e3417aa6252997fb18833d47a8162607af4415ea8"
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "configuracion": "PASS",
+      "bundle_identico": true,
+      "fuentes": "mismo bundle",
+      "padre_sha256": "5c51779d7b72f2649282c796614a1b6d900785cfedf52a637de963deaba4e253",
+      "rama_sha256": "5c51779d7b72f2649282c796614a1b6d900785cfedf52a637de963deaba4e253"
+    }
+  ],
+  "despues": {
+    "estado": "PASS",
+    "edge": 20,
+    "config_y_bundles_iguales_a_rama": true,
+    "secretos_produccion_sin_cambio": 14,
+    "solo_actualizacion_timestamp_secretos_administrados": 7
+  }
+}

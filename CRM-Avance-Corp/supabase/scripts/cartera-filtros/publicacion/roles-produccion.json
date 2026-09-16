@@ -1,0 +1,190 @@
+{
+  "estado": "PASS",
+  "modo": "Roles SQL authenticated reales, llamadas v1/v2/mes septiembre dentro de ROLLBACK; no equivale a login humano",
+  "cuentas": [
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "gerencia",
+      "totales_iguales": true,
+      "clientes_septiembre": 101,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "gerencia",
+      "totales_iguales": true,
+      "clientes_septiembre": 101,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "supervisor",
+      "totales_iguales": true,
+      "clientes_septiembre": 51,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "supervisor",
+      "totales_iguales": true,
+      "clientes_septiembre": 0,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "supervisor",
+      "totales_iguales": true,
+      "clientes_septiembre": 48,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 6,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 7,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 2,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 6,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 5,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 13,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 6,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 10,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 7,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 1,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 5,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 4,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 5,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 8,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 7,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 0,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 2,
+      "todas_fuentes_del_mes": true
+    },
+    {
+      "v1": 1,
+      "v2": 2,
+      "rol": "vendedor",
+      "totales_iguales": true,
+      "clientes_septiembre": 1,
+      "todas_fuentes_del_mes": true
+    }
+  ]
+}

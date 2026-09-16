@@ -1,0 +1,13 @@
+{
+  "estado": "PASS",
+  "version": "20260916042954",
+  "nombre": "crm_cartera_filtros_comerciales",
+  "segmentos_literales": 12,
+  "historial_anterior": 297,
+  "cambios_catalogo": [
+    "funciones:crm.cartera_inversionistas_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean)",
+    "funciones:crm.cartera_inversionistas_filtrada_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean)",
+    "funciones:private.cartera_f5_listar(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean, p_mes text, p_moneda text, p_estado text, p_contacto text, p_por_vencer boolean, p_compatibilidad boolean)"
+  ],
+  "hechos_y_flags_identicos": true
+}

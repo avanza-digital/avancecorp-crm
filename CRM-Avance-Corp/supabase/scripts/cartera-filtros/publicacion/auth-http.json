@@ -1,0 +1,107 @@
+{
+  "estado": "PASS",
+  "proyecto": "ymyynhxwuotwwywpezfp",
+  "auth": "GoTrue password grant con fixtures sintéticas",
+  "pruebas": [
+    {
+      "prueba": "Auth real gerencia",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Auth real supervisor",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Auth real vendedor",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Auth real directorio",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Auth real ajeno",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Auth real cliente",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Mes comercial gerencia",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Mes comercial supervisor",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Mes comercial vendedor",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Analista ajeno no enumera cliente",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "PEN y USD separados",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Filtros de una misma inversión",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Directorio solo Avance",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "COOPAC fuera del alcance de Directorio",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Compatibilidad HTTP v1",
+      "status": 200,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Cliente sin acceso al CRM",
+      "status": 403,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Anónimo bloqueado",
+      "status": 401,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "Mes inválido rechazado",
+      "status": 400,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "F5 apagado con el mismo token",
+      "status": 500,
+      "resultado": "PASS"
+    },
+    {
+      "prueba": "service_role sin EXECUTE en RPC comercial",
+      "status": 403,
+      "resultado": "PASS"
+    }
+  ]
+}

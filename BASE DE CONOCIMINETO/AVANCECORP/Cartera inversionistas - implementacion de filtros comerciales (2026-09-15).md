@@ -1,6 +1,6 @@
 # Cartera inversionistas: filtros comerciales y distribución
 
-Estado: implementado y verificado localmente; pendiente de publicación. Pedido de Miguel: «ahora vamos con los pendientes». Continúa [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]].
+Estado: **publicado y verificado el 15/09/2026**. Pedido de Miguel: «ahora vamos con los pendientes»; aprobó después el SQL, la publicación y un banco de hasta US$1. Continúa [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]].
 
 ## Criterio comercial
 
@@ -36,6 +36,10 @@ Frontend: 3632 tests/247 archivos PASS, cobertura de líneas 78,92 %, lint/typec
 
 Claude emitió CHANGES_REQUESTED. Se corrigieron ayudas móviles, accesibilidad de filas, restauración al quitar «Por vencer», DTO explícito y un posible ciclo de reconsultas ante revocación persistente. «Sin inversiones» para Directorio se etiqueta «Sin inversiones Avance» y nunca consulta la existencia de COOPAC ocultas. Las hipótesis de cambio de owner/grants/sobrecargas quedaron descartadas mediante inventario de producción solo lectura. Dictamen y resolución en `supabase/scripts/cartera-filtros/evaluacion-claude.md`.
 
-Evidencias, capturas, scripts reproducibles y reversa: `CRM-Avance-Corp/supabase/scripts/cartera-filtros/`. SQL candidato `20260916023055_crm_cartera_filtros_comerciales.sql`. Falta aprobar/publicar ese SQL siguiendo el ciclo de rama remota y después publicar el frontend desde `avancecorp/main`. No aplicar por arrastre otras migraciones. La apertura general F9 sigue activa; estos filtros nuevos todavía no están publicados. No se creó banco de pago ni se modificaron clientes reales.
+Evidencias, capturas, scripts reproducibles y reversa: `CRM-Avance-Corp/supabase/scripts/cartera-filtros/`. SQL fuente `20260916023055_crm_cartera_filtros_comerciales.sql` instalado como `20260916042954` por merge autorizado, doce segmentos literales y 297 entradas previas conservadas. Ninguna otra migración local aplicada. La apertura general F9 sigue activa y los filtros están publicados.
+
+Ensayo remoto: 17 grupos SQL y siete comparaciones v1/reversa/reinstalación PASS; 20 comprobaciones HTTP con seis sesiones Auth ficticias. Se reconstruyó el banco desde el esquema vigente tras el fallo heredado del replay; no se copiaron clientes reales. Producción: v1/v2 y mes comercial verificados bajo authenticated en las 23 cuentas activas (18 analistas, tres supervisores y dos Gerencia), sin cambiar datos ni banderas. Se conservaron 20 Edge y 14 secretos. La matriz RLS general y la navegación con login humano en producción no se ejecutaron en esta tarea.
+
+Frontend desde Main/remoto `a09ecad9aaed`, build `build-20260916T035613621Z`; 91 recursos HTTP 200 y 78 archivos de código/configuración idénticos al artefacto. El respaldo anterior se reconstruyó desde `6e01cb7` y se comprobó contra otros 91 recursos antes de publicar. Banco propio eliminado el 15/09 a las 23:54:36 Lima; coste estimado US$0,01496, inferior a US$1. Acta: `CRM-Avance-Corp/supabase/scripts/cartera-filtros/PUBLICACION.md`. Para ver el cambio, actualizar el CRM y abrir Cartera → Inversionistas.
 
 Gate de realidad: CLI NOT RUN (sin variables de servicio; además contiene una consulta histórica a `crm.perfiles`). Equivalente SQL de lectura ejecutado: 614 fuentes reales, 11 meses comerciales, 0 fuentes sin fecha, 21 miembros comerciales activos, 1755 leads activos, 12015 actividades, 1094 tareas pendientes, 21 periodos de metas, 0 vendedores sin supervisor y 0 revisiones bajo sello. 296 clientes activos sin domicilio: probar listado/ficha con información incompleta sin exigir domicilio para leer.
