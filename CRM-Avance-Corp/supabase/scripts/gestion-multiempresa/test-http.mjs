@@ -53,7 +53,9 @@ const lector=sql("select id from public.perfiles where rol='directorio' limit 1"
 // El banco de RLS contiene deliberadamente una fuente sin identidad para probar
 // fail-closed. Retirarla SOLO de esta copia desechable antes de habilitar F5.
 sql("begin;set local session_replication_role=replica;delete from crm.cierres_externos where inversionista_id is null;commit;update crm.multiempresa_flags set activo=true;");
-const fuente=obj("select to_jsonb(ce) from crm.cierres_externos ce join crm.inversionistas i on i.id=ce.inversionista_id where ce.anulado_en is null and i.perfil_id is null and i.inversionista_canonico_id is null order by ce.id limit 1");
+// Esta variante mide expresamente el caso histórico con lead archivado. El
+// orden de UUID de las otras variantes del banco no define esa precondición.
+const fuente=obj("select to_jsonb(ce) from crm.cierres_externos ce join crm.inversionistas i on i.id=ce.inversionista_id join crm.leads l on l.id=ce.lead_id where ce.anulado_en is null and not l.activo and i.perfil_id is null and i.inversionista_canonico_id is null order by ce.id limit 1");
 const persona=fuente.inversionista_id;
 sql(`begin;set local session_replication_role=replica;
   update crm.inversionistas set creado_por=${q(actor)},responsable_relacion_id=${q(actor)},creado_en=now()-interval '1 hour' where id=${q(persona)};
