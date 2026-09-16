@@ -104,6 +104,7 @@ test('rechazo y tope: un timbre por lote, filtro propio, sin leer hasta abrir', 
   await loginReal(page)
   await esperarRegistro(page)
   await page.getByRole('button', { name: 'Activar alertas y sonido' }).click()
+  await expect.poll(() => contarTonos(page)).toBe(2)
   const antes = await contarTonos(page)
   filas = [
     solicitud({ estado: 'rechazada', estado_efectivo: 'rechazada', vigente: false, resuelta_por: 'gerencia-qa', resuelta_en: new Date().toISOString(), motivo_resolucion: 'Revisar el plazo solicitado.' }),
@@ -111,7 +112,7 @@ test('rechazo y tope: un timbre por lote, filtro propio, sin leer hasta abrir', 
     solicitud({ id: 'e7100000-0000-4000-8000-000000000003', estado: 'aprobada', tasa_maxima_autorizada: 18, resuelta_por: 'gerencia-qa', resuelta_en: new Date().toISOString(), es_mia: true, solicitada_por: 'otra-cuenta', cliente_nombre: 'NO REVELAR' }),
   ]
   await expect(page.getByRole('button', { name: /Abrir notificaciones: 2 respuestas/ })).toBeVisible({ timeout: 20000 })
-  expect(await contarTonos(page)).toBe(antes + 2)
+  await expect.poll(() => contarTonos(page)).toBe(antes + 2)
   await page.getByRole('button', { name: /Abrir notificaciones/ }).click()
   await expect(page.getByRole('dialog')).not.toContainText('NO REVELAR')
   await expect(page.getByRole('dialog')).toContainText('rechazada')

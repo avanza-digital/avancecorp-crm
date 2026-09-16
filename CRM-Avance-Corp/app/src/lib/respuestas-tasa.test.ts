@@ -75,10 +75,15 @@ describe('registro local de respuestas de tasa', () => {
     const registro = { ...leerRegistroRespuestas('v-3'), iniciado: true, respuestas: Object.fromEntries(Array.from({ length: 1100 }, (_, i) => [`s-${i}|2026-09-11T15:00:00Z`, true])) }
     expect(guardarRegistroRespuestas('v-3', registro)).toBe(true)
     expect(Object.keys(leerRegistroRespuestas('v-3').respuestas)).toHaveLength(1000)
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('bloqueado') })
-    vi.spyOn(localStorage, 'getItem').mockImplementation(() => { throw new Error('bloqueado') })
-    expect(guardarRegistroRespuestas('v-3', { ...registro, sonido: true })).toBe(false)
-    expect(leerRegistroRespuestas('v-3').sonido).toBe(true)
+    // Storage de jsdom es un proxy: espiar sus métodos en la instancia no
+    // garantiza sustituirlos. El global explícito funciona también en Node 24.
+    const bloqueado = vi.fn(() => { throw new Error('bloqueado') })
+    vi.stubGlobal('localStorage', { setItem: bloqueado, getItem: bloqueado })
+    try {
+      expect(guardarRegistroRespuestas('v-3', { ...registro, sonido: true })).toBe(false)
+      expect(bloqueado).toHaveBeenCalledOnce()
+      expect(leerRegistroRespuestas('v-3').sonido).toBe(true)
+    } finally { vi.unstubAllGlobals() }
   })
 
   it('dos pestañas serializan la incorporación y solo una obtiene la alerta', async () => {

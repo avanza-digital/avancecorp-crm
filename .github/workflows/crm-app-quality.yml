@@ -71,7 +71,9 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: E2E smoke por rol (modo demo)
-        run: npm run test:e2e
+        # La suite tiene más de 200 casos. Un solo worker agotaba los 20 min;
+        # cada prueba usa su contexto y backend interceptado independientes.
+        run: npm run test:e2e -- --workers=2
 
       - name: Upload report on failure
         if: failure()

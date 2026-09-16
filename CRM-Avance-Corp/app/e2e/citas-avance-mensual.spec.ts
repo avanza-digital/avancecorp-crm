@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 import { montarConsultaCitas } from './_citas'
 
-test('avance mensual: fuentes, filtros, recorrido, monedas y detalle', async ({ page }) => {
+test('avance mensual: fuentes, filtros, recorrido, monedas y detalle', async ({ page }, info) => {
   await page.clock.setFixedTime(new Date('2026-09-04T15:00:00Z'))
   await montarBackendReal(page)
   await montarConsultaCitas(page, undefined, 'mensual')
@@ -54,7 +54,7 @@ test('avance mensual: fuentes, filtros, recorrido, monedas y detalle', async ({ 
       await expect(page.getByRole('button', { name: 'Fijar menú abierto', exact: true })).toBeVisible()
       await page.getByLabel('Capital del mes por moneda').scrollIntoViewIfNeeded()
     }
-    await page.screenshot({ path: `/private/tmp/citas-avance-crm-${width}.png`, fullPage: true })
+    await page.screenshot({ path: info.outputPath(`citas-avance-crm-${width}.png`), fullPage: true })
   }
 })
 

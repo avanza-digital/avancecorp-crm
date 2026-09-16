@@ -81,6 +81,11 @@ incluida la pausa pedida. No se eliminaron otras ramas ni servicios locales.
 
 ## Revisión independiente y decisiones
 
+El cierre en GitHub detectó problemas previos de portabilidad/sincronización
+del banco. Se corrigieron las pruebas y se fijaron dos workers E2E en CI:
+[causas y evidencia](CI.md). Los resultados del commit final acompañan el
+artefacto en `releases/`; no reutilizar un ZIP de un Main anterior.
+
 Claude devolvió CHANGES_REQUESTED. Se incorporaron el cierre de las RPC legacy,
 protección TRUNCATE, copia de idempotencia, detección de dependencias CASCADE/SET NULL
 nuevas, mensaje de concurrencia, guardas de ficha y actualización de cachés.

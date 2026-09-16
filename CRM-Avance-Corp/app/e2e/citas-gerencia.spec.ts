@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 import { montarConsultaCitas } from './_citas'
 
-test('la meta interna usa la base asignada y muestra analistas sin citas',async ({page}) => {
+test('la meta interna usa la base asignada y muestra analistas sin citas',async ({page},info) => {
   await page.clock.setFixedTime(new Date('2026-09-04T15:00:00Z'))
   await montarBackendReal(page)
   await montarConsultaCitas(page,undefined,true)
@@ -17,7 +17,7 @@ test('la meta interna usa la base asignada y muestra analistas sin citas',async 
   await expect(page.getByRole('dialog')).toContainText('1 leads asignados')
   await page.keyboard.press('Escape')
   await page.setViewportSize({width:1440,height:1000})
-  await page.screenshot({path:'/private/tmp/citas-meta-corregida-local.png',fullPage:true})
+  await page.screenshot({path:info.outputPath('citas-meta-corregida-local.png'),fullPage:true})
 })
 
 test('Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vistas',async ({page}) => {
