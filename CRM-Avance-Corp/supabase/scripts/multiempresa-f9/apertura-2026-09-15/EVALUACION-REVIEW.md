@@ -60,6 +60,54 @@ sintaxis Node de los scripts F9 PASS. El primer postflight local rechazó READ O
 porque las funciones usan FOR SHARE (25006); se corrigió a READ COMMITTED con
 ROLLBACK, igual que el verificador G7, y se repitió el ensayo completo.
 
-Pendiente antes de producción: revisión final focalizada, commit/respaldo,
-preflight fresco y cotejo del frontend publicado. Después: capacidades de las
-24 cuentas, lectura real de cartera/fichas, conciliación y acta. G8 sigue abierto.
+## Revisión final y resolución
+
+Se conserva [el segundo CHANGES_REQUESTED](REVISION-FINAL-CLAUDE.md). Claude
+descarta P0/P1 en el SQL; condiciona la operación al canal y verificaciones
+productivas que no tenía adjuntos. Revisó las plantillas del commit `b8110e6`
+y la primera ampliación de 13 escenarios; el cierre incorpora 17. No se realiza
+una tercera consulta para cambiar el dictamen. Codex resuelve con evidencia:
+
+- **Canal:** Supabase MCP `execute_sql`, proyecto fijo `dctqcbznekcyxhjujuci`.
+  Prueba inocua sin DML: transacción 174204 → COMMIT → transacción 174205,
+  mismo backend, cambio real de transacción. Otra llamada con división por cero
+  devuelve ERROR 22012 y no un recibo PASS. El resultado se considera fallido
+  ante cualquier error y se exige lectura independiente posterior antes de
+  declarar activación. No se presupone un comportamiento del pooler/SDK.
+- **Recibo anterior:** ACTIVAR ahora empieza con `SET f9.resultado='{}'`, sin
+  depender de sesión nueva ni poder usar el recibo de un intento anterior.
+  Se conserva la comprobación de estado posterior al COMMIT.
+- **Tiempo:** el preflight productivo de los SELECT de catálogo, equipo, roles,
+  lectores, control y triggers mide **35,475 ms**. Las fuentes midieron 96,188 ms.
+  `statement_timeout='3s'` limita efectivamente la sentencia crítica; inyectar
+  `pg_sleep(4)` después de tomar F3 aborta con 57014 alrededor de los tres
+  segundos, conserva estado/datos y no espera a la comprobación final.
+- **Frescura:** nuevo preflight 16/09 02:04:26 UTC coincide con config en las
+  211 funciones, 608 firmas, 8 triggers, 24 cuentas, miembros/control y lectores.
+  Conciliación 01:57:37 UTC: 614 fuentes y cero incoherencias/diferencias.
+  Config no se recapturó ni se alargó: vence 03:45:31 UTC. Se reensayaron los
+  bytes finales tras endurecer el tiempo/recibo, con huellas SHA256 nuevas.
+- **Reversa:** sigue siendo apagado total F4/F5/F6, también para los cuatro
+  participantes iniciales. Sus guardas se conservan. No se agrega una reversa
+  sin condiciones ni se restaura automáticamente un piloto; ante configuración
+  distinta se inspecciona el estado y se prepara una instrucción apropiada.
+  REVERTIR no caduca; quien vence el 21/09 es el piloto original.
+- **Auditoría de pruebas:** ambas RPC son VOLATILE por defecto; eso no acredita
+  escrituras. Sus cuerpos y las llamadas de autorización/control no invocan el
+  registro de acceso. Además, el ensayo compara `public.audit_log` completo para
+  filas con `usuario_id` antes/después del COMMIT y del postflight: huella idéntica.
+  La configuración se audita administrativamente, sin atribuir solicitudes a
+  las cuatro cuentas usadas para comprobar capacidades.
+- **Postventa ampliada:** un analista fuera del piloto crea una solicitud de
+  retiro por la RPC; Coordinación recibe 42501. La reversa conserva esa solicitud
+  y dos inversiones F4 confirmadas, junto a las **19 superficies** verificadas.
+- **Otros P3:** catálogo de firmas nuevas limitado a crm/private; funciones
+  public pertinentes sí comparadas por cuerpo/ACL/dueño. Se rechazan delimitadores
+  dollar-quote en el generador. POSTFLIGHT se ejecuta secuencialmente; un conflicto
+  de configuración exige leer el estado antes de atribuirlo a permisos. Las ACL
+  actuales no contienen nombres con comas; no se generaliza ese parser.
+
+[Evidencia del canal, funciones y preflight](verificacion-final-previa.json).
+Frontend publicado cotejado por cuatro recursos HTTP 200 y llamadas de banderas.
+**17 escenarios SQL PASS**; scripts generales y sintaxis PASS. Pendiente de
+ejecutar en producción y verificar después. G8 sigue abierto.

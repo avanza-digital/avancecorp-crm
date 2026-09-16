@@ -31,12 +31,12 @@ No representa inicio de sesión ni firma de Carlos.
 - [verificar-lecturas.sql](verificar-lecturas.sql): tres roles fuera del piloto,
   lista/ficha, importes exactos del núcleo y rechazo de ficha ajena. ROLLBACK
   deshace también las auditorías de lectura de esta comprobación.
-- [ensayo.json](ensayo.json): **14 escenarios PASS** en copia sintética propia
+- [ensayo.json](ensayo.json): **17 escenarios PASS** en copia sintética propia
   `f9_apertura_20260915`, con SHA256 de los artefactos usados. Ventana local de
-  candados 70,397 ms; no es medición de producción. Dos inversiones F4 nuevas
-  sobreviven a REVERTIR sin cambiar las 18 superficies de datos verificadas.
+  candados 67,198 ms; no es medición de producción. Dos inversiones F4 nuevas
+  sobreviven a REVERTIR sin cambiar las 19 superficies de datos verificadas.
 - [EVALUACION-REVIEW.md](EVALUACION-REVIEW.md): respuesta con evidencia al
-  CHANGES_REQUESTED original; revisión final focalizada en curso.
+  CHANGES_REQUESTED original; revisión final evaluada y observaciones verificadas.
 - [conciliacion-previa.json](conciliacion-previa.json): 16/09 01:57:37 UTC,
   614 fuentes/468 personas y cero diferencias entre Cartera, Capital y F7.
 - [frontend-publicado.json](frontend-publicado.json): cuatro recursos HTTP 200,

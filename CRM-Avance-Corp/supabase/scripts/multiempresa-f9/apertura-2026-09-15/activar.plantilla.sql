@@ -1,9 +1,12 @@
 -- Apertura general autorizada por Miguel: «OK ACTIVALO PRO FAVOR».
 -- Ejecución administrativa, sin simular firmas financieras ni sesiones humanas.
+-- Borra cualquier recibo anterior de una conexión reutilizada.
+set f9.resultado='{}';
 begin isolation level read committed;
 set local search_path='';
 set local lock_timeout='3s';
-set local statement_timeout='30s';
+-- Límite efectivo de la sentencia, además de la comprobación final de duración.
+set local statement_timeout='3s';
 do $f9$
 declare
   cfg constant jsonb:='__CONFIG__'::jsonb;

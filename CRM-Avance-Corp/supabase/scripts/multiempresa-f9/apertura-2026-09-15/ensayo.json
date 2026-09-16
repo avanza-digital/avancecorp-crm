@@ -1,11 +1,15 @@
 {
   "estado": "PASS",
-  "inicio": "2026-09-16T01:56:12.199Z",
-  "fin": "2026-09-16T01:56:24.808Z",
+  "inicio": "2026-09-16T02:05:49.279Z",
+  "fin": "2026-09-16T02:06:05.948Z",
   "banco": "f9_apertura_20260915",
   "resultados": [
     {
       "caso": "Fallo intermedio revierte piloto y banderas completos",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Sentencia lenta aborta a los tres segundos sin esperar su final",
       "estado": "PASS"
     },
     {
@@ -41,11 +45,19 @@
       "estado": "PASS"
     },
     {
+      "caso": "Pruebas de capacidades no generan auditorías atribuidas a usuarios",
+      "estado": "PASS"
+    },
+    {
       "caso": "Segunda activación no sobrescribe el estado ya abierto",
       "estado": "PASS"
     },
     {
       "caso": "Dos inversiones F4 confirmadas por analista durante apertura",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Analista fuera del piloto solicita retiro; Coordinación no puede hacerlo",
       "estado": "PASS"
     },
     {
@@ -57,13 +69,13 @@
       "estado": "PASS"
     },
     {
-      "caso": "Reversa conserva 18 superficies con nuevas operaciones, coherencia y 24 cuentas apagadas",
+      "caso": "Reversa conserva 19 superficies con nuevas operaciones, coherencia y 24 cuentas apagadas",
       "estado": "PASS"
     }
   ],
   "apertura": {
     "base": "f9_apertura_20260915",
-    "fecha": "2026-09-16T01:56:17.915046+00:00",
+    "fecha": "2026-09-16T02:05:58.546747+00:00",
     "roles": [
       {
         "rol": "coordinador",
@@ -127,7 +139,7 @@
     ],
     "estado": "PASS",
     "cuentas": 24,
-    "fuentes": 234,
+    "fuentes": 240,
     "banderas": {
       "ficha_360_neutral": true,
       "postventa_neutral": true,
@@ -137,16 +149,16 @@
     },
     "revision": 2,
     "referencia": "F9-20260915-01",
-    "verificado_en": "2026-09-16T01:56:18.022872+00:00",
-    "huella_fuentes": "b3d79f92eb85a1ffdf0d66542536d081",
+    "verificado_en": "2026-09-16T02:05:58.657108+00:00",
+    "huella_fuentes": "1348986295479a48031ae494f825b97a",
     "fuentes_conservadas": true,
-    "milisegundos_pruebas": 43.354,
-    "milisegundos_candados": 70.397,
+    "milisegundos_pruebas": 41.349,
+    "milisegundos_candados": 67.198,
     "confirmado_despues_commit": true
   },
   "postflight": {
     "fase": "LECTURA_POSTERIOR_COMMIT",
-    "fecha": "2026-09-16T01:56:18.357212+00:00",
+    "fecha": "2026-09-16T02:05:58.987696+00:00",
     "roles": [
       {
         "rol": "vendedor",
@@ -531,19 +543,36 @@
     "estado": "PASS"
   },
   "operaciones": {
-    "persona": "12ce60dc-5741-4e3d-ae37-89740b03e4ea",
+    "persona": "7c953bb2-904f-487a-86ea-47c54571da8e",
     "inversiones": [
       {
-        "solicitud": "f3c4c8ed-10ce-4d0e-bb85-a8200c671067",
-        "inversion": "07672e53-530b-4e83-a4d5-a000d4ff6e92",
+        "solicitud": "0187ff22-21ae-45ff-b286-db90271d0db9",
+        "inversion": "fe3038e8-f183-461c-9b8d-831fc8b7040d",
         "empresa": "prodelco"
       },
       {
-        "solicitud": "c52bbf87-7b40-43ca-a91a-f707a70240db",
-        "inversion": "81d964dd-d4f3-4e9b-b055-79176a6f6931",
+        "solicitud": "8aa34305-4d15-4911-a334-c40a5d982d65",
+        "inversion": "ed40c0cc-c22f-4176-b100-6a6c97fb1c0a",
         "empresa": "qorilazo"
       }
     ]
+  },
+  "retiro": {
+    "ok": true,
+    "retiro": {
+      "id": "4b3b8b58-c9e1-4fea-aeaa-fa6d8b53b850",
+      "estado": "solicitada",
+      "motivo": "Retiro ficticio ensayo F9",
+      "empresa": "prodelco",
+      "revision": 1,
+      "creado_en": "2026-09-16T02:06:00.033063+00:00",
+      "fuente_id": "0e8562dc-ab95-4e6f-a7ab-5c8f8aabfac9",
+      "creado_por": "0705094c-42f4-4f25-8f5e-0ce215213d29",
+      "resolucion": null,
+      "revisado_por": null,
+      "actualizado_en": "2026-09-16T02:06:00.033063+00:00",
+      "inversionista_id": "7c953bb2-904f-487a-86ea-47c54571da8e"
+    }
   },
   "estadosReversa": [
     {
@@ -668,14 +697,14 @@
     }
   ],
   "lecturas": {
-    "corte": "2026-09-16T01:56:19.56658+00:00",
+    "corte": "2026-09-16T02:06:00.682606+00:00",
     "roles": [
       {
         "rol": "gerencia",
         "actor": "b79fa9100672e55b4166b023520120a5",
         "fue_piloto": false,
         "filas_muestra": 10,
-        "personas_visibles": 75,
+        "personas_visibles": 77,
         "totales_coinciden": true,
         "ficha_ajena_denegada": false,
         "ficha_propia_comprobada": true
@@ -684,8 +713,8 @@
         "rol": "supervisor",
         "actor": "f6e17a8012f6194b0aca6fc84a8be9fb",
         "fue_piloto": false,
-        "filas_muestra": 2,
-        "personas_visibles": 2,
+        "filas_muestra": 4,
+        "personas_visibles": 4,
         "totales_coinciden": true,
         "ficha_ajena_denegada": true,
         "ficha_propia_comprobada": true
@@ -694,8 +723,8 @@
         "rol": "vendedor",
         "actor": "01b20a44ffb3d7b969d9aa55e62d31c7",
         "fue_piloto": false,
-        "filas_muestra": 2,
-        "personas_visibles": 2,
+        "filas_muestra": 4,
+        "personas_visibles": 4,
         "totales_coinciden": true,
         "ficha_ajena_denegada": true,
         "ficha_propia_comprobada": true
@@ -703,54 +732,57 @@
     ],
     "estado": "PASS"
   },
+  "auditoria_actores_antes": "f3f13cad7ee8dade492ea4c847a5dc17",
   "superficies_antes": {
-    "crm.leads": "7c1ae5750c21dcae640a7ace1eafb477",
+    "crm.leads": "0782ecc5bf11cee87e6bd2b0843fb2a5",
     "auth.users": "ac8a5311faf3c3efbacb09eab73b9083",
     "crm.tareas": "d9c2f213b0f7e0c285f5a061d9557231",
-    "crm.inversiones": "95b1369894a435b0b7f58d856154518c",
+    "crm.inversiones": "f7e363dee3a423c7944879fd11760b05",
     "public.perfiles": "fd7aede5dfa95446339269ebf7b4ce2e",
-    "storage.objects": "88196b4ba2316c3b425c152139580e2c",
+    "storage.objects": "eecb848d4a8a0a3230d5b4ec8605202d",
     "public.contratos": "f92f0ac69f8c1fb764de8f001b9d3da4",
-    "crm.inversionistas": "a05992193d8f85c579a40033bab2eb51",
-    "crm.cierres_externos": "f575a7a7cc934bc80e47a1ea4e219c19",
-    "crm.inversion_eventos": "273e4fd7318b48a3028beaf9e751478d",
+    "crm.inversionistas": "15b532a675829622a522bbd6750bb0e4",
+    "crm.cierres_externos": "f8549fc6286088a132a3e4a1cd6085e7",
+    "crm.inversion_eventos": "f516af08987906c85116f080ac5693e7",
     "crm.periodos_cerrados": "e455ab4bc9e41f9556b9d2c4df94b065",
+    "crm.postventa_retiros": "9759f6bd793e4ee2fea5226f4f054279",
     "private.contrato_pdfs": "5ad49ca502ccdffcc7bfed03f39a3c04",
     "crm.cierre_mes_vendedor": "d41d8cd98f00b204e9800998ecf8427e",
-    "crm.inversion_titulares": "eae71de0e14879ae408a49a6a9777565",
+    "crm.inversion_titulares": "a94c7d95f0d61356ab23674fd173c072",
     "public.cronograma_pagos": "cbab5265fc4958e971472212bf6017c4",
-    "crm.depositos_reclamados": "1cc35c8bfbd8079f501a588289791406",
-    "crm.inversion_solicitudes": "d9b4597407d382949ab82ab219666d10",
-    "crm.inversionista_gestiones": "9e82ab67ff0302f89cda885732eee204"
+    "crm.depositos_reclamados": "0dff6e13c3aab51c779c6e96d65f42b7",
+    "crm.inversion_solicitudes": "3a9f714cff23c63b1deb0a64c358b1da",
+    "crm.inversionista_gestiones": "3ef6edeab6cb03596d0479f207a378e0"
   },
   "superficies_conservadas_por_reversa": {
-    "crm.leads": "61f82775dd7e4d904b7b439df6635499",
+    "crm.leads": "5fb79fe4ac5053a680415d2fb4a591d4",
     "auth.users": "ac8a5311faf3c3efbacb09eab73b9083",
     "crm.tareas": "d9c2f213b0f7e0c285f5a061d9557231",
-    "crm.inversiones": "4c138766e1c17cddbba5b0e74edafe67",
+    "crm.inversiones": "88afad31392d76489cf76c2339322733",
     "public.perfiles": "fd7aede5dfa95446339269ebf7b4ce2e",
-    "storage.objects": "db8807036ac6b0d3de33e2103ce962eb",
+    "storage.objects": "065cb2f707577f3ff3ecba83ceb5bcbe",
     "public.contratos": "f92f0ac69f8c1fb764de8f001b9d3da4",
-    "crm.inversionistas": "a15b043397f3e5c18853e6e890d7b43d",
-    "crm.cierres_externos": "fb12557aa041d9ee0a0791fbbaca25fb",
-    "crm.inversion_eventos": "86fd482f3db9d2b1cc242338e7d49e31",
+    "crm.inversionistas": "74c0875cf1de06464e98e9c19066911a",
+    "crm.cierres_externos": "1c5c3e90712929881d605688a8a89703",
+    "crm.inversion_eventos": "24b3b7c5a598cae114e46a0ca057362e",
     "crm.periodos_cerrados": "e455ab4bc9e41f9556b9d2c4df94b065",
+    "crm.postventa_retiros": "ddb62972e91d399a9c6df8671d992864",
     "private.contrato_pdfs": "5ad49ca502ccdffcc7bfed03f39a3c04",
     "crm.cierre_mes_vendedor": "d41d8cd98f00b204e9800998ecf8427e",
-    "crm.inversion_titulares": "f43e1372b81e634e41245174715295c2",
+    "crm.inversion_titulares": "75c131d533b3846de8728f1bfe0af660",
     "public.cronograma_pagos": "cbab5265fc4958e971472212bf6017c4",
-    "crm.depositos_reclamados": "341be51737ec01076c2423e76abfb3f1",
-    "crm.inversion_solicitudes": "e1d32626f263bca6cf3467e17c1b3834",
-    "crm.inversionista_gestiones": "1b54efa5405fd16d74805d2a7cd001ad"
+    "crm.depositos_reclamados": "07fac46707c27705e966724edf27049b",
+    "crm.inversion_solicitudes": "b5e270b419b0dd55ef9b0764da8b15a5",
+    "crm.inversionista_gestiones": "f9464fc474b3277b100b3c14c2749dc3"
   },
   "sha256": {
-    "ACTIVAR.sql": "72a4f4c0878b553602a81b783bcb48ea9dd9b6dc4ebcdd0831eba31d96bf3cb5",
+    "ACTIVAR.sql": "d844c1093e50bea579ba2a852388783770e455db4800f98ecc45277be4069e92",
     "REVERTIR.sql": "0abe69bec02c742286fc7c8a1c701ce1dcb7661f97b9e6b21f4debebeb50a7f0",
     "POSTFLIGHT.sql": "e7f5b7c776f00c61a43d5e1e2e725c64f868efe46a7eaf79a8399295ac16f61d",
     "config.json": "729cec50ec516b947102dc33817933def58286cd03e464ffab09da67d4a1491d",
-    "crear-sql.mjs": "e3c35c0656e037f12d1d7cbca64a1d0621b4428d17a2ff095aacf326beba8b7f",
+    "crear-sql.mjs": "2b7aa12b79c7c19f5f56bcd60f754d7d5171ac2053ecce152c71cbe619b39909",
     "banco.mjs": "5d4a4dc5a224dab9e46d0cfd415e00aec1fde780f78b7c835ab3bad28d844f7e",
-    "ensayo.mjs": "a23bba8a5be1d0d21924e0f663fc40284f8a5c8128963597bbd861c897fdac14",
+    "ensayo.mjs": "424502c1ddffcba8f6666ddc552ec3c6b50505848ab88a3a25cea5953eec26d9",
     "preparar-banco.mjs": "579f3905dce8b409a6a40c46c24e953a15ada3f1d1792c6a6836db84895e94d8",
     "operaciones-reversa.mjs": "4696527de4c8e438ccd3cb3b6a63d350b19456a4e0b7c33b680725c1f363b200",
     "verificar-lecturas.sql": "127dbf0dce18c7330a9fdad914fa46d55b700ea08b804435c8fde1f2a61c04ea"

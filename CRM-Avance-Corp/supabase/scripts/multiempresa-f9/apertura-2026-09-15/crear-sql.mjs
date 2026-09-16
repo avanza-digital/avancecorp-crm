@@ -10,5 +10,7 @@ assert.ok(config.catalogo_firmas.length>=config.funciones.length);
 for(const [origen,destino] of [['activar.plantilla.sql','ACTIVAR.sql'],['revertir.plantilla.sql','REVERTIR.sql'],['postflight.plantilla.sql','POSTFLIGHT.sql']]) {
   const plantilla=readFileSync(new URL(origen,import.meta.url),'utf8');
   assert.equal(plantilla.split('__CONFIG__').length,2);
-  writeFileSync(new URL(destino,import.meta.url),plantilla.replace('__CONFIG__',JSON.stringify(config).replaceAll("'","''")));
+  const serializado=JSON.stringify(config);
+  assert.ok(!/\$f9(?:_reversa|_verificar)?\$/.test(serializado),'Delimitador SQL en configuración');
+  writeFileSync(new URL(destino,import.meta.url),plantilla.replace('__CONFIG__',serializado.replaceAll("'","''")));
 }
