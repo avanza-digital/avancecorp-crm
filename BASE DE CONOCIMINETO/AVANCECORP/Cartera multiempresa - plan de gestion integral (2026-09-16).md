@@ -2,7 +2,7 @@
 tags: [crm, cartera, multiempresa, plan, gestion, retoma]
 fecha: 2026-09-16
 actualizado: 2026-09-16
-estado: implementado-local-pendiente-sql-y-publicacion
+estado: implementado-y-publicado
 decision_origen: Miguel-pide-concentrar-la-gestion-del-cliente-en-la-ficha-multiempresa
 ---
 
@@ -12,12 +12,13 @@ decision_origen: Miguel-pide-concentrar-la-gestion-del-cliente-en-la-ficha-multi
 
 La **ficha multiempresa será el lugar desde el que el analista gestione a sus clientes**, con sus inversiones Avance, Qorilazo y Prodelco. Debe reunir las funciones de Gestión Avance que todavía faltan, conservando las reglas comerciales, los núcleos y los permisos de cada rol.
 
-Miguel guardó inicialmente este plan y luego autorizó ejecutarlo con «hazlo».
-El 16/09 confirmó conservar los cambios ajenos de eliminación de contratos/PDF
-y autorizó separar multiempresa en un worktree. **Etapas 1–4 implementadas;
-verificación y preparación local de la etapa 5 documentadas en
-[[Cartera multiempresa - gestion integral preparada (2026-09-16)]].** La instalación
-y publicación productivas siguen pendientes de sus autorizaciones concretas.
+Miguel autorizó ejecutar el plan, conservar los cambios ajenos y separar el
+trabajo en un worktree. Después invocó `$release-crm` y autorizó el SQL exacto
+`20260916152851` con un banco de hasta US$0,10. **Etapas 1–5 completadas y
+publicadas el 16/09/2026.** SQL remoto `20260916174727`, frontend `14be1e0581d8`,
+95 comprobaciones web PASS. Evidencias y límites: [[Cartera multiempresa - publicacion (2026-09-16)]].
+La nota [[Cartera multiempresa - gestion integral preparada (2026-09-16)]] conserva
+el historial de preparación local anterior a la autorización productiva.
 
 Este es un plan complementario de F5/F6. La apertura general F9 y las conformidades pendientes G7/G8 conservan su estado y evidencia; este trabajo no las sustituye.
 
@@ -140,25 +141,16 @@ Evaluación de Codex:
 - Las dudas por fragmentos no adjuntados al reviewer se contrastaron localmente: `accionesContractualesHabilitadas`, la constante de cinco horas, los permisos de documento/correo, el reuso de `ContratoNuevo`, el desglose y la mini-ficha COOPAC están en el código leído. No se convierten en nuevas preguntas al usuario por falta de contexto del reviewer.
 - Para trasladar correcciones a COOPAC sí queda trabajo de diseño y verificación de sus escritores; el inventario de lectura no lo acredita resuelto.
 
-## Punto exacto de retoma
+## Cierre y referencia para continuar
 
-Implementación en `/private/tmp/avancecorp-gestion-worktree`, rama
-`codex/gestion-multiempresa`, commit funcional `25a0b9da`. La rama incorpora los
-cambios remotos hasta `1f9e5f83` mediante `a2243c4e`; Main conserva su publicación
-independiente. No trasladar los antiguos cambios mezclados desde la carpeta común.
+El plan está implementado y publicado. [[Cartera multiempresa - publicacion (2026-09-16)]] identifica
+la versión efectiva, SQL, pruebas, límites, rollback y coste del banco eliminado.
+No reinstalar la migración ni recrear ese banco para retomar contexto.
 
-1. Leer [[Cartera multiempresa - gestion integral preparada (2026-09-16)]] y
-   `CRM-Avance-Corp/supabase/scripts/gestion-multiempresa/README.md`.
-2. Revisar SQL exacto `20260916152851`, su reversa no destructiva, matriz,
-   evaluaciones de Claude y resultados locales. La migración no está instalada.
-3. Obtener autorización de SQL/banco remoto y completar ensayo, advisors y merge
-   conforme al procedimiento. No recrear recursos de pago sin presupuesto.
-4. Integrar esta rama en Main conservando avances remotos, comprobar igualdad
-   con `avancecorp/main`, reconstruir artefacto y publicar solo tras invocación
-   humana `$release-crm`. Verificar después y cerrar el banco propio.
-
-La apertura F9 y conformidades G7/G8 mantienen su evidencia anterior. Esta
-implementación no vuelve a habilitar banderas ni cambia comisiones. Los cuatro
-archivos ajenos no versionados en la carpeta común permanecieron intactos.
+La apertura F9 y conformidades G7/G8 mantienen su evidencia anterior. Esta entrega
+no cambia banderas ni comisiones. Los trabajos ajenos de contratos/PDF siguen
+conservados. El menú local `f15061b6` quedó en la rama
+`codex/menu-gerencia-pendiente-20260916`, sin incluirse en este release. El Main
+verificado se trabaja en `/private/tmp/avancecorp-gestion-worktree`.
 
 Relacionadas: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]], [[F9 - apertura general autorizada (2026-09-15)]], [[Gestión comercial de clientes - renovaciones y upgrades]], [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]], [[F8 - ficha anterior recuperada para multiempresa (2026-09-15)]].

@@ -1,0 +1,442 @@
+{
+  "estado": "SQL_INSTALADO_Y_VERIFICADO_FRONTEND_PUBLICADO",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "instalacion_utc": "2026-09-16T18:05:04Z",
+  "autorizacion": "Miguel autorizó el SQL 20260916152851 y banco remoto hasta US$0,10; $release-crm autoriza la web.",
+  "sql": {
+    "archivo": "20260916152851_crm_gestion_integral_multiempresa.sql",
+    "sha256_archivo": "e2ebc90220da5b671d873a3e5899f6f09f981becad6b1beb0dc7c7a78d7ca361",
+    "registro_remoto": "20260916174727",
+    "metodo": "merge_branch: historial base de 300 migraciones idénticas y una candidata nueva; nunca db push general ni apply_migration directo a producción.",
+    "sentencias_instaladas": 27,
+    "sentencias_literales_iguales_al_archivo": true,
+    "sha256_sentencias_unidas": "d2f9fad3094270d9d5b935de43343b2c636e56f553b773928ef7e0697f4b94bb"
+  },
+  "banco": {
+    "nombre": "gestion-multiempresa-20260916",
+    "id": "b6a96f1a-6ff4-417a-97c0-337972ff76ce",
+    "project_ref": "ndjvbjdjotiszjhtbxik",
+    "creado_utc": "2026-09-16T17:32:34.928339Z",
+    "eliminacion_solicitada_utc": "2026-09-16T18:11:08Z",
+    "precio_usd_h": 0.01344,
+    "presupuesto_usd": 0.1,
+    "datos": "Solo configuración y fixtures sintéticos, sin clientes productivos.",
+    "paridad_inicial": {
+      "funciones": 653,
+      "diferencias_codigo_owner_acl_search_path": 0
+    },
+    "matriz_rls": {
+      "estado": "PASS",
+      "aserciones": 1866,
+      "exit": 0,
+      "limite": "Sin meses cerrados en el banco: no se midió el candado de metas retroactivas."
+    },
+    "gestion_auth_http_sql": {
+      "estado": "PASS",
+      "grupos": 24,
+      "exit": 0,
+      "incidencia_previa": "El selector inicial eligió un lead activo para el caso archivado. Se acotó a una fuente realmente archivada; se repitieron completos los 24 grupos. No se cambió SQL ni expectativas."
+    },
+    "eliminada_confirmada": true,
+    "eliminada_confirmada_utc": "2026-09-16T18:14:20.195461+00:00",
+    "coste_estimado_usd_hasta_confirmacion": 0.009353,
+    "nota_coste": "Estimación por tiempo transcurrido y tarifa confirmada, no factura; rama ausente de list_branches."
+  },
+  "verificacion_productiva": {
+    "estado": "PASS",
+    "datos_permisos_flags_historial_previos_identicos": true,
+    "linea_base": {
+      "flags": {
+        "ficha_360_neutral": true,
+        "postventa_neutral": true,
+        "resolver_en_puertas": true,
+        "inversiones_escritura": true,
+        "metricas_multiempresa_sombra": false
+      },
+      "tablas": {
+        "crm.equipo": {
+          "md5": "439d2c21405066db637feebe6129e626",
+          "filas": 28
+        },
+        "crm.inversiones": {
+          "md5": "c192dc4044e2b46f0284b3f0f7532bc6",
+          "filas": 26
+        },
+        "public.perfiles": {
+          "md5": "b92158f2225b061e64331d0d4bf365b7",
+          "filas": 507
+        },
+        "public.contratos": {
+          "md5": "53fa3036bf4f9cdf3745eef1ba0b9125",
+          "filas": 594
+        },
+        "public.documentos": {
+          "md5": "d41d8cd98f00b204e9800998ecf8427e",
+          "filas": 0
+        },
+        "crm.inversionistas": {
+          "md5": "fc3ff4e6e73c50ba21d593a1b39cc618",
+          "filas": 497
+        },
+        "crm.cierres_externos": {
+          "md5": "a18aadfdaee40e4eff25341be4e7cbea",
+          "filas": 25
+        },
+        "crm.piloto_f8_control": {
+          "md5": "75bcc23af8a77ac55cd5f0ed3f7a4ec1",
+          "filas": 1
+        },
+        "crm.multiempresa_flags": {
+          "md5": "5d544c98881f50d58c10072dabb4187f",
+          "filas": 5
+        },
+        "crm.piloto_f8_miembros": {
+          "md5": "eaf3f4dd405f364ac1481ecd5bb1c9bc",
+          "filas": 4
+        },
+        "crm.inversion_titulares": {
+          "md5": "401540e18af092907982d751d295802f",
+          "filas": 26
+        },
+        "public.cronograma_pagos": {
+          "md5": "641bf346c87da36b56e88f5862ba1699",
+          "filas": 5325
+        },
+        "public.contrato_titulares": {
+          "md5": "89bbb32c94a81d1514098bce9e01af3d",
+          "filas": 19
+        },
+        "crm.inversionista_gestiones": {
+          "md5": "4ba67b9b136efb84f51b2ceb18f36bf8",
+          "filas": 41
+        },
+        "crm.contratos_eliminados_auditoria": {
+          "md5": "e2f9334847a2b3b87259ac15ae1c94aa",
+          "filas": 2
+        }
+      },
+      "policies": "5a42f514855a26370ca6cfd472c1147e",
+      "historial_previo": {
+        "md5": "755b4bfc5db1b04a81b3816901b529a2",
+        "filas": 300
+      },
+      "permisos_tablas_previas": "f9283e2dc3ef1f79df1488754a533c95"
+    },
+    "funciones": {
+      "total": 657,
+      "conservadas": 651,
+      "modificadas": [
+        {
+          "antes": {
+            "firma": "crm.corregir_cierre_externo(p_cierre_id uuid, p_monto numeric, p_moneda text, p_cooperativa text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text)",
+            "md5": "1cd53d7eda89b09c9367a66fc4d27692",
+            "owner": "postgres",
+            "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+            "config": [
+              "search_path=\"\""
+            ]
+          },
+          "despues": {
+            "firma": "crm.corregir_cierre_externo(p_cierre_id uuid, p_monto numeric, p_moneda text, p_cooperativa text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text)",
+            "md5": "c85e6aafbc20df70f907c74010d0c1d5",
+            "owner": "postgres",
+            "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+            "config": [
+              "search_path=\"\""
+            ]
+          }
+        },
+        {
+          "antes": {
+            "firma": "private.cartera_f5_personas_visibles(p_inversionista uuid)",
+            "md5": "d559ddbbfae0474d9eed7d26aedc6d90",
+            "owner": "postgres",
+            "acl": "{postgres=X/postgres}",
+            "config": [
+              "search_path=\"\""
+            ]
+          },
+          "despues": {
+            "firma": "private.cartera_f5_personas_visibles(p_inversionista uuid)",
+            "md5": "fdcf98bd97225715961f7efca2e796f0",
+            "owner": "postgres",
+            "acl": "{postgres=X/postgres}",
+            "config": [
+              "search_path=\"\""
+            ]
+          }
+        }
+      ],
+      "nuevas": [
+        {
+          "firma": "crm.inversionista_corregir_contacto_fn(p_inversionista uuid, p_clave uuid, p_revision text, p_datos jsonb)",
+          "md5": "585ba34f5a8ffc9ef8ca96064859c289",
+          "owner": "postgres",
+          "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+          "config": [
+            "search_path=\"\"",
+            "lock_timeout=5s"
+          ]
+        },
+        {
+          "firma": "crm.inversionista_corregir_coopac_fn(p_inversionista uuid, p_fuente uuid, p_clave uuid, p_revision text, p_datos jsonb)",
+          "md5": "36ea704a99a34c9b845faeedc9f79322",
+          "owner": "postgres",
+          "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+          "config": [
+            "search_path=\"\"",
+            "lock_timeout=5s"
+          ]
+        },
+        {
+          "firma": "crm.inversionista_gestion_fn(p_inversionista uuid, p_fuente uuid)",
+          "md5": "e10a99dd27818cf5160c10df4c94575e",
+          "owner": "postgres",
+          "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+          "config": [
+            "search_path=\"\""
+          ]
+        },
+        {
+          "firma": "private.gestion_contacto(p_persona uuid)",
+          "md5": "760822a5e8e99d705723a7f753afcf2b",
+          "owner": "postgres",
+          "acl": "{postgres=X/postgres}",
+          "config": [
+            "search_path=\"\""
+          ]
+        }
+      ],
+      "identicas_al_banco": true
+    },
+    "lecturas_por_rol": [
+      {
+        "rol": "gerencia",
+        "cuentas": 2,
+        "minimo_visibles": 495,
+        "maximo_visibles": 495,
+        "contextos": 8,
+        "avance": 4,
+        "coopac": 4
+      },
+      {
+        "rol": "supervisor",
+        "cuentas": 3,
+        "minimo_visibles": 0,
+        "maximo_visibles": 253,
+        "contextos": 8,
+        "avance": 4,
+        "coopac": 4
+      },
+      {
+        "rol": "vendedor",
+        "cuentas": 18,
+        "minimo_visibles": 0,
+        "maximo_visibles": 54,
+        "contextos": 47,
+        "avance": 28,
+        "coopac": 15
+      }
+    ],
+    "metodo_lectura": "Contexto SQL authenticated y ROLLBACK; no son sesiones humanas ni escrituras sobre clientes reales.",
+    "contactos_al_instalar": 0
+  },
+  "edge": {
+    "funciones": 20,
+    "fuentes_identicas": true,
+    "archivos_identicos": 48,
+    "permisos_estado_y_verify_jwt_conservados": true,
+    "efecto_del_merge": "Supabase republicó las Edge existentes. Se descargaron ambas fuentes completas: 48 archivos byte a byte idénticos. Las versiones y huellas del paquete empaquetado pueden cambiar.",
+    "versiones": [
+      {
+        "slug": "crear-cliente",
+        "antes": 36,
+        "despues": 37
+      },
+      {
+        "slug": "crear-admin",
+        "antes": 18,
+        "despues": 19
+      },
+      {
+        "slug": "enviar-comunicado",
+        "antes": 15,
+        "despues": 16
+      },
+      {
+        "slug": "enviar-push",
+        "antes": 7,
+        "despues": 8
+      },
+      {
+        "slug": "diagnostico-push",
+        "antes": 7,
+        "despues": 8
+      },
+      {
+        "slug": "resetear-password",
+        "antes": 7,
+        "despues": 8
+      },
+      {
+        "slug": "eliminar-cliente",
+        "antes": 9,
+        "despues": 10
+      },
+      {
+        "slug": "notificar-pagos",
+        "antes": 9,
+        "despues": 10
+      },
+      {
+        "slug": "importar-clientes",
+        "antes": 16,
+        "despues": 17
+      },
+      {
+        "slug": "ciclo-contratos",
+        "antes": 6,
+        "despues": 7
+      },
+      {
+        "slug": "crm-convertir-lead",
+        "antes": 18,
+        "despues": 19
+      },
+      {
+        "slug": "crm-tipo-cambio",
+        "antes": 9,
+        "despues": 10
+      },
+      {
+        "slug": "crm-agenda-ics",
+        "antes": 7,
+        "despues": 8
+      },
+      {
+        "slug": "crm-importar-leads",
+        "antes": 21,
+        "despues": 22
+      },
+      {
+        "slug": "crm-usuarios",
+        "antes": 7,
+        "despues": 8
+      },
+      {
+        "slug": "crm-contrato-pdf-v2",
+        "antes": 20,
+        "despues": 21
+      },
+      {
+        "slug": "crm-inversion-portal",
+        "antes": 2,
+        "despues": 3
+      },
+      {
+        "slug": "crm-inversion-documento",
+        "antes": 1,
+        "despues": 2
+      },
+      {
+        "slug": "crm-notificaciones-tasa",
+        "antes": 1,
+        "despues": 2
+      },
+      {
+        "slug": "corregir-correo-cliente",
+        "antes": 1,
+        "despues": 2
+      }
+    ]
+  },
+  "advisors": [
+    {
+      "tipo": "security",
+      "antes": 272,
+      "despues": 276,
+      "nuevos": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "nivel": "INFO",
+          "documentacion": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+          "hallazgos": [
+            {
+              "detail": "Table \\`crm.inversionista_datos_contacto\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "inversionista_datos_contacto",
+                "type": "table",
+                "schema": "crm"
+              }
+            }
+          ]
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "nivel": "WARN",
+          "documentacion": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+          "hallazgos": [
+            {
+              "detail": "Function `crm.inversionista_corregir_contacto_fn(p_inversionista uuid, p_clave uuid, p_revision text, p_datos jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_corregir_contacto_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "inversionista_corregir_contacto_fn",
+                "schema": "crm",
+                "language": "plpgsql",
+                "arguments": "p_inversionista uuid, p_clave uuid, p_revision text, p_datos jsonb",
+                "security_definer": true
+              }
+            },
+            {
+              "detail": "Function `crm.inversionista_corregir_coopac_fn(p_inversionista uuid, p_fuente uuid, p_clave uuid, p_revision text, p_datos jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_corregir_coopac_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "inversionista_corregir_coopac_fn",
+                "schema": "crm",
+                "language": "plpgsql",
+                "arguments": "p_inversionista uuid, p_fuente uuid, p_clave uuid, p_revision text, p_datos jsonb",
+                "security_definer": true
+              }
+            },
+            {
+              "detail": "Function `crm.inversionista_gestion_fn(p_inversionista uuid, p_fuente uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_gestion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "inversionista_gestion_fn",
+                "schema": "crm",
+                "language": "plpgsql",
+                "arguments": "p_inversionista uuid, p_fuente uuid",
+                "security_definer": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tipo": "performance",
+      "antes": 114,
+      "despues": 115,
+      "nuevos": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "nivel": "INFO",
+          "documentacion": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys",
+          "hallazgos": [
+            {
+              "detail": "Table \\`crm.inversionista_datos_contacto\\` has a foreign key \\`inversionista_datos_contacto_actualizado_por_fkey\\` without a covering index. This can lead to suboptimal query performance.",
+              "metadata": {
+                "name": "inversionista_datos_contacto",
+                "type": "table",
+                "schema": "crm",
+                "fkey_name": "inversionista_datos_contacto_actualizado_por_fkey",
+                "fkey_columns": [
+                  7
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limites": "gate:realidad completo y navegación autenticada con usuarios reales NOT RUN. El frontend se comprueba con E2E de fixtures; backend con Auth real en banco sintético y lecturas SQL reales en producción.",
+  "publicacion_frontend": "PUBLICACION.json"
+}

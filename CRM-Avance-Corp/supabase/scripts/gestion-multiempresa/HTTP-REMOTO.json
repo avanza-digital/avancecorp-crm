@@ -1,0 +1,31 @@
+{
+  "fecha": "2026-09-16T18:03:32.226Z",
+  "destino": "https://ndjvbjdjotiszjhtbxik.supabase.co",
+  "db": "postgres",
+  "checks": [
+    "Persona COOPAC sin Auth/perfil, autor y responsable vigente dentro de 5 h",
+    "Analista ajeno no lee la persona",
+    "Corrección contacta fuente neutral; conserva evidencia económica y devuelve recibo único al repetir",
+    "Escritura con versión antigua rechazada",
+    "Dos guardados simultáneos: uno confirma y otro detecta conflicto",
+    "Campos extra y acceso directo a contacto rechazados",
+    "Ventana estricta antes, exactamente a las cinco horas y después",
+    "Historia antigua no reinicia ventana; Gerencia conserva excepción y recibo anterior recuperable",
+    "COOPAC histórica sin condiciones: omitir vencimiento conserva la fecha anterior",
+    "COOPAC Gerencia: monto, plazo, tasa, vencimiento atómicos, recibo y control de versión",
+    "Contrato concreto vinculado; inversión cruzada rechazada; Directorio lectura Avance sin correcciones",
+    "Directorio recibe exactamente las columnas y redacción del lector Avance publicado",
+    "Escritor Avance real: Gerencia corrige histórico y conserva pago real, cotitulares omitidos y cuenta contractual",
+    "Vendedor comercial sin rol analista: capacidad coincide con rechazo del escritor PDF existente",
+    "Capacidad Avance coincide con escritor real para analista propio dentro y fuera de cinco horas",
+    "Payload numérico inválido y quitar condiciones existentes producen rechazo definitivo 22023",
+    "Inversión anulada: capacidad deshabilitada y rechazo del escritor",
+    "COOPAC con lead archivado conserva antes/después económico en la gestión neutral",
+    "Llamada directa COOPAC sobre lead archivado conserva rechazo anterior y no deja cambios",
+    "Administración conserva corrección documental; Gerencia sola no la recibe",
+    "Supervisor responsable: requiere autoría original dentro de su ventana",
+    "Fusión: autor y fecha más antiguos, contacto del alias y revisión monotónica",
+    "Cambio de responsable invalida lectura y escritura del anterior",
+    "Revocación y apagado del módulo bloquean las escrituras por servidor"
+  ]
+}

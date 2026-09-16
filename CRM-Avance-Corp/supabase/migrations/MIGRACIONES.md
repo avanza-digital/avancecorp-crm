@@ -15,23 +15,23 @@ Rama propia eliminada. Requiere aprobación del SQL exacto antes de promoción.
 
 ## 20260916152851 — Gestión integral desde la ficha multiempresa
 
-**CANDIDATA LOCAL REVISADA; NO INSTALADA NI PUBLICADA.** Contacto neutral con
-RLS cerrada y auditoría; contexto de gestión por persona/fuente; corrección de
-contacto e inversión COOPAC con idempotencia, control de versión y permisos del
-núcleo. Extiende bitácora y lector canónico, sin DDL en `public` ni cambios de
-banderas. El salto de seguimiento de lead archivado está limitado al nuevo
-wrapper; la RPC directa mantiene su comportamiento anterior.
+**INSTALADA Y PUBLICADA el 16/09/2026**, con autorización expresa de Miguel.
+Registro remoto `20260916174727`, promovido mediante `merge_branch` tras ensayo
+remoto: 1.866 aserciones RLS y 24 grupos Auth/HTTP/SQL PASS. SHA-256 del SQL:
+`e2ebc90220da5b671d873a3e5899f6f09f981becad6b1beb0dc7c7a78d7ca361`.
+Las 27 sentencias instaladas coinciden literalmente y en orden con el archivo.
 
-Ensayo en dos copias PostgreSQL locales: 24 grupos Auth/HTTP/SQL PASS; instalación,
-reversa, propietarios/ACL y guardas PASS. Con 600 contactos, 29,08 ms y mismos IDs
-visibles; funciones `public` intactas. Tipos introspectados (solo cuatro nodos
-nuevos). Dos revisiones Claude y evaluación del PRIMARY conservadas; correcciones
-posteriores comprobadas por tests, sin atribuir un nuevo dictamen a Claude.
+Contacto neutral con RLS cerrada y auditoría; contexto de gestión por persona y
+fuente; corrección de contacto/COOPAC con versión, idempotencia y permisos del
+núcleo. Sin DDL en `public` ni cambios de flags. El comportamiento directo del
+escritor previo se conserva. Dos funciones adaptadas, cuatro nuevas y 651 intactas.
+Datos, propietarios, ACL e historial anterior verificados; lectura de 23 cuentas PASS.
 
-SQL exacto, reversa no destructiva, matriz y procedimiento pendiente en
-[gestion-multiempresa](../scripts/gestion-multiempresa/README.md). La publicación
-requiere ensayo/advisors en banco remoto autorizado y el procedimiento humano de
-release. Esta entrada no acredita autorización ni instalación productiva.
+Banco eliminado, coste estimado US$0,009353 sobre un máximo de US$0,10.
+Advisors revisados y documentados; el merge recompuso los paquetes Edge, cuyas
+48 fuentes se cotejaron idénticas. Frontend publicado desde Main `14be1e0581d8`:
+95 comprobaciones HTTP PASS. SQL, reversa no destructiva, revisiones, limitaciones
+y evidencias en [gestion-multiempresa](../scripts/gestion-multiempresa/README.md).
 
 
 ## 20260916040442 — Activación F8 serializada sin interbloqueos

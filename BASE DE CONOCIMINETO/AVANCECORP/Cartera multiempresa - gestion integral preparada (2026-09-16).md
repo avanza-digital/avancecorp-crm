@@ -1,10 +1,14 @@
 ---
 tags: [crm, cartera, multiempresa, gestion, preparado, retoma]
 fecha: 2026-09-16
-estado: implementado-local-pendiente-sql-y-publicacion
+estado: historial-preparacion-publicada
 ---
 
 # Cartera multiempresa — gestión integral preparada
+
+**Preparación histórica; entrega completada:** [[Cartera multiempresa - publicacion (2026-09-16)]].
+Esta nota describe el ensayo local anterior a la autorización e instalación
+productivas. La versión vigente, el banco remoto y la publicación están en el acta.
 
 Miguel autorizó ejecutar [[Cartera multiempresa - plan de gestion integral (2026-09-16)]]
 y conservar cambios ajenos. Autorizó expresamente separar el trabajo en un
@@ -12,7 +16,7 @@ worktree. Ruta: `/private/tmp/avancecorp-gestion-worktree`; rama
 `codex/gestion-multiempresa`. Funcional `25a0b9da`, integración de los cambios
 remotos de eliminación y leads propios hasta `1f9e5f83` en `a2243c4e`.
 Main y los cuatro archivos ajenos no versionados de la carpeta original se
-conservaron. Esta tarea no publicó ni instaló SQL productivo.
+conservaron. Esa fase local no publicó ni instaló SQL productivo.
 
 ## Implementación
 
@@ -49,16 +53,13 @@ reversa, evaluaciones Claude, `HTTP-LOCAL.json`, `SQL-LOCAL.json`,
 - Banco local propio cerrado (servicios y ambas bases); snapshot/contenedor
   compartidos conservados. Sin recurso cloud de pago.
 
-## Próximo paso concreto
+## Continuación completada
 
-Revisar y autorizar `20260916152851_crm_gestion_integral_multiempresa.sql` y su
-banco remoto con presupuesto, completar ensayo/advisors y merge autorizado.
-La reversa conserva datos y auditoría: primero restaurar la web anterior, después
-revocar RPC nuevas y restaurar funciones. Reactivación mediante migración nueva.
-
-Después integrar la rama en Main, comprobar igualdad con `avancecorp/main`,
-reconstruir el artefacto y publicar solo con invocación humana `$release-crm`.
-El ZIP local de la rama es para revisión y no autoriza esa publicación.
+Miguel autorizó el SQL exacto y el banco remoto hasta US$0,10, además de invocar
+`$release-crm`. Se completaron ensayo, advisors, promoción SQL y publicación web.
+Ver [[Cartera multiempresa - publicacion (2026-09-16)]]; no quedan esos pasos pendientes de autorización.
+La reversa no destructiva conserva datos y auditoría y exige recuperar primero
+la web anterior. No fue necesario usarla durante esta publicación.
 
 Las conformidades G7/G8 y apertura [[F9 - apertura general autorizada (2026-09-15)]]
 conservan su estado. Relacionadas: [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]],
