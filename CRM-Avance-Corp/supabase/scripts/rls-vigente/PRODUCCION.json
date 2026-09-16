@@ -1,0 +1,247 @@
+{
+  "estado": "INSTALADA_Y_VERIFICADA",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "autorizacion": "Miguel: «siiii», en respuesta a la solicitud de instalar el SQL exacto enlazado en producción.",
+  "fuente_commit": "bc7a5a89daec939201a284f10de752983a3528e7",
+  "archivo": "20260916040442_crm_piloto_f8_activacion_serializada.sql",
+  "sha256": "e8940bc632e2aa96ff40a0a3ea18eeafac73ac9430f39f3052fba50bc7cd07cf",
+  "registro_remoto": "20260916153100",
+  "metodo": "Promoción literal mediante apply_migration del único SQL autorizado y ensayado previamente en la rama temporal eliminada. Sin fusionar reconstrucción/fixtures ni aplicar otros archivos.",
+  "antes": {
+    "datos": [
+      {
+        "filas": 0,
+        "tabla": "crm.contratos_eliminados_auditoria",
+        "huella": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "filas": 26,
+        "tabla": "crm.inversiones",
+        "huella": "e8418c7e814f00e6edb040eeea55e3af"
+      },
+      {
+        "filas": 496,
+        "tabla": "crm.inversionistas",
+        "huella": "413b8087baa87901072040f907c80350"
+      },
+      {
+        "filas": 5,
+        "tabla": "crm.multiempresa_flags",
+        "huella": "1c536cda40e804e43b271c5176b15bfd"
+      },
+      {
+        "filas": 1,
+        "tabla": "crm.piloto_f8_control",
+        "huella": "946011d0cd26ecee4fe4d1fa3fdaba06"
+      },
+      {
+        "filas": 4,
+        "tabla": "crm.piloto_f8_miembros",
+        "huella": "90259dec0017fd0130a69b147beddd89"
+      },
+      {
+        "filas": 594,
+        "tabla": "public.contratos",
+        "huella": "c000c72afd79670b52ee0e6d6b9866d5"
+      },
+      {
+        "filas": 5320,
+        "tabla": "public.cronograma_pagos",
+        "huella": "21fb32963968701d22db282807f0f699"
+      }
+    ],
+    "funcion": {
+      "acl": "{postgres=X/postgres}",
+      "nombre": "trg_piloto_f8_control_validar",
+      "schema": "private",
+      "definer": true,
+      "argumentos": "",
+      "cuerpo_md5": "dca0a332f21fda89f88f4614e0db0c75",
+      "propietario": "postgres",
+      "configuracion": [
+        "search_path=\"\""
+      ],
+      "definicion_md5": "47585a27b991a442bb09b3477be5f224"
+    },
+    "trigger": {
+      "tipo": 27,
+      "nombre": "trg_piloto_f8_control_00_validar",
+      "funcion": "private.trg_piloto_f8_control_validar()",
+      "habilitado": "O"
+    },
+    "banderas": {
+      "ficha_360_neutral": true,
+      "postventa_neutral": true,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": true,
+      "metricas_multiempresa_sombra": false
+    },
+    "f8_activo": false,
+    "fecha_utc": "2026-09-16T15:30:58.985027+00:00",
+    "migracion": null,
+    "funciones_total": 653,
+    "privilegios_api": {
+      "anon": false,
+      "service_role": false,
+      "authenticated": false
+    },
+    "historial_previo": {
+      "md5": "a263e41c6bde729535c90f66ea38e846",
+      "filas": 298
+    },
+    "otras_funciones_md5": "7f5e6c266c4b84ee1bdd3863dd97c460"
+  },
+  "despues": {
+    "datos": [
+      {
+        "filas": 0,
+        "tabla": "crm.contratos_eliminados_auditoria",
+        "huella": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "filas": 26,
+        "tabla": "crm.inversiones",
+        "huella": "e8418c7e814f00e6edb040eeea55e3af"
+      },
+      {
+        "filas": 496,
+        "tabla": "crm.inversionistas",
+        "huella": "413b8087baa87901072040f907c80350"
+      },
+      {
+        "filas": 5,
+        "tabla": "crm.multiempresa_flags",
+        "huella": "1c536cda40e804e43b271c5176b15bfd"
+      },
+      {
+        "filas": 1,
+        "tabla": "crm.piloto_f8_control",
+        "huella": "946011d0cd26ecee4fe4d1fa3fdaba06"
+      },
+      {
+        "filas": 4,
+        "tabla": "crm.piloto_f8_miembros",
+        "huella": "90259dec0017fd0130a69b147beddd89"
+      },
+      {
+        "filas": 594,
+        "tabla": "public.contratos",
+        "huella": "c000c72afd79670b52ee0e6d6b9866d5"
+      },
+      {
+        "filas": 5320,
+        "tabla": "public.cronograma_pagos",
+        "huella": "21fb32963968701d22db282807f0f699"
+      }
+    ],
+    "funcion": {
+      "acl": "{postgres=X/postgres}",
+      "nombre": "trg_piloto_f8_control_validar",
+      "schema": "private",
+      "definer": true,
+      "argumentos": "",
+      "cuerpo_md5": "201a4b2fd6d062d7930e673d9986f5de",
+      "propietario": "postgres",
+      "configuracion": [
+        "search_path=\"\""
+      ],
+      "definicion_md5": "0a1b9f6b5454cf8f238984d63745b092"
+    },
+    "trigger": {
+      "tipo": 27,
+      "nombre": "trg_piloto_f8_control_00_validar",
+      "funcion": "private.trg_piloto_f8_control_validar()",
+      "habilitado": "O"
+    },
+    "banderas": {
+      "ficha_360_neutral": true,
+      "postventa_neutral": true,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": true,
+      "metricas_multiempresa_sombra": false
+    },
+    "f8_activo": false,
+    "fecha_utc": "2026-09-16T15:31:41.732049+00:00",
+    "migracion": [
+      {
+        "nombre": "crm_piloto_f8_activacion_serializada",
+        "version": "20260916153100"
+      }
+    ],
+    "funciones_total": 653,
+    "privilegios_api": {
+      "anon": false,
+      "service_role": false,
+      "authenticated": false
+    },
+    "historial_previo": {
+      "md5": "a263e41c6bde729535c90f66ea38e846",
+      "filas": 298
+    },
+    "otras_funciones_md5": "7f5e6c266c4b84ee1bdd3863dd97c460"
+  },
+  "comprobaciones": {
+    "body": true,
+    "datos": true,
+    "banderas": true,
+    "f8_activo": true,
+    "trigger": true,
+    "funciones_total": true,
+    "otras_funciones": true,
+    "historial": true,
+    "privilegios_api": true,
+    "config": true,
+    "acl": true,
+    "migracion": true
+  },
+  "advisors": [
+    {
+      "tipo": "security",
+      "antes": 272,
+      "despues": 272,
+      "added": [],
+      "removed": []
+    },
+    {
+      "tipo": "performance",
+      "antes": 114,
+      "despues": 114,
+      "added": [],
+      "removed": []
+    }
+  ],
+  "lecturas_cartera": {
+    "estado": "PASS",
+    "cuentas": 23,
+    "roles": [
+      {
+        "rol": "gerencia",
+        "cuentas": 2,
+        "todas_habilitadas": true,
+        "menor_total": 494,
+        "mayor_total": 494
+      },
+      {
+        "rol": "supervisor",
+        "cuentas": 3,
+        "todas_habilitadas": true,
+        "menor_total": 0,
+        "mayor_total": 252
+      },
+      {
+        "rol": "vendedor",
+        "cuentas": 18,
+        "todas_habilitadas": true,
+        "menor_total": 0,
+        "mayor_total": 54
+      }
+    ],
+    "metodo": "Contexto SQL authenticated con el UUID de cada cuenta activa; estado y lista v1 en transacción ROLLBACK. No son sesiones humanas del navegador."
+  },
+  "ci_previo": {
+    "estado": "PASS",
+    "run": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35113203513",
+    "commit": "bc7a5a89daec939201a284f10de752983a3528e7"
+  },
+  "limites": "Concurrencia y borrado real probados en bancos sintéticos, no mediante activación o eliminación de contratos productivos. La matriz remota conserva un ETIMEDOUT original; el bloque repetido completo pasó 28 aserciones. No requiere otra publicación web."
+}

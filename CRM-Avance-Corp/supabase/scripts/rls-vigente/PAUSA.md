@@ -1,4 +1,4 @@
-> **HISTORIAL:** pausa terminada por Miguel con «sigamos». Validación cerrada; estado vigente en README.md y verificacion.json. No repetir pasos ya resueltos.
+> **HISTORIAL:** pausa terminada; reparación instalada y verificada el 16/09 a las 10:31 Lima. Estado final en README.md, verificacion.json y PRODUCCION.json. No repetir pasos ya resueltos.
 
 # Pausa segura — 16/09/2026 00:32 Lima
 

@@ -2,16 +2,35 @@
 
 ## Estado
 
-**Validación cerrada; SQL pendiente de autorización productiva.**
+**SQL INSTALADO Y VERIFICADO el 16/09/2026 a las 10:31 Lima.**
 La rama temporal fue eliminada; coste estimado US$0,01632 (no factura).
 
 La reparación local pasa **1.867 aserciones**. La única modificación de producto
-es `20260916040442_crm_piloto_f8_activacion_serializada.sql`, **pendiente de
-aprobación e instalación productiva**. No cambia tablas, firmas, permisos,
+es `20260916040442_crm_piloto_f8_activacion_serializada.sql`, **autorizada por
+Miguel e instalada como `20260916153100`**. No cambia tablas, firmas, permisos,
 banderas, miembros ni datos de clientes. La eliminación auditada de contratos
 ya está publicada (backend y web, 78 recursos HTTP verificados); este trabajo
 cierra su deuda de validación global. La publicación de Cartera integró el
 frontend de eliminación desde `a09ecad`; no se volvió a desplegar en esta sesión.
+
+## Instalación productiva completada
+
+Miguel autorizó «siiii» después de recibir el enlace al SQL concreto. Se promovió
+únicamente ese archivo, SHA-256
+`e8940bc632e2aa96ff40a0a3ea18eeafac73ac9430f39f3052fba50bc7cd07cf`,
+desde Main verificado `bc7a5a8`. [Recibo de producción](PRODUCCION.json).
+
+Solo cambió el cuerpo del trigger privado. Las otras 652 funciones y los 298
+registros anteriores del historial conservaron sus huellas. Permanecieron
+idénticos 594 contratos, 5.320 cuotas, 26 inversiones neutrales, 496 identidades,
+la auditoría de eliminaciones, las banderas y los cuatro miembros del piloto.
+F8 conserva OFF; F4/F5/F6 y F3 siguen ON; F7 OFF. Owner, ACL y search_path intactos.
+
+Cartera: estado y lista v1 correctos para **23 cuentas activas** (2 Gerencia,
+3 supervisores, 18 vendedores), bajo contexto SQL authenticated y ROLLBACK.
+No es navegación humana autenticada ni una eliminación real en producción.
+Advisors antes/después: seguridad 272/272 y rendimiento 114/114, sin altas ni
+bajas. Se conservan avisos heredados. CI del código `bc7a5a8`: PASS.
 
 ## Resultados finales
 
@@ -137,7 +156,7 @@ las dos suites; `check:scripts` también comprueba su sintaxis.
 
 ## Instalación y reversa
 
-Revisar/autorizar el [SQL concreto](../../migrations/20260916040442_crm_piloto_f8_activacion_serializada.sql), ya ensayado y con advisors revisados.
+El [SQL autorizado](../../migrations/20260916040442_crm_piloto_f8_activacion_serializada.sql) ya está instalado; no repetirlo.
 La instalación exige MD5 de la definición previa completa
 `47585a27b991a442bb09b3477be5f224` y comprueba
 el nuevo cuerpo `201a4b2fd6d062d7930e673d9986f5de`, owner, configuración y ACL.

@@ -39,8 +39,8 @@ No activa el piloto ni modifica datos o permisos. F3 sigue siendo apagado genera
   documentados por el PRIMARY. No se atribuye un PASS al reviewer.
 - Rama propia de ensayo: `gefmqtpagmyshukuyzgb`, `rls-vigente-20260916`,
   autorización previa a US$0,01344/h. Cierre y resultado remoto en el acta técnica.
-- La nueva migración sigue **pendiente de mostrar el SQL y recibir autorización
-  productiva**, conforme a [[Inicio]]. La web ya está publicada.
+- La migración fue **autorizada por Miguel e instalada** el 16/09 a las 10:31
+  Lima como `20260916153100`; la web de eliminación ya estaba publicada.
 
 La matriz exige reconstrucción/seed entre ejecuciones; el ledger se conserva
 intencionalmente. Ahora rechaza un banco usado al comenzar con un mensaje claro.
@@ -66,3 +66,22 @@ producción antes de F8; ningún hallazgo nuevo atribuible a la migración priva
 SQL, reversa y evidencia listos. Único paso productivo pendiente: mostrar el SQL
 exacto y recibir confirmación conforme a [[Inicio]]. La eliminación auditada
 ya está publicada y no requiere otro despliegue web.
+
+## Cierre productivo — 16/09/2026 10:31 Lima
+
+Miguel autorizó «siiii» después de recibir el SQL exacto. Se aplicó solamente
+`20260916040442_crm_piloto_f8_activacion_serializada.sql`, registro remoto
+`20260916153100`. Cuerpo instalado MD5 `201a4b2fd6d062d7930e673d9986f5de`;
+fuente y SHA-256 iguales al archivo probado y aprobado de Main `bc7a5a8`.
+
+Las otras 652 funciones, 298 registros previos de migraciones, 594 contratos,
+5.320 cuotas, 26 inversiones neutrales y 496 identidades conservaron sus huellas.
+Flags, miembros y permisos intactos. F8 OFF; operación general F4/F5/F6 ON.
+23 cuentas de Cartera verificadas mediante estado/lista v1 con contexto SQL
+authenticated y ROLLBACK; no es prueba humana de navegador.
+Advisors idénticos: 272 seguridad y 114 rendimiento, sin nuevos avisos.
+CI del código reparado PASS. Recibo: `supabase/scripts/rls-vigente/PRODUCCION.json`.
+
+**Objetivo técnico de esta sesión completado.** Eliminación auditada publicada,
+matriz reparada y corrección adicional instalada. No hace falta otro deploy web.
+Los demás planes del CRM y las conformidades humanas conservan su propio alcance.

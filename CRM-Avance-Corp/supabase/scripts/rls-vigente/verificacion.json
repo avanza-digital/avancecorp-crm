@@ -1,6 +1,6 @@
 {
-  "estado": "VALIDADO_INSTALACION_SQL_PENDIENTE_AUTORIZACION",
-  "instalacion_productiva": "PENDIENTE_AUTORIZACION",
+  "estado": "INSTALADO_Y_VERIFICADO",
+  "instalacion_productiva": "PASS",
   "fuente_base": "8a98081",
   "pruebas": {
     "rls_local": {
@@ -81,5 +81,6 @@
     "d5-local.txt": "b596373bfd6c32e3274f2231f5603d9fe35138c53fdf0643bdd4a403ca64562f",
     "d5-remoto.txt": "b596373bfd6c32e3274f2231f5603d9fe35138c53fdf0643bdd4a403ca64562f",
     "cartera-combinada.txt": "a5f916d80ac49b12ab76205f7c70181401c1ea24fec4eef4013c38ad235aa7bc"
-  }
+  },
+  "recibo_productivo": "PRODUCCION.json"
 }

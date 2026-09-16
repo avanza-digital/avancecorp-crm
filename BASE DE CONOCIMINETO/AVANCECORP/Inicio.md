@@ -7,7 +7,7 @@ actualizado: 2026-09-16
 
 **Punto de retoma de Cartera, 16/09:** [[Cartera multiempresa - plan de gestion integral (2026-09-16)]] — plan guardado y trabajo pausado por Miguel. Integrar toda la gestión en la ficha multiempresa: empezar por correcciones de cliente/contrato con ventana de cinco horas, después cronograma, detalle, documentos y acciones por rol. Diagnóstico completado; implementación pendiente. Los filtros comerciales ya están publicados.
 
-- [[Matriz RLS global - reparacion y candado F8 2026-09-16]] — reparación verificada local/remota; 17 grupos de compatibilidad con Cartera PASS. Rama temporal eliminada. SQL F8 listo, pendiente de autorización productiva.
+- [[Matriz RLS global - reparacion y candado F8 2026-09-16]] — **CERRADO:** corrección F8 autorizada, instalada y verificada el 16/09 10:31 Lima. Datos/permisos intactos, 23 cuentas de Cartera comprobadas; matriz reparada y rama temporal eliminada.
 
 - [[Eliminar contratos con pagos por administrador - preparado 2026-09-15]] — **PUBLICADO:** SQL/Edge y frontend incluidos en la entrega de Cartera; 78 recursos web verificados. Reparación de la matriz general en la nota del 16/09.
 

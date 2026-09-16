@@ -2,7 +2,8 @@
 
 ## 20260916040442 — Activación F8 serializada sin interbloqueos
 
-**CANDIDATA: pendiente de autorización e instalación productiva.** Detectada al
+**INSTALADA Y VERIFICADA 16/09/2026 10:31 Lima**, registro remoto
+`20260916153100`, tras autorización explícita de Miguel sobre el SQL exacto. Detectada al
 reparar la matriz RLS global para la publicación de eliminación auditada.
 El trigger privado lee F3 con su candado vigente; intenta F3/F8 sin esperar para
 no cruzarse con la fila de control que BEFORE ROW ya retiene. Un cambio
@@ -18,6 +19,10 @@ El original falla cinco de los ocho casos. Matriz global local 1.867 PASS;
 remoto 1.865 PASS + un ETIMEDOUT, bloque D-5 repetido con 28 PASS.
 Compatibilidad con Cartera vigente: 17 grupos SQL PASS. Advisors revisados, rama
 eliminada y evidencia en [rls-vigente](../scripts/rls-vigente/README.md).
+Producción: solo el cuerpo previsto cambió; otras 652 funciones, 298 entradas
+previas del historial, datos/flags y permisos idénticos. Cartera correcta para
+23 cuentas activas bajo contexto SQL authenticated y ROLLBACK. Advisors sin
+nuevas alertas. [Recibo productivo](../scripts/rls-vigente/PRODUCCION.json).
 Tipos sin cambios: solo cuerpo de trigger privado. Reversa literal con huellas
 incluida en el mismo directorio. Revisiones y evaluación del PRIMARY adjuntas.
 
