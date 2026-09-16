@@ -1,0 +1,115 @@
+{
+  "fecha": "2026-09-16T16:27:29.955Z",
+  "rama": "pteyuzyzcpavqefiqidg",
+  "paridad": {
+    "production": 653,
+    "branch": 653,
+    "changed": [
+      {
+        "firma": "crm.contrato_eliminar_auditado(p_contrato_id uuid, p_actor_id uuid)",
+        "huella": "cc539de7d5ed831772bd46742d60419d"
+      }
+    ],
+    "extra": []
+  },
+  "advisors": [
+    {
+      "tipo": "security",
+      "antes": 4,
+      "despues": 4,
+      "nuevos": [],
+      "retirados": []
+    },
+    {
+      "tipo": "performance",
+      "antes": 5,
+      "despues": 5,
+      "nuevos": [],
+      "retirados": []
+    }
+  ],
+  "funcion": [
+    {
+      "huella": "c0ae3e3167c82724b784d73b4f427868",
+      "servicio": true,
+      "usuario": false,
+      "anonimo": false
+    }
+  ],
+  "edge": {
+    "version": 21,
+    "status": "ACTIVE",
+    "verify_jwt": true,
+    "ezbr_sha256": "e2251eec752da8f22d46e8b5d8f5e19ff77b336143a3225c554721c0b1e1036a"
+  },
+  "estado": "PREPARADO_NO_PUBLICADO",
+  "sql": {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260916160000_crm_eliminacion_auditada_inversion_sin_historial.sql",
+    "sha256": "bbfa0aa413f5fd3045c9a948f24c4436ff6e748d8365713b38d051d5a8d92e68",
+    "cuerpo_antes_md5": "2d8210b77d1f6f1e3a4e06a1242cf85d",
+    "cuerpo_despues_md5": "c0ae3e3167c82724b784d73b4f427868",
+    "reversa_y_reaplicacion_remota": "PASS"
+  },
+  "checks": {
+    "frontend_check": "PASS: lint, tipos, 3632 pruebas, cobertura, release-config, build, bundle, duplicación",
+    "e2e_global": "PASS: 194; SKIP: 26 existentes",
+    "e2e_vinculada": "PASS: 2, 390px y 1440px",
+    "sql_local": "PASS: 21",
+    "concurrencia": "PASS: 4 con COMMIT",
+    "sql_remoto": "PASS: 21",
+    "http_auth_edge_storage": "PASS: 23",
+    "deno_handler_storage": "PASS: 48",
+    "deno_check": "PASS",
+    "check_scripts": "PASS",
+    "rls_preflight": "PASS offline; no sustituye Auth/RLS remoto"
+  },
+  "revision": {
+    "primera": "BLOCK por evidencia faltante y mejoras concretas; resuelto por PRIMARY con fuentes y tests",
+    "segunda": "NOT RUN válido: wrapper rechazó respuesta incompleta/sin VERDICT; no se solicitó tercera"
+  },
+  "rama_eliminada": {
+    "id": "c9ad8ba7-91ef-4097-bb11-c68596e57d78",
+    "creada_utc": "2026-09-16T15:56:59.77054Z",
+    "ausencia_verificada_utc": "2026-09-16T16:27:43Z",
+    "coste_estimado_usd": 0.006881
+  },
+  "produccion": "Sin cambios: no se instaló candidata ni se eliminó contrato real",
+  "archivos_edge": [
+    {
+      "archivo": "assets-v2.ts",
+      "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847"
+    },
+    {
+      "archivo": "deno.json",
+      "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0"
+    },
+    {
+      "archivo": "handler.ts",
+      "sha256": "33e00bb4cb6a0c577881e9bd2ab2e76b36717b7b9d47f42d0e337fc357f5e6a7"
+    },
+    {
+      "archivo": "index.ts",
+      "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4"
+    },
+    {
+      "archivo": "pdfmake-0.2.20-pdfprinter.js",
+      "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4"
+    },
+    {
+      "archivo": "renderer.ts",
+      "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8"
+    },
+    {
+      "archivo": "storage.ts",
+      "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f"
+    },
+    {
+      "archivo": "template-v2.ts",
+      "sha256": "33c8e055d9ac5070c6e6b9a806b0c0e4b1b0358aee413caaef67b14ec1156f61"
+    },
+    {
+      "archivo": "vfs-fonts-0.2.20.js",
+      "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1"
+    }
+  ]
+}

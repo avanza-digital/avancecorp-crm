@@ -5,6 +5,8 @@ actualizado: 2026-09-16
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Eliminar contrato vinculado sin historial - preparado 2026-09-16]] — **PREPARADO, SIN PUBLICAR:** corrige el bloqueo de la captura; inversión/titulares auditados, pruebas completas y rama eliminada. Pendientes SQL autorizado y release.
+
 **Punto de retoma de Cartera, 16/09:** [[Cartera multiempresa - plan de gestion integral (2026-09-16)]] — plan guardado y trabajo pausado por Miguel. Integrar toda la gestión en la ficha multiempresa: empezar por correcciones de cliente/contrato con ventana de cinco horas, después cronograma, detalle, documentos y acciones por rol. Diagnóstico completado; implementación pendiente. Los filtros comerciales ya están publicados.
 
 - [[Matriz RLS global - reparacion y candado F8 2026-09-16]] — **CERRADO:** corrección F8 autorizada, instalada y verificada el 16/09 10:31 Lima. Datos/permisos intactos, 23 cuentas de Cartera comprobadas; matriz reparada y rama temporal eliminada.
