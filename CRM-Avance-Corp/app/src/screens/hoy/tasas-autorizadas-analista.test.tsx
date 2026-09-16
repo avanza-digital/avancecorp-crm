@@ -27,11 +27,15 @@ function solicitud(sobre: Partial<SolicitudTasa> = {}): SolicitudTasa {
   }
 }
 
-describe('TasasAutorizadasAnalistaPanel (aviso R3)', () => {
+describe('TasasAutorizadasAnalistaPanel (seguimiento R3)', () => {
   beforeEach(() => { dobles.data = []; dobles.responder.mockReset(); dobles.yo = { id: 'v-1', rol: 'vendedor', demo: false } })
 
   it('sin solicitudes propias vivas no pinta nada', () => {
-    dobles.data = [solicitud({ es_mia: false })]
+    dobles.data = [
+      solicitud({ es_mia: false }),
+      solicitud({ id: 'vencida', estado: 'aprobada', estado_efectivo: 'vencida', vigente: false }),
+      solicitud({ id: 'consumida', estado: 'consumida', estado_efectivo: 'consumida', vigente: false }),
+    ]
     const { container } = render(<TasasAutorizadasAnalistaPanel />)
     expect(container).toBeEmptyDOMElement()
   })
@@ -48,19 +52,24 @@ describe('TasasAutorizadasAnalistaPanel (aviso R3)', () => {
       solicitud(),
       solicitud({ id: 's-2', estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 18, cliente_nombre: 'LUIS' }),
       solicitud({ id: 's-3', estado: 'aprobada_con_tope', estado_efectivo: 'aprobada_con_tope', tasa_maxima_autorizada: 16, cliente_nombre: 'ROSA' }),
+      solicitud({ id: 's-4', estado: 'aceptada_por_analista', estado_efectivo: 'aceptada_por_analista', tasa_maxima_autorizada: 17, cliente_nombre: 'MARIA' }),
+      solicitud({ id: 'r-1', estado: 'rechazada', estado_efectivo: 'rechazada', vigente: false, resuelta_en: new Date().toISOString(), cliente_nombre: 'RECHAZADA' }),
     ]
     dobles.responder.mockResolvedValue(solicitud({ id: 's-3', estado: 'aceptada_por_analista', estado_efectivo: 'aceptada_por_analista', tasa_maxima_autorizada: 16 }))
     render(<TasasAutorizadasAnalistaPanel />)
     const lista = screen.getByRole('list', { name: 'Solicitudes de tasa en curso' })
-    expect(lista.querySelectorAll('li')).toHaveLength(3)
+    expect(lista.querySelectorAll('li')).toHaveLength(4)
     expect(lista).toHaveTextContent(/Pendiente de Gerencia/)
     expect(lista).toHaveTextContent(/Autorizada hasta 18%/)
     expect(lista).toHaveTextContent(/Gerencia ofrece hasta 16%/)
+    expect(lista).toHaveTextContent(/Autorizada hasta 17%/)
+    expect(lista).not.toHaveTextContent('RECHAZADA')
+    expect(screen.getByRole('status')).toHaveTextContent('4 solicitudes de tasa en curso.')
     fireEvent.click(screen.getByRole('button', { name: /Aceptar y continuar/ }))
     await waitFor(() => expect(dobles.responder).toHaveBeenCalledWith({ solicitudId: 's-3', acepta: true, motivo: null }))
   })
 
-  it('un rechazo reciente se muestra con su motivo; uno viejo o ajeno no', () => {
+  it('si solo hay rechazos, recientes o antiguos, el recuadro no aparece', () => {
     const hace2dias = new Date(Date.now() - 2 * 86_400_000).toISOString()
     const hace30dias = new Date(Date.now() - 30 * 86_400_000).toISOString()
     dobles.data = [
@@ -68,24 +77,23 @@ describe('TasasAutorizadasAnalistaPanel (aviso R3)', () => {
       solicitud({ id: 'r-2', estado: 'rechazada', estado_efectivo: 'rechazada', vigente: false, resuelta_en: hace30dias, cliente_nombre: 'VIEJA' }),
       solicitud({ id: 'r-3', estado: 'rechazada', estado_efectivo: 'rechazada', vigente: false, resuelta_en: hace2dias, es_mia: false, cliente_nombre: 'AJENA' }),
     ]
-    render(<TasasAutorizadasAnalistaPanel />)
-    const lista = screen.getByRole('list', { name: 'Solicitudes de tasa en curso' })
-    expect(lista.querySelectorAll('li')).toHaveLength(1)
-    expect(lista).toHaveTextContent(/Rechazada por Gerencia/)
-    expect(lista).toHaveTextContent(/«No a ese nivel»/)
-    expect(lista).toHaveTextContent(/queda en la base 15%/)
-    expect(lista).not.toHaveTextContent(/VIEJA|AJENA/)
+    const { container } = render(<TasasAutorizadasAnalistaPanel />)
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('tras responder la última, el panel se queda (no deja el foco en body) y lo dice', async () => {
+  it('tras responder la última, oculta el recuadro y conserva el foco con un anuncio accesible', async () => {
     dobles.data = [solicitud({ id: 's-3', estado: 'aprobada_con_tope', estado_efectivo: 'aprobada_con_tope', tasa_maxima_autorizada: 16 })]
     dobles.responder.mockResolvedValue(solicitud({ id: 's-3', estado: 'declinada_por_analista', estado_efectivo: 'declinada_por_analista', vigente: false }))
     const { rerender } = render(<TasasAutorizadasAnalistaPanel />)
     fireEvent.click(screen.getByRole('button', { name: /No cerrar a ese tope/ }))
     await waitFor(() => expect(dobles.responder).toHaveBeenCalledTimes(1))
+    const destinoFoco = screen.getByRole('status').parentElement
+    expect(destinoFoco).toHaveFocus()
     dobles.data = []
     rerender(<TasasAutorizadasAnalistaPanel />)
-    expect(screen.getByTestId('tasas-autorizadas-analista')).toBeInTheDocument()
+    expect(screen.queryByTestId('tasas-autorizadas-analista')).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Sin solicitudes de tasa en curso.')
+    expect(destinoFoco).toHaveFocus()
+    expect(destinoFoco).toHaveClass('sr-only')
   })
 })
