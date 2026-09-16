@@ -5,7 +5,7 @@ actualizado: 2026-09-16
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Solicitudes de tasa - rechazos solo en notificaciones (2026-09-16)]] — **LISTO EN LOCAL:** los rechazos salen de Mi jornada y permanecen en la campana; 3.659 pruebas y cuatro recorridos de notificaciones PASS. Pendiente de publicación mediante release autorizado.
+- [[Solicitudes de tasa - rechazos solo en notificaciones (2026-09-16)]] — **PUBLICADO 16/09 17:47 Lima:** rechazos en la campana; «Mi jornada» conserva solicitudes activas. PR #7 aprobado e integrado, fuente `4c2fe9e44181`, 3.659 pruebas, cuatro recorridos focalizados, CI y 93 comprobaciones HTTP PASS. Acta con artefacto, huella, recuperación y límites.
 
 - [[Eliminar contrato vinculado sin historial - preparado 2026-09-16]] — **PREPARADO, SIN PUBLICAR:** corrige el bloqueo de la captura; inversión/titulares auditados, pruebas completas y rama eliminada. Pendientes SQL autorizado y release.
 
