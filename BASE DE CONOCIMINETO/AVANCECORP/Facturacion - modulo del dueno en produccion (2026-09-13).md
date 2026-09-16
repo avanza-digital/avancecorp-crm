@@ -49,8 +49,9 @@ con 39). El árbol compartido obliga a commitear pronto.
 
 Miguel: «quiero que el módulo de facturación lo tengan los supervisores, para ver el avance de
 sus equipos». Migración `20260916205617_crm_facturacion_diaria_supervisor` + front en el mismo
-commit (capacidad `verFacturacion`, Gerencia y Supervisión). **Pendiente de instalar y publicar**
-hasta que Miguel dé el `!` (migración → registrador → release del front).
+commit (capacidad `verFacturacion`, Gerencia y Supervisión). **EN PRODUCCIÓN el 16/09**: SQL
+instalada y registrada ~16:30 Lima y front publicado ~17:05 Lima (`build-20260916T220214784Z`,
+commit `49c02f59`, PR #6), ambos con el `!` de Miguel.
 
 **Qué ve el supervisor (regla de negocio, no de pantalla).** Las filas cuyo *supervisor de
 entonces* es él (o alguien de su subárbol) más sus ventas propias. Es la misma regla con la que
