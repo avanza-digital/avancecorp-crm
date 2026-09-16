@@ -35,19 +35,32 @@ node supabase/scripts/cartera-origen/ensayar.mjs
 ```
 
 Pasos: gate analítico verde antes → equivalencia sin filtro para todos los
-actores (función anterior en `pg_temp` vs. nueva, misma transacción, deshecha) →
-instalación real + gate + `test-cartera-origen.sql` → `reversa.sql` + gate +
-oráculo del 13/09 → reinstalación + gate + oráculo. Escribe `verificacion.json`.
+actores (función anterior en `pg_temp` vs. nueva, y `resumen_cartera_fn()` antes
+vs. después, misma transacción, deshecha) → instalación con un contador ajeno en
+rojo, como el que hoy tiene producción (deshecha: conserva el rojo y declara la
+firma nueva) → instalación real + gate + `test-cartera-origen.sql` (incluye
+empates de sello con orígenes intercalados) → guardas de la reversa (sello
+alterado y función corregida se rechazan; rojo ajeno se conserva) →
+`reversa.sql` + gate + oráculo del 13/09 → reinstalación + gate + oráculo.
+Escribe `verificacion.json`.
 
 ## Publicación y reversa
 
 1. Instalar `20260916220124_crm_cartera_filtro_origen.sql` en producción por la
    vía autorizada (Miguel con `!`, `db query --linked --file`), registrar la
    versión y anotar el acta en `MIGRACIONES.md`.
-2. Publicar el front construido del commit verificado (release + preflight).
-3. Reversa: primero retirar el front; luego `reversa.sql` restaura la firma de 9
-   argumentos byte a byte (definición tomada de producción el 16/09) y su
-   declaración analítica. No toca datos.
+2. Comprobar que PostgREST ya sirve la firma nueva, sin credenciales de persona:
+   un POST anónimo a `/rest/v1/rpc/cartera_filtrada_fn` con `{"p_origen":"landing"}`
+   debe responder `42501` (la función existe y anon no tiene EXECUTE); un
+   argumento inexistente (`{"p_nope":1}`) responde `PGRST202`. Si `p_origen` diera
+   `PGRST202`, la caché no se refrescó: `notify pgrst,'reload schema'` de nuevo.
+3. Publicar el front construido del commit verificado (release + preflight).
+4. Reversa: primero retirar el front (las pestañas ya abiertas conservan su
+   JavaScript hasta recargar y pueden seguir enviando `p_origen`); luego
+   `reversa.sql` restaura la firma de 9 argumentos byte a byte (definición tomada
+   de producción el 16/09) y su declaración analítica. Sus guardas rechazan una
+   lista de exenciones alterada sin re-sellar y una función de 10 argumentos que
+   ya no sea la publicada por esta entrega. No toca datos.
 
 ## Estado del gate analítico en producción (16/09)
 

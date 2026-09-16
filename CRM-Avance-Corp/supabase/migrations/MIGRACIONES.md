@@ -9988,8 +9988,17 @@ front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
 - La declaración analítica se **mueve** a la firma nueva (la lista no admite
   borrados) conservando `declarado_en`; se re-sella.
 - Ensayo local a paridad (`../scripts/cartera-origen/`): equivalencia sin filtro
-  para todos los actores, instalación, oráculo propio, reversa con el oráculo del
+  para 11 actores (RPC y `resumen_cartera_fn()` antes/después), instalación con
+  un contador ajeno en rojo (conserva el rojo, declara la firma nueva),
+  instalación, oráculo propio (con empates de sello), guardas de la reversa
+  (sello alterado y función corregida rechazadas), reversa con el oráculo del
   13/09 y reinstalación. Resultado en `verificacion.json`.
+- Revisión de Codex (CLI read-only, MCP caído): CHANGES_REQUESTED con un P2
+  (la reversa re-sellaba sin comprobar lo que retiraba) → atendido con guardas y
+  pruebas negativas; huecos de prueba atendidos: resumen general antes/después,
+  rojo preexistente, cambio de origen tras varias páginas (hook), empates de
+  keyset. Pendiente al instalar: comprobar por HTTP anónimo que PostgREST sirve
+  la firma nueva (`p_origen` → 42501; argumento inexistente → PGRST202).
 - ⚠️ Estado del gate al preparar: producción tiene 35 contadores y
   `crm.contrato_eliminar_auditado(uuid,uuid)` (`20260916160000`) sin declarar, así
   que `assert_analitica_leads_citas()` está en rojo por causa ajena. Esta

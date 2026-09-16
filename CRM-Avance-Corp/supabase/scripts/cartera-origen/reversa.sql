@@ -1,12 +1,45 @@
 -- Reversa del filtro de origen: retira la firma de 10 argumentos y restaura la
 -- de 9 publicada el 13/09 (definición tomada de producción el 16/09,
 -- md5 5d246e9518123c72352a958606853c35) con su declaración analítica original.
--- Ejecutar solo tras retirar el frontend que envía p_origen.
+-- Ejecutar solo tras retirar el frontend que envía p_origen (las pestañas ya
+-- abiertas conservan su JavaScript hasta recargar: pueden seguir enviándolo).
+-- Guardas (P2 de la revisión de Codex): no retira una función corregida después
+-- de esta entrega ni re-sella una lista de exenciones alterada por fuera.
 begin;
 set local lock_timeout='10s';
 lock table private.analitica_leads_citas_exenciones,private.analitica_leads_citas_tope,
   private.analitica_lc_sello in share row exclusive mode;
-drop function if exists crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text);
+do $preflight$
+begin
+  if to_regprocedure('crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text)') is null
+     or (select count(*) from pg_proc where proname='cartera_filtrada_fn' and pronamespace='crm'::regnamespace)<>1 then
+    raise exception 'REVERSA: la firma de 10 argumentos no es la única instalada';
+  end if;
+  -- Exactamente la función publicada por 20260916220124 (md5 de la definición y
+  -- huella del censo medidos al ensayarla); una corrección posterior no se pisa.
+  if md5(pg_get_functiondef('crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text)'::regprocedure)) is distinct from 'be33021420cd8ae2edbf58692b45e9eb'
+     or (select huella from private.analitica_leads_citas_exenciones where objeto='crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text)')
+        is distinct from 'd7a47e4c8377115178d75fc2bfcd35a2'
+     or not exists (select 1 from private.contadores_crudos_leads_citas()
+        where objeto='crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text)' and declarada and huella_ok) then
+    raise exception 'REVERSA: la función de 10 argumentos no es la publicada por 20260916220124';
+  end if;
+  if (select sello from private.analitica_lc_sello where id) is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'REVERSA: la lista de exenciones no coincide con su sello; no se re-sella a ciegas';
+  end if;
+end;
+$preflight$;
+create temporary table cartera_origen_reversa on commit drop as
+select (select jsonb_agg(to_jsonb(e) order by objeto) from private.analitica_leads_citas_exenciones e
+    where objeto<>'crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text)') as otras,
+  (select to_jsonb(t) from private.analitica_leads_citas_tope t where id) as tope,
+  (select proacl from pg_proc where oid='crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text)'::regprocedure) as acl,
+  (select count(*) from private.contadores_crudos_leads_citas()) as censo,
+  (select coalesce(string_agg(objeto,',' order by objeto),'') from private.contadores_crudos_leads_citas()
+    where not (declarada and huella_ok)) as censo_rojo,
+  md5(pg_get_functiondef('crm.resumen_cartera_fn()'::regprocedure)) as resumen_md5;
+
+drop function crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text);
 CREATE OR REPLACE FUNCTION crm.cartera_filtrada_fn(p_limite integer DEFAULT 50, p_antes_de timestamp with time zone DEFAULT NULL::timestamp with time zone, p_antes_id uuid DEFAULT NULL::uuid, p_etapa text DEFAULT NULL::text, p_vendedor_id uuid DEFAULT NULL::uuid, p_sin_asignar boolean DEFAULT false, p_texto text DEFAULT NULL::text, p_desde date DEFAULT NULL::date, p_hasta date DEFAULT NULL::date)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -146,16 +179,28 @@ from pg_proc p
 where p.oid='crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)'::regprocedure
   and e.objeto='crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text)';
 update private.analitica_lc_sello set sello=private.huella_exenciones_analitica_lc(),sellado_en=now() where id;
-do $$ begin
+do $postflight$ begin
   if md5(pg_get_functiondef('crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)'::regprocedure)) is distinct from '5d246e9518123c72352a958606853c35'
-    or (select huella from private.analitica_leads_citas_exenciones where objeto like 'crm.cartera_filtrada_fn(%')
+    or (select huella from private.analitica_leads_citas_exenciones where objeto='crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date)')
        is distinct from 'daa8d49ae4892b5f323138e0f8e60ce2'
+    or not exists (select 1 from private.contadores_crudos_leads_citas() where objeto='crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date)' and declarada and huella_ok)
     or (select count(*) from pg_proc where proname='cartera_filtrada_fn' and pronamespace='crm'::regnamespace)<>1
     or has_function_privilege('anon','crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)','EXECUTE')
     or has_function_privilege('service_role','crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)','EXECUTE')
-    or not has_function_privilege('authenticated','crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)','EXECUTE') then
-    raise exception 'La reversa no dejó la función del 13/09 tal cual';
+    or not has_function_privilege('authenticated','crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)','EXECUTE')
+    or (select proacl from pg_proc where oid='crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date)'::regprocedure) is distinct from (select acl from cartera_origen_reversa) then
+    raise exception 'REVERSA: no dejó la función del 13/09 tal cual';
   end if;
-end $$;
+  if (select jsonb_agg(to_jsonb(e) order by objeto) from private.analitica_leads_citas_exenciones e where objeto<>'crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date)')
+       is distinct from (select otras from cartera_origen_reversa)
+    or (select to_jsonb(t) from private.analitica_leads_citas_tope t where id) is distinct from (select tope from cartera_origen_reversa)
+    or (select count(*) from private.contadores_crudos_leads_citas()) <> (select censo from cartera_origen_reversa)
+    or (select coalesce(string_agg(objeto,',' order by objeto),'') from private.contadores_crudos_leads_citas()
+        where not (declarada and huella_ok)) <> (select censo_rojo from cartera_origen_reversa)
+    or md5(pg_get_functiondef('crm.resumen_cartera_fn()'::regprocedure)) is distinct from (select resumen_md5 from cartera_origen_reversa)
+    or (select sello from private.analitica_lc_sello where id) is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'REVERSA: cambió una declaración ajena, el techo, el censo o el resumen general';
+  end if;
+end $postflight$;
 notify pgrst,'reload schema';
 commit;

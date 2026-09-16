@@ -32,7 +32,10 @@ select ('f1992000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
     when n<=38 then 'f1991000-0000-4000-8000-000000000005'::uuid end,
   case when n=39 then 'f1991000-0000-4000-8000-000000000001'::uuid end,
   'f1991000-0000-4000-8000-000000000003',now()-interval '100 days',
-  now()-(n||' minutes')::interval,case when n=7 then now()-interval '10 days' end,
+  -- Empates de sello con orígenes intercalados (1,2,3 landing y 11 formulario):
+  -- el keyset desempata por id y el origen no puede romper eso.
+  case when n in (1,2,3,11) then now()-interval '1 minute' else now()-(n||' minutes')::interval end,
+  case when n=7 then now()-interval '10 days' end,
   case when n=6 then 'sin_interes' end,n<>40
 from generate_series(1,40) n;
 -- Recepción: 1..20 y 31..38 ayer; 21..30 hace tres días. Sin bandeja ni borrado.
