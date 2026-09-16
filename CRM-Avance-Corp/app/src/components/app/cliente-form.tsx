@@ -73,9 +73,11 @@ export interface ClienteFormProps {
    * está corriendo en el servidor (cuenta creada + correo de bienvenida).
    */
   onEnviandoCambio?: (enviando: boolean) => void
+  deshabilitado?: boolean
+  sinLimiteVentana?: boolean
 }
 
-export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCambio }: ClienteFormProps) {
+export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCambio, deshabilitado = false, sinLimiteVentana = false }: ClienteFormProps) {
   const esCorregir = modo === 'corregir'
   const { yo } = useAuth()
   const esGerencia = yo?.rol === 'gerencia'
@@ -103,7 +105,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const ventana = useVentana(esCorregir && !esGerencia ? detalle?.creado_en : null)
+  const ventana = useVentana(esCorregir && !esGerencia && !sinLimiteVentana ? detalle?.creado_en : null)
 
   // PRECARGA vía caché (clave clienteDetalle(id), staleTime 0): el UPDATE de
   // corregir viaja con el set COMPLETO de campos, así que la precarga es
@@ -253,6 +255,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const cargando = esCorregir && detalle == null && errorCarga == null
 
   const guardar = async () => {
+    if (deshabilitado) throw new ErrorYaMostrado('Vuelve a comprobar los permisos antes de guardar.')
     if (enviando || ledgerPendiente) return // guards anti doble-submit y contra una validación incompleta
     setError(null)
     const r = validarClienteForm(
@@ -399,7 +402,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         // Cuenta regresiva visual; la ventana REAL la decide el servidor, por eso
         // el guardado no se bloquea aquí (espejo del portal: el modal no gatea).
         <p className={`text-[11px] font-semibold ${ventana.vigente ? 'text-primary' : 'text-destructive'}`}>
-          Ventana de corrección: {ventana.texto}
+          Ventana de corrección: {sinLimiteVentana ? 'Corrección administrativa' : ventana.texto}
         </p>
       )}
       {esCorregir && detalle && puedeCorregirDocumento && (
@@ -731,7 +734,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           size="sm"
           onGuardar={guardar}
           etiqueta={esCorregir ? 'Guardar corrección' : 'Crear cliente'}
-          disabled={ledgerPendiente}
+          disabled={ledgerPendiente || deshabilitado}
         />
       </DialogFooter>
     </>

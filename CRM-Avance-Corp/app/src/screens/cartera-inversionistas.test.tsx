@@ -11,8 +11,8 @@ import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
 vi.mock('@/data/postventa-api', () => ({estadoPostventa: vi.fn().mockResolvedValue({version: 1, habilitada: false}), fichaPostventa: (...args: unknown[]) => api.postventa(...args)}))
-const sesion = vi.hoisted(() => ({rolPortal: 'directorio', rol:'gerencia', demo: false}))
-vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: sesion.rol, rol_portal: sesion.rolPortal, demo: sesion.demo}})}))
+const sesion = vi.hoisted(() => ({rolPortal: 'directorio', rol:'gerencia', demo: false, puedeContratar:false}))
+vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: sesion.rol, rol_portal: sesion.rolPortal, demo: sesion.demo, puede_contratar:sesion.puedeContratar}})}))
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
   corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn()}))
@@ -28,7 +28,7 @@ function montar(nueva=false) {
   const qc=new QueryClient({defaultOptions:{queries:{retry:false}}})
   const vista=render(<QueryClientProvider client={qc}>{nueva
     ? <InversionNueva actor={ACTOR_F5} persona={PERSONA_F5} onCerrar={cerrar} onRevocado={revocado} onConfirmada={confirmada} />
-    : <CarteraInversionistas actor={ACTOR_F5} permiteInversion gestionAvance={<p>Gestión existente</p>} />}</QueryClientProvider>)
+    : <CarteraInversionistas actor={ACTOR_F5} permiteInversion />}</QueryClientProvider>)
   return {...vista,qc,user:userEvent.setup()}
 }
 const resultado = {ok:true as const,solicitud_id:FUENTE_F5,inversion_id:FUENTE_F5,inversionista_id:PERSONA_F5,empresa:'qorilazo' as const,fuente:{cierre_id:FUENTE_F5}}
@@ -37,12 +37,25 @@ const solicitud = (id=FUENTE_F5): SolicitudInversion => ({solicitud_id:id,estado
   responsable_actual_id:ACTOR_F5,requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'hash',
   necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:`${PERSONA_F5}/${id}/comprobante.pdf`,resultado:null})
 beforeEach(() => {
-  vi.clearAllMocks(); sesion.rolPortal='directorio'; sesion.rol='gerencia'; sesion.demo=false; sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
+  vi.clearAllMocks(); sesion.rolPortal='directorio'; sesion.rol='gerencia'; sesion.demo=false; sesion.puedeContratar=false; sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
   api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
   api.lista.mockResolvedValue(structuredClone(carteraF5)); api.ficha.mockResolvedValue(structuredClone(fichaF5)); api.bancos.mockResolvedValue([])
 })
 afterEach(() => {cleanup(); vi.restoreAllMocks()})
 describe('F5: cartera y ficha con acceso vigente', () => {
+  it.each([
+    ['gerencia',true,true],['supervisor',true,true],['analista',true,false],
+    ['directorio',true,false],['gerencia',false,false],
+  ] as const)('alta directa: rol %s, capacidad %s muestra acceso %s', async (rol,capacidad,visible) => {
+    sesion.rol=rol;sesion.rolPortal='comercial';sesion.puedeContratar=capacidad
+    montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    const alta=screen.queryByRole('button',{name:'Nuevo cliente'})
+    if(visible) expect(alta).toBeEnabled()
+    else expect(alta).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Gestión Avance'})).not.toBeInTheDocument()
+  })
+
   it('recupera la jerarquía Ficha 360 y lee el vencimiento de toda la ficha, no solo de la página', async () => {
     const d=structuredClone(fichaF5)
     d.persona.telefono='+51999888777'

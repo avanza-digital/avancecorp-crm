@@ -20,6 +20,7 @@ import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
 import { ContratoEliminar } from './contrato-eliminar'
+import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
 export function ResumenEmpresas({totales, compacto = false, registrado = false}: {totales: ResumenEmpresa[]; compacto?: boolean; registrado?: boolean}) {
   return <div className="@container/resumen"><dl className={compacto ? 'grid grid-cols-2 gap-x-5 gap-y-3 @lg/resumen:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]' : 'grid gap-3 @md/resumen:grid-cols-2 @3xl/resumen:grid-cols-3'}>
@@ -51,7 +52,7 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar}: {
+function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar, onDetalle}: {
   posicion: number
   postventa?: boolean | undefined
   onRetiro?: ((inversion: InversionFuente) => void) | undefined
@@ -60,6 +61,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
   onEliminar?: ((inversion: InversionFuente) => void) | undefined
+  onDetalle?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const i = inversion
   const [abierta, setAbierta] = useState(false)
@@ -94,7 +96,11 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <div><dt className="text-muted-foreground">Plazo</dt><dd>{i.condiciones_coopac.plazo_meses} meses</dd></div>
         <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.condiciones_coopac.tasa_anual}% anual</dd></div>
       </>}
-      {i.contrato && <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.contrato.tasa_anual}% · {i.contrato.modalidad}</dd></div>}
+      {i.contrato && <>
+        <div><dt className="text-muted-foreground">Inicio del contrato</dt><dd>{fmtFecha(i.contrato.fecha_inicio)}</dd></div>
+        <div><dt className="text-muted-foreground">Tipo de interés</dt><dd>{i.contrato.tipo_interes === 'compuesto' ? 'Compuesto · intereses al vencimiento' : 'Simple'}</dd></div>
+        <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.contrato.tasa_anual}% · {i.contrato.tipo_interes === 'compuesto' ? 'al vencimiento' : i.contrato.modalidad}</dd></div>
+      </>}
       {i.fecha_comercial !== i.fecha_imputacion && <div><dt className="text-muted-foreground">Fecha de imputación</dt><dd>{fmtFecha(i.fecha_imputacion)}</dd></div>}
       <div><dt className="text-muted-foreground">Analista de la operación</dt><dd>{i.analista_origen_nombre || 'Sin información'}</dd></div>
       {i.numero_transaccion && <div><dt className="text-muted-foreground">Depósito</dt><dd>{i.numero_transaccion}</dd></div>}
@@ -111,6 +117,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
       </Button>)}</div>}
     </div>}
     acciones={<>
+      {onDetalle && <Button variant="outline" size="xs" className="min-h-10" onClick={()=>onDetalle(i)} aria-label={`Detalle completo de ${referenciaAccesible}`}>Detalle y gestión</Button>}
       <Button type="button" variant="outline" size="xs" className="min-h-10" aria-expanded={abierta} aria-controls={detalleId}
         aria-label={`${abierta ? 'Ocultar detalle de' : 'Ver inversión'} ${referenciaAccesible}`}
         onClick={() => setAbierta(!abierta)}>
@@ -142,6 +149,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   onEliminar?: ((inversion: InversionFuente) => Promise<void>) | undefined
 }) {
   const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
+  const [gestion, setGestion] = useState<{fuente:string|null}|null>(null)
   const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
@@ -254,6 +262,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
           <h4 className="text-[11px] font-bold text-muted-foreground">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
           <ul className="space-y-2" aria-label={`Inversiones ${EMPRESA_NOMBRE[inversiones[0]!.empresa]} ${inversiones[0]!.moneda}`}>
           {inversiones.map((i, posicion) => <li key={i.fuente_id}><InversionDetalle inversion={i} posicion={posicion + 1} postventa={ficha.capacidades.postventa && !desactualizada}
+            onDetalle={!desactualizada ? inversion=>setGestion({fuente:inversion.fuente_id}) : undefined}
             onRetiro={setRetiroElegido} onDocumento={ficha.capacidades.documentos && !desactualizada ? onDocumento : undefined}
             onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
             onEliminar={!desactualizada && onEliminar ? setContratoEliminar : undefined}
@@ -264,7 +273,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         <Paginacion paginaActual={paginaInversiones - 1} paginas={Math.max(1, Math.ceil(ficha.inversiones_total / 25))}
           total={ficha.inversiones_total} onCambio={n => setPaginaInversiones(n + 1)} ariaLabel="Paginación de inversiones" />
       </FichaComercialSeccion>
-      <FichaComercialSeccion icono={UserRound} titulo="Información del cliente" descripcion="Datos para reconocerlo y contactarlo correctamente." accion={acciones}>
+      <FichaComercialSeccion icono={UserRound} titulo="Información del cliente" descripcion="Datos para reconocerlo y contactarlo correctamente." accion={<div className="flex flex-wrap gap-2">{acciones}<Button variant="outline" size="xs" className="min-h-10" disabled={desactualizada} onClick={()=>setGestion({fuente:null})}>Datos y correcciones</Button></div>}>
         <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3 sm:grid-cols-3">
           <DatoCliente etiqueta="Nombres y apellidos">{p.nombre}</DatoCliente>
           <DatoCliente etiqueta={p.documento_tipo || 'Documento'}>{p.documento || 'Pendiente de completar'}</DatoCliente>
@@ -296,6 +305,8 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     {contratoEliminar && onEliminar && !desactualizada && <ContratoEliminar
       key={contratoEliminar.fuente_id} inversion={contratoEliminar} onConfirmar={onEliminar}
       onCerrar={() => setContratoEliminar(null)} />}
+    {gestion && <GestionInversionistaDialogo actor={actor} persona={p.inversionista_id} fuente={gestion.fuente}
+      onCerrar={()=>setGestion(null)} onRevocado={onRevocado} />}
   </>
   return <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido}
     deshabilitado={desactualizada} onRetiroCerrado={() => setRetiroElegido(null)}>{contenido}</PostventaPersona>

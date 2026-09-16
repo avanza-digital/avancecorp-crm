@@ -1836,7 +1836,7 @@ function CarteraSegunBandera({actor}: {actor: string}) {
   if (!q.isFetchedAfterMount || !q.isSuccess) return <PanelCargando />
   if (!q.data.habilitada) return <MiCarteraAvance />
   return <CarteraInversionistas actor={actor} permiteInversion={q.data.escritura_habilitada}
-    gestionAvance={<MiCarteraAvance gestionarSolo />} />
+    />
 }
 export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolean}) {
   const { yo } = useAuth()

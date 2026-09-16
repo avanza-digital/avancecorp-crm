@@ -94,6 +94,12 @@ export interface ContratoDetalleProps {
   contratoId: string
   onCerrar: () => void
   datos?: ContratoDetalleDatos
+  /** Lectura puntual confirmada por la ficha neutral; evita cargar toda la cartera. */
+  contratoVigente?: ContratoRow
+  contenidoAdicional?: ReactNode
+  onActualizado?: () => void
+  onEnviandoCambio?: (enviando: boolean) => void
+  permiteDocumentos?: boolean
   puedeEliminar?: boolean
   onEliminar?: () => Promise<void> | void
   /**
@@ -115,6 +121,7 @@ interface EstadoPdfUi {
 }
 
 export function ContratoDetalle({ contratoId, onCerrar, datos,
+  contratoVigente, contenidoAdicional, onActualizado, onEnviandoCambio, permiteDocumentos = true,
   puedeEliminar = false,
   onEliminar,
   analistas,
@@ -138,14 +145,14 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   const [motivoReasignar, setMotivoReasignar] = useState('')
   const [enviandoReasignar, setEnviandoReasignar] = useState(false)
 
-  const qContrato = useContrato(contratoId, !precargado)
+  const qContrato = useContrato(contratoId, !precargado && !contratoVigente)
   const qCronograma = useCronograma(contratoId, !precargado)
   const qTitulares = useTitulares(contratoId, !precargado)
 
-  const contrato = datos?.contrato ?? qContrato.data ?? null
+  const contrato = datos?.contrato ?? contratoVigente ?? qContrato.data ?? null
   // El error solo gana SIN data: un refetch de fondo fallido de la lista (foco
   // de ventana + retry:false) no debe voltear un detalle ya pintado desde caché.
-  const errorContrato = precargado
+  const errorContrato = precargado || contratoVigente
     ? null
     : qContrato.isError && qContrato.data == null
       ? mensajeDeError(qContrato.error, 'No se pudo cargar el contrato.')
@@ -206,7 +213,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   const regimenAnterior = esContratoRegimenAnterior(contrato?.fecha_inicio, contrato?.creado_en)
   // Los que YA se emitieron siguen siendo descargables: se quedan como están.
   const documentoEmitido = estadoPdf === 'sellado'
-  const puedeOperarPdf = !regimenAnterior || documentoEmitido
+  const puedeOperarPdf = permiteDocumentos && (!regimenAnterior || documentoEmitido)
   const errorTitulares = !precargado && qTitulares.isError && qTitulares.data == null
     ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
     : null
@@ -214,7 +221,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   // Reintento AMPLIO (mismo alcance que el intento++ anterior): el fallo suele
   // ser de red y afecta a las tres lecturas a la vez.
   const reintentar = () => {
-    void qContrato.refetch()
+    if (!contratoVigente) void qContrato.refetch()
     void qCronograma.refetch()
     void qTitulares.refetch()
   }
@@ -224,6 +231,10 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     // Un cambio de contrato o de fotografía demo invalida cualquier acción que
     // todavía esté esperando bytes del contexto anterior.
     ++secuenciaAccionPdfRef.current
+    if (!permiteDocumentos) {
+      setEstadoPdfUi({contratoId,secuencia,estado:null,cargando:false,error:false})
+      return
+    }
     if (pdfDatos) {
       setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false,
       })
@@ -254,7 +265,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
         }
       })
     return () => { vigente = false }
-  }, [contratoId, pdfDatos])
+  }, [contratoId, pdfDatos, permiteDocumentos])
 
   useEffect(() => {
     setConfirmandoEliminar(false)
@@ -575,6 +586,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         disabled={enviandoReasignar || !nuevoAnalista || motivoReasignar.trim() === ''}
                         onClick={async () => {
                           setEnviandoReasignar(true)
+                          onEnviandoCambio?.(true)
                           try {
                             await reasignarAnalistaContrato(contratoId, nuevoAnalista, motivoReasignar.trim())
                             await Promise.all([
@@ -585,10 +597,12 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                             setNuevoAnalista('')
                             setMotivoReasignar('')
                             toast.success('La venta cambió de analista.')
+                            onActualizado?.()
                           } catch (e) {
                             toast.error(mensajeDeError(e, 'No se pudo reasignar la venta.'))
                           } finally {
                             setEnviandoReasignar(false)
+                            onEnviandoCambio?.(false)
                           }
                         }}
                       >
@@ -776,6 +790,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
             </div>
           </>
         )}
+        {contrato && contenidoAdicional}
       </DialogBody>
       <DialogFooter>
         {contrato &&

@@ -92,9 +92,12 @@ export interface ContratoCorregirProps {
   contrato: ContratoRow
   onGuardado: () => void
   onCerrar: () => void
+  onEnviandoCambio?: (enviando: boolean) => void
+  sinLimiteVentana?: boolean
+  deshabilitado?: boolean
 }
 
-export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCorregirProps) {
+export function ContratoCorregir({ contrato, onGuardado, onCerrar, onEnviandoCambio, sinLimiteVentana = false, deshabilitado = false }: ContratoCorregirProps) {
   const ventana = useVentana(contrato.creado_en)
   const [productoCondicionId, setProductoCondicionId] = useState(contrato.producto_condicion_id)
   const [avisoProducto, setAvisoProducto] = useState<string | null>(null)
@@ -319,7 +322,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const quitarFila = (i: number) => setTitulares((filas) => filas.filter((_, j) => j !== i))
 
   const guardar = async () => {
-    if (enviando) return // guard anti doble-submit (además del disabled del botón)
+    if (enviando || deshabilitado) return // servidor revalida siempre la autorización
     setError(null)
     if (rangoTasa?.bloqueoContrato) {
       setError(rangoTasa.bloqueoContrato)
@@ -426,6 +429,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     if (tit?.ok) input.titulares = tit.titulares
 
     setEnviando(true)
+    onEnviandoCambio?.(true)
     try {
       await actualizarContrato(contrato.id, input, cronograma)
       // Un contrato firmado antes del 19/08 no lleva documento del sistema, así
@@ -459,6 +463,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
       setError(e instanceof CrmApiError ? e.message : 'No se pudo guardar el contrato.')
     } finally {
       setEnviando(false)
+      onEnviandoCambio?.(false)
     }
   }
 
@@ -473,7 +478,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           Cliente: <b className="text-foreground">{contrato.cliente_nombre ?? '—'}</b> · Ventana de corrección:{' '}
           {/* Sin verde en el sistema ("positivo" = azul): vigente accent, vencida destructive. */}
           <span className={`font-semibold tabular-nums ${ventana.vigente ? 'text-accent' : 'text-destructive'}`}>
-            {ventana.texto}
+            {sinLimiteVentana ? 'Corrección administrativa' : ventana.texto}
           </span>
         </DialogDescription>
       </DialogHeader>
@@ -827,9 +832,9 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           // (P0001). Mientras cargan los co-titulares NO se puede guardar — un
           // guardado muy rápido con el editor vacío los borraría (lección del portal).
           disabled={
-            enviando || !!rangoTasa?.bloqueoContrato ||
+            enviando || deshabilitado || !!rangoTasa?.bloqueoContrato ||
             estadoTitulares === 'cargando' ||
-            !ventana.vigente ||
+            (!sinLimiteVentana && !ventana.vigente) ||
             (!esCondicionOriginal &&
               (qProductos.isPending || qProductos.isFetching || qProductos.isError || !condicionProducto))
           }

@@ -2,7 +2,7 @@
 tags: [crm, cartera, multiempresa, plan, gestion, retoma]
 fecha: 2026-09-16
 actualizado: 2026-09-16
-estado: plan-guardado-trabajo-pausado-sin-implementar
+estado: implementado-local-pendiente-sql-y-publicacion
 decision_origen: Miguel-pide-concentrar-la-gestion-del-cliente-en-la-ficha-multiempresa
 ---
 
@@ -12,7 +12,12 @@ decision_origen: Miguel-pide-concentrar-la-gestion-del-cliente-en-la-ficha-multi
 
 La **ficha multiempresa será el lugar desde el que el analista gestione a sus clientes**, con sus inversiones Avance, Qorilazo y Prodelco. Debe reunir las funciones de Gestión Avance que todavía faltan, conservando las reglas comerciales, los núcleos y los permisos de cada rol.
 
-Miguel pidió primero el inventario y después indicó: «ok guarda todo y seguimos mañana, guárdame esto como un plan de implementación». **Se guarda el plan y se pausa la ejecución. No se ha implementado ni publicado esta ampliación.** Al reanudar, comenzar por la etapa 1 y las correcciones de cliente/contrato; el encargo de hoy es guardar el avance.
+Miguel guardó inicialmente este plan y luego autorizó ejecutarlo con «hazlo».
+El 16/09 confirmó conservar los cambios ajenos de eliminación de contratos/PDF
+y autorizó separar multiempresa en un worktree. **Etapas 1–4 implementadas;
+verificación y preparación local de la etapa 5 documentadas en
+[[Cartera multiempresa - gestion integral preparada (2026-09-16)]].** La instalación
+y publicación productivas siguen pendientes de sus autorizaciones concretas.
 
 Este es un plan complementario de F5/F6. La apertura general F9 y las conformidades pendientes G7/G8 conservan su estado y evidencia; este trabajo no las sustituye.
 
@@ -137,13 +142,23 @@ Evaluación de Codex:
 
 ## Punto exacto de retoma
 
-**Trabajo pausado a petición de Miguel.** La implementación de este plan está pendiente; en esta sesión solo se diagnosticó y documentó.
+Implementación en `/private/tmp/avancecorp-gestion-worktree`, rama
+`codex/gestion-multiempresa`, commit funcional `25a0b9da`. La rama incorpora los
+cambios remotos hasta `1f9e5f83` mediante `a2243c4e`; Main conserva su publicación
+independiente. No trasladar los antiguos cambios mezclados desde la carpeta común.
 
-1. Leer esta nota y `Inicio.md`; comprobar Main, cambios remotos y trabajo ajeno antes de editar.
-2. Empezar por la **etapa 1**, cerrando fuentes/capacidades y la ventana original. Priorizar luego **Corregir cliente** y **Corregir contrato**, etapa 2.
-3. Conservar los filtros y la publicación actuales. No repetir la apertura F9 ni crear otro piloto para iniciar este trabajo.
-4. Completar y revisar cada bloque con sus pruebas; guardar commits y actualizar esta nota con evidencia real.
+1. Leer [[Cartera multiempresa - gestion integral preparada (2026-09-16)]] y
+   `CRM-Avance-Corp/supabase/scripts/gestion-multiempresa/README.md`.
+2. Revisar SQL exacto `20260916152851`, su reversa no destructiva, matriz,
+   evaluaciones de Claude y resultados locales. La migración no está instalada.
+3. Obtener autorización de SQL/banco remoto y completar ensayo, advisors y merge
+   conforme al procedimiento. No recrear recursos de pago sin presupuesto.
+4. Integrar esta rama en Main conservando avances remotos, comprobar igualdad
+   con `avancecorp/main`, reconstruir artefacto y publicar solo tras invocación
+   humana `$release-crm`. Verificar después y cerrar el banco propio.
 
-Al pausar no hay despliegue, migración, banco nuevo ni consulta Claude en curso de esta tarea. Quedaron sin tocar tres archivos previamente ajenos al diagnóstico: `Terminales de AVANCECORP - recuperacion y sesiones.md` y las dos evidencias F7 `2026-09-11T20-20-59-444Z.json` / `2026-09-14T22-20-49-263Z.json`.
+La apertura F9 y conformidades G7/G8 mantienen su evidencia anterior. Esta
+implementación no vuelve a habilitar banderas ni cambia comisiones. Los cuatro
+archivos ajenos no versionados en la carpeta común permanecieron intactos.
 
 Relacionadas: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]], [[F9 - apertura general autorizada (2026-09-15)]], [[Gestión comercial de clientes - renovaciones y upgrades]], [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]], [[F8 - ficha anterior recuperada para multiempresa (2026-09-15)]].

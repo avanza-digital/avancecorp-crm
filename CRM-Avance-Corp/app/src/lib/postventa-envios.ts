@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 
-export const COMANDOS_POSTVENTA = ['agendar', 'tarea', 'veto', 'solicitar_retiro', 'revisar_retiro'] as const
+export const COMANDOS_POSTVENTA = ['agendar', 'tarea', 'veto', 'solicitar_retiro', 'revisar_retiro', 'corregir_contacto', 'corregir_coopac'] as const
 export type ComandoPostventa = (typeof COMANDOS_POSTVENTA)[number]
 const Uuid = v.pipe(v.string(), v.uuid())
 const EnvioSchema = v.object({version: v.literal(1), actor: Uuid, sujeto: Uuid, clave: Uuid,

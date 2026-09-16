@@ -14,6 +14,44 @@ export type Database = {
   }
   crm: {
     Tables: {
+      inversionista_datos_contacto: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string
+          domicilio: string | null
+          inversionista_id: string
+          nombre_completo: string
+          revision: number
+          telefono: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por: string
+          domicilio?: string | null
+          inversionista_id: string
+          nombre_completo: string
+          revision?: number
+          telefono?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string
+          domicilio?: string | null
+          inversionista_id?: string
+          nombre_completo?: string
+          revision?: number
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_datos_contacto_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: true
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contratos_eliminados_auditoria: {
         Row: {
           archivos: Json
@@ -3666,6 +3704,29 @@ export type Database = {
       }
     }
     Functions: {
+      inversionista_corregir_coopac_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_fuente: string
+          p_inversionista: string
+          p_revision: string
+        }
+        Returns: Json
+      }
+      inversionista_corregir_contacto_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_inversionista: string
+          p_revision: string
+        }
+        Returns: Json
+      }
+      inversionista_gestion_fn: {
+        Args: { p_fuente?: string; p_inversionista: string }
+        Returns: Json
+      }
       contrato_eliminar_auditado: {
         Args: { p_actor_id: string; p_contrato_id: string }
         Returns: Json
