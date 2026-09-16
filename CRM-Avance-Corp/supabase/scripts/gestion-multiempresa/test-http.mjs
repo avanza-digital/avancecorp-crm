@@ -1,16 +1,32 @@
-// Prueba contra Auth/PostgREST/Postgres reales, exclusivamente en una copia local.
+// Prueba con datos sintéticos contra Auth/PostgREST/Postgres reales. Solo admite
+// la copia local o la rama de ensayo expresamente autorizada para esta entrega.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 const env=JSON.parse(readFileSync(process.argv[2],'utf8'));
 const url=new URL(env.SUPABASE_URL),dbUrl=new URL(env.CRM_BANCO_PSQL_URL);
-assert.equal(url.hostname,'127.0.0.1');assert.equal(dbUrl.hostname,'127.0.0.1');
-const db=dbUrl.pathname.slice(1);assert.match(db,/^gestion_multiempresa_\d{8}$/);
+const remoto=env.CRM_GESTION_RAMA_REF!==undefined;
+const db=dbUrl.pathname.slice(1);
+if(remoto){
+  assert.equal(env.CRM_GESTION_RAMA_REF,'ndjvbjdjotiszjhtbxik');
+  assert.equal(url.origin,`https://${env.CRM_GESTION_RAMA_REF}.supabase.co`);
+  assert.equal(decodeURIComponent(dbUrl.username),`postgres.${env.CRM_GESTION_RAMA_REF}`);
+  assert.match(dbUrl.hostname,/\.pooler\.supabase\.com$/);
+  assert.equal(db,'postgres');assert.equal(dbUrl.port,'5432');
+}else{
+  assert.equal(url.hostname,'127.0.0.1');assert.equal(dbUrl.hostname,'127.0.0.1');
+  assert.match(db,/^gestion_multiempresa_\d{8}$/);
+}
 const checks=[];const pass=t=>{checks.push(t);console.log('PASS '+t);};
 const q=x=>x===null?'null':"'"+String(x).replaceAll("'","''")+"'";
 function sql(text){
-  const r=spawnSync('docker',['exec','-i','supabase_db_avancecorp-f5-bank','psql','-X','-qAt','-U','supabase_admin','-d',db,'-v','ON_ERROR_STOP=1','-f','-'],{input:text,encoding:'utf8'});
+  const args=['-X','-qAt','-v','ON_ERROR_STOP=1','-f','-'];
+  const r=remoto
+    ?spawnSync('psql',args,{input:text,encoding:'utf8',env:{...process.env,
+      PGHOST:dbUrl.hostname,PGPORT:'5432',PGDATABASE:db,PGUSER:decodeURIComponent(dbUrl.username),
+      PGPASSWORD:decodeURIComponent(dbUrl.password),PGSSLMODE:'require',PGCONNECT_TIMEOUT:'20'}})
+    :spawnSync('docker',['exec','-i','supabase_db_avancecorp-f5-bank','psql','-U','supabase_admin','-d',db,...args],{input:text,encoding:'utf8'});
   assert.equal(r.status,0,r.stderr);return r.stdout.trim();
 }
 const obj=s=>JSON.parse(sql(s));
@@ -237,4 +253,4 @@ assert.equal(ok(await contexto(tokens.gerente)).contacto.puede_corregir,false);e
 sql("update crm.multiempresa_flags set activo=true where nombre='postventa_neutral'");
 pass('Revocación y apagado del módulo bloquean las escrituras por servidor');
 writeFileSync(process.argv[3]??'/private/tmp/gestion-multiempresa-http-evidencia.json',JSON.stringify({fecha:new Date().toISOString(),destino:url.origin,db,checks},null,2)+'\n');
-console.log(`${checks.length} grupos de verificaciones PASS; banco exclusivamente local.`);
+console.log(`${checks.length} grupos de verificaciones PASS; banco sintético ${remoto?'remoto autorizado':'local'}.`);
