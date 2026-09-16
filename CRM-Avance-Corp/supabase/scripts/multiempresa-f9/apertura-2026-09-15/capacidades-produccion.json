@@ -1,0 +1,386 @@
+{
+  "fase": "LECTURA_POSTERIOR_COMMIT",
+  "fecha": "2026-09-16T02:09:03.220652+00:00",
+  "roles": [
+    {
+      "rol": "vendedor",
+      "actor": "01b20a44ffb3d7b969d9aa55e62d31c7",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "supervisor",
+      "actor": "79de780268f7bd04c2971e8e9842c866",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "45d49f9903b09ce95f36f5d86b750bf9",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "7bdbbf686ce85af49e49aa28ae719ea2",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "36e09d43035607ec4c27c70c269bcbdc",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "0f2fe1e49cd7c0edcd5f1844a40c7d8b",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "4b9766e690be751340c641a30c62f980",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "supervisor",
+      "actor": "9585cbab56f106fa25b7125d827cd819",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "24dcff80ddfa5ff0d3d8f6751941c256",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "a0be1ca0fb3c54db6e61fb3640dbe963",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "0c8ce486c2ad0eacaac0578eb910e1fc",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "coordinador",
+      "actor": "b51dc1161e77a9cf0bd7b2f7d261eb77",
+      "cartera": null,
+      "postventa": {
+        "version": 1,
+        "habilitada": false
+      },
+      "error_cartera": "42501",
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "ecf79f2ad3e2397a2cdf8fa5ba06979a",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "de31a65baa2b0e2fcd1f4b30beeadd03",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "352951b63ed7af5c80b0358fccd4be6b",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "48ab09cb256eaf99f0e231110c0fa34e",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "gerencia",
+      "actor": "b79fa9100672e55b4166b023520120a5",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "4bd363592030bb3509ffa50c90c283be",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "supervisor",
+      "actor": "f6e17a8012f6194b0aca6fc84a8be9fb",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "cb13cf3621bd7e5fb1fe329a7dc0505d",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "2fc850f05add5eb099c7b94afcea26ff",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "gerencia",
+      "actor": "118a3dc5204eeaba8948334c2bccde64",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "febb9d78f368b009d17f07f074fad3b9",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    },
+    {
+      "rol": "vendedor",
+      "actor": "ffe3fda98f95c47d51fe9e485dbc5ebc",
+      "cartera": {
+        "motivo": null,
+        "version": 1,
+        "habilitada": true,
+        "escritura_habilitada": true
+      },
+      "postventa": {
+        "version": 1,
+        "habilitada": true
+      },
+      "error_cartera": null,
+      "error_postventa": null
+    }
+  ],
+  "estado": "PASS"
+}

@@ -17,20 +17,20 @@ actualizado: 2026-09-15
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado F8 vigente: [[F8 - piloto nominal activado (2026-09-14)]].
-Activación general autorizada y en preparación: [[F9 - apertura general autorizada (2026-09-15)]] — 17 escenarios locales PASS, SQL/reversa listos; producción sigue en piloto hasta completar revisión y ejecutar el procedimiento.
+Estado vigente: [[F9 - apertura general autorizada (2026-09-15)]] — **ACTIVADA 15/09 21:08 Lima** para 18 analistas, 3 supervisores y 2 Gerencia; 17 escenarios PASS, 24 cuentas verificadas, 614 inversiones/468 personas conciliadas. F4/F5/F6 ON; F8 OFF; F7 OFF. Sigue observación G8.
+Historial del piloto: [[F8 - piloto nominal activado (2026-09-14)]].
 Publicación y punto de retoma: [[F8 - ensayo remoto y correccion de conflictos (2026-09-15)]].
 Adaptación visual aprobada y publicada: [[F8 - ficha anterior recuperada para multiempresa (2026-09-15)]] — commit `d93d805`, 3.596 pruebas y 23 recorridos PASS; cuatro contextos reales y 80 archivos de código/configuración verificados. G7 abierto.
 Rendimiento medido: [[Rendimiento ligero - medicion de Cartera y Hoy (2026-09-15)]] — 39 consultas; ficha Gerencia 2,7 s / Analista 0,8 s. Optimización del núcleo propuesta; web y concurrencia real no acreditadas. Sin cambios de producto.
 Optimización publicada: [[Ficha rapida - publicada y verificada (2026-09-15)]] — ficha SQL Gerencia 2,67 → 0,72 s; datos/permisos idénticos, Auth/API remoto y producción verificados. Banco eliminado, coste estimado US$0,021. Siguiente: preparar apertura a los 18 analistas y cerrar pendientes reales G7.
-Piloto nominal ON para cuatro personas hasta el 21/09 a las 13:23 Lima; G7 abierto.
+Piloto nominal apagado al abrir F9; cuatro participantes conservados como historial. La apertura general no vence el 21/09. Conformidades G7 se conservan según su evidencia.
 Revisión para apertura: [[G7 - revision real y apertura pendiente (2026-09-15)]] —
 613 inversiones/467 personas coherentes internamente; 19 fichas y 24 cuentas
 verificadas; diez reintentos, cinco carreras, veintiún contextos y transición/reversa
 locales PASS. Miguel aprobó complementar la muestra real en una copia aislada:
 15 grupos HTTP, 3 financieros y matriz ampliada de permisos PASS. Refresco 18:32:
-614 inversiones/468 personas sin diferencias. Faltan conformidades y procedimiento
-productivo exacto; sin apertura general.
+614 inversiones/468 personas sin diferencias. La preparación productiva y
+apertura se completaron después en F9; conformidades financieras no se inventan.
 Pendiente pedido por Miguel: [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtro mensual, filtros comerciales por rol, menos espacios vacíos y combinación vertical/horizontal. Guardado sin implementar.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:
@@ -56,9 +56,9 @@ Las fuentes previas, hechos económicos, Vault y Cron conservaron sus huellas.
 Rama exclusiva eliminada después de verificar. Main integrado y artefacto
 construido desde el commit verificado; 3.513 pruebas frontend PASS.
 Instalación y encendido ya aprobados y ejecutados; no volver a pedirlos.
-F8 ON con cuatro participantes; faltan evidencia y conformidades reales G7.
-F5/F6 están disponibles para los cuatro participantes; sus banderas globales
-siguen OFF. Antecedente: [[F6 - cierre y ajustes publicados (2026-09-11)]].
+F8 OFF después de la apertura general del 15/09; sus cuatro miembros quedan
+como historial. F4/F5/F6 ON para el equipo según roles y ámbito; F7 sigue OFF.
+Antecedente: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
 ## 🧠 Cómo funciona la memoria de este proyecto

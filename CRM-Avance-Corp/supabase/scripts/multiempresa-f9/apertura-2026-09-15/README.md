@@ -5,8 +5,10 @@ limitado a Carlos, Jorge, Vladimir y Linda. Autoriza la apertura operativa a los
 18 analistas y sus supervisores/Gerencia. La aprobación de apertura no se
 presenta como firma contable ni como cierre del ciclo mensual G8.
 
-Estado: **PREPARADO; producción todavía en piloto**. La pausa del 15/09 quedó
-sin activación; Miguel reanudó con «seguimos». Transición atómica F8 OFF,
+Estado: **ACTIVADO Y VERIFICADO, 15/09 a las 21:08 Lima**.
+[Acta productiva y pruebas posteriores](ACTA-PRODUCCION.md).
+La pausa anterior quedó sin activación; Miguel reanudó con «seguimos».
+Transición atómica completada F8 OFF,
 F4/F5/F6 ON; F3 permanece ON y F7 OFF. Solo cambia configuración, preservando
 roles y fuentes canónicas. Los filtros mensuales y la distribución de Cartera
 quedan en su pendiente independiente.
@@ -43,6 +45,9 @@ No representa inicio de sesión ni firma de Carlos.
   huellas y presencia de las funciones de Cartera/Postventa publicadas.
 
 ## Ejecución y soporte
+
+Procedimiento ejecutado. No repetir ACTIVAR: el estado ya cambió y sus guardas
+rechazan una segunda ejecución. Para una futura intervención recapturar primero.
 
 1. Verificar el [preflight](capturar-preflight.sql) en el proyecto
    `dctqcbznekcyxhjujuci`, comparar equipo/roles, control, miembros, lectores,

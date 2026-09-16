@@ -18,7 +18,16 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F8 piloto nominal activo; G7 abierto
+## Estado vigente — F9 activada para el equipo; G8 en observación
+
+**15/09, 21:08 Lima — apertura ejecutada:** [[F9 - apertura general autorizada (2026-09-15)]].
+Miguel autorizó «OK ACTIVALO PRO FAVOR» y reanudó con «seguimos». F4/F5/F6 ON
+para 18 analistas, 3 supervisores y 2 Gerencia; Coordinación conserva su alcance.
+F8 OFF, revisión 2, miembros históricos conservados. F7 permanece OFF.
+17 escenarios finales PASS y dos revisiones Claude evaluadas; 24 capacidades
+productivas y tres lecturas por rol verificadas. 614 inversiones/468 personas
+con fuentes económicas, cero diferencias de núcleos y sellos conservados.
+La apertura operativa no atribuye firmas financieras G7 ni cierra el ciclo G8.
 
 **15/09 — rendimiento cerrado:** [[Ficha rapida - publicada y verificada (2026-09-15)]] — ficha Gerencia 2,67 → 0,72 s, datos y permisos conservados, banco eliminado. Miguel solicitó preparar la apertura general a los 18 analistas; G7 mantiene sus pendientes reales y conformidades.
 
@@ -27,15 +36,16 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 24 cuentas vigentes y cuatro capacidades nominales. Solo una confirmación F4 en
 el piloto; varios recorridos/casos reales no existen. G7 abierto. Miguel aprobó
 usar la muestra histórica y completar los casos ausentes en una copia aislada
-el 15/09 («sii claro hazlo»), después de aclarar el método. La apertura general y
-las conformidades finales siguen pendientes.
+el 15/09 («sii claro hazlo»), después de aclarar el método. Ese corte precede la
+apertura general autorizada después; las conformidades conservan su estado real.
 Pruebas técnicas aisladas del 15/09: diez reintentos, cinco carreras económicas,
 veintiún contextos de permisos y cinco controles de transición/reversa PASS.
 No sustituyen las casillas operativas/firmas ni autorizan activar producción.
 Complemento autorizado terminado: 15 grupos HTTP, 3 financieros y matriz ampliada
 de permisos PASS; seis rutas y casos especiales cubiertos sintéticamente.
 Refresco 18:32 Lima: 614 inversiones/468 personas, sin diferencias internas.
-Pendientes: procedimiento productivo exacto, soporte y conformidades G7.
+Procedimiento exacto, reversa y soporte documentados y ejecutados en F9.
+Conformidades G7 según su evidencia; observación mensual G8 pendiente.
 **Pendiente de producto registrado el 15/09:** [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtros por mes/comerciales y mejor distribución de la cartera. Miguel pidió guardarlo para después; no interrumpe los ensayos G7.
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
@@ -91,12 +101,12 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F1 — cimientos | Publicada | Identidad neutral, empresas y relaciones |
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
-| **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Activa para el piloto F8; bandera global OFF | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; la exclusión demo se instaló el 14/09. [[F8 - instalada y apagada (2026-09-14)]] |
-| F6 — postventa | Activa para el piloto F8; bandera global OFF | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
+| **F4 — motor de inversiones** | **Activa globalmente; G4 técnico cerrado** | Escritores habilitados el 15/09, fuentes conservadas y permisos por rol verificados |
+| F5 — cartera y Ficha 360 | Activa globalmente desde F9 | Habilitada para 23 gestores según ámbito; lista/ficha/totales verificados. Historial técnico: [[F8 - instalada y apagada (2026-09-14)]] |
+| F6 — postventa | Activa globalmente desde F9 | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 24 capacidades verificadas; solicitud por analista no piloto y rechazo de Coordinación PASS en copia. VoiceOver omitido por Miguel (NOT RUN). [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias y conformidad humana/financiera recibida. Los diez enlaces técnicos pendientes se completaron en F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Piloto nominal ON; G7 abierto | Cuatro participantes habilitados hasta el 21/09 a las 13:23 Lima. Encendido y alcance verificados; completar recorridos, conciliaciones y conformidades G7. [[F8 - piloto nominal activado (2026-09-14)]] |
-| F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
+| F8 — piloto económico | Piloto OFF al abrir F9 | Cuatro miembros conservados como historial. Evidencias y conformidades G7 mantienen su procedencia; apertura posterior autorizada por Miguel. [[F8 - piloto nominal activado (2026-09-14)]] |
+| F9 — activación y observación | Activada; G8 en observación | F4/F5/F6 disponibles al equipo. F7 OFF; faltan ciclo mensual completo y retirada final de rutas. [[F9 - apertura general autorizada (2026-09-15)]] |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;
 3050 tests frontend, 43 PDF Deno, reconstrucción y restauración, matrices de

@@ -6,6 +6,12 @@ estado: revision-real-y-ensayos-locales-g7-abierto
 
 # G7: revisión real y preparación de apertura
 
+**Actualización 15/09, 21:08 Lima:** la apertura operativa fue autorizada después
+por Miguel y está ejecutada/verificada en [[F9 - apertura general autorizada (2026-09-15)]].
+F4/F5/F6 ON para el equipo, F8 OFF y F7 OFF. El contenido siguiente conserva los
+cortes y pendientes históricos de esta preparación; no revoca la apertura ni
+atribuye firmas financieras que no existen. G8 sigue en observación.
+
 Continúa [[Ficha rapida - publicada y verificada (2026-09-15)]] y el
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 Miguel pidió abrir Multiempresa a los 18 analistas y autorizó revisar la evidencia.

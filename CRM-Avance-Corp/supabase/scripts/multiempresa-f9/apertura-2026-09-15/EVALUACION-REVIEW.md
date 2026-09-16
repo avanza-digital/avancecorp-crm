@@ -109,5 +109,5 @@ una tercera consulta para cambiar el dictamen. Codex resuelve con evidencia:
 
 [Evidencia del canal, funciones y preflight](verificacion-final-previa.json).
 Frontend publicado cotejado por cuatro recursos HTTP 200 y llamadas de banderas.
-**17 escenarios SQL PASS**; scripts generales y sintaxis PASS. Pendiente de
-ejecutar en producción y verificar después. G8 sigue abierto.
+**17 escenarios SQL PASS**; scripts generales y sintaxis PASS. Producción activada
+y verificada después: [acta](ACTA-PRODUCCION.md). G8 sigue abierto.

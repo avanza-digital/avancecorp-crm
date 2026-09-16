@@ -1,7 +1,11 @@
 # G7 — aceptación del piloto económico F8
 
-**Estado: ABIERTO; piloto nominal ON desde el 14/09/2026 a las 13:23 Lima.** Esta acta se completa con evidencia
-real; el banco sintético no firma ni reemplaza la aceptación humana.
+**Estado del expediente G7: conformidades según evidencia, sin firmas atribuidas automáticamente.**
+La apertura operativa fue autorizada por Miguel y ejecutada el 15/09/2026 a las
+21:08 Lima: [acta F9](../multiempresa-f9/apertura-2026-09-15/ACTA-PRODUCCION.md).
+F4/F5/F6 ON para el equipo; F8 OFF, revisión 2; F7 OFF. Este expediente conserva
+el historial iniciado con el piloto del 14/09 y sus pruebas. El banco sintético
+no firma ni reemplaza la aceptación humana; G8 continúa en observación.
 
 ## Preparación técnica
 

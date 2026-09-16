@@ -1,0 +1,36 @@
+{
+  "corte": "2026-09-16T02:09:25.002699+00:00",
+  "roles": [
+    {
+      "rol": "gerencia",
+      "actor": "b79fa9100672e55b4166b023520120a5",
+      "fue_piloto": false,
+      "filas_muestra": 10,
+      "personas_visibles": 494,
+      "totales_coinciden": true,
+      "ficha_ajena_denegada": false,
+      "ficha_propia_comprobada": true
+    },
+    {
+      "rol": "supervisor",
+      "actor": "f6e17a8012f6194b0aca6fc84a8be9fb",
+      "fue_piloto": false,
+      "filas_muestra": 10,
+      "personas_visibles": 252,
+      "totales_coinciden": true,
+      "ficha_ajena_denegada": true,
+      "ficha_propia_comprobada": true
+    },
+    {
+      "rol": "vendedor",
+      "actor": "4b9766e690be751340c641a30c62f980",
+      "fue_piloto": false,
+      "filas_muestra": 10,
+      "personas_visibles": 54,
+      "totales_coinciden": true,
+      "ficha_ajena_denegada": true,
+      "ficha_propia_comprobada": true
+    }
+  ],
+  "estado": "PASS"
+}
