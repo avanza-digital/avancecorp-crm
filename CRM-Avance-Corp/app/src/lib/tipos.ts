@@ -110,8 +110,8 @@ export const TIPOS_CONVERSACION = [
 /** Set runtime de los tipos de conversación — derivado de TIPOS_CONVERSACION. */
 export const TIPOS_CONVERSACION_K: ReadonlySet<string> = new Set(TIPOS_CONVERSACION)
 
-/** Orígenes retirados del selector, conservados para leer leads históricos. */
-const ORIGENES_HEREDADOS = [
+/** Orígenes retirados del alta, conservados para leer y FILTRAR leads históricos. */
+export const ORIGENES_HEREDADOS = [
   { k: 'web', label: 'Web' },
   { k: 'campania', label: 'Campaña' },
   { k: 'whatsapp', label: 'WhatsApp' },

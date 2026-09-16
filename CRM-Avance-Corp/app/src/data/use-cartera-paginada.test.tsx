@@ -89,6 +89,17 @@ describe('sesión demo', () => {
     expect(result.current.leads.map((l) => l.nombre_completo)).toEqual(['ANA TORRES'])
   })
 
+  it('el origen recorta el ámbito demo con la misma regla que el servidor, sin red', () => {
+    const { wrapper } = arnes()
+    const { result } = renderHook(
+      () => useCarteraPaginada([lead(1), { ...lead(2), origen: 'web' }], { origen: 'web' }),
+      { wrapper },
+    )
+    expect(result.current.leads.map((l) => l.id)).toEqual(['lead-002'])
+    expect(result.current.resumenDemo?.totales.vivos).toBe(1)
+    expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
+  })
+
   it('cambiar de filtro devuelve la lista a la primera página', () => {
     const { wrapper } = arnes()
     const { rerender, result } = renderHook(
@@ -200,7 +211,7 @@ describe('sesión real', () => {
     mocks.listarCarteraPagina.mockResolvedValue({ items: [], cursor: null })
     const { wrapper } = arnes()
     renderHook(
-      () => useCarteraPaginada([], { etapa: 'convertido', vendedorId: 'v-9', texto: 'ro' }),
+      () => useCarteraPaginada([], { etapa: 'convertido', vendedorId: 'v-9', texto: 'ro', origen: 'formulario' }),
       { wrapper },
     )
 
@@ -210,6 +221,7 @@ describe('sesión real', () => {
       etapa: 'convertido',
       vendedorId: 'v-9',
       texto: 'ro',
+      origen: 'formulario',
     })
   })
 })

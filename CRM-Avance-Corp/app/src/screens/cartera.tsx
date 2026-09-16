@@ -12,7 +12,7 @@ import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/compon
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
-import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, origenLabel, type Etapa } from '@/lib/tipos'
+import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen } from '@/lib/tipos'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
@@ -32,6 +32,8 @@ import { fechaRecepcionDemo, periodoFechaCartera, rangoFechaCarteraValido, type 
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
 type FiltroEtapa = 'todas' | Etapa
+/** 'todos' | un origen del catálogo completo (vigentes e históricos). */
+type FiltroOrigen = 'todos' | Origen
 /** 'todos' | 'sin_asignar' | perfil_id de un analista del ámbito. */
 type FiltroVendedor = string
 
@@ -50,6 +52,7 @@ export function Cartera() {
   const rangoValido = rangoFechaCarteraValido(periodo, hoy)
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
+  const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
   const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
@@ -71,9 +74,9 @@ export function Cartera() {
   const cartera = useCarteraPaginada(
     leadsDeConsulta,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido,
+      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen,
         recepcion: periodo }),
-      [fEtapa, fVend, qDiferido, periodo],
+      [fEtapa, fVend, qDiferido, fOrigen, periodo],
     ),
   )
   const resumen = rangoValido ? cartera.resumen ?? null : null
@@ -123,7 +126,7 @@ export function Cartera() {
     return { stats, segmentos }
   }, [resumen, etiquetaConvertidos, detalleConvertidos])
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fVend !== 'todos' || modoFecha !== 'todas'
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -209,6 +212,22 @@ export function Cartera() {
             ))}
           </Select>
         </div>
+        {/* Origen: los 5 vigentes arriba; los 3 históricos (web, campaña,
+            WhatsApp) agrupados aparte para poder consultar leads antiguos sin
+            que parezcan opciones de alta. Mismo catálogo que valida la RPC. */}
+        <div className="w-[190px]">
+          <Select aria-label="Filtrar por origen" value={fOrigen} onChange={(e) => { setFOrigen(e.target.value as FiltroOrigen) }}>
+            <option value="todos">Todos los orígenes</option>
+            {ORIGENES.map((o) => (
+              <option key={o.k} value={o.k}>{o.label}</option>
+            ))}
+            <optgroup label="Históricos">
+              {ORIGENES_HEREDADOS.map((o) => (
+                <option key={o.k} value={o.k}>{o.label}</option>
+              ))}
+            </optgroup>
+          </Select>
+        </div>
         <FiltroFechaCartera modo={modoFecha} rango={rangoFecha} hoy={hoy}
           invalido={!rangoValido} onModo={(modo) => {
             setModoFecha(modo)
@@ -231,7 +250,7 @@ export function Cartera() {
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
-          setQ(''); setFEtapa('todas'); setFVend('todos'); setModoFecha('todas')
+          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFVend('todos'); setModoFecha('todas')
         }}>Limpiar filtros</Button>}
         {rangoValido && !cartera.cargando && (
           <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
@@ -284,7 +303,7 @@ export function Cartera() {
                 : q.trim()
                   ? `Ningún lead coincide con “${q.trim()}”. Prueba con otro nombre o número.`
                   : hayFiltro
-                    ? `Ningún lead coincide con los filtros. Prueba con otras fechas, otra etapa${filtrarVendedor ? ' u otro analista' : ''}.`
+                    ? `Ningún lead coincide con los filtros. Prueba con otras fechas, otra etapa, otro origen${filtrarVendedor ? ' u otro analista' : ''}.`
                     : 'Tu cartera todavía no tiene leads.'
             }
           />

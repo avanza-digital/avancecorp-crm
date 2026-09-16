@@ -664,6 +664,8 @@ export interface FiltrosCartera {
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
+  /** Origen del lead (vigentes e históricos); «todos» es el valor neutro y no viaja. */
+  origen?: Origen | 'todos'
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -691,6 +693,10 @@ const CarteraFiltradaSchema = v.object({
   generado_en: v.string(),
   desde: v.nullable(v.string()),
   hasta: v.nullable(v.string()),
+  // Eco del origen filtrado. Opcional a propósito: un servidor anterior a la
+  // firma con p_origen no lo devuelve, y sin filtro puesto eso sigue siendo
+  // una respuesta válida; con filtro puesto, su ausencia es un desajuste.
+  origen: v.optional(v.nullable(v.string())),
   items: v.array(v.object({
     ...LeadCarteraRowSchema.entries,
     recibido_en: v.nullable(v.string()),
@@ -733,6 +739,10 @@ export async function listarCarteraPagina(
     argumentos.p_desde = filtros.recepcion.desde
     argumentos.p_hasta = filtros.recepcion.hasta
   }
+  // «todos» no viaja: un servidor previo a la firma con p_origen sigue
+  // resolviendo la llamada sin él (PGRST202 evitado), igual que en métricas.
+  const origenPedido = filtros.integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
+  if (origenPedido !== null) argumentos.p_origen = origenPedido
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -752,6 +762,7 @@ export async function listarCarteraPagina(
     registrarError('crm.leads.pagina_fallida', fallo, {
       etapa: filtros.etapa ?? 'todas',
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
+      filtraOrigen: origenPedido !== null,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })
@@ -765,6 +776,10 @@ export async function listarCarteraPagina(
     const total = payload.resumen.totales.vivos
     if (payload.desde !== (filtros.recepcion?.desde ?? null)
       || payload.hasta !== (filtros.recepcion?.hasta ?? null)
+      // El servidor devuelve el origen que aplicó: si no coincide con el pedido
+      // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
+      || (payload.origen ?? null) !== origenPedido
+      || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
       || !Number.isSafeInteger(total) || total < payload.items.length
       || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
       || payload.items.length > TAMANO_PAGINA_CARTERA + 1

@@ -9969,3 +9969,31 @@ front anterior verán el aviso «Actualiza para reintentar» hasta recargar.
 - Instalación 15/09 confirmada: remoto `20260915181818`; 9 grupos Auth/RLS y
   HTTP Edge PASS. Portal publicado y rama propia eliminada. Acta:
   `../scripts/correo-admin/PUBLICADO-20260915.md`.
+
+## 20260916220124 — Filtro de origen en Leads
+
+**PREPARADA Y ENSAYADA; NO INSTALADA EN PRODUCCIÓN.** Solicitud de Miguel del
+16/09: la pantalla Leads filtra por origen y todos sus componentes lo obedecen.
+
+- `crm.cartera_filtrada_fn` pasa a 10 argumentos (`p_origen text default null`);
+  la firma de 9 se retira en la misma transacción (una sola candidata para
+  PostgREST). Sin `p_origen` la respuesta es la vigente más la clave `origen`
+  nula. Dominio = los 8 valores del CHECK de `crm.leads.origen`; otro valor → 22023.
+- Preflight: huella de la declaración del 13/09 (`daa8d49a…`), huella y md5 del
+  resumen general (`8019aab3…` / `b4ffcf91…`), CHECK de origen exacto, sello
+  coherente. Postflight: contrato de seguridad (invoker, stable, `search_path`
+  vacío, ACL idéntica), firma vieja ausente, censo con el mismo número de
+  contadores, firma nueva declarada y vigente, el conjunto en rojo idéntico al
+  previo (ver abajo), otras exenciones/techo/resumen intactos.
+- La declaración analítica se **mueve** a la firma nueva (la lista no admite
+  borrados) conservando `declarado_en`; se re-sella.
+- Ensayo local a paridad (`../scripts/cartera-origen/`): equivalencia sin filtro
+  para todos los actores, instalación, oráculo propio, reversa con el oráculo del
+  13/09 y reinstalación. Resultado en `verificacion.json`.
+- ⚠️ Estado del gate al preparar: producción tiene 35 contadores y
+  `crm.contrato_eliminar_auditado(uuid,uuid)` (`20260916160000`) sin declarar, así
+  que `assert_analitica_leads_citas()` está en rojo por causa ajena. Esta
+  migración no llama al assert global; exige que lo rojo quede igual.
+- Orden: **servidor primero**, luego el front (`«Todos los orígenes»` no viaja;
+  con un origen elegido el cliente exige el eco y rechaza respuestas viejas).
+- Reversa: `../scripts/cartera-origen/reversa.sql` (tras retirar el front).

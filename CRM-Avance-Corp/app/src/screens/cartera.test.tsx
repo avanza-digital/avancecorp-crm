@@ -108,6 +108,28 @@ describe('Cartera · vista previa local conectada', () => {
     expect(screen.getByText('LEAD ANTERIOR')).toBeInTheDocument()
   })
 
+  it('el origen recorta filas, total, capital y distribución, y se limpia con los demás filtros', () => {
+    montarVistaPrevia('vendedor', [
+      lead({ id: 'web', nombre_completo: 'LEAD DE WEB', origen: 'web', etapa: 'contactado', monto_estimado: 8000 }),
+    ])
+    expect(within(chipDe('Total leads')).getByText('4')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'web' } })
+    expect(screen.getByText('LEAD DE WEB')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD DE HOY')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 8,000')).toBeInTheDocument()
+    const distribucion = screen.getByText('Distribución por etapa').closest('[data-slot="card"]')!
+    expect(within(distribucion as HTMLElement).getByText('1 lead')).toBeInTheDocument()
+    // Compone con la etapa: el lead web está contactado, así que «nuevo» vacía todo.
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'nuevo' } })
+    expect(within(chipDe('Total leads')).getByText('0')).toBeInTheDocument()
+    expect(screen.getByText(/otro origen/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(within(chipDe('Total leads')).getByText('4')).toBeInTheDocument()
+    expect((screen.getByLabelText('Filtrar por origen') as HTMLSelectElement).value).toBe('todos')
+  })
+
   it('supervisor: combina la recepción con el analista elegido', () => {
     montarVistaPrevia('supervisor')
     fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })
@@ -212,6 +234,21 @@ describe('Cartera · chip de capital', () => {
     expect(screen.queryByText('LEAD CONVERTIDO')).not.toBeInTheDocument()
     expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
     expect(within(chipDe('Convertidos')).getByText('0')).toBeInTheDocument()
+  })
+
+  it('en sesión real el origen filtra indicadores y listado a la vez', () => {
+    YO = { id: 'g-1', rol: 'gerencia', demo: false }
+    LEADS = [lead(), lead({ id: 'l-ref', nombre_completo: 'LEAD REFERIDO', origen: 'referido', monto_estimado: 500 })]
+    ESTADO_CIERRES = []
+    render(<Cartera />)
+    expect(within(chipDe('Total leads')).getByText('2')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por origen' }), { target: { value: 'referido' } })
+
+    expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument()
+    expect(screen.getByText('LEAD REFERIDO')).toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 500')).toBeInTheDocument()
   })
 
   it('con la cartera en dólares la cifra principal es USD, no "S/ 0"', () => {

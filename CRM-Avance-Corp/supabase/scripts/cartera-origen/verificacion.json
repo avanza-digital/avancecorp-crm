@@ -1,0 +1,16 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_origen_20260916",
+  "fecha": "2026-09-16T22:31:51.411Z",
+  "migracion_sha256": "4363d9525140a94e0aec5af13fdfc9faeeafc4c5155a3bdc000fd18d03f19fcf",
+  "reversa_sha256": "c3b180ebe7f6a067ade277547b8cd1ab220ed747c1e526dcdf7daf596b95df04",
+  "actores_comparados": 11,
+  "lecturas_por_actor": 4,
+  "pasos": [
+    "gate verde antes",
+    "equivalencia sin filtro deshecha",
+    "instalación + gate + oráculo",
+    "reversa + gate + oráculo 13/09",
+    "reinstalación + gate + oráculo"
+  ]
+}

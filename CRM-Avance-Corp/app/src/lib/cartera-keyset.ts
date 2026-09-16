@@ -1,4 +1,4 @@
-import type { Etapa, Lead } from './tipos'
+import type { Etapa, Lead, Origen } from './tipos'
 import { coincideFechaRecepcionDemo, type RangoFechaCartera } from './filtro-fecha-cartera'
 
 /**
@@ -33,6 +33,8 @@ export interface FiltrosCarteraLocal {
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
+  /** Origen del lead (catálogo completo, históricos incluidos); «todos» no recorta. */
+  origen?: Origen | 'todos'
   /** Vista previa local: el servidor real conserva su contrato hasta integrar el ledger. */
   recepcionDemo?: RangoFechaCartera | null
 }
@@ -89,6 +91,7 @@ export function filtrarCarteraLocal(
     if (l.activo === false) return false
     if (!coincideFechaRecepcionDemo(l, filtros.recepcionDemo)) return false
     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
+    if (filtros.origen && filtros.origen !== 'todos' && l.origen !== filtros.origen) return false
     if (filtros.vendedorId === 'sin_asignar') {
       if (l.vendedor_id != null) return false
     } else if (filtros.vendedorId && filtros.vendedorId !== 'todos'
