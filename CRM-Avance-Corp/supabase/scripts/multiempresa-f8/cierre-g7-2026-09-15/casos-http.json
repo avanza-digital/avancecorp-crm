@@ -1,0 +1,118 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-16T00:13:43.147Z",
+  "fin": "2026-09-16T00:13:53.603Z",
+  "banco": "g7_cierre_20260915",
+  "ejecucion": "69766de9-64ce-4664-92db-4590dc2b381a",
+  "servicios": [
+    {
+      "servicio": "auth",
+      "imagen": "public.ecr.aws/supabase/gotrue:v2.196.0",
+      "entorno": "Lista explícita de DB/JWT/API; sin SMTP, proveedores externos ni hooks. Autoconfirmación activa y alta pública deshabilitada."
+    },
+    {
+      "servicio": "rest",
+      "imagen": "public.ecr.aws/supabase/postgrest:v16.2"
+    },
+    {
+      "servicio": "storage",
+      "imagen": "public.ecr.aws/supabase/storage-api:v1.72.1"
+    }
+  ],
+  "resultados": [
+    {
+      "caso": "Qorilazo → Avance: recuperación tras auth",
+      "estado": "PASS",
+      "auth_unico": true,
+      "inversion_unica": true,
+      "portal_propio": true,
+      "ajeno_denegado": true
+    },
+    {
+      "caso": "Qorilazo → Avance: recuperación tras registrar_auth",
+      "estado": "PASS",
+      "auth_unico": true,
+      "inversion_unica": true,
+      "portal_propio": true,
+      "ajeno_denegado": true
+    },
+    {
+      "caso": "Qorilazo → Avance: recuperación tras crear_perfil",
+      "estado": "PASS",
+      "auth_unico": true,
+      "inversion_unica": true,
+      "portal_propio": true,
+      "ajeno_denegado": true
+    },
+    {
+      "caso": "Qorilazo → Avance: recuperación tras enlazar",
+      "estado": "PASS",
+      "auth_unico": true,
+      "inversion_unica": true,
+      "portal_propio": true,
+      "ajeno_denegado": true
+    },
+    {
+      "caso": "Avance → Qorilazo",
+      "estado": "PASS",
+      "persona_y_auth_conservados": true
+    },
+    {
+      "caso": "Qorilazo → Prodelco",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Segunda inversión en Qorilazo",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Prodelco → Avance",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Avance → Prodelco; COOPAC rechaza USD sin guardar solicitud",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Inversión adicional Avance USD",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Fichas por tres roles y ámbito ajeno",
+      "estado": "PASS",
+      "personas": 2,
+      "roles": 3,
+      "monedas_separadas": true
+    },
+    {
+      "caso": "Retiro: permisos, reintentos y capital sin cambios",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Anulación comercial conserva Capital y deja un evento",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Identidad provisional bloquea alta; verificada permite continuar",
+      "estado": "PASS",
+      "fixture_explicito": true
+    },
+    {
+      "caso": "Cotitularidad documental sin nueva persona, Auth ni doble stock",
+      "estado": "PASS"
+    }
+  ],
+  "sha256": "d0041ecda0f996145167b0bf2d4d55109eb70ad6cf8012d09098782797f6bd0a",
+  "dependencias_sha256": {
+    "banco-http.mjs": "aacca0e603e332775054353778632b02c119d33876215b7d07c19a723fb98c53",
+    "dependencias-local.sql": "9315c3fa11171e087c4de53fa1863b5891118410e18d793787b79b0d9a6a808b",
+    "../../f4/operaciones-fixture.mjs": "874d0bb69ef62bdd24a4a89a4de8591f8ffd08dd375d730e11d609e3d39c9bc0",
+    "../../../../../_supabase_functions/functions/crm-inversion-portal/handler.mjs": "8cbb43f642aa043e09a6ceffa0ab7c8911581087d73ab9356fc3db1a4a0b0b40"
+  },
+  "limites": [
+    "Datos sintéticos; no operaciones reales ni firma financiera.",
+    "Auth, PostgREST y Storage reales locales; handler de producción ejecutado en Node, sin entrypoint Deno ni navegador.",
+    "SQL administrativo solo para fixtures/configuración de la copia; operaciones comerciales mediante RPC HTTP authenticated.",
+    "La copia conserva datos sintéticos; los servicios propios se detienen y eliminan. Sin GraphQL ni generación del PDF."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-16T00:14:26.249Z",
+  "fin": "2026-09-16T00:14:26.528Z",
+  "banco": "g7_cierre_20260915",
+  "resultados": [
+    {
+      "caso": "Renovación de línea upgrade: 800 de stock, 700 renovados y 100 adicionales",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Reasignar cabeza upgrade mueve atribución viva de su renovación y conserva autor",
+      "estado": "PASS"
+    },
+    {
+      "caso": "Mes sellado no vacío conserva todas sus filas tras reasignar, invertir y reintentar",
+      "estado": "PASS",
+      "fotografias": 2,
+      "ajustes_nuevos": 1
+    }
+  ],
+  "rollback_completo": true,
+  "sha256": "db15c73e73ba18db7e11bb57c04d6429ac24ae4f8357c084dacf581cd5a26039",
+  "dependencias_sha256": {
+    "banco-http.mjs": "aacca0e603e332775054353778632b02c119d33876215b7d07c19a723fb98c53",
+    "dependencias-local.sql": "9315c3fa11171e087c4de53fa1863b5891118410e18d793787b79b0d9a6a808b",
+    "../../f4/operaciones-fixture.mjs": "874d0bb69ef62bdd24a4a89a4de8591f8ffd08dd375d730e11d609e3d39c9bc0"
+  },
+  "limites": [
+    "SQL authenticated en copia sintética; no Auth/HTTP para este suplemento.",
+    "Perfil Auth y metadatos Storage como fixtures explícitos; operaciones mediante RPC vigentes.",
+    "No comisiones calculadas ni firma financiera; todo se revierte."
+  ]
+}

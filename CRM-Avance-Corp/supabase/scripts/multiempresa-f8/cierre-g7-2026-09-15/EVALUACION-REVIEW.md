@@ -19,7 +19,7 @@ No se hizo otra consulta para obtener un dictamen favorable.
 | Dependencias/versiones y ficha anterior tras error | Ampliado contexto de funciones en complemento y guardias; no se afirma un inventario transitorio completo. Se añadió `ficha:=null` al comenzar cada persona. Ninguno de los 19 casos originales falló; no hubo huella reutilizada. Las páginas son de 25 inversiones y los dos enteros son números de página. La muestra solo ejercita página 1; paginación superior no se atribuye a este ensayo. |
 | Anulaciones y secuencia histórica | [casos.json](casos.json) completa Avance, también cero. Avance → Avance incluye renovaciones/upgrades y solo se describe como transición de fuentes; no equivale a una nueva inversión adicional de F8. |
 | Sin responsable no probado | Resuelto después del pedido inicial: dos fichas reales, lectura permitida a Gerencia y nueva inversión bloqueada. [casos.json](casos.json). |
-| Personas nuevas, casos raros y firmas | Se mantiene G7 abierto. Se consultó a Miguel el ajuste de evidencia; el pedido de retomar no se toma como su aceptación. |
+| Personas nuevas, casos raros y firmas | Se mantiene G7 abierto. Posteriormente Miguel aprobó expresamente el ajuste de evidencia («sii claro hazlo»). Los [casos complementarios](CASOS-COMPLEMENTARIOS.md) pasan 15 grupos HTTP, 3 financieros y 46 contextos; las firmas siguen pendientes. |
 
 ## Procedencia administrativa
 

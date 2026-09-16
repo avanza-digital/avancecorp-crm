@@ -19,8 +19,11 @@ La [acta G7](../multiempresa-f8/ACTA-G7.md) conserva pendientes de muestreo real
 Revisar evidencia real vigente, identificar pendientes que afecten la apertura y preparar la activación concreta con comprobación de cada rol y reversa. No crear inversiones reales de prueba ni firmar conformidades en nombre de Miguel.
 
 Revisión del 15/09 completada: [613 fuentes, 19 fichas y 24 cuentas](../multiempresa-f8/cierre-g7-2026-09-15/README.md).
-Coherencia interna PASS; G7 conserva recorridos operativos/conformidades. Se
-consultó el ajuste de evidencia. [Pruebas técnicas aisladas](../multiempresa-f8/cierre-g7-2026-09-15/PRUEBAS-LOCALES.md)
+Coherencia interna PASS; G7 conserva conformidades y procedimiento productivo.
+Miguel aprobó el ajuste de evidencia. Los [casos complementarios](../multiempresa-f8/cierre-g7-2026-09-15/CASOS-COMPLEMENTARIOS.md)
+pasan 15 grupos HTTP, 3 financieros y la matriz ampliada de permisos. Refresco 18:32 Lima: 614
+fuentes/468 personas y cero diferencias; control nominal y sello intactos.
+[Pruebas técnicas aisladas iniciales](../multiempresa-f8/cierre-g7-2026-09-15/PRUEBAS-LOCALES.md)
 PASS: diez reintentos, cinco carreras económicas, veintiún contextos del modo
 general y cinco controles de transición/reversa. No son autorización productiva.
 [Ruta de apertura](../multiempresa-f8/cierre-g7-2026-09-15/APERTURA.md).

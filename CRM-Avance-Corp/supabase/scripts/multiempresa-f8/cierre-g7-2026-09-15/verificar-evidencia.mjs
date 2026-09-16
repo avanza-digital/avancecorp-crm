@@ -9,8 +9,12 @@ const roles=leer('roles.json').roles,fichas=leer('fichas.json').fichas,casos=lee
 const complemento=leer('complemento.json');
 const economico=leer('ensayo-local.json'),general=leer('roles-general-local.json');
 const transicion=leer('transicion-local.json'),funciones=leer('versiones-nucleo.json');
+const http=leer('casos-http.json'),finanzas=leer('casos-finanzas.json'),cotejo=leer('cotejo-casos.json');
+const refresco=leer('refresco-final.json'),ampliadas=leer('versiones-casos.json');
+const captura=leer('captura-versiones.json');
+const hash=f=>createHash('sha256').update(readFileSync(new URL(f,import.meta.url))).digest('hex');
 const total=xs=>xs.reduce((n,x)=>n+x,0);
-for(const foto of [a,b]) {
+for(const foto of [a,b,refresco]) {
   assert.equal(foto.solo_lectura,'on');
   for(const clave of ['diferencias_cartera_capital','diferencias_metricas_capital',
     'fuentes_duplicadas','sin_identidad_coherente','identidades_metricas_distintas']) {
@@ -23,6 +27,7 @@ for(const foto of [a,b]) {
   assert.equal(foto.identidades.sin_documento_verificado,0);
 }
 for(const campo of ['banderas','piloto','funciones','fotos_selladas']) assert.deepEqual(b[campo],a[campo],campo);
+for(const campo of ['banderas','piloto','funciones','fotos_selladas']) assert.deepEqual(refresco[campo],a[campo],campo);
 assert.deepEqual(a.banderas,{ficha_360_neutral:false,postventa_neutral:false,
   resolver_en_puertas:true,inversiones_escritura:false,metricas_multiempresa_sombra:false});
 assert.ok(a.piloto.activo);
@@ -72,9 +77,14 @@ assert.equal(economico.resultados.find(r=>r.reintentos===10)?.historia_sin_cambi
 const carreras=economico.resultados.filter(r=>r.sesiones_coincidentes===2);
 assert.equal(carreras.length,5);
 assert.ok(carreras.every(r=>r.codigos.length===2&&r.codigos.includes('OK')));
-assert.equal(general.roles.length,21);
+assert.equal(general.roles.length,general.contextos_esperados);
+assert.ok(general.roles.length>=21);
 assert.equal(general.roles.filter(r=>r.fuera_de_ambito_probado).length,4);
 assert.equal(general.roles.filter(r=>r.directorio_ficha_avance_probada).length,2);
+for(const r of general.roles.filter(r=>r.directorio_ficha_avance_probada)) {
+  assert.equal(r.directorio_fichas_comprobadas,r.cartera_total);
+  assert.ok(r.directorio_paginas>=1);
+}
 const contextos={coordinador:[false,false],perfil_inactivo:[false,false],
   equipo_inactivo:[false,false],directorio_sin_equipo:[true,false],
   directorio_sin_equipo_inactivo:[false,false],directorio_equipo_inactivo:[false,false]};
@@ -94,15 +104,43 @@ for(const r of general.roles) {
 assert.equal(transicion.resultados.length,5);
 assert.ok(transicion.resultados.every(r=>r.estado==='PASS'));
 assert.equal(Object.keys(transicion.huellas_economicas_conservadas).length,16);
+for(const r of [http,finanzas,cotejo]) {assert.equal(r.estado,'PASS');assert.equal(r.banco,'g7_cierre_20260915');}
+assert.equal(http.resultados.length,15);assert.ok(http.resultados.every(r=>r.estado==='PASS'));
+assert.equal(finanzas.resultados.length,3);assert.ok(finanzas.resultados.every(r=>r.estado==='PASS'));
+assert.equal(finanzas.rollback_completo,true);
+assert.ok(finanzas.resultados.some(r=>r.fotografias>=1&&r.ajustes_nuevos===1));
+assert.equal(ampliadas.length,203);assert.equal(cotejo.funciones,203);
+assert.equal(cotejo.dependencias,3);assert.equal(cotejo.tablas,3);
+assert.equal(captura.proyecto,'dctqcbznekcyxhjujuci');assert.equal(captura.solo_lectura,'on');
+assert.equal(cotejo.proyecto,captura.proyecto);assert.equal(cotejo.corte_produccion,captura.corte);
+assert.deepEqual(captura.funciones,ampliadas);
+const normalizar=lista=>lista.map(x=>({...x,acl:x.acl===null?null:x.acl.slice(1,-1).split(',').sort()}));
+assert.equal(cotejo.catalogo_sha256,createHash('sha256').update(JSON.stringify({
+  funciones:normalizar(captura.funciones),dependencias:normalizar(captura.dependencias),tablas:captura.tablas})).digest('hex'));
+for(const r of [http,finanzas,general])assert.ok(Date.parse(cotejo.fecha)>=Date.parse(r.fin),'El cotejo debe ser posterior al ensayo');
+for(const [r,f,dependencias] of [
+  [http,'casos-http.mjs',['banco-http.mjs','dependencias-local.sql','../../f4/operaciones-fixture.mjs',
+    '../../../../../_supabase_functions/functions/crm-inversion-portal/handler.mjs']],
+  [finanzas,'casos-finanzas.mjs',['banco-http.mjs','dependencias-local.sql','../../f4/operaciones-fixture.mjs']],
+  [general,'roles-general-local.mjs',['roles-general-local.sql','banco-http.mjs','dependencias-local.sql']],
+  [cotejo,'banco-http.mjs',['captura-versiones.json','versiones-casos.json','capturar-versiones.sql','dependencias-local.sql']],
+]) {
+  assert.equal(r.sha256,hash(f),f);
+  assert.deepEqual(Object.keys(r.dependencias_sha256).sort(),dependencias.sort());
+  for(const d of dependencias)assert.equal(r.dependencias_sha256[d],hash(d),d);
+}
 const archivos=['conciliacion.json','roles.json','fichas.json','casos.json','postflight.json','guardias.json','complemento.json',
-  'ensayo-local.mjs','ensayo-local.json','roles-general-local.sql','roles-general-local.json',
-  'transicion-local.mjs','transicion-local.json','versiones-nucleo.json'];
-const resultado={estado:'PASS',alcance:'Coherencia retrospectiva real y controles SQL sintéticos separados; G7 permanece ABIERTO.',
+  'ensayo-local.mjs','ensayo-local.json','roles-general-local.sql','roles-general-local.mjs','roles-general-local.json',
+  'transicion-local.mjs','transicion-local.json','versiones-nucleo.json',
+  'banco-http.mjs','casos-http.mjs','casos-http.json','casos-finanzas.mjs','casos-finanzas.json',
+  'dependencias-local.sql','versiones-casos.json','captura-versiones.json','capturar-versiones.sql','cotejo-casos.json','refresco-final.json'];
+const resultado={estado:'PASS',alcance:'Coherencia retrospectiva real y ensayos SQL/HTTP sintéticos separados; G7 permanece ABIERTO.',
   corte:a.corte,postflight:b.corte,fuentes:a.conciliacion.fuentes_cartera,identidades:a.identidades.total,
   muestra_fuentes:20,fichas:19,inversiones_en_fichas:25,cuentas:24,analistas:18,
   capacidades_piloto:4,funciones_banderas_y_sello_conservados:true,
-  banco_local:{reintentos:10,carreras:5,contextos_roles:21,controles_transicion:5,
-    superficies_conservadas:16,funciones_cotejadas:65},
+  refresco_final:{corte:refresco.corte,fuentes:refresco.conciliacion.fuentes_cartera,identidades:refresco.identidades.total},
+  banco_local:{reintentos:10,carreras:5,contextos_roles:general.roles.length,controles_transicion:5,
+    grupos_http:15,grupos_financieros:3,superficies_conservadas:16,funciones_cotejadas:203},
   sha256:Object.fromEntries(archivos.map(f=>[f,createHash('sha256').update(readFileSync(new URL(f,import.meta.url))).digest('hex')]))};
 writeFileSync(new URL('verificacion.json',import.meta.url),JSON.stringify(resultado,null,2)+'\n');
 console.log(JSON.stringify(resultado,null,2));

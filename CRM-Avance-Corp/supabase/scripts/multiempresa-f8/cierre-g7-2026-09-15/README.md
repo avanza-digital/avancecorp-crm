@@ -57,9 +57,11 @@ histórica. No son fuentes perdidas: están incluidas y conciliadas. Nueve fuent
 Avance no tienen analista histórico; esto es distinto de las dos personas sin
 responsable actual. No se reasignó ni corrigió ninguna por inferencia.
 
-G7 conserva pendientes los recorridos operativos, la aplicación de la evidencia
-de casos especiales a esta fase, fallo Auth, Auth/HTTP/UI productivos,
-soporte/reversa operativa y las conformidades humanas.
+Miguel aprobó el 15/09 completar los casos ausentes en una copia aislada.
+Los [casos complementarios](CASOS-COMPLEMENTARIOS.md) terminaron PASS: seis
+recorridos, cuatro recuperaciones Auth y casos especiales; quince grupos HTTP,
+tres financieros y la matriz ampliada de permisos. G7 conserva pendientes
+Auth/HTTP/UI humanos productivos, soporte/SQL exacto de apertura y conformidades.
 Las pruebas sintéticas anteriores son antecedentes técnicos, no firmas ni
 operaciones reales. No deben crearse ventas, retiros o anulaciones ficticias en
 producción para completar una casilla.
@@ -68,7 +70,8 @@ Los [nuevos ensayos locales](PRUEBAS-LOCALES.md) pasan diez reintentos, cinco
 carreras económicas, veintiún contextos de permisos generales y cinco controles
 de transición/reversa. Hay igualdad de 65 definiciones seleccionadas con
 producción; no es una comparación de todo el esquema/ACL. Las pruebas SQL no
-reemplazan los recorridos reales ni la aprobación de cambiar su evidencia.
+equivalen a recorridos humanos; la evidencia sintética complementaria ya fue
+autorizada expresamente por Miguel.
 
 [Complemento tras revisión](complemento.json): se fijó el inicio del acta para
 el recuento acumulado y se comprobó la autoría, separada de la atribución. Las
@@ -119,11 +122,16 @@ RLS general y Auth/UI productivos: NOT RUN; este cambio agrega diagnóstico y
 documentación, sin cambiar producto ni esquema. No se reabrieron ni reinstalaron
 los bancos cerrados de F4–F8.
 
-Refresco productivo al terminar los ensayos: **NOT RUN**, el conector
-`supabase_execute_sql` devolvió `-32603 Internal error` en dos intentos de solo
-lectura. No es evidencia de caída del CRM ni de un cambio de sus datos. Se
-conservan las capturas verificadas de 15:07/15:16 Lima; actualizar el preflight
-antes de cualquier futura activación. Las pruebas locales sí terminaron PASS.
+Refresco productivo: **PASS a las 18:32:41 Lima**, tras recuperarse el conector.
+[614 fuentes, 468 personas](refresco-final.json), cero diferencias internas,
+banderas/control y sello real idénticos. Hay una nueva inversión Avance desde
+el corte anterior; la muestra/fichas conserva su corte histórico. Actualizar
+el preflight antes de cualquier futura activación.
+
+El [segundo review de Claude](REVISION-CASOS-CLAUDE.md) pidió reforzar negativos
+de autorización, oráculos y procedencia/integridad de recibos. Se corrigieron y
+repitieron los ensayos; [evaluación PRIMARY](EVALUACION-CASOS.md). El cotejo final
+incluye 203 funciones, tres auxiliares y tres tablas, sin paridad total del esquema.
 
 La apertura sigue el [procedimiento pendiente](APERTURA.md) y la
 [acta G7](../ACTA-G7.md). No se han ejecutado cambios productivos de activación.

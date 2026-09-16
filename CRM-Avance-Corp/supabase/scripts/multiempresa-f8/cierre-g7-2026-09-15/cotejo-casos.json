@@ -1,0 +1,20 @@
+{
+  "estado": "PASS",
+  "inicio": "2026-09-16T00:15:42.946Z",
+  "banco": "g7_cierre_20260915",
+  "fecha": "2026-09-16T00:15:43.025Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "corte_produccion": "2026-09-15T23:56:17.63203+00:00",
+  "funciones": 203,
+  "dependencias": 3,
+  "tablas": 3,
+  "sha256": "aacca0e603e332775054353778632b02c119d33876215b7d07c19a723fb98c53",
+  "dependencias_sha256": {
+    "captura-versiones.json": "15e7e46ea87904de3c915c6504f7732a9812795d4e49d1e78ea993fd46ac606a",
+    "versiones-casos.json": "adc59f4970327a00709dafa245ec254886052712ada4b93b0d81e52ae6d3994b",
+    "capturar-versiones.sql": "e4cfdb8eced6bb56ebf73c651c5893d71e7633d4625ade457e5946733b620cdd",
+    "dependencias-local.sql": "9315c3fa11171e087c4de53fa1863b5891118410e18d793787b79b0d9a6a808b"
+  },
+  "catalogo_sha256": "ddbe58cda12821a488b5a5a63d8103398d142d0b2e2c1221fdf9d8d37d8d7597",
+  "alcance": "203 funciones y 3 auxiliares con propietarios/ACL; columnas y restricciones de 3 tablas. No acredita paridad del esquema completo."
+}

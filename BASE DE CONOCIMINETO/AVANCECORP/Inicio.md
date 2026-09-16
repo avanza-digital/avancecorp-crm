@@ -26,8 +26,11 @@ Piloto nominal ON para cuatro personas hasta el 21/09 a las 13:23 Lima; G7 abier
 Revisión para apertura: [[G7 - revision real y apertura pendiente (2026-09-15)]] —
 613 inversiones/467 personas coherentes internamente; 19 fichas y 24 cuentas
 verificadas; diez reintentos, cinco carreras, veintiún contextos y transición/reversa
-locales PASS. Pendiente decidir cómo acreditar casos reales ausentes y completar
-sus verificaciones/conformidades. Sin apertura general.
+locales PASS. Miguel aprobó complementar la muestra real en una copia aislada:
+15 grupos HTTP, 3 financieros y matriz ampliada de permisos PASS. Refresco 18:32:
+614 inversiones/468 personas sin diferencias. Faltan conformidades y procedimiento
+productivo exacto; sin apertura general.
+Pendiente pedido por Miguel: [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtro mensual, filtros comerciales por rol, menos espacios vacíos y combinación vertical/horizontal. Guardado sin implementar.
 
 [[F8 - ajustes de cartera y condiciones COOPAC preparados (2026-09-14)]]:
 timeout corregido en banco local, Ficha 360 recuperada y plazo/rentabilidad anual

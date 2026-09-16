@@ -32,7 +32,12 @@ do $roles$
 declare a record; f5 jsonb; f6 jsonb; err5 text; err6 text; err_lista text;
   resultado jsonb:='[]'; lectura boolean; escritura boolean;
   objetivo uuid; fuera jsonb; ficha jsonb; lista jsonb;
+  permitidos uuid[]; vistos uuid[]; pagina integer; fila jsonb; fichas_directorio integer;
 begin
+  -- Directorio también puede consultar perfiles del Portal sin contratos.
+  -- La pertenencia a COOPAC por sí sola no habilita identidad ni datos.
+  select array_agg(distinct private.inversionista_canonica(i.id)) into permitidos
+    from crm.inversionistas i join public.perfiles p on p.id=i.perfil_id where p.rol='cliente';
   for a in select p.id,p.rol,p.activo perfil_activo,e.rol_crm,e.activo equipo_activo,
     e.perfil_id is not null tiene_equipo,coalesce(c.caso,'cuenta_de_base') caso
     from public.perfiles p left join crm.equipo e on e.perfil_id=p.id
@@ -58,6 +63,7 @@ begin
       order by f.fuente_id limit 1;
     end if;
     f5:=null;f6:=null;err5:=null;err6:=null;err_lista:=null;lista:=null;fuera:=null;ficha:=null;
+    vistos:='{}';pagina:=1;fichas_directorio:=0;
     perform set_config('request.jwt.claim.sub',a.id::text,true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',a.id,'role','authenticated')::text,true);
     set local role authenticated;
@@ -66,11 +72,36 @@ begin
     if lectura then
       lista:=crm.cartera_inversionistas_fn();
       if objetivo is not null then fuera:=crm.inversionista_ficha_fn(objetivo,1,1); end if;
-      if not escritura and jsonb_array_length(lista->'filas')>0 then
-        ficha:=crm.inversionista_ficha_fn((lista#>>'{filas,0,inversionista_id}')::uuid,1,1);
-        if exists(select 1 from jsonb_array_elements(ficha->'inversiones') f where f->>'empresa'<>'avance')
-          or (ficha#>>'{capacidades,nueva_inversion}')::boolean then
-          raise exception 'Directorio recibió inversión ajena a Avance o capacidad de escritura';
+      if not escritura then
+        loop
+          if exists(select 1 from jsonb_array_elements(lista->'totales') t where t->>'empresa' is distinct from 'avance') then
+            raise exception 'Directorio recibió totales de otra empresa';
+          end if;
+          for fila in select value from jsonb_array_elements(lista->'filas') loop
+            if ((fila->>'inversionista_id')::uuid=any(permitidos)) is not true
+              or (fila->>'inversionista_id')::uuid=any(vistos) then
+              raise exception 'Directorio recibió persona sin perfil Portal o duplicada';
+            end if;
+            if exists(select 1 from jsonb_array_elements_text(fila->'empresas') e where e is distinct from 'avance') then
+              raise exception 'Directorio recibió empresa ajena en la lista';
+            end if;
+            vistos:=array_append(vistos,(fila->>'inversionista_id')::uuid);
+            ficha:=crm.inversionista_ficha_fn((fila->>'inversionista_id')::uuid,1,1);
+            if ficha is null
+              or exists(select 1 from jsonb_array_elements(ficha->'inversiones') f where f->>'empresa' is distinct from 'avance')
+              or (ficha#>>'{capacidades,nueva_inversion}')::boolean is distinct from false then
+              raise exception 'Directorio recibió ficha nula, inversión ajena a Avance o capacidad de escritura';
+            end if;
+            fichas_directorio:=fichas_directorio+1;
+          end loop;
+          exit when cardinality(vistos)>=(lista->>'total')::integer;
+          if jsonb_array_length(lista->'filas')=0 or pagina>=100 then
+            raise exception 'Paginación de Directorio incompleta';
+          end if;
+          pagina:=pagina+1;lista:=crm.cartera_inversionistas_fn(p_pagina=>pagina);
+        end loop;
+        if cardinality(vistos) is distinct from (lista->>'total')::integer then
+          raise exception 'Directorio no cubrió todas sus páginas';
         end if;
       end if;
     else
@@ -98,12 +129,19 @@ begin
       'perfil_activo',a.perfil_activo,'equipo_activo',a.equipo_activo,'fallback_sin_equipo',not a.tiene_equipo,
       'lectura_esperada',lectura,'escritura_esperada',escritura,'f5',f5,'f6',f6,
       'error_f5',err5,'error_f6',err6,'error_lista',err_lista,'fuera_de_ambito_probado',objetivo is not null,
-      'cartera_total',lista->'total','directorio_ficha_avance_probada',ficha is not null));
+      'cartera_total',lista->'total','directorio_ficha_avance_probada',ficha is not null,
+      'directorio_fichas_comprobadas',fichas_directorio,'directorio_paginas',case when not escritura and lectura then pagina end));
   end loop;
-  if jsonb_array_length(resultado)<>21 then raise exception 'Matriz incompleta: %',jsonb_array_length(resultado); end if;
+  -- Las pruebas HTTP incorporan clientes nuevos al banco. Todos deben quedar
+  -- excluidos de la gestión CRM; no limitar la matriz a las 15 cuentas iniciales.
+  if jsonb_array_length(resultado)<>(select count(*) from public.perfiles)
+    or jsonb_array_length(resultado)<21 then
+    raise exception 'Matriz incompleta: %',jsonb_array_length(resultado);
+  end if;
   perform set_config('g7.roles_general',resultado::text,true);
 end; $roles$;
 select jsonb_build_object('estado','PASS','banco',current_database(),'corte',statement_timestamp(),
   'modo','F8 OFF, F3/F4/F5/F6 ON, F7 OFF; cambios dentro de ROLLBACK',
+  'contextos_esperados',(select count(*) from public.perfiles),
   'roles',current_setting('g7.roles_general')::jsonb) evidencia;
 rollback;

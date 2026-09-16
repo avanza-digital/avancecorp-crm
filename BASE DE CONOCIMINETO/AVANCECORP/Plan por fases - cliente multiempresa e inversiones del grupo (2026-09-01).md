@@ -25,12 +25,18 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 **15/09 — revisión real:** [[G7 - revision real y apertura pendiente (2026-09-15)]] —
 613 inversiones y 467 personas coherentes entre lectores; 19 fichas verificadas,
 24 cuentas vigentes y cuatro capacidades nominales. Solo una confirmación F4 en
-el piloto; varios recorridos/casos reales no existen. G7 abierto y decisión de
-Miguel pendiente sobre usar muestra histórica y casos aislados. No se modifican
-los criterios ni se encienden banderas generales por esta revisión.
+el piloto; varios recorridos/casos reales no existen. G7 abierto. Miguel aprobó
+usar la muestra histórica y completar los casos ausentes en una copia aislada
+el 15/09 («sii claro hazlo»), después de aclarar el método. La apertura general y
+las conformidades finales siguen pendientes.
 Pruebas técnicas aisladas del 15/09: diez reintentos, cinco carreras económicas,
 veintiún contextos de permisos y cinco controles de transición/reversa PASS.
 No sustituyen las casillas operativas/firmas ni autorizan activar producción.
+Complemento autorizado terminado: 15 grupos HTTP, 3 financieros y matriz ampliada
+de permisos PASS; seis rutas y casos especiales cubiertos sintéticamente.
+Refresco 18:32 Lima: 614 inversiones/468 personas, sin diferencias internas.
+Pendientes: procedimiento productivo exacto, soporte y conformidades G7.
+**Pendiente de producto registrado el 15/09:** [[Cartera inversionistas - filtros comerciales y distribucion pendiente (2026-09-15)]] — filtros por mes/comerciales y mejor distribución de la cartera. Miguel pidió guardarlo para después; no interrumpe los ensayos G7.
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
@@ -562,6 +568,13 @@ Evidencia y límites: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 - fallos de Auth y depósito repetido cubiertos, cero P0/P1 abierto y cero diferencias financieras.
 
 No se aprueba por cumplir cinco días de calendario: termina cuando cumple la evidencia y las firmas requeridas.
+
+**Ajuste de acreditación aprobado por Miguel el 15/09/2026:** las veinte
+inversiones existentes revisadas sirven como muestra real y los recorridos/casos
+especiales ausentes se completan con datos sintéticos en una copia aislada. Se
+conservan las cantidades, controles financieros y de permisos; se etiqueta el
+origen de cada evidencia. No se exige esperar nuevas ventas para probar todas
+las variantes. Esta aprobación del método no firma G7 ni activa F9.
 
 **Gate G7:** aceptación de Miguel y responsables financiero, de comisiones, técnico, de seguridad y operativo; conciliación firmada, soporte y reversa comprobados.
 
