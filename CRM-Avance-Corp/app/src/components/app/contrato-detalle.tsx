@@ -1,3 +1,4 @@
+import { mensajeErrorEliminacionContrato } from '@/lib/contrato-pdf-archivo'
 // Detalle SOLO LECTURA del contrato — espejo del "Ver detalle" del portal
 // (analista.js: abrirModalDetalle + renderDetalleMeta/renderDetalleTitulares, y
 // las reglas finas del cronograma del admin: cuota/retorno/devolución
@@ -266,7 +267,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     try {
       await onEliminar()
     } catch (error) {
-      toast.error(mensajeDeError(error, 'No se pudo eliminar el contrato y sus PDF.'))
+      toast.error(mensajeErrorEliminacionContrato(error))
       setEliminando(false)
     }
   }
@@ -434,8 +435,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 role="alert"
                 className="rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive"
               >
-                Esta acción es permanente: se eliminarán el contrato, su cronograma, sus documentos y todas las
-                revisiones del PDF. Confirma una segunda vez.
+                El contrato y su cronograma saldrán de la operación del CRM, incluidos los pagos registrados.
+                Se conservará una copia de auditoría de los datos y todas las revisiones del PDF. Confirma una segunda vez.
               </div>
             )}
             {/* ── Términos del contrato (espejo de renderDetalleMeta) ─────────── */}
@@ -790,7 +791,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               </Button>
               <Button variant="destructive" size="sm" disabled={eliminando} onClick={() => void confirmarEliminacion()}>
                 {eliminando ? <LoaderCircle className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
-                Sí, eliminar contrato y PDF
+                Sí, eliminar y conservar auditoría
               </Button>
             </>
           ) : (

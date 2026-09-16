@@ -2297,14 +2297,17 @@ export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolea
             analistas={analistasParaContrato}
             puedeReasignar={puedeReasignarVenta(yo)}
             onEliminar={async () => {
-              const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
+              const { auditoriaId } = await eliminarContratoConPdf(overlay.contrato.id)
               cerrar()
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() }),
                 queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() }),
+                queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
+                queryClient.invalidateQueries({ queryKey: ['crm', 'inversionistas'] }),
+                queryClient.invalidateQueries({ queryKey: ['crm', 'postventa'] }),
               ])
               toast.success(
-                `Contrato ${overlay.contrato.numero_contrato} eliminado con ${archivosEliminados} archivo${archivosEliminados === 1 ? '' : 's'}.`,
+                `Contrato ${overlay.contrato.numero_contrato} eliminado. Copia de auditoría: ${auditoriaId}.`,
               )
             }}
             onCerrar={cerrar}

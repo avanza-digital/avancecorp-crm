@@ -144,16 +144,17 @@ describe('cliente del archivo contractual server-side', () => {
 
   it('el hard-delete usa exclusivamente la Edge y valida su confirmación', async () => {
     supabase.invoke.mockResolvedValue({
-      data: { ok: true, contratoId: CONTRATO_ID, archivosEliminados: 3 },
+      data: { ok: true, contratoId: CONTRATO_ID, auditoriaId: JOB_ID, archivosConservados: 3 },
       error: null,
     })
 
     await expect(eliminarContratoConPdf(CONTRATO_ID)).resolves.toEqual({
       contratoId: CONTRATO_ID,
-      archivosEliminados: 3,
+      auditoriaId: JOB_ID,
+      archivosConservados: 3,
     })
     expect(supabase.invoke).toHaveBeenCalledWith('crm-contrato-pdf-v2', {
-      body: { action: 'delete', contratoId: CONTRATO_ID },
+      body: { action: 'delete-audited', contratoId: CONTRATO_ID },
     })
   })
 
@@ -162,7 +163,7 @@ describe('cliente del archivo contractual server-side', () => {
       data: {
         ok: true,
         contratoId: '99999999-9999-4999-8999-999999999999',
-        archivosEliminados: 1,
+        archivosConservados: 1,
       },
       error: null,
     })

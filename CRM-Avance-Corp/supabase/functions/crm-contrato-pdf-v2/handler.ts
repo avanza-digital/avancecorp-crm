@@ -98,17 +98,6 @@ type ReclamoPdf = EstadoPdf & {
   renderizado_en?: string;
 };
 
-type ObjetoEliminacion = {
-  bucket: typeof CONTRATO_PDF_BUCKET | typeof CONTRATO_DOCUMENTOS_BUCKET;
-  path: string;
-};
-
-type PreparacionEliminacion = {
-  contratoId: string;
-  token: string;
-  objetos: ObjetoEliminacion[];
-};
-
 type EstadoPdfPublico = Omit<EstadoPdf, "ok" | "codigo">;
 
 const ORIGENES_PRODUCCION = new Set([
@@ -237,64 +226,14 @@ function rutaValida(
   return ruta === `${contratoId}/contrato.pdf`;
 }
 
-function rutaObjetoEliminable(
-  contratoId: string,
-  bucket: unknown,
-  path: unknown,
-): path is string {
-  if (
-    (bucket !== CONTRATO_PDF_BUCKET &&
-      bucket !== CONTRATO_DOCUMENTOS_BUCKET) ||
-    typeof path !== "string" || path.length < 5 || path.length > 1024 ||
-    path !== path.trim() || path.includes("\\") || path.includes("//") ||
-    path.split("/").includes("..") || tieneControl(path)
-  ) return false;
-  if (bucket === CONTRATO_DOCUMENTOS_BUCKET) {
-    return path.startsWith(`${contratoId}/`) &&
-      path.length > contratoId.length + 1;
-  }
-  if (path === `${contratoId}/contrato.pdf`) return true;
-  const partes = path.split("/");
-  return partes.length === 4 && partes[0] === contratoId &&
-    partes[1] === "v2" &&
-    uuidCanonico(partes[2]) && partes[3] === "contrato.pdf";
-}
-
-function parsePreparacionEliminacion(
-  valor: unknown,
-  contratoId: string,
-): PreparacionEliminacion | null {
-  if (
-    !esObjeto(valor) ||
-    !clavesExactas(valor, ["contrato_id", "token", "objetos"]) ||
-    valor.contrato_id !== contratoId || !uuidCanonico(valor.token) ||
-    !Array.isArray(valor.objetos) || valor.objetos.length > 1000
-  ) return null;
-
-  const objetos: ObjetoEliminacion[] = [];
-  const vistos = new Set<string>();
-  for (const objeto of valor.objetos) {
-    if (
-      !esObjeto(objeto) || !clavesExactas(objeto, ["bucket", "path"]) ||
-      !rutaObjetoEliminable(contratoId, objeto.bucket, objeto.path)
-    ) return null;
-    const bucket = objeto.bucket as ObjetoEliminacion["bucket"];
-    const path = objeto.path as string;
-    const llave = `${bucket}\u0000${path}`;
-    if (vistos.has(llave)) return null;
-    vistos.add(llave);
-    objetos.push({ bucket, path });
-  }
-  return { contratoId, token: valor.token, objetos };
-}
-
 function statusErrorBackend(error: BackendError | null): number {
   if (!error) return 502;
   if (error.code === "42501") return 403;
   if (error.code === "P0002" || error.code === "PGRST116") return 404;
   if (
     error.code === "22023" || error.code === "23514" ||
-    error.code === "55000" || error.code === "54000"
+    error.code === "55000" || error.code === "54000" ||
+    error.code === "P0409" || error.code === "55P03" || error.code === "40P01"
   ) return 409;
   return 503;
 }
@@ -302,7 +241,9 @@ function statusErrorBackend(error: BackendError | null): number {
 const MENSAJES_ELIMINACION_PUBLICOS = new Set([
   "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda",
   "Solo Admin o Superadmin puede eliminar contratos",
-  "Este contrato tiene pagos; solo Superadmin puede eliminarlo",
+  "El contrato tiene dependencias nuevas; requiere revisión antes de eliminarlo",
+  "El contrato tiene una eliminación anterior pendiente; requiere revisión antes de archivarlo",
+  "El contrato pertenece a un mes comercial cerrado y no se puede eliminar",
   "Contrato no encontrado",
   "El PDF se está generando; reintenta la eliminación en unos minutos",
   "Un documento del contrato tiene una ruta Storage inválida",
@@ -646,7 +587,7 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     if (
       !esObjeto(cuerpo) || !clavesExactas(cuerpo, ["action", "contratoId"]) ||
       (cuerpo.action !== "ensure" && cuerpo.action !== "status" &&
-        cuerpo.action !== "delete") ||
+        cuerpo.action !== "delete" && cuerpo.action !== "delete-audited") ||
       !uuidCanonico(cuerpo.contratoId)
     ) {
       return json(
@@ -674,114 +615,55 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     }
     const contratoId = cuerpo.contratoId;
 
-    if (cuerpo.action === "delete") {
-      const preparacionRaw = await deps.rpcAdmin(
-        "contrato_eliminacion_preparar",
-        { p_contrato_id: contratoId, p_actor_id: sesion.id },
-      );
-      if (preparacionRaw.error) {
-        return json(
-          origin,
-          origenes,
-          {
-            error: mensajeErrorEliminacion(
-              preparacionRaw.error,
-              "No se pudo autorizar la eliminación del contrato",
+    if (cuerpo.action === "delete" || cuerpo.action === "delete-audited") {
+      // La copia de datos y el borrado son una sola transacción. Los objetos
+      // privados permanecen como evidencia referenciada por la auditoría.
+      const resultado = await deps.rpcAdmin("contrato_eliminar_auditado", {
+        p_contrato_id: contratoId,
+        p_actor_id: sesion.id,
+      });
+      if (resultado.error) {
+        return json(origin, origenes, {
+          error: ["55P03", "40P01"].includes(resultado.error.code ?? "")
+            ? "El contrato está siendo actualizado. Espera unos segundos y reintenta."
+            : mensajeErrorEliminacion(
+              resultado.error,
+              "No se pudo eliminar el contrato con su copia de auditoría",
             ),
-            codigo: "CONTRATO_ELIMINACION_PREPARAR",
-          },
-          statusErrorBackend(preparacionRaw.error),
-        );
+          codigo: "CONTRATO_ELIMINACION_AUDITADA",
+        }, statusErrorBackend(resultado.error));
       }
-      const preparacion = parsePreparacionEliminacion(
-        preparacionRaw.data,
-        contratoId,
-      );
-      if (!preparacion) {
-        return json(
-          origin,
-          origenes,
-          {
-            error: "El manifiesto de eliminación es incoherente",
-            codigo: "INTEGRIDAD_ELIMINACION",
-          },
-          409,
-        );
-      }
-
-      for (
-        const bucket of [
-          CONTRATO_PDF_BUCKET,
-          CONTRATO_DOCUMENTOS_BUCKET,
-        ] as const
-      ) {
-        const paths = preparacion.objetos
-          .filter((objeto) => objeto.bucket === bucket)
-          .map((objeto) => objeto.path);
-        if (paths.length === 0) continue;
-        const eliminacion = await deps.storage.eliminar(bucket, paths);
-        if (eliminacion.error) {
-          return json(
-            origin,
-            origenes,
-            {
-              error: "No se pudieron eliminar todos los archivos del contrato",
-              codigo: "STORAGE_ELIMINACION",
-            },
-            503,
-          );
-        }
-      }
-
-      const finalRaw = await deps.rpcAdmin(
-        "contrato_eliminacion_finalizar",
-        {
-          p_contrato_id: contratoId,
-          p_token: preparacion.token,
-          p_actor_id: sesion.id,
-        },
-      );
-      if (finalRaw.error) {
-        return json(
-          origin,
-          origenes,
-          {
-            error: mensajeErrorEliminacion(
-              finalRaw.error,
-              "Los archivos se retiraron, pero falta finalizar la eliminación",
-            ),
-            codigo: "CONTRATO_ELIMINACION_FINALIZAR",
-          },
-          statusErrorBackend(finalRaw.error),
-        );
-      }
+      const d = resultado.data;
       if (
-        !esObjeto(finalRaw.data) ||
-        !clavesExactas(finalRaw.data, [
-          "contrato_id",
-          "objetos_eliminados",
+        !esObjeto(d) ||
+        !clavesExactas(d, [
           "ok",
+          "contrato_id",
+          "auditoria_id",
+          "archivos_conservados",
         ]) ||
-        finalRaw.data.ok !== true ||
-        finalRaw.data.contrato_id !== contratoId ||
-        !Number.isInteger(finalRaw.data.objetos_eliminados) ||
-        (finalRaw.data.objetos_eliminados as number) !==
-          preparacion.objetos.length
+        d.ok !== true || d.contrato_id !== contratoId ||
+        !uuidCanonico(d.auditoria_id) ||
+        !Number.isInteger(d.archivos_conservados) ||
+        (d.archivos_conservados as number) < 0
       ) {
-        return json(
-          origin,
-          origenes,
-          {
-            error: "La confirmación de eliminación es incoherente",
-            codigo: "INTEGRIDAD_ELIMINACION",
-          },
-          409,
-        );
+        return json(origin, origenes, {
+          error: "La confirmación de eliminación es incoherente",
+          codigo: "INTEGRIDAD_ELIMINACION",
+        }, 409);
+      }
+      if (cuerpo.action === "delete") {
+        return json(origin, origenes, {
+          ok: true,
+          contratoId,
+          archivosEliminados: 0,
+        });
       }
       return json(origin, origenes, {
         ok: true,
         contratoId,
-        archivosEliminados: preparacion.objetos.length,
+        auditoriaId: d.auditoria_id,
+        archivosConservados: d.archivos_conservados,
       });
     }
 

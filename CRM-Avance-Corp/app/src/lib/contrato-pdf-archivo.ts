@@ -145,8 +145,18 @@ const EdgeRespuestaSchema = v.strictObject({
 const EliminacionRespuestaSchema = v.strictObject({
   ok: v.literal(true),
   contratoId: v.pipe(v.string(), v.regex(UUID_CANONICO_RE)),
-  archivosEliminados: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  auditoriaId: v.pipe(v.string(), v.regex(UUID_CANONICO_RE)),
+  archivosConservados: v.pipe(v.number(), v.integer(), v.minValue(0)),
 })
+
+/** Mensaje público saneado por la Edge; los errores desconocidos quedan ocultos. */
+export class ContratoEliminacionError extends Error {}
+
+export function mensajeErrorEliminacionContrato(error: unknown): string {
+  return error instanceof ContratoEliminacionError
+    ? error.message
+    : 'No se pudo eliminar el contrato. Reintenta o consulta al administrador.'
+}
 
 type PdfEstadoWire = v.InferOutput<typeof PdfEstadoSchema>
 type EdgeRespuesta = v.InferOutput<typeof EdgeRespuestaSchema>
@@ -359,18 +369,18 @@ export async function asegurarContratoPdfActualizado(contratoId: string): Promis
 }
 
 /**
- * Hard-delete administrado: la Edge revalida Admin/Superadmin, elimina primero
- * los objetos privados y recién entonces confirma el borrado en la base.
+ * Eliminación administrada: copia inmutable y borrado en una transacción;
+ * los objetos privados permanecen conservados como evidencia de auditoría.
  */
 export async function eliminarContratoConPdf(
   contratoId: string,
-): Promise<{ contratoId: string; archivosEliminados: number }> {
+): Promise<{ contratoId: string; auditoriaId: string; archivosConservados: number }> {
   exigirContratoIdCanonico(contratoId)
   const { data, error } = await clienteSupabase().functions.invoke(CONTRATO_PDF_EDGE, {
-    body: { action: 'delete', contratoId },
+    body: { action: 'delete-audited', contratoId },
   })
   if (error) {
-    let mensaje = error.message || 'No se pudo eliminar el contrato y sus archivos.'
+    let mensaje = 'No se pudo eliminar el contrato. Comprueba tu conexión y reintenta.'
     if (error instanceof FunctionsHttpError) {
       try {
         const cuerpo = (await error.context.clone().json()) as unknown
@@ -386,7 +396,7 @@ export async function eliminarContratoConPdf(
         // Conservamos el diagnóstico del SDK si el cuerpo no es JSON.
       }
     }
-    throw new Error(mensaje)
+    throw new ContratoEliminacionError(mensaje)
   }
   const resultado = v.safeParse(EliminacionRespuestaSchema, data)
   if (!resultado.success || resultado.output.contratoId !== contratoId) {
@@ -394,7 +404,8 @@ export async function eliminarContratoConPdf(
   }
   return {
     contratoId: resultado.output.contratoId,
-    archivosEliminados: resultado.output.archivosEliminados,
+    auditoriaId: resultado.output.auditoriaId,
+    archivosConservados: resultado.output.archivosConservados,
   }
 }
 

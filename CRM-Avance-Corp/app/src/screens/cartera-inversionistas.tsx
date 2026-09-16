@@ -23,12 +23,17 @@ import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
-import { archivarContratoPdfConfirmado } from '@/lib/contrato-pdf-archivo'
+import { archivarContratoPdfConfirmado, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
+import { useAuth } from '@/lib/auth-context'
+import { puedeEliminarContratos } from '@/lib/roles'
+import { crmQueryKeys } from '@/data/crm-queries'
 
 export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: {
   actor: string; permiteInversion: boolean; gestionAvance: ReactNode
 }) {
   const {equipo} = useCRMData()
+  const {yo} = useAuth()
+  const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const qc = useQueryClient()
   const [filtros, setFiltros] = useState<FiltrosInversionistas>(FILTROS_INVERSIONISTAS_INICIALES)
   const [busqueda, setBusqueda] = useState('')
@@ -105,6 +110,18 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
       else toast.error(mensajeDeError(e, 'No se pudo descargar el documento.'))
     } finally {if (documento.current === abort) setDescargando(false)}
   }
+  async function eliminarContrato(i: InversionFuente) {
+    if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato || i.inversion_id !== null) throw new Error('No tienes permiso para eliminar este contrato.')
+    const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
+    await Promise.all([
+      qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),
+      qc.invalidateQueries({queryKey: crmQueryKeys.contratos()}),
+      qc.invalidateQueries({queryKey: crmQueryKeys.metricas()}),
+      qc.invalidateQueries({queryKey: crmQueryKeys.leads()}),
+      qc.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
+    ])
+    toast.success(`Contrato ${i.numero || ''} eliminado. Copia de auditoría: ${auditoriaId}.`)
+  }
   if (gestion) return <div className="space-y-4">
     <Button variant="outline" onClick={() => setGestion(false)}>Volver a la cartera multiempresa</Button>
     <p className="text-sm text-muted-foreground">Consulta cronogramas y gestiona los clientes y contratos Avance existentes.</p>
@@ -161,6 +178,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
         enfocarInversiones={volverAInversiones}
         onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
         onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
+        onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
     </Sheet>}
     {nueva && <InversionNueva key={nueva.persona} actor={actor} persona={nueva.persona} operacion={nueva.operacion}

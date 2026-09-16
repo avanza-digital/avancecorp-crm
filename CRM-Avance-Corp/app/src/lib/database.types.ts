@@ -14,6 +14,33 @@ export type Database = {
   }
   crm: {
     Tables: {
+      contratos_eliminados_auditoria: {
+        Row: {
+          archivos: Json
+          contrato_id: string
+          eliminado_en: string
+          eliminado_por: string
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          archivos: Json
+          contrato_id: string
+          eliminado_en?: string
+          eliminado_por: string
+          id?: string
+          snapshot: Json
+        }
+        Update: {
+          archivos?: Json
+          contrato_id?: string
+          eliminado_en?: string
+          eliminado_por?: string
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
       correcciones_correo_acceso: {
         Row: {
           auth_confirmado_en: string | null
@@ -3639,6 +3666,10 @@ export type Database = {
       }
     }
     Functions: {
+      contrato_eliminar_auditado: {
+        Args: { p_actor_id: string; p_contrato_id: string }
+        Returns: Json
+      }
       preparar_correccion_correo_acceso_fn: {
         Args: {
           p_actor_id: string

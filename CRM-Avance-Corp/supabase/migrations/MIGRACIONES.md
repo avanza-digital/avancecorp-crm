@@ -1,5 +1,15 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260915222925 — Eliminación de contratos con pagos y copia de auditoría
+
+**PREPARADA LOCALMENTE; NO INSTALADA EN PRODUCCIÓN.** Pedido de Miguel:
+Admin también puede eliminar contratos con pagos conservando copia de auditoría.
+RPC solo service_role, rol activo revalidado, archivo inmutable y eliminación
+atómica; PDF privados retenidos. Cierra las RPC externas de borrado anteriores.
+Conserva bloqueos F4, meses cerrados y dependencias del portal. Sin backfill ni
+eliminación de datos al instalar. Tipos derivados de la base sintética.
+[Pruebas, revisión, límites y procedimiento](../scripts/contratos-eliminar/README.md).
+
 ## 20260915170237 — Lectura individual de la ficha canónica
 
 **PUBLICADA Y VERIFICADA**, registro `20260915185535`, nueve sentencias literales

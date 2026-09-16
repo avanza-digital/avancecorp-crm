@@ -19,6 +19,7 @@ import type { OperacionInversion } from './inversion-nueva'
 import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
+import { ContratoEliminar } from './contrato-eliminar'
 
 export function ResumenEmpresas({totales}: {totales: ResumenEmpresa[]}) {
   return <div className="@container/resumen"><dl className="grid gap-3 @md/resumen:grid-cols-2 @3xl/resumen:grid-cols-3">
@@ -50,7 +51,7 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro}: {
+function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar}: {
   posicion: number
   postventa?: boolean | undefined
   onRetiro?: ((inversion: InversionFuente) => void) | undefined
@@ -58,6 +59,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
+  onEliminar?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const i = inversion
   const [abierta, setAbierta] = useState(false)
@@ -115,6 +117,11 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <ChevronDown aria-hidden className={abierta ? 'rotate-180' : undefined} /> {abierta ? 'Ocultar detalle' : 'Ver inversión'}
       </Button>
       {i.pdf?.reintentable && onRecuperarPdf && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onRecuperarPdf(i)}>Recuperar PDF pendiente</Button>}
+      {onEliminar && i.empresa === 'avance' && i.contrato && <>
+        <Button variant="destructive" size="xs" className="min-h-10" disabled={i.inversion_id !== null}
+          aria-label={`Eliminar contrato ${referenciaAccesible}`} onClick={() => onEliminar(i)}>Eliminar contrato</Button>
+        {i.inversion_id !== null && <p className="text-xs text-muted-foreground">Este contrato se conserva en el historial de inversiones y no se puede eliminar.</p>}
+      </>}
     {onOperacion && i.empresa === 'avance' && i.contrato && i.perfil_id && <>
       {i.estado === 'activo' && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>Aumentar inversión</Button>}
       {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}
@@ -128,14 +135,16 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   />
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, enfocarInversiones = false}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, enfocarInversiones = false}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
   enfocarInversiones?: boolean
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onNuevaInversion?: ((ficha: FichaInversionista) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
+  onEliminar?: ((inversion: InversionFuente) => Promise<void>) | undefined
 }) {
+  const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
   const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
@@ -158,6 +167,9 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   const ficha = accesoRevocado ? null : q.isFetchedAfterMount && q.isSuccess ? q.data
     : q.isError && confirmada?.clave === clave ? confirmada.ficha : null
   const desactualizada = Boolean(ficha && q.isError)
+  useEffect(() => {
+    if (!onEliminar || desactualizada || accesoRevocado) setContratoEliminar(null)
+  }, [onEliminar, desactualizada, accesoRevocado])
   useEffect(() => {
     if (!enfocarInversiones || focoAplicado.current || !ficha) return
     let segundo = 0
@@ -247,6 +259,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
           {inversiones.map((i, posicion) => <li key={i.fuente_id}><InversionDetalle inversion={i} posicion={posicion + 1} postventa={ficha.capacidades.postventa && !desactualizada}
             onRetiro={setRetiroElegido} onDocumento={ficha.capacidades.documentos && !desactualizada ? onDocumento : undefined}
             onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
+            onEliminar={!desactualizada && onEliminar ? setContratoEliminar : undefined}
             onOperacion={ficha.capacidades.nueva_inversion && !desactualizada ? onOperacion : undefined} /></li>)}
           </ul>
         </div>)}
@@ -283,6 +296,9 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       </FichaComercialSeccionPlegable>}
     </SheetBody>
     <SheetFooter className="justify-between"><Button variant="outline" className="min-h-11" onClick={onCerrar}>Cerrar</Button>{agendar}</SheetFooter>
+    {contratoEliminar && onEliminar && !desactualizada && <ContratoEliminar
+      key={contratoEliminar.fuente_id} inversion={contratoEliminar} onConfirmar={onEliminar}
+      onCerrar={() => setContratoEliminar(null)} />}
   </>
   return <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido}
     deshabilitado={desactualizada} onRetiroCerrado={() => setRetiroElegido(null)}>{contenido}</PostventaPersona>

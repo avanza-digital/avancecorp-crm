@@ -1,0 +1,67 @@
+{
+  "estado": "VALIDACION_REMOTA_EN_CURSO",
+  "proyecto_produccion": "dctqcbznekcyxhjujuci",
+  "rama_prueba": {
+    "id": "0416f02e-9e8b-4bb8-98dd-71c4f7a00831",
+    "ref": "urjpvkbjvpraegrmdnos",
+    "creada_en": "2026-09-15T23:10:48.649851Z",
+    "coste_usd_hora": 0.01344
+  },
+  "sql": {
+    "archivo": "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
+    "sha256": "62343b68dbc42f04b93e2126830e3deb77d4ceda30c55568ce7eb635d29d61c0",
+    "produccion_instalada": false
+  },
+  "checks": {
+    "frontend": {
+      "estado": "PASS",
+      "archivos": 247,
+      "tests": 3620
+    },
+    "e2e": {
+      "estado": "PASS",
+      "tests": 192,
+      "omitidos": 26
+    },
+    "edge": {
+      "estado": "PASS",
+      "tests": 44
+    },
+    "edge_check": {
+      "estado": "PASS"
+    },
+    "scripts": {
+      "estado": "PASS"
+    },
+    "edge_preflight": {
+      "estado": "PASS"
+    },
+    "sql_local": {
+      "estado": "PASS",
+      "grupos": 5
+    }
+  },
+  "paridad": {
+    "funciones": [
+      {
+        "project": 0,
+        "huella": "7f14dca6045d65477ef7f63957320dcf",
+        "count": 649
+      },
+      {
+        "project": 1,
+        "huella": "7f14dca6045d65477ef7f63957320dcf",
+        "count": 649
+      }
+    ],
+    "tablas": 113,
+    "storage_policies": 12,
+    "nota": "La numeración física de columnas eliminadas de perfiles varía; nombres, tipos y restricciones coinciden. Dos funciones se recapturaron después del dump para igualar el padre."
+  },
+  "limites": [
+    "No permite eliminar fuentes ligadas a historial F4.",
+    "Conserva bloqueos de meses cerrados, renovaciones y FK restrictivas.",
+    "Los archivos permanecen privados en sus rutas originales; no se duplica su contenido.",
+    "No se publica ni se instala SQL en producción durante este ensayo."
+  ]
+}

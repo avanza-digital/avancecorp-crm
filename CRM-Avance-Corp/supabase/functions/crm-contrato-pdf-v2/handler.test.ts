@@ -1,3 +1,4 @@
+import { deepStrictEqual as assertEquals } from "node:assert";
 import {
   type BackendResult,
   CONTRATO_PDF_MAX_BYTES,
@@ -454,155 +455,86 @@ Deno.test("v2 acepta solo las dos claves JSON y UUID canónico", async () => {
   }
 });
 
-Deno.test("delete exige Admin/Superadmin antes de tocar Storage", async () => {
-  const { deps, calls } = fake({
-    admin: [{
-      data: null,
-      error: { code: "42501", message: "Solo Admin o Superadmin" },
-    }],
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 403, "rol insuficiente");
-  igual(
-    calls.join("|"),
-    "auth|admin:contrato_eliminacion_preparar",
-    "no elimina objetos sin autorización",
-  );
-});
-
-Deno.test("delete explica la conservación del historial F4 antes de tocar Storage", async () => {
-  const mensaje =
-    "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda";
-  const { deps, calls } = fake({
-    admin: [{ data: null, error: { code: "55000", message: mensaje } }],
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 409, "conflicto de conservación");
-  igual((await res.json()).error, mensaje, "explica la alternativa comercial");
-  igual(
-    calls.join("|"),
-    "auth|admin:contrato_eliminacion_preparar",
-    "no entrega rutas ni elimina bytes",
-  );
-});
-
-Deno.test("delete no filtra diagnósticos internos inesperados del backend", async () => {
-  const { deps } = fake({
-    admin: [{
-      data: null,
-      error: {
-        code: "XX000",
-        message: "relation private.secreta columna token_interno falló",
-      },
-    }],
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 503, "error inesperado es transitorio y opaco");
-  const json = await res.json();
-  igual(
-    json.error,
-    "No se pudo autorizar la eliminación del contrato",
-    "usa diagnóstico público estable",
-  );
-  igual(
-    JSON.stringify(json).includes("token_interno"),
-    false,
-    "no expone detalle privado",
-  );
-});
-
-Deno.test("delete rechaza un manifiesto que apunte fuera del contrato", async () => {
+Deno.test("delete conserva pagos y archivos mediante la RPC auditada, sin tocar Storage", async () => {
   const { deps, calls } = fake({
     admin: [{
       data: {
+        ok: true,
         contrato_id: CONTRATO_ID,
-        token: LEASE_TOKEN,
-        objetos: [{
-          bucket: "documentos",
-          path: "otro-contrato/anexo.pdf",
-        }],
+        auditoria_id: JOB_ID,
+        archivos_conservados: 2,
       },
       error: null,
     }],
   });
   const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
+    request({ action: "delete-audited", contratoId: CONTRATO_ID }),
   );
-  igual(res.status, 409, "manifiesto incoherente");
-  igual(calls.some((call) => call.startsWith("remove:")), false, "no borra");
-  igual(
-    calls.includes("admin:contrato_eliminacion_finalizar"),
-    false,
-    "no finaliza",
-  );
+  assertEquals(res.status, 200);
+  assertEquals(await res.json(), {
+    ok: true,
+    contratoId: CONTRATO_ID,
+    auditoriaId: JOB_ID,
+    archivosConservados: 2,
+  });
+  assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
 });
 
-Deno.test("delete elimina ambos buckets y después confirma la fila", async () => {
-  const documento = `${CONTRATO_ID}/1700000000000_anexo.pdf`;
-  const { deps, calls } = fake({
-    admin: [
+for (
+  const [code, message, status] of [
+    ["42501", "Solo Admin o Superadmin puede eliminar contratos", 403],
+    [
+      "55000",
+      "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda",
+      409,
+    ],
+    [
+      "P0409",
+      "El contrato pertenece a un mes comercial cerrado y no se puede eliminar",
+      409,
+    ],
+  ] as const
+) {
+  Deno.test(`delete conserva el rechazo ${code} sin modificar archivos`, async () => {
+    const { deps, calls } = fake({
+      admin: [{ data: null, error: { code, message } }],
+    });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "delete-audited", contratoId: CONTRATO_ID }),
+    );
+    assertEquals(res.status, status);
+    assertEquals((await res.json()).error, message);
+    assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
+  });
+}
+
+Deno.test("delete no revela diagnósticos internos ni asegura éxito sin auditoría", async () => {
+  for (
+    const resultado of [
+      { data: null, error: { code: "XX000", message: "secreto interno" } },
       {
-        data: {
-          contrato_id: CONTRATO_ID,
-          token: LEASE_TOKEN,
-          objetos: [
-            { bucket: "contratos-generados", path: PATH },
-            { bucket: "documentos", path: documento },
-          ],
-        },
+        data: { ok: true, contrato_id: CONTRATO_ID, archivos_conservados: 2 },
         error: null,
       },
       {
         data: {
           ok: true,
-          contrato_id: CONTRATO_ID,
-          objetos_eliminados: 2,
+          contrato_id: ACTOR_ID,
+          auditoria_id: JOB_ID,
+          archivos_conservados: 2,
         },
         error: null,
       },
-    ],
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 200, "borrado completo");
-  igual(
-    calls.join("|"),
-    "auth|admin:contrato_eliminacion_preparar|remove:contratos-generados:1|remove:documentos:1|admin:contrato_eliminacion_finalizar",
-    "Storage precede al hard-delete",
-  );
-  const json = await res.json();
-  igual(json.ok, true, "respuesta confirma");
-  igual(json.archivosEliminados, 2, "reporta objetos");
-});
-
-Deno.test("delete no finaliza la base si Storage falla", async () => {
-  const { deps, calls } = fake({
-    admin: [{
-      data: {
-        contrato_id: CONTRATO_ID,
-        token: LEASE_TOKEN,
-        objetos: [{ bucket: "contratos-generados", path: PATH }],
-      },
-      error: null,
-    }],
-    deleteError: { code: "STORAGE_DOWN", message: "caído" },
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "delete", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 503, "Storage es requisito");
-  igual(
-    calls.includes("admin:contrato_eliminacion_finalizar"),
-    false,
-    "contrato queda para reintento",
-  );
+    ]
+  ) {
+    const { deps, calls } = fake({ admin: [resultado] });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "delete-audited", contratoId: CONTRATO_ID }),
+    );
+    assertEquals(res.ok, false);
+    assertEquals((await res.text()).includes("secreto interno"), false);
+    assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
+  }
 });
 
 Deno.test("status sellado verifica bytes y hash antes de firmar", async () => {
@@ -1237,4 +1169,27 @@ Deno.test("body sin Content-Length también se limita antes de auth", async () =
   const res = await crearHandlerContratoPdfV2(deps)(req);
   igual(res.status, 413, "límite efectivo sin cabecera");
   igual(calls.length, 0, "no autentica ni toca backend");
+});
+
+Deno.test("delete anterior conserva su formato de respuesta y también archiva", async () => {
+  const { deps, calls } = fake({
+    admin: [{
+      data: {
+        ok: true,
+        contrato_id: CONTRATO_ID,
+        auditoria_id: JOB_ID,
+        archivos_conservados: 3,
+      },
+      error: null,
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  assertEquals(await res.json(), {
+    ok: true,
+    contratoId: CONTRATO_ID,
+    archivosEliminados: 0,
+  });
+  assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
 });

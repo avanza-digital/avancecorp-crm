@@ -1,3 +1,4 @@
+import {ContratoEliminacionError} from '@/lib/contrato-pdf-archivo'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -10,10 +11,12 @@ import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
 vi.mock('@/data/postventa-api', () => ({estadoPostventa: vi.fn().mockResolvedValue({version: 1, habilitada: false}), fichaPostventa: (...args: unknown[]) => api.postventa(...args)}))
-vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: 'gerencia', demo: false}})}))
+const sesion = vi.hoisted(() => ({rolPortal: 'directorio', demo: false}))
+vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: 'gerencia', rol_portal: sesion.rolPortal, demo: sesion.demo}})}))
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
-  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn()}))
+  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn()}))
+vi.mock('@/lib/contrato-pdf-archivo', async (original) => ({...await original<typeof import('@/lib/contrato-pdf-archivo')>(), eliminarContratoConPdf:api.eliminar}))
 vi.mock('@/data/inversionistas-api', () => ({listarInversionistas:api.lista, obtenerFichaInversionista:api.ficha,
   obtenerCuentasInversionista:api.bancos, descargarDocumentoInversionista:api.documento}))
 vi.mock('@/data/inversion-solicitud-api', () => ({consultarSolicitudInversion:api.consultar, prepararSolicitudInversion:api.preparar,
@@ -34,7 +37,7 @@ const solicitud = (id=FUENTE_F5): SolicitudInversion => ({solicitud_id:id,estado
   responsable_actual_id:ACTOR_F5,requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'hash',
   necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:`${PERSONA_F5}/${id}/comprobante.pdf`,resultado:null})
 beforeEach(() => {
-  vi.clearAllMocks(); sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
+  vi.clearAllMocks(); sesion.rolPortal='directorio'; sesion.demo=false; sessionStorage.clear(); history.replaceState(null, '', '#/mi-cartera')
   api.postventa.mockResolvedValue({version:1,habilitada:true,retiros:[]})
   api.lista.mockResolvedValue(structuredClone(carteraF5)); api.ficha.mockResolvedValue(structuredClone(fichaF5)); api.bancos.mockResolvedValue([])
 })
@@ -236,7 +239,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     api.lista.mockRejectedValue(new CrmApiError('Sin conexión','RED'))
     await act(async()=>{await qc.invalidateQueries({queryKey:[...inversionistasKeys.actor(ACTOR_F5),'lista']})})
     expect(screen.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).toBe(fila)
-    expect(screen.getByText(/Se muestran los últimos datos confirmados/)).toBeInTheDocument()
+    expect(await screen.findByText(/Se muestran los últimos datos confirmados/)).toBeInTheDocument()
     api.lista.mockRejectedValue(new CrmApiError('No autorizado','42501'))
     await act(async()=>{await qc.invalidateQueries({queryKey:[...inversionistasKeys.actor(ACTOR_F5),'lista']})})
     await waitFor(()=>expect(screen.queryByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).not.toBeInTheDocument())
@@ -383,5 +386,86 @@ describe('F5: revisión y recuperación económica', () => {
     expect(api.consultar).toHaveBeenCalledWith(FUENTE_F5,expect.any(AbortSignal))
     expect(api.confirmar).toHaveBeenCalledWith(FUENTE_F5,8)
     expect(api.preparar).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('Eliminación administrativa de contratos desde la ficha', () => {
+  function contratoAvance() {
+    const ficha=structuredClone(fichaF5)
+    ficha.inversiones[0]!.empresa='avance'
+    ficha.inversiones[0]!.numero='2026-01-999999'
+    ficha.inversiones[0]!.perfil_id=PERFIL_F5
+    ficha.inversiones[0]!.contrato={fecha_inicio:'2026-09-01',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}
+    api.ficha.mockResolvedValue(ficha)
+    return ficha
+  }
+  it.each(['admin','superadmin'])('%s confirma el número y actualiza cartera tras conservar auditoría',async(rol)=>{
+    sesion.rolPortal=rol
+    const ficha=contratoAvance()
+    api.eliminar.mockImplementation(async()=>{
+      api.ficha.mockResolvedValue({...ficha,inversiones:[],inversiones_total:0})
+      return {contratoId:FUENTE_F5,auditoriaId:PERFIL_F5,archivosConservados:2}
+    })
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Eliminar contrato 2026-01-999999'}))
+    const dialogo=screen.getByRole('dialog',{name:'Eliminar contrato 2026-01-999999'})
+    expect(within(dialogo).getByText(/incluidos los pagos registrados/)).toBeVisible()
+    const confirmar=within(dialogo).getByRole('button',{name:'Eliminar y conservar auditoría'})
+    expect(confirmar).toBeDisabled()
+    await user.type(within(dialogo).getByLabelText('Escribe 2026-01-999999 para confirmar'),'incorrecto')
+    expect(confirmar).toBeDisabled()
+    await user.clear(within(dialogo).getByRole('textbox'))
+    await user.type(within(dialogo).getByRole('textbox'),'2026-01-999999')
+    expect(api.eliminar).not.toHaveBeenCalled()
+    await user.click(confirmar)
+    await waitFor(()=>expect(api.eliminar).toHaveBeenCalledExactlyOnceWith(FUENTE_F5))
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Eliminar contrato 2026-01-999999'})).not.toBeInTheDocument())
+    expect(await screen.findByText('Este cliente todavía no tiene una inversión registrada.')).toBeVisible()
+  })
+  it.each(['analista','directorio','operaciones'])('oculta eliminar para %s',async(rol)=>{
+    sesion.rolPortal=rol;contratoAvance()
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión 2026-01-999999'})
+    expect(screen.queryByRole('button',{name:/Eliminar contrato/})).not.toBeInTheDocument()
+  })
+  it('cancelar no borra y un rechazo del servidor conserva el contrato y muestra el motivo',async()=>{
+    sesion.rolPortal='admin';contratoAvance()
+    api.eliminar.mockRejectedValue(new ContratoEliminacionError('El contrato forma parte del historial de inversiones'))
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Eliminar contrato 2026-01-999999'}))
+    await user.click(screen.getByRole('button',{name:'Cancelar'}))
+    expect(api.eliminar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button',{name:'Eliminar contrato 2026-01-999999'}))
+    const dialogo=screen.getByRole('dialog',{name:'Eliminar contrato 2026-01-999999'})
+    await user.type(within(dialogo).getByRole('textbox'),'2026-01-999999')
+    await user.click(within(dialogo).getByRole('button',{name:'Eliminar y conservar auditoría'}))
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('historial de inversiones')
+    expect(api.eliminar).toHaveBeenCalledExactlyOnceWith(FUENTE_F5)
+  })
+  it('el administrador no recibe borrado Avance para cooperativas',async()=>{
+    sesion.rolPortal='admin'
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryByRole('button',{name:/Eliminar contrato/})).not.toBeInTheDocument()
+  })
+  it.each(['demo','sin contrato','historial'] as const)('protege una ficha en estado %s',async(estado)=>{
+    sesion.rolPortal='admin'
+    const ficha=contratoAvance()
+    if(estado==='demo') sesion.demo=true
+    if(estado==='sin contrato') ficha.inversiones[0]!.contrato=null
+    if(estado==='historial') ficha.inversiones[0]!.inversion_id=FUENTE_F5
+    api.ficha.mockResolvedValue(ficha)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión 2026-01-999999'})
+    const borrar=screen.queryByRole('button',{name:/Eliminar contrato/})
+    if(estado==='historial') expect(borrar).toBeDisabled()
+    else expect(borrar).not.toBeInTheDocument()
+    expect(api.eliminar).not.toHaveBeenCalled()
   })
 })

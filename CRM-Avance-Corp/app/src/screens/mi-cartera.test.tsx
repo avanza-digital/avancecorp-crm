@@ -504,7 +504,7 @@ function montar(
   archivoPdf.asegurar.mockReset().mockResolvedValue({ estado: 'sellado' })
   archivoPdf.eliminar.mockReset().mockResolvedValue({
     contratoId: CONTRATOS?.[0]?.id ?? 'k-1',
-    archivosEliminados: 2,
+    archivosConservados: 2,
   })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return Object.assign(render(
@@ -1231,7 +1231,7 @@ describe('MiCartera (pantalla)', () => {
     await user.click(await screen.findByRole('button', { name: 'Eliminar contrato' }))
 
     expect(archivoPdf.eliminar).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
+    await user.click(screen.getByRole('button', { name: /Sí, eliminar y conservar auditoría/i }))
 
     await vi.waitFor(() => expect(archivoPdf.eliminar).toHaveBeenCalledWith('k-1'))
     expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.contratos() })

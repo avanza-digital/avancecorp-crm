@@ -132,7 +132,7 @@ describe('ContratoDetalle · co-titulares', () => {
     expect(onEliminar).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(/todas las revisiones del PDF/i)
 
-    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
+    await user.click(screen.getByRole('button', { name: /Sí, eliminar y conservar auditoría/i }))
     expect(onEliminar).toHaveBeenCalledOnce()
   })
 
