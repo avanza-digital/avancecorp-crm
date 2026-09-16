@@ -1,3 +1,8 @@
+> **Estado actualizado 16/09:** backend y frontend publicados. La entrega
+> autorizada de Cartera incluyó esta interfaz desde `a09ecad`; 78 recursos HTTP
+> idénticos verificados. La deuda global se repara en `../rls-vigente/`.
+> Las menciones de frontend pendiente más abajo describen la preparación original.
+
 # Eliminar contratos con pagos y conservar auditoría
 
 ## Estado

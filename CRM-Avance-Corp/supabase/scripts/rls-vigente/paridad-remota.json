@@ -1,0 +1,82 @@
+{
+  "produccion": 651,
+  "rama": 651,
+  "diferencias": [
+    {
+      "funcion": "private.conversion_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric)",
+      "rama": {
+        "schema": "private",
+        "nombre": "conversion_episodios",
+        "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric",
+        "md5": "3f4c6504ab2a8ec68a141a860875c74e",
+        "definer": true,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      },
+      "prod": {
+        "schema": "private",
+        "nombre": "conversion_episodios",
+        "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric",
+        "md5": "0358173b5ce739c23aeb3639ccd0760c",
+        "definer": true,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      }
+    },
+    {
+      "funcion": "private.metricas_distribucion_leads_core(p_desde date, p_hasta date, p_ahora timestamp with time zone)",
+      "rama": {
+        "schema": "private",
+        "nombre": "metricas_distribucion_leads_core",
+        "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+        "md5": "a27998d5a122cd91eff5444af1f56654",
+        "definer": false,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      },
+      "prod": {
+        "schema": "private",
+        "nombre": "metricas_distribucion_leads_core",
+        "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+        "md5": "f7528cab7ba119ea29f07161b345c59a",
+        "definer": false,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      }
+    },
+    {
+      "funcion": "private.trg_piloto_f8_control_validar()",
+      "rama": {
+        "schema": "private",
+        "nombre": "trg_piloto_f8_control_validar",
+        "args": "",
+        "md5": "201a4b2fd6d062d7930e673d9986f5de",
+        "definer": true,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      },
+      "prod": {
+        "schema": "private",
+        "nombre": "trg_piloto_f8_control_validar",
+        "args": "",
+        "md5": "dca0a332f21fda89f88f4614e0db0c75",
+        "definer": true,
+        "acl": "{postgres=X/postgres}",
+        "config": [
+          "search_path=\"\""
+        ]
+      }
+    }
+  ],
+  "corte": "Ensayo con 651 funciones, antes de Cartera. Producción avanzó a 653 por Cartera; no se aplicó Cartera a esta rama antes de la pausa."
+}

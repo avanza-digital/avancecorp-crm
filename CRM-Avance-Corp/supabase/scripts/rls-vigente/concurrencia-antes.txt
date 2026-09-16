@@ -1,0 +1,106 @@
+✔ activación válida incrementa una revisión y conserva F3/F4 (147.953417ms)
+✖ activación rechaza un apagado F3 en curso sin esperar ni dejar cambios (94.493292ms)
+✖ F3 sigue siendo apagado general: espera la activación y cierra F4/F5/F6 (113.970916ms)
+✔ apagar F8 sigue permitido bajo REPEATABLE READ y F3 apagado (101.892709ms)
+✖ activación F8 rechaza el encendido global F4 en curso sin interbloqueo (4069.87875ms)
+✖ F4 ON seguido de F3 OFF en la misma transacción no se cruza con la activación (4102.73ms)
+✖ F3 OFF seguido de F8 OFF conserva el apagado sin interbloqueo de fila (88.855625ms)
+✔ el control no se elimina y el trigger conserva eventos y estado (82.900041ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 3
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8907.488958
+
+✖ failing tests:
+
+test at supabase/scripts/rls-vigente/f8-candado.test.mjs:128:1
+✖ activación rechaza un apagado F3 en curso sin esperar ni dejar cambios (94.493292ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to: 0
+      at TestContext.<anonymous> (file://<repo>/CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs:134:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at supabase/scripts/rls-vigente/f8-candado.test.mjs:147:1
+✖ F3 sigue siendo apagado general: espera la activación y cierra F4/F5/F6 (113.970916ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file://<repo>/CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs:152:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at supabase/scripts/rls-vigente/f8-candado.test.mjs:174:1
+✖ activación F8 rechaza el encendido global F4 en curso sin interbloqueo (4069.87875ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /P0409/. Input:
+
+  'ERROR:  55P03: canceling statement due to lock timeout\n' +
+    `CONTEXT:  SQL statement "SELECT pg_advisory_xact_lock(hashtext('crm_piloto_f8_control'))"\n` +
+    'PL/pgSQL function private.trg_piloto_f8_control_validar() line 10 at PERFORM\n' +
+    'LOCATION:  ProcessInterrupts, postgres.c:3398\n'
+
+      at TestContext.<anonymous> (file://<repo>/CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs:180:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `ERROR:  55P03: canceling statement due to lock timeout\nCONTEXT:  SQL statement "SELECT pg_advisory_xact_lock(hashtext('crm_piloto_f8_control'))"\nPL/pgSQL function private.trg_piloto_f8_control_validar() line 10 at PERFORM\nLOCATION:  ProcessInterrupts, postgres.c:3398\n`,
+    expected: /P0409/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at supabase/scripts/rls-vigente/f8-candado.test.mjs:190:1
+✖ F4 ON seguido de F3 OFF en la misma transacción no se cruza con la activación (4102.73ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /P0409/. Input:
+
+  'ERROR:  55P03: canceling statement due to lock timeout\n' +
+    `CONTEXT:  SQL statement "SELECT pg_advisory_xact_lock(hashtext('crm_piloto_f8_control'))"\n` +
+    'PL/pgSQL function private.trg_piloto_f8_control_validar() line 10 at PERFORM\n' +
+    'LOCATION:  ProcessInterrupts, postgres.c:3398\n'
+
+      at TestContext.<anonymous> (file://<repo>/CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs:197:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `ERROR:  55P03: canceling statement due to lock timeout\nCONTEXT:  SQL statement "SELECT pg_advisory_xact_lock(hashtext('crm_piloto_f8_control'))"\nPL/pgSQL function private.trg_piloto_f8_control_validar() line 10 at PERFORM\nLOCATION:  ProcessInterrupts, postgres.c:3398\n`,
+    expected: /P0409/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at supabase/scripts/rls-vigente/f8-candado.test.mjs:210:1
+✖ F3 OFF seguido de F8 OFF conserva el apagado sin interbloqueo de fila (88.855625ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to: 0
+      at TestContext.<anonymous> (file://<repo>/CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs:215:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

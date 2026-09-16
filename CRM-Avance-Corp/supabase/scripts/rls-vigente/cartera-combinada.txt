@@ -1,0 +1,25 @@
+✔ mes comercial preserva el cierre retroactivo, sin usar registro ni imputación (143.8255ms)
+✔ empresa, mes, moneda y estado deben corresponder a la MISMA fuente (379.76525ms)
+✔ PEN/USD no se mezclan y capital activo viene del mismo núcleo (142.014708ms)
+✔ los estados del contrato no cambian por su etiqueta en pantalla (209.214083ms)
+✔ sin inversiones es ausencia real; clientes fuera del mes no entran en ese grupo (383.276042ms)
+✔ las páginas mantienen totales de TODA la selección y no duplican personas (264.483667ms)
+✔ opciones de mes y responsable incluyen solo el ámbito autorizado, no la página (334.86925ms)
+✔ Directorio conserva solo Avance incluso en opciones y búsqueda de referencias (196.690167ms)
+✔ sin inversiones Avance no revela COOPAC ocultas a Directorio (253.348125ms)
+✔ Sin fecha no confunde ausencia de inversiones con ausencia de fecha (333.723292ms)
+✔ el núcleo no duplica identidades y el DTO no expone campos internos (468.290542ms)
+✔ referencias se buscan literalmente y respetan los demás filtros (335.293083ms)
+✔ No contactar filtra el atributo vigente sin quitar historia ni inventar permiso (142.087583ms)
+✔ vencimiento de 30 días incluye los límites; no entra un contrato retirado (412.71775ms)
+✔ un perfil inactivo conserva capital registrado pero no lo cuenta como activo (69.344ms)
+✔ anon, coordinador, cliente e inactivo no enumeran datos ni opciones (217.819667ms)
+✔ validación estricta y candado F5 previo a todas las lecturas (580.087875ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5120.159208

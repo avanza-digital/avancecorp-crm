@@ -1,4 +1,4 @@
-# Eliminar contratos con pagos por administrador — backend instalado
+# Eliminar contratos con pagos por administrador — publicado
 
 Miguel pidió que Admin pudiera eliminar contratos en el CRM y confirmó:
 **también contratos con pagos, conservando una copia de auditoría**. Después pidió
@@ -19,8 +19,9 @@ Edge/Storage, siete grupos SQL, 284 aserciones remotas de permisos/contratos y
 22 comprobaciones HTTP/Auth/Edge/Storage PASS. La prueba real confirmó pagos
 archivados exactamente, concurrencia, actor y archivos conservados byte a byte.
 Tipos y fuente desplegada en la rama coinciden; advisors sin nuevos WARN/ERROR.
-La matriz global conserva deuda previa, desglosada en el acta; no declarar que pasó.
-Antes y después: 44 aserciones fallidas y la misma interrupción D-13, cero nuevas.
+En aquella entrega, la matriz global conservaba 44 fallos anteriores y la misma
+interrupción D-13. Miguel pidió repararlos después; estado vigente en
+[[Matriz RLS global - reparacion y candado F8 2026-09-16]].
 Rama temporal propia eliminada el 15/09 a las 20:38 Lima; coste estimado US$0,0331.
 
 Dos revisiones Claude evaluadas. Se cerraron las puertas antiguas, se protegió
@@ -33,11 +34,16 @@ con la verificación JWT conservada. Nueve archivos iguales al commit `2145f27`,
 permisos y rechazos SQL/HTTP PASS; 594 contratos y 5.320 cuotas sin cambios,
 cero auditorías. Sin nuevas alertas WARN/ERROR. No se borró ningún contrato real.
 
-**Interfaz web pendiente:** invocación humana de `/release-crm` en Claude o
-`$release-crm` en Codex, según
-`CRM-Avance-Corp/.claude/skills/release-crm/SKILL.md` («solo Miguel lo invoca»).
-Publicar el artefacto del commit sincronizado con `avancecorp/main`; las actas
-actualizadas se integran antes de reconstruir el paquete final.
+**Interfaz publicada:** la entrega autorizada de Cartera incluyó los cambios
+anteriores de Main, incluida esta función. ZIP `crm-20260916T035915Z-a09ecad9aaed`,
+build `build-20260916T035613621Z`. Comprobación HTTP independiente del 16/09:
+78 recursos de código/configuración idénticos. La RPC conserva su cuerpo y ACL;
+Edge v19 es el reempaquetado de las mismas fuentes durante ese merge. No se
+realizó una eliminación de un contrato real para comprobarlo.
+
+La publicación original ya no está pendiente. El ajuste F8 detectado al reparar
+la matriz tiene su SQL separado y requiere autorización propia antes de instalar.
+Relacionado: [[Cartera inversionistas - implementacion de filtros comerciales (2026-09-15)]].
 
 Acta técnica, hashes, evidencia y estado del banco:
 `CRM-Avance-Corp/supabase/scripts/contratos-eliminar/README.md` y

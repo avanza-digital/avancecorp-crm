@@ -1,5 +1,5 @@
 {
-  "estado": "BACKEND_INSTALADO_FRONTEND_PENDIENTE",
+  "estado": "BACKEND_Y_FRONTEND_PUBLICADOS",
   "fuente_commit": "2145f278245da5b0c795908c66a96d92e930892c",
   "proyecto": "dctqcbznekcyxhjujuci",
   "instalado_utc": "2026-09-16T02:44:23Z",
@@ -195,8 +195,8 @@
     ],
     "removed": []
   },
-  "limite": "La eliminación completa con pagos fue probada en rama sintética; producción solo se comprobó sin eliminar contratos. Interfaz web todavía sin publicar.",
-  "publicacion_web": "Invocación humana: /release-crm en Claude o $release-crm en Codex. Adaptación Codex en .agents/skills/release-crm/SKILL.md. Construir desde Main idéntico a avancecorp/main.",
+  "limite": "La eliminación con pagos se probó en rama sintética. Producción se comprobó sin eliminar contratos: backend instalado y frontend publicado; no es una prueba humana autenticada de borrado real.",
+  "publicacion_web": "Incluida en la entrega autorizada de Cartera a09ecad: build-20260916T035613621Z. Readback HTTP independiente: 78 recursos de código/configuración idénticos. Ver ../rls-vigente/frontend-publicado.json.",
   "http": {
     "momento": "2026-09-16T02:49:26.387Z",
     "checks": [
@@ -227,5 +227,22 @@
       }
     ],
     "limite": "No se autenticó ni eliminó un contrato real. Las pruebas de eliminación completas se hicieron en la rama sintética."
+  },
+  "frontend_actual": {
+    "fecha_utc": "2026-09-16T05:14:33.044Z",
+    "commit_fuente": "a09ecad9aaedc99560f46d6bf42a96dc3b90b6ea",
+    "zip": "crm-20260916T035915Z-a09ecad9aaed.zip",
+    "sha256_zip": "1adbd4b31dc413e87d55a7de062da2dfc70020698ded81dc9b27709441896c1c",
+    "build": "build-20260916T035613621Z",
+    "archivos_codigo": 78,
+    "limite": "Comprobación HTTP del código ya publicado por la entrega de Cartera. No se ejecutó una eliminación real ni navegación humana autenticada."
+  },
+  "backend_readback_20260916": {
+    "rpc_md5": "2d8210b77d1f6f1e3a4e06a1242cf85d",
+    "rpc_acl": "postgres,service_role",
+    "edge_version": 19,
+    "edge_verify_jwt": true,
+    "edge_sha256": "6cc4cf7f179fc11240f6c513efa28472271e179490389d5eae27405d11d700c1",
+    "nota": "Reempaquetado por el merge autorizado de Cartera; fuentes literales conservadas según ../cartera-filtros/publicacion/edge.json."
   }
 }

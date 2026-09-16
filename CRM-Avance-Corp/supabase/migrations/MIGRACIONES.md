@@ -1,5 +1,27 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916040442 — Activación F8 serializada sin interbloqueos
+
+**CANDIDATA: pendiente de autorización e instalación productiva.** Detectada al
+reparar la matriz RLS global para la publicación de eliminación auditada.
+El trigger privado lee F3 con su candado vigente; intenta F3/F8 sin esperar para
+no cruzarse con la fila de control que BEFORE ROW ya retiene. Un cambio
+administrativo concurrente recibe P0409 y puede reintentarse. Conserva el apagado
+general F3 y la desactivación F8 con REPEATABLE READ. No cambia tablas, firmas,
+privilegios, miembros, banderas ni datos de negocio.
+
+Preflight: definición completa MD5 `47585a27b991a442bb09b3477be5f224` y trigger
+BEFORE DELETE OR UPDATE habilitado. Postflight: cuerpo
+`201a4b2fd6d062d7930e673d9986f5de`, atributos y permisos exactos.
+Ocho pruebas de concurrencia/operación y tres de guardas/reversa PASS local.
+El original falla cinco de los ocho casos. Matriz global local 1.867 PASS;
+remoto 1.865 PASS + un ETIMEDOUT, bloque D-5 repetido con 28 PASS.
+Compatibilidad con Cartera vigente: 17 grupos SQL PASS. Advisors revisados, rama
+eliminada y evidencia en [rls-vigente](../scripts/rls-vigente/README.md).
+Tipos sin cambios: solo cuerpo de trigger privado. Reversa literal con huellas
+incluida en el mismo directorio. Revisiones y evaluación del PRIMARY adjuntas.
+
+
 ## 20260916023055 — Filtros comerciales de cartera multiempresa
 
 **PUBLICADA Y VERIFICADA 15/09/2026 23:53 Lima.** Registro remoto
@@ -43,7 +65,9 @@ atómica; PDF privados retenidos. Cierra las RPC externas de borrado anteriores.
 Conserva bloqueos F4, meses cerrados y dependencias del portal. Sin backfill ni
 eliminación de datos al instalar. Tipos cotejados con la rama sintética remota.
 Complementaria `20260916003000` también instalada; Edge versión 18 verificada.
-Fuente literal y huellas intactas; interfaz web pendiente de `/release-crm`.
+Fuente literal y huellas intactas. Interfaz incluida en la publicación de Cartera
+`a09ecad`, build `build-20260916T035613621Z`; 78 recursos HTTP verificados.
+Edge actual v19 tras reempaquetado, fuentes conservadas según el readback.
 [Readback productivo](../scripts/contratos-eliminar/PRODUCCION.json).
 [Pruebas, revisión, límites y procedimiento](../scripts/contratos-eliminar/README.md).
 

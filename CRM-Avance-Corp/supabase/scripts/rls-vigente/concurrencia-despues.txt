@@ -1,0 +1,16 @@
+✔ activación válida incrementa una revisión y conserva F3/F4 (140.609333ms)
+✔ activación rechaza un apagado F3 en curso sin esperar ni dejar cambios (148.681166ms)
+✔ F3 sigue siendo apagado general: espera la activación y cierra F4/F5/F6 (163.054541ms)
+✔ apagar F8 sigue permitido bajo REPEATABLE READ y F3 apagado (109.31625ms)
+✔ activación F8 rechaza el encendido global F4 en curso sin interbloqueo (90.886125ms)
+✔ F4 ON seguido de F3 OFF en la misma transacción no se cruza con la activación (131.910625ms)
+✔ F3 OFF seguido de F8 OFF conserva el apagado sin interbloqueo de fila (111.303959ms)
+✔ el control no se elimina y el trigger conserva eventos y estado (81.396208ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1093.061458

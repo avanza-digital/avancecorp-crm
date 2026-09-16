@@ -1,0 +1,16 @@
+{
+  "estado": "PASS",
+  "grupos": 17,
+  "banco": "rls_f8_cartera_20260916",
+  "aislamiento": "Copia local del banco sintético Cartera; original intacto",
+  "suite_sha256": "e5b79979303f4ed713369932da2e2a09d2da4c9619d6812f510269c230d71199",
+  "adaptacion": "banco.mjs: únicamente db cartera_filtros_20260916 → rls_f8_cartera_20260916",
+  "funciones_md5": {
+    "crm.cartera_inversionistas_filtrada_fn": "173c45a76885d81804a1c1a34de51a36",
+    "crm.cartera_inversionistas_fn": "404ab54d853160525f43c84a0c331257",
+    "private.cartera_f5_listar": "1e18964b0544954d4668e6ce32b7c700",
+    "private.trg_piloto_f8_control_validar": "201a4b2fd6d062d7930e673d9986f5de"
+  },
+  "permisos": "Cartera RPC: postgres y authenticated; núcleo/trigger: solo postgres. search_path vacío.",
+  "corte": "Cartera coincide con producción vigente; F8 es la candidata pendiente."
+}

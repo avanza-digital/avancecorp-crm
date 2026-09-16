@@ -1,0 +1,85 @@
+{
+  "estado": "VALIDADO_INSTALACION_SQL_PENDIENTE_AUTORIZACION",
+  "instalacion_productiva": "PENDIENTE_AUTORIZACION",
+  "fuente_base": "8a98081",
+  "pruebas": {
+    "rls_local": {
+      "assertions": 1867,
+      "estado": "PASS"
+    },
+    "concurrencia_original": {
+      "pass": 3,
+      "fail": 5
+    },
+    "concurrencia_candidata": {
+      "pass": 8,
+      "fail": 0
+    },
+    "guardas_reversa": {
+      "pass": 3,
+      "fail": 0
+    },
+    "frontend_e2e": {
+      "pass": 194,
+      "skipped": 26
+    },
+    "frontend_unitarios": 3632,
+    "check_scripts": "PASS",
+    "edge_preflight": "PASS",
+    "seed_preflight": "PASS",
+    "rls_preflight": "PASS",
+    "banco_sin_reconstruir": "RECHAZO_DE_PRECONDICION_VERIFICADO",
+    "rls_remoto": {
+      "estado": "FAIL_TRANSPORTE_REPETICION_DIRIGIDA_PASS",
+      "assertions": 1866,
+      "pass": 1865,
+      "fail": 1,
+      "causa": "ETIMEDOUT en D-5 ON reservar_conversion_lead",
+      "repeticion_d5": {
+        "local": 28,
+        "remota": 28,
+        "estado": "PASS"
+      },
+      "limite": "La corrida completa conserva exit 1; no se reetiqueta como PASS global remoto."
+    },
+    "cartera_combinada": {
+      "pass": 17,
+      "fail": 0,
+      "estado": "PASS",
+      "limite": "Copia local aislada del banco sintético Cartera. Misma suite sin cambiar aserciones; banco.mjs solo cambia el nombre de la base destino. No es otra corrida de matriz global remota."
+    },
+    "advisors": "REVISADOS_SIN_HALLAZGOS_NUEVOS_ATRIBUIBLES_A_F8",
+    "frontend_estaticos": {
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "bundle": "PASS",
+      "fuente_app": "a09ecad; commits siguientes solo documentación"
+    }
+  },
+  "rama": {
+    "id": "e5fa2092-5412-4298-b590-9d7f990e471c",
+    "ref": "gefmqtpagmyshukuyzgb",
+    "creada_utc": "2026-09-16T04:19:25.919044Z",
+    "coste_usd_hora": 0.01344,
+    "eliminada_utc": "2026-09-16T05:32:17Z",
+    "ausencia_confirmada": true,
+    "coste_estimado_usd": 0.01632
+  },
+  "huellas": {
+    "CRM-Avance-Corp/package.json": "489321ee5e575fc7c97948813bf624c0696e007a1be9bd6231ddb2a249c25143",
+    "CRM-Avance-Corp/supabase/scripts/test-rls.mjs": "5f67ea32887bd89ef9ab673db42a95ff71e6939a5c161b10ba8a3bca1bf2ab80",
+    "CRM-Avance-Corp/supabase/scripts/rls-vigente/f8-candado.test.mjs": "63065a0678a6797afaa582d802261c140e9c3935326127af274bc093e19d5186",
+    "CRM-Avance-Corp/supabase/scripts/rls-vigente/guardas.test.mjs": "ce3ebe1af07c524d15957259a2f1a81653d918d49fa4d836506ba71535036039",
+    "CRM-Avance-Corp/supabase/scripts/rls-vigente/reversa.sql": "d06e3ec48f0622df14dd3eb2caf525d22f1ef9836d584b01bcfcb59949bc492f",
+    "CRM-Avance-Corp/supabase/migrations/20260916040442_crm_piloto_f8_activacion_serializada.sql": "e8940bc632e2aa96ff40a0a3ea18eeafac73ac9430f39f3052fba50bc7cd07cf"
+  },
+  "decision_gate": "Los fallos de negocio quedan reparados. Matriz local completa PASS; remoto completado con un ETIMEDOUT, bloque afectado repetido íntegro 28 PASS. Se acepta esta evidencia dirigida sin ocultar exit 1 del intento remoto original. Compatibilidad con Cartera actual: 17 grupos PASS.",
+  "logs_sha256": {
+    "matriz-local.txt": "af2a45bf7b9a8b8177264e9ec9388a3f2d42113d102344dca97c305214127280",
+    "matriz-remota.txt": "9534260923077fc445df5d9889bdfad1a139b42162e9c91da857572222e5ca07",
+    "d5-local.txt": "b596373bfd6c32e3274f2231f5603d9fe35138c53fdf0643bdd4a403ca64562f",
+    "d5-remoto.txt": "b596373bfd6c32e3274f2231f5603d9fe35138c53fdf0643bdd4a403ca64562f",
+    "cartera-combinada.txt": "a5f916d80ac49b12ab76205f7c70181401c1ea24fec4eef4013c38ad235aa7bc"
+  }
+}
