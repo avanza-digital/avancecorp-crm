@@ -2,7 +2,12 @@
 
 ## 20260916205617 — Facturación para el supervisor: ve el avance de SU equipo
 
-**PREPARADA Y ENSAYADA; PENDIENTE DE INSTALAR EN PRODUCCIÓN (requiere el `!` de Miguel).**
+**✅ INSTALADA Y REGISTRADA EN PRODUCCIÓN el 16/09/2026 (~16:30 Lima) con el `!` de Miguel**
+(`db query --linked --file` de la migración y del registrador). Verificado en solo lectura:
+huella nueva `79d75db2f7457035a804b32464f4caca`, DEFINER de `postgres`, `search_path=""`, cero
+PUBLIC, `anon` no ejecuta; registro `20260916205617` presente. Aceptación como un supervisor real:
+44 filas del mes, 2 ids de supervisor (él y sus ventas propias), S/ 2 430 354 en capital nuevo PEN.
+El postflight ensayó identidad por identidad antes del commit. Front: pendiente de `/release-crm`.
 Miguel, 16/09/2026: «quiero que el módulo de facturación lo tengan los supervisores,
 para ver el avance de sus equipos».
 
