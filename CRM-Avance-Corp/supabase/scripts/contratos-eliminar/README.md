@@ -1,5 +1,6 @@
-> **Corrección del 16/09 preparada, aún no publicada:** el vínculo simple de inversión
-> dejará de bloquear la eliminación. [Estado, SQL y validación](VINCULADA-20260916.md).
+> **Corrección del 16/09 publicada y verificada:** el vínculo simple de inversión
+> permite eliminar con auditoría. SQL aprobado, Edge v20, frontend `a0c47eb` y
+> 96 controles HTTP PASS. [Estado, SQL y validación](VINCULADA-20260916.md).
 > El resto de esta nota documenta la versión original publicada.
 
 > **Estado actualizado 16/09:** backend y frontend publicados. La entrega

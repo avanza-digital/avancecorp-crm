@@ -1,0 +1,896 @@
+{
+  "estado": "PUBLICADO_VERIFICADO",
+  "registrado_en": "2026-09-16T17:08:21.520567+00:00",
+  "autorizacion": "Miguel: ya ets aprobado; SQL exacto, integración con excepción de administrador y publicación previamente solicitados.",
+  "url": "https://crm.miavance.com/",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/1",
+  "fuente": {
+    "commit": "a0c47ebc1d4eaa38544fe1b0e550bdceab021007",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "equivalencia_test": {
+    "commit_probado": "f4cf98b52a9fb9cdd413e23f6990f4566b694578",
+    "arbol_identico": true,
+    "ci": [
+      "verify PASS",
+      "e2e PASS",
+      "preflight PASS"
+    ]
+  },
+  "sql": {
+    "archivo": "20260916160000_crm_eliminacion_auditada_inversion_sin_historial.sql",
+    "sha256": "bbfa0aa413f5fd3045c9a948f24c4436ff6e748d8365713b38d051d5a8d92e68",
+    "registro_remoto": "20260916170027",
+    "prosrc_antes": "2d8210b77d1f6f1e3a4e06a1242cf85d",
+    "prosrc_despues": "c0ae3e3167c82724b784d73b4f427868",
+    "otras_funciones_identicas": 652,
+    "permisos_rls_identicos": true,
+    "conteos_antes_despues": {
+      "contratos": 594,
+      "titulares": 26,
+      "auditorias": 0,
+      "cronograma": 5320,
+      "documentos": 0,
+      "inversiones": 26
+    },
+    "contrato_captura_presente": true,
+    "inversion_captura_presente": true,
+    "advisors": {
+      "seguridad": {
+        "before": 5,
+        "after": 5,
+        "equal": true
+      },
+      "rendimiento": {
+        "before": 5,
+        "after": 5,
+        "equal": true
+      }
+    }
+  },
+  "edge": {
+    "slug": "crm-contrato-pdf-v2",
+    "version": 20,
+    "status": "ACTIVE",
+    "verify_jwt": true,
+    "archivos_identicos": [
+      {
+        "archivo": "assets-v2.ts",
+        "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847"
+      },
+      {
+        "archivo": "deno.json",
+        "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0"
+      },
+      {
+        "archivo": "handler.ts",
+        "sha256": "33e00bb4cb6a0c577881e9bd2ab2e76b36717b7b9d47f42d0e337fc357f5e6a7"
+      },
+      {
+        "archivo": "index.ts",
+        "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4"
+      },
+      {
+        "archivo": "pdfmake-0.2.20-pdfprinter.js",
+        "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4"
+      },
+      {
+        "archivo": "renderer.ts",
+        "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8"
+      },
+      {
+        "archivo": "storage.ts",
+        "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f"
+      },
+      {
+        "archivo": "template-v2.ts",
+        "sha256": "33c8e055d9ac5070c6e6b9a806b0c0e4b1b0358aee413caaef67b14ec1156f61"
+      },
+      {
+        "archivo": "vfs-fonts-0.2.20.js",
+        "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1"
+      }
+    ]
+  },
+  "frontend": {
+    "release_id": "crm-20260916T165912Z-a0c47ebc1d4e",
+    "build_id": "build-20260916T165911818Z",
+    "sha256_zip": "58aa3548076ae892d6a564720c87f36bc26bb88aa075e9a2224da9ddb0736534",
+    "http": {
+      "commit": "a0c47ebc1d4eaa38544fe1b0e550bdceab021007",
+      "sha256_zip": "58aa3548076ae892d6a564720c87f36bc26bb88aa075e9a2224da9ddb0736534",
+      "builds": [
+        {
+          "status": 200,
+          "schema": 1,
+          "buildId": "build-20260916T165911818Z"
+        },
+        {
+          "status": 200,
+          "schema": 1,
+          "buildId": "build-20260916T165911818Z"
+        },
+        {
+          "status": 200,
+          "schema": 1,
+          "buildId": "build-20260916T165911818Z"
+        }
+      ],
+      "resultados": [
+        {
+          "ruta": ".htaccess",
+          "status": 403,
+          "exacto": false,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "036bacf3bd34365006eac2a78e4520a953a6250e9550dcf9c9d4b0678c225b4c"
+        },
+        {
+          "ruta": "404.html",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f"
+        },
+        {
+          "ruta": "aliados/belysh.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce"
+        },
+        {
+          "ruta": "aliados/clinica-alvarez.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb"
+        },
+        {
+          "ruta": "aliados/mascapital.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311"
+        },
+        {
+          "ruta": "aliados/ntc-agency.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429"
+        },
+        {
+          "ruta": "aliados/phoenix.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7"
+        },
+        {
+          "ruta": "aliados/prodelco.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28"
+        },
+        {
+          "ruta": "aliados/qorilazo.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7"
+        },
+        {
+          "ruta": "assets/agenda-pFialOjD.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "42a1f5e41a6b1143c7343958c77117ee2ea78a136199335a5c7a7c66e67d0da2"
+        },
+        {
+          "ruta": "assets/agenda-vistas-DHBPnM7_.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "8c083bee0da7390dc01b40b495b7ee1de47f1c3ba1d6b9b2776b608bda5f452c"
+        },
+        {
+          "ruta": "assets/alertas-R2S9v5Uz.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "a07b5a506f84e07089cc00784a051c64414712d2dda6b320461da735d862c7be"
+        },
+        {
+          "ruta": "assets/animated-value-CxWwuyas.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258"
+        },
+        {
+          "ruta": "assets/aviso-degradacion-38XxRG7T.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "ee1b7e59fde6c128842f16e8bf22044874870b5f4967d091b60237bbecabbe47"
+        },
+        {
+          "ruta": "assets/card-DpW7S35i.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "e3a382f79c0d01f5dd3e4a1ac6cc294d16c1e0865c2f87ed35614543d0c130c7"
+        },
+        {
+          "ruta": "assets/cartera-C89prdlb.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "18466e9362221cdc6e1a5a7618b535581fc091ce636f3ff81a1bbf60bc65661a"
+        },
+        {
+          "ruta": "assets/cierres-externos-seccion-D5keql-N.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "50aadee453ffc6ff959ba3e5a6a8a65226b8a46433a6a60eb7e06bfa1028c8ca"
+        },
+        {
+          "ruta": "assets/clientes-vista-BT9wOPoj.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815"
+        },
+        {
+          "ruta": "assets/config-C3qSijR6.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "8776572eb8956933c282b451ab4d1fb833fd0fb15f8bd5089b1d5b24d275c79a"
+        },
+        {
+          "ruta": "assets/config-citas-D3b75c7w.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "7615e38721688b3fdc2ab6a614bacb129bcd4e28df03654357d65a2c9601f707"
+        },
+        {
+          "ruta": "assets/config-metas-DNy-gT_A.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "5230a85dbd7f138d38426ca5a9247df472dea42f2ad04edea6b0e9e3b78f3ecd"
+        },
+        {
+          "ruta": "assets/config-productos-B3ot65G2.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "1ba52f93d0d11c1677144feade57a4b6aacc539f0cd20b1c8591fa477b362e1a"
+        },
+        {
+          "ruta": "assets/config-rentabilidad-Ms4XTJI8.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "9ddebd70c5f3596afdd60c566e555e0fcfca683d700e5fc872831359e1c72554"
+        },
+        {
+          "ruta": "assets/config-sla-DmJD7cYg.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "22aea1b75222d4450a19a216f852dc9e937489f940f4e9ffb8ed728414924caa"
+        },
+        {
+          "ruta": "assets/config-usuarios-Csrhf8-W.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "2ec5edad9ef1adc54cd8c001126b23c1460f3d3ff3b76bffc6924da09b907620"
+        },
+        {
+          "ruta": "assets/configuracion-shell-Daya5nNZ.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "a50f8428aa69cf03ef7801d703649bd3e354e5acfb31efe05bb47778ea9c9bad"
+        },
+        {
+          "ruta": "assets/control-citas-CxOsmoQL.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "d27bd4418055d30a130323672cd3390d9a0fbba4efad7f94b122ffec4ae5abf6"
+        },
+        {
+          "ruta": "assets/controles-periodo-derivaciones-DnyaC8qq.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "a05aac3cad207da04bffda8709b36b371d1e7c89af6b2007bcf85ea21f750027"
+        },
+        {
+          "ruta": "assets/crm-api-UZyOqfeY.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "a4a446ed8ab77e0f6fa0a1c5e34beb82dbb8a9ad106390a1bc0c6df4a98263f7"
+        },
+        {
+          "ruta": "assets/data-vendor-DTp_zWmI.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6"
+        },
+        {
+          "ruta": "assets/derivaciones-CRwTI4G8.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "bee5b21c7a929152d95579a510abd61a91f30c0faf207cb49f5da94a9d6b9f2b"
+        },
+        {
+          "ruta": "assets/desglose-monedas-B6YWnekn.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "48040384de1639882cbdf4e1bf941d365847cc2195052128ed6dde96b82f1219"
+        },
+        {
+          "ruta": "assets/dist-DAse8jiX.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de"
+        },
+        {
+          "ruta": "assets/distribucion-lecturas-CcKUJUbb.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "fe3ce0cd295f8f11b725b991bcf943618d5bd132e82cae78770be3b9333f9591"
+        },
+        {
+          "ruta": "assets/echart-bar-BtEEM4Bq.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "4a466430c7936c65ee303ff775aeb9156e1397d1cce1559e7db3c92b09915c72"
+        },
+        {
+          "ruta": "assets/echart-CmETjTLD.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "2aca1822e3177e227401df5d33c454e2d8ccc2bc68595cffb9de56e274e56dba"
+        },
+        {
+          "ruta": "assets/echart-line-HpHqvp1L.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "5c61fed32f99797618619d5ae3bdd518e7848ff4190f6e64f0c378c8f64d9022"
+        },
+        {
+          "ruta": "assets/equipo-BNKTZBn4.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "10cc0169b1b9082c5b67a12954843819e0744b0c26e1c5e29d2117b61798fe80"
+        },
+        {
+          "ruta": "assets/esm-BofDk75c.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722"
+        },
+        {
+          "ruta": "assets/estado-panel-5Us0WT0e.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "439eec36b2755a5f37af1daf6f058daac81fdbc60e0f8e7793ca814b3219b590"
+        },
+        {
+          "ruta": "assets/facturacion-BFA0H-sm.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "5a587ae1656e214de306b4afb76988e68e64401f813466e5c686c269ed083b1c"
+        },
+        {
+          "ruta": "assets/gerencia-9x2PixH-.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "2fc1f7642f304f8a0d07c54f47e143d856f02de08095fdb3f98bde662110cc84"
+        },
+        {
+          "ruta": "assets/gerencia-BaLUQF8y.css",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293"
+        },
+        {
+          "ruta": "assets/gerencia-BY_FSjYn.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "0e01e201282d7583f7695930fd7c907e6cf387e074b1a8a49b7ccfe84b4162c9"
+        },
+        {
+          "ruta": "assets/historial-decisiones-tasa-gerencia-B9LPZREw.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "7991365e1662a941995451f651c12fe49882951894efab7f408ec71ca0084c3d"
+        },
+        {
+          "ruta": "assets/hoy-DpbkUENy.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "12979353113720d76598c430dc03a5d0fba943785953f872fab6205e54e48ddb"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516"
+        },
+        {
+          "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7"
+        },
+        {
+          "ruta": "assets/index-BOfD5cL9.css",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "b73876eea31a2be6bd0b9c6d04bc809867729355966c65919ef6beb8e9e4c7e8"
+        },
+        {
+          "ruta": "assets/index-CjjY-bW8.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "d5d59db35ec3d38de687915e4347c300fd545b6e766ed01f093c282cf4fe1a6f"
+        },
+        {
+          "ruta": "assets/kpi-card-DO8RSkvZ.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "c0933795ed864715b2dfc3716df2b0a7afcb640a0f3dcc17072ae0f34ec86e3c"
+        },
+        {
+          "ruta": "assets/lead-hover-card-BbO0DrOG.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "d539a6ee128d440e43d65f27c8ef2be2e85fd000efa7ccbca28127d669920b71"
+        },
+        {
+          "ruta": "assets/metricas-multiempresa-CTIxdY7-.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "37dd45e31e54b8574812c4643e8fae1d0614459d683e4842fe90a5c8290c8df2"
+        },
+        {
+          "ruta": "assets/mi-cartera-BRxqEaYY.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "b8a505cd1f54998732c4675a84f82c91633f04a22c81d9ef6583e735f6135b0e"
+        },
+        {
+          "ruta": "assets/notificaciones-tasa-D8PLAlbe.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "ab053a095afba0ee890eabed8225453a4de6c105d3e3943d8b9c7a952c133980"
+        },
+        {
+          "ruta": "assets/paginacion-6dCGWKWI.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "d631a06181204e79512212680296eab976829da7812439adb90a22a33283d155"
+        },
+        {
+          "ruta": "assets/pipeline-BORHwF-X.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "86dfc9266e48921dc83127cbfad1fd58777bbda22de96ea3fcefe62c2ee99ea8"
+        },
+        {
+          "ruta": "assets/progress-C85JCUzI.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "f96e973cb513c2bc0d48ae39eff7d6ebe928029af2aa54d79c8c037e1d689f72"
+        },
+        {
+          "ruta": "assets/ranking-vendedores-DA35sNUn.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "795ec3cfd1813b716095b021513b8b3129bb6600763c18ecad88907f13ee5940"
+        },
+        {
+          "ruta": "assets/react-vendor-BXy-oECh.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18"
+        },
+        {
+          "ruta": "assets/repartir-DRudnKA2.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "b66c8bda117bd950ff05f5a25412875ac72ffd3afbe37a0bd4c392a93cd4fc66"
+        },
+        {
+          "ruta": "assets/rescate-carpeta-lrfiakLH.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "2e64a7a4e5297e3e428608363ca1f725556710c7a1d703bfccd0a058253da684"
+        },
+        {
+          "ruta": "assets/rescate-descartados-UbWWwtws.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "e22b4c8e196ce2bfaeb082323dfb4e0bf7149632ef0d6ae6c78b9adedb6eee06"
+        },
+        {
+          "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+        },
+        {
+          "ruta": "assets/section-head-DfzedLwf.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "65f1620d8cb58f41207e230c9f78de55be421240d56cac7fd31b32529f2a70fd"
+        },
+        {
+          "ruta": "assets/seguimiento-Cvl4xBUy.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "8998874353132cd0124409819ae9d3d111eb9cf709e872776acaf685baaa3e3b"
+        },
+        {
+          "ruta": "assets/stat-strip-Egqwnkn4.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "98f31e298120953e74a28da3f47c76dd8ff0bcb05dc8046ca2956b5523d68e55"
+        },
+        {
+          "ruta": "assets/tabla-BXZGUT1l.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "baf9bde976a4a191a8eab94236fd5bd2a2b6ed25059b9647cef26a9e5d24f390"
+        },
+        {
+          "ruta": "assets/ui-vendor-B49GjcGN.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "9181ede01c7bb31db59221357eb13220ff188811e12f69b16133d7a63ce6d26d"
+        },
+        {
+          "ruta": "assets/use-metricas-vendedores-operativas-CER4EI0_.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "35a0f6e63f147681da12d84575705ae4ad8799418fc653aa8672c22b70cce5b8"
+        },
+        {
+          "ruta": "assets/use-periodo-gerencia-C0toqqwO.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "97bdf6c167d6f3f5fdff776fd560b16cff23c65fcfab6e8f4ab036faf5ee982a"
+        },
+        {
+          "ruta": "assets/use-resumen-cartera-operativo-Bb3pGBaf.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "72726b16e1e23c2bd9150ed927b335711e466d39524635a9b5c62b7ef3ed81f3"
+        },
+        {
+          "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f"
+        },
+        {
+          "ruta": "brand/avance-icon-192.png",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d"
+        },
+        {
+          "ruta": "brand/avance-icon-512.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b"
+        },
+        {
+          "ruta": "brand/avance-icon.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b"
+        },
+        {
+          "ruta": "brand/avance-logo-full.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1"
+        },
+        {
+          "ruta": "brand/favicon-32.png",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23"
+        },
+        {
+          "ruta": "contrato/fondo-corporativo.png",
+          "status": 200,
+          "exacto": false,
+          "imagen_optimizada": true,
+          "ok": true,
+          "sha256_http": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37"
+        },
+        {
+          "ruta": "favicon.svg",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+        },
+        {
+          "ruta": "icons.svg",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+        },
+        {
+          "ruta": "index.html",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "3079a613e38f91feb28f5ea32a95a46f2dc9b2da2ade368bef2367dd63c1e583"
+        },
+        {
+          "ruta": "manifest.webmanifest",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73"
+        },
+        {
+          "ruta": "robots.txt",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1"
+        },
+        {
+          "ruta": "sw-crm.js",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6"
+        },
+        {
+          "ruta": "version.json",
+          "status": 200,
+          "exacto": true,
+          "imagen_optimizada": false,
+          "ok": true,
+          "sha256_http": "bbe44856daad912c73aee4f56c9bf8d7afc777a8f8feb9b82fde9d5493430ed9"
+        },
+        {
+          "url": "https://crm.miavance.com/crm-20260916T165912Z-a0c47ebc1d4e.zip",
+          "status": 404,
+          "ok": true
+        },
+        {
+          "url": "https://miavance.com/crm-20260916T165912Z-a0c47ebc1d4e.zip",
+          "status": 404,
+          "ok": true
+        },
+        {
+          "ruta": "/",
+          "status": 200,
+          "ok": true
+        },
+        {
+          "ruta": "Edge sin sesión",
+          "status": 401,
+          "ok": true
+        }
+      ]
+    },
+    "smoke": {
+      "estado": "PASS",
+      "status": 200,
+      "titulo": "CRM Avance Corp",
+      "errores": [],
+      "alcance": "Acceso público en Chromium limpio; sin iniciar sesión ni modificar datos"
+    },
+    "recorrido_autenticado_produccion": {
+      "estado": "NOT RUN",
+      "motivo": "Navegador con sesión no disponible; Auth/Edge/SQL/Storage sí pasó en banco remoto autorizado."
+    },
+    "rollback": {
+      "archivo": "crm-20260916T035915Z-a09ecad9aaed.zip",
+      "sha256": "1adbd4b31dc413e87d55a7de062da2dfc70020698ded81dc9b27709441896c1c"
+    }
+  },
+  "eliminaciones_reales_de_prueba": 0
+}

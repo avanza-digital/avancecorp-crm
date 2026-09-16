@@ -1,4 +1,9 @@
-# Contratos vinculados a inversión — preparado, sin publicar
+# Contratos vinculados a inversión — publicado y verificado
+
+**Estado 16/09/2026:** autorización final recibida («ya ets aprobado»), PR #1
+integrada y SQL/Edge/frontend publicados. [Recibo productivo](PRODUCCION-VINCULADA.json).
+El contrato de la captura sigue presente: la eliminación requiere que el usuario
+escriba su número y confirme desde el CRM.
 
 ## Problema y corrección
 
@@ -36,19 +41,41 @@ La rama exclusiva `pteyuzyzcpavqefiqidg` está eliminada, con ausencia verificad
 corrección. La regla de la organización exige una aprobación y el check `verify`.
 Se alineó el nombre del job que ejecuta `npm run check` con esa regla y se retiró
 el filtro de rutas de pull_request para que no quede pendiente en otras PR.
-No se cambió la regla ni se eludió la revisión. Mientras la PR no esté integrada,
-el ZIP de su commit es solo candidato y debe reconstruirse desde Main verificado.
+No se cambió la regla. Miguel aprobó la excepción de administrador; PR #1 quedó
+integrada a las 16:54:52 UTC en `a0c47ebc1d4eaa38544fe1b0e550bdceab021007`.
+El árbol integrado es idéntico al probado `f4cf98b`; verify/e2e/preflight PASS.
+Se reconstruyó el ZIP desde Main limpio, igual a `avancecorp/main`.
 
-## Publicación pendiente
+## Publicación completada
 
-1. Miguel aprueba el SQL exacto y su promoción literal. El ensayo reconstruyó
-   una rama vacía para tener paridad: **no fusionar todo su historial** con
-   producción ni ejecutar un db push. Solo aplicar la candidata autorizada,
-   que exige la huella productiva anterior antes de sustituir el cuerpo.
-2. Desplegar `crm-contrato-pdf-v2` con verificación JWT; cotejar archivos.
-3. Publicar el ZIP limpio de Main sincronizado mediante `$release-crm`.
-4. Verificar SQL/permisos, recursos HTTP y datos intactos. No borrar el contrato
-   de la captura como prueba. El administrador decide y confirma ese borrado.
+1. SQL literal autorizado instalado a las 17:00:27 UTC; registro remoto
+   `20260916170027`. SHA-256 del archivo aprobado
+   `bbfa0aa413f5fd3045c9a948f24c4436ff6e748d8365713b38d051d5a8d92e68`.
+   RPC `2d8210b77d1f6f1e3a4e06a1242cf85d` →
+   `c0ae3e3167c82724b784d73b4f427868`; otras 652 funciones idénticas.
+   No se fusionó el historial reconstruido ni se ejecutó un db push.
+2. Edge `crm-contrato-pdf-v2` v20 ACTIVE, JWT habilitado y nueve archivos
+   descargados idénticos a Main. Petición sin sesión rechazada con HTTP 401.
+3. Release `crm-20260916T165912Z-a0c47ebc1d4e`, build
+   `build-20260916T165911818Z`, SHA-256
+   `58aa3548076ae892d6a564720c87f36bc26bb88aa075e9a2224da9ddb0736534`.
+   MCP oficial Hostinger: deploy y purga aceptados en `crm.miavance.com`.
+4. 96 controles HTTP PASS: 92 recursos del manifiesto (80 hashes exactos,
+   11 imágenes optimizadas y `.htaccess` 403), ZIP 404 en ambos dominios,
+   portada idéntica y Edge 401. Tres versiones consecutivas coincidentes.
+   Acceso público en Chromium PASS, sin errores. Recorrido autenticado en
+   producción NOT RUN: navegador con sesión no disponible; no se sustituyó
+   por una eliminación real. El banco remoto acreditó el flujo completo.
+5. Conteos antes/después: 594 contratos, 5320 cuotas, 26 inversiones,
+   26 titulares, 0 documentos y 0 auditorías. Contrato e inversión de la captura
+   presentes, sin eventos/solicitudes/ajustes/orígenes históricos. Permisos y
+   RLS conservados; auditoría no consultable por anon/authenticated y RPC
+   ejecutable solo por service_role/postgres. Advisors sin novedades
+   (cinco grupos de seguridad y cinco de rendimiento, mismas observaciones).
+
+Rollback frontend conservado: `crm-20260916T035915Z-a09ecad9aaed.zip`, SHA-256
+`1adbd4b31dc413e87d55a7de062da2dfc70020698ded81dc9b27709441896c1c`.
+La reversa SQL separada conserva auditorías; no restaura datos eliminados.
 
 Las firmas y tipos públicos no cambian; solo el cuerpo y el contenido JSON de
 la copia privada. No requiere una nueva definición TypeScript de la API.
