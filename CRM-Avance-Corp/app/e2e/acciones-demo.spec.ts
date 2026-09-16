@@ -29,6 +29,30 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
   await expect(page.getByRole('dialog', { name: 'LEAD PRUEBA E2E' })).toBeVisible()
 })
 
+test('supervisor: crea un lead propio y lo convierte sin asignarlo a un analista', async ({ page }) => {
+  await entrarDemo(page, 'Supervisor')
+  await page.getByRole('button', { name: /nuevo lead/i }).click()
+  const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
+  await modal.getByLabel('Nombre completo *').fill('LEAD PROPIO SUPERVISOR E2E')
+  await modal.getByLabel('Teléfono *', { exact: true }).fill('987111333')
+  await modal.getByLabel('Capital estimado *').fill('5000')
+  await modal.getByLabel('Origen *').selectOption('oficina')
+  const responsable = modal.getByRole('combobox', { name: 'Responsable comercial' })
+  await expect(responsable).toHaveValue('')
+  await responsable.selectOption({ label: 'Yo — lead propio' })
+  const responsableId = await responsable.inputValue()
+  expect(responsableId).not.toBe('')
+  await modal.getByRole('button', { name: /crear lead/i }).click()
+
+  const drawer = page.getByRole('dialog', { name: 'LEAD PROPIO SUPERVISOR E2E' })
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByLabel('Reasignar responsable comercial')).toHaveValue(responsableId)
+  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
+  await page.getByRole('dialog', { name: '¿Dónde invirtió?' }).getByRole('button', { name: /Avance Corp/i }).click()
+  await page.getByRole('dialog', { name: /Convertir a cliente/ }).getByRole('button', { name: /^Convertir/i }).click()
+  await expect(drawer.getByText(/Convertido a cliente \(demo\)/i)).toBeVisible()
+})
+
 test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
@@ -136,7 +160,7 @@ test('reasignar (gerencia): cambia el analista con toast "(demo)"', async ({ pag
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
-  await drawer.getByLabel('Reasignar analista').selectOption({ label: 'ANALISTA DOS' })
+  await drawer.getByLabel('Reasignar responsable comercial').selectOption({ label: 'ANALISTA DOS' })
   await expect(page.getByText(/Lead reasignado \(demo\)/i)).toBeVisible()
 })
 

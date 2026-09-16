@@ -238,8 +238,9 @@ function FormularioNuevoLead({
   const ahora = useAhora()
 
   const puedeElegirVendedor = can(yo?.rol, 'reasignar')
-  // SOLO analistas del ámbito del rol (espejo del WITH CHECK de leads_insert):
-  // supervisor solo puede crear leads asignados dentro de SU equipo.
+  // El supervisor puede recibir un lead propio o asignarlo a un analista de
+  // su ámbito (crear_lead_si_disponible). La opción propia usa la sesión,
+  // incluso sin analistas a cargo.
   const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)
   const etapa = ETAPA_INFO[etapaInicial]
 
@@ -1145,7 +1146,7 @@ function FormularioNuevoLead({
               </div>
             </Campo>
           </div>
-          <Campo label="Analista asignado" htmlFor="nl-vendedor">
+          <Campo label="Responsable comercial" htmlFor="nl-vendedor">
             {puedeElegirVendedor ? (
               <Select
                 id="nl-vendedor"
@@ -1153,6 +1154,7 @@ function FormularioNuevoLead({
                 onChange={(e) => setVendedorId(e.target.value)}
               >
                 <option value="">Sin asignar (parkeado)</option>
+                {yo?.rol === 'supervisor' && <option value={yo.id}>Yo — lead propio</option>}
                 {vendedores.map((v) => (
                   <option key={v.perfil_id} value={v.perfil_id}>
                     {v.nombre_completo}

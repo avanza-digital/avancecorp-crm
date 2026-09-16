@@ -17,6 +17,7 @@ import {
 } from '@/lib/store-context'
 import type { PanelesActions, StoreDataApi } from '@/lib/store'
 import { validarCamposLead } from '@/lib/validacion'
+import type { Miembro } from '@/lib/tipos'
 import { LeadNuevo } from './lead-nuevo'
 
 vi.mock('sonner', () => ({
@@ -58,6 +59,7 @@ function montar({
   rol,
   crearLeadImpl,
   telefonoInicial = null,
+  vendedores = [],
 }: {
   demo?: boolean
   /** Rol del actor; por defecto el analista de SESION. Para las reglas de origen. */
@@ -65,6 +67,7 @@ function montar({
   crearLeadImpl?: StoreDataApi['crearLead']
   /** El atajo del buscador (plan «lead libre», F1) llega con teléfono. */
   telefonoInicial?: string | null
+  vendedores?: Miembro[]
 } = {}) {
   const implementacionPorDefecto: StoreDataApi['crearLead'] = (input) => {
     const validacion = validarCamposLead({
@@ -79,7 +82,7 @@ function montar({
   // F2 «Tomar»: el flujo ganador resincroniza el ámbito ANTES de abrir la ficha.
   const recargar = vi.fn<StoreDataApi['recargar']>().mockResolvedValue(true)
   const api = {
-    ambito: { leads: [], vendedores: [], esGlobal: false },
+    ambito: { leads: [], vendedores, esGlobal: false },
     crearLead,
     recargar,
   } as unknown as StoreDataApi
@@ -115,7 +118,7 @@ function montar({
   return { crearLead, recargar, actions, invalidar, desmontar: resultado.unmount }
 }
 
-function completarBaseReal() {
+function completarBaseReal(origen = 'referido') {
   fireEvent.change(screen.getByLabelText('Nombre completo *'), {
     target: { value: 'ANA NUEVO LEAD' },
   })
@@ -124,7 +127,7 @@ function completarBaseReal() {
   })
   // El analista de esta sesión declara SU referido — la regla especial de ese
   // origen se conserva aunque LANDING y FORMULARIO ya estén habilitados.
-  fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
+  fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: origen } })
   fireEvent.change(screen.getByLabelText('Capital estimado *'), { target: { value: '5000' } })
 }
 
@@ -152,6 +155,47 @@ async function completarBase(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Teléfono *'), '987654321')
   await user.selectOptions(screen.getByLabelText('Origen *'), 'referido')
 }
+
+describe('LeadNuevo — responsable comercial del supervisor', () => {
+  it.each([true, false])('crea un lead propio sin analistas a cargo (demo=%s)', async (demo) => {
+    const { crearLead, actions } = montar({ rol: 'supervisor', demo })
+    const responsable = screen.getByRole('combobox', { name: 'Responsable comercial' })
+    expect(responsable).toHaveValue('')
+    expect(screen.getByRole('option', { name: 'Yo — lead propio' })).toHaveValue(SESION.yo!.id)
+    expect(screen.queryByRole('option', { name: 'Referido' })).not.toBeInTheDocument()
+    completarBaseReal('oficina')
+    fireEvent.change(responsable, { target: { value: SESION.yo!.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({
+      vendedor_id: SESION.yo!.id, origen: 'oficina',
+    })))
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('lead-nuevo-1'))
+  })
+
+  it.each(['analista-equipo', ''])('conserva el destino %s después de elegir un lead propio', async (destino) => {
+    const miembro = { perfil_id: 'analista-equipo', nombre_completo: 'ANALISTA EQUIPO', rol_crm: 'vendedor', activo: true, supervisor_id: SESION.yo!.id } satisfies Miembro
+    const { crearLead } = montar({ rol: 'supervisor', vendedores: [
+      miembro,
+      { ...miembro, perfil_id: 'inactivo', nombre_completo: 'INACTIVO', activo: false },
+      { ...miembro, perfil_id: 'otro-supervisor', nombre_completo: 'OTRO SUPERVISOR', rol_crm: 'supervisor' },
+    ] })
+    const responsable = screen.getByRole('combobox', { name: 'Responsable comercial' })
+    expect(screen.queryByRole('option', { name: 'INACTIVO' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'OTRO SUPERVISOR' })).not.toBeInTheDocument()
+    completarBaseReal('otro')
+    fireEvent.change(responsable, { target: { value: SESION.yo!.id } })
+    fireEvent.change(responsable, { target: { value: destino } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({
+      vendedor_id: destino || null,
+    })))
+  })
+
+  it.each(['vendedor', 'gerencia'] as const)('no ofrece la nueva opción al rol %s', (rol) => {
+    montar({ rol })
+    expect(screen.queryByRole('option', { name: 'Yo — lead propio' })).not.toBeInTheDocument()
+  })
+})
 
 describe('LeadNuevo — segundo número', () => {
   it('el segundo número viaja en el alta y admite un FIJO', async () => {

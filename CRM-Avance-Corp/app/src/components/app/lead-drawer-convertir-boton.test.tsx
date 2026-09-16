@@ -63,14 +63,16 @@ function montar({
   auth,
   vendedores = [],
   esGlobal = false,
+  lead = LEAD,
 }: {
   auth: AuthContextValue
   vendedores?: Miembro[]
   esGlobal?: boolean
+  lead?: Lead
 }) {
   const api = {
-    lead: (id: string) => (id === LEAD.id ? LEAD : undefined),
-    ambito: { leads: [LEAD], vendedores, esGlobal },
+    lead: (id: string) => (id === lead.id ? lead : undefined),
+    ambito: { leads: [lead], vendedores, esGlobal },
     actividadesDe: () => [],
     tareasDe: () => [],
     cierresEstado: [],
@@ -104,6 +106,32 @@ function montar({
 beforeEach(() => vi.clearAllMocks())
 
 describe('LeadDrawer — botón "Convertir a cliente" por ámbito de rol', () => {
+  it('el supervisor convierte su lead propio aunque no tenga analistas a cargo', () => {
+    montar({
+      auth: sesion({ id: 'supervisor-1', rol: 'supervisor' }),
+      lead: { ...LEAD, vendedor_id: 'supervisor-1', vendedor_nombre: 'SUPERVISOR PRUEBA' },
+    })
+    expect(screen.getByLabelText('Reasignar responsable comercial')).toHaveValue('supervisor-1')
+    expect(screen.getByRole('option', { name: 'SUPERVISOR PRUEBA' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Convertir a cliente/ })).toBeInTheDocument()
+  })
+
+  it('la propiedad no sustituye una capacidad contractual revocada', () => {
+    montar({
+      auth: sesion({ id: 'supervisor-1', rol: 'supervisor', puede_contratar: false }),
+      lead: { ...LEAD, vendedor_id: 'supervisor-1' },
+    })
+    expect(screen.queryByRole('button', { name: /Convertir a cliente/ })).not.toBeInTheDocument()
+  })
+
+  it('un lead en la bandeja del supervisor todavía necesita responsable para convertirse', () => {
+    montar({
+      auth: sesion({ id: 'supervisor-1', rol: 'supervisor' }),
+      lead: { ...LEAD, vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'supervisor-1' },
+    })
+    expect(screen.queryByRole('button', { name: /Convertir a cliente/ })).not.toBeInTheDocument()
+  })
+
   it('el analista dueño del lead ve el botón', () => {
     montar({ auth: sesion({ id: 'vendedor-1', rol: 'vendedor' }) })
     expect(screen.getByRole('button', { name: /Convertir a cliente/ })).toBeInTheDocument()
