@@ -1,4 +1,8 @@
-# Verificación de la candidata — 16/09/2026
+# Verificación de gestión integral publicada — 16/09/2026
+
+Fuente publicada `14be1e0581d8`, árbol completo idéntico a `bd4ab4cd`, cuyo CI
+final tiene verify, e2e y preflight PASS. [Acta](PUBLICACION.json).
+La evidencia local siguiente conserva sus commits y condiciones originales.
 
 Código integrado `a2243c4e` (funcional `25a0b9da`; remotos hasta `1f9e5f83`).
 Después del gate se acortó «Cancelar corrección» a «Cancelar» para que el botón
@@ -20,8 +24,10 @@ límites, además de lint/tipos y el build del artefacto final. No equivale a pu
 | `git diff --check` | **PASS**. |
 | Claude | Dos revisiones completadas; dictámenes CHANGES_REQUESTED, evaluados y corregidos con evidencia por PRIMARY. [Evaluación](EVALUACION-REVISION.md). |
 | Gate general `gate:realidad` | **NOT RUN** completo: CLI requiere SUPABASE_URL/service key no cargadas; intento termina con falta de variable, sin conexión. Se contrastaron por MCP solo los agregados pertinentes de producción y huellas. No se atribuye PASS global. |
-| Rama Supabase/advisors remotos/matriz global remota | **NOT RUN** para esta candidata; requiere banco/presupuesto autorizado. La matriz pertinente local sí se ejecutó, no sustituye aprobación remota. |
-| Instalación productiva / recorrido con usuarios reales | **NOT RUN**, pendientes de autorización y release. |
+| Rama Supabase y matriz remota | **PASS**: 1.866 aserciones RLS y 24 grupos Auth/HTTP/SQL. Advisors revisados con avisos documentados en [REMOTO.md](REMOTO.md). Rama eliminada. |
+| Instalación productiva | **PASS**: SQL aprobado instalado; datos/permisos previos intactos y lecturas de 23 cuentas verificadas. [Recibo](PRODUCCION.json). |
+| Artefacto y publicación web | **PASS**: fuente limpia de Main igual al remoto; 95 comprobaciones HTTP y acceso sin errores JavaScript. [Acta](PUBLICACION.json). |
+| Recorrido autenticado con usuarios humanos productivos | **NOT RUN**; no se escribieron datos de negocio para probar. |
 
 ## Incidencias del ensayo resueltas
 
@@ -50,12 +56,13 @@ Banco sintético local, con dos bases exclusivamente propias
 PostgREST con etiqueta `avancecorp.gestion.owner=20260916`, puertos loopback.
 **Cerrado:** servidor, dos contenedores y dos bases eliminados al acabar;
 `rls_vigente_20260916` y el contenedor compartido original permanecen intactos.
-No hubo banco de pago ni coste cloud de esta tarea.
+Esa fase local no tuvo coste cloud. Después se autorizó un banco remoto hasta
+US$0,10: eliminado y con coste estimado de US$0,009353; no es una factura.
 
 Los recorridos E2E interceptan API loopback y no prueban producción. El ensayo
 HTTP sí usa sesiones Auth y RPC reales. El ensayo SQL aplica la migración
 candidata sobre un snapshot existente; no se afirma replay de todo el historial.
 Los PNG de los cuatro recorridos se generan en `app/test-results/`; se inspeccionó
 el diseño móvil. El artefacto local final queda en `CRM-Avance-Corp/releases/`,
-con manifiesto verificable. Se reconstruirá desde Main igual a avancecorp/main
-antes de cualquier publicación autorizada.
+con manifiesto verificable. La publicación posterior se construyó desde Main
+limpio e idéntico a `avancecorp/main`; su fuente y huella constan en el acta.

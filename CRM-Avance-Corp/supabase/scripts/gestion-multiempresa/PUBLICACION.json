@@ -1,0 +1,153 @@
+{
+  "estado": "PUBLICADO_VERIFICADO",
+  "verificacion_registrada_utc": "2026-09-16T18:40:31.478466+00:00",
+  "url": "https://crm.miavance.com",
+  "skill": ".agents/skills/release-crm/SKILL.md",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/3",
+  "fuente": {
+    "commit": "14be1e0581d8a739138c9f5eabeabd6e58beb27b",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "main_y_avancecorp_main_iguales_al_publicar": true,
+  "release_id": "crm-20260916T182804Z-14be1e0581d8",
+  "archivo": {
+    "nombre": "crm-20260916T182804Z-14be1e0581d8.zip",
+    "bytes": 2084095,
+    "sha256": "4178865fd0ecc1247019005d7897ca4df3b3eb0fd076e2737c9f3f29a836981d"
+  },
+  "build": {
+    "schema": 1,
+    "buildId": "build-20260916T182803403Z"
+  },
+  "deploy": {
+    "conector": "Hostinger hosting_deployStaticWebsite",
+    "upload": "success",
+    "deploy": "Request accepted",
+    "confirmacion": "HTTP y navegador posteriores coinciden con el artefacto."
+  },
+  "sql": {
+    "archivo": "20260916152851_crm_gestion_integral_multiempresa.sql",
+    "sha256_archivo": "e2ebc90220da5b671d873a3e5899f6f09f981becad6b1beb0dc7c7a78d7ca361",
+    "registro_remoto": "20260916174727",
+    "metodo": "merge_branch: historial base de 300 migraciones idénticas y una candidata nueva; nunca db push general ni apply_migration directo a producción.",
+    "sentencias_instaladas": 27,
+    "sentencias_literales_iguales_al_archivo": true,
+    "sha256_sentencias_unidas": "d2f9fad3094270d9d5b935de43343b2c636e56f553b773928ef7e0697f4b94bb"
+  },
+  "banco": {
+    "nombre": "gestion-multiempresa-20260916",
+    "id": "b6a96f1a-6ff4-417a-97c0-337972ff76ce",
+    "project_ref": "ndjvbjdjotiszjhtbxik",
+    "creado_utc": "2026-09-16T17:32:34.928339Z",
+    "eliminacion_solicitada_utc": "2026-09-16T18:11:08Z",
+    "precio_usd_h": 0.01344,
+    "presupuesto_usd": 0.1,
+    "datos": "Solo configuración y fixtures sintéticos, sin clientes productivos.",
+    "paridad_inicial": {
+      "funciones": 653,
+      "diferencias_codigo_owner_acl_search_path": 0
+    },
+    "matriz_rls": {
+      "estado": "PASS",
+      "aserciones": 1866,
+      "exit": 0,
+      "limite": "Sin meses cerrados en el banco: no se midió el candado de metas retroactivas."
+    },
+    "gestion_auth_http_sql": {
+      "estado": "PASS",
+      "grupos": 24,
+      "exit": 0,
+      "incidencia_previa": "El selector inicial eligió un lead activo para el caso archivado. Se acotó a una fuente realmente archivada; se repitieron completos los 24 grupos. No se cambió SQL ni expectativas."
+    },
+    "eliminada_confirmada": true,
+    "eliminada_confirmada_utc": "2026-09-16T18:14:20.195461+00:00",
+    "coste_estimado_usd_hasta_confirmacion": 0.009353,
+    "nota_coste": "Estimación por tiempo transcurrido y tarifa confirmada, no factura; rama ausente de list_branches."
+  },
+  "ci": {
+    "estado": "PASS",
+    "arbol_completo_identico_al_commit_publicado": true,
+    "headRefOid": "bd4ab4cd1732b0fd3241eedaf01b453aa5961f84",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-09-16T18:11:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35132733043/job/104917433624",
+        "name": "preflight",
+        "startedAt": "2026-09-16T18:10:29Z",
+        "status": "COMPLETED",
+        "workflowName": "CRM RLS preflight"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-09-16T18:21:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35132732793/job/104917432867",
+        "name": "verify",
+        "startedAt": "2026-09-16T18:10:28Z",
+        "status": "COMPLETED",
+        "workflowName": "CRM app quality"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-09-16T18:23:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35132732793/job/104917432684",
+        "name": "e2e",
+        "startedAt": "2026-09-16T18:10:29Z",
+        "status": "COMPLETED",
+        "workflowName": "CRM app quality"
+      }
+    ]
+  },
+  "frontend_local": {
+    "estado": "PASS",
+    "unitarias": 3654,
+    "archivos_tests": 248,
+    "e2e": 199,
+    "e2e_skips_existentes": 26,
+    "e2e_moviles_repetidos": 4
+  },
+  "http": {
+    "estado": "PASS",
+    "comprobaciones": 95,
+    "fallos": 0,
+    "evidencia": "PUBLICACION-HTTP.json",
+    "metodo": "SHA-256 para HTML, JS, CSS, fuentes, version y demás bytes no transformados. Imágenes: HTTP 200 por optimización CDN; .htaccess: 403; ZIP y .vite/license.md: 404."
+  },
+  "navegador": {
+    "status": 200,
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260916T182803403Z"
+    },
+    "login_visible": true,
+    "errores": [],
+    "captura": "PUBLICACION-LOGIN.png",
+    "inspeccion_visual": "PASS: formulario y botón Entrar visibles, sin solapamientos."
+  },
+  "rollback_frontend": {
+    "release_id": "crm-20260916T170732Z-1f9e5f83fa08",
+    "commit": "1f9e5f83fa08c371b8e28ef502b89fdb4c135bfc",
+    "buildId": "build-20260916T170731814Z",
+    "sha256": "6e37f4aa87db16982776e8b0d034534681bed2b13434c60af256ede541f90263",
+    "bytes": 2078999,
+    "ubicacion": "CRM-Avance-Corp/releases/ en la carpeta original; ZIP y manifiesto conservados."
+  },
+  "preservacion": {
+    "archivos_ajenos_modificados_verificados": 7,
+    "contratos_y_pdf_publicados_conservados": true,
+    "menu_local_pendiente": {
+      "rama": "codex/menu-gerencia-pendiente-20260916",
+      "commit": "f15061b65f5d7b144ed99bde66e317683059c101",
+      "incluido_en_publicacion": false
+    }
+  },
+  "limites": [
+    "NOT RUN: navegación autenticada con usuarios humanos en producción.",
+    "NOT RUN: gate:realidad completo por ausencia de credenciales en ese CLI; sí hubo verificación de agregados y roles reales por SQL de solo lectura.",
+    "NOT RUN: candado de metas retroactivas; el banco sintético no contiene meses cerrados."
+  ]
+}

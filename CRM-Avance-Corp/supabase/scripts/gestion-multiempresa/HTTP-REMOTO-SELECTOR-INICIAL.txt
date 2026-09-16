@@ -1,0 +1,36 @@
+PASS Persona COOPAC sin Auth/perfil, autor y responsable vigente dentro de 5 h
+PASS Analista ajeno no lee la persona
+PASS Corrección contacta fuente neutral; conserva evidencia económica y devuelve recibo único al repetir
+PASS Escritura con versión antigua rechazada
+PASS Dos guardados simultáneos: uno confirma y otro detecta conflicto
+PASS Campos extra y acceso directo a contacto rechazados
+PASS Ventana estricta antes, exactamente a las cinco horas y después
+PASS Historia antigua no reinicia ventana; Gerencia conserva excepción y recibo anterior recuperable
+PASS COOPAC histórica sin condiciones: omitir vencimiento conserva la fecha anterior
+PASS COOPAC Gerencia: monto, plazo, tasa, vencimiento atómicos, recibo y control de versión
+PASS Contrato concreto vinculado; inversión cruzada rechazada; Directorio lectura Avance sin correcciones
+PASS Directorio recibe exactamente las columnas y redacción del lector Avance publicado
+PASS Escritor Avance real: Gerencia corrige histórico y conserva pago real, cotitulares omitidos y cuenta contractual
+PASS Vendedor comercial sin rol analista: capacidad coincide con rechazo del escritor PDF existente
+PASS Capacidad Avance coincide con escritor real para analista propio dentro y fuera de cinco horas
+PASS Payload numérico inválido y quitar condiciones existentes producen rechazo definitivo 22023
+PASS Inversión anulada: capacidad deshabilitada y rechazo del escritor
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+'t' !== 'f'
+
+    at file:///private/tmp/avancecorp-gestion-worktree/CRM-Avance-Corp/supabase/scripts/gestion-multiempresa/test-http.mjs:189:26
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 't',
+  expected: 'f',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

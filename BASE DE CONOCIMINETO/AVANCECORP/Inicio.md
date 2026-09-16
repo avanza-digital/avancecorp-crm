@@ -7,7 +7,7 @@ actualizado: 2026-09-16
 
 - [[Eliminar contrato vinculado sin historial - preparado 2026-09-16]] — **PREPARADO, SIN PUBLICAR:** corrige el bloqueo de la captura; inversión/titulares auditados, pruebas completas y rama eliminada. Pendientes SQL autorizado y release.
 
-**Punto de retoma de Cartera, 16/09:** [[Cartera multiempresa - gestion integral preparada (2026-09-16)]] — implementación local del [[Cartera multiempresa - plan de gestion integral (2026-09-16)|plan aprobado]], en worktree autorizado y rama `codex/gestion-multiempresa`. Correcciones, detalle financiero/documental y acciones por rol integradas. SQL/reversa y pruebas locales disponibles; instalación remota y publicación pendientes de autorización. Los filtros y publicaciones anteriores se conservan.
+**Cartera multiempresa, 16/09 — PUBLICADA:** [[Cartera multiempresa - publicacion (2026-09-16)]] — plan de gestión integral completado; SQL instalado, frontend `14be1e0581d8`, 95 comprobaciones web PASS. Banco temporal eliminado, coste estimado US$0,009353. Acta con pruebas, rollback y límites; trabajos ajenos conservados.
 
 - [[Matriz RLS global - reparacion y candado F8 2026-09-16]] — **CERRADO:** corrección F8 autorizada, instalada y verificada el 16/09 10:31 Lima. Datos/permisos intactos, 23 cuentas de Cartera comprobadas; matriz reparada y rama temporal eliminada.
 
