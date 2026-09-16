@@ -243,6 +243,8 @@ const MENSAJES_ELIMINACION_PUBLICOS = new Set([
   "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda",
   "Solo Admin o Superadmin puede eliminar contratos",
   "El contrato tiene dependencias nuevas; requiere revisión antes de eliminarlo",
+  "La inversión del contrato tiene dependencias nuevas; requiere revisión antes de eliminarla",
+  "La inversión de este contrato ya tiene historial propio (eventos, solicitudes, ajustes o vínculos históricos de cotitulares) y se conserva; requiere revisión antes de eliminarla",
   "El identificador del contrato ya tiene una eliminación auditada y requiere revisión",
   "El contrato tiene una eliminación anterior pendiente; requiere revisión antes de archivarlo",
   "El contrato pertenece a un mes comercial cerrado y no se puede eliminar",

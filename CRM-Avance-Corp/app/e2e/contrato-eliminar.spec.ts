@@ -2,7 +2,7 @@ import {expect, test} from '@playwright/test'
 import {irAMiCartera, loginReal, montarBackendReal} from './_helpers'
 import {carteraF5, fichaF5, inversionF5, FUENTE_F5, PERFIL_F5} from '../src/test/fixtures/f5'
 
-for (const ancho of [1440,390]) test(`Admin elimina con confirmación y auditoría (${ancho}px)`,async({page},info)=>{
+for (const ancho of [1440,390]) test(`Admin elimina inversión vinculada con confirmación y auditoría (${ancho}px)`,async({page},info)=>{
   await montarBackendReal(page,{rolCrm:'gerencia',rolPortal:'admin',clientes:[],contratos:[]})
   let eliminado=false
   let solicitudes=0
@@ -11,7 +11,7 @@ for (const ancho of [1440,390]) test(`Admin elimina con confirmación y auditor�
     if(nombre==='cartera_inversionistas_estado_fn') return route.fulfill({json:{version:1,habilitada:true,escritura_habilitada:true,motivo:null}})
     if(nombre==='cartera_inversionistas_filtrada_fn') return route.fulfill({json:carteraF5})
     if(nombre==='inversionista_ficha_fn') return route.fulfill({json:{...fichaF5,
-      inversiones:eliminado?[]:[{...inversionF5,empresa:'avance',perfil_id:PERFIL_F5,numero:'2026-01-999999',contrato:{fecha_inicio:'2026-09-01',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}],
+      inversiones:eliminado?[]:[{...inversionF5,inversion_id:FUENTE_F5,empresa:'avance',perfil_id:PERFIL_F5,numero:'2026-01-999999',contrato:{fecha_inicio:'2026-09-01',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}],
       inversiones_total:eliminado?0:1,totales:eliminado?[]:fichaF5.totales}})
     return route.fallback()
   })

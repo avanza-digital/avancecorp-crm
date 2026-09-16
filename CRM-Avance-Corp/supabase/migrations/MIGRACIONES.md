@@ -1,5 +1,18 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916160000 — Eliminar contrato con inversión sin historial propio
+
+**PREPARADA Y ENSAYADA; NO INSTALADA EN PRODUCCIÓN.** El vínculo simple ya no
+bloquea Admin/Superadmin: copia versión 2 de inversión y titulares junto al
+contrato/pagos, una transacción. Historial independiente y permisos intactos.
+Solo reemplaza `crm.contrato_eliminar_auditado(uuid,uuid)`; mismas ACL/firma.
+Guardas prosrc `2d8210b77d1f6f1e3a4e06a1242cf85d` →
+`c0ae3e3167c82724b784d73b4f427868`. Reversa literal con guardas ensayada.
+21 grupos SQL local/remotos, 4 carreras, 23 comprobaciones HTTP/Auth/Storage;
+3632 pruebas frontend, 194 E2E y 2 recorridos vinculados; 48 pruebas Edge PASS.
+Rama propia eliminada. Requiere aprobación del SQL exacto antes de promoción.
+[Acta y límites](../scripts/contratos-eliminar/VINCULADA-20260916.md).
+
 ## 20260916040442 — Activación F8 serializada sin interbloqueos
 
 **INSTALADA Y VERIFICADA 16/09/2026 10:31 Lima**, registro remoto
