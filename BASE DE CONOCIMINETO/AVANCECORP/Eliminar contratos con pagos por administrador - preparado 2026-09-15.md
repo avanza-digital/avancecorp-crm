@@ -1,26 +1,39 @@
 # Eliminar contratos con pagos por administrador — preparado
 
 Miguel pidió que Admin pudiera eliminar contratos en el CRM y confirmó:
-**también contratos con pagos, conservando una copia de auditoría**.
+**también contratos con pagos, conservando una copia de auditoría**. Después pidió
+validar todo y dejar listo para publicar; autorizó el banco temporal a US$0,01344/h.
+Pausó el trabajo brevemente y ordenó continuar. No autorizó publicar en esta fase.
 
-Implementado y ensayado localmente: botón en ficha, confirmación por número,
-servidor con rol activo revalidado, copia privada e inmutable del contrato/pagos
-y conservación de los PDF. La copia y el borrado son una transacción. La
-instalación del SQL no elimina contratos; solo habilita la nueva operación.
+Implementado: botón en ficha, confirmación por número, rol activo revalidado en
+servidor y copia privada e inmutable de contrato/pagos/relaciones. Copia y borrado
+se confirman en una transacción; los PDF permanecen privados en sus rutas.
 
 Los contratos vinculados al historial multiempresa y las restricciones de meses
-cerrados/renovaciones siguen protegidos. No se alteró la regla de anulación
-comercial ni se eliminaron inversiones reales.
+cerrados/renovaciones siguen protegidos. No se cambió la anulación comercial ni
+se eliminaron contratos reales.
 
-**Producción pendiente:** presentar/aprobar SQL `20260915222925`, ensayo remoto,
-instalación, Edge y frontend. No afirmar que el botón está activo todavía.
-Acta técnica: `CRM-Avance-Corp/supabase/scripts/contratos-eliminar/README.md`.
-Banco local propio: `contratos_eliminar_20260915`, dentro de
-`supabase_db_avancecorp-f5-bank`; sin nuevos servicios ni costes remotos.
+Validación final: 3.620 pruebas frontend, 192 E2E (26 omisiones existentes), 46
+Edge/Storage, siete grupos SQL, 284 aserciones remotas de permisos/contratos y
+22 comprobaciones HTTP/Auth/Edge/Storage PASS. La prueba real confirmó pagos
+archivados exactamente, concurrencia, actor y archivos conservados byte a byte.
+Tipos y fuente desplegada en la rama coinciden; advisors sin nuevos WARN/ERROR.
+La matriz global conserva deuda previa, desglosada en el acta; no declarar que pasó.
+Antes y después: 44 aserciones fallidas y la misma interrupción D-13, cero nuevas.
+Rama temporal propia eliminada el 15/09 a las 20:38 Lima; coste estimado US$0,0331.
 
-Pruebas locales: 3.617 frontend + 3 casos adicionales, 44 Edge/Storage, cinco
-grupos SQL y dos recorridos de eliminación. Un E2E global de conversión de
-supervisor falla por el cambio previo en lead-drawer, conservado sin editar.
+Dos revisiones Claude evaluadas. Se cerraron las puertas antiguas, se protegió
+TRUNCATE y se añadieron guardas para dependencias futuras, acción FK modificada
+y UUID reintroducido. Los conflictos SQL muestran mensajes públicos seguros.
+
+**Producción pendiente:** aprobar los SQL exactos `20260915222925` y
+`20260916003000`, instalarlos en ese orden, desplegar la Edge y publicar el
+artefacto del commit sincronizado con `avancecorp/main`. Instalar el SQL no
+elimina contratos. No afirmar que este nuevo flujo esté activo todavía.
+
+Acta técnica, hashes, evidencia y estado del banco:
+`CRM-Avance-Corp/supabase/scripts/contratos-eliminar/README.md` y
+`VERIFICACION.json`. No usar un db push general ni una copia de trabajo sucia.
 
 Relacionadas: [[Inicio]] · [[Ciclo de vida de contratos]] ·
 [[Contrato de la sancion de anulacion (ATR-4, 2026-08-31)]] ·

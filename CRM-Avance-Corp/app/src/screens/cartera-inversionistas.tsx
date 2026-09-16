@@ -23,7 +23,7 @@ import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
-import { archivarContratoPdfConfirmado, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
+import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
 import { puedeEliminarContratos } from '@/lib/roles'
 import { crmQueryKeys } from '@/data/crm-queries'
@@ -111,7 +111,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     } finally {if (documento.current === abort) setDescargando(false)}
   }
   async function eliminarContrato(i: InversionFuente) {
-    if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato || i.inversion_id !== null) throw new Error('No tienes permiso para eliminar este contrato.')
+    if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato || i.inversion_id !== null) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
     const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
     await Promise.all([
       qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),

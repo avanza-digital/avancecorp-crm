@@ -493,6 +493,11 @@ for (
       "El contrato pertenece a un mes comercial cerrado y no se puede eliminar",
       409,
     ],
+    [
+      "55000",
+      "El identificador del contrato ya tiene una eliminación auditada y requiere revisión",
+      409,
+    ],
   ] as const
 ) {
   Deno.test(`delete conserva el rechazo ${code} sin modificar archivos`, async () => {
@@ -507,6 +512,25 @@ for (
     assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
   });
 }
+
+Deno.test("delete distingue referencias restrictivas y concurrencia sin filtrar SQL", async () => {
+  for (const code of ["23503", "55P03", "40P01"]) {
+    const { deps, calls } = fake({
+      admin: [{ data: null, error: { code, message: "detalle SQL privado" } }],
+    });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "delete-audited", contratoId: CONTRATO_ID }),
+    );
+    assertEquals(res.status, 409);
+    assertEquals(
+      (await res.json()).error,
+      code === "23503"
+        ? "El contrato tiene operaciones o referencias vinculadas que impiden eliminarlo"
+        : "El contrato está siendo actualizado. Espera unos segundos y reintenta.",
+    );
+    assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
+  }
+});
 
 Deno.test("delete no revela diagnósticos internos ni asegura éxito sin auditoría", async () => {
   for (

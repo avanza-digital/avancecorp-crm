@@ -70,7 +70,15 @@ for(const nombre of ['contrato_eliminacion_preparar','contrato_eliminacion_final
     ...(nombre.endsWith('finalizar')?{p_token:randomUUID()}:{})},{admin:true});
   comprobar('Puerta antigua cerrada: '+nombre,()=>{assert.equal(r.ok,false);assert.equal(r.data?.code,'42501');});
 }
-const [r1,r2]=await Promise.all([edge(admin.token),edge(admin.token)]);
+let [r1,r2]=await Promise.all([edge(admin.token),edge(admin.token)]);
+// El límite de espera SQL puede pedir un reintento durante una carrera real.
+for(const [i,r] of [r1,r2].entries()) {
+  if(r.status===409) {
+    assert.equal(r.data?.error,'El contrato está siendo actualizado. Espera unos segundos y reintenta.');
+    const reintento=await edge(admin.token);
+    if(i===0)r1=reintento;else r2=reintento;
+  }
+}
 const recibo=bien(r1);bien(r2);
 comprobar('Admin elimina un pago y concurrencia devuelve el mismo acuse',()=>{
   assert.equal(recibo.ok,true);assert.equal(recibo.contratoId,c);

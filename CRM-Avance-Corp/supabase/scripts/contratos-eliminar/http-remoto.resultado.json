@@ -1,0 +1,95 @@
+{
+  "proyecto": "urjpvkbjvpraegrmdnos",
+  "fecha": "2026-09-16T01:31:31.132Z",
+  "datos": "exclusivamente ficticios",
+  "resultados": [
+    {
+      "nombre": "anon no suplanta service_role por RPC",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "admin no suplanta service_role por RPC",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "superadmin no suplanta service_role por RPC",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "analista no suplanta service_role por RPC",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge rechaza anon",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge rechaza analista",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge rechaza inactivo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge rechaza token inválido",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puerta antigua cerrada: contrato_eliminacion_preparar",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puerta antigua cerrada: contrato_eliminacion_finalizar",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Admin elimina un pago y concurrencia devuelve el mismo acuse",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Copia exacta de contrato y pago, con actor e identidad del cliente",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Archivo conservado byte a byte: documentos",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Archivo sigue privado: documentos",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Archivo conservado byte a byte: contratos-generados",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Archivo sigue privado: contratos-generados",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Copia no expuesta a anon",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Copia no expuesta a admin",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Copia no expuesta a superadmin",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Copia no expuesta a service_role",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Cliente anterior conserva su respuesta compatible",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Superadmin conserva acceso con copia de auditoría",
+      "estado": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "seguridad_nuevos": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "metadata": {
+        "name": "contratos_eliminados_auditoria",
+        "type": "table",
+        "schema": "crm"
+      },
+      "detail": "Table \\`crm.contratos_eliminados_auditoria\\` has RLS enabled, but no policies exist",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    }
+  ],
+  "rendimiento_nuevos": [],
+  "resumen": "Sin nuevos WARN/ERROR. RLS sin policies en la tabla privada de auditoría es intencional: ninguna lectura directa por API."
+}

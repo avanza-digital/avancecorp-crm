@@ -144,3 +144,44 @@ test('Una baja de Admin bloquea el borrado; un fallo durante DELETE revierte tam
     end $t$;
   `);
 });
+
+test('No confirma una eliminación anterior si el mismo UUID vuelve a existir',()=>{
+  transaccion(`do $t$ declare a uuid; c uuid;
+    begin
+      select id into strict a from public.perfiles where rol='admin' and activo limit 1;
+      select id into strict c from public.contratos where numero_contrato='F4-BASE-INICIAL';
+      -- Estado de una restauración parcial: historial anterior + contrato vivo.
+      insert into crm.contratos_eliminados_auditoria(contrato_id,eliminado_por,snapshot,archivos)
+        values(c,a,'{}','[]');
+      begin
+        perform crm.contrato_eliminar_auditado(c,a);
+        raise exception 'Confirmó un borrado que no ocurrió';
+      exception when sqlstate '55000' then
+        if sqlerrm not like '%identificador del contrato%' then raise; end if;
+      end;
+      if not exists(select 1 from public.contratos where id=c) then
+        raise exception 'Alteró el contrato en colisión'; end if;
+    end $t$;`);
+});
+
+test('Una relación conocida con una acción de borrado distinta también se rechaza',()=>{
+  transaccion(`do $t$ declare a uuid; c uuid; fk name;
+    begin
+      select conname into strict fk from pg_constraint
+        where conrelid='public.documentos'::regclass and confrelid='public.contratos'::regclass and contype='f';
+      execute format('alter table public.documentos drop constraint %I',fk);
+      alter table public.documentos add constraint prueba_documentos_setnull
+        foreign key(contrato_id) references public.contratos(id) on delete set null;
+      select id into strict a from public.perfiles where rol='admin' and activo limit 1;
+      select id into strict c from public.contratos where numero_contrato='F4-BASE-INICIAL';
+      begin
+        perform crm.contrato_eliminar_auditado(c,a);
+        raise exception 'Permitió modificar la semántica de la evidencia';
+      exception when sqlstate '55000' then
+        if sqlerrm not like '%dependencias nuevas%' then raise; end if;
+      end;
+      if not exists(select 1 from public.contratos where id=c)
+        or exists(select 1 from crm.contratos_eliminados_auditoria where contrato_id=c) then
+        raise exception 'El rechazo dejó efectos'; end if;
+    end $t$;`);
+});

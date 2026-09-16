@@ -2,11 +2,16 @@
 
 ## Estado
 
-Preparado localmente el 15/09/2026. **Sin instalar SQL, desplegar Edge ni publicar frontend en producción.**
+Implementado y validado localmente y en rama remota el 15/09/2026 (Lima).
+**Sin instalar SQL, desplegar Edge ni publicar frontend en producción.**
 Miguel pidió permitir eliminar contratos al administrador y confirmó expresamente
 «Eliminar también contratos con pagos, conservando una copia de auditoría».
 
-SQL para revisar: [20260915222925_crm_eliminacion_contrato_con_auditoria.sql](../../migrations/20260915222925_crm_eliminacion_contrato_con_auditoria.sql).
+SQL para revisar, en este orden:
+
+1. [20260915222925_crm_eliminacion_contrato_con_auditoria.sql](../../migrations/20260915222925_crm_eliminacion_contrato_con_auditoria.sql).
+2. [20260916003000_crm_eliminacion_auditada_guardas.sql](../../migrations/20260916003000_crm_eliminacion_auditada_guardas.sql).
+
 La instalación agrega una tabla privada y una RPC y cierra el acceso externo a las
 dos RPC de eliminación antiguas. **Instalarlo no elimina ningún contrato.**
 
@@ -23,7 +28,9 @@ dos RPC de eliminación antiguas. **Instalarlo no elimina ningún contrato.**
   cualquier limpieza futura de objetos sin contrato vivo.
 - La copia es inmutable (UPDATE, DELETE y TRUNCATE rechazados), con RLS sin
   policies y sin grants a anon/authenticated/service_role. Se registran actor y fecha.
-- Repetir una solicitud devuelve el mismo identificador de auditoría.
+- Repetir una solicitud devuelve el mismo identificador de auditoría. Si una
+  restauración parcial reintrodujo ese UUID como contrato vivo, se bloquea la
+  operación y se pide revisión: no se confirma una eliminación que no ocurrió.
 - Se conservan las restricciones sobre fuentes enlazadas a `crm.inversiones`,
   períodos cerrados, reasignaciones y renovaciones que protegen los triggers/FK
   del portal. No es una anulación comercial ni una modificación de esos historiales.
@@ -33,26 +40,44 @@ dos RPC de eliminación antiguas. **Instalarlo no elimina ningún contrato.**
 
 ## Verificación
 
-- **PASS:** `npm run check`: lint, TypeScript, 3.617 pruebas, cobertura, build,
-  configuración de publicación, bundle y duplicación. Tres casos adicionales
-  posteriores de demo/metadata/historial pasan en la suite específica (33 casos).
-- **PASS:** 44 pruebas Deno del handler y Storage. `delete-audited` exige acuse de
+- **PASS:** `npm run check:all`: lint, TypeScript, 3.620 pruebas en 247 archivos,
+  cobertura, configuración de publicación, build, bundle y duplicación;
+  192 E2E PASS y 26 omisiones existentes. Incluye eliminación a 1440 y 390 px,
+  confirmación escrita, cancelación/foco, llamada única y actualización de ficha.
+  La aserción antigua de conversión del supervisor se actualizó al comportamiento
+  ya integrado en Main, con backend productivo cotejado (versión 17).
+- **PASS:** 46 pruebas Deno del handler y Storage. `delete-audited` exige acuse de
   auditoría; `delete` conserva el formato legacy. Ninguno llama a borrar Storage.
-- **PASS:** cinco grupos PostgreSQL en `contratos_eliminar_20260915` (copia sintética
+- **PASS:** siete grupos PostgreSQL en `contratos_eliminar_20260915` (copia sintética
   propia): pago archivado exactamente, referencias documentales, actor, replay,
   permisos/roles/baja, inmutabilidad, cierre de RPC antiguas, FK nueva y rollback
-  cuando falla DELETE. Los ensayos usan ROLLBACK y no dejan contratos eliminados.
-- **PASS:** dos E2E del nuevo flujo, 1440 y 390 px; confirmación, cancelar/retorno
-  de foco, llamada única y actualización de ficha. Captura móvil inspeccionada.
-- **PASS:** preflight RLS sin conexión, con variables sintéticas; valida la
-  configuración y carga del harness sin ejecutar la matriz contra Auth/API.
-- **FAIL ajeno al cambio:** suite E2E global: 189 PASS, 26 omitidos, un fallo en
-  `e2e/acciones-real.spec.ts:206`. Espera ocultar «Convertir a cliente» al supervisor,
-  pero el cambio de `lead-drawer.tsx` que ya existía al iniciar esta tarea lo habilita.
-  Ese trabajo previo se conservó sin editar.
-- **NOT RUN:** matriz RLS general con Auth/API, banco remoto y advisors remotos.
-  El gate de realidad CLI carecía de variables; se comprobó el permiso SQL vigente,
-  dependencias y conteos mediante lecturas MCP productivas (sin datos personales).
+  cuando falla DELETE; colisión con UUID reintroducido y acción FK modificada.
+  Los ensayos usan ROLLBACK y no dejan contratos eliminados.
+- **PASS:** `deno check` con la configuración de la Edge, `check:scripts`,
+  `test:edge-preflight` y preflight RLS.
+- **PASS:** 284 aserciones Auth/Data API del gate `test-rls.mjs --contratos`,
+  incluidos permisos, domicilio legal, frontera bancaria, contrato y acceso anónimo.
+- **PASS:** 22 comprobaciones de Auth → Edge desplegada → SQL → Storage reales:
+  admin con pago, superadmin, roles denegados, RPC sin suplantación, concurrencia,
+  copia exacta, acuse estable, actor, compatibilidad y dos archivos privados
+  conservados byte a byte. [Resultado HTTP](http-remoto.resultado.json).
+- **PASS:** tipos de tabla/RPC cotejados con generación remota; fuente SQL y
+  handler/index desplegados idénticos. Base reconstruida sin clientes reales:
+  113 tablas, 649 funciones coincidentes y 12 políticas Storage.
+- **PASS:** advisors sin nuevos WARN/ERROR. Solo INFO de RLS sin policies en la
+  copia privada, deliberadamente inaccesible por API. [Resultado](advisors.resultado.json)
+  y [explicación de Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+- **FAIL heredado:** la matriz RLS global ya falla sin esta migración: supuestos
+  antiguos de F2 frente a F4, campos ampliados de métricas, fixtures y una firma
+  obsoleta de `convertir_lead_externo`. Ambas corridas: 44 aserciones fallidas y
+  la misma interrupción fatal en D-13; cero fallos nuevos hasta ese punto.
+  [Comparación antes/después](rls-global.resultado.json). Lo posterior a la
+  interrupción no se acredita. Ver el resumen final en `VERIFICACION.json`.
+  El gate de contratos no sustituye ni declara aprobada la matriz global.
+
+La rama autorizada `urjpvkbjvpraegrmdnos` se eliminó el 16/09 a las 01:38 UTC
+(15/09, 20:38 Lima), con readback de ausencia. Coste estimado: US$0,0331,
+incluida la pausa pedida. No se eliminaron otras ramas ni servicios locales.
 
 ## Revisión independiente y decisiones
 
@@ -61,6 +86,8 @@ protección TRUNCATE, copia de idempotencia, detección de dependencias CASCADE/
 nuevas, mensaje de concurrencia, guardas de ficha y actualización de cachés.
 Los mensajes desconocidos vuelven a quedar ocultos; los públicos de la Edge usan
 `ContratoEliminacionError` para conservar el motivo de rechazo sin filtrar errores crudos.
+La segunda revisión agregó guardas de UUID/acción FK y clasificación HTTP 409.
+[Decisiones y evidencia de las dos revisiones](REVISION.md).
 
 El catálogo productivo se comprobó el 15/09: las únicas cascadas son cronograma,
 documentos, titulares y cuentas; SET NULL afecta a leads/altas idempotentes.
@@ -72,12 +99,16 @@ limpieza de esos objetos. Las referencias quedan expresamente bajo retención.
 ## Activación y pausa
 
 1. Obtener conformidad al SQL exacto (regla del vault: mostrar SQL primero).
-2. Ensayar el mismo archivo en una rama autorizada y verificar Auth/API, permisos
-   y advisors. La copia local no sustituye ese paso productivo.
-3. Integrar con `avancecorp/main`, verificar el commit y generar su artefacto.
-4. Instalar SQL, desplegar `crm-contrato-pdf-v2` y publicar el frontend por el
+2. Ensayo remoto completado en la rama autorizada, con datos ficticios. Usar
+   exactamente ambos archivos cuyas huellas figuran en `VERIFICACION.json`.
+3. Usar únicamente el artefacto limpio del commit sincronizado con
+   `avancecorp/main`, comprobando su manifiesto y SHA-256.
+4. Instalar solo los dos SQL indicados, desplegar `crm-contrato-pdf-v2` y publicar el frontend por el
    procedimiento del proyecto. Durante el intervalo, una Edge anterior falla
    cerrada al intentar la ruta antigua. El resto de operaciones PDF sigue vigente.
+   No ejecutar un `db push` indiscriminado: el historial contiene otras propuestas
+   que no forman parte de esta activación. El despliegue web requiere la
+   invocación humana de `/release-crm` según `CRM-Avance-Corp/CLAUDE.md`.
 5. Verificar en entorno autorizado sin eliminar contratos reales de prueba.
 
 Para pausar la eliminación: revocar EXECUTE de

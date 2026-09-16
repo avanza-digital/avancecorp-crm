@@ -1,13 +1,23 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260916003000 — Guardas finales de eliminación auditada
+
+**ENSAYADA EN RAMA; NO INSTALADA EN PRODUCCIÓN.** Complementa `20260915222925`,
+sin editar su archivo ya versionado. Rechaza el reuso de UUID vivo con una copia
+previa y fija CASCADE/SET NULL esperados para cada relación conocida. Misma
+firma y permisos. Siete grupos SQL y 284 aserciones remotas de contratos PASS;
+22 comprobaciones HTTP/Auth/Edge/Storage PASS. Acta y huellas:
+[contratos-eliminar](../scripts/contratos-eliminar/README.md).
+
 ## 20260915222925 — Eliminación de contratos con pagos y copia de auditoría
 
-**PREPARADA LOCALMENTE; NO INSTALADA EN PRODUCCIÓN.** Pedido de Miguel:
+**ENSAYADA EN RAMA; NO INSTALADA EN PRODUCCIÓN.** Pedido de Miguel:
 Admin también puede eliminar contratos con pagos conservando copia de auditoría.
 RPC solo service_role, rol activo revalidado, archivo inmutable y eliminación
 atómica; PDF privados retenidos. Cierra las RPC externas de borrado anteriores.
 Conserva bloqueos F4, meses cerrados y dependencias del portal. Sin backfill ni
-eliminación de datos al instalar. Tipos derivados de la base sintética.
+eliminación de datos al instalar. Tipos cotejados con la rama sintética remota.
+Aplicar también la complementaria `20260916003000` antes de activar la Edge.
 [Pruebas, revisión, límites y procedimiento](../scripts/contratos-eliminar/README.md).
 
 ## 20260915170237 — Lectura individual de la ficha canónica

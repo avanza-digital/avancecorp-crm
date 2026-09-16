@@ -96,10 +96,11 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos]
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
+  --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
 Variables requeridas:
@@ -115,7 +116,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -5486,6 +5487,32 @@ async function testContractBankAccounts(sessions, seed) {
           admin.from('perfiles').update({ rol: 'admin' }).eq('id', actorId),
         );
         try {
+          const usaCopiaInmutable = contarFueraDeBanda('disponibilidad de eliminación con copia',
+            "select count(*) from pg_proc where oid=to_regprocedure('crm.contrato_eliminar_auditado(uuid,uuid)')") === 1;
+          if (usaCopiaInmutable) {
+            for (const [quien, cli] of [['anon', anonIdem], ['vend1', sessions.vend1.client]]) {
+              await expectExplicitAuthorizationDenied(`${quien} no invoca eliminación auditada como service_role`,
+                cli.schema('crm').rpc('contrato_eliminar_auditado', {p_contrato_id:delId,p_actor_id:actorId}));
+            }
+            await expectExplicitAuthorizationDenied('service_role no prepara la ruta antigua que borraba Storage',
+              admin.schema('crm').rpc('contrato_eliminacion_preparar', {p_contrato_id:delId,p_actor_id:actorId}));
+            const fin = await requireAdmin('eliminar y archivar en una transacción como service_role',
+              admin.schema('crm').rpc('contrato_eliminar_auditado', {p_contrato_id:delId,p_actor_id:actorId}));
+            check(fin.data?.ok === true && typeof fin.data?.auditoria_id === 'string', 'eliminación devuelve copia de auditoría');
+            check(contarFueraDeBanda('copia inmutable atribuida',
+              `select count(*) from crm.contratos_eliminados_auditoria where contrato_id='${delId}' and eliminado_por='${actorId}'`) === 1,
+              'eliminación conserva exactamente una copia atribuida');
+            check(contarFueraDeBanda('DELETE atribuido al actor',
+              `select count(*) from public.audit_log where tabla='contratos' and fila_id='${delId}' and operacion='DELETE' and usuario_id='${actorId}'`) === 1,
+              'eliminación por API atribuye el DELETE al actor');
+            const replay = await requireAdmin('repetir eliminación confirmada',
+              admin.schema('crm').rpc('contrato_eliminar_auditado', {p_contrato_id:delId,p_actor_id:actorId}));
+            check(replay.data?.auditoria_id === fin.data?.auditoria_id, 'replay conserva el mismo acuse');
+            const lectura = await admin.schema('crm').from('contratos_eliminados_auditoria').select('id');
+            check(Boolean(lectura.error), 'service_role no lee directamente las copias privadas');
+          } else {
+            // Compatibilidad con bancos anteriores a 20260915222925. La ruta
+            // antigua debe desaparecer de la API en cuanto se instale el SQL.
           const prep = await requireAdmin(
             'eliminación auditada: preparar como service_role con p_actor_id',
             admin.schema('crm').rpc('contrato_eliminacion_preparar', { p_contrato_id: delId, p_actor_id: actorId }),
@@ -5656,6 +5683,7 @@ async function testContractBankAccounts(sessions, seed) {
             admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: del2, p_token: token2, p_actor_id: actorId }),
           );
           check(fin2?.data?.ok === true, 'eliminación auditada (denegados): con token y actor correctos sí se borra');
+          }
         } finally {
           await requireAdmin(
             'eliminación auditada: vend1 vuelve a analista',
@@ -12948,6 +12976,14 @@ async function main() {
     const missingSessions = requiredSessions.filter((key) => !sessions[key]);
     if (missingSessions.length > 0) {
       fail(`no se pueden completar las pruebas; faltan sesiones: ${missingSessions.join(', ')}`);
+    } else if (args.has('--contratos')) {
+      console.log('ALCANCE: contratos y frontera bancaria; no sustituye la matriz global.');
+      await readVisibilityMatrix(sessions, verifiedSeed);
+      // También deja el domicilio exigido por la lectura bancaria posterior.
+      await testDomicilioLegal(sessions, verifiedSeed);
+      await testBankingBoundary(sessions, verifiedSeed);
+      await testContractBankAccounts(sessions, verifiedSeed);
+      await testAnon(verifiedSeed);
     } else {
       await readVisibilityMatrix(sessions, verifiedSeed);
       await testRecursiveHierarchy(sessions, verifiedSeed);
@@ -13052,7 +13088,7 @@ async function main() {
   }
 
   if (failures === 0) {
-    console.log(`\n✅ RLS OK — ${assertions} aserciones; gate aprobado`);
+    console.log(`\n✅ RLS${args.has('--contratos') ? ' CONTRATOS' : ''} OK — ${assertions} aserciones; gate aprobado`);
     return;
   }
   console.error(`\n❌ ${failures} de ${assertions} aserciones fallaron — NO mergear`);

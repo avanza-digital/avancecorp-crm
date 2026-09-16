@@ -1,17 +1,27 @@
 {
-  "estado": "VALIDACION_REMOTA_EN_CURSO",
+  "estado": "VALIDADO_CAMBIO_PREPARADO_SIN_PUBLICAR",
   "proyecto_produccion": "dctqcbznekcyxhjujuci",
   "rama_prueba": {
     "id": "0416f02e-9e8b-4bb8-98dd-71c4f7a00831",
     "ref": "urjpvkbjvpraegrmdnos",
     "creada_en": "2026-09-15T23:10:48.649851Z",
-    "coste_usd_hora": 0.01344
+    "coste_usd_hora": 0.01344,
+    "eliminada_en": "2026-09-16T01:38:26Z",
+    "eliminada": true,
+    "coste_estimado_usd": 0.03307
   },
-  "sql": {
-    "archivo": "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
-    "sha256": "62343b68dbc42f04b93e2126830e3deb77d4ceda30c55568ce7eb635d29d61c0",
-    "produccion_instalada": false
-  },
+  "sql": [
+    {
+      "archivo": "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
+      "sha256": "62343b68dbc42f04b93e2126830e3deb77d4ceda30c55568ce7eb635d29d61c0",
+      "produccion_instalada": false
+    },
+    {
+      "archivo": "20260916003000_crm_eliminacion_auditada_guardas.sql",
+      "sha256": "a8a95580e46b9ed2b9ad07bcb6aab6dee28b1eb24e887051a2564fd3f6bdd4a3",
+      "produccion_instalada": false
+    }
+  ],
   "checks": {
     "frontend": {
       "estado": "PASS",
@@ -25,7 +35,7 @@
     },
     "edge": {
       "estado": "PASS",
-      "tests": 44
+      "tests": 46
     },
     "edge_check": {
       "estado": "PASS"
@@ -38,7 +48,42 @@
     },
     "sql_local": {
       "estado": "PASS",
-      "grupos": 5
+      "grupos": 7
+    },
+    "rls_contratos": {
+      "estado": "PASS",
+      "aserciones": 284
+    },
+    "http_remoto": {
+      "estado": "PASS",
+      "comprobaciones": 22,
+      "evidencia": "http-remoto.resultado.json"
+    },
+    "tipos": {
+      "estado": "PASS",
+      "metodo": "Bloques de tabla/RPC idénticos a supabase gen types remoto"
+    },
+    "advisors": {
+      "estado": "PASS",
+      "warn_error_nuevos": 0,
+      "evidencia": "advisors.resultado.json"
+    },
+    "rls_global": {
+      "estado": "FAIL_HEREDADO",
+      "linea_base": {
+        "fallos": 44,
+        "fatal": 1
+      },
+      "candidata": {
+        "fallos": 44,
+        "fatal": 1
+      },
+      "nuevos": 0,
+      "evidencia": "rls-global.resultado.json",
+      "limite": "La matriz global se interrumpe en el mismo bloque D-13. No se acredita lo posterior ni se sustituye por el gate de contratos."
+    },
+    "rls_preflight": {
+      "estado": "PASS"
     }
   },
   "paridad": {
@@ -63,5 +108,22 @@
     "Conserva bloqueos de meses cerrados, renovaciones y FK restrictivas.",
     "Los archivos permanecen privados en sus rutas originales; no se duplica su contenido.",
     "No se publica ni se instala SQL en producción durante este ensayo."
-  ]
+  ],
+  "edge_rama": {
+    "version": 19,
+    "handler_identico": true,
+    "index_identico": true,
+    "produccion_desplegada": false
+  },
+  "sql_rama": {
+    "prosrc_md5": "2d8210b77d1f6f1e3a4e06a1242cf85d",
+    "coincide_con_fuente": true,
+    "search_path": "",
+    "lock_timeout": "5s"
+  },
+  "revision": {
+    "consultas": 2,
+    "dictamen": "CHANGES_REQUESTED",
+    "evaluacion": "Hallazgos concretos corregidos y verificados; hipótesis evaluadas en REVISION.md"
+  }
 }

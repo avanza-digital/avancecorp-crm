@@ -188,12 +188,9 @@ test('gerencia puede convertir un lead asignado', async ({ page }) => {
   await abrirConversionAvance(page, drawer)
 })
 
-// El supervisor ES analista en el portal, así que pasa el chequeo de ROL de
-// crear_contrato — pero NO el de cartera: la edge deja al cliente a nombre del
-// analista dueño del lead, y la RPC solo deja contratar al dueño. Si se le
-// ofreciera, crearía el cliente + le mandaría el correo de bienvenida a una
-// persona real y RECIÉN ahí reventaría, con el lead ya cerrado.
-test('supervisor sobre el lead de SU analista: no se le ofrece convertir (evita el cliente a medias)', async ({ page }) => {
+// Desde el 15/09 el supervisor puede iniciar la conversión de su equipo.
+// El preflight de servidor valida el ámbito antes de crear cliente o contrato.
+test('supervisor sobre el lead de SU analista: puede abrir la conversión', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'supervisor',
     rolPortal: 'analista',
@@ -203,9 +200,8 @@ test('supervisor sobre el lead de SU analista: no se le ofrece convertir (evita 
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toHaveCount(0)
-  await expect(drawer.getByText(/La conversión la cierra Analista/i)).toBeVisible()
-  await expect(drawer.getByText(/reasígnate el lead/i)).toBeVisible()
+  await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toBeVisible()
+  await abrirConversionAvance(page, drawer)
 })
 
 // 0C elimina el fallback que hacía responsable al conversor: la atribución debe existir

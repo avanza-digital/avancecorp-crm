@@ -232,6 +232,7 @@ function statusErrorBackend(error: BackendError | null): number {
   if (error.code === "P0002" || error.code === "PGRST116") return 404;
   if (
     error.code === "22023" || error.code === "23514" ||
+    error.code === "23503" ||
     error.code === "55000" || error.code === "54000" ||
     error.code === "P0409" || error.code === "55P03" || error.code === "40P01"
   ) return 409;
@@ -242,6 +243,7 @@ const MENSAJES_ELIMINACION_PUBLICOS = new Set([
   "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda",
   "Solo Admin o Superadmin puede eliminar contratos",
   "El contrato tiene dependencias nuevas; requiere revisión antes de eliminarlo",
+  "El identificador del contrato ya tiene una eliminación auditada y requiere revisión",
   "El contrato tiene una eliminación anterior pendiente; requiere revisión antes de archivarlo",
   "El contrato pertenece a un mes comercial cerrado y no se puede eliminar",
   "Contrato no encontrado",
@@ -256,6 +258,9 @@ function mensajeErrorEliminacion(
   error: BackendError,
   fallback: string,
 ): string {
+  if (error.code === "23503") {
+    return "El contrato tiene operaciones o referencias vinculadas que impiden eliminarlo";
+  }
   const mensaje = error.message?.trim() ?? "";
   return MENSAJES_ELIMINACION_PUBLICOS.has(mensaje) ? mensaje : fallback;
 }
