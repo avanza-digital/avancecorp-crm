@@ -38,14 +38,19 @@ header .meta .mono{color:var(--text)}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface-2)}
 .toolbar .grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .toolbar .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px}
-button,select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;line-height:1.2}
+button,select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;line-height:1.2;max-width:100%}
 button:hover{border-color:var(--muted)}
-button:focus-visible,select:focus-visible,tr:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+button:focus-visible,select:focus-visible,tr:focus-visible,td:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 button.filtro{font-weight:600}
 button.filtro[aria-pressed="false"]{opacity:.45;text-decoration:line-through;text-decoration-thickness:2px}
 button.filtro.fA{color:var(--idA)} button.filtro.fM{color:var(--idM)} button.filtro.fB{color:var(--idB)} button.filtro.fD{color:var(--idD)}
-button.filtro.fS{color:var(--capa3)} button.filtro.fT{color:var(--capa2)} button.filtro.fX{color:var(--muted)}
+button.filtro.fS{color:var(--capa3)} button.filtro.fT{color:var(--capa2)} button.filtro.fX{color:var(--muted)} button.filtro.fAc{color:var(--muted)}
 button.icono{width:34px;padding:5px 0;text-align:center;font-weight:600}
+.tabs{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.tabs button{border:0;border-radius:0;padding:5px 12px;font-weight:600;color:var(--muted)}
+.tabs button+button{border-left:1px solid var(--border)}
+.tabs button[aria-selected="true"]{background:var(--text);color:var(--surface)}
+#foco{max-width:260px;text-overflow:ellipsis}
 .lienzo{position:relative;height:72vh;min-height:440px;background:var(--surface);touch-action:none;overflow:hidden}
 .mapa.fs .lienzo,.mapa:fullscreen .lienzo{height:calc(100% - 92px)}
 .lienzo svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
@@ -55,35 +60,48 @@ button.icono{width:34px;padding:5px 0;text-align:center;font-weight:600}
 .chips{position:absolute;left:10px;bottom:10px;display:none;flex-wrap:wrap;gap:6px;max-width:calc(100% - 20px)}
 .mapa.fs .chips,.mapa:fullscreen .chips{display:flex}
 .chip{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:3px 8px 3px 10px;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
-.chip.sA{color:var(--idA)} .chip.sM{color:var(--idM)} .chip.sB{color:var(--idB)} .chip.sD{color:var(--idD)} .chip.sS{color:var(--capa3)}
+.chip.sA{color:var(--idA)} .chip.sM{color:var(--idM)} .chip.sB{color:var(--idB)} .chip.sD{color:var(--idD)} .chip.sS{color:var(--capa3)} .chip.aceptado{color:var(--muted);text-decoration:line-through}
 .tip{position:absolute;z-index:5;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:8px 10px;font-size:12px;max-width:340px;display:none;line-height:1.4}
 .tip b{font-family:"IBM Plex Mono",monospace}
 .tip .n{color:var(--muted)}
+.mapa[data-vista="matriz"] .lienzo,.mapa[data-vista="matriz"] .ayuda{display:none}
+.mapa[data-vista="mapa"] .matriz{display:none}
 /* ─── SVG ─── */
 .banda rect{stroke:none}
 .banda.c1 rect{fill:var(--tint1)} .banda.c2 rect{fill:var(--tint2)} .banda.c3 rect{fill:var(--tint3)} .banda.c4 rect{fill:var(--tint4)}
-.banda text{font-family:"IBM Plex Sans",sans-serif;font-size:26px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.banda text{font-family:"IBM Plex Sans",sans-serif;font-size:30px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;paint-order:stroke fill;stroke:var(--surface);stroke-width:6px;stroke-linejoin:round}
 .banda.c1 text{fill:var(--capa1)} .banda.c2 text{fill:var(--capa2)} .banda.c3 text{fill:var(--capa3)} .banda.c4 text{fill:var(--capa4)}
-.banda .sub{font-size:15px;font-weight:400;letter-spacing:0;text-transform:none;fill:var(--muted)}
-.nodo rect{fill:var(--nodo-bg);stroke:var(--nodo-borde);stroke-width:1.2;rx:8}
+.banda .sub{font-size:16px;font-weight:400;letter-spacing:0;text-transform:none;fill:var(--muted)}
+.nodo rect{fill:var(--nodo-bg);stroke:var(--nodo-borde);stroke-width:1.4;rx:9}
 .nodo.c1 rect{stroke:var(--capa1)} .nodo.c2 rect{stroke:var(--capa2)} .nodo.c3 rect{stroke:var(--capa3)} .nodo.c4 rect{stroke:var(--capa4)}
 .nodo.huerfano rect{stroke:var(--rojo);stroke-dasharray:5 4;stroke-width:1.8}
-.nodo text{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;fill:var(--text);pointer-events:none}
-.nodo text.sub{font-size:11px;font-weight:400;fill:var(--muted)}
+.nodo text{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600;fill:var(--text);pointer-events:none}
+.nodo text.sub{font-size:12px;font-weight:400;fill:var(--muted)}
 .nodo{cursor:pointer}
-.nodo:hover rect{stroke-width:2.2}
+.nodo:hover rect{stroke-width:2.4}
 .nodo.dim{opacity:.32}
-.nodo.marcado rect{stroke-width:2.6;filter:drop-shadow(0 0 4px rgba(47,107,255,.35))}
+.nodo.marcado rect{stroke-width:3;filter:drop-shadow(0 0 5px rgba(47,107,255,.4))}
 .linea .hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke}
 .linea .tr{fill:none;stroke-linecap:round;stroke-linejoin:round}
 .linea{cursor:pointer}
-.linea.sana .tr{stroke-width:2}
+/* trazo suave por defecto: la vista general respira; el grosor de la especificación vuelve al pasar el mouse, al seleccionar o con «Trazo fuerte» */
+.linea.sana .tr{stroke-width:1.5;opacity:.42}
 .linea.sana.into-1 .tr{stroke:var(--capa1)} .linea.sana.into-2 .tr{stroke:var(--capa2)} .linea.sana.into-3 .tr{stroke:var(--capa3)} .linea.sana.into-4 .tr{stroke:var(--capa4)}
-.linea.salto .tr{stroke:var(--rojo);stroke-width:3.6}
-.linea.salto.sevA .tr{stroke-width:4.4} .linea.salto.sevB .tr{stroke-width:2.9}
+.linea.salto .tr{stroke:var(--rojo);stroke-width:2.2;opacity:.5}
+.linea.salto.sevA .tr{stroke-width:2.7} .linea.salto.sevB .tr{stroke-width:1.8}
 .linea.corr .tr{stroke:var(--naranja);stroke-dasharray:9 7}
+/* aceptado en la libreta de decisiones: gris punteado, ya no cuenta como pendiente */
+.linea.salto.aceptado .tr{stroke:var(--muted)!important;stroke-dasharray:3 6;opacity:.5}
+.linea.salto.aceptado.hover .tr,.linea.salto.aceptado.sel .tr{opacity:1!important}
+body[data-flujo] .linea.salto.aceptado .tr{stroke-dasharray:3 6}
+body[data-trazo="fuerte"] .linea.sana .tr{stroke-width:2;opacity:1}
+body[data-trazo="fuerte"] .linea.salto .tr{stroke-width:3.6;opacity:1}
+body[data-trazo="fuerte"] .linea.salto.sevA .tr{stroke-width:4.4} body[data-trazo="fuerte"] .linea.salto.sevB .tr{stroke-width:2.9}
+.linea.hover .tr,.linea.sel .tr{opacity:1!important;filter:drop-shadow(0 0 3px rgba(0,0,0,.25))}
+.linea.sana.hover .tr,.linea.sana.sel .tr{stroke-width:2.4}
+.linea.salto.hover .tr,.linea.salto.sel .tr{stroke-width:3.6}
+.linea.salto.sevA.hover .tr,.linea.salto.sevA.sel .tr{stroke-width:4.4} .linea.salto.sevB.hover .tr,.linea.salto.sevB.sel .tr{stroke-width:2.9}
 .linea.dim{opacity:.05}
-.linea.hover .tr,.linea.sel .tr{filter:drop-shadow(0 0 3px rgba(0,0,0,.25))}
 .oculto{display:none}
 @keyframes flujo{to{stroke-dashoffset:-34}}
 body[data-flujo="clic"] .linea.sel .tr,body[data-flujo="clic"] .linea.hover .tr,
@@ -93,30 +111,77 @@ body[data-flujo="rojos"].nosel .linea.salto.corr .tr,body .linea.corr.sel .tr,bo
 .etq{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;paint-order:stroke fill;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round;cursor:pointer}
 .etq.sevA{fill:var(--idA)} .etq.sevM{fill:var(--idM)} .etq.sevB{fill:var(--idB)} .etq.sevD{fill:var(--idD)}
 .etq.dim{opacity:.05}
+.etq.aceptado{fill:var(--muted)}
+.etq.cerradovivo{text-decoration:underline}
 .equis circle{fill:var(--halo);stroke:var(--rojo);stroke-width:1.8}
 .equis.corr circle{stroke:var(--naranja)}
 .equis line{stroke:var(--rojo);stroke-width:2;stroke-linecap:round}
 .equis.corr line{stroke:var(--naranja)}
 .equis.dim{opacity:.05}
+.equis.aceptado circle{stroke:var(--muted)} .equis.aceptado line{stroke:var(--muted)}
+/* chapa «n saltos» bajo las cajas con muchos IDs */
+.chapa{cursor:pointer}
+.chapa rect{fill:var(--nodo-bg);stroke:var(--rojo);stroke-width:1.2;rx:9;fill-opacity:.94}
+.chapa text{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;fill:var(--rojo);pointer-events:none}
+.chapa text tspan.sev{font-weight:600}
+.chapa text tspan.sA{fill:var(--idA)} .chapa text tspan.sM{fill:var(--idM)} .chapa text tspan.sB{fill:var(--idB)} .chapa text tspan.sD{fill:var(--idD)}
+.chapa.abierta rect{stroke-width:2}
+.chapa:hover rect{stroke-width:2}
+.chapa.dim{opacity:.12}
+/* ─── matriz ─── */
+.matriz{height:72vh;min-height:440px;overflow:auto;padding:12px 14px 20px;background:var(--surface)}
+.mapa.fs .matriz,.mapa:fullscreen .matriz{height:calc(100% - 52px)}
+.matriz h3{font-size:13px;margin:14px 0 6px;font-weight:600}
+.matriz h3:first-child{margin-top:0}
+.matriz h3 span{color:var(--muted);font-weight:400}
+.matriz .intro{font-size:12px;color:var(--muted);margin:0 0 6px}
+table.mx{border-collapse:separate;border-spacing:2px;font-size:11.5px;margin-bottom:8px}
+table.mx th{position:sticky;background:var(--surface);z-index:1;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;border:0;padding:2px 4px}
+table.mx thead th{top:0;z-index:2}
+table.mx th.col{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;text-align:left;vertical-align:bottom;font-size:11px;padding:6px 2px;max-height:180px}
+table.mx th.fila{left:0;text-align:right;white-space:nowrap;padding-right:8px;font-size:11.5px}
+table.mx th.esq{left:0;z-index:3}
+table.mx td{padding:0;border:0;height:24px;min-width:34px;text-align:center;vertical-align:middle;border-radius:4px;background:var(--surface-2);font-family:"IBM Plex Mono",monospace}
+table.mx td.vacia{background:transparent}
+table.mx td.par{background:transparent;white-space:nowrap}
+table.mx .sal{display:inline-block;vertical-align:top;min-width:34px;height:24px;padding:2px 3px 0;border-radius:4px;cursor:pointer;font-weight:700;line-height:1;font-size:11.5px}
+table.mx .sal+.sal{margin-left:2px}
+table.mx .sal small{display:block;font-weight:400;font-size:9.5px;opacity:.8}
+table.mx .sal.sA{background:color-mix(in srgb,var(--idA) 22%,transparent);color:var(--idA)}
+table.mx .sal.sM{background:color-mix(in srgb,var(--idM) 24%,transparent);color:var(--idM)}
+table.mx .sal.sB{background:color-mix(in srgb,var(--idB) 18%,transparent);color:var(--idB)}
+table.mx .sal.sD{background:color-mix(in srgb,var(--idD) 20%,transparent);color:var(--idD)}
+table.mx .sal.aceptado{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+table.mx .sal.cerradovivo{outline:2px dashed var(--idA);outline-offset:-2px}
+table.mx .sal.apagada{opacity:.12;cursor:default}
+table.mx .sal:hover:not(.apagada){outline:2px solid currentColor;outline-offset:-2px}
+table.mx .sal.sel{outline:2.5px solid var(--sel);outline-offset:-2px}
+table.mx td.total,table.mx th.total{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--muted);background:transparent;font-size:11px}
 /* ─── panel ─── */
 .panel{display:flex;flex-direction:column;gap:14px;min-width:0}
 .caja{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-.caja h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.caja h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.caja h2 .mini{margin-left:auto;font-size:11px;padding:2px 8px;text-transform:none;letter-spacing:0;font-weight:500}
 .leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
 .leyenda i{display:inline-block;width:14px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px;border-radius:2px}
 .leyenda .pt{border-top-style:dashed}
 .leyenda .hf{display:inline-block;width:12px;height:12px;border:1.8px dashed var(--rojo);border-radius:3px;vertical-align:middle;margin-right:4px}
+.leyenda .ac{display:inline-block;width:14px;height:0;border-top:2px dotted var(--muted);vertical-align:middle;margin-right:4px}
+.leyenda .ch{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;color:var(--rojo);border:1px solid var(--rojo);border-radius:99px;padding:0 5px;vertical-align:middle;margin-right:4px}
 #selBody{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
 .sel-card{border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px}
 .sel-card .cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pill{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12px;padding:1px 7px;border-radius:99px;border:1.5px solid currentColor}
-.pill.sA{color:var(--idA)} .pill.sM{color:var(--idM)} .pill.sB{color:var(--idB)} .pill.sD{color:var(--idD)} .pill.sS{color:var(--capa3)}
+.pill.sA{color:var(--idA)} .pill.sM{color:var(--idM)} .pill.sB{color:var(--idB)} .pill.sD{color:var(--idD)} .pill.sS{color:var(--capa3)} .pill.aceptado{color:var(--muted);border-style:dashed}
+.sel-card .decision{margin-top:4px;font-size:12px;color:var(--text)} .sel-card .decision b{font-weight:600}
+.aviso{color:var(--idA);font-weight:600}
 .sel-card .ruta{font-weight:500}
 .sel-card .det{color:var(--muted);font-size:12px;margin-top:3px}
 .sel-card ul{margin:6px 0 0;padding-left:0;list-style:none;font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.5;color:var(--text)}
 .sel-card li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sel-card li .via{color:var(--muted)}
 .sel-card .quitar{float:right;font-size:11px;padding:2px 7px}
+.resumen-sel{font-size:12px;color:var(--muted)}
 .vacio{color:var(--muted);font-size:13px}
 .tabla-wrap{max-height:52vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -127,6 +192,7 @@ tr.fila:hover,tr.fila.hover{background:var(--surface-2)}
 tr.fila.sel{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--sel)}
 td.id{font-family:"IBM Plex Mono",monospace;font-weight:700;white-space:nowrap}
 tr.sA td.id{color:var(--idA)} tr.sM td.id{color:var(--idM)} tr.sB td.id{color:var(--idB)} tr.sD td.id{color:var(--idD)}
+tr.fila.aceptado td{color:var(--muted)} tr.fila.aceptado td.id{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px} tr.fila.cerradovivo td.id{text-decoration:underline}
 td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cnt{font-variant-numeric:tabular-nums}
 .tabla-filtro{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted)}
@@ -135,9 +201,10 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .nota-metodo b{color:var(--text);font-weight:600}
 @media (max-width: 980px){
   .layout{grid-template-columns:1fr}
-  .lienzo{height:62vh;min-height:380px}
+  .lienzo,.matriz{height:62vh;min-height:380px}
   #selBody{max-height:40vh}
   header h1{font-size:19px}
+  #foco{max-width:100%}
 }
 </style>
 
@@ -148,13 +215,21 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 </header>
 
 <main class="layout">
-  <section class="mapa" id="mapaWrap">
+  <section class="mapa" id="mapaWrap" data-vista="mapa">
     <div class="toolbar">
+      <div class="tabs" role="tablist" aria-label="Vista">
+        <button role="tab" data-tab="mapa" aria-selected="true">Mapa</button>
+        <button role="tab" data-tab="matriz" aria-selected="false" title="Quién salta a quién: origen × destino con el ID y el número de conexiones">Matriz de saltos</button>
+      </div>
+      <div class="grupo"><span class="lbl">Foco</span>
+        <select id="foco" aria-label="Enfocar un módulo o una pantalla"><option value="">— todo —</option></select>
+      </div>
       <div class="grupo"><span class="lbl">Saltos</span>
         <button class="filtro fA" data-f="A" aria-pressed="true" title="Alto: datos del negocio sin la capa intermedia">A</button>
         <button class="filtro fM" data-f="M" aria-pressed="true" title="Medio: criterio mixto o invertido">M</button>
         <button class="filtro fB" data-f="B" aria-pressed="true" title="Bajo: catálogos y configuración">B</button>
         <button class="filtro fD" data-f="D" aria-pressed="true" title="Por diseño: aceptado, pero conviene verlo">D</button>
+        <button class="filtro fAc" data-f="AC" aria-pressed="true" title="Saltos marcados «aceptado» en la libreta de decisiones (decisiones.json): se pintan en gris y no cuentan como pendientes">Aceptados</button>
       </div>
       <div class="grupo"><span class="lbl">Sanas</span>
         <button class="filtro fS" data-f="S" aria-pressed="true" title="Conexiones entre capas consecutivas">Entre capas</button>
@@ -164,11 +239,14 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
       <div class="grupo"><span class="lbl">Flujo</span>
         <select id="flujo" aria-label="Animación del flujo"><option value="clic">solo al clic</option><option value="rojos">todas las rojas</option><option value="sin">sin animar</option></select>
       </div>
+      <div class="grupo"><span class="lbl">Trazo</span>
+        <select id="trazo" aria-label="Grosor de las líneas"><option value="suave">suave</option><option value="fuerte">fuerte</option></select>
+      </div>
       <div class="grupo">
         <button class="icono" id="zMenos" aria-label="Alejar">−</button>
         <button class="icono" id="zMas" aria-label="Acercar">+</button>
         <button id="verTodo">Ver todo</button>
-        <button id="mostrarTodo" title="Quita filtros y selección">Mostrar todo</button>
+        <button id="mostrarTodo" title="Quita filtros, foco y selección">Mostrar todo</button>
         <button id="fs" title="Pantalla completa (Esc para salir)">⛶ Pantalla completa</button>
       </div>
     </div>
@@ -177,8 +255,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
       <div class="chips" id="chips"></div>
       <div class="tip" id="tip"></div>
     </div>
+    <div class="matriz" id="matriz" role="tabpanel"></div>
     <div class="ayuda">
-      <span><kbd>rueda</kbd> acerca donde está el cursor</span><span><kbd>arrastrar</kbd> mueve</span><span><kbd>clic</kbd> en línea, ID o caja aísla (suma con más clics)</span><span><kbd>doble clic</kbd> en el fondo muestra todo</span><span><kbd>Esc</kbd> sale de pantalla completa</span>
+      <span><kbd>rueda</kbd> acerca donde está el cursor</span><span><kbd>arrastrar</kbd> mueve</span><span><kbd>clic</kbd> en línea, ID o caja aísla (suma con más clics)</span><span><kbd>clic</kbd> en una chapa <span class="mono">n saltos</span> despliega sus IDs</span><span><kbd>doble clic</kbd> en el fondo muestra todo</span><span><kbd>Esc</kbd> sale de pantalla completa</span>
     </div>
   </section>
 
@@ -187,15 +266,16 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
       <h2>Leyenda</h2>
       <div class="leyenda">
         <span><i style="border-color:var(--capa1)"></i>entra a Tablas</span><span><i style="border-color:var(--capa2)"></i>entra a Núcleo</span><span><i style="border-color:var(--capa3)"></i>entra a Puertas</span><span><i style="border-color:var(--capa4)"></i>entra a Pantallas</span>
-        <span><i style="border-color:var(--rojo);border-top-width:4px"></i>salto</span><span><i class="pt" style="border-color:var(--naranja)"></i>en corrección</span><span><span class="hf"></span> nadie lo llama</span>
+        <span><i style="border-color:var(--rojo);border-top-width:4px"></i>salto</span><span><i class="pt" style="border-color:var(--naranja)"></i>en corrección</span><span><span class="ac"></span>aceptado (libreta)</span><span><span class="hf"></span> nadie lo llama</span><span><span class="ch">n saltos</span> chapa: clic despliega los IDs</span>
       </div>
     </section>
     <section class="caja">
-      <h2>Selección</h2>
-      <div id="selBody"><p class="vacio">Haz clic en una línea, en su ID o en una caja. Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p></div>
+      <h2>Selección <button class="mini oculto" id="copiar" title="Copia al portapapeles las cajas y líneas seleccionadas con sus conexiones reales (archivo:línea)">Copiar evidencia</button></h2>
+      <div id="selBody"><p class="vacio">Haz clic en una línea, en su ID o en una caja, o elige un módulo o pantalla en «Foco». Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p></div>
     </section>
     <section class="caja">
       <h2>Saltos <span class="cnt" id="cntSaltos"></span></h2>
+      <p class="nota-metodo" id="libreta"></p>
       <div class="tabla-filtro"><input id="buscar" type="search" placeholder="Filtrar por ID, módulo o pantalla…" aria-label="Filtrar saltos"><span id="cntVisibles"></span></div>
       <div class="tabla-wrap"><table id="tabla"><thead><tr><th>ID</th><th>De → a</th><th>Peso</th><th>Salta</th><th class="num">n</th></tr></thead><tbody></tbody></table></div>
     </section>
@@ -210,13 +290,20 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 const DATOS = __DATOS__;
 (function(){
 'use strict';
-const {CAPAS, NODOS, SANAS, SALTOS, OBJ, META} = DATOS;
+const {CAPAS, NODOS, SANAS, SALTOS, OBJ, META, MODULOS} = DATOS;
 const SEV_NOMBRE = {A:'Alto', M:'Medio', B:'Bajo', D:'Por diseño'};
+const ESTADO_TXT = {vivo: '', corr: 'en corrección', aceptado: 'aceptado', cerrado_vivo: '⚠ marcado cerrado pero sigue vivo'};
+const estadoTxt = l => l.sana ? '' : (ESTADO_TXT[l.estado] || '');
+const estadoCls = l => l.sana ? '' : l.estado === 'aceptado' ? ' aceptado' : l.estado === 'cerrado_vivo' ? ' cerradovivo' : l.estado === 'corr' ? ' corr' : '';
+const SEV_ORDEN = {A:0, M:1, B:2, D:3};
 const CAPA_NOMBRE = {1:'Tablas', 2:'Núcleo', 3:'Puertas', 4:'Pantallas'};
-const BAND_H = 120, BOX_H = 50, GAPX = 26, LANE_STEP = 14, LANE_SEP = 22, CORR_STEP = 13, R = 12, TOP = 44;
+const BAND_H = 140, BOX_H = 72, GAPX = 30, LANE_STEP = 14, LANE_SEP = 22, CORR_STEP = 11, R = 12, TOP = 44;
+const UMBRAL_CHAPA = 6;          // con más IDs que esto, la caja muestra una chapa «n saltos» y los IDs se despliegan al clic
 const svg = document.getElementById('svg');
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const numId = id => parseInt(String(id).replace(/\D+/g, ''), 10) || 0;
+const ordenId = (a, b) => (SEV_ORDEN[a[0]] - SEV_ORDEN[b[0]]) || (numId(a) - numId(b));
 
 // ─── 1. Nodos: tamaño y posición relativa ───
 const nodoInfo = {};
@@ -227,13 +314,21 @@ function subDe(n){
   return orden.filter(k => n.resumen[k]).map(k => n.resumen[k] + ' ' + etiquetas[k]).join(' · ');
 }
 const anchoTexto = (s, px) => s.length * px * 0.605;
+// títulos largos en dos líneas para que las cajas no se estiren
+function partirTitulo(t, max = 17) {
+  if (t.length <= max) return [t];
+  const lineas = []; let cur = '';
+  for (const p of t.split(' ')) { if (cur && (cur + ' ' + p).length > max) { lineas.push(cur); cur = p; } else cur = cur ? cur + ' ' + p : p; }
+  if (cur) lineas.push(cur);
+  return lineas.length > 2 ? [lineas[0], lineas.slice(1).join(' ')] : lineas;
+}
 let contenidoW = 0; const bandas = {};
 for (const capa of CAPAS) {
   let x = 0; const ids = capa.nodos;
   for (const id of ids) {
-    const n = NODOS[id]; const sub = subDe(n);
-    const w = Math.max(96, Math.ceil(Math.max(anchoTexto(n.titulo, 13), anchoTexto(sub, 11)) + 28));
-    nodoInfo[id] = {id, n, sub, w, relx: x, capa: capa.id, lineas: []};
+    const n = NODOS[id]; const sub = subDe(n); const lineasTitulo = partirTitulo(n.titulo);
+    const w = Math.max(110, Math.ceil(Math.max(...lineasTitulo.map(l => anchoTexto(l, 14)), anchoTexto(sub, 12)) + 30));
+    nodoInfo[id] = {id, n, sub, lineasTitulo, w, relx: x, capa: capa.id, lineas: []};
     x += w + GAPX;
   }
   bandas[capa.id] = {id: capa.id, titulo: capa.titulo, w: x - GAPX, ids};
@@ -256,7 +351,7 @@ for (const l of LINEAS) {
 // corredores: lado del destino, ordenados para que el destino más cercano al borde use el corredor interior
 const izq = LINEAS.filter(l => l.skip && nodoInfo[l.destino].relcx < contenidoW / 2).sort((a, b) => nodoInfo[a.destino].relcx - nodoInfo[b.destino].relcx);
 const der = LINEAS.filter(l => l.skip && nodoInfo[l.destino].relcx >= contenidoW / 2).sort((a, b) => nodoInfo[b.destino].relcx - nodoInfo[a.destino].relcx);
-const MARGEN_L = Math.max(200, 70 + izq.length * CORR_STEP + 30), MARGEN_R = Math.max(200, 70 + der.length * CORR_STEP + 30);
+const MARGEN_L = Math.max(260, 70 + izq.length * CORR_STEP + 30), MARGEN_R = Math.max(200, 70 + der.length * CORR_STEP + 30);
 const W = MARGEN_L + contenidoW + MARGEN_R;
 izq.forEach((l, k) => l.cx = MARGEN_L - 46 - k * CORR_STEP);
 der.forEach((l, k) => l.cx = MARGEN_L + contenidoW + 46 + k * CORR_STEP);
@@ -302,12 +397,12 @@ for (const g of [1, 2, 3]) {
     if (i === carriles.length) carriles.push([]);
     carriles[i].push(s); s.carril = i;
   }
-  gapH[g] = Math.max(300, 90 + carriles.length * LANE_STEP + 40);
+  gapH[g] = Math.max(320, 110 + carriles.length * LANE_STEP + 40);
 }
 const bandTop = {}; let y = TOP;
 for (const b of [1, 2, 3, 4]) { bandTop[b] = y; y += BAND_H + (gapH[b] || 60); }
 const H = y;
-const laneY = (g, i) => bandTop[g] + BAND_H + 46 + i * LANE_STEP;
+const laneY = (g, i) => bandTop[g] + BAND_H + 62 + i * LANE_STEP;
 for (const g of [1, 2, 3]) for (const s of segmentos[g]) { s.l[s.cual === 'a' ? 'y1' : 'y2'] = laneY(g, s.carril); }
 for (const n of Object.values(nodoInfo)) { n.y = bandTop[n.capa] + (BAND_H - BOX_H) / 2; n.cy = n.y + BOX_H / 2; }
 
@@ -350,7 +445,7 @@ for (const l of LINEAS) {
 // ─── 6. Render ───
 svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 const defs = el('defs', {}, svg);
-const colores = {1: 'var(--capa1)', 2: 'var(--capa2)', 3: 'var(--capa3)', 4: 'var(--capa4)', rojo: 'var(--rojo)', naranja: 'var(--naranja)'};
+const colores = {1: 'var(--capa1)', 2: 'var(--capa2)', 3: 'var(--capa3)', 4: 'var(--capa4)', rojo: 'var(--rojo)', naranja: 'var(--naranja)', gris: 'var(--muted)'};
 for (const [k, c] of Object.entries(colores)) {
   const m = el('marker', {id: 'm-' + k, viewBox: '0 0 10 10', refX: '8.5', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse', markerUnits: 'strokeWidth'}, defs);
   el('path', {d: 'M0 0.5 L10 5 L0 9.5 z', fill: c}, m);
@@ -360,16 +455,16 @@ const descCapa = {1: 'esquemas crm · private · public', 2: 'private.* + trigge
 for (const b of [1, 2, 3, 4]) {
   const g = el('g', {class: 'banda c' + b}, gBandas);
   el('rect', {x: 0, y: bandTop[b], width: W, height: BAND_H, rx: 0}, g);
-  const t = el('text', {x: 16, y: bandTop[b] + 34}, g); t.textContent = `${b} · ${CAPA_NOMBRE[b]}`;
-  const s = el('text', {x: 16, y: bandTop[b] + 58, class: 'sub'}, g); s.textContent = descCapa[b];
+  const t = el('text', {x: 16, y: bandTop[b] + 40}, g); t.textContent = `${b} · ${CAPA_NOMBRE[b]}`;
+  const s = el('text', {x: 16, y: bandTop[b] + 66, class: 'sub'}, g); s.textContent = descCapa[b];
 }
 const domLinea = {};
 const ordenRender = [...LINEAS.filter(l => l.sana), ...LINEAS.filter(l => !l.sana)];
 for (const l of ordenRender) {
-  const cls = ['linea', l.sana ? 'sana into-' + l.into : 'salto sev' + l.sev, l.transversal ? 'transversal' : '', l.misma ? 'misma' : '', l.estado === 'corr' ? 'corr' : ''].filter(Boolean).join(' ');
+  const cls = ['linea', l.sana ? 'sana into-' + l.into : 'salto sev' + l.sev, l.transversal ? 'transversal' : '', l.misma ? 'misma' : '', estadoCls(l).trim()].filter(Boolean).join(' ');
   const g = el('g', {class: cls, 'data-id': l.id}, gLineas);
   el('path', {class: 'hit', d: l.d}, g);
-  const marker = l.estado === 'corr' ? 'naranja' : l.sana ? String(l.into) : 'rojo';
+  const marker = l.estado === 'corr' ? 'naranja' : l.estado === 'aceptado' ? 'gris' : l.sana ? String(l.into) : 'rojo';
   el('path', {class: 'tr', d: l.d, 'marker-end': `url(#m-${marker})`}, g);
   domLinea[l.id] = g;
 }
@@ -377,32 +472,75 @@ const domNodo = {};
 for (const n of Object.values(nodoInfo)) {
   const g = el('g', {class: 'nodo c' + n.capa + (n.n.huerfano ? ' huerfano' : ''), 'data-id': n.id, tabindex: '0', role: 'button', 'aria-label': n.n.titulo}, gNodos);
   el('rect', {x: n.x, y: n.y, width: n.w, height: BOX_H}, g);
-  const t = el('text', {x: n.cx, y: n.y + (n.sub ? 21 : 30), 'text-anchor': 'middle'}, g); t.textContent = n.n.titulo;
-  if (n.sub) { const s = el('text', {x: n.cx, y: n.y + 38, 'text-anchor': 'middle', class: 'sub'}, g); s.textContent = n.sub; }
+  const L = n.lineasTitulo.length, alto = L * 17 + (n.sub ? 15 : 0);
+  let yy = n.y + (BOX_H - alto) / 2 + 12;
+  for (const linea of n.lineasTitulo) { const t = el('text', {x: n.cx, y: yy, 'text-anchor': 'middle'}, g); t.textContent = linea; yy += 17; }
+  if (n.sub) { const s = el('text', {x: n.cx, y: yy - 1, 'text-anchor': 'middle', class: 'sub'}, g); s.textContent = n.sub; }
   domNodo[n.id] = g;
 }
+// marcas por línea: ID junto al destino y ✕ por capa saltada
 const domMarcas = {};
 for (const l of LINEAS) {
   if (l.sana) continue;
   const marcas = [];
-  const o = nodoInfo[l.origen];
-  const e1 = el('text', {class: 'etq sev' + l.sev, x: l.ox, y: o.y + BOX_H + 16 + (l.oi % 2) * 12, 'text-anchor': 'middle', 'data-id': l.id}, gMarcas); e1.textContent = l.id; marcas.push(e1);
   const haciaDer = l.fin[0] >= (l.pts[l.pts.length - 3] ? l.pts[l.pts.length - 3][0] : l.fin[0]);
-  const e2 = el('text', {class: 'etq sev' + l.sev, x: l.fin[0] + (haciaDer ? 7 : -7), y: l.fin[1] - 5, 'text-anchor': haciaDer ? 'start' : 'end', 'data-id': l.id}, gMarcas); e2.textContent = l.id; marcas.push(e2);
+  const e2 = el('text', {class: 'etq sev' + l.sev + estadoCls(l), x: l.fin[0] + (haciaDer ? 7 : -7), y: l.fin[1] - 5, 'text-anchor': haciaDer ? 'start' : 'end', 'data-id': l.id}, gMarcas); e2.textContent = l.id; marcas.push(e2);
   for (const [x, yy] of l.equis) {
-    const g = el('g', {class: 'equis' + (l.estado === 'corr' ? ' corr' : ''), 'data-id': l.id}, gMarcas);
+    const g = el('g', {class: 'equis' + estadoCls(l), 'data-id': l.id}, gMarcas);
     el('circle', {cx: x, cy: yy, r: 8}, g); el('line', {x1: x - 3.6, y1: yy - 3.6, x2: x + 3.6, y2: yy + 3.6}, g); el('line', {x1: x + 3.6, y1: yy - 3.6, x2: x - 3.6, y2: yy + 3.6}, g);
     marcas.push(g);
   }
   domMarcas[l.id] = marcas;
 }
+// IDs bajo (o sobre) cada caja de origen, en rejilla; con muchos, una chapa «n saltos» que se despliega al clic
+const chapas = {};   // nodo -> {g, texto, ids, grid, lado}
+function rejilla(n, ids, lado) {
+  if (!ids.length) return;
+  ids.sort(ordenId);
+  const cols = Math.max(1, Math.floor((n.w - 12) / 38));
+  const filas = Math.ceil(ids.length / cols);
+  const conChapa = ids.length > UMBRAL_CHAPA;
+  const y0 = lado === 'abajo' ? n.y + BOX_H + (conChapa ? 38 : 17) : n.y - (conChapa ? 30 : 9) - (filas - 1) * 15;
+  const grid = el('g', {class: 'ids' + (conChapa ? ' oculto' : ''), 'data-nodo': n.id}, gMarcas);
+  const x0 = n.cx - (Math.min(cols, ids.length) * 38) / 2 + 19;
+  ids.forEach((id, i) => { const c = i % cols, r = Math.floor(i / cols); const e = el('text', {class: 'etq sev' + porId[id].sev + estadoCls(porId[id]), x: x0 + c * 38, y: y0 + r * 15, 'text-anchor': 'middle', 'data-id': id}, grid); e.textContent = id; domMarcas[id].push(e); });
+  if (!conChapa) return;
+  const g = el('g', {class: 'chapa', 'data-nodo': n.id, 'data-lado': lado, tabindex: '0', role: 'button'}, gMarcas);
+  const cy = lado === 'abajo' ? n.y + BOX_H + 13 : n.y - 13;
+  const rect = el('rect', {x: 0, y: cy - 10, width: 10, height: 20}, g);
+  const texto = el('text', {x: n.cx, y: cy + 4, 'text-anchor': 'middle'}, g);
+  chapas[n.id + ':' + lado] = {g, rect, texto, ids, grid, cx: n.cx, nodo: n.id, lado};
+}
+for (const n of Object.values(nodoInfo)) {
+  const salientes = n.lineas.map(id => porId[id]).filter(l => !l.sana && l.origen === n.id);
+  rejilla(n, salientes.filter(l => l.dir !== 'up').map(l => l.id), 'abajo');
+  rejilla(n, salientes.filter(l => l.dir === 'up').map(l => l.id), 'arriba');
+}
+function pintarChapas() {
+  for (const ch of Object.values(chapas)) {
+    const vis = ch.ids.filter(id => visible(porId[id]) && porId[id].estado !== 'aceptado');   // la chapa cuenta lo pendiente
+    const cnt = {}; for (const id of vis) cnt[porId[id].sev] = (cnt[porId[id].sev] || 0) + 1;
+    ch.texto.textContent = '';
+    const t1 = document.createElementNS(NS, 'tspan'); t1.textContent = `${vis.length} ${vis.length === 1 ? 'salto' : 'saltos'}${ch.g.classList.contains('abierta') ? ' ▴' : ' ▾'}`; ch.texto.appendChild(t1);
+    for (const s of ['A', 'M', 'B', 'D']) if (cnt[s]) { const ts = document.createElementNS(NS, 'tspan'); ts.setAttribute('class', 'sev s' + s); ts.textContent = ` ${s}${cnt[s]}`; ch.texto.appendChild(ts); }
+    const w = Math.max(70, ch.texto.textContent.length * 12 * 0.62 + 18);
+    ch.rect.setAttribute('x', ch.cx - w / 2); ch.rect.setAttribute('width', w);
+    ch.g.classList.toggle('oculto', vis.length === 0);
+  }
+}
+function alternarChapa(clave) {
+  const ch = chapas[clave]; if (!ch) return;
+  const abierta = ch.g.classList.toggle('abierta');
+  ch.grid.classList.toggle('oculto', !abierta);
+  pintarChapas();
+}
 
-// ─── 7. Estado: filtros, selección, flujo ───
-const filtros = {A: true, M: true, B: true, D: true, S: true, I: false, X: false};
-const seleccion = new Set(); let ultimoNodo = null; let hoverId = null;
+// ─── 7. Estado: filtros, selección, foco, flujo ───
+const filtros = {A: true, M: true, B: true, D: true, AC: true, S: true, I: false, X: false};
+const seleccion = new Set(); let nodosPanel = []; let hoverId = null;
 function visible(l) {
   if (l.sana) { if (!filtros.S) return false; if (l.misma && !filtros.I) return false; }
-  else if (!filtros[l.sev]) return false;
+  else { if (!filtros[l.sev]) return false; if (l.estado === 'aceptado' && !filtros.AC) return false; }
   if (l.transversal && !filtros.X) return false;
   return true;
 }
@@ -412,94 +550,200 @@ function aplicarFiltros() {
     domLinea[l.id].classList.toggle('oculto', !v);
     if (domMarcas[l.id]) for (const m of domMarcas[l.id]) m.classList.toggle('oculto', !v);
     const fila = filas[l.id]; if (fila) fila.classList.toggle('oculto', !v || !coincideBusqueda(l));
+    const celda = celdas[l.id]; if (celda) celda.classList.toggle('apagada', !v || !coincideBusqueda(l));
   }
   document.querySelectorAll('button.filtro').forEach(b => b.setAttribute('aria-pressed', String(filtros[b.dataset.f])));
-  actualizarConteos();
+  pintarChapas(); totalesMatriz(); actualizarConteos();
 }
 function aplicarSeleccion() {
   const hay = seleccion.size > 0;
   document.body.classList.toggle('nosel', !hay);
-  const nodosTocados = new Set();
+  const nodosTocados = new Set(nodosPanel);
   for (const id of seleccion) { const l = porId[id]; nodosTocados.add(l.origen); nodosTocados.add(l.destino); }
   for (const l of LINEAS) {
     const s = seleccion.has(l.id);
     const g = domLinea[l.id]; g.classList.toggle('sel', s); g.classList.toggle('dim', hay && !s);
     if (domMarcas[l.id]) for (const m of domMarcas[l.id]) m.classList.toggle('dim', hay && !s);
     const fila = filas[l.id]; if (fila) fila.classList.toggle('sel', s);
+    const celda = celdas[l.id]; if (celda) celda.classList.toggle('sel', s);
   }
   for (const id of seleccion) gLineas.appendChild(domLinea[id]);   // las seleccionadas van al final del DOM
   for (const n of Object.values(nodoInfo)) domNodo[n.id].classList.toggle('dim', hay && !nodosTocados.has(n.id));
+  for (const ch of Object.values(chapas)) ch.g.classList.toggle('dim', hay && !ch.ids.some(id => seleccion.has(id)));
+  document.getElementById('copiar').classList.toggle('oculto', !hay && !nodosPanel.length);
   renderPanel(); renderChips();
 }
-function alternarLinea(id) { if (seleccion.has(id)) seleccion.delete(id); else seleccion.add(id); ultimoNodo = null; aplicarSeleccion(); }
+function alternarLinea(id) { if (seleccion.has(id)) seleccion.delete(id); else seleccion.add(id); nodosPanel = []; desmarcar(); aplicarSeleccion(); }
+function desmarcar() { document.querySelectorAll('.nodo.marcado').forEach(n => n.classList.remove('marcado')); }
 function alternarNodo(id) {
   const ids = nodoInfo[id].lineas.filter(x => visible(porId[x]));
   const todas = ids.length && ids.every(x => seleccion.has(x));
   if (todas) ids.forEach(x => seleccion.delete(x)); else ids.forEach(x => seleccion.add(x));
-  ultimoNodo = id; aplicarSeleccion();
-  domNodo[id].classList.toggle('marcado', !todas);
+  nodosPanel = todas ? [] : [id]; desmarcar(); if (!todas) domNodo[id].classList.add('marcado');
+  aplicarSeleccion();
 }
-function mostrarTodo() { seleccion.clear(); ultimoNodo = null; Object.assign(filtros, {A: true, M: true, B: true, D: true, S: true, I: false, X: false}); document.querySelectorAll('.nodo.marcado').forEach(n => n.classList.remove('marcado')); aplicarFiltros(); aplicarSeleccion(); }
+const selFoco = document.getElementById('foco');
+function enfocar(valor) {
+  seleccion.clear(); nodosPanel = []; desmarcar();
+  if (!valor) { aplicarSeleccion(); return; }
+  const [tipo, clave] = [valor.slice(0, valor.indexOf(':')), valor.slice(valor.indexOf(':') + 1)];
+  const ids = tipo === 'mod' ? Object.keys(NODOS).filter(id => NODOS[id].kind === 'grupo' && NODOS[id].modulo === clave) : [clave];
+  for (const id of ids) { if (!nodoInfo[id]) continue; for (const x of nodoInfo[id].lineas) if (visible(porId[x])) seleccion.add(x); domNodo[id].classList.add('marcado'); }
+  nodosPanel = ids.filter(id => nodoInfo[id]);
+  aplicarSeleccion(); activarTab('mapa'); requestAnimationFrame(encuadrarSeleccion);
+}
+selFoco.addEventListener('change', () => enfocar(selFoco.value));
+{
+  const gm = document.createElement('optgroup'); gm.label = 'Módulo (sus cajas de Tablas, Núcleo y Puertas)';
+  const conNodos = new Set(Object.values(NODOS).filter(n => n.kind === 'grupo').map(n => n.modulo));
+  for (const [mid, titulo] of Object.entries(MODULOS || {})) if (conNodos.has(mid)) { const o = document.createElement('option'); o.value = 'mod:' + mid; o.textContent = titulo; gm.appendChild(o); }
+  const gp = document.createElement('optgroup'); gp.label = 'Pantalla o actor';
+  for (const id of CAPAS[3].nodos) { const o = document.createElement('option'); o.value = 'nodo:' + id; o.textContent = NODOS[id].titulo; gp.appendChild(o); }
+  selFoco.appendChild(gm); selFoco.appendChild(gp);
+}
+function mostrarTodo() { seleccion.clear(); nodosPanel = []; selFoco.value = ''; Object.assign(filtros, {A: true, M: true, B: true, D: true, AC: true, S: true, I: false, X: false}); desmarcar(); aplicarFiltros(); aplicarSeleccion(); }
 
-// ─── 8. Panel de selección, chips y tabla ───
+// ─── 8. Panel de selección, chips, tabla y evidencia ───
 const selBody = document.getElementById('selBody'), chips = document.getElementById('chips');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const nombreNodo = id => { const n = NODOS[id]; return n.kind === 'grupo' ? `${CAPA_NOMBRE[n.capa]} · ${n.titulo}` : n.titulo; };
-function objLinea(id) { const o = OBJ[id]; if (!o) return id; return id; }
+const saltaDe = l => l.sana ? (l.misma ? 'misma capa' : 'capas consecutivas') : (l.capas_saltadas.length ? 'salta ' + l.capas_saltadas.join(' + ') : l.clase === 'inversion' ? 'inversión de capa' : '');
+const tagsObj = m => { const o = OBJ[m] || {}; return [o.k === 'fn' && o.c === 3 && !o.a ? 'cerrada' : '', o.t ? 'trigger' : '', o.h ? '⚠ nadie lo llama' : '', o.f7 ? 'F7:' + o.f7 : '', o.cf ? 'config' : ''].filter(Boolean).join(' · '); };
 function cardLinea(l) {
   const sev = l.sana ? 'S' : l.sev;
-  const salta = l.sana ? (l.misma ? 'misma capa' : 'capas consecutivas') : (l.capas_saltadas.length ? 'salta ' + l.capas_saltadas.join(' + ') : l.clase === 'inversion' ? 'inversión de capa' : '');
   const lis = l.miembros.slice(0, 40).map(m => `<li title="${esc(m.via)} — ${esc(m.nota || '')}">${esc(m.p)} <span class="via">→</span> ${esc(m.c)} <span class="via">· ${esc(m.via)}</span></li>`).join('');
   const mas = l.miembros.length > 40 ? `<li class="via">… y ${l.miembros.length - 40} más</li>` : '';
-  return `<div class="sel-card"><button class="quitar" data-quitar="${l.id}">quitar</button><div class="cab"><span class="pill s${sev}">${l.id}</span><span class="ruta">${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</span></div>
-    <div class="det">${l.sana ? 'conexión sana' : SEV_NOMBRE[l.sev]}${salta ? ' · ' + salta : ''} · ${l.n} ${l.n === 1 ? 'conexión real' : 'conexiones reales'}${l.estado === 'corr' ? ' · en corrección' : ''}${l.transversal ? ' · transversal' : ''}${l.nota ? '<br>' + esc(l.nota) : ''}</div><ul>${lis}${mas}</ul></div>`;
+  const salta = saltaDe(l);
+  const et = estadoTxt(l);
+  const dec = l.decision ? `<div class="decision"><b>Libreta:</b> ${esc(l.decision.estado)}${l.decision.fecha ? ' · ' + esc(l.decision.fecha) : ''}${l.decision.por ? ' · ' + esc(l.decision.por) : ''}${l.decision.motivo ? ' · ' + esc(l.decision.motivo) : ''}${l.estado === 'cerrado_vivo' ? ' · <span class="aviso">el catálogo lo sigue mostrando: no está cerrado</span>' : ''}</div>` : '';
+  return `<div class="sel-card"><button class="quitar" data-quitar="${l.id}">quitar</button><div class="cab"><span class="pill s${sev}${estadoCls(l)}">${l.id}</span><span class="ruta">${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</span></div>
+    <div class="det">${l.sana ? 'conexión sana' : SEV_NOMBRE[l.sev]}${salta ? ' · ' + salta : ''} · ${l.n} ${l.n === 1 ? 'conexión real' : 'conexiones reales'}${et ? ' · ' + et : ''}${l.transversal ? ' · transversal' : ''}${l.nota ? '<br>' + esc(l.nota) : ''}</div>${dec}<ul>${lis}${mas}</ul></div>`;
 }
 function cardNodo(id) {
   const n = NODOS[id]; const ms = n.miembros;
-  const lis = ms.slice(0, 60).map(m => { const o = OBJ[m] || {}; const tags = [o.k === 'fn' && o.c === 3 && !o.a ? 'cerrada' : '', o.t ? 'trigger' : '', o.h ? '⚠ nadie lo llama' : '', o.f7 ? 'F7:' + o.f7 : '', o.cf ? 'config' : ''].filter(Boolean).join(' · '); return `<li title="${esc(o.cm || '')}">${esc(m)}${tags ? ` <span class="via">· ${esc(tags)}</span>` : ''}</li>`; }).join('');
+  const lis = ms.slice(0, 60).map(m => { const o = OBJ[m] || {}; const tags = tagsObj(m); return `<li title="${esc(o.cm || '')}">${esc(m)}${tags ? ` <span class="via">· ${esc(tags)}</span>` : ''}</li>`; }).join('');
   const mas = ms.length > 60 ? `<li class="via">… y ${ms.length - 60} más</li>` : '';
   return `<div class="sel-card"><div class="cab"><span class="pill" style="color:var(--capa${n.capa})">${CAPA_NOMBRE[n.capa]}</span><span class="ruta">${esc(n.titulo)}</span></div>
     <div class="det">${esc(subDe(n) || (n.kind === 'pantalla' ? 'pantalla del CRM' : 'actor'))}${n.huerfanos.length ? ` · ${n.huerfanos.length} sin llamador` : ''}${n.cerradas && n.cerradas.length ? ` · ${n.cerradas.length} puertas cerradas (sin EXECUTE para authenticated)` : ''} · ${nodoInfo[id].lineas.length} líneas</div><ul>${lis}${mas}</ul></div>`;
 }
+const idsSeleccion = () => [...seleccion].sort((a, b) => (porId[a].sana - porId[b].sana) || ordenId(a, b));
 function renderPanel() {
   let html = '';
-  if (ultimoNodo) html += cardNodo(ultimoNodo);
-  const ids = [...seleccion].sort((a, b) => (porId[a].sana - porId[b].sana) || a.localeCompare(b, 'es', {numeric: true}));
+  const ids = idsSeleccion();
+  if (ids.length) { const s = ids.filter(id => !porId[id].sana).length; html += `<p class="resumen-sel">${ids.length} ${ids.length === 1 ? 'línea seleccionada' : 'líneas seleccionadas'} · ${s} ${s === 1 ? 'salto' : 'saltos'} y ${ids.length - s} ${ids.length - s === 1 ? 'sana' : 'sanas'} · ${ids.reduce((a, id) => a + porId[id].n, 0)} conexiones reales</p>`; }
+  for (const id of nodosPanel) html += cardNodo(id);
   for (const id of ids) html += cardLinea(porId[id]);
-  selBody.innerHTML = html || '<p class="vacio">Haz clic en una línea, en su ID o en una caja. Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p>';
+  selBody.innerHTML = html || '<p class="vacio">Haz clic en una línea, en su ID o en una caja, o elige un módulo o pantalla en «Foco». Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p>';
 }
 selBody.addEventListener('click', e => { const b = e.target.closest('[data-quitar]'); if (b) alternarLinea(b.dataset.quitar); });
 function renderChips() {
-  chips.innerHTML = [...seleccion].map(id => { const l = porId[id]; return `<span class="chip s${l.sana ? 'S' : l.sev}" data-chip="${id}">${id} <span aria-hidden="true">✕</span></span>`; }).join('');
+  chips.innerHTML = [...seleccion].map(id => { const l = porId[id]; return `<span class="chip s${l.sana ? 'S' : l.sev}${estadoCls(l)}" data-chip="${id}">${id} <span aria-hidden="true">✕</span></span>`; }).join('');
 }
 chips.addEventListener('click', e => { const c = e.target.closest('[data-chip]'); if (c) alternarLinea(c.dataset.chip); });
+// evidencia en texto plano (para pegar en una nota, un issue o un prompt)
+function textoEvidencia() {
+  const out = [`Mapa de capas del CRM · catálogo ${META.proyecto} leído el ${META.fecha.slice(0, 16).replace('T', ' ')} UTC`, ''];
+  for (const id of nodosPanel) { const n = NODOS[id]; out.push(`[${CAPA_NOMBRE[n.capa]}] ${n.titulo} — ${subDe(n) || n.kind} — ${nodoInfo[id].lineas.length} líneas`); for (const m of n.miembros) { const t = tagsObj(m); out.push(`  ${m}${t ? ' · ' + t : ''}`); } out.push(''); }
+  for (const id of idsSeleccion()) { const l = porId[id]; const et = estadoTxt(l); out.push(`${l.id} · ${l.sana ? 'sana' : SEV_NOMBRE[l.sev]}${et ? ' · ' + et : ''} · ${nombreNodo(l.origen)} → ${nombreNodo(l.destino)} · ${saltaDe(l)} · ${l.n} conexiones reales${l.nota ? ' · ' + l.nota : ''}`); if (l.decision) out.push(`  libreta: ${l.decision.estado} · ${l.decision.fecha} · ${l.decision.por} · ${l.decision.motivo}`); for (const m of l.miembros) out.push(`  ${m.p} → ${m.c} · ${m.via}${m.nota && m.nota !== l.nota ? ' · ' + m.nota : ''}`); out.push(''); }
+  return out.join('\n');
+}
+const btnCopiar = document.getElementById('copiar');
+btnCopiar.addEventListener('click', async () => {
+  const t = textoEvidencia(); let ok = false;
+  try { await navigator.clipboard.writeText(t); ok = true; } catch (_) {}
+  if (!ok) { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); }
+  btnCopiar.textContent = ok ? 'Copiado ✓' : 'No se pudo copiar'; setTimeout(() => { btnCopiar.textContent = 'Copiar evidencia'; }, 1600);
+});
 
 const tbody = document.querySelector('#tabla tbody'); const filas = {};
-for (const l of SALTOS) {
-  const tr = document.createElement('tr'); tr.className = 'fila s' + l.sev; tr.dataset.id = l.id; tr.tabIndex = 0;
+for (const l of [...SALTOS].sort((a, b) => ordenId(a.id, b.id))) {
+  const tr = document.createElement('tr'); tr.className = 'fila s' + l.sev + estadoCls(l); tr.dataset.id = l.id; tr.tabIndex = 0;
   const salta = l.capas_saltadas.length ? l.capas_saltadas.join(' + ') : (l.clase === 'inversion' ? 'inversión' : '—');
-  tr.innerHTML = `<td class="id">${l.id}</td><td>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</td><td>${SEV_NOMBRE[l.sev]}${l.estado === 'corr' ? ' · corr' : ''}</td><td>${esc(salta)}</td><td class="num">${l.n}</td>`;
+  const et = {corr: ' · corr', aceptado: ' · aceptado', cerrado_vivo: ' · ⚠ cerrado pero vivo'}[l.estado] || '';
+  tr.innerHTML = `<td class="id">${l.id}</td><td>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</td><td>${SEV_NOMBRE[l.sev]}${et}</td><td>${esc(salta)}</td><td class="num">${l.n}</td>`;
   tbody.appendChild(tr); filas[l.id] = tr;
 }
-tbody.addEventListener('click', e => { const tr = e.target.closest('tr.fila'); if (!tr) return; const id = tr.dataset.id; if (!seleccion.has(id)) { seleccion.add(id); ultimoNodo = null; aplicarSeleccion(); } else { seleccion.delete(id); aplicarSeleccion(); } acercarA(id); });
+function seleccionarYAcercar(id) {
+  if (!seleccion.has(id)) { seleccion.add(id); nodosPanel = []; desmarcar(); aplicarSeleccion(); } else { seleccion.delete(id); aplicarSeleccion(); }
+  activarTab('mapa'); requestAnimationFrame(() => acercarA(id));
+}
+tbody.addEventListener('click', e => { const tr = e.target.closest('tr.fila'); if (tr) seleccionarYAcercar(tr.dataset.id); });
 tbody.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const tr = e.target.closest('tr.fila'); if (tr) { e.preventDefault(); tr.click(); } } });
 tbody.addEventListener('mouseover', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(tr.dataset.id); });
 tbody.addEventListener('mouseout', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(null); });
 let busqueda = '';
-const coincideBusqueda = l => !busqueda || (l.id + ' ' + nombreNodo(l.origen) + ' ' + nombreNodo(l.destino) + ' ' + l.nota).toLowerCase().includes(busqueda);
+const coincideBusqueda = l => !busqueda || (l.id + ' ' + nombreNodo(l.origen) + ' ' + nombreNodo(l.destino) + ' ' + (l.nota || '') + ' ' + estadoTxt(l) + ' ' + (l.decision ? l.decision.motivo + ' ' + l.decision.por : '')).toLowerCase().includes(busqueda);
 document.getElementById('buscar').addEventListener('input', e => { busqueda = e.target.value.trim().toLowerCase(); aplicarFiltros(); });
 function actualizarConteos() {
   const vis = SALTOS.filter(l => visible(l) && coincideBusqueda(l)).length;
   document.getElementById('cntVisibles').textContent = `${vis} de ${SALTOS.length} visibles`;
 }
 document.getElementById('cntSaltos').textContent = `(${SALTOS.length}: ${['A', 'M', 'B', 'D'].map(s => s + ' ' + (META.totales.por_sev[s] || 0)).join(' · ')})`;
+{
+  const dc = META.decisiones || {aceptados: 0, corr: 0, pendientes: SALTOS.length, cerrados_vivos: [], cerrados_confirmados: [], sin_salto: []};
+  const pend = SALTOS.filter(l => l.estado === 'vivo' || l.estado === 'cerrado_vivo');
+  const porSev = ['A', 'M', 'B', 'D'].map(s => s + ' ' + pend.filter(l => l.sev === s).length).join(' · ');
+  document.getElementById('libreta').innerHTML = `<b>Libreta de decisiones</b> (<span class="mono">decisiones.json</span>): <b>${dc.pendientes}</b> pendientes (${porSev}) · ${dc.aceptados} aceptados · ${dc.corr} en corrección · ${dc.cerrados_confirmados.length} cerrados y confirmados por el catálogo`
+    + (dc.cerrados_vivos.length ? `<br><span class="aviso">⚠ ${dc.cerrados_vivos.length} marcados «cerrado» siguen vivos en el catálogo: ${esc(dc.cerrados_vivos.join(', '))}</span>` : '')
+    + (dc.sin_salto.length ? `<br>${dc.sin_salto.length} decisiones apuntan a saltos que ya no existen: ${esc(dc.sin_salto.join(', '))}` : '');
+}
 function setHover(id) {
   if (hoverId && domLinea[hoverId]) { domLinea[hoverId].classList.remove('hover'); if (filas[hoverId]) filas[hoverId].classList.remove('hover'); }
   hoverId = id;
   if (id && domLinea[id]) { domLinea[id].classList.add('hover'); if (filas[id]) filas[id].classList.add('hover'); }
 }
 
-// ─── 9. Cámara: viewBox ───
+// ─── 9. Matriz de saltos: origen × destino, una tabla por par de capas ───
+const matriz = document.getElementById('matriz'); const celdas = {}; const totalesRef = [];
+{
+  const grupos = new Map();
+  for (const l of LINEAS) { if (l.sana) continue; const k = l.bo + '>' + l.bd; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(l); }   // copias de LINEAS: llevan bo/bd
+  const ordenCapas = id => { const n = NODOS[id]; return CAPAS[n.capa - 1].nodos.indexOf(id); };
+  let html = `<p class="intro">Cada celda es un salto agrupado por módulo: el ID y, debajo, cuántas conexiones reales lo componen. Color = peso. Los filtros de arriba y el buscador de la tabla apagan celdas. Clic en una celda la selecciona en el mapa y acerca la cámara.</p>`;
+  const claves = [...grupos.keys()].sort((a, b) => { const [ao, ad] = a.split('>').map(Number), [bo, bd] = b.split('>').map(Number); return (ao - bo) || (ad - bd); });
+  for (const k of claves) {
+    const ls = grupos.get(k); const [bo, bd] = k.split('>').map(Number);
+    const saltadas = ls[0].capas_saltadas.length ? 'salta ' + ls[0].capas_saltadas.join(' + ') : 'inversión de capa';
+    const origenes = [...new Set(ls.map(l => l.origen))].sort((a, b) => ordenCapas(a) - ordenCapas(b));
+    const destinos = [...new Set(ls.map(l => l.destino))].sort((a, b) => ordenCapas(a) - ordenCapas(b));
+    const porPar = {}; for (const l of ls) { const p = l.origen + '|' + l.destino; (porPar[p] = porPar[p] || []).push(l); }
+    html += `<h3>${CAPA_NOMBRE[bo]} → ${CAPA_NOMBRE[bd]} <span>· ${saltadas} · ${ls.length} saltos · ${ls.reduce((a, l) => a + l.n, 0)} conexiones</span></h3>`;
+    html += `<table class="mx" data-grupo="${k}"><thead><tr><th class="esq"></th>${destinos.map(d => `<th class="col" title="${esc(nombreNodo(d))}">${esc(NODOS[d].titulo)}</th>`).join('')}<th class="col total">total</th></tr></thead><tbody>`;
+    for (const o of origenes) {
+      html += `<tr><th class="fila" title="${esc(nombreNodo(o))}">${esc(NODOS[o].titulo)}</th>`;
+      for (const d of destinos) {
+        const arr = porPar[o + '|' + d];
+        if (!arr) { html += '<td class="vacia"></td>'; continue; }
+        html += '<td class="par">' + arr.sort((a, b) => ordenId(a.id, b.id)).map(l => `<span class="sal s${l.sev}${estadoCls(l)}" data-id="${l.id}" tabindex="0" role="button" title="${esc(l.id + ' · ' + SEV_NOMBRE[l.sev] + (estadoTxt(l) ? ' · ' + estadoTxt(l) : '') + ' · ' + nombreNodo(o) + ' → ' + nombreNodo(d) + ' · ' + l.n + ' conexiones' + (l.nota ? ' · ' + l.nota : ''))}">${l.id}<small>${l.n}</small></span>`).join('') + '</td>';   // un par puede llevar un salto por severidad
+      }
+      html += `<td class="total" data-total-fila="${k}|${o}"></td></tr>`;
+    }
+    html += `<tr><th class="fila total">total</th>${destinos.map(d => `<td class="total" data-total-col="${k}|${d}"></td>`).join('')}<td class="total" data-total-grupo="${k}"></td></tr></tbody></table>`;
+  }
+  matriz.innerHTML = html;
+  matriz.querySelectorAll('.sal').forEach(sp => { celdas[sp.dataset.id] = sp; });
+}
+function totalesMatriz() {
+  const cuenta = {}; const suma = (k, l) => { cuenta[k] = (cuenta[k] || 0) + l.n; };
+  for (const l of LINEAS) { if (l.sana || !visible(l) || !coincideBusqueda(l)) continue; const k = l.bo + '>' + l.bd; suma(k + '|' + l.origen, l); suma('c' + k + '|' + l.destino, l); suma('g' + k, l); }
+  matriz.querySelectorAll('[data-total-fila]').forEach(td => { td.textContent = cuenta[td.dataset.totalFila] || ''; });
+  matriz.querySelectorAll('[data-total-col]').forEach(td => { td.textContent = cuenta['c' + td.dataset.totalCol] || ''; });
+  matriz.querySelectorAll('[data-total-grupo]').forEach(td => { td.textContent = cuenta['g' + td.dataset.totalGrupo] || ''; });
+}
+matriz.addEventListener('click', e => { const td = e.target.closest('.sal'); if (td && !td.classList.contains('apagada')) seleccionarYAcercar(td.dataset.id); });
+matriz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const td = e.target.closest('.sal'); if (td) { e.preventDefault(); td.click(); } } });
+matriz.addEventListener('mouseover', e => { const td = e.target.closest('.sal'); if (td) setHover(td.dataset.id); });
+matriz.addEventListener('mouseout', e => { const td = e.target.closest('.sal'); if (td) setHover(null); });
+const wrap = document.getElementById('mapaWrap');
+function activarTab(t) {
+  if (wrap.dataset.vista === t) return;
+  wrap.dataset.vista = t;
+  document.querySelectorAll('.tabs [role="tab"]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  if (t === 'mapa') requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); });
+}
+document.querySelectorAll('.tabs [role="tab"]').forEach(b => b.addEventListener('click', () => activarTab(b.dataset.tab)));
+
+// ─── 10. Cámara: viewBox ───
 const lienzo = document.getElementById('lienzo');
 let vb = {x: 0, y: 0, w: W, h: H};
 const aplicarVB = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
@@ -513,9 +757,9 @@ const verTodo = () => encuadrar(0, 0, W, H, 20);
 const puntoSvg = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
 function zoomEn(px, py, f) { const nw = Math.min(Math.max(vb.w * f, W / 60), W * 2.5); const s = nw / vb.w; vb = {x: px - (px - vb.x) * s, y: py - (py - vb.y) * s, w: nw, h: vb.h * s}; aplicarVB(); }
 svg.addEventListener('wheel', e => { e.preventDefault(); const p = puntoSvg(e); zoomEn(p.x, p.y, Math.exp(e.deltaY * 0.0012)); }, {passive: false});
-document.getElementById('zMas').onclick = () => zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 0.8);
-document.getElementById('zMenos').onclick = () => zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 1.25);
-document.getElementById('verTodo').onclick = verTodo;
+document.getElementById('zMas').onclick = () => { activarTab('mapa'); zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 0.8); };
+document.getElementById('zMenos').onclick = () => { activarTab('mapa'); zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 1.25); };
+document.getElementById('verTodo').onclick = () => { activarTab('mapa'); requestAnimationFrame(verTodo); };
 document.getElementById('mostrarTodo').onclick = mostrarTodo;
 function acercarA(id) {
   const l = porId[id]; const d = nodoInfo[l.destino];
@@ -523,6 +767,14 @@ function acercarA(id) {
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const w = Math.max(x1 - x0, 700), h = Math.max(y1 - y0, 320);
   encuadrar(x0 - (w - (x1 - x0)) / 2, y0 - (h - (y1 - y0)) / 2, w, h, 60);
+}
+function encuadrarSeleccion() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const toma = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  for (const id of seleccion) for (const [x, y] of porId[id].pts) toma(x, y);
+  for (const id of nodosPanel) { const n = nodoInfo[id]; toma(n.x, n.y - 40); toma(n.x + n.w, n.y + BOX_H + 40); }
+  if (x0 === Infinity) { verTodo(); return; }
+  encuadrar(x0, y0, Math.max(x1 - x0, 600), Math.max(y1 - y0, 300), 60);
 }
 // arrastre: captura solo cuando el movimiento supera 5px; el clic que sigue a un arrastre se ignora
 let arr = null, arrastrando = false, ignorarClic = false;
@@ -538,20 +790,25 @@ const finArrastre = e => { if (!arr) return; if (arrastrando) { ignorarClic = tr
 svg.addEventListener('pointerup', finArrastre); svg.addEventListener('pointercancel', finArrastre);
 svg.addEventListener('click', e => {
   if (ignorarClic) { ignorarClic = false; return; }
+  const chapa = e.target.closest('.chapa'); if (chapa) { alternarChapa(chapa.dataset.nodo + ':' + chapa.dataset.lado); return; }
   const linea = e.target.closest('.linea, .etq, .equis'); if (linea) { alternarLinea(linea.dataset.id); return; }
   const nodo = e.target.closest('.nodo'); if (nodo) { alternarNodo(nodo.dataset.id); return; }
 });
-svg.addEventListener('keydown', e => { const nodo = e.target.closest && e.target.closest('.nodo'); if (nodo && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); alternarNodo(nodo.dataset.id); } });
-svg.addEventListener('dblclick', e => { if (!e.target.closest('.linea, .etq, .equis, .nodo')) { mostrarTodo(); verTodo(); } });
+svg.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const chapa = e.target.closest && e.target.closest('.chapa'); if (chapa) { e.preventDefault(); alternarChapa(chapa.dataset.nodo + ':' + chapa.dataset.lado); return; }
+  const nodo = e.target.closest && e.target.closest('.nodo'); if (nodo) { e.preventDefault(); alternarNodo(nodo.dataset.id); }
+});
+svg.addEventListener('dblclick', e => { if (!e.target.closest('.linea, .etq, .equis, .nodo, .chapa')) { mostrarTodo(); verTodo(); } });
 window.addEventListener('resize', () => { const cw = svg.clientWidth || 1, ch = svg.clientHeight || 1; vb.h = vb.w * ch / cw; aplicarVB(); });
 
-// ─── 10. Tooltip y hover ───
+// ─── 11. Tooltip y hover ───
 const tip = document.getElementById('tip');
 function textoTip(t) {
+  const ch = t.closest('.chapa'); if (ch) { const c = chapas[ch.dataset.nodo + ':' + ch.dataset.lado]; if (!c) return ''; const vis = c.ids.filter(id => visible(porId[id]) && porId[id].estado !== 'aceptado'); return `<b>${vis.length} saltos pendientes</b> salen de ${esc(nombreNodo(c.nodo))}<br><span class="n">${esc(vis.join(' '))}<br>clic para ${c.g.classList.contains('abierta') ? 'plegar' : 'desplegar'} los IDs</span>`; }
   const g = t.closest('.linea, .etq, .equis'); if (g) { const l = porId[g.dataset.id]; if (!l) return '';
-    const salta = l.sana ? (l.misma ? 'misma capa' : 'capas consecutivas') : (l.capas_saltadas.length ? 'salta ' + l.capas_saltadas.join(' + ') : 'inversión de capa');
-    return `<b>${l.id}</b> · ${l.sana ? 'sana' : SEV_NOMBRE[l.sev]}${l.estado === 'corr' ? ' · en corrección' : ''}<br>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}<br><span class="n">${salta} · ${l.n} conexiones reales${l.nota ? '<br>' + esc(l.nota) : ''}</span>`; }
-  const nd = t.closest('.nodo'); if (nd) { const n = NODOS[nd.dataset.id]; return `<b>${esc(n.titulo)}</b> · ${CAPA_NOMBRE[n.capa]}<br><span class="n">${esc(subDe(n) || (n.kind === 'pantalla' ? 'pantalla' : 'actor'))} · ${nodoInfo[nd.dataset.id].lineas.length} líneas${n.huerfanos.length ? ' · ' + n.huerfanos.length + ' sin llamador' : ''}</span>`; }
+    const et = estadoTxt(l); return `<b>${l.id}</b> · ${l.sana ? 'sana' : SEV_NOMBRE[l.sev]}${et ? ' · ' + et : ''}<br>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}<br><span class="n">${saltaDe(l)} · ${l.n} conexiones reales${l.nota ? '<br>' + esc(l.nota) : ''}${l.decision && l.decision.motivo ? '<br>Libreta: ' + esc(l.decision.motivo) : ''}</span>`; }
+  const nd = t.closest('.nodo'); if (nd) { const n = NODOS[nd.dataset.id]; const sal = nodoInfo[nd.dataset.id].lineas.filter(id => !porId[id].sana && porId[id].origen === nd.dataset.id).length; return `<b>${esc(n.titulo)}</b> · ${CAPA_NOMBRE[n.capa]}<br><span class="n">${esc(subDe(n) || (n.kind === 'pantalla' ? 'pantalla' : 'actor'))} · ${nodoInfo[nd.dataset.id].lineas.length} líneas${sal ? ' · ' + sal + ' saltos salen de aquí' : ''}${n.huerfanos.length ? ' · ' + n.huerfanos.length + ' sin llamador' : ''}</span>`; }
   return '';
 }
 svg.addEventListener('mousemove', e => {
@@ -564,12 +821,14 @@ svg.addEventListener('mousemove', e => {
 svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; setHover(null); });
 svg.addEventListener('mouseover', e => { const g = e.target.closest('.linea, .etq, .equis'); setHover(g ? g.dataset.id : null); });
 
-// ─── 11. Filtros, flujo, pantalla completa ───
+// ─── 12. Filtros, flujo, trazo, pantalla completa ───
 document.querySelectorAll('button.filtro').forEach(b => b.addEventListener('click', () => { filtros[b.dataset.f] = !filtros[b.dataset.f]; aplicarFiltros(); aplicarSeleccion(); }));
 const selFlujo = document.getElementById('flujo');
 selFlujo.addEventListener('change', () => { document.body.dataset.flujo = selFlujo.value; });
 document.body.dataset.flujo = 'clic';
-const wrap = document.getElementById('mapaWrap');
+const selTrazo = document.getElementById('trazo');
+selTrazo.addEventListener('change', () => { document.body.dataset.trazo = selTrazo.value; });
+document.body.dataset.trazo = 'suave';
 function salirFs() { wrap.classList.remove('fs'); requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); }); }
 document.getElementById('fs').onclick = () => {
   if (document.fullscreenElement) { document.exitFullscreen(); return; }
@@ -580,10 +839,10 @@ document.getElementById('fs').onclick = () => {
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) salirFs(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap.classList.contains('fs') && !document.fullscreenElement) salirFs(); });
 
-// ─── 12. Cabecera y método ───
+// ─── 13. Cabecera y método ───
 const t = META.totales;
 document.getElementById('meta').innerHTML = `Catálogo vivo del proyecto <span class="mono">${esc(META.proyecto)}</span> leído el ${esc(META.fecha.slice(0, 16).replace('T', ' '))} UTC · <span class="mono">${t.funciones}</span> funciones · <span class="mono">${t.relaciones}</span> tablas y vistas · <span class="mono">${t.edge}</span> Edge Functions · <span class="mono">${t.cron}</span> tareas cron · <span class="mono">${t.pantallas}</span> pantallas · <span class="mono">${t.aristas_objeto}</span> conexiones reales agrupadas en <span class="mono">${t.sanas}</span> sanas y <span class="mono">${t.saltos}</span> saltos.`;
-document.getElementById('metodo').innerHTML = `Cada caja de Tablas, Núcleo y Puertas agrupa los objetos reales de un módulo; las pantallas van una a una. <b>Tablas</b>: relaciones de crm, private y public. <b>Núcleo</b>: funciones de private, triggers, cron y Edge internas. <b>Puertas</b>: funciones de crm/public expuestas (abiertas o cerradas), vistas y Edge HTTP. <b>Pantallas</b>: rutas del CRM, el armazón de la app, el portal y actores externos.<br>Conexiones: cuerpos SQL del catálogo (solo referencias con patrón de lectura o llamada), triggers, definiciones de vistas, cron, fuentes de las Edge y análisis estático del front (pantalla → hook → API → rpc/from). <b>A</b>: pantalla o puerta autónoma toca datos del negocio sin núcleo (o Edge con service_role). <b>M</b>: puerta mixta, usa núcleo pero también lee tablas directo; o inversión (núcleo que depende de una puerta). <b>B</b>: catálogos y configuración. <b>D</b>: aceptado por diseño (vistas con security_invoker, reloj interno).`;
+document.getElementById('metodo').innerHTML = `Cada caja de Tablas, Núcleo y Puertas agrupa los objetos reales de un módulo; las pantallas van una a una. <b>Tablas</b>: relaciones de crm, private y public. <b>Núcleo</b>: funciones de private, triggers, cron y Edge internas. <b>Puertas</b>: funciones de crm/public expuestas (abiertas o cerradas), vistas y Edge HTTP. <b>Pantallas</b>: rutas del CRM, el armazón de la app, el portal y actores externos.<br>Conexiones: cuerpos SQL del catálogo (solo referencias con patrón de lectura o llamada), triggers, definiciones de vistas, cron, fuentes de las Edge y análisis estático del front (pantalla → hook → API → rpc/from). <b>A</b>: pantalla o puerta autónoma toca datos del negocio sin núcleo (o Edge con service_role). <b>M</b>: puerta mixta, usa núcleo pero también lee tablas directo; o inversión (núcleo que depende de una puerta). <b>B</b>: catálogos y configuración. <b>D</b>: aceptado por diseño (vistas con security_invoker, reloj interno).<br><b>Libreta de decisiones</b> (<span class="mono">decisiones.json</span>, junto a los datos): cada salto puede quedar <b>aceptado</b> (gris, no cuenta como pendiente), <b>en corrección</b> (naranja) o <b>cerrado</b>; «cerrado» solo se confirma cuando el catálogo deja de mostrarlo, y si sigue vivo el mapa avisa. La regeneración respeta la libreta.`;
 
 aplicarFiltros(); aplicarSeleccion();
 requestAnimationFrame(verTodo);

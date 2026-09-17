@@ -35,6 +35,43 @@ bifurcaciones, no de capas) y se apoya en el catálogo VIVO del 17/09 (651 funci
 - 20 funciones de `private` tienen EXECUTE para `authenticated` (las usan las políticas RLS) y 4 triggers viven en `crm`.
 - Referencias no resueltas: `crm.reclamar` (wrapper `rpc()` de `crear-cliente`) y `public.comunicados` (portal).
 
+## Versión 2 de la página (17/09 por la tarde, misma URL)
+
+El catálogo se releyó a las 19:54 UTC y dio los mismos números. Cambió la página, no los datos:
+
+- **Vista general calma**: líneas finas y atenuadas hasta pasar el mouse o seleccionar (selector «Trazo» devuelve
+  el grosor fuerte). Cajas más grandes con el título en dos líneas.
+- **Chapa «n saltos»** bajo las cajas con más de 6 saltos salientes (`34 saltos ▾ A20 M11 B2 D1`); al clic
+  despliega los IDs. Antes se amontonaban ilegibles.
+- **Foco** por módulo (sus tres cajas) o por pantalla: aísla sus caminos, encuadra y lista los objetos reales.
+- **Copiar evidencia**: la selección en texto plano con `objeto → consumidor · vía archivo:línea`.
+- **Matriz de saltos** (pestaña): origen × destino por par de capas, con ID, nº de conexiones, color por peso y
+  totales. Clic en una celda salta al mapa. Las matrices dejan a la vista que las **Tablas → Puertas** concentran
+  636 de las 739 conexiones que saltan, y que **Inversiones e identidad** (140) y **Clientes (perfiles)** (105) son
+  los orígenes más leídos sin pasar por el núcleo.
+
+Receta de regeneración y republicación en `SERVIDOR-CRM/mapa-capas-2026-09-17/LEEME.md`.
+
+## Libreta de decisiones y plan para cerrar los saltos (17/09, versión 3)
+
+`decisiones.json` guarda, por salto (clave estable `origen>destino:sev`), lo que Miguel decide: **aceptado**
+(gris, no cuenta), **en corrección** (naranja) o **cerrado** (solo se confirma cuando el catálogo deja de mostrarlo;
+si sigue vivo, el mapa avisa). La regeneración la respeta. Estado inicial: **33 aceptados** (B y D) → **137
+pendientes** (A 56 · M 81).
+
+Plan acordado con Miguel, por tema y no por severidad (la severidad ordena los temas, no el trabajo):
+
+0. B y D: aceptados, sin código. ✅ hecho.
+1. **Pantallas que leen tablas directo** (39 saltos, 52 conexiones, 8 tablas): una puerta por tabla cierra decenas.
+2. **Inversiones Puertas → Núcleo** (21): mover `crm.bandera_activa` y las puertas SLA usadas por `assert_*` a
+   `private`, dejando wrappers.
+3. **Tablas → Puertas por módulo con «Foco»** (111): Leads → Clientes → Contratos → Agenda → Conversión → Tasa,
+   Metas, Usuarios. **Inversiones e identidad** al final (choca con multiempresa F4–F8).
+
+Ritmo por módulo: Foco → Copiar evidencia → plan corto → migración (+ front) → `test:rls`, huellas, typecheck,
+build → regenerar el mapa (sin A/M en el módulo y sin saltos nuevos) → publicar → `main` el mismo día → anotar la
+libreta. Un módulo = un PR.
+
 ## Decisiones del mapa
 
 - Nodos de Tablas/Núcleo/Puertas agrupados por módulo (17); las pantallas una a una. A nivel objeto el servidor tiene

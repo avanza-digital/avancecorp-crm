@@ -1,7 +1,28 @@
 # Mapa de capas del servidor CRM — 17/09/2026
 
-**Artifact interactivo (privado):** https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81
+**Artifact interactivo (privado):** https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81 (versión 3, 17/09/2026 ~20:40 UTC)
 **Página en disco:** `mapa-capas-crm.html` (es el mismo HTML publicado; ábrelo con `file://`).
+
+## Versión 2 (misma URL): qué cambió en la página
+
+Los datos son los mismos (el catálogo se releyó a las 19:54 UTC y dio exactamente las mismas 3 474 conexiones,
+398 sanas y 171 saltos; solo cambia la fecha). Cambió la página:
+
+- **Vista general calma.** Las líneas van finas y atenuadas (sanas 1.5px al 42 %, saltos 2.2–2.7px al 50 %) y solo
+  recuperan el grosor de la especificación (A 4.4 · M/D 3.6 · B 2.9) al pasar el mouse, al seleccionarlas o con
+  **Trazo → fuerte**. Cajas de 72px con título en dos líneas y letra 14/12; bandas de 140px.
+- **Chapa «n saltos».** Una caja con más de 6 saltos salientes ya no amontona sus IDs: muestra una chapa
+  `34 saltos ▾ A20 M11 B2 D1` (respeta los filtros) y al clic despliega los IDs en rejilla. Con 6 o menos, la
+  rejilla va directa. Los IDs de las inversiones (Puertas → Núcleo) salen por arriba de la caja.
+- **Foco.** Selector de módulo (sus tres cajas: Tablas, Núcleo y Puertas) o de pantalla/actor: selecciona todas sus
+  líneas visibles, marca las cajas, encuadra la cámara y lista en el panel los objetos reales con sus etiquetas
+  (cerrada, trigger, sin llamador, F7, config).
+- **Copiar evidencia.** Botón en «Selección»: copia al portapapeles las cajas y líneas seleccionadas con cada
+  conexión real (`p → c · vía archivo:línea · nota`), listo para pegar en una nota, un issue o un prompt.
+- **Matriz de saltos.** Pestaña junto a «Mapa»: una tabla por par de capas (Tablas → Puertas · salta Núcleo,
+  Tablas → Pantallas · salta Núcleo + Puerta, Puertas → Núcleo · inversión), origen × destino, con el ID y el nº de
+  conexiones por celda, color por peso y totales por fila/columna. Un par puede llevar un salto por severidad
+  (26 pares). Filtros y buscador apagan celdas; clic en una celda la selecciona en el mapa y acerca la cámara.
 
 Regla que mide el mapa (del `CLAUDE.md`, «Arquitectura en 4 capas»): toda información recorre
 **Tablas → Núcleo → Puerta → Pantalla**. Una conexión que se salta una capa existe y funciona,
@@ -14,11 +35,27 @@ pero rompe la arquitectura.
 | `listas.txt` | Las tres listas del método: CAPAS (nodos por capa), SANAS y SALTOS con ID, tal como salieron del script. |
 | `datos.json` | Nodos, líneas sanas, saltos y META que consume la página. |
 | `evidencia-mapa.json` | Nivel objeto: los 810 objetos con su capa y módulo, y las 3 474 conexiones reales con su evidencia (`via`) y clasificación. |
-| `evidencia/*.json` + `evidencia/sql/*.sql` | Consultas al catálogo VIVO (proyecto `dctqcbznekcyxhjujuci`) ejecutadas con `supabase db query --linked --file` el 17/09/2026 17:11 UTC, y su resultado íntegro. Solo lectura; sin filas de clientes. |
+| `evidencia/*.json` + `evidencia/sql/*.sql` | Consultas al catálogo VIVO (proyecto `dctqcbznekcyxhjujuci`) ejecutadas con `supabase db query --linked --file` el 17/09/2026 (17:11 UTC; releídas a las 19:54 UTC con resultado idéntico), y su resultado íntegro. Solo lectura; sin filas de clientes. |
 | `front-graph.json` | Análisis estático del front: pantalla → símbolos → `rpc`/`from`/`invoke`, con archivo y línea. |
 | `edge-refs.json` | Referencias SQL dentro de cada Edge Function (esquema resuelto por cadena o por `createClient`). |
 | `pantallas.json` | Raíces de cada pantalla (archivo y componente). |
+| `decisiones.json` | Libreta de decisiones por salto (aceptado / corr / cerrado), con fecha, quién y motivo. |
 | `scripts/` | `analyze-front.mjs`, `analyze-edges.mjs`, `mapa-datos.py`, `plantilla.html`. |
+
+## Libreta de decisiones (`decisiones.json`, versión 3 de la página)
+
+El mapa solo sabe leer el código: si una lectura directa existe, la pinta en rojo. La libreta guarda lo que Miguel
+decide sobre cada salto para que la regeneración no lo vuelva a pintar como el primer día.
+
+- **Clave estable** por salto: `origen>destino:sev` (p. ej. `t:metas>p:metas:B`). Los IDs `A3`, `M1`… se renumeran
+  al regenerar; la clave no.
+- **Estados:** `aceptado` (gris punteado, no cuenta como pendiente; botón «Aceptados» lo oculta), `corr` (naranja,
+  en corrección) y `cerrado`. **`cerrado` solo se confirma cuando el catálogo deja de mostrar el salto**; si sigue
+  vivo, el mapa lo marca «⚠ cerrado pero vivo» en la tabla, la matriz, el panel y el resumen de la libreta.
+- Cada entrada lleva `id` (el de entonces), `fecha`, `por` y `motivo`. Se edita a mano.
+- Estado inicial (17/09, paso 0 del plan): los 30 B y 3 D quedan **aceptados** (B14 sigue `corr` por F7);
+  **137 pendientes** (A 56 · M 81). La chapa «n saltos» de cada caja cuenta solo lo pendiente.
+- El resumen sale en la terminal al regenerar (`== LIBRETA DE DECISIONES ==`) y bajo «Saltos» en la página.
 
 ## Cómo se clasificó (sin inventar nada)
 
@@ -49,13 +86,23 @@ de funciones sin paréntesis (mensajes de error). Se usó el estricto. Detalle e
 
 ## Regenerar
 
+Rutas relativas a esta carpeta (`SERVIDOR-CRM/mapa-capas-2026-09-17/`); `R` es la raíz del taller. La CLI de Supabase
+tiene que correr desde `CRM-Avance-Corp` (proyecto enlazado); `12_edge_deployadas.sql` es un marcador (`n/a`) y se salta.
+
 ```sh
-cd CRM-Avance-Corp
-for f in evidencia/sql/*.sql; do supabase db query --linked --file $f > evidencia/$(basename $f .sql).json; done
-node scripts/analyze-front.mjs app/src front-graph.json          # requiere pantallas.json al lado de la salida
-node scripts/analyze-edges.mjs edge-refs.json ../_supabase_functions/functions supabase/functions
-python3 scripts/mapa-datos.py                                     # escribe datos.json, evidencia-mapa.json, datos-artifact.json
+R=$(git rev-parse --show-toplevel); M=$R/SERVIDOR-CRM/mapa-capas-2026-09-17
+cd $R/CRM-Avance-Corp
+for f in $M/evidencia/sql/*.sql; do b=$(basename $f .sql); [ $b = 12_edge_deployadas ] && continue; supabase db query --linked --file $f > $M/evidencia/$b.json; done
+cd $M
+node scripts/analyze-front.mjs $R/CRM-Avance-Corp/app/src front-graph.json     # requiere pantallas.json al lado de la salida
+node scripts/analyze-edges.mjs edge-refs.json $R/_supabase_functions/functions $R/CRM-Avance-Corp/supabase/functions
+python3 scripts/mapa-datos.py > listas.txt        # trabaja sobre esta carpeta: escribe datos.json, evidencia-mapa.json, datos-artifact.json
 python3 - <<'EOF'
 d=open('datos-artifact.json').read().replace('</','<\\/'); open('mapa-capas-crm.html','w').write(open('scripts/plantilla.html').read().replace('__DATOS__', d))
 EOF
+rm datos-artifact.json                             # intermedio de 0,7 MB; no se versiona
 ```
+
+Para republicar **en la misma URL**, pasar `url: https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81` al publicar
+(antes hay que leer el artifact en esa conversación). Publicar sin `url` crea otro artifact y rompe los enlaces del
+vault y de la memoria.
