@@ -1,0 +1,1 @@
+select n.nspname||'.'||c.relname as vista, c.reloptions, pg_get_viewdef(c.oid, true) as def from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='v' and n.nspname in ('crm','private','public') order by 1

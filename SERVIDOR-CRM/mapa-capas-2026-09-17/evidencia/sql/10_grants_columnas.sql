@@ -1,0 +1,1 @@
+select table_schema||'.'||table_name as tabla, privilege_type, count(*) as columnas, string_agg(column_name, ',' order by column_name) as cols from information_schema.column_privileges where grantee='authenticated' and table_schema in ('crm','private','public') group by 1,2 order by 1,2

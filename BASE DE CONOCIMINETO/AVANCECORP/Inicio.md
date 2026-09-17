@@ -5,6 +5,8 @@ actualizado: 2026-09-16
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Mapa de capas del servidor CRM - 2026-09-17]] — **PUBLICADO 17/09 (artifact privado):** mapa interactivo de las 4 capas (Tablas → Núcleo → Puerta → Pantalla) levantado del catálogo vivo: 398 conexiones sanas, 171 saltos (A 56 · M 81 · B 31 · D 3), 52 objetos sin llamador. Evidencia y scripts en `SERVIDOR-CRM/mapa-capas-2026-09-17/`.
+
 - [[Solicitudes de tasa - rechazos solo en notificaciones (2026-09-16)]] — **LISTO EN LOCAL:** los rechazos salen de Mi jornada y permanecen en la campana; 3.659 pruebas y cuatro recorridos de notificaciones PASS. Pendiente de publicación mediante release autorizado.
 
 - [[Eliminar contrato vinculado sin historial - preparado 2026-09-16]] — **PREPARADO, SIN PUBLICAR:** corrige el bloqueo de la captura; inversión/titulares auditados, pruebas completas y rama eliminada. Pendientes SQL autorizado y release.

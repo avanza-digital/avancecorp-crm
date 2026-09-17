@@ -1,0 +1,653 @@
+{
+ "ciclo-contratos": {
+  "dir": "_supabase_functions/functions/ciclo-contratos",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "verificar_cron_secret",
+    "file": "index.ts",
+    "line": 160,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 168,
+    "veces": 2
+   },
+   {
+    "kind": "table",
+    "schema": "crm",
+    "name": "equipo",
+    "file": "index.ts",
+    "line": 173,
+    "veces": 2
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "contratos",
+    "file": "index.ts",
+    "line": 191,
+    "veces": 4
+   },
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "marcar_contratos_vencidos",
+    "file": "index.ts",
+    "line": 198,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "suscripciones_push",
+    "file": "index.ts",
+    "line": 319,
+    "veces": 2
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "novedades",
+    "file": "index.ts",
+    "line": 398,
+    "veces": 1
+   }
+  ]
+ },
+ "corregir-correo-cliente": {
+  "dir": "_supabase_functions/functions/corregir-correo-cliente",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "handler.ts",
+    "line": 50,
+    "veces": 2
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "preparar_correccion_correo_acceso_fn",
+    "file": "handler.ts",
+    "line": 84,
+    "veces": 1
+   }
+  ]
+ },
+ "crear-admin": {
+  "dir": "_supabase_functions/functions/crear-admin",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 40,
+    "veces": 2
+   }
+  ]
+ },
+ "crear-cliente": {
+  "dir": "_supabase_functions/functions/crear-cliente",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 77,
+    "veces": 3
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "mi_acceso_fn",
+    "file": "index.ts",
+    "line": 87,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bandera_activa",
+    "file": "index.ts",
+    "line": 179,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "alta_cliente_identidad_fn",
+    "file": "index.ts",
+    "line": 247,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "reclamar",
+    "file": "index.ts",
+    "line": 250,
+    "via": "wrapper rpc()",
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "auth_usuario_por_correo_fn",
+    "file": "index.ts",
+    "line": 288,
+    "veces": 1
+   }
+  ]
+ },
+ "crm-convertir-lead": {
+  "dir": "_supabase_functions/functions/crm-convertir-lead",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "mi_acceso_fn",
+    "file": "index.ts",
+    "line": 93,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "crm",
+    "name": "leads",
+    "file": "index.ts",
+    "line": 118,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bandera_activa",
+    "file": "index.ts",
+    "line": 131,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "convertir_lead_con_domicilio",
+    "file": "index.ts",
+    "line": 138,
+    "veces": 3
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "reservar_conversion_lead_tasa_fn",
+    "file": "index.ts",
+    "line": 234,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 249,
+    "veces": 3
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "marcar_efectos_conversion",
+    "file": "index.ts",
+    "line": 284,
+    "veces": 2
+   },
+   {
+    "kind": "rpc",
+    "name": "<dinámico>",
+    "raw": "fn",
+    "file": "index.ts",
+    "line": 366,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "reservar_conversion_lead",
+    "file": "index.ts",
+    "line": 381,
+    "via": "wrapper rpc()",
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "saga_conversion_fn",
+    "file": "index.ts",
+    "line": 415,
+    "via": "wrapper rpc()",
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "auth_usuario_por_correo_fn",
+    "file": "index.ts",
+    "line": 435,
+    "veces": 1
+   }
+  ]
+ },
+ "crm-importar-leads": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-importar-leads",
+  "archivos": 6,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "destinos_importacion_por_correo_fn",
+    "file": "index.ts",
+    "line": 448,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "importar_lead_fn",
+    "file": "index.ts",
+    "line": 487,
+    "veces": 1
+   }
+  ]
+ },
+ "crm-inversion-documento": {
+  "dir": "_supabase_functions/functions/crm-inversion-documento",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "from",
+    "name": "<dinámico>",
+    "raw": "new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))",
+    "file": "handler.mjs",
+    "line": 85,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": null,
+    "name": "inversionista_documento_fn",
+    "file": "handler.mjs",
+    "line": 0,
+    "via": "url",
+    "veces": 1
+   }
+  ]
+ },
+ "crm-inversion-portal": {
+  "dir": "_supabase_functions/functions/crm-inversion-portal",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": null,
+    "name": "acceso_inversion_fn",
+    "file": "handler.mjs",
+    "line": 0,
+    "via": "url",
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": null,
+    "name": "auth_usuario_por_correo_fn",
+    "file": "handler.mjs",
+    "line": 0,
+    "via": "url",
+    "veces": 1
+   }
+  ]
+ },
+ "crm-notificaciones-tasa": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-notificaciones-tasa",
+  "archivos": 3,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "verificar_cron_push_tasa_fn",
+    "file": "index.ts",
+    "line": 32,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "estado_push_tasa_fn",
+    "file": "index.ts",
+    "line": 35,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "preparar_prueba_push_tasa_fn",
+    "file": "index.ts",
+    "line": 36,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "tomar_envios_push_tasa_fn",
+    "file": "index.ts",
+    "line": 37,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "materializar_envio_push_tasa_fn",
+    "file": "index.ts",
+    "line": 38,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "confirmar_envio_push_tasa_fn",
+    "file": "index.ts",
+    "line": 39,
+    "veces": 1
+   }
+  ]
+ },
+ "diagnostico-push": {
+  "dir": "_supabase_functions/functions/diagnostico-push",
+  "archivos": 1,
+  "calls": []
+ },
+ "eliminar-cliente": {
+  "dir": "_supabase_functions/functions/eliminar-cliente",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 56,
+    "veces": 3
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bandera_activa",
+    "file": "index.ts",
+    "line": 91,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "contratos",
+    "file": "index.ts",
+    "line": 98,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "novedades",
+    "file": "index.ts",
+    "line": 114,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "eliminar_cliente_fn",
+    "file": "index.ts",
+    "line": 133,
+    "veces": 1
+   }
+  ]
+ },
+ "enviar-comunicado": {
+  "dir": "_supabase_functions/functions/enviar-comunicado",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 55,
+    "veces": 4
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "contratos",
+    "file": "index.ts",
+    "line": 78,
+    "veces": 1
+   },
+   {
+    "kind": "edge",
+    "name": "enviar-push",
+    "file": "index.ts",
+    "line": 0,
+    "veces": 1
+   }
+  ]
+ },
+ "enviar-push": {
+  "dir": "_supabase_functions/functions/enviar-push",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 54,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "suscripciones_push",
+    "file": "index.ts",
+    "line": 71,
+    "veces": 2
+   }
+  ]
+ },
+ "importar-clientes": {
+  "dir": "_supabase_functions/functions/importar-clientes",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 87,
+    "veces": 5
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bandera_activa",
+    "file": "index.ts",
+    "line": 143,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "alta_cliente_identidad_fn",
+    "file": "index.ts",
+    "line": 157,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "auth_usuario_por_correo_fn",
+    "file": "index.ts",
+    "line": 267,
+    "veces": 1
+   }
+  ]
+ },
+ "notificar-pagos": {
+  "dir": "_supabase_functions/functions/notificar-pagos",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "verificar_cron_secret",
+    "file": "index.ts",
+    "line": 136,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 145,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "cronograma_pagos",
+    "file": "index.ts",
+    "line": 167,
+    "veces": 3
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "novedades",
+    "file": "index.ts",
+    "line": 260,
+    "veces": 1
+   },
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "suscripciones_push",
+    "file": "index.ts",
+    "line": 268,
+    "veces": 2
+   }
+  ]
+ },
+ "resetear-password": {
+  "dir": "_supabase_functions/functions/resetear-password",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "table",
+    "schema": "public",
+    "name": "perfiles",
+    "file": "index.ts",
+    "line": 40,
+    "veces": 2
+   }
+  ]
+ },
+ "crm-agenda-ics": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-agenda-ics",
+  "archivos": 1,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "agenda_ics_feed_fn",
+    "file": "index.ts",
+    "line": 218,
+    "veces": 1
+   }
+  ]
+ },
+ "crm-contrato-pdf-v2": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2",
+  "archivos": 6,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "contrato_pdf_estado_fn",
+    "file": "handler.ts",
+    "line": 738,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "name": "<dinámico>",
+    "raw": "nombre",
+    "file": "index.ts",
+    "line": 91,
+    "veces": 2
+   },
+   {
+    "kind": "from",
+    "name": "<dinámico>",
+    "raw": "dataUrl.slice(separador + 1)",
+    "file": "renderer.ts",
+    "line": 378,
+    "veces": 7
+   }
+  ]
+ },
+ "crm-tipo-cambio": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-tipo-cambio",
+  "archivos": 2,
+  "calls": []
+ },
+ "crm-usuarios": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-usuarios",
+  "archivos": 3,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "buscar_candidato_por_correo_fn",
+    "file": "handler.ts",
+    "line": 241,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "public",
+    "name": "registrar_vendedor_usuario_fn",
+    "file": "handler.ts",
+    "line": 287,
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "name": "<dinámico>",
+    "raw": "nombre",
+    "file": "index.ts",
+    "line": 63,
+    "veces": 1
+   }
+  ]
+ }
+}

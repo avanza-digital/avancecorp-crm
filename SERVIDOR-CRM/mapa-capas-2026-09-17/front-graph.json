@@ -1,0 +1,6112 @@
+{
+ "pantallas": [
+  {
+   "id": "login",
+   "titulo": "Login",
+   "roots": [
+    {
+     "file": "screens/login.tsx",
+     "name": "Login"
+    }
+   ],
+   "simbolos": 28,
+   "calls": []
+  },
+  {
+   "id": "no-enrolado",
+   "titulo": "No enrolado",
+   "roots": [
+    {
+     "file": "screens/no-enrolado.tsx",
+     "name": "NoEnrolado"
+    }
+   ],
+   "simbolos": 5,
+   "calls": []
+  },
+  {
+   "id": "hoy-analista",
+   "titulo": "Hoy · Analista",
+   "roots": [
+    {
+     "file": "screens/hoy/vendedor.tsx",
+     "name": "HoyVendedor"
+    }
+   ],
+   "simbolos": 674,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion_v2",
+     "schema": "crm",
+     "line": 1887,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_tarea_v2",
+     "schema": "crm",
+     "line": 1911,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 141,
+     "raw": "comando",
+     "file": "data/sla-operacion-comandos.ts",
+     "symbol": "ejecutarComandoSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2261,
+     "file": "data/crm-api.ts",
+     "symbol": "reprogramarReunion"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2093,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "conversion_mensual_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4993,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerConversionMensual"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 38,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "obtenerEstadosSlaV2"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_operacion_estado_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 15,
+     "file": "data/postventa-envios.ts",
+     "symbol": "verificarEnvioPostventa"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2088,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 510,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarEstadoSlaLeads"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "cola_accion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5123,
+     "file": "data/crm-api.ts",
+     "symbol": "listarColaAccion"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4393,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4395,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "responder_tope_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4373,
+     "file": "data/crm-api.ts",
+     "symbol": "responderTopeTasa"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_contacto_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 60,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirContactoInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_coopac_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 67,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirCoopacInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_actividad_v2",
+     "schema": "crm",
+     "line": 2716,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_reunion_v2",
+     "schema": "crm",
+     "line": 572,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea_v2",
+     "schema": "crm",
+     "line": 582,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1937,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarLead"
+    },
+    {
+     "kind": "table",
+     "name": "actividades",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1976,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2176,
+     "file": "data/crm-api.ts",
+     "symbol": "cerrarTarea"
+    }
+   ]
+  },
+  {
+   "id": "hoy-supervisor",
+   "titulo": "Hoy · Supervisor",
+   "roots": [
+    {
+     "file": "screens/hoy/supervisor.tsx",
+     "name": "HoySupervisor"
+    }
+   ],
+   "simbolos": 682,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "conversion_mensual_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4993,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerConversionMensual"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4901,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasAgenda"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 38,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "obtenerEstadosSlaV2"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 510,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarEstadoSlaLeads"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "cola_accion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5123,
+     "file": "data/crm-api.ts",
+     "symbol": "listarColaAccion"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_vendedores_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5154,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasVendedores"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_actividad_v2",
+     "schema": "crm",
+     "line": 2716,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4393,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4395,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "responder_tope_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4373,
+     "file": "data/crm-api.ts",
+     "symbol": "responderTopeTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierres_externos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5908,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierresExternos"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2088,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 141,
+     "raw": "comando",
+     "file": "data/sla-operacion-comandos.ts",
+     "symbol": "ejecutarComandoSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_reunion_v2",
+     "schema": "crm",
+     "line": 572,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea_v2",
+     "schema": "crm",
+     "line": 582,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "anular_cierre_externo",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5729,
+     "file": "data/crm-api.ts",
+     "symbol": "anularCierreExterno"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2176,
+     "file": "data/crm-api.ts",
+     "symbol": "cerrarTarea"
+    }
+   ]
+  },
+  {
+   "id": "gerencia",
+   "titulo": "Gerencia (Hoy + 5 vistas)",
+   "roots": [
+    {
+     "file": "screens/hoy/gerencia.tsx",
+     "name": "HoyGerencia"
+    },
+    {
+     "file": "screens/hoy.tsx",
+     "name": "Hoy"
+    },
+    {
+     "file": "screens/hoy/citas-gerencia.tsx",
+     "name": "CitasGerencia"
+    }
+   ],
+   "simbolos": 1275,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_reuniones_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5070,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasReuniones"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_distribucion_leads_v3_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4856,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasDistribucionLeadsV3"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_capacidad_leads_objetivo",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5454,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarCapacidadLeadsObjetivo"
+    },
+    {
+     "kind": "rpc",
+     "name": "conversion_mensual_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4993,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerConversionMensual"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_conversiones_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4932,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasConversiones"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_conversiones_equipo_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5036,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasConversionesEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion_v2",
+     "schema": "crm",
+     "line": 1887,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_tarea_v2",
+     "schema": "crm",
+     "line": 1911,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "citas_gerencia_consulta_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 112,
+     "file": "data/citas-gerencia.ts",
+     "symbol": "cargarCitasGerencia"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierres_externos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5908,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierresExternos"
+    },
+    {
+     "kind": "table",
+     "name": "alertas_reconocimientos_vigentes",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1621,
+     "file": "data/crm-api.ts",
+     "symbol": "listarReconocimientosAlertas"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4393,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4395,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "resolver_solicitud_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4361,
+     "file": "data/crm-api.ts",
+     "symbol": "resolverSolicitudTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "observacion_rentabilidad_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4675,
+     "file": "data/crm-api.ts",
+     "symbol": "listarObservacionRentabilidad"
+    },
+    {
+     "kind": "rpc",
+     "name": "altas_nuevas_por_analista_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3884,
+     "file": "data/crm-api.ts",
+     "symbol": "listarAltasNuevasPorAnalista"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4901,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasAgenda"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 141,
+     "raw": "comando",
+     "file": "data/sla-operacion-comandos.ts",
+     "symbol": "ejecutarComandoSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2261,
+     "file": "data/crm-api.ts",
+     "symbol": "reprogramarReunion"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2093,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierre_mes_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 916,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierreMesEstado"
+    },
+    {
+     "kind": "rpc",
+     "name": "anular_cierre_externo",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5729,
+     "file": "data/crm-api.ts",
+     "symbol": "anularCierreExterno"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 38,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "obtenerEstadosSlaV2"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 510,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarEstadoSlaLeads"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "cola_accion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5123,
+     "file": "data/crm-api.ts",
+     "symbol": "listarColaAccion"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_vendedores_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5154,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasVendedores"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_actividad_v2",
+     "schema": "crm",
+     "line": 2716,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "responder_tope_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4373,
+     "file": "data/crm-api.ts",
+     "symbol": "responderTopeTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_operacion_estado_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 15,
+     "file": "data/postventa-envios.ts",
+     "symbol": "verificarEnvioPostventa"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2088,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_reunion_v2",
+     "schema": "crm",
+     "line": 572,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea_v2",
+     "schema": "crm",
+     "line": 582,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_contacto_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 60,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirContactoInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_coopac_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 67,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirCoopacInversionista"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1937,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarLead"
+    },
+    {
+     "kind": "table",
+     "name": "actividades",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1976,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2176,
+     "file": "data/crm-api.ts",
+     "symbol": "cerrarTarea"
+    }
+   ]
+  },
+  {
+   "id": "hoy-directorio",
+   "titulo": "Hoy · Directorio",
+   "roots": [
+    {
+     "file": "screens/hoy/directorio.tsx",
+     "name": "HoyDirectorio"
+    }
+   ],
+   "simbolos": 231,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_vendedores_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5154,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasVendedores"
+    }
+   ]
+  },
+  {
+   "id": "alertas",
+   "titulo": "Alertas",
+   "roots": [
+    {
+     "file": "screens/alertas.tsx",
+     "name": "Alertas"
+    }
+   ],
+   "simbolos": 99,
+   "calls": [
+    {
+     "kind": "table",
+     "name": "recordatorios_disponibilidad",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1593,
+     "file": "data/crm-api.ts",
+     "symbol": "eliminarRecordatorioDisponibilidad"
+    }
+   ]
+  },
+  {
+   "id": "seguimiento",
+   "titulo": "Seguimiento",
+   "roots": [
+    {
+     "file": "screens/seguimiento.tsx",
+     "name": "Seguimiento"
+    }
+   ],
+   "simbolos": 276,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "cola_accion_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 20,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "listarColaSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 38,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "obtenerEstadosSlaV2"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 141,
+     "raw": "comando",
+     "file": "data/sla-operacion-comandos.ts",
+     "symbol": "ejecutarComandoSla"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "facturacion",
+   "titulo": "Facturación",
+   "roots": [
+    {
+     "file": "screens/facturacion.tsx",
+     "name": "Facturacion"
+    }
+   ],
+   "simbolos": 180,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "facturacion_diaria_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3836,
+     "file": "data/crm-api.ts",
+     "symbol": "listarFacturacionDiaria"
+    }
+   ]
+  },
+  {
+   "id": "informes-empresas",
+   "titulo": "Informes por empresa",
+   "roots": [
+    {
+     "file": "screens/metricas-multiempresa.tsx",
+     "name": "MetricasMultiempresa"
+    }
+   ],
+   "simbolos": 93,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "metricas_multiempresa_estado_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 10,
+     "file": "data/metricas-multiempresa.ts",
+     "symbol": "obtenerEstadoMetricasMultiempresa"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_multiempresa_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 16,
+     "file": "data/metricas-multiempresa.ts",
+     "symbol": "obtenerMetricasMultiempresa"
+    }
+   ]
+  },
+  {
+   "id": "pipeline",
+   "titulo": "Pipeline",
+   "roots": [
+    {
+     "file": "screens/pipeline.tsx",
+     "name": "Pipeline"
+    }
+   ],
+   "simbolos": 356,
+   "calls": [
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1937,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarLead"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 510,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarEstadoSlaLeads"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "cartera",
+   "titulo": "Leads (cartera)",
+   "roots": [
+    {
+     "file": "screens/cartera.tsx",
+     "name": "Cartera"
+    }
+   ],
+   "simbolos": 215,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "cierres_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5874,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierresEstado"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 738,
+     "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'",
+     "file": "data/crm-api.ts",
+     "symbol": "listarCarteraPagina"
+    }
+   ]
+  },
+  {
+   "id": "agenda",
+   "titulo": "Agenda",
+   "roots": [
+    {
+     "file": "screens/agenda.tsx",
+     "name": "Agenda"
+    }
+   ],
+   "simbolos": 518,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion_v2",
+     "schema": "crm",
+     "line": 1887,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_tarea_v2",
+     "schema": "crm",
+     "line": 1911,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.reprogramarTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "<dinámico>",
+     "line": 141,
+     "raw": "comando",
+     "file": "data/sla-operacion-comandos.ts",
+     "symbol": "ejecutarComandoSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "reprogramar_reunion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2261,
+     "file": "data/crm-api.ts",
+     "symbol": "reprogramarReunion"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2093,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_operacion_estado_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 15,
+     "file": "data/postventa-envios.ts",
+     "symbol": "verificarEnvioPostventa"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2088,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_actividad_v2",
+     "schema": "crm",
+     "line": 2716,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_reunion_v2",
+     "schema": "crm",
+     "line": 572,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea_v2",
+     "schema": "crm",
+     "line": 582,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "ejecutarCierreTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1937,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarLead"
+    },
+    {
+     "kind": "table",
+     "name": "actividades",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1976,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_contacto_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 60,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirContactoInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_coopac_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 67,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirCoopacInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "cerrar_tarea",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2176,
+     "file": "data/crm-api.ts",
+     "symbol": "cerrarTarea"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "mi-cartera",
+   "titulo": "Cartera (clientes)",
+   "roots": [
+    {
+     "file": "screens/mi-cartera.tsx",
+     "name": "MiCartera"
+    }
+   ],
+   "simbolos": 940,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-contrato-pdf-v2",
+     "line": 379,
+     "file": "lib/contrato-pdf-archivo.ts",
+     "symbol": "eliminarContratoConPdf"
+    },
+    {
+     "kind": "table",
+     "name": "clientes_basicos",
+     "schema": "crm",
+     "line": 2774,
+     "via": "wrapper:leerListadoCarteraCompleto",
+     "file": "data/crm-api.ts",
+     "symbol": "listarClientes"
+    },
+    {
+     "kind": "table",
+     "name": "contratos_cartera",
+     "schema": "crm",
+     "line": 3336,
+     "via": "wrapper:leerListadoCarteraCompleto",
+     "file": "data/crm-api.ts",
+     "symbol": "listarMisContratos"
+    },
+    {
+     "kind": "table",
+     "name": "operaciones_cartera",
+     "schema": "crm",
+     "line": 3414,
+     "via": "wrapper:leerListadoCarteraCompleto",
+     "file": "data/crm-api.ts",
+     "symbol": "listarOperacionesCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_clientes_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2722,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerResumenCarteraClientes"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_cliente_gerencia_con_domicilio",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3083,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarClientePortal"
+    },
+    {
+     "kind": "table",
+     "name": "perfiles",
+     "schema": null,
+     "root": "cliente",
+     "line": 3093,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarClientePortal"
+    },
+    {
+     "kind": "rpc",
+     "name": "corregir_documento_cliente_admin_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3109,
+     "file": "data/crm-api.ts",
+     "symbol": "corregirDocumentoClienteAdmin"
+    },
+    {
+     "kind": "edge",
+     "name": "corregir-correo-cliente",
+     "line": 3147,
+     "file": "data/crm-api.ts",
+     "symbol": "corregirCorreoClienteAdmin"
+    },
+    {
+     "kind": "edge",
+     "name": "crear-cliente",
+     "line": 3027,
+     "file": "data/crm-api.ts",
+     "symbol": "crearClientePortal"
+    },
+    {
+     "kind": "rpc",
+     "name": "completar_domicilio_cliente",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3257,
+     "file": "data/crm-api.ts",
+     "symbol": "completarDomicilioCliente"
+    },
+    {
+     "kind": "rpc",
+     "name": "crear_contrato_con_cuenta_pdf_v2",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2591,
+     "file": "data/crm-api.ts",
+     "symbol": "crearContrato"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_analista_contrato",
+     "schema": null,
+     "root": "cliente",
+     "line": 3703,
+     "file": "data/crm-api.ts",
+     "symbol": "reasignarAnalistaContrato"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_contrato_con_cuenta_pdf_v3",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3606,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarContrato"
+    },
+    {
+     "kind": "rpc",
+     "name": "cartera_inversionistas_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/inversionistas-api.ts",
+     "symbol": "obtenerEstadoCarteraInversionistas"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-inversion-documento",
+     "line": 86,
+     "file": "data/inversionistas-api.ts",
+     "symbol": "descargarDocumentoInversionista"
+    },
+    {
+     "kind": "from",
+     "name": "<dinámico>",
+     "line": 2673,
+     "raw": "tabla",
+     "file": "data/crm-api.ts",
+     "symbol": "leerListadoCarteraCompleto"
+    },
+    {
+     "kind": "from",
+     "name": "<dinámico>",
+     "line": 2674,
+     "raw": "tabla",
+     "file": "data/crm-api.ts",
+     "symbol": "leerListadoCarteraCompleto"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_conversiones_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4932,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasConversiones"
+    },
+    {
+     "kind": "rpc",
+     "name": "cliente_detalle_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2919,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerClienteDetalle"
+    },
+    {
+     "kind": "rpc",
+     "name": "cuentas_bancarias_cliente_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2400,
+     "file": "data/crm-api.ts",
+     "symbol": "listarCuentasBancariasCliente"
+    },
+    {
+     "kind": "rpc",
+     "name": "cliente_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2812,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerClienteFichaComercial"
+    },
+    {
+     "kind": "table",
+     "name": "actividades_cliente",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3454,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesCliente"
+    },
+    {
+     "kind": "rpc",
+     "name": "historial_tasa_cliente_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4509,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerHistorialTasaCliente"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "atribucion_contrato_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3683,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerAtribucionContrato"
+    },
+    {
+     "kind": "rpc",
+     "name": "datos_legales_contrato_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3214,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerDatosLegalesContrato"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-contrato-pdf-v2",
+     "line": 236,
+     "file": "lib/contrato-pdf-archivo.ts",
+     "symbol": "invocarEdge"
+    },
+    {
+     "kind": "rpc",
+     "name": "cronograma_contrato_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3500,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCronograma"
+    },
+    {
+     "kind": "rpc",
+     "name": "titulares_contrato_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 3536,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerTitulares"
+    },
+    {
+     "kind": "rpc",
+     "name": "productos_inversion_seleccion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 306,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarProductosSeleccionables"
+    },
+    {
+     "kind": "rpc",
+     "name": "cartera_inversionistas_filtrada_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 42,
+     "file": "data/inversionistas-api.ts",
+     "symbol": "listarInversionistas"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitud_inversion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 12,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "consultarSolicitudInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "preparar_reinversion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 18,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "prepararSolicitudInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "preparar_inversion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 19,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "prepararSolicitudInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "corregir_solicitud_inversion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 26,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "corregirSolicitudInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "revisar_solicitud_inversion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 33,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "revisarResponsableInversion"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-inversion-portal",
+     "line": 44,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "completarAccesoInversion"
+    },
+    {
+     "kind": "storage",
+     "name": "f4-comprobantes",
+     "line": 68,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "subirComprobanteInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "confirmar_inversion_revisada_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 39,
+     "file": "data/inversion-solicitud-api.ts",
+     "symbol": "confirmarSolicitudInversion"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2888,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerSegundoNumeroDelCliente"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierres_externos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5908,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierresExternos"
+    },
+    {
+     "kind": "rpc",
+     "name": "resolver_tasa_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4135,
+     "file": "data/crm-api.ts",
+     "symbol": "resolverTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "resolver_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4137,
+     "file": "data/crm-api.ts",
+     "symbol": "resolverTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitar_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4331,
+     "file": "data/crm-api.ts",
+     "symbol": "solicitarTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "responder_tope_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4373,
+     "file": "data/crm-api.ts",
+     "symbol": "responderTopeTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4393,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "solicitudes_tasa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4395,
+     "file": "data/crm-api.ts",
+     "symbol": "listarSolicitudesTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 60,
+     "file": "data/inversionistas-api.ts",
+     "symbol": "obtenerFichaInversionista"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2088,
+     "file": "data/crm-api.ts",
+     "symbol": "insertarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_cuentas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 79,
+     "file": "data/inversionistas-api.ts",
+     "symbol": "obtenerCuentasInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_gestion_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 44,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "obtenerGestionInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "corregir_documento_inversionista_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 74,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirDocumentoInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_operacion_estado_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 15,
+     "file": "data/postventa-envios.ts",
+     "symbol": "verificarEnvioPostventa"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_contacto_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 60,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirContactoInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "inversionista_corregir_coopac_fn",
+     "schema": null,
+     "root": "cliente",
+     "line": 67,
+     "file": "data/gestion-inversionista.ts",
+     "symbol": "corregirCoopacInversionista"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    }
+   ]
+  },
+  {
+   "id": "repartir",
+   "titulo": "Repartir",
+   "roots": [
+    {
+     "file": "screens/repartir.tsx",
+     "name": "Repartir"
+    }
+   ],
+   "simbolos": 176,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "agenda_reparto_diaria",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1118,
+     "file": "data/crm-api.ts",
+     "symbol": "agendaRepartoDiaria"
+    },
+    {
+     "kind": "rpc",
+     "name": "guardar_agenda_reparto_diaria",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1155,
+     "file": "data/crm-api.ts",
+     "symbol": "guardarAgendaRepartoDiaria"
+    },
+    {
+     "kind": "rpc",
+     "name": "panel_distribucion_reparto",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1207,
+     "file": "data/crm-api.ts",
+     "symbol": "panelDistribucionReparto"
+    },
+    {
+     "kind": "rpc",
+     "name": "historial_derivaciones",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1083,
+     "file": "data/crm-api.ts",
+     "symbol": "historialDerivaciones"
+    },
+    {
+     "kind": "rpc",
+     "name": "leads_descartados",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1341,
+     "file": "data/crm-api.ts",
+     "symbol": "leadsDescartados"
+    },
+    {
+     "kind": "rpc",
+     "name": "deshacer_descarte",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1310,
+     "file": "data/crm-api.ts",
+     "symbol": "deshacerDescarte"
+    },
+    {
+     "kind": "rpc",
+     "name": "reporte_derivaciones_coordinacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5213,
+     "file": "data/crm-api.ts",
+     "symbol": "listarReporteDerivacionesCoordinacion"
+    },
+    {
+     "kind": "rpc",
+     "name": "leads_por_repartir",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1057,
+     "file": "data/crm-api.ts",
+     "symbol": "leadsPorRepartir"
+    },
+    {
+     "kind": "rpc",
+     "name": "supervisores_para_reparto",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1233,
+     "file": "data/crm-api.ts",
+     "symbol": "supervisoresParaReparto"
+    },
+    {
+     "kind": "rpc",
+     "name": "repartir_lead",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1283,
+     "file": "data/crm-api.ts",
+     "symbol": "repartirLead"
+    },
+    {
+     "kind": "rpc",
+     "name": "descartar_lead",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1297,
+     "file": "data/crm-api.ts",
+     "symbol": "descartarLead"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_reparto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5426,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenReparto"
+    }
+   ]
+  },
+  {
+   "id": "rescate",
+   "titulo": "Rescate descartados",
+   "roots": [
+    {
+     "file": "screens/rescate-descartados.tsx",
+     "name": "RescateDescartados"
+    }
+   ],
+   "simbolos": 173,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "rescate_descartes_meses",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1384,
+     "file": "data/crm-api.ts",
+     "symbol": "mesesRescateDescartes"
+    },
+    {
+     "kind": "rpc",
+     "name": "rescate_descartes_mes",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1399,
+     "file": "data/crm-api.ts",
+     "symbol": "descartesRescateDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "rescatar_descartes",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1422,
+     "file": "data/crm-api.ts",
+     "symbol": "rescatarDescartes"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    }
+   ]
+  },
+  {
+   "id": "rescate-carpeta",
+   "titulo": "Rescate carpeta",
+   "roots": [
+    {
+     "file": "screens/rescate-carpeta.tsx",
+     "name": "RescateCarpeta"
+    }
+   ],
+   "simbolos": 174,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "rescate_descartes_meses",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1384,
+     "file": "data/crm-api.ts",
+     "symbol": "mesesRescateDescartes"
+    },
+    {
+     "kind": "rpc",
+     "name": "rescate_descartes_mes",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1399,
+     "file": "data/crm-api.ts",
+     "symbol": "descartesRescateDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "rescatar_descartes",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1422,
+     "file": "data/crm-api.ts",
+     "symbol": "rescatarDescartes"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    }
+   ]
+  },
+  {
+   "id": "derivaciones",
+   "titulo": "Derivaciones",
+   "roots": [
+    {
+     "file": "screens/derivaciones.tsx",
+     "name": "Derivaciones"
+    }
+   ],
+   "simbolos": 267,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "reporte_derivaciones_equipo_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5314,
+     "file": "data/crm-api.ts",
+     "symbol": "listarReporteDerivacionesEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "derivar_leads_equipo_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5360,
+     "file": "data/crm-api.ts",
+     "symbol": "derivarLeadsEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "revertir_derivacion_equipo_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5393,
+     "file": "data/crm-api.ts",
+     "symbol": "revertirDerivacionEquipo"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "equipo",
+   "titulo": "Equipo",
+   "roots": [
+    {
+     "file": "screens/equipo.tsx",
+     "name": "Equipo"
+    }
+   ],
+   "simbolos": 523,
+   "calls": [
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 105,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-tipo-cambio",
+     "line": 106,
+     "file": "lib/tipo-cambio.ts",
+     "symbol": "useTipoCambio"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "conversion_mensual_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4993,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerConversionMensual"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_conversiones_equipo_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5036,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasConversionesEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_vendedores_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5154,
+     "file": "data/crm-api.ts",
+     "symbol": "listarMetricasVendedores"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1937,
+     "file": "data/crm-api.ts",
+     "symbol": "actualizarLead"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierre_mes_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 916,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierreMesEstado"
+    },
+    {
+     "kind": "rpc",
+     "name": "estado_sla_leads_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 510,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarEstadoSlaLeads"
+    },
+    {
+     "kind": "rpc",
+     "name": "resumen_cartera_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5100,
+     "file": "data/crm-api.ts",
+     "symbol": "listarResumenCartera"
+    },
+    {
+     "kind": "rpc",
+     "name": "cola_accion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 5123,
+     "file": "data/crm-api.ts",
+     "symbol": "listarColaAccion"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "config",
+   "titulo": "Configuración",
+   "roots": [
+    {
+     "file": "screens/config.tsx",
+     "name": "Config"
+    }
+   ],
+   "simbolos": 157,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "productos_inversion_gestion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 294,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionProductos"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 405,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_sla_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 447,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionSla"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-agenda-ics",
+     "line": 9,
+     "via": "url",
+     "file": "lib/agenda-ics.ts",
+     "symbol": "urlFeedIcs"
+    },
+    {
+     "kind": "rpc",
+     "name": "usuarios_administrables_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 139,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarUsuariosAdministrables"
+    },
+    {
+     "kind": "table",
+     "name": "agenda_ics",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2109,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerTokenIcs"
+    },
+    {
+     "kind": "table",
+     "name": "agenda_ics",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2124,
+     "file": "data/crm-api.ts",
+     "symbol": "crearTokenIcs"
+    },
+    {
+     "kind": "table",
+     "name": "agenda_ics",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2138,
+     "file": "data/crm-api.ts",
+     "symbol": "rotarTokenIcs"
+    }
+   ]
+  },
+  {
+   "id": "config-usuarios",
+   "titulo": "Config · Usuarios",
+   "roots": [
+    {
+     "file": "screens/config-usuarios.tsx",
+     "name": "ConfigUsuarios"
+    }
+   ],
+   "simbolos": 282,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "usuarios_administrables_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 139,
+     "file": "data/crm-config-api.ts",
+     "symbol": "listarUsuariosAdministrables"
+    },
+    {
+     "kind": "edge",
+     "name": "crm-usuarios",
+     "line": 173,
+     "file": "data/crm-config-api.ts",
+     "symbol": "crearCandidatoUsuario"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_usuario_administrable_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 202,
+     "file": "data/crm-config-api.ts",
+     "symbol": "actualizarUsuarioAdministrable"
+    },
+    {
+     "kind": "rpc",
+     "name": "asignar_rol_usuario_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 223,
+     "file": "data/crm-config-api.ts",
+     "symbol": "asignarRolUsuario"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_jerarquia_usuario_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 238,
+     "file": "data/crm-config-api.ts",
+     "symbol": "actualizarJerarquiaUsuario"
+    },
+    {
+     "kind": "rpc",
+     "name": "impacto_desactivacion_usuario_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 251,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerImpactoDesactivacion"
+    },
+    {
+     "kind": "rpc",
+     "name": "fijar_membresia_activa_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 264,
+     "file": "data/crm-config-api.ts",
+     "symbol": "fijarMembresiaUsuario"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "config-productos",
+   "titulo": "Config · Productos",
+   "roots": [
+    {
+     "file": "screens/config-productos.tsx",
+     "name": "ConfigProductos"
+    }
+   ],
+   "simbolos": 146,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "productos_inversion_gestion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 294,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionProductos"
+    },
+    {
+     "kind": "rpc",
+     "name": "crear_producto_inversion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 325,
+     "file": "data/crm-config-api.ts",
+     "symbol": "crearProductoInversion"
+    },
+    {
+     "kind": "rpc",
+     "name": "crear_version_producto_inversion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 340,
+     "file": "data/crm-config-api.ts",
+     "symbol": "crearVersionProducto"
+    },
+    {
+     "kind": "rpc",
+     "name": "actualizar_borrador_producto_inversion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 356,
+     "file": "data/crm-config-api.ts",
+     "symbol": "actualizarBorradorProducto"
+    },
+    {
+     "kind": "rpc",
+     "name": "publicar_version_producto_inversion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 370,
+     "file": "data/crm-config-api.ts",
+     "symbol": "publicarVersionProducto"
+    },
+    {
+     "kind": "rpc",
+     "name": "archivar_producto_inversion",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 382,
+     "file": "data/crm-config-api.ts",
+     "symbol": "archivarProducto"
+    }
+   ]
+  },
+  {
+   "id": "config-metas",
+   "titulo": "Config · Metas",
+   "roots": [
+    {
+     "file": "screens/config-metas.tsx",
+     "name": "ConfigMetas"
+    }
+   ],
+   "simbolos": 260,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 405,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "publicar_metas_vendedores",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 418,
+     "file": "data/crm-config-api.ts",
+     "symbol": "publicarMetas"
+    },
+    {
+     "kind": "rpc",
+     "name": "cierre_mes_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 916,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCierreMesEstado"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 592,
+     "file": "data/crm-api.ts",
+     "symbol": "listarLeadsDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "equipo_visible_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 848,
+     "file": "data/crm-api.ts",
+     "symbol": "listarEquipo"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_del_ambito_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1446,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDelAmbito"
+    },
+    {
+     "kind": "table",
+     "name": "tareas",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 2040,
+     "file": "data/crm-api.ts",
+     "symbol": "listarTareasDelAmbito"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 875,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerMetasDelMes"
+    },
+    {
+     "kind": "rpc",
+     "name": "cumplimiento_metas_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 895,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerCumplimientoMetas"
+    },
+    {
+     "kind": "table",
+     "name": "leads",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 642,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerLeadDelAmbitoPorId"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_estado_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 16,
+     "file": "data/postventa-api.ts",
+     "symbol": "estadoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agenda_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 22,
+     "file": "data/postventa-api.ts",
+     "symbol": "listarAgendaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_perfil_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 32,
+     "file": "data/postventa-api.ts",
+     "symbol": "personaDePerfil"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_ficha_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 38,
+     "file": "data/postventa-api.ts",
+     "symbol": "fichaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_vencimientos_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 44,
+     "file": "data/postventa-api.ts",
+     "symbol": "vencimientosPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_agendar_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 56,
+     "file": "data/postventa-api.ts",
+     "symbol": "agendarPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_tarea_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 59,
+     "file": "data/postventa-api.ts",
+     "symbol": "gestionarTareaPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_veto_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 62,
+     "file": "data/postventa-api.ts",
+     "symbol": "cambiarVetoPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_solicitar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 65,
+     "file": "data/postventa-api.ts",
+     "symbol": "solicitarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "postventa_revisar_retiro_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 68,
+     "file": "data/postventa-api.ts",
+     "symbol": "revisarRetiroPostventa"
+    },
+    {
+     "kind": "rpc",
+     "name": "reasignar_responsable_relacion_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 71,
+     "file": "data/postventa-api.ts",
+     "symbol": "asignarResponsablePostventa"
+    }
+   ]
+  },
+  {
+   "id": "config-sla",
+   "titulo": "Config · SLA",
+   "roots": [
+    {
+     "file": "screens/config-sla.tsx",
+     "name": "ConfigSla"
+    }
+   ],
+   "simbolos": 144,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "configuracion_sla_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 447,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerConfiguracionSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "metricas_sla_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 500,
+     "file": "data/crm-config-api.ts",
+     "symbol": "obtenerMetricasSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "publicar_politica_sla",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 470,
+     "file": "data/crm-config-api.ts",
+     "symbol": "publicarPoliticaSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "configuracion_sla_v2_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 51,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "obtenerConfiguracionSlaV2"
+    },
+    {
+     "kind": "rpc",
+     "name": "cambiar_modo_sla_operacion",
+     "schema": "crm",
+     "root": "sb",
+     "line": 61,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "cambiarModoSla"
+    },
+    {
+     "kind": "rpc",
+     "name": "publicar_reglas_sla_aprobadas_v2",
+     "schema": "crm",
+     "root": "sb",
+     "line": 70,
+     "file": "data/sla-operacion-api.ts",
+     "symbol": "publicarReglasSlaAprobadas"
+    }
+   ]
+  },
+  {
+   "id": "config-rentabilidad",
+   "titulo": "Config · Rentabilidad",
+   "roots": [
+    {
+     "file": "screens/config-rentabilidad.tsx",
+     "name": "ConfigRentabilidad"
+    }
+   ],
+   "simbolos": 112,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "politica_rentabilidad_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4608,
+     "file": "data/crm-api.ts",
+     "symbol": "obtenerPoliticaRentabilidad"
+    },
+    {
+     "kind": "rpc",
+     "name": "publicar_politica_rentabilidad_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4643,
+     "file": "data/crm-api.ts",
+     "symbol": "publicarPoliticaRentabilidad"
+    },
+    {
+     "kind": "rpc",
+     "name": "historial_decisiones_tasa_gerencia_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 4441,
+     "file": "data/crm-api.ts",
+     "symbol": "listarHistorialDecisionesTasaGerencia"
+    }
+   ]
+  },
+  {
+   "id": "config-citas",
+   "titulo": "Config · Citas",
+   "roots": [
+    {
+     "file": "screens/config-citas.tsx",
+     "name": "ConfigCitas"
+    }
+   ],
+   "simbolos": 88,
+   "calls": [
+    {
+     "kind": "rpc",
+     "name": "control_citas_configuracion_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 24,
+     "file": "data/control-citas.ts",
+     "symbol": "cargarControlCitas"
+    },
+    {
+     "kind": "rpc",
+     "name": "guardar_control_citas_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 36,
+     "file": "data/control-citas.ts",
+     "symbol": "guardarControlCitas"
+    },
+    {
+     "kind": "rpc",
+     "name": "aplicar_control_citas_fn",
+     "schema": "crm",
+     "root": "sb",
+     "line": 51,
+     "file": "data/control-citas.ts",
+     "symbol": "aplicarControlCitas"
+    }
+   ]
+  }
+ ],
+ "shell": {
+  "symbols": 2761,
+  "calls": [
+   {
+    "kind": "rpc",
+    "name": "mi_acceso_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 64,
+    "file": "lib/auth.tsx",
+    "symbol": "resolverRol"
+   },
+   {
+    "kind": "rpc",
+    "name": "desactivar_push_tasa_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 43,
+    "file": "lib/notificaciones-tasa.ts",
+    "symbol": "reintentarRevocaciones"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-notificaciones-tasa",
+    "line": 82,
+    "file": "lib/notificaciones-tasa.ts",
+    "symbol": "consultarPushTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "registrar_push_tasa_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 144,
+    "file": "lib/notificaciones-tasa.ts",
+    "symbol": "activarPushTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "desactivar_push_tasa_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 185,
+    "file": "lib/notificaciones-tasa.ts",
+    "symbol": "revocarDispositivo"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-notificaciones-tasa",
+    "line": 211,
+    "file": "lib/notificaciones-tasa.ts",
+    "symbol": "probarPushTasa"
+   },
+   {
+    "kind": "table",
+    "name": "alertas_reconocimientos",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1657,
+    "file": "data/crm-api.ts",
+    "symbol": "reconocerAlertaSupervisor"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-contrato-pdf-v2",
+    "line": 379,
+    "file": "lib/contrato-pdf-archivo.ts",
+    "symbol": "eliminarContratoConPdf"
+   },
+   {
+    "kind": "rpc",
+    "name": "rescate_descartes_meses",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1384,
+    "file": "data/crm-api.ts",
+    "symbol": "mesesRescateDescartes"
+   },
+   {
+    "kind": "rpc",
+    "name": "rescate_descartes_mes",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1399,
+    "file": "data/crm-api.ts",
+    "symbol": "descartesRescateDelMes"
+   },
+   {
+    "kind": "rpc",
+    "name": "rescatar_descartes",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1422,
+    "file": "data/crm-api.ts",
+    "symbol": "rescatarDescartes"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-tipo-cambio",
+    "line": 105,
+    "file": "lib/tipo-cambio.ts",
+    "symbol": "useTipoCambio"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-tipo-cambio",
+    "line": 106,
+    "file": "lib/tipo-cambio.ts",
+    "symbol": "useTipoCambio"
+   },
+   {
+    "kind": "rpc",
+    "name": "configuracion_metas_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 405,
+    "file": "data/crm-config-api.ts",
+    "symbol": "obtenerConfiguracionMetas"
+   },
+   {
+    "kind": "rpc",
+    "name": "ayuda_vendedor_inicio",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 345,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerInicioAyudaVendedor"
+   },
+   {
+    "kind": "rpc",
+    "name": "consultar_ayuda_vendedor",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 377,
+    "file": "data/crm-api.ts",
+    "symbol": "consultarAyudaVendedor"
+   },
+   {
+    "kind": "rpc",
+    "name": "avisos_sla_resumen_v2_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 9,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "obtenerResumenAvisosSla"
+   },
+   {
+    "kind": "table",
+    "name": "recordatorios_disponibilidad",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1537,
+    "file": "data/crm-api.ts",
+    "symbol": "listarRecordatoriosDisponibilidad"
+   },
+   {
+    "kind": "table",
+    "name": "alertas_reconocimientos_vigentes",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1621,
+    "file": "data/crm-api.ts",
+    "symbol": "listarReconocimientosAlertas"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_conversiones_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4932,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasConversiones"
+   },
+   {
+    "kind": "table",
+    "name": "leads",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 592,
+    "file": "data/crm-api.ts",
+    "symbol": "listarLeadsDelAmbito"
+   },
+   {
+    "kind": "rpc",
+    "name": "equipo_visible_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 848,
+    "file": "data/crm-api.ts",
+    "symbol": "listarEquipo"
+   },
+   {
+    "kind": "rpc",
+    "name": "actividades_del_ambito_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1446,
+    "file": "data/crm-api.ts",
+    "symbol": "listarActividadesDelAmbito"
+   },
+   {
+    "kind": "table",
+    "name": "tareas",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2040,
+    "file": "data/crm-api.ts",
+    "symbol": "listarTareasDelAmbito"
+   },
+   {
+    "kind": "rpc",
+    "name": "configuracion_metas_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 875,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerMetasDelMes"
+   },
+   {
+    "kind": "rpc",
+    "name": "cumplimiento_metas_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 895,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerCumplimientoMetas"
+   },
+   {
+    "kind": "table",
+    "name": "leads",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 642,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerLeadDelAmbitoPorId"
+   },
+   {
+    "kind": "rpc",
+    "name": "reprogramar_reunion_v2",
+    "schema": "crm",
+    "line": 1887,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "api.reprogramarTarea"
+   },
+   {
+    "kind": "rpc",
+    "name": "reprogramar_tarea_v2",
+    "schema": "crm",
+    "line": 1911,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "api.reprogramarTarea"
+   },
+   {
+    "kind": "table",
+    "name": "leads",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1937,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarLead"
+   },
+   {
+    "kind": "rpc",
+    "name": "cierres_estado_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5874,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerCierresEstado"
+   },
+   {
+    "kind": "table",
+    "name": "clientes_basicos",
+    "schema": "crm",
+    "line": 2774,
+    "via": "wrapper:leerListadoCarteraCompleto",
+    "file": "data/crm-api.ts",
+    "symbol": "listarClientes"
+   },
+   {
+    "kind": "table",
+    "name": "contratos_cartera",
+    "schema": "crm",
+    "line": 3336,
+    "via": "wrapper:leerListadoCarteraCompleto",
+    "file": "data/crm-api.ts",
+    "symbol": "listarMisContratos"
+   },
+   {
+    "kind": "table",
+    "name": "operaciones_cartera",
+    "schema": "crm",
+    "line": 3414,
+    "via": "wrapper:leerListadoCarteraCompleto",
+    "file": "data/crm-api.ts",
+    "symbol": "listarOperacionesCartera"
+   },
+   {
+    "kind": "rpc",
+    "name": "resumen_cartera_clientes_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2722,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerResumenCarteraClientes"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_cliente_gerencia_con_domicilio",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3083,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarClientePortal"
+   },
+   {
+    "kind": "table",
+    "name": "perfiles",
+    "schema": null,
+    "root": "cliente",
+    "line": 3093,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarClientePortal"
+   },
+   {
+    "kind": "rpc",
+    "name": "corregir_documento_cliente_admin_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3109,
+    "file": "data/crm-api.ts",
+    "symbol": "corregirDocumentoClienteAdmin"
+   },
+   {
+    "kind": "edge",
+    "name": "corregir-correo-cliente",
+    "line": 3147,
+    "file": "data/crm-api.ts",
+    "symbol": "corregirCorreoClienteAdmin"
+   },
+   {
+    "kind": "edge",
+    "name": "crear-cliente",
+    "line": 3027,
+    "file": "data/crm-api.ts",
+    "symbol": "crearClientePortal"
+   },
+   {
+    "kind": "rpc",
+    "name": "completar_domicilio_cliente",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3257,
+    "file": "data/crm-api.ts",
+    "symbol": "completarDomicilioCliente"
+   },
+   {
+    "kind": "rpc",
+    "name": "crear_contrato_con_cuenta_pdf_v2",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2591,
+    "file": "data/crm-api.ts",
+    "symbol": "crearContrato"
+   },
+   {
+    "kind": "rpc",
+    "name": "reasignar_analista_contrato",
+    "schema": null,
+    "root": "cliente",
+    "line": 3703,
+    "file": "data/crm-api.ts",
+    "symbol": "reasignarAnalistaContrato"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_contrato_con_cuenta_pdf_v3",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3606,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarContrato"
+   },
+   {
+    "kind": "rpc",
+    "name": "agenda_reparto_diaria",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1118,
+    "file": "data/crm-api.ts",
+    "symbol": "agendaRepartoDiaria"
+   },
+   {
+    "kind": "rpc",
+    "name": "guardar_agenda_reparto_diaria",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1155,
+    "file": "data/crm-api.ts",
+    "symbol": "guardarAgendaRepartoDiaria"
+   },
+   {
+    "kind": "rpc",
+    "name": "panel_distribucion_reparto",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1207,
+    "file": "data/crm-api.ts",
+    "symbol": "panelDistribucionReparto"
+   },
+   {
+    "kind": "rpc",
+    "name": "historial_derivaciones",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1083,
+    "file": "data/crm-api.ts",
+    "symbol": "historialDerivaciones"
+   },
+   {
+    "kind": "rpc",
+    "name": "leads_descartados",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1341,
+    "file": "data/crm-api.ts",
+    "symbol": "leadsDescartados"
+   },
+   {
+    "kind": "rpc",
+    "name": "deshacer_descarte",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1310,
+    "file": "data/crm-api.ts",
+    "symbol": "deshacerDescarte"
+   },
+   {
+    "kind": "rpc",
+    "name": "reporte_derivaciones_equipo_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5314,
+    "file": "data/crm-api.ts",
+    "symbol": "listarReporteDerivacionesEquipo"
+   },
+   {
+    "kind": "rpc",
+    "name": "derivar_leads_equipo_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5360,
+    "file": "data/crm-api.ts",
+    "symbol": "derivarLeadsEquipo"
+   },
+   {
+    "kind": "rpc",
+    "name": "revertir_derivacion_equipo_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5393,
+    "file": "data/crm-api.ts",
+    "symbol": "revertirDerivacionEquipo"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_multiempresa_estado_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 10,
+    "file": "data/metricas-multiempresa.ts",
+    "symbol": "obtenerEstadoMetricasMultiempresa"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_multiempresa_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 16,
+    "file": "data/metricas-multiempresa.ts",
+    "symbol": "obtenerMetricasMultiempresa"
+   },
+   {
+    "kind": "rpc",
+    "name": "facturacion_diaria_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3836,
+    "file": "data/crm-api.ts",
+    "symbol": "listarFacturacionDiaria"
+   },
+   {
+    "kind": "rpc",
+    "name": "productos_inversion_gestion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 294,
+    "file": "data/crm-config-api.ts",
+    "symbol": "obtenerConfiguracionProductos"
+   },
+   {
+    "kind": "rpc",
+    "name": "configuracion_sla_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 447,
+    "file": "data/crm-config-api.ts",
+    "symbol": "obtenerConfiguracionSla"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-agenda-ics",
+    "line": 9,
+    "via": "url",
+    "file": "lib/agenda-ics.ts",
+    "symbol": "urlFeedIcs"
+   },
+   {
+    "kind": "rpc",
+    "name": "usuarios_administrables_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 139,
+    "file": "data/crm-config-api.ts",
+    "symbol": "listarUsuariosAdministrables"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-usuarios",
+    "line": 173,
+    "file": "data/crm-config-api.ts",
+    "symbol": "crearCandidatoUsuario"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_usuario_administrable_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 202,
+    "file": "data/crm-config-api.ts",
+    "symbol": "actualizarUsuarioAdministrable"
+   },
+   {
+    "kind": "rpc",
+    "name": "asignar_rol_usuario_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 223,
+    "file": "data/crm-config-api.ts",
+    "symbol": "asignarRolUsuario"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_jerarquia_usuario_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 238,
+    "file": "data/crm-config-api.ts",
+    "symbol": "actualizarJerarquiaUsuario"
+   },
+   {
+    "kind": "rpc",
+    "name": "impacto_desactivacion_usuario_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 251,
+    "file": "data/crm-config-api.ts",
+    "symbol": "obtenerImpactoDesactivacion"
+   },
+   {
+    "kind": "rpc",
+    "name": "fijar_membresia_activa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 264,
+    "file": "data/crm-config-api.ts",
+    "symbol": "fijarMembresiaUsuario"
+   },
+   {
+    "kind": "rpc",
+    "name": "crear_producto_inversion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 325,
+    "file": "data/crm-config-api.ts",
+    "symbol": "crearProductoInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "crear_version_producto_inversion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 340,
+    "file": "data/crm-config-api.ts",
+    "symbol": "crearVersionProducto"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_borrador_producto_inversion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 356,
+    "file": "data/crm-config-api.ts",
+    "symbol": "actualizarBorradorProducto"
+   },
+   {
+    "kind": "rpc",
+    "name": "publicar_version_producto_inversion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 370,
+    "file": "data/crm-config-api.ts",
+    "symbol": "publicarVersionProducto"
+   },
+   {
+    "kind": "rpc",
+    "name": "archivar_producto_inversion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 382,
+    "file": "data/crm-config-api.ts",
+    "symbol": "archivarProducto"
+   },
+   {
+    "kind": "rpc",
+    "name": "publicar_metas_vendedores",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 418,
+    "file": "data/crm-config-api.ts",
+    "symbol": "publicarMetas"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_sla_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 500,
+    "file": "data/crm-config-api.ts",
+    "symbol": "obtenerMetricasSla"
+   },
+   {
+    "kind": "rpc",
+    "name": "publicar_politica_sla",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 470,
+    "file": "data/crm-config-api.ts",
+    "symbol": "publicarPoliticaSla"
+   },
+   {
+    "kind": "rpc",
+    "name": "politica_rentabilidad_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4608,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerPoliticaRentabilidad"
+   },
+   {
+    "kind": "rpc",
+    "name": "publicar_politica_rentabilidad_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4643,
+    "file": "data/crm-api.ts",
+    "symbol": "publicarPoliticaRentabilidad"
+   },
+   {
+    "kind": "rpc",
+    "name": "control_citas_configuracion_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 24,
+    "file": "data/control-citas.ts",
+    "symbol": "cargarControlCitas"
+   },
+   {
+    "kind": "rpc",
+    "name": "guardar_control_citas_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 36,
+    "file": "data/control-citas.ts",
+    "symbol": "guardarControlCitas"
+   },
+   {
+    "kind": "rpc",
+    "name": "aplicar_control_citas_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 51,
+    "file": "data/control-citas.ts",
+    "symbol": "aplicarControlCitas"
+   },
+   {
+    "kind": "rpc",
+    "name": "solicitudes_tasa_lead_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4393,
+    "file": "data/crm-api.ts",
+    "symbol": "listarSolicitudesTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "solicitudes_tasa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4395,
+    "file": "data/crm-api.ts",
+    "symbol": "listarSolicitudesTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "verificar_disponibilidad_lead",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1475,
+    "file": "data/crm-api.ts",
+    "symbol": "verificarDisponibilidadLead"
+   },
+   {
+    "kind": "rpc",
+    "name": "tomar_lead_libre",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1679,
+    "file": "data/crm-api.ts",
+    "symbol": "tomarLeadLibre"
+   },
+   {
+    "kind": "table",
+    "name": "recordatorios_disponibilidad",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1569,
+    "file": "data/crm-api.ts",
+    "symbol": "guardarRecordatorioDisponibilidad"
+   },
+   {
+    "kind": "rpc",
+    "name": "estado_sla_leads_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 510,
+    "file": "data/crm-config-api.ts",
+    "symbol": "listarEstadoSlaLeads"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_estado_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 16,
+    "file": "data/postventa-api.ts",
+    "symbol": "estadoPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_agenda_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 22,
+    "file": "data/postventa-api.ts",
+    "symbol": "listarAgendaPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_perfil_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 32,
+    "file": "data/postventa-api.ts",
+    "symbol": "personaDePerfil"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_ficha_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 38,
+    "file": "data/postventa-api.ts",
+    "symbol": "fichaPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_vencimientos_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 44,
+    "file": "data/postventa-api.ts",
+    "symbol": "vencimientosPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_agendar_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 56,
+    "file": "data/postventa-api.ts",
+    "symbol": "agendarPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_tarea_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 59,
+    "file": "data/postventa-api.ts",
+    "symbol": "gestionarTareaPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_veto_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 62,
+    "file": "data/postventa-api.ts",
+    "symbol": "cambiarVetoPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_solicitar_retiro_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 65,
+    "file": "data/postventa-api.ts",
+    "symbol": "solicitarRetiroPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_revisar_retiro_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 68,
+    "file": "data/postventa-api.ts",
+    "symbol": "revisarRetiroPostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "reasignar_responsable_relacion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 71,
+    "file": "data/postventa-api.ts",
+    "symbol": "asignarResponsablePostventa"
+   },
+   {
+    "kind": "rpc",
+    "name": "conversion_mensual_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4993,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerConversionMensual"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_agenda_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4901,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasAgenda"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_reuniones_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5070,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasReuniones"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_distribucion_leads_v3_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4856,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasDistribucionLeadsV3"
+   },
+   {
+    "kind": "rpc",
+    "name": "actualizar_capacidad_leads_objetivo",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5454,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarCapacidadLeadsObjetivo"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_conversiones_equipo_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5036,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasConversionesEquipo"
+   },
+   {
+    "kind": "rpc",
+    "name": "<dinámico>",
+    "line": 141,
+    "raw": "comando",
+    "file": "data/sla-operacion-comandos.ts",
+    "symbol": "ejecutarComandoSla"
+   },
+   {
+    "kind": "rpc",
+    "name": "reprogramar_reunion",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2261,
+    "file": "data/crm-api.ts",
+    "symbol": "reprogramarReunion"
+   },
+   {
+    "kind": "table",
+    "name": "tareas",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2093,
+    "file": "data/crm-api.ts",
+    "symbol": "actualizarTarea"
+   },
+   {
+    "kind": "table",
+    "name": "recordatorios_disponibilidad",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1593,
+    "file": "data/crm-api.ts",
+    "symbol": "eliminarRecordatorioDisponibilidad"
+   },
+   {
+    "kind": "rpc",
+    "name": "cola_accion_v2_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 20,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "listarColaSla"
+   },
+   {
+    "kind": "rpc",
+    "name": "citas_gerencia_consulta_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 112,
+    "file": "data/citas-gerencia.ts",
+    "symbol": "cargarCitasGerencia"
+   },
+   {
+    "kind": "rpc",
+    "name": "resumen_cartera_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5100,
+    "file": "data/crm-api.ts",
+    "symbol": "listarResumenCartera"
+   },
+   {
+    "kind": "rpc",
+    "name": "<dinámico>",
+    "line": 738,
+    "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'",
+    "file": "data/crm-api.ts",
+    "symbol": "listarCarteraPagina"
+   },
+   {
+    "kind": "rpc",
+    "name": "cartera_inversionistas_estado_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 32,
+    "file": "data/inversionistas-api.ts",
+    "symbol": "obtenerEstadoCarteraInversionistas"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-inversion-documento",
+    "line": 86,
+    "file": "data/inversionistas-api.ts",
+    "symbol": "descargarDocumentoInversionista"
+   },
+   {
+    "kind": "from",
+    "name": "<dinámico>",
+    "line": 2673,
+    "raw": "tabla",
+    "file": "data/crm-api.ts",
+    "symbol": "leerListadoCarteraCompleto"
+   },
+   {
+    "kind": "from",
+    "name": "<dinámico>",
+    "line": 2674,
+    "raw": "tabla",
+    "file": "data/crm-api.ts",
+    "symbol": "leerListadoCarteraCompleto"
+   },
+   {
+    "kind": "rpc",
+    "name": "cliente_detalle_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2919,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerClienteDetalle"
+   },
+   {
+    "kind": "rpc",
+    "name": "cuentas_bancarias_cliente_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2400,
+    "file": "data/crm-api.ts",
+    "symbol": "listarCuentasBancariasCliente"
+   },
+   {
+    "kind": "rpc",
+    "name": "cliente_ficha_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2812,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerClienteFichaComercial"
+   },
+   {
+    "kind": "table",
+    "name": "actividades_cliente",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3454,
+    "file": "data/crm-api.ts",
+    "symbol": "listarActividadesCliente"
+   },
+   {
+    "kind": "rpc",
+    "name": "historial_tasa_cliente_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4509,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerHistorialTasaCliente"
+   },
+   {
+    "kind": "rpc",
+    "name": "atribucion_contrato_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3683,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerAtribucionContrato"
+   },
+   {
+    "kind": "rpc",
+    "name": "datos_legales_contrato_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3214,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerDatosLegalesContrato"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-contrato-pdf-v2",
+    "line": 236,
+    "file": "lib/contrato-pdf-archivo.ts",
+    "symbol": "invocarEdge"
+   },
+   {
+    "kind": "rpc",
+    "name": "cronograma_contrato_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3500,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerCronograma"
+   },
+   {
+    "kind": "rpc",
+    "name": "titulares_contrato_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3536,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerTitulares"
+   },
+   {
+    "kind": "rpc",
+    "name": "productos_inversion_seleccion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 306,
+    "file": "data/crm-config-api.ts",
+    "symbol": "listarProductosSeleccionables"
+   },
+   {
+    "kind": "rpc",
+    "name": "reporte_derivaciones_coordinacion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5213,
+    "file": "data/crm-api.ts",
+    "symbol": "listarReporteDerivacionesCoordinacion"
+   },
+   {
+    "kind": "rpc",
+    "name": "leads_por_repartir",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1057,
+    "file": "data/crm-api.ts",
+    "symbol": "leadsPorRepartir"
+   },
+   {
+    "kind": "rpc",
+    "name": "supervisores_para_reparto",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1233,
+    "file": "data/crm-api.ts",
+    "symbol": "supervisoresParaReparto"
+   },
+   {
+    "kind": "rpc",
+    "name": "repartir_lead",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1283,
+    "file": "data/crm-api.ts",
+    "symbol": "repartirLead"
+   },
+   {
+    "kind": "rpc",
+    "name": "descartar_lead",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1297,
+    "file": "data/crm-api.ts",
+    "symbol": "descartarLead"
+   },
+   {
+    "kind": "table",
+    "name": "agenda_ics",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2109,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerTokenIcs"
+   },
+   {
+    "kind": "table",
+    "name": "agenda_ics",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2124,
+    "file": "data/crm-api.ts",
+    "symbol": "crearTokenIcs"
+   },
+   {
+    "kind": "table",
+    "name": "agenda_ics",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2138,
+    "file": "data/crm-api.ts",
+    "symbol": "rotarTokenIcs"
+   },
+   {
+    "kind": "rpc",
+    "name": "cierre_mes_estado_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 916,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerCierreMesEstado"
+   },
+   {
+    "kind": "rpc",
+    "name": "configuracion_sla_v2_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 51,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "obtenerConfiguracionSlaV2"
+   },
+   {
+    "kind": "rpc",
+    "name": "cambiar_modo_sla_operacion",
+    "schema": "crm",
+    "root": "sb",
+    "line": 61,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "cambiarModoSla"
+   },
+   {
+    "kind": "rpc",
+    "name": "publicar_reglas_sla_aprobadas_v2",
+    "schema": "crm",
+    "root": "sb",
+    "line": 70,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "publicarReglasSlaAprobadas"
+   },
+   {
+    "kind": "rpc",
+    "name": "historial_decisiones_tasa_gerencia_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4441,
+    "file": "data/crm-api.ts",
+    "symbol": "listarHistorialDecisionesTasaGerencia"
+   },
+   {
+    "kind": "table",
+    "name": "tareas",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2024,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerTareaDelAmbitoPorId"
+   },
+   {
+    "kind": "rpc",
+    "name": "registrar_actividad_v2",
+    "schema": "crm",
+    "line": 2716,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "api.registrarActividad"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-convertir-lead",
+    "line": 2332,
+    "file": "data/crm-api.ts",
+    "symbol": "convertirLead"
+   },
+   {
+    "kind": "table",
+    "name": "perfiles",
+    "schema": null,
+    "root": "cliente",
+    "line": 2963,
+    "file": "data/crm-api.ts",
+    "symbol": "esClienteDeMiCartera"
+   },
+   {
+    "kind": "rpc",
+    "name": "crear_lead_si_disponible",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1901,
+    "file": "data/crm-api.ts",
+    "symbol": "insertarLead"
+   },
+   {
+    "kind": "rpc",
+    "name": "estado_sla_leads_v2_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 38,
+    "file": "data/sla-operacion-api.ts",
+    "symbol": "obtenerEstadosSlaV2"
+   },
+   {
+    "kind": "rpc",
+    "name": "cola_accion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5123,
+    "file": "data/crm-api.ts",
+    "symbol": "listarColaAccion"
+   },
+   {
+    "kind": "rpc",
+    "name": "metricas_vendedores_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5154,
+    "file": "data/crm-api.ts",
+    "symbol": "listarMetricasVendedores"
+   },
+   {
+    "kind": "rpc",
+    "name": "responder_tope_tasa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4373,
+    "file": "data/crm-api.ts",
+    "symbol": "responderTopeTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "cierres_externos_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5908,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerCierresExternos"
+   },
+   {
+    "kind": "rpc",
+    "name": "resolver_solicitud_tasa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4361,
+    "file": "data/crm-api.ts",
+    "symbol": "resolverSolicitudTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "observacion_rentabilidad_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4675,
+    "file": "data/crm-api.ts",
+    "symbol": "listarObservacionRentabilidad"
+   },
+   {
+    "kind": "rpc",
+    "name": "altas_nuevas_por_analista_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 3884,
+    "file": "data/crm-api.ts",
+    "symbol": "listarAltasNuevasPorAnalista"
+   },
+   {
+    "kind": "rpc",
+    "name": "postventa_operacion_estado_fn",
+    "schema": "crm",
+    "root": "sb",
+    "line": 15,
+    "file": "data/postventa-envios.ts",
+    "symbol": "verificarEnvioPostventa"
+   },
+   {
+    "kind": "table",
+    "name": "tareas",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2088,
+    "file": "data/crm-api.ts",
+    "symbol": "insertarTarea"
+   },
+   {
+    "kind": "rpc",
+    "name": "cerrar_reunion_v2",
+    "schema": "crm",
+    "line": 572,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "ejecutarCierreTarea"
+   },
+   {
+    "kind": "rpc",
+    "name": "cerrar_tarea_v2",
+    "schema": "crm",
+    "line": 582,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "ejecutarCierreTarea"
+   },
+   {
+    "kind": "table",
+    "name": "actividades",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1976,
+    "file": "data/crm-api.ts",
+    "symbol": "insertarActividad"
+   },
+   {
+    "kind": "rpc",
+    "name": "cartera_inversionistas_filtrada_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 42,
+    "file": "data/inversionistas-api.ts",
+    "symbol": "listarInversionistas"
+   },
+   {
+    "kind": "rpc",
+    "name": "solicitud_inversion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 12,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "consultarSolicitudInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "preparar_reinversion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 18,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "prepararSolicitudInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "preparar_inversion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 19,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "prepararSolicitudInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "corregir_solicitud_inversion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 26,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "corregirSolicitudInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "revisar_solicitud_inversion_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 33,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "revisarResponsableInversion"
+   },
+   {
+    "kind": "edge",
+    "name": "crm-inversion-portal",
+    "line": 44,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "completarAccesoInversion"
+   },
+   {
+    "kind": "storage",
+    "name": "f4-comprobantes",
+    "line": 68,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "subirComprobanteInversion"
+   },
+   {
+    "kind": "rpc",
+    "name": "confirmar_inversion_revisada_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 39,
+    "file": "data/inversion-solicitud-api.ts",
+    "symbol": "confirmarSolicitudInversion"
+   },
+   {
+    "kind": "table",
+    "name": "leads",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2888,
+    "file": "data/crm-api.ts",
+    "symbol": "obtenerSegundoNumeroDelCliente"
+   },
+   {
+    "kind": "rpc",
+    "name": "resolver_tasa_lead_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4135,
+    "file": "data/crm-api.ts",
+    "symbol": "resolverTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "resolver_tasa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4137,
+    "file": "data/crm-api.ts",
+    "symbol": "resolverTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "solicitar_tasa_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 4331,
+    "file": "data/crm-api.ts",
+    "symbol": "solicitarTasa"
+   },
+   {
+    "kind": "rpc",
+    "name": "resumen_reparto_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5426,
+    "file": "data/crm-api.ts",
+    "symbol": "listarResumenReparto"
+   },
+   {
+    "kind": "rpc",
+    "name": "reabrir_lead_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1954,
+    "file": "data/crm-api.ts",
+    "symbol": "reabrirLead"
+   },
+   {
+    "kind": "rpc",
+    "name": "editar_lead_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1969,
+    "file": "data/crm-api.ts",
+    "symbol": "editarLeadFn"
+   },
+   {
+    "kind": "rpc",
+    "name": "convertir_lead_externo",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5574,
+    "file": "data/crm-api.ts",
+    "symbol": "convertirLeadExterno"
+   },
+   {
+    "kind": "rpc",
+    "name": "anular_cierre_externo",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5729,
+    "file": "data/crm-api.ts",
+    "symbol": "anularCierreExterno"
+   },
+   {
+    "kind": "rpc",
+    "name": "inversionista_corregir_contacto_fn",
+    "schema": null,
+    "root": "cliente",
+    "line": 60,
+    "file": "data/gestion-inversionista.ts",
+    "symbol": "corregirContactoInversionista"
+   },
+   {
+    "kind": "rpc",
+    "name": "inversionista_corregir_coopac_fn",
+    "schema": null,
+    "root": "cliente",
+    "line": 67,
+    "file": "data/gestion-inversionista.ts",
+    "symbol": "corregirCoopacInversionista"
+   },
+   {
+    "kind": "rpc",
+    "name": "cerrar_tarea",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 2176,
+    "file": "data/crm-api.ts",
+    "symbol": "cerrarTarea"
+   },
+   {
+    "kind": "rpc",
+    "name": "inversionista_ficha_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 60,
+    "file": "data/inversionistas-api.ts",
+    "symbol": "obtenerFichaInversionista"
+   },
+   {
+    "kind": "rpc",
+    "name": "anular_cierre_avance",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 5800,
+    "file": "data/crm-api.ts",
+    "symbol": "anularCierreAvance"
+   },
+   {
+    "kind": "rpc",
+    "name": "inversionista_cuentas_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 79,
+    "file": "data/inversionistas-api.ts",
+    "symbol": "obtenerCuentasInversionista"
+   },
+   {
+    "kind": "rpc",
+    "name": "inversionista_gestion_fn",
+    "schema": null,
+    "root": "cliente",
+    "line": 44,
+    "file": "data/gestion-inversionista.ts",
+    "symbol": "obtenerGestionInversionista"
+   },
+   {
+    "kind": "rpc",
+    "name": "corregir_documento_inversionista_fn",
+    "schema": null,
+    "root": "cliente",
+    "line": 74,
+    "file": "data/gestion-inversionista.ts",
+    "symbol": "corregirDocumentoInversionista"
+   }
+  ]
+ },
+ "dinamicos": [
+  {
+   "file": "data/crm-api.ts",
+   "symbol": "listarCarteraPagina",
+   "kind": "rpc",
+   "name": "<dinámico>",
+   "line": 738,
+   "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'"
+  },
+  {
+   "file": "data/crm-api.ts",
+   "symbol": "leerListadoCarteraCompleto",
+   "kind": "from",
+   "name": "<dinámico>",
+   "line": 2673,
+   "raw": "tabla"
+  },
+  {
+   "file": "data/crm-api.ts",
+   "symbol": "leerListadoCarteraCompleto",
+   "kind": "from",
+   "name": "<dinámico>",
+   "line": 2674,
+   "raw": "tabla"
+  },
+  {
+   "file": "data/sla-operacion-comandos.ts",
+   "symbol": "ejecutarComandoSla",
+   "kind": "rpc",
+   "name": "<dinámico>",
+   "line": 141,
+   "raw": "comando"
+  }
+ ],
+ "simbolosStore": 268,
+ "inventario": [
+  "edge::corregir-correo-cliente",
+  "edge::crear-cliente",
+  "edge::crm-agenda-ics",
+  "edge::crm-contrato-pdf-v2",
+  "edge::crm-convertir-lead",
+  "edge::crm-inversion-documento",
+  "edge::crm-inversion-portal",
+  "edge::crm-notificaciones-tasa",
+  "edge::crm-tipo-cambio",
+  "edge::crm-usuarios",
+  "from::<dinámico>",
+  "rpc::<dinámico>",
+  "rpc::corregir_documento_inversionista_fn",
+  "rpc::inversionista_corregir_contacto_fn",
+  "rpc::inversionista_corregir_coopac_fn",
+  "rpc::inversionista_gestion_fn",
+  "rpc::reasignar_analista_contrato",
+  "rpc:crm:actividades_del_ambito_fn",
+  "rpc:crm:actualizar_borrador_producto_inversion",
+  "rpc:crm:actualizar_capacidad_leads_objetivo",
+  "rpc:crm:actualizar_cliente_gerencia_con_domicilio",
+  "rpc:crm:actualizar_contrato_con_cuenta_pdf_v3",
+  "rpc:crm:actualizar_jerarquia_usuario_fn",
+  "rpc:crm:actualizar_usuario_administrable_fn",
+  "rpc:crm:agenda_reparto_diaria",
+  "rpc:crm:altas_nuevas_por_analista_fn",
+  "rpc:crm:anular_cierre_avance",
+  "rpc:crm:anular_cierre_externo",
+  "rpc:crm:aplicar_control_citas_fn",
+  "rpc:crm:archivar_producto_inversion",
+  "rpc:crm:asignar_rol_usuario_fn",
+  "rpc:crm:atribucion_contrato_fn",
+  "rpc:crm:avisos_sla_resumen_v2_fn",
+  "rpc:crm:ayuda_vendedor_inicio",
+  "rpc:crm:cambiar_modo_sla_operacion",
+  "rpc:crm:cartera_inversionistas_estado_fn",
+  "rpc:crm:cartera_inversionistas_filtrada_fn",
+  "rpc:crm:cerrar_altas_legacy_productos",
+  "rpc:crm:cerrar_reunion",
+  "rpc:crm:cerrar_reunion_v2",
+  "rpc:crm:cerrar_tarea",
+  "rpc:crm:cerrar_tarea_v2",
+  "rpc:crm:cierre_mes_estado_fn",
+  "rpc:crm:cierres_estado_fn",
+  "rpc:crm:cierres_externos_fn",
+  "rpc:crm:citas_gerencia_consulta_fn",
+  "rpc:crm:cliente_detalle_fn",
+  "rpc:crm:cliente_ficha_fn",
+  "rpc:crm:cola_accion_fn",
+  "rpc:crm:cola_accion_v2_fn",
+  "rpc:crm:completar_domicilio_cliente",
+  "rpc:crm:configuracion_metas_fn",
+  "rpc:crm:configuracion_sla_fn",
+  "rpc:crm:configuracion_sla_v2_fn",
+  "rpc:crm:confirmar_inversion_revisada_fn",
+  "rpc:crm:consultar_ayuda_vendedor",
+  "rpc:crm:control_citas_configuracion_fn",
+  "rpc:crm:conversion_mensual_fn",
+  "rpc:crm:convertir_lead_externo",
+  "rpc:crm:corregir_cierre_externo",
+  "rpc:crm:corregir_documento_cliente_admin_fn",
+  "rpc:crm:corregir_solicitud_inversion_fn",
+  "rpc:crm:crear_contrato_con_cuenta_pdf_v2",
+  "rpc:crm:crear_lead_si_disponible",
+  "rpc:crm:crear_producto_inversion",
+  "rpc:crm:crear_version_producto_inversion",
+  "rpc:crm:cronograma_contrato_fn",
+  "rpc:crm:cuentas_bancarias_cliente_fn",
+  "rpc:crm:cumplimiento_metas_fn",
+  "rpc:crm:datos_legales_contrato_fn",
+  "rpc:crm:derivar_leads_equipo_fn",
+  "rpc:crm:desactivar_push_tasa_fn",
+  "rpc:crm:descartar_lead",
+  "rpc:crm:deshacer_descarte",
+  "rpc:crm:editar_lead_fn",
+  "rpc:crm:equipo_visible_fn",
+  "rpc:crm:estado_sla_leads_fn",
+  "rpc:crm:estado_sla_leads_v2_fn",
+  "rpc:crm:facturacion_diaria_fn",
+  "rpc:crm:fijar_membresia_activa_fn",
+  "rpc:crm:guardar_agenda_reparto_diaria",
+  "rpc:crm:guardar_control_citas_fn",
+  "rpc:crm:historial_decisiones_tasa_gerencia_fn",
+  "rpc:crm:historial_derivaciones",
+  "rpc:crm:historial_tasa_cliente_fn",
+  "rpc:crm:impacto_desactivacion_usuario_fn",
+  "rpc:crm:ingresos_reparto_mes_fn",
+  "rpc:crm:inversionista_cuentas_fn",
+  "rpc:crm:inversionista_ficha_fn",
+  "rpc:crm:leads_descartados",
+  "rpc:crm:leads_por_repartir",
+  "rpc:crm:leads_recibidos_analista_fn",
+  "rpc:crm:metricas_agenda_fn",
+  "rpc:crm:metricas_capital_mes_fn",
+  "rpc:crm:metricas_conversiones_equipo_fn",
+  "rpc:crm:metricas_conversiones_fn",
+  "rpc:crm:metricas_distribucion_leads_v3_fn",
+  "rpc:crm:metricas_multiempresa_estado_fn",
+  "rpc:crm:metricas_multiempresa_fn",
+  "rpc:crm:metricas_pagos_mes_fn",
+  "rpc:crm:metricas_reuniones_fn",
+  "rpc:crm:metricas_sla_fn",
+  "rpc:crm:metricas_vencimientos_fn",
+  "rpc:crm:metricas_vendedores_fn",
+  "rpc:crm:mi_acceso_fn",
+  "rpc:crm:observacion_rentabilidad_fn",
+  "rpc:crm:panel_distribucion_reparto",
+  "rpc:crm:politica_rentabilidad_fn",
+  "rpc:crm:postventa_agenda_fn",
+  "rpc:crm:postventa_agendar_fn",
+  "rpc:crm:postventa_estado_fn",
+  "rpc:crm:postventa_ficha_fn",
+  "rpc:crm:postventa_operacion_estado_fn",
+  "rpc:crm:postventa_perfil_fn",
+  "rpc:crm:postventa_revisar_retiro_fn",
+  "rpc:crm:postventa_solicitar_retiro_fn",
+  "rpc:crm:postventa_tarea_fn",
+  "rpc:crm:postventa_vencimientos_fn",
+  "rpc:crm:postventa_veto_fn",
+  "rpc:crm:preparar_inversion_fn",
+  "rpc:crm:preparar_reinversion_fn",
+  "rpc:crm:productos_inversion_gestion_fn",
+  "rpc:crm:productos_inversion_seleccion_fn",
+  "rpc:crm:publicar_metas_vendedores",
+  "rpc:crm:publicar_politica_rentabilidad_fn",
+  "rpc:crm:publicar_politica_sla",
+  "rpc:crm:publicar_reglas_sla_aprobadas_v2",
+  "rpc:crm:publicar_version_producto_inversion",
+  "rpc:crm:reabrir_lead_fn",
+  "rpc:crm:reasignar_responsable_relacion_fn",
+  "rpc:crm:registrar_actividad_v2",
+  "rpc:crm:registrar_push_tasa_fn",
+  "rpc:crm:repartir_lead",
+  "rpc:crm:reporte_derivaciones_coordinacion_fn",
+  "rpc:crm:reporte_derivaciones_equipo_fn",
+  "rpc:crm:reprogramar_reunion",
+  "rpc:crm:reprogramar_reunion_v2",
+  "rpc:crm:reprogramar_tarea_v2",
+  "rpc:crm:rescatar_descartes",
+  "rpc:crm:rescate_descartes_mes",
+  "rpc:crm:rescate_descartes_meses",
+  "rpc:crm:resolver_solicitud_tasa_fn",
+  "rpc:crm:resolver_tasa_fn",
+  "rpc:crm:resolver_tasa_lead_fn",
+  "rpc:crm:responder_tope_tasa_fn",
+  "rpc:crm:resumen_cartera_clientes_fn",
+  "rpc:crm:resumen_cartera_fn",
+  "rpc:crm:resumen_reparto_fn",
+  "rpc:crm:revertir_derivacion_equipo_fn",
+  "rpc:crm:revisar_solicitud_inversion_fn",
+  "rpc:crm:solicitar_tasa_fn",
+  "rpc:crm:solicitud_inversion_fn",
+  "rpc:crm:solicitudes_tasa_fn",
+  "rpc:crm:solicitudes_tasa_lead_fn",
+  "rpc:crm:supervisores_para_reparto",
+  "rpc:crm:titulares_contrato_fn",
+  "rpc:crm:tomar_lead_libre",
+  "rpc:crm:usuarios_administrables_fn",
+  "rpc:crm:verificar_disponibilidad_lead",
+  "storage::f4-comprobantes",
+  "table::perfiles",
+  "table:crm:actividades",
+  "table:crm:actividades_cliente",
+  "table:crm:agenda_ics",
+  "table:crm:alertas_reconocimientos",
+  "table:crm:alertas_reconocimientos_vigentes",
+  "table:crm:clientes_basicos",
+  "table:crm:contratos_cartera",
+  "table:crm:leads",
+  "table:crm:operaciones_cartera",
+  "table:crm:recordatorios_disponibilidad",
+  "table:crm:tareas"
+ ]
+}
