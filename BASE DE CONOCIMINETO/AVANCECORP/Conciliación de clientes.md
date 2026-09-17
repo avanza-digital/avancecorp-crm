@@ -87,3 +87,18 @@ Estas cifras son una línea base de prueba; pueden cambiar cuando se creen usuar
 Estado al 2026-07-14: segunda iteración implementada, verificada contra el Excel real y la base de producción, y desplegada en `https://miavance.com/admin/conciliacion.html` con el service worker `avance-v98`. La vista inicial ahora es **Estado de base**: para cada fila del Excel muestra si el DNI está en el CRM y si el número de contrato está cargado. Página, CSS, JS, núcleo y `_helpers.js` quedaron idénticos byte a byte entre local y producción.
 
 El 2026-07-15 se corrigió el origen de la fecha después de revisar una captura de la base maestra: el **Reporte completo** ahora muestra **Fecha contrato (Excel)** a partir de la columna `FECHA CONTRATO` del archivo adjuntado. Esta versión reemplaza la implementación anterior que usaba `fecha_inicio` del CRM. Se desplegó como `conciliacion.js?v=5`, `conciliacion-core.js?v=4` y service worker `avance-v100`; página, módulos y SW quedaron idénticos byte a byte entre local y producción, y el ZIP respondió 404.
+
+## Cuentas mancomunadas (2026-09-17)
+
+La administradora reportó que los contratos mancomunados salían como «No evaluable» y en **Revisar**: el Excel trae los dos DNI en la celda y el conciliador solo conocía al titular principal (`contratos.cliente_id`). Desde esta versión el conciliador también lee `contrato_titulares` (ver [[Cuentas mancomunadas]]):
+
+- **Celda con varios DNI** + contrato registrado: si los DNI son exactamente los titulares del sistema (principal + co-titulares, en cualquier orden) → **Coincidencia completa · mancomunada**. Se evalúa por el principal, y «Cliente en sistema» y el documento muestran a los dos.
+- Si un DNI no es titular, si el sistema registra otro titular que el Excel no trae, o si el contrato no tiene co-titulares → sigue en **Revisar** con el motivo exacto.
+- **Una fila por titular** con el mismo contrato: ya no alerta «contrato repetido». La fila del co-titular sale **Coincidencia completa · co-titular** («Co-titular · sin acceso propio») y no cuenta como cliente sin usuario.
+- El reporte agrega la columna **Cuenta mancomunada** y el conteo en el Resumen.
+
+Pagos no necesitó cambio: la exportación pone en «Titular de la cuenta» al beneficiario cuando la cuenta está marcada como de titular distinto. En prod (17/09) hay 19 contratos mancomunados activos: 15 cuentas en nombre del principal y 4 en nombre del co-titular, todas registradas así. El sistema no puede detectar una cuenta del co-titular que se cargó sin marcar «titular distinto».
+
+Versiones: `conciliacion-core.js?v=5`, `conciliacion.js?v=8`. Pruebas: `tests/conciliacion-core.test.mjs` 22/22.
+
+**Publicado el 2026-09-17 (~12:50 Lima).** Portal `c73e734` (push a `avanzadigitald/avancecorp-portal` main). ZIP `portal-20260917T174211Z-c73e734.zip`, SHA-256 `9a058de61f4f284daf3ba35f0469d419c83df02809ff11845fe114e7942791c5`: 93 archivos, idéntico en lista al sitio vivo; preflight aprobado. Tras la purga: 77/77 archivos html/js/css/json idénticos al ZIP, tres lecturas estables de `conciliacion.js?v=8` y `conciliacion-core.js?v=5`, ZIP 404. El preflight marcó `clientes.js` como distinto: era una copia vieja de la URL sin `?v` en la CDN, no trabajo ajeno. Sin cambio de service worker (HTML network-first, JS por URL versionada). Rollback: republicar `portal-20260907T205351Z-497a5df.zip` no sirve (le falta trabajo posterior); revertir `c73e734` y reconstruir.
