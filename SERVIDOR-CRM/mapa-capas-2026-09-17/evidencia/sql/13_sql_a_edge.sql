@@ -1,0 +1,1 @@
+select n.nspname||'.'||p.proname as fq, (regexp_matches(p.prosrc, 'functions/v1/([a-z0-9-]+)', 'g'))[1] as edge, position('net.http_post' in p.prosrc) > 0 as http_post from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('crm','private','public') and p.prosrc like '%functions/v1/%' order by 1

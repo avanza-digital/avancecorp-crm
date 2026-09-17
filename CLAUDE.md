@@ -1267,3 +1267,142 @@ PRIMARY RETAINS DECISION AUTHORITY
 ```
 
 These rules should remain true regardless of whether Claude or Codex is the PRIMARY agent.
+
+# CLAUDE.md — Arquitectura en 4 capas (estándar Avanza Digital)
+
+Este archivo define cómo se organiza el backend de este proyecto. Léelo antes de crear
+tablas, funciones, endpoints o pantallas. Si una tarea choca con estas reglas, detente y
+explica el conflicto antes de escribir código.
+
+## Datos del proyecto (completar por proyecto)
+
+- Nombre: [PROYECTO]
+- Backend: Supabase (Postgres, Auth, Edge Functions, Realtime)
+- Frontends: [app móvil / panel web / portal]
+- Módulos de negocio (esquemas privados): [ej. core, agenda, caja, inventario]
+- Identificador del tenant: `negocio_id` [cambiar si el proyecto usa otro nombre]
+- Integraciones externas: [ej. Nubefact, WhatsApp, pasarela de pagos]
+
+## La regla central
+
+Cada capa solo habla con la capa inmediata. Ninguna pantalla lee ni escribe una tabla
+directo. Ningún secreto sale de la capa de núcleo.
+
+```
+4. Pantalla          apps y paneles
+        ↕
+3. Puerta de entrada Auth + esquema `api` + Edge Functions HTTP
+        ↕
+2. Núcleo            funciones Postgres, triggers, Edge Functions internas
+        ↕
+1. Tablas            esquemas privados por módulo, con RLS
+```
+
+## Capa 1 — Tablas
+
+- Un esquema privado por módulo de negocio. Nunca crear tablas del dominio en `public`.
+- Los esquemas privados NO se agregan a los esquemas expuestos de la API de Supabase.
+- Toda tabla lleva: `id uuid primary key default gen_random_uuid()`, `negocio_id`,
+  `created_at timestamptz default now()`, `updated_at timestamptz default now()`.
+- RLS activada en todas las tablas, sin excepción, aunque no estén expuestas. Es el
+  segundo candado.
+- Permisos mínimos: `anon` sin acceso a esquemas privados salvo lo que se justifique por
+  escrito. `authenticated` recibe solo los permisos que las vistas y funciones necesitan.
+- Las reglas que no deben romperse viven en la base: `check`, `unique`, llaves foráneas,
+  restricciones de exclusión (ej. evitar cruces de horario). No confiar en el frontend.
+- Movimientos contables o de stock son inmutables: se corrigen con un movimiento inverso,
+  nunca con `update` ni `delete`.
+- Esquema `audit` con una bitácora de cambios sensibles (quién, qué, cuándo, antes y después).
+
+## Capa 2 — Núcleo
+
+- La lógica de negocio vive en funciones Postgres (SQL o plpgsql) dentro de los esquemas
+  privados. Ejemplos: reservar, cobrar, cerrar caja, ajustar stock.
+- Una función = una operación de negocio completa y atómica. Si falla una parte, falla todo.
+- Por defecto `security invoker`. Usar `security definer` solo si es indispensable, con
+  `set search_path = ''`, nombres calificados (`esquema.tabla`) y verificación explícita
+  de rol y `negocio_id` dentro de la función.
+- Triggers para efectos automáticos: `updated_at`, bitácora, descuentos de insumos, avisos
+  en tiempo real (Realtime Broadcast desde la base).
+- Todo lo que toca servicios externos va en Edge Functions: facturación, mensajería, pagos,
+  correos. Las claves viven en los secretos de Supabase, nunca en el código ni en la app.
+- Las llamadas a terceros se registran (estado, reintentos, respuesta) en una tabla de
+  control para poder reprocesar.
+
+## Capa 3 — Puerta de entrada
+
+- Supabase Auth identifica al usuario. El rol y el `negocio_id` se resuelven del lado del
+  servidor, nunca se aceptan como parámetro confiable desde el cliente.
+- El esquema `api` es lo único expuesto a la API de Supabase. Contiene solo:
+  - Vistas de lectura con `security_invoker = true`, para que RLS se aplique.
+  - Funciones de escritura que llaman al núcleo. Validan el input y devuelven errores claros.
+- Nada de lógica de negocio en `api`: solo valida, autoriza y delega.
+- Edge Functions HTTP con `verify_jwt` activo. Solo se desactiva para webhooks, y en ese
+  caso se valida la firma del proveedor.
+- Errores hacia el cliente: mensaje entendible y código. Sin stack traces, sin datos de
+  otro tenant, sin detalles internos.
+- Cambiar la firma de una vista o función de `api` es un cambio de contrato: se versiona
+  (`reservar_cita_v2`) o se coordina con todas las pantallas que la usan.
+
+## Capa 4 — Pantalla
+
+- Solo consume el esquema `api` y las Edge Functions. Nunca `from('tabla')` sobre un
+  esquema privado.
+- Tipos generados con `supabase gen types` a partir del esquema `api`. No escribir tipos
+  a mano para datos del backend.
+- Un único módulo cliente por app que agrupa todas las llamadas a la puerta. Las pantallas
+  no llaman a Supabase directo.
+- La pantalla valida para dar buena experiencia, pero la validación que cuenta es la del
+  servidor.
+- Nada de claves privadas en la app. Solo la URL y la clave publicable.
+
+## Diccionario de datos
+
+- Nombres en español, `snake_case`, sin tildes ni ñ en identificadores.
+- Tablas en plural (`citas`), columnas en singular (`estado`).
+- Llaves foráneas: `<entidad_singular>_id` (`cliente_id`).
+- Booleanos con prefijo `es_` o `tiene_` (`es_activo`).
+- Dinero: `numeric(12,2)` más columna `moneda` (default `'PEN'`). Nunca `float`.
+- Fechas y horas: `timestamptz`. Fechas sin hora: `date`. Zona para mostrar: la del negocio.
+- Estados: tipo `enum` con valores en minúscula (`reservada`, `confirmada`, `cancelada`).
+- Funciones de `api`: verbo + entidad (`crear_cliente`, `listar_citas`, `cerrar_turno`).
+- Vistas de `api`: prefijo `v_` (`v_agenda_dia`).
+- Toda tabla, columna, vista y función lleva `COMMENT ON`. El diccionario
+  `docs/diccionario.md` se genera desde esos comentarios; no se edita a mano.
+
+## Migraciones
+
+- Una migración por cambio lógico, con nombre descriptivo en `snake_case`.
+- Orden dentro de un cambio: tablas → restricciones → RLS → funciones del núcleo →
+  vistas y funciones de `api` → permisos → comentarios.
+- Primero en el proyecto o rama de desarrollo. Nunca directo en producción.
+- Cada migración indica cómo revertirse.
+- Datos personales o sensibles (salud, documentos, pagos): marcarlos en el comentario de la
+  columna y limitar su lectura por rol.
+
+## Verificación obligatoria antes de dar algo por terminado
+
+- [ ] La pantalla no accede a ningún esquema privado.
+- [ ] Toda tabla nueva tiene RLS y `negocio_id`.
+- [ ] Prueba de aislamiento: un usuario de un negocio no ve ni modifica datos de otro.
+- [ ] Prueba de rol: cada rol solo ejecuta lo que le corresponde.
+- [ ] Advisors de seguridad y rendimiento de Supabase sin alertas nuevas.
+- [ ] Tipos regenerados y typecheck en verde.
+- [ ] `COMMENT ON` completo y diccionario regenerado.
+- [ ] Ningún secreto en código, logs ni commits.
+
+## Qué NO hacer
+
+- No crear tablas del dominio en `public`.
+- No exponer esquemas privados para "ir más rápido".
+- No poner lógica de negocio en la pantalla ni en `api`.
+- No usar `security definer` sin justificación escrita.
+- No recibir `negocio_id` o rol desde el cliente como dato confiable.
+- No crear tablas "para adelantar" que ninguna tarea pide.
+- No inventar el esquema: si algo no está claro, preguntar.
+
+## Autonomía
+
+Cambios en tablas, RLS, permisos o funciones de `api`: presentar un plan corto y esperar
+confirmación antes de escribir código. Cambios solo de pantalla que usan la `api` existente:
+ejecutar y reportar decisiones al final.

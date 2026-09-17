@@ -1,0 +1,278 @@
+[
+ {
+  "id": "login",
+  "titulo": "Login",
+  "roots": [
+   {
+    "file": "screens/login.tsx",
+    "name": "Login"
+   }
+  ]
+ },
+ {
+  "id": "no-enrolado",
+  "titulo": "No enrolado",
+  "roots": [
+   {
+    "file": "screens/no-enrolado.tsx",
+    "name": "NoEnrolado"
+   }
+  ]
+ },
+ {
+  "id": "hoy-analista",
+  "titulo": "Hoy · Analista",
+  "roots": [
+   {
+    "file": "screens/hoy/vendedor.tsx",
+    "name": "HoyVendedor"
+   }
+  ]
+ },
+ {
+  "id": "hoy-supervisor",
+  "titulo": "Hoy · Supervisor",
+  "roots": [
+   {
+    "file": "screens/hoy/supervisor.tsx",
+    "name": "HoySupervisor"
+   }
+  ]
+ },
+ {
+  "id": "gerencia",
+  "titulo": "Gerencia (Hoy + 5 vistas)",
+  "roots": [
+   {
+    "file": "screens/hoy/gerencia.tsx",
+    "name": "HoyGerencia"
+   },
+   {
+    "file": "screens/hoy.tsx",
+    "name": "Hoy"
+   },
+   {
+    "file": "screens/hoy/citas-gerencia.tsx",
+    "name": "CitasGerencia"
+   }
+  ],
+  "vistas": [
+   "hoy",
+   "conversiones",
+   "ranking-vendedores",
+   "reuniones",
+   "metas",
+   "rendimiento"
+  ]
+ },
+ {
+  "id": "hoy-directorio",
+  "titulo": "Hoy · Directorio",
+  "roots": [
+   {
+    "file": "screens/hoy/directorio.tsx",
+    "name": "HoyDirectorio"
+   }
+  ]
+ },
+ {
+  "id": "alertas",
+  "titulo": "Alertas",
+  "roots": [
+   {
+    "file": "screens/alertas.tsx",
+    "name": "Alertas"
+   }
+  ]
+ },
+ {
+  "id": "seguimiento",
+  "titulo": "Seguimiento",
+  "roots": [
+   {
+    "file": "screens/seguimiento.tsx",
+    "name": "Seguimiento"
+   }
+  ]
+ },
+ {
+  "id": "facturacion",
+  "titulo": "Facturación",
+  "roots": [
+   {
+    "file": "screens/facturacion.tsx",
+    "name": "Facturacion"
+   }
+  ]
+ },
+ {
+  "id": "informes-empresas",
+  "titulo": "Informes por empresa",
+  "roots": [
+   {
+    "file": "screens/metricas-multiempresa.tsx",
+    "name": "MetricasMultiempresa"
+   }
+  ]
+ },
+ {
+  "id": "pipeline",
+  "titulo": "Pipeline",
+  "roots": [
+   {
+    "file": "screens/pipeline.tsx",
+    "name": "Pipeline"
+   }
+  ]
+ },
+ {
+  "id": "cartera",
+  "titulo": "Leads (cartera)",
+  "roots": [
+   {
+    "file": "screens/cartera.tsx",
+    "name": "Cartera"
+   }
+  ]
+ },
+ {
+  "id": "agenda",
+  "titulo": "Agenda",
+  "roots": [
+   {
+    "file": "screens/agenda.tsx",
+    "name": "Agenda"
+   }
+  ]
+ },
+ {
+  "id": "mi-cartera",
+  "titulo": "Cartera (clientes)",
+  "roots": [
+   {
+    "file": "screens/mi-cartera.tsx",
+    "name": "MiCartera"
+   }
+  ]
+ },
+ {
+  "id": "repartir",
+  "titulo": "Repartir",
+  "roots": [
+   {
+    "file": "screens/repartir.tsx",
+    "name": "Repartir"
+   }
+  ]
+ },
+ {
+  "id": "rescate",
+  "titulo": "Rescate descartados",
+  "roots": [
+   {
+    "file": "screens/rescate-descartados.tsx",
+    "name": "RescateDescartados"
+   }
+  ]
+ },
+ {
+  "id": "rescate-carpeta",
+  "titulo": "Rescate carpeta",
+  "roots": [
+   {
+    "file": "screens/rescate-carpeta.tsx",
+    "name": "RescateCarpeta"
+   }
+  ]
+ },
+ {
+  "id": "derivaciones",
+  "titulo": "Derivaciones",
+  "roots": [
+   {
+    "file": "screens/derivaciones.tsx",
+    "name": "Derivaciones"
+   }
+  ]
+ },
+ {
+  "id": "equipo",
+  "titulo": "Equipo",
+  "roots": [
+   {
+    "file": "screens/equipo.tsx",
+    "name": "Equipo"
+   }
+  ]
+ },
+ {
+  "id": "config",
+  "titulo": "Configuración",
+  "roots": [
+   {
+    "file": "screens/config.tsx",
+    "name": "Config"
+   }
+  ]
+ },
+ {
+  "id": "config-usuarios",
+  "titulo": "Config · Usuarios",
+  "roots": [
+   {
+    "file": "screens/config-usuarios.tsx",
+    "name": "ConfigUsuarios"
+   }
+  ]
+ },
+ {
+  "id": "config-productos",
+  "titulo": "Config · Productos",
+  "roots": [
+   {
+    "file": "screens/config-productos.tsx",
+    "name": "ConfigProductos"
+   }
+  ]
+ },
+ {
+  "id": "config-metas",
+  "titulo": "Config · Metas",
+  "roots": [
+   {
+    "file": "screens/config-metas.tsx",
+    "name": "ConfigMetas"
+   }
+  ]
+ },
+ {
+  "id": "config-sla",
+  "titulo": "Config · SLA",
+  "roots": [
+   {
+    "file": "screens/config-sla.tsx",
+    "name": "ConfigSla"
+   }
+  ]
+ },
+ {
+  "id": "config-rentabilidad",
+  "titulo": "Config · Rentabilidad",
+  "roots": [
+   {
+    "file": "screens/config-rentabilidad.tsx",
+    "name": "ConfigRentabilidad"
+   }
+  ]
+ },
+ {
+  "id": "config-citas",
+  "titulo": "Config · Citas",
+  "roots": [
+   {
+    "file": "screens/config-citas.tsx",
+    "name": "ConfigCitas"
+   }
+  ]
+ }
+]

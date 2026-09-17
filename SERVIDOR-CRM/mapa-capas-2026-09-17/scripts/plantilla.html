@@ -1,0 +1,591 @@
+<title>Mapa de capas del CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600;700&display=swap">
+<style>
+:root{
+  --bg:#f6f7fa; --surface:#ffffff; --surface-2:#eef1f6; --text:#1c2430; --muted:#5b6778; --border:#d7dde7; --halo:#f6f7fa;
+  --capa1:#6b7a90; --capa2:#2f6bff; --capa3:#16b364; --capa4:#7c4dff;
+  --tint1:rgba(107,122,144,.10); --tint2:rgba(47,107,255,.08); --tint3:rgba(22,179,100,.09); --tint4:rgba(124,77,255,.08);
+  --rojo:#dc3009; --naranja:#f08c00; --idA:#dc3009; --idM:#b7791f; --idB:#3d4756; --idD:#7c4dff;
+  --sel:#1c2430; --focus:#2f6bff; --nodo-bg:#ffffff; --nodo-borde:#c8d0dc; --sombra:0 1px 2px rgba(20,30,50,.08);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1520; --surface:#151d2a; --surface-2:#1c2636; --text:#e6ecf5; --muted:#93a3b9; --border:#2b3749; --halo:#0f1520;
+  --tint1:rgba(107,122,144,.16); --tint2:rgba(47,107,255,.14); --tint3:rgba(22,179,100,.14); --tint4:rgba(124,77,255,.14);
+  --rojo:#ff5a2e; --naranja:#ffa42e; --idA:#ff6a3d; --idM:#f5b642; --idB:#c3ccd8; --idD:#b39dff;
+  --sel:#e6ecf5; --nodo-bg:#1a2432; --nodo-borde:#3a485c; --sombra:0 1px 2px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1520; --surface:#151d2a; --surface-2:#1c2636; --text:#e6ecf5; --muted:#93a3b9; --border:#2b3749; --halo:#0f1520;
+  --tint1:rgba(107,122,144,.16); --tint2:rgba(47,107,255,.14); --tint3:rgba(22,179,100,.14); --tint4:rgba(124,77,255,.14);
+  --rojo:#ff5a2e; --naranja:#ffa42e; --idA:#ff6a3d; --idM:#f5b642; --idB:#c3ccd8; --idD:#b39dff;
+  --sel:#e6ecf5; --nodo-bg:#1a2432; --nodo-borde:#3a485c; --sombra:0 1px 2px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;padding-inline:16px;padding-block:14px 32px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-bottom:12px}
+header h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+header .regla{margin:0;color:var(--muted);max-width:70ch}
+header .regla b{color:var(--text);font-weight:600}
+header .meta{flex-basis:100%;font-size:12px;color:var(--muted)}
+header .meta .mono{color:var(--text)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start}
+.mapa{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.mapa.fs{position:fixed;inset:0;z-index:50;border-radius:0;border:0}
+.mapa:fullscreen{background:var(--surface)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.toolbar .grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.toolbar .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px}
+button,select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;line-height:1.2}
+button:hover{border-color:var(--muted)}
+button:focus-visible,select:focus-visible,tr:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+button.filtro{font-weight:600}
+button.filtro[aria-pressed="false"]{opacity:.45;text-decoration:line-through;text-decoration-thickness:2px}
+button.filtro.fA{color:var(--idA)} button.filtro.fM{color:var(--idM)} button.filtro.fB{color:var(--idB)} button.filtro.fD{color:var(--idD)}
+button.filtro.fS{color:var(--capa3)} button.filtro.fT{color:var(--capa2)} button.filtro.fX{color:var(--muted)}
+button.icono{width:34px;padding:5px 0;text-align:center;font-weight:600}
+.lienzo{position:relative;height:72vh;min-height:440px;background:var(--surface);touch-action:none;overflow:hidden}
+.mapa.fs .lienzo,.mapa:fullscreen .lienzo{height:calc(100% - 92px)}
+.lienzo svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
+.lienzo svg.arrastrando{cursor:grabbing}
+.ayuda{padding:7px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 16px}
+.ayuda kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--text);background:var(--surface-2)}
+.chips{position:absolute;left:10px;bottom:10px;display:none;flex-wrap:wrap;gap:6px;max-width:calc(100% - 20px)}
+.mapa.fs .chips,.mapa:fullscreen .chips{display:flex}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:3px 8px 3px 10px;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.chip.sA{color:var(--idA)} .chip.sM{color:var(--idM)} .chip.sB{color:var(--idB)} .chip.sD{color:var(--idD)} .chip.sS{color:var(--capa3)}
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:8px 10px;font-size:12px;max-width:340px;display:none;line-height:1.4}
+.tip b{font-family:"IBM Plex Mono",monospace}
+.tip .n{color:var(--muted)}
+/* ─── SVG ─── */
+.banda rect{stroke:none}
+.banda.c1 rect{fill:var(--tint1)} .banda.c2 rect{fill:var(--tint2)} .banda.c3 rect{fill:var(--tint3)} .banda.c4 rect{fill:var(--tint4)}
+.banda text{font-family:"IBM Plex Sans",sans-serif;font-size:26px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.banda.c1 text{fill:var(--capa1)} .banda.c2 text{fill:var(--capa2)} .banda.c3 text{fill:var(--capa3)} .banda.c4 text{fill:var(--capa4)}
+.banda .sub{font-size:15px;font-weight:400;letter-spacing:0;text-transform:none;fill:var(--muted)}
+.nodo rect{fill:var(--nodo-bg);stroke:var(--nodo-borde);stroke-width:1.2;rx:8}
+.nodo.c1 rect{stroke:var(--capa1)} .nodo.c2 rect{stroke:var(--capa2)} .nodo.c3 rect{stroke:var(--capa3)} .nodo.c4 rect{stroke:var(--capa4)}
+.nodo.huerfano rect{stroke:var(--rojo);stroke-dasharray:5 4;stroke-width:1.8}
+.nodo text{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;fill:var(--text);pointer-events:none}
+.nodo text.sub{font-size:11px;font-weight:400;fill:var(--muted)}
+.nodo{cursor:pointer}
+.nodo:hover rect{stroke-width:2.2}
+.nodo.dim{opacity:.32}
+.nodo.marcado rect{stroke-width:2.6;filter:drop-shadow(0 0 4px rgba(47,107,255,.35))}
+.linea .hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke}
+.linea .tr{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.linea{cursor:pointer}
+.linea.sana .tr{stroke-width:2}
+.linea.sana.into-1 .tr{stroke:var(--capa1)} .linea.sana.into-2 .tr{stroke:var(--capa2)} .linea.sana.into-3 .tr{stroke:var(--capa3)} .linea.sana.into-4 .tr{stroke:var(--capa4)}
+.linea.salto .tr{stroke:var(--rojo);stroke-width:3.6}
+.linea.salto.sevA .tr{stroke-width:4.4} .linea.salto.sevB .tr{stroke-width:2.9}
+.linea.corr .tr{stroke:var(--naranja);stroke-dasharray:9 7}
+.linea.dim{opacity:.05}
+.linea.hover .tr,.linea.sel .tr{filter:drop-shadow(0 0 3px rgba(0,0,0,.25))}
+.oculto{display:none}
+@keyframes flujo{to{stroke-dashoffset:-34}}
+body[data-flujo="clic"] .linea.sel .tr,body[data-flujo="clic"] .linea.hover .tr,
+body[data-flujo="rojos"] .linea.sel .tr,body[data-flujo="rojos"] .linea.hover .tr,
+body[data-flujo="rojos"].nosel .linea.salto .tr{stroke-dasharray:10 7;animation:flujo .8s linear infinite}
+body[data-flujo="rojos"].nosel .linea.salto.corr .tr,body .linea.corr.sel .tr,body .linea.corr.hover .tr{stroke-dasharray:9 7}
+.etq{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;paint-order:stroke fill;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round;cursor:pointer}
+.etq.sevA{fill:var(--idA)} .etq.sevM{fill:var(--idM)} .etq.sevB{fill:var(--idB)} .etq.sevD{fill:var(--idD)}
+.etq.dim{opacity:.05}
+.equis circle{fill:var(--halo);stroke:var(--rojo);stroke-width:1.8}
+.equis.corr circle{stroke:var(--naranja)}
+.equis line{stroke:var(--rojo);stroke-width:2;stroke-linecap:round}
+.equis.corr line{stroke:var(--naranja)}
+.equis.dim{opacity:.05}
+/* ─── panel ─── */
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.caja{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.caja h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
+.leyenda i{display:inline-block;width:14px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px;border-radius:2px}
+.leyenda .pt{border-top-style:dashed}
+.leyenda .hf{display:inline-block;width:12px;height:12px;border:1.8px dashed var(--rojo);border-radius:3px;vertical-align:middle;margin-right:4px}
+#selBody{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
+.sel-card{border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px}
+.sel-card .cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12px;padding:1px 7px;border-radius:99px;border:1.5px solid currentColor}
+.pill.sA{color:var(--idA)} .pill.sM{color:var(--idM)} .pill.sB{color:var(--idB)} .pill.sD{color:var(--idD)} .pill.sS{color:var(--capa3)}
+.sel-card .ruta{font-weight:500}
+.sel-card .det{color:var(--muted);font-size:12px;margin-top:3px}
+.sel-card ul{margin:6px 0 0;padding-left:0;list-style:none;font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.5;color:var(--text)}
+.sel-card li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sel-card li .via{color:var(--muted)}
+.sel-card .quitar{float:right;font-size:11px;padding:2px 7px}
+.vacio{color:var(--muted);font-size:13px}
+.tabla-wrap{max-height:52vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr.fila{cursor:pointer}
+tr.fila:hover,tr.fila.hover{background:var(--surface-2)}
+tr.fila.sel{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--sel)}
+td.id{font-family:"IBM Plex Mono",monospace;font-weight:700;white-space:nowrap}
+tr.sA td.id{color:var(--idA)} tr.sM td.id{color:var(--idM)} tr.sB td.id{color:var(--idB)} tr.sD td.id{color:var(--idD)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cnt{font-variant-numeric:tabular-nums}
+.tabla-filtro{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.tabla-filtro input{font:inherit;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);min-width:0;flex:1}
+.nota-metodo{font-size:12px;color:var(--muted);line-height:1.5}
+.nota-metodo b{color:var(--text);font-weight:600}
+@media (max-width: 980px){
+  .layout{grid-template-columns:1fr}
+  .lienzo{height:62vh;min-height:380px}
+  #selBody{max-height:40vh}
+  header h1{font-size:19px}
+}
+</style>
+
+<header>
+  <h1>Mapa de capas del CRM</h1>
+  <p class="regla"><b>Regla:</b> toda información recorre las capas en orden, <b>Tablas → Núcleo → Puerta → Pantalla</b>. Una conexión que se salta una capa existe y funciona, pero rompe la arquitectura.</p>
+  <div class="meta" id="meta"></div>
+</header>
+
+<main class="layout">
+  <section class="mapa" id="mapaWrap">
+    <div class="toolbar">
+      <div class="grupo"><span class="lbl">Saltos</span>
+        <button class="filtro fA" data-f="A" aria-pressed="true" title="Alto: datos del negocio sin la capa intermedia">A</button>
+        <button class="filtro fM" data-f="M" aria-pressed="true" title="Medio: criterio mixto o invertido">M</button>
+        <button class="filtro fB" data-f="B" aria-pressed="true" title="Bajo: catálogos y configuración">B</button>
+        <button class="filtro fD" data-f="D" aria-pressed="true" title="Por diseño: aceptado, pero conviene verlo">D</button>
+      </div>
+      <div class="grupo"><span class="lbl">Sanas</span>
+        <button class="filtro fS" data-f="S" aria-pressed="true" title="Conexiones entre capas consecutivas">Entre capas</button>
+        <button class="filtro fT" data-f="I" aria-pressed="false" title="Conexiones dentro de la misma capa (van por el hueco de abajo)">Misma capa</button>
+        <button class="filtro fX" data-f="X" aria-pressed="false" title="Acceso/permisos y auditoría alimentan a casi todo: se ocultan por defecto">Transversales</button>
+      </div>
+      <div class="grupo"><span class="lbl">Flujo</span>
+        <select id="flujo" aria-label="Animación del flujo"><option value="clic">solo al clic</option><option value="rojos">todas las rojas</option><option value="sin">sin animar</option></select>
+      </div>
+      <div class="grupo">
+        <button class="icono" id="zMenos" aria-label="Alejar">−</button>
+        <button class="icono" id="zMas" aria-label="Acercar">+</button>
+        <button id="verTodo">Ver todo</button>
+        <button id="mostrarTodo" title="Quita filtros y selección">Mostrar todo</button>
+        <button id="fs" title="Pantalla completa (Esc para salir)">⛶ Pantalla completa</button>
+      </div>
+    </div>
+    <div class="lienzo" id="lienzo">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mapa de capas del servidor"></svg>
+      <div class="chips" id="chips"></div>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="ayuda">
+      <span><kbd>rueda</kbd> acerca donde está el cursor</span><span><kbd>arrastrar</kbd> mueve</span><span><kbd>clic</kbd> en línea, ID o caja aísla (suma con más clics)</span><span><kbd>doble clic</kbd> en el fondo muestra todo</span><span><kbd>Esc</kbd> sale de pantalla completa</span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <section class="caja">
+      <h2>Leyenda</h2>
+      <div class="leyenda">
+        <span><i style="border-color:var(--capa1)"></i>entra a Tablas</span><span><i style="border-color:var(--capa2)"></i>entra a Núcleo</span><span><i style="border-color:var(--capa3)"></i>entra a Puertas</span><span><i style="border-color:var(--capa4)"></i>entra a Pantallas</span>
+        <span><i style="border-color:var(--rojo);border-top-width:4px"></i>salto</span><span><i class="pt" style="border-color:var(--naranja)"></i>en corrección</span><span><span class="hf"></span> nadie lo llama</span>
+      </div>
+    </section>
+    <section class="caja">
+      <h2>Selección</h2>
+      <div id="selBody"><p class="vacio">Haz clic en una línea, en su ID o en una caja. Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p></div>
+    </section>
+    <section class="caja">
+      <h2>Saltos <span class="cnt" id="cntSaltos"></span></h2>
+      <div class="tabla-filtro"><input id="buscar" type="search" placeholder="Filtrar por ID, módulo o pantalla…" aria-label="Filtrar saltos"><span id="cntVisibles"></span></div>
+      <div class="tabla-wrap"><table id="tabla"><thead><tr><th>ID</th><th>De → a</th><th>Peso</th><th>Salta</th><th class="num">n</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <section class="caja">
+      <h2>Cómo se levantó</h2>
+      <p class="nota-metodo" id="metodo"></p>
+    </section>
+  </aside>
+</main>
+
+<script>
+const DATOS = __DATOS__;
+(function(){
+'use strict';
+const {CAPAS, NODOS, SANAS, SALTOS, OBJ, META} = DATOS;
+const SEV_NOMBRE = {A:'Alto', M:'Medio', B:'Bajo', D:'Por diseño'};
+const CAPA_NOMBRE = {1:'Tablas', 2:'Núcleo', 3:'Puertas', 4:'Pantallas'};
+const BAND_H = 120, BOX_H = 50, GAPX = 26, LANE_STEP = 14, LANE_SEP = 22, CORR_STEP = 13, R = 12, TOP = 44;
+const svg = document.getElementById('svg');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+// ─── 1. Nodos: tamaño y posición relativa ───
+const nodoInfo = {};
+const etiquetas = {tabla:'tablas', vista:'vistas', fn:'funciones', trigger:'triggers', puerta:'puertas', 'puerta cerrada':'cerradas', edge:'edge', actor:'', pantalla:''};
+function subDe(n){
+  if (n.kind !== 'grupo') return '';
+  const orden = ['tabla','vista','puerta','puerta cerrada','fn','trigger','edge'];
+  return orden.filter(k => n.resumen[k]).map(k => n.resumen[k] + ' ' + etiquetas[k]).join(' · ');
+}
+const anchoTexto = (s, px) => s.length * px * 0.605;
+let contenidoW = 0; const bandas = {};
+for (const capa of CAPAS) {
+  let x = 0; const ids = capa.nodos;
+  for (const id of ids) {
+    const n = NODOS[id]; const sub = subDe(n);
+    const w = Math.max(96, Math.ceil(Math.max(anchoTexto(n.titulo, 13), anchoTexto(sub, 11)) + 28));
+    nodoInfo[id] = {id, n, sub, w, relx: x, capa: capa.id, lineas: []};
+    x += w + GAPX;
+  }
+  bandas[capa.id] = {id: capa.id, titulo: capa.titulo, w: x - GAPX, ids};
+  contenidoW = Math.max(contenidoW, x - GAPX);
+}
+for (const b of Object.values(bandas)) { const off = (contenidoW - b.w) / 2; for (const id of b.ids) { nodoInfo[id].relcx = off + nodoInfo[id].relx + nodoInfo[id].w / 2; nodoInfo[id].reloff = off; } }
+
+// ─── 2. Líneas: tipo de trazado y corredores ───
+const LINEAS = [...SANAS.map(l => ({...l, sana: true})), ...SALTOS.map(l => ({...l, sana: false}))];
+const porId = {}; for (const l of LINEAS) porId[l.id] = l;
+for (const l of LINEAS) {
+  const o = nodoInfo[l.origen], d = nodoInfo[l.destino];
+  l.bo = o.capa; l.bd = d.capa;
+  l.dir = l.bo < l.bd ? 'down' : l.bo > l.bd ? 'up' : 'same';
+  l.skip = Math.abs(l.bd - l.bo) > 1;
+  l.into = l.bd;
+  l.misma = l.dir === 'same';
+  o.lineas.push(l.id); d.lineas.push(l.id);
+}
+// corredores: lado del destino, ordenados para que el destino más cercano al borde use el corredor interior
+const izq = LINEAS.filter(l => l.skip && nodoInfo[l.destino].relcx < contenidoW / 2).sort((a, b) => nodoInfo[a.destino].relcx - nodoInfo[b.destino].relcx);
+const der = LINEAS.filter(l => l.skip && nodoInfo[l.destino].relcx >= contenidoW / 2).sort((a, b) => nodoInfo[b.destino].relcx - nodoInfo[a.destino].relcx);
+const MARGEN_L = Math.max(200, 70 + izq.length * CORR_STEP + 30), MARGEN_R = Math.max(200, 70 + der.length * CORR_STEP + 30);
+const W = MARGEN_L + contenidoW + MARGEN_R;
+izq.forEach((l, k) => l.cx = MARGEN_L - 46 - k * CORR_STEP);
+der.forEach((l, k) => l.cx = MARGEN_L + contenidoW + 46 + k * CORR_STEP);
+for (const n of Object.values(nodoInfo)) { n.x = MARGEN_L + n.reloff + n.relx; n.cx = n.x + n.w / 2; }
+
+// ─── 3. Puertos: cada línea sale y entra por un punto distinto ───
+for (const n of Object.values(nodoInfo)) {
+  const top = [], bottom = [];
+  for (const id of n.lineas) {
+    const l = porId[id]; const esOrigen = l.origen === n.id;
+    const otro = esOrigen ? nodoInfo[l.destino] : nodoInfo[l.origen];
+    const otroX = l.skip ? l.cx : otro.cx;
+    let borde;
+    if (l.dir === 'down') borde = esOrigen ? 'bottom' : 'top';
+    else if (l.dir === 'same') borde = 'bottom';
+    else borde = esOrigen ? 'top' : 'bottom';
+    (borde === 'top' ? top : bottom).push({id, esOrigen, otroX});
+  }
+  for (const [borde, arr] of [['top', top], ['bottom', bottom]]) {
+    arr.sort((a, b) => a.otroX - b.otroX);
+    const util = n.w - 18;
+    arr.forEach((p, i) => { const px = n.x + 9 + util * (i + 1) / (arr.length + 1); const l = porId[p.id]; if (p.esOrigen) { l.ox = px; l.oi = i; } else { l.dx = px; l.di = i; } });
+  }
+}
+
+// ─── 4. Carriles empaquetados por hueco (los saltos primero) ───
+const segmentos = {1: [], 2: [], 3: []};
+for (const l of LINEAS) {
+  const segs = [];
+  if (l.dir === 'down') { if (l.skip) { segs.push([l.bo, l.ox, l.cx, 'a']); segs.push([l.bd - 1, l.cx, l.dx, 'b']); } else segs.push([l.bo, l.ox, l.dx, 'a']); }
+  else if (l.dir === 'same') segs.push([l.bo, l.ox, l.dx, 'a']);
+  else { if (l.skip) { segs.push([l.bo - 1, l.ox, l.cx, 'a']); segs.push([l.bd, l.cx, l.dx, 'b']); } else segs.push([l.bd, l.ox, l.dx, 'a']); }
+  l.segs = segs;
+  for (const s of segs) segmentos[s[0]].push({l, x0: Math.min(s[1], s[2]), x1: Math.max(s[1], s[2]), cual: s[3]});
+}
+const gapH = {};
+for (const g of [1, 2, 3]) {
+  const arr = segmentos[g]; arr.sort((a, b) => (a.l.sana - b.l.sana) || (a.x0 - b.x0));
+  const carriles = [];
+  for (const s of arr) {
+    let i = 0;
+    for (; i < carriles.length; i++) if (carriles[i].every(t => t.x1 + LANE_SEP < s.x0 || t.x0 - LANE_SEP > s.x1)) break;
+    if (i === carriles.length) carriles.push([]);
+    carriles[i].push(s); s.carril = i;
+  }
+  gapH[g] = Math.max(300, 90 + carriles.length * LANE_STEP + 40);
+}
+const bandTop = {}; let y = TOP;
+for (const b of [1, 2, 3, 4]) { bandTop[b] = y; y += BAND_H + (gapH[b] || 60); }
+const H = y;
+const laneY = (g, i) => bandTop[g] + BAND_H + 46 + i * LANE_STEP;
+for (const g of [1, 2, 3]) for (const s of segmentos[g]) { s.l[s.cual === 'a' ? 'y1' : 'y2'] = laneY(g, s.carril); }
+for (const n of Object.values(nodoInfo)) { n.y = bandTop[n.capa] + (BAND_H - BOX_H) / 2; n.cy = n.y + BOX_H / 2; }
+
+// ─── 5. Trazado ortogonal con codos redondeados ───
+function ruta(pts) {
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1);
+    const r = Math.min(R, l1 / 2, l2 / 2);
+    if (r < 1) { d += ` L${x1} ${y1}`; continue; }
+    const ax = x1 - (x1 - x0) / l1 * r, ay = y1 - (y1 - y0) / l1 * r, bx = x1 + (x2 - x1) / l2 * r, by = y1 + (y2 - y1) / l2 * r;
+    d += ` L${ax} ${ay} Q${x1} ${y1} ${bx} ${by}`;
+  }
+  const [xn, yn] = pts[pts.length - 1];
+  d += ` L${xn} ${yn}`;
+  return d;
+}
+for (const l of LINEAS) {
+  const o = nodoInfo[l.origen], d = nodoInfo[l.destino];
+  let pts;
+  if (l.dir === 'down') {
+    const yo = o.y + BOX_H, yd = d.y;
+    if (l.skip) pts = [[l.ox, yo], [l.ox, l.y1], [l.cx, l.y1], [l.cx, l.y2], [l.dx, l.y2], [l.dx, yd]];
+    else pts = Math.abs(l.ox - l.dx) < 1 ? [[l.ox, yo], [l.dx, yd]] : [[l.ox, yo], [l.ox, l.y1], [l.dx, l.y1], [l.dx, yd]];
+  } else if (l.dir === 'same') {
+    const yo = o.y + BOX_H, yd = d.y + BOX_H;
+    pts = [[l.ox, yo], [l.ox, l.y1], [l.dx, l.y1], [l.dx, yd]];
+  } else {
+    const yo = o.y, yd = d.y + BOX_H;
+    if (l.skip) pts = [[l.ox, yo], [l.ox, l.y1], [l.cx, l.y1], [l.cx, l.y2], [l.dx, l.y2], [l.dx, yd]];
+    else pts = [[l.ox, yo], [l.ox, l.y1], [l.dx, l.y1], [l.dx, yd]];
+  }
+  l.pts = pts; l.d = ruta(pts);
+  l.fin = pts[pts.length - 2];
+  l.equis = [];
+  if (l.skip) { const a = Math.min(l.bo, l.bd), b = Math.max(l.bo, l.bd); for (let k = a + 1; k < b; k++) l.equis.push([l.cx, bandTop[k] + BAND_H / 2]); }
+}
+
+// ─── 6. Render ───
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const defs = el('defs', {}, svg);
+const colores = {1: 'var(--capa1)', 2: 'var(--capa2)', 3: 'var(--capa3)', 4: 'var(--capa4)', rojo: 'var(--rojo)', naranja: 'var(--naranja)'};
+for (const [k, c] of Object.entries(colores)) {
+  const m = el('marker', {id: 'm-' + k, viewBox: '0 0 10 10', refX: '8.5', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse', markerUnits: 'strokeWidth'}, defs);
+  el('path', {d: 'M0 0.5 L10 5 L0 9.5 z', fill: c}, m);
+}
+const gBandas = el('g', {id: 'bandas'}, svg), gLineas = el('g', {id: 'lineas'}, svg), gNodos = el('g', {id: 'nodos'}, svg), gMarcas = el('g', {id: 'marcas'}, svg);
+const descCapa = {1: 'esquemas crm · private · public', 2: 'private.* + triggers + cron + edge internas', 3: 'crm.* / public.* expuestas + vistas + Edge HTTP', 4: 'pantallas del CRM, armazón, portal y actores externos'};
+for (const b of [1, 2, 3, 4]) {
+  const g = el('g', {class: 'banda c' + b}, gBandas);
+  el('rect', {x: 0, y: bandTop[b], width: W, height: BAND_H, rx: 0}, g);
+  const t = el('text', {x: 16, y: bandTop[b] + 34}, g); t.textContent = `${b} · ${CAPA_NOMBRE[b]}`;
+  const s = el('text', {x: 16, y: bandTop[b] + 58, class: 'sub'}, g); s.textContent = descCapa[b];
+}
+const domLinea = {};
+const ordenRender = [...LINEAS.filter(l => l.sana), ...LINEAS.filter(l => !l.sana)];
+for (const l of ordenRender) {
+  const cls = ['linea', l.sana ? 'sana into-' + l.into : 'salto sev' + l.sev, l.transversal ? 'transversal' : '', l.misma ? 'misma' : '', l.estado === 'corr' ? 'corr' : ''].filter(Boolean).join(' ');
+  const g = el('g', {class: cls, 'data-id': l.id}, gLineas);
+  el('path', {class: 'hit', d: l.d}, g);
+  const marker = l.estado === 'corr' ? 'naranja' : l.sana ? String(l.into) : 'rojo';
+  el('path', {class: 'tr', d: l.d, 'marker-end': `url(#m-${marker})`}, g);
+  domLinea[l.id] = g;
+}
+const domNodo = {};
+for (const n of Object.values(nodoInfo)) {
+  const g = el('g', {class: 'nodo c' + n.capa + (n.n.huerfano ? ' huerfano' : ''), 'data-id': n.id, tabindex: '0', role: 'button', 'aria-label': n.n.titulo}, gNodos);
+  el('rect', {x: n.x, y: n.y, width: n.w, height: BOX_H}, g);
+  const t = el('text', {x: n.cx, y: n.y + (n.sub ? 21 : 30), 'text-anchor': 'middle'}, g); t.textContent = n.n.titulo;
+  if (n.sub) { const s = el('text', {x: n.cx, y: n.y + 38, 'text-anchor': 'middle', class: 'sub'}, g); s.textContent = n.sub; }
+  domNodo[n.id] = g;
+}
+const domMarcas = {};
+for (const l of LINEAS) {
+  if (l.sana) continue;
+  const marcas = [];
+  const o = nodoInfo[l.origen];
+  const e1 = el('text', {class: 'etq sev' + l.sev, x: l.ox, y: o.y + BOX_H + 16 + (l.oi % 2) * 12, 'text-anchor': 'middle', 'data-id': l.id}, gMarcas); e1.textContent = l.id; marcas.push(e1);
+  const haciaDer = l.fin[0] >= (l.pts[l.pts.length - 3] ? l.pts[l.pts.length - 3][0] : l.fin[0]);
+  const e2 = el('text', {class: 'etq sev' + l.sev, x: l.fin[0] + (haciaDer ? 7 : -7), y: l.fin[1] - 5, 'text-anchor': haciaDer ? 'start' : 'end', 'data-id': l.id}, gMarcas); e2.textContent = l.id; marcas.push(e2);
+  for (const [x, yy] of l.equis) {
+    const g = el('g', {class: 'equis' + (l.estado === 'corr' ? ' corr' : ''), 'data-id': l.id}, gMarcas);
+    el('circle', {cx: x, cy: yy, r: 8}, g); el('line', {x1: x - 3.6, y1: yy - 3.6, x2: x + 3.6, y2: yy + 3.6}, g); el('line', {x1: x + 3.6, y1: yy - 3.6, x2: x - 3.6, y2: yy + 3.6}, g);
+    marcas.push(g);
+  }
+  domMarcas[l.id] = marcas;
+}
+
+// ─── 7. Estado: filtros, selección, flujo ───
+const filtros = {A: true, M: true, B: true, D: true, S: true, I: false, X: false};
+const seleccion = new Set(); let ultimoNodo = null; let hoverId = null;
+function visible(l) {
+  if (l.sana) { if (!filtros.S) return false; if (l.misma && !filtros.I) return false; }
+  else if (!filtros[l.sev]) return false;
+  if (l.transversal && !filtros.X) return false;
+  return true;
+}
+function aplicarFiltros() {
+  for (const l of LINEAS) {
+    const v = visible(l);
+    domLinea[l.id].classList.toggle('oculto', !v);
+    if (domMarcas[l.id]) for (const m of domMarcas[l.id]) m.classList.toggle('oculto', !v);
+    const fila = filas[l.id]; if (fila) fila.classList.toggle('oculto', !v || !coincideBusqueda(l));
+  }
+  document.querySelectorAll('button.filtro').forEach(b => b.setAttribute('aria-pressed', String(filtros[b.dataset.f])));
+  actualizarConteos();
+}
+function aplicarSeleccion() {
+  const hay = seleccion.size > 0;
+  document.body.classList.toggle('nosel', !hay);
+  const nodosTocados = new Set();
+  for (const id of seleccion) { const l = porId[id]; nodosTocados.add(l.origen); nodosTocados.add(l.destino); }
+  for (const l of LINEAS) {
+    const s = seleccion.has(l.id);
+    const g = domLinea[l.id]; g.classList.toggle('sel', s); g.classList.toggle('dim', hay && !s);
+    if (domMarcas[l.id]) for (const m of domMarcas[l.id]) m.classList.toggle('dim', hay && !s);
+    const fila = filas[l.id]; if (fila) fila.classList.toggle('sel', s);
+  }
+  for (const id of seleccion) gLineas.appendChild(domLinea[id]);   // las seleccionadas van al final del DOM
+  for (const n of Object.values(nodoInfo)) domNodo[n.id].classList.toggle('dim', hay && !nodosTocados.has(n.id));
+  renderPanel(); renderChips();
+}
+function alternarLinea(id) { if (seleccion.has(id)) seleccion.delete(id); else seleccion.add(id); ultimoNodo = null; aplicarSeleccion(); }
+function alternarNodo(id) {
+  const ids = nodoInfo[id].lineas.filter(x => visible(porId[x]));
+  const todas = ids.length && ids.every(x => seleccion.has(x));
+  if (todas) ids.forEach(x => seleccion.delete(x)); else ids.forEach(x => seleccion.add(x));
+  ultimoNodo = id; aplicarSeleccion();
+  domNodo[id].classList.toggle('marcado', !todas);
+}
+function mostrarTodo() { seleccion.clear(); ultimoNodo = null; Object.assign(filtros, {A: true, M: true, B: true, D: true, S: true, I: false, X: false}); document.querySelectorAll('.nodo.marcado').forEach(n => n.classList.remove('marcado')); aplicarFiltros(); aplicarSeleccion(); }
+
+// ─── 8. Panel de selección, chips y tabla ───
+const selBody = document.getElementById('selBody'), chips = document.getElementById('chips');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const nombreNodo = id => { const n = NODOS[id]; return n.kind === 'grupo' ? `${CAPA_NOMBRE[n.capa]} · ${n.titulo}` : n.titulo; };
+function objLinea(id) { const o = OBJ[id]; if (!o) return id; return id; }
+function cardLinea(l) {
+  const sev = l.sana ? 'S' : l.sev;
+  const salta = l.sana ? (l.misma ? 'misma capa' : 'capas consecutivas') : (l.capas_saltadas.length ? 'salta ' + l.capas_saltadas.join(' + ') : l.clase === 'inversion' ? 'inversión de capa' : '');
+  const lis = l.miembros.slice(0, 40).map(m => `<li title="${esc(m.via)} — ${esc(m.nota || '')}">${esc(m.p)} <span class="via">→</span> ${esc(m.c)} <span class="via">· ${esc(m.via)}</span></li>`).join('');
+  const mas = l.miembros.length > 40 ? `<li class="via">… y ${l.miembros.length - 40} más</li>` : '';
+  return `<div class="sel-card"><button class="quitar" data-quitar="${l.id}">quitar</button><div class="cab"><span class="pill s${sev}">${l.id}</span><span class="ruta">${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</span></div>
+    <div class="det">${l.sana ? 'conexión sana' : SEV_NOMBRE[l.sev]}${salta ? ' · ' + salta : ''} · ${l.n} ${l.n === 1 ? 'conexión real' : 'conexiones reales'}${l.estado === 'corr' ? ' · en corrección' : ''}${l.transversal ? ' · transversal' : ''}${l.nota ? '<br>' + esc(l.nota) : ''}</div><ul>${lis}${mas}</ul></div>`;
+}
+function cardNodo(id) {
+  const n = NODOS[id]; const ms = n.miembros;
+  const lis = ms.slice(0, 60).map(m => { const o = OBJ[m] || {}; const tags = [o.k === 'fn' && o.c === 3 && !o.a ? 'cerrada' : '', o.t ? 'trigger' : '', o.h ? '⚠ nadie lo llama' : '', o.f7 ? 'F7:' + o.f7 : '', o.cf ? 'config' : ''].filter(Boolean).join(' · '); return `<li title="${esc(o.cm || '')}">${esc(m)}${tags ? ` <span class="via">· ${esc(tags)}</span>` : ''}</li>`; }).join('');
+  const mas = ms.length > 60 ? `<li class="via">… y ${ms.length - 60} más</li>` : '';
+  return `<div class="sel-card"><div class="cab"><span class="pill" style="color:var(--capa${n.capa})">${CAPA_NOMBRE[n.capa]}</span><span class="ruta">${esc(n.titulo)}</span></div>
+    <div class="det">${esc(subDe(n) || (n.kind === 'pantalla' ? 'pantalla del CRM' : 'actor'))}${n.huerfanos.length ? ` · ${n.huerfanos.length} sin llamador` : ''}${n.cerradas && n.cerradas.length ? ` · ${n.cerradas.length} puertas cerradas (sin EXECUTE para authenticated)` : ''} · ${nodoInfo[id].lineas.length} líneas</div><ul>${lis}${mas}</ul></div>`;
+}
+function renderPanel() {
+  let html = '';
+  if (ultimoNodo) html += cardNodo(ultimoNodo);
+  const ids = [...seleccion].sort((a, b) => (porId[a].sana - porId[b].sana) || a.localeCompare(b, 'es', {numeric: true}));
+  for (const id of ids) html += cardLinea(porId[id]);
+  selBody.innerHTML = html || '<p class="vacio">Haz clic en una línea, en su ID o en una caja. Cada caja es un módulo: al seleccionarla verás qué objetos reales contiene.</p>';
+}
+selBody.addEventListener('click', e => { const b = e.target.closest('[data-quitar]'); if (b) alternarLinea(b.dataset.quitar); });
+function renderChips() {
+  chips.innerHTML = [...seleccion].map(id => { const l = porId[id]; return `<span class="chip s${l.sana ? 'S' : l.sev}" data-chip="${id}">${id} <span aria-hidden="true">✕</span></span>`; }).join('');
+}
+chips.addEventListener('click', e => { const c = e.target.closest('[data-chip]'); if (c) alternarLinea(c.dataset.chip); });
+
+const tbody = document.querySelector('#tabla tbody'); const filas = {};
+for (const l of SALTOS) {
+  const tr = document.createElement('tr'); tr.className = 'fila s' + l.sev; tr.dataset.id = l.id; tr.tabIndex = 0;
+  const salta = l.capas_saltadas.length ? l.capas_saltadas.join(' + ') : (l.clase === 'inversion' ? 'inversión' : '—');
+  tr.innerHTML = `<td class="id">${l.id}</td><td>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}</td><td>${SEV_NOMBRE[l.sev]}${l.estado === 'corr' ? ' · corr' : ''}</td><td>${esc(salta)}</td><td class="num">${l.n}</td>`;
+  tbody.appendChild(tr); filas[l.id] = tr;
+}
+tbody.addEventListener('click', e => { const tr = e.target.closest('tr.fila'); if (!tr) return; const id = tr.dataset.id; if (!seleccion.has(id)) { seleccion.add(id); ultimoNodo = null; aplicarSeleccion(); } else { seleccion.delete(id); aplicarSeleccion(); } acercarA(id); });
+tbody.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const tr = e.target.closest('tr.fila'); if (tr) { e.preventDefault(); tr.click(); } } });
+tbody.addEventListener('mouseover', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(tr.dataset.id); });
+tbody.addEventListener('mouseout', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(null); });
+let busqueda = '';
+const coincideBusqueda = l => !busqueda || (l.id + ' ' + nombreNodo(l.origen) + ' ' + nombreNodo(l.destino) + ' ' + l.nota).toLowerCase().includes(busqueda);
+document.getElementById('buscar').addEventListener('input', e => { busqueda = e.target.value.trim().toLowerCase(); aplicarFiltros(); });
+function actualizarConteos() {
+  const vis = SALTOS.filter(l => visible(l) && coincideBusqueda(l)).length;
+  document.getElementById('cntVisibles').textContent = `${vis} de ${SALTOS.length} visibles`;
+}
+document.getElementById('cntSaltos').textContent = `(${SALTOS.length}: ${['A', 'M', 'B', 'D'].map(s => s + ' ' + (META.totales.por_sev[s] || 0)).join(' · ')})`;
+function setHover(id) {
+  if (hoverId && domLinea[hoverId]) { domLinea[hoverId].classList.remove('hover'); if (filas[hoverId]) filas[hoverId].classList.remove('hover'); }
+  hoverId = id;
+  if (id && domLinea[id]) { domLinea[id].classList.add('hover'); if (filas[id]) filas[id].classList.add('hover'); }
+}
+
+// ─── 9. Cámara: viewBox ───
+const lienzo = document.getElementById('lienzo');
+let vb = {x: 0, y: 0, w: W, h: H};
+const aplicarVB = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+function encuadrar(x, y, w, h, margen = 40) {
+  const cw = svg.clientWidth || 1, ch = svg.clientHeight || 1, asp = cw / ch;
+  w += margen * 2; h += margen * 2; x -= margen; y -= margen;
+  let nw, nh; if (w / h > asp) { nw = w; nh = w / asp; } else { nh = h; nw = h * asp; }
+  vb = {x: x + w / 2 - nw / 2, y: y + h / 2 - nh / 2, w: nw, h: nh}; aplicarVB();
+}
+const verTodo = () => encuadrar(0, 0, W, H, 20);
+const puntoSvg = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+function zoomEn(px, py, f) { const nw = Math.min(Math.max(vb.w * f, W / 60), W * 2.5); const s = nw / vb.w; vb = {x: px - (px - vb.x) * s, y: py - (py - vb.y) * s, w: nw, h: vb.h * s}; aplicarVB(); }
+svg.addEventListener('wheel', e => { e.preventDefault(); const p = puntoSvg(e); zoomEn(p.x, p.y, Math.exp(e.deltaY * 0.0012)); }, {passive: false});
+document.getElementById('zMas').onclick = () => zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 0.8);
+document.getElementById('zMenos').onclick = () => zoomEn(vb.x + vb.w / 2, vb.y + vb.h / 2, 1.25);
+document.getElementById('verTodo').onclick = verTodo;
+document.getElementById('mostrarTodo').onclick = mostrarTodo;
+function acercarA(id) {
+  const l = porId[id]; const d = nodoInfo[l.destino];
+  const xs = [l.fin[0], d.x, d.x + d.w], ys = [l.fin[1], d.y, d.y + BOX_H];
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const w = Math.max(x1 - x0, 700), h = Math.max(y1 - y0, 320);
+  encuadrar(x0 - (w - (x1 - x0)) / 2, y0 - (h - (y1 - y0)) / 2, w, h, 60);
+}
+// arrastre: captura solo cuando el movimiento supera 5px; el clic que sigue a un arrastre se ignora
+let arr = null, arrastrando = false, ignorarClic = false;
+svg.addEventListener('pointerdown', e => { if (e.button !== 0) return; arr = {x: e.clientX, y: e.clientY, vb: {...vb}, id: e.pointerId}; arrastrando = false; });
+svg.addEventListener('pointermove', e => {
+  if (!arr) return;
+  const dx = e.clientX - arr.x, dy = e.clientY - arr.y;
+  if (!arrastrando) { if (Math.hypot(dx, dy) <= 5) return; arrastrando = true; svg.setPointerCapture(arr.id); svg.classList.add('arrastrando'); }
+  const s = vb.w / (svg.clientWidth || 1);
+  vb = {x: arr.vb.x - dx * s, y: arr.vb.y - dy * s, w: vb.w, h: vb.h}; aplicarVB();
+});
+const finArrastre = e => { if (!arr) return; if (arrastrando) { ignorarClic = true; setTimeout(() => { ignorarClic = false; }, 60); } try { if (arrastrando) svg.releasePointerCapture(arr.id); } catch (_) {} svg.classList.remove('arrastrando'); arr = null; arrastrando = false; };
+svg.addEventListener('pointerup', finArrastre); svg.addEventListener('pointercancel', finArrastre);
+svg.addEventListener('click', e => {
+  if (ignorarClic) { ignorarClic = false; return; }
+  const linea = e.target.closest('.linea, .etq, .equis'); if (linea) { alternarLinea(linea.dataset.id); return; }
+  const nodo = e.target.closest('.nodo'); if (nodo) { alternarNodo(nodo.dataset.id); return; }
+});
+svg.addEventListener('keydown', e => { const nodo = e.target.closest && e.target.closest('.nodo'); if (nodo && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); alternarNodo(nodo.dataset.id); } });
+svg.addEventListener('dblclick', e => { if (!e.target.closest('.linea, .etq, .equis, .nodo')) { mostrarTodo(); verTodo(); } });
+window.addEventListener('resize', () => { const cw = svg.clientWidth || 1, ch = svg.clientHeight || 1; vb.h = vb.w * ch / cw; aplicarVB(); });
+
+// ─── 10. Tooltip y hover ───
+const tip = document.getElementById('tip');
+function textoTip(t) {
+  const g = t.closest('.linea, .etq, .equis'); if (g) { const l = porId[g.dataset.id]; if (!l) return '';
+    const salta = l.sana ? (l.misma ? 'misma capa' : 'capas consecutivas') : (l.capas_saltadas.length ? 'salta ' + l.capas_saltadas.join(' + ') : 'inversión de capa');
+    return `<b>${l.id}</b> · ${l.sana ? 'sana' : SEV_NOMBRE[l.sev]}${l.estado === 'corr' ? ' · en corrección' : ''}<br>${esc(nombreNodo(l.origen))} → ${esc(nombreNodo(l.destino))}<br><span class="n">${salta} · ${l.n} conexiones reales${l.nota ? '<br>' + esc(l.nota) : ''}</span>`; }
+  const nd = t.closest('.nodo'); if (nd) { const n = NODOS[nd.dataset.id]; return `<b>${esc(n.titulo)}</b> · ${CAPA_NOMBRE[n.capa]}<br><span class="n">${esc(subDe(n) || (n.kind === 'pantalla' ? 'pantalla' : 'actor'))} · ${nodoInfo[nd.dataset.id].lineas.length} líneas${n.huerfanos.length ? ' · ' + n.huerfanos.length + ' sin llamador' : ''}</span>`; }
+  return '';
+}
+svg.addEventListener('mousemove', e => {
+  const html = textoTip(e.target); if (!html) { tip.style.display = 'none'; return; }
+  tip.innerHTML = html; tip.style.display = 'block';
+  const r = lienzo.getBoundingClientRect(); let x = e.clientX - r.left + 14, y = e.clientY - r.top + 14;
+  if (x + 350 > r.width) x = Math.max(4, e.clientX - r.left - 354); if (y + 120 > r.height) y = e.clientY - r.top - 110;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; setHover(null); });
+svg.addEventListener('mouseover', e => { const g = e.target.closest('.linea, .etq, .equis'); setHover(g ? g.dataset.id : null); });
+
+// ─── 11. Filtros, flujo, pantalla completa ───
+document.querySelectorAll('button.filtro').forEach(b => b.addEventListener('click', () => { filtros[b.dataset.f] = !filtros[b.dataset.f]; aplicarFiltros(); aplicarSeleccion(); }));
+const selFlujo = document.getElementById('flujo');
+selFlujo.addEventListener('change', () => { document.body.dataset.flujo = selFlujo.value; });
+document.body.dataset.flujo = 'clic';
+const wrap = document.getElementById('mapaWrap');
+function salirFs() { wrap.classList.remove('fs'); requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); }); }
+document.getElementById('fs').onclick = () => {
+  if (document.fullscreenElement) { document.exitFullscreen(); return; }
+  if (wrap.classList.contains('fs')) { salirFs(); return; }
+  const entrar = () => { wrap.classList.add('fs'); requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); }); };
+  if (wrap.requestFullscreen) wrap.requestFullscreen().then(() => requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); })).catch(entrar); else entrar();
+};
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) salirFs(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap.classList.contains('fs') && !document.fullscreenElement) salirFs(); });
+
+// ─── 12. Cabecera y método ───
+const t = META.totales;
+document.getElementById('meta').innerHTML = `Catálogo vivo del proyecto <span class="mono">${esc(META.proyecto)}</span> leído el ${esc(META.fecha.slice(0, 16).replace('T', ' '))} UTC · <span class="mono">${t.funciones}</span> funciones · <span class="mono">${t.relaciones}</span> tablas y vistas · <span class="mono">${t.edge}</span> Edge Functions · <span class="mono">${t.cron}</span> tareas cron · <span class="mono">${t.pantallas}</span> pantallas · <span class="mono">${t.aristas_objeto}</span> conexiones reales agrupadas en <span class="mono">${t.sanas}</span> sanas y <span class="mono">${t.saltos}</span> saltos.`;
+document.getElementById('metodo').innerHTML = `Cada caja de Tablas, Núcleo y Puertas agrupa los objetos reales de un módulo; las pantallas van una a una. <b>Tablas</b>: relaciones de crm, private y public. <b>Núcleo</b>: funciones de private, triggers, cron y Edge internas. <b>Puertas</b>: funciones de crm/public expuestas (abiertas o cerradas), vistas y Edge HTTP. <b>Pantallas</b>: rutas del CRM, el armazón de la app, el portal y actores externos.<br>Conexiones: cuerpos SQL del catálogo (solo referencias con patrón de lectura o llamada), triggers, definiciones de vistas, cron, fuentes de las Edge y análisis estático del front (pantalla → hook → API → rpc/from). <b>A</b>: pantalla o puerta autónoma toca datos del negocio sin núcleo (o Edge con service_role). <b>M</b>: puerta mixta, usa núcleo pero también lee tablas directo; o inversión (núcleo que depende de una puerta). <b>B</b>: catálogos y configuración. <b>D</b>: aceptado por diseño (vistas con security_invoker, reloj interno).`;
+
+aplicarFiltros(); aplicarSeleccion();
+requestAnimationFrame(verTodo);
+})();
+</script>
