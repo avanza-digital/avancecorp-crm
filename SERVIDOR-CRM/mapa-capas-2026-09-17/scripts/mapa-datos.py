@@ -4,7 +4,7 @@ Entradas (misma carpeta): evidencia/*.json (catálogo por CLI), front-graph.json
 Salidas: datos.json (para el artifact), evidencia-mapa.json (nivel objeto), y listas por terminal.
 """
 import json, re, collections, sys, os
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))   # la carpeta madre: evidencia/, front-graph.json, edge-refs.json
 EV = 'evidencia'
 rows = lambda n: json.load(open(f'{EV}/{n}.json'))['rows']
 FUNCS, RELS, C1, C2, TRIGS, VISTAS, CRON, FLAGS, POLS, GRANTS, F7, SQL2EDGE = [rows(n) for n in
@@ -276,6 +276,30 @@ for l in SALTOS:
     l['nota'] = '; '.join('%s (%d)' % (k, v) if len(notas)>1 else k for k, v in notas.most_common())
 for l in SANAS: l['id'] = 'S%d' % (SANAS.index(l)+1)
 
+# ───────────────────────── libreta de decisiones ─────────────────────────
+# decisiones.json: clave estable 'origen>destino:sev' → {estado: aceptado|corr|cerrado, id, fecha, por, motivo}.
+# 'cerrado' solo se confirma cuando el salto ya no sale del catálogo; si sigue vivo, queda marcado 'cerrado_vivo' (aviso).
+DECISIONES = json.load(open('decisiones.json')) if os.path.exists('decisiones.json') else {}
+DEC = {k: v for k, v in DECISIONES.items() if not k.startswith('_')}
+usadas = set()
+for l in SALTOS:
+    k = '%s>%s:%s' % (l['origen'], l['destino'], l['sev']); l['clave'] = k
+    dcs = DEC.get(k)
+    if not dcs: continue
+    usadas.add(k)
+    l['decision'] = dict(estado=dcs.get('estado', ''), fecha=dcs.get('fecha', ''), por=dcs.get('por', ''), motivo=dcs.get('motivo', ''), id_entonces=dcs.get('id', ''))
+    if dcs.get('estado') == 'aceptado': l['estado'] = 'aceptado'
+    elif dcs.get('estado') == 'corr': l['estado'] = 'corr'
+    elif dcs.get('estado') == 'cerrado': l['estado'] = 'cerrado_vivo'
+DECISIONES_META = dict(
+    aceptados=sum(1 for l in SALTOS if l['estado'] == 'aceptado'),
+    corr=sum(1 for l in SALTOS if l['estado'] == 'corr'),
+    pendientes=sum(1 for l in SALTOS if l['estado'] in ('vivo', 'cerrado_vivo')),
+    cerrados_vivos=[l['id'] for l in SALTOS if l['estado'] == 'cerrado_vivo'],
+    cerrados_confirmados=[dict(clave=k, **v) for k, v in DEC.items() if v.get('estado') == 'cerrado' and k not in usadas],
+    sin_salto=[k for k, v in DEC.items() if v.get('estado') != 'cerrado' and k not in usadas],
+)
+
 # ───────────────────────── CAPAS ─────────────────────────
 CAPAS = []
 for capa, titulo in ((1,'Tablas'),(2,'Núcleo'),(3,'Puertas'),(4,'Pantallas')):
@@ -293,11 +317,11 @@ META = dict(proyecto='dctqcbznekcyxhjujuci', fecha=[r['a'] for r in FLAGS if r['
             comparacion={k: len(v) for k, v in COMPARACION.items()}, comparacion_detalle=COMPARACION,
             private_con_execute=sorted(o['id'] for o in OBJ.values() if o['kind']=='fn' and o['schema']=='private' and o['auth_exec'] and not o['trigger']),
             triggers_en_crm=sorted(o['id'] for o in OBJ.values() if o['kind']=='fn' and o['schema']=='crm' and o['trigger']),
-            f7={k: v for k, v in F7_ESTADO.items()})
+            f7={k: v for k, v in F7_ESTADO.items()}, decisiones=DECISIONES_META)
 json.dump(dict(CAPAS=CAPAS, NODOS=NODOS, SANAS=SANAS, SALTOS=SALTOS, META=META), open('datos.json','w'), ensure_ascii=False, indent=0)
 json.dump(dict(objetos=OBJ, aristas=E, meta=META), open('evidencia-mapa.json','w'), ensure_ascii=False, indent=0)
 OBJ_MIN = {o['id']: dict(k=o['kind'], c=o['capa'], m=o.get('modulo'), a=o.get('abierta'), h=o.get('huerfano'), t=o.get('trigger'), f7=o.get('f7'), cf=o.get('config'), rls=o.get('rls'), cm=(o.get('comentario') or '')[:120], sd=o.get('secdef'), n=o['nombre']) for o in OBJ.values()}
-META_MIN = {k: META[k] for k in ('proyecto','fecha','flags','totales','desconocidos','comparacion','private_con_execute','triggers_en_crm')}
+META_MIN = {k: META[k] for k in ('proyecto','fecha','flags','totales','desconocidos','comparacion','private_con_execute','triggers_en_crm','decisiones')}
 json.dump(dict(CAPAS=CAPAS, NODOS=NODOS, SANAS=SANAS, SALTOS=SALTOS, OBJ=OBJ_MIN, META=META_MIN, MODULOS={m[0]: m[1] for m in MODULOS}), open('datos-artifact.json','w'), ensure_ascii=False, separators=(',',':'))
 
 # ───────────────────────── terminal ─────────────────────────
@@ -310,6 +334,10 @@ for c in CAPAS:
         print('  %s%-38s %s%s' % ('✖ ' if n['huerfano'] else '  ', n['titulo'], res, ('  · huérfanos: %d' % len(n['huerfanos'])) if n['huerfanos'] else ''))
 print('\n== SANAS (%d líneas de grupo, %d aristas objeto) ==' % (len(SANAS), sum(l['n'] for l in SANAS)))
 for l in SANAS: print('  %-4s %-28s → %-38s %3d%s' % (l['id'], NODOS[l['origen']]['titulo'][:28], NODOS[l['destino']]['titulo'][:38], l['n'], '  [transversal]' if l['transversal'] else ''))
+print('\n== LIBRETA DE DECISIONES: %d aceptados · %d en corrección · %d pendientes · %d cerrados confirmados%s%s ==' % (
+    DECISIONES_META['aceptados'], DECISIONES_META['corr'], DECISIONES_META['pendientes'], len(DECISIONES_META['cerrados_confirmados']),
+    (' · ⚠ marcados cerrados pero VIVOS: ' + ', '.join(DECISIONES_META['cerrados_vivos'])) if DECISIONES_META['cerrados_vivos'] else '',
+    (' · decisiones sin salto: ' + ', '.join(DECISIONES_META['sin_salto'])) if DECISIONES_META['sin_salto'] else ''))
 print('\n== SALTOS (%d) por severidad %s ==' % (len(SALTOS), dict(cnt)))
-for l in SALTOS: print('  %-4s %-28s ⇢ %-38s %3d  salta %-14s %s%s' % (l['id'], NODOS[l['origen']]['titulo'][:28], NODOS[l['destino']]['titulo'][:38], l['n'], '+'.join(l['capas_saltadas']) or l['clase'], l['nota'][:90], '  [corr]' if l['estado']=='corr' else ''))
+for l in SALTOS: print('  %-4s %-28s ⇢ %-38s %3d  salta %-14s %s%s' % (l['id'], NODOS[l['origen']]['titulo'][:28], NODOS[l['destino']]['titulo'][:38], l['n'], '+'.join(l['capas_saltadas']) or l['clase'], l['nota'][:90], {'corr': '  [corr]', 'aceptado': '  [aceptado]', 'cerrado_vivo': '  [⚠ cerrado pero vivo]'}.get(l['estado'], '')))
 print('\n== META ==', json.dumps({k: v for k, v in META.items() if k in ('totales','comparacion','desconocidos','private_con_execute','triggers_en_crm')}, ensure_ascii=False, indent=1))

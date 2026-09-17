@@ -95,12 +95,12 @@
   S3   Conversión y cierres         → Inversiones e identidad                  9
   S4   Auditoría, vigías y guardas  → Inversiones e identidad                  5  [transversal]
   S5   Usuarios, equipo y permisos  → Agenda, tareas y reuniones              15  [transversal]
-  S6   Usuarios, equipo y permisos  → Inversiones e identidad                 26  [transversal]
-  S7   Metas y productos            → Inversiones e identidad                  7
+  S6   Metas y productos            → Inversiones e identidad                  7
+  S7   Usuarios, equipo y permisos  → Inversiones e identidad                 26  [transversal]
   S8   Usuarios, equipo y permisos  → Distribución y derivaciones              3  [transversal]
   S9   Distribución y derivaciones  → Distribución y derivaciones             16
-  S10  Inversiones e identidad      → Clientes (perfiles)                      4
-  S11  Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
+  S10  Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
+  S11  Inversiones e identidad      → Clientes (perfiles)                      4
   S12  Contratos y capital          → Contratos y capital                     58
   S13  Contratos y capital          → Contratos y capital                     56
   S14  Metas y productos            → Contratos y capital                      7
@@ -111,17 +111,17 @@
   S19  Usuarios, equipo y permisos  → Métricas y reportes                     16  [transversal]
   S20  Contratos y capital          → Métricas y reportes                      5
   S21  Conversión y cierres         → Métricas y reportes                      5
-  S22  Conversión y cierres         → Conversión y cierres                    35
-  S23  Contratos y capital          → Conversión y cierres                     6
+  S22  Contratos y capital          → Conversión y cierres                     6
+  S23  Conversión y cierres         → Conversión y cierres                    35
   S24  Usuarios, equipo y permisos  → Citas de Gerencia                        3
-  S25  Leads y cartera              → Conversión y cierres                     1
-  S26  Contratos y capital          → Conversión y cierres                     1
+  S25  Contratos y capital          → Conversión y cierres                     1
+  S26  Leads y cartera              → Conversión y cierres                     1
   S27  SLA y cola operativa         → SLA y cola operativa                    20
   S28  Usuarios, equipo y permisos  → Ayuda al vendedor                        2  [transversal]
   S29  Usuarios, equipo y permisos  → SLA y cola operativa                    12  [transversal]
   S30  Auditoría, vigías y guardas  → SLA y cola operativa                     1  [transversal]
-  S31  Usuarios, equipo y permisos  → Leads y cartera                         33  [transversal]
-  S32  Leads y cartera              → Leads y cartera                         28
+  S31  Leads y cartera              → Leads y cartera                         28
+  S32  Usuarios, equipo y permisos  → Leads y cartera                         33  [transversal]
   S33  Distribución y derivaciones  → Leads y cartera                          4
   S34  Contratos y capital          → Inversiones e identidad                 13
   S35  Usuarios, equipo y permisos  → Metas y productos                       10  [transversal]
@@ -140,12 +140,12 @@
   S48  Tasa y rentabilidad          → Conversión y cierres                     4
   S49  Auditoría, vigías y guardas  → Conversión y cierres                     7  [transversal]
   S50  Clientes (perfiles)          → Conversión y cierres                     2
-  S51  Usuarios, equipo y permisos  → Clientes (perfiles)                      5
-  S52  Inversiones e identidad      → Clientes (perfiles)                      3
-  S53  Leads y cartera              → Inversiones e identidad                  8
-  S54  Usuarios, equipo y permisos  → Inversiones e identidad                  4
-  S55  Inversiones e identidad      → Contratos y capital                      3
-  S56  Clientes (perfiles)          → Contratos y capital                      8
+  S51  Inversiones e identidad      → Clientes (perfiles)                      3
+  S52  Usuarios, equipo y permisos  → Clientes (perfiles)                      5
+  S53  Usuarios, equipo y permisos  → Inversiones e identidad                  4
+  S54  Leads y cartera              → Inversiones e identidad                  8
+  S55  Clientes (perfiles)          → Contratos y capital                      8
+  S56  Inversiones e identidad      → Contratos y capital                      3
   S57  Inversiones e identidad      → Contratos y capital                      5
   S58  Inversiones e identidad      → Leads y cartera                         23
   S59  Clientes (perfiles)          → Contratos y capital                      2
@@ -168,8 +168,8 @@
   S76  Leads y cartera              → Inversiones e identidad                  1
   S77  Postventa                    → Leads y cartera                          1
   S78  Distribución y derivaciones  → Agenda, tareas y reuniones               1
-  S79  Distribución y derivaciones  → Citas de Gerencia                        1
-  S80  Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
+  S79  Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
+  S80  Distribución y derivaciones  → Citas de Gerencia                        1
   S81  Conversión y cierres         → Métricas y reportes                      1
   S82  Contratos y capital          → Usuarios, equipo y permisos              1
   S83  Postventa                    → Postventa                               27
@@ -184,25 +184,25 @@
   S92  Inversiones e identidad      → Tasa y rentabilidad                      1
   S93  Usuarios, equipo y permisos  → Distribución y derivaciones              5
   S94  Clientes (perfiles)          → Distribución y derivaciones              5
-  S95  Usuarios, equipo y permisos  → Agenda, tareas y reuniones               6
-  S96  Postventa                    → Agenda, tareas y reuniones               1
+  S95  Inversiones e identidad      → Agenda, tareas y reuniones               3
+  S96  Clientes (perfiles)          → Agenda, tareas y reuniones               5
   S97  Agenda, tareas y reuniones   → Agenda, tareas y reuniones              14
-  S98  Inversiones e identidad      → Agenda, tareas y reuniones               3
-  S99  Clientes (perfiles)          → Agenda, tareas y reuniones               5
-  S100 Inversiones e identidad      → Agenda, tareas y reuniones               2
+  S98  Inversiones e identidad      → Agenda, tareas y reuniones               2
+  S99  Usuarios, equipo y permisos  → Agenda, tareas y reuniones               6
+  S100 Postventa                    → Agenda, tareas y reuniones               1
   S101 Conversión y cierres         → Conversión y cierres                    18
   S102 Contratos y capital          → Conversión y cierres                     4
-  S103 Usuarios, equipo y permisos  → Inversiones e identidad                  6
+  S103 Clientes (perfiles)          → Inversiones e identidad                 15
   S104 Inversiones e identidad      → Inversiones e identidad                130
-  S105 Clientes (perfiles)          → Inversiones e identidad                 15
+  S105 Usuarios, equipo y permisos  → Inversiones e identidad                  6
   S106 Usuarios, equipo y permisos  → Auditoría, vigías y guardas              2  [transversal]
   S107 Usuarios, equipo y permisos  → Auditoría, vigías y guardas              3  [transversal]
-  S108 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
-  S109 Citas de Gerencia            → Auditoría, vigías y guardas              5  [transversal]
-  S110 Conversión y cierres         → Auditoría, vigías y guardas              2  [transversal]
+  S108 Citas de Gerencia            → Auditoría, vigías y guardas              3  [transversal]
+  S109 Conversión y cierres         → Auditoría, vigías y guardas              2  [transversal]
+  S110 Inversiones e identidad      → Auditoría, vigías y guardas              4  [transversal]
   S111 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
-  S112 Inversiones e identidad      → Auditoría, vigías y guardas              4  [transversal]
-  S113 Citas de Gerencia            → Auditoría, vigías y guardas              3  [transversal]
+  S112 Citas de Gerencia            → Auditoría, vigías y guardas              5  [transversal]
+  S113 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
   S114 Auditoría, vigías y guardas  → Auditoría, vigías y guardas             17  [transversal]
   S115 SLA y cola operativa         → Auditoría, vigías y guardas             10  [transversal]
   S116 Leads y cartera              → Auditoría, vigías y guardas              1  [transversal]
@@ -213,10 +213,10 @@
   S121 Leads y cartera              → Inversiones e identidad                  2
   S122 Agenda, tareas y reuniones   → Leads y cartera                         10
   S123 Usuarios, equipo y permisos  → Contratos y capital                      8  [transversal]
-  S124 Leads y cartera              → Contratos y capital                      4
-  S125 Metas y productos            → Contratos y capital                      4
-  S126 Conversión y cierres         → Contratos y capital                      4
-  S127 Conversión y cierres         → Contratos y capital                      3
+  S124 Metas y productos            → Contratos y capital                      4
+  S125 Conversión y cierres         → Contratos y capital                      3
+  S126 Leads y cartera              → Contratos y capital                      4
+  S127 Conversión y cierres         → Contratos y capital                      4
   S128 Contratos y capital          → Inversiones e identidad                 10
   S129 Conversión y cierres         → Inversiones e identidad                  3
   S130 Usuarios, equipo y permisos  → Inversiones e identidad                  8  [transversal]
@@ -225,29 +225,29 @@
   S133 Metas y productos            → Conversión y cierres                     2
   S134 Usuarios, equipo y permisos  → Conversión y cierres                     3  [transversal]
   S135 Agenda, tareas y reuniones   → Citas de Gerencia                        4
-  S136 Leads y cartera              → Citas de Gerencia                        3
-  S137 Usuarios, equipo y permisos  → Citas de Gerencia                        2
-  S138 Conversión y cierres         → Citas de Gerencia                        5
-  S139 Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
-  S140 Contratos y capital          → Citas de Gerencia                        2
-  S141 Conversión y cierres         → Citas de Gerencia                        1
+  S136 Contratos y capital          → Citas de Gerencia                        2
+  S137 Conversión y cierres         → Citas de Gerencia                        5
+  S138 Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
+  S139 Inversiones e identidad      → Citas de Gerencia                        1
+  S140 Clientes (perfiles)          → Citas de Gerencia                        2
+  S141 Leads y cartera              → Citas de Gerencia                        3
   S142 Inversiones e identidad      → Citas de Gerencia                        1
-  S143 Clientes (perfiles)          → Citas de Gerencia                        2
-  S144 Inversiones e identidad      → Citas de Gerencia                        1
+  S143 Usuarios, equipo y permisos  → Citas de Gerencia                        2
+  S144 Conversión y cierres         → Citas de Gerencia                        1
   S145 Clientes (perfiles)          → Clientes (perfiles)                     19
   S146 Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
-  S147 Leads y cartera              → Tasa y rentabilidad                      6
-  S148 Inversiones e identidad      → Tasa y rentabilidad                      2
+  S147 Inversiones e identidad      → Tasa y rentabilidad                      2
+  S148 Clientes (perfiles)          → Tasa y rentabilidad                      5
   S149 Inversiones e identidad      → Tasa y rentabilidad                      2
-  S150 Clientes (perfiles)          → Tasa y rentabilidad                      5
+  S150 Leads y cartera              → Tasa y rentabilidad                      6
   S151 Citas de Gerencia            → Citas de Gerencia                        5
   S152 Auditoría, vigías y guardas  → Citas de Gerencia                        1  [transversal]
   S153 Leads y cartera              → Conversión y cierres                    11
   S154 Inversiones e identidad      → Metas y productos                        4
   S155 Metas y productos            → Metas y productos                       12
   S156 Clientes (perfiles)          → Leads y cartera                          6
-  S157 Inversiones e identidad      → Leads y cartera                         17
-  S158 Inversiones e identidad      → Leads y cartera                         13
+  S157 Inversiones e identidad      → Leads y cartera                         13
+  S158 Inversiones e identidad      → Leads y cartera                         17
   S159 Tasa y rentabilidad          → Tasa y rentabilidad                     19
   S160 Usuarios, equipo y permisos  → Usuarios, equipo y permisos             19  [transversal]
   S161 Clientes (perfiles)          → Usuarios, equipo y permisos              8  [transversal]
@@ -260,36 +260,36 @@
   S168 Auditoría, vigías y guardas  → Inversiones e identidad                 10  [transversal]
   S169 Conversión y cierres         → Leads y cartera                          3
   S170 Auditoría, vigías y guardas  → Leads y cartera                          1  [transversal]
-  S171 Leads y cartera              → Distribución y derivaciones              7
-  S172 Auditoría, vigías y guardas  → Distribución y derivaciones              1  [transversal]
-  S173 Leads y cartera              → Distribución y derivaciones              2
-  S174 Inversiones e identidad      → Distribución y derivaciones              1
+  S171 Leads y cartera              → Distribución y derivaciones              2
+  S172 Inversiones e identidad      → Distribución y derivaciones              1
+  S173 Auditoría, vigías y guardas  → Distribución y derivaciones              1  [transversal]
+  S174 Leads y cartera              → Distribución y derivaciones              7
   S175 Inversiones e identidad      → Distribución y derivaciones              1
   S176 Clientes (perfiles)          → Auditoría, vigías y guardas              6  [transversal]
-  S177 Leads y cartera              → Agenda, tareas y reuniones               3
-  S178 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               7  [transversal]
+  S177 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               7  [transversal]
+  S178 Leads y cartera              → Agenda, tareas y reuniones               3
   S179 Contratos y capital          → Leads y cartera                          3
-  S180 Conversión y cierres         → Leads y cartera                          3
-  S181 Contratos y capital          → Leads y cartera                          1
-  S182 Usuarios, equipo y permisos  → Conversión y cierres                     2
-  S183 Agenda, tareas y reuniones   → Conversión y cierres                     2
-  S184 Contratos y capital          → Conversión y cierres                     2
-  S185 Citas de Gerencia            → Conversión y cierres                     1
-  S186 Clientes (perfiles)          → Conversión y cierres                     2
-  S187 Conversión y cierres         → Distribución y derivaciones              6
+  S180 Contratos y capital          → Leads y cartera                          1
+  S181 Conversión y cierres         → Leads y cartera                          3
+  S182 Contratos y capital          → Conversión y cierres                     2
+  S183 Clientes (perfiles)          → Conversión y cierres                     2
+  S184 Agenda, tareas y reuniones   → Conversión y cierres                     2
+  S185 Usuarios, equipo y permisos  → Conversión y cierres                     2
+  S186 Citas de Gerencia            → Conversión y cierres                     1
+  S187 SLA y cola operativa         → Distribución y derivaciones              2
   S188 Agenda, tareas y reuniones   → Distribución y derivaciones              1
-  S189 SLA y cola operativa         → Distribución y derivaciones              2
+  S189 Conversión y cierres         → Distribución y derivaciones              6
   S190 Contratos y capital          → Distribución y derivaciones              1
-  S191 Leads y cartera              → SLA y cola operativa                    19
-  S192 Agenda, tareas y reuniones   → SLA y cola operativa                    11
+  S191 Agenda, tareas y reuniones   → SLA y cola operativa                    11
+  S192 Leads y cartera              → SLA y cola operativa                    19
   S193 Inversiones e identidad      → Postventa                               13
   S194 Inversiones e identidad      → Postventa                               14
   S195 Conversión y cierres         → Postventa                                1
-  S196 Postventa                    → Postventa                                5
-  S197 Agenda, tareas y reuniones   → Postventa                                3
-  S198 Leads y cartera              → Postventa                                3
+  S196 Agenda, tareas y reuniones   → Postventa                                3
+  S197 Postventa                    → Postventa                                5
+  S198 Usuarios, equipo y permisos  → Postventa                                3  [transversal]
   S199 Leads y cartera              → Postventa                                3
-  S200 Usuarios, equipo y permisos  → Postventa                                3  [transversal]
+  S200 Leads y cartera              → Postventa                                3
   S201 Metas y productos            → Inversiones e identidad                  1
   S202 Clientes (perfiles)          → Agenda, tareas y reuniones               1
   S203 Clientes (perfiles)          → Contratos y capital                      1
@@ -297,9 +297,9 @@
   S205 Auditoría, vigías y guardas  → Conversión y cierres                     1
   S206 Ayuda al vendedor            → Ayuda al vendedor                        2
   S207 Agenda, tareas y reuniones   → Clientes (perfiles)                      2
-  S208 Usuarios, equipo y permisos  → Clientes (perfiles)                      3
-  S209 Inversiones e identidad      → Clientes (perfiles)                      3
-  S210 Leads y cartera              → Clientes (perfiles)                      1
+  S208 Inversiones e identidad      → Clientes (perfiles)                      3
+  S209 Leads y cartera              → Clientes (perfiles)                      1
+  S210 Usuarios, equipo y permisos  → Clientes (perfiles)                      3
   S211 Inversiones e identidad      → Clientes (perfiles)                      3
   S212 Metas y productos            → Tasa y rentabilidad                      1
   S213 Contratos y capital          → Tasa y rentabilidad                      5
@@ -309,21 +309,21 @@
   S217 Auditoría, vigías y guardas  → Conversión y cierres                     1  [transversal]
   S218 SLA y cola operativa         → SLA y cola operativa                    50
   S219 Leads y cartera              → SLA y cola operativa                     2
-  S220 Agenda, tareas y reuniones   → SLA y cola operativa                     1
-  S221 Usuarios, equipo y permisos  → SLA y cola operativa                     7  [transversal]
+  S220 Usuarios, equipo y permisos  → SLA y cola operativa                     7  [transversal]
+  S221 Agenda, tareas y reuniones   → SLA y cola operativa                     1
   S222 Clientes (perfiles)          → SLA y cola operativa                     4
   S223 Clientes (perfiles)          → Tasa y rentabilidad                      1
   S224 Auditoría, vigías y guardas  → Inversiones e identidad                  3
   S225 SLA y cola operativa         → Leads y cartera                          1
   S226 SLA y cola operativa         → Leads y cartera                          1
-  S227 Agenda, tareas y reuniones   → Contratos y capital                      2
-  S228 Usuarios, equipo y permisos  → Contratos y capital                      2
+  S227 Usuarios, equipo y permisos  → Contratos y capital                      2
+  S228 Agenda, tareas y reuniones   → Contratos y capital                      2
   S229 Inversiones e identidad      → Contratos y capital                      1
   S230 Metas y productos            → Contratos y capital                      1
   S231 Leads y cartera              → Contratos y capital                      1
   S232 Conversión y cierres         → Metas y productos                        1
-  S233 Leads y cartera              → Usuarios, equipo y permisos              1  [transversal]
-  S234 Agenda, tareas y reuniones   → Usuarios, equipo y permisos              1  [transversal]
+  S233 Agenda, tareas y reuniones   → Usuarios, equipo y permisos              1  [transversal]
+  S234 Leads y cartera              → Usuarios, equipo y permisos              1  [transversal]
   S235 Usuarios, equipo y permisos  → Contratos y capital                      2
   S236 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               1
   S237 Leads y cartera              → Métricas y reportes                      1
@@ -489,6 +489,8 @@
   S397 Usuarios, equipo y permisos  → Portal del cliente (public_html)         2
   S398 Notificaciones del portal    → Portal del cliente (public_html)         2
 
+== LIBRETA DE DECISIONES: 33 aceptados · 1 en corrección · 137 pendientes · 0 cerrados confirmados ==
+
 == SALTOS (171) por severidad {'A': 56, 'M': 81, 'B': 31, 'D': 3} ==
   A1   Leads y cartera              ⇢ Agenda                                   1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
   A2   Leads y cartera              ⇢ Alertas                                  1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
@@ -627,40 +629,40 @@
   M79  Usuarios, equipo y permisos  ⇢ Clientes (perfiles)                      7  salta inversion      inversión: el núcleo depende de una puerta
   M80  Usuarios, equipo y permisos  ⇢ Usuarios, equipo y permisos              4  salta inversion      inversión: el núcleo depende de una puerta
   M81  Auditoría, vigías y guardas  ⇢ Contratos y capital                      1  salta inversion      inversión: el núcleo depende de una puerta
-  B1   Agenda, tareas y reuniones   ⇢ App CRM · sesión, store y avisos         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
-  B2   Agenda, tareas y reuniones   ⇢ Configuración                            1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
-  B3   Clientes (perfiles)          ⇢ Portal del cliente (public_html)         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
-  B4   Leads y cartera              ⇢ Leads y cartera                          1  salta Núcleo         catálogo/configuración leído directo
-  B5   Leads y cartera              ⇢ Inversiones e identidad                  1  salta Núcleo         catálogo/configuración leído directo
-  B6   Agenda, tareas y reuniones   ⇢ Agenda, tareas y reuniones               1  salta Núcleo         catálogo/configuración leído directo
-  B7   Citas de Gerencia            ⇢ Citas de Gerencia                        5  salta Núcleo         catálogo/configuración leído directo
-  B8   SLA y cola operativa         ⇢ SLA y cola operativa                    11  salta Núcleo         catálogo/configuración leído directo
-  B9   Tasa y rentabilidad          ⇢ Tasa y rentabilidad                      3  salta Núcleo         catálogo/configuración leído directo
-  B10  Inversiones e identidad      ⇢ Leads y cartera                          6  salta Núcleo         catálogo/configuración leído directo
-  B11  Inversiones e identidad      ⇢ Conversión y cierres                     5  salta Núcleo         catálogo/configuración leído directo
-  B12  Inversiones e identidad      ⇢ Contratos y capital                      1  salta Núcleo         catálogo/configuración leído directo
-  B13  Inversiones e identidad      ⇢ Inversiones e identidad                 14  salta Núcleo         catálogo/configuración leído directo
+  B1   Agenda, tareas y reuniones   ⇢ App CRM · sesión, store y avisos         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
+  B2   Agenda, tareas y reuniones   ⇢ Configuración                            1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
+  B3   Clientes (perfiles)          ⇢ Portal del cliente (public_html)         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
+  B4   Leads y cartera              ⇢ Leads y cartera                          1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B5   Leads y cartera              ⇢ Inversiones e identidad                  1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B6   Agenda, tareas y reuniones   ⇢ Agenda, tareas y reuniones               1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B7   Citas de Gerencia            ⇢ Citas de Gerencia                        5  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B8   SLA y cola operativa         ⇢ SLA y cola operativa                    11  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B9   Tasa y rentabilidad          ⇢ Tasa y rentabilidad                      3  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B10  Inversiones e identidad      ⇢ Leads y cartera                          6  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B11  Inversiones e identidad      ⇢ Conversión y cierres                     5  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B12  Inversiones e identidad      ⇢ Contratos y capital                      1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B13  Inversiones e identidad      ⇢ Inversiones e identidad                 14  salta Núcleo         catálogo/configuración leído directo  [aceptado]
   B14  Inversiones e identidad      ⇢ Metas y productos                        1  salta Núcleo         catálogo/configuración leído directo  [corr]
-  B15  Inversiones e identidad      ⇢ Usuarios, equipo y permisos              1  salta Núcleo         catálogo/configuración leído directo
-  B16  Clientes (perfiles)          ⇢ Clientes (perfiles)                      1  salta Núcleo         catálogo/configuración leído directo
-  B17  Metas y productos            ⇢ Leads y cartera                          3  salta Núcleo         catálogo/configuración leído directo
-  B18  Metas y productos            ⇢ Conversión y cierres                     8  salta Núcleo         catálogo/configuración leído directo
-  B19  Metas y productos            ⇢ Contratos y capital                      2  salta Núcleo         catálogo/configuración leído directo
-  B20  Metas y productos            ⇢ Inversiones e identidad                 13  salta Núcleo         catálogo/configuración leído directo
-  B21  Metas y productos            ⇢ Metas y productos                        9  salta Núcleo         catálogo/configuración leído directo
-  B22  Usuarios, equipo y permisos  ⇢ Leads y cartera                          5  salta Núcleo         catálogo/configuración leído directo
-  B23  Usuarios, equipo y permisos  ⇢ Distribución y derivaciones              7  salta Núcleo         catálogo/configuración leído directo
-  B24  Usuarios, equipo y permisos  ⇢ Conversión y cierres                     4  salta Núcleo         catálogo/configuración leído directo
-  B25  Usuarios, equipo y permisos  ⇢ Tasa y rentabilidad                      1  salta Núcleo         catálogo/configuración leído directo
-  B26  Usuarios, equipo y permisos  ⇢ Contratos y capital                      2  salta Núcleo         catálogo/configuración leído directo
-  B27  Usuarios, equipo y permisos  ⇢ Clientes (perfiles)                      1  salta Núcleo         catálogo/configuración leído directo
-  B28  Usuarios, equipo y permisos  ⇢ Metas y productos                        2  salta Núcleo         catálogo/configuración leído directo
-  B29  Usuarios, equipo y permisos  ⇢ Métricas y reportes                      2  salta Núcleo         catálogo/configuración leído directo
-  B30  Usuarios, equipo y permisos  ⇢ Usuarios, equipo y permisos             11  salta Núcleo         catálogo/configuración leído directo
-  B31  Ayuda al vendedor            ⇢ Ayuda al vendedor                        4  salta Núcleo         catálogo/configuración leído directo
-  D1   Leads y cartera              ⇢ Leads y cartera                          1  salta Núcleo         vista de lectura con security_invoker (RLS del lector)
-  D2   Conversión y cierres         ⇢ pg_cron · 10 tareas                      1  salta inversion      reloj interno que dispara una puerta cerrada
-  D3   Notificaciones del portal    ⇢ pg_cron · 10 tareas                      1  salta inversion      reloj interno que dispara una puerta cerrada
+  B15  Inversiones e identidad      ⇢ Usuarios, equipo y permisos              1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B16  Clientes (perfiles)          ⇢ Clientes (perfiles)                      1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B17  Metas y productos            ⇢ Leads y cartera                          3  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B18  Metas y productos            ⇢ Conversión y cierres                     8  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B19  Metas y productos            ⇢ Contratos y capital                      2  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B20  Metas y productos            ⇢ Inversiones e identidad                 13  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B21  Metas y productos            ⇢ Metas y productos                        9  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B22  Usuarios, equipo y permisos  ⇢ Leads y cartera                          5  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B23  Usuarios, equipo y permisos  ⇢ Distribución y derivaciones              7  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B24  Usuarios, equipo y permisos  ⇢ Conversión y cierres                     4  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B25  Usuarios, equipo y permisos  ⇢ Tasa y rentabilidad                      1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B26  Usuarios, equipo y permisos  ⇢ Contratos y capital                      2  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B27  Usuarios, equipo y permisos  ⇢ Clientes (perfiles)                      1  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B28  Usuarios, equipo y permisos  ⇢ Metas y productos                        2  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B29  Usuarios, equipo y permisos  ⇢ Métricas y reportes                      2  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B30  Usuarios, equipo y permisos  ⇢ Usuarios, equipo y permisos             11  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  B31  Ayuda al vendedor            ⇢ Ayuda al vendedor                        4  salta Núcleo         catálogo/configuración leído directo  [aceptado]
+  D1   Leads y cartera              ⇢ Leads y cartera                          1  salta Núcleo         vista de lectura con security_invoker (RLS del lector)  [aceptado]
+  D2   Conversión y cierres         ⇢ pg_cron · 10 tareas                      1  salta inversion      reloj interno que dispara una puerta cerrada  [aceptado]
+  D3   Notificaciones del portal    ⇢ pg_cron · 10 tareas                      1  salta inversion      reloj interno que dispara una puerta cerrada  [aceptado]
 
 == META == {
  "totales": {

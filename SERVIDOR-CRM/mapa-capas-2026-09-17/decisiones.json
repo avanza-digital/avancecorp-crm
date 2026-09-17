@@ -1,0 +1,234 @@
+{
+ "_formato": "clave = origen>destino:sev (estable entre regeneraciones). estado: aceptado | corr | cerrado. 'cerrado' se confirma solo cuando el salto ya no aparece en el catálogo; si sigue vivo, el mapa avisa. Editar a mano: una entrada por salto, con fecha, quién decide y motivo.",
+ "t:agenda>actor:app:B": {
+  "estado": "aceptado",
+  "id": "B1",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:agenda>pantalla:config:B": {
+  "estado": "aceptado",
+  "id": "B2",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:clientes>actor:portal:B": {
+  "estado": "aceptado",
+  "id": "B3",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:leads>p:leads:B": {
+  "estado": "aceptado",
+  "id": "B4",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:leads>p:inversiones:B": {
+  "estado": "aceptado",
+  "id": "B5",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:agenda>p:agenda:B": {
+  "estado": "aceptado",
+  "id": "B6",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:citas>p:citas:B": {
+  "estado": "aceptado",
+  "id": "B7",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:sla>p:sla:B": {
+  "estado": "aceptado",
+  "id": "B8",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:tasa>p:tasa:B": {
+  "estado": "aceptado",
+  "id": "B9",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:inversiones>p:leads:B": {
+  "estado": "aceptado",
+  "id": "B10",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:inversiones>p:conversion:B": {
+  "estado": "aceptado",
+  "id": "B11",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:inversiones>p:contratos:B": {
+  "estado": "aceptado",
+  "id": "B12",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:inversiones>p:inversiones:B": {
+  "estado": "aceptado",
+  "id": "B13",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:inversiones>p:acceso:B": {
+  "estado": "aceptado",
+  "id": "B15",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:clientes>p:clientes:B": {
+  "estado": "aceptado",
+  "id": "B16",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:metas>p:leads:B": {
+  "estado": "aceptado",
+  "id": "B17",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:metas>p:conversion:B": {
+  "estado": "aceptado",
+  "id": "B18",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:metas>p:contratos:B": {
+  "estado": "aceptado",
+  "id": "B19",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:metas>p:inversiones:B": {
+  "estado": "aceptado",
+  "id": "B20",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:metas>p:metas:B": {
+  "estado": "aceptado",
+  "id": "B21",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:leads:B": {
+  "estado": "aceptado",
+  "id": "B22",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:reparto:B": {
+  "estado": "aceptado",
+  "id": "B23",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:conversion:B": {
+  "estado": "aceptado",
+  "id": "B24",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:tasa:B": {
+  "estado": "aceptado",
+  "id": "B25",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:contratos:B": {
+  "estado": "aceptado",
+  "id": "B26",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:clientes:B": {
+  "estado": "aceptado",
+  "id": "B27",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:metas:B": {
+  "estado": "aceptado",
+  "id": "B28",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:metricas:B": {
+  "estado": "aceptado",
+  "id": "B29",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:acceso>p:acceso:B": {
+  "estado": "aceptado",
+  "id": "B30",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:ayuda>p:ayuda:B": {
+  "estado": "aceptado",
+  "id": "B31",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "catálogo/configuración leído directo: se acepta (plan 17/09, paso 0)"
+ },
+ "t:leads>p:leads:D": {
+  "estado": "aceptado",
+  "id": "D1",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "aceptado por diseño: vista con security_invoker o reloj interno (plan 17/09, paso 0)"
+ },
+ "p:conversion>actor:cron:D": {
+  "estado": "aceptado",
+  "id": "D2",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "aceptado por diseño: vista con security_invoker o reloj interno (plan 17/09, paso 0)"
+ },
+ "p:notificaciones>actor:cron:D": {
+  "estado": "aceptado",
+  "id": "D3",
+  "fecha": "2026-09-17",
+  "por": "Miguel",
+  "motivo": "aceptado por diseño: vista con security_invoker o reloj interno (plan 17/09, paso 0)"
+ }
+}
