@@ -5,7 +5,7 @@ actualizado: 2026-09-16
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Interruptor integral de rentabilidad - preparado 2026-09-18]] — **SQL APLICADO; FRONT EN PUBLICACIÓN:** observación deja de exigir aprobación en CRM, portal, conversión y contratos; mantiene historial, identidad y tasas heredadas.
+- [[Interruptor integral de rentabilidad - preparado 2026-09-18]] — **PUBLICADO 18/09:** el botón controla toda la exigencia de tasa en CRM, portal, conversión y contratos; observación deja de solicitar o consumir aprobaciones. SQL, CRM y portal verificados en producción.
 
 - [[Mapa de capas del servidor CRM - 2026-09-17]] — **PUBLICADO 17/09 (artifact privado):** mapa interactivo de las 4 capas (Tablas → Núcleo → Puerta → Pantalla) levantado del catálogo vivo: 398 conexiones sanas, 171 saltos (A 56 · M 81 · B 31 · D 3), 52 objetos sin llamador. Evidencia y scripts en `SERVIDOR-CRM/mapa-capas-2026-09-17/`.
 
