@@ -1,6 +1,6 @@
 # Prodelco admite inversiones en dólares (2026-09-17)
 
-> **Estado:** construido, ensayado y commiteado (`fef9af70`). **NO publicado.**
+> **Estado:** construido, ensayado y subido a la rama `crm/prodelco-usd-20260918`. **NO publicado.**
 > **Decisión de Miguel (17/09/2026):** Prodelco sí, **Qorilazo solo soles**.
 
 ## Qué pidió el negocio
@@ -43,7 +43,7 @@ capital de la casa y la **cuota** de los analistas— ya llevaba la moneda como 
 Por eso un cierre en dólares entra en su propia columna **sin tocar una sola calculadora**. Medirlo
 primero ahorró casi todo el trabajo que se imaginaba al empezar.
 
-## Tres defensas que aparecieron en la revisión
+## Dos defensas que aparecieron en la revisión
 
 Ninguna quita nada de lo que ya se podía hacer: **acotan lo que se acaba de abrir.**
 
@@ -57,19 +57,25 @@ empresa y el comprobante, que ya lo eran.
 > ⚠️ **Al publicar hay que avisar al equipo:** quien tenga el CRM abierto sin recargar verá un error
 > claro al corregir una solicitud en dólares, hasta que recargue. Falla del lado seguro.
 
-### 2. La moneda de un cierre no cambia en un mes ya sellado
-
-Cambiar la moneda mueve capital de la columna de soles a la de dólares **en un mes cuya foto ya se
-tomó**, y el sello existe precisamente para que esos números no se muevan. Corregir importe,
-número de operación, certificado, vencimiento o nota en un mes sellado sigue funcionando igual.
-
-> **Esto es un criterio por defecto, no una ley.** Miguel puede decidir que Gerencia sí deba poder
-> re-denominar un cierre de un mes sellado.
-
-### 3. Una guarda para el futuro
+### 2. Una guarda para el futuro
 
 Si algún día alguien relajara una restricción del catálogo, dos de los cinco candados se habrían
 abierto solos mientras los otros seguían cerrados. Ahora fallan del lado seguro.
+
+## La decisión que tomó Miguel
+
+**Gerencia sí puede cambiar la moneda de un cierre de un mes ya cerrado** (18/09/2026).
+
+Se le planteó el reparo con su consecuencia: cambiar la moneda mueve plata de la columna de soles a
+la de dólares **en un mes cuyos números ya estaban congelados y reportados**. Con la alternativa de
+bloquearlo sobre la mesa, eligió permitirlo.
+
+Lo que sí queda es el **rastro**. Cada corrección de ese tipo escribe una nota en el historial del
+cliente con la moneda que tenía antes y la que tiene después, y el auditor guarda la fila completa.
+Quien revise más adelante puede ver qué se cambió y cuándo.
+
+Y hay una prueba automática que **afirma que está permitido**: si en el futuro alguien lo bloquea
+«por prudencia» sin preguntarte, esa prueba falla y se nota.
 
 ## Cómo se comprobó
 
@@ -79,7 +85,7 @@ corre entero con un comando y deja su acta escrita:
 | Qué se probó | Resultado |
 |---|---|
 | Las 13 situaciones del negocio (incluida la inversión adicional en dólares de punta a punta) | pasan |
-| **Sabotajes deliberados** al propio cambio, para comprobar que las pruebas los cazan | 7 de 7 cazados |
+| **Sabotajes deliberados** al propio cambio, para comprobar que las pruebas los cazan | 6 de 6 cazados |
 | Intentar aplicar dos veces | se niega |
 | Volver atrás con dólares ya registrados | se niega y explica por qué |
 | Volver atrás en limpio | deja el servidor exactamente como estaba |

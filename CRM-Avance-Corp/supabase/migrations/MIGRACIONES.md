@@ -2,7 +2,7 @@
 
 ## 20260917235656 — PRODELCO admite inversiones en dólares
 
-**🟠 CONSTRUIDA Y ENSAYADA el 17–18/09/2026. NO PUBLICADA.** Falta aplicar en producción
+**🟠 CONSTRUIDA Y ENSAYADA el 17–18/09/2026. NO PUBLICADA.** PR abierta desde `crm/prodelco-usd-20260918`. Falta aplicar en producción
 (`db query --linked --file` de la migración y **después** del registrador
 `supabase/scripts/registrar-20260917235656.sql`) y publicar el front del commit verificado.
 **Orden obligatorio: servidor primero, front después** — el front empieza a mandar
@@ -12,7 +12,7 @@ ventana (el servidor nuevo acepta los soles del front viejo).
 Miguel, 17/09/2026: «necesito que en la cooperativa Prodelco se puedan hacer inversiones en
 dólares». Y en la misma conversación: **Qorilazo se queda solo en soles**.
 
-`20260917235656_crm_prodelco_inversiones_en_dolares.sql` (md5 del archivo `ff35d7779a27c84f087be114d9716287`)
+`20260917235656_crm_prodelco_inversiones_en_dolares.sql` (md5 del archivo `116e599e986bba12cdf5c6955ea1acc9`)
 **traslada la decisión de la moneda al catálogo**. Hasta hoy estaba escrita a mano en cinco sitios
 aunque `crm.empresas.monedas` existía desde F1 justo para eso: el CHECK de la columna,
 `crm.convertir_lead_externo`, `crm.corregir_cierre_externo`, `private.inversion_validar_datos` y
@@ -27,10 +27,10 @@ y una fila abre la puerta:
 de una fila, **no un despliegue**. Lo único que no se mueve solo es el *selector* del formulario,
 que refleja el catálogo en `app/src/lib/cierres-externos.ts`.
 
-### Tres defensas que antes no hacían falta y ahora sí
+### Dos defensas que antes no hacían falta y ahora sí
 
-Las tres salieron de la revisión (Codex + auditor-rls del proyecto) y **ninguna quita conducta
-anterior: acotan lo que se acaba de abrir**.
+Salieron de la revisión (Codex + auditor-rls del proyecto) y **ninguna quita conducta anterior:
+acotan lo que se acaba de abrir**.
 
 1. **La moneda es INMUTABLE entre revisiones de una solicitud F4.** Quinto escritor,
    `crm.corregir_solicitud_inversion_fn`: un bundle anterior manda `moneda:'PEN'` fijo, así que al
@@ -39,11 +39,7 @@ anterior: acotan lo que se acaba de abrir**.
    referencias del contrato); la moneda entra ahí. Si está mal, se cancela la solicitud y se
    prepara otra. 🔴 **Nota de despliegue**: con el bundle anterior, corregir una solicitud F4 en
    USD ahora FALLA con 22023. Es fail-closed y deseado, pero hay que anunciarlo.
-2. **Gerencia NO cambia la moneda de un cierre imputado a un mes SELLADO.** Cambiar la moneda mueve
-   capital entre la columna PEN y la USD de una foto ya tomada. Corregir monto, operación,
-   certificado, vencimiento o nota en un mes sellado sigue funcionando igual que siempre. Decisión
-   por defecto, revisable por Miguel.
-3. **`coalesce(v_e.monedas,'{}')` en los dos escritores F4.** Hoy la columna es NOT NULL (F1), pero
+2. **`coalesce(v_e.monedas,'{}')` en los dos escritores F4.** Hoy la columna es NOT NULL (F1), pero
    si algún día se relajara, `= any(null)` daría NULL y esos dos candados se abrirían solos
    mientras los de las cooperativas siguen cerrados. Un array vacío no admite nada.
 
@@ -72,9 +68,18 @@ contra la foto real, por firma completa vía `to_regprocedure`).
 abre una puerta, no regulariza datos). Por eso **no es idempotente a propósito**: una segunda
 aplicación se niega, y así no pisa el trabajo de otra sesión.
 
+### La decisión que se planteó y Miguel resolvió
+
+**Gerencia SÍ puede cambiar la moneda de un cierre imputado a un mes ya SELLADO** (Miguel,
+18/09/2026). Se le planteó que eso mueve capital entre la columna PEN y la USD de un mes ya cerrado
+y reportado, con la alternativa de bloquearlo, y eligió permitirlo. Lo que sí queda es el **rastro**:
+la corrección escribe una nota en la línea de tiempo del lead con la moneda de antes y la de
+después, y el auditor guarda la fila entera. **PUSD-13 asevera que está permitido**, así que si
+alguien lo bloquea «por prudencia» sin preguntar, el oráculo lo caza.
+
 **Ensayo** (`node supabase/scripts/prodelco-usd/ensayar.mjs`, copia local a paridad con
 producción; escribe `verificacion.json`): migración aplicada PASS · oráculo
-`test-prodelco-usd.sql` **13/13** · **7 de 7 mutantes cazados** · segunda aplicación negada ·
+`test-prodelco-usd.sql` **13/13** · **6 de 6 mutantes cazados** · segunda aplicación negada ·
 registrador registra, idempotente y se niega con otro cuerpo · reversa negada con dólares vivos y,
 limpia, devuelve los CINCO escritores **byte a byte** · reinstalación verde.
 
@@ -82,7 +87,8 @@ Casos decisivos: **PUSD-10**, la ruta F4 completa (preparar → confirmar) deja 
 `prodelco / USD / 4321.00` (con el mutante que devuelve el INSERT a `'PEN'`, el oráculo la caza con
 `ESPERADO USD · OBTENIDO PEN`); **PUSD-11**, corregir una solicitud en USD mandando PEN se rechaza
 y la solicitud sigue en USD, mientras corregir otro campo conservando la moneda sí funciona;
-**PUSD-13**, la moneda no se cambia en un mes sellado pero la nota del mismo cierre sí.
+**PUSD-13**, Gerencia SÍ cambia la moneda de un cierre imputado a un mes sellado, en los dos
+sentidos, y la corrección deja nota con el antes y el después.
 
 🔴 **Dos trampas de paridad del ensayo, que dan un verde falso si se olvidan**: las plantillas del
 banco traen `crm.corregir_cierre_externo` un commit por detrás (sin la guarda de

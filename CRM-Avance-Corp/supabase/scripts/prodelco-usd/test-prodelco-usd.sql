@@ -42,9 +42,13 @@
 --            conservando la moneda sigue funcionando.
 --   PUSD-12  Si la cooperativa RETIRA la moneda entre preparar y confirmar, la
 --            confirmación se niega y no deja nada escrito.
---   PUSD-13  Gerencia NO cambia la moneda de un cierre imputado a un mes
---            SELLADO (movería capital entre columnas de una foto ya tomada);
---            corregir otros campos de ese mismo cierre sigue permitido.
+--   PUSD-13  Gerencia SÍ cambia la moneda de un cierre imputado a un mes
+--            SELLADO. Es una DECISIÓN DE MIGUEL del 18/09/2026, tomada sabiendo
+--            que eso mueve capital entre la columna PEN y la USD de un mes ya
+--            reportado; queda trazado en la línea de tiempo del lead con el
+--            antes y el después. El caso está aquí para que nadie lo vuelva a
+--            bloquear «por prudencia» sin preguntar: si alguien añade esa
+--            guarda, este caso lo caza.
 -- ============================================================================
 begin;
 set local statement_timeout = '120s';
@@ -508,10 +512,14 @@ rollback to savepoint pusd_retirada;
 select pg_temp.pusd_caso('PUSD-12');
 
 -- ════════════════════════════════════════════════════════════════════════════
--- PUSD-13 · La moneda de un cierre imputado a un mes SELLADO no se cambia
+-- PUSD-13 · Gerencia SÍ cambia la moneda de un cierre en un mes SELLADO
 -- ════════════════════════════════════════════════════════════════════════════
+-- Decisión de Miguel, 18/09/2026. La alternativa (bloquearlo) se le planteó
+-- explicando que mueve capital entre columnas de moneda en un mes ya cerrado y
+-- reportado, y la descartó. Lo que SÍ queda es el rastro: la corrección deja
+-- una nota en la línea de tiempo del lead con la moneda de antes y la de
+-- después, y el auditor guarda la fila entera.
 savepoint pusd_sello;
--- Se sella el mes al que está imputado el cierre de PUSD-01 (hoy, en Lima).
 -- El sello se siembra a mano con las columnas que la tabla exige; lo que este
 -- caso mide es la reacción del escritor al sello, no cómo se sella (para eso
 -- está el oráculo del cierre de mes).
@@ -522,24 +530,30 @@ select date_trunc('month', coalesce(ce.fecha_imputacion, ce.fecha_comercial,
 from crm.cierres_externos ce where ce.numero_transaccion = 'PUSD-USD-001'
 on conflict (periodo) do nothing;
 
-select pg_temp.pusd_falla('PUSD-13', 'gerencia cambia la moneda en un mes sellado',
+select pg_temp.pusd_ok('PUSD-13', 'gerencia lleva el cierre de USD a PEN en un mes sellado',
   pg_catalog.format(
     'select pg_temp.pusd_como(%L::uuid), crm.corregir_cierre_externo(%L::uuid, 7500.00, %L, %L, %L, null, null, null)',
     (select perfil_id from pusd_gerencia),
     (select id from crm.cierres_externos where numero_transaccion = 'PUSD-USD-001'),
-    'PEN', 'prodelco', 'PUSD-USD-001'),
-  'P0409', '%mes ya esta sellado%');
-select pg_temp.pusd_igual('PUSD-13', 'el cierre sigue en USD', 'USD',
+    'PEN', 'prodelco', 'PUSD-USD-001'));
+select pg_temp.pusd_igual('PUSD-13', 'el cierre quedó en PEN', 'PEN',
   (select moneda from crm.cierres_externos where numero_transaccion = 'PUSD-USD-001'));
 
--- Corregir OTROS campos del MISMO cierre en el MISMO mes sellado sigue
--- permitido: la guarda acota la moneda, no la corrección (conducta anterior).
-select pg_temp.pusd_ok('PUSD-13', 'corregir la nota del mismo cierre en el mes sellado',
+-- Y el rastro existe: sin él, un cambio de denominación en un mes cerrado
+-- sería invisible para quien revise después.
+select pg_temp.pusd_igual('PUSD-13', 'la corrección dejó nota con el antes y el después', 1,
+  (select count(*)::integer from crm.actividades a
+   where a.metadata->>'accion' = 'correccion_cierre_externo'
+     and a.metadata->'antes'->>'moneda' = 'USD'
+     and a.metadata->'despues'->>'moneda' = 'PEN'));
+
+-- Y se puede volver: la puerta no es de una sola dirección.
+select pg_temp.pusd_ok('PUSD-13', 'y vuelve a USD en el mismo mes sellado',
   pg_catalog.format(
-    'select pg_temp.pusd_como(%L::uuid), crm.corregir_cierre_externo(%L::uuid, 7500.00, %L, %L, %L, null, null, %L)',
+    'select pg_temp.pusd_como(%L::uuid), crm.corregir_cierre_externo(%L::uuid, 7500.00, %L, %L, %L, null, null, null)',
     (select perfil_id from pusd_gerencia),
     (select id from crm.cierres_externos where numero_transaccion = 'PUSD-USD-001'),
-    'USD', 'prodelco', 'PUSD-USD-001', 'Nota sintetica del oraculo PUSD-13'));
+    'USD', 'prodelco', 'PUSD-USD-001'));
 rollback to savepoint pusd_sello;
 select pg_temp.pusd_caso('PUSD-13');
 

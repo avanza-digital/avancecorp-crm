@@ -16,7 +16,7 @@ const SALIDA = join(AQUI, '..', `registrar-${VERSION}.sql`);
 // copia a paridad. Si en producción no quedan EXACTAMENTE así, no se registra.
 const ESCRITORES = [
   ['crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text,integer,numeric)', 'f1759833df86b0a7e6f08d21ec2260c4'],
-  ['crm.corregir_cierre_externo(uuid,numeric,text,text,text,text,date,text)', '93c3c6eb72b37fdf58b537781154ab88'],
+  ['crm.corregir_cierre_externo(uuid,numeric,text,text,text,text,date,text)', '70c0100740abf3a502c904dd0b95c116'],
   ['private.inversion_validar_datos(uuid,jsonb,jsonb)', '7c7f4bb5d77a7834571af850585f505f'],
   ['crm.confirmar_inversion_revisada_fn(uuid,integer)', 'eb671aa677a9ba63fa995510e4f48192'],
   ['crm.corregir_solicitud_inversion_fn(uuid,uuid,integer,jsonb,text)', 'fe210a25d8a08cfbce923d3ac12ab199'],

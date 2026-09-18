@@ -1,9 +1,9 @@
 {
-  "fecha": "2026-09-18T15:06:08.129Z",
+  "fecha": "2026-09-18T15:24:30.528Z",
   "copia": "prodelco_usd_20260917",
   "plantilla": "cartera_origen_20260916",
   "migracion": "20260917235656_crm_prodelco_inversiones_en_dolares.sql",
-  "md5_migracion": "ff35d7779a27c84f087be114d9716287",
+  "md5_migracion": "116e599e986bba12cdf5c6955ea1acc9",
   "catalogo_antes": "{\"avance\": [\"PEN\", \"USD\"], \"prodelco\": [\"PEN\"], \"qorilazo\": [\"PEN\"]}",
   "catalogo_despues": "{\"avance\": [\"PEN\", \"USD\"], \"prodelco\": [\"PEN\", \"USD\"], \"qorilazo\": [\"PEN\"]}",
   "check_antes": "CHECK ((moneda = 'PEN'::text))",
@@ -17,7 +17,7 @@
   },
   "escritores_despues": {
     "convertir": "f1759833df86b0a7e6f08d21ec2260c4",
-    "corregir": "93c3c6eb72b37fdf58b537781154ab88",
+    "corregir": "70c0100740abf3a502c904dd0b95c116",
     "validar": "7c7f4bb5d77a7834571af850585f505f",
     "confirmar": "eb671aa677a9ba63fa995510e4f48192",
     "correccionF4": "fe210a25d8a08cfbce923d3ac12ab199"
@@ -29,7 +29,6 @@
     "M3 · sin la guarda del null (el candado se abriría solo)",
     "M4 · el insert F4 vuelve a fijar PEN",
     "M6 · la corrección F4 deja de declarar la moneda inmutable",
-    "M7 · gerencia puede cambiar la moneda en un mes sellado",
     "M5 · el CHECK de la tabla vuelve a solo soles"
   ],
   "segunda_aplicacion": "negada por el preflight",

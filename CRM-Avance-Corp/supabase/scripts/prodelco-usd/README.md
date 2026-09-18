@@ -41,7 +41,7 @@ cooperativa **es un UPDATE de una fila, no un despliegue**. Lo único que no se
 mueve solo es el *selector* del formulario, que refleja el catálogo en
 `app/src/lib/cierres-externos.ts` (`INFO_COOPERATIVA[...].monedas`).
 
-## Las tres defensas nuevas
+## Las dos defensas nuevas
 
 Salieron de la revisión independiente (Codex como reviewer, más el `auditor-rls`
 del proyecto). **Ninguna quita conducta anterior: acotan lo que se acaba de
@@ -63,26 +63,30 @@ que el comprobante acredita, no un texto corregible.
 USD ahora **falla con 22023**. Es fail-closed y deseado, pero hay que
 anunciarlo a quien opere.
 
-### 2. Gerencia no cambia la moneda de un cierre en un mes SELLADO
-
-Cambiar la moneda mueve capital de la columna PEN a la USD (o al revés) en el mes
-al que el cierre está imputado. Si ese mes está sellado, la foto ya se tomó y el
-sello existe para que sus números no se muevan.
-
-Corregir **monto, operación, certificado, vencimiento o nota** en un mes sellado
-sigue funcionando igual que siempre. Antes del 17/09 la moneda era inmutable de
-hecho (el CHECK fijaba PEN), así que esto no quita nada que se pudiera hacer.
-
-**Es una decisión por defecto, no una ley.** Si Miguel quiere que gerencia pueda
-re-denominar en un mes sellado, se retira esa guarda (y conviene entonces el
-patrón de `ajuste_mes_cerrado` que ya usa la confirmación F4).
-
-### 3. `coalesce` sobre las monedas del catálogo en los dos escritores F4
+### 2. `coalesce` sobre las monedas del catálogo en los dos escritores F4
 
 Hoy `crm.empresas.monedas` es `NOT NULL` (F1), pero si algún día se relajara,
 `= any(null)` daría `NULL`, el `if` sería falso y esos dos candados se abrirían
 solos **mientras los de las cooperativas siguen cerrados**. Un array vacío no
 admite nada, que es el lado correcto del que fallar.
+
+## La decisión que se planteó y Miguel resolvió
+
+**Gerencia SÍ puede cambiar la moneda de un cierre imputado a un mes ya
+SELLADO** (Miguel, 18/09/2026).
+
+Se le planteó el reparo con su consecuencia: cambiar la moneda mueve capital de
+la columna de soles a la de dólares **en un mes cuya foto ya se tomó y se
+reportó**. Con la alternativa de bloquearlo sobre la mesa, eligió permitirlo.
+
+Lo que sí queda es el **rastro**: la corrección escribe una nota en la línea de
+tiempo del lead con la moneda de antes y la de después, y el auditor guarda la
+fila entera. Quien revise después puede ver qué se re-denominó y cuándo.
+
+**PUSD-13 asevera que está PERMITIDO.** Si una sesión futura lo bloquea «por
+prudencia» sin preguntar, el oráculo lo caza. Si algún día se quiere bloquear de
+verdad, el patrón a seguir es el de `crm.confirmar_inversion_revisada_fn`, que
+imputa a un mes posterior en vez de rechazar.
 
 ## Orden de candados, y por qué importa
 
@@ -143,7 +147,7 @@ El ensayo escribe `verificacion.json`. Resultado del 18/09/2026:
 |---|---|
 | Migración aplicada (su postflight manda) | PASS |
 | Oráculo `test-prodelco-usd.sql`, 13 casos | PASS |
-| Mutantes cazados | 7 de 7 |
+| Mutantes cazados | 6 de 6 |
 | Segunda aplicación | negada por el preflight |
 | Registrador | registra, idempotente, se niega con otro cuerpo |
 | Reversa con dólares vivos o solicitudes F4 en USD | negada |
@@ -159,8 +163,8 @@ Casos decisivos:
   solicitud sigue en USD; corregir otro campo conservando la moneda sí funciona.
 - **PUSD-12** — si la cooperativa retira la moneda entre preparar y confirmar,
   la confirmación se niega y no deja nada escrito.
-- **PUSD-13** — la moneda no se cambia en un mes sellado, pero la nota del mismo
-  cierre sí.
+- **PUSD-13** — Gerencia sí cambia la moneda de un cierre imputado a un mes
+  sellado, en los dos sentidos, y queda la nota con el antes y el después.
 
 ⚠️ **`test:rls` (el gate del proyecto): 4 casos USD ESCRITOS pero NOT RUN.** El
 gate necesita el banco con las cuentas `*.crm@demo.avancecorp.pe` sembradas y el

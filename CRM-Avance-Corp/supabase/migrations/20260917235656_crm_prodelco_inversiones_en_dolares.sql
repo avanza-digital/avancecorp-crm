@@ -10,6 +10,12 @@
 -- fijo, así que al corregir cualquier otro campo de una solicitud en dólares la
 -- habría reescrito como soles, con el mismo importe y sin avisar.
 --
+-- Lo que NO lleva candado, por decisión de Miguel del 18/09/2026: Gerencia SÍ
+-- puede cambiar la moneda de un cierre imputado a un mes ya SELLADO. Se le
+-- planteó que eso mueve capital entre la columna PEN y la USD de un mes ya
+-- reportado y lo aceptó; el cambio queda trazado en la línea de tiempo del lead
+-- con el antes y el después, más la fila entera en el auditor.
+--
 -- Lo que NO cambia: la lectura y el capital ya llevan la moneda como dimensión
 -- (`private.capital_episodios` toma `ce.moneda`; la cuota agrupa por
 -- (categoría, moneda) y PEN/USD jamás se suman), así que un cierre en dólares
@@ -554,7 +560,6 @@ declare
   v_transaccion text := btrim(p_numero_transaccion);
   v_referencia  text := nullif(btrim(p_referencia), '');
   v_monedas     text[];
-  v_periodo     date;
 begin
   if v_uid is null or v_rol is distinct from 'gerencia' then
     raise exception 'Solo gerencia corrige cierres externos'
@@ -619,34 +624,6 @@ begin
       errcode = 'P0409',
       message = 'Ese cierre esta anulado: ya no cuenta y no se corrige',
       detail  = pg_catalog.format('cierre %s, anulado el %s', v_cierre.id, v_cierre.anulado_en);
-  end if;
-
-  -- CAMBIAR LA MONEDA de un cierre mueve capital de la columna PEN a la USD
-  -- (o al revés) en el mes al que ese cierre está imputado. Si ese mes está
-  -- SELLADO, la foto ya se tomó y el sello existe justamente para que sus
-  -- números no se muevan: se rechaza, y el mensaje dice cuál es el mes.
-  -- Antes del 17/09/2026 esto no podía pasar (el CHECK fijaba PEN), así que la
-  -- guarda no quita nada que se pudiera hacer: acota lo que se acaba de abrir.
-  -- Corregir monto, operación, certificado, vencimiento o nota en un mes
-  -- sellado sigue funcionando igual que siempre.
-  if p_moneda is distinct from v_cierre.moneda then
-    -- `coalesce` va SIN calificar a propósito: es una construcción del lenguaje
-    -- SQL, no una función del catálogo, y `pg_catalog.coalesce(...)` no existe.
-    -- No depende del search_path, así que es seguro con `search_path=''`.
-    v_periodo := pg_catalog.date_trunc('month',
-      coalesce(v_cierre.fecha_imputacion, v_cierre.fecha_comercial,
-        (v_cierre.creado_en at time zone 'America/Lima')::date))::date;
-    -- Mismo candado que usa el sello, para que no aparezca entre la decisión y
-    -- la escritura (ver crm.confirmar_inversion_revisada_fn).
-    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm.periodos_cerrados'),
-      (v_periodo - date '2000-01-01')::integer);
-    if exists (select 1 from crm.periodos_cerrados where periodo = v_periodo) then
-      raise exception using
-        errcode = 'P0409',
-        message = 'Ese mes ya esta sellado: no se cambia la moneda de un cierre imputado ahi',
-        detail  = pg_catalog.format('cierre %s, periodo %s', v_cierre.id, v_periodo),
-        hint    = 'Corrige monto, operacion, certificado, vencimiento o nota; cambiar la moneda de un mes sellado exige revision de Gerencia sobre el periodo.';
-    end if;
   end if;
 
   perform set_config('crm.op_privilegiada', 'on', true);

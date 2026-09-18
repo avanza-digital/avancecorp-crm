@@ -55,7 +55,7 @@ const ANTES = {
 // Huellas DESPUÉS, las que publica la migración.
 const DESPUES = {
   convertir: 'f1759833df86b0a7e6f08d21ec2260c4',
-  corregir: '93c3c6eb72b37fdf58b537781154ab88',
+  corregir: '70c0100740abf3a502c904dd0b95c116',
   validar: '7c7f4bb5d77a7834571af850585f505f',
   confirmar: 'eb671aa677a9ba63fa995510e4f48192',
   correccionF4: 'fe210a25d8a08cfbce923d3ac12ab199',
@@ -179,13 +179,6 @@ const mutantes = [
       ),
     caza: /PUSD-11/,
     restaurar: () => sql(defsDespues.correccionF4 + ';'),
-  },
-  {
-    nombre: 'M7 · gerencia puede cambiar la moneda en un mes sellado',
-    instalar: () =>
-      sql(defsDespues.corregir.replace(/  if p_moneda is distinct from v_cierre\.moneda then[\s\S]*?\n  end if;\n\n  perform set_config/, '  perform set_config') + ';'),
-    caza: /PUSD-13/,
-    restaurar: () => sql(defsDespues.corregir + ';'),
   },
   {
     nombre: 'M5 · el CHECK de la tabla vuelve a solo soles',
