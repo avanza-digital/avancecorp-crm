@@ -1,6 +1,6 @@
 # Prodelco admite inversiones en dólares (2026-09-17)
 
-> **Estado:** construido, ensayado y subido a la rama `crm/prodelco-usd-20260918`. **NO publicado.**
+> **Estado:** ✅ **FUNCIONANDO EN PRODUCCIÓN** desde el 18/09/2026.
 > **Decisión de Miguel (17/09/2026):** Prodelco sí, **Qorilazo solo soles**.
 
 ## Qué pidió el negocio
@@ -102,14 +102,24 @@ cuatro casos nuevos **están escritos pero no ejecutados**.
 - **La vuelta atrás tiene que restaurar los cinco escritores.** Si dejara uno fuera, el cambio
   **ya no se podría volver a aplicar**. El camino de regreso se rompe justo cuando se necesita.
 
-## Al publicar
+## Ya está publicado
 
-**Primero el servidor, después las pantallas.** Las pantallas empiezan a enviar un valor nuevo que
-el servidor viejo rechazaría. Al contrario no hay hueco: el servidor nuevo acepta lo que envían las
-pantallas viejas.
+Salió el 18 de septiembre: primero el servidor y después las pantallas, en ese orden, porque las
+pantallas envían un valor nuevo que el servidor viejo habría rechazado.
 
-Para cerrar la puerta en cualquier momento, sin desplegar nada, basta devolver la fila del catálogo
-de Prodelco a solo soles.
+Se comprobó contra la base real, **sin escribir nada**: una inversión de Prodelco en dólares se
+acepta y queda guardada en dólares; Qorilazo las rechaza con un mensaje claro; y el cálculo de
+capital las reporta en la columna de dólares, no en la de soles. Los 26 cierres que ya existían y
+el capital quedaron intactos.
+
+**Lo que verá tu equipo:** al cerrar en Prodelco aparece un desplegable de moneda, que arranca en
+soles. En Qorilazo la pantalla no cambia en nada.
+
+⚠️ **Aviso del día de la publicación:** quien tuviera el CRM abierto sin recargar la página vería un
+error al corregir una solicitud en dólares, hasta recargar. No se pierde nada ni se guarda mal.
+
+**Para cerrar la puerta en cualquier momento**, sin desplegar nada, basta devolver la fila del
+catálogo de Prodelco a solo soles.
 
 ---
 
