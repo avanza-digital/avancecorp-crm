@@ -87,7 +87,12 @@ import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { agruparTimeline } from '@/lib/timeline-lead'
 import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
-import { INFO_COOPERATIVA, type Cooperativa } from '@/lib/cierres-externos'
+import {
+  INFO_COOPERATIVA,
+  monedaPorDefecto,
+  pideMoneda,
+  type Cooperativa,
+} from '@/lib/cierres-externos'
 import { estadoDelCierre, puedeAnularCierreAvance } from '@/lib/cierre-estado'
 import { crmQueryKeys, useCierresEstado, useConvertirLeadExterno } from '@/data/crm-queries'
 import { AnularCierreAvanceDialog } from '@/components/app/anular-cierre-avance'
@@ -1758,11 +1763,16 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
   // corto del cierre externo (sin portal, sin correo, sin contrato).
   const [paso, setPaso] = useState<'destino' | 'convertir' | 'coop' | 'contrato'>('destino')
   const [coop, setCoop] = useState<Cooperativa>('qorilazo')
+  // La moneda del cierre. Arranca en la primera que admite la cooperativa
+  // elegida y solo se PREGUNTA cuando esa cooperativa admite más de una
+  // (Prodelco desde el 17/09/2026); en Qorilazo el formulario no cambia.
+  const [monedaCoop, setMonedaCoop] = useState<Moneda>(monedaPorDefecto('qorilazo'))
   // ── Cierre en cooperativa: lo que llena el analista ──
   // Monto REAL invertido (no el estimado del lead: ése era una promesa, éste es
   // el cierre). Nombre precargado del lead, editable.
-  // NO se pregunta la moneda: en cooperativas solo se invierte en SOLES (regla
-  // de negocio, 2026-08-12) y el servidor rechaza cualquier otra.
+  // La moneda se pregunta SOLO si la cooperativa admite más de una: quién
+  // admite qué lo dice `crm.empresas.monedas` en el servidor, y el front lo
+  // refleja en `INFO_COOPERATIVA` para no ofrecer lo que sería rechazado.
   const [montoCoop, setMontoCoop] = useState('')
   const [nombreCoop, setNombreCoop] = useState(l.nombre_completo)
   // El n.º de operación del depósito es la PRUEBA del cierre: obligatorio, único
@@ -2006,6 +2016,7 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
       const res = convertirExterno(l.id, {
         cooperativa: coop,
         monto,
+        moneda: monedaCoop,
         numeroTransaccion: transaccionLimpia,
         plazoMeses: condiciones.plazoMeses,
         tasaAnual: condiciones.tasaAnual,
@@ -2026,7 +2037,7 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
         leadId: l.id,
         cooperativa: coop,
         monto,
-        moneda: 'PEN',
+        moneda: monedaCoop,
         documentoTipo: tipoDoc,
         documento: docLimpio,
         nombre: nombreLimpio,
@@ -2205,6 +2216,10 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
               className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
               onClick={() => {
                 setCoop(c)
+                // Cambiar de cooperativa recoloca la moneda: si se venía de una
+                // que admite dólares, dejar 'USD' puesto al pasar a otra que
+                // solo toma soles enviaría algo que el servidor rechaza.
+                setMonedaCoop(monedaPorDefecto(c))
                 setPaso('coop')
               }}
             >
@@ -2254,25 +2269,63 @@ export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { 
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
-          {/* Sin selector de moneda: en cooperativas solo se invierte en soles,
-              así que se dice en el rótulo en vez de ofrecer una decisión que no
-              existe (y que el servidor rechazaría). */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cx-monto">Monto REAL invertido (S/)</Label>
-            <Input
-              id="cx-monto"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={montoCoop}
-              onChange={(e) => setMontoCoop(e.target.value)}
-              placeholder="10000.00"
-              disabled={enviando}
-              aria-invalid={campoErrorCoop === 'monto'}
-              aria-describedby={campoErrorCoop === 'monto' ? 'cx-error' : undefined}
-            />
-          </div>
+          {/* La moneda solo se OFRECE cuando la cooperativa admite más de una.
+              Si admite una sola, se dice en el rótulo del monto en vez de pedir
+              una decisión que no existe: es la misma pantalla de siempre. El
+              espejo de qué admite cada cooperativa vive en INFO_COOPERATIVA y
+              lo manda el catálogo del servidor. */}
+          {pideMoneda(coop) ? (
+            <div className="grid grid-cols-[132px_1fr] gap-2.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="cx-moneda">Moneda</Label>
+                <Select
+                  id="cx-moneda"
+                  value={monedaCoop}
+                  onChange={(e) => setMonedaCoop(e.target.value as Moneda)}
+                  disabled={enviando}
+                >
+                  {INFO_COOPERATIVA[coop].monedas.map((m) => (
+                    <option key={m} value={m}>
+                      {m === 'PEN' ? 'Soles (S/)' : 'Dólares (US$)'}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cx-monto">Monto REAL invertido ({SIMBOLO[monedaCoop]})</Label>
+                <Input
+                  id="cx-monto"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={montoCoop}
+                  onChange={(e) => setMontoCoop(e.target.value)}
+                  placeholder="10000.00"
+                  disabled={enviando}
+                  aria-invalid={campoErrorCoop === 'monto'}
+                  aria-describedby={campoErrorCoop === 'monto' ? 'cx-error' : undefined}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="cx-monto">Monto REAL invertido ({SIMBOLO[monedaCoop]})</Label>
+              <Input
+                id="cx-monto"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={montoCoop}
+                onChange={(e) => setMontoCoop(e.target.value)}
+                placeholder="10000.00"
+                disabled={enviando}
+                aria-invalid={campoErrorCoop === 'monto'}
+                aria-describedby={campoErrorCoop === 'monto' ? 'cx-error' : undefined}
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="cx-nombre">Nombre completo</Label>
             <Input

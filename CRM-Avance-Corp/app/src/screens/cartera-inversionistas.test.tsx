@@ -448,6 +448,38 @@ describe('F5: revisión y recuperación económica', () => {
     await waitFor(()=>expect(revocado).toHaveBeenCalled())
     expect(api.preparar).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
   })
+  it('QORILAZO no pregunta la moneda: solo admite soles',async () => {
+    const {user}=montar(true)
+    await user.click(await screen.findByRole('button',{name:'Qorilazo'}))
+    expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Capital en soles (PEN)')).toBeInTheDocument()
+  })
+  it('PRODELCO pregunta la moneda y la inversión en dólares viaja como USD',async () => {
+    // Es el caso que justifica la apertura: una inversión ADICIONAL de Prodelco
+    // en dólares. Antes del 17/09/2026 este formulario mandaba 'PEN' fijo.
+    let vigente=solicitud()
+    api.preparar.mockImplementation(async intento=> {vigente={...solicitud(intento.clave),revision_datos:1,datos:intento.datos}; return vigente})
+    api.consultar.mockImplementation(async()=>vigente)
+    const {user}=montar(true)
+    await user.click(await screen.findByRole('button',{name:'Prodelco'}))
+    const moneda=screen.getByLabelText('Moneda')
+    expect(moneda).toHaveValue('PEN')
+    await user.selectOptions(moneda,'USD')
+    // El rótulo del capital dice en qué moneda va el número.
+    expect(screen.getByLabelText('Capital en dólares (USD)')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Capital en dólares (USD)'),'4321')
+    await user.type(screen.getByLabelText('Número de operación del depósito'),'F5-USD-001')
+    await user.clear(screen.getByLabelText('Fecha comercial (inicio)')); await user.type(screen.getByLabelText('Fecha comercial (inicio)'),'2026-09-01')
+    await user.type(screen.getByLabelText('Plazo (meses)'),'12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'),'9.5')
+    await user.type(screen.getByLabelText('Referencia de la inversión'),'REFERENCIA USD')
+    await user.upload(screen.getByLabelText(/Comprobante PDF/),new File(['pdf sintético'],'prueba.pdf',{type:'application/pdf'}))
+    fireEvent.submit(screen.getByRole('button',{name:'Revisar inversión'}).closest('form')!)
+    await screen.findByRole('button',{name:'Confirmar inversión'})
+    expect(api.preparar).toHaveBeenCalledWith(expect.objectContaining({
+      datos:expect.objectContaining({empresa:'prodelco',moneda:'USD',monto:4321}),
+    }))
+  })
   it('prepara sin éxito anticipado, confirma con revisión devuelta y recupera un corte sin otra alta',async () => {
     let vigente=solicitud()
     api.preparar.mockImplementation(async intento=> {vigente={...solicitud(intento.clave),revision_datos:3,datos:intento.datos}; return vigente})

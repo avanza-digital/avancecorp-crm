@@ -683,12 +683,76 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     expect(screen.getByLabelText('Nombre completo')).toHaveValue('JUAN PEREZ ROJAS')
   })
 
-  it('NO se pregunta la moneda: en cooperativas solo se invierte en soles', async () => {
+  it('en QORILAZO no se pregunta la moneda: solo admite soles', async () => {
     await montarEnCoop()
     // Ofrecer una decisión que no existe (y que el servidor rechazaría) es peor
     // que no ofrecerla: el rótulo del monto dice la moneda.
     expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
+  })
+
+  it('en PRODELCO sí se pregunta, porque admite soles y dólares', async () => {
+    await montarEnCoop({}, 'Prodelco')
+    const moneda = screen.getByLabelText('Moneda')
+    expect(moneda).toBeInTheDocument()
+    // Arranca en soles: la primera que admite el catálogo. Un cierre en dólares
+    // es la excepción, así que no se abre el formulario ya puesto en ella.
+    expect(moneda).toHaveValue('PEN')
+    expect(
+      [...moneda.querySelectorAll('option')].map((o) => o.getAttribute('value')),
+    ).toEqual(['PEN', 'USD'])
+    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
+  })
+
+  it('al elegir dólares en PRODELCO, el rótulo del monto cambia de símbolo', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop({}, 'Prodelco')
+    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    // El rótulo es lo único que dice en qué moneda va el número: si no cambia,
+    // el analista escribe dólares creyendo que son soles.
+    expect(screen.getByLabelText('Monto REAL invertido (US$)')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Monto REAL invertido (S/)')).not.toBeInTheDocument()
+  })
+
+  it('un cierre de PRODELCO en dólares viaja con moneda USD', async () => {
+    const user = userEvent.setup()
+    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-usd', cooperativa: 'prodelco' })
+    await montarEnCoop({}, 'Prodelco')
+    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await user.type(screen.getByLabelText('Monto REAL invertido (US$)'), '5000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-USD-1')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '9.5')
+    await user.click(screen.getByRole('button', { name: /Cerrar en PRODELCO/ }))
+
+    expect(mutarCierreExterno).toHaveBeenCalledWith(
+      expect.objectContaining({ cooperativa: 'prodelco', monto: 5000, moneda: 'USD' }),
+    )
+  })
+
+  it('volver y elegir QORILAZO recoloca la moneda: no se manda USD a quien no lo admite', async () => {
+    const user = userEvent.setup()
+    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-pen', cooperativa: 'qorilazo' })
+    await montarEnCoop({}, 'Prodelco')
+    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    // Se vuelve al paso «¿Dónde invirtió?» y se elige la otra cooperativa. Sin
+    // recolocar la moneda, el 'USD' que quedó puesto viajaría a Qorilazo y el
+    // servidor lo rechazaría después de llenar el formulario entero.
+    await user.click(screen.getByRole('button', { name: 'Volver' }))
+    await user.click(screen.getByRole('button', { name: /COOPAC Qorilazo/ }))
+    expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '8000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-PEN-1')
+    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '9.5')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(mutarCierreExterno).toHaveBeenCalledWith(
+      expect.objectContaining({ cooperativa: 'qorilazo', moneda: 'PEN' }),
+    )
   })
 
   it('sin N.° de operación no viaja nada: es la prueba del cierre', async () => {
@@ -856,6 +920,8 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     expect(convertirExterno).toHaveBeenCalledWith('lead-1', {
       cooperativa: 'qorilazo',
       monto: 8000,
+      // Qorilazo solo admite soles: el formulario no pregunta y manda PEN.
+      moneda: 'PEN',
       numeroTransaccion: 'OP-DEMO',
       plazoMeses: 12,
       tasaAnual: 12,

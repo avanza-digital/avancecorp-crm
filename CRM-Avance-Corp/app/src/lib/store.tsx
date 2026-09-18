@@ -272,7 +272,9 @@ export interface CierreExternoDemo {
   leadId: string
   cooperativa: Cooperativa
   monto: number
-  /** Siempre 'PEN': en cooperativas solo se invierte en soles. */
+  /** PEN o USD, según lo que admita esa cooperativa (Prodelco las dos desde el
+   * 17/09/2026). En demo se guarda la que eligió el analista, para que la
+   * sección de Mi cartera muestre el mismo desglose que en real. */
   moneda: Moneda
   nombre: string
   telefono: string
@@ -399,6 +401,7 @@ export interface StoreDataApi {
     datos: {
       cooperativa: Cooperativa
       monto: number
+      moneda: Moneda
       numeroTransaccion: string
       plazoMeses?: number
       tasaAnual?: number
@@ -2511,7 +2514,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             leadId: id,
             cooperativa: datosCierre.cooperativa,
             monto: datosCierre.monto,
-            moneda: 'PEN',
+            moneda: datosCierre.moneda,
             nombre: actual.nombre_completo,
             telefono: actual.telefono,
             numeroTransaccion: datosCierre.numeroTransaccion,

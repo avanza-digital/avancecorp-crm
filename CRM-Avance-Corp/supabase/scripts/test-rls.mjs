@@ -11331,6 +11331,9 @@ async function testConversionMensual(sessions, seed) {
 const IDS_CIERRES_EXTERNOS = Object.freeze({
   leadAjeno: randomUUID(),
   leadCoop: randomUUID(),
+  // Lead propio de vend1 para el cierre en DOLARES de Prodelco (17/09/2026).
+  // Va aparte del de Qorilazo porque un lead solo se cierra una vez.
+  leadCoopUsd: randomUUID(),
 });
 
 // ── Migracion B: la CUOTA y su conversion (crm.cumplimiento_metas_fn) ───────
@@ -12155,6 +12158,20 @@ async function testCierresExternos(sessions, seed) {
           telefono: '999000142',
           vendedor_id: ids.vend3,
         },
+        {
+          activo: true,
+          asignado_supervisor_id: null,
+          creado_por: ids.vend1,
+          etapa: 'nuevo',
+          id: IDS_CIERRES_EXTERNOS.leadCoopUsd,
+          moneda: 'USD',
+          monto_estimado: 4000,
+          no_contactar: false,
+          nombre_completo: 'CIERRE EXTERNO USD TRANSIENT',
+          origen: 'otro',
+          telefono: '999000143',
+          vendedor_id: ids.vend1,
+        },
       ]),
     );
 
@@ -12240,6 +12257,91 @@ async function testCierresExternos(sessions, seed) {
     check(Number(gerTras?.data?.cierres_total ?? 0) === totalAntes + 1,
       'cierres_total global subio exactamente en 1',
       JSON.stringify({ antes: totalAntes, despues: gerTras?.data?.cierres_total }));
+
+    // ── 3ter · LA MONEDA LA MANDA EL CATALOGO (migracion 20260917235656) ────
+    // Prodelco admite soles y dolares desde el 17/09/2026; Qorilazo solo soles.
+    // Quien lo decide es `crm.empresas.monedas`, no un literal en el escritor,
+    // asi que estos cuatro casos son la frontera: si alguien volviera a fijar
+    // la moneda a mano, o abriera USD a las dos, aqui se ve.
+    const OPERACION_USD = `OP-GATE-USD-${IDS_CIERRES_EXTERNOS.leadCoopUsd.slice(0, 8)}`;
+    const argsUsd = {
+      p_cooperativa: 'prodelco',
+      p_documento: '99887762',
+      p_documento_tipo: 'DNI',
+      p_lead_id: IDS_CIERRES_EXTERNOS.leadCoopUsd,
+      p_moneda: 'USD',
+      p_monto: 4321.00,
+      p_nombre: 'CIERRE EXTERNO USD TRANSIENT',
+      p_numero_transaccion: OPERACION_USD,
+      p_referencia: 'PRO-GATE-USD-1',
+    };
+
+    // (a) Qorilazo NO admite dolares. El mensaje lo dice con el nombre de la
+    //     moneda pedida, no con un «solo soles» generico.
+    await expectExpectedFailure('qorilazo rechaza un cierre en USD',
+      convertir('vend1', { ...argsUsd, p_cooperativa: 'qorilazo' }),
+      ['22023'], /no registra inversiones en USD/i);
+
+    // (b) Prodelco SI, y la fila nace en USD (no convertida a soles por debajo).
+    const cierreUsd = await positive(
+      'vend1 cierra su lead en COOPAC Prodelco en DOLARES',
+      convertir('vend1', argsUsd),
+    );
+    if (cierreUsd) {
+      const filaUsd = await requireAdmin(
+        'leer el cierre en USD (admin)',
+        admin.schema('crm').from('cierres_externos')
+          .select('moneda, monto, cooperativa')
+          .eq('id', cierreUsd.data?.cierre_id).single(),
+      );
+      check(filaUsd.data?.moneda === 'USD'
+        && Number(filaUsd.data?.monto) === 4321
+        && filaUsd.data?.cooperativa === 'prodelco',
+        'la fila quedo en USD con su monto y su cooperativa',
+        JSON.stringify(filaUsd.data));
+    }
+
+    // (c) La correccion de gerencia usa el MISMO catalogo: puede dejar un
+    //     Prodelco en dolares, y no puede hacerlo en Qorilazo.
+    if (cierreUsd?.data?.cierre_id) {
+      await positive('gerencia corrige el cierre de Prodelco conservando USD',
+        corregir('gerencia', {
+          p_cierre_id: cierreUsd.data.cierre_id,
+          p_cooperativa: 'prodelco',
+          p_moneda: 'USD',
+          p_monto: 5000.00,
+          p_nota: null,
+          p_numero_transaccion: OPERACION_USD,
+          p_referencia: 'PRO-GATE-USD-2',
+          p_vence_en: null,
+        }));
+      await expectExpectedFailure('gerencia NO puede mover ese cierre a qorilazo/USD',
+        corregir('gerencia', {
+          p_cierre_id: cierreUsd.data.cierre_id,
+          p_cooperativa: 'qorilazo',
+          p_moneda: 'USD',
+          p_monto: 5000.00,
+          p_nota: null,
+          p_numero_transaccion: OPERACION_USD,
+          p_referencia: 'PRO-GATE-USD-2',
+          p_vence_en: null,
+        }), ['22023'], /no registra inversiones en USD/i);
+    }
+
+    // (d) El lector global sigue recibiendo AGREGADOS y ninguna fila, existiendo
+    //     ya un cierre en dolares: abrir una moneda no abre una ventana.
+    const dirUsd = await positive(
+      'directorio (lector global) lee cierres_externos_fn con un cierre en USD vivo',
+      pedirFn('directorio'),
+    );
+    check(Array.isArray(dirUsd?.data?.cierres) && dirUsd.data.cierres.length === 0,
+      'el lector global no recibe ni una fila de cierres, tampoco en USD',
+      JSON.stringify(dirUsd?.data?.cierres));
+    const totalesUsd = (dirUsd?.data?.totales ?? [])
+      .filter((x) => x.moneda === 'USD');
+    check(totalesUsd.length > 0 && totalesUsd.every((x) => x.cooperativa === 'prodelco'),
+      'los totales traen la linea USD separada, y solo de prodelco',
+      JSON.stringify(dirUsd?.data?.totales));
 
     // ── 3bis · crm.cierres_estado_fn: la VENTANA a la anulacion, y su ambito ─
     // Existe porque `crm.cierres_avance_anulados` es deny-by-default: sin ella
@@ -12481,7 +12583,8 @@ async function testCierresExternos(sessions, seed) {
     await requireAdmin(
       'limpieza: desactivar los leads transitorios de cierres externos',
       admin.schema('crm').from('leads').update({ activo: false })
-        .in('id', [IDS_CIERRES_EXTERNOS.leadCoop, IDS_CIERRES_EXTERNOS.leadAjeno]),
+        .in('id', [IDS_CIERRES_EXTERNOS.leadCoop, IDS_CIERRES_EXTERNOS.leadAjeno,
+          IDS_CIERRES_EXTERNOS.leadCoopUsd]),
     );
   }
 }

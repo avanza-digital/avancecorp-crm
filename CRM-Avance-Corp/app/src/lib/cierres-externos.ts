@@ -19,6 +19,7 @@
 //   las filas viajan con tope 200 (`cierres_total` dice cuántas hay de verdad)
 //   y sumar una lista truncada mentiría.
 import * as v from 'valibot'
+import type { Moneda } from './format'
 import {
   EnteroNoNegativoRpcSchema,
   FechaHoraSchema,
@@ -31,31 +32,65 @@ import {
 export const COOPERATIVAS = ['qorilazo', 'prodelco'] as const
 export type Cooperativa = (typeof COOPERATIVAS)[number]
 
-/** Rótulos y distintivo visual por cooperativa (chips de Mi cartera y reportes). */
+/**
+ * Rótulos, distintivo visual y MONEDAS ADMITIDAS por cooperativa (chips de Mi
+ * cartera y reportes; el formulario de cierre usa `monedas`).
+ *
+ * `monedas` es un ESPEJO de `crm.empresas.monedas` en el servidor, igual que
+ * `COOPERATIVAS` lo es del CHECK: aquí sirve para no ofrecerle al analista una
+ * opción que el servidor rechazaría, no para imponer la regla. Quien la impone
+ * es el catálogo del servidor, y por eso abrir o cerrar una moneda allí surte
+ * efecto en el acto (lo que se pierde sin tocar esto es solo el selector).
+ * Si mañana se abre otra combinación, este espejo se actualiza en ese release.
+ *
+ * Estado al 17/09/2026: Prodelco admite soles y dólares; Qorilazo solo soles.
+ */
 export const INFO_COOPERATIVA: Record<
   Cooperativa,
-  { nombre: string; corto: string; chipClase: string }
+  {
+    nombre: string
+    corto: string
+    chipClase: string
+    /** Nunca vacío: una cooperativa sin moneda admitida no podría cerrar nada,
+     *  y el tipo lo dice para que `monedas[0]` sea una moneda y no `undefined`. */
+    monedas: readonly [Moneda, ...Moneda[]]
+  }
 > = {
   qorilazo: {
     nombre: 'COOPAC Qorilazo',
     corto: 'QORILAZO',
     // Ámbar: distinto del navy/azul de Avance y del rojo de estados de error.
     chipClase: 'bg-amber-100 text-amber-900 border border-amber-300',
+    monedas: ['PEN'],
   },
   prodelco: {
     nombre: 'COOPAC Prodelco',
     corto: 'PRODELCO',
     // Violeta: nunca verde (regla de diseño de la casa).
     chipClase: 'bg-violet-100 text-violet-900 border border-violet-300',
+    monedas: ['PEN', 'USD'],
   },
 }
 
+/** La moneda con la que se abre el formulario de una cooperativa. */
+export function monedaPorDefecto(coop: Cooperativa): Moneda {
+  return INFO_COOPERATIVA[coop].monedas[0]
+}
+
+/** ¿Hay que preguntar la moneda, o esta cooperativa solo admite una? */
+export function pideMoneda(coop: Cooperativa): boolean {
+  return INFO_COOPERATIVA[coop].monedas.length > 1
+}
+
+/** ¿Admite esta cooperativa esa moneda? Espejo del catálogo del servidor. */
+export function admiteMoneda(coop: Cooperativa, moneda: Moneda): boolean {
+  return INFO_COOPERATIVA[coop].monedas.includes(moneda)
+}
+
 const CooperativaSchema = v.picklist(COOPERATIVAS)
-/** En cooperativas SOLO se invierte en soles (regla de negocio de Miguel,
- * 2026-08-12; el CHECK de `crm.cierres_externos` lo obliga). La picklist admite
- * las dos a propósito: el contrato del front no es el sitio donde se impone una
- * regla comercial, y si mañana se abre USD el bundle viejo no revienta. Quien la
- * impone es el servidor, y el formulario ya no la pregunta. */
+/** PEN o USD, espejo del CHECK de `crm.cierres_externos` (ensanchado el
+ * 17/09/2026). QUÉ moneda admite cada cooperativa no se decide aquí: lo dice
+ * `crm.empresas.monedas` en el servidor, reflejado en `INFO_COOPERATIVA`. */
 const MonedaSchema = v.picklist(['PEN', 'USD'])
 
 const CierreExternoSchema = v.object({

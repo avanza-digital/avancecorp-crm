@@ -40,7 +40,7 @@ import {
   type RespuestaReprogramarReunion,
 } from '@/lib/tipos'
 import type { CategoriaContrato, CuotaCronograma, ModalidadContrato, TipoInteres } from '@/lib/cronograma'
-import { esMoneda } from '@/lib/format'
+import { esMoneda, type Moneda } from '@/lib/format'
 import { SIN_SUPERVISOR_ID, type FilaFacturacionDia } from '@/lib/facturacion'
 
 // Se re-exporta desde el modelo, que es donde vive el concepto: una sola
@@ -5528,10 +5528,12 @@ export interface ConvertirLeadExternoDatos {
   leadId: string
   cooperativa: Cooperativa
   monto: number
-  /** Siempre 'PEN': en cooperativas solo se invierte en soles. Se manda igual
-   * porque el servidor lo valida (un bundle viejo con USD merece rechazo claro,
-   * no que le cambiemos la moneda por debajo). */
-  moneda: 'PEN'
+  /** PEN o USD, según lo que admita ESA cooperativa (`crm.empresas.monedas`:
+   * Prodelco las dos desde el 17/09/2026, Qorilazo solo soles). Viaja siempre
+   * porque el servidor la valida contra su catálogo: una moneda que la
+   * cooperativa no admite merece un rechazo claro, no que se la cambien por
+   * debajo. */
+  moneda: Moneda
   documentoTipo: TipoDocumento
   documento: string
   nombre: string
@@ -5656,8 +5658,11 @@ export async function convertirLeadExterno(datos: ConvertirLeadExternoDatos): Pr
 export interface CorregirCierreExternoDatos {
   cierreId: string
   monto: number
-  /** Siempre 'PEN' (solo soles en cooperativas). */
-  moneda: 'PEN'
+  /** PEN o USD, según lo que admita ESA cooperativa (`crm.empresas.monedas`).
+   * ⚠️ El formulario que use esto DEBE mandar la moneda ACTUAL del cierre: el
+   * servidor acepta la que la cooperativa admita, así que fijar un literal aquí
+   * convertiría un cierre en dólares en soles por el mismo importe. */
+  moneda: Moneda
   cooperativa: Cooperativa
   /** El n.º de operación se corrige AQUÍ y solo aquí: es la prueba del cierre y
    * quien cobra no reescribe su propia prueba (decisión de Miguel 2026-08-12). */
