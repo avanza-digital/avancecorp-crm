@@ -2,12 +2,23 @@
 
 ## 20260917235656 — PRODELCO admite inversiones en dólares
 
-**🟠 CONSTRUIDA Y ENSAYADA el 17–18/09/2026. NO PUBLICADA.** PR abierta desde `crm/prodelco-usd-20260918`. Falta aplicar en producción
-(`db query --linked --file` de la migración y **después** del registrador
-`supabase/scripts/registrar-20260917235656.sql`) y publicar el front del commit verificado.
-**Orden obligatorio: servidor primero, front después** — el front empieza a mandar
-`p_moneda: 'USD'` y con el servidor viejo ese cierre moriría con «solo soles»; al revés no hay
-ventana (el servidor nuevo acepta los soles del front viejo).
+**✅ EN PRODUCCIÓN el 18/09/2026.** SQL aplicada y registrada ~12:35 Lima (registro **304**, cuerpo
+guardado con md5 `116e599e986bba12cdf5c6955ea1acc9`, idéntico al del archivo). **Front publicado
+~12:52 Lima**: artefacto `crm-20260918T174456Z-57009ee15b7f` (SHA-256 `3fc1619f…`, commit
+`57009ee1` = merge de la PR #16), construido en worktree limpio, preflight OK
+(`live=build-20260916T231006590Z/322ca2fcf373 candidate=57009ee15b7f`), `version.json` →
+`build-20260918T174455375Z`, home 200 y el `index-CtfSb426.js` servido **byte a byte idéntico** al
+del dist (md5 `93dcd4ee0007194c7f7745c76b9ad9e4`), con el selector de moneda dentro.
+
+Orden respetado: **servidor primero, front después**. Verificado en producción con la técnica del
+bloque `DO` que termina en `raise` (sin escribir nada, y comprobado después: 26 cierres, capital
+593 600, cero filas fuera de PEN, cero rastro de los ensayos): Prodelco/USD **aceptado** y la fila
+en USD · Qorilazo/USD **rechazado** con «Esa cooperativa no registra inversiones en USD» ·
+Qorilazo/PEN sigue aceptado · EUR rechazado · `private.capital_episodios` reporta esos dólares como
+**USD**. Permisos, dueños, DEFINER y `search_path` de las cinco funciones, idénticos a antes.
+Advisors de seguridad: **0 ERROR** (los dos avisos que mencionan estos objetos son los de siempre y
+por diseño: `rls_enabled_no_policy` en la tabla deny-by-default y
+`authenticated_security_definer_function_executable` en los escritores).
 
 Miguel, 17/09/2026: «necesito que en la cooperativa Prodelco se puedan hacer inversiones en
 dólares». Y en la misma conversación: **Qorilazo se queda solo en soles**.

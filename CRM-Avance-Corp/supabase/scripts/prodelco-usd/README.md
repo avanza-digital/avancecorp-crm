@@ -1,6 +1,6 @@
 # Prodelco admite inversiones en dólares
 
-Estado: **construido y ensayado el 17–18/09/2026. NO publicado.**
+Estado: **✅ EN PRODUCCIÓN el 18/09/2026** (SQL ~12:35 Lima, front ~12:52 Lima).
 
 Petición de Miguel (17/09/2026): que en la cooperativa **Prodelco** se puedan
 registrar inversiones en **dólares**. **Qorilazo se queda solo en soles**
@@ -200,9 +200,20 @@ tocados, `vitest` **3680/3680**, `npm run build` PASS. Dos mutantes de front
 cazados: quitar el recolocado de la moneda al cambiar de cooperativa, y volver a
 mandar `'PEN'` fijo en el formulario F4.
 
-## Publicación
+## Publicación — HECHA el 18/09/2026
 
-**Orden: servidor primero, front después.** El front empieza a mandar un valor
+Registro **304**. Artefacto `crm-20260918T174456Z-57009ee15b7f` (commit `57009ee1`), preflight OK,
+`version.json` → `build-20260918T174455375Z`, y el `index-CtfSb426.js` servido es **byte a byte** el
+del dist. Verificado en producción sin escribir nada (bloque `DO` que termina en `raise`):
+Prodelco/USD aceptado y guardado en USD, Qorilazo/USD rechazado, EUR rechazado, y el núcleo de
+capital reporta los dólares como USD.
+
+🔑 **La nota de que la MCP de Hostinger de la sesión no veía `crm.miavance.com` quedó
+DESACTUALIZADA**: el 18/09 sí lo ve, en la cuenta correcta (`u318796122`), así que el deploy salió
+por `hosting_deployStaticWebsite` sin necesitar el token de Miguel en el terminal. Eso además evita
+tener que rotarlo.
+
+**Orden, para la próxima: servidor primero, front después.** El front empieza a mandar un valor
 nuevo (`p_moneda: 'USD'`) en la petición; con el servidor viejo ese cierre
 moriría con el mensaje de «solo soles». Al revés no hay ventana: el servidor
 nuevo acepta los soles que manda el front viejo.
