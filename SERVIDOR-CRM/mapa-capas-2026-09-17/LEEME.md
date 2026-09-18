@@ -1,7 +1,31 @@
 # Mapa de capas del servidor CRM — 17/09/2026
 
-**Artifact interactivo (privado):** https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81 (versión 3, 17/09/2026 ~20:40 UTC)
+**Artifact interactivo (privado):** https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81 (versión 3.1, 17/09/2026 ~00:10 UTC del 18/09)
 **Página en disco:** `mapa-capas-crm.html` (es el mismo HTML publicado; ábrelo con `file://`).
+
+## Versión 3.1 (misma URL): fallos corregidos en la página
+
+Mismos datos y misma libreta; solo cambia la página. Miguel pidió arreglar los fallos DIRECTO sobre el artifact, así
+que se editó el HTML publicado y se republicó con `url`; después se portaron los mismos parches a `scripts/plantilla.html`
+(la plantilla con los datos vuelve a dar byte a byte este `mapa-capas-crm.html`).
+
+- **Móvil (~400px).** La barra de herramientas ocupaba 7 filas (276px) y en pantalla completa el mapa era una franja:
+  ahora es una sola fila desplazable (54px) y la barra de ayuda se oculta en pantalla completa estrecha.
+- **Pantalla completa.** El lienzo usaba `calc(100% - 92px)` y se rompía en cuanto la barra se partía en varias filas
+  (ya pasa a 1600px): ahora crece con `flex` y ocupa exactamente lo que queda.
+- **Rótulos de capa siempre legibles.** En la vista general no se leía qué banda era cuál (30px en un lienzo de
+  7 000): hay rótulos HTML fijos «1 · Tablas … 4 · Pantallas» pegados al borde del lienzo, que desaparecen cuando el
+  rótulo del SVG ya se lee.
+- **Mostrar todo** limpia también el buscador de la tabla (antes seguía filtrada).
+- **Hover** sobre una línea atenuada (con otra seleccionada) la resalta; hover de tabla y matriz sin parpadeo.
+- **Contador** de la tabla avisa «· 5 transversales apagados» cuando el filtro X los oculta.
+- **Flujo/Trazo** se leen del selector real al cargar (el navegador puede restaurarlo al recargar).
+- **Robustez:** una conexión «misma capa» en Pantallas ya no rompe el render (`segmentos[4]`); el buscador de la
+  tabla conserva ancho mínimo.
+
+Verificado en Chromium (Playwright, 1600px y 400px, claro y oscuro): sin errores de consola, 0 líneas cruzan cajas,
+0 IDs sobre cajas, totales de la matriz cuadran (636 / 52 / 51). No probado: «Copiar evidencia» (portapapeles) y
+`requestFullscreen` dentro del iframe de claude.ai (si lo bloquea, cae al modo `position:fixed`, que sí se probó).
 
 ## Versión 2 (misma URL): qué cambió en la página
 

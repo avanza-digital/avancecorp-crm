@@ -35,7 +35,8 @@ header .meta .mono{color:var(--text)}
 .mapa{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
 .mapa.fs{position:fixed;inset:0;z-index:50;border-radius:0;border:0}
 .mapa:fullscreen{background:var(--surface)}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface-2);flex:0 0 auto}
+.toolbar .lbl,.toolbar button,.toolbar select{white-space:nowrap}
 .toolbar .grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .toolbar .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px}
 button,select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;line-height:1.2;max-width:100%}
@@ -52,15 +53,19 @@ button.icono{width:34px;padding:5px 0;text-align:center;font-weight:600}
 .tabs button[aria-selected="true"]{background:var(--text);color:var(--surface)}
 #foco{max-width:260px;text-overflow:ellipsis}
 .lienzo{position:relative;height:72vh;min-height:440px;background:var(--surface);touch-action:none;overflow:hidden}
-.mapa.fs .lienzo,.mapa:fullscreen .lienzo{height:calc(100% - 92px)}
+.mapa.fs .lienzo,.mapa:fullscreen .lienzo{height:auto;flex:1 1 auto;min-height:0}
 .lienzo svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
 .lienzo svg.arrastrando{cursor:grabbing}
-.ayuda{padding:7px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 16px}
+.ayuda{flex:0 0 auto;padding:7px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 16px}
 .ayuda kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--text);background:var(--surface-2)}
 .chips{position:absolute;left:10px;bottom:10px;display:none;flex-wrap:wrap;gap:6px;max-width:calc(100% - 20px)}
 .mapa.fs .chips,.mapa:fullscreen .chips{display:flex}
 .chip{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:3px 8px 3px 10px;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .chip.sA{color:var(--idA)} .chip.sM{color:var(--idM)} .chip.sB{color:var(--idB)} .chip.sD{color:var(--idD)} .chip.sS{color:var(--capa3)} .chip.aceptado{color:var(--muted);text-decoration:line-through}
+.capas-fijas{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.capa-fija{position:absolute;left:8px;transform:translateY(-50%);font:600 11px/1.2 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--surface);border:1px solid;box-shadow:var(--sombra);white-space:nowrap;opacity:.94}
+.capa-fija.c1{color:var(--capa1)} .capa-fija.c2{color:var(--capa2)} .capa-fija.c3{color:var(--capa3)} .capa-fija.c4{color:var(--capa4)}
+.capa-fija.oculto{display:none}
 .tip{position:absolute;z-index:5;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:8px 10px;font-size:12px;max-width:340px;display:none;line-height:1.4}
 .tip b{font-family:"IBM Plex Mono",monospace}
 .tip .n{color:var(--muted)}
@@ -102,6 +107,7 @@ body[data-trazo="fuerte"] .linea.salto.sevA .tr{stroke-width:4.4} body[data-traz
 .linea.salto.hover .tr,.linea.salto.sel .tr{stroke-width:3.6}
 .linea.salto.sevA.hover .tr,.linea.salto.sevA.sel .tr{stroke-width:4.4} .linea.salto.sevB.hover .tr,.linea.salto.sevB.sel .tr{stroke-width:2.9}
 .linea.dim{opacity:.05}
+.linea.dim.hover{opacity:1}
 .oculto{display:none}
 @keyframes flujo{to{stroke-dashoffset:-34}}
 body[data-flujo="clic"] .linea.sel .tr,body[data-flujo="clic"] .linea.hover .tr,
@@ -130,7 +136,7 @@ body[data-flujo="rojos"].nosel .linea.salto.corr .tr,body .linea.corr.sel .tr,bo
 .chapa.dim{opacity:.12}
 /* ─── matriz ─── */
 .matriz{height:72vh;min-height:440px;overflow:auto;padding:12px 14px 20px;background:var(--surface)}
-.mapa.fs .matriz,.mapa:fullscreen .matriz{height:calc(100% - 52px)}
+.mapa.fs .matriz,.mapa:fullscreen .matriz{height:auto;flex:1 1 auto;min-height:0}
 .matriz h3{font-size:13px;margin:14px 0 6px;font-weight:600}
 .matriz h3:first-child{margin-top:0}
 .matriz h3 span{color:var(--muted);font-weight:400}
@@ -195,12 +201,15 @@ tr.sA td.id{color:var(--idA)} tr.sM td.id{color:var(--idM)} tr.sB td.id{color:va
 tr.fila.aceptado td{color:var(--muted)} tr.fila.aceptado td.id{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px} tr.fila.cerradovivo td.id{text-decoration:underline}
 td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cnt{font-variant-numeric:tabular-nums}
-.tabla-filtro{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted)}
-.tabla-filtro input{font:inherit;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);min-width:0;flex:1}
+.tabla-filtro{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.tabla-filtro input{font:inherit;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);min-width:0;flex:1 1 170px}
 .nota-metodo{font-size:12px;color:var(--muted);line-height:1.5}
 .nota-metodo b{color:var(--text);font-weight:600}
 @media (max-width: 980px){
   .layout{grid-template-columns:1fr}
+  .toolbar{flex-wrap:nowrap;overflow-x:auto;gap:8px 12px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+  .toolbar .grupo,.toolbar .tabs{flex:0 0 auto;flex-wrap:nowrap}
+  .mapa.fs .ayuda,.mapa:fullscreen .ayuda{display:none}
   .lienzo,.matriz{height:62vh;min-height:380px}
   #selBody{max-height:40vh}
   header h1{font-size:19px}
@@ -252,6 +261,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     </div>
     <div class="lienzo" id="lienzo">
       <svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mapa de capas del servidor"></svg>
+      <div class="capas-fijas" id="capasFijas" aria-hidden="true"></div>
       <div class="chips" id="chips"></div>
       <div class="tip" id="tip"></div>
     </div>
@@ -378,7 +388,7 @@ for (const n of Object.values(nodoInfo)) {
 }
 
 // ─── 4. Carriles empaquetados por hueco (los saltos primero) ───
-const segmentos = {1: [], 2: [], 3: []};
+const segmentos = {1: [], 2: [], 3: [], 4: []};
 for (const l of LINEAS) {
   const segs = [];
   if (l.dir === 'down') { if (l.skip) { segs.push([l.bo, l.ox, l.cx, 'a']); segs.push([l.bd - 1, l.cx, l.dx, 'b']); } else segs.push([l.bo, l.ox, l.dx, 'a']); }
@@ -388,7 +398,7 @@ for (const l of LINEAS) {
   for (const s of segs) segmentos[s[0]].push({l, x0: Math.min(s[1], s[2]), x1: Math.max(s[1], s[2]), cual: s[3]});
 }
 const gapH = {};
-for (const g of [1, 2, 3]) {
+for (const g of [1, 2, 3, 4]) {
   const arr = segmentos[g]; arr.sort((a, b) => (a.l.sana - b.l.sana) || (a.x0 - b.x0));
   const carriles = [];
   for (const s of arr) {
@@ -397,13 +407,13 @@ for (const g of [1, 2, 3]) {
     if (i === carriles.length) carriles.push([]);
     carriles[i].push(s); s.carril = i;
   }
-  gapH[g] = Math.max(320, 110 + carriles.length * LANE_STEP + 40);
+  if (g < 4 || carriles.length) gapH[g] = Math.max(320, 110 + carriles.length * LANE_STEP + 40);
 }
 const bandTop = {}; let y = TOP;
 for (const b of [1, 2, 3, 4]) { bandTop[b] = y; y += BAND_H + (gapH[b] || 60); }
 const H = y;
 const laneY = (g, i) => bandTop[g] + BAND_H + 62 + i * LANE_STEP;
-for (const g of [1, 2, 3]) for (const s of segmentos[g]) { s.l[s.cual === 'a' ? 'y1' : 'y2'] = laneY(g, s.carril); }
+for (const g of [1, 2, 3, 4]) for (const s of segmentos[g]) { s.l[s.cual === 'a' ? 'y1' : 'y2'] = laneY(g, s.carril); }
 for (const n of Object.values(nodoInfo)) { n.y = bandTop[n.capa] + (BAND_H - BOX_H) / 2; n.cy = n.y + BOX_H / 2; }
 
 // ─── 5. Trazado ortogonal con codos redondeados ───
@@ -601,7 +611,7 @@ selFoco.addEventListener('change', () => enfocar(selFoco.value));
   for (const id of CAPAS[3].nodos) { const o = document.createElement('option'); o.value = 'nodo:' + id; o.textContent = NODOS[id].titulo; gp.appendChild(o); }
   selFoco.appendChild(gm); selFoco.appendChild(gp);
 }
-function mostrarTodo() { seleccion.clear(); nodosPanel = []; selFoco.value = ''; Object.assign(filtros, {A: true, M: true, B: true, D: true, AC: true, S: true, I: false, X: false}); desmarcar(); aplicarFiltros(); aplicarSeleccion(); }
+function mostrarTodo() { seleccion.clear(); nodosPanel = []; selFoco.value = ''; Object.assign(filtros, {A: true, M: true, B: true, D: true, AC: true, S: true, I: false, X: false}); busqueda = ''; document.getElementById('buscar').value = ''; desmarcar(); aplicarFiltros(); aplicarSeleccion(); }
 
 // ─── 8. Panel de selección, chips, tabla y evidencia ───
 const selBody = document.getElementById('selBody'), chips = document.getElementById('chips');
@@ -670,13 +680,14 @@ function seleccionarYAcercar(id) {
 tbody.addEventListener('click', e => { const tr = e.target.closest('tr.fila'); if (tr) seleccionarYAcercar(tr.dataset.id); });
 tbody.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const tr = e.target.closest('tr.fila'); if (tr) { e.preventDefault(); tr.click(); } } });
 tbody.addEventListener('mouseover', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(tr.dataset.id); });
-tbody.addEventListener('mouseout', e => { const tr = e.target.closest('tr.fila'); if (tr) setHover(null); });
+tbody.addEventListener('mouseout', e => { const tr = e.target.closest('tr.fila'); if (tr && !tr.contains(e.relatedTarget)) setHover(null); });
 let busqueda = '';
 const coincideBusqueda = l => !busqueda || (l.id + ' ' + nombreNodo(l.origen) + ' ' + nombreNodo(l.destino) + ' ' + (l.nota || '') + ' ' + estadoTxt(l) + ' ' + (l.decision ? l.decision.motivo + ' ' + l.decision.por : '')).toLowerCase().includes(busqueda);
 document.getElementById('buscar').addEventListener('input', e => { busqueda = e.target.value.trim().toLowerCase(); aplicarFiltros(); });
 function actualizarConteos() {
   const vis = SALTOS.filter(l => visible(l) && coincideBusqueda(l)).length;
-  document.getElementById('cntVisibles').textContent = `${vis} de ${SALTOS.length} visibles`;
+  const porX = filtros.X ? 0 : SALTOS.filter(l => l.transversal && filtros[l.sev] && !(l.estado === 'aceptado' && !filtros.AC) && coincideBusqueda(l)).length;
+  document.getElementById('cntVisibles').textContent = `${vis} de ${SALTOS.length} visibles` + (porX ? ` · ${porX} ${porX === 1 ? 'transversal apagado' : 'transversales apagados'}` : '');
 }
 document.getElementById('cntSaltos').textContent = `(${SALTOS.length}: ${['A', 'M', 'B', 'D'].map(s => s + ' ' + (META.totales.por_sev[s] || 0)).join(' · ')})`;
 {
@@ -733,7 +744,7 @@ function totalesMatriz() {
 matriz.addEventListener('click', e => { const td = e.target.closest('.sal'); if (td && !td.classList.contains('apagada')) seleccionarYAcercar(td.dataset.id); });
 matriz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const td = e.target.closest('.sal'); if (td) { e.preventDefault(); td.click(); } } });
 matriz.addEventListener('mouseover', e => { const td = e.target.closest('.sal'); if (td) setHover(td.dataset.id); });
-matriz.addEventListener('mouseout', e => { const td = e.target.closest('.sal'); if (td) setHover(null); });
+matriz.addEventListener('mouseout', e => { const td = e.target.closest('.sal'); if (td && !td.contains(e.relatedTarget)) setHover(null); });
 const wrap = document.getElementById('mapaWrap');
 function activarTab(t) {
   if (wrap.dataset.vista === t) return;
@@ -746,7 +757,20 @@ document.querySelectorAll('.tabs [role="tab"]').forEach(b => b.addEventListener(
 // ─── 10. Cámara: viewBox ───
 const lienzo = document.getElementById('lienzo');
 let vb = {x: 0, y: 0, w: W, h: H};
-const aplicarVB = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+const aplicarVB = () => { svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); pintarCapasFijas(); };
+// rótulo HTML por banda, pegado al borde izquierdo del lienzo a la altura de la banda; solo cuando el rótulo del SVG no se lee (muy pequeño o fuera de cuadro)
+const capasFijas = document.getElementById('capasFijas'); const domCapaFija = {};
+for (const b of [1, 2, 3, 4]) { const d = document.createElement('div'); d.className = 'capa-fija c' + b + ' oculto'; d.textContent = `${b} · ${CAPA_NOMBRE[b]}`; capasFijas.appendChild(d); domCapaFija[b] = d; }
+function pintarCapasFijas() {
+  const cw = svg.clientWidth || 1, ch = svg.clientHeight || 1, s = cw / vb.w;
+  const legible = 30 * s >= 12 && (16 - vb.x) * s >= 0;
+  for (const b of [1, 2, 3, 4]) {
+    const y = (bandTop[b] + BAND_H / 2 - vb.y) * s;
+    const dentro = y > 10 && y < ch - 10;
+    domCapaFija[b].classList.toggle('oculto', legible || !dentro);
+    domCapaFija[b].style.top = y + 'px';
+  }
+}
 function encuadrar(x, y, w, h, margen = 40) {
   const cw = svg.clientWidth || 1, ch = svg.clientHeight || 1, asp = cw / ch;
   w += margen * 2; h += margen * 2; x -= margen; y -= margen;
@@ -825,10 +849,10 @@ svg.addEventListener('mouseover', e => { const g = e.target.closest('.linea, .et
 document.querySelectorAll('button.filtro').forEach(b => b.addEventListener('click', () => { filtros[b.dataset.f] = !filtros[b.dataset.f]; aplicarFiltros(); aplicarSeleccion(); }));
 const selFlujo = document.getElementById('flujo');
 selFlujo.addEventListener('change', () => { document.body.dataset.flujo = selFlujo.value; });
-document.body.dataset.flujo = 'clic';
+document.body.dataset.flujo = selFlujo.value || 'clic';
 const selTrazo = document.getElementById('trazo');
 selTrazo.addEventListener('change', () => { document.body.dataset.trazo = selTrazo.value; });
-document.body.dataset.trazo = 'suave';
+document.body.dataset.trazo = selTrazo.value || 'suave';
 function salirFs() { wrap.classList.remove('fs'); requestAnimationFrame(() => { vb.h = vb.w * (svg.clientHeight || 1) / (svg.clientWidth || 1); aplicarVB(); }); }
 document.getElementById('fs').onclick = () => {
   if (document.fullscreenElement) { document.exitFullscreen(); return; }

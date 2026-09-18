@@ -72,6 +72,16 @@ Ritmo por módulo: Foco → Copiar evidencia → plan corto → migración (+ fr
 build → regenerar el mapa (sin A/M en el módulo y sin saltos nuevos) → publicar → `main` el mismo día → anotar la
 libreta. Un módulo = un PR.
 
+## Versión 3.1 (17/09, misma URL): fallos de la página corregidos
+
+Sin cambiar datos ni libreta. Se arregló directo sobre el artifact (y se portó a la plantilla del repo): barra de
+herramientas en una fila desplazable en móvil, pantalla completa que ocupa lo que queda, rótulos fijos de capa
+legibles a cualquier zoom, «Mostrar todo» limpia el buscador, hover sobre líneas atenuadas, contador que avisa de los
+transversales apagados. Detalle en `SERVIDOR-CRM/mapa-capas-2026-09-17/LEEME.md`.
+
+**Ojo con la foto:** el mapa retrata el catálogo tal como estaba el 17/09/2026 a las 19:54 UTC (14:54 Lima). Lo que se
+publique después no aparece hasta regenerarlo (receta en el LEEME).
+
 ## Decisiones del mapa
 
 - Nodos de Tablas/Núcleo/Puertas agrupados por módulo (17); las pantallas una a una. A nivel objeto el servidor tiene
