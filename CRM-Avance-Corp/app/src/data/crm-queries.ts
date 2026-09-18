@@ -616,7 +616,8 @@ export function useResolucionTasa(clienteId: string, categoria: CategoriaContrat
     queryFn: ({ signal }) => resolverTasa(clienteId, categoria as CategoriaContrato, contratoOrigenId, signal, leadId),
     enabled: habilitada && (!!clienteId || !!leadId) && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId),
     staleTime: 30_000,
-    refetchInterval: leadId ? 30_000 : false,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: 'always',
   })
 }
 
@@ -638,11 +639,13 @@ export function useHistorialTasaCliente(clienteId: string, habilitada: boolean) 
   })
 }
 
-export function usePoliticaRentabilidad(habilitada: boolean) {
+export function usePoliticaRentabilidad(habilitada: boolean, operativa = false) {
   return useQuery({
     queryKey: crmQueryKeys.politicaRentabilidad(),
     queryFn: ({ signal }) => obtenerPoliticaRentabilidad(signal),
     enabled: habilitada,
+    refetchInterval: operativa ? 30_000 : false,
+    refetchOnWindowFocus: operativa ? 'always' : true,
   })
 }
 

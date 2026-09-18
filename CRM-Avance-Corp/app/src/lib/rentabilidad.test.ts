@@ -30,7 +30,7 @@ describe('etiquetaModoPolitica / detalleModoPolitica: el modo se nombra sin ment
   it('nombra los dos modos conocidos', () => {
     expect(etiquetaModoPolitica('observacion')).toBe('Observación')
     expect(etiquetaModoPolitica('enforcement')).toBe('Candado activo')
-    expect(detalleModoPolitica('observacion')).toMatch(/todavía no se bloquea nada/)
+    expect(detalleModoPolitica('observacion')).toMatch(/sin exigir aprobación de Gerencia/)
     expect(detalleModoPolitica('enforcement')).toMatch(/exige una autorización vigente de Gerencia para superar la tasa base/)
   })
 

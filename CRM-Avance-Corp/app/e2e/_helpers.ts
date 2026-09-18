@@ -2228,6 +2228,13 @@ export async function montarBackendReal(
     // Política explícita del banco E2E. Las pruebas de solicitudes pueden
     // sustituir estas rutas; las demás no deben simular un servidor sin R3/R4.
     if (['/rest/v1/rpc/solicitudes_tasa_fn','/rest/v1/rpc/solicitudes_tasa_lead_fn'].includes(p) && method === 'POST') return json(route, [])
+    if (p === '/rest/v1/rpc/politica_rentabilidad_fn' && method === 'POST') return json(route, {
+      version: 1, observacion_sin_aprobacion: true, expected_version: 6,
+      vigente: { id: 'politica-e2e', version: 6, vigente_desde: '2026-09-01T00:00:00Z',
+        tasa_base_nueva: 15, regla_renovacion: 'heredar', regla_upgrade: 'heredar', tope_tecnico: 28,
+        vigencia_solicitud_dias: 1, modo: 'enforcement', nota: null, publicada_en: '2026-09-01T00:00:00Z' },
+      historial: [], observacion_activa_desde: null, puede_publicar: false,
+    })
     if (['/rest/v1/rpc/resolver_tasa_fn','/rest/v1/rpc/resolver_tasa_lead_fn'].includes(p) && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string; p_categoria?: string }
       return json(route, {

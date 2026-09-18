@@ -5,11 +5,12 @@ import type { SolicitudTasa } from '@/data/crm-api'
 import type { Lead } from '@/lib/tipos'
 import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 
-const dobles = vi.hoisted(() => ({ filas: [] as SolicitudTasa[], error: false, pending: false, inferior: false, enviar: vi.fn(), responder: vi.fn() }))
+const dobles = vi.hoisted(() => ({ filas: [] as SolicitudTasa[], observacion: false, error: false, pending: false, inferior: false, enviar: vi.fn(), responder: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/data/crm-queries', () => ({
+  usePoliticaRentabilidad: () => ({ data: { observacion_sin_aprobacion: true, vigente: { modo: dobles.observacion ? 'observacion' : 'enforcement' } }, isPending: false, isError: false }),
   useSolicitudesTasa: () => ({ data: dobles.filas, isPending: dobles.pending, isError: dobles.error, refetch: vi.fn() }),
-  useResolucionTasa: () => ({ data: { tasa_base: 15, ...(dobles.inferior ? { tasa_minima_sin_autorizacion: 0.01 } : {}), regla: 'primera_inversion', politica: { tope_tecnico: 50 } }, isPending: false, isError: false }),
+  useResolucionTasa: () => ({ data: { observacion_sin_aprobacion: true, tasa_base: 15, ...(dobles.inferior ? { tasa_minima_sin_autorizacion: 0.01 } : {}), regla: 'primera_inversion', politica: { modo: dobles.observacion ? 'observacion' : 'enforcement', tope_tecnico: 28 } }, isPending: false, isError: false }),
   useSolicitarTasa: () => ({ mutateAsync: dobles.enviar, isPending: false }),
   useResponderTopeTasa: () => ({ mutateAsync: dobles.responder, isPending: false }),
 }))
@@ -34,7 +35,37 @@ function Arnes({ editar = true }: { editar?: boolean }) {
     <output data-testid="condiciones">{JSON.stringify(estado?.condiciones)}</output>
   </>
 }
-beforeEach(() => { dobles.inferior = false; dobles.filas = []; dobles.error = false; dobles.pending = false; dobles.enviar.mockReset(); dobles.responder.mockReset() })
+it.each(['pendiente', 'aprobada_con_tope'] as const)('observación permite editar y convertir con solicitud %s', async (estado) => {
+  dobles.observacion = true
+  dobles.filas = [solicitud(estado)]
+  render(<Arnes />)
+  fireEvent.change(screen.getByLabelText('Tasa anual (%)'), { target: { value: '20' } })
+  expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Editar condiciones de inversión' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Solicitar tasa superior' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('condiciones')).toHaveTextContent('"tasa_anual":20')
+})
+it('observación mantiene editable el lead aunque falle la lectura de solicitudes', () => {
+  dobles.observacion = true
+  dobles.error = true
+  render(<Arnes />)
+  expect(screen.getByLabelText('Tasa anual (%)')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
+})
+it('observación recupera la intención anterior si la bandeja responde después de la política', () => {
+  dobles.observacion = true
+  dobles.pending = true
+  const vista = render(<Arnes />)
+  expect(screen.queryByLabelText('Tasa anual (%)')).not.toBeInTheDocument()
+  dobles.pending = false
+  dobles.filas = [{ ...solicitud('aprobada'), capital: 35000, modalidad: 'trimestral' }]
+  vista.rerender(<Arnes />)
+  expect(screen.getByTestId('condiciones')).toHaveTextContent('"capital":35000')
+  expect(screen.getByTestId('condiciones')).toHaveTextContent('"modalidad":"trimestral"')
+  expect(screen.getByTestId('condiciones')).toHaveTextContent('2026-10-01')
+  expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('18')
+})
+beforeEach(() => { dobles.observacion = false; dobles.inferior = false; dobles.filas = []; dobles.error = false; dobles.pending = false; dobles.enviar.mockReset(); dobles.responder.mockReset() })
 it('envía la solicitud sobre el lead sin crear ni inventar un cliente y bloquea al prepararla', async () => {
   dobles.enviar.mockImplementation(async ({ intencion }) => ({ ...solicitud(), ...intencion }))
   render(<Arnes />)

@@ -1,8 +1,8 @@
 # Ledger de migraciones — esquema `crm`
 
-## 20260918195125 — El modo de rentabilidad gobierna toda la aprobación de tasa
+## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa
 
-**PREPARADA, NO APLICADA.** Miguel pidió el 18/09 que el mismo botón controle
+**APLICADA EN PRODUCCIÓN 18/09/2026 16:05 Lima.** Miguel pidió el 18/09 que el mismo botón controle
 formulario, conversión y contrato. La política productiva v14 ya estaba en
 observación, pero el frontend y los bloqueos de solicitudes seguían exigiendo
 aprobación. Esta candidata coordina esas rutas y conserva enforcement.
@@ -22,12 +22,19 @@ el máximo absoluto del contrato. CRM/portal requieren la señal de capacidad
 **PASS local:** banco PostgreSQL propio, las ocho funciones y sus ACL, pruebas
 de tasas inferiores/pendientes/leads, cambio de modo, herencia histórica y
 reversa exacta; `npm run check` (3.697 pruebas), ocho E2E focalizados y tres
-pruebas nuevas del portal. **NOT RUN:** rama remota/RLS/advisors y publicación.
-Dos fallos previos del banco completo del portal se reprodujeron sin cambios.
+pruebas nuevas del portal. La rama remota vacía no pudo reconstruir el historial:
+dos migraciones anteriores exigen filas productivas en sus postflights. Se cerró
+la rama para detener el costo. Como alternativa, el SQL completo pasó primero
+contra el catálogo productivo dentro de una transacción con `ROLLBACK`; se
+confirmaron después los ocho hashes originales y ausencia de asiento. La misma
+pieza se aplicó como migración `20260918210543`; los ocho hashes cambiaron,
+la capacidad quedó publicada, una solicitud pendiente real dejó de bloquear en
+observación y los advisors reportaron 0 errores. Dos fallos previos del banco
+completo del portal se reprodujeron sin cambios.
 
 SQL/reversa, evidencia y detalles: [`../scripts/rentabilidad-modo/README.md`](../scripts/rentabilidad-modo/README.md).
-Pendientes confirmación del SQL exacto y el flujo autorizado de publicación.
-No se editaron migraciones versionadas ni se escribieron datos productivos.
+El SQL no cambió datos de negocio; sustituyó únicamente funciones versionadas.
+La publicación de CRM/portal se registra en el acta del mismo cambio.
 
 ## 20260918213000 — La cita atendida ES la entrevista
 

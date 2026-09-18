@@ -5,6 +5,7 @@ import type { SolicitudTasa } from '@/data/crm-api'
 
 const dobles = vi.hoisted(() => ({
   resolucion: {} as Record<string, unknown>,
+  politica: {} as Record<string, unknown>,
   solicitudes: [] as unknown[],
   solicitar: vi.fn(),
   responder: vi.fn(),
@@ -16,6 +17,7 @@ const dobles = vi.hoisted(() => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/data/crm-queries', () => ({
+  usePoliticaRentabilidad: () => ({ refetch: dobles.refetch, ...dobles.politica }),
   useResolucionTasa: () => ({ refetch: dobles.refetch, ...dobles.resolucion }),
   useSolicitudesTasa: () => ({ data: dobles.solicitudes, isPending: dobles.solicitudesPending, isError: dobles.solicitudesError, refetch: dobles.refetchSolicitudes }),
   useSolicitarTasa: () => ({ mutateAsync: dobles.solicitar, isPending: false }),
@@ -26,7 +28,7 @@ const { TasaPolitica } = await import('./tasa-politica')
 
 const RES = {
   tasa_base: 15, regla: 'primera_inversion', contrato_origen: null, contratos_previos: 0, prioridad_bandeja: false,
-  politica: { version: 1, modo: 'observacion', tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7 },
+  politica: { version: 1, modo: 'enforcement', tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7 },
 }
 const INTENCION = { capital: 20000, moneda: 'PEN' as const, modalidad: 'mensual' as const, tipo_interes: 'simple' as const, fecha_inicio: '2026-10-01', fecha_vencimiento: '2027-10-01' }
 
@@ -68,6 +70,7 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     // Sólo se fija Date; los temporizadores de userEvent siguen siendo reales.
     vi.setSystemTime(new Date('2026-09-10T12:00:00Z'))
     dobles.resolucion = { data: RES, isPending: false, isError: false }
+    dobles.politica = { data: { vigente: RES.politica }, isPending: false, isError: false }
     dobles.solicitudes = []
     dobles.solicitudesPending = false
     dobles.solicitudesError = false
@@ -78,6 +81,101 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  function observar() {
+    const politica = { ...RES.politica, modo: 'observacion', tope_tecnico: 28 }
+    dobles.resolucion = { data: { ...RES, politica, observacion_sin_aprobacion: true }, isPending: false, isError: false }
+    dobles.politica = { data: { vigente: politica, observacion_sin_aprobacion: true }, isPending: false, isError: false }
+  }
+
+  it.each(['renovacion', 'upgrade'] as const)('observación conserva la base histórica de %s por encima del tope de negociación', (categoria) => {
+    observar()
+    dobles.resolucion = { data: { ...RES, tasa_base: 30, politica: { ...RES.politica, modo: 'observacion', tope_tecnico: 28 }, observacion_sin_aprobacion: true } }
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="cli-1" categoria={categoria} contratoOrigenId="origen-1" intencion={INTENCION} tasa="30" onTasaChange={vi.fn()} onRangoChange={rango} demo={false} />)
+    expect(screen.getByLabelText('Tasa anual (%)')).not.toHaveAttribute('aria-invalid')
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ modo: 'observacion', maximo: 30 }))
+  })
+
+  it.each([false, true])('al reactivar un campo fijo exige confirmar la tasa vigente (corrección: %s)', (corregir) => {
+    observar()
+    const props = corregir ? { correccion: { tasaActual: 15 } } : {}
+    const vista = render(<Arnes tasaInicial="20" {...props} />)
+    dobles.resolucion = { data: RES, isPending: false, isError: false }
+    dobles.politica = { data: { vigente: RES.politica }, isPending: false, isError: false }
+    vista.rerender(<Arnes tasaInicial="20" {...props} />)
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('20')
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Usar tasa vigente de 15%' }))
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('15')
+    expect(screen.getByLabelText('Tasa anual (%)')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('observación permite 20% sin pedir aprobación y conserva el tope de 28%', async () => {
+    observar()
+    render(<Arnes tasaInicial="20" />)
+    const input = screen.getByLabelText('Tasa anual (%)')
+    expect(input).not.toHaveAttribute('readonly')
+    expect(input).toHaveValue('20')
+    expect(screen.getByTestId('rango')).toHaveTextContent('observacion:0.01-28')
+    expect(screen.queryByRole('button', { name: 'Solicitar tasa superior' })).not.toBeInTheDocument()
+    for (const valor of ['0', '-1', '28.01', '12.345']) {
+      fireEvent.change(input, { target: { value: valor } })
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+    }
+    fireEvent.change(input, { target: { value: '20' } })
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(dobles.solicitar).not.toHaveBeenCalled()
+  })
+
+  it.each(['pendiente', 'aprobada_con_tope', 'aprobada'] as const)('conserva 20% y permite continuar con estado %s', (estado) => {
+    observar()
+    dobles.solicitudes = [solicitud({ estado, estado_efectivo: estado, tasa_maxima_autorizada: 17 })]
+    render(<Arnes tasaInicial="20" />)
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('20')
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Aceptar y continuar' })).not.toBeInTheDocument()
+  })
+
+  it.each(['cargando', 'error'] as const)('la bandeja %s no bloquea si observación está confirmada', (estado) => {
+    observar()
+    dobles.solicitudesPending = estado === 'cargando'
+    dobles.solicitudesError = estado === 'error'
+    render(<Arnes tasaInicial="20" />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+  })
+
+  it('apagar y encender el candado actualiza el formulario y conserva lo escrito', () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    dobles.solicitudes = [solicitud()]
+    const vista = render(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    observar()
+    vista.rerender(<Arnes />)
+    fireEvent.change(screen.getByLabelText('Tasa anual (%)'), { target: { value: '20' } })
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('20')
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('corrección en observación permite elegir otra tasa sin cambiar la persistida al abrir', () => {
+    observar()
+    render(<Arnes correccion={{ tasaActual: 18 }} tasaInicial="18" />)
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('18')
+    fireEvent.change(screen.getByLabelText('Tasa anual (%)'), { target: { value: '20' } })
+    expect(screen.getByTestId('rango')).toHaveTextContent('observacion:0.01-28')
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+  })
+
+  it('sin señal de actualización del servidor conserva los controles anteriores', () => {
+    dobles.resolucion = { data: { ...RES, politica: { ...RES.politica, modo: 'observacion' } }, isPending: false, isError: false }
+    render(<Arnes />)
+    expect(screen.getByTestId('rango')).toHaveTextContent('base:15-15')
+    expect(screen.getByRole('button', { name: 'Solicitar tasa superior' })).toBeInTheDocument()
+  })
 
   it('bloquea la tasa en la base del núcleo y expone el rango [base, base]', async () => {
     render(<Arnes />)

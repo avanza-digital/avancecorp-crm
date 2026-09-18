@@ -11,7 +11,7 @@ insert into crm.equipo(perfil_id,rol_crm,supervisor_id,activo,creado_por)
 values ('f3000000-0000-0000-0000-000000000004','vendedor','f3000000-0000-0000-0000-000000000003',true,'f3000000-0000-0000-0000-000000000002') on conflict do nothing;
 update crm.multiempresa_flags set activo = false where nombre in ('resolver_en_puertas', 'inversiones_escritura');
 insert into crm.politica_rentabilidad(version,vigente_desde,tasa_base_nueva,tope_tecnico,vigencia_solicitud_dias,modo)
-select 1,statement_timestamp()-interval '1 day',15,50,7,'observacion'
+select 1,statement_timestamp()-interval '1 day',15,50,7,'enforcement'
 where not exists(select 1 from crm.politica_rentabilidad);
 
 create function pg_temp.actor(p_id text) returns void language sql as $$
@@ -56,11 +56,12 @@ begin
   raise notice 'PASS: sin solicitud crea a la base';
   v_s := pg_temp.solicitar();
   select count(*) into v_antes from public.contratos;
-  foreach v_modo in array array['observacion','enforcement'] loop
+  -- Observación se ensaya sin bloqueos en rentabilidad-modo/test-modo.sql.
+  foreach v_modo in array array['enforcement'] loop
     perform pg_temp.actor('f3000000-0000-0000-0000-000000000002');
-    -- Fixture de ambos modos ya vigentes dentro de esta sentencia DO.
+    -- Fixture vigente dentro de esta sentencia, incluso después de otros tests.
     insert into crm.politica_rentabilidad(version,vigente_desde,tasa_base_nueva,tope_tecnico,vigencia_solicitud_dias,modo)
-    select max(version)+1,statement_timestamp()-interval '1 hour'+(max(version)+1)*interval '1 second',15,50,7,v_modo
+    select max(version)+1,statement_timestamp()-interval '1 microsecond',15,50,7,v_modo
     from crm.politica_rentabilidad;
     assert (select modo from private.politica_rentabilidad_vigente(statement_timestamp()))=v_modo;
     perform pg_temp.actor('f3000000-0000-0000-0000-000000000001');
