@@ -1,5 +1,8 @@
 # La cita atendida es la entrevista (2026-09-18)
 
+> **✅ EN PRODUCCIÓN el 18/09/2026.** SQL registro 305 (~16:10 Lima) y front
+> `crm-20260918T211444Z-3745bb9770c2` (~16:15). Servidor primero, front después.
+
 **Pedido de Miguel:** «cuando el analista diga que una cita vino a la cita, esto se convierta
 automáticamente en una entrevista».
 
