@@ -289,6 +289,189 @@ describe('mutaciones del store demo', () => {
     })
   })
 
+  // ── LA CITA ATENDIDA ES LA ENTREVISTA (pedido de Miguel, 2026-09-18) ───────
+  // Espejo de `crm.cerrar_reunion_v3` + `private.entrevista_registrar`. Si una
+  // regla cambia aquí, cambia en la migración EN LA MISMA ENTREGA.
+  describe('cerrar una cita como realizada registra la entrevista', () => {
+    const CAPITAL = { monto_estimado: 57_500, moneda: 'PEN' } as const
+    const citaDe = (api: () => StoreDataApi, mutar: Montaje['mutar'], leadId: string) => {
+      const res = mutar((a) =>
+        a.crearTarea({
+          lead_id: leadId,
+          tipo: 'reunion',
+          titulo: 'Cita con el inversionista',
+          vence_en: new Date(Date.now() + 86_400_000).toISOString(),
+          modalidad_reunion: 'virtual',
+        }),
+      )
+      expect(res.ok).toBe(true)
+      void api
+      return res.id as string
+    }
+
+    it('sube el lead a «Entrevista realizada» y asienta el capital propuesto', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: cita,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'propuesta',
+          capital: CAPITAL,
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: true, avance: 'propuesta_enviada' })
+      expect(api().lead('l1')).toMatchObject({
+        etapa: 'propuesta_enviada',
+        monto_estimado: 57_500,
+        moneda: 'PEN',
+      })
+    })
+
+    it('SIN capital no se cierra NADA: la cita sigue pendiente', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+      const etapaAntes = api().lead('l1')?.etapa
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: cita,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'propuesta',
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido', campo: 'monto_estimado' })
+      expect(api().tareas.find((t) => t.id === cita)?.estado).toBe('pendiente')
+      expect(api().lead('l1')?.etapa).toBe(etapaAntes)
+    })
+
+    it.each([0, -1, 5000.999] as const)('rechaza un capital imposible (%s)', async (monto) => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: cita,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'propuesta',
+          capital: { monto_estimado: monto, moneda: 'PEN' },
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido' })
+      expect(api().tareas.find((t) => t.id === cita)?.estado).toBe('pendiente')
+    })
+
+    it('la SEGUNDA entrevista no mueve la etapa, pero sí reasienta el capital', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const primera = citaDe(api, mutar, 'l1')
+      mutar((a) =>
+        a.completarTarea({
+          tarea_id: primera,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'propuesta',
+          capital: CAPITAL,
+        }),
+      )
+      const segunda = citaDe(api, mutar, 'l1')
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: segunda,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'inicia_registro',
+          capital: { monto_estimado: 90_000, moneda: 'USD' },
+        }),
+      )
+
+      expect(res.ok).toBe(true)
+      expect(res.avance).toBeUndefined()
+      expect(api().lead('l1')).toMatchObject({
+        etapa: 'propuesta_enviada',
+        monto_estimado: 90_000,
+        moneda: 'USD',
+      })
+    })
+
+    it('un PLANTÓN no registra entrevista: ni etapa ni capital se mueven', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+      const antes = api().lead('l1')
+
+      const res = mutar((a) => a.completarTarea({ tarea_id: cita, estado: 'no_show' }))
+
+      expect(res.ok).toBe(true)
+      expect(api().lead('l1')).toMatchObject({
+        etapa: antes?.etapa as string,
+        monto_estimado: antes?.monto_estimado as number,
+        moneda: antes?.moneda as string,
+      })
+    })
+    // «No interesado»: la entrevista ocurrió, pero nadie le propuso capital.
+    // Hallazgo de la auditoría del 18/09: exigir una cifra ahí es pedirle al
+    // analista que la invente, y esa invención entra al capital en proceso.
+    it('«No interesado» registra la entrevista SIN pedir capital y sin tocar la cifra', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+      const montoAntes = api().lead('l1')?.monto_estimado
+      const monedaAntes = api().lead('l1')?.moneda
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: cita,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'no_interesado',
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: true, avance: 'propuesta_enviada' })
+      expect(api().lead('l1')).toMatchObject({
+        etapa: 'propuesta_enviada',
+        monto_estimado: montoAntes as number,
+        moneda: monedaAntes as string,
+      })
+    })
+
+    it('«No interesado» CON capital se rechaza: nadie propuso nada', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+
+      const res = mutar((a) =>
+        a.completarTarea({
+          tarea_id: cita,
+          estado: 'completada',
+          resultado_tipo: 'reunion_realizada',
+          resultado_reunion: 'no_interesado',
+          capital: CAPITAL,
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido' })
+      expect(api().tareas.find((t) => t.id === cita)?.estado).toBe('pendiente')
+    })
+
+    it('un PLANTÓN con capital se rechaza igual', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const cita = citaDe(api, mutar, 'l1')
+
+      const res = mutar((a) =>
+        a.completarTarea({ tarea_id: cita, estado: 'no_show', capital: CAPITAL }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido' })
+      expect(api().tareas.find((t) => t.id === cita)?.estado).toBe('pendiente')
+    })
+  })
+
   describe('reasignar', () => {
     it('supervisor NO puede reasignar hacia un analista de otro equipo', async () => {
       const { api, mutar } = await montarStore('supervisor')

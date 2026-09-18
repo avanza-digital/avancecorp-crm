@@ -9,7 +9,7 @@
 // automatismo de embudo no es que se quede corto, es que afirme cosas que no
 // pasaron. Un embudo que se infla solo es peor que uno que no se mueve.
 import { describe, expect, it } from 'vitest'
-import { avancePorContacto, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
+import { avancePorContacto, avancePorEntrevista, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
 import type { Etapa, Tarea, TipoActividad } from './tipos'
 
 const AHORA = Date.parse('2026-07-25T15:00:00-05:00')
@@ -128,6 +128,28 @@ describe('avancePorReunion — agendar una reunión sube el lead', () => {
       asignado_supervisor_id: 'sup-1',
     }
     expect(avancePorReunion(enBandeja, tarea(), true, AHORA)).toBe('reunion_agendada')
+  })
+})
+
+describe('avancePorEntrevista — la cita ATENDIDA es la entrevista', () => {
+  // Pedido de Miguel (2026-09-18) y espejo de `private.entrevista_registrar`.
+  it.each(['nuevo', 'contactado', 'reunion_agendada'] as const)(
+    'una cita atendida sobre un lead en %s → Entrevista realizada',
+    (etapa) => {
+      expect(avancePorEntrevista(lead(etapa))).toBe('propuesta_enviada')
+    },
+  )
+
+  it('el que YA estaba en Entrevista realizada no se mueve (una 2a entrevista no es un avance)', () => {
+    expect(avancePorEntrevista(lead('propuesta_enviada'))).toBeNull()
+  })
+
+  it.each(['convertido', 'descartado'] as const)('un lead %s no tiene etapa que subir', (etapa) => {
+    expect(avancePorEntrevista(lead(etapa))).toBeNull()
+  })
+
+  it('un lead inactivo no avanza', () => {
+    expect(avancePorEntrevista(lead('contactado', false))).toBeNull()
   })
 })
 

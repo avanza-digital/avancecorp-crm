@@ -4,7 +4,7 @@ import type { Tarea } from '@/lib/tipos'
 import { CrmApiError } from './crm-api'
 
 type Comando = 'registrar_actividad_v2' | 'cerrar_tarea_v2' | 'cerrar_reunion_v2' |
-  'reprogramar_reunion_v2' | 'reprogramar_tarea_v2'
+  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2'
 type Argumentos<C extends Comando> = Omit<Database['crm']['Functions'][C]['Args'], 'p_operacion_id'>
 type Peticion = { [C in Comando]: [actor: string | null, comando: C, sujeto: string, argumentos: Argumentos<C>, tarea?: Tarea] }[Comando]
 interface Intencion {
@@ -18,7 +18,7 @@ interface Intencion {
 }
 const PREFIJO = 'crm.sla.operacion.v2:'
 const EVENTO = 'crm:sla-intenciones-cambiadas'
-const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2'])
+const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2'])
 const vuelos = new Map<string, Promise<void>>()
 const notificar = () => { if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO)) }
 
@@ -153,7 +153,11 @@ export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos,
     const respuesta = data as Record<string, Json> | null
     const leadEsperado = 'p_lead_id' in argumentos ? argumentos.p_lead_id : tarea?.lead_id
     if (!respuesta || respuesta.ok !== true || respuesta.version !== 2 || respuesta.operacion_id !== enviada.operacion ||
-      respuesta.comando !== comando.replace(/_v2$/, '') || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
+      // El servidor nombra el comando del NÚCLEO, sin la versión de la puerta:
+      // `cerrar_reunion_v3` confirma `cerrar_reunion`, igual que la v2. Sin
+      // contemplar la v3 aquí, un cierre que el servidor SÍ escribió se
+      // anunciaría como «no confirmado» y el analista lo repetiría.
+      respuesta.comando !== comando.replace(/_v[23]$/, '') || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
       throw new CrmApiError('El servidor no confirmó el guardado. Reintenta con los mismos datos.', 'SLA_CONFIRMACION_PENDIENTE')
     }
     // Solo borrar el recibo que acabamos de confirmar (p. ej. tras un logout).
