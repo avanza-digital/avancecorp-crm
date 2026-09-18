@@ -37,7 +37,7 @@ import {
   type TipoActividadManual,
 } from './tipos'
 import { esAbierto } from './inteligencia'
-import { avancePorContacto, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
+import { avancePorContacto, avancePorEntrevista, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
 import { MOTIVOS_CON_EVIDENCIA, vetoNoResponde } from './descarte-evidencia'
 import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import { validarReunionOperativa, type ReunionOperativaInvalida } from './reunion-operativa'
@@ -207,6 +207,11 @@ export type NuevaTareaInput = NuevaTareaBase &
 export interface CompletarTareaInput {
   tarea_id: string
   estado: 'completada' | 'no_show'
+  // Capital propuesto en la entrevista. OBLIGATORIO al cerrar una cita de lead
+  // como realizada (2026-09-18): esa cita se convierte en «Entrevista
+  // realizada» y ninguna entrevista puede quedar sin la cifra de la que viven
+  // el capital en proceso y las metas del mes.
+  capital?: { monto_estimado: number; moneda: Moneda } | null
   resultado_tipo?: TipoActividadManual | null
   resultado_detalle?: string | null
   resultado_reunion?: Exclude<ResultadoReunion, 'sin_clasificar'> | null
@@ -563,6 +568,7 @@ interface CierreTareaServidor {
   resultadoReunion: Exclude<ResultadoReunion, 'sin_clasificar'> | null
   motivoNoRealizada: MotivoNoRealizada | null
   detalleReunion: string | null
+  capital: { monto_estimado: number; moneda: Moneda } | null
   siguiente: SiguienteCierre
 }
 
@@ -572,13 +578,21 @@ function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
   // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y
   // conserva la clasificación sin contaminar etapas/SLA de leads.
   if (input.tarea.tipo === 'reunion' && input.tarea.lead_id) {
-    return ejecutarComandoSla(input.actorId, 'cerrar_reunion_v2', input.tarea.id, {
+    // v3 en vez de v2: la MISMA transacción cierra la cita y, si el cliente
+    // asistió, registra la entrevista con su capital. Partirlo en dos llamadas
+    // dejaría citas atendidas sin entrevista cada vez que la segunda fallara.
+    // El capital solo viaja cuando la cita se cerró como realizada: la puerta
+    // rechaza un plantón que traiga cifra (nadie le propuso capital a quien no
+    // vino).
+    return ejecutarComandoSla(input.actorId, 'cerrar_reunion_v3', input.tarea.id, {
       p_tarea_id: input.tarea.id,
       p_estado: input.estado,
       p_resultado_reunion: input.resultadoReunion,
       p_motivo_no_realizada: input.motivoNoRealizada,
       p_detalle: input.detalleReunion,
       p_siguiente: input.siguiente,
+      p_capital_estimado: input.estado === 'completada' ? (input.capital?.monto_estimado ?? null) : null,
+      p_moneda: input.estado === 'completada' ? (input.capital?.moneda ?? null) : null,
     }, input.tarea)
   }
   if (input.tarea.lead_id) {
@@ -1647,6 +1661,45 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Registra el resultado comercial de la cita',
           }
         }
+        // ENTREVISTA (2026-09-18): cerrar una cita de lead como realizada la
+        // convierte en entrevista y sube el lead a «Entrevista realizada». Espejo
+        // de la validación de la puerta `crm.cerrar_reunion_v3`: sin el capital
+        // propuesto no se cierra NADA —tampoco la cita—, porque una entrevista
+        // sin cifra rompe el capital en proceso y las metas del mes.
+        //
+        // Salvo con «No interesado»: a quien dijo que no nadie le propuso un
+        // capital, y exigirlo sería pedirle al analista que lo invente. La
+        // entrevista se registra igual; el capital del lead no se toca.
+        if (
+          t.tipo === 'reunion' && t.lead_id && input.estado === 'completada'
+          && input.resultado_reunion !== 'no_interesado'
+        ) {
+          if (!input.capital) {
+            return {
+              ok: false,
+              codigo: 'monto_invalido',
+              campo: 'monto_estimado',
+              error: 'Declara el capital que le propusiste en la entrevista',
+            }
+          }
+          const vCapital = validarCamposLead({
+            monto_estimado: input.capital.monto_estimado,
+            moneda: input.capital.moneda,
+          })
+          if (!vCapital.ok) return vCapital
+        }
+        // El espejo del rechazo de la puerta: a quien dijo que no —o a quien no
+        // vino— nadie le propuso capital. Sin esto la UI cantaría un éxito que
+        // el servidor rechaza con 22023 y luego se revertiría solo.
+        if (input.capital && !(t.tipo === 'reunion' && t.lead_id && input.estado === 'completada'
+            && input.resultado_reunion !== 'no_interesado')) {
+          return {
+            ok: false,
+            codigo: 'monto_invalido',
+            campo: 'monto_estimado',
+            error: 'El capital solo acompaña a una cita realizada con propuesta',
+          }
+        }
         // Tarea SIGUIENTE opcional (la sugerencia del motor, ya editada o no).
         let sigLocal: Tarea | null = null
         if (input.siguiente) {
@@ -1770,15 +1823,49 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             )
             etapaLocal = trasReunion
           }
+          // TERCER avance, y el último de la cadena: la cita ATENDIDA es la
+          // entrevista. Va detrás de los otros dos en el mismo orden que el
+          // servidor —`crm.cerrar_reunion_v3` llama al núcleo DESPUÉS de que el
+          // writer haya insertado la actividad y la tarea siguiente—, así que si
+          // el mismo gesto agenda otra cita, la etapa pasa por
+          // `reunion_agendada` y termina en «Entrevista realizada», igual que en
+          // la base.
+          const trasEntrevista =
+            t.tipo === 'reunion' && input.estado === 'completada'
+              ? avancePorEntrevista({ etapa: etapaLocal, activo: lead.activo })
+              : null
+          if (trasEntrevista) {
+            actos.push(
+              actividadAuto(
+                t.lead_id,
+                'cambio_etapa',
+                `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasEntrevista].label}`,
+              ),
+            )
+            etapaLocal = trasEntrevista
+          }
           const etapaFinal = etapaLocal
           if (etapaFinal !== lead.etapa && etapaFinal !== 'convertido' && etapaFinal !== 'descartado') {
             avanceFinal = etapaFinal
           }
-          if (actos.length > 0) {
+          // El capital de la entrevista se asienta SIEMPRE que la cita se cerró
+          // como realizada, aunque la etapa ya no pueda subir (segunda
+          // entrevista de la misma persona). Espejo exacto del UPDATE del
+          // núcleo, que separa esas dos reglas en una sola sentencia.
+          const capitalLocal =
+            t.tipo === 'reunion' && input.estado === 'completada' && input.capital
+              ? { monto_estimado: input.capital.monto_estimado, moneda: input.capital.moneda }
+              : null
+          // Con «No interesado» el capital llega nulo y el núcleo deja la cifra
+          // como estaba (`coalesce`): el espejo tiene que hacer lo mismo o la
+          // ficha mostraría un capital borrado hasta el resync.
+          if (actos.length > 0 || capitalLocal) {
             setDatos((d) => ({
               leads:
-                etapaFinal !== lead.etapa
-                  ? d.leads.map((l) => (l.id === t.lead_id ? { ...l, etapa: etapaFinal } : l))
+                etapaFinal !== lead.etapa || capitalLocal
+                  ? d.leads.map((l) =>
+                      l.id === t.lead_id ? { ...l, etapa: etapaFinal, ...(capitalLocal ?? {}) } : l,
+                    )
                   : d.leads,
               // `actos` se construyó en orden cronológico; el timeline pinta el
               // más reciente arriba, así que entra invertido.
@@ -1813,6 +1900,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               resultadoReunion: input.resultado_reunion ?? null,
               motivoNoRealizada: input.estado === 'no_show' ? 'cliente_no_asistio' : (input.motivo_no_realizada ?? null),
               detalleReunion: detalle,
+              capital: input.capital ?? null,
               siguiente: siguientePayload,
             })
             if (t.perfil_id) {
@@ -2047,6 +2135,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             // El RPC conserva el detalle crudo histórico; el espejo local sigue
             // mostrando su versión recortada, igual que antes del refactor.
             detalleReunion: cierreReunion?.detalle ?? null,
+            // Anular una cita no le propone capital a nadie: la puerta rechaza
+            // una cifra que no acompañe a una cita realizada.
+            capital: null,
             siguiente: null,
           }),
           {

@@ -1765,7 +1765,9 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
             ? a.crearTarea({ lead_id: cita.lead_id, tipo: 'reunion', titulo: 'Otra cita',
               vence_en: '2027-01-05T15:00:00.000Z', modalidad_reunion: 'presencial', ubicacion_reunion: 'Oficina' })
             : operacion === 'cerrar'
-              ? a.completarTarea({ tarea_id: cita.id, estado: 'completada', resultado_tipo: 'reunion_realizada', resultado_reunion: 'interesado' })
+              // Cerrar una cita de lead como realizada la convierte en entrevista:
+              // el capital propuesto es obligatorio (crm.cerrar_reunion_v3).
+              ? a.completarTarea({ tarea_id: cita.id, estado: 'completada', resultado_tipo: 'reunion_realizada', resultado_reunion: 'interesado', capital: { monto_estimado: 50000, moneda: 'PEN' } })
               : a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
           expect(res.ok).toBe(true)
           await act(async () => { expect(await res.persistido).toBe(true) })
@@ -1904,9 +1906,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       motivo_no_realizada: 'cancelada_cliente',
       detalle_cierre_reunion: 'El cliente pidió cancelar',
     })
-    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'cerrar_reunion_v2', cita.id, {
+    // v3 y no v2: la misma puerta cierra la cita y registra la entrevista. Al
+    // anular no hay capital que declarar, y la puerta rechazaría una cifra.
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'cerrar_reunion_v3', cita.id, {
       p_tarea_id: cita.id, p_estado: 'cancelada', p_resultado_reunion: null,
       p_motivo_no_realizada: 'cancelada_cliente', p_detalle: '  El cliente pidió cancelar  ', p_siguiente: null,
+      p_capital_estimado: null, p_moneda: null,
     }, cita)
     expect(cerrarReunionMock).not.toHaveBeenCalled()
     expect(cerrarTareaMock).not.toHaveBeenCalled()

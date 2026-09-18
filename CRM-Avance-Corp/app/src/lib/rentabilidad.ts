@@ -68,6 +68,6 @@ export function etiquetaModoPolitica(modo: string): string {
 /** Qué significa el modo para quien lo lee. */
 export function detalleModoPolitica(modo: string): string {
   if (modo === 'enforcement') return 'El servidor verifica el rango de tasa permitido y exige una autorización vigente de Gerencia para superar la tasa base.'
-  if (modo === 'observacion') return 'Se mide y se anota cada tasa fuera de la base, pero todavía no se bloquea nada.'
+  if (modo === 'observacion') return 'Se registra la tasa sin exigir aprobación de Gerencia. Las solicitudes pendientes no bloquean. Se mantienen el tope configurado y las validaciones de datos.'
   return 'Esta versión del CRM no conoce este modo: consulta con Gerencia antes de dar por hecho qué bloquea.'
 }

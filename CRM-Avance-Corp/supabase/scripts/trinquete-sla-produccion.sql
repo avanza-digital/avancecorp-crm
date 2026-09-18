@@ -12,6 +12,15 @@ begin
   perform private.assert_sla_nucleo();
   perform private.assert_sla_operacion();
   perform private.assert_sla_comandos();
+  -- Se llaman SOLO si existen: este guion corre también contra instalaciones
+  -- anteriores a cada pieza, y un `to_regprocedure` nulo no debe tumbar el
+  -- corredor entero.
+  if to_regprocedure('private.assert_sla_avisos()') is not null then
+    perform private.assert_sla_avisos();
+  end if;
+  if to_regprocedure('private.assert_entrevista_al_asistir()') is not null then
+    perform private.assert_entrevista_al_asistir();
+  end if;
   if to_regprocedure('private.sla_reconstruir_contextos_lote(uuid[])') is not null
     or to_regprocedure('private.sla_cadena_tarea_reconstruible(uuid,uuid,timestamptz)') is not null then
     raise exception 'La puerta transitoria de reconstruccion debe estar cerrada';

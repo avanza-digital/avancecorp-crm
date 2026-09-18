@@ -1,0 +1,5 @@
+{
+  "CRM-Avance-Corp/supabase/migrations/20260918210543_crm_modo_rentabilidad_integral.sql": "603c06555dced0e6861989ea89a98d97bf074867b2d9c00579e98ec9449f064b",
+  "CRM-Avance-Corp/supabase/scripts/rentabilidad-modo/reversa.sql": "4ec3204c6f6c2ea65c45388001d308d009c844cbc8cd4863e21cb758cb5876a2",
+  "CRM-Avance-Corp/supabase/scripts/rentabilidad-modo/test-modo.sql": "7d8202ffa1d56b554417eda2518b6b372e805b439869d909f490630d764f06a9"
+}

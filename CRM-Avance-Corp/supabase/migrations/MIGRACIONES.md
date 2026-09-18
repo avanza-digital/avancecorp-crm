@@ -1,5 +1,123 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa
+
+**APLICADA EN PRODUCCIÓN 18/09/2026 16:05 Lima.** Miguel pidió el 18/09 que el mismo botón controle
+formulario, conversión y contrato. La política productiva v14 ya estaba en
+observación, pero el frontend y los bloqueos de solicitudes seguían exigiendo
+aprobación. Esta candidata coordina esas rutas y conserva enforcement.
+
+Reemplaza ocho funciones de `crm`/`private` sin cambiar firmas, propietarios,
+grants ni RLS. Preflight de la definición completa; sin cambios de datos ni
+del modo publicado. Observación no exige ni consume autorizaciones y omite
+los bloqueos por solicitudes anteriores. Mantiene identidad, origen, límites
+numéricos y PDF. Las aprobaciones compatibles se enlazan al convertir para
+poder utilizarlas si se reactiva antes de contratar; conflictos históricos
+permanecen en el lead sin impedir la conversión en observación.
+
+Se permite heredar la tasa del origen aunque supere el tope actual; se conserva
+el máximo absoluto del contrato. CRM/portal requieren la señal de capacidad
+`observacion_sin_aprobacion` antes de habilitar el comportamiento nuevo.
+
+**PASS local:** banco PostgreSQL propio, las ocho funciones y sus ACL, pruebas
+de tasas inferiores/pendientes/leads, cambio de modo, herencia histórica y
+reversa exacta; `npm run check` (3.697 pruebas), ocho E2E focalizados y tres
+pruebas nuevas del portal. La rama remota vacía no pudo reconstruir el historial:
+dos migraciones anteriores exigen filas productivas en sus postflights. Se cerró
+la rama para detener el costo. Como alternativa, el SQL completo pasó primero
+contra el catálogo productivo dentro de una transacción con `ROLLBACK`; se
+confirmaron después los ocho hashes originales y ausencia de asiento. La misma
+pieza se aplicó como migración `20260918210543`; los ocho hashes cambiaron,
+la capacidad quedó publicada, una solicitud pendiente real dejó de bloquear en
+observación y los advisors reportaron 0 errores. Dos fallos previos del banco
+completo del portal se reprodujeron sin cambios.
+
+SQL/reversa, evidencia y detalles: [`../scripts/rentabilidad-modo/README.md`](../scripts/rentabilidad-modo/README.md).
+El SQL no cambió datos de negocio; sustituyó únicamente funciones versionadas.
+La publicación de CRM/portal se registra en el acta del mismo cambio.
+
+## 20260918213000 — La cita atendida ES la entrevista
+
+**🟡 PREPARADA, NO APLICADA.** Pedido de Miguel (18/09/2026): «cuando el analista diga que una
+cita vino a la cita, esto se convierta automáticamente en una entrevista».
+
+**El hueco que cierra.** Gerencia ya contaba la entrevista sola desde el 13/09 —«Cita: generada en
+el CRM. Entrevista: asistencia a una cita»— porque `private.citas_episodios` mira
+`tareas.estado='completada'`. El pipeline del lead NO se enteraba: `crm.cerrar_reunion` escribe la
+actividad `reunion_realizada` y el único avance automático que eso dispara sube de `nuevo` a
+`contactado`, así que una cita atendida sobre un lead ya contactado no movía nada y el analista
+tenía que arrastrar la tarjeta a mano en el kanban.
+
+**Las cuatro capas.** Tabla `crm.leads` (sus CHECK siguen siendo el último candado) → núcleo
+`private.entrevista_registrar(uuid,uuid,numeric,text)` (autoridad + subir etapa + asentar capital)
+→ puerta `crm.cerrar_reunion_v3(uuid,uuid,text,text,text,text,jsonb,numeric,text)` (valida el
+input y delega; única expuesta, solo a `authenticated`) → pantalla (el diálogo de cerrar la cita).
+
+**No se toca `crm.cerrar_reunion`**: su cuerpo está sellado por md5 en
+`private.assert_sla_comandos` (`8ccb961e63d5bcc4bd459af12c7d1dd0`, confirmado idéntico en
+producción) porque de él depende el orden de bloqueos lead→tarea. La puerta nueva COMPONE por
+encima: delega el cierre entero en `cerrar_reunion_v2` (recibo idempotente incluido) y después
+llama al núcleo. Todo en la MISMA transacción.
+
+**El capital es obligatorio** al cerrar una cita de lead como realizada (decisión de Miguel del
+18/09): hoy nadie llega a «Entrevista realizada» (clave `propuesta_enviada`) sin declararlo, y de
+esa cifra viven el capital en proceso y las metas del mes. La etapa SOLO SUBE; el capital se
+asienta siempre, para que una segunda entrevista de la misma persona no pierda la cifra nueva.
+
+**Excepción `no_interesado`:** a quien dijo que no nadie le propuso capital, así que ahí NO se
+pide cifra (se rechaza si llega) y el `monto_estimado` del lead no se toca; la entrevista sí se
+registra. Sale del hallazgo P2-3 de la auditoría: exigir una cifra obligatoria a un no interesado
+obliga al analista a inventarla, y la invención entra al capital en proceso por la misma puerta que
+las cifras reales.
+
+**Ensayo contra PRODUCCIÓN, sin escribir nada** (`../scripts/entrevista-al-asistir/`): la
+migración real —preflight y gates incluidos— más un oráculo, dentro de una transacción que termina
+en `rollback`. **VERDE, 0 fallos** sobre la forma real del esquema y con actores vivos de
+producción. Cubre: etapa, capital, tarea, actividad `reunion_realizada`, `cambio_etapa` marcado
+`automatico`, episodio SLA nuevo, idempotencia del recibo, segunda entrevista, plantón que no mueve
+nada, **cinco rechazos de forma** (sin capital, tres decimales, cero, moneda fuera de catálogo,
+capital en un no_show) y **tres de autoridad** (vendedor de otro equipo, supervisor de otro equipo,
+rol sin gestión), cada uno comprobando que la cita sigue ABIERTA; más los **permitidos** (supervisor
+del propio equipo y gerencia), `no_interesado` con y sin cifra, **replay con otro capital**, el
+núcleo sobre un lead descartado y los permisos de las tres funciones (`authenticated` sí en la
+puerta; `anon`, `service_role` y `authenticated` NO en el núcleo). Verificado después: en producción
+no quedaron ni las funciones ni los leads sintéticos. **6 mutantes, los 6 muertos** (`mutantes.sh`):
+sin validación de capital, sin la marca de avance automático, capital solo al subir la etapa, replay
+que reescribe, éxito silencioso con 0 filas y `no_interesado` exigiendo capital.
+
+**Auditoría RLS** (subagente `auditor-rls`, 18/09): CHANGES_REQUESTED sin P0/P1 — el candado de
+autoridad, los GRANT/REVOKE, la GUC y los nueve triggers vivos de `crm.leads` quedaron confirmados
+uno a uno. **Atendidos:** P2-1 (el recibo no cubría el capital ⇒ un replay reescribía la cifra
+mientras devolvía la respuesta vieja: la puerta ahora detecta el replay y no escribe nada), P2-2 (el
+UPDATE podía no tocar ninguna fila y devolver `ok` con el capital perdido ⇒ el núcleo se cae con
+`P0409`), P2-3 (el `no_interesado` de arriba), P3-1 (`COMMENT ON` del assert) y P3-2 (el trinquete
+queda registrado en `../scripts/trinquete-sla-produccion.sql`, junto con `assert_sla_avisos`, que
+también faltaba). **Aceptado en parte:** P2-4 — los casos de autoridad por rol se añadieron al
+oráculo, pero `supabase/scripts/test-rls.mjs` sigue sin cubrir ni la v2 ni la v3 (hueco previo, no
+creado aquí); **`npm run test:rls` NO CORRIDO** en esta sesión (necesita `CRM_BANCO_PSQL_URL`).
+**Pendiente conocido:** la pantalla no lee `entrevista_registrada`/`capital_asentado` — hoy no le
+hacen falta porque el núcleo se cae en vez de devolver un éxito parcial.
+
+**⚠️ Estado de los gates al preparar.** En producción, 4 de 8 están en ROJO por trabajos AJENOS a
+este cambio y desde antes: `assert_auditoria` (8 tablas sin rastro completo, casi todas del mundo
+inversiones), `assert_analitica_leads_citas` (`crm.contrato_eliminar_auditado` sin declarar, ya
+anotado el 16/09), `assert_analista_vigencia` y `assert_f7_piezas_cerradas`
+(`crm.crear_contrato_con_cuenta` cambió estando sellada). Por eso el postflight de esta migración
+llama SOLO a los cuatro del mundo SLA —todos verdes— más el suyo propio: invocar los otros
+abortaría una migración que no los empeora ni los arregla. **Esto hay que resolverlo aparte.**
+
+**Orden de publicación: SERVIDOR PRIMERO**, front después — el front pasa a llamar
+`cerrar_reunion_v3`, que no existe hasta aplicar esto.
+
+**Al aplicar:** correr `npm run gen:types` en `app/` y borrar el comentario que acompaña a
+`cerrar_reunion_v3` en `app/src/lib/database.types.ts` — ese tipo está escrito A MANO porque
+`gen:types` lee el esquema vivo (ya se perdió una vez cuando otra sesión regeneró el archivo).
+
+**Reversa:** `drop function crm.cerrar_reunion_v3(...)`, luego
+`drop function private.entrevista_registrar(...)` y `private.assert_entrevista_al_asistir()`. El
+front vuelve a `cerrar_reunion_v2` y la etapa se mueve a mano. Nada de lo escrito necesita
+deshacerse.
+
 ## 20260917235656 — PRODELCO admite inversiones en dólares
 
 **✅ EN PRODUCCIÓN el 18/09/2026.** SQL aplicada y registrada ~12:35 Lima (registro **304**, cuerpo

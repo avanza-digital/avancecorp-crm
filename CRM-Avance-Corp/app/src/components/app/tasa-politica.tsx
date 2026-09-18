@@ -15,13 +15,13 @@ import { parseMonto } from '@/lib/numero'
 import type { CategoriaContrato, ModalidadContrato, TipoInteres } from '@/lib/cronograma'
 import type { IntencionContrato, ReglaTasa, SolicitudTasa } from '@/data/crm-api'
 import { DIAS_RECHAZO_VISIBLE, ESTADOS_SOLICITUD_TASA_SEGUIMIENTO, etiquetaReglaTasa } from '@/lib/rentabilidad'
-import { useResolucionTasa, useResponderTopeTasa, useSolicitarTasa, useSolicitudesTasa } from '@/data/crm-queries'
+import { usePoliticaRentabilidad, useResolucionTasa, useResponderTopeTasa, useSolicitarTasa, useSolicitudesTasa } from '@/data/crm-queries'
 
 const BASE_DEMO = 15
 /** Mientras hay una solicitud pendiente se re-consulta cada medio minuto: la decisión de Gerencia llega sola al formulario. */
 const REFRESCO_PENDIENTE_MS = 30_000
 
-export type ModoTasaPolitica = 'cargando' | 'error' | 'base' | 'autorizada' | 'demo' | 'incompleta'
+export type ModoTasaPolitica = 'cargando' | 'error' | 'base' | 'autorizada' | 'observacion' | 'demo' | 'incompleta'
 
 /** Lo que el formulario necesita para validar al guardar. */
 export interface RangoTasaPolitica {
@@ -115,6 +115,12 @@ export function TasaPolitica({
   const listo = (!!clienteId || !!leadId) && !!categoria && (correccion != null || categoria === 'nuevo' || !!contratoOrigenId)
   const consultaNucleo = !demo && !correccion && listo
   const resolucion = useResolucionTasa(clienteId, categoria, contratoOrigenId, consultaNucleo, leadId)
+  // Una corrección conserva su tasa y origen; solo necesita leer el interruptor.
+  const politicaCorreccion = usePoliticaRentabilidad(!demo && !!correccion, true)
+  const politica = correccion ? politicaCorreccion.data?.vigente : resolucion.data?.politica
+  const capacidadObservacion = correccion ? politicaCorreccion.data?.observacion_sin_aprobacion : resolucion.data?.observacion_sin_aprobacion
+  const observacion = !demo && capacidadObservacion === true && politica?.modo === 'observacion'
+  const tope = politica?.tope_tecnico ?? 50
   const [pidiendo, setPidiendo] = useState(false)
   const [tasaPedida, setTasaPedida] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -182,25 +188,31 @@ export function TasaPolitica({
     ? 'demo'
     : !listo
       ? 'incompleta'
-      : correccion
-        ? autorizada ? 'autorizada' : 'base'
-        : resolucion.isPending
+      : (correccion ? politicaCorreccion.isPending : resolucion.isPending)
           ? 'cargando'
-          : resolucion.isError || base == null
+          : (correccion ? politicaCorreccion.isError : resolucion.isError) || base == null || !politica
+            || !['observacion', 'enforcement'].includes(politica.modo) || !Number.isFinite(tope) || tope <= 0 || tope > 50
             ? 'error'
+            : observacion
+              ? 'observacion'
             : autorizada
               ? 'autorizada'
               : 'base'
   const minimoServidor = resolucion.data?.tasa_minima_sin_autorizacion ?? base
   const permiteInferior = !demo && !correccion && categoria === 'nuevo' && base != null
     && minimoServidor != null && minimoServidor > 0 && minimoServidor < base
-  const minimo = permiteInferior ? minimoServidor : base
-  const maximo = autorizada ? solicitud!.tasa_maxima_autorizada : base
+  const minimo = observacion ? 0.01 : permiteInferior ? minimoServidor : base
+  // Conservar una tasa histórica en corrección no equivale a negociar otra.
+  const tasaHistoricaConservada = observacion && correccion && parseMonto(tasa) === correccion.tasaActual
+  const baseHeredada = !correccion && (categoria === 'renovacion' || categoria === 'upgrade') ? base ?? 0 : 0
+  const maximo = observacion ? Math.min(50, Math.max(tope, baseHeredada, tasaHistoricaConservada ? correccion.tasaActual : 0))
+    : autorizada ? solicitud!.tasa_maxima_autorizada : base
   // Si la política cambió entre lead y contrato, nunca sustituir la tasa
   // acordada por una más alta sin que el analista revise las condiciones.
   const preseleccionIncompatible = !demo && !correccion && categoria === 'nuevo' && minimo != null && maximo != null
     && tasaPreseleccionada != null && (tasaPreseleccionada < minimo || tasaPreseleccionada > maximo)
-  const bloqueoContrato = demo ? null
+  const bloqueoContrato = demo || modo === 'observacion' ? null
+    : modo === 'error' || modo === 'cargando' ? 'Verifica la política de rentabilidad antes de continuar.'
     : leadId && resolucion.data?.bloqueo_conversion ? resolucion.data.bloqueo_conversion
     : pendiente ? `La solicitud de tasa está pendiente de Gerencia. Espera su respuesta antes de ${leadId ? 'convertir el lead' : 'crear el contrato'}, incluso a la tasa base.`
       : solicitar.isPending ? 'Enviando la solicitud de tasa a Gerencia. Espera antes de continuar.'
@@ -223,19 +235,27 @@ export function TasaPolitica({
   const contexto = JSON.stringify([clienteId, leadId, categoria, contratoOrigenId, base, minimo])
   useEffect(() => {
     if (base == null || preseleccionIncompatible || ['cargando', 'error', 'incompleta'].includes(modo)) return
-    if (preseleccionPendiente.current != null && (solicitudes.isPending || solicitudes.isError)) return
+    if (!observacion && preseleccionPendiente.current != null && (solicitudes.isPending || solicitudes.isError)) return
     const primera = politicaAplicada.current !== contexto
+    if (modo === 'observacion') {
+      if (primera && tasa === '') onTasaChange(String(tasaPreseleccionada ?? base))
+      politicaAplicada.current = contexto
+      modoAnterior.current = modo
+      return
+    }
+    // Encender el candado no debe sustituir silenciosamente una tasa negociada.
+    const vuelveDeObservacion = modoAnterior.current === 'observacion'
     if (modo === 'base' || modo === 'demo') {
       const valor = parseMonto(tasa)
       const inicialInvalida = primera && (valor == null || minimo == null || valor < minimo || valor > base)
       const autorizacionRetirada = modoAnterior.current === 'autorizada' && (valor == null || valor > base)
-      if ((!permiteInferior && valor !== base) || inicialInvalida || autorizacionRetirada) onTasaChange(String(base))
+      if (!vuelveDeObservacion && ((!permiteInferior && primera && valor !== base) || inicialInvalida || autorizacionRetirada)) onTasaChange(String(base))
     }
     politicaAplicada.current = contexto
     modoAnterior.current = modo
     // onTasaChange es estable (setState).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, minimo, modo, tasa, permiteInferior, preseleccionIncompatible, contexto, solicitudes.isPending, solicitudes.isError])
+  }, [base, minimo, modo, tasa, permiteInferior, preseleccionIncompatible, contexto, solicitudes.isPending, solicitudes.isError, observacion])
   // Cuando APARECE una autorización en el ALTA, el input arranca en la tasa autorizada (el analista pidió más que la
   // base). En CORRECCIÓN no: se conserva la tasa persistida del contrato; subirla es una elección explícita (si no,
   // guardar solo unas notas cambiaría la rentabilidad).
@@ -254,13 +274,12 @@ export function TasaPolitica({
   }, [autorizacionId, solicitudes.isPending, solicitudes.isError, modo, preseleccionIncompatible])
 
   useEffect(() => {
-    onRangoChange?.({ modo, base, minimo, maximo: maximo ?? null, regla, solicitud, bloqueoContrato })
+    onRangoChange?.({ modo, base, minimo, maximo: maximo ?? null, regla, solicitud: observacion ? null : solicitud, bloqueoContrato })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modo, base, minimo, maximo, regla, solicitud?.id, solicitud?.estado_efectivo, bloqueoContrato])
 
   // ── Pedir una excepción ──
   const intencionCompleta = intencion.capital != null && intencion.capital >= 100 && !!intencion.fecha_inicio && !!intencion.fecha_vencimiento
-  const tope = resolucion.data?.politica.tope_tecnico ?? 50
   // Pedir requiere una intención que el servidor pueda resolver: nuevo, o renovación/upgrade con su origen (también en corrección).
   const puedePedir = !demo && !disabled && modo === 'base' && !solicitud && !pendiente && !resolucion.data?.bloqueo_conversion && !solicitudes.isPending && !solicitudes.isError && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId)
 
@@ -326,14 +345,14 @@ export function TasaPolitica({
     }
   }
 
-  const editable = !disabled && (modo === 'autorizada' || (modo === 'base' && permiteInferior))
+  const editable = !disabled && (modo === 'observacion' || modo === 'autorizada' || (modo === 'base' && permiteInferior))
   const soloLectura = !disabled && !editable && (modo === 'base' || modo === 'demo')
   const n = parseMonto(tasa)
-  const fueraDeRango = preseleccionIncompatible || (editable && minimo != null && maximo != null && (n == null || n < minimo || n > maximo))
+  const fueraDeRango = preseleccionIncompatible || ((editable || soloLectura) && minimo != null && maximo != null && (n == null || n < minimo || n > maximo))
 
   // Una sola región viva, persistente y de una línea: los lectores anuncian los CAMBIOS (pendiente → aprobada),
   // no una caja que nace llena. Las cajas visibles no llevan role y los botones quedan fuera de la región.
-  const resumenEstado = demo
+  const resumenEstado = demo || observacion
     ? ''
     : solicitud
       ? solicitud.estado_efectivo === 'pendiente'
@@ -354,6 +373,7 @@ export function TasaPolitica({
     <div ref={raizRef} tabIndex={-1} className="min-w-0 space-y-1.5 outline-none" data-testid="tasa-politica">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={idInput}>Tasa anual (%)</Label>
+        {modo === 'observacion' && <span className="text-[11px] font-bold text-primary">Observación · sin aprobación</span>}
         {modo === 'autorizada' && maximo != null && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
             <Unlock className="size-3" aria-hidden /> Autorizada hasta {tasaTxt(maximo)}
@@ -377,6 +397,7 @@ export function TasaPolitica({
         aria-describedby={`${idInput}-ayuda`}
         aria-invalid={fueraDeRango || undefined}
       />
+      {soloLectura && fueraDeRango && base != null && <Button type="button" variant="outline" size="sm" onClick={() => onTasaChange(String(base))}>Usar tasa vigente de {tasaTxt(base)}</Button>}
       <p id={`${idInput}-ayuda`} className={cn('text-xs', fueraDeRango ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
         {modo === 'demo' && `Demo: la política fija ${tasaTxt(BASE_DEMO)}. En sesión real la decide el servidor.`}
         {modo === 'incompleta' && (categoria === 'upgrade' || categoria === 'renovacion'
@@ -389,12 +410,13 @@ export function TasaPolitica({
             <button
               type="button"
               className="inline-flex min-h-6 items-center gap-1 rounded px-1 font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-              onClick={() => void resolucion.refetch()}
+              onClick={() => void (correccion ? politicaCorreccion.refetch() : resolucion.refetch())}
             >
               <RotateCcw className="size-3" aria-hidden /> Reintentar
             </button>
           </>
         )}
+        {modo === 'observacion' && `Puedes registrar una tasa mayor que 0 y hasta ${tasaTxt(maximo ?? tope)}, con hasta dos decimales. No necesitas aprobación de Gerencia; la tasa quedará registrada.`}
         {modo === 'base' && base != null && (correccion
           ? `Tasa vigente del contrato: ${tasaTxt(base)}. Cambiarla requiere la autorización de Gerencia.`
           : permiteInferior ? `Puedes ingresar una tasa mayor que 0 y hasta ${tasaTxt(base)}, con hasta dos decimales. Una tasa superior requiere aprobación de Gerencia.`
@@ -414,7 +436,7 @@ export function TasaPolitica({
       )}
 
       {/* Estado de la solicitud viva para ESTA intención (caja visible; la región viva es la línea sr-only de arriba) */}
-      {!demo && solicitud && (
+      {!demo && !observacion && solicitud && (
         <div
           className={cn(
             'rounded-lg border px-3 py-2 text-xs',
@@ -459,13 +481,13 @@ export function TasaPolitica({
         </div>
       )}
 
-      {!demo && !solicitud && rechazada && (
+      {!demo && !observacion && !solicitud && rechazada && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive">
           Gerencia rechazó tu solicitud de {tasaTxt(rechazada.tasa_solicitada)}{rechazada.resuelta_en ? ` el ${fmtFecha(rechazada.resuelta_en)}` : ''}{rechazada.motivo_resolucion ? `: «${rechazada.motivo_resolucion}»` : ''}. {permiteInferior ? `Puedes continuar con una tasa de hasta ${tasaTxt(base!)};` : `La tasa queda en la base${base != null ? ` (${tasaTxt(base)})` : ''};`} puedes volver a pedir con otro motivo.
         </p>
       )}
 
-      {!demo && !solicitud && otraViva && (
+      {!demo && !observacion && !solicitud && otraViva && (
         <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground-strong">
           Tienes una solicitud viva para este cliente con OTROS datos ({money(otraViva.capital, otraViva.moneda)}, {fmtFecha(otraViva.fecha_inicio)} <span aria-hidden>→</span><span className="sr-only">al</span> {fmtFecha(otraViva.fecha_vencimiento)}, {tasaTxt(otraViva.tasa_solicitada)}): con el capital o el plazo de este formulario no aplica.
         </p>
@@ -479,7 +501,7 @@ export function TasaPolitica({
     </div>
     {children}
     {/* Fuera de la media columna de la tasa: usa todo el ancho de la grilla del contrato. */}
-    {pidiendo && (
+    {pidiendo && !observacion && (
           <div className="col-span-full min-w-0 space-y-2 rounded-lg border border-border bg-muted/30 p-3" role="group" aria-label="Solicitar tasa superior">
             <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
               <div className="min-w-0 space-y-1">

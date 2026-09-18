@@ -4212,6 +4212,11 @@ export type Database = {
       registrar_actividad_v2: { Args: { p_operacion_id: string; p_lead_id: string; p_tipo: string; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
       cerrar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_tipo?: string | null; p_resultado_detalle?: string | null; p_siguiente?: Json | null; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null }; Returns: Json }
       cerrar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
+      // ESCRITO A MANO hasta que `20260918213000_crm_entrevista_al_asistir.sql` esté en
+      // producción: `gen:types` lee el esquema VIVO y no puede generar una función que
+      // todavía no existe (ya se perdió una vez al regenerar). Al aplicar la migración,
+      // correr `npm run gen:types` y borrar este comentario.
+      cerrar_reunion_v3: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_capital_estimado?: number | null; p_moneda?: string | null }; Returns: Json }
       reprogramar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }; Returns: Json }
       reprogramar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }; Returns: Json }
       estado_sla_leads_v2_fn: { Args: { p_lead_ids: string[] }; Returns: Json }

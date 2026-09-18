@@ -75,6 +75,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
   return {
     ...actual,
+    usePoliticaRentabilidad: () => ({ data: { vigente: { modo: 'enforcement', tope_tecnico: 50 } }, isPending: false, isError: false, refetch: vi.fn() }),
     // Rentabilidad R3: en corrección la base es la tasa vigente; sin solicitudes en estos escenarios.
     useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: vi.fn() }),
     useSolicitudesTasa: () => ({ data: rentabilidadDobles.solicitudes, isPending: false, isError: false, refetch: vi.fn() }),

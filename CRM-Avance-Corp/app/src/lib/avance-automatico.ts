@@ -6,18 +6,22 @@
 // debe ayudar a las otras en vez de obligar a repetirlas.
 //
 // ⚠️ LA FUENTE DE VERDAD ES LA BASE DE DATOS. Estas funciones son el ESPEJO
-// OPTIMISTA de dos triggers, y la ÚNICA implementación en modo demo (sin
+// OPTIMISTA de lo que hace el servidor, y la ÚNICA implementación en modo demo (sin
 // Supabase, `persistir()` sale en seco: sin esto el demo pintaría un pipeline
 // que no avanza y divergiría del servidor en los e2e).
 //   · avancePorContacto  ↔ trg_zz_actividades_avance_etapa    (AFTER INSERT en crm.actividades)
 //   · avancePorReunion   ↔ trg_zz_tareas_avance_etapa         (AFTER INSERT en crm.tareas)
+//   · avancePorEntrevista ↔ private.entrevista_registrar      (NÚCLEO llamado por
+//                                  crm.cerrar_reunion_v3 al cerrar la cita como
+//                                  realizada; no es un trigger porque el capital
+//                                  propuesto viaja en el mismo acto)
 //   · retrocesoPorAnularReunion ↔ private.retroceso_por_anular_reunion (INLINE al
 //                                  final de crm.cerrar_tarea, no un trigger: así
 //                                  ve la reunión que se reagenda en el mismo gesto)
 // Si una regla cambia aquí, cambia allá EN LA MISMA ENTREGA, o el optimismo del
 // store empieza a mentir hasta el resync.
 //
-// Regla de los dos AUTOMATISMOS: SOLO SUBEN, JAMÁS BAJAN. Un `cambio_etapa` es un
+// Regla de los TRES AUTOMATISMOS: SOLO SUBEN, JAMÁS BAJAN. Un `cambio_etapa` es un
 // hecho registrado con autor, no un estado reversible; una reunión con plantón
 // no borra que se agendó.
 //
@@ -94,6 +98,38 @@ export function avancePorReunion(
   const vence = Date.parse(tarea.vence_en)
   if (!Number.isFinite(vence) || vence <= ahora) return null
   return 'reunion_agendada'
+}
+
+/**
+ * ¿Registrar la ASISTENCIA a esta cita sube el lead a «Entrevista realizada»?
+ *
+ * Espejo de `private.entrevista_registrar` (20260918213000). Pedido de Miguel
+ * (2026-09-18): «cuando el analista diga que una cita vino a la cita, esto se
+ * convierta automáticamente en una entrevista». La regla ya era la de Gerencia
+ * desde el 13/09 —«Entrevista: asistencia a una cita»—; lo que faltaba era que
+ * el pipeline del lead la creyera.
+ *
+ * Es el TERCER automatismo, y el único que salta dos escalones: una cita
+ * atendida sube desde `nuevo`, `contactado` o `reunion_agendada`. Los otros dos
+ * solo avanzan un paso porque el hecho que registran es menor (hablar, agendar);
+ * aquí el hecho es la entrevista misma, que es el hito del embudo.
+ *
+ * Guardas:
+ *  · etapa por debajo de `propuesta_enviada` — desde ahí SOLO SUBE, jamás baja
+ *    (doctrina de la cabecera). Una segunda entrevista de la misma persona no
+ *    mueve la etapa, aunque sí reasienta el capital: eso lo hace el servidor en
+ *    la misma sentencia y no es un avance que anunciar.
+ *  · lead vivo y no terminal — un lead cerrado no tiene etapa que subir.
+ *
+ * NO lleva la guarda de DUEÑO que sí llevan los otros dos: para cerrar la cita
+ * el servidor ya exigió `sla_gestion_permitida`, que es más estrecha (al
+ * vendedor le pide ser el dueño exacto). Si esa puerta dejó pasar el cierre, la
+ * entrevista es del ámbito de quien la cerró.
+ */
+export function avancePorEntrevista(lead: Pick<Lead, 'etapa' | 'activo'>): Avance {
+  if (!lead.activo || TERMINALES_K.has(lead.etapa)) return null
+  if (lead.etapa === 'propuesta_enviada') return null
+  return 'propuesta_enviada'
 }
 
 /**

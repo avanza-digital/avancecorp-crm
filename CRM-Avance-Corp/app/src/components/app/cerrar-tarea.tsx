@@ -47,6 +47,7 @@ import { esAbierto } from '@/lib/inteligencia'
 import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { plantonDe } from '@/lib/cadencia'
 import { money, primerNombre } from '@/lib/format'
+import type { Moneda } from '@/lib/format'
 import {
   ETAPA_INFO,
   MOTIVOS_NO_REALIZADA,
@@ -166,6 +167,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   )
   const [detalle, setDetalle] = useState('')
   const [resultadoReunion, setResultadoReunion] = useState<ResultadoReunionOperativo | null>(null)
+  // CAPITAL DE LA ENTREVISTA. Precargado con lo que el lead ya trae: Enter
+  // confirma tal cual y el paso cuesta un gesto, no un formulario (mismo patrón
+  // que el diálogo de capital del kanban, que este cierre deja de necesitar).
+  const [capitalMonto, setCapitalMonto] = useState(String(l?.monto_estimado ?? ''))
+  const [capitalMoneda, setCapitalMoneda] = useState<Moneda>(l?.moneda ?? 'PEN')
   const [motivoAnulacion, setMotivoAnulacion] = useState<MotivoNoRealizadaManual | ''>('')
   const [detalleAnulacion, setDetalleAnulacion] = useState('')
   const [camposReunionSiguiente, setCamposReunionSiguiente] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
@@ -235,6 +241,8 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     setCerrarLead(false)
     setTsEleccion(Date.now())
     setResultadoReunion(null)
+    setCapitalMonto(String(l?.monto_estimado ?? ''))
+    setCapitalMoneda(l?.moneda ?? 'PEN')
     setCamposReunionSiguiente(CAMPOS_REUNION_VACIOS)
     // Elegir un resultado es afirmar algo del cliente: sale del modo anular.
     setAnulando(false)
@@ -272,6 +280,25 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     if (anulando) refPanelAnular.current?.focus()
   }, [anulando])
 
+  /**
+   * El capital viaja SOLO cuando la cita de un lead se cierra como realizada:
+   * ahí la cita es una entrevista y la etapa sube a «Entrevista realizada». La
+   * puerta `crm.cerrar_reunion_v3` rechaza una cifra en cualquier otro caso —a
+   * quien no vino nadie le propuso capital—.
+   */
+  const capitalDe = (op: OpcionCierre) =>
+    tarea.tipo === 'reunion' && tarea.lead_id && op.estado === 'completada'
+      && resultadoReunion !== 'no_interesado'
+      ? { monto_estimado: Number(capitalMonto), moneda: capitalMoneda }
+      : null
+
+  /** ¿Hay capital que declarar? Con «No interesado» no hubo propuesta. */
+  const pideCapital =
+    tarea.tipo === 'reunion'
+    && tarea.lead_id != null
+    && eleccion?.estado === 'completada'
+    && resultadoReunion !== 'no_interesado'
+
   /** Rastro que va al timeline — MISMO cálculo para las dos salidas del
    *  diálogo (cierre normal y cierre por plantón), o el no-show volvía a
    *  quedar mudo por una de las dos puertas. */
@@ -301,6 +328,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     const res = completarTarea({
       tarea_id: tarea.id,
       estado: eleccion.estado,
+      capital: capitalDe(eleccion),
       ...rastroDe(eleccion),
       siguiente: null,
     })
@@ -414,6 +442,13 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       toast.error('Selecciona el resultado comercial de la cita')
       return
     }
+    if (pideCapital) {
+      const monto = Number(capitalMonto)
+      if (!capitalMonto.trim() || !Number.isFinite(monto) || monto <= 0) {
+        toast.error('Escribe el capital que le propusiste en la entrevista')
+        return
+      }
+    }
     // El plantón sustituye el flujo normal: cierra la tarea y cierra el lead,
     // en ese orden (ver `cerrarPorNoResponde`). Es la ÚNICA salida asíncrona
     // del diálogo — espera a que el cierre haya llegado al servidor.
@@ -446,6 +481,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       // no sube la etapa ni cuenta como contacto.
       // Una tarea genérica con nota deja rastro igual; sin nota, solo cierra.
       ...rastroDe(eleccion),
+      capital: capitalDe(eleccion),
       resultado_reunion: tarea.tipo === 'reunion' ? resultadoReunion : null,
       motivo_no_realizada: tarea.tipo === 'reunion' && eleccion.estado === 'no_show' ? 'cliente_no_asistio' : null,
       siguiente:
@@ -618,6 +654,51 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 </option>
               ))}
             </Select>
+          </div>
+        )}
+
+        {/* CAPITAL DE LA ENTREVISTA — el otro dato del mismo acto.
+            Pedido de Miguel (2026-09-18): que marcar «Se realizó» convierta la
+            cita en entrevista solo. Y una entrevista sin capital no sirve: de esa
+            cifra viven el capital en proceso y las metas del mes, y el estimado
+            del primer contacto es una corazonada. Antes se preguntaba DESPUÉS,
+            en un segundo diálogo del kanban al que había que llegar arrastrando
+            la tarjeta; ahora se pregunta aquí, donde el analista acaba de
+            hablar con la persona y la cifra está fresca. */}
+        {!anulando && pideCapital && (
+          <div>
+            <label
+              className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+              htmlFor="capital-entrevista"
+            >
+              Capital propuesto
+            </label>
+            <div className="grid grid-cols-[1fr_96px] gap-2">
+              <Input
+                id="capital-entrevista"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={capitalMonto}
+                onChange={(evento) => setCapitalMonto(evento.target.value)}
+              />
+              {/* La moneda viaja PEGADA al monto: PEN y USD jamás se suman, así
+                  que un número sin su moneda no significa nada. */}
+              <Select
+                aria-label="Moneda del capital propuesto"
+                value={capitalMoneda}
+                onChange={(evento) => setCapitalMoneda(evento.target.value === 'USD' ? 'USD' : 'PEN')}
+              >
+                <option value="PEN">PEN</option>
+                <option value="USD">USD</option>
+              </Select>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Al guardar, la cita cuenta como entrevista y
+              {l ? ` ${primerNombre(l.nombre_completo)}` : ' el lead'} pasa a «
+              {ETAPA_INFO.propuesta_enviada.label}».
+            </p>
           </div>
         )}
 

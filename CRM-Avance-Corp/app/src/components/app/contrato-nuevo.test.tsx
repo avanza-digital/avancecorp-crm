@@ -63,6 +63,7 @@ const solicitudesEstado = vi.hoisted(() => ({ filas: [] as unknown[] }))
 beforeEach(() => { solicitudesEstado.filas = [] })
 
 vi.mock('@/data/crm-queries', () => ({
+  usePoliticaRentabilidad: () => ({ data: undefined, isPending: false, isError: false, refetch: vi.fn() }),
   // ATR-3: el aviso de cadena de upgrade no aplica en estos escenarios — sin dato.
   useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
   // Rentabilidad R3: el núcleo responde base 15 (primera inversión) y no hay solicitudes vivas.

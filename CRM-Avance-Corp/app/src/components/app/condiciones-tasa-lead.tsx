@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { TasaPolitica, type RangoTasaPolitica } from './tasa-politica'
-import { useSolicitudesTasa } from '@/data/crm-queries'
+import { usePoliticaRentabilidad, useSolicitudesTasa } from '@/data/crm-queries'
 import type { CondicionesTasaLead, SolicitudTasa } from '@/data/crm-api'
 import { ESTADOS_SOLICITUD_TASA_SEGUIMIENTO } from '@/lib/rentabilidad'
 import { formatDateLocal, vencimientoDesdePlazo, type ModalidadContrato, type TipoInteres } from '@/lib/cronograma'
@@ -27,12 +27,15 @@ interface Props {
 /** Una relectura fallida conserva el candado; nunca equivale a «no hay solicitudes». */
 export function CondicionesTasaLeadPanel(props: Props) {
   const { demo, onCambio } = props
+  const politica = usePoliticaRentabilidad(!demo, true)
+  const observacion = !politica.isError && !politica.isPending
+    && politica.data?.observacion_sin_aprobacion === true && politica.data.vigente?.modo === 'observacion'
   const q = useSolicitudesTasa(ESTADOS_SOLICITUD_TASA_SEGUIMIENTO, !props.demo, false, { leadId: props.lead.id })
   useEffect(() => {
-    if (!demo && (q.isPending || q.isError)) onCambio(null)
-  }, [demo, onCambio, q.isPending, q.isError])
+    if (!demo && !observacion && (q.isPending || q.isError)) onCambio(null)
+  }, [demo, onCambio, q.isPending, q.isError, observacion])
   if (!props.demo && q.isPending) return <p role="status" className="text-xs text-muted-foreground">Consultando las condiciones de inversión…</p>
-  if (!props.demo && q.isError) return <div role="alert" className="space-y-2 rounded-xl border border-border p-3 text-xs">
+  if (!props.demo && !observacion && q.isError) return <div role="alert" className="space-y-2 rounded-xl border border-border p-3 text-xs">
     <p>No se pudieron verificar las condiciones de inversión.</p>
     <Button type="button" variant="outline" size="sm" onClick={() => void q.refetch()}>Reintentar condiciones</Button>
   </div>
@@ -68,7 +71,7 @@ function CondicionesEditables({ lead, demo, puedeEditar, onCambio, inicial }: Pr
     onCambio({ condiciones: { ...intencion, capital: monto ?? 0, categoria: inicial?.categoria ?? 'nuevo', contrato_origen_id: inicial?.contrato_origen_id ?? null, tasa_anual: nTasa ?? 0 }, bloqueo })
   }, [intencion, monto, nTasa, inicial?.categoria, inicial?.contrato_origen_id, bloqueo, onCambio])
   const pendiente = rango?.solicitud?.estado_efectivo === 'pendiente'
-  const estado = pendiente ? 'Pendiente de Gerencia' : rango?.modo === 'autorizada' ? 'Tasa aprobada'
+  const estado = rango?.modo === 'observacion' ? 'Observación · sin aprobación' : pendiente ? 'Pendiente de Gerencia' : rango?.modo === 'autorizada' ? 'Tasa aprobada'
     : rango?.minimo != null && rango.base != null && rango.minimo < rango.base ? 'Tasa acordada' : 'Tasa base'
   return <section aria-labelledby={`condiciones-${lead.id}`} className="space-y-3 rounded-xl border border-border bg-card p-3.5" data-testid="condiciones-tasa-lead">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -99,7 +102,7 @@ function CondicionesEditables({ lead, demo, puedeEditar, onCambio, inicial }: Pr
     <div className="grid gap-3">
       <TasaPolitica clienteId="" leadId={lead.id} categoria={inicial?.categoria ?? 'nuevo'} contratoOrigenId={inicial?.contrato_origen_id ?? null} intencion={intencion} tasa={tasa} onTasaChange={setTasa} onRangoChange={setRango} demo={demo} disabled={!puedeEditar || editando} idInput="lead-tasa" />
     </div>
-    {!demo && !lead.dni && <p className="text-[11px] text-muted-foreground-strong">Completa el DNI en los datos del lead antes de solicitar una tasa especial.</p>}
+    {!demo && rango?.modo !== 'observacion' && !lead.dni && <p className="text-[11px] text-muted-foreground-strong">Completa el DNI en los datos del lead antes de solicitar una tasa especial.</p>}
     {rango?.modo === 'autorizada' && <p className="text-[11px] text-primary">La autorización se conservará para el contrato con estas mismas condiciones.</p>}
     {(rango?.solicitud ?? inicial) && <div className="border-t border-border pt-2">
       <button type="button" className="cursor-pointer rounded text-[11px] font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-expanded={detalle} onClick={() => setDetalle(!detalle)}>{detalle ? 'Ocultar detalle de la solicitud' : 'Ver detalle de la solicitud'}</button>

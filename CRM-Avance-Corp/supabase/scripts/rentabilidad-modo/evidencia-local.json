@@ -1,0 +1,295 @@
+[
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "supabase_db_avancecorp-f4-bank",
+      "createdb",
+      "-U",
+      "supabase_admin",
+      "--template=crm_push_tasa_release_20260910",
+      "crm_modo_tasa_a1aaaa5d7acb"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "[{\"firma\" : \"crm.politica_rentabilidad_fn()\", \"huella\" : \"8a4aca684332ef3f8c6014ed59d07c5f\", \"owner\" : \"10\", \"acl\" : null, \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.resolver_tasa_lead_fn(uuid,text,uuid)\", \"huella\" : \"cdbc082c2b5796620594cc3e985446b0\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.solicitar_tasa_fn(jsonb)\", \"huella\" : \"915a06e7f7b7213cbf51f029fa44bfaa\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=5s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.enlazar_tasa_lead(uuid,uuid)\", \"huella\" : \"f68607c2aa2027f0e6b27f9d933e7101\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.rentabilidad_exigir_respuesta(uuid,text,uuid)\", \"huella\" : \"ce748252e7c4d4d12cf20244b91f1dd5\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : false, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)\", \"huella\" : \"12456bd7ecb3fa4673885bd468ba9339\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"private.trg_contratos_observar_rentabilidad()\", \"huella\" : \"24846a709156006298e10edd65ee3ef9\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=2s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)\", \"huella\" : \"fba3d4ed01dc9fd440ab945d63010099\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}]\n",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "[{\"firma\" : \"crm.politica_rentabilidad_fn()\", \"huella\" : \"30459b365027b23705f782fdba1f0a27\", \"owner\" : \"10\", \"acl\" : null, \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.resolver_tasa_lead_fn(uuid,text,uuid)\", \"huella\" : \"990c854d9ce89daddd7be4f0b4f80715\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.solicitar_tasa_fn(jsonb)\", \"huella\" : \"accb586339e2071d212bf7a43ec6cca7\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=5s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.enlazar_tasa_lead(uuid,uuid)\", \"huella\" : \"715526bac82cd217e3b41669e800aa20\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.rentabilidad_exigir_respuesta(uuid,text,uuid)\", \"huella\" : \"2a72867ba73cf6a566d0bee61c88cbe7\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : false, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)\", \"huella\" : \"be42b18a59e3d6820c1d14e873cebc16\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"private.trg_contratos_observar_rentabilidad()\", \"huella\" : \"c37d674b9355b5f8978928165eeb36ff\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=2s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)\", \"huella\" : \"75b0e76d4c0ccdee05731b50e32f0222\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}]\n",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "\n\n\n\n\n\n{}\n",
+    "error": "psql:<stdin>:90: NOTICE:  PASS: API authenticated acepta siete tasas positivas, conserva el valor y bloquea exceso, cero y negativo\npsql:<stdin>:124: NOTICE:  PASS: ledger conserva base, tasa elegida, actor y motivo sin una solicitud artificial\npsql:<stdin>:145: NOTICE:  PASS: correcciones conservan la tasa pactada y no conceden permiso para rebajarla\npsql:<stdin>:165: NOTICE:  PASS: renovaciones y upgrades mantienen la base heredada y el candado\npsql:<stdin>:192: NOTICE:  PASS: reserva, sellado, identidad, conversión y contrato a 12.5 sin solicitud de Gerencia\npsql:<stdin>:205: NOTICE:  PASS: helper privado sin permisos de API ni elevación de privilegios\npsql:<stdin>:214: NOTICE:  PASS: sin identidad no se obtiene un rango autorizado\n"
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "\n7d4e3100-88e5-427a-a199-78797680ce97\n\n",
+    "error": "psql:<stdin>:119: NOTICE:  PASS: sin solicitud crea a la base\npsql:<stdin>:119: NOTICE:  PASS: enforcement bloquea base, cambio de capital y otro actor; cero altas parciales\npsql:<stdin>:119: NOTICE:  PASS: conserva el ámbito cliente/categoría/origen\npsql:<stdin>:119: NOTICE:  PASS: tras rechazo crea a la base\npsql:<stdin>:119: NOTICE:  PASS: aprobación permite la tasa y consume la autorización\npsql:<stdin>:119: NOTICE:  PASS: no reutiliza una autorización\npsql:<stdin>:119: NOTICE:  PASS: una solicitud caducada no bloquea a la base\npsql:<stdin>:119: NOTICE:  PASS: helpers internos cerrados a la API\npsql:<stdin>:137: NOTICE:  PASS: authenticated no ve la solicitud ajena, pero tampoco puede crear\n"
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "{\"sub\":\"f3000000-0000-0000-0000-000000000001\",\"role\":\"authenticated\"}\n\n\n{}\n",
+    "error": "psql:<stdin>:164: NOTICE:  PASS: tasa central, solicitud y lectura con nombre, sin cliente artificial\npsql:<stdin>:164: NOTICE:  PASS: pendiente bloquea ambas reservas y segunda solicitud, cero efectos parciales\npsql:<stdin>:164: NOTICE:  PASS: tope exige aceptación, máximo y huella exacta (capital, fecha, moneda y modalidad)\npsql:<stdin>:164: NOTICE:  PASS: la aprobación no cambia de persona al editar el documento\npsql:<stdin>:164: NOTICE:  PASS: reserva sellada inmutable, enlaza misma solicitud y reintento idempotente sin consumir\npsql:<stdin>:164: NOTICE:  PASS: el contrato consume la autorización enlazada una sola vez\npsql:<stdin>:164: NOTICE:  PASS: cliente conocido conserva bloqueo compartido y decisión en bandeja existente\npsql:<stdin>:164: NOTICE:  PASS: rechazo y caducidad permiten base\npsql:<stdin>:236: NOTICE:  PASS: sin DNI no se envía aprobación ni se crea una solicitud parcial\npsql:<stdin>:236: NOTICE:  PASS: cliente conocido, wrapper de domicilio real, enlace y consumo al contratar\npsql:<stdin>:236: NOTICE:  PASS: reasignación conserva respuesta del autor, ámbito del nuevo analista y lectura del supervisor\npsql:<stdin>:236: NOTICE:  PASS: Gerencia conserva y resuelve solicitudes de leads inactivos\npsql:<stdin>:255: NOTICE:  PASS: RLS y permisos de API, helpers y reservas cerrados\npsql:<stdin>:271: NOTICE:  PASS: sesión API autorizada opera y la autoaprobación sigue prohibida\npsql:<stdin>:286: NOTICE:  PASS: sin identidad autenticada no se puede solicitar ni consultar\n"
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "\n\n\n\n\n\n\n\n\n\n\n\n",
+    "error": "psql:<stdin>:63: NOTICE:  PASS: candado activo bloquea contrato y conversión con solicitud pendiente\npsql:<stdin>:95: NOTICE:  PASS: observación acepta cinco tasas, pendiente no bloquea alta/reserva, conserva tope y decimales y evita nuevas solicitudes\npsql:<stdin>:118: NOTICE:  PASS: ledger, historial, identidad de solicitudes y PDF conservados; validación de conversión mantiene límites\npsql:<stdin>:133: NOTICE:  PASS: el mismo botón vuelve a activar las dos barreras\npsql:<stdin>:180: NOTICE:  PASS: observación no consume aprobaciones; reactivar permite un único consumo autorizado\npsql:<stdin>:211: NOTICE:  PASS: herencia histórica, corrección dentro del rango y límite de corrección\npsql:<stdin>:250: NOTICE:  PASS: identidad ajena, documento desactualizado y conflicto se saltan sin cambios; compatible se enlaza\n"
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "-i",
+      "supabase_db_avancecorp-f4-bank",
+      "psql",
+      "-X",
+      "-U",
+      "supabase_admin",
+      "-d",
+      "crm_modo_tasa_a1aaaa5d7acb",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-Atq",
+      "-f",
+      "-"
+    ],
+    "codigo": 0,
+    "salida": "[{\"firma\" : \"crm.politica_rentabilidad_fn()\", \"huella\" : \"8a4aca684332ef3f8c6014ed59d07c5f\", \"owner\" : \"10\", \"acl\" : null, \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.resolver_tasa_lead_fn(uuid,text,uuid)\", \"huella\" : \"cdbc082c2b5796620594cc3e985446b0\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"crm.solicitar_tasa_fn(jsonb)\", \"huella\" : \"915a06e7f7b7213cbf51f029fa44bfaa\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\",\"authenticated=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=5s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.enlazar_tasa_lead(uuid,uuid)\", \"huella\" : \"f68607c2aa2027f0e6b27f9d933e7101\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.rentabilidad_exigir_respuesta(uuid,text,uuid)\", \"huella\" : \"ce748252e7c4d4d12cf20244b91f1dd5\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : false, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)\", \"huella\" : \"12456bd7ecb3fa4673885bd468ba9339\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"s\"}, {\"firma\" : \"private.trg_contratos_observar_rentabilidad()\", \"huella\" : \"24846a709156006298e10edd65ee3ef9\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\",\"lock_timeout=2s\"], \"definer\" : true, \"volatilidad\" : \"v\"}, {\"firma\" : \"private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)\", \"huella\" : \"fba3d4ed01dc9fd440ab945d63010099\", \"owner\" : \"16384\", \"acl\" : [\"postgres=X/postgres\"], \"config\" : [\"search_path=\\\"\\\"\"], \"definer\" : true, \"volatilidad\" : \"v\"}]\n",
+    "error": ""
+  },
+  {
+    "comando": [
+      "docker",
+      "exec",
+      "supabase_db_avancecorp-f4-bank",
+      "dropdb",
+      "-U",
+      "supabase_admin",
+      "crm_modo_tasa_a1aaaa5d7acb"
+    ],
+    "codigo": 0,
+    "salida": "",
+    "error": ""
+  }
+]

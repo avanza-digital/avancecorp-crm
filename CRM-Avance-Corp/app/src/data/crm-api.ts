@@ -4075,6 +4075,7 @@ const ReglaTasaSchema = v.picklist(['primera_inversion', 'heredada_renovacion', 
 export type ReglaTasa = v.InferOutput<typeof ReglaTasaSchema>
 
 const ResolucionTasaSchema = v.object({
+  observacion_sin_aprobacion: v.optional(v.boolean(), false),
   tasa_base: NumericoRpc,
   tasa_minima_sin_autorizacion: v.optional(NumericoRpc),
   regla: ReglaTasaSchema,
@@ -4103,6 +4104,8 @@ const ResolucionTasaSchema = v.object({
   }),
 })
 export interface ResolucionTasa {
+  /** Señal del servidor: todos los controles ya respetan el modo observación. */
+  observacion_sin_aprobacion?: boolean
   bloqueo_conversion?: string | null
   tasa_base: number
   /** Ausente en servidores anteriores: conservar el mínimo igual a la base. */
@@ -4173,6 +4176,7 @@ export async function resolverTasa(
   }
   return {
     bloqueo_conversion: o.bloqueo_conversion,
+    observacion_sin_aprobacion: o.observacion_sin_aprobacion,
     tasa_base: base,
     tasa_minima_sin_autorizacion: minimo,
     regla: o.regla,
@@ -4573,6 +4577,7 @@ const PoliticaRentabilidadFilaSchema = v.object({
   es_vigente: v.optional(v.boolean()),
 })
 const PoliticaRentabilidadSchema = v.object({
+  observacion_sin_aprobacion: v.optional(v.boolean(), false),
   version: v.literal(1),
   vigente: v.nullable(PoliticaRentabilidadFilaSchema),
   expected_version: v.number(),
@@ -4594,6 +4599,7 @@ export interface PoliticaRentabilidadFila {
   es_vigente: boolean
 }
 export interface PoliticaRentabilidad {
+  observacion_sin_aprobacion?: boolean
   vigente: PoliticaRentabilidadFila | null
   expected_version: number
   historial: PoliticaRentabilidadFila[]
@@ -4633,6 +4639,7 @@ export async function obtenerPoliticaRentabilidad(signal?: AbortSignal): Promise
   }
   return {
     vigente: r.output.vigente ? aPoliticaFila(r.output.vigente) : null,
+    observacion_sin_aprobacion: r.output.observacion_sin_aprobacion,
     expected_version: r.output.expected_version,
     historial: r.output.historial.map(aPoliticaFila),
     observacion_activa_desde: r.output.observacion_activa_desde,
