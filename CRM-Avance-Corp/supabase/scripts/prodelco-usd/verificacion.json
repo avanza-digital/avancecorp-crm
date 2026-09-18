@@ -1,0 +1,38 @@
+{
+  "fecha": "2026-09-18T15:06:08.129Z",
+  "copia": "prodelco_usd_20260917",
+  "plantilla": "cartera_origen_20260916",
+  "migracion": "20260917235656_crm_prodelco_inversiones_en_dolares.sql",
+  "md5_migracion": "ff35d7779a27c84f087be114d9716287",
+  "catalogo_antes": "{\"avance\": [\"PEN\", \"USD\"], \"prodelco\": [\"PEN\"], \"qorilazo\": [\"PEN\"]}",
+  "catalogo_despues": "{\"avance\": [\"PEN\", \"USD\"], \"prodelco\": [\"PEN\", \"USD\"], \"qorilazo\": [\"PEN\"]}",
+  "check_antes": "CHECK ((moneda = 'PEN'::text))",
+  "check_despues": "CHECK ((moneda = ANY (ARRAY['PEN'::text, 'USD'::text])))",
+  "escritores_antes": {
+    "convertir": "3f1cded7e40c54c98bcf461665c6f8ff",
+    "corregir": "894806c9b0a765eff7896f42d51f8bff",
+    "validar": "96b4e342df9cc08a875bac34ca17a829",
+    "confirmar": "8ab0be625fecb7916de44286425c0688",
+    "correccionF4": "3de3d2689706371cdc46f0a29836cb5c"
+  },
+  "escritores_despues": {
+    "convertir": "f1759833df86b0a7e6f08d21ec2260c4",
+    "corregir": "93c3c6eb72b37fdf58b537781154ab88",
+    "validar": "7c7f4bb5d77a7834571af850585f505f",
+    "confirmar": "eb671aa677a9ba63fa995510e4f48192",
+    "correccionF4": "fe210a25d8a08cfbce923d3ac12ab199"
+  },
+  "oraculo": "PRODELCO_USD_OK · 13 casos",
+  "mutantes_cazados": [
+    "M1 · el escritor vuelve a decir PEN a mano",
+    "M2 · el escritor ignora la cooperativa y mira siempre Prodelco",
+    "M3 · sin la guarda del null (el candado se abriría solo)",
+    "M4 · el insert F4 vuelve a fijar PEN",
+    "M6 · la corrección F4 deja de declarar la moneda inmutable",
+    "M7 · gerencia puede cambiar la moneda en un mes sellado",
+    "M5 · el CHECK de la tabla vuelve a solo soles"
+  ],
+  "segunda_aplicacion": "negada por el preflight",
+  "registrador": "registra, idempotente, se niega con otro cuerpo",
+  "reversa": "se niega con dólares vivos y con solicitudes F4 en otra moneda; limpia devuelve los CINCO escritores byte a byte"
+}

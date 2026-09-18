@@ -3,6 +3,7 @@ import { CheckCircle2, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { ContratoNuevo } from './contrato-nuevo'
@@ -20,7 +21,8 @@ import { contratoDeSolicitud, datosAvanceRevisados, guardarIntentoInversion, lee
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
 import { parseMonto, ERROR_MONTO } from '@/lib/numero'
-import { fmtFecha, money } from '@/lib/format'
+import { fmtFecha, money, type Moneda } from '@/lib/format'
+import { INFO_COOPERATIVA, monedaPorDefecto, pideMoneda, type Cooperativa } from '@/lib/cierres-externos'
 import { type CuotaCronograma } from '@/lib/cronograma'
 import { archivarContratoPdfConfirmado } from '@/lib/contrato-pdf-archivo'
 
@@ -283,7 +285,16 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
   datos: DatosInversion; ocupado: boolean; correccion: boolean; motivo: string; onMotivo: (v: string) => void
   onGuardar: (datos: DatosInversion, archivo: File | null, clave: string) => Promise<void>
 }) {
+  // La cooperativa de esta solicitud. `datos.empresa` ya no puede ser 'avance'
+  // aquí (ese camino va a ContratoNuevo), así que sirve de clave del espejo.
+  const coop = datos.empresa as Cooperativa
   const [monto, setMonto] = useState(datos.monto?.toString() ?? '')
+  // La moneda: se conserva la de una solicitud que se está corrigiendo y, si no
+  // hay, la primera que admite esa cooperativa. Solo se PREGUNTA cuando admite
+  // más de una (Prodelco desde el 17/09/2026).
+  const [moneda, setMoneda] = useState<Moneda>(
+    datos.moneda === 'USD' || datos.moneda === 'PEN' ? datos.moneda : monedaPorDefecto(coop),
+  )
   const [fecha, setFecha] = useState(datos.fecha_comercial ?? fechaLima(Date.now()))
   const [plazo, setPlazo] = useState(datos.plazo_meses?.toString() ?? '')
   const [tasa, setTasa] = useState(datos.tasa_anual?.toString() ?? '')
@@ -304,13 +315,20 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
     }
     const ext = archivo?.type === 'application/pdf' ? 'pdf' : archivo?.type === 'image/png' ? 'png' : 'jpg'
     const ruta = datos.evidencia?.ruta ?? `${datos.inversionista_id}/${id}/comprobante.${ext}`
-    setError(''); void onGuardar({...datos, monto: capital, moneda: 'PEN', fecha_comercial: fecha,
+    setError(''); void onGuardar({...datos, monto: capital, moneda, fecha_comercial: fecha,
       vence_en: condiciones.venceEn, plazo_meses: condiciones.plazoMeses, tasa_anual: condiciones.tasaAnual,
       numero_transaccion: deposito.trim(), referencia: referencia.trim(), evidencia: {ruta}}, archivo, id)
   }
   return <form onSubmit={enviar} className="space-y-3">
     <div className="grid gap-3 sm:grid-cols-2">
-      <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">Capital en soles (PEN)</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">Capital en {moneda === 'USD' ? 'dólares' : 'soles'} ({moneda})</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
+      {/* La moneda solo se ofrece si ESTA cooperativa admite más de una: el
+          espejo vive en INFO_COOPERATIVA y la regla la manda el catálogo del
+          servidor (`crm.empresas.monedas`). */}
+      {pideMoneda(coop) && <div className="min-w-0 space-y-1"><Label htmlFor="f5-moneda">Moneda</Label>
+        <Select id="f5-moneda" value={moneda} onChange={e => setMoneda(e.target.value as Moneda)} disabled={ocupado}>
+          {INFO_COOPERATIVA[coop].monedas.map(m => <option key={m} value={m}>{m === 'PEN' ? 'Soles (S/)' : 'Dólares (US$)'}</option>)}
+        </Select></div>}
       <div className="min-w-0 space-y-1"><Label htmlFor="f5-deposito">Número de operación del depósito</Label><Input id="f5-deposito" required maxLength={64} value={deposito} onChange={e => setDeposito(e.target.value)} disabled={ocupado} /></div>
     </div>
     <CondicionesCoopac prefijo="f5" fecha={fecha} plazo={plazo} tasa={tasa} ocupado={ocupado}

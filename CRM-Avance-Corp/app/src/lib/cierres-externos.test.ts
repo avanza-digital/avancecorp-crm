@@ -5,10 +5,13 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import {
+  admiteMoneda,
   capitalAvance,
   CierresExternosSchema,
   COOPERATIVAS,
   INFO_COOPERATIVA,
+  monedaPorDefecto,
+  pideMoneda,
 } from './cierres-externos'
 
 const CIERRE = {
@@ -160,5 +163,38 @@ describe('cierres anulados', () => {
     const { numero_transaccion: _, ...sinTransaccion } = CIERRE
     const r = v.safeParse(CierresExternosSchema, { ...PAYLOAD, cierres: [sinTransaccion] })
     expect(r.success).toBe(false)
+  })
+})
+
+describe('el espejo de monedas por cooperativa', () => {
+  // Es un ESPEJO de `crm.empresas.monedas`. Si estas expectativas dejan de
+  // coincidir con el catálogo del servidor, el formulario ofrecería una moneda
+  // que sería rechazada (o esconderá una que sí se admite).
+  it('PRODELCO admite soles y dólares; QORILAZO solo soles (catálogo del 17/09/2026)', () => {
+    expect(INFO_COOPERATIVA.prodelco.monedas).toEqual(['PEN', 'USD'])
+    expect(INFO_COOPERATIVA.qorilazo.monedas).toEqual(['PEN'])
+  })
+
+  it('la moneda por defecto es soles en las dos: un cierre en dólares es la excepción', () => {
+    expect(monedaPorDefecto('prodelco')).toBe('PEN')
+    expect(monedaPorDefecto('qorilazo')).toBe('PEN')
+  })
+
+  it('solo se pregunta la moneda donde hay más de una que elegir', () => {
+    expect(pideMoneda('prodelco')).toBe(true)
+    expect(pideMoneda('qorilazo')).toBe(false)
+  })
+
+  it('admiteMoneda dice exactamente lo que dice el catálogo', () => {
+    expect(admiteMoneda('prodelco', 'USD')).toBe(true)
+    expect(admiteMoneda('prodelco', 'PEN')).toBe(true)
+    expect(admiteMoneda('qorilazo', 'PEN')).toBe(true)
+    expect(admiteMoneda('qorilazo', 'USD')).toBe(false)
+  })
+
+  it('ninguna cooperativa se queda sin moneda: sin una, no podría cerrar nada', () => {
+    for (const coop of COOPERATIVAS) {
+      expect(INFO_COOPERATIVA[coop].monedas.length).toBeGreaterThan(0)
+    }
   })
 })
