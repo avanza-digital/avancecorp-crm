@@ -38,8 +38,22 @@ La publicación de CRM/portal se registra en el acta del mismo cambio.
 
 ## 20260918213000 — La cita atendida ES la entrevista
 
-**🟡 PREPARADA, NO APLICADA.** Pedido de Miguel (18/09/2026): «cuando el analista diga que una
-cita vino a la cita, esto se convierta automáticamente en una entrevista».
+**✅ EN PRODUCCIÓN el 18/09/2026.** SQL aplicada y registrada ~16:10 Lima (registro **305**, cuerpo
+guardado con md5 `481747ec37382d039bce87ef187ff85b`, idéntico al del archivo). **Front publicado
+~16:15 Lima**: artefacto `crm-20260918T211444Z-3745bb9770c2` (SHA-256 `60496b14…`, commit
+`3745bb97`), construido en worktree limpio, preflight OK
+(`live=build-20260918T174455375Z/57009ee15b7f candidate=3745bb9770c2`), `version.json` →
+`build-20260918T211443912Z`, home 200 y el `index-Cv4451_V.js` servido **byte a byte idéntico** al
+del dist (md5 `0828d2a59400b26a6706497b839c6f8e`), con el campo de capital y `cerrar_reunion_v3`
+dentro.
+
+Orden respetado: **servidor primero, front después**. Tras aplicar, el oráculo completo se corrió
+contra la función **VIVA** (y se deshizo): VERDE, 0 fallos. Gate propio y los cuatro del mundo SLA en
+verde; advisors de seguridad **0 ERROR** (el único aviso que menciona la puerta nueva es el mismo,
+por diseño, que ya emite `cerrar_reunion_v2`: SECURITY DEFINER invocable por `authenticated`).
+
+Pedido de Miguel (18/09/2026): «cuando el analista diga que una cita vino a la cita, esto se
+convierta automáticamente en una entrevista».
 
 **El hueco que cierra.** Gerencia ya contaba la entrevista sola desde el 13/09 —«Cita: generada en
 el CRM. Entrevista: asistencia a una cita»— porque `private.citas_episodios` mira
@@ -109,9 +123,10 @@ abortaría una migración que no los empeora ni los arregla. **Esto hay que reso
 **Orden de publicación: SERVIDOR PRIMERO**, front después — el front pasa a llamar
 `cerrar_reunion_v3`, que no existe hasta aplicar esto.
 
-**Al aplicar:** correr `npm run gen:types` en `app/` y borrar el comentario que acompaña a
-`cerrar_reunion_v3` en `app/src/lib/database.types.ts` — ese tipo está escrito A MANO porque
-`gen:types` lee el esquema vivo (ya se perdió una vez cuando otra sesión regeneró el archivo).
+**Deuda menor abierta:** el tipo de `cerrar_reunion_v3` en `app/src/lib/database.types.ts` sigue
+escrito A MANO (con su comentario). Ya se puede regenerar con `npm run gen:types`, pero no se hizo en
+la misma entrega porque **otra sesión tiene ese archivo en vuelo** y regenerarlo le pisaría el
+trabajo — de hecho ya pasó una vez hoy: su `gen:types` borró esta línea y hubo que reponerla.
 
 **Reversa:** `drop function crm.cerrar_reunion_v3(...)`, luego
 `drop function private.entrevista_registrar(...)` y `private.assert_entrevista_al_asistir()`. El
