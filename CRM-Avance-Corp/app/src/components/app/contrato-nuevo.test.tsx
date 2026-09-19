@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { Dialog } from '@/components/ui/dialog'
 import * as crmApi from '@/data/crm-api'
 import { CUENTAS_CLIENTES_DEMO, DATOS_PDF_DEMO } from '@/lib/demo-clientes'
+import type { ContratoNuevoProps } from './contrato-nuevo'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -120,9 +121,7 @@ const completarDomicilio = vi.mocked(crmApi.completarDomicilioCliente)
 
 function montar(
   pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
-  opciones: {
-    validarNumero?: (numero: string) => string | null
-  } = {},
+  opciones: Pick<ContratoNuevoProps, 'validarNumero' | 'borrador' | 'onRevisar'> = {},
 ) {
   const onCreado = vi.fn()
   const onOmitir = vi.fn()
@@ -135,7 +134,7 @@ function montar(
         clienteNombre="CLIENTE PORTAL UNO"
         pdfDatosDemo={pdfDatosDemo}
         cuentasDemo={pdfDatosDemo ? CUENTAS_CLIENTES_DEMO['dc-cli-1'] : undefined}
-        {...(opciones.validarNumero ? { validarNumero: opciones.validarNumero } : {})}
+        {...opciones}
         onConfirmado={onConfirmado}
         onEnviandoCambio={onEnviandoCambio}
         onCreado={onCreado}
@@ -190,6 +189,51 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       bytes: 123,
       blob: new Blob(['%PDF']),
     }))
+  })
+
+  it.each(['2024-01-', '2025-01-', '2026-01-'])('envía y confirma el contrato con el prefijo elegido %s', async (prefijo) => {
+    const user = userEvent.setup()
+    const numeroEsperado = `${prefijo}000777`
+    crearContrato.mockResolvedValue({
+      id: 'ctr-1', numero_contrato: numeroEsperado, cuenta_bancaria_id: 'cb-1',
+      pdf: { contrato_id: 'ctr-1', job_id: 'job-1', estado: 'pendiente', reintentable: true },
+      idempotente: false,
+    })
+    const validarNumero = vi.fn(() => null)
+    const { onConfirmado } = montar(undefined, { validarNumero })
+    expect(screen.getByRole('combobox', { name: 'Prefijo del contrato' })).toHaveValue('2026-01-')
+    await llenarBase(user)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prefijo del contrato' }), prefijo)
+    expect(screen.getByLabelText('N° de contrato')).toHaveValue('000777')
+
+    await user.click(boton())
+
+    await screen.findByText(`Contrato ${numeroEsperado} creado`)
+    expect(validarNumero).toHaveBeenCalledWith(numeroEsperado)
+    expect(crearContrato.mock.calls[0]?.[0].numero_contrato).toBe(numeroEsperado)
+    expect(onConfirmado).toHaveBeenCalledWith(numeroEsperado)
+  })
+
+  it.each(['2024-01-', '2025-01-'])('recupera el prefijo %s y sus seis dígitos al reabrir un borrador', async (prefijo) => {
+    const user = userEvent.setup()
+    const onRevisar = vi.fn<NonNullable<ContratoNuevoProps['onRevisar']>>().mockResolvedValue(undefined)
+    const primera = montar(undefined, { onRevisar })
+    await llenarBase(user)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prefijo del contrato' }), prefijo)
+    await user.click(screen.getByRole('button', { name: 'Revisar inversión' }))
+    await waitFor(() => expect(onRevisar).toHaveBeenCalledOnce())
+    const borrador = onRevisar.mock.calls[0]![0]
+    expect(borrador.numero_contrato).toBe(`${prefijo}000777`)
+    primera.unmount()
+
+    montar(undefined, { borrador, onRevisar })
+    expect(screen.getByRole('combobox', { name: 'Prefijo del contrato' })).toHaveValue(prefijo)
+    expect(screen.getByLabelText('N° de contrato')).toHaveValue('000777')
+    await user.click(screen.getByRole('radio', { name: /BCP/ }))
+    await user.click(screen.getByRole('button', { name: 'Revisar inversión' }))
+    await waitFor(() => expect(onRevisar).toHaveBeenCalledTimes(2))
+    expect(onRevisar.mock.calls[1]?.[0].numero_contrato).toBe(`${prefijo}000777`)
+    expect(crearContrato).not.toHaveBeenCalled()
   })
 
   it('6 meses con modalidad anual: el cronograma NO está vacío (trae el retorno) y aun así se bloquea', async () => {
@@ -389,12 +433,14 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     const user = userEvent.setup()
     montar()
     await llenarBase(user)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prefijo del contrato' }), '2024-01-')
     await user.clear(screen.getByLabelText('N° de contrato'))
 
     await user.click(boton())
 
     const alerta = await screen.findByRole('alert')
     expect(alerta).toHaveTextContent(/exactamente 6 dígitos/)
+    expect(alerta).toHaveTextContent('después de 2024-01-')
     await vi.waitFor(() => expect(alerta).toHaveFocus())
   })
 

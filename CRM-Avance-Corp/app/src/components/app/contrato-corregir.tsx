@@ -7,7 +7,7 @@
 //  - TRAMPA 2: 'titulares' presente REEMPLAZA el set completo → se cargan los
 //    actuales ANTES de habilitar el guardado; si su carga falló, la clave se
 //    OMITE (ausente = el servidor no los toca) y se avisa.
-//  - N° de contrato: prefijo FIJO '2026-01-' + 6 dígitos OBLIGATORIOS.
+//  - N° de contrato: prefijo seleccionable + 6 dígitos OBLIGATORIOS.
 //  - El cronograma se REGENERA con lib/cronograma (mismo generador del preview);
 //    el servidor conserva las cuotas ya pagadas.
 // Se monta DENTRO de <Dialog> (mismo patrón que ContratoNuevo).
@@ -46,6 +46,7 @@ import {
 } from '@/lib/cronograma'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { normalizarTitulares } from '@/lib/titulares'
+import { NumeroContratoCampo } from '@/components/app/numero-contrato-campo'
 import { useVentana } from '@/lib/ventana'
 import { MAX_TITULARES, type ContratoRow } from '@/lib/clientes-tipos'
 import {
@@ -58,6 +59,7 @@ import {
   PLAZOS_BASE,
   PREFIJO_CONTRATO,
   RE_SEIS_DIGITOS,
+  separarNumeroContrato,
 } from '@/lib/contratos-catalogo'
 
 // Meses calendario entre dos fechas YYYY-MM-DD (espejo de mesesEntre de
@@ -120,10 +122,11 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar, onEnviandoCam
 
   // Solo los 6 dígitos del formato nuevo; una numeración vieja (AC-2026-XXXX)
   // deja el casillero vacío y obliga a asignar el formato actual al guardar.
-  const numeroInicial = new RegExp(`^${PREFIJO_CONTRATO}(\\d{6})$`).exec(contrato.numero_contrato)?.[1] ?? ''
-  const esNumeracionVieja = numeroInicial === ''
+  const numeroInicial = separarNumeroContrato(contrato.numero_contrato)
+  const esNumeracionVieja = numeroInicial == null
 
-  const [numero, setNumero] = useState(numeroInicial)
+  const [prefijo, setPrefijo] = useState(numeroInicial?.prefijo ?? PREFIJO_CONTRATO)
+  const [numero, setNumero] = useState(numeroInicial?.numero ?? '')
   const [categoria, setCategoria] = useState<CategoriaContrato | ''>(contrato.categoria ?? '')
   const [tipoInteres, setTipoInteres] = useState<TipoInteres>(contrato.tipo_interes)
   const [modalidad, setModalidad] = useState<ModalidadContrato>(contrato.modalidad)
@@ -341,7 +344,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar, onEnviandoCam
     }
     // Validaciones espejo de guardarContrato de analista.js (mensajes tal cual).
     if (!RE_SEIS_DIGITOS.test(numero)) {
-      setError('El N° de contrato debe tener exactamente 6 dígitos (después de 2026-01-).')
+      setError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${prefijo}).`)
       return
     }
     if (capital.trim() && parseMonto(capital) == null) {
@@ -422,7 +425,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar, onEnviandoCam
       categoria,
       fecha_inicio: fechaInicio,
       fecha_vencimiento: venc,
-      numero_contrato: PREFIJO_CONTRATO + numero,
+      numero_contrato: prefijo + numero,
       // TRAMPA 1: la clave viaja SIEMPRE (aunque sea null) o el servidor la borra.
       notas_internas: notas.trim() || null,
     }
@@ -507,24 +510,15 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar, onEnviandoCam
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="space-y-1.5">
-            <Label htmlFor="cc-numero">N° de contrato</Label>
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-9 shrink-0 items-center rounded-lg border border-input bg-muted px-2.5 text-sm font-semibold tabular-nums text-muted-foreground">
-                {PREFIJO_CONTRATO}
-              </span>
-              <Input
-                id="cc-numero"
-                inputMode="numeric"
-                value={numero}
-                // Solo dígitos, máx 6 — bloquea letras/espacios al teclear o pegar.
-                onChange={(e) => setNumero(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000123"
-                disabled={enviando}
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <NumeroContratoCampo
+            id="cc-numero"
+            prefijo={prefijo}
+            numero={numero}
+            onPrefijoChange={setPrefijo}
+            onNumeroChange={setNumero}
+            disabled={enviando}
+          />
           <div className="space-y-1.5">
             <Label htmlFor="cc-categoria">Categoría</Label>
             <Select

@@ -36,6 +36,7 @@ import {
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
 import { CuentaPagoContrato } from '@/components/app/cuenta-pago-contrato'
+import { NumeroContratoCampo } from '@/components/app/numero-contrato-campo'
 import { TasaPolitica, type RangoTasaPolitica } from '@/components/app/tasa-politica'
 import { rangoEfectivo } from '@/lib/rentabilidad'
 import { useAtribucionContrato, useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
@@ -52,6 +53,7 @@ import {
   PLAZOS_BASE,
   PREFIJO_CONTRATO,
   RE_SEIS_DIGITOS,
+  separarNumeroContrato,
 } from '@/lib/contratos-catalogo'
 import {
   archivarContratoPdfConfirmado,
@@ -244,8 +246,9 @@ export function ContratoNuevo({
   const [fechaInicio, setFechaInicio] = useState(borrador?.fecha_inicio ?? condicionesIniciales?.fecha_inicio ?? hoyLocal())
   const [plazo, setPlazo] = useState<string>(borrador || condicionesIniciales ? PLAZO_PERSONALIZADO : '12')
   const [vencManual, setVencManual] = useState(borrador?.fecha_vencimiento ?? condicionesIniciales?.fecha_vencimiento ?? '')
-  // Solo los 6 dígitos: el prefijo 2026-01- está pintado fijo en el form.
-  const [numero, setNumero] = useState(borrador?.numero_contrato?.replace(PREFIJO_CONTRATO, '') ?? '')
+  const numeroInicial = separarNumeroContrato(borrador?.numero_contrato)
+  const [prefijo, setPrefijo] = useState(numeroInicial?.prefijo ?? PREFIJO_CONTRATO)
+  const [numero, setNumero] = useState(numeroInicial?.numero ?? '')
   const [notas, setNotas] = useState(borrador?.notas_internas ?? '')
   // La selección se reinicia al cambiar moneda: jamás se traslada implícitamente
   // una cuenta PEN a USD (o viceversa).
@@ -418,6 +421,7 @@ export function ContratoNuevo({
     moneda,
     notas,
     numero,
+    prefijo,
     plazo,
     tasa,
     tipoInteres,
@@ -530,10 +534,10 @@ export function ContratoNuevo({
     // El N° debe ser EXACTAMENTE 6 dígitos (espejo de analista.js:800-805): sin
     // ellos el servidor inventaría la numeración vieja 'AC-2026-XXXX'.
     if (!RE_SEIS_DIGITOS.test(numero)) {
-      reportarError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${PREFIJO_CONTRATO}).`)
+      reportarError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${prefijo}).`)
       return
     }
-    const numeroContrato = `${PREFIJO_CONTRATO}${numero}`
+    const numeroContrato = `${prefijo}${numero}`
     const errorNumero = validarNumero?.(numeroContrato)
     if (errorNumero) {
       reportarError(errorNumero)
@@ -665,7 +669,7 @@ export function ContratoNuevo({
       ? {
           ...pdfDatosDemo,
           contrato: {
-            numero: input.numero_contrato ?? `${PREFIJO_CONTRATO}${numero}`,
+            numero: input.numero_contrato ?? numeroContrato,
             capital: input.capital,
             moneda: input.moneda,
             porcentaje: input.tasa_anual,
@@ -1298,36 +1302,14 @@ export function ContratoNuevo({
         )}
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="ct-numero">N° de contrato</Label>
-            <div className="flex">
-              {/* Prefijo FIJO pintado: imposible de borrar (espejo de analista.html). */}
-              <span
-                aria-hidden
-                className="inline-flex h-9 items-center rounded-l-lg border border-r-0 border-input bg-muted px-2.5 text-sm font-bold tabular-nums text-muted-foreground"
-              >
-                {PREFIJO_CONTRATO}
-              </span>
-              <Input
-                id="ct-numero"
-                className="rounded-l-none"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="000000"
-                autoComplete="off"
-                title="Exactamente 6 dígitos"
-                value={numero}
-                // Solo dígitos, máx 6 — bloquea letras/espacios al teclear o pegar
-                // (espejo del listener de k_numero en analista.js:1041-1043).
-                onChange={(e) => setNumero(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                disabled={enviando}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Escribe los <b className="text-foreground">6 dígitos</b>. El{' '}
-              <b className="text-foreground">{PREFIJO_CONTRATO}</b> es fijo.
-            </p>
-          </div>
+          <NumeroContratoCampo
+            id="ct-numero"
+            prefijo={prefijo}
+            numero={numero}
+            onPrefijoChange={setPrefijo}
+            onNumeroChange={setNumero}
+            disabled={enviando}
+          />
           <div className="space-y-1.5">
             <Label htmlFor="ct-notas">Notas internas (opcional)</Label>
             <Input
