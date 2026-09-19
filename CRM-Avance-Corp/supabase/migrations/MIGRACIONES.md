@@ -5,8 +5,16 @@
 **✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
 exacto) y REGISTRADA (~16:05 Lima, `registrar-20260919185718.sql`; cuerpo md5 `bca9492d91f1d748b2c61b43cf7dd3ae`,
 idéntico al del archivo). Postflight en prod: gate propio + los 4 gates SLA OK. Sonda anónima por PostgREST:
-`{"p_lead_id":…}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` → PGRST202. FRONT: SIN PUBLICAR
-(PR #28 pendiente de merge commit y `release:crm`).** Ensayo previo en el banco: PASS (ver abajo). Fase 1 del plan «sin topes»
+`{"p_lead_id":…}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` → PGRST202. FRONT PUBLICADO
+~16:36 Lima: release `crm-20260919T213432Z-4094df3c9224` (commit `4094df3c` = PR #28 fusionada por squash
+sobre #26/#29; SHA-256 `66ae91eb…`), construido en un worktree LIMPIO con `npm ci` propio porque el
+`node_modules` del taller no tenía la fuente de #29 y el taller tenía un commit ajeno sin publicar
+(`31f9312b`); `npm run check` PASS en el worktree (254 archivos, 3 763 tests, bundle limpio);
+`ARTEFACTO_OK`; preflight OK (vivo `build-20260919T202713539Z`/`7035feef` ⊂ candidato); publicado por
+Miguel con `!` vía `deploy-hostinger-mcp.mjs deploy` (el MCP de Hostinger no conectó en la sesión).
+Smoke: HTTP 200, `version.json` `build-20260919T213431372Z`, `index-BYzCJylp.js` 200 y `index.html`
+byte a byte el del ZIP, ZIP 404. `main` local `df954779` contiene el tronco.** Ensayo previo en el
+banco: PASS (ver abajo). Fase 1 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`, aprobado por Miguel el 19/09), que
 ejecuta F2 §5 del plan de escalabilidad del vault.
 
