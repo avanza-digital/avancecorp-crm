@@ -1,7 +1,7 @@
 # Grant por columna: `alta_manual` y `creado_por` en `crm.leads`
 
-Estado: **ensayado en el banco el 19/09/2026; pendiente de instalar en
-producción** (acta en `../../migrations/MIGRACIONES.md`, entrada `20260919211105`).
+Estado: **instalado y registrado en producción el 19/09/2026** (acta en
+`../../migrations/MIGRACIONES.md`, entrada `20260919211105`).
 
 Origen: P3 del auditor RLS sobre `20260919170500` (procedencia del lead). La RPC
 `crm.cartera_filtrada_fn` es SECURITY INVOKER y lee esas dos columnas para todo

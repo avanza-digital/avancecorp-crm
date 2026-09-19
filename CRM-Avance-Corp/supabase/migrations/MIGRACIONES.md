@@ -10433,8 +10433,8 @@ vista» (chip por fila, ficha y tarjeta) y con un filtro más.
 
 ## 20260919211105 — Grant por columna: `alta_manual` y `creado_por` en `crm.leads`
 
-**🧪 ENSAYADA EN EL BANCO el 19/09/2026 (PASS); PRODUCCIÓN: NOT RUN** (la instala
-Miguel con `!`). Pedido de Miguel del 19/09 sobre el P3 del auditor RLS de
+**✅ INSTALADA Y REGISTRADA EN PRODUCCIÓN el 19/09/2026** (Miguel con `!`).
+Pedido de Miguel del 19/09 sobre el P3 del auditor RLS de
 `20260919170500`: las dos columnas que lee `crm.cartera_filtrada_fn` (invoker)
 solo eran legibles por el ACL de TABLA (`authenticated=rw`, `service_role=arwd`,
 medido en producción) y no tenían ACL propia, contra la convención de la casa.
@@ -10469,3 +10469,12 @@ medido en producción) y no tenían ACL propia, contra la convención de la casa
   lo corre CI) · `test-rls.mjs` sin casos nuevos: no cambia visibilidad ni policies.
 - Sin front: hoy el grant es redundante. Orden: migración → registrador. Reversa:
   `../scripts/leads-grant-procedencia/reversa.sql`.
+
+**Acta de instalación (19/09, hora UTC):**
+- ~21:30 SQL aplicado con `db query --linked --file`. Verificado en producción:
+  `alta_manual` y `creado_por` con `{authenticated=r/postgres,service_role=r/postgres}`
+  (idéntico a `tenencia_desde` y al ensayo); `relacl` intacto
+  (`authenticated=rw`, `service_role=arwd`); anon sin lectura; columnas con ACL
+  propia: 11 (eran 9).
+- ~21:33 versión registrada con `scripts/registrar-20260919211105.sql` (cuerpo
+  md5 `e97fcd25…`, igual al archivo del repo; PIN de las dos ACL superado).
