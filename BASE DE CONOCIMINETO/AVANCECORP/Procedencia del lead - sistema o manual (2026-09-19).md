@@ -81,5 +81,5 @@ Cifras de producción al 19/09: 1 864 del sistema (landing 837 + formulario
 - Grant por columna para `alta_manual` y `creado_por`: hecho el 19/09
   (`20260919211105`, ensayada; ver [[El grant por columna no sobrevive al revoke de tabla (2026-09-19)]]
   para lo que vale de verdad).
-- `test-rls.mjs` no cubre `cartera_filtrada_fn` (ninguna firma).
+- `test-rls.mjs`: casos de `cartera_filtrada_fn` añadidos el 19/09 (partición, eco, ámbito, dominio, anon); pendiente correrlos en el próximo ciclo del banco.
 - Backfill de los 36 de agosto: solo si Miguel lo decide.
