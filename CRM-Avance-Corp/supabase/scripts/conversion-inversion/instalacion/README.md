@@ -1,5 +1,9 @@
 # Ensayo remoto autorizado — 19/09/2026
 
+> Este documento conserva el ensayo previo. **SQL, Edge y frontend ya fueron
+> publicados**: ver el [acta de publicación](PUBLICADO-20260919.md), que registra
+> la promoción final, verificación productiva, costo y eliminación de las ramas.
+
 **PASS. SQL, Edge y frontend productivos todavía sin modificar.**
 Miguel autorizó el SQL exacto con «HAZLO» y el banco con un máximo de US$5.
 La tarifa confirmada fue US$0,01344/h. El banco exclusivo se creó a las
