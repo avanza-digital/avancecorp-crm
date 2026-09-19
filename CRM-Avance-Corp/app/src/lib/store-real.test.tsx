@@ -354,6 +354,19 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().leads[0]?.vendedor_nombre).toBe('Analista Real')
   })
 
+  it('resuelve cargado_por_nombre desde el mismo roster (P2 de Codex, 19/09): quien lo cargó, con nombre, y sin autor queda null', async () => {
+    listarLeads.mockResolvedValueOnce([
+      { ...leadBase(), procedencia: 'manual', cargado_por: 'u-v1' },
+      { ...leadBase(), id: '44444444-4444-4444-8444-444444444444', nombre_completo: 'DEL PUENTE', procedencia: 'sistema', cargado_por: null },
+      { ...leadBase(), id: '55555555-5555-4555-8555-555555555555', nombre_completo: 'AUTOR FUERA DEL ROSTER', procedencia: 'manual', cargado_por: 'u-desconocido' },
+    ])
+    const { api } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(3))
+    expect(api().leads[0]).toMatchObject({ procedencia: 'manual', cargado_por: 'u-v1', cargado_por_nombre: 'Analista Real' })
+    expect(api().leads[1]).toMatchObject({ procedencia: 'sistema', cargado_por: null, cargado_por_nombre: null })
+    expect(api().leads[2]).toMatchObject({ procedencia: 'manual', cargado_por: 'u-desconocido', cargado_por_nombre: null })
+  })
+
   describe('apertura de fichas autorizadas fuera de la carga inicial', () => {
     const ID_A = '22222222-2222-4222-8222-222222222222'
     const ID_B = '33333333-3333-4333-8333-333333333333'
@@ -573,6 +586,14 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(obtenerLeadPorId.mock.calls[1]?.[0]).toBe(ID_A)
       expect(montaje.api().lead(ID_A)).toMatchObject({ ...fresca, vendedor_nombre: 'Analista actualizado' })
       expect(montaje.panelState().leadAbiertoId).toBe(ID_A)
+    })
+
+    it('una ficha abierta fuera del boot también resuelve cargado_por_nombre con el roster', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce({ ...filaA(), procedencia: 'manual', cargado_por: 'u-v1' })
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      expect(montaje.api().lead(ID_A)).toMatchObject({ procedencia: 'manual', cargado_por: 'u-v1', cargado_por_nombre: 'Analista Real' })
     })
 
     it('resync elimina una ficha abierta cuyo acceso fue revocado', async () => {

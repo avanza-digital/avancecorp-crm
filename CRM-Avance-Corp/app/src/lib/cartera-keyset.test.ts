@@ -114,6 +114,22 @@ describe('filtrarCarteraLocal', () => {
     expect(filtrarCarteraLocal(porOrigen, { origen: 'referido', etapa: 'nuevo' })).toHaveLength(0)
   })
 
+  it('filtra por procedencia; «todas» no recorta y un lead sin sello no coincide con ningún recorte', () => {
+    const porProcedencia = [
+      lead({ id: 'a', origen: 'landing', procedencia: 'sistema', cargado_por: null }),
+      lead({ id: 'b', origen: 'landing', procedencia: 'manual', cargado_por: 'v-1' }),
+      lead({ id: 'c', origen: 'referido', procedencia: 'manual', cargado_por: 'v-1', etapa: 'contactado' }),
+      lead({ id: 'd', origen: 'landing' }), // servidor anterior: sin dato
+    ]
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'todas' })).toHaveLength(4)
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'sistema' }).map((l) => l.id)).toEqual(['a'])
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'manual' }).map((l) => l.id)).toEqual(['b', 'c'])
+    // Compone con origen y etapa sobre la misma base: el canal no decide la procedencia.
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'manual', origen: 'landing' }).map((l) => l.id)).toEqual(['b'])
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'manual', etapa: 'contactado' }).map((l) => l.id)).toEqual(['c'])
+    expect(filtrarCarteraLocal(porProcedencia, { procedencia: 'sistema', origen: 'referido' })).toHaveLength(0)
+  })
+
   it('«sin_asignar» son los parkeados, no los de un analista cualquiera', () => {
     expect(filtrarCarteraLocal(leads, { vendedorId: 'sin_asignar' }).map((l) => l.id)).toEqual(['c'])
   })

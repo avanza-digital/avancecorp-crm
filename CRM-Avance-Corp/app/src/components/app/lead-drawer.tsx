@@ -84,6 +84,7 @@ import {
   MOTIVOS_NO_REALIZADA,
   MOTIVOS_DESCARTE,
   origenLabel,
+  textoCargadoPor,
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
   type Actividad,
@@ -98,6 +99,7 @@ import {
   type TipoTarea,
   type Tarea,
 } from '@/lib/tipos'
+import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { presentarCitas } from '@/lib/terminologia'
 
@@ -233,6 +235,7 @@ function Ficha({ l }: { l: Lead }) {
                 <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
               )}
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
+              <ChipProcedencia lead={l} conNombre />
               {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
               {l.monto_estimado == null &&
                 (escribe && !esTerminal ? (
@@ -1391,6 +1394,7 @@ function Datos({
             )}
             {l.distrito && <Fila label="Distrito">{l.distrito}</Fila>}
             <Fila label="Origen">{origenLabel(l.origen)}</Fila>
+            {textoCargadoPor(l) && <Fila label="Cargado por">{textoCargadoPor(l)}</Fila>}
             <Fila label="Creado">{fmtFecha(l.creado_en)}</Fila>
             {l.nota && <Fila label="Nota">{l.nota}</Fila>}
           </dl>

@@ -201,6 +201,43 @@ describe('sesión real', () => {
     expect(result.current.hayMas).toBe(false)
   })
 
+  // P1 de Codex (19/09): la procedencia tiene que estar en la CLAVE de la
+  // consulta. Si solo cambiara el request, TanStack Query serviría la lista
+  // anterior sin pedir nada y el filtro «funcionaría» en silencio: no.
+  it('cambiar de procedencia tras varias páginas es una consulta nueva desde el cursor inicial', async () => {
+    mocks.listarCarteraPagina
+      .mockResolvedValueOnce({
+        items: [lead(0), lead(1)],
+        cursor: { actualizadoEn: lead(1).actualizado_en, id: lead(1).id },
+      })
+      .mockResolvedValueOnce({ items: [lead(2)], cursor: null })
+      .mockResolvedValueOnce({ items: [{ ...lead(7), procedencia: 'manual', cargado_por: 'v-1' }], cursor: null })
+      .mockResolvedValueOnce({ items: [{ ...lead(0), procedencia: 'sistema', cargado_por: null }], cursor: null })
+    const { wrapper } = arnes()
+    const inicial: { procedencia: 'todas' | 'manual' | 'sistema' } = { procedencia: 'todas' }
+    const { result, rerender } = renderHook(
+      ({ procedencia }: { procedencia: 'todas' | 'manual' | 'sistema' }) => useCarteraPaginada([], { procedencia }),
+      { initialProps: inicial, wrapper },
+    )
+    await waitFor(() => { expect(result.current.leads).toHaveLength(2) })
+    // «todas» no viaja: el primer request no lleva procedencia.
+    expect(mocks.listarCarteraPagina.mock.calls[0]![0]).not.toHaveProperty('procedencia')
+    act(() => { result.current.cargarMas() })
+    await waitFor(() => { expect(result.current.leads).toHaveLength(3) })
+
+    rerender({ procedencia: 'manual' })
+    await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(3) })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![0]).toMatchObject({ integrada: true, procedencia: 'manual' })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![1]).toBeNull()
+    await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-007']) })
+
+    // Sistema y manual son listas distintas entre sí, no solo distintas de «todas».
+    rerender({ procedencia: 'sistema' })
+    await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(4) })
+    expect(mocks.listarCarteraPagina.mock.calls[3]![0]).toMatchObject({ integrada: true, procedencia: 'sistema' })
+    await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-000']) })
+  })
+
   it('una página llena SIN cursor no promete más páginas', async () => {
     mocks.listarCarteraPagina.mockResolvedValue({
       items: Array.from({ length: TAMANO_PAGINA_CARTERA }, (_, i) => lead(i)),

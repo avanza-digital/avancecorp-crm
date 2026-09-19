@@ -805,9 +805,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         toast.error('La oportunidad ya no está disponible en tu cartera.')
         return false
       }
-      const nombre = contextoPanelRef.current.equipo.find((m) => m.perfil_id === fila.vendedor_id)?.nombre_completo ?? null
+      const nombreDe = (perfilId: string | null | undefined) =>
+        perfilId ? (contextoPanelRef.current.equipo.find((m) => m.perfil_id === perfilId)?.nombre_completo ?? null) : null
       setDatos((actual) => actual.leads.some((l) => l.id === id) ? actual
-        : { ...actual, leads: [...actual.leads, { ...fila, vendedor_nombre: nombre }] })
+        : { ...actual, leads: [...actual.leads, { ...fila, vendedor_nombre: nombreDe(fila.vendedor_id), cargado_por_nombre: nombreDe(fila.cargado_por) }] })
       setLeadAbiertoId(id)
       return true
     } catch (error) {
@@ -945,6 +946,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         leads: leads.map((l) => ({
           ...l,
           vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
+          // El autor del alta se resuelve con el mismo roster; fuera de él, el
+          // drawer dice solo «Manual» (igual que la tabla).
+          cargado_por_nombre: l.cargado_por ? (nombrePorId.get(l.cargado_por) ?? null) : null,
         })),
       }
     },

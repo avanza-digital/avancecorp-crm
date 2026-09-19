@@ -1,0 +1,26 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_procedencia_20260919",
+  "fecha": "2026-09-19T17:44:40.780Z",
+  "migracion": "20260919170500_crm_cartera_filtro_procedencia.sql",
+  "migracion_sha256": "423e5883aa76e35b3826b6abe81bcffe5d57e0f07765e91c5ca289f59ee4e9e3",
+  "reversa_sha256": "0f50fa8b4370b321fa2458b1b136a8137cf647285d036e1bea3d89e061614f5e",
+  "registrador": "registrar-20260919170500.sql",
+  "md5_f10": "be33021420cd8ae2edbf58692b45e9eb",
+  "huella_f10": "d7a47e4c8377115178d75fc2bfcd35a2",
+  "md5_f11": "815b834162ff1acbb613d4a40f6e6996",
+  "huella_f11": "8d24207266a2a31829116c6105b01597",
+  "actores_comparados": 11,
+  "lecturas_por_actor": 5,
+  "resumen_general_comparado": true,
+  "pasos": [
+    "gate verde antes",
+    "equivalencia sin filtro (RPC + resumen general) deshecha, claves nuevas validadas por fila",
+    "instalación con rojo ajeno preexistente (deshecha)",
+    "instalación + gate + oráculo + partición sistema/manual por actor",
+    "reversa y registrador generados con las huellas medidas",
+    "guardas de la reversa: sello alterado y función corregida rechazadas; rojo ajeno conservado",
+    "reversa + gate + oráculo 16/09",
+    "reinstalación + gate + oráculo"
+  ]
+}

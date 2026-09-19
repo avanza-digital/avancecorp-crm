@@ -39,7 +39,7 @@ export const hace = (dias: number) => new Date(Date.now() - dias * 86_400_000).t
 //   seguimiento: l16 (4d), l3 (3.4d), l20 (8d) — contactado/reunión sin act ≥3d
 //   por_repartir: l5, l11, l14 — parkeados en bandeja de supervisor
 //   estancados (≥7d): l20 (8d), l14 (7.2d)
-export const LEADS_DEMO: Lead[] = [
+const LEADS_DEMO_BASE: Lead[] = [
   // ── ANALISTA UNO (d-v1) ── 6 abiertos · 1 convertido · 1 descartado
   { id: 'l1', genero: 'M', nombre_completo: 'JUAN PÉREZ ROJAS', telefono: '+51987654321', etapa: 'nuevo', origen: 'referido', monto_estimado: 15000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(0.3), activo: true, distrito: 'Miraflores', nota: 'Referido por PEDRO SÁNCHEZ VEGA' },
   { id: 'l2', genero: 'F', nombre_completo: 'MARÍA LÓPEZ CASTRO', telefono: '+51987654322', correo: 'maria.lopez@gmail.com', etapa: 'contactado', origen: 'landing', monto_estimado: 30000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(2), activo: true, dni: '45871236', distrito: 'San Isidro' },
@@ -68,6 +68,24 @@ export const LEADS_DEMO: Lead[] = [
   { id: 'l11', genero: 'M', nombre_completo: 'RICARDO MAMANI CONDORI', telefono: '+51965432187', etapa: 'nuevo', origen: 'formulario', monto_estimado: 8000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'd-sup1', creado_en: hace(0.5), activo: true, distrito: 'Los Olivos' },
   { id: 'l14', genero: 'F', nombre_completo: 'SOFÍA HERRERA LUNA', telefono: '+51932187654', etapa: 'contactado', origen: 'otro', monto_estimado: 60000, moneda: 'PEN', categoria_interes: 'renovacion', vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'd-sup2', creado_en: hace(8), activo: true, nota: 'Contacto de feria inmobiliaria; pendiente asignar analista' }, // última act hace 7.2d → por_repartir + estancado
 ]
+
+/** Canales que en producción solo trae el puente (más los históricos, que eran importación). */
+const ORIGENES_DEL_PUENTE: ReadonlySet<string> = new Set(['landing', 'formulario', 'web', 'campania', 'whatsapp'])
+/** Leads de canal automático que en el demo CARGÓ una persona (posible desde el 01/09/2026). */
+const MANUALES_DE_CANAL_AUTOMATICO: ReadonlySet<string> = new Set(['l15', 'l13'])
+
+/**
+ * Procedencia demo, con la misma regla que sella el servidor: lo que trajo el
+ * puente no tiene autor; lo manual lo firma quien lo registró (en demo, el
+ * propio analista o, si está parkeado, su supervisor).
+ */
+function conProcedenciaDemo(l: Lead): Lead {
+  const manual = !ORIGENES_DEL_PUENTE.has(l.origen) || MANUALES_DE_CANAL_AUTOMATICO.has(l.id)
+  if (!manual) return { ...l, procedencia: 'sistema', cargado_por: null, cargado_por_nombre: null }
+  return { ...l, procedencia: 'manual', cargado_por: l.vendedor_id ?? 'd-sup1', cargado_por_nombre: l.vendedor_nombre ?? 'SUPERVISOR UNO' }
+}
+
+export const LEADS_DEMO: Lead[] = LEADS_DEMO_BASE.map(conProcedenciaDemo)
 
 // Timeline demo — coherente con la etapa de cada lead y ESCALONADO (0.2–10 días
 // hacia atrás en los abiertos) para alimentar colaDe/estancados/semáforos.

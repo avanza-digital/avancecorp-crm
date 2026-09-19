@@ -4073,6 +4073,8 @@ export type Database = {
           p_hasta?: string
           p_limite?: number
           p_origen?: string
+          // A mano (mig 20260919170500): gen:types no compila con la CLI actual.
+          p_procedencia?: string
           p_sin_asignar?: boolean
           p_texto?: string
           p_vendedor_id?: string

@@ -30,6 +30,7 @@ import {
   type Miembro,
   type MotivoDescarte,
   type Origen,
+  type Procedencia,
   type PanelDistribucionReparto,
   type SupervisorReparto,
   type Tarea,
@@ -180,6 +181,12 @@ const COLUMNAS_LEAD = [
   // Ley 29571 "No Insista": ya tenía GRANT SELECT desde F0, pero nunca se pidió
   // — sin ella el kill-switch legal de motor-siguiente.ts no podía dispararse.
   'no_contactar',
+  // Procedencia del alta (ver Lead.procedencia). Las dos columnas tienen GRANT
+  // SELECT para authenticated desde el 01/09; el mapper deriva `procedencia` con
+  // la MISMA regla que la RPC de la cartera, para que el drawer (que lee el
+  // ámbito) y el listado (que lee la RPC) cuenten la misma historia.
+  'alta_manual',
+  'creado_por',
 ].join(',')
 
 // Validación en runtime del borde con Supabase (los unions de TS se borran al
@@ -207,6 +214,15 @@ const LeadRowSchema = v.object({
   fecha_nacimiento: v.optional(v.nullable(v.string())),
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_TODOS.map((o) => o.k)),
+  // Procedencia: la RPC de la cartera manda `procedencia` + `cargado_por` ya
+  // resueltos; el ámbito (select directo) manda las columnas crudas
+  // `alta_manual` + `creado_por` y el mapper deriva. Todo opcional: un servidor
+  // anterior a la migración no lo devuelve y el lead debe seguir listándose
+  // (sin chip) igual.
+  procedencia: v.optional(v.nullable(v.picklist(['sistema', 'manual']))),
+  cargado_por: v.optional(v.nullable(v.string())),
+  alta_manual: v.optional(v.nullable(v.boolean())),
+  creado_por: v.optional(v.nullable(v.string())),
   etapa: v.picklist([...ETAPAS.map((e) => e.k), ...TERMINALES.map((t) => t.k)]),
   motivo_descarte: v.nullable(v.picklist(MOTIVOS_DESCARTE.map((m) => m.k))),
   // numeric con CHECK de rango/2 decimales: PostgREST puede serializarlo como string
@@ -419,6 +435,18 @@ function aNumero(valor: number | string | null): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Procedencia con la MISMA regla que sella `crm.cartera_filtrada_fn`: manual si
+ * `alta_manual` (01/09) o tiene autor; sistema si no. Si la fila ya trae
+ * `procedencia` (RPC) se respeta; si no trae ni eso ni las columnas crudas
+ * (servidor anterior), queda null y el chip no se pinta.
+ */
+function procedenciaDeFila(fila: Pick<LeadRow, 'procedencia' | 'alta_manual' | 'creado_por'>): Procedencia | null {
+  if (fila.procedencia != null) return fila.procedencia
+  if (typeof fila.alta_manual !== 'boolean') return null
+  return fila.alta_manual || fila.creado_por != null ? 'manual' : 'sistema'
+}
+
 function aLead(fila: LeadRow): Lead {
   return {
     id: fila.id,
@@ -434,6 +462,8 @@ function aLead(fila: LeadRow): Lead {
     fecha_nacimiento: fila.fecha_nacimiento ?? null,
     distrito: fila.distrito,
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
+    procedencia: procedenciaDeFila(fila),
+    cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
     monto_estimado: Number(fila.monto_estimado),
@@ -666,6 +696,8 @@ export interface FiltrosCartera {
   texto?: string
   /** Origen del lead (vigentes e históricos); «todos» es el valor neutro y no viaja. */
   origen?: Origen | 'todos'
+  /** Procedencia (sistema/manual); «todas» es el valor neutro y no viaja. */
+  procedencia?: Procedencia | 'todas'
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -697,6 +729,8 @@ const CarteraFiltradaSchema = v.object({
   // firma con p_origen no lo devuelve, y sin filtro puesto eso sigue siendo
   // una respuesta válida; con filtro puesto, su ausencia es un desajuste.
   origen: v.optional(v.nullable(v.string())),
+  // Eco de la procedencia filtrada, con la misma lógica que `origen`.
+  procedencia: v.optional(v.nullable(v.string())),
   items: v.array(v.object({
     ...LeadCarteraRowSchema.entries,
     recibido_en: v.nullable(v.string()),
@@ -743,6 +777,9 @@ export async function listarCarteraPagina(
   // resolviendo la llamada sin él (PGRST202 evitado), igual que en métricas.
   const origenPedido = filtros.integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
   if (origenPedido !== null) argumentos.p_origen = origenPedido
+  // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
+  const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
+  if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -763,6 +800,7 @@ export async function listarCarteraPagina(
       etapa: filtros.etapa ?? 'todas',
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
       filtraOrigen: origenPedido !== null,
+      filtraProcedencia: procedenciaPedida !== null,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })
@@ -780,6 +818,9 @@ export async function listarCarteraPagina(
       // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
       || (payload.origen ?? null) !== origenPedido
       || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
+      // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
+      || (payload.procedencia ?? null) !== procedenciaPedida
+      || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))
       || !Number.isSafeInteger(total) || total < payload.items.length
       || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
       || payload.items.length > TAMANO_PAGINA_CARTERA + 1

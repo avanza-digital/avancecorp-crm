@@ -10331,3 +10331,75 @@ sus componentes lo obedecen.
 - Orden: **servidor primero**, luego el front (`«Todos los orígenes»` no viaja;
   con un origen elegido el cliente exige el eco y rechaza respuestas viejas).
 - Reversa: `../scripts/cartera-origen/reversa.sql` (tras retirar el front).
+
+## 20260919170500 — Procedencia del lead en Leads (sistema o manual)
+
+**🧪 ENSAYADA EN EL BANCO el 19/09/2026 (PASS); PRODUCCIÓN: NOT RUN** (la instala
+Miguel con `!`). Solicitud de Miguel del 19/09: distinguir en la pantalla Leads lo
+que trajo el puente de lo que registró un analista, «a simple vista» (chip por
+fila, ficha y tarjeta) y con un filtro más.
+
+- `crm.cartera_filtrada_fn` pasa a 11 argumentos (`p_procedencia`: `sistema` |
+  `manual`; otro valor → 22023); la de 10 se retira en la misma transacción (una
+  sola candidata para PostgREST). Por fila devuelve `procedencia` (manual =
+  `alta_manual` o tener `creado_por`; sistema si no: el puente nunca escribe
+  autor, y así los 36 manuales de agosto anteriores a la columna salen bien sin
+  tocar datos sellados) y `cargado_por` (uuid del autor o null). Sin
+  `p_procedencia` la respuesta es la del 16/09 más la clave `procedencia` nula y
+  las dos claves por fila. Acota la MISMA base: filas, totales, capital y embudo.
+- Preflight: huella `d7a47e4c…` y md5 `be330214…` de la firma de 10 (medidos en
+  producción el 19/09), resumen general `8019aab3…` / `b4ffcf91…`, CHECK de
+  origen exacto, forma y SELECT de `alta_manual` / `creado_por` para
+  `authenticated` (la RPC es invoker y `crm.leads` va por columnas), sello
+  coherente. Postflight: contrato de seguridad (invoker, stable, `search_path`
+  vacío, ACL idéntica `{postgres,authenticated}`), firma de 10 ausente, censo con
+  el mismo número, firma de 11 declarada y vigente, rojo idéntico al previo,
+  otras exenciones / techo / resumen intactos.
+- La declaración analítica se **mueve** (conserva `declarado_en` del 13/09) y se
+  re-sella. Huellas de la firma nueva medidas en el banco: md5 `815b8341…`,
+  huella `8d242072…`; el registrador y la reversa las pinean (si producción diera
+  otro md5, regenerar con `ensayar.mjs`, no forzar).
+- Ensayo (`../scripts/cartera-procedencia/`): copia `cartera_procedencia_20260919`
+  creada desde `cartera_origen_20260916` (paridad con prod verificada: md5,
+  huella, resumen, columnas, grants). Equivalencia sin filtro para 11 actores × 5
+  lecturas + resumen general (claves nuevas validadas por fila), instalación con
+  rojo ajeno preexistente (conservado), instalación + gate + oráculo propio (5
+  actores; históricos sin marca; keyset con empates de sello; dominio; revocado y
+  portal-only denegados), partición «sistema + manual = todo» por actor sobre los
+  datos de la copia, guardas de la reversa (sello alterado y función corregida
+  rechazadas; rojo ajeno conservado), reversa + oráculo del 16/09, reinstalación.
+  `verificacion.json` PASS; sha256 migración `423e5883…`, reversa `0f50fa8b…`.
+- Auditor RLS (subagente, 19/09): sin P0/P1. P3 anotados, fuera de esta entrega:
+  (a) `alta_manual` / `creado_por` son legibles por el grant de TABLA, no hay
+  grant por columna → migración aparte pendiente (`grant select (alta_manual,
+  creado_por) on crm.leads to authenticated, service_role`); (b) `test-rls.mjs`
+  no cubre `cartera_filtrada_fn` en ninguna firma (como el 13/09 y el 16/09).
+- Estado del gate al preparar: producción tiene 35 contadores y
+  `crm.contrato_eliminar_auditado(uuid,uuid)` sin declarar (rojo ajeno, igual que
+  el 16/09). Esta migración no lo tapa: exige que quede igual.
+- Revisión de Codex (CLI read-only, MCP caído; 19/09): CHANGES_REQUESTED →
+  atendido. P1: la procedencia faltaba en la CLAVE de TanStack Query
+  (`crmQueryKeys.carteraPagina`): cambiar solo ese filtro no pedía nada y
+  servía la lista anterior → añadida a la clave, con test de hook (todas →
+  manual → sistema son consultas distintas desde el cursor inicial). P2: el
+  drawer real no resolvía el nombre del autor (el store solo resolvía
+  `vendedor_nombre`) → el store resuelve `cargado_por_nombre` en el boot y al
+  abrir una ficha fuera del boot, con tests. P3: la fila enseña la procedencia al
+  lector de pantalla (`aria-describedby`, sin tocar el nombre accesible) con
+  test. P3 aceptado y documentado: los 36 históricos dependen de conservar
+  `creado_por` (FK `ON DELETE SET NULL`); la casa nunca borra perfiles (P04:
+  offboarding = `activo=false`), así que no se backfillea sin decisión de Miguel.
+  `database.types.ts`: `p_procedencia` añadido a mano (gen:types no compila con
+  la CLI actual, medido el 19/09 por otra sesión).
+- Orden: **SQL primero** (`db query --linked --file`), después el registrador
+  `scripts/registrar-20260919170500.sql`, sonda PostgREST anónima
+  (`p_procedencia` → 42501; argumento inexistente → PGRST202), y al final el
+  front (PR fusionada ANTES de construir). Reversa:
+  `../scripts/cartera-procedencia/reversa.sql`, tras retirar el front.
+- Front (misma entrega): chip «Manual · autor» / «Sistema» pegado al nombre en la
+  fila, en la cabecera de la ficha y en la tarjeta flotante; fila «Cargado por»
+  en Datos; filtro «Procedencia» junto al de origen («Sistema y manual» no
+  viaja); contrato fail-closed (eco + filas coherentes, `ROW_CONTRACT`); el
+  ámbito (select directo) pide `alta_manual` + `creado_por` y el mapper deriva la
+  misma regla para el drawer; el nombre del autor se resuelve con el equipo
+  visible.

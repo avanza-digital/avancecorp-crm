@@ -131,6 +131,29 @@ export const ORIGENES_TODOS = [...ORIGENES, ...ORIGENES_HEREDADOS] as const
 
 export type Origen = (typeof ORIGENES_TODOS)[number]['k']
 
+/**
+ * PROCEDENCIA del lead: quién lo metió al CRM. Es OTRA pregunta que el origen
+ * (el canal). Desde el 01/09/2026 un analista puede declarar LANDING o
+ * FORMULARIO a mano, así que el origen ya no distingue lo que trajo el puente
+ * de lo que cargó una persona: eso lo sella `crm.leads.alta_manual`.
+ */
+export const PROCEDENCIAS = [
+  { k: 'sistema', label: 'Sistema' },
+  { k: 'manual', label: 'Manual' },
+] as const
+
+export type Procedencia = (typeof PROCEDENCIAS)[number]['k']
+
+export const etiquetaProcedencia = (k: Procedencia): string =>
+  PROCEDENCIAS.find((p) => p.k === k)?.label ?? k
+
+/** Frase para la ficha: quién cargó el lead. null si el dato no viaja. */
+export function textoCargadoPor(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null }): string | null {
+  if (l.procedencia === 'manual') return l.cargado_por_nombre ? `${l.cargado_por_nombre} (registro manual)` : 'Registro manual'
+  if (l.procedencia === 'sistema') return 'Sistema (puente automático)'
+  return null
+}
+
 /** Etiqueta legible de un origen para rótulos de filtro ('sin_origen' incluido). */
 export function etiquetaOrigen(k: string): string {
   if (k === 'sin_origen') return 'Sin origen registrado'
@@ -420,6 +443,17 @@ export interface Lead {
   /** Recepción del analista actual dentro del rango consultado (historial servidor). */
   recibido_en?: string | null
   recepcion_aproximada?: boolean | null
+  /**
+   * Quién metió el lead: `sistema` (puente automático, sin autor) o `manual`
+   * (una persona, vía la RPC de alta). Lo deriva el servidor de
+   * `alta_manual`/`creado_por`; opcional porque una base anterior a esa
+   * migración no lo devuelve y el chip entonces NO se pinta.
+   */
+  procedencia?: Procedencia | null
+  /** Autor del alta (perfil), tal como lo sella el servidor; null para el sistema. */
+  cargado_por?: string | null
+  /** Nombre del autor, resuelto en pantalla con el equipo visible; null si no se conoce. */
+  cargado_por_nombre?: string | null
 }
 
 export interface Miembro {
