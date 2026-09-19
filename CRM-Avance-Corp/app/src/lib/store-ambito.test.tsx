@@ -27,8 +27,8 @@ const TODOS = [...LEADS_V1, ...LEADS_V2, ...LEADS_V3, ...PARKEADOS_SUP1, ...PARK
 
 // Actividades de los leads de d-v1 (l15 no tiene, a propósito — señal de cola).
 const ACTS_V1 = [
-  'act01', // l1
-  'act02', 'act03', 'act04', // l2
+  'act01', 'act45', // l1 (act45: llamada no contestada de HOY, Gestión Diaria)
+  'act02', 'act03', 'act04', 'act44', 'act46', // l2 (act44/act46: gestiones de HOY, Gestión Diaria)
   'act18', 'act19', 'act20', // l8
   'act21', 'act22', 'act23', // l9
   'act26', 'act27', 'act28', // l12
@@ -112,10 +112,10 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
       }
     })
 
-    it('actividadesDelAmbito trae SOLO el timeline de sus leads (18 de 43)', async () => {
+    it('actividadesDelAmbito trae SOLO el timeline de sus leads (21 de 48)', async () => {
       const api = await montarStore(yoDemo('vendedor'), 20)
 
-      expect(api.actividadesDelAmbito).toHaveLength(18)
+      expect(api.actividadesDelAmbito).toHaveLength(21)
       expect(idsDe(api.actividadesDelAmbito)).toEqual(ordenar(ACTS_V1))
 
       // Ninguna actividad de leads ajenos (l3/l4/l7/l14/l20…)
@@ -188,10 +188,10 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
       expect(ambito.leads.every((l) => l.activo)).toBe(true)
     })
 
-    it('actividadesDelAmbito es el timeline completo (las 43)', async () => {
+    it('actividadesDelAmbito es el timeline completo (las 48)', async () => {
       const api = await montarStore(yoDemo('directorio'), 20)
 
-      expect(api.actividadesDelAmbito).toHaveLength(43)
+      expect(api.actividadesDelAmbito).toHaveLength(48)
       expect(idsDe(api.actividadesDelAmbito)).toEqual(idsDe(ACTIVIDADES_DEMO))
     })
   })

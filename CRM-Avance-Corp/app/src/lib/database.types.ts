@@ -4278,6 +4278,10 @@ export type Database = {
       // que la deuda es del archivo completo, no de esta línea. Regenerar exige tocar
       // esos llamadores: tarea aparte.
       cerrar_reunion_v3: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_capital_estimado?: number | null; p_moneda?: string | null }; Returns: Json }
+      // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F1, migración
+      // 20260919211958: registro crudo de actividad por ventana Lima, analistas, tipos y
+      // etapa, con cursor keyset. Firma: (date,date,uuid[],text[],text,integer,timestamptz,uuid).
+      registro_actividad_fn: { Args: { p_desde: string; p_hasta: string; p_analista_ids?: string[] | null; p_tipos?: string[] | null; p_etapa?: string | null; p_limite?: number; p_antes_de?: string | null; p_antes_id?: string | null }; Returns: Json }
       reprogramar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }; Returns: Json }
       reprogramar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }; Returns: Json }
       estado_sla_leads_v2_fn: { Args: { p_lead_ids: string[] }; Returns: Json }

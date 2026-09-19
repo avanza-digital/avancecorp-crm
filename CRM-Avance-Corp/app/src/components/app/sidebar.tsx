@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks, ReceiptText,
+  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks, ReceiptText, CalendarCheck2,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -41,6 +41,7 @@ type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-car
 const NAV_META = {
   hoy: { label: 'Hoy', icon: LayoutDashboard, seccion: 'principal' },
   seguimiento: { label: 'Seguimiento', icon: ListChecks, seccion: 'principal' },
+  'gestion-diaria': { label: 'Gestión Diaria', icon: CalendarCheck2, seccion: 'principal' },
   conversiones: { label: 'Conversiones', icon: BarChart3, seccion: 'principal' },
   'ranking-vendedores': { label: 'Ranking', icon: Trophy, seccion: 'principal' },
   reuniones: { label: 'Citas', icon: Handshake, seccion: 'principal' },
@@ -86,6 +87,7 @@ const GRUPO_GERENCIA = {
   facturacion: 'direccion',
   'informes-empresas': 'direccion',
   seguimiento: 'operacion',
+  'gestion-diaria': 'operacion',
   pipeline: 'operacion',
   cartera: 'operacion',
   agenda: 'operacion',

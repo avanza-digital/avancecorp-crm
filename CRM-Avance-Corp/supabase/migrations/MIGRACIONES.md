@@ -1,5 +1,75 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260919211958 — Gestión Diaria (F1): registro crudo de actividad por ámbito y día
+
+**🧪 ENSAYADA EN EL BANCO LOCAL el 19/09/2026 · PENDIENTE DE INSTALAR en producción.**
+Fase 1 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`):
+el supervisor lee HOY el texto íntegro de las llamadas de su equipo y gerencia
+«ve absolutamente todo», sin esperar al resultado tipificado (F2). Solo lectura.
+
+Crea `crm.registro_actividad_fn(date,date,uuid[],text[],text,integer,timestamptz,uuid)`
+(INVOKER: el alcance lo ponen `actividades_select` y `leads_select`; 42501 explícito
+para analista fuera del roster visible, coordinador y analista dado de baja) sobre el
+núcleo `private.registro_actividad_core(...)` (página keyset, etapa del lead en ese
+momento desde `cambio_etapa.metadata->>'etapa_nueva'`, `metadata` y `creado_por`
+en cada fila), el índice `actividades_autor_fecha_idx (creado_por, creado_en desc, id)`,
+el gate `private.assert_gestion_diaria()` (forma, ACL, índice, y las policies vía
+`private.assert_actividades_de_lead_base()`, una sola fuente, más el md5 del cuerpo del núcleo) y sus 10 mutantes (con guarda `set gestion_diaria.banco = on`: se niegan fuera del banco). Sin
+`count(` ni `sum(1)`: el censo analítico queda idéntico (medido en el ensayo). Depende
+del historial por lead (`20260919185718`: `private.nombre_de_autor` y la base del
+trinquete), ya instalado en producción; en git llega con la PR #28, que debe fusionarse
+antes. No toca `public` ni datos.
+
+Notas del `auditor-rls` (19/09, sin P0/P1) aceptadas y registradas: `service_role` pierde
+el EXECUTE implícito de PUBLIC en puerta y núcleo (patrón de la casa); `metadata` sale al
+navegador por LISTA BLANCA (`evento, resultado, submotivo, intento_n, etapa_anterior,
+etapa_nueva, automatico, resultado_reunion, modalidad, motivo`): fuera montos y referencias
+de conversión y los uuids de reasignación; el filtro `p_analista_ids` admite solo analistas
+ACTIVOS del roster visible (los dados de baja siguen saliendo sin filtro, con nombre);
+directorio puede llamar la RPC como lector global aunque el menú no le ofrezca la vista;
+el índice `idx_actividades_creado_por` (prefijo exacto del nuevo) se retira y la reversa lo
+recrea; la vista por defecto de supervisor/gerencia (todos los analistas) usa
+`actividades_recientes_idx`, no el índice nuevo;
+los mutantes quedan instalados (solo `postgres`, subtransacciones deshechas; `drop index`
+toma ACCESS EXCLUSIVE breve); el `create index` no concurrente bloquea INSERT en
+`crm.actividades` menos de un segundo (13,6 k filas, `lock_timeout 5s`); el postflight no
+invoca los 4 gates en rojo ajeno.
+
+**PASS local (banco, copia `gestion_diaria_20260919`):** preflight, instalación, gate
+propio OK, 10/10 mutantes detectados (la mutación aparte de la verificación: una mutación que no aplica grita, no cuenta), oráculo por actor `GESTION_DIARIA_REGISTRO_OK`
+(validaciones 22023 · coordinador e inactivo 42501 · gerencia = directorio · analista
+solo lo suyo · supervisor subárbol anidado y nunca otro equipo · cursor completo sin
+repetir · filtros · caso ESCRITO: una llamada que sube el lead a contactado se ve en «nuevo» y su cambio automático queda debajo · metadata solo con claves de la lista blanca · anon sin EXECUTE · 367 días rechazados), gates
+`assert_sla_*` en verde antes y después, reversa y reinstalación determinista
+(md5 puerta `5f1b1f0e649b43fa1f5136c8c1a3feb6`, md5 núcleo `d1c922eb5081e30f3581b95a95d74656`, ambos en el registrador). Evidencia: `scripts/gestion-diaria/verificacion.json`.
+**Matriz `test-rls.mjs`:** bloque `testGestionDiariaRegistro` añadido (salto ruidoso
+por `PGRST202`; `CRM_RLS_EXIGE_GESTION_DIARIA=1` lo exige). `node --check` PASS;
+corrida viva **NOT RUN** (exige rama/banco remoto; el banco remoto no tiene el mundo
+SLA del 07/09, ver `scripts/banco/parches/DIVERGENCIAS.md`). Advisors **NOT RUN**.
+`auditor-rls`: ver hallazgos en la PR.
+
+**Desviaciones respecto del plan, declaradas (refutadores del 19/09):** (1) el ÁMBITO es
+por DUEÑO ACTUAL del lead (la RLS), no «por autor cruzado con vendedor_ids_visibles» como
+decía el plan: una llamada de un analista sobre un lead que luego se reasignó a otro
+equipo deja de verse en este registro, y el analista deja de ver su propia llamada en
+«¿Qué hice hoy?» si el lead sale de su cartera — se eligió INVOKER para no copiar el
+predicado de la policy; **requiere el visto bueno de Miguel**. (2) La etapa «en ese
+momento» se deriva del último `cambio_etapa` anterior en más de UN SEGUNDO: los cambios
+automáticos nacen con el `now()` de la transacción, unos milisegundos ANTES de la
+llamada que los causa (el sello de `clock_timestamp` excluye los tipos automáticos);
+sin ese margen la columna salía invertida. (3) «Nota de revisión» se difiere a la Fase 2
+(viaja con `metadata.evento='revision'`); el «buscador» de analista es un desplegable;
+el CSV exporta las filas CARGADAS (25 por página, el aviso dice cuántas), no el día
+entero; gerencia filtra por equipo (subárbol del supervisor, solo activos) desde el front.
+
+**Front (rama `gestion-diaria/f1-registro`):** `npm run check:all` PASS (256 archivos, 3 771 tests; Playwright 206 PASS, 26 saltados de base), e2e `gestion-diaria.spec.ts` 4/4 por rol, `check:scripts` PASS.
+
+**Orden de despliegue:** SQL primero (RPC nueva), front después. Miguel instala con
+`!npx supabase db query --linked --file supabase/migrations/20260919211958_crm_gestion_diaria_registro.sql`
+y luego `supabase/scripts/registrar-20260919211958.sql` (generado, fail-closed).
+**Reversa:** `scripts/gestion-diaria/reversa.sql` (solo retira objetos nuevos; tras
+retirar el front). Detalle en `scripts/gestion-diaria/README.md`.
+
 ## 20260919185718 — Historial por lead: completo e igual para todos los roles
 
 **✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
