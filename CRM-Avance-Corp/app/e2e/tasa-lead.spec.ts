@@ -45,12 +45,13 @@ for (const ancho of [1440, 390]) {
     expect(tasaBox && motivoBox && tasaBox.x < motivoBox.x).toBeTruthy()
     await ficha.screenshot({ path: info.outputPath(`solicitud-${ancho}.png`) })
     await ficha.getByRole('button', { name: 'Enviar a Gerencia' }).click()
-    await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeDisabled()
+    // Abre el formulario común; la confirmación Avance exige resolver la tasa.
+    await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeEnabled()
     await expect(ficha.getByText('Pendiente de Gerencia', { exact: true })).toBeVisible()
     expect(altas).toBe(0)
     await ficha.getByRole('button', { name: 'Cerrar ficha' }).click()
     ficha = await abrir(page)
-    await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeDisabled()
+    await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeEnabled()
     solicitud = { ...solicitud, estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 18,
       resuelta_por: 'd7090000-0000-4000-8000-000000000002', resuelta_en: new Date().toISOString() }
     await page.reload()

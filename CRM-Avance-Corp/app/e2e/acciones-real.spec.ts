@@ -168,9 +168,10 @@ test('convertir en real: pide los datos de la cuenta y valida antes de tocar el 
 
   // Un correo inválido se rechaza EN EL CLIENTE: si saliera a la edge, el
   // backend fail-closed daría 500 y no veríamos este mensaje.
-  await dialogo.locator('#cv-correo').fill('no-es-correo')
-  await dialogo.getByRole('button', { name: /^Convertir a cliente$/ }).click()
-  await expect(dialogo.getByText(/Ingresa un correo válido/i)).toBeVisible()
+  const correo=dialogo.getByLabel('Correo de acceso Avance')
+  await correo.fill('no-es-correo')
+  await dialogo.getByRole('button', { name: 'Revisar acceso Avance' }).click()
+  expect(await correo.evaluate((e:HTMLInputElement)=>e.validity.typeMismatch)).toBe(true)
   await expect(page.getByText(/ahora es cliente/i)).toHaveCount(0)
 })
 

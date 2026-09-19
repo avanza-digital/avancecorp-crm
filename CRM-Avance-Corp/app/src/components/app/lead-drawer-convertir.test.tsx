@@ -1,968 +1,246 @@
-// Tests del DialogConvertir REAL (conversión lead → cliente del portal en una
-// operación atómica, encadenando después el contrato).
-// La capa @/data/crm-api se mockea (sin red); CrmApiError se conserva real para
-// el instanceof del catch. Los contextos se proveen a mano: el diálogo solo
-// consume { convertir, recargar } del store y `yo` del auth.
-// NOTA de cobertura: la E2E real de convertir (acciones-real.spec.ts) está
-// SKIPPED por el gate FUNCIONES_LEADS_APROBADAS — esta suite es hoy la única
-// que ejercita el flujo real con bancarios de punta a punta (backend mockeado).
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+// Formulario compartido desde el lead. SQL/Auth se prueban en el banco aislado.
+import {beforeEach,describe,expect,it,vi} from 'vitest'
+import {act,fireEvent,render,screen,waitFor} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
-import { StoreDataContext } from '@/lib/store-context'
-import type { StoreDataApi } from '@/lib/store'
-import type { Lead } from '@/lib/tipos'
-import * as crmApi from '@/data/crm-api'
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query'
+import {AuthContext,type AuthContextValue} from '@/lib/auth-context'
+import {StoreDataContext} from '@/lib/store-context'
+import type {StoreDataApi} from '@/lib/store'
+import type {Lead} from '@/lib/tipos'
+import {CrmApiError,type CrearContratoInput} from '@/data/crm-api'
+import type {CuotaCronograma} from '@/lib/cronograma'
+import {guardarIntentoInversion,leerIntentoInversion,nuevoIntentoInversion,type DatosInversion,type SolicitudInversion} from '@/lib/inversion-solicitud'
+import {ACTOR_F5,PERSONA_F5,PERFIL_F5,FUENTE_F5,fichaF5} from '@/test/fixtures/f5'
+import {DialogConvertir} from './lead-drawer'
 
-vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
-}))
-
-vi.mock('@/data/crm-api', async (importActual) => {
-  const actual = await importActual<typeof import('@/data/crm-api')>()
-  return {
-    ...actual, // conserva CrmApiError real
-    convertirLead: vi.fn(),
-    actualizarClientePortal: vi.fn(),
-    esClienteDeMiCartera: vi.fn(),
-  }
+const api=vi.hoisted(()=>({persona:vi.fn(),contexto:vi.fn(),ficha:vi.fn(),preparar:vi.fn(),consultar:vi.fn(),
+  corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn()}))
+vi.mock('@/data/inversion-solicitud-api',async original=>({...await original<typeof import('@/data/inversion-solicitud-api')>(),
+  prepararPersonaLeadInversion:api.persona,obtenerContextoConversionInversion:api.contexto,
+  prepararSolicitudInversion:api.preparar,consultarSolicitudInversion:api.consultar,
+  corregirSolicitudInversion:api.corregir,confirmarSolicitudInversion:api.confirmar,cancelarSolicitudInversion:api.cancelar,
+  completarAccesoInversion:api.acceso,subirComprobanteInversion:api.subir,enviarBienvenidaInversion:api.bienvenida}))
+vi.mock('@/data/inversionistas-api',async original=>({...await original<typeof import('@/data/inversionistas-api')>(),obtenerFichaInversionista:api.ficha}))
+vi.mock('@/data/crm-api',async original=>({...await original<typeof import('@/data/crm-api')>(),convertirLead:api.convertirAnterior}))
+// ContratoNuevo tiene su propia suite de campos/cuentas/tasas. Aquí debe
+// proponer datos al flujo compartido, sin crear por su cuenta el contrato.
+vi.mock('./contrato-nuevo',async()=>{
+  const {DialogTitle}=await import('@/components/ui/dialog')
+  return {ContratoNuevo:(p:{clienteId:string;leadOrigenId?:string;analistaInicial?:string;
+    onRevisar:(i:CrearContratoInput,c:CuotaCronograma[])=>Promise<void>;onOmitir:()=>void})=><>
+    <DialogTitle>Condiciones del contrato compartido</DialogTitle>
+    <span data-testid="origen-tasa">{p.leadOrigenId}</span><span data-testid="analista">{p.analistaInicial}</span>
+    <button onClick={()=>void p.onRevisar({cliente_id:p.clienteId,analista_cierre_id:p.analistaInicial,
+      categoria:'nuevo',capital:5000,moneda:'PEN',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',
+      fecha_inicio:'2026-09-01',fecha_vencimiento:'2027-09-01',cuenta_pago:{tipo:'nueva',banco:'BANCO PRUEBA',
+      tipo_cuenta:'ahorros',numero_cuenta:'PRUEBA-001',cci:'99999999999999999991',titular_distinto:false}} as CrearContratoInput,[])}>
+      Revisar contrato compartido</button>
+    <button onClick={p.onOmitir}>Cancelar contrato</button>
+  </>}
 })
-
-// Este archivo prueba la conversión; el transporte de cuentas tiene su suite
-// propia (queries + MSW + E2E). Aislamos aquí el hook para que ContratoNuevo
-// pueda montarse sin convertir este test en otro harness de QueryClient.
-// `mutarCierreExterno` es el mutateAsync del cierre en cooperativa: hoisted
-// porque el mock de módulo se evalúa antes que el cuerpo del archivo.
-const { mutarCierreExterno } = vi.hoisted(() => ({
-  mutarCierreExterno: vi.fn(),
-}))
-
-vi.mock('@/data/crm-queries', async (importActual) => {
-  const actual = await importActual<typeof import('@/data/crm-queries')>()
-  return {
-    ...actual,
-    useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
-    useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
-      data: moneda === 'PEN'
-        ? [{
-            cuenta_id: null,
-            moneda: 'PEN',
-            banco: 'BCP',
-            tipo_cuenta: 'ahorros',
-            numero_cuenta: '191000001234',
-            cci: '00112233445566778899',
-            titular_distinto: false,
-            beneficiario_nombre: null,
-            beneficiario_dni: null,
-            origen: 'perfil',
-            es_cuenta_perfil: true,
-            creada_en: null,
-          }]
-        : [],
-      isPending: false,
-      isError: false,
-      isFetching: false,
-      refetch: vi.fn(),
-    })),
-    useConvertirLeadExterno: vi.fn(() => ({ mutateAsync: mutarCierreExterno })),
-    // Pre-vuelo legal del contrato. Aquí el cliente ACABA de nacer con su
-    // domicilio (la conversión lo captura), así que no falta nada: este camino no
-    // debe ver nunca el bloque que pide el domicilio.
-    useDatosLegalesContrato: vi.fn((clienteId: string) => ({
-      data: { clienteId, faltaDomicilio: false, faltanCliente: [], faltanAnalista: [] },
-      isPending: false,
-      isError: false,
-      isFetching: false,
-      refetch: vi.fn(),
-    })),
-  }
+const LEAD='55555555-5555-4555-8555-555555555555'
+const lead:Lead={id:LEAD,nombre_completo:'PERSONA PRUEBA CONVERSIÓN',telefono:'999888777',correo:'persona@pruebas.example',
+  dni:'93334444',etapa:'propuesta_enviada',origen:'landing',monto_estimado:5000,moneda:'PEN',
+  vendedor_id:ACTOR_F5,vendedor_nombre:'ANALISTA F5',creado_en:'2026-09-01T12:00:00Z',activo:true}
+let vigente:SolicitudInversion|null
+let perfil:string|null
+const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solicitud_id:clave,lead_id:LEAD,estado:'preparada',
+  inversion_id:null,inversionista_id:PERSONA_F5,inversionista_origen_id:PERSONA_F5,identidad_fusionada:false,
+  responsable_esperado_id:ACTOR_F5,responsable_actual_id:ACTOR_F5,requiere_revision_responsable:false,
+  revision_datos:0,revision_responsable:0,hash_datos:'huella',necesita_portal:datos.empresa==='avance'&&!perfil,
+  comprobante_bucket:datos.empresa==='avance'?null:'f4-comprobantes',comprobante_ruta:datos.evidencia?.ruta??null,resultado:null,datos})
+beforeEach(()=>{
+  vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null
+  api.persona.mockImplementation(async()=>({inversionista_id:PERSONA_F5,lead_id:LEAD,solicitud_id:vigente?.solicitud_id??null}))
+  api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil}}))
+  api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
+  api.preparar.mockImplementation(async i=>{vigente=preparada(i.clave,i.datos);return vigente})
+  api.consultar.mockImplementation(async()=>{if(!vigente)throw new CrmApiError('Solicitud no encontrada','P0002');return vigente})
+  api.corregir.mockImplementation(async i=>{vigente={...vigente!,datos:i.correccion.datos,revision_datos:vigente!.revision_datos+1,necesita_portal:!perfil};return vigente})
+  api.acceso.mockImplementation(async()=>{perfil=PERFIL_F5;vigente={...vigente!,necesita_portal:false};return {ok:true,solicitud_id:vigente.solicitud_id,perfil_id:perfil}})
+  api.confirmar.mockImplementation(async()=>{
+    const resultado={ok:true as const,solicitud_id:vigente!.solicitud_id,inversion_id:FUENTE_F5,inversionista_id:PERSONA_F5,
+      empresa:vigente!.datos!.empresa,fuente:vigente!.datos!.empresa==='avance'?{id:FUENTE_F5}:{cierre_id:FUENTE_F5}}
+    vigente={...vigente!,estado:'confirmada',inversion_id:FUENTE_F5,resultado};return resultado
+  })
+  api.subir.mockResolvedValue(undefined)
+  api.bienvenida.mockResolvedValue({estado:'enviada'})
 })
-
-// El catálogo versionado tiene sus pruebas propias. Este diálogo solo necesita
-// que el paso contractual pueda montarse sin una frontera remota ni QueryClient.
-vi.mock('@/data/crm-config-queries', () => ({
-  useProductosSeleccionables: () => ({
-    data: [],
-    isPending: false,
-    isError: false,
-    isFetching: false,
-    refetch: vi.fn(),
-  }),
-}))
-
-// ContratoNuevo tiene una suite propia. Aquí conservamos el título accesible y
-// ejercemos el callback exacto que cierra el flujo después de crear la venta.
-vi.mock('@/components/app/contrato-nuevo', async () => {
-  const { DialogTitle } = await import('@/components/ui/dialog')
-  return {
-    ContratoNuevo: ({
-      clienteNombre,
-      onCreado,
-    }: {
-      clienteNombre: string
-      onCreado: () => void | Promise<void>
-    }) => (
-      <>
-        <DialogTitle>Crear contrato de {clienteNombre}</DialogTitle>
-        <button type="button" onClick={() => { void onCreado() }}>
-          Confirmar contrato simulado
-        </button>
-      </>
-    ),
-  }
-})
-
-const { DialogConvertir } = await import('./lead-drawer')
-const { crmQueryKeys } = await import('@/data/crm-queries')
-const { CrmApiError } = crmApi
-
-const convertirEdge = vi.mocked(crmApi.convertirLead)
-const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
-const enMiCartera = vi.mocked(crmApi.esClienteDeMiCartera)
-
-function leadBase(over: Partial<Lead> = {}): Lead {
-  return {
-    id: 'lead-1',
-    nombre_completo: 'JUAN PEREZ ROJAS',
-    telefono: '+51999888777',
-    correo: null,
-    etapa: 'nuevo',
-    origen: 'landing',
-    monto_estimado: 50_000,
-    moneda: 'PEN',
-    categoria_interes: null,
-    vendedor_id: 'u-v1',
-    vendedor_nombre: 'Analista Real',
-    asignado_supervisor_id: null,
-    creado_en: '2026-07-01T00:00:00.000Z',
-    activo: true,
-    dni: null,
-    distrito: null,
-    nota: null,
-    motivo_descarte: null,
-    ...over,
-  }
+function montar(datos:Partial<Lead>={}){
+  const qc=new QueryClient({defaultOptions:{queries:{retry:false}}}),onClose=vi.fn(),recargar=vi.fn().mockResolvedValue(true),convertir=vi.fn()
+  const auth={yo:{id:ACTOR_F5,rol:'vendedor',nombre_completo:'ANALISTA F5',demo:false,puede_contratar:true}} as AuthContextValue
+  const store={recargar,convertir,convertirExterno:convertir,equipo:[]} as unknown as StoreDataApi
+  const vista=render(<QueryClientProvider client={qc}><AuthContext.Provider value={auth}><StoreDataContext.Provider value={store}>
+    <DialogConvertir l={{...lead,...datos}} onClose={onClose}/>
+  </StoreDataContext.Provider></AuthContext.Provider></QueryClientProvider>)
+  return {...vista,user:userEvent.setup(),onClose,recargar,convertir,qc}
 }
-
-function sesion(demo: boolean, rol: 'vendedor' | 'supervisor' = 'vendedor'): AuthContextValue {
-  return {
-    fase: 'listo',
-    yo: { id: 'u-v1', nombre_completo: 'Analista Real', rol, demo, puede_contratar: true },
-    error: null,
-    entrar: async () => ({ ok: true }),
-    entrarDemo: () => undefined,
-    reintentar: () => undefined,
-    salir: async () => undefined,
-  }
+async function entrar(user:ReturnType<typeof userEvent.setup>,empresa:string){
+  await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+  await user.click(await screen.findByRole('button',{name:empresa}))
 }
-
-function montar({
-  demo = false,
-  lead = {},
-  rol = 'vendedor',
-  recargaOk = true,
-}: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor'; recargaOk?: boolean } = {}) {
-  const onClose = vi.fn()
-  const recargar = vi.fn().mockResolvedValue(recargaOk)
-  const convertirExterno = vi.fn(() => ({ ok: true }))
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  })
-  const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
-  // Stub mínimo del store: DialogConvertir solo usa convertir/convertirExterno
-  // (demo) y recargar.
-  const api = {
-    convertir: vi.fn(() => ({ ok: true })),
-    convertirExterno,
-    recargar,
-    // P-055 Fase 3: DialogConvertir arma con esto la lista de analistas para el
-    // paso de contrato. Vacía basta: el selector solo se dibuja si hay equipo.
-    equipo: [],
-  } as unknown as StoreDataApi
-  render(
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={sesion(demo, rol)}>
-        <StoreDataContext.Provider value={api}>
-          <DialogConvertir l={leadBase(lead)} onClose={onClose} />
-        </StoreDataContext.Provider>
-      </AuthContext.Provider>
-    </QueryClientProvider>,
-  )
-  return { onClose, recargar, convertirExterno, invalidar }
+async function llenarCoop(user:ReturnType<typeof userEvent.setup>,moneda='PEN'){
+  if(moneda==='USD')await user.selectOptions(screen.getByLabelText('Moneda'),'USD')
+  const capital=screen.getByLabelText(new RegExp('Capital.*'+moneda))
+  await user.clear(capital);await user.type(capital,'5000')
+  await user.type(screen.getByLabelText('Número de operación del depósito'),'CI-PRUEBA-001')
+  await user.type(screen.getByLabelText(/Plazo.*meses/),'12')
+  await user.type(screen.getByLabelText(/Rentabilidad anual/),'18')
+  await user.type(screen.getByLabelText('Referencia de la inversión'),'CI-CERTIFICADO')
+  await user.upload(screen.getByLabelText('Comprobante PDF, JPG o PNG (hasta 10 MB)'),new File(['comprobante'],'prueba.pdf',{type:'application/pdf'}))
+  const formulario=screen.getByRole('button',{name:'Revisar inversión'}).closest('form')!
+  const invalidos=[...formulario.querySelectorAll('input')]
+    .filter(i=>i.type!=='file'&&!i.checkValidity()).map(i=>({id:i.id,error:i.validationMessage}))
+  expect(invalidos).toEqual([])
+  expect(formulario.querySelector<HTMLInputElement>('input[type=file]')!.files).toHaveLength(1)
+  // JSDOM no integra FileList simulado en la validación nativa de required.
+  // El navegador se verifica además con E2E; aquí se ejerce el onSubmit real.
+  fireEvent.submit(formulario)
+  await screen.findByRole('button',{name:'Confirmar inversión'})
 }
-
-/** El flujo arranca en «¿Dónde invirtió?»: esta variante lo pasa eligiendo
- *  Avance Corp, que es donde vive todo el flujo histórico de esta suite. */
-async function montarEnAvance(
-  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor'; recargaOk?: boolean } = {},
-) {
-  const res = montar(opts)
-  await userEvent.setup().click(screen.getByRole('button', { name: /Avance Corp/ }))
-  return res
-}
-
-/** La variante COOPERATIVA del mismo arranque. */
-async function montarEnCoop(
-  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {},
-  coop: 'Qorilazo' | 'Prodelco' = 'Qorilazo',
-) {
-  const res = montar(opts)
-  await userEvent.setup().click(screen.getByRole('button', { name: new RegExp(`COOPAC ${coop}`) }))
-  return res
-}
-
-/** Identidad legal mínima válida del paso convertir. */
-async function llenarIdentidad(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
-  await user.type(screen.getByLabelText('N° de documento'), '45781234')
-  await user.type(
-    screen.getByLabelText('Domicilio legal completo'),
-    'Av. Los Inversionistas 245, San Isidro, Lima',
-  )
-}
-
-/** Cuenta PEN completa (el mínimo que exige la regla "al menos una"). */
-async function llenarPenCompleta(user: ReturnType<typeof userEvent.setup>) {
-  const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
-  await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
-  await user.selectOptions(within(pen).getByLabelText('Tipo de cuenta'), 'ahorros')
-  await user.type(within(pen).getByLabelText('N° de cuenta'), '19112345678901')
-  await user.type(within(pen).getByLabelText(/CCI/), '00219112345678901234')
-}
-
-describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it('un lead sin analista se bloquea antes de tocar Edge, Auth o portal', async () => {
-    const user = userEvent.setup()
-    await montarEnAvance({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
-
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Asigna el lead a un analista antes de convertirlo',
-    )
-    expect(convertirEdge).not.toHaveBeenCalled()
-    expect(actualizarCliente).not.toHaveBeenCalled()
+describe('Convertir a cliente usa Nueva inversión',()=>{
+  it('cancelar una solicitud permite elegir otra empresa sin convertir',async()=>{
+    const {user,recargar}=montar();await entrar(user,'Prodelco');await llenarCoop(user)
+    const id=vigente!.solicitud_id
+    await user.click(screen.getByRole('button',{name:'Cancelar solicitud'}))
+    await user.click(screen.getByRole('button',{name:'Confirmar cancelación'}))
+    await screen.findByRole('heading',{name:'Solicitud cancelada'})
+    expect(api.cancelar).toHaveBeenCalledWith(id,0);expect(api.confirmar).not.toHaveBeenCalled();expect(recargar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button',{name:'Iniciar otra inversión'}))
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toBeNull()
+    await user.click(screen.getByRole('button',{name:'Qorilazo'}))
+    expect(screen.getByLabelText('Número de operación del depósito')).toHaveValue('')
+    await llenarCoop(user);expect(vigente!.solicitud_id).not.toBe(id)
+    expect(vigente!.datos?.empresa).toBe('qorilazo')
   })
-
-  it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', async () => {
-    await montarEnAvance()
-    expect(screen.getByLabelText('Nombres')).toHaveValue('JUAN')
-    expect(screen.getByLabelText('Apellido paterno')).toHaveValue('PEREZ')
-    expect(screen.getByLabelText('Apellido materno')).toHaveValue('ROJAS')
-    expect(screen.getByText('Registrado en el lead')).toBeInTheDocument()
-    expect(screen.getByLabelText('Domicilio legal completo')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })).toBeInTheDocument()
-    expect(document.getElementById('cv-pen-banco')).not.toBeNull()
-    expect(document.getElementById('cf-pen-banco')).toBeNull()
+  it('una lectura fallida conserva campos y comprobante hasta recuperar permisos',async()=>{
+    const {user,qc}=montar();await entrar(user,'Prodelco')
+    await user.type(screen.getByLabelText('Número de operación del depósito'),'NO-PERDER-001')
+    const archivo=new File(['datos'],'comprobante.png',{type:'image/png'})
+    await user.upload(screen.getByLabelText('Comprobante PDF, JPG o PNG (hasta 10 MB)'),archivo)
+    api.contexto.mockRejectedValueOnce(new CrmApiError('Fallo temporal','55P03'))
+    await act(async()=>{await qc.invalidateQueries({queryKey:['crm','inversionistas',ACTOR_F5]})})
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conservamos tus datos')
+    const campo=screen.getByLabelText('Número de operación del depósito')
+    expect(campo).toHaveValue('NO-PERDER-001');expect(campo).toBeDisabled()
+    expect((screen.getByLabelText('Comprobante PDF, JPG o PNG (hasta 10 MB)') as HTMLInputElement).files?.[0]).toBe(archivo)
+    await user.click(screen.getByRole('button',{name:'Verificar y continuar'}))
+    await waitFor(()=>expect(campo).not.toBeDisabled());expect(campo).toHaveValue('NO-PERDER-001')
+    expect(api.preparar).not.toHaveBeenCalled()
   })
-
-  it('sin domicilio legal no toca Edge, Auth ni portal', async () => {
-    const user = userEvent.setup()
-    await montarEnAvance()
-    await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await llenarPenCompleta(user)
-
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Completa el domicilio legal del cliente.',
-    )
-    expect(convertirEdge).not.toHaveBeenCalled()
+  it('un lead convertido recupera su bienvenida sin borrador ni volver a preparar identidad',async()=>{
+    vigente=preparada(FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,empresa:'avance'})
+    await api.confirmar();api.confirmar.mockClear()
+    montar({etapa:'convertido'})
+    await screen.findByRole('heading',{name:'Inversión confirmada'})
+    await waitFor(()=>expect(api.bienvenida).toHaveBeenCalledExactlyOnceWith(FUENTE_F5))
+    expect(api.persona).not.toHaveBeenCalled();expect(api.preparar).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
   })
-
-  it.each([
-    // El listón subió de 5 a 15 caracteres + al menos un número (2026-08-19),
-    // decidido con los 19 domicilios reales de producción. U+0085 salió de la
-    // lista de controles: los tres lados lo tratan como espacio y lo colapsan.
-    ['catorce puntos Unicode', 'Av. Lima 123 😀', 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
-    ['241 puntos Unicode', `Av. Lima 123 ${'x'.repeat(227)}😀`, 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
-    ['un control C0 de verdad', 'Av. Lima 123\u0007 San Isidro', 'El domicilio legal contiene caracteres no permitidos.'],
-    ['un invisible de ancho cero', 'Av. Lima\u200B 123, San Isidro', 'El domicilio legal contiene caracteres invisibles que no se imprimirían en el contrato.'],
-    ['una dirección sin número', 'Avenida sin numero, San Isidro', 'El domicilio legal necesita el número de la calle, el lote o la manzana.'],
-    ['la dirección de la propia empresa', 'Av. República de Panamá 3635, San Isidro', 'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.'],
-  ])('rechaza %s antes de tocar la Edge', async (_caso, valor, mensaje) => {
-    const user = userEvent.setup()
-    await montarEnAvance()
-    await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    fireEvent.change(screen.getByLabelText('Domicilio legal completo'), { target: { value: valor } })
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
-    expect(convertirEdge).not.toHaveBeenCalled()
+  it('precarga identidad; cancelar no prepara ni convierte',async()=>{
+    const {user,onClose,convertir}=montar()
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue(lead.nombre_completo)
+    expect(screen.getByLabelText('Documento')).toHaveValue(lead.dni)
+    await user.click(screen.getByRole('button',{name:'Cancelar'}))
+    expect(onClose).toHaveBeenCalledOnce();expect(api.persona).not.toHaveBeenCalled();expect(convertir).not.toHaveBeenCalled()
   })
-
-  it.each([
-    ['quince puntos Unicode', 'Av. Lima 123 A😀'],
-    ['240 puntos Unicode', `Av. Lima 123 ${'x'.repeat(226)}😀`],
-  ])('acepta exactamente %s y conserva los caracteres astrales', async (_caso, valor) => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-9',
-      ya_existia: false,
-      domicilio_accion: 'completado',
-      email_enviado: false,
-    })
-    await montarEnAvance()
-    await llenarIdentidad(user)
-    fireEvent.change(screen.getByLabelText('Domicilio legal completo'), { target: { value: valor } })
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    await waitFor(() => expect(convertirEdge).toHaveBeenCalledWith(expect.objectContaining({ domicilio: valor })))
+  it.each([['DNI','123'],['CE','12345678'],['PASAPORTE','A']])('valida el documento %s antes de reconocer la persona',async(tipo,doc)=>{
+    const {user}=montar({dni:''})
+    await user.selectOptions(screen.getByLabelText('Tipo de documento'),tipo)
+    await user.type(screen.getByLabelText('Documento'),doc)
+    await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(screen.getByRole('alert')).toBeInTheDocument();expect(api.persona).not.toHaveBeenCalled()
   })
-
-  it('regla "al menos una cuenta" AL CONVERTIR: sin bancarios NO toca el servidor', async () => {
-    const user = userEvent.setup()
-    await montarEnAvance()
-    await llenarIdentidad(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
-    )
-    expect(convertirEdge).not.toHaveBeenCalled()
-    expect(actualizarCliente).not.toHaveBeenCalled()
+  it('muestra el rechazo de ámbito/identidad sin abrir otra persona',async()=>{
+    api.persona.mockRejectedValueOnce(new CrmApiError('La persona pertenece a otro equipo','42501'))
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('otro equipo');expect(api.preparar).not.toHaveBeenCalled()
   })
-
-  it('sección a medias: el error sube con su moneda y tampoco toca el servidor', async () => {
-    const user = userEvent.setup()
-    await montarEnAvance()
-    await llenarIdentidad(user)
-    const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
-    await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('El N° de cuenta (Soles) es obligatorio.')
-    expect(convertirEdge).not.toHaveBeenCalled()
+  it.each([['Qorilazo','qorilazo','PEN'],['Prodelco','prodelco','PEN'],['Prodelco','prodelco','USD']])('registra %s en %s/%s con la revisión de Cartera',async(nombre,empresa,moneda)=>{
+    const {user,recargar,convertir,qc}=montar();const invalidar=vi.spyOn(qc,'invalidateQueries')
+    await entrar(user,nombre);await llenarCoop(user,moneda)
+    expect(api.persona).toHaveBeenCalledWith(LEAD,'DNI',lead.dni,lead.nombre_completo)
+    expect(api.ficha).not.toHaveBeenCalled();expect(api.preparar).toHaveBeenCalledOnce()
+    expect(api.preparar.mock.calls[0]![0].datos).toMatchObject({lead_id:LEAD,inversionista_id:PERSONA_F5,empresa,moneda,monto:5000,plazo_meses:12,tasa_anual:18,referencia:'CI-CERTIFICADO'})
+    expect(recargar).not.toHaveBeenCalled();expect(convertir).not.toHaveBeenCalled();expect(api.convertirAnterior).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button',{name:'Confirmar inversión'}))
+    await screen.findByRole('heading',{name:'Inversión confirmada'})
+    expect(api.subir).toHaveBeenCalledOnce();expect(api.confirmar).toHaveBeenCalledWith(vigente!.solicitud_id,0)
+    expect(recargar).toHaveBeenCalledOnce();expect(convertir).not.toHaveBeenCalled()
+    await waitFor(()=>expect(invalidar).toHaveBeenCalledWith({queryKey:['crm','metricas']}))
+    expect(invalidar).toHaveBeenCalledWith({queryKey:['crm','inversionistas',ACTOR_F5]})
   })
-
-  it('feliz: UNA sola llamada con identidad + bancarios, y encadena el contrato', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-9',
-      ya_existia: false,
-      domicilio_accion: 'completado',
-      email_enviado: true,
-    })
-    const { onClose, recargar, invalidar } = await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    // Encadena el paso contrato sin salir del CRM.
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
-    // La edge recibe la identidad YA separada y confirmada por el analista,
-    // junto con las cuentas de depósito, en el MISMO envío: el cliente nace
-    // listo para pagos o no nace.
-    expect(convertirEdge).toHaveBeenCalledWith({
-      lead_id: 'lead-1',
-      correo: 'juan@correo.pe',
-      tipo_documento: 'DNI',
-      documento: '45781234',
-      nombre_completo: 'PEREZ ROJAS JUAN',
-      apellidos: 'PEREZ ROJAS',
-      nombres: 'JUAN',
-      telefono: '+51999888777',
-      domicilio: 'Av. Los Inversionistas 245, San Isidro, Lima',
-      bancarios: {
-        pen: expect.objectContaining({
-          banco: 'BCP',
-          tipo_cuenta: 'ahorros',
-          numero_cuenta: '19112345678901',
-          cci: '00219112345678901234',
-          titular_distinto: false,
-        }),
-        usd: expect.objectContaining({ banco: '', cci: '', titular_distinto: false }),
-      },
-    })
-    // Y NO queda ningún segundo paso que pueda fallar y dejar al cliente sin cuenta.
-    expect(actualizarCliente).not.toHaveBeenCalled()
-    expect(recargar).toHaveBeenCalled()
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.clientes() })
-    expect(invalidar).toHaveBeenCalledWith({
-      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
-    })
-    expect(invalidar).toHaveBeenCalledWith({
-      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
-    })
-    expect(invalidar).toHaveBeenCalledWith({
-      queryKey: crmQueryKeys.conversionMensualPrefijo(),
-    })
-    expect(invalidar).toHaveBeenCalledWith({
-      queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
-    })
-    expect(invalidar).toHaveBeenCalledWith({
-      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
-    })
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricasAmbito() })
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
-    expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
-
-    await user.click(screen.getByRole('button', { name: 'Confirmar contrato simulado' }))
-    await waitFor(() => {
-      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.contratos() })
-      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricas() })
-      expect(onClose).toHaveBeenCalledOnce()
-    })
+  it('cerrar en revisión conserva la solicitud; reabrir retoma la misma',async()=>{
+    const vista=montar();await entrar(vista.user,'Qorilazo');await llenarCoop(vista.user);const clave=vigente!.solicitud_id
+    await vista.user.click(screen.getByRole('button',{name:'Cerrar y continuar después'}))
+    expect(vista.onClose).toHaveBeenCalledOnce();expect(api.confirmar).not.toHaveBeenCalled();expect(vista.recargar).not.toHaveBeenCalled()
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.clave).toBe(clave)
+    vista.unmount();const segunda=montar()
+    await segunda.user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await screen.findByRole('button',{name:'Confirmar inversión'})
+    expect(api.consultar).toHaveBeenCalledWith(clave,expect.any(AbortSignal));expect(api.preparar).toHaveBeenCalledOnce()
   })
-
-  it('permite corregir la sugerencia antes de crear el cliente para pagos', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-9',
-      ya_existia: false,
-      domicilio_accion: 'completado',
-      email_enviado: false,
-    })
-    await montarEnAvance({ lead: { nombre_completo: 'MARIA JOSE PEREZ RUIZ' } })
-
-    expect(screen.getByLabelText('Nombres')).toHaveValue('MARIA JOSE')
-    expect(screen.getByLabelText('Apellido paterno')).toHaveValue('PEREZ')
-    expect(screen.getByLabelText('Apellido materno')).toHaveValue('RUIZ')
-
-    await user.clear(screen.getByLabelText('Nombres'))
-    await user.type(screen.getByLabelText('Nombres'), 'ANA LUCIA')
-    await user.clear(screen.getByLabelText('Apellido paterno'))
-    await user.type(screen.getByLabelText('Apellido paterno'), 'GARCIA')
-    await user.clear(screen.getByLabelText('Apellido materno'))
-    await user.type(screen.getByLabelText('Apellido materno'), 'MENDOZA')
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    await waitFor(() => expect(convertirEdge).toHaveBeenCalledWith(expect.objectContaining({
-      nombre_completo: 'GARCIA MENDOZA ANA LUCIA',
-      apellidos: 'GARCIA MENDOZA',
-      nombres: 'ANA LUCIA',
-    })))
+  it('recupera del servidor después de perder el borrador local',async()=>{
+    vigente=preparada(FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,empresa:'qorilazo',monto:5000,moneda:'PEN'})
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await screen.findByRole('button',{name:'Confirmar inversión'})
+    expect(api.preparar).not.toHaveBeenCalled();expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.clave).toBe(FUENTE_F5)
   })
-
-  it('exige los tres campos de identidad antes de crear el cliente', async () => {
-    const user = userEvent.setup()
-    await montarEnAvance()
-    await user.clear(screen.getByLabelText('Apellido materno'))
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Completa los nombres y los dos apellidos del cliente antes de crear su cuenta.',
-    )
-    expect(convertirEdge).not.toHaveBeenCalled()
+  it('si falla recuperar la solicitud conocida, exige consultar la misma antes de continuar',async()=>{
+    vigente=preparada(FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,empresa:'qorilazo',monto:5000,moneda:'PEN'})
+    api.consultar.mockRejectedValueOnce(new TypeError('Conexión interrumpida'))
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await user.click(await screen.findByRole('button',{name:'Consultar y recuperar'}))
+    await screen.findByRole('button',{name:'Confirmar inversión'})
+    expect(api.consultar).toHaveBeenCalledTimes(2);expect(api.preparar).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button',{name:'Prodelco'})).not.toBeInTheDocument()
   })
-
-  it('si la recarga falla después del commit, informa que la conversión sí quedó confirmada', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-9',
-      ya_existia: false,
-      domicilio_accion: 'completado',
-      email_enviado: false,
-    })
-    await montarEnAvance({ recargaOk: false })
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
-    expect(toast.warning).toHaveBeenCalledWith(expect.stringMatching(/conversión quedó confirmada/))
+  it('reintenta la misma clave tras fallo de confirmación sin preparar otra',async()=>{
+    api.confirmar.mockRejectedValueOnce(new TypeError('Conexión interrumpida'))
+    const {user,recargar}=montar();await entrar(user,'Qorilazo');await llenarCoop(user)
+    await user.click(screen.getByRole('button',{name:'Confirmar inversión'}));await screen.findByRole('alert')
+    expect(recargar).not.toHaveBeenCalled();const id=vigente!.solicitud_id
+    await user.click(screen.getByRole('button',{name:'Confirmar inversión'}));await screen.findByRole('heading',{name:'Inversión confirmada'})
+    expect(api.confirmar.mock.calls).toEqual([[id,0],[id,0]]);expect(api.preparar).toHaveBeenCalledOnce();expect(recargar).toHaveBeenCalledOnce()
   })
-
-  it('dedup ya_existia CON el cliente en mi cartera: no pisa bancarios, LO DICE y el contrato sigue vivo', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-7',
-      ya_existia: true,
-      domicilio_accion: 'conservado',
-      email_enviado: false,
-    })
-    // El caso legítimo y frecuente (renovación): el DNI ya era cliente… mío.
-    enMiCartera.mockResolvedValue(true)
-    await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user) // el analista no puede saber que ya existía
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    // Un PATCH ciego sobreescribiría las cuentas con las que YA cobra: no viaja.
-    expect(actualizarCliente).not.toHaveBeenCalled()
-    // La atribución se PREGUNTA al servidor, no se adivina.
-    expect(enMiCartera).toHaveBeenCalledWith('perfil-7')
-    // …y el analista se entera de que manda la cuenta YA registrada, en vez de
-    // creer que acaba de registrar dónde se le depositan los intereses.
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
-    expect(aviso).toHaveTextContent(
-      /se conservaron las cuentas bancarias que el cliente ya tenía registradas/,
-    )
-    expect(aviso).toHaveTextContent(/También se conservó el domicilio legal/)
-    // Siendo suyo, NO se le acusa de haber perdido la cartera.
-    expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
-    // La ruta de corrección se enuncia CONDICIONADA a la ventana de 5 h, no como
-    // una promesa ni como una negación absoluta: tras un 409 de la RPC el
-    // reintento cae aquí con un cliente que el propio analista acaba de crear, y
-    // decirle "ya no se pueden cambiar, pídeselo a Gerencia" sería falso.
-    expect(screen.getByText(/menos de 5 horas/)).toBeInTheDocument()
-    expect(screen.getByText(/pídeselo a\s+Gerencia/)).toBeInTheDocument()
-    // El foco entra AL AVISO: al enviar cayó a <body> (el botón se deshabilitó)
-    // y una advertencia que hay que leer no puede depender de que Radix lo rescate.
-    expect(aviso).toHaveFocus()
-    // Un toast de éxito aquí sería justo la mentira que este aviso viene a matar.
-    expect(toast.success).not.toHaveBeenCalled()
-    // El aviso NO es terminal: el contrato sigue siendo el paso lógico.
-    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Continuar al contrato' }))
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+  it('el acceso Avance no convierte hasta confirmar el contrato compartido',async()=>{
+    const {user,recargar,convertir}=montar();await entrar(user,'Avance')
+    expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue(fichaF5.persona.correo)
+    await user.type(screen.getByLabelText('Nombres'),'PERSONA');await user.type(screen.getByLabelText('Apellidos'),'PRUEBA CONVERSIÓN')
+    await user.type(screen.getByLabelText('Domicilio legal'),'AVENIDA SINTETICA 123 LIMA')
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await user.click(await screen.findByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(screen.getByTestId('origen-tasa')).toHaveTextContent(LEAD);expect(screen.getByTestId('analista')).toHaveTextContent(ACTOR_F5)
+    expect(api.confirmar).not.toHaveBeenCalled();expect(recargar).not.toHaveBeenCalled();expect(convertir).not.toHaveBeenCalled()
+    expect(api.bienvenida).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button',{name:'Revisar contrato compartido'}))
+    await user.click(await screen.findByRole('button',{name:'Confirmar inversión'}))
+    await screen.findByRole('heading',{name:'Inversión confirmada'})
+    expect(api.confirmar).toHaveBeenCalledWith(vigente!.solicitud_id,1);expect(recargar).toHaveBeenCalledOnce()
+    await waitFor(()=>expect(api.bienvenida).toHaveBeenCalledExactlyOnceWith(vigente!.solicitud_id))
+    expect(vigente!.datos!.contrato).not.toHaveProperty('analista_cierre_id');expect(vigente!.datos!.contrato).not.toHaveProperty('cliente_id')
+    expect(api.convertirAnterior).not.toHaveBeenCalled()
   })
-
-  it('dedup ya_existia con el cliente de OTRO analista: no se ofrece un contrato que la RPC rechazaría', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-8',
-      ya_existia: true,
-      domicilio_accion: 'conservado',
-      email_enviado: false,
-    })
-    // La edge NO le cambia el asesor_perfil_id al cliente existente: sigue
-    // siendo de quien lo tenía, y `public.crear_contrato` exige cartera propia.
-    enMiCartera.mockResolvedValue(false)
-    await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(/NO pasó a tu cartera/)
-    // La verdad completa: ni lo verá en su pantalla ni podrá contratarle.
-    expect(screen.getByText(/no lo verás en/)).toBeInTheDocument()
-    expect(screen.getByText(/te lo reasigne en el portal/)).toBeInTheDocument()
-    // Y el callejón sin salida se retira: el botón llevaba a un formulario
-    // largo que terminaba en un rechazo del servidor.
-    expect(screen.queryByRole('button', { name: /contrato/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
-    expect(toast.success).not.toHaveBeenCalled()
+  it('cancelar el contrato conserva la inversión sin confirmar',async()=>{
+    perfil=PERFIL_F5;const {user,onClose,recargar}=montar();await entrar(user,'Avance')
+    await user.click(screen.getByRole('button',{name:'Cancelar contrato'}))
+    expect(onClose).toHaveBeenCalledOnce();expect(api.confirmar).not.toHaveBeenCalled();expect(recargar).not.toHaveBeenCalled()
   })
-
-  it('dedup ya_existia sin poder comprobar la cartera: se dice que no se sabe, no se afirma', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({
-      perfil_id: 'perfil-8',
-      ya_existia: true,
-      domicilio_accion: 'completado',
-      email_enviado: false,
-    })
-    enMiCartera.mockResolvedValue(null) // red caída / RLS: NO es un "false"
-    await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
-    expect(aviso).toHaveTextContent(/domicilio estaba vacío y se completó con el que ingresaste/)
-    expect(screen.getByText(/No pudimos comprobar si el cliente quedó en tu cartera/)).toBeInTheDocument()
-    // Se ofrece el intento (puede ser suyo), rotulado como intento y no como promesa.
-    expect(screen.getByRole('button', { name: 'Intentar el contrato' })).toBeInTheDocument()
+  it('la revocación borra la recuperación de ese lead',async()=>{
+    vigente=preparada(FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,empresa:'qorilazo'})
+    guardarIntentoInversion(nuevoIntentoInversion(ACTOR_F5,PERSONA_F5,FUENTE_F5,vigente.datos!))
+    api.contexto.mockRejectedValueOnce(new CrmApiError('Acceso revocado','42501'))
+    const {user,onClose}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await waitFor(()=>expect(onClose).toHaveBeenCalled())
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toBeNull();expect(api.confirmar).not.toHaveBeenCalled()
   })
-
-  it('si el servidor rechaza los bancarios NO queda lead convertido a medias', async () => {
-    // Sustituye a los tres casos viejos de "paso 2 fallido". Ese estado ya no
-    // puede existir: la edge valida las cuentas ANTES de crear la cuenta, mandar
-    // el correo y cerrar el lead, así que un rechazo no deja nada tocado.
-    const user = userEvent.setup()
-    convertirEdge.mockRejectedValue(
-      new CrmApiError(
-        'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
-        'CONVERTIR_FALLIDO',
-      ),
-    )
-    const { recargar } = await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
-    )
-    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
-    expect(toast.success).not.toHaveBeenCalled()
-    expect(actualizarCliente).not.toHaveBeenCalled()
-    expect(recargar).not.toHaveBeenCalled() // el lead no se movió
-    // Reintentable: no se creó nada en el servidor.
-    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
-  })
-
-  it('la edge rechaza: muestra su mensaje es-PE, sin PATCH y sin estado terminal', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockRejectedValue(new CrmApiError('Este correo ya está registrado.', 'CONVERTIR_FALLIDO'))
-    await montarEnAvance()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Este correo ya está registrado.')
-    expect(actualizarCliente).not.toHaveBeenCalled()
-    // El form sigue vivo para corregir y reintentar (no es el estado terminal).
-    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument()
-  })
-
-  it('demo: el diálogo simulado NO pide bancarios (nada real que guardar)', async () => {
-    await montarEnAvance({ demo: true })
-    expect(screen.queryByRole('group', { name: /Cuenta bancaria/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Convertir (demo)' })).toBeInTheDocument()
-  })
-})
-
-describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA', () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it('pide plazo y rentabilidad anual manuales; calcula el vencimiento al cambiar el plazo', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    const inicio=screen.getByLabelText('Fecha comercial (inicio)') as HTMLInputElement
-    expect(inicio).toHaveAttribute('readonly')
-    expect(screen.getByLabelText('Plazo (meses)')).toHaveValue('')
-    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveValue('')
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'),'1000')
-    await user.type(screen.getByLabelText('N° de documento'),'45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'),'OP-CONDICIONES')
-    await user.click(screen.getByRole('button',{name:/Cerrar en QORILAZO/}))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/plazo/)
-    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-invalid','true')
-    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-describedby','cx-error')
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-    await user.type(screen.getByLabelText('Plazo (meses)'),'12')
-    const vencimiento=screen.getByLabelText('Vencimiento') as HTMLInputElement
-    const anual=vencimiento.value
-    expect(anual).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(anual).not.toBe(inicio.value)
-    await user.clear(screen.getByLabelText('Plazo (meses)'))
-    await user.type(screen.getByLabelText('Plazo (meses)'),'6')
-    expect(vencimiento.value).not.toBe(anual)
-    expect(screen.getByLabelText('Vencimiento')).toHaveAttribute('readonly')
-    await user.click(screen.getByRole('button',{name:/Cerrar en QORILAZO/}))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/rentabilidad anual pactada/)
-    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveAttribute('aria-invalid','true')
-    expect(screen.getByLabelText('Rentabilidad anual (%)')).toHaveAttribute('aria-describedby','cx-ayuda-tasa cx-error')
-    expect(screen.getByLabelText('Plazo (meses)')).toHaveAttribute('aria-invalid','false')
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('el flujo arranca preguntando el destino, con las TRES empresas a la vista', () => {
-    montar()
-    expect(screen.getByRole('dialog', { name: '¿Dónde invirtió?' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Avance Corp/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /COOPAC Qorilazo/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /COOPAC Prodelco/ })).toBeInTheDocument()
-    // Ni una llamada por mirar el menú.
-    expect(convertirEdge).not.toHaveBeenCalled()
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('el formulario coop NO pide correo ni bancarios: no hay portal que crear', async () => {
-    await montarEnCoop()
-    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Correo del cliente')).not.toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: /Cuenta bancaria/ })).not.toBeInTheDocument()
-    // El nombre llega precargado del lead.
-    expect(screen.getByLabelText('Nombre completo')).toHaveValue('JUAN PEREZ ROJAS')
-  })
-
-  it('en QORILAZO no se pregunta la moneda: solo admite soles', async () => {
-    await montarEnCoop()
-    // Ofrecer una decisión que no existe (y que el servidor rechazaría) es peor
-    // que no ofrecerla: el rótulo del monto dice la moneda.
-    expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
-  })
-
-  it('en PRODELCO sí se pregunta, porque admite soles y dólares', async () => {
-    await montarEnCoop({}, 'Prodelco')
-    const moneda = screen.getByLabelText('Moneda')
-    expect(moneda).toBeInTheDocument()
-    // Arranca en soles: la primera que admite el catálogo. Un cierre en dólares
-    // es la excepción, así que no se abre el formulario ya puesto en ella.
-    expect(moneda).toHaveValue('PEN')
-    expect(
-      [...moneda.querySelectorAll('option')].map((o) => o.getAttribute('value')),
-    ).toEqual(['PEN', 'USD'])
-    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
-  })
-
-  it('al elegir dólares en PRODELCO, el rótulo del monto cambia de símbolo', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop({}, 'Prodelco')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
-    // El rótulo es lo único que dice en qué moneda va el número: si no cambia,
-    // el analista escribe dólares creyendo que son soles.
-    expect(screen.getByLabelText('Monto REAL invertido (US$)')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Monto REAL invertido (S/)')).not.toBeInTheDocument()
-  })
-
-  it('un cierre de PRODELCO en dólares viaja con moneda USD', async () => {
-    const user = userEvent.setup()
-    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-usd', cooperativa: 'prodelco' })
-    await montarEnCoop({}, 'Prodelco')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
-    await user.type(screen.getByLabelText('Monto REAL invertido (US$)'), '5000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-USD-1')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '9.5')
-    await user.click(screen.getByRole('button', { name: /Cerrar en PRODELCO/ }))
-
-    expect(mutarCierreExterno).toHaveBeenCalledWith(
-      expect.objectContaining({ cooperativa: 'prodelco', monto: 5000, moneda: 'USD' }),
-    )
-  })
-
-  it('volver y elegir QORILAZO recoloca la moneda: no se manda USD a quien no lo admite', async () => {
-    const user = userEvent.setup()
-    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-pen', cooperativa: 'qorilazo' })
-    await montarEnCoop({}, 'Prodelco')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
-    // Se vuelve al paso «¿Dónde invirtió?» y se elige la otra cooperativa. Sin
-    // recolocar la moneda, el 'USD' que quedó puesto viajaría a Qorilazo y el
-    // servidor lo rechazaría después de llenar el formulario entero.
-    await user.click(screen.getByRole('button', { name: 'Volver' }))
-    await user.click(screen.getByRole('button', { name: /COOPAC Qorilazo/ }))
-    expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '8000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-PEN-1')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '9.5')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(mutarCierreExterno).toHaveBeenCalledWith(
-      expect.objectContaining({ cooperativa: 'qorilazo', moneda: 'PEN' }),
-    )
-  })
-
-  it('sin N.° de operación no viaja nada: es la prueba del cierre', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/N.° de operación del depósito/)
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('un monto de 2 decimales como 10000.03 SÍ se acepta (coma flotante)', async () => {
-    // `10000.03 * 100` da 1000003.0000000001 en JavaScript, así que la
-    // comparación exacta acusaba tres decimales a un monto perfectamente
-    // válido y el analista no podía registrar su cierre.
-    const user = userEvent.setup()
-    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-1', cooperativa: 'qorilazo' })
-    await montarEnCoop()
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.03')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(mutarCierreExterno).toHaveBeenCalledWith(
-      expect.objectContaining({ monto: 10000.03 }),
-    )
-  })
-
-  it('tres decimales de verdad siguen rechazándose', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.035')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC3')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('máximo 2 decimales')
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('si el depósito ya estaba registrado, se muestra el mensaje del servidor', async () => {
-    const user = userEvent.setup()
-    mutarCierreExterno.mockRejectedValue(
-      new CrmApiError(
-        'Ese numero de operacion ya esta registrado en esa cooperativa',
-        'CIERRE_EXTERNO_CONFLICTO',
-      ),
-    )
-    const { onClose } = await montarEnCoop()
-
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-REPETIDA')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/ya esta registrado/)
-    expect(onClose).not.toHaveBeenCalled()
-  })
-
-  it('sin monto REAL no viaja nada: es lo que suma a la cuota', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/monto REAL invertido/)
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('documento inválido para el tipo: el error habla el idioma del formulario', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
-    await user.type(screen.getByLabelText('N° de documento'), '123')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('El DNI debe tener 8 dígitos')
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('un lead sin analista tampoco se cierra en coop (misma regla que Avance)', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Asigna el lead a un analista antes de convertirlo',
-    )
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-  })
-
-  it('feliz: la RPC recibe la foto completa, se recarga el pipeline y se cierra', async () => {
-    const user = userEvent.setup()
-    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'cierre-1', cooperativa: 'prodelco' })
-    const { onClose, recargar } = await montarEnCoop({}, 'Prodelco')
-
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '12500.50')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-2026-9')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.type(screen.getByLabelText('Certificado de la coop (opcional)'), 'PRO-2026-9')
-    await user.click(screen.getByRole('button', { name: /Cerrar en PRODELCO/ }))
-
-    expect(mutarCierreExterno).toHaveBeenCalledWith({
-      leadId: 'lead-1',
-      cooperativa: 'prodelco',
-      monto: 12500.5,
-      moneda: 'PEN',
-      documentoTipo: 'DNI',
-      documento: '45781234',
-      nombre: 'JUAN PEREZ ROJAS',
-      numeroTransaccion: 'OP-2026-9',
-      referencia: 'PRO-2026-9',
-      plazoMeses: 12,
-      tasaAnual: 12,
-      nota: null,
-    })
-    // El lead quedó convertido en el servidor: el pipeline se refresca y NO
-    // se encadena contrato alguno (no hay portal detrás).
-    expect(recargar).toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalled()
-    expect(toast.success).toHaveBeenCalledWith(
-      'JUAN PEREZ ROJAS cerrado en COOPAC Prodelco — ya cuenta en tu cuota y conversión',
-    )
-    expect(screen.queryByRole('dialog', { name: /Crear contrato/ })).not.toBeInTheDocument()
-  })
-
-  it('el servidor rechaza (p. ej. doble cierre): su mensaje se muestra y nada se cierra', async () => {
-    const user = userEvent.setup()
-    mutarCierreExterno.mockRejectedValue(new CrmApiError('El lead ya está cerrado.', 'LEAD_YA_CERRADO'))
-    const { onClose, recargar } = await montarEnCoop()
-
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '1000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-1')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('El lead ya está cerrado.')
-    expect(recargar).not.toHaveBeenCalled()
-    expect(onClose).not.toHaveBeenCalled()
-  })
-
-  it('demo: el cierre coop va al store (convertirExterno), jamás a la RPC', async () => {
-    const user = userEvent.setup()
-    const { onClose, convertirExterno } = await montarEnCoop({ demo: true })
-
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '8000')
-    await user.type(screen.getByLabelText('N° de documento'), '45781234')
-    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEMO')
-    await user.type(screen.getByLabelText('Plazo (meses)'), '12')
-    await user.type(screen.getByLabelText('Rentabilidad anual (%)'), '12')
-    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
-
-    expect(convertirExterno).toHaveBeenCalledWith('lead-1', {
-      cooperativa: 'qorilazo',
-      monto: 8000,
-      // Qorilazo solo admite soles: el formulario no pregunta y manda PEN.
-      moneda: 'PEN',
-      numeroTransaccion: 'OP-DEMO',
-      plazoMeses: 12,
-      tasaAnual: 12,
-      venceEn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-    })
-    expect(mutarCierreExterno).not.toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalled()
-  })
-
-  it('«Volver» regresa al destino sin perder el diálogo', async () => {
-    const user = userEvent.setup()
-    await montarEnCoop()
-    await user.click(screen.getByRole('button', { name: 'Volver' }))
-    expect(screen.getByRole('dialog', { name: '¿Dónde invirtió?' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Avance Corp/ })).toBeInTheDocument()
-  })
-
-  it('tras «Volver», el foco NO se queda sobre el botón que ahora dice «Cancelar»', async () => {
-    // Los dos pasos tienen un <Button> en la misma posición del footer: sin
-    // `key` distintas React reutiliza el MISMO nodo del DOM, el foco no se
-    // mueve, y el botón bajo el dedo pasa a llamarse «Cancelar» y a cerrar el
-    // diálogo entero. Un segundo Enter —el de quien no oyó nada— se llevaba el
-    // monto, el documento y el N.° de operación ya escritos. Mismo bug que
-    // cerrar-tarea.tsx ya documentó (WCAG 4.1.2).
-    const user = userEvent.setup()
-    const { onClose } = await montarEnCoop()
-    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
-    await user.click(screen.getByRole('button', { name: 'Volver' }))
-
-    const cancelar = screen.getByRole('button', { name: 'Cancelar' })
-    expect(document.activeElement).not.toBe(cancelar)
-    // Y el foco vuelve a la tarjeta de la cooperativa de donde se salió (el
-    // rescate va en un requestAnimationFrame, de ahí el waitFor).
-    await waitFor(() => {
-      expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: /COOPAC Qorilazo/ }),
-      )
-    })
-    // El segundo Enter ya no cierra nada: reabre el formulario.
-    await user.keyboard('{Enter}')
-    expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
+  it('bloquea doble envío de identidad mientras espera respuesta',async()=>{
+    let resolver!:(v:{inversionista_id:string;lead_id:string;solicitud_id:null})=>void
+    api.persona.mockImplementationOnce(()=>new Promise(r=>{resolver=r}))
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    fireEvent.submit(screen.getByRole('button',{name:'Verificando…'}).closest('form')!)
+    expect(api.persona).toHaveBeenCalledOnce()
+    resolver({inversionista_id:PERSONA_F5,lead_id:LEAD,solicitud_id:null})
+    await screen.findByRole('button',{name:'Avance'})
   })
 })

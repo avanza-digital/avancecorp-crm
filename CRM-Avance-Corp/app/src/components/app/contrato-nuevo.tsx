@@ -147,6 +147,7 @@ function listarCampos(campos: readonly string[]): string {
 
 export interface ContratoNuevoProps {
   condicionesIniciales?: CondicionesTasaLead | undefined
+  leadOrigenId?: string | undefined
   clienteId: string
   clienteNombre: string
   montoSugerido?: number | null
@@ -212,6 +213,7 @@ export function ContratoNuevo({
   onRevisar,
   borrador,
   condicionesIniciales,
+  leadOrigenId,
 }: ContratoNuevoProps) {
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
@@ -1214,6 +1216,7 @@ export function ContratoNuevo({
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <TasaPolitica
             clienteId={clienteId}
+            {...(leadOrigenId ? {leadId: leadOrigenId} : {})}
             categoria={categoria}
             contratoOrigenId={contratoOrigenId}
             intencion={{

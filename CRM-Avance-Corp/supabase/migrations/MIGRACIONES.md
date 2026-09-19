@@ -1,5 +1,37 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260919161807 — Convertir un lead mediante el registro común de inversiones
+
+**AUTORIZADA Y PROBADA LOCAL/REMOTO el 19/09/2026; SIN INSTALAR EN PRODUCCIÓN.**
+Miguel pidió que «Convertir a cliente» abra el mismo proceso que «Nueva inversión»
+de Cartera. Reconocer identidad o preparar el acceso Avance no cierra el lead;
+la inversión, su fuente, la conversión y la actividad se confirman juntas.
+
+Añade `lead_origen_id` y `bienvenida` a `crm.inversion_solicitudes`, un índice
+único parcial, una restricción de origen y tres triggers de CRM. Crea 11 funciones
+y sustituye 10, con 18 anclas de definiciones previas. Incluye cancelación explícita,
+recuperación por lead, atribución al analista y protección contra formularios
+antiguos. Permisos restringidos, `search_path` vacío y auditoría conservada.
+No altera objetos del esquema `public`; reutiliza sus escritores existentes.
+Conserva el modo integral de rentabilidad y la entrevista al asistir integrados
+desde Main `4d33785eddd629483ca26aefc606534a823be5ee`.
+
+**PASS local:** `npm run check` (3.694 pruebas), 15 pruebas HTTP con Auth,
+PostgREST y Storage reales, oráculo económico con rollback, replay completo y
+reversa, 33 verificaciones de permisos sobre 11 funciones nuevas, definición de
+`public` idéntica, Edge y scripts; navegador real en escritorio y móvil.
+Regresión general, huellas y límites en el [acta del ensayo](../scripts/conversion-inversion/README.md).
+**PASS remoto:** SQL exacto (SHA-256 `2a8ce9e9be01ccdbf13871e299858db4a6a90551b195a2369ba14d06ddc4c5f4`),
+15 pruebas HTTP, 284 aserciones de `test-rls.mjs --contratos`, nueve aserciones de
+la Edge desplegada y advisors revisados. Instalado sólo en banco como `20260919172019`.
+Miguel autorizó el SQL y el ensayo con un máximo de US$5. No se enviaron correos reales.
+Evidencia y límites en el [acta remota](../scripts/conversion-inversion/instalacion/README.md).
+
+SQL y frontend deben activarse juntos: la candidata cierra las puertas antiguas.
+Publicación por invocación humana del flujo de release aún pendiente; no volver
+a pedir autorización del mismo SQL. La reversa conserva inversiones, auditoría y columnas
+aditivas; exige resolver antes las solicitudes de conversión preparadas.
+
 ## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa
 
 **APLICADA EN PRODUCCIÓN 18/09/2026 16:05 Lima.** Miguel pidió el 18/09 que el mismo botón controle

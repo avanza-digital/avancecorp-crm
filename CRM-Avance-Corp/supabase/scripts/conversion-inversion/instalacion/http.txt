@@ -1,0 +1,24 @@
+▶ Conversión unificada: integración HTTP y aislamiento por rol
+  ✔ ACL y ámbito: anon, cliente, Directorio y equipos ajenos no preparan identidad (6795.409542ms)
+  ✔ qorilazo PEN: comprobante real, doble envío y paridad de Cartera (13276.626125ms)
+  ✔ prodelco PEN: comprobante real, doble envío y paridad de Cartera (12738.276208ms)
+  ✔ prodelco USD: comprobante real, doble envío y paridad de Cartera (12345.789834ms)
+  ✔ Cancelar y cambiar moneda conserva el lead abierto; cancelar una confirmada conserva su inversión (6559.661042ms)
+  ✔ Dos pestañas con claves diferentes preparan una sola conversión (3344.215334ms)
+  ✔ Fusionar después de preparar mantiene una única inversión de la persona canónica (5711.343417ms)
+  ✔ El lector conserva permisos sin esperar locks del escritor; veto devuelve capacidad bloqueada (3004.103708ms)
+  ✔ Identidad fusionada: recupera la misma conversión por su lead y documento original (3207.318708ms)
+  ✔ Reasignación después de preparar: el analista anterior pierde acceso (4738.405625ms)
+  ✔ Avance PEN DNI: Auth HTTP perdido y confirmación contractual única (18369.49125ms)
+  ✔ Avance USD DNI: Auth HTTP perdido y confirmación contractual única (18034.928292ms)
+  ✔ Avance PEN CE: Auth HTTP perdido y confirmación contractual única (17529.38375ms)
+  ✔ Avance USD PASAPORTE: Auth HTTP perdido y confirmación contractual única (17629.888125ms)
+✔ Conversión unificada: integración HTTP y aislamiento por rol (144244.230792ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 145306.628958

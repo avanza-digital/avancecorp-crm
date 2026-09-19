@@ -1,0 +1,66 @@
+[
+  {
+    "tipo": "funcion",
+    "esquema": "private",
+    "nombre": "f4_comprobante_autorizado",
+    "argumentos": "p_ruta text",
+    "huella": "d7b02ff3ce4806ecb370aa9eaebb5bac",
+    "definicion": "CREATE OR REPLACE FUNCTION private.f4_comprobante_autorizado(p_ruta text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\n SET lock_timeout TO '5s'\nAS $function$\ndeclare v_persona uuid; v_solicitud uuid; v_ctx jsonb; v_s crm.inversion_solicitudes%rowtype;\nbegin\n  if p_ruta is null or p_ruta !~ '^[a-f0-9-]{36}/[a-f0-9-]{36}/[a-zA-Z0-9_-]+\\.(pdf|jpg|jpeg|png)$' then return false; end if;\n  begin v_persona:=split_part(p_ruta,'/',1)::uuid; v_solicitud:=split_part(p_ruta,'/',2)::uuid;\n  exception when invalid_text_representation then return false; end;\n  v_ctx:=private.inversion_persona_contexto(v_persona);\n  select * into v_s from crm.inversion_solicitudes where id=v_solicitud for share;\n  return found and v_s.inversionista_id=v_persona and v_s.estado='preparada'\n    and v_s.responsable_esperado_id=(v_ctx->>'responsable_id')::uuid\n    and v_s.datos#>>'{evidencia,ruta}'=p_ruta;\nexception when insufficient_privilege then return false;\nend;\n$function$\n"
+  },
+  {
+    "tipo": "funcion",
+    "esquema": "private",
+    "nombre": "f4_comprobante_visible",
+    "argumentos": "p_ruta text",
+    "huella": "37e470aecbb449ee51bd380d88ee0b17",
+    "definicion": "CREATE OR REPLACE FUNCTION private.f4_comprobante_visible(p_ruta text)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select coalesce(private.rol_crm((select auth.uid())) in ('vendedor','supervisor','gerencia') and exists (\n    select 1 from crm.inversion_solicitudes s join crm.inversionistas i on i.id=private.inversionista_canonica(s.inversionista_id)\n    where s.datos#>>'{evidencia,ruta}'=p_ruta and (\n      private.rol_crm((select auth.uid()))='gerencia'\n      or i.responsable_relacion_id in (select private.vendedor_ids_visibles((select auth.uid())))\n    )\n  ),false);\n$function$\n"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_delete_frontera",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"DELETE\", \"qual\": \"(bucket_id <> 'f4-comprobantes'::text)\", \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"RESTRICTIVE\", \"policyname\": \"f4_comprobante_delete_frontera\", \"schemaname\": \"storage\", \"with_check\": null}"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_insert",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"INSERT\", \"qual\": null, \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"PERMISSIVE\", \"policyname\": \"f4_comprobante_insert\", \"schemaname\": \"storage\", \"with_check\": \"((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_autorizado(name))\"}"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_insert_frontera",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"INSERT\", \"qual\": null, \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"RESTRICTIVE\", \"policyname\": \"f4_comprobante_insert_frontera\", \"schemaname\": \"storage\", \"with_check\": \"((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_autorizado(name))\"}"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_select",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"SELECT\", \"qual\": \"((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_visible(name))\", \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"PERMISSIVE\", \"policyname\": \"f4_comprobante_select\", \"schemaname\": \"storage\", \"with_check\": null}"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_select_frontera",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"SELECT\", \"qual\": \"((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_visible(name))\", \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"RESTRICTIVE\", \"policyname\": \"f4_comprobante_select_frontera\", \"schemaname\": \"storage\", \"with_check\": null}"
+  },
+  {
+    "tipo": "policy",
+    "esquema": "storage",
+    "nombre": "f4_comprobante_update_frontera",
+    "argumentos": "objects",
+    "huella": null,
+    "definicion": "{\"cmd\": \"UPDATE\", \"qual\": \"(bucket_id <> 'f4-comprobantes'::text)\", \"roles\": [\"authenticated\"], \"tablename\": \"objects\", \"permissive\": \"RESTRICTIVE\", \"policyname\": \"f4_comprobante_update_frontera\", \"schemaname\": \"storage\", \"with_check\": \"(bucket_id <> 'f4-comprobantes'::text)\"}"
+  }
+]

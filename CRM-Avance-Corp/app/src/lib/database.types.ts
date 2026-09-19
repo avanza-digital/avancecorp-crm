@@ -1619,6 +1619,7 @@ export type Database = {
           actualizado_en: string
           auth_claim_id: string | null
           auth_contexto: Json | null
+          bienvenida: Json | null
           confirmado_por: string | null
           creado_en: string
           creado_por: string
@@ -1629,6 +1630,7 @@ export type Database = {
           id: string
           inversion_id: string | null
           inversionista_id: string
+          lead_origen_id: string | null
           responsable_esperado_id: string
           resultado: Json | null
           revision_datos: number
@@ -1637,6 +1639,7 @@ export type Database = {
           actualizado_en?: string
           auth_claim_id?: string | null
           auth_contexto?: Json | null
+          bienvenida?: Json | null
           confirmado_por?: string | null
           creado_en?: string
           creado_por: string
@@ -1647,6 +1650,7 @@ export type Database = {
           id: string
           inversion_id?: string | null
           inversionista_id: string
+          lead_origen_id?: string | null
           responsable_esperado_id: string
           resultado?: Json | null
           revision_datos?: number
@@ -1655,6 +1659,7 @@ export type Database = {
           actualizado_en?: string
           auth_claim_id?: string | null
           auth_contexto?: Json | null
+          bienvenida?: Json | null
           confirmado_por?: string | null
           creado_en?: string
           creado_por?: string
@@ -1665,6 +1670,7 @@ export type Database = {
           id?: string
           inversion_id?: string | null
           inversionista_id?: string
+          lead_origen_id?: string | null
           responsable_esperado_id?: string
           resultado?: Json | null
           revision_datos?: number
@@ -1689,6 +1695,13 @@ export type Database = {
             columns: ["inversionista_id"]
             isOneToOne: false
             referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_solicitudes_lead_origen_id_fkey"
+            columns: ["lead_origen_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -3704,6 +3717,23 @@ export type Database = {
       }
     }
     Functions: {
+      cancelar_solicitud_inversion_fn: {
+        Args: { p_revision_datos_esperada: number; p_solicitud: string }
+        Returns: Json
+      }
+      bienvenida_inversion_entrega_fn: {
+        Args: {
+          p_paso: string
+          p_proveedor_id?: string
+          p_solicitud: string
+          p_token?: string
+        }
+        Returns: Json
+      }
+      bienvenida_inversion_estado_fn: {
+        Args: { p_solicitud: string }
+        Returns: Json
+      }
       inversionista_corregir_coopac_fn: {
         Args: {
           p_clave: string
@@ -4205,6 +4235,19 @@ export type Database = {
       inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }
       preparar_inversion_fn: {
         Args: { p_clave: string; p_datos: Json }
+        Returns: Json
+      }
+      preparar_persona_lead_inversion_fn: {
+        Args: {
+          p_documento: string
+          p_lead: string
+          p_nombre: string
+          p_tipo_documento: string
+        }
+        Returns: Json
+      }
+      contexto_conversion_inversion_fn: {
+        Args: { p_lead: string; p_persona?: string }
         Returns: Json
       }
       publicar_reglas_sla_aprobadas_v2: { Args: { p_expected_version: number }; Returns: Json }

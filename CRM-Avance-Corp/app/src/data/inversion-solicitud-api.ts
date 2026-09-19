@@ -4,6 +4,27 @@ import { CrmApiError } from './crm-api'
 import { respuestaInversionistas } from './inversionistas-api'
 import { ConfirmacionInversionSchema, SolicitudInversionSchema, jsonInversion, type IntentoInversion } from '@/lib/inversion-solicitud'
 
+const Id = v.pipe(v.string(), v.uuid())
+const ContextoConversionSchema = v.object({
+  solicitud_id: v.nullable(Id), documento_tipo: v.nullable(v.picklist(['DNI','CE','PASAPORTE'])),
+  persona: v.object({inversionista_id: Id, perfil_id: v.nullable(Id), nombre: v.string(),
+    correo: v.nullable(v.string()), telefono: v.nullable(v.string()),
+    responsable_id: v.nullable(Id), responsable_nombre: v.nullable(v.string())}),
+  capacidades: v.object({nueva_inversion: v.boolean(), motivo_no_operable: v.nullable(v.string())}),
+})
+export async function prepararPersonaLeadInversion(lead: string, tipo: string, documento: string, nombre: string) {
+  return respuestaInversionistas(v.object({inversionista_id: Id, lead_id: Id, solicitud_id: v.nullable(Id)}),
+    await cliente().schema('crm').rpc('preparar_persona_lead_inversion_fn', {
+      p_lead: lead, p_tipo_documento: tipo, p_documento: documento, p_nombre: nombre,
+    }))
+}
+export async function obtenerContextoConversionInversion(lead: string, persona: string | undefined, signal: AbortSignal) {
+  const r = await cliente().schema('crm').rpc('contexto_conversion_inversion_fn', {p_lead: lead, ...(persona ? {p_persona: persona} : {})}).abortSignal(signal)
+  const contexto = respuestaInversionistas(ContextoConversionSchema, r)
+  if (persona && contexto.persona.inversionista_id !== persona) throw new CrmApiError('La identidad cambió. Vuelve a abrir el lead.', 'PT409')
+  return contexto
+}
+
 function cliente() {
   if (!sb) throw new CrmApiError('La conexión no está disponible.', 'SUPABASE_NOT_CONFIGURED')
   return sb
@@ -39,6 +60,16 @@ export async function confirmarSolicitudInversion(id: string, revision: number) 
   return respuestaInversionistas(ConfirmacionInversionSchema, await cliente().schema('crm').rpc('confirmar_inversion_revisada_fn', {
     p_solicitud: id, p_revision_datos_esperada: revision,
   }))
+}
+export async function cancelarSolicitudInversion(id: string, revision: number) {
+  return respuestaInversionistas(SolicitudInversionSchema, await cliente().schema('crm').rpc('cancelar_solicitud_inversion_fn', {
+    p_solicitud: id, p_revision_datos_esperada: revision,
+  }))
+}
+export async function enviarBienvenidaInversion(id: string) {
+  const {data,error}=await cliente().functions.invoke('crm-inversion-bienvenida',{body:{solicitud_id:id}})
+  if(error)throw new CrmApiError('La inversión está guardada. No pudimos confirmar el envío de bienvenida.', 'BIENVENIDA_PENDIENTE')
+  return respuestaInversionistas(v.object({estado:v.picklist(['enviada','no_corresponde','pendiente','en_proceso','verificar_entrega'])}),{data,error:null})
 }
 export async function completarAccesoInversion(intento: IntentoInversion) {
   const {data, error} = await cliente().functions.invoke('crm-inversion-portal', {

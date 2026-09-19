@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { irAMiCartera, loginReal, montarBackendReal, leadReal, UID } from './_helpers'
+import { abrirConversionAvance, irAMiCartera, loginReal, montarBackendReal, leadReal, UID } from './_helpers'
 
 async function montarModo(page: Page, modo: () => string) {
   const politica = () => ({ id: 'politica-modo', version: 14, modo: modo(), tasa_base_nueva: 15, tope_tecnico: 28, vigencia_solicitud_dias: 1 })
@@ -69,8 +69,27 @@ test('el interruptor cambia un lead abierto sin cerrar sesión ni sustituir la t
   await expect(ficha.getByRole('button', { name: 'Solicitar tasa superior' })).toBeVisible()
   await expect(ficha.getByLabel('Tasa anual (%)')).toHaveValue('20')
   await expect(ficha.getByLabel('Tasa anual (%)')).toHaveAttribute('aria-invalid', 'true')
-  await expect(ficha.getByRole('button', { name: 'Convertir a cliente', exact: true })).toBeDisabled()
-  await ficha.getByLabel('Tasa anual (%)').fill('15')
-  await expect(ficha.getByLabel('Tasa anual (%)')).not.toHaveAttribute('aria-invalid', 'true')
+  // La entrada compartida permite elegir empresa. Avance comprueba la tasa
+  // dentro de su contrato, sin impedir por esa tasa una inversión cooperativa.
   await expect(ficha.getByRole('button', { name: 'Convertir a cliente', exact: true })).toBeEnabled()
+  const acceso = await abrirConversionAvance(page, ficha)
+  await acceso.getByLabel('Correo de acceso Avance').fill('qa-interruptor@example.invalid')
+  await acceso.getByLabel('Nombres', { exact: true }).fill('QA')
+  await acceso.getByLabel('Apellidos', { exact: true }).fill('INTERRUPTOR')
+  await acceso.getByLabel('Domicilio legal').fill('Calle de prueba 123, Miraflores, Lima, Lima')
+  await acceso.getByRole('button', { name: 'Revisar acceso Avance' }).click()
+  await acceso.getByRole('button', { name: 'Completar acceso Avance' }).click()
+  const contrato = page.getByRole('dialog', { name: /Crear contrato de/ })
+  await contrato.getByLabel('N° de contrato', { exact: true }).fill('000719')
+  await contrato.getByRole('radio', { name: /BCP.*8901/i }).check()
+  await expect(contrato.getByLabel('Capital', { exact: true })).toHaveValue('20000')
+  await expect(contrato.getByLabel('Tasa anual (%)')).toHaveValue('20')
+  await expect(contrato.getByLabel('Tasa anual (%)')).toHaveAttribute('aria-invalid', 'true')
+  await expect(contrato.getByRole('button', { name: 'Revisar inversión' })).toBeDisabled()
+  modo = 'observacion'
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })))
+  await expect(contrato.getByText('Observación · sin aprobación')).toBeVisible()
+  await expect(contrato.getByLabel('Tasa anual (%)')).toHaveValue('20')
+  await expect(contrato.getByLabel('Tasa anual (%)')).not.toHaveAttribute('aria-invalid', 'true')
+  await expect(contrato.getByRole('button', { name: 'Revisar inversión' })).toBeEnabled()
 })

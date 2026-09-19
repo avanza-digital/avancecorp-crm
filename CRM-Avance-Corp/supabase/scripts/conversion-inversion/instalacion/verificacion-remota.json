@@ -1,0 +1,464 @@
+{
+  "estado": "PASS — validación remota; producción sin modificar",
+  "fecha": "2026-09-19 17:40:13 UTC",
+  "rama": {
+    "nombre": "conversion-inversion-20260919",
+    "proyecto": "omdgdbsbsabisykekziu",
+    "id": "a8f27a8f-825e-4a81-8ff4-a7388552ffc8",
+    "creada": "2026-09-19T16:45:02.452983Z",
+    "tarifa_usd_hora": 0.01344,
+    "presupuesto_usd": 5
+  },
+  "fuente": {
+    "commit": "700f51dd33af23f9edcdd0b9cbc14803f7fb2201",
+    "codigo_equivalente": "19692c38",
+    "main_integrado": "faccafe040abb88d37aabd68b2927362c4554b72",
+    "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/23"
+  },
+  "candidata": {
+    "archivo": "20260919161807_crm_conversion_inversion_unificada.sql",
+    "sha256": "2a8ce9e9be01ccdbf13871e299858db4a6a90551b195a2369ba14d06ddc4c5f4",
+    "bytes": 107472,
+    "version_banco": "20260919172019",
+    "sentencias_historial": 1,
+    "coincidencia_bytes_banco": true
+  },
+  "pruebas": {
+    "sql": {
+      "estado": "PASS",
+      "archivo": "../test-conversion.sql",
+      "salida": 0,
+      "rollback": true
+    },
+    "http": {
+      "estado": "PASS",
+      "pruebas": 15,
+      "escenarios": 14,
+      "salida": 0
+    },
+    "rls": {
+      "estado": "PASS",
+      "comando": "test-rls.mjs --contratos",
+      "aserciones": 284,
+      "salida": 0,
+      "alcance": "Visibilidad jerárquica, domicilio, banca, contratos y anon; no sustituye la matriz global."
+    },
+    "edge": {
+      "estado": "PASS",
+      "pruebas": 1,
+      "aserciones": 9,
+      "salida": 0,
+      "servicio_remoto": true,
+      "correo_real": false
+    }
+  },
+  "ci": {
+    "verify": "PASS",
+    "e2e": "PASS",
+    "preflight": "PASS",
+    "runs": [
+      35457582361,
+      35457582306
+    ]
+  },
+  "paridad_previa": {
+    "padre": [
+      {
+        "categoria": "1. columnas",
+        "n": 1166,
+        "huella": "9b3b37d84070dd0cf4447c6ec397ab6c"
+      },
+      {
+        "categoria": "2. funciones",
+        "n": 660,
+        "huella": "eef9ade08e9df0ffa00621b656219ed0"
+      },
+      {
+        "categoria": "3. disparadores",
+        "n": 272,
+        "huella": "c335add99f8a8e6c73d67ad5c66d5787"
+      },
+      {
+        "categoria": "4. politicas RLS",
+        "n": 101,
+        "huella": "21994a701e53a0f5a9e75853db1b332e"
+      },
+      {
+        "categoria": "5. RLS por tabla",
+        "n": 116,
+        "huella": "9c38366cf2070d4216ea3825af6cb1a4"
+      },
+      {
+        "categoria": "6. indices",
+        "n": 428,
+        "huella": "e0816bf0b4a6c173a53d2e2f59e7bf1d"
+      },
+      {
+        "categoria": "7. restricciones",
+        "n": 870,
+        "huella": "7a2014cb82ffba298b90413a18339cbd"
+      },
+      {
+        "categoria": "8. registro",
+        "n": 306,
+        "huella": "cab8c3b190eb38545e51a01fa2554156"
+      },
+      {
+        "categoria": "9. vistas",
+        "n": 3,
+        "huella": "5e0c6d0fc127806f65bd9733cd9865e6"
+      }
+    ],
+    "banco": [
+      {
+        "categoria": "1. columnas",
+        "n": 1166,
+        "huella": "9b3b37d84070dd0cf4447c6ec397ab6c"
+      },
+      {
+        "categoria": "2. funciones",
+        "n": 660,
+        "huella": "eef9ade08e9df0ffa00621b656219ed0"
+      },
+      {
+        "categoria": "3. disparadores",
+        "n": 272,
+        "huella": "c335add99f8a8e6c73d67ad5c66d5787"
+      },
+      {
+        "categoria": "4. politicas RLS",
+        "n": 101,
+        "huella": "21994a701e53a0f5a9e75853db1b332e"
+      },
+      {
+        "categoria": "5. RLS por tabla",
+        "n": 116,
+        "huella": "9c38366cf2070d4216ea3825af6cb1a4"
+      },
+      {
+        "categoria": "6. indices",
+        "n": 428,
+        "huella": "e0816bf0b4a6c173a53d2e2f59e7bf1d"
+      },
+      {
+        "categoria": "7. restricciones",
+        "n": 870,
+        "huella": "c44d5e10e35c8e4be98483c9d3466f6f"
+      },
+      {
+        "categoria": "8. registro",
+        "n": 306,
+        "huella": "cab8c3b190eb38545e51a01fa2554156"
+      },
+      {
+        "categoria": "9. vistas",
+        "n": 3,
+        "huella": "5e0c6d0fc127806f65bd9733cd9865e6"
+      }
+    ],
+    "excepciones_equivalentes": [
+      "Tres CHECK serializan AND asociativos sin paréntesis intermedios; mismos predicados.",
+      "pg_dump compacta ordinales de columnas previamente eliminadas en public.perfiles; nombres, orden relativo, tipos, defaults y grants idénticos."
+    ],
+    "plataforma": "pg_net 0.20.4 en extensions en banco frente a 0.20.0 en public en padre; diferencia de plataforma, no incluida en candidata."
+  },
+  "funciones": {
+    "antes": 660,
+    "despues": 671,
+    "altas": [
+      {
+        "firma": "crm.bienvenida_inversion_entrega_fn(p_solicitud uuid, p_paso text, p_token uuid, p_proveedor_id text)",
+        "definicion": "6645f88e3d651380e8a1b45822f1eed4",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      {
+        "firma": "crm.bienvenida_inversion_estado_fn(p_solicitud uuid)",
+        "definicion": "6ebdea65a2e021538d63a41dbd82c1e5",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.cancelar_solicitud_inversion_fn(p_solicitud uuid, p_revision_datos_esperada integer)",
+        "definicion": "ac30b2b1f9dedf842125bc26a727a65a",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.contexto_conversion_inversion_fn(p_lead uuid, p_persona uuid)",
+        "definicion": "a616232e3ada628404fc6a1a8356eb13",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.preparar_persona_lead_inversion_fn(p_lead uuid, p_tipo_documento text, p_documento text, p_nombre text)",
+        "definicion": "b40dded8a923dcd02f028b24bc4de94e",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "private.conversion_lead_con_inversion()",
+        "definicion": "0edf5180578781961aacbf0e78df242e",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.conversion_reserva_legacy_cerrada()",
+        "definicion": "5a9ed5bb71fa2c36e68c352e95d06727",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_contexto_lectura(p_persona uuid, p_lead uuid)",
+        "definicion": "7634f3a511e1573140ee52d31d8c4ba3",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_origen_inmutable()",
+        "definicion": "89073674077e2f92e407cc0a910023fd",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_persona_contexto(p_persona uuid, p_lead uuid)",
+        "definicion": "b1c3ea787df3540596c4eda98070ac2f",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_persona_lectura(p_persona uuid)",
+        "definicion": "556d25a969bc1103b9a00a4943c2df35",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    ],
+    "cambios": [
+      {
+        "firma": "crm.acceso_inversion_fn(p_solicitud uuid, p_paso text, p_payload jsonb)",
+        "definicion": "3889e07b60cb7f944e3a0c9802cbdb97",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.confirmar_inversion_revisada_fn(p_solicitud uuid, p_revision_datos_esperada integer)",
+        "definicion": "cdcd1c4736cfd60f31ab25515ea97a09",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.convertir_lead_externo(p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text, p_plazo_meses integer, p_tasa_anual numeric)",
+        "definicion": "9b244574ce4978d2334228926ce97392",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.corregir_solicitud_inversion_fn(p_solicitud uuid, p_clave uuid, p_revision_datos_esperada integer, p_datos jsonb, p_motivo text)",
+        "definicion": "5c0c1dba4c889d49328a2ffd96244a1e",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.preparar_inversion_fn(p_clave uuid, p_datos jsonb)",
+        "definicion": "14fbc1f7153309e10d0c80bde1f4a1f7",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "crm.revisar_solicitud_inversion_fn(p_solicitud uuid, p_responsable_revisado uuid, p_revision_esperada integer, p_motivo text)",
+        "definicion": "01852f10f28110f9c12beb64e5c3d3ba",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "private.f4_comprobante_autorizado(p_ruta text)",
+        "definicion": "73ebcd343ef95800e23c47c99ae11ad1",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "anon": false,
+        "authenticated": true,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_persona_contexto(p_persona uuid)",
+        "definicion": "335fa43d5eed5d0d8010d9d0716483ce",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_solicitud_resultado(p_id uuid, p_contexto jsonb)",
+        "definicion": "7245290902ab426c095fbf7f73e22971",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      },
+      {
+        "firma": "private.inversion_validar_datos(p_clave uuid, p_datos jsonb, p_contexto jsonb)",
+        "definicion": "3b28b3807762b4d1bdb9c91c3c473999",
+        "owner": "postgres",
+        "configuracion": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "anon": false,
+        "authenticated": false,
+        "service_role": false
+      }
+    ],
+    "bajas": []
+  },
+  "public": {
+    "columnas": 127,
+    "definiciones_logicas_iguales": true,
+    "grants": 220,
+    "policies": 38,
+    "triggers": 42,
+    "funciones_sin_cambios": true,
+    "nota": "Comparación entre copia reconstruida y padre, además del ensayo local antes/después literal."
+  },
+  "edge": {
+    "nombre": "crm-inversion-bienvenida",
+    "version": 1,
+    "verify_jwt": false,
+    "bundle_sha256": "d4b2da6b18ace573b0e0e25ea052a08d7260316b0176d95a02e8dd3df61d14d0",
+    "autorizacion": "RPC authenticated con revalidación de actor y ámbito antes de elevar a servicio.",
+    "resend_configurado_en_padre": true
+  },
+  "limites": [
+    "Datos exclusivamente sintéticos.",
+    "Proveedor de correo sustituido en integración; no se enviaron correos reales.",
+    "Frontend productivo y SQL productivo todavía no publicados.",
+    "Coordinar SQL y frontend: la candidata bloquea los accesos antiguos de conversión.",
+    "No se ha ejecutado merge_branch; su estado de control sigue MIGRATIONS_FAILED por el replay histórico. El esquema reconstruido y la candidata sí pasaron las comprobaciones."
+  ]
+}
