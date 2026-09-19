@@ -52,8 +52,9 @@ roles, importes, datos de clientes, plantilla ni destinatario del correo.
 - PASS: GET a `auth_usuario_por_correo_fn`, RPC STABLE de producción, con correo
   inexistente `.invalid`: clave secreta moderna y legacy → 200, `id: null`;
   clave pública → 401. Se completó la evidencia solicitada por el reviewer.
-- NOT RUN: conversión de un cliente real como prueba; corresponde al usuario
-  reanudar su solicitud una vez publicada la corrección.
+- NOT RUN: conversión de un cliente real ejecutada por el PRIMARY como prueba.
+  La operación realizada después por el usuario se verificó mediante consulta
+  de solo lectura; resultado final al cierre de esta nota.
 
 Las pruebas del release anterior verificaban el banco y las fronteras de las
 Edges, pero no esta combinación concreta de clave opaca y cabeceras en el
@@ -76,8 +77,7 @@ Publicadas el 19/09 a las 19:17 UTC (14:17 Lima):
 
 - PASS: descarga posterior de ambas Edges coincide byte a byte con Main.
 - PASS: CORS devuelve 204 y una petición sin sesión devuelve 401 en ambas.
-- CI `preflight`: PASS. Los jobs generales `verify` y `e2e` seguían ejecutándose
-  al comprobar el PR ya integrado por Miguel; no se les atribuye PASS.
+- CI final del PR #27: `preflight`, `verify` y `e2e` completados con SUCCESS.
 - SQL y frontend conservados. No se creó otro banco temporal ni nuevo coste.
 - Indicación al usuario: reintentar el acceso en la misma solicitud guardada.
 
@@ -96,3 +96,14 @@ acceso `enlazado`. La inversión seguía `preparada`, pendiente de confirmación
 el usuario. Esto confirma que el bloqueo de creación del acceso quedó resuelto
 en el caso real. El PRIMARY sólo observó el resultado: no creó el acceso ni
 confirmó la inversión mediante herramientas.
+
+## Cierre confirmado
+
+En la comprobación posterior, solicitada por Miguel antes de cerrar, la
+inversión ya estaba `confirmada`, el acceso `enlazado` y seguía existiendo un
+solo usuario Auth y un solo perfil. Los tres checks de GitHub habían terminado
+correctamente. Miguel confirmó conformidad y pidió guardar todo y cerrar.
+
+Sesión cerrada el 19/09/2026 a las 15:19 Lima. Ver
+[[Conversion e inversiones - cierre de sesion 2026-09-19]]. No queda una
+publicación pendiente de esta corrección ni corresponde repetir la operación.

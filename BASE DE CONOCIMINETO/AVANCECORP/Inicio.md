@@ -5,7 +5,7 @@ actualizado: 2026-09-19
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Conversion - correccion de credencial de acceso 2026-09-19]] — **PUBLICADO 19/09 14:17 Lima:** corrige el error al crear el acceso Avance; Edges portal v4 y bienvenida v2, 119 pruebas y sondas HTTP reales PASS. Reanudar la misma solicitud.
+- [[Conversion - correccion de credencial de acceso 2026-09-19]] — **PUBLICADO Y CERRADO 19/09:** portal v4 y bienvenida v2; inversión real confirmada, acceso enlazado, sin duplicados. 119 pruebas y CI completo PASS. [[Conversion e inversiones - cierre de sesion 2026-09-19]].
 
 - [[Conversion de lead con Nueva inversion - preparado 2026-09-19]] — **PUBLICADO 19/09:** Convertir a cliente usa el proceso de Cartera; el lead se cierra sólo al confirmar. SQL, Edge y web activos desde Main `29d7aa202492`; gates y comprobación HTTP conformes. Ambos bancos eliminados; costo estimado US$0,022142 de US$5 autorizados.
 
