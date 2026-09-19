@@ -92,6 +92,9 @@ El [acta de publicación](../../CRM-Avance-Corp/supabase/scripts/conversion-inve
 conserva fuente, huellas, pruebas, advisors, recuperación y límites. Las actas
 posteriores no cambian el commit de origen del artefacto ya publicado.
 
+Sesión cerrada por Miguel: [[Conversion e inversiones - cierre de sesion 2026-09-19]]
+registra el respaldo persistente y el estado del PR documental.
+
 Relacionado: [[Cartera multiempresa - publicacion (2026-09-16)]],
 [[Interruptor integral de rentabilidad - preparado 2026-09-18]],
 [[Solicitud de tasa en el lead - publicada 2026-09-09]] y [[Inicio]].
