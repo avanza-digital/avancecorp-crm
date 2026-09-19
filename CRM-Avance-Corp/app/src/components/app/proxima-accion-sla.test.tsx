@@ -9,6 +9,14 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: v
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'actor', rol: 'vendedor' } }) }))
 vi.mock('@/data/sla-operacion-queries', () => ({ useEstadosSlaV2: () => ({ data: mocks.lectura, refetch: mocks.refetch }) }))
 vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ tareasDe: () => mocks.tareas, obtenerTareaParaRevision: mocks.obtener, actividadesDe: () => [] }) }))
+// Historial POR LEAD (Fase 1 «sin topes»): aquí se prueba la próxima acción,
+// no el timeline; sin historial no hay retroceso que anunciar.
+vi.mock('@/data/use-actividades-de-lead', () => ({
+  useActividadesDeLead: () => ({
+    items: [], senales: { tieneReunionRealizada: false, tieneContacto: false, ultimaConversacionEn: null },
+    hayMas: false, cargando: false, cargandoMas: false, error: null, cargarMas: vi.fn(), reintentar: vi.fn(),
+  }),
+}))
 vi.mock('@/components/app/cerrar-tarea', () => ({ CerrarTareaDialog: ({ tarea }: { tarea: Tarea | null }) => tarea ? <p role="dialog">Cierre {tarea.tipo}: {tarea.id}</p> : null }))
 const proxima = { id: 'primera-servidor', tipo: 'llamada', titulo: 'WhatsApp programado', vence_en: '2026-09-08T15:00Z' }
 const lead = { id: 'lead', nombre_completo: 'SINTETICO', etapa: 'contactado' } as Lead

@@ -10,6 +10,7 @@
 // pasaron. Un embudo que se infla solo es peor que uno que no se mueve.
 import { describe, expect, it } from 'vitest'
 import { avancePorContacto, avancePorEntrevista, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
+import { senalesDesdeActividades } from './historial-lead'
 import type { Etapa, Tarea, TipoActividad } from './tipos'
 
 const AHORA = Date.parse('2026-07-25T15:00:00-05:00')
@@ -159,7 +160,11 @@ describe('retrocesoPorAnularReunion — anular la última reunión devuelve la e
   // los casos negativos importan más que los positivos: bajar de etapa borra
   // progreso comercial, así que ante la duda no debe bajar.
   const reunion = (parche: Partial<Tarea> = {}) => tarea({ tipo: 'reunion', ...parche })
-  const acts = (...tipos: TipoActividad[]) => tipos.map((tipo) => ({ tipo }))
+  // Desde la Fase 1 «sin topes» la función recibe las SEÑALES «alguna vez» del
+  // historial (no una página de él); aquí se derivan de los tipos con el mismo
+  // helper que usa el modo demo.
+  const acts = (...tipos: TipoActividad[]) =>
+    senalesDesdeActividades(tipos.map((tipo) => ({ tipo, creado_en: '2026-07-01T12:00:00.000Z' })))
   const CONTACTO = acts('llamada_realizada')
 
   it('EL CASO DE MIGUEL: anular la única reunión baja el lead a Contactado', () => {
@@ -171,7 +176,7 @@ describe('retrocesoPorAnularReunion — anular la última reunión devuelve la e
   it('sin NINGÚN contacto real en el timeline baja hasta Nuevo, no a Contactado', () => {
     // Lead subido a mano desde el kanban sin trabajarlo: el retroceso no puede
     // inventar hacia abajo un contacto que no está en el historial.
-    expect(retrocesoPorAnularReunion(lead('reunion_agendada'), reunion(), [reunion()], [])).toBe('nuevo')
+    expect(retrocesoPorAnularReunion(lead('reunion_agendada'), reunion(), [reunion()], acts())).toBe('nuevo')
   })
 
   it('un intento sin respuesta ya cuenta como contacto (los 5 tipos, no los 3)', () => {

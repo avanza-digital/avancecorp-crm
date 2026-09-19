@@ -4,10 +4,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import { StoreDataContext } from '@/lib/store-context'
 import type { StoreDataApi } from '@/lib/store'
 import type { Actividad, EtapaActiva, Lead, Tarea } from '@/lib/tipos'
 import { CerrarTareaDialog } from './cerrar-tarea'
+
+const SESION_DEMO: AuthContextValue = {
+  fase: 'listo',
+  yo: { id: 'vendedor-1', nombre_completo: 'ANALISTA PRUEBA', rol: 'vendedor', demo: true, puede_contratar: true },
+  error: null,
+  entrar: async () => ({ ok: true }),
+  entrarDemo: () => undefined,
+  reintentar: () => undefined,
+  salir: async () => undefined,
+}
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -103,10 +115,18 @@ function montar(
     tareasDe: () => (tarea ? [tarea, ...otrasTareas] : otrasTareas),
   } as unknown as StoreDataApi
   const onCerrar = vi.fn()
+  // El diálogo lee el historial POR LEAD (useActividadesDeLead): en sesión
+  // DEMO no sale ni un request y el timeline es el `actividadesDe` de arriba,
+  // pero el hook necesita la sesión y un cliente de consultas igual.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <StoreDataContext.Provider value={api}>
-      <CerrarTareaDialog tarea={tarea} onCerrar={onCerrar} />
-    </StoreDataContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={SESION_DEMO}>
+        <StoreDataContext.Provider value={api}>
+          <CerrarTareaDialog tarea={tarea} onCerrar={onCerrar} />
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   )
   return { completarTarea, anularTarea, descartar, onCerrar }
 }

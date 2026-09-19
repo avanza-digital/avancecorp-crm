@@ -346,6 +346,12 @@ export interface Actividad {
   detalle: string | null
   autor_nombre: string
   creado_en: string // ISO
+  /** Solo en el espejo optimista del navegador: el servidor aún no la confirmó
+   *  (su `id` es inventado). Jamás viene del servidor. */
+  local?: true
+  /** Epoch ms en que nació la fila local: decide cuándo la sustituye la verdad
+   *  del servidor (ver lib/historial-lead.ts). */
+  local_ts?: number
 }
 
 export const ETAPA_INFO: Record<Etapa, { label: string; color: string }> = Object.fromEntries(
