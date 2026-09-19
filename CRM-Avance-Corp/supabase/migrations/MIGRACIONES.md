@@ -10334,10 +10334,22 @@ sus componentes lo obedecen.
 
 ## 20260919170500 — Procedencia del lead en Leads (sistema o manual)
 
-**🧪 ENSAYADA EN EL BANCO el 19/09/2026 (PASS); PRODUCCIÓN: NOT RUN** (la instala
-Miguel con `!`). Solicitud de Miguel del 19/09: distinguir en la pantalla Leads lo
-que trajo el puente de lo que registró un analista, «a simple vista» (chip por
-fila, ficha y tarjeta) y con un filtro más.
+**✅ INSTALADA Y REGISTRADA EN PRODUCCIÓN el 19/09/2026** (Miguel con `!`); front
+pendiente de publicar (PR #24). Solicitud de Miguel del 19/09: distinguir en la
+pantalla Leads lo que trajo el puente de lo que registró un analista, «a simple
+vista» (chip por fila, ficha y tarjeta) y con un filtro más.
+
+**Acta de instalación (19/09, hora UTC):**
+- ~18:35 SQL aplicado con `db query --linked --file`. Verificado en producción:
+  una sola firma (11 args), md5 `815b8341…` y ACL `{postgres,authenticated}`
+  idénticos al ensayo; contrato invoker/stable/`search_path` vacío; exención
+  movida con huella `8d242072…` y su `declarado_en` del 13/09; sello coherente;
+  censo 35 y rojo ajeno (`contrato_eliminar_auditado`) sin cambios; resumen
+  general intacto (`b4ffcf91…`).
+- Sonda PostgREST anónima (`Content-Profile: crm`): `p_procedencia` → 42501
+  (firma nueva en caché, anon sin EXECUTE); argumento inexistente → PGRST202.
+- ~18:45 versión registrada con `scripts/registrar-20260919170500.sql` (cuerpo
+  md5 `a966bcf8…`, igual al archivo del repo; PIN del md5 vivo superado).
 
 - `crm.cartera_filtrada_fn` pasa a 11 argumentos (`p_procedencia`: `sistema` |
   `manual`; otro valor → 22023); la de 10 se retira en la misma transacción (una
