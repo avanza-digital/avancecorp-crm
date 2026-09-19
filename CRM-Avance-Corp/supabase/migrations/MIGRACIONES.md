@@ -135,7 +135,8 @@ esta sesión); advisors: NOT RUN; `EXPLAIN` bajo sesión real: NOT RUN. Producci
 
 ## 20260919161807 — Convertir un lead mediante el registro común de inversiones
 
-**AUTORIZADA Y PROBADA LOCAL/REMOTO el 19/09/2026; SIN INSTALAR EN PRODUCCIÓN.**
+**APLICADA EN PRODUCCIÓN el 19/09/2026**, promovida desde la rama probada como
+`20260919182218`; frontend publicado desde Main `29d7aa202492`.
 Miguel pidió que «Convertir a cliente» abra el mismo proceso que «Nueva inversión»
 de Cartera. Reconocer identidad o preparar el acceso Avance no cierra el lead;
 la inversión, su fuente, la conversión y la actividad se confirman juntas.
@@ -156,13 +157,17 @@ reversa, 33 verificaciones de permisos sobre 11 funciones nuevas, definición de
 Regresión general, huellas y límites en el [acta del ensayo](../scripts/conversion-inversion/README.md).
 **PASS remoto:** SQL exacto (SHA-256 `2a8ce9e9be01ccdbf13871e299858db4a6a90551b195a2369ba14d06ddc4c5f4`),
 15 pruebas HTTP, 284 aserciones de `test-rls.mjs --contratos`, nueve aserciones de
-la Edge desplegada y advisors revisados. Instalado sólo en banco como `20260919172019`.
+la Edge desplegada y advisors revisados. Primer ensayo en banco como `20260919172019`.
 Miguel autorizó el SQL y el ensayo con un máximo de US$5. No se enviaron correos reales.
 Evidencia y límites en el [acta remota](../scripts/conversion-inversion/instalacion/README.md).
 
-SQL y frontend deben activarse juntos: la candidata cierra las puertas antiguas.
-Publicación por invocación humana del flujo de release aún pendiente; no volver
-a pedir autorización del mismo SQL. La reversa conserva inversiones, auditoría y columnas
+SQL, Edge y frontend se activaron coordinadamente tras la aprobación del PR #23
+y la invocación humana de `$release-crm`. El merge divide el mismo SQL en 62
+sentencias: se comprobó su igualdad literal y orden contra el archivo aprobado.
+Las 306 migraciones anteriores, datos financieros, flags y Cron permanecen iguales.
+Dos bancos eliminados; costo total estimado US$0,022142 de US$5 autorizados.
+[Acta de publicación, artefacto, verificaciones y límites](../scripts/conversion-inversion/instalacion/PUBLICADO-20260919.md).
+La reversa conserva inversiones, auditoría y columnas
 aditivas; exige resolver antes las solicitudes de conversión preparadas.
 
 ## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa
