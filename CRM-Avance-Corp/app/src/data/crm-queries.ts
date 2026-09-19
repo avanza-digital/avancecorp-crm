@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -68,7 +68,12 @@ import {
   obtenerTitulares,
   revertirDerivacionEquipo,
   type DerivacionEquipoPendiente,
+  listarActividadesDeLead,
+  type CursorHistorial,
+  type PaginaHistorial,
 } from './crm-api'
+import { SENALES_VACIAS, type SenalesLead } from '@/lib/historial-lead'
+import type { Actividad } from '@/lib/tipos'
 
 // El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
 // pantallas que aún no migraron; la prohibición general de claves de leads se
@@ -108,6 +113,11 @@ export const crmQueryKeys = {
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
   actividadesCliente: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'actividades-comerciales'] as const,
+  // Historial de UN lead (F2 §5, Fase 1 «sin topes»): por registro y colgado
+  // de un prefijo propio para que `resincronizarReal` lo invalide de una
+  // pasada tras cada mutación; bajo la raíz para que el logout lo borre.
+  historialLeads: () => [...crmQueryKeys.raiz, 'historial-lead'] as const,
+  historialLead: (leadId: string) => [...crmQueryKeys.historialLeads(), leadId] as const,
   datosLegalesContrato: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'datos-legales-contrato'] as const,
   cuentasBancarias: (clienteId: string, moneda: 'PEN' | 'USD') =>
@@ -540,6 +550,46 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
     getNextPageParam: (ultima: PaginaCartera) => ultima.cursor,
     enabled: habilitada,
   })
+}
+
+// ── Historial de UN lead por cursor keyset (F2 §5, Fase 1 «sin topes») ───────
+
+/**
+ * Páginas del historial de un lead servidas por `crm.actividades_de_lead_fn`.
+ * SOLO sesión real: en demo el timeline es el del ámbito vivo del store y no
+ * sale ni un request (fail-closed). Sin `refetchInterval`: el historial no
+ * envejece contra el reloj; lo refresca `resincronizarReal` tras cada mutación.
+ */
+export function useHistorialLead(habilitada: boolean, leadId: string) {
+  return useInfiniteQuery({
+    queryKey: crmQueryKeys.historialLead(leadId),
+    queryFn: ({ pageParam, signal }) => listarActividadesDeLead(leadId, pageParam, signal),
+    initialPageParam: null as CursorHistorial | null,
+    // `cursor: null` = no hay más, y lo decide el SERVIDOR (se pidió una fila
+    // de más y no llegó), nunca el tamaño de la última página.
+    getNextPageParam: (ultima: PaginaHistorial) => ultima.cursor,
+    enabled: habilitada,
+  })
+}
+
+/**
+ * Lo que la caché ya sabe del historial de un lead, para los gates del store
+ * (descartar por «no responde», retroceso al anular una reunión) que corren
+ * fuera de React. `null` = nunca se cargó: el gate cae a su evidencia local.
+ * `leidoEn` es el `dataUpdatedAt` de la consulta (ver lib/historial-lead.ts).
+ */
+export function leerHistorialEnCache(
+  cliente: Pick<QueryClient, 'getQueryData' | 'getQueryState'>,
+  leadId: string,
+): { items: Actividad[]; senales: SenalesLead; leidoEn: number } | null {
+  const clave = crmQueryKeys.historialLead(leadId)
+  const datos = cliente.getQueryData<InfiniteData<PaginaHistorial>>(clave)
+  if (!datos || datos.pages.length === 0) return null
+  return {
+    items: datos.pages.flatMap((p) => p.items),
+    senales: datos.pages[0]?.senales ?? SENALES_VACIAS,
+    leidoEn: cliente.getQueryState(clave)?.dataUpdatedAt ?? 0,
+  }
 }
 
 // ── Métricas de gerencia — SOLO sesión real (`habilitada`): en demo las

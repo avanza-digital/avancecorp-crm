@@ -1,5 +1,142 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260919185718 — Historial por lead: completo e igual para todos los roles
+
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
+exacto) y REGISTRADA (~16:05 Lima, `registrar-20260919185718.sql`; cuerpo md5 `bca9492d91f1d748b2c61b43cf7dd3ae`,
+idéntico al del archivo). Postflight en prod: gate propio + los 4 gates SLA OK. Sonda anónima por PostgREST:
+`{"p_lead_id":…}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` → PGRST202. FRONT: SIN PUBLICAR
+(PR #28 pendiente de merge commit y `release:crm`).** Ensayo previo en el banco: PASS (ver abajo). Fase 1 del plan «sin topes»
+(`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`, aprobado por Miguel el 19/09), que
+ejecuta F2 §5 del plan de escalabilidad del vault.
+
+**Pedido y causa.** Miguel (19/09): «el historial de seguimientos no está sincronizado entre
+analista, supervisor y gerencia: al analista le sale un seguimiento y al supervisor solo "Lead
+creado"». Medido en producción: el front descargaba TODO el ámbito con
+`crm.actividades_del_ambito_fn` (DEFINER, `order by creado_en desc limit 10000`) y filtraba por
+lead en el navegador; PostgREST corta cada respuesta a **1 000 filas** (`max_rows`), así que la
+fila 1 000 del supervisor Jorge era del 15/09 (5 609 actividades en 365 d), la de Carmen del 15/09
+(8 016) y la de gerencia del 17/09 (13 626), mientras la analista más activa (1 473) veía hasta el
+31/08. «Lead creado» es un `<li>` estático del front: verlo solo = cero filas para ese lead. La
+alarma comparaba contra 10 000: recorte mudo. Ritmo: 2 888 actividades/semana.
+
+**Las cuatro capas.** Tabla `crm.actividades` intacta. NÚCLEO `private.actividades_de_lead_core(uuid,int,timestamptz,uuid)`
+(`sql stable security invoker`, `search_path=''`): página keyset `(creado_en desc, id asc)` de
+UN lead + señales «alguna vez» (`tiene_reunion_realizada`, `tiene_contacto`,
+`ultima_conversacion_en`) con `exists`/`max`, sin `count(` ni `sum(1)` (vigía de contadores
+crudos). PUERTA `crm.actividades_de_lead_fn(p_lead_id, p_limite=100 [1..500], p_antes_de, p_antes_id)
+returns jsonb {version:1, items, senales}` (`plpgsql stable security invoker`): valida input
+(22023), `private.puede_acceder_crm()` (42501 admisión, P04) y `exists (select 1 from crm.leads
+where id = p_lead_id)` bajo `leads_select` (42501 «Lead fuera de tu cartera»: fuera de ámbito,
+borrado o inexistente responden igual; nunca un historial vacío). AYUDANTE
+`private.nombre_de_autor(uuid)`: el ÚNICO DEFINER, acotado a `crm.equipo` (históricos incluidos),
+concedido a `authenticated` — la policy de `public.perfiles` solo deja leer la fila propia.
+Precedente: `20260829183627` (Ficha 360). Solo LEE `public.perfiles`; no toca `public`.
+
+**Por qué INVOKER y no el DEFINER de la RPC vieja.** Filas con PII conversacional: la casa ya
+decidió (`20260810141953`) que el alcance lo pone la RLS y no un predicado copiado —
+`actividades_select` es co-extensiva con `leads_select`— y la RPC vieja se desincronizó una vez
+(`20260902050000`). Preflight y gate sellan `md5(pg_get_expr(polqual))` de las dos policies,
+medidas en prod el 19/09: `actividades_select` `e80e3af900b8d9616c28dcd836f1ac94`, `leads_select`
+`073deaeb5700bac14209ec795b71567e` (re-medir el día de instalar). Núcleo concedido a
+`authenticated` porque lo llama una puerta invoker; `private` no está expuesto a la API.
+Divergencia asumida: el lector global NO ve actividades de leads soft-borrados (la RPC vieja sí):
+coherente con la policy y con `20260902040000`.
+
+**Preflight/postflight.** Base compartida `private.assert_actividades_de_lead_base()` (la misma
+función corre en el preflight y dentro del gate, para que no diverjan): ayudantes de autoridad
+presentes; `USAGE` de `authenticated` sobre `private`; `SELECT` sobre `crm.leads.id` y sobre
+`crm.actividades` (grants de la cadena invoker); huellas md5 de las dos policies; y el CONJUNTO
+de permisivas de lectura (exactamente `leads_select` y `actividades_select`, solo para
+`authenticated`, con la restrictiva `crm_actor_activo_gate` en ambas: una permisiva nueva no
+cambia el md5 de la vieja pero sí rompe la co-extensividad). Candado «ya instalado». Gate propio
+`private.assert_actividades_de_lead()` (puerta y núcleo NO definer, `provolatile='s'`,
+`search_path=""`, owner postgres; ayudante definer con gate interno —`strpos(prosrc,'puede_acceder_crm')`,
+no LIKE—; ACL exactamente `{authenticated}` en las tres; base) + `assert_sla_nucleo/operacion/comandos/avisos`
+(los 4 rojos ajenos no se invocan, como en `20260918213000`). Mutantes del trinquete
+`private.assert_actividades_de_lead_mutantes()` (SOLO banco; cada mutación en su subtransacción, se
+deshace siempre): ayudante invoker, `actividades_select` abierta, permisiva nueva en `crm.leads`,
+ayudante sin gate interno, puerta definer → los 5 deben gritar. `notify pgrst`. Reversa: drop de
+las 3 funciones + 3 trinquetes; nada de datos que deshacer.
+
+**Revisiones (19/09).** `auditor-rls`: CHANGES_REQUESTED sin P0/P1; P2 aceptado (gate interno de
+admisión en `nombre_de_autor`, convención de los helpers de `private`), P3 aceptados (sello por
+conjunto de policies, grants anclados, señales en una sola pasada `bool_or`/`max filter`,
+coordinador → 42501 documentado como contrato, ledger). Medido en prod el 19/09: **0**
+actividades con autor fuera de `crm.equipo` y **0** con autor nulo → ninguna firma cambia.
+`revisor-a11y` (front): CHANGES_REQUESTED, 4 P2 aceptados (botón «Cargar más» inerte con
+`aria-disabled` en vez de `disabled` para no perder el foco; «Reintentar» enfoca la sección antes
+de refrescar; con fallo de la segunda página no se promete «Historial completo»; `FormCierre` y
+`ProximaAccion` no afirman plantón ni etapa de retroceso mientras el historial carga o si falló,
+con `role="status"` honesto) y P3 (una sola región viva fuera del `<ol>`, pedir más despliega,
+`min-h-6`, sufijo del veto por estado + `aria-live`, token `text-warning-text`).
+
+**Matriz `test-rls.mjs` (`testActividadesDeLead`, NOT RUN hasta el banco).** vend1/sup1/gerencia/directorio
+reciben el historial COMPLETO de juan en el orden del oráculo, incluidas tres notas propias
+sembradas (400 d, y dos de 300 d con el MISMO `creado_en`: el desempate por id cruzando el borde);
+nombre de autor presente; `senales.tiene_reunion_realizada` refleja todo el historial; INVOKER ≡
+RLS (la RPC devuelve a vend1 exactamente las filas que `from('actividades')` ya le muestra);
+keyset 2+2 contra oráculo sin repetidos ni huecos y señales iguales en ambas páginas;
+vend3/sup2/vend2 → 42501; vend1 → ana (otro subárbol) → 42501; recursión: sup1 y sup1Nested ven a
+carlos, sup1Nested no ve a juan; coordinador → 42501 «fuera de tu cartera» (visibilidad),
+vendInactive y clientBank → 42501 «No autorizado» (admisión); parkeado `luis`: sup1 sí, vend1 y
+sup2 no; inexistente → 42501; `p_limite` 0/501, cursor a medias y `p_lead_id` nulo → 22023; anon
+→ 42501/PGRST202; por vía fuera de banda: ACL exacta, forma (2 invoker, 1 definer con gate
+interno), trinquetes sin EXECUTE, gate en OK y los 5 mutantes detectados.
+
+**Front (mismo PR, publicar DESPUÉS del SQL: la clave nueva va en la REQUEST).**
+`listarActividadesDeLead` (pide `limite+1`, cursor de la última fila CRUDA, filas fuera de
+contrato CONTADAS en telemetría, 42501 con su propio mensaje); `useHistorialLead`
+(`useInfiniteQuery`, clave `crm/historial-lead/<id>`, invalidada con cancel+invalidate en
+`resincronizarReal`); `useActividadesDeLead` (demo = store, sin red) con la regla de
+deduplicación temporal de la fila optimista (`dataUpdatedAt > local_ts` ⇒ la sustituye el
+servidor; el id local es inventado, no sirve para deduplicar) y desempate determinista
+(`cambio_etapa`/`conversion` delante a igual `creado_en`). Consumidores: `Timeline` (estados
+cargando/error/vacío + «Cargar más gestiones» que no roba el foco), `DialogDescartar` (veto
+mientras carga o si falló), `ProximaAccion` y `CerrarTareaDialog` (retroceso con señales
+«alguna vez»: `retrocesoPorAnularReunion` cambia de firma), gates del store
+(`descartar`/`anularTarea` leen la caché y caen a la evidencia local). Enlaces `#lead=<id>`:
+`App.tsx` deja de contrastar contra la foto en memoria (`abrirLead` relee por id). Puente
+temporal `MAX_LEADS_AMBITO` 2 000 → 5 000 con alarma de tendencia a 4 000 (prod tenía 1 983,
++398/semana); muere en la Fase 4. `LIMITE_ACTIVIDADES_AMBITO` queda para la Fase 3.
+
+**Ensayo en el banco (`banco-f7`, `cwkiejoaqadcnaieghnf`, 19/09 ~15:00 Lima) — PASS.** El banco va en la
+versión `20260910234453` y no tiene el mundo SLA: se aplicó una copia con UNA divergencia (los cuatro
+`perform private.assert_sla_*()` del postflight, comentados; registrada en
+`supabase/scripts/banco/parches/DIVERGENCIAS.md`). Las huellas de `actividades_select` y `leads_select`
+del banco son idénticas a las de prod, así que preflight y postflight corrieron de verdad. Resultados:
+gate propio OK; `assert_actividades_de_lead_mutantes()` → **5 de 5 mutantes detectados** y el esquema
+intacto después (huella de la policy y conjunto de policies iguales; ayudante sigue DEFINER, puerta sigue
+INVOKER). Matriz de roles por SQL bajo `set role authenticated` + `request.jwt.claims` (la misma RLS que
+PostgREST; el gate por HTTP `test-rls.mjs` queda **NOT RUN** por falta de claves): 11 usuarios × 4 leads
+exactos —vend1 ve a juan (320 filas = RLS 320 = oráculo 320, mismo orden) y nada más; sup1 ve juan, luis
+(bandeja) y carlos (recursión) y no a ana; sup1Nested solo a carlos; gerencia y directorio los cuatro;
+vend2/vend3/sup2/coordinador → 42501 «Lead fuera de tu cartera» donde no les toca; vendInactive y
+clientBank → 42501 «No autorizado» en todo—; keyset 2+2 sin repetidos, prefijo del oráculo y señales
+iguales en ambas páginas; `p_limite` 0/501, cursor a medias y `p_lead_id` nulo → 22023; uuid
+inexistente → 42501; anon → 42501 (`permission denied for schema crm`); nombres de autor resueltos.
+`EXPLAIN` como vend1: `Index Scan using idx_actividades_lead` con `Index Cond (lead_id = …)` +
+`Incremental Sort` para el desempate por id, y la policy como SubPlan hasheado. El banco queda con las
+funciones instaladas (sin fila en `schema_migrations`: la registra `reregistrar.py` cuando se ponga al día).
+
+**Instalación y registro.** Orden en `supabase/scripts/historial-lead/README.md`: (1) el SQL con `!` +
+`db query --linked --file`; (2) el registrador `supabase/scripts/registrar-20260919185718.sql`
+(generado por `historial-lead/generar-registrador.mjs` desde el archivo y los md5 de
+`verificacion.json`, medidos EN PRODUCCIÓN tras instalar: puerta `34c9f8cf…`, núcleo `ef77de1e…`,
+ayudante `c9eed135…` — los del banco no valían para la puerta y el núcleo porque la copia del banco
+omitió comentarios internos de esos cuerpos; PIN fail-closed + gate propio OK + fila exacta o nada); (3) sonda anónima
+`actividades_de_lead_fn` → 42501 / `PGRST202`; (4) merge commit de la PR #28 antes de construir y
+deploy del front. El registrador NO se ejecutó en el banco (dry run NOT RUN); es un clon del de
+`20260919170500`, que sí corrió en prod ese mismo día.
+
+**Verificación local (19/09).** `npm run check` PASS (lint solo con avisos previos de
+`coverflow-carousel`; typecheck; vitest 251 archivos / 3 736 pruebas, con 5 nuevas del
+`Timeline`, 5 del hook, 14 de `lib/historial-lead` y 5 MSW del lector; build; bundle; duplicados).
+E2E PASS: 204 pasados / 26 omitidos, incluidos los 2 nuevos de `e2e/historial-lead.spec.ts`
+(la ficha muestra la gestión tras recargar con la lista global VACÍA; un lead fuera de la foto
+inicial se abre por enlace). `test:rls` en el banco: **NOT RUN** (sin `CRM_BANCO_PSQL_URL` en
+esta sesión); advisors: NOT RUN; `EXPLAIN` bajo sesión real: NOT RUN. Producción: NOT RUN.
+
 ## 20260919161807 — Convertir un lead mediante el registro común de inversiones
 
 **APLICADA EN PRODUCCIÓN el 19/09/2026**, promovida desde la rama probada como

@@ -64,6 +64,7 @@ import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
+import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { useAhora } from '@/lib/ahora'
@@ -521,9 +522,12 @@ function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
 }
 
 export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
-  const { tareasDe, crearTarea, anularTarea, actividadesDe, obtenerTareaParaRevision } = useCRMData()
+  const { tareasDe, crearTarea, anularTarea, obtenerTareaParaRevision } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
+  // Señales «alguna vez» del historial POR LEAD (Fase 1 «sin topes»): el aviso
+  // de retroceso al anular una cita ya no se calcula sobre la lista global.
+  const historial = useActividadesDeLead(l.id)
   const consultaSla = useEstadosSlaV2([l.id])
   const operacion = !consultaSla.error && consultaSla.data?.modo === 'activo'
     ? consultaSla.data.filas.find((fila) => fila.lead_id === l.id)?.operacion : undefined
@@ -916,7 +920,11 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
                       className="min-w-0 flex-1 text-[11px] font-semibold text-warning-text"
                     >
                       {(() => {
-                        const atras = retrocesoPorAnularReunion(l, t, pendientes, actividadesDe(l.id))
+                        // Sin el historial servido no se afirma ninguna etapa:
+                        // con señales vacías la función diría «Nuevo» sin base.
+                        if (historial.cargando) return 'Comprobando el historial del lead…'
+                        if (historial.error != null) return 'No se pudo leer el historial: al anular, la etapa podría bajar. No se puede deshacer.'
+                        const atras = retrocesoPorAnularReunion(l, t, pendientes, historial.senales)
                         if (atras) {
                           return `Era su única cita: vuelve a «${ETAPA_INFO[atras].label}». La cancelación queda en el reporte. No se puede deshacer.`
                         }
@@ -1500,15 +1508,36 @@ function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
   )
 }
 
-function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead; escribe: boolean; activa: boolean; componiendo: boolean; setComponiendo: (valor: boolean) => void }) {
-  const { actividadesDe, registrarActividad } = useCRMData()
+// Exportado para probar sus estados (cargando / error / vacío / cargar más)
+// sin montar el drawer entero, como ProximaAccion.
+export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead; escribe: boolean; activa: boolean; componiendo: boolean; setComponiendo: (valor: boolean) => void }) {
+  const { registrarActividad } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
-  const acts = actividadesDe(l.id)
+  // Historial POR LEAD (Fase 1 «sin topes», 19/09/2026): lo sirve
+  // `crm.actividades_de_lead_fn` paginado por cursor. Antes se filtraba de la
+  // lista global del ámbito, que PostgREST recorta a 1 000 filas: un supervisor
+  // veía ~4 días de gestiones de su equipo y gerencia ~2 — y la ficha pintaba
+  // «Lead creado» a secas, como si nadie hubiera trabajado el lead.
+  const historial = useActividadesDeLead(l.id)
+  const acts = historial.items
   const items = useMemo(() => agruparTimeline(acts), [acts])
   const [verTodo, setVerTodo] = useState(false)
   const visibles = verTodo ? items : items.slice(0, TOPE_TIMELINE)
   const ocultos = items.length - visibles.length
+  // «Cargar más» pide otra página al servidor; a diferencia de «Ver N
+  // anteriores» (pliegue LOCAL sobre lo ya cargado, con cuenta exacta) no
+  // promete una cifra. Se sigue mostrando, deshabilitado, cuando ya no queda
+  // historial: así el foco del teclado no se pierde al desaparecer el botón.
+  const [pidioMas, setPidioMas] = useState(false)
+  const muestraCargarMas = (verTodo || items.length <= TOPE_TIMELINE) && (historial.hayMas || pidioMas)
+  // El botón no se DESHABILITA (un botón enfocado que se deshabilita pierde el
+  // foco, y Radix no lo rescata): queda inerte con aria-disabled y la guarda.
+  const cargarMasInerte = !historial.hayMas || historial.cargandoMas
+  // Destino programático del foco al reintentar: el botón «Reintentar» se
+  // desmonta al pulsarlo y, sin esto, Radix mandaría el foco al tope del drawer
+  // (revisión a11y 19/09). No es parada del tabulador (tabIndex -1).
+  const refSeccion = useRef<HTMLElement>(null)
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
   // La sección se abre mayormente para LEER el historial: el composer vive
@@ -1549,8 +1578,24 @@ function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead
   }
 
   return (
-    <section aria-label="Actividad del lead">
+    <section
+      ref={refSeccion}
+      tabIndex={-1}
+      aria-label="Actividad del lead"
+      className="rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+    >
       <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Actividad</h3>
+      {/* UNA sola región viva, siempre montada y fuera del <ol> (un <li> no
+          admite role=status y una región que nace con texto no se anuncia). */}
+      <p role="status" className="sr-only">
+        {historial.cargando
+          ? 'Cargando el historial…'
+          : historial.cargandoMas
+            ? 'Cargando más gestiones'
+            : pidioMas
+              ? `${acts.length} ${acts.length === 1 ? 'gestión cargada' : 'gestiones cargadas'}`
+              : ''}
+      </p>
 
       {escribe && activa && !componiendo && (
         <button
@@ -1598,7 +1643,50 @@ function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead
         </div>
       )}
 
-      <ol className="relative mt-3 space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border">
+      <ol
+        className="relative mt-3 space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border"
+        aria-busy={historial.cargando || historial.cargandoMas}
+      >
+        {/* Estados HONESTOS del historial servido: cargando, fallo y vacío se
+            distinguen entre sí y de «Lead creado» (que hoy era la única señal). */}
+        {historial.cargando && [0, 1].map((n) => (
+          <li key={`esq-${n}`} className="flex gap-2.5" aria-hidden>
+            <span className={CLASE_HITO} />
+            <div className="min-w-0 flex-1 pt-1">
+              <div className="h-3 w-40 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+              <div className="mt-1.5 h-2.5 w-24 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+            </div>
+          </li>
+        ))}
+        {historial.error != null && !historial.cargando && (
+          <li className="flex gap-2.5">
+            <span className="w-7 shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p role="alert" className="text-xs text-destructive">
+                {acts.length === 0
+                  ? 'No se pudo cargar el historial de este lead.'
+                  : 'No se pudo cargar el resto del historial.'}
+              </p>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="mt-1"
+                onClick={() => {
+                  refSeccion.current?.focus({ preventScroll: true })
+                  historial.reintentar()
+                }}
+              >
+                Reintentar
+              </Button>
+            </div>
+          </li>
+        )}
+        {!historial.cargando && historial.error == null && acts.length === 0 && (
+          <li className="flex gap-2.5">
+            <span className="w-7 shrink-0" aria-hidden />
+            <p className="pt-0.5 text-xs text-muted-foreground">Sin gestiones todavía.</p>
+          </li>
+        )}
         {visibles.map((it) =>
           it.clase === 'act' ? (
             <FilaActividad key={it.act.id} a={it.act} ahora={ahora} />
@@ -1633,6 +1721,37 @@ function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead
             </button>
           </li>
         )}
+        {muestraCargarMas && (
+          <li className="flex gap-2.5">
+            <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
+              <MoreHorizontal aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                aria-disabled={cargarMasInerte || undefined}
+                onClick={() => {
+                  if (cargarMasInerte) return
+                  setPidioMas(true)
+                  // Pedir más implica desplegar: si no, la página nueva podría
+                  // quedar plegada tras «Ver N anteriores» y este botón
+                  // desmontarse con el foco dentro.
+                  setVerTodo(true)
+                  historial.cargarMas()
+                }}
+                className="min-h-6 cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-8 aria-disabled:cursor-default aria-disabled:hover:text-muted-foreground"
+              >
+                {historial.cargandoMas
+                  ? 'Cargando más gestiones…'
+                  : historial.error != null
+                    ? 'No se pudo cargar más'
+                    : historial.hayMas
+                      ? 'Cargar más gestiones'
+                      : 'Historial completo'}
+              </button>
+            </div>
+          </li>
+        )}
         {/* La creación NO es una actividad: ítem estático al final con creado_en */}
         <li className="flex gap-2.5">
           <span className={CLASE_HITO}>
@@ -1663,15 +1782,22 @@ export function DialogConvertir({l,onClose,condicionesTasa}: {
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { descartar, actividadesDe } = useCRMData()
+  const { descartar } = useCRMData()
   const { yo } = useAuth()
   const [motivo, setMotivo] = useState<MotivoDescarte>('sin_interes')
   const [nota, setNota] = useState('')
 
   // «No responde» no es una opinión: es una AFIRMACIÓN DE HECHO sobre el
   // cliente. Sin intentos registrados es falsa, y encima ensucia la métrica con
-  // la que se decide de dónde traer leads. El veto se calcula del timeline.
-  const veto = vetoNoResponde(actividadesDe(l.id))
+  // la que se decide de dónde traer leads. El veto se calcula del historial POR
+  // LEAD (Fase 1 «sin topes»); mientras no haya llegado, o si falló, no se
+  // afirma nada: la opción queda vetada con la razón a la vista.
+  const historial = useActividadesDeLead(l.id)
+  const veto = historial.cargando
+    ? '«No responde» espera al historial del lead, que todavía se está cargando.'
+    : historial.error != null
+      ? '«No responde» necesita el historial del lead y no se pudo cargar. Cierra, reintenta en la ficha y vuelve.'
+      : vetoNoResponde(historial.items)
 
   const confirmar = () => {
     const res = descartar(l.id, motivo, nota)
@@ -1704,9 +1830,16 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
               // Deshabilitado y CON LA RAZÓN A LA VISTA, no escondido: si
               // desapareciera, el analista elegiría "Otro" y perderíamos el dato.
               const vetado = veto != null && MOTIVOS_CON_EVIDENCIA.has(m.k)
+              // El sufijo dice la razón REAL: mientras carga o si falló, no es
+              // «faltan intentos» (revisión a11y 19/09).
+              const sufijo = historial.cargando
+                ? 'cargando historial'
+                : historial.error != null
+                  ? 'historial no disponible'
+                  : VETO_CORTO
               return (
                 <option key={m.k} value={m.k} disabled={vetado}>
-                  {vetado ? `${m.label} — ${VETO_CORTO}` : m.label}
+                  {vetado ? `${m.label} — ${sufijo}` : m.label}
                 </option>
               )
             })}
@@ -1714,9 +1847,11 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
           {/* Se pinta SIEMPRE que haya veto, no solo cuando el motivo vetado
               está seleccionado: el `aria-describedby` del select ya lo promete,
               y si el <p> no existe la razón no llega ni al lector de pantalla
-              ni a la vista — el analista solo veía una opción deshabilitada. */}
+              ni a la vista — el analista solo veía una opción deshabilitada.
+              aria-live: cuando el historial termina de cargar, la razón cambia
+              (o desaparece) y el lector debe enterarse sin re-tabular. */}
           {veto && (
-            <p id="ld-motivo-veto" className="text-[11px] font-medium text-[#b45309]">
+            <p id="ld-motivo-veto" aria-live="polite" className="text-[11px] font-medium text-warning-text">
               {veto}
             </p>
           )}

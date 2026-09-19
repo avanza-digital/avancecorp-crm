@@ -115,6 +115,8 @@ const SESSION = {
 
 export interface LeadReal {
   id: string
+  /** Solo del mock: la foto inicial (GET /leads sin id) no lo devuelve; por id sí. */
+  fueraDelBoot?: boolean
   nombre_completo: string
   telefono: string
   correo: string | null
@@ -2601,6 +2603,32 @@ export async function montarBackendReal(
     // ver ese contrato» y el bloque no se pinta — suficiente para estos specs.
     if (p === '/rest/v1/rpc/atribucion_contrato_fn') return json(route, null)
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, actividadesSla)
+    // Historial POR LEAD (Fase 1 «sin topes»): páginas por cursor keyset
+    // (creado_en desc, id asc) sobre las mismas gestiones que registra este mock,
+    // más las señales «alguna vez» que el pipeline usa para el retroceso.
+    if (p === '/rest/v1/rpc/actividades_de_lead_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_limite?: number; p_antes_de?: string; p_antes_id?: string }
+      const leadId = String(body.p_lead_id ?? '')
+      if (!estado.leads.some((l) => l.id === leadId && l.activo !== false)) {
+        return json(route, { message: 'Lead fuera de tu cartera', code: '42501', details: null, hint: null }, 403)
+      }
+      const delLead = actividadesSla.filter((a) => a.lead_id === leadId)
+        .sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)) || String(a.id).localeCompare(String(b.id)))
+      const desde = body.p_antes_de
+        ? delLead.findIndex((a) => a.creado_en === body.p_antes_de && a.id === body.p_antes_id) + 1
+        : 0
+      const tipos = new Set(delLead.map((a) => String(a.tipo)))
+      const conversaciones = delLead.filter((a) => ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada'].includes(String(a.tipo)))
+      return json(route, {
+        version: 1,
+        items: delLead.slice(desde, desde + Number(body.p_limite ?? 100)),
+        senales: {
+          tiene_reunion_realizada: tipos.has('reunion_realizada'),
+          tiene_contacto: ['llamada_realizada', 'llamada_no_contestada', 'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada'].some((t) => tipos.has(t)),
+          ultima_conversacion_en: conversaciones[0]?.creado_en ?? null,
+        },
+      })
+    }
     if (p === '/rest/v1/rpc/verificar_disponibilidad_lead' && method === 'POST') {
       estado.llamadas.rpcDisponibilidadLead += 1
       return json(route, estado.disponibilidadLead)
@@ -3216,7 +3244,9 @@ export async function montarBackendReal(
           return json(route, estado.leads.filter((lead) => lead.id === idPedido.slice(3)
             && (url.searchParams.get('activo') !== 'eq.true' || lead.activo)))
         }
-        return json(route, estado.leads)
+        // `fueraDelBoot`: simula un lead que la FOTO inicial no trae (tope de
+        // MAX_LEADS_AMBITO) pero que su lectura por id sí sirve (RLS lo ve).
+        return json(route, estado.leads.filter((lead) => !lead.fueraDelBoot))
       }
       if (method === 'POST') {
         estado.llamadas.insertLeadDirecto += 1
