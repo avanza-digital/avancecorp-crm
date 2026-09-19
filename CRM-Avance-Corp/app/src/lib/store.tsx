@@ -7,8 +7,15 @@ import { refrescarPostventa } from '@/data/postventa-queries'
 // Debe montarse DENTRO de AuthProvider (usa useAuth para el gating y el autor).
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { crmQueryKeys, invalidarMetricasCitas } from '@/data/crm-queries'
+import { crmQueryKeys, invalidarMetricasCitas, leerHistorialEnCache } from '@/data/crm-queries'
 import { queryClient } from './query-client'
+import {
+  combinarSenales,
+  fusionarHistorial,
+  localesVivas,
+  senalesDesdeActividades,
+  type SenalesLead,
+} from './historial-lead'
 import { useAuth } from './auth-context'
 import { INFO_COOPERATIVA, type Cooperativa } from './cierres-externos'
 import type { CierreEstado } from './cierre-estado'
@@ -998,6 +1005,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // foto anterior. Invalidar (no refetch): un remonte dentro del staleTime
     // serviría la página rancia desde caché.
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() })
+    // Historial POR LEAD (Fase 1 «sin topes»): cada mutación puede haber
+    // escrito una gestión o un cambio de etapa. Cancelar antes de invalidar,
+    // por lo mismo que arriba: una lectura en vuelo traería la foto de ANTES de
+    // la escritura y la fila optimista se quedaría huérfana o duplicada.
+    void queryClient.cancelQueries({
+      queryKey: crmQueryKeys.historialLeads(),
+    }).then(() => queryClient.invalidateQueries({
+      queryKey: crmQueryKeys.historialLeads(),
+    }))
     if (invalidarNucleosConversion) {
       // Crear, cambiar el origen o mover la tenencia de un lead modifica la
       // población/atribución que leen los tres frentes del ranking. Cada
@@ -1340,7 +1356,28 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       detalle,
       autor_nombre: autor,
       creado_en: new Date().toISOString(),
+      // Marca de espejo optimista: el historial por lead (useActividadesDeLead)
+      // la pinta hasta que una lectura del servidor POSTERIOR la sustituya.
+      local: true,
+      local_ts: Date.now(),
     })
+
+    // Evidencia del historial de UN lead para los gates que corren fuera de
+    // React (descartar por «no responde», retroceso al anular una reunión).
+    // Primero la caché del historial servido por lead (lo que la ficha ya
+    // cargó) fusionada con las optimistas locales; si nunca se cargó, cae al
+    // filtro sobre `datos.actividades` — en la Fase 1 nunca peor que antes.
+    const historialLocalDe = (id: string) => datos.actividades.filter((a) => a.lead_id === id)
+    const evidenciaDeLead = (id: string): Actividad[] => {
+      const cache = leerHistorialEnCache(queryClient, id)
+      if (!cache) return historialLocalDe(id)
+      return fusionarHistorial(historialLocalDe(id), cache.items, cache.leidoEn)
+    }
+    const senalesDeLead = (id: string): SenalesLead => {
+      const cache = leerHistorialEnCache(queryClient, id)
+      if (!cache) return senalesDesdeActividades(historialLocalDe(id))
+      return combinarSenales(cache.senales, senalesDesdeActividades(localesVivas(historialLocalDe(id), cache.leidoEn)))
+    }
 
     const aplicar = (id: string, parche: Partial<Lead>, actividad?: Actividad) => {
       setDatos((d) => ({
@@ -2113,7 +2150,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               lead,
               t,
               tareas.filter((x) => x.lead_id === lead.id),
-              datos.actividades.filter((a) => a.lead_id === lead.id),
+              senalesDeLead(lead.id),
             )
           : null
         if (retroceso && lead) {
@@ -2472,7 +2509,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // llame al store por otra vía. Ver lib/descarte-evidencia.ts para por
         // qué esto NO es un trigger de BD (rompería los descartes de Rosa).
         if (MOTIVOS_CON_EVIDENCIA.has(motivo)) {
-          const veto = vetoNoResponde(datos.actividades.filter((a) => a.lead_id === id))
+          const veto = vetoNoResponde(evidenciaDeLead(id))
           if (veto) {
             toast.error(veto)
             return { ok: false, codigo: 'sin_permiso', error: veto }
