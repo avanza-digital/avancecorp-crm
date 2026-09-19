@@ -3,6 +3,14 @@
 @import '@fontsource/ibm-plex-sans/latin-500.css';
 @import '@fontsource/ibm-plex-sans/latin-600.css';
 @import '@fontsource/ibm-plex-sans/latin-700.css';
+/* Plus Jakarta Sans: la fuente de la casa. `--font-sans` la declaraba desde F1
+   pero nunca se cargó (el CRM pintaba la letra del sistema). Cargada el
+   19/09/2026 por decisión de Miguel (módulo Gestión Diaria, Fase 0). */
+@import '@fontsource/plus-jakarta-sans/latin-400.css';
+@import '@fontsource/plus-jakarta-sans/latin-500.css';
+@import '@fontsource/plus-jakarta-sans/latin-600.css';
+@import '@fontsource/plus-jakarta-sans/latin-700.css';
+@import '@fontsource/plus-jakarta-sans/latin-800.css';
 @import './components/gerencia/gerencia.css';
 
 /* ============================================================================

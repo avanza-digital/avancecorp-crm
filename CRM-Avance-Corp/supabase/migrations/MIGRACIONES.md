@@ -10476,8 +10476,8 @@ sus componentes lo obedecen.
 
 ## 20260919170500 — Procedencia del lead en Leads (sistema o manual)
 
-**✅ INSTALADA Y REGISTRADA EN PRODUCCIÓN el 19/09/2026** (Miguel con `!`); front
-pendiente de publicar (PR #24). Solicitud de Miguel del 19/09: distinguir en la
+**✅ INSTALADA, REGISTRADA Y PUBLICADA EN PRODUCCIÓN el 19/09/2026** (SQL: Miguel
+con `!`; front: `/release-crm` invocado por Miguel). Solicitud de Miguel del 19/09: distinguir en la
 pantalla Leads lo que trajo el puente de lo que registró un analista, «a simple
 vista» (chip por fila, ficha y tarjeta) y con un filtro más.
 
@@ -10492,6 +10492,16 @@ vista» (chip por fila, ficha y tarjeta) y con un filtro más.
   (firma nueva en caché, anon sin EXECUTE); argumento inexistente → PGRST202.
 - ~18:45 versión registrada con `scripts/registrar-20260919170500.sql` (cuerpo
   md5 `a966bcf8…`, igual al archivo del repo; PIN del md5 vivo superado).
+- ~20:28 front publicado: release `crm-20260919T202714Z-7035feefbff5` (commit
+  `7035feef` = tronco con #23, #24 y #27), construido en un worktree LIMPIO en
+  `/private/tmp` porque el taller tenía trabajo ajeno sin commitear en `app/`
+  (historial por lead, otra sesión); `npm run check` PASS en el worktree (248
+  archivos, 3 706 tests); manifiesto verificado (`ARTEFACTO_OK`); preflight OK
+  (vivo `build-20260919T181821426Z` / `29d7aa20` ⊂ candidato). Smoke: version.json
+  `build-20260919T202713539Z`, index.html byte a byte, `index-KO_BYKvS.js` 200,
+  chunk de cartera con «Filtrar por procedencia», ZIP 404. Las dos `VITE_*`
+  públicas van por entorno al construir (el worktree no tiene `.env`; el bundle
+  vivo usa el anon JWT legado y así se conservó).
 
 - `crm.cartera_filtrada_fn` pasa a 11 argumentos (`p_procedencia`: `sistema` |
   `manual`; otro valor → 22023); la de 10 se retira en la misma transacción (una
