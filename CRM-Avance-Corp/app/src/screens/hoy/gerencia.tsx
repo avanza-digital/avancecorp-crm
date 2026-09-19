@@ -769,7 +769,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
             {tcCaido && (
               <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-amber-300/70 p-4">
                 <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                  <AlertTriangle className="size-4" aria-hidden /> Sin tipo de cambio, el total no incluye los dólares.
+                  <AlertTriangle className="size-4" aria-hidden /> Tipo de cambio no disponible (fuente BCRP): el total no incluye los dólares.
                 </span>
                 <Button type="button" variant="outline" size="sm" onClick={() => tipoCambio.recargar()}>
                   <RefreshCw aria-hidden /> Reintentar tipo de cambio

@@ -3,6 +3,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { promedioSemanal, usdAPen, useTipoCambio } from './tipo-cambio'
+import { registrarAviso } from './observabilidad'
 
 const invoke = vi.fn()
 vi.mock('./supabase', () => ({
@@ -156,6 +157,31 @@ describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
     const { result } = renderHook(() => useTipoCambio())
     await waitFor(() => expect(invoke).toHaveBeenCalled())
     await waitFor(() => expect(result.current.tc).toBeNull())
+  })
+
+  it('el aviso lleva el motivo que respondió la edge, no el «non-2xx» genérico de supabase-js', async () => {
+    // Forma real de FunctionsHttpError: mensaje genérico + la Response en `context`.
+    const error = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: { json: async () => ({ error: 'BCRP: formato de período no reconocido: 02.Set.26' }) },
+    })
+    invoke.mockResolvedValue({ data: null, error })
+    const { result } = renderHook(() => useTipoCambio())
+    await waitFor(() => expect(result.current.tc).toBeNull())
+    expect(registrarAviso).toHaveBeenCalledWith('crm.tipo_cambio_no_disponible', {
+      motivo: 'BCRP: formato de período no reconocido: 02.Set.26',
+    })
+  })
+
+  it('sin cuerpo legible en el fallo, el aviso conserva el mensaje del error', async () => {
+    const error = Object.assign(new Error('Failed to send a request to the Edge Function'), {
+      context: { json: async () => { throw new SyntaxError('no JSON') } },
+    })
+    invoke.mockResolvedValue({ data: null, error })
+    const { result } = renderHook(() => useTipoCambio())
+    await waitFor(() => expect(result.current.tc).toBeNull())
+    expect(registrarAviso).toHaveBeenCalledWith('crm.tipo_cambio_no_disponible', {
+      motivo: 'Failed to send a request to the Edge Function',
+    })
   })
 
   it('habilitado=false → null inmediato SIN tocar la red (vistas que no muestran TC)', async () => {

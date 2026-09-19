@@ -836,7 +836,7 @@ export function RankingVendedoresPanel({
               ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
               : rankingCapitalTotal.tc != null
                 ? `Contratos confirmados · total en S/ · TC S/ ${numero(rankingCapitalTotal.tc, 4)} (${tc?.fuente ?? 'BCRP'}) · ${metaMensual.etiqueta}`
-                : `Contratos confirmados · S/ · US$ aparte: tipo de cambio no disponible · ${metaMensual.etiqueta}`}
+                : `Contratos confirmados · S/ · US$ aparte: tipo de cambio no disponible (fuente BCRP) · ${metaMensual.etiqueta}`}
         </p>
         <details className="text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
           <summary className="w-fit cursor-pointer rounded py-2 font-semibold text-[var(--gi-blue)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">Cómo se calcula</summary>
@@ -897,7 +897,7 @@ export function RankingVendedoresPanel({
             // ErrorRanking solo aparece cuando fallan las conversiones (hallazgo Codex).
             <div className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2.5 sm:mx-5">
               <span className="text-xs font-semibold text-amber-900">
-                Tipo de cambio no disponible: el total muestra solo S/ y el US$ va aparte.
+                Tipo de cambio no disponible (fuente BCRP): el total muestra solo S/ y el US$ va aparte.
               </span>
               <Button type="button" variant="outline" size="sm" onClick={onReintentarCapital}>
                 <RefreshCw aria-hidden /> Reintentar tipo de cambio

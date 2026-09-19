@@ -498,7 +498,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
       />,
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Sin tipo de cambio, el total no incluye los dólares.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Tipo de cambio no disponible (fuente BCRP): el total no incluye los dólares.')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar tipo de cambio' }))
     expect(onReintentar).toHaveBeenCalledTimes(1)
   })

@@ -9,6 +9,10 @@
 //
 // Sin BD ni service_role: esta Edge Function es un proxy de solo lectura. Si
 // el BCRP falla, responde 502 y el frontend degrada a solo-PEN sin inventar TC.
+//
+// Trampa conocida de la fuente: aunque se pida `/ing`, el BCRP rotula
+// septiembre en español («02.Set.26») y el resto en inglés («03.Aug.26»).
+// Un período ilegible NO se descarta en silencio: se responde 502 nombrándolo.
 
 const ALLOWED_ORIGINS = new Set([
   "https://crm.miavance.com",
@@ -150,29 +154,48 @@ async function serieBcrp(
   return mapa;
 }
 
-const MES_ING: Record<string, number> = {
-  Jan: 0,
-  Feb: 1,
-  Mar: 2,
-  Apr: 3,
-  May: 4,
-  Jun: 5,
-  Jul: 6,
-  Aug: 7,
-  Sep: 8,
-  Oct: 9,
-  Nov: 10,
-  Dec: 11,
+// Abreviaturas en AMBOS idiomas para TODOS los meses: el BCRP mezcla («Set»
+// en septiembre, «Aug» en agosto) y nada garantiza que mañana no filtre «Ene»
+// o «Dic». La clave se normaliza (trim + minúsculas) antes de buscar.
+const MESES: Record<string, number> = {
+  ene: 0,
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  abr: 3,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  ago: 7,
+  aug: 7,
+  set: 8,
+  sep: 8,
+  sept: 8,
+  oct: 9,
+  nov: 10,
+  dic: 11,
+  dec: 11,
 };
 
-/** Clave ordenable de `DD.MMM.YY`; un formato desconocido va al fondo. */
-function clavePeriodo(periodo: string): number {
-  const [dia, mes, anio] = periodo.split(".");
-  const numeroMes = MES_ING[mes ?? ""];
-  const timestamp = numeroMes == null
-    ? Number.NaN
-    : Date.UTC(2000 + Number(anio), numeroMes, Number(dia));
-  return Number.isFinite(timestamp) ? timestamp : 0;
+/**
+ * Clave ordenable de `DD.MMM.YY` (o `DD.MMM.YYYY`); `null` si el formato no
+ * se reconoce. Devolver `null` y no 0 permite distinguir «período ilegible»
+ * de «período fuera de la ventana», que antes se confundían en el filtro.
+ */
+export function clavePeriodo(periodo: string): number | null {
+  const partes = periodo.trim().split(".");
+  if (partes.length !== 3) return null;
+  const [dia, mes, anio] = partes.map((parte) => parte.trim().toLowerCase());
+  const numeroMes = MESES[mes];
+  if (
+    numeroMes == null || !/^\d{1,2}$/.test(dia) || !/^(\d{2}|\d{4})$/.test(anio)
+  ) {
+    return null;
+  }
+  const anioCompleto = anio.length === 2 ? 2000 + Number(anio) : Number(anio);
+  const timestamp = Date.UTC(anioCompleto, numeroMes, Number(dia));
+  return Number.isFinite(timestamp) ? timestamp : null;
 }
 
 export async function calcularTipoCambio(
@@ -190,23 +213,37 @@ export async function calcularTipoCambio(
   // los últimos siete días hábiles. Si falta compra o venta en una fecha, se
   // usa el lado publicado para no descartar un día válido de la fuente.
   const periodos = [...new Set([...compra.keys(), ...venta.keys()])];
+  const noReconocidos: string[] = [];
   const medios = periodos
-    .map((periodo) => {
+    .flatMap((periodo) => {
+      const timestamp = clavePeriodo(periodo);
+      if (timestamp == null) {
+        noReconocidos.push(periodo);
+        return [];
+      }
       const compraDia = compra.get(periodo);
       const ventaDia = venta.get(periodo);
       const valor = compraDia != null && ventaDia != null
         ? (compraDia + ventaDia) / 2
         : (compraDia ?? ventaDia)!;
-      return { periodo, timestamp: clavePeriodo(periodo), valor };
+      return [{ periodo, timestamp, valor }];
     })
     .filter((item) =>
-      item.timestamp > 0 && item.timestamp <= corteTimestamp &&
+      item.timestamp <= corteTimestamp &&
       Number.isFinite(item.valor) && item.valor > 0
     )
     .sort((a, b) => a.timestamp - b.timestamp);
 
   const ultimos = medios.slice(-DIAS_PROMEDIO);
   if (ultimos.length === 0) {
+    // Dos silencios distintos: la fuente no publicó nada (serie vacía o todo
+    // «n.d.») o publicó y no supimos leerlo. El segundo es un bug nuestro y
+    // tiene que nombrar el período que lo disparó; antes ambos decían lo mismo.
+    if (periodos.length > 0 && noReconocidos.length === periodos.length) {
+      throw new Error(
+        `BCRP: formato de período no reconocido: ${noReconocidos[0]}`,
+      );
+    }
     throw new Error("BCRP sin datos en la ventana consultada");
   }
 
