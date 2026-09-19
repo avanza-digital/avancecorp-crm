@@ -510,8 +510,8 @@ $mig_historial$;
      or to_regprocedure('private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)') is null
      or to_regprocedure('private.nombre_de_autor(uuid)') is null
      or to_regprocedure('private.assert_actividades_de_lead()') is null
-     or md5(pg_get_functiondef('crm.actividades_de_lead_fn(uuid,integer,timestamptz,uuid)'::regprocedure)) is distinct from 'edef0f8628938e56487f7f3ec27f2c9b'
-     or md5(pg_get_functiondef('private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)'::regprocedure)) is distinct from 'b00cc5815f41ea2a29906524114002a8'
+     or md5(pg_get_functiondef('crm.actividades_de_lead_fn(uuid,integer,timestamptz,uuid)'::regprocedure)) is distinct from '34c9f8cfc529fe432f1081e990b42912'
+     or md5(pg_get_functiondef('private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)'::regprocedure)) is distinct from 'ef77de1e7f58ee8abe294678a103785c'
      or md5(pg_get_functiondef('private.nombre_de_autor(uuid)'::regprocedure)) is distinct from 'c9eed135efa0c03a04360bfcf9bdf490' then
     raise exception 'registrar historial por lead: la migración 20260919185718 no está aplicada tal cual — aplicarla antes de registrar';
   end if;

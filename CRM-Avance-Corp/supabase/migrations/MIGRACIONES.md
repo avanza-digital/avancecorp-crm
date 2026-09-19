@@ -119,8 +119,9 @@ funciones instaladas (sin fila en `schema_migrations`: la registra `reregistrar.
 **Instalación y registro.** Orden en `supabase/scripts/historial-lead/README.md`: (1) el SQL con `!` +
 `db query --linked --file`; (2) el registrador `supabase/scripts/registrar-20260919185718.sql`
 (generado por `historial-lead/generar-registrador.mjs` desde el archivo y los md5 de
-`verificacion.json`, medidos en el banco: puerta `edef0f86…`, núcleo `b00cc581…`, ayudante
-`c9eed135…`; PIN fail-closed + gate propio OK + fila exacta o nada); (3) sonda anónima
+`verificacion.json`, medidos EN PRODUCCIÓN tras instalar: puerta `34c9f8cf…`, núcleo `ef77de1e…`,
+ayudante `c9eed135…` — los del banco no valían para la puerta y el núcleo porque la copia del banco
+omitió comentarios internos de esos cuerpos; PIN fail-closed + gate propio OK + fila exacta o nada); (3) sonda anónima
 `actividades_de_lead_fn` → 42501 / `PGRST202`; (4) merge commit de la PR #28 antes de construir y
 deploy del front. El registrador NO se ejecutó en el banco (dry run NOT RUN); es un clon del de
 `20260919170500`, que sí corrió en prod ese mismo día.
