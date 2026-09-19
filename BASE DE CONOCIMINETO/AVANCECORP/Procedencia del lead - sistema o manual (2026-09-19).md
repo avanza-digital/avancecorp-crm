@@ -55,8 +55,11 @@ Cifras de producción al 19/09: 1 864 del sistema (landing 837 + formulario
   drawer lee el ámbito por select directo: pide `alta_manual` + `creado_por` y
   deriva la misma regla. Contrato cerrado con el servidor (eco + filas), como
   el filtro de origen.
-- Orden de publicación: SQL primero (Miguel con `!`), registrador, sonda
-  PostgREST, y al final el front con la PR fusionada antes de construir.
+- Publicado el 19/09/2026: SQL ~18:35 UTC y registrado ~18:45 (Miguel con `!`);
+  front `crm-20260919T202714Z-7035feefbff5` ~20:28 UTC vía `/release-crm`,
+  construido en un worktree limpio porque el taller tenía trabajo ajeno sin
+  commitear. Lección repetida: **con sesiones paralelas, el release se construye
+  fuera del taller**, y las dos `VITE_*` públicas van por entorno.
 
 ## Lo que encontró la revisión (y por qué importa)
 

@@ -1,7 +1,8 @@
 # Procedencia del lead en Leads (sistema o manual)
 
-Estado: **instalado y registrado en producción el 19/09/2026** (acta en
-`../../migrations/MIGRACIONES.md`, entrada `20260919170500`); front en la PR #24.
+Estado: **instalado, registrado y publicado en producción el 19/09/2026** (acta en
+`../../migrations/MIGRACIONES.md`, entrada `20260919170500`; front
+`crm-20260919T202714Z-7035feefbff5`).
 
 Pedido de Miguel (19/09/2026): «que en el sistema se pueda diferenciar un lead
 que viene del sistema de los que los mismos analistas cargan», con algo
