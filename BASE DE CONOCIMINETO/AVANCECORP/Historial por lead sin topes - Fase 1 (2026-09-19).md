@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, historial, actividades, fase-1, sin-topes]
 actualizado: 2026-09-19
-estado: SQL EN PRODUCCIÓN (19/09 ~15:50 Lima) y registrada · banco PASS · front en PR #28 sin publicar
+estado: EN PRODUCCIÓN COMPLETA (19/09) — SQL ~15:50 Lima, registrada; front ~16:36 Lima (release crm-20260919T213432Z-4094df3c9224)
 ---
 
 # Historial por lead sin topes — Fase 1 (2026-09-19)
@@ -59,7 +59,7 @@ Mismo defecto de clase en las otras dos lecturas del arranque: las tareas del
 - `crm.actividades_del_ambito_fn` NO se toca (sigue viva para las pantallas de
   equipo hasta la Fase 3: cerrar → observar → derribar).
 
-**Front** (mismo PR, se publica DESPUÉS del SQL):
+**Front** (PR #28, fusionada por squash como `4094df3c`; PUBLICADO ~16:36 Lima como `crm-20260919T213432Z-4094df3c9224`, smoke OK):
 
 - `useHistorialLead` (páginas por cursor, TanStack) + `useActividadesDeLead`
   (fusiona las páginas con las gestiones recién registradas; en demo no toca la
@@ -88,6 +88,11 @@ Detalle ejecutable en `~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`
 y en el ledger `supabase/migrations/MIGRACIONES.md` (entrada 20260919185718).
 
 ## Lecciones
+
+- El `node_modules` enlazado por symlink al taller no sirve para construir el
+  tronco si otra PR añadió dependencias: `npm ci` propio en el worktree.
+- Cada build lleva su id: el smoke se compara contra el ZIP publicado, no
+  contra un `dist` reconstruido después.
 
 - Un `limit` en la función NO es el límite efectivo: PostgREST tiene el suyo
   (`max_rows`), y la alarma hay que calibrarla contra ÉSE.
