@@ -123,10 +123,19 @@ abortaría una migración que no los empeora ni los arregla. **Esto hay que reso
 **Orden de publicación: SERVIDOR PRIMERO**, front después — el front pasa a llamar
 `cerrar_reunion_v3`, que no existe hasta aplicar esto.
 
-**Deuda menor abierta:** el tipo de `cerrar_reunion_v3` en `app/src/lib/database.types.ts` sigue
-escrito A MANO (con su comentario). Ya se puede regenerar con `npm run gen:types`, pero no se hizo en
-la misma entrega porque **otra sesión tiene ese archivo en vuelo** y regenerarlo le pisaría el
-trabajo — de hecho ya pasó una vez hoy: su `gen:types` borró esta línea y hubo que reponerla.
+**Deuda medida (y NO es de este cambio): `npm run gen:types` no compila.** El tipo de
+`cerrar_reunion_v3` en `app/src/lib/database.types.ts` sigue escrito A MANO. Se intentó regenerar en
+cuanto Codex liberó el archivo (18/09, con la función ya viva) y el resultado **no typechequea**: la
+CLI 2.114.0 emite los argumentos opcionales como `x?: T` en vez de `x?: T | null`, y el código pasa
+`null` explícito. Rompe `src/data/sla-operacion-api.ts`, `cerrar_tarea_v2` y
+`registrar_actividad_v2` — **todos ajenos a esta migración**, así que la deuda es del archivo
+completo. Regenerarlo exige tocar esos llamadores: tarea aparte. El archivo quedó restaurado y en
+verde, con el motivo escrito junto a la línea.
+
+**Front vivo tras el cierre del día:** Codex publicó desde `main` a las ~16:30 Lima
+(`build-20260918T213020308Z`, commit `6b8ffe15`, `assets/index-YRxtvagF.js`) y su build **reemplazó**
+al mío. Verificado que NO se perdió nada de esto: el bundle vivo contiene `cerrar_reunion_v3`, el
+campo «Capital propuesto» y el aviso de que la cita cuenta como entrevista.
 
 **Reversa:** `drop function crm.cerrar_reunion_v3(...)`, luego
 `drop function private.entrevista_registrar(...)` y `private.assert_entrevista_al_asistir()`. El

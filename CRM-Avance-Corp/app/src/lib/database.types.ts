@@ -4212,10 +4212,14 @@ export type Database = {
       registrar_actividad_v2: { Args: { p_operacion_id: string; p_lead_id: string; p_tipo: string; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
       cerrar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_tipo?: string | null; p_resultado_detalle?: string | null; p_siguiente?: Json | null; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null }; Returns: Json }
       cerrar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
-      // ESCRITO A MANO hasta que `20260918213000_crm_entrevista_al_asistir.sql` esté en
-      // producción: `gen:types` lee el esquema VIVO y no puede generar una función que
-      // todavía no existe (ya se perdió una vez al regenerar). Al aplicar la migración,
-      // correr `npm run gen:types` y borrar este comentario.
+      // ESCRITO A MANO, y así se queda por ahora. La función YA existe en producción
+      // (migración 20260918213000, registro 305), pero regenerar el archivo entero con
+      // `npm run gen:types` (CLI 2.114.0) NO compila: el generador emite los argumentos
+      // opcionales como `x?: T` en vez de `x?: T | null`, y el código pasa `null`
+      // explícito en varios sitios. Medido el 18/09: rompe `sla-operacion-api.ts`,
+      // `cerrar_tarea_v2` y `registrar_actividad_v2` — TODOS ajenos a este cambio, así
+      // que la deuda es del archivo completo, no de esta línea. Regenerar exige tocar
+      // esos llamadores: tarea aparte.
       cerrar_reunion_v3: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_capital_estimado?: number | null; p_moneda?: string | null }; Returns: Json }
       reprogramar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }; Returns: Json }
       reprogramar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }; Returns: Json }
