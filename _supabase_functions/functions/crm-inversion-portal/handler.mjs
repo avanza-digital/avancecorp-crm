@@ -75,7 +75,10 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
         const res = await fetchImpl(`${base}${ruta}`, {
           method, signal: AbortSignal.timeout(25_000),
           headers: {
-            apikey: anonKey, Authorization: admin ? `Bearer ${serviceKey}` : authorization,
+            apikey: admin ? serviceKey : anonKey,
+            // sb_secret_ se autentica por apikey; no es un JWT para Bearer.
+            ...(!admin ? { Authorization: authorization }
+              : serviceKey.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${serviceKey}` }),
             'Content-Type': 'application/json',
             ...(crm ? { 'Accept-Profile': 'crm', 'Content-Profile': 'crm' } : {}),
           },

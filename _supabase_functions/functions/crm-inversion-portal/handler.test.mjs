@@ -51,3 +51,73 @@ test('Fallo recuperable conserva el token sin filtrar el mensaje interno',async(
   const r=await crear(async()=>new Response(JSON.stringify(++llamadas===1?{id}:{code:'23505',message:'SECRETO'}),{status:llamadas===1?200:400}))(request(JSON.stringify({solicitud_id:id,token})));
   const j=await r.json();assert.equal(j.token,token);assert(!j.error.includes('SECRETO'));
 });
+
+// Contrato HTTP real: una clave sb_secret_ no es un JWT. El gateway la acepta
+// como apikey; Auth rechaza esa misma clave si se presenta como Bearer.
+for (const serviceKey of ['sb_secret_SERVICIO_FICTICIO', 'cabecera.servicio.firma']) {
+  for (const modo of ['crear', 'reanudar', 'correo_registrado']) {
+    test(`completa el acceso con ${serviceKey.startsWith('sb_secret_') ? 'secret key' : 'JWT legacy'}: ${modo}`, async () => {
+      const claimId = '22222222-2222-4222-8222-222222222222';
+      const authId = '33333333-3333-4333-8333-333333333333';
+      const perfilId = '44444444-4444-4444-8444-444444444444';
+      const token = 'a'.repeat(48), correo = 'persona@example.test';
+      const usuario = { id: authId, email: correo, app_metadata: { claim_id: claimId } };
+      const reclamo = estado => ({ estado, claim_id: claimId, token, version: 1,
+        auth_user_id: authId, perfil_id: perfilId, documento: '98765432',
+        datos_portal: { correo, domicilio: 'Avenida de Prueba 123, Lima' } });
+      const pasos = [], privilegiadas = [];
+      const h = crearHandlerAccesoInversion({ supabaseUrl: 'https://banco.example.test',
+        anonKey: 'sb_publishable_PUBLICA_FICTICIA', serviceKey,
+        fetchImpl: async (url, opciones) => {
+          const ruta = new URL(url).pathname, headers = new Headers(opciones.headers);
+          const body = opciones.body ? JSON.parse(opciones.body) : {};
+          const admin = ruta.startsWith('/auth/v1/admin/') || ruta.endsWith('/auth_usuario_por_correo_fn');
+          if (admin) {
+            privilegiadas.push(ruta);
+            assert.equal(headers.get('apikey'), serviceKey);
+            assert.equal(headers.get('Authorization'), serviceKey.startsWith('sb_secret_') ? null : `Bearer ${serviceKey}`);
+          } else {
+            assert.equal(headers.get('apikey'), 'sb_publishable_PUBLICA_FICTICIA');
+            assert.equal(headers.get('Authorization'), 'Bearer USUARIO_FICTICIO');
+          }
+          if (ruta === '/auth/v1/user') return Response.json({ id });
+          if (ruta.endsWith('/acceso_inversion_fn')) {
+            pasos.push(body.p_paso);
+            const estado = { reclamar: modo === 'reanudar' ? 'auth_creado' : 'reclamado',
+              registrar_auth: 'auth_creado', crear_perfil: 'perfil_creado', enlazar: 'enlazado' }[body.p_paso];
+            assert(estado); return Response.json(reclamo(estado));
+          }
+          if (ruta === '/auth/v1/admin/users') {
+            assert.equal(body.app_metadata.claim_id, claimId);
+            if (modo === 'correo_registrado') return Response.json({ code: 'email_exists' }, { status: 422 });
+          }
+          assert(admin); return Response.json(usuario);
+        },
+      });
+      const r = await h(request(JSON.stringify({ solicitud_id: id, token })));
+      assert.equal(r.status, 200);
+      assert.deepEqual(await r.json(), { ok: true, solicitud_id: id, perfil_id: perfilId, reintento: false });
+      assert.deepEqual(pasos, modo === 'reanudar' ? ['reclamar', 'crear_perfil', 'enlazar']
+        : ['reclamar', 'registrar_auth', 'crear_perfil', 'enlazar']);
+      assert.equal(privilegiadas.length, { crear: 2, reanudar: 1, correo_registrado: 4 }[modo]);
+    });
+  }
+}
+
+test('la clave de servicio no se usa si el usuario o el ámbito de la solicitud se rechazan', async () => {
+  for (const rechazo of ['sesion', 'ambito']) {
+    let llamadas = 0;
+    const h = crearHandlerAccesoInversion({ supabaseUrl: 'https://banco.example.test',
+      anonKey: 'sb_publishable_PUBLICA_FICTICIA', serviceKey: 'sb_secret_SERVICIO_FICTICIO',
+      fetchImpl: async (url, opciones) => {
+        llamadas++;
+        assert.equal(opciones.headers.apikey, 'sb_publishable_PUBLICA_FICTICIA');
+        assert.equal(opciones.headers.Authorization, 'Bearer USUARIO_FICTICIO');
+        if (url.endsWith('/user') && rechazo === 'ambito') return Response.json({ id });
+        return Response.json({ code: '42501', message: 'Sin permiso.' }, { status: 403 });
+      },
+    });
+    assert.equal((await h(request())).status, rechazo === 'sesion' ? 401 : 403);
+    assert.equal(llamadas, rechazo === 'sesion' ? 1 : 2);
+  }
+});

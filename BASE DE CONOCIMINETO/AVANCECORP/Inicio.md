@@ -5,7 +5,9 @@ actualizado: 2026-09-19
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Conversion de lead con Nueva inversion - preparado 2026-09-19]] — **VALIDADO, SIN PUBLICAR:** Convertir a cliente usa el proceso de Cartera; el lead se cierra sólo al confirmar. SQL y banco hasta US$5 autorizados; pruebas locales/remotas y 284 aserciones bancarias PASS. Pendiente publicación coordinada mediante `$release-crm`.
+- [[Conversion - correccion de credencial de acceso 2026-09-19]] — **PUBLICADO 19/09 14:17 Lima:** corrige el error al crear el acceso Avance; Edges portal v4 y bienvenida v2, 119 pruebas y sondas HTTP reales PASS. Reanudar la misma solicitud.
+
+- [[Conversion de lead con Nueva inversion - preparado 2026-09-19]] — **PUBLICADO 19/09:** Convertir a cliente usa el proceso de Cartera; el lead se cierra sólo al confirmar. SQL, Edge y web activos desde Main `29d7aa202492`; gates y comprobación HTTP conformes. Ambos bancos eliminados; costo estimado US$0,022142 de US$5 autorizados.
 
 - [[Interruptor integral de rentabilidad - preparado 2026-09-18]] — **PUBLICADO 18/09:** el botón controla toda la exigencia de tasa en CRM, portal, conversión y contratos; observación deja de solicitar o consumir aprobaciones. SQL, CRM y portal verificados en producción.
 

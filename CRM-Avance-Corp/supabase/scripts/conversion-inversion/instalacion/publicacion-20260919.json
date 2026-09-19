@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "fecha": "2026-09-19T18:37:35.916Z",
+  "url": "https://crm.miavance.com",
+  "fuente": "29d7aa202492ed7dbd9cbb62d7667953f50a1514",
+  "tree": "c592ee305b78e6f5f287936a8cb690db470f2868",
+  "reviewed_head": "b3d385d5ac57b347548b3551c553ec57e7b0a559",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/23",
+  "aprobado_por": "miguejbs98",
+  "aprobado_at": "2026-09-19T18:10:43Z",
+  "release": "crm-20260919T181822Z-29d7aa202492",
+  "build": "build-20260919T181821426Z",
+  "zip_sha256": "0e4624f42a89a319e317ab3ec361b8f074fb9e222f2ac2e6eefac5ad653d412f",
+  "sql": {
+    "archivo": "20260919161807_crm_conversion_inversion_unificada.sql",
+    "version_produccion": "20260919182218",
+    "sha256": "2a8ce9e9be01ccdbf13871e299858db4a6a90551b195a2369ba14d06ddc4c5f4",
+    "bytes": 107472,
+    "statements": 62,
+    "descomposicion_exacta": true,
+    "historial_anterior": {
+      "n": 306,
+      "huella": "cab8c3b190eb38545e51a01fa2554156"
+    },
+    "funciones_con_acl_iguales_al_banco": 671
+  },
+  "edge": {
+    "name": "crm-inversion-bienvenida",
+    "sha256_banco": "d4b2da6b18ace573b0e0e25ea052a08d7260316b0176d95a02e8dd3df61d14d0",
+    "sha256_produccion": "7df191a9598307d6d922498c78fa1c55648cf99ee918d8bf343c9bdd8bd7d79d",
+    "fuentes_exactas": true,
+    "autenticacion": "custom Auth/RPC antes de elevar a servicio"
+  },
+  "gates": {
+    "frontend_unitarias": 3694,
+    "ci_verify": "PASS",
+    "ci_e2e": "PASS",
+    "ci_preflight": "PASS",
+    "sql_oraculo_remoto": "PASS",
+    "rls_contratos": 284,
+    "edge_http_prod": 8,
+    "web_recursos_http_200": 92,
+    "web_hashes_exactos": 81,
+    "js_css_hashes_exactos": 63,
+    "htaccess": "texto idéntico; el endpoint omite salto final; HTTP 403",
+    "zip_publico": 404,
+    "nosniff": "PASS",
+    "cache_index": "no-store",
+    "png": "11 transformaciones CDN históricas; 6 píxeles idénticos, 5 reducidos de 3508x3253 a 1600x1484; originales iguales al release anterior",
+    "ui_produccion": "NOT RUN: navegador integrado sin navegador disponible",
+    "correos_reales": "NOT RUN: proveedor simulado en integración; sin envío productivo"
+  },
+  "datos_antes_y_despues_iguales": {
+    "cron": {
+      "md5": "1054b1c691554717b48faaa34db603a9",
+      "activos": 9
+    },
+    "banderas": "c4b5c408e498bf990ae82e3964c1db70",
+    "personas": {
+      "n": 512,
+      "md5": "d9a96197ef98f715bf7bbd20fd9925f1"
+    },
+    "contratos": {
+      "n": 619,
+      "md5": "e0a1ca20fd08b6ab377f2d968a9dafa9"
+    },
+    "cronograma": {
+      "n": 5466,
+      "md5": "fe8364f6c0e70790856d7257b3585ae8"
+    },
+    "inversiones": {
+      "n": 56,
+      "md5": "50e8a9f2713c6cf00f4c7ae2b0394f8b"
+    },
+    "solicitudes": {
+      "n": 25,
+      "md5": "19347688ff75344fa68aac776f3b92f9"
+    },
+    "reservas_bloqueantes": 0
+  },
+  "advisors": {
+    "antes": 277,
+    "despues": 281,
+    "altas": [
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "detail": "Function `crm.bienvenida_inversion_estado_fn(p_solicitud uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/bienvenida_inversion_estado_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "bienvenida_inversion_estado_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_solicitud uuid",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "detail": "Function `crm.cancelar_solicitud_inversion_fn(p_solicitud uuid, p_revision_datos_esperada integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancelar_solicitud_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "cancelar_solicitud_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_solicitud uuid, p_revision_datos_esperada integer",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "detail": "Function `crm.contexto_conversion_inversion_fn(p_lead uuid, p_persona uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/contexto_conversion_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "contexto_conversion_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_lead uuid, p_persona uuid",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "detail": "Function `crm.preparar_persona_lead_inversion_fn(p_lead uuid, p_tipo_documento text, p_documento text, p_nombre text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/preparar_persona_lead_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "preparar_persona_lead_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_lead uuid, p_tipo_documento text, p_documento text, p_nombre text",
+          "security_definer": true
+        }
+      }
+    ],
+    "bajas": []
+  },
+  "costos": {
+    "first_estimated_usd": 0.0186649792,
+    "final_created_at": "2026-09-19T18:18:18.017Z",
+    "final_deleted_at": "2026-09-19T18:33:49.448Z",
+    "final_estimated_usd": 0.0034773424000000006,
+    "total_estimated_usd": 0.0221423216,
+    "limit_usd": 5,
+    "branches_deleted_confirmed": true
+  },
+  "merge_solicitado_at": "2026-09-19T18:28:52.819Z",
+  "hostinger_respuesta_at": "2026-09-19T18:30:52.036Z",
+  "recuperacion": {
+    "release": "crm-20260919T162407Z-faccafe040ab",
+    "sha256": "cc324ac3f07c058ee4a9df1c8172aa06f48baa4e19677babb209b0f95ba03468"
+  }
+}

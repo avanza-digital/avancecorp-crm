@@ -34,7 +34,10 @@ export function crearHandlerBienvenida({supabaseUrl,anonKey,serviceKey,resendKey
       if(!solicitud||Object.keys(solicitud).length!==1||!uuid.test(solicitud.solicitud_id??''))return respuesta(400,{error:'Solicitud inválida.'});
       const rpc=async(nombre,body,admin=false)=>{
         const r=await fetchImpl(`${base}/rest/v1/rpc/${nombre}`,{method:'POST',signal:AbortSignal.timeout(25_000),
-          headers:{apikey:anonKey,Authorization:admin?`Bearer ${serviceKey}`:authorization,
+          headers:{apikey:admin?serviceKey:anonKey,
+            // sb_secret_ se autentica por apikey; no es un JWT para Bearer.
+            ...(!admin?{Authorization:authorization}
+              :serviceKey.startsWith('sb_secret_')?{}:{Authorization:`Bearer ${serviceKey}`}),
             'Content-Type':'application/json','Accept-Profile':'crm','Content-Profile':'crm'},body:JSON.stringify(body)});
         if(!r.ok)throw Object.assign(new Error('RPC rechazada'),{status:r.status});
         return r.json();
