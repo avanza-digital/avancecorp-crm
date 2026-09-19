@@ -38,6 +38,7 @@ import {
 } from '@/components/app/campos-reunion'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useCRMData } from '@/lib/store-context'
+import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { useAhora } from '@/lib/ahora'
 import { sugerirSiguiente } from '@/lib/motor-siguiente'
 import { tareaAEvento } from '@/lib/agenda-derivada'
@@ -151,9 +152,15 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
 }
 
 function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void }) {
-  const { lead, completarTarea, anularTarea, actividadesDe, descartar, tareasDe } = useCRMData()
+  const { lead, completarTarea, anularTarea, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
   const l = tarea.lead_id ? lead(tarea.lead_id) : undefined
+  // Historial POR LEAD (Fase 1 «sin topes»): el plantón y el retroceso ya no
+  // se leen de la lista global del ámbito, que PostgREST recorta a 1 000 filas.
+  const historial = useActividadesDeLead(tarea.lead_id ?? null)
+  // Sin el historial servido no se afirma nada sobre el lead: ni plantón ni
+  // etapa de retroceso (con señales vacías la función diría «Nuevo» sin base).
+  const historialListo = !historial.cargando && historial.error == null
   const nombreSujeto =
     l?.nombre_completo ??
     (tarea.perfil_id
@@ -256,7 +263,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   // del store (que evalúa el timeline del render ANTERIOR) dejaba pasar un
   // descarte con una conversación recién escrita desmintiéndolo.
   const esConversacion = eleccion?.resultado != null && TIPOS_CONVERSACION_K.has(eleccion.resultado)
-  const planton = tarea.lead_id && !esConversacion ? plantonDe(actividadesDe(tarea.lead_id), ahora) : null
+  const planton = historialListo && tarea.lead_id && !esConversacion ? plantonDe(historial.items, ahora) : null
   const [cerrarLead, setCerrarLead] = useState(false)
   // Solo el cierre por plantón espera al servidor (ver `cerrarPorNoResponde`).
   // Mientras espera, el botón se bloquea: un segundo clic mandaría un cierre de
@@ -379,7 +386,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * store —esta copia es solo para el texto— y por eso las dos no pueden
    * divergir en la escritura, solo, como mucho, en el aviso previo.
    */
-  const retrocesoPrevisto = l != null ? retrocesoPorAnularReunion(l, tarea, tareasDe(l.id), actividadesDe(l.id)) : null
+  const retrocesoPrevisto = historialListo && l != null ? retrocesoPorAnularReunion(l, tarea, tareasDe(l.id), historial.senales) : null
 
   /**
    * ANULAR — sale del diálogo SIN afirmar nada del cliente: ni actividad de
@@ -748,6 +755,13 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 pidió. Anunciarla antes del tap es el mismo trato que el resto
                 del CRM le da a los avances automáticos (ahí se cantan DESPUÉS
                 porque suben; este baja, así que se avisa ANTES). */}
+            {!historialListo && l && (
+              <p id="anular-historial" role="status" className="mt-1.5 text-[11px] font-semibold text-warning-text">
+                {historial.cargando
+                  ? 'Comprobando el historial del lead…'
+                  : 'No se pudo leer el historial: al anular, la etapa podría bajar.'}
+              </p>
+            )}
             {retrocesoPrevisto && l && (
               <p id="anular-retroceso" className="mt-1.5 text-[11px] font-semibold text-warning-text">
                 Era su única cita: {primerNombre(l.nombre_completo)} vuelve a la etapa «
@@ -943,6 +957,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               size="sm"
               aria-describedby={[
                 'anular-que-hace',
+                !historialListo && l ? 'anular-historial' : null,
                 retrocesoPrevisto && l ? 'anular-retroceso' : null,
                 quedaSinPlan && l ? 'anular-sin-plan' : null,
               ]

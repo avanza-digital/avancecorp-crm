@@ -29,6 +29,10 @@ vi.mock('./query-client', () => ({
   queryClient: {
     invalidateQueries: vi.fn().mockResolvedValue(undefined),
     cancelQueries: vi.fn().mockResolvedValue(undefined),
+    // Historial por lead en caché (gates de descartar/retroceso): sin datos,
+    // el store cae a su evidencia local — lo que estas pruebas ejercitan.
+    getQueryData: vi.fn(() => undefined),
+    getQueryState: vi.fn(() => undefined),
   },
 }))
 

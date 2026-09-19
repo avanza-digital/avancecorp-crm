@@ -5846,6 +5846,209 @@ function dimensionesMetasValidas(configuracion) {
   });
 }
 
+// — Historial POR LEAD (Fase 1 «sin topes», migración 20260919185718) ---------
+// La ficha deja de filtrar la lista global del ámbito (PostgREST la recorta a
+// 1 000 filas: un supervisor veía ~4 días de historial de su equipo y gerencia
+// ~2) y pide `crm.actividades_de_lead_fn(p_lead_id, p_limite, p_antes_de,
+// p_antes_id)`: INVOKER (el alcance lo ponen actividades_select y
+// leads_select), 42501 EXPLÍCITO si el lead no es visible (nunca un historial
+// vacío que se confunda con «sin gestiones»), sin ventana de 365 días. Se
+// siembran filas PROPIAS de 400 y 300 días (la de testVentanaActividades se
+// asevera invisible allí; aquí una igual de vieja SÍ debe viajar).
+async function testActividadesDeLead(sessions, seed) {
+  console.log('\n— Historial por lead: completo para quien ve el lead, 42501 para el resto —');
+
+  const juan = LEAD_BY_KEY.juan;
+  const juanLead = seed.leadByName.get(juan.name);
+  const luis = LEAD_BY_KEY.luis; // parkeado en la bandeja de sup1, sin vendedor
+  const luisLead = seed.leadByName.get(luis.name);
+  const carlos = LEAD_BY_KEY.carlos; // de vendNested, bajo sup1Nested, bajo sup1 (recursión)
+  const carlosLead = seed.leadByName.get(carlos.name);
+  const ana = LEAD_BY_KEY.ana; // de vend3, subárbol de sup2
+  const anaLead = seed.leadByName.get(ana.name);
+  const autor = seed.profileIdByKey[juan.sellerKey];
+  const dia = 24 * 60 * 60 * 1000;
+  const hace300 = new Date(Date.now() - 300 * dia).toISOString();
+  // Dos filas con el MISMO creado_en a propósito: el desempate por id es parte
+  // del cursor, y un empate que cruza el borde de página es el caso que falla.
+  const sembradas = [
+    { id: randomUUID(), creado_en: new Date(Date.now() - 400 * dia).toISOString(), detalle: 'gate historial por lead: 400 dias' },
+    { id: randomUUID(), creado_en: hace300, detalle: 'gate historial por lead: 300 dias (empate a)' },
+    { id: randomUUID(), creado_en: hace300, detalle: 'gate historial por lead: 300 dias (empate b)' },
+  ];
+  for (const fila of sembradas) {
+    await requireAdmin(
+      `sembrar actividad propia (${fila.detalle})`,
+      admin.schema('crm').from('actividades').insert({
+        id: fila.id, lead_id: juanLead.id, tipo: 'nota', detalle: fila.detalle,
+        creado_por: autor, creado_en: fila.creado_en,
+      }),
+    );
+  }
+  const rpc = (key, args) => sessions[key].client.schema('crm').rpc('actividades_de_lead_fn', args);
+
+  // Oráculo: el historial COMPLETO de juan en el orden de la RPC.
+  const oraculo = await requireAdmin(
+    'oraculo: historial completo de juan',
+    admin.schema('crm').from('actividades').select('id, tipo, creado_en')
+      .eq('lead_id', juanLead.id)
+      .order('creado_en', { ascending: false }).order('id', { ascending: true }),
+  );
+  const esperados = oraculo.data ?? [];
+  assertSeed(esperados.length >= 3, 'juan necesita al menos 3 actividades para paginar');
+
+  // Quien ve el lead ve TODO su historial, incluida la fila de 400 días.
+  for (const key of ['vend1', 'sup1', 'gerencia', 'directorio']) {
+    const r = await positive(
+      `${key} lee el historial por lead de juan`,
+      rpc(key, { p_lead_id: juanLead.id, p_limite: 500 }),
+    );
+    if (!r) continue;
+    const payload = r.data ?? {};
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const ids = items.map((a) => a.id);
+    check(payload.version === 1 && Array.isArray(payload.items) && payload.senales
+      && typeof payload.senales.tiene_contacto === 'boolean'
+      && typeof payload.senales.tiene_reunion_realizada === 'boolean',
+      `${key}: el payload cumple el contrato {version, items, senales}`);
+    check(ids.length === esperados.length && ids.every((id, i) => id === esperados[i].id),
+      `${key}: recibe el historial COMPLETO de juan en orden (creado_en desc, id asc)`,
+      JSON.stringify({ rpc: ids.length, oraculo: esperados.length }));
+    check(sembradas.every((f) => ids.includes(f.id)),
+      `${key}: la actividad de 400 dias SI viaja (sin ventana de fecha)`);
+    check(items.every((a) => typeof a.autor_nombre === 'string' && a.autor_nombre.length > 0 && a.autor_nombre !== '—'),
+      `${key}: cada gestion trae el nombre de su autor (ayudante DEFINER acotado a crm.equipo)`);
+    check(payload.senales.tiene_reunion_realizada === esperados.some((a) => a.tipo === 'reunion_realizada'),
+      `${key}: senales.tiene_reunion_realizada refleja TODO el historial, no la pagina`);
+  }
+
+  // INVOKER ≡ RLS: lo que la RPC devuelve a vend1 es EXACTAMENTE lo que su
+  // propia sesión ya ve en la tabla (ni una fila más, ni una menos).
+  const directo = await positive(
+    'vend1 lee sus actividades directo de la tabla (oraculo RLS)',
+    sessions.vend1.client.schema('crm').from('actividades').select('id').eq('lead_id', juanLead.id),
+  );
+  const completo = await positive('vend1 pide el historial completo para la equivalencia', rpc('vend1', { p_lead_id: juanLead.id, p_limite: 500 }));
+  if (directo && completo) {
+    const viaRls = new Set((directo.data ?? []).map((f) => f.id));
+    const viaRpc = new Set((completo.data?.items ?? []).map((a) => a.id));
+    check(viaRls.size === viaRpc.size && [...viaRls].every((id) => viaRpc.has(id)),
+      'vend1: la RPC (invoker) devuelve exactamente las filas que su RLS ya le muestra',
+      JSON.stringify({ rls: viaRls.size, rpc: viaRpc.size }));
+  }
+
+  // Paginación keyset: dos pasadas de 2 reconstruyen el prefijo del oráculo
+  // (con el empate de creado_en sembrado arriba cruzando o no el borde).
+  const p1 = await positive('vend1 pide la primera pagina de 2', rpc('vend1', { p_lead_id: juanLead.id, p_limite: 2 }));
+  const ultima = p1?.data?.items?.[1];
+  if (ultima) {
+    const p2 = await positive(
+      'vend1 pide la segunda pagina con el cursor de la primera',
+      rpc('vend1', { p_lead_id: juanLead.id, p_limite: 2, p_antes_de: ultima.creado_en, p_antes_id: ultima.id }),
+    );
+    if (p2) {
+      const concatenado = [...p1.data.items, ...(p2.data.items ?? [])].map((a) => a.id);
+      check(new Set(concatenado).size === concatenado.length,
+        'vend1: las dos paginas no repiten ninguna gestion');
+      check(concatenado.every((id, i) => id === esperados[i]?.id),
+        'vend1: las dos paginas reconstruyen el orden del oraculo sin huecos',
+        JSON.stringify({ paginado: concatenado.length, oraculo: esperados.length }));
+      check(p2.data.senales.tiene_contacto === p1.data.senales.tiene_contacto,
+        'vend1: las senales no dependen de la pagina pedida');
+    }
+  }
+
+  // Denegación EXPLÍCITA (nunca vacío). Dos razones distintas para el 42501:
+  // coordinador PASA la admisión al CRM pero no ve el lead (visibilidad);
+  // vendInactive NO pasa la admisión (P04: revocado ≠ ajeno). Nombrarlas
+  // distinto es lo que hace útil al mutante «quitar el exists de la puerta».
+  for (const key of ['vend3', 'sup2', 'vend2']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} no lee el historial de juan (fuera de su cartera)`,
+      rpc(key, { p_lead_id: juanLead.id }),
+    );
+  }
+  await expectExpectedFailure(
+    'coordinador: admitido al CRM pero sin ambito sobre juan → 42501 de VISIBILIDAD',
+    rpc('coordinador', { p_lead_id: juanLead.id }), ['42501'], /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'vendInactive: membresia revocada → 42501 de ADMISION (P04)',
+    rpc('vendInactive', { p_lead_id: juanLead.id }), ['42501'], /no autorizado/i,
+  );
+  await expectExpectedFailure(
+    'clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION',
+    rpc('clientBank', { p_lead_id: juanLead.id }), ['42501'], /no autorizado/i,
+  );
+  await expectExplicitAuthorizationDenied(
+    'vend1 no lee el historial de un lead de otro subarbol (ana, de vend3)',
+    rpc('vend1', { p_lead_id: anaLead.id }),
+  );
+  // Recursión del subárbol: sup1 ve a carlos (vendNested → sup1Nested → sup1);
+  // sup1Nested ve a carlos pero NO a juan (vend1 cuelga de sup1, no de él).
+  await positive('sup1 lee el historial de carlos (recursion del subarbol)', rpc('sup1', { p_lead_id: carlosLead.id }));
+  await positive('sup1Nested lee el historial de carlos (su propio subarbol)', rpc('sup1Nested', { p_lead_id: carlosLead.id }));
+  await expectExplicitAuthorizationDenied(
+    'sup1Nested no lee el historial de juan (vend1 no cuelga de el)',
+    rpc('sup1Nested', { p_lead_id: juanLead.id }),
+  );
+  // Parkeado: lo ve el supervisor de su bandeja, no un analista del equipo.
+  await positive('sup1 lee el historial del lead parkeado en su bandeja', rpc('sup1', { p_lead_id: luisLead.id }));
+  await expectExplicitAuthorizationDenied(
+    'vend1 no lee el historial de un lead parkeado (sin vendedor)',
+    rpc('vend1', { p_lead_id: luisLead.id }),
+  );
+  await expectExplicitAuthorizationDenied(
+    'sup2 no lee el historial de un parkeado de la bandeja de sup1',
+    rpc('sup2', { p_lead_id: luisLead.id }),
+  );
+  // Inexistente ⇒ misma respuesta que fuera de ámbito: no se distingue.
+  await expectExplicitAuthorizationDenied(
+    'un lead inexistente responde 42501, no un historial vacio',
+    rpc('gerencia', { p_lead_id: randomUUID() }),
+  );
+
+  // Input inválido: 22023 ANTES de leer nada.
+  await expectExpectedFailure('p_limite 0 → 22023', rpc('vend1', { p_lead_id: juanLead.id, p_limite: 0 }), ['22023'], /p_limite/);
+  await expectExpectedFailure('p_limite 501 → 22023', rpc('vend1', { p_lead_id: juanLead.id, p_limite: 501 }), ['22023'], /p_limite/);
+  await expectExpectedFailure(
+    'cursor a medias → 22023',
+    rpc('vend1', { p_lead_id: juanLead.id, p_antes_de: new Date().toISOString() }), ['22023'], /cursor/i,
+  );
+  await expectExpectedFailure('p_lead_id nulo → 22023', rpc('vend1', { p_lead_id: null }), ['22023'], /p_lead_id/);
+
+  // ACL + forma (vía fuera de banda del banco): puerta y núcleo INVOKER, ayudante
+  // el único DEFINER, EXECUTE exactamente para authenticated, gate propio en OK.
+  if (process.env.CRM_BANCO_PSQL_URL) {
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`historial por lead: ${etiqueta}`, sql);
+    check(cuenta('grants', `select count(*) from unnest(array['crm.actividades_de_lead_fn(uuid,integer,timestamptz,uuid)','private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)','private.nombre_de_autor(uuid)']) f(firma)
+      where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+         or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+      'historial por lead: las tres funciones exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('invoker', `select count(*) from pg_proc p where p.oid in ('crm.actividades_de_lead_fn(uuid,integer,timestamptz,uuid)'::regprocedure, 'private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)'::regprocedure) and not p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""']`) === 2,
+      'historial por lead: puerta y nucleo son INVOKER, stable y con search_path vacio');
+    check(cuenta('definer', `select count(*) from pg_proc p where p.oid = 'private.nombre_de_autor(uuid)'::regprocedure and p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""'] and strpos(p.prosrc, 'puede_acceder_crm') > 0`) === 1,
+      'historial por lead: el ayudante del nombre de autor es el unico DEFINER, stable, con search_path vacio y gate interno');
+    check(cuenta('gate revocado', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol), unnest(array['private.assert_actividades_de_lead()','private.assert_actividades_de_lead_base()']) f(firma) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`) === 0,
+      'historial por lead: los dos trinquetes no tienen EXECUTE para la API');
+    check(textoFueraDeBanda('gate propio', 'select private.assert_actividades_de_lead()').startsWith('OK'),
+      'historial por lead: el trinquete private.assert_actividades_de_lead() responde OK');
+    // Mutantes (una defensa, un mutante): cada mutación vive en una
+    // subtransacción que se deshace; un mutante NO detectado hace fallar la
+    // función con su nombre, y aquí eso es un rojo, no una excepción suelta.
+    let mutantes = '';
+    try {
+      mutantes = textoFueraDeBanda('mutantes del trinquete', 'select private.assert_actividades_de_lead_mutantes()');
+    } catch (error) {
+      mutantes = `FALLO: ${error?.message ?? String(error)}`;
+    }
+    check(mutantes.startsWith('OK'), `historial por lead: los 5 mutantes del trinquete fueron detectados (${mutantes})`);
+  } else {
+    console.log('  · ACL/forma del historial por lead: NOT RUN (sin CRM_BANCO_PSQL_URL)');
+  }
+}
+
 // — Ventana de actividades del ámbito (F0 del plan de escalabilidad) ---------
 // 20260808163638 recorta actividades_del_ambito_fn a 365 días + limit 10000.
 // Se siembra con service_role una actividad VIEJA (400 días) sobre un lead de
@@ -12630,6 +12833,11 @@ async function testAnon(seed) {
     ['42501', 'PGRST202'],
   );
   await expectExplicitAuthorizationDenied(
+    'anon no ejecuta el historial por lead',
+    anon.schema('crm').rpc('actividades_de_lead_fn', { p_lead_id: LEADS[0].id }),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
     'anon no ejecuta la cartera paginada por keyset',
     anon.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
     ['42501', 'PGRST202'],
@@ -13217,6 +13425,7 @@ async function main() {
       await testReporteDerivacionesEquipo(sessions, verifiedSeed);
       await testOffboardingMatrix(sessions, verifiedSeed);
       await testVentanaActividades(sessions, verifiedSeed);
+      await testActividadesDeLead(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);

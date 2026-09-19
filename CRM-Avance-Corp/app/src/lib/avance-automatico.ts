@@ -32,11 +32,10 @@
 // ninguna reunión viva no conserva un hecho: sostiene uno falso, y el más caro,
 // porque ese lead deja de aparecer como pendiente de agendar en toda la cola.
 // Ver `retrocesoPorAnularReunion` al final del archivo.
+import type { SenalesLead } from './historial-lead'
 import {
   TERMINALES_K,
-  TIPOS_CONTACTO_K,
   TIPOS_CONVERSACION_K,
-  type Actividad,
   type EtapaActiva,
   type Lead,
   type Tarea,
@@ -170,7 +169,11 @@ export function retrocesoPorAnularReunion(
   lead: Pick<Lead, 'etapa' | 'activo' | 'vendedor_id' | 'asignado_supervisor_id'>,
   tarea: Pick<Tarea, 'id' | 'tipo'>,
   tareasDelLead: readonly Pick<Tarea, 'id' | 'tipo' | 'estado' | 'activo'>[],
-  actividadesDelLead: readonly Pick<Actividad, 'tipo'>[],
+  // Señales «alguna vez» sobre TODO el historial (lib/historial-lead.ts), no
+  // una página de él: desde la Fase 1 «sin topes» el timeline llega paginado
+  // y una `reunion_realizada` fuera de la primera página bajaría el lead por
+  // error. En demo y en tests se derivan con `senalesDesdeActividades`.
+  senales: Pick<SenalesLead, 'tieneReunionRealizada' | 'tieneContacto'>,
 ): Avance {
   if (!lead.activo || TERMINALES_K.has(lead.etapa)) return null
   if (lead.etapa !== 'reunion_agendada') return null
@@ -180,6 +183,6 @@ export function retrocesoPorAnularReunion(
     (t) => t.id !== tarea.id && t.tipo === 'reunion' && t.estado === 'pendiente' && t.activo,
   )
   if (quedaOtraReunion) return null
-  if (actividadesDelLead.some((a) => a.tipo === 'reunion_realizada')) return null
-  return actividadesDelLead.some((a) => TIPOS_CONTACTO_K.has(a.tipo)) ? 'contactado' : 'nuevo'
+  if (senales.tieneReunionRealizada) return null
+  return senales.tieneContacto ? 'contactado' : 'nuevo'
 }

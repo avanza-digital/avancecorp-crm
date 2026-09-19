@@ -1,0 +1,29 @@
+{
+  "migracion": "20260919185718_crm_actividades_de_lead.sql",
+  "ensayo": {
+    "donde": "banco-f7 (cwkiejoaqadcnaieghnf), rama de Supabase a paridad de policies con prod",
+    "cuando": "2026-09-19 ~15:00 America/Lima",
+    "divergencia": "los 4 perform private.assert_sla_*() del postflight comentados solo en la copia del banco (no tiene el mundo SLA); ver supabase/scripts/banco/parches/DIVERGENCIAS.md. La copia del banco omitio ademas comentarios INTERNOS de los cuerpos de la puerta y del nucleo (sin efecto funcional), por eso sus md5 de pg_get_functiondef alli (edef0f86…, b00cc581…) no valen para el registrador",
+    "gate": "OK",
+    "mutantes": "OK: 5 mutantes detectados por private.assert_actividades_de_lead()",
+    "matriz_sql": "11 usuarios x 4 leads exacta bajo set role authenticated + request.jwt.claims; equivalencia RPC=RLS 320/320; keyset 2+2 sin repetidos; 22023/42501 correctos; anon 42501",
+    "explain_vend1": "Index Scan using idx_actividades_lead (Index Cond lead_id) + Incremental Sort",
+    "test_rls_http": "NOT RUN (sin SUPABASE_SERVICE_ROLE_KEY ni CRM_DEMO_PASSWORD en la sesion)"
+  },
+  "produccion": {
+    "instalada": "2026-09-19 ~15:50 America/Lima por Miguel con `!` + db query --linked --file (archivo exacto)",
+    "gate_tras_instalar": "OK",
+    "exec_authenticated": true,
+    "exec_anon": false,
+    "md5_medidos_en": "produccion, tras la instalacion (pg_get_functiondef del archivo exacto)"
+  },
+  "md5_puerta": "34c9f8cfc529fe432f1081e990b42912",
+  "md5_nucleo": "ef77de1e7f58ee8abe294678a103785c",
+  "md5_ayudante": "c9eed135efa0c03a04360bfcf9bdf490",
+  "md5_gate": "2061666b6cd181a1f8ed52e7660ccf26",
+  "policies_selladas": {
+    "actividades_select": "e80e3af900b8d9616c28dcd836f1ac94",
+    "leads_select": "073deaeb5700bac14209ec795b71567e",
+    "medidas_en": "produccion 2026-09-19 (identicas en el banco)"
+  }
+}

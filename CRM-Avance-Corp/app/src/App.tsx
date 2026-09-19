@@ -389,12 +389,12 @@ function Workspace() {
         ctx.leadsVisibles,
         ctx.rolPortal,
       )
-      let leadDestino = destino === leido.vista ? leido.leadId : null
-      // Lead fuera del ÁMBITO por rol (o inexistente) → se ignora: el hash no
-      // puede abrir fichas que la RLS espejo (F1c) no le muestra al usuario.
-      if (leadDestino != null && !ctx.leads.some((l) => l.id === leadDestino)) {
-        leadDestino = null
-      }
+      // El hash NO se contrasta contra la foto de leads en memoria: esa foto
+      // está capada (MAX_LEADS_AMBITO) y dejaba inabrible por enlace a todo lead
+      // que no cupiera en ella (Fase 1 «sin topes», 19/09/2026). `abrirLead`
+      // relee cualquier lead por id a través de su propia puerta RLS y avisa si
+      // ya no está disponible — esa es la comprobación de ámbito que vale.
+      const leadDestino = destino === leido.vista ? leido.leadId : null
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
       escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined,
         destino === 'hoy' && (ctx.rol === 'gerencia' || recibeRespuestasTasa(ctx.rol)) ? leido.solicitudTasaId : undefined)
