@@ -1,0 +1,23 @@
+{
+  "estado": "PASS",
+  "banco": "cartera_procedencia_20260919",
+  "fecha": "2026-09-19T21:23:43.003Z",
+  "migracion": "20260919211105_crm_leads_grant_columna_procedencia.sql",
+  "migracion_sha256": "407d8f0b2791e880521d1c9defe01ff2d90c806de1e5933b45f0ff6d559e20be",
+  "reversa_sha256": "882d03084402408b6cef7f54b332cb4d47e7880da4521af45fb199f0b4853404",
+  "registrador": "registrar-20260919211105.sql",
+  "relacl": "{postgres=arwdDxtm/postgres,authenticated=rw/postgres,service_role=arwd/postgres}",
+  "attacl": "{authenticated=r/postgres,service_role=r/postgres}",
+  "actor_oraculo": "analista activo de la copia",
+  "hallazgo": "REVOKE SELECT ON TABLE arrastra las ACL por columna del mismo privilegio (PG 17): el grant por columna es convención y registro, no una red contra el revoke de tabla",
+  "pasos": [
+    "paridad de ACL con producción",
+    "hecho: el revoke de tabla arrastra la ACL por columna",
+    "instalación deshecha",
+    "guarda del preflight (ACL previa)",
+    "instalación + ACL exacta + anon sin lectura + otras intactas",
+    "cierre simulado a privilegios por columna: las dos entran en la lista a reponer",
+    "oráculo como analista (select directo + RPC invoker)",
+    "guardas de la reversa + reversa + reinstalación"
+  ]
+}
