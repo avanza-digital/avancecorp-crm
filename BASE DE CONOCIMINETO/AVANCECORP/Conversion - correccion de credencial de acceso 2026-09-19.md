@@ -87,3 +87,12 @@ revisión y patch; excluye las claves recuperadas durante el diagnóstico.
 
 Seguimiento fuera del arreglo urgente: distinguir fallos internos de servicio
 de errores de sesión al clasificar HTTP y consolidar las cabeceras compartidas.
+
+## Recuperación observada en producción
+
+Después de informar al usuario que podía reintentar, la consulta de solo lectura
+de su solicitud encontró un único usuario Auth, un único perfil y el estado de
+acceso `enlazado`. La inversión seguía `preparada`, pendiente de confirmación por
+el usuario. Esto confirma que el bloqueo de creación del acceso quedó resuelto
+en el caso real. El PRIMARY sólo observó el resultado: no creó el acceso ni
+confirmó la inversión mediante herramientas.
