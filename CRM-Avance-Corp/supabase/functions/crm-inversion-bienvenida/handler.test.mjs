@@ -30,3 +30,41 @@ test('la plantilla trata el nombre como texto, sin incluir el documento',()=>{
   assert(!cuerpo.html.includes('<script>'));assert(cuerpo.html.includes('&lt;script&gt;'));
   assert.deepEqual(cuerpo.to,['persona@example.test']);
 });
+
+for (const serviceKey of ['sb_secret_SERVICIO_FICTICIO', 'cabecera.servicio.firma']) {
+  test(`reclama y confirma bienvenida con ${serviceKey.startsWith('sb_secret_') ? 'secret key' : 'JWT legacy'}`, async () => {
+    const pasos = [], clave = `bienvenida:${id}:v1`, token = 'token-ficticio';
+    const h = crearHandlerBienvenida({ supabaseUrl: 'https://local.invalid',
+      anonKey: 'sb_publishable_PUBLICA_FICTICIA', serviceKey, resendKey: 'proveedor-prueba',
+      fetchImpl: async (url, opciones) => {
+        const headers = new Headers(opciones.headers), body = JSON.parse(opciones.body);
+        if (url.endsWith('/bienvenida_inversion_estado_fn')) {
+          pasos.push('estado');
+          assert.equal(headers.get('apikey'), 'sb_publishable_PUBLICA_FICTICIA');
+          assert.equal(headers.get('Authorization'), 'Bearer prueba');
+          return Response.json({ estado: 'pendiente' });
+        }
+        if (url === 'https://api.resend.com/emails') {
+          pasos.push('proveedor');
+          assert.equal(headers.get('Authorization'), 'Bearer proveedor-prueba');
+          assert.equal(headers.get('apikey'), null);
+          assert.equal(headers.get('Idempotency-Key'), clave);
+          assert.deepEqual(body.to, ['persona@example.test']);
+          return Response.json({ id: 'envio-ficticio' });
+        }
+        assert(url.endsWith('/bienvenida_inversion_entrega_fn'));
+        assert.equal(headers.get('apikey'), serviceKey);
+        assert.equal(headers.get('Authorization'), serviceKey.startsWith('sb_secret_') ? null : `Bearer ${serviceKey}`);
+        assert.equal(headers.get('Content-Profile'), 'crm');
+        pasos.push(body.p_paso);
+        if (body.p_paso === 'reclamar') return Response.json({ estado: 'enviar', clave, token,
+          nombre: 'Persona ficticia', correo: 'persona@example.test' });
+        assert.equal(body.p_token, token); assert.equal(body.p_proveedor_id, 'envio-ficticio');
+        return Response.json({ estado: 'enviada' });
+      },
+    });
+    const r = await h(pedido());
+    assert.equal(r.status, 200); assert.deepEqual(await r.json(), { estado: 'enviada' });
+    assert.deepEqual(pasos, ['estado', 'reclamar', 'proveedor', 'confirmar']);
+  });
+}
