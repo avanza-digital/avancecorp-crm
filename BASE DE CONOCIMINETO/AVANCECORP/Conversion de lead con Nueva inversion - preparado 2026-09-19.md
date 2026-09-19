@@ -1,11 +1,11 @@
 ---
-tags: [crm, cartera, inversiones, conversion, preparado]
+tags: [crm, cartera, inversiones, conversion, publicado]
 actualizado: 2026-09-19
 ---
 
 # Conversión de lead mediante Nueva inversión
 
-**SQL AUTORIZADO; VERIFICADO LOCALMENTE Y EN SUPABASE. SIN PUBLICAR EN PRODUCCIÓN.**
+**PUBLICADO EN PRODUCCIÓN EL 19/09/2026: SQL, EDGE Y FRONTEND VERIFICADOS.**
 
 Miguel pidió que «Convertir a cliente» use el mismo proceso que «Nueva inversión»
 de Cartera, que considera la referencia correcta. La conversión anterior tenía
@@ -44,7 +44,7 @@ Trabajo: `/private/tmp/avancecorp-conversion-wt`, rama
 `faccafe040abb88d37aabd68b2927362c4554b72`: se conservan el modo integral de
 rentabilidad y la entrevista al asistir de la otra sesión.
 
-## Evidencia y siguiente paso
+## Evidencia y publicación
 
 PASS: 3.694 pruebas frontend y build, 15 casos HTTP con Auth/PostgREST/Storage
 reales en banco sintético, oráculo económico y reversa, permisos, Edge y scripts.
@@ -69,10 +69,31 @@ El [acta remota](../../CRM-Avance-Corp/supabase/scripts/conversion-inversion/ins
 conserva equivalencia del esquema, resultados y límites. CI del
 [PR #23](https://github.com/avanza-digital/avancecorp-crm/pull/23) aprobado.
 
-Pendiente: instalación coordinada de SQL, Edge y frontend por el flujo del
-proyecto. La candidata bloquea la conversión antigua, por lo que no debe
-activarse antes de poder publicar la web correspondiente. La autorización del
-SQL persiste; la publicación necesita la invocación humana de `$release-crm`.
+Miguel invocó `$release-crm` y `miguejbs98` aprobó el PR #23 en GitHub. Se publicó
+desde Main limpio `29d7aa202492ed7dbd9cbb62d7667953f50a1514`, con el mismo árbol
+de la versión revisada y CI aprobado. La migración efectiva es `20260919182218`:
+el merge separa el SQL aprobado en 62 sentencias literalmente comprobadas.
+La Edge de bienvenida conserva exactamente las fuentes probadas.
+
+Web: `build-20260919T181821426Z`, ZIP `crm-20260919T181822Z-29d7aa202492.zip`,
+SHA-256 `0e4624f42a89a319e317ab3ec361b8f074fb9e222f2ac2e6eefac5ad653d412f`.
+92 respuestas HTTP 200 y 81 huellas exactas, incluidos los 63 JS/CSS. Once PNG
+mantienen la transformación CDN histórica y sus originales no cambiaron.
+Ocho comprobaciones HTTP productivas de autorización/CORS conformes. Datos
+financieros, flags y los nueve Cron iguales antes/después. No se enviaron correos
+ni se crearon inversiones reales para probar.
+
+Ambos bancos exclusivos eliminados y ausencia confirmada; gasto estimado total
+US$0,022142, inferior al límite de US$5. `banco-f7` y el trabajo de la otra sesión
+se conservaron. Navegación autenticada en producción: NOT RUN, navegador
+integrado no disponible; las pruebas de escritorio/móvil del banco sí pasaron.
+
+El [acta de publicación](../../CRM-Avance-Corp/supabase/scripts/conversion-inversion/instalacion/PUBLICADO-20260919.md)
+conserva fuente, huellas, pruebas, advisors, recuperación y límites. Las actas
+posteriores no cambian el commit de origen del artefacto ya publicado.
+
+Sesión cerrada por Miguel: [[Conversion e inversiones - cierre de sesion 2026-09-19]]
+registra el respaldo persistente y el estado del PR documental.
 
 Relacionado: [[Cartera multiempresa - publicacion (2026-09-16)]],
 [[Interruptor integral de rentabilidad - preparado 2026-09-18]],
