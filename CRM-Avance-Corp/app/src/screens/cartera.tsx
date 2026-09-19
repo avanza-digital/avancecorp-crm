@@ -12,7 +12,8 @@ import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/compon
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
-import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen } from '@/lib/tipos'
+import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
+import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
@@ -34,6 +35,15 @@ const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE
 type FiltroEtapa = 'todas' | Etapa
 /** 'todos' | un origen del catálogo completo (vigentes e históricos). */
 type FiltroOrigen = 'todos' | Origen
+/** 'todas' | sistema (puente) | manual (registrado por una persona). */
+type FiltroProcedencia = 'todas' | Procedencia
+
+/** Texto de la procedencia para el lector de pantalla; undefined si no viaja. */
+function descripcionProcedencia(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null }): string | undefined {
+  if (l.procedencia === 'manual') return `Registro manual${l.cargado_por_nombre ? `, por ${l.cargado_por_nombre}` : ''}`
+  if (l.procedencia === 'sistema') return 'Del sistema'
+  return undefined
+}
 /** 'todos' | 'sin_asignar' | perfil_id de un analista del ámbito. */
 type FiltroVendedor = string
 
@@ -53,6 +63,7 @@ export function Cartera() {
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
+  const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
   const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
@@ -74,9 +85,9 @@ export function Cartera() {
   const cartera = useCarteraPaginada(
     leadsDeConsulta,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen,
+      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc,
         recepcion: periodo }),
-      [fEtapa, fVend, qDiferido, fOrigen, periodo],
+      [fEtapa, fVend, qDiferido, fOrigen, fProc, periodo],
     ),
   )
   const resumen = rangoValido ? cartera.resumen ?? null : null
@@ -126,7 +137,7 @@ export function Cartera() {
     return { stats, segmentos }
   }, [resumen, etiquetaConvertidos, detalleConvertidos])
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fVend !== 'todos' || modoFecha !== 'todas'
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -139,6 +150,10 @@ export function Cartera() {
       ...l,
       vendedor_nombre: l.vendedor_nombre
         ?? (l.vendedor_id ? nombrePorId.get(l.vendedor_id) ?? null : null),
+      // El autor del alta se resuelve con el mismo equipo visible; si no está
+      // (alguien fuera del ámbito), el chip dice solo «Manual».
+      cargado_por_nombre: l.cargado_por_nombre
+        ?? (l.cargado_por ? nombrePorId.get(l.cargado_por) ?? null : null),
     })),
     [cartera.leads, nombrePorId, rangoValido],
   )
@@ -228,6 +243,15 @@ export function Cartera() {
             </optgroup>
           </Select>
         </div>
+        {/* Procedencia: quién lo metió (puente vs. persona). Es otra pregunta que
+            el origen: desde el 01/09 un LANDING puede haberlo cargado un analista. */}
+        <div className="w-[190px]">
+          <Select aria-label="Filtrar por procedencia" value={fProc} onChange={(e) => { setFProc(e.target.value as FiltroProcedencia) }}>
+            <option value="todas">Sistema y manual</option>
+            <option value="sistema">Solo del sistema</option>
+            <option value="manual">Solo registro manual</option>
+          </Select>
+        </div>
         <FiltroFechaCartera modo={modoFecha} rango={rangoFecha} hoy={hoy}
           invalido={!rangoValido} onModo={(modo) => {
             setModoFecha(modo)
@@ -250,7 +274,7 @@ export function Cartera() {
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
-          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFVend('todos'); setModoFecha('todas')
+          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFVend('todos'); setModoFecha('todas')
         }}>Limpiar filtros</Button>}
         {rangoValido && !cartera.cargando && (
           <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
@@ -332,6 +356,10 @@ export function Cartera() {
                       tabIndex={0}
                       // aria-label sobre role="row" (role="button" rompería la semántica de tabla)
                       aria-label={`Abrir ficha de ${l.nombre_completo}`}
+                      // La procedencia también llega al lector de pantalla (como
+                      // descripción), sin cambiar el nombre accesible que ya usan
+                      // tests y atajos.
+                      aria-describedby={descripcionProcedencia(l) ? `procedencia-${l.id}` : undefined}
                       onClick={() => abrirLead(l.id)}
                       onKeyDown={(ev) => {
                         if (ev.key === 'Enter' || ev.key === ' ') {
@@ -348,13 +376,24 @@ export function Cartera() {
                             <div className="leading-tight">
                               {/* text-[13px]: misma densidad de nombre que FilaCliente/
                                   FilaContrato — las tres carteras leen como una familia. */}
-                              <p className="text-[13px] font-semibold">{l.nombre_completo}</p>
+                              <p className="flex items-center gap-1.5 text-[13px] font-semibold">
+                                {l.nombre_completo}
+                                {/* Procedencia a simple vista, pegada al nombre: lo manual
+                                    en azul, lo del sistema en gris silencioso. */}
+                                <ChipProcedencia lead={l} />
+                                {descripcionProcedencia(l) && (
+                                  <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
+                                )}
+                              </p>
                               <p className="text-xs tabular-nums text-muted-foreground">
                                 {l.telefono}
                                 {/* El ORIGEN vive aquí como sub-dato del lead (antes se
                                     colaba en la columna Categoría y rompía la comparación
                                     vertical); también sigue en el hover-card. */}
                                 <span> · {origenLabel(l.origen)}</span>
+                                {l.procedencia === 'manual' && l.cargado_por_nombre && (
+                                  <span className="normal-case"> · registrado por {l.cargado_por_nombre}</span>
+                                )}
                               </p>
                             </div>
                           </div>

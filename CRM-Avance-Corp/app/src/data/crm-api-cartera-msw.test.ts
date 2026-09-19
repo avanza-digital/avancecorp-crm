@@ -89,6 +89,54 @@ describe('cartera integrada: listado y total del mismo filtro', () => {
     server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
     await expect(listarCarteraPagina({ ...filtros, origen: 'landing' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
+
+  // Procedencia (19/09): mismo contrato que origen — viaja solo cuando recorta,
+  // vuelve como eco, y las filas traen `procedencia` + `cargado_por`.
+  function payloadManual() {
+    const payload = payloadFiltrado()
+    return {
+      ...payload, procedencia: 'manual',
+      items: payload.items.map((i) => ({ ...i, procedencia: 'manual', cargado_por: 'perfil-autor' })),
+    }
+  }
+  it('la procedencia viaja solo cuando recorta y vuelve aplicada con el autor por fila', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(payloadManual())
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, procedencia: 'manual' }, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03', p_procedencia: 'manual' })
+    expect(pagina.items).toHaveLength(50)
+    expect(pagina.items.every((l) => l.procedencia === 'manual' && l.cargado_por === 'perfil-autor')).toBe(true)
+  })
+  it('«todas» no viaja, y un servidor sin procedencia deja el lead sin chip (null), nunca inventado', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(payloadFiltrado())
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, procedencia: 'todas' }, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03' })
+    expect(pagina.items[0]?.procedencia).toBeNull()
+    expect(pagina.items[0]?.cargado_por).toBeNull()
+  })
+  it('sin filtro, la fila del sistema llega con procedencia y sin autor', async () => {
+    const payload = payloadFiltrado()
+    payload.items = payload.items.map((i) => ({ ...i, procedencia: 'sistema', cargado_por: null }))
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json({ ...payload, procedencia: null })))
+    const pagina = await listarCarteraPagina(filtros, null)
+    expect(pagina.items[0]).toMatchObject({ procedencia: 'sistema', cargado_por: null })
+  })
+  it.each(['sin eco', 'otra procedencia', 'fila ajena', 'valor inválido'])('con procedencia pedida rechaza el payload que no la honra: %s', async (caso) => {
+    const payload: Record<string, unknown> = payloadManual()
+    if (caso === 'sin eco') delete payload.procedencia
+    if (caso === 'otra procedencia') payload.procedencia = 'sistema'
+    if (caso === 'fila ajena') (payload.items as Array<Record<string, unknown>>)[3]!.procedencia = 'sistema'
+    if (caso === 'valor inválido') (payload.items as Array<Record<string, unknown>>)[3]!.procedencia = 'puente'
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
+    await expect(listarCarteraPagina({ ...filtros, procedencia: 'manual' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
 })
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

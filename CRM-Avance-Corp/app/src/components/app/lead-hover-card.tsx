@@ -8,7 +8,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { money, fmtFecha } from '@/lib/format'
-import { CAT_LABEL, ETAPA_INFO, MOTIVOS_DESCARTE, origenLabel, type Lead } from '@/lib/tipos'
+import { CAT_LABEL, ETAPA_INFO, MOTIVOS_DESCARTE, origenLabel, textoCargadoPor, type Lead } from '@/lib/tipos'
 
 function Fila({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -54,6 +54,7 @@ export function LeadHoverCard({ lead, children }: { lead: Lead; children: ReactN
             <span className="tabular-nums">{lead.telefono}</span>
           </Fila>
           <Fila label="Origen">{origenLabel(lead.origen)}</Fila>
+          {textoCargadoPor(lead) && <Fila label="Cargado por">{textoCargadoPor(lead)}</Fila>}
           {lead.categoria_interes && <Fila label="Interés">{CAT_LABEL[lead.categoria_interes]}</Fila>}
           <Fila label="Creado">{fmtFecha(lead.creado_en)}</Fila>
           {lead.etapa === 'descartado' && motivo && <Fila label="Descarte">{motivo}</Fila>}

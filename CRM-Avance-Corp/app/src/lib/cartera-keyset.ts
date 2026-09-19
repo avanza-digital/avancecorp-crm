@@ -1,4 +1,4 @@
-import type { Etapa, Lead, Origen } from './tipos'
+import type { Etapa, Lead, Origen, Procedencia } from './tipos'
 import { coincideFechaRecepcionDemo, type RangoFechaCartera } from './filtro-fecha-cartera'
 
 /**
@@ -35,6 +35,8 @@ export interface FiltrosCarteraLocal {
   texto?: string
   /** Origen del lead (catálogo completo, históricos incluidos); «todos» no recorta. */
   origen?: Origen | 'todos'
+  /** Procedencia (sistema/manual); «todas» no recorta. */
+  procedencia?: Procedencia | 'todas'
   /** Vista previa local: el servidor real conserva su contrato hasta integrar el ledger. */
   recepcionDemo?: RangoFechaCartera | null
 }
@@ -92,6 +94,9 @@ export function filtrarCarteraLocal(
     if (!coincideFechaRecepcionDemo(l, filtros.recepcionDemo)) return false
     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
     if (filtros.origen && filtros.origen !== 'todos' && l.origen !== filtros.origen) return false
+    // Sin dato de procedencia el lead NO coincide con ningún recorte: un
+    // «sistema» inventado sobre un lead sin sello sería un dato falso.
+    if (filtros.procedencia && filtros.procedencia !== 'todas' && l.procedencia !== filtros.procedencia) return false
     if (filtros.vendedorId === 'sin_asignar') {
       if (l.vendedor_id != null) return false
     } else if (filtros.vendedorId && filtros.vendedorId !== 'todos'

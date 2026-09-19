@@ -130,6 +130,44 @@ describe('Cartera · vista previa local conectada', () => {
     expect((screen.getByLabelText('Filtrar por origen') as HTMLSelectElement).value).toBe('todos')
   })
 
+  it('la procedencia se ve en cada fila (con el autor resuelto por el equipo) y su filtro recorta la misma base', () => {
+    montarVistaPrevia('supervisor', [
+      lead({ id: 'manual', nombre_completo: 'LEAD A MANO', origen: 'landing', procedencia: 'manual', cargado_por: 'v-1', monto_estimado: 7000 }),
+      lead({ id: 'puente', nombre_completo: 'LEAD DEL PUENTE', origen: 'landing', procedencia: 'sistema', cargado_por: null, monto_estimado: 500 }),
+    ])
+    const filaManual = screen.getByRole('row', { name: /LEAD A MANO/ })
+    expect(within(filaManual).getByText('Manual')).toBeInTheDocument()
+    expect(within(filaManual).getByText(/registrado por ANA TORRES/)).toBeInTheDocument()
+    // El lector de pantalla recibe la procedencia como descripción de la fila,
+    // sin cambiar el nombre accesible «Abrir ficha de …».
+    expect(filaManual).toHaveAccessibleName('Abrir ficha de LEAD A MANO')
+    expect(filaManual).toHaveAccessibleDescription('Registro manual, por ANA TORRES')
+    const filaPuente = screen.getByRole('row', { name: /LEAD DEL PUENTE/ })
+    expect(within(filaPuente).getByText('Sistema')).toBeInTheDocument()
+    expect(within(filaPuente).queryByText(/registrado por/)).not.toBeInTheDocument()
+    expect(filaPuente).toHaveAccessibleDescription('Del sistema')
+    // Los leads sin sello (servidor anterior) no llevan chip ni descripción: nada inventado.
+    const filaSinSello = screen.getByRole('row', { name: /LEAD DE HOY/ })
+    expect(within(filaSinSello).queryByText(/Manual|Sistema/)).not.toBeInTheDocument()
+    expect(filaSinSello).not.toHaveAttribute('aria-describedby')
+
+    fireEvent.change(screen.getByLabelText('Filtrar por procedencia'), { target: { value: 'manual' } })
+    expect(screen.getByText('LEAD A MANO')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD DEL PUENTE')).not.toBeInTheDocument()
+    expect(screen.queryByText('LEAD DE HOY')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 7,000')).toBeInTheDocument()
+    // Compone con el origen: LANDING a mano existe; LANDING del puente, con este filtro, no.
+    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'landing' } })
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por procedencia'), { target: { value: 'sistema' } })
+    expect(screen.getByText('LEAD DEL PUENTE')).toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(within(chipDe('Total leads')).getByText('5')).toBeInTheDocument()
+    expect((screen.getByLabelText('Filtrar por procedencia') as HTMLSelectElement).value).toBe('todas')
+  })
+
   it('supervisor: combina la recepción con el analista elegido', () => {
     montarVistaPrevia('supervisor')
     fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })
