@@ -10614,8 +10614,11 @@ vista» (chip por fila, ficha y tarjeta) y con un filtro más.
 - Auditor RLS (subagente, 19/09): sin P0/P1. P3 anotados, fuera de esta entrega:
   (a) `alta_manual` / `creado_por` son legibles por el grant de TABLA, no hay
   grant por columna → migración aparte pendiente (`grant select (alta_manual,
-  creado_por) on crm.leads to authenticated, service_role`); (b) `test-rls.mjs`
-  no cubre `cartera_filtrada_fn` en ninguna firma (como el 13/09 y el 16/09).
+  creado_por) on crm.leads to authenticated, service_role`) → hecho en
+  `20260919211105`; (b) `test-rls.mjs` no cubría `cartera_filtrada_fn` en ninguna
+  firma (como el 13/09 y el 16/09) → casos añadidos el 19/09 en `testCarteraKeyset`
+  (eco, forma de fila, partición sistema+manual=todo, ámbito RLS, 22023 fuera de
+  dominio, anon 42501 para los 6 roles); NOT RUN en banco (exige rama + seed).
 - Estado del gate al preparar: producción tiene 35 contadores y
   `crm.contrato_eliminar_auditado(uuid,uuid)` sin declarar (rojo ajeno, igual que
   el 16/09). Esta migración no lo tapa: exige que quede igual.

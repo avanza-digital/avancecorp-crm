@@ -9169,7 +9169,65 @@ async function testCarteraKeyset(sessions, seed) {
         }
       }
     }
+
+    // Procedencia (20260919170500): cartera_filtrada_fn parte la MISMA cartera
+    // en sistema + manual sin salirse del ambito RLS, con eco y filas coherentes.
+    // Sin valor fijo esperado: el seed no fija alta_manual, asi que se mide la
+    // particion (sistema + manual = todo) y la forma de cada fila; el dominio
+    // se prueba por su rechazo (22023, nunca un cero silencioso).
+    const carteraTotal = await positive(
+      `${key} obtiene cartera_filtrada_fn sin procedencia`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200 }),
+    );
+    const carteraManual = await positive(
+      `${key} obtiene cartera_filtrada_fn con procedencia manual`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200, p_procedencia: 'manual' }),
+    );
+    const carteraSistema = await positive(
+      `${key} obtiene cartera_filtrada_fn con procedencia sistema`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200, p_procedencia: 'sistema' }),
+    );
+    if (carteraTotal && carteraManual && carteraSistema) {
+      const t = carteraTotal.data ?? {};
+      const m = carteraManual.data ?? {};
+      const s = carteraSistema.data ?? {};
+      const filaValida = (f) => ['sistema', 'manual'].includes(f.procedencia)
+        && 'cargado_por' in f
+        && (f.procedencia !== 'sistema' || f.cargado_por === null);
+      check(t.procedencia === null && m.procedencia === 'manual' && s.procedencia === 'sistema',
+        `${key}: el eco de procedencia es exactamente el pedido`,
+        JSON.stringify({ total: t.procedencia, manual: m.procedencia, sistema: s.procedencia }));
+      check((t.items ?? []).every(filaValida),
+        `${key}: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)`);
+      check((m.items ?? []).every((f) => f.procedencia === 'manual')
+        && (s.items ?? []).every((f) => f.procedencia === 'sistema'),
+        `${key}: cada recorte solo trae su propia procedencia`);
+      const vivos = (d) => Number(d.resumen?.totales?.vivos ?? -1);
+      check(vivos(t) >= 0 && vivos(t) === vivos(m) + vivos(s),
+        `${key}: sistema + manual reconstruyen toda su cartera`,
+        JSON.stringify({ total: vivos(t), manual: vivos(m), sistema: vivos(s) }));
+      check([...(m.items ?? []), ...(s.items ?? [])].every((f) => idsVisibles.has(f.id)),
+        `${key}: ningun recorte por procedencia se sale de lo que su RLS ya mostraba`);
+      if (key === 'vend1') {
+        check([...(m.items ?? []), ...(s.items ?? [])].every((f) => f.vendedor_id === sessions.vend1.user.id),
+          'vend1: con procedencia sigue viendo solo leads propios');
+      }
+    }
+    await expectExplicitAuthorizationDenied(
+      `${key} recibe 22023 con una procedencia fuera de dominio`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_procedencia: 'automatico' }),
+      ['22023'],
+    );
   }
+
+  // Anon no llega ni a la validacion de dominio: la firma nueva existe (no es
+  // PGRST202) y se niega por permisos.
+  const anonProcedencia = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-procedencia'));
+  await expectExplicitAuthorizationDenied(
+    'anon recibe 42501 en cartera_filtrada_fn con procedencia',
+    anonProcedencia.schema('crm').rpc('cartera_filtrada_fn', { p_procedencia: 'manual' }),
+    ['42501'],
+  );
 
   // No vacuidad: si el seed dejara de poblar, todo lo de arriba pasaria vacio.
   const gerenciaCompleta = await positive(
