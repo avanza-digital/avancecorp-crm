@@ -2,8 +2,8 @@
 
 ## 20260919185718 — Historial por lead: completo e igual para todos los roles
 
-**🧪 ESCRITA el 19/09/2026; BANCO: NOT RUN; PRODUCCIÓN: NOT RUN (la instala Miguel con `!` +
-`db query --linked --file`, nunca `apply_migration` ni `db push`).** Fase 1 del plan «sin topes»
+**🧪 ENSAYADA EN EL BANCO el 19/09/2026 (PASS, ver abajo); PRODUCCIÓN: NOT RUN (la instala Miguel
+con `!` + `db query --linked --file`, nunca `apply_migration` ni `db push`).** Fase 1 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`, aprobado por Miguel el 19/09), que
 ejecuta F2 §5 del plan de escalabilidad del vault.
 
@@ -96,6 +96,34 @@ mientras carga o si falló), `ProximaAccion` y `CerrarTareaDialog` (retroceso co
 `App.tsx` deja de contrastar contra la foto en memoria (`abrirLead` relee por id). Puente
 temporal `MAX_LEADS_AMBITO` 2 000 → 5 000 con alarma de tendencia a 4 000 (prod tenía 1 983,
 +398/semana); muere en la Fase 4. `LIMITE_ACTIVIDADES_AMBITO` queda para la Fase 3.
+
+**Ensayo en el banco (`banco-f7`, `cwkiejoaqadcnaieghnf`, 19/09 ~15:00 Lima) — PASS.** El banco va en la
+versión `20260910234453` y no tiene el mundo SLA: se aplicó una copia con UNA divergencia (los cuatro
+`perform private.assert_sla_*()` del postflight, comentados; registrada en
+`supabase/scripts/banco/parches/DIVERGENCIAS.md`). Las huellas de `actividades_select` y `leads_select`
+del banco son idénticas a las de prod, así que preflight y postflight corrieron de verdad. Resultados:
+gate propio OK; `assert_actividades_de_lead_mutantes()` → **5 de 5 mutantes detectados** y el esquema
+intacto después (huella de la policy y conjunto de policies iguales; ayudante sigue DEFINER, puerta sigue
+INVOKER). Matriz de roles por SQL bajo `set role authenticated` + `request.jwt.claims` (la misma RLS que
+PostgREST; el gate por HTTP `test-rls.mjs` queda **NOT RUN** por falta de claves): 11 usuarios × 4 leads
+exactos —vend1 ve a juan (320 filas = RLS 320 = oráculo 320, mismo orden) y nada más; sup1 ve juan, luis
+(bandeja) y carlos (recursión) y no a ana; sup1Nested solo a carlos; gerencia y directorio los cuatro;
+vend2/vend3/sup2/coordinador → 42501 «Lead fuera de tu cartera» donde no les toca; vendInactive y
+clientBank → 42501 «No autorizado» en todo—; keyset 2+2 sin repetidos, prefijo del oráculo y señales
+iguales en ambas páginas; `p_limite` 0/501, cursor a medias y `p_lead_id` nulo → 22023; uuid
+inexistente → 42501; anon → 42501 (`permission denied for schema crm`); nombres de autor resueltos.
+`EXPLAIN` como vend1: `Index Scan using idx_actividades_lead` con `Index Cond (lead_id = …)` +
+`Incremental Sort` para el desempate por id, y la policy como SubPlan hasheado. El banco queda con las
+funciones instaladas (sin fila en `schema_migrations`: la registra `reregistrar.py` cuando se ponga al día).
+
+**Instalación y registro.** Orden en `supabase/scripts/historial-lead/README.md`: (1) el SQL con `!` +
+`db query --linked --file`; (2) el registrador `supabase/scripts/registrar-20260919185718.sql`
+(generado por `historial-lead/generar-registrador.mjs` desde el archivo y los md5 de
+`verificacion.json`, medidos en el banco: puerta `edef0f86…`, núcleo `b00cc581…`, ayudante
+`c9eed135…`; PIN fail-closed + gate propio OK + fila exacta o nada); (3) sonda anónima
+`actividades_de_lead_fn` → 42501 / `PGRST202`; (4) merge commit de la PR #28 antes de construir y
+deploy del front. El registrador NO se ejecutó en el banco (dry run NOT RUN); es un clon del de
+`20260919170500`, que sí corrió en prod ese mismo día.
 
 **Verificación local (19/09).** `npm run check` PASS (lint solo con avisos previos de
 `coverflow-carousel`; typecheck; vitest 251 archivos / 3 736 pruebas, con 5 nuevas del
