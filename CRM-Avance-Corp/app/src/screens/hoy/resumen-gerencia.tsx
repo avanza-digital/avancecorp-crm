@@ -405,7 +405,7 @@ export function ResumenGerenciaPanel({
       {tcCaido && (
         <div className="gi-card flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
           <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-            <AlertTriangle className="size-4" aria-hidden /> Sin tipo de cambio, el total no incluye los dólares.
+            <AlertTriangle className="size-4" aria-hidden /> Tipo de cambio no disponible (fuente BCRP): el total no incluye los dólares.
           </span>
           <Button type="button" variant="outline" size="sm" onClick={onReintentar}>
             <RefreshCw aria-hidden /> Reintentar tipo de cambio

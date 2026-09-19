@@ -42,6 +42,25 @@ const TipoCambioSchema = v.object({
   fecha_corte: v.optional(v.string()),
 })
 
+/**
+ * Motivo legible de un fallo de la edge. supabase-js envuelve un 4xx/5xx en
+ * `FunctionsHttpError` con la `Response` en `context` y un mensaje genérico;
+ * el cuerpo `{ error }` es el que distingue la causa. Sin cuerpo legible se
+ * conserva el mensaje del error.
+ */
+async function motivoDelFallo(e: unknown): Promise<string> {
+  const contexto = (e as { context?: { json?: () => Promise<unknown> } } | null)?.context
+  if (typeof contexto?.json === 'function') {
+    try {
+      const cuerpo = (await contexto.json()) as { error?: unknown } | null
+      if (typeof cuerpo?.error === 'string' && cuerpo.error.trim() !== '') return cuerpo.error
+    } catch {
+      // Cuerpo no JSON o ya consumido: cae al mensaje genérico.
+    }
+  }
+  return e instanceof Error ? e.message : 'desconocido'
+}
+
 export interface EstadoTipoCambio {
   /**
    * Tri-estado honesto: `undefined` = consultando (la UI muestra carga, no
@@ -118,13 +137,16 @@ export function useTipoCambio(habilitado = true, fechaCorte?: string): EstadoTip
           : `${r.output.fuente} al ${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
         setEstado({ clave: claveSolicitud, valor: { promedio: r.output.promedio, fuente } })
       })
-      .catch((e: unknown) => {
-        if (cancelado) return
+      .catch(async (e: unknown) => {
         // Aviso, no error: la pantalla ya degrada sola y esto puede ser
-        // transitorio (BCRP caído, red). Sin TC no se inventa TC.
-        registrarAviso('crm.tipo_cambio_no_disponible', {
-          motivo: e instanceof Error ? e.message : 'desconocido',
-        })
+        // transitorio (BCRP caído, red). Sin TC no se inventa TC. El motivo
+        // lleva el `{ error }` que respondió la edge (p. ej. «BCRP: formato de
+        // período no reconocido: 02.Set.26»), no el «non-2xx» genérico de
+        // supabase-js: con el genérico, un bug de parseo y un BCRP caído se
+        // veían idénticos desde el CRM (septiembre 2026).
+        const motivo = await motivoDelFallo(e)
+        if (cancelado) return
+        registrarAviso('crm.tipo_cambio_no_disponible', { motivo })
         setEstado({ clave: claveSolicitud, valor: null })
       })
     return () => {

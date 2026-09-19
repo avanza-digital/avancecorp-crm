@@ -90,7 +90,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
               )}
               <p className="text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
                 {tc != null ? `TC S/ ${numero(tc, 4)} (${fuenteTc ?? 'BCRP'}). Capital y meta conservan su desglose original en S/ y US$.`
-                  : 'Tipo de cambio no disponible: el total muestra sólo S/ y US$ permanece aparte.'}
+                  : 'Tipo de cambio no disponible (fuente BCRP): el total muestra sólo S/ y US$ permanece aparte.'}
               </p>
             </>
           )}
