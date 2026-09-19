@@ -88,6 +88,50 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
     .join("");
 }
 
+for (const prefijo of ["2024-01-", "2025-01-", "2026-01-"]) {
+  Deno.test(`PDF conserva la serie física ${prefijo} y los ceros iniciales`, async () => {
+    const snapshot = structuredClone(SNAPSHOT);
+    snapshot.contrato.numero = `${prefijo}000123`;
+    const validado = validarSnapshotContratoV2(snapshot);
+    igual(
+      validado.contrato.numero,
+      snapshot.contrato.numero,
+      "número recibido",
+    );
+    const definicion = construirContratoPdf({
+      contrato: {
+        numero: validado.contrato.numero,
+        capital: validado.contrato.capital,
+        moneda: "PEN",
+        porcentaje: validado.contrato.porcentaje,
+        fechaInicio: validado.contrato.fechaInicio,
+        fechaVencimiento: validado.contrato.fechaVencimiento,
+      },
+      titular: { ...SNAPSHOT.titular, tipoDocumento: "DNI" },
+      analista: SNAPSHOT.analista,
+    }, {
+      fondo: "data:image/png;base64,fondo",
+      firmaAsociante: "data:image/png;base64,firma-kirk",
+    });
+    assert(typeof definicion.header === "function", "cabecera dinámica");
+    const cabecera = definicion.header(1, 1, {
+      width: 595.28,
+      height: 841.89,
+      orientation: "portrait",
+    });
+    assert(
+      JSON.stringify(cabecera).includes(snapshot.contrato.numero),
+      "el documento imprime el número completo sin deducir el año de la fecha",
+    );
+    const pdf = await renderizarContratoPdfV2(snapshot, "2026-09-19T18:00:00Z");
+    igual(
+      new TextDecoder().decode((await pdf.blob.arrayBuffer()).slice(0, 5)),
+      "%PDF-",
+      "produce un PDF real con el número seleccionado",
+    );
+  });
+}
+
 Deno.test("renderer v2 valida el snapshot SQL exacto y rechaza deriva", () => {
   const validado = validarSnapshotContratoV2(SNAPSHOT);
   igual(validado.snapshotVersion, 2, "versión de snapshot");

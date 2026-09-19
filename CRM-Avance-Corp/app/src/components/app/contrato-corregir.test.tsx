@@ -177,6 +177,49 @@ beforeEach(() => {
   })
 })
 
+describe('ContratoCorregir — conserva y permite elegir el prefijo del contrato', () => {
+  it.each(['2024-01-', '2025-01-', '2026-01-'])('conserva %s al guardar una corrección', async (prefijo) => {
+    const user = userEvent.setup()
+    actualizarContrato.mockResolvedValue()
+    const { onGuardado } = await montar({ numero_contrato: `${prefijo}000123` })
+    expect(screen.getByRole('combobox', { name: 'Prefijo del contrato' })).toHaveValue(prefijo)
+    expect(screen.getByLabelText('N° de contrato')).toHaveValue('000123')
+    expect(screen.queryByText(/tiene la numeración antigua/)).not.toBeInTheDocument()
+
+    await user.click(guardar())
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledOnce())
+    expect(actualizarContrato.mock.calls[0]?.[1].numero_contrato).toBe(`${prefijo}000123`)
+  })
+
+  it('cambia de 2025 a 2024 conservando los ceros iniciales', async () => {
+    const user = userEvent.setup()
+    actualizarContrato.mockResolvedValue()
+    await montar({ numero_contrato: '2025-01-000123' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prefijo del contrato' }), '2024-01-')
+    await user.click(guardar())
+    await waitFor(() => expect(actualizarContrato).toHaveBeenCalledOnce())
+    expect(actualizarContrato.mock.calls[0]?.[1].numero_contrato).toBe('2024-01-000123')
+  })
+
+  it('mantiene el aviso de numeración antigua y exige seis dígitos antes de convertirla', async () => {
+    const user = userEvent.setup()
+    actualizarContrato.mockResolvedValue()
+    await montar({ numero_contrato: 'AC-2026-0042' })
+    expect(screen.getByText(/tiene la numeración antigua/)).toBeInTheDocument()
+    expect(screen.getByLabelText('N° de contrato')).toHaveValue('')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prefijo del contrato' }), '2024-01-')
+    await user.click(guardar())
+    expect(actualizarContrato).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('después de 2024-01-')
+
+    await user.type(screen.getByLabelText('N° de contrato'), '000042')
+    await user.click(guardar())
+    await waitFor(() => expect(actualizarContrato).toHaveBeenCalledOnce())
+    expect(actualizarContrato.mock.calls[0]?.[1].numero_contrato).toBe('2024-01-000042')
+  })
+})
+
 describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => {
   it('plazo de 18 meses (no preset): el select dice Personalizado (18 meses), no "1 año"', async () => {
     await montar({ fecha_vencimiento: '2027-07-15' }) // 2026-01-15 + 18 meses

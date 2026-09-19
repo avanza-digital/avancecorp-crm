@@ -30,12 +30,20 @@ export const MODALIDAD_LABEL = Object.fromEntries(
   MODALIDADES_UI.map((m) => [m.k, m.label]),
 ) as Record<ModalidadContrato, string>
 
-// Prefijo FIJO del N° de contrato: el analista solo escribe los 6 dígitos (espejo
-// de PREFIJO_CONTRATO de analista.js). Si el número no viaja, el servidor
-// inventa la numeración VIEJA 'AC-2026-XXXX' — por eso el campo es obligatorio
-// en ambos formularios y RE_SEIS_DIGITOS es su validación exacta.
+// El analista elige el prefijo del contrato físico y transcribe sus 6 dígitos.
+// El segmento 01 no es el mes. Se conserva 2026 como opción inicial del alta.
+export const PREFIJOS_CONTRATO = ['2024-01-', '2025-01-', '2026-01-'] as const
+export type PrefijoContrato = (typeof PREFIJOS_CONTRATO)[number]
 export const PREFIJO_CONTRATO = '2026-01-'
 export const RE_SEIS_DIGITOS = /^\d{6}$/
+
+/** Reconoce los formatos seleccionables sin reinterpretar números antiguos. */
+export function separarNumeroContrato(valor: string | null | undefined): { prefijo: PrefijoContrato; numero: string } | null {
+  const prefijo = PREFIJOS_CONTRATO.find((opcion) => valor?.startsWith(opcion))
+  if (!prefijo || !valor) return null
+  const numero = valor.slice(prefijo.length)
+  return RE_SEIS_DIGITOS.test(numero) ? { prefijo, numero } : null
+}
 
 // Colores de estado sobre los tokens del CRM (no hay verde: "positivo" = azul).
 // Es la paleta de la TABLA de contratos; el detalle mantiene la suya local
