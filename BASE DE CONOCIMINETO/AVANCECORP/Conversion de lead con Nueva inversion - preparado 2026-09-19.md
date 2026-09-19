@@ -5,7 +5,7 @@ actualizado: 2026-09-19
 
 # Conversión de lead mediante Nueva inversión
 
-**PREPARADO Y VERIFICADO LOCALMENTE. SIN INSTALAR NI PUBLICAR EN PRODUCCIÓN.**
+**SQL AUTORIZADO; VERIFICADO LOCALMENTE Y EN SUPABASE. SIN PUBLICAR EN PRODUCCIÓN.**
 
 Miguel pidió que «Convertir a cliente» use el mismo proceso que «Nueva inversión»
 de Cartera, que considera la referencia correcta. La conversión anterior tenía
@@ -41,7 +41,7 @@ ordenó explícitamente retomar.
 
 Trabajo: `/private/tmp/avancecorp-conversion-wt`, rama
 `codex/conversion-inversion-20260919`. Se integró Main
-`4d33785eddd629483ca26aefc606534a823be5ee`: se conservan el modo integral de
+`faccafe040abb88d37aabd68b2927362c4554b72`: se conservan el modo integral de
 rentabilidad y la entrevista al asistir de la otra sesión.
 
 ## Evidencia y siguiente paso
@@ -60,9 +60,19 @@ incluye el SQL exacto `20260919161807_crm_conversion_inversion_unificada.sql`,
 reversa, huellas y evidencia saneada. Añade dos columnas a solicitudes y conserva
 los escritores contractuales del portal. No modifica objetos de `public`.
 
-Pendientes: autorización del SQL exacto, ensayo remoto con matriz RLS/advisors,
-instalación y publicación por el flujo del proyecto. No confundir esta entrega
-local con un cambio ya visible para los analistas.
+Miguel autorizó el SQL exacto con «HAZLO» y el banco con un límite de US$5.
+PASS remoto: 15 pruebas HTTP (14 escenarios), oráculo SQL, 284 aserciones de
+permisos/contratos y nueve aserciones de la Edge desplegada. Advisors revisados:
+las cuatro puertas SECURITY DEFINER nuevas tienen permisos intencionales y
+controles de actor/ámbito; no se amplían las fronteras de las funciones existentes.
+El [acta remota](../../CRM-Avance-Corp/supabase/scripts/conversion-inversion/instalacion/README.md)
+conserva equivalencia del esquema, resultados y límites. CI del
+[PR #23](https://github.com/avanza-digital/avancecorp-crm/pull/23) aprobado.
+
+Pendiente: instalación coordinada de SQL, Edge y frontend por el flujo del
+proyecto. La candidata bloquea la conversión antigua, por lo que no debe
+activarse antes de poder publicar la web correspondiente. La autorización del
+SQL persiste; la publicación necesita la invocación humana de `$release-crm`.
 
 Relacionado: [[Cartera multiempresa - publicacion (2026-09-16)]],
 [[Interruptor integral de rentabilidad - preparado 2026-09-18]],

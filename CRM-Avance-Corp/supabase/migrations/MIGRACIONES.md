@@ -2,7 +2,7 @@
 
 ## 20260919161807 — Convertir un lead mediante el registro común de inversiones
 
-**PREPARADA Y PROBADA LOCALMENTE el 19/09/2026; SIN INSTALAR EN PRODUCCIÓN.**
+**AUTORIZADA Y PROBADA LOCAL/REMOTO el 19/09/2026; SIN INSTALAR EN PRODUCCIÓN.**
 Miguel pidió que «Convertir a cliente» abra el mismo proceso que «Nueva inversión»
 de Cartera. Reconocer identidad o preparar el acceso Avance no cierra el lead;
 la inversión, su fuente, la conversión y la actividad se confirman juntas.
@@ -21,11 +21,15 @@ PostgREST y Storage reales, oráculo económico con rollback, replay completo y
 reversa, 33 verificaciones de permisos sobre 11 funciones nuevas, definición de
 `public` idéntica, Edge y scripts; navegador real en escritorio y móvil.
 Regresión general, huellas y límites en el [acta del ensayo](../scripts/conversion-inversion/README.md).
-No se enviaron correos reales. Rama remota, advisors, matriz remota, SQL productivo
-y publicación permanecen **NOT RUN**.
+**PASS remoto:** SQL exacto (SHA-256 `2a8ce9e9be01ccdbf13871e299858db4a6a90551b195a2369ba14d06ddc4c5f4`),
+15 pruebas HTTP, 284 aserciones de `test-rls.mjs --contratos`, nueve aserciones de
+la Edge desplegada y advisors revisados. Instalado sólo en banco como `20260919172019`.
+Miguel autorizó el SQL y el ensayo con un máximo de US$5. No se enviaron correos reales.
+Evidencia y límites en el [acta remota](../scripts/conversion-inversion/instalacion/README.md).
 
-Requiere autorización del SQL exacto antes del ensayo remoto/instalación y el flujo
-de publicación del proyecto. La reversa conserva inversiones, auditoría y columnas
+SQL y frontend deben activarse juntos: la candidata cierra las puertas antiguas.
+Publicación por invocación humana del flujo de release aún pendiente; no volver
+a pedir autorización del mismo SQL. La reversa conserva inversiones, auditoría y columnas
 aditivas; exige resolver antes las solicitudes de conversión preparadas.
 
 ## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa

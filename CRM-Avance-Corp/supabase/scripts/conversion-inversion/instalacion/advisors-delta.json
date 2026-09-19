@@ -1,0 +1,697 @@
+{
+  "seguridad": {
+    "antes": 277,
+    "despues": 280,
+    "altas": [
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.bienvenida_inversion_estado_fn(p_solicitud uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/bienvenida_inversion_estado_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "bienvenida_inversion_estado_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_solicitud uuid",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.cancelar_solicitud_inversion_fn(p_solicitud uuid, p_revision_datos_esperada integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancelar_solicitud_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "cancelar_solicitud_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_solicitud uuid, p_revision_datos_esperada integer",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.contexto_conversion_inversion_fn(p_lead uuid, p_persona uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/contexto_conversion_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "contexto_conversion_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_lead uuid, p_persona uuid",
+          "security_definer": true
+        }
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.preparar_persona_lead_inversion_fn(p_lead uuid, p_tipo_documento text, p_documento text, p_nombre text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/preparar_persona_lead_inversion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "preparar_persona_lead_inversion_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_lead uuid, p_tipo_documento text, p_documento text, p_nombre text",
+          "security_definer": true
+        }
+      }
+    ],
+    "bajas": [
+      {
+        "name": "extension_in_public",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public",
+        "detail": "Extension \\`pg_net\\` is installed in the public schema. Move it to another schema.",
+        "metadata": {
+          "name": "pg_net",
+          "type": "extension",
+          "schema": "public"
+        }
+      }
+    ]
+  },
+  "rendimiento": {
+    "antes": 214,
+    "despues": 250,
+    "altas": [
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`actividades_contacto_episodio_idx\\` on table \\`crm.actividades\\` has not been used",
+        "metadata": {
+          "name": "actividades",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`actividades_recientes_idx\\` on table \\`crm.actividades\\` has not been used",
+        "metadata": {
+          "name": "actividades",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`alertas_reconocimientos_caducidad_idx\\` on table \\`crm.alertas_reconocimientos\\` has not been used",
+        "metadata": {
+          "name": "alertas_reconocimientos",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`contrato_cuentas_pago_cuenta_idx\\` on table \\`crm.contrato_cuentas_pago\\` has not been used",
+        "metadata": {
+          "name": "contrato_cuentas_pago",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`cuentas_bancarias_cliente_fk_idx\\` on table \\`crm.cuentas_bancarias\\` has not been used",
+        "metadata": {
+          "name": "cuentas_bancarias",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`envios_push_tasa_pendientes_idx\\` on table \\`crm.envios_push_tasa\\` has not been used",
+        "metadata": {
+          "name": "envios_push_tasa",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_ajustes_mes_cerrado_pendiente\\` on table \\`crm.ajustes_mes_cerrado\\` has not been used",
+        "metadata": {
+          "name": "ajustes_mes_cerrado",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_cierres_externos_creado_en\\` on table \\`crm.cierres_externos\\` has not been used",
+        "metadata": {
+          "name": "cierres_externos",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_conversion_reservas_reservado_por\\` on table \\`crm.conversion_reservas\\` has not been used",
+        "metadata": {
+          "name": "conversion_reservas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_clasificacion_auto\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_contrato\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_convertido_en\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_creado_en\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_creado_por_referido\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_parkeo\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_tenencia\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_leads_vendedor_creado_en\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`inversionistas_estado_idx\\` on table \\`crm.inversionistas\\` has not been used",
+        "metadata": {
+          "name": "inversionistas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`inversionistas_responsable_idx\\` on table \\`crm.inversionistas\\` has not been used",
+        "metadata": {
+          "name": "inversionistas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_analista_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_cohorte_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_convertido_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_lead_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_reporte_supervisor_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_asignaciones_rescate_descartes_fecha_idx\\` on table \\`crm.lead_asignaciones\\` has not been used",
+        "metadata": {
+          "name": "lead_asignaciones",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`lead_sla_etapas_lead_fecha_idx\\` on table \\`crm.lead_sla_etapas\\` has not been used",
+        "metadata": {
+          "name": "lead_sla_etapas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`leads_dni_trgm_idx\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`leads_orden_cartera_idx\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`leads_telefono_trgm_idx\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`ledger_rentabilidad_registrado_idx\\` on table \\`crm.ledger_rentabilidad\\` has not been used",
+        "metadata": {
+          "name": "ledger_rentabilidad",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`ledger_rentabilidad_secuencia_idx\\` on table \\`crm.ledger_rentabilidad\\` has not been used",
+        "metadata": {
+          "name": "ledger_rentabilidad",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`metas_vendedor_detalle_meta_idx\\` on table \\`crm.metas_vendedor_detalle\\` has not been used",
+        "metadata": {
+          "name": "metas_vendedor_detalle",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`metas_vendedor_vendedor_idx\\` on table \\`crm.metas_vendedor\\` has not been used",
+        "metadata": {
+          "name": "metas_vendedor",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`operaciones_cartera_periodo_vendedor_idx\\` on table \\`crm.operaciones_cartera\\` has not been used",
+        "metadata": {
+          "name": "operaciones_cartera",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`reasignaciones_analista_contrato_idx\\` on table \\`crm.reasignaciones_analista\\` has not been used",
+        "metadata": {
+          "name": "reasignaciones_analista",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`recordatorios_disponibilidad_campana_idx\\` on table \\`crm.recordatorios_disponibilidad\\` has not been used",
+        "metadata": {
+          "name": "recordatorios_disponibilidad",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`solicitudes_tasa_cliente_idx\\` on table \\`crm.solicitudes_tasa\\` has not been used",
+        "metadata": {
+          "name": "solicitudes_tasa",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`solicitudes_tasa_solicitante_idx\\` on table \\`crm.solicitudes_tasa\\` has not been used",
+        "metadata": {
+          "name": "solicitudes_tasa",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`tareas_cola_idx\\` on table \\`crm.tareas\\` has not been used",
+        "metadata": {
+          "name": "tareas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`tareas_reuniones_periodo_idx\\` on table \\`crm.tareas\\` has not been used",
+        "metadata": {
+          "name": "tareas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`contratos_producto_condicion_idx\\` on table \\`public.contratos\\` has not been used",
+        "metadata": {
+          "name": "contratos",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_contratos_creado_en\\` on table \\`public.contratos\\` has not been used",
+        "metadata": {
+          "name": "contratos",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_contratos_estado_venc\\` on table \\`public.contratos\\` has not been used",
+        "metadata": {
+          "name": "contratos",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_cronograma_fecha\\` on table \\`public.cronograma_pagos\\` has not been used",
+        "metadata": {
+          "name": "cronograma_pagos",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_novedades_destinatario\\` on table \\`public.novedades\\` has not been used",
+        "metadata": {
+          "name": "novedades",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_perfiles_dni_trgm\\` on table \\`public.perfiles\\` has not been used",
+        "metadata": {
+          "name": "perfiles",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      }
+    ],
+    "bajas": [
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_contrato_titulares_contrato\\` on table \\`public.contrato_titulares\\` has not been used",
+        "metadata": {
+          "name": "contrato_titulares",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`inversionistas_canonico_idx\\` on table \\`crm.inversionistas\\` has not been used",
+        "metadata": {
+          "name": "inversionistas",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_perfiles_listado_admin\\` on table \\`public.perfiles\\` has not been used",
+        "metadata": {
+          "name": "perfiles",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`idx_cronograma_estado\\` on table \\`public.cronograma_pagos\\` has not been used",
+        "metadata": {
+          "name": "cronograma_pagos",
+          "type": "table",
+          "schema": "public"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`inversion_titulares_inv_idx\\` on table \\`crm.inversion_titulares\\` has not been used",
+        "metadata": {
+          "name": "inversion_titulares",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`cierres_externos_inversionista_idx\\` on table \\`crm.cierres_externos\\` has not been used",
+        "metadata": {
+          "name": "cierres_externos",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`tarea_sla_contexto_ciclo_idx\\` on table \\`crm.tarea_sla_contexto\\` has not been used",
+        "metadata": {
+          "name": "tarea_sla_contexto",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`leads_vendedor_orden_idx\\` on table \\`crm.leads\\` has not been used",
+        "metadata": {
+          "name": "leads",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`inversion_solicitudes_auth_idx\\` on table \\`crm.inversion_solicitudes\\` has not been used",
+        "metadata": {
+          "name": "inversion_solicitudes",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "detail": "Index \\`cierres_externos_lead_idx\\` on table \\`crm.cierres_externos\\` has not been used",
+        "metadata": {
+          "name": "cierres_externos",
+          "type": "table",
+          "schema": "crm"
+        },
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      }
+    ]
+  }
+}

@@ -1,8 +1,10 @@
 # Conversión mediante Nueva inversión
 
-Estado al 19/09/2026: implementado y probado en una carpeta independiente;
+Estado al 19/09/2026: implementado y probado localmente y en rama Supabase;
 **sin instalar la candidata ni publicar frontend/Edge en producción**.
-Base integrada: Main `4d33785eddd629483ca26aefc606534a823be5ee`.
+Base integrada: Main `faccafe040abb88d37aabd68b2927362c4554b72`.
+[PR #23](https://github.com/avanza-digital/avancecorp-crm/pull/23): controles verdes.
+Miguel autorizó el SQL y hasta US$5 para el banco. [Acta remota](instalacion/README.md).
 
 ## Resultado
 
@@ -111,9 +113,13 @@ ambas ejecuciones; no se presenta como una sola ejecución completa sin fallos.
 Detalles en `evidencia-final.json`. Las capturas y trazas están en el directorio
 temporal del ensayo; no contienen clientes reales.
 
-NOT RUN: rama remota/advisors de esta candidata, matriz autenticada remota,
-instalación productiva, envío real de bienvenida y publicación. La matriz HTTP
-local prueba los roles nuevos; el preflight offline no sustituye la matriz remota.
+PASS remoto: 15 pruebas HTTP, oráculo SQL, 284 aserciones del gate bancario vigente,
+Edge desplegada con nueve aserciones de frontera, paridad de esquema y advisors.
+CI también aprobó la regresión E2E completa del código final. La evidencia local
+anterior se conserva como historial, sin cambiar sus resultados originales.
+NOT RUN: matriz RLS global completa de esta candidata, instalación productiva,
+envío real de bienvenida y publicación. El alcance bancario se complementó con
+los 14 escenarios nuevos de conversión; no se presenta como matriz global.
 
 ## Reproducir
 
@@ -145,12 +151,15 @@ completa, que tiene una incompatibilidad previa con argumentos opcionales `null`
 
 ## Instalación pendiente y recuperación
 
-1. Revisar el SQL exacto y `huellas.json`; obtener la autorización exigida por
-   `supabase/migrations/LEEME.md` y el vault. Verificar de nuevo anclas y reservas.
-2. Validar en una rama Supabase autorizada, ejecutar su matriz RLS y advisors;
-   integrar por el flujo de migraciones. No aplicar directamente a producción.
-3. Instalar la Edge de bienvenida con sus secretos de servidor y la validación
-   manual de sesión. Publicar después el frontend mediante invocación humana
+1. SQL exacto y costo ya autorizados. Antes de instalar, verificar nuevamente
+   las 18 anclas, reservas antiguas y que sólo se promueva la candidata revisada.
+2. Ensayo de rama Supabase, matriz bancaria y advisors completados. Integrar por
+   el flujo de migraciones; no aplicar directamente a producción. Los datos de
+   reconstrucción/fixtures no forman parte de la migración que se promueve.
+3. Coordinar SQL, Edge y frontend: la candidata bloquea las puertas antiguas y
+   no debe dejarse activa con la web anterior. La configuración Resend del padre
+   existe; no se leyeron valores ni se envió correo real. Publicar el frontend
+   mediante invocación humana
    de `$release-crm` o `/release-crm`, desde el commit verificado en Main y
    `avancecorp/main`. No reutilizar el build de ensayo como artefacto productivo.
 4. Comprobar las tres empresas, tasas en ambos modos y métricas sin duplicar
