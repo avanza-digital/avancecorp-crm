@@ -21,6 +21,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   hoy: 'Hoy',
   alertas: 'Pendientes',
   seguimiento: 'Seguimiento',
+  'gestion-diaria': 'Gestión Diaria',
   conversiones: 'Conversiones',
   'ranking-vendedores': 'Ranking',
   reuniones: 'Citas',
@@ -64,7 +65,7 @@ export function AyudaVendedorPanel({
   // Los módulos extraídos conservan el contexto que ya conoce el manual del
   // servidor: reparto en Equipo y prioridades operativas en Hoy.
   const contextoAyuda: Vista =
-    vista === 'derivaciones' ? 'equipo' : vista === 'seguimiento' || vista === 'facturacion' ? 'hoy' : vista
+    vista === 'derivaciones' ? 'equipo' : vista === 'seguimiento' || vista === 'gestion-diaria' || vista === 'facturacion' ? 'hoy' : vista
   const tituloId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const resultadoRef = useRef<HTMLHeadingElement>(null)

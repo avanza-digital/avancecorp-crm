@@ -152,6 +152,13 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   // l20 — contactado, sin movimiento hace 8d → seguimiento + estancado
   { id: 'act42', lead_id: 'l20', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA TRES', creado_en: hace(9) },
   { id: 'act43', lead_id: 'l20', tipo: 'llamada_realizada', detalle: 'Evalúa subir su contrato actual; quedó en avisar', autor_nombre: 'ANALISTA TRES', creado_en: hace(8) },
+  // Gestión Diaria (19/09/2026): gestiones de HOY para que el registro del día
+  // tenga filas en demo. Una sin detalle a propósito (31 % del histórico real).
+  { id: 'act44', lead_id: 'l2', tipo: 'llamada_realizada', detalle: 'Contestó: pide que la llamen el lunes a las 10 con la propuesta impresa', autor_nombre: 'ANALISTA UNO', creado_en: hace(0.05) },
+  { id: 'act45', lead_id: 'l1', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA UNO', creado_en: hace(0.08) },
+  { id: 'act46', lead_id: 'l2', tipo: 'whatsapp_enviado', detalle: 'Le envié la dirección de la oficina', autor_nombre: 'ANALISTA UNO', creado_en: hace(0.12) },
+  { id: 'act47', lead_id: 'l3', tipo: 'llamada_realizada', detalle: 'Está en Huancayo hasta el jueves; confirma la cita del viernes', autor_nombre: 'ANALISTA DOS', creado_en: hace(0.16) },
+  { id: 'act48', lead_id: 'l4', tipo: 'llamada_no_contestada', detalle: 'NC las llamadas ni los mensajes', autor_nombre: 'ANALISTA TRES', creado_en: hace(0.2) },
 ]
 
 // Tareas de agenda demo (espejo de crm.tareas) — lead_ids vigentes y con señal

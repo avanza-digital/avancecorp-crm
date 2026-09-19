@@ -7259,6 +7259,101 @@ async function testAltasNuevasPorAnalista(sessions, seed) {
 // entonces —rebobinado de crm.usuario_eventos— cae en su subárbol, o que vendió
 // él), y por eso a qué equipo pertenecía alguien de OTRO equipo sigue sin poder
 // leerse desde fuera de Gerencia. Vendedor, coordinador y ajenos: vacío.
+async function testGestionDiariaRegistro(sessions, seed) {
+  console.log('\n— Gestión Diaria: registro crudo de actividad (F1) —');
+  const FN = 'registro_actividad_fn';
+  // Ventana de un año en Lima (tope de la puerta): lo que el seed tenga.
+  const hoyLima = new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+  const haceUnAnio = new Date(Date.now() - 5 * 3600 * 1000 - 365 * 86400 * 1000).toISOString().slice(0, 10);
+  const args = (extra = {}) => ({ p_desde: haceUnAnio, p_hasta: hoyLima, p_limite: 500, ...extra });
+  const id = (key) => seed.profileIdByKey[key];
+
+  // Salto RUIDOSO si la funcion aun no esta en esta base; con
+  // CRM_RLS_EXIGE_GESTION_DIARIA=1 el salto es un FALLO (ciclo del `!`).
+  {
+    const probe = await sessions.gerencia.client.schema('crm').rpc(FN, args());
+    if (probe.error?.code === 'PGRST202') {
+      const msg = `⚠ ${FN} NO desplegada en esta base: bloque de Gestión Diaria SALTADO (no probado)`;
+      if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+      else console.log(`  ${msg}`);
+      return;
+    }
+  }
+  const items = (data) => (data && Array.isArray(data.items)) ? data.items : null;
+
+  // A. Gerencia lee un sobre completo; directorio (lector global) ve lo mismo.
+  let deGerencia = null;
+  {
+    const { data, error } = await sessions.gerencia.client.schema('crm').rpc(FN, args());
+    deGerencia = items(data);
+    check(!error && deGerencia !== null && data.zona === 'America/Lima' && data.version === 1,
+      `gerencia lee ${FN} (${error?.code ?? (deGerencia?.length ?? 0) + ' filas'})`);
+    const dir = await sessions.directorio.client.schema('crm').rpc(FN, args());
+    const ordenar = (xs) => (xs ?? []).map((i) => i.id).sort();
+    check(!dir.error && JSON.stringify(ordenar(items(dir.data))) === JSON.stringify(ordenar(deGerencia)),
+      `directorio lee ${FN} igual que gerencia (${dir.error?.code ?? (items(dir.data)?.length ?? 0) + ' vs ' + (deGerencia?.length ?? 0)})`);
+  }
+
+  // B. El analista solo puede pedir su propio id y toda fila es suya.
+  {
+    const { data, error } = await sessions.vend1.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend1')] }));
+    const mias = items(data) ?? [];
+    check(!error && mias.every((i) => i.creado_por === id('vend1')),
+      `vend1 lee su propio registro (${error?.code ?? mias.length + ' filas, todas suyas'})`);
+    const ajeno = await sessions.vend1.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend2')] }));
+    check(isAuthorizationError(ajeno.error), `vend1 NO puede pedir el registro de vend2 (${ajeno.error?.code ?? 'sin error!'})`);
+  }
+
+  // C. El supervisor: su subarbol (anidado incluido), nunca otro equipo.
+  {
+    const propio = await sessions.sup1.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend1'), id('vendNested')] }));
+    check(!propio.error && items(propio.data) !== null, `sup1 lee a vend1 y al analista anidado (${propio.error?.code ?? 'ok'})`);
+    const ajeno = await sessions.sup1.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend3')] }));
+    check(isAuthorizationError(ajeno.error), `sup1 NO puede pedir a vend3 (equipo de sup2) (${ajeno.error?.code ?? 'sin error!'})`);
+    // Sin analistas: cada fila que ve recae sobre un lead visible (la RLS decide).
+    const todo = await sessions.sup1.client.schema('crm').rpc(FN, args());
+    const filas = items(todo.data) ?? [];
+    const visibles = new Set((deGerencia ?? []).map((i) => i.id));
+    check(!todo.error && filas.every((i) => visibles.has(i.id)),
+      `sup1 sin filtro recibe un subconjunto de lo que ve gerencia (${todo.error?.code ?? filas.length + ' de ' + visibles.size})`);
+  }
+
+  // C2. Gerencia y directorio SI pueden filtrar por cualquier analista; un uuid
+  //     inexistente recibe el MISMO 42501 que uno ajeno (no distingue).
+  {
+    const ger = await sessions.gerencia.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend3'), id('sup2')] }));
+    check(!ger.error && items(ger.data) !== null, `gerencia filtra por vend3 y sup2 (${ger.error?.code ?? 'ok'})`);
+    const dir = await sessions.directorio.client.schema('crm').rpc(FN, args({ p_analista_ids: [id('vend1')] }));
+    check(!dir.error && items(dir.data) !== null, `directorio filtra por vend1 (${dir.error?.code ?? 'ok'})`);
+    const nadie = await sessions.sup1.client.schema('crm').rpc(FN, args({ p_analista_ids: ['00000000-0000-4000-8000-000000000000'] }));
+    check(isAuthorizationError(nadie.error), `sup1 con un uuid inexistente recibe 42501 (${nadie.error?.code ?? 'sin error!'})`);
+  }
+
+  // D. Coordinador y analista dado de baja: 42501 explicito, nunca vacio.
+  for (const quien of ['coordinador', 'vendInactive']) {
+    const { error } = await sessions[quien].client.schema('crm').rpc(FN, args());
+    check(isAuthorizationError(error), `${quien} recibe 42501 en ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+
+  // E. Validaciones 22023 antes de leer: desde > hasta, cursor a medias, tipo invalido.
+  for (const [nombre, extra] of [
+    ['desde > hasta', { p_desde: hoyLima, p_hasta: haceUnAnio }],
+    ['cursor a medias', { p_antes_de: new Date().toISOString() }],
+    ['tipo invalido', { p_tipos: ['fax'] }],
+    ['limite 0', { p_limite: 0 }],
+  ]) {
+    const { error } = await sessions.gerencia.client.schema('crm').rpc(FN, args(extra));
+    check(error?.code === '22023', `${FN} rechaza ${nombre} con 22023 (${error?.code ?? 'sin error!'})`);
+  }
+
+  // F. anon: sin EXECUTE -> error de AUTORIZACION, no cualquier error.
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-gestion-diaria'));
+    const { error } = await anon.schema('crm').rpc(FN, args());
+    check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+}
+
 async function testFacturacionDiaria(sessions, seed) {
   console.log('\n— Facturación diaria (día x analista x supervisor) —');
   const FN = 'facturacion_diaria_fn';
@@ -13266,6 +13361,7 @@ async function main() {
       await testF7Ola1(sessions);
       await testAltasNuevasPorAnalista(sessions, verifiedSeed);
       await testFacturacionDiaria(sessions, verifiedSeed);
+      await testGestionDiariaRegistro(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }
