@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,13 +11,14 @@ import { ContratoNuevo } from './contrato-nuevo'
 import { CondicionesCoopac } from './condiciones-coopac'
 import { condicionesCoopac, type CampoCondicionesCoopac } from '@/lib/coopac-condiciones'
 import { fechaLima } from '@/lib/agenda-derivada'
-import { useFichaInversionista } from '@/data/inversionistas-queries'
+import { inversionistasKeys, useFichaInversionista } from '@/data/inversionistas-queries'
+import { refrescarGestionInversionista } from '@/data/gestion-inversionista'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
-import { CrmApiError, mensajeDeError, prepararPayloadContrato, type CrearContratoInput } from '@/data/crm-api'
+import { CrmApiError, mensajeDeError, prepararPayloadContrato, type CrearContratoInput, type CondicionesTasaLead } from '@/data/crm-api'
 import { completarAccesoInversion, confirmarSolicitudInversion, consultarSolicitudInversion, corregirSolicitudInversion,
-  prepararSolicitudInversion, revisarResponsableInversion, subirComprobanteInversion } from '@/data/inversion-solicitud-api'
+  prepararSolicitudInversion, revisarResponsableInversion, subirComprobanteInversion, obtenerContextoConversionInversion, enviarBienvenidaInversion, cancelarSolicitudInversion } from '@/data/inversion-solicitud-api'
 import { contratoDeSolicitud, datosAvanceRevisados, guardarIntentoInversion, leerIntentoInversion,
-  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, type ConfirmacionInversion, type DatosInversion,
+  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde, type ConfirmacionInversion, type DatosInversion,
   type IntentoInversion, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
@@ -24,18 +26,24 @@ import { parseMonto, ERROR_MONTO } from '@/lib/numero'
 import { fmtFecha, money, type Moneda } from '@/lib/format'
 import { INFO_COOPERATIVA, monedaPorDefecto, pideMoneda, type Cooperativa } from '@/lib/cierres-externos'
 import { type CuotaCronograma } from '@/lib/cronograma'
+import type { TipoDocumento } from '@/lib/documento'
 import { archivarContratoPdfConfirmado } from '@/lib/contrato-pdf-archivo'
 
 export interface OperacionInversion {tipo: 'upgrade' | 'renovacion' | 'reinversion'; fuente: InversionFuente}
+export interface OrigenLeadInversion {
+  id: string; solicitudId: string | null; condiciones?: CondicionesTasaLead | undefined
+  monto: number | null; moneda: Moneda; tipoDocumento: TipoDocumento
+}
 type AltaPortal = NonNullable<DatosInversion['alta_portal']>
 const mensajeRecuperacion = 'La solicitud sigue guardada en esta sesión. Consulta su estado antes de volver a enviarla.'
 
-export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado, onConfirmada}: {
+export function InversionNueva({actor, persona, operacion, origenLead, onCerrar, onRevocado, onConfirmada}: {
   actor: string; persona: string; operacion?: OperacionInversion | undefined
+  origenLead?: OrigenLeadInversion | undefined
   onCerrar: () => void; onRevocado: () => void; onConfirmada: () => void
 }) {
   const [guardado, setGuardado] = useState(() => {
-    try {return {intento: leerIntentoInversion(actor, persona), error: null}}
+    try {return {intento: leerIntentoInversion(actor, persona, origenLead?.id), error: null}}
     catch (e) {return {intento: null, error: mensajeDeError(e, 'No se pudo recuperar la solicitud.')}}
   })
   const [intento, setIntento] = useState<IntentoInversion | null>(guardado.intento)
@@ -43,11 +51,13 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   const [empresa, setEmpresa] = useState<EmpresaInversion | null>(guardado.intento?.datos.empresa ?? (operacion?.fuente.empresa ?? null))
   const [error, setError] = useState<string | null>(guardado.error)
   const [ocupado, setOcupado] = useState(false)
-  const [recuperando, setRecuperando] = useState(guardado.intento !== null)
+  const [recuperando, setRecuperando] = useState(guardado.intento !== null || Boolean(origenLead?.solicitudId))
   const [editar, setEditar] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [confirmacion, setConfirmacion] = useState<ConfirmacionInversion | null>(null)
+  const [cancelando, setCancelando] = useState(false)
+  const [bienvenida, setBienvenida] = useState<string | null>(null)
   const [perfilCreado, setPerfilCreado] = useState<string | null>(null)
   const [referencia, setReferencia] = useState('')
   const cerro = useRef(false)
@@ -55,22 +65,58 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   const descargaPdf = useRef<AbortController | null>(null)
   const callbacks = useRef({onRevocado, onConfirmada})
   callbacks.current = {onRevocado, onConfirmada}
-  const fichaQ = useFichaInversionista(actor, persona, 1, 1)
-  const ficha = fichaQ.isFetchedAfterMount && fichaQ.isSuccess ? fichaQ.data : null
+  const qc = useQueryClient()
+  const notificadas = useRef(new Set<string>())
+  const carteraQ = useFichaInversionista(actor, origenLead ? '' : persona, 1, 1)
+  const conversionQ = useQuery({
+    queryKey: [...inversionistasKeys.actor(actor), 'conversion', origenLead?.id, persona],
+    queryFn: ({signal}) => obtenerContextoConversionInversion(origenLead!.id, persona, signal),
+    enabled: Boolean(origenLead), staleTime: 0, gcTime: 0, retry: false,
+    refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchOnReconnect: 'always', refetchInterval: 15_000,
+  })
+  const fichaQ = origenLead ? conversionQ : carteraQ
+  const revocada = fichaQ.error instanceof CrmApiError && ['42501','PT409'].includes(fichaQ.error.code)
+  const ficha = fichaQ.isFetchedAfterMount && !revocada ? fichaQ.data : null
+  const verificacionPendiente = fichaQ.isError && Boolean(ficha)
   const guardar = (i: IntentoInversion) => {guardarIntentoInversion(i); setIntento(i)}
+  const notificar = (r: ConfirmacionInversion) => {
+    if (notificadas.current.has(r.inversion_id)) return
+    notificadas.current.add(r.inversion_id)
+    void refrescarGestionInversionista(qc, actor)
+    callbacks.current.onConfirmada()
+  }
+  const confirmarBienvenida = async (id: string) => {
+    setBienvenida('en_proceso')
+    try {const r=await enviarBienvenidaInversion(id); if(!cerro.current)setBienvenida(r.estado)}
+    catch {if(!cerro.current)setBienvenida('pendiente')}
+  }
+  const bienvenidaId = origenLead && confirmacion?.empresa === 'avance' ? intento?.clave : undefined
+  useEffect(() => {
+    if(bienvenidaId)void confirmarBienvenida(bienvenidaId)
+  }, [bienvenidaId])
   const recibir = (s: SolicitudInversion) => {
     if (cerro.current) return
     setSolicitud(s)
-    if (s.estado === 'confirmada' && s.resultado) {setConfirmacion(s.resultado); callbacks.current.onConfirmada()}
+    if (s.estado === 'confirmada' && s.resultado) {setConfirmacion(s.resultado); notificar(s.resultado)}
   }
+  const recibirRecuperacion = (s: SolicitudInversion) => {
+    if (!solicitudCorresponde(s, persona, origenLead?.id) || !s.datos) {
+      throw new Error('La solicitud no corresponde a este origen. Vuelve a abrir la ficha.')
+    }
+    if (!intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id))
+    setGuardado(previo => ({...previo, error: null}))
+    setError(null)
+    setEmpresa(s.datos.empresa)
+    recibir(s)
+  }
+  const [recuperarId, setRecuperarId] = useState(guardado.intento?.clave ?? origenLead?.solicitudId)
   useEffect(() => {
     cerro.current = false
     const abort = new AbortController()
-    if (guardado.intento) void consultarSolicitudInversion(guardado.intento.clave, abort.signal)
+    if (recuperarId) void consultarSolicitudInversion(recuperarId, abort.signal)
       .then(s => {
         if (!abort.signal.aborted) {
-          setSolicitud(s)
-          if (s.estado === 'confirmada' && s.resultado) {setConfirmacion(s.resultado); callbacks.current.onConfirmada()}
+          recibirRecuperacion(s)
         }
       }).catch(e => {
         if (abort.signal.aborted) return
@@ -78,13 +124,16 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
         else setError(mensajeDeError(e, mensajeRecuperacion))
       }).finally(() => {if (!abort.signal.aborted) setRecuperando(false)})
     return () => {cerro.current = true; abort.abort(); descargaPdf.current?.abort()}
-  }, [guardado.intento])
+  // La solicitud es estable por montaje; los callbacks usan refs para evitar
+  // que un refresco de la ficha vuelva a reclamar la recuperación.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recuperarId])
   useEffect(() => {
-    if (fichaQ.error instanceof CrmApiError && fichaQ.error.code === '42501') callbacks.current.onRevocado()
+    if (revocada) callbacks.current.onRevocado()
     else if (fichaQ.isFetchedAfterMount && fichaQ.isSuccess && !fichaQ.data) callbacks.current.onRevocado()
-  }, [fichaQ.error, fichaQ.isFetchedAfterMount, fichaQ.isSuccess, fichaQ.data])
+  }, [revocada, fichaQ.isFetchedAfterMount, fichaQ.isSuccess, fichaQ.data])
   async function ejecutar(trabajo: () => Promise<void>) {
-    if (enCurso.current) return
+    if (enCurso.current || verificacionPendiente) return
     enCurso.current = true; setOcupado(true); setError(null)
     try {await trabajo()}
     catch (e) {
@@ -114,11 +163,16 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   }
   const datos = solicitud?.datos ?? intento?.datos
   const perfil = operacion?.fuente.perfil_id ?? ficha?.persona.perfil_id ?? perfilCreado
-  const base: DatosInversion = datos ?? {inversionista_id: ficha?.persona.inversionista_id ?? persona, empresa: empresa ?? 'avance'}
+  const base: DatosInversion = datos ?? {inversionista_id: ficha?.persona.inversionista_id ?? persona,
+    ...(origenLead ? {lead_id: origenLead.id} : {}), empresa: empresa ?? 'avance',
+    ...(origenLead && empresa && empresa !== 'avance' ? {
+      ...(origenLead.monto != null ? {monto: origenLead.monto} : {}),
+      moneda: INFO_COOPERATIVA[empresa].monedas.includes(origenLead.moneda) ? origenLead.moneda : monedaPorDefecto(empresa),
+    } : {})}
   const puedeOperar = ficha?.capacidades.nueva_inversion === true
   const cerrar = () => {
     if (enCurso.current) return
-    if (confirmacion) limpiarIntentosInversion(actor, persona)
+    if (confirmacion) limpiarIntentosInversion(actor, persona, origenLead?.id)
     onCerrar()
   }
   const origenReinversion = solicitud?.reinversion_origen_id ?? intento?.reinversion_origen_id ?? (operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : null)
@@ -135,6 +189,12 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     <p role="status" className="flex items-center gap-2 font-medium"><CheckCircle2 aria-hidden />La inversión quedó registrada en {EMPRESA_NOMBRE[confirmacion.empresa]}.</p>
     {confirmacion.fuente.numero_contrato && <p>Contrato {confirmacion.fuente.numero_contrato}</p>}
     <p className="text-sm text-muted-foreground">La ficha consultará el saldo y los antecedentes actualizados.</p>
+    {bienvenida === 'enviada' && <p role="status" className="text-sm">La bienvenida al portal fue enviada.</p>}
+    {bienvenida === 'verificar_entrega' && <p role="status" className="text-sm">La inversión está guardada. Gerencia debe verificar si el correo de bienvenida fue entregado antes de volver a enviarlo.</p>}
+    {bienvenidaId && (bienvenida === 'pendiente' || bienvenida === 'en_proceso') && <div className="space-y-2">
+      <p role="status" className="text-sm">La inversión está guardada. El envío de bienvenida sigue pendiente de confirmación.</p>
+      <Button variant="outline" disabled={ocupado} onClick={() => void ejecutar(() => confirmarBienvenida(bienvenidaId))}>Consultar / reintentar bienvenida</Button>
+    </div>}
     {confirmacion.empresa === 'avance' && confirmacion.fuente.id && <Button variant="outline" disabled={ocupado} onClick={() => void ejecutar(async () => {
       const abort = new AbortController(); descargaPdf.current?.abort(); descargaPdf.current = abort
       await archivarContratoPdfConfirmado(confirmacion.fuente.id!)
@@ -142,12 +202,23 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     })}>Preparar / descargar PDF</Button>}
     {alerta}
   </DialogBody></>
+  else if (recuperarId && !solicitud && !intento) cuerpo = <>{cabecera('Recuperar solicitud')}<DialogBody className="space-y-4">
+    <p className="text-sm">Este lead ya tiene una solicitud. Consulta su estado para continuar.</p>{alerta}
+    <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
+      recibirRecuperacion(await consultarSolicitudInversion(recuperarId))
+    })}>Consultar y recuperar</Button>
+  </DialogBody></>
+  else if (solicitud?.estado === 'cancelada') cuerpo = <>{cabecera('Solicitud cancelada')}<DialogBody className="space-y-3"><p>Esta solicitud está cancelada. No se registró ninguna inversión.</p>
+    <Button variant="outline" disabled={!puedeOperar} onClick={() => {
+      limpiarIntentosInversion(actor, persona, origenLead?.id); setIntento(null); setSolicitud(null); setEmpresa(null)
+      setGuardado({intento: null, error: null}); setError(null); setArchivo(null); setEditar(false); setMotivo(''); setRecuperarId(null)
+    }}>Iniciar otra inversión</Button></DialogBody></>
   else if (!puedeOperar) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody><p role="status">{ficha.capacidades.motivo_no_operable ?? 'La persona ya no permite nuevas inversiones.'}</p></DialogBody></>
   else if (guardado.error || !empresa) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
     {guardado.error ? <div className="space-y-3">
       <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
       <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" onClick={() => {
-        limpiarIntentosInversion(actor, persona); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
+        limpiarIntentosInversion(actor, persona, origenLead?.id); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
       }}>Descartar el borrador local ilegible</Button>
       <p className="text-xs text-muted-foreground">Descartarlo no cancela una solicitud que ya esté registrada en el servidor.</p>
     </div> : <><p className="text-sm">Elige la empresa en la que invertirá.</p>
@@ -155,7 +226,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     <form onSubmit={e => {e.preventDefault(); void ejecutar(async () => {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
       const s = await consultarSolicitudInversion(referencia)
-      if (s.inversionista_id !== ficha.persona.inversionista_id || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
+      if (!solicitudCorresponde(s, ficha.persona.inversionista_id, origenLead?.id) || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
       const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id)
       guardar(i); setGuardado({intento: null, error: null}); setEmpresa(s.datos.empresa); recibir(s)
     })}} className="space-y-2 border-t border-border pt-4">
@@ -167,15 +238,13 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   else if (intento && !solicitud) cuerpo = <>{cabecera('Recuperar solicitud')}<DialogBody className="space-y-4">
     <p className="text-sm">{mensajeRecuperacion}</p>{alerta}
     <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
-      try {recibir(await consultarSolicitudInversion(intento.clave))}
+      try {recibirRecuperacion(await consultarSolicitudInversion(intento.clave))}
       catch (e) {
         if (e instanceof CrmApiError && e.code === 'P0002') recibir(await prepararSolicitudInversion(intento))
         else throw e
       }
     })}>Consultar y recuperar</Button>
   </DialogBody></>
-  else if (solicitud?.estado === 'cancelada') cuerpo = <>{cabecera('Solicitud cancelada')}<DialogBody><p>Esta solicitud está cancelada.</p>
-    <Button variant="outline" onClick={() => {limpiarIntentosInversion(actor, persona); setIntento(null); setSolicitud(null); setEmpresa(null)}}>Iniciar otra inversión</Button></DialogBody></>
   else if (solicitud?.requiere_revision_responsable) cuerpo = <>{cabecera('Revisar responsable')}<DialogBody className="space-y-3">
     <p>El responsable cambió. Revisa la misma solicitud antes de continuar.</p>
     <p className="font-medium">Responsable actual: {ficha.persona.responsable_nombre ?? 'Sin responsable'}</p>
@@ -213,6 +282,8 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
         <Input id="f5-motivo" value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={500} /></div>}
       {alerta && <div className="px-5 pt-3">{alerta}</div>}
       <ContratoNuevo key={`${perfil}:${solicitud?.revision_datos ?? 'nuevo'}`} clienteId={perfil} clienteNombre={ficha.persona.nombre}
+        leadOrigenId={origenLead?.tipoDocumento === 'DNI' ? origenLead.id : undefined} condicionesIniciales={origenLead?.condiciones}
+        {...(origenLead ? {montoSugerido: origenLead.monto, monedaSugerida: origenLead.moneda} : {})}
         categoriaFija={(operacion?.tipo !== 'reinversion' ? operacion?.tipo : undefined) ?? borrador?.categoria ?? 'nuevo'} borrador={borrador}
         {...(origen && operacion?.tipo === 'renovacion' ? {renovacionOrigen: {id: origen.fuente_id, numeroContrato: origen.numero ?? '',
           capital: origen.capital, moneda: origen.moneda, fechaVencimiento: origen.vence_en ?? ''}} : {})}
@@ -249,7 +320,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
         if (!solicitud || !intento) return
         if (archivo && solicitud.comprobante_ruta) await subirComprobanteInversion(solicitud.comprobante_ruta, archivo)
         const resultado = await confirmarSolicitudInversion(solicitud.solicitud_id, solicitud.revision_datos)
-        if (!cerro.current) {setConfirmacion(resultado); onConfirmada()}
+        if (!cerro.current) {setConfirmacion(resultado); notificar(resultado)}
       })}>{ocupado ? 'Confirmando…' : 'Confirmar inversión'}</Button>
     </div>
     <Button variant="ghost" disabled={ocupado} onClick={() => void ejecutar(async () => {if (intento) recibir(await consultarSolicitudInversion(intento.clave))})}>Actualizar revisión</Button>
@@ -257,7 +328,22 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">Referencia: {intento?.clave}. Revisión {solicitud?.revision_datos}.</p>
   </DialogBody></>
   return <Dialog open onClose={cerrar} ariaLabel="Nueva inversión" className="w-[760px]">
-    {cuerpo}
+    {verificacionPendiente && <div className="space-y-2 border-b border-border px-5 py-3">
+      <p role="alert" className="text-sm">No pudimos actualizar los permisos. Conservamos tus datos; vuelve a verificarlos para continuar.</p>
+      <Button variant="outline" disabled={fichaQ.isFetching} onClick={() => void fichaQ.refetch()}>Verificar y continuar</Button>
+    </div>}
+    <fieldset disabled={verificacionPendiente} className="contents">{cuerpo}</fieldset>
+    {solicitud?.estado === 'preparada' && !confirmacion && <div className="space-y-2 border-t border-border px-5 py-3">
+      {cancelando ? <>
+        <p className="text-sm">Se cancelará esta solicitud para poder elegir otra empresa o moneda. El lead conservará su etapa y los accesos ya completados se conservarán.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={ocupado || verificacionPendiente} onClick={() => void ejecutar(async () => {
+            recibir(await cancelarSolicitudInversion(solicitud.solicitud_id, solicitud.revision_datos)); setCancelando(false)
+          })}>Confirmar cancelación</Button>
+          <Button variant="ghost" disabled={ocupado} onClick={() => setCancelando(false)}>Conservar solicitud</Button>
+        </div>
+      </> : <Button variant="ghost" disabled={ocupado || verificacionPendiente} onClick={() => setCancelando(true)}>Cancelar solicitud</Button>}
+    </div>}
     <DialogFooter><Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={cerrar}>{confirmacion ? 'Volver a la ficha' : 'Cerrar y continuar después'}</Button></DialogFooter>
   </Dialog>
 }
@@ -281,7 +367,7 @@ function AltaAvance({nombre, correo, telefono, ocupado, onContinuar}: {
     <Button type="submit" className="sm:col-span-2" disabled={ocupado}>Revisar acceso Avance</Button>
   </form>
 }
-function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onGuardar}: {
+export function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onGuardar}: {
   datos: DatosInversion; ocupado: boolean; correccion: boolean; motivo: string; onMotivo: (v: string) => void
   onGuardar: (datos: DatosInversion, archivo: File | null, clave: string) => Promise<void>
 }) {
@@ -326,7 +412,7 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
           espejo vive en INFO_COOPERATIVA y la regla la manda el catálogo del
           servidor (`crm.empresas.monedas`). */}
       {pideMoneda(coop) && <div className="min-w-0 space-y-1"><Label htmlFor="f5-moneda">Moneda</Label>
-        <Select id="f5-moneda" value={moneda} onChange={e => setMoneda(e.target.value as Moneda)} disabled={ocupado}>
+        <Select id="f5-moneda" value={moneda} onChange={e => setMoneda(e.target.value as Moneda)} disabled={ocupado || correccion}>
           {INFO_COOPERATIVA[coop].monedas.map(m => <option key={m} value={m}>{m === 'PEN' ? 'Soles (S/)' : 'Dólares (US$)'}</option>)}
         </Select></div>}
       <div className="min-w-0 space-y-1"><Label htmlFor="f5-deposito">Número de operación del depósito</Label><Input id="f5-deposito" required maxLength={64} value={deposito} onChange={e => setDeposito(e.target.value)} disabled={ocupado} /></div>
@@ -344,7 +430,7 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
     <Button type="submit" disabled={ocupado}>Revisar inversión</Button>
   </form>
 }
-function ResumenRevision({datos}: {datos: DatosInversion}) {
+export function ResumenRevision({datos}: {datos: DatosInversion}) {
   const c = datos.contrato
   const capital = datos.empresa === 'avance' ? Number(c?.capital) : datos.monto
   const moneda = datos.empresa === 'avance' ? c?.moneda : datos.moneda

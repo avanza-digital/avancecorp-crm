@@ -1,0 +1,319 @@
+{
+  "fecha": "2026-09-19T16:36:44.651Z",
+  "estado": "PREPARADO_LOCAL_SIN_PUBLICAR",
+  "baseGit": "4d33785eddd629483ca26aefc606534a823be5ee",
+  "codigoVersionado": false,
+  "entorno": "Worktree aislado y bases sintéticas propias; sin correo real ni escrituras productivas.",
+  "comprobaciones": [
+    {
+      "comando": "cd app && npm run check",
+      "estado": "PASS",
+      "archivos": 248,
+      "pruebas": 3694,
+      "incluye": [
+        "lint",
+        "tipos",
+        "cobertura",
+        "configuración release",
+        "SW",
+        "build",
+        "bundle",
+        "duplicación"
+      ],
+      "log": "check-main.log"
+    },
+    {
+      "comando": "npm run check:scripts",
+      "estado": "PASS",
+      "log": "scripts-main.log"
+    },
+    {
+      "comando": "npm run test:edge-preflight",
+      "estado": "PASS",
+      "incluye": "79 pruebas Node (cuatro de bienvenida), Deno check y suites de tipo de cambio/push",
+      "log": "edge-final.log"
+    },
+    {
+      "comando": "npm run seed:preflight; npm run test:rls:preflight",
+      "estado": "PASS",
+      "alcance": "Offline con credenciales ficticias; no acredita una matriz remota."
+    },
+    {
+      "comando": "node supabase/scripts/conversion-inversion/replay.mjs",
+      "estado": "PASS",
+      "evidencia": {
+        "estado": "PASS",
+        "fecha": "2026-09-19T16:19:05.314Z",
+        "base": "conversion_inversion_replay_main_20260919",
+        "checks": [
+          "migración completa desde template sin cambios candidatos",
+          "oráculo económico rollback",
+          "11 funciones nuevas: owner, search_path y 33 permisos",
+          "public idéntico antes/después",
+          "reversa conserva esquema aditivo y restaura 16 funciones base"
+        ],
+        "funciones": [
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.conversion_reserva_legacy_cerrada()",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ],
+            "huella": "5a9ed5bb71fa2c36e68c352e95d06727"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "authenticated=X/postgres"
+            ],
+            "firma": "crm.preparar_persona_lead_inversion_fn(uuid,text,text,text)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "b40dded8a923dcd02f028b24bc4de94e"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.conversion_lead_con_inversion()",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ],
+            "huella": "0edf5180578781961aacbf0e78df242e"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.inversion_origen_inmutable()",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ],
+            "huella": "89073674077e2f92e407cc0a910023fd"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.inversion_persona_contexto(uuid,uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "b1c3ea787df3540596c4eda98070ac2f"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.inversion_persona_lectura(uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "556d25a969bc1103b9a00a4943c2df35"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "firma": "private.inversion_contexto_lectura(uuid,uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "7634f3a511e1573140ee52d31d8c4ba3"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "authenticated=X/postgres"
+            ],
+            "firma": "crm.cancelar_solicitud_inversion_fn(uuid,integer)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "ac30b2b1f9dedf842125bc26a727a65a"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "authenticated=X/postgres"
+            ],
+            "firma": "crm.contexto_conversion_inversion_fn(uuid,uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "a616232e3ada628404fc6a1a8356eb13"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "authenticated=X/postgres"
+            ],
+            "firma": "crm.bienvenida_inversion_estado_fn(uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ],
+            "huella": "6ebdea65a2e021538d63a41dbd82c1e5"
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "service_role=X/postgres"
+            ],
+            "firma": "crm.bienvenida_inversion_entrega_fn(uuid,text,uuid,text)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\"",
+              "lock_timeout=5s"
+            ],
+            "huella": "6645f88e3d651380e8a1b45822f1eed4"
+          }
+        ]
+      }
+    },
+    {
+      "comando": "node --test supabase/scripts/conversion-inversion/http.test.mjs",
+      "estado": "PASS",
+      "pruebas": 15,
+      "escenarios": 14,
+      "fecha": "2026-09-19T16:19:10.241Z",
+      "casos": [
+        "ACL y ámbito: anon, cliente, Directorio y equipos ajenos no preparan identidad",
+        "qorilazo PEN: comprobante real, doble envío y paridad de Cartera",
+        "prodelco PEN: comprobante real, doble envío y paridad de Cartera",
+        "prodelco USD: comprobante real, doble envío y paridad de Cartera",
+        "Cancelar y cambiar moneda conserva el lead abierto; cancelar una confirmada conserva su inversión",
+        "Dos pestañas con claves diferentes preparan una sola conversión",
+        "Fusionar después de preparar mantiene una única inversión de la persona canónica",
+        "El lector conserva permisos sin esperar locks del escritor; veto devuelve capacidad bloqueada",
+        "Identidad fusionada: recupera la misma conversión por su lead y documento original",
+        "Reasignación después de preparar: el analista anterior pierde acceso",
+        "Avance PEN DNI: Auth HTTP perdido y confirmación contractual única",
+        "Avance USD DNI: Auth HTTP perdido y confirmación contractual única",
+        "Avance PEN CE: Auth HTTP perdido y confirmación contractual única",
+        "Avance USD PASAPORTE: Auth HTTP perdido y confirmación contractual única"
+      ],
+      "nota": "Incluye la prueba contenedora; Auth/PostgREST/Storage reales, proveedor de correo sustituido."
+    },
+    {
+      "comando": "cd app && npm run test:e2e -- --config=playwright.conversion.config.ts",
+      "estado": "PASS",
+      "pruebas": 2,
+      "ejecucion": "2026-09-19T16:26Z",
+      "sesion": 85298,
+      "resultado": {
+        "status": "passed",
+        "failedTests": []
+      },
+      "alcance": [
+        "Escritorio",
+        "Móvil",
+        "Cerrar y retomar",
+        "Carga de comprobante con respuesta perdida",
+        "Recuperación desde lead convertido",
+        "Nueva inversión adicional desde Cartera",
+        "Dos inversiones y una primera conversión"
+      ]
+    },
+    {
+      "comando": "cd app && npm run test:e2e -- --config=/private/tmp/avancecorp-conversion-inversion/playwright.regresion.config.ts --workers=3",
+      "estado": "FAIL_CORREGIDO",
+      "pasaron": 201,
+      "omitidas": 26,
+      "fallaron": 1,
+      "log": "regresion-final.log",
+      "causa": "Expectativa anterior que bloqueaba Convertir a cliente por tasa Avance antes de elegir empresa."
+    },
+    {
+      "comando": "cd app && npm run test:e2e -- --config=/private/tmp/avancecorp-conversion-inversion/playwright.regresion.config.ts rentabilidad-modo.spec.ts --workers=2",
+      "estado": "PASS",
+      "pruebas": 3,
+      "log": "regresion-tasas-final.log",
+      "verifica": "La tasa 20 se conserva; el formulario compartido bloquea en enforcement y permite revisar en observación."
+    },
+    {
+      "comando": "cd app && npm run lint",
+      "estado": "PASS",
+      "log": "lint-final.log",
+      "nota": "Posterior a corregir la expectativa E2E."
+    },
+    {
+      "comando": "node --check (fixture-http.mjs y actualizar-base.mjs); git diff --check; git diff --cached --check",
+      "estado": "PASS"
+    },
+    {
+      "comando": "node supabase/scripts/conversion-inversion/generar.mjs",
+      "estado": "PASS",
+      "verifica": "SHA-256 de candidata y reversa idénticos antes y después de regenerar."
+    }
+  ],
+  "coberturaNavegador": {
+    "casosDistintosAprobados": 202,
+    "omitidos": 26,
+    "ejecuciones": 2,
+    "nota": "No es una única ejecución completa sin fallos; el archivo afectado se repitió completo tras corregir el test."
+  },
+  "revision": {
+    "consultas": 2,
+    "dictamenImplementacion": "CHANGES_REQUESTED",
+    "evaluacion": "decision-review.md",
+    "nota": "Se corrigieron o contrastaron hallazgos con evidencia. No existe un dictamen posterior PASS."
+  },
+  "noEjecutado": [
+    "Rama remota Supabase de esta candidata",
+    "Advisors remotos de esta candidata",
+    "Matriz autenticada remota",
+    "SQL productivo",
+    "Correo real",
+    "Publicación"
+  ],
+  "limites": [
+    "La base sintética reutiliza un template local preexistente; no es bootstrap desde cero.",
+    "Entrega incierta después de 23 horas requiere verificación manual en el proveedor.",
+    "No se cambió la política existente de contraseña temporal de Avance."
+  ],
+  "logs": {
+    "check-main.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/check-main.log",
+      "sha256": "84c47fd9f7698033223ab38a15ad1fb78e9adb709e1356f3b767e33d23ccfc8d"
+    },
+    "scripts-main.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/scripts-main.log",
+      "sha256": "87b11e04c00afe9ef5161c3f231cc15217e8ab133b988c70becb88f18ac38769"
+    },
+    "edge-final.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/edge-final.log",
+      "sha256": "16bc158314c2ad9dd04846f42d3995462076531ccd486bf2e5fa9e898e806b0d"
+    },
+    "regresion-final.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/regresion-final.log",
+      "sha256": "e2fc189f660f8315703820d1e5d2898150802d59d21102885d76b32346e1ad2b"
+    },
+    "regresion-tasas-final.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/regresion-tasas-final.log",
+      "sha256": "8be674890a1fdcc8d6e04fcd5cbecfc229d56fb5724f5493184d8c74c7eafff1"
+    },
+    "lint-final.log": {
+      "ruta": "/private/tmp/avancecorp-conversion-inversion/lint-final.log",
+      "sha256": "04217cec4abe78875a84ca4a10085f386dfb1da6c252eaa8333684ef8e7084a3"
+    }
+  }
+}

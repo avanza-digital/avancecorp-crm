@@ -48,9 +48,19 @@ test('supervisor: crea un lead propio y lo convierte sin asignarlo a un analista
   await expect(drawer).toBeVisible()
   await expect(drawer.getByLabel('Reasignar responsable comercial')).toHaveValue(responsableId)
   await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  await page.getByRole('dialog', { name: '¿Dónde invirtió?' }).getByRole('button', { name: /Avance Corp/i }).click()
-  await page.getByRole('dialog', { name: /Convertir a cliente/ }).getByRole('button', { name: /^Convertir/i }).click()
-  await expect(drawer.getByText(/Convertido a cliente \(demo\)/i)).toBeVisible()
+  await page.getByRole('button',{name:'Qorilazo',exact:true}).click()
+  await page.getByLabel('Capital en soles (PEN)').fill('5000')
+  await page.getByLabel('Número de operación del depósito').fill('DEMO-SUPERVISOR')
+  await page.getByLabel('Plazo (meses)').fill('12')
+  await page.getByLabel('Rentabilidad anual (%)').fill('18')
+  await page.getByLabel('Referencia de la inversión').fill('CERTIFICADO DEMO')
+  await page.getByLabel(/Comprobante PDF/).setInputFiles({name:'demo.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 SIMULACION')})
+  await page.getByRole('button',{name:'Revisar inversión',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'Revisar inversión (demo)'})).toBeVisible()
+  await page.getByRole('button',{name:'Confirmar inversión (demo)',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'Inversión confirmada (demo)'})).toBeVisible()
+  await page.getByRole('button',{name:'Cerrar',exact:true}).click()
+  await expect(drawer.getByRole('button',{name:/Convertir a cliente/i})).toHaveCount(0)
 })
 
 test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page }) => {
@@ -166,24 +176,19 @@ test('reasignar (gerencia): cambia el analista con toast "(demo)"', async ({ pag
 
 // El caso del analista sobre SU lead; Gerencia tiene otro camino global, pero el
 // analista responsable conserva la atribución del cliente y del contrato.
-test('convertir (demo): abre el diálogo y marca el lead como convertido', async ({ page }) => {
+test('convertir (demo): cancelar el contrato compartido conserva el lead abierto', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
   await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  // Paso 0 (cierres en cooperativas): elegir la empresa donde cerró. Este caso
-  // es el de Avance Corp — el único que crea cuenta de portal y manda correo.
-  // Nombre accesible = el DialogTitle (manda sobre el ariaLabel del componente).
-  const destino = page.getByRole('dialog', { name: '¿Dónde invirtió?' })
+  const destino = page.getByRole('dialog', { name: 'Nueva inversión (demo)' })
   await expect(destino).toBeVisible()
-  await destino.getByRole('button', { name: /Avance Corp/i }).click()
-  const dialogo = page.getByRole('dialog', { name: 'Convertir a cliente' })
+  await destino.getByRole('button', { name: 'Avance',exact:true }).click()
+  const dialogo = page.getByRole('dialog', { name: /Crear contrato de JUAN/ })
   await expect(dialogo).toBeVisible()
-  await dialogo.getByRole('button', { name: /^Convertir/i }).click()
-
-  await expect(page.getByText(/ahora es cliente \(demo\)/i)).toBeVisible()
-  await expect(drawer.getByText(/Convertido a cliente \(demo\)/i)).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Cancelar',exact:true }).last().click()
+  await expect(drawer.getByRole('button',{name:/Convertir a cliente/i})).toBeVisible()
 })
 
 // EL CASO DE MIGUEL (2026-07-26), de punta a punta: agendas la reunión y la

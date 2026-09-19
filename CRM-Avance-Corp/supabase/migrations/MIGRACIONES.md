@@ -1,5 +1,33 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260919161807 — Convertir un lead mediante el registro común de inversiones
+
+**PREPARADA Y PROBADA LOCALMENTE el 19/09/2026; SIN INSTALAR EN PRODUCCIÓN.**
+Miguel pidió que «Convertir a cliente» abra el mismo proceso que «Nueva inversión»
+de Cartera. Reconocer identidad o preparar el acceso Avance no cierra el lead;
+la inversión, su fuente, la conversión y la actividad se confirman juntas.
+
+Añade `lead_origen_id` y `bienvenida` a `crm.inversion_solicitudes`, un índice
+único parcial, una restricción de origen y tres triggers de CRM. Crea 11 funciones
+y sustituye 10, con 18 anclas de definiciones previas. Incluye cancelación explícita,
+recuperación por lead, atribución al analista y protección contra formularios
+antiguos. Permisos restringidos, `search_path` vacío y auditoría conservada.
+No altera objetos del esquema `public`; reutiliza sus escritores existentes.
+Conserva el modo integral de rentabilidad y la entrevista al asistir integrados
+desde Main `4d33785eddd629483ca26aefc606534a823be5ee`.
+
+**PASS local:** `npm run check` (3.694 pruebas), 15 pruebas HTTP con Auth,
+PostgREST y Storage reales, oráculo económico con rollback, replay completo y
+reversa, 33 verificaciones de permisos sobre 11 funciones nuevas, definición de
+`public` idéntica, Edge y scripts; navegador real en escritorio y móvil.
+Regresión general, huellas y límites en el [acta del ensayo](../scripts/conversion-inversion/README.md).
+No se enviaron correos reales. Rama remota, advisors, matriz remota, SQL productivo
+y publicación permanecen **NOT RUN**.
+
+Requiere autorización del SQL exacto antes del ensayo remoto/instalación y el flujo
+de publicación del proyecto. La reversa conserva inversiones, auditoría y columnas
+aditivas; exige resolver antes las solicitudes de conversión preparadas.
+
 ## 20260918210543 — El modo de rentabilidad gobierna toda la aprobación de tasa
 
 **APLICADA EN PRODUCCIÓN 18/09/2026 16:05 Lima.** Miguel pidió el 18/09 que el mismo botón controle

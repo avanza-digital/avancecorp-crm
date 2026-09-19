@@ -3272,15 +3272,47 @@ export async function loginReal(
   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
 }
 
-/** Abre el diálogo de conversión desde la ficha del lead.
- * Desde los cierres en cooperativas (2026-08-13) el botón abre PRIMERO
- * «¿Dónde invirtió?»: solo Avance Corp sigue al alta del cliente del portal. */
+/** Transporte de la ruta compartida para las suites de UI sin backend.
+ * SQL, Auth y Storage reales se cubren en e2e-integration y en el banco HTTP. */
+export async function montarConversionCompartida(page:Page) {
+  const persona='11111111-1111-4111-8111-111111111111'
+  let nombre='PERSONA SINTÉTICA',leadId:string|null=null,perfil:string|null=null
+  let solicitud:Record<string,unknown>|null=null
+  await page.route('**/rest/v1/rpc/*',async route=>{
+    const fn=new URL(route.request().url()).pathname.split('/').at(-1),b=route.request().postDataJSON()
+    if(fn==='preparar_persona_lead_inversion_fn'){
+      nombre=b.p_nombre;leadId=b.p_lead
+      return route.fulfill({json:{inversionista_id:persona,lead_id:leadId,solicitud_id:solicitud?.solicitud_id??null}})
+    }
+    if(fn==='contexto_conversion_inversion_fn')return route.fulfill({json:{solicitud_id:solicitud?.solicitud_id??null,documento_tipo:'DNI',persona:{inversionista_id:persona,perfil_id:perfil,
+      nombre,correo:'persona@pruebas.example',telefono:'999888777',responsable_id:UID,responsable_nombre:'ANALISTA DEL LEAD'},
+      capacidades:{nueva_inversion:true,motivo_no_operable:null}}})
+    if(fn==='preparar_inversion_fn'){
+      solicitud={solicitud_id:b.p_clave,lead_id:leadId,estado:'preparada',inversion_id:null,inversionista_id:persona,
+        inversionista_origen_id:persona,identidad_fusionada:false,responsable_esperado_id:UID,responsable_actual_id:UID,
+        requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'prueba',
+        necesita_portal:!perfil,comprobante_bucket:null,comprobante_ruta:null,resultado:null,datos:b.p_datos}
+      return route.fulfill({json:solicitud})
+    }
+    if(fn==='solicitud_inversion_fn')return route.fulfill({json:solicitud})
+    return route.fallback()
+  })
+  await page.route('**/functions/v1/crm-inversion-portal',route=>{
+    perfil='cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    solicitud={...solicitud,necesita_portal:false}
+    return route.fulfill({json:{ok:true,solicitud_id:solicitud.solicitud_id,perfil_id:perfil,reintento:false}})
+  })
+}
+
+/** Abre Avance dentro de Nueva inversión después de confirmar la identidad. */
 export async function abrirConversionAvance(page: Page, drawer: Locator): Promise<Locator> {
+  await montarConversionCompartida(page)
   await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  await page.getByRole('dialog', { name: '¿Dónde invirtió?' })
-    .getByRole('button', { name: /^Avance Corp/ })
-    .click()
-  const dialogo = page.getByRole('dialog', { name: 'Convertir a cliente' })
+  const documento=page.getByLabel('Documento',{exact:true})
+  if(!await documento.inputValue())await documento.fill('93334444')
+  await page.getByRole('button',{name:'Continuar a Nueva inversión'}).click()
+  await page.getByRole('button',{name:'Avance',exact:true}).click()
+  const dialogo = page.getByRole('dialog', { name: 'Acceso Avance' })
   await expect(dialogo).toBeVisible()
   return dialogo
 }

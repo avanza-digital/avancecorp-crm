@@ -6,6 +6,7 @@ const Uuid = v.pipe(v.string(), v.uuid())
 const Revision = v.pipe(v.number(), v.integer(), v.minValue(0))
 export const DatosInversionSchema = v.object({
   inversionista_id: Uuid,
+  lead_id: v.optional(Uuid),
   empresa: v.picklist(['avance', 'qorilazo', 'prodelco']),
   monto: v.optional(v.number()), moneda: v.optional(v.picklist(['PEN', 'USD'])),
   fecha_comercial: v.optional(v.string()), vence_en: v.optional(v.string()),
@@ -28,6 +29,7 @@ export const ConfirmacionInversionSchema = v.object({
   fuente: v.looseObject({id: v.optional(Uuid), cierre_id: v.optional(Uuid), numero_contrato: v.optional(v.string())}),
 })
 export const SolicitudInversionSchema = v.object({
+  lead_id: v.optional(v.nullable(Uuid)),
   reinversion_origen_id: v.optional(v.nullable(Uuid)),
   solicitud_id: Uuid, estado: v.picklist(['preparada', 'confirmada', 'cancelada']),
   inversion_id: v.nullable(Uuid), inversionista_id: Uuid, inversionista_origen_id: Uuid,
@@ -40,6 +42,13 @@ export const SolicitudInversionSchema = v.object({
 export type SolicitudInversion = v.InferOutput<typeof SolicitudInversionSchema>
 export type ConfirmacionInversion = v.InferOutput<typeof ConfirmacionInversionSchema>
 
+/** El servidor devuelve la persona canónica y conserva el origen tras una
+ * fusión. Recuperar acepta ambas referencias, pero nunca otro contexto de lead. */
+export function solicitudCorresponde(s: SolicitudInversion, persona: string, lead?: string): boolean {
+  return Boolean(s.datos && s.datos.lead_id === lead &&
+    (s.inversionista_id === persona || s.inversionista_origen_id === persona))
+}
+
 const IntentoSchema = v.object({
   reinversion_origen_id: v.optional(v.nullable(Uuid)),
   version: v.literal(1), actor: Uuid, persona: Uuid, clave: Uuid, datos: DatosInversionSchema,
@@ -48,25 +57,25 @@ const IntentoSchema = v.object({
 })
 export type IntentoInversion = v.InferOutput<typeof IntentoSchema>
 const PREFIJO = 'crm:f5:solicitud:'
-const clave = (actor: string, persona: string) => `${PREFIJO}${actor}:${persona}`
+const clave = (actor: string, persona: string, lead?: string) => `${PREFIJO}${actor}:${lead ? `lead-${lead}` : persona}`
 
 /** Solo en esta sesión del navegador: sobrevive a recarga/cierre de diálogo.
  * El contenido nunca viaja a logs, y se elimina al salir o perder acceso. */
 export function guardarIntentoInversion(intento: IntentoInversion): void {
   const validado = v.parse(IntentoSchema, intento)
-  sessionStorage.setItem(clave(validado.actor, validado.persona), JSON.stringify(validado))
+  sessionStorage.setItem(clave(validado.actor, validado.persona, validado.datos.lead_id), JSON.stringify(validado))
 }
-export function leerIntentoInversion(actor: string, persona: string): IntentoInversion | null {
-  const raw = sessionStorage.getItem(clave(actor, persona))
+export function leerIntentoInversion(actor: string, persona: string, lead?: string): IntentoInversion | null {
+  const raw = sessionStorage.getItem(clave(actor, persona, lead))
   if (!raw) return null
   try {
     const r = v.safeParse(IntentoSchema, JSON.parse(raw))
-    if (r.success && r.output.actor === actor && r.output.persona === persona) return r.output
+    if (r.success && r.output.actor === actor && r.output.persona === persona && r.output.datos.lead_id === lead) return r.output
   } catch { /* nunca mostrar el contenido corrupto */ }
   throw new Error('No se pudo leer la solicitud pendiente. Conserva esta sesión y solicita revisión.')
 }
-export function limpiarIntentosInversion(actor?: string, persona?: string): void {
-  const prefijo = actor ? `${PREFIJO}${actor}:${persona ?? ''}` : PREFIJO
+export function limpiarIntentosInversion(actor?: string, persona?: string, lead?: string): void {
+  const prefijo = actor ? `${PREFIJO}${actor}:${lead ? `lead-${lead}` : persona ?? ''}` : PREFIJO
   try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
   catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
 }

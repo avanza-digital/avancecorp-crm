@@ -1,9 +1,11 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-16
+actualizado: 2026-09-19
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Conversion de lead con Nueva inversion - preparado 2026-09-19]] — **PREPARADO, SIN PUBLICAR:** Convertir a cliente usa el proceso de Cartera; el lead se cierra sólo al confirmar. Trabajo aislado, 3.694 pruebas y banco real local verificados. SQL exacto y publicación pendientes de autorización.
 
 - [[Interruptor integral de rentabilidad - preparado 2026-09-18]] — **PUBLICADO 18/09:** el botón controla toda la exigencia de tasa en CRM, portal, conversión y contratos; observación deja de solicitar o consumir aprobaciones. SQL, CRM y portal verificados en producción.
 

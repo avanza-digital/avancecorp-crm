@@ -2,7 +2,7 @@
 // este caso no depende del gate general de la fuerza de ventas: Gerencia ya
 // tiene aprobadas las vistas de leads y debe poder operar un lead ajeno.
 import { expect, test } from '@playwright/test'
-import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, resumenCarteraReal } from './_helpers'
+import { abrirLead, abrirConversionAvance, irAPipeline, leadReal, loginReal, montarBackendReal, resumenCarteraReal } from './_helpers'
 import type { Page } from '@playwright/test'
 
 /** La tabla de LEADS. Ojo: su botón de nav se llama «Leads»; «Cartera» es la
@@ -28,15 +28,8 @@ test('Gerencia abre un lead asignado a otro analista y puede iniciar su conversi
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  // Desde los cierres en cooperativas el flujo arranca preguntando DÓNDE cerró:
-  // Avance sigue su camino de siempre (portal + correo); Qorilazo/Prodelco solo
-  // registran el cierre. Gerencia debe poder recorrer el camino de Avance.
-  // Nombre accesible = el DialogTitle (manda sobre el ariaLabel del componente).
-  const destino = page.getByRole('dialog', { name: '¿Dónde invirtió?' })
-  await expect(destino).toBeVisible()
-  await destino.getByRole('button', { name: /Avance Corp/i }).click()
-  await expect(page.getByRole('dialog', { name: 'Convertir a cliente' })).toBeVisible()
+  await abrirConversionAvance(page,drawer)
+  await expect(page.getByRole('dialog', { name: 'Acceso Avance' })).toBeVisible()
 })
 
 test('los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn', async ({ page }) => {
