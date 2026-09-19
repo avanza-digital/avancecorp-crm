@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Gestión Diaria — Registrar resultado de llamada</title>
+</head>
+<body>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#ffffff;color:#111e3d;-webkit-font-smoothing:antialiased}
+a{color:#2563eb}a:hover{color:#1d4ed8}
+</style>
+
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #f8fafc; display: flex; flex-direction: column; position: relative; overflow: hidden;">
+
+  <!-- Fondo: la cola sigue ahí, atenuada. El analista no pierde contexto -->
+  <div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 32px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 32px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 16px; font-weight: 800; letter-spacing: -0.2px; color: #111e3d;">Mi día</span>
+      <span style="font-size: 12px; font-weight: 700; color: #475569; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">Analista</span>
+    </div>
+    <span style="font-size: 14px; color: #64748b; flex-grow: 1;">Daniela Castillo · cartera de 47 leads</span>
+    <div style="width: 40px; height: 40px; border-radius: 50%; background: #475569; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;">DC</div>
+  </div>
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 24px 32px 32px 32px; display: flex; flex-direction: column; gap: 16px;">
+    <h1 style="margin: 0; font-size: 20px; font-weight: 700; line-height: 1.3; color: #111e3d;">¿A quién llamo ahora?</h1>
+    <div style="width: 880px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+      <div style="padding: 8px 16px; background: #fef2f2; border-bottom: 1px solid #fecaca;"><span style="font-size: 12px; font-weight: 700; color: #b91c1c;">Vencidas · 7</span></div>
+      <div style="padding: 8px 16px; min-height: 64px; box-sizing: border-box; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 16px; background: #eef2ff; border-left: 3px solid #2563eb;">
+        <span style="width: 72px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #b91c1c;">Hace 2 días</span>
+        <span style="width: 220px; flex-shrink: 0; font-size: 14px; font-weight: 700; color: #111e3d;">Maya Sagraria Inuma</span>
+        <span style="font-size: 12px; font-weight: 700; color: #1e40af;">En llamada · 00:42</span>
+      </div>
+      <div style="padding: 8px 16px; min-height: 64px; box-sizing: border-box; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 16px;">
+        <span style="width: 72px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #b91c1c;">Ayer</span>
+        <span style="width: 220px; flex-shrink: 0; font-size: 14px; font-weight: 700; color: #111e3d;">Honorato Quispe</span>
+      </div>
+      <div style="padding: 8px 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 16px;">
+        <span style="width: 72px; flex-shrink: 0; font-size: 14px; font-weight: 800; color: #2563eb;">17:00</span>
+        <span style="width: 220px; flex-shrink: 0; font-size: 14px; font-weight: 700; color: #111e3d;">César Malpartida</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Velo -->
+  <div style="position: absolute; inset: 0; background: rgba(17,30,61,0.32);"></div>
+
+  <!-- PANEL LATERAL · el formulario -->
+  <aside aria-label="Registrar resultado" style="position: absolute; top: 0; right: 0; width: 520px; height: 900px; box-sizing: border-box; background: #ffffff; border-left: 1px solid #e2e8f0; box-shadow: -16px 0 48px rgba(17,30,61,0.16); display: flex; flex-direction: column;">
+
+    <div style="padding: 24px 32px 16px 32px; border-bottom: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; line-height: 1.3; color: #111e3d; flex-grow: 1;">¿Cómo terminó la llamada?</h2>
+        <button type="button" aria-label="Cerrar" style="font-family: inherit; width: 44px; height: 44px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <span style="font-size: 14px; color: #475569;">Maya Sagraria Inuma · 987 654 321 · 4.º intento</span>
+    </div>
+
+    <div style="flex-grow: 1; padding: 24px 32px; display: flex; flex-direction: column; gap: 24px; overflow: hidden;">
+
+      <!-- Paso 1 · resultado. Radios grandes, una columna, sin dropdown -->
+      <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px;">
+        <legend style="font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; padding: 0;">Resultado · obligatorio</legend>
+
+        <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+          <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+          <span style="font-size: 14px; font-weight: 600; color: #111e3d; flex-grow: 1;">No contestó</span>
+          <span style="font-size: 12px; color: #64748b;">1</span>
+        </label>
+
+        <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 2px solid #2563eb; border-radius: 8px; cursor: pointer; background: #eef2ff; box-sizing: border-box; box-shadow: 0 0 0 3px #bfdbfe;">
+          <input type="radio" name="resultado" checked style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+          <span style="font-size: 14px; font-weight: 700; color: #111e3d; flex-grow: 1;">Contestó · volver a llamar</span>
+          <span style="font-size: 12px; color: #64748b;">2</span>
+        </label>
+
+        <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+          <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+          <span style="font-size: 14px; font-weight: 600; color: #111e3d; flex-grow: 1;">Contestó · agendó reunión</span>
+          <span style="font-size: 12px; color: #64748b;">3</span>
+        </label>
+
+        <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+          <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+          <span style="font-size: 14px; font-weight: 600; color: #111e3d; flex-grow: 1;">Contestó · no le interesa</span>
+          <span style="font-size: 12px; color: #64748b;">4</span>
+        </label>
+
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+            <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+            <span style="font-size: 14px; font-weight: 600; color: #111e3d;">Número errado</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+            <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+            <span style="font-size: 14px; font-weight: 600; color: #111e3d;">No es la persona</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box;">
+            <input type="radio" name="resultado" style="width: 18px; height: 18px; margin: 0; accent-color: #2563eb;">
+            <span style="font-size: 14px; font-weight: 600; color: #111e3d;">Pide otro producto</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- Paso 2 · aparece solo con "volver a llamar". Defaults inteligentes, lo pasado no se puede elegir -->
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <span style="font-size: 12px; font-weight: 700; color: #64748b;">¿Cuándo? · obligatorio para volver a llamar</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 600; color: #111e3d; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; height: 44px; padding: 0 16px; cursor: pointer;">Hoy 17:00</button>
+          <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 700; color: #ffffff; background: #2563eb; border: 1px solid #2563eb; border-radius: 8px; height: 44px; padding: 0 16px; cursor: pointer;">Lunes 21 · 10:00</button>
+          <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 600; color: #111e3d; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; height: 44px; padding: 0 16px; cursor: pointer;">En una semana</button>
+          <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 600; color: #2563eb; background: #ffffff; border: 1px dashed #93c5fd; border-radius: 8px; height: 44px; padding: 0 16px; cursor: pointer;">Otra fecha</button>
+        </div>
+        <span style="font-size: 12px; color: #64748b;">Se crea la tarea al guardar. No hay fechas pasadas para elegir.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label for="nota" style="font-size: 12px; font-weight: 700; color: #64748b;">Nota · opcional</label>
+        <textarea id="nota" rows="2" placeholder="Qué dijo, qué quedó pendiente" style="font-family: inherit; font-size: 14px; line-height: 1.5; color: #111e3d; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; resize: none; outline: 0; box-sizing: border-box; width: 100%;"></textarea>
+      </div>
+
+    </div>
+
+    <!-- Pie · una acción primaria obvia; el siguiente lead ya está en cola -->
+    <div style="padding: 16px 32px 24px 32px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px;">
+      <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 600; color: #475569; background: transparent; border: 0; height: 48px; padding: 0 12px; cursor: pointer;">Cancelar</button>
+      <span style="flex-grow: 1;"></span>
+      <button type="button" style="font-family: inherit; font-size: 14px; font-weight: 700; color: #ffffff; background: #111e3d; border: 0; border-radius: 8px; height: 48px; padding: 0 24px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        Guardar y llamar al siguiente
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </button>
+    </div>
+  </aside>
+
+</div>
+</body>
+</html>
