@@ -1,0 +1,29 @@
+{
+  "mode": "crm",
+  "startedAt": "2026-09-19T22:33:13.239Z",
+  "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+  "events": [
+    {
+      "at": "2026-09-19T22:33:13.482Z",
+      "stage": "deploy-start",
+      "domain": "crm.miavance.com",
+      "archive": {
+        "nombre": "crm-20260919T222832Z-4bd3dc1b5d1a.zip",
+        "bytes": 2199941,
+        "sha256": "d22bbf92654be4a003491cb161160d9549a7d2b164cea76771a0ad74423f1c53"
+      }
+    },
+    {
+      "at": "2026-09-19T22:33:24.166Z",
+      "stage": "deploy-response",
+      "uploadStatus": "success",
+      "deployStatus": "success"
+    },
+    {
+      "at": "2026-09-19T22:33:24.544Z",
+      "status": "PASS",
+      "stage": "crm-deploy-and-cache-purge",
+      "domain": "crm.miavance.com"
+    }
+  ]
+}

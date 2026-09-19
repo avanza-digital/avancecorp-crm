@@ -1,0 +1,166 @@
+{
+  "estado": "PUBLICADO_Y_VERIFICADO",
+  "autorizacion": "$release-crm recibido el 19/09/2026",
+  "destino_crm": "https://crm.miavance.com",
+  "destino_portal": "https://miavance.com",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/31",
+  "fuente": {
+    "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+    "rama": "main",
+    "remoto": "avancecorp",
+    "tracking": "avancecorp/main",
+    "arbol": "d2f1f6043873c95e51117928464183cdd076b660",
+    "commit_pr_aprobado": "218df5e37e2dfd3e3b0007ffdacb6e2fda6ef601",
+    "commit_portal": "35198b14a8b70790faf55443ca6b1df95c70882e",
+    "fuente_limpia": true,
+    "main_integrado_y_alineado": true
+  },
+  "artefacto_portal": {
+    "nombre": "portal-parche-prefijos-35198b14a8b7.zip",
+    "bytes": 55855,
+    "sha256": "8b4016f1f522009a946c2bfbf42b512970debf09a0c945eda4775052ba349f74"
+  },
+  "recuperacion_crm": {
+    "nombre": "crm-20260919T213432Z-4094df3c9224.zip",
+    "bytes": 2199822,
+    "sha256": "66ae91eba9a5905e9671e2a2dd3f891ea62938d4b4aeedfe9f650e68f6fc5bb4"
+  },
+  "gates": {
+    "crm_check": "PASS: 3773 pruebas, 254 archivos y todos los pasos de npm run check; Main actualizado",
+    "crm_e2e_contratos": "PASS: 12 recorridos Chromium (10 contratos, 2 historial), backend simulado",
+    "portal_tests": "PASS: 104 pruebas",
+    "release_crm": "PASS desde Main 4bd3dc1b",
+    "release_crm_verify": "PASS: d22bbf92654be4a003491cb161160d9549a7d2b164cea76771a0ad74423f1c53",
+    "contenido_zip": "PASS: 102/102 archivos, tamaños y SHA-256",
+    "recuperacion_actual": "PASS: ZIP previo 4094df3c y cinco archivos anteriores del portal confirmados por HTTP antes de publicar",
+    "ci_github": "PASS: verify, e2e y preflight en 218df5e3; código app y portal idénticos en Main 4bd3dc1b",
+    "despliegue": "PASS: portal primero (6 archivos TUS) y CRM después (hosting_deployStaticWebsite); purga CDN en ambos",
+    "smoke_posterior_publicacion": "PASS: 65 archivos CRM y 6 portal por HTTP/hash; 3 accesos Chromium sin errores ni escrituras",
+    "portal_paquete": "PASS: 6/6 archivos íntegros, importadores v1/v29/v44, SW v119 y orden de publicación verificados",
+    "pr_scope": "PASS: 12 archivos del cambio; Main actualizado incorporado sin ampliar el diff del PR",
+    "portada_produccion_al_cierre": "PASS: index-DEdo03gm.js y portada idénticos al artefacto 4bd3dc1b",
+    "main_fuente": "PASS: Main local y avancecorp/main alineados en 4bd3dc1b antes de subir; copia limpia",
+    "equivalencia": "4bd3dc1b solo agrega actas respecto a 0d1c1ae3; app y portal idénticos al PR #31 aprobado y al check local de 3773 pruebas"
+  },
+  "bloqueos": [],
+  "condicion_reanudacion": [],
+  "candidatas_anteriores": [
+    {
+      "commit": "a030fb7ba0752c6581f8c85094ac1f7fd543e6b2",
+      "archivo": {
+        "nombre": "crm-20260919T213351Z-a030fb7ba075.zip",
+        "bytes": 2197792,
+        "sha256": "afb5cea78439be8b5d728ef88fb035dc024d4902d5260cc7791b0a19bcc8358f"
+      },
+      "estado": "SUPERSEDIDA: Main integró el PR #28; no publicar"
+    },
+    {
+      "commit": "766353c22e06c173e4703d40a3e063c5b17c965a",
+      "archivo": {
+        "nombre": "crm-20260919T214038Z-766353c22e06.zip",
+        "bytes": 2199961,
+        "sha256": "dbe02b1608c93b1f9021cc2e7c531abe0c59a663669d34dacd89289de577c135"
+      },
+      "estado": "SUPERSEDIDA: PR aprobado e integrado; no publicar candidata"
+    }
+  ],
+  "ci_detalle": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-09-19T21:58:11Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35471901449/job/105974247120",
+      "name": "preflight",
+      "startedAt": "2026-09-19T21:56:58Z",
+      "status": "COMPLETED",
+      "workflowName": "CRM RLS preflight"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-09-19T22:03:20Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35471901417/job/105974247293",
+      "name": "verify",
+      "startedAt": "2026-09-19T21:56:58Z",
+      "status": "COMPLETED",
+      "workflowName": "CRM app quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-09-19T22:07:50Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/35471901417/job/105974247200",
+      "name": "e2e",
+      "startedAt": "2026-09-19T21:56:58Z",
+      "status": "COMPLETED",
+      "workflowName": "CRM app quality"
+    }
+  ],
+  "revision_github": {
+    "estado": "APPROVED",
+    "revisor": "miguejbs98",
+    "fecha": "2026-09-19T21:56:45Z",
+    "required_approving_review_count": 1,
+    "ruleset_id": 20216285,
+    "pr_estado": "MERGED",
+    "merge_commit": "0d1c1ae31939ef3e28e26aa2937667bb0fda3b4e",
+    "merged_at": "2026-09-19T22:08:23Z"
+  },
+  "fecha_verificacion_ci": "2026-09-19T22:07:50Z",
+  "recuperacion_crm_anterior": {
+    "nombre": "crm-20260919T202714Z-7035feefbff5.zip",
+    "bytes": 2055599,
+    "sha256": "3041ab0bc3c44f363d725607fce3ad5ff09a8361ef2000517bf5f19696c4b7e6"
+  },
+  "publicacion_externa_observada": {
+    "commit": "4094df3c922488ab2c483cb3e7783277ee79169d",
+    "release_id": "crm-20260919T213432Z-4094df3c9224",
+    "alcance": "historial aprobado en Main; esta numeración no está publicada",
+    "actuacion_primary": "solo lectura y copia del respaldo vigente"
+  },
+  "pr_actualizacion": {
+    "head": "218df5e37e2dfd3e3b0007ffdacb6e2fda6ef601",
+    "base": "61139c0da37e5cf9c1762a6262d3a008616ca2b0",
+    "ci": "PASS: verify, e2e y preflight",
+    "arbol_app": "f0cec7e5e10a7a4c5ee1f609af22f1a5f2e734fa",
+    "equivalencia": "Árbol app y commit portal idénticos a la candidata 766353c2; solo se incorporó PR #30, instalado en producción según su acta.",
+    "integracion": "MERGED"
+  },
+  "artefacto_crm": {
+    "nombre": "crm-20260919T222832Z-4bd3dc1b5d1a.zip",
+    "bytes": 2199941,
+    "sha256": "d22bbf92654be4a003491cb161160d9549a7d2b164cea76771a0ad74423f1c53"
+  },
+  "artefactos_preparados_no_publicados": [
+    {
+      "nombre": "crm-20260919T220939Z-0d1c1ae31939.zip",
+      "bytes": 2199983,
+      "sha256": "890e38a57f2b0e4a585bf9b2c6ebdc79cba62886a0c44efd709255e51afd7c03"
+    }
+  ],
+  "publicado_en": {
+    "portal": "2026-09-19T22:32:13.033Z",
+    "crm": "2026-09-19T22:33:24.544Z"
+  },
+  "conexion_hostinger": {
+    "estado": "RECUPERADA",
+    "mecanismo": "MCP stdio del paquete oficial hostinger-api-mcp 1.59.0 ya instalado; OAuth existente",
+    "cambios_configuracion": false,
+    "instalaciones": false,
+    "credenciales_en_acta": false
+  },
+  "limites": [
+    "Smoke productivo de acceso con sesión vacía; no se crearon, editaron ni eliminaron contratos reales.",
+    "Actualizar pestañas antiguas antes de operar series 2024/2025.",
+    "Gate realidad anterior no ejecutado; banco SQL sintético no equivale a réplica productiva."
+  ],
+  "evidencia_publicacion": [
+    "evidencia/hostinger-preflight.json",
+    "evidencia/hostinger-portal.json",
+    "evidencia/portal-produccion-verificada.json",
+    "evidencia/hostinger-crm.json",
+    "evidencia/crm-produccion-verificada.json",
+    "evidencia/smoke-acceso-produccion.json",
+    "evidencia/verificacion-main-4bd3dc1b.json"
+  ]
+}

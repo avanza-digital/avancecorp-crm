@@ -1,0 +1,836 @@
+{
+  "schema_version": 1,
+  "release_id": "crm-20260919T222832Z-4bd3dc1b5d1a",
+  "creado_en": "2026-09-19T22:28:32.912Z",
+  "destino": "crm.miavance.com",
+  "fuente": {
+    "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "build": {
+    "comando": "npm --prefix app run build",
+    "archivos": [
+      {
+        "ruta": ".htaccess",
+        "bytes": 2977,
+        "sha256": "c70380da325b9dcc9c18f2f504910694085865a02bb8eae2c6515f3bceef5510"
+      },
+      {
+        "ruta": "404.html",
+        "bytes": 1910,
+        "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f"
+      },
+      {
+        "ruta": "aliados/belysh.png",
+        "bytes": 212660,
+        "sha256": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7"
+      },
+      {
+        "ruta": "aliados/clinica-alvarez.png",
+        "bytes": 21196,
+        "sha256": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91"
+      },
+      {
+        "ruta": "aliados/mascapital.png",
+        "bytes": 133622,
+        "sha256": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76"
+      },
+      {
+        "ruta": "aliados/ntc-agency.png",
+        "bytes": 112725,
+        "sha256": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f"
+      },
+      {
+        "ruta": "aliados/phoenix.png",
+        "bytes": 237650,
+        "sha256": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11"
+      },
+      {
+        "ruta": "aliados/prodelco.png",
+        "bytes": 39491,
+        "sha256": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6"
+      },
+      {
+        "ruta": "aliados/qorilazo.png",
+        "bytes": 188016,
+        "sha256": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86"
+      },
+      {
+        "ruta": "assets/agenda-BkslJ5AX.js",
+        "bytes": 30791,
+        "sha256": "873f9dfdb4c3b247b6c31d70bc054f11c80eccdbf3063a90e8e9bdf9e5473c44"
+      },
+      {
+        "ruta": "assets/agenda-vistas-BsHc5ReW.js",
+        "bytes": 3652,
+        "sha256": "a7b9a9a2836b15afd46ccb5cf6d7ba1177001ce6cbbe85ddad8545276b3e8c1a"
+      },
+      {
+        "ruta": "assets/alertas-aryRvxeG.js",
+        "bytes": 15216,
+        "sha256": "c720f24cdf61c664013fe47c7ced7814c175cb57a86b59b1a8d196d5bb1814d4"
+      },
+      {
+        "ruta": "assets/animated-value-CxWwuyas.js",
+        "bytes": 947,
+        "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258"
+      },
+      {
+        "ruta": "assets/aviso-degradacion-py2WSmqW.js",
+        "bytes": 1198,
+        "sha256": "4dd572970f923b128ce08b6e1cf0c640318271d6ec353e5689fbe6100ca2b606"
+      },
+      {
+        "ruta": "assets/button-WZlb2LPp.js",
+        "bytes": 1964,
+        "sha256": "d0845813f6a20cd482b480205e335d3e70d9e89a1082da1823ff4da53823c3cf"
+      },
+      {
+        "ruta": "assets/card-5iFsqjqS.js",
+        "bytes": 737,
+        "sha256": "4871585e53b22b83408cd6ae3842fe7c9d7f1c8f476ba34c8cfecaf1394b2a89"
+      },
+      {
+        "ruta": "assets/cartera-BTAX9OCd.js",
+        "bytes": 15883,
+        "sha256": "98e7fc0ae0b19c6926e3ae494d23fbb00f98fa8fbee4f46eabfd2af4b4a4c0cb"
+      },
+      {
+        "ruta": "assets/cierres-externos-seccion-DmPLcPd6.js",
+        "bytes": 15196,
+        "sha256": "6ab70cc1cdd1f119f2776149ca90faa8ac70df14bc67bfd6eb76b7e9d84dbe9a"
+      },
+      {
+        "ruta": "assets/clientes-vista-BT9wOPoj.js",
+        "bytes": 304,
+        "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815"
+      },
+      {
+        "ruta": "assets/config-citas-_mhsHXxg.js",
+        "bytes": 16925,
+        "sha256": "edc89e81dfce1c589ea12faad41b2df718600292675141c5f55979cf597c6fbf"
+      },
+      {
+        "ruta": "assets/config-DJBtd4Wa.js",
+        "bytes": 11877,
+        "sha256": "25fc15b94af4178056f80e5a43e02524969ede0ff8c2b6b376311d46f9353c68"
+      },
+      {
+        "ruta": "assets/config-metas-C7uwlLdF.js",
+        "bytes": 16003,
+        "sha256": "dbc716da213598186797f91b413c825a69b6b79028fc4899491b854a926e37aa"
+      },
+      {
+        "ruta": "assets/config-productos-CYYVTzAj.js",
+        "bytes": 27032,
+        "sha256": "3926a47630ab403a148b17aaacf7d56ff40646ebd1bdedd7fca176cc2c09b430"
+      },
+      {
+        "ruta": "assets/config-rentabilidad-CjG4p6Uw.js",
+        "bytes": 14368,
+        "sha256": "63629468c8b3a0808c0d91fe76f68ee34fa7b1f6984a51b328438066e1843b06"
+      },
+      {
+        "ruta": "assets/config-sla-DAayGgJf.js",
+        "bytes": 17133,
+        "sha256": "dec23348c4a762ee83fa9f024883cbe3c85b51ee6d30f5f3b94dd2c085fd3bd9"
+      },
+      {
+        "ruta": "assets/config-usuarios-Dsh3VEhE.js",
+        "bytes": 23830,
+        "sha256": "b0ff8dee520dd0ceefa672c4ebf1c07f20808dd299a7fb90a908ece97ae6cadf"
+      },
+      {
+        "ruta": "assets/configuracion-shell-HOkYz4d6.js",
+        "bytes": 1805,
+        "sha256": "d6d7e01e5c217df36f40baf2310e5ff0c5a5973b7b54ba5bbc4589fd44123dfa"
+      },
+      {
+        "ruta": "assets/control-citas-D561QmPB.js",
+        "bytes": 4187,
+        "sha256": "533ad6be828268ae4ba9be297267f1f409c26170ebebb495160ac94d36a0fc9f"
+      },
+      {
+        "ruta": "assets/controles-periodo-derivaciones-BxM_UDjt.js",
+        "bytes": 2528,
+        "sha256": "e026e71b4008967e9fb9f58892960a20dcb3df268cb5c2fa01601b0561d84ef1"
+      },
+      {
+        "ruta": "assets/crm-api-BIMIVp-L.js",
+        "bytes": 217886,
+        "sha256": "c474aace5d36e62531ea823c2b4456e5303c1e3a966194d88543d2ea14120bbc"
+      },
+      {
+        "ruta": "assets/data-vendor-DTp_zWmI.js",
+        "bytes": 244552,
+        "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6"
+      },
+      {
+        "ruta": "assets/derivaciones-CQ675v2Z.js",
+        "bytes": 13081,
+        "sha256": "a0758f0e839f15b6188fa28ca61a4829406bceaf0de3d2a584dc59d27b16fa19"
+      },
+      {
+        "ruta": "assets/desglose-monedas-iVbv6Mun.js",
+        "bytes": 701,
+        "sha256": "f1638e4ec20665facce8cfb0480dee235a5856c9743af8cd45a224c0ddd5f239"
+      },
+      {
+        "ruta": "assets/dist-DAse8jiX.js",
+        "bytes": 12574,
+        "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de"
+      },
+      {
+        "ruta": "assets/distribucion-lecturas-0QJWWIae.js",
+        "bytes": 7528,
+        "sha256": "4b5ee3cb535687fc3ba44335924d80bfe6380f858002e9d784e95526972f2df9"
+      },
+      {
+        "ruta": "assets/echart-bar-zaBjtg2h.js",
+        "bytes": 21988,
+        "sha256": "5136a8f0985bb0c9216c3fc6e6c66af1de4e51eb01c91a8c501a304d5b862c5c"
+      },
+      {
+        "ruta": "assets/echart-C5GPmthq.js",
+        "bytes": 487201,
+        "sha256": "270dfc0a2bc45b42b631b9abed4467c7d98ab168f3a34db7c24d5745fcb6f776"
+      },
+      {
+        "ruta": "assets/echart-line-tx9JLlab.js",
+        "bytes": 45314,
+        "sha256": "80802f189c717a4724f3873eab462cc67a033994a12073217115869e0a05e658"
+      },
+      {
+        "ruta": "assets/equipo-BDLfTsUY.js",
+        "bytes": 26131,
+        "sha256": "1ef65a896830a48561f15d6d582aefab1623643ee3ca124a102f341de398d4c6"
+      },
+      {
+        "ruta": "assets/facturacion-DEZyJYiR.js",
+        "bytes": 30930,
+        "sha256": "0b8e260c08435c6152b5c8ce81cbcbee547283c66b9873d7bd9e00a5ba6a38db"
+      },
+      {
+        "ruta": "assets/gerencia-BaLUQF8y.css",
+        "bytes": 17293,
+        "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293"
+      },
+      {
+        "ruta": "assets/gerencia-Bsx8spgC.js",
+        "bytes": 100151,
+        "sha256": "4e98b44ae97561ecfca28a94b4b77c77d5897d1df51ec7eaab3bd2c82d7ab9b6"
+      },
+      {
+        "ruta": "assets/gerencia-DILsw97X.js",
+        "bytes": 190188,
+        "sha256": "c1d9328e448cd5d736ea28e54b8909233d288af948c84c8043a088244c804cee"
+      },
+      {
+        "ruta": "assets/historial-decisiones-tasa-gerencia-D9_KlFIe.js",
+        "bytes": 14169,
+        "sha256": "650eda8dec5d63cfff06dda06d02d2268a3638c6f90ec9726c2a40d0da60e24e"
+      },
+      {
+        "ruta": "assets/hoy-BEW3VgNb.js",
+        "bytes": 92028,
+        "sha256": "9e0edb20e3ff70e5da26e95ffc73f8cf551eb72454cea999f6b7c64a19caf1a8"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+        "bytes": 22588,
+        "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+        "bytes": 22104,
+        "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+        "bytes": 24184,
+        "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+        "bytes": 23916,
+        "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+        "bytes": 23876,
+        "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+        "bytes": 24252,
+        "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+        "bytes": 22280,
+        "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516"
+      },
+      {
+        "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+        "bytes": 22832,
+        "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7"
+      },
+      {
+        "ruta": "assets/index-DEdo03gm.js",
+        "bytes": 676899,
+        "sha256": "de2d221f22c607a2a3a93c82d02d94e869726c68890a29782a7ee40ae5a7a43f"
+      },
+      {
+        "ruta": "assets/index-DGwLqPuj.css",
+        "bytes": 151778,
+        "sha256": "7e6c30a08b36083ead2920898a69634909eced58dd6c034966d377b63a178a0c"
+      },
+      {
+        "ruta": "assets/kpi-card-1yWptDAV.js",
+        "bytes": 1141,
+        "sha256": "560d70596162136900307f4dfc9011f6e56c6c252dc31e0bce23a5fa61507a27"
+      },
+      {
+        "ruta": "assets/lead-hover-card-DhL42m2j.js",
+        "bytes": 33882,
+        "sha256": "5b9c1abd493136dded2f3a689515437952715d9ba568f7525c7e4e6fe2317b58"
+      },
+      {
+        "ruta": "assets/metricas-multiempresa-BPDfMLAt.js",
+        "bytes": 19822,
+        "sha256": "238c03539d746b43886626a16bfe3cf3862c276139caa2b00e2a25a597023210"
+      },
+      {
+        "ruta": "assets/mi-cartera-BfEQB_j5.js",
+        "bytes": 209958,
+        "sha256": "e78e0f230a7b3b9d6deaeebe84b618390d4bef6b2a2ce3f7194d5805238104c1"
+      },
+      {
+        "ruta": "assets/notificaciones-tasa-CnxedVym.js",
+        "bytes": 4175,
+        "sha256": "f03f72e58ae4065f83a77f859bef67dcf65cd2630391f2fe500b610527aacac9"
+      },
+      {
+        "ruta": "assets/paginacion-8FKfgWEB.js",
+        "bytes": 990,
+        "sha256": "5337abbcdc1bf1109696e91deb7dee40c50357d0b8d8df62ef844a851a76a0a2"
+      },
+      {
+        "ruta": "assets/pipeline-BnZupF7h.js",
+        "bytes": 15198,
+        "sha256": "a37452db1356d812f55b5a3684b518d51c3ad8d151aeed264270b00de0cddcac"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
+        "bytes": 15728,
+        "sha256": "9709167175cee7dcd331a7ed95be1182a5d5f00715b67a02107ecc80a55f490d"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2",
+        "bytes": 11816,
+        "sha256": "221a4135d06a4b33abbd535e9a0da4e565d19545ddd9267c4e678a916d54d9b6"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2",
+        "bytes": 12312,
+        "sha256": "bad081c8dbc15aed6c5e4cde5461914f7b3bdc295b7a7aed177e4beddb79bffa"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff",
+        "bytes": 16124,
+        "sha256": "a1b54d9fda75d8de13e283ef09668395160e23cbb7dd9ae1aec91d6199da85bb"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff",
+        "bytes": 16084,
+        "sha256": "d9569c0aacc16c33c52e57e1e48c1b94f3b0a6be99e75479edc6438cc44c48e0"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2",
+        "bytes": 12188,
+        "sha256": "8872bb5c9111df9bd3162c2394aee6354d782b13408a4dd5bbf65c48207206e6"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2",
+        "bytes": 12244,
+        "sha256": "2050755bf475817c96ac7d914c7f07cc3c2d11ff4b3fb4747b8d41de584aad17"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff",
+        "bytes": 16136,
+        "sha256": "6188f593f250aa25137865e8d07373fd0f585f5920a496c73ede84dbbdff7a92"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-800-normal-BRNHt2w0.woff",
+        "bytes": 15784,
+        "sha256": "ba83c17d4fbe400449af7b6d7cc6fe5ea25e97bf64c9e77010101520ca83f0a5"
+      },
+      {
+        "ruta": "assets/plus-jakarta-sans-latin-800-normal-CusIZhrK.woff2",
+        "bytes": 11896,
+        "sha256": "5f301a8ef9c266c8b596e6793d3cc826daeff9849c5af035f5386439137955ad"
+      },
+      {
+        "ruta": "assets/progress-ihJe77sD.js",
+        "bytes": 426,
+        "sha256": "c0f30e595e09eb175b9f42b0e6e1ef2e1f699b447e7cda4581d192dfe7abf2f7"
+      },
+      {
+        "ruta": "assets/ranking-vendedores-B5KdA-jT.js",
+        "bytes": 36647,
+        "sha256": "b586c9b829bb46fe8f4f8c660c1f1781ed4f095e749d8f33745f6996d0a71907"
+      },
+      {
+        "ruta": "assets/react-vendor-BXy-oECh.js",
+        "bytes": 190815,
+        "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18"
+      },
+      {
+        "ruta": "assets/repartir--TEgq14D.js",
+        "bytes": 50646,
+        "sha256": "11428b3f26973561c88303e9111ccaeee9c534dfd5215c4280bd2de98f866a64"
+      },
+      {
+        "ruta": "assets/rescate-carpeta-Rg9UAb0B.js",
+        "bytes": 205,
+        "sha256": "5fee884f168e3c2c3662aa74b65cd43b3e11a04c1e9e6b81aac85414ec76e03a"
+      },
+      {
+        "ruta": "assets/rescate-descartados-CPKJzC6v.js",
+        "bytes": 30768,
+        "sha256": "bd4e924a33901fd92da1567d3c060616e7f18607eb1d2dafab861ce45c85b9a5"
+      },
+      {
+        "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+        "bytes": 694,
+        "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+      },
+      {
+        "ruta": "assets/section-head-CDG5dILk.js",
+        "bytes": 432,
+        "sha256": "1311d0d1783364948b667302d4c57dc66581f67a94a1de2211cbe72416ffa56f"
+      },
+      {
+        "ruta": "assets/seguimiento-C5Ae-zgZ.js",
+        "bytes": 815,
+        "sha256": "0ac644854698a9265d6b14d8f22d2c0ad3bef44b648fe41f6a54f4bb46788f69"
+      },
+      {
+        "ruta": "assets/stat-strip-Dpo5BeTI.js",
+        "bytes": 2196,
+        "sha256": "85d7a544c86ce405dffdece8449a911a88213b71e6d379655d3ec89f46948bc4"
+      },
+      {
+        "ruta": "assets/tabla-Bn3dsrNn.js",
+        "bytes": 701,
+        "sha256": "5963d017c256e3d69ed3a9f1ec13df23edcf7e1b856fb2feb81479df5318e5c4"
+      },
+      {
+        "ruta": "assets/ui-vendor-CxdW9C0K.js",
+        "bytes": 92481,
+        "sha256": "f4160289026b483d3e3fea9ec46964d9d4d44f0c1eaa27f5cca4a735ba5c3f5a"
+      },
+      {
+        "ruta": "assets/use-metricas-vendedores-operativas-CJgMQZVP.js",
+        "bytes": 1526,
+        "sha256": "5553c07cd185bacced71965ce2881eb2ab91ee374c9c54a7749c30b5b599cb39"
+      },
+      {
+        "ruta": "assets/use-periodo-gerencia-CLSlpQc2.js",
+        "bytes": 289,
+        "sha256": "a8f28040f8efa47b75e84a7876f6ad1d89deb22a9a070785309315463cd70bb4"
+      },
+      {
+        "ruta": "assets/use-resumen-cartera-operativo-igeaXdx-.js",
+        "bytes": 488,
+        "sha256": "c8bb8446ab6f28c9b62582cf0da1da81a5df27c1788febbb58853938846b37e5"
+      },
+      {
+        "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+        "bytes": 298,
+        "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f"
+      },
+      {
+        "ruta": "assets/utils-BsoIYpJ8.js",
+        "bytes": 26939,
+        "sha256": "a4732ff9235bab7de446d452279f1d79c01d917b962ad17c4d34530ed6e35e63"
+      },
+      {
+        "ruta": "brand/avance-icon-192.png",
+        "bytes": 8476,
+        "sha256": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d"
+      },
+      {
+        "ruta": "brand/avance-icon-512.png",
+        "bytes": 30652,
+        "sha256": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0"
+      },
+      {
+        "ruta": "brand/avance-icon.png",
+        "bytes": 30652,
+        "sha256": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0"
+      },
+      {
+        "ruta": "brand/avance-logo-full.png",
+        "bytes": 33721,
+        "sha256": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f"
+      },
+      {
+        "ruta": "brand/favicon-32.png",
+        "bytes": 2097,
+        "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23"
+      },
+      {
+        "ruta": "contrato/fondo-corporativo.png",
+        "bytes": 108685,
+        "sha256": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898"
+      },
+      {
+        "ruta": "favicon.svg",
+        "bytes": 9522,
+        "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+      },
+      {
+        "ruta": "icons.svg",
+        "bytes": 5031,
+        "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+      },
+      {
+        "ruta": "index.html",
+        "bytes": 1431,
+        "sha256": "7ee2e5009afbd5ab60bbaf33d4935b1ea6ad8fa26becc489632b38319362ddd9"
+      },
+      {
+        "ruta": "manifest.webmanifest",
+        "bytes": 483,
+        "sha256": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73"
+      },
+      {
+        "ruta": "robots.txt",
+        "bytes": 26,
+        "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1"
+      },
+      {
+        "ruta": "sw-crm.js",
+        "bytes": 3742,
+        "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6"
+      },
+      {
+        "ruta": "version.json",
+        "bytes": 51,
+        "sha256": "ed2ca83d7962fe26ed02e713ec0b2433f960b618dd38ed06472ed32231f6944b"
+      }
+    ],
+    "cantidad_archivos": 102
+  },
+  "base_datos": {
+    "ultima_migracion": "20260919211105_crm_leads_grant_columna_procedencia.sql",
+    "migraciones": [
+      "20260709000001_cimientos_crm.sql",
+      "20260711000001_portal_rol_comercial.sql",
+      "20260711000002_fix_clientes_basicos_gate_propio.sql",
+      "20260711000003_hardening_advisors_f0.sql",
+      "20260711000004_scope_clientes_y_equipo_desactivado.sql",
+      "20260714000001_perfiles_tipo_documento.sql",
+      "20260717163959_crm_origenes_landing_formulario.sql",
+      "20260717202053_crm_reconciliar_trigger_reasignacion.sql",
+      "20260717212639_crm_lead_asignaciones_ledger.sql",
+      "20260717215535_crm_capacidad_leads_objetivo.sql",
+      "20260717222018_crm_monto_estimado_obligatorio.sql",
+      "20260717224252_crm_metricas_distribucion_leads.sql",
+      "20260717224435_crm_metricas_distribucion_acl_copy.sql",
+      "20260718000001_crm_leads_genero_fecha_nacimiento.sql",
+      "20260718120243_crm_agenda_ics_suscripcion.sql",
+      "20260718152741_crm_inteligencia_gerencial_hardening.sql",
+      "20260718180001_crm_tareas_agenda.sql",
+      "20260719013000_crm_metricas_agenda_fn.sql",
+      "20260719120000_crm_objetivos_metas.sql",
+      "20260721120000_crm_reparto_coordinador_c1.sql",
+      "20260723120000_crm_descarte_coordinador_c1b.sql",
+      "20260724203052_crm_descartados_coordinador_c1c.sql",
+      "20260725012707_crm_tenencia_desde_vendedor.sql",
+      "20260725060657_crm_avance_automatico_etapa.sql",
+      "20260725221530_crm_tareas_insert_exige_lead_visible.sql",
+      "20260726151751_crm_anular_autoria_y_retroceso_reunion.sql",
+      "20260727032429_crm_anular_ajena_no_penaliza.sql",
+      "20260728044338_crm_perfiles_cuentas_no_vaciar.sql",
+      "20260801092924_crm_hardening_advisors_vistas_pgnet.sql",
+      "20260801212050_p047_enfriamiento_politica_y_rpc_disponibilidad_lead.sql",
+      "20260801212300_p047b_grants_enfriamiento_politica.sql",
+      "20260801222231_p047c_estado_en_bolsa_rpc_disponibilidad.sql",
+      "20260803164348_crm_offboarding_gate_activos.sql",
+      "20260803221622_crm_cuentas_bancarias_por_contrato.sql",
+      "20260804144555_crm_p04_gate_cuentas_bancarias.sql",
+      "20260804165440_crm_creacion_lead_atomica.sql",
+      "20260805180000_crm_inteligencia_comercial_reuniones.sql",
+      "20260805200000_crm_conversion_vendedor_detalle.sql",
+      "20260805213000_crm_objetivos_por_vendedor.sql",
+      "20260807123000_crm_gerencia_operativa.sql",
+      "20260807203740_crm_usuarios_jerarquia_autoservicio.sql",
+      "20260807203751_crm_catalogo_productos_versionado.sql",
+      "20260807203757_crm_metas_sla_versionados.sql",
+      "20260807235933_crm_portal_catalogo_productos.sql",
+      "20260808155128_crm_indices_lectura_cartera.sql",
+      "20260808163618_crm_actividades_ambito_asbuilt.sql",
+      "20260808163638_crm_actividades_ambito_ventana.sql",
+      "20260808173537_crm_restaurar_prevalencia_p04_banca.sql",
+      "20260808183527_crm_metas_contratos_libres_atribuidos.sql",
+      "20260809000530_crm_p04_revocado_vs_ajeno_al_crm.sql",
+      "20260809003923_crm_p04_correccion_contratos_admin.sql",
+      "20260809024942_crm_reencolar_cancela_tareas.sql",
+      "20260809043802_crm_metricas_servidor_tanda1.sql",
+      "20260809144912_crm_metricas_servidor_tanda2.sql",
+      "20260809144920_crm_ambito_any_array_parkeados_coordinador.sql",
+      "20260809144930_crm_indice_leads_creado_en.sql",
+      "20260810024404_crm_metricas_conversiones_equipo.sql",
+      "20260810141953_crm_cartera_keyset.sql",
+      "20260810151433_crm_cartera_keyset_solo_activos.sql",
+      "20260810163458_crm_roster_metas_fuente_unica.sql",
+      "20260811154434_crm_conversion_mensual_ponderada.sql",
+      "20260811190310_crm_ledger_cierres_integros.sql",
+      "20260811190324_crm_origen_inmutable.sql",
+      "20260811210049_crm_alta_manual_origen_restringido.sql",
+      "20260812000259_crm_cierres_externos.sql",
+      "20260813212332_crm_cumplimiento_conversion_ponderada.sql",
+      "20260813235119_crm_anulacion_cierre_avance.sql",
+      "20260814100746_crm_cierre_estado_lectura.sql",
+      "20260815001957_crm_produccion_mes_extraida.sql",
+      "20260815002100_crm_ajuste_mes_cerrado.sql",
+      "20260815002914_crm_cierre_mes_sello.sql",
+      "20260815003742_crm_cierre_mes_lectura.sql",
+      "20260815005530_crm_anulacion_con_ajuste.sql",
+      "20260815102000_crm_cierre_mes_candado.sql",
+      "20260815150000_crm_metas_no_bajo_mes_sellado.sql",
+      "20260815223000_crm_candado_metas_serializado.sql",
+      "20260815235500_crm_candado_global_metas_cierre.sql",
+      "20260816221500_crm_lead_libre_f1_verificacion.sql",
+      "20260817164745_crm_lead_libre_f2_tomar.sql",
+      "20260818014534_crm_contrato_pdf_v2_reserva.sql",
+      "20260818034822_crm_ayuda_vendedor_servidor.sql",
+      "20260818045032_crm_lead_libre_f3_recordar.sql",
+      "20260818200741_crm_contratos_correccion_pdf_eliminacion.sql",
+      "20260818200743_crm_contrato_pdf_plantilla_v3.sql",
+      "20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql",
+      "20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql",
+      "20260819162752_crm_domicilio_legal_faltante.sql",
+      "20260819211815_crm_domicilio_una_sola_puerta.sql",
+      "20260819212608_crm_historial_derivaciones_coordinador.sql",
+      "20260819215033_crm_panel_distribucion_coordinacion.sql",
+      "20260819220501_crm_agenda_reparto_diaria.sql",
+      "20260819222704_crm_agenda_reparto_registro_inicial_del_dia.sql",
+      "20260820174320_crm_reporte_derivaciones_equipo_supervisor.sql",
+      "20260820181756_crm_centro_rescate_descartes.sql",
+      "20260820190500_crm_documento_regimen_por_fecha_de_firma.sql",
+      "20260821212628_crm_admision_analista_portal_como_candidato.sql",
+      "20260821214502_crm_corregir_validacion_correo_candidato.sql",
+      "20260821222348_portal_asiento_operaciones.sql",
+      "20260821223019_crm_eliminar_recuperacion_credenciales.sql",
+      "20260821233241_crm_alta_vendedor_completa_gerencia.sql",
+      "20260823204930_crm_alertas_reconocimientos.sql",
+      "20260824034730_crm_alertas_reconocimientos_vigentes.sql",
+      "20260824154218_crm_leads_telefono_alternativo.sql",
+      "20260824170349_crm_reconocimientos_ultimo_manda_vencido.sql",
+      "20260824170630_crm_periodo_comercial_contratos.sql",
+      "20260824231133_crm_gestion_clientes_renovaciones_conversion.sql",
+      "20260824233619_crm_cumplimiento_cartera_compatible.sql",
+      "20260825005519_crm_cerrar_reunion_cliente_clasificada.sql",
+      "20260826151907_crm_cartera_pagina_telefono_alternativo.sql",
+      "20260826154500_crm_leads_telefono_alternativo_fijos_e_internacional.sql",
+      "20260826173523_crm_leads_telefono_alternativo_crudo.sql",
+      "20260826174500_crm_cartera_pagina_telefono_alternativo_crudo.sql",
+      "20260826182000_crm_canonizar_contacto.sql",
+      "20260826182500_crm_crear_lead_telefono_alternativo.sql",
+      "20260826211500_crm_f0_anclar_metricas_conversiones.sql",
+      "20260826233000_crm_f1_conversion_episodios.sql",
+      "20260827020000_crm_f2_1_conversiones_nucleo.sql",
+      "20260827033000_crm_f2_2_ranking_nucleo.sql",
+      "20260827050000_crm_f2_3a_distribucion_sin_anulados.sql",
+      "20260827060000_crm_f2_5_reuniones_nucleo.sql",
+      "20260827070000_crm_f2_4_cartera_metrica_mes.sql",
+      "20260827080000_crm_f2_4b_convertidos_sin_cartera.sql",
+      "20260827090000_crm_f2_3b_distribucion_v3.sql",
+      "20260827154448_crm_f2_6_total_incluye_fuera_de_roster.sql",
+      "20260827193803_crm_f1_3_capital_por_leads_vivo.sql",
+      "20260827220132_crm_f1_3b_capital_vivo_en_todas_las_patas.sql",
+      "20260827233530_crm_reunion_virtual_sin_url_obligatoria.sql",
+      "20260828003205_crm_filtro_origen_metricas_conversiones.sql",
+      "20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql",
+      "20260828190000_crm_f1_1_rastro_titulares_gestion_cuotas.sql",
+      "20260828190500_crm_f1_2_malla_anti_nan_montos.sql",
+      "20260828191000_crm_f1_3_puertas_baratas_anon.sql",
+      "20260828210351_crm_gestion_cartera_autorizacion_integral.sql",
+      "20260829180000_crm_f3_1_analista_que_cierra_campo.sql",
+      "20260829180500_crm_f3_2_relleno_historico_atribucion.sql",
+      "20260829181000_crm_f3_3_crear_contrato_guarda_analista.sql",
+      "20260829181500_crm_f3_4_reasignar_analista_con_rastro.sql",
+      "20260829182000_crm_f3_5_los_demos_dejan_de_contar.sql",
+      "20260829182200_crm_f3_5b_ranking_lee_al_analista.sql",
+      "20260829182300_crm_f3_5c_demos_fuera_del_portal.sql",
+      "20260829182500_crm_f3_6_ver_la_atribucion.sql",
+      "20260829182800_crm_sancion_cooperativa_mes_sellado.sql",
+      "20260829183000_crm_f3_7_analista_obligatorio.sql",
+      "20260829183627_crm_ficha_360_scope_historial.sql",
+      "20260829190500_crm_f4_0_nucleo_capital.sql",
+      "20260829191000_crm_f4_a_pantallas_gerencia.sql",
+      "20260829191500_crm_f4_c_portal_directorio.sql",
+      "20260829192000_crm_f4_b_cartera.sql",
+      "20260829192500_crm_f4_d_conversiones_capital.sql",
+      "20260829200000_crm_f4_e_correcciones_codex.sql",
+      "20260829201500_crm_f4_f_cooperativas_en_todo.sql",
+      "20260829202000_crm_f4_g_etiqueta_cooperativa.sql",
+      "20260829210000_crm_f4_h_motor_del_sello_al_nucleo.sql",
+      "20260829211000_crm_f4_i_dashboard_y_reuniones.sql",
+      "20260829230000_crm_f1_4_regla_de_auditoria.sql",
+      "20260829233000_crm_f1_5_auditoria_de_verdad.sql",
+      "20260829235000_crm_f1_6_regla_a_prueba_de_senuelos.sql",
+      "20260830090000_crm_f5_a_una_sola_pregunta_analista.sql",
+      "20260830120000_crm_f6_a_nucleo_de_citas_y_censo.sql",
+      "20260830140000_crm_f6_c_deudas_declaradas.sql",
+      "20260830170000_crm_f5_b_una_pregunta_por_capacidad.sql",
+      "20260830190000_crm_f5_c_ventas_al_nucleo_del_dinero.sql",
+      "20260830210000_crm_f5_d_cerrar_gemelas_catalogo_versionado.sql",
+      "20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql",
+      "20260830233000_crm_atr_2_capital_por_cadena_de_upgrade.sql",
+      "20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql",
+      "20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql",
+      "20260831055000_crm_ola_r_las_doce_actas_mudas.sql",
+      "20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql",
+      "20260901115030_crm_contrato_pdf_plantilla_v6_datos_resaltados.sql",
+      "20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql",
+      "20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql",
+      "20260901185600_habilitar_landing_formulario_alta_manual.sql",
+      "20260901200000_crm_f7_2_cerrar_el_interruptor_legacy.sql",
+      "20260902040000_crm_lector_global_no_ve_borrados.sql",
+      "20260902050000_crm_lector_global_definers.sql",
+      "20260902070052_crm_ranking_poblacion_mes_calendario.sql",
+      "20260902190000_crm_mi_cartera_por_mes_de_cierre.sql",
+      "20260902200000_crm_g0_reloj_hoy_es_lima.sql",
+      "20260902201000_crm_g0_reloj_hoy_es_lima_v2.sql",
+      "20260902202247_crm_ranking_foto_mensual_coherente.sql",
+      "20260902224847_crm_conversion_total_analistas_solo_ranking.sql",
+      "20260903160000_crm_f1_identidad_empresas_inversiones.sql",
+      "20260903180000_crm_f2_backfill_identidad.sql",
+      "20260903190000_crm_fix_resolver_unique_violation.sql",
+      "20260903200000_crm_f3_puerta_unica_identidad.sql",
+      "20260903205000_crm_f2_idempotencia_helpers.sql",
+      "20260903210000_crm_f2_convertir_lead_identidad.sql",
+      "20260903215149_crm_capacidad_conversion_unica.sql",
+      "20260903220000_crm_f2_convertir_lead_externo_identidad.sql",
+      "20260903230000_crm_f2_cierre_lote_retira_trigger.sql",
+      "20260903240000_crm_f2_no_contactar_por_persona.sql",
+      "20260903250000_crm_f2_lecturas_veto_persona.sql",
+      "20260903260000_crm_f2_disponibilidad_un_lead_total.sql",
+      "20260904120000_crm_f2b_b1_alta_reconoce_persona.sql",
+      "20260904130000_crm_f2b_b2_veto_persona_mutaciones.sql",
+      "20260904153431_reporte_diario_derivaciones_coordinacion.sql",
+      "20260904174534_crm_reporte_derivaciones_origen_coordinacion.sql",
+      "20260904210831_crm_conversion_llegadas_unicas.sql",
+      "20260905034917_crm_cartera_excluir_contratos_demo.sql",
+      "20260905100000_crm_f2b_b3_alta_cliente_identidad.sql",
+      "20260905110000_crm_f2b_b4_conversion_por_persona.sql",
+      "20260905120000_crm_f2b_b5_fusion_correccion_reasignacion.sql",
+      "20260905131000_crm_altas_nuevas_por_analista_v2.sql",
+      "20260905140000_crm_f2b_e4_contrato_reconoce_persona_y_candado_documento.sql",
+      "20260905150000_crm_f2b_d10_reserva_por_persona_cuenta_puente.sql",
+      "20260905160000_crm_f2b_d13_un_solo_lead_en_todas_las_puertas.sql",
+      "20260905175342_gerencia_contrato_cuatro_datos.sql",
+      "20260905190000_crm_alta_contrato_idempotente.sql",
+      "20260905233000_crm_eliminacion_contrato_auditada_al_actor.sql",
+      "20260905234500_crm_alta_idempotente_replay_no_en_eliminacion.sql",
+      "20260906100000_crm_f2b_d9_auditores_de_leads_y_cierres_sin_documento.sql",
+      "20260906110000_crm_f2b_d3_veto_coherente_perfil_cliente_y_sueltos.sql",
+      "20260906120000_crm_f2b_d2_offboarding_atomico_y_capacidad_del_responsable.sql",
+      "20260906130000_crm_f2b_d4_importador_por_puerta_sql.sql",
+      "20260906140000_crm_f2b_d5_rpc_de_un_argumento_cerradas_con_on.sql",
+      "20260906150000_crm_f2b_d15_reabrir_lead_por_puerta.sql",
+      "20260906160000_crm_f2b_d17_veto_y_coop_bajo_el_candado_de_la_bandera.sql",
+      "20260906170000_crm_rentabilidad_r1_politica_solicitudes_ledger_resolver.sql",
+      "20260906180000_crm_rentabilidad_r2_observacion_ledger_y_tarjeta.sql",
+      "20260906190000_crm_f2b_d18_responsable_bajo_jerarquia_y_fusion_cancela_tareas_de_cliente.sql",
+      "20260906200000_crm_f2b_d19_toda_escritura_lee_la_bandera_bajo_su_candado.sql",
+      "20260906210000_crm_f2b_d20_cliente_que_vuelve_deja_tarea_a_su_analista.sql",
+      "20260906220000_crm_rentabilidad_r3_lecturas_bandeja_ficha_politica.sql",
+      "20260906233000_crm_rentabilidad_r1_hotfix_conflicto_version_p0409.sql",
+      "20260907001024_crm_sla_nucleo_operativo_lectura.sql",
+      "20260907024903_crm_sla_nucleo_operativo_escritura.sql",
+      "20260907025220_crm_sla_comandos_recibos.sql",
+      "20260907031450_crm_sla_cierre_reconstruccion_contextos.sql",
+      "20260907032338_crm_sla_prerrequisito_gobernanza.sql",
+      "20260907093000_crm_rentabilidad_r4_enforcement_candado_servidor.sql",
+      "20260907155813_crm_sla_avisos_contextuales.sql",
+      "20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+      "20260907194622_crm_citas_gerencia_bases_y_alcance.sql",
+      "20260907194756_crm_sla_primera_atencion_respeta_compromiso.sql",
+      "20260907212612_crm_sla_avisos_por_accion_y_rol.sql",
+      "20260908012225_portal_admin_corrige_documento_cliente.sql",
+      "20260908015940_corrige_coalesce_documento_cliente_admin.sql",
+      "20260908020020_crm_citas_repara_huella_control.sql",
+      "20260908020318_corrige_nullif_documento_cliente_admin.sql",
+      "20260908030000_crm_historial_decisiones_tasa_gerencia.sql",
+      "20260908165706_crm_bloquear_contrato_tasa_pendiente.sql",
+      "20260908173000_crm_contrato_pdf_plantilla_v8_letra_legible.sql",
+      "20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+      "20260908221500_crm_correccion_correo_cliente_superadmin.sql",
+      "20260908221501_crm_candado_correo_perfiles.sql",
+      "20260908230249_crm_f5_cartera_ficha_multiempresa.sql",
+      "20260909003243_crm_citas_gerencia_consulta_detallada.sql",
+      "20260909015744_crm_citas_deposito_por_conversion_cliente.sql",
+      "20260909042103_crm_solicitud_tasa_lead_preconversion.sql",
+      "20260909170900_crm_f5_candado_estado_cartera.sql",
+      "20260910150039_crm_f6_postventa_persona.sql",
+      "20260910190000_crm_f6_conflicto_http_sin_reintento.sql",
+      "20260910191000_crm_f6_consulta_conflicto_http.sql",
+      "20260910212447_crm_reparto_turno_obligatorio_y_trazabilidad_real.sql",
+      "20260910225540_crm_notificaciones_push_tasa.sql",
+      "20260910230000_crm_facturacion_diaria.sql",
+      "20260911163243_crm_multiempresa_f7_metricas_sombra.sql",
+      "20260911212756_crm_control_citas_superadmin_borradores.sql",
+      "20260912151320_crm_citas_consulta_nucleos.sql",
+      "20260912181045_crm_analitica_auxiliares_verificados.sql",
+      "20260913130000_crm_f7_ola2_demoler_las_siete_gemelas_v2.sql",
+      "20260913173350_crm_leads_recibidos_analista.sql",
+      "20260913204847_crm_citas_base_asignada_meta_interna.sql",
+      "20260913213842_crm_cartera_filtro_recepcion.sql",
+      "20260913215240_crm_f8_piloto_controlado.sql",
+      "20260913225042_crm_citas_gestion_mensual_configurada.sql",
+      "20260913225755_crm_citas_avance_fuentes.sql",
+      "20260914025926_crm_f8_excluir_fuentes_demo.sql",
+      "20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql",
+      "20260914044939_crm_citas_identidad_personas.sql",
+      "20260914130000_crm_f7_ola2b_demoler_el_tablero_de_altas_v2.sql",
+      "20260914213634_crm_f8_cartera_lectura_eficiente.sql",
+      "20260914213928_crm_coopac_condiciones_anuales.sql",
+      "20260915005752_crm_contrato_pdf_plantilla_v9_cotitulares.sql",
+      "20260915015315_crm_f4_conflictos_sin_reintento.sql",
+      "20260915170017_crm_analitica_exencion_cierres_externos_f8.sql",
+      "20260915170018_crm_citas_ticket_capital_completo.sql",
+      "20260915170237_crm_ficha_lectura_individual.sql",
+      "20260915173423_crm_correo_cliente_admin_atomico.sql",
+      "20260915222925_crm_eliminacion_contrato_con_auditoria.sql",
+      "20260916003000_crm_eliminacion_auditada_guardas.sql",
+      "20260916023055_crm_cartera_filtros_comerciales.sql",
+      "20260916040442_crm_piloto_f8_activacion_serializada.sql",
+      "20260916152851_crm_gestion_integral_multiempresa.sql",
+      "20260916160000_crm_eliminacion_auditada_inversion_sin_historial.sql",
+      "20260916205617_crm_facturacion_diaria_supervisor.sql",
+      "20260916220124_crm_cartera_filtro_origen.sql",
+      "20260917235656_crm_prodelco_inversiones_en_dolares.sql",
+      "20260918210543_crm_modo_rentabilidad_integral.sql",
+      "20260918213000_crm_entrevista_al_asistir.sql",
+      "20260919161807_crm_conversion_inversion_unificada.sql",
+      "20260919170500_crm_cartera_filtro_procedencia.sql",
+      "20260919185718_crm_actividades_de_lead.sql",
+      "20260919211105_crm_leads_grant_columna_procedencia.sql"
+    ]
+  },
+  "archivo": {
+    "nombre": "crm-20260919T222832Z-4bd3dc1b5d1a.zip",
+    "bytes": 2199941,
+    "sha256": "d22bbf92654be4a003491cb161160d9549a7d2b164cea76771a0ad74423f1c53"
+  },
+  "rollback": {
+    "conservar_release_anterior": true,
+    "nota": "El ZIP y manifiesto anteriores deben permanecer fuera del web root."
+  }
+}

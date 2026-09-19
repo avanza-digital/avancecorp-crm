@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "at": "2026-09-19T22:41:06.114Z",
+  "scope": "Acceso público con sesión vacía; sin crear contratos ni modificar registros",
+  "pages": [
+    {
+      "name": "crm",
+      "url": "https://crm.miavance.com/",
+      "pageErrors": [],
+      "failedAssets": [],
+      "blockedWrites": [],
+      "loginInteractive": true,
+      "http": 200,
+      "finalUrl": "https://crm.miavance.com/",
+      "title": "CRM Avance Corp",
+      "loginVisible": true,
+      "excerpt": "Avance Corp\n\nCRM COMERCIAL\n\nLa cartera de inversiones,\nbajo control.\n\nCaptación, seguimiento y renovaciones de contratos de Asociación en Participación — con la trazabilidad que exige una futura financiera regulada.\n\nPipeline\n\npor etapa\n\nEquipo\n\n4 niveles\n\nPrivacidad\n\npor rol\n\nAvance Corp S.A.C. · Grupo MasCapital\n\nInicia sesión\n\nAcceso para el equipo comercial y directorio.\n\nCorreo\nContraseña\nEntrar",
+      "status": "PASS"
+    },
+    {
+      "name": "portal-analista",
+      "url": "https://miavance.com/admin/analista.html",
+      "pageErrors": [],
+      "failedAssets": [],
+      "blockedWrites": [],
+      "loginOpened": true,
+      "loginInteractive": true,
+      "http": 200,
+      "finalUrl": "https://miavance.com/index.html",
+      "title": "Acceso | Portal de Inversiones — Avance Corp",
+      "loginVisible": true,
+      "excerpt": "Avance\nCorp.\nPORTAL DE INVERSIONES · V 1.0.0\nTu mejor opción\nde inversión.\n\nAccede a tu portafolio y monitorea el desempeño de tus inversiones en tiempo real.\n\nOPERACIONES\n24/7\nASESORÍA\nPremium\n© 2026 Avance Corp S.A.C. · RUC 20611392088 · Lima, Perú\nPerú\n¡Hola inversionista!\n👋\nIngresa con tu correo y contraseña.\nCorreo electrónico\nContraseña\nIngresar\nOlvidé mi contraseña\nv 1.0.0\nInstalar app\n×",
+      "status": "PASS"
+    },
+    {
+      "name": "portal-contratos",
+      "url": "https://miavance.com/admin/contratos.html",
+      "pageErrors": [],
+      "failedAssets": [],
+      "blockedWrites": [],
+      "loginOpened": true,
+      "loginInteractive": true,
+      "http": 200,
+      "finalUrl": "https://miavance.com/index.html",
+      "title": "Acceso | Portal de Inversiones — Avance Corp",
+      "loginVisible": true,
+      "excerpt": "Avance\nCorp.\nPORTAL DE INVERSIONES · V 1.0.0\nTu mejor opción\nde inversión.\n\nAccede a tu portafolio y monitorea el desempeño de tus inversiones en tiempo real.\n\nOPERACIONES\n24/7\nASESORÍA\nPremium\n© 2026 Avance Corp S.A.C. · RUC 20611392088 · Lima, Perú\nPerú\n¡Hola inversionista!\n👋\nIngresa con tu correo y contraseña.\nCorreo electrónico\nContraseña\nIngresar\nOlvidé mi contraseña\nv 1.0.0\nInstalar app\n×",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,14 +1,15 @@
 # Auditoría de los prefijos de contrato — 19 de septiembre de 2026
 
-El CRM y los dos formularios del portal quedan preparados localmente para
+El CRM y los dos formularios del portal están publicados para
 `2024-01-`, `2025-01-` y `2026-01-`, con seis dígitos manuales y conservación
 de ceros iniciales. `2026-01-` continúa como valor inicial del alta. El año de
 la numeración no determina fechas, rentabilidad ni período comercial.
 
-Estado: **cambio implementado y verificado localmente; sin publicar**.
-Miguel autorizó la publicación con `$release-crm`. La preparación del release
-debe verificar de nuevo Main integrado y conservar el artefacto si la sesión
-no dispone de la operación de despliegue de Hostinger.
+Estado: **publicado y verificado el 19/09/2026**.
+Miguel autorizó la publicación con `$release-crm` y aprobó el PR #31.
+El portal se actualizó primero y el CRM después, desde Main limpio
+`4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e`, alineado con `avancecorp/main`.
+[Acta, manifiestos y verificaciones](../publicaciones/prefijos-contrato-2026-09-19/README.md).
 No se modificaron contratos reales ni funciones, permisos o esquema de producción.
 El SQL añadido al repositorio es un ensayo local con una guarda de base de datos
 y `ROLLBACK`; no es una migración para instalar.
@@ -50,9 +51,9 @@ reinicio de formulario y respuestas asíncronas antiguas.
 
 | Comprobación | Estado |
 | --- | --- |
-| CRM `npm run check`: lint, tipos, cobertura, build, bundle y demás verificaciones incluidas | PASS: 3.746 tests, 251 archivos |
+| CRM `npm run check`: lint, tipos, cobertura, build, bundle y demás verificaciones incluidas | PASS: 3.773 tests, 254 archivos; código app idéntico al publicado |
 | Componentes de alta/corrección | PASS: 55 tests |
-| Playwright de alta CRM con transporte simulado | PASS: 10 recorridos |
+| Playwright de alta CRM con transporte simulado | PASS: 10 recorridos de contratos y 2 de historial |
 | Portal `node --test tests/*.test.mjs` | PASS: 104 tests |
 | Sintaxis de los módulos del portal y service worker; diff sin errores de espacios | PASS |
 | Formularios HTML reales, Chromium, móvil/escritorio | PASS: 4 combinaciones |
@@ -64,7 +65,9 @@ reinicio de formulario y respuestas asíncronas antiguas.
 | Huellas de las funciones restauradas | PASS: 32/32 iguales a las definiciones leídas de producción |
 | Núcleo existente de autorización de alta de clientes | PASS: 10 tests |
 | Script general `gate:realidad` | NOT RUN: no hay `SUPABASE_URL` configurada para ese comando; no llegó a medir. El catálogo productivo se inspeccionó con el conector en modo lectura. |
-| Publicación, caché del sitio publicado y sesión real después de publicar | NOT RUN: esta tarea no publicó ningún artefacto. |
+| Publicación, caché y archivos servidos | PASS: portal primero y CRM después; caché purgada; 65 archivos CRM y 6 portal comprobados por HTTP 200 y SHA-256 |
+| Acceso público en Chromium después de publicar | PASS: CRM y los dos accesos del portal; formularios disponibles, sin errores de página ni recursos fallidos |
+| Crear o corregir un contrato real después de publicar | NOT RUN: el smoke productivo usó sesiones vacías y no modificó registros reales |
 
 La suite general del portal detectó una prueba anterior desactualizada:
 `asiento-operaciones.test.mjs` buscaba el array de roles dentro de `index.ts`,
@@ -104,23 +107,27 @@ Dos recomendaciones requieren este matiz:
   distintas. Esto no acredita la numeración de los documentos físicos.
   No se renumeró ni se deduplicó ningún registro histórico.
 
-**Condición de publicación.** El portal debe actualizarse antes o junto con
-el CRM. Versiones preparadas: `analista.js?v=29`, `contratos.js?v=44`,
+**Publicación completada.** El portal se actualizó antes que
+el CRM. Versiones publicadas: `analista.js?v=29`, `contratos.js?v=44`,
 `numero-contrato-core.js?v=1` y service worker `avance-v119`.
-Subir primero los módulos y el núcleo, después sus HTML, y el service worker al
-final; purgar la CDN según las reglas del portal. No solicitar las nuevas URLs
-versionadas antes de subirlas.
+Se subieron primero los módulos y el núcleo, después sus HTML y el service worker
+al final; se purgó la CDN. Las nuevas URLs versionadas se comprobaron después
+de subir sus archivos.
 
 El portal tiene recarga al cambiar su service worker. El CRM muestra el aviso de
 nueva versión y permite al usuario guardar antes de recargar; su service worker
 de notificaciones no almacena el frontend. Una pestaña antigua del CRM conserva
-el editor anterior hasta que se recargue. Al publicar, completar esa actualización
+el editor anterior hasta que se recargue. Completar esa actualización
 antes de registrar o corregir números de 2024/2025. No se añadió una recarga
 forzada que pudiera perder formularios abiertos.
 
 Evidencia local de esta ejecución: `/private/tmp/avancecorp-prefijos-auditoria/`
 contiene el dictamen de Claude, logs SQL, huellas, pruebas del portal/PDF y
-capturas. Los logs del gate CRM y sus E2E están en
+capturas. Las verificaciones de publicación y los manifiestos también están
+versionados en `docs/publicaciones/prefijos-contrato-2026-09-19/`.
+Los ZIP y respaldos se conservan en `releases/prefijos-contrato-20260919/`,
+carpeta excluida de Git por las reglas del repositorio.
+Los logs del gate CRM y sus E2E están en
 `/private/tmp/avancecorp-prefijos-check.log` y
 `/private/tmp/avancecorp-prefijos-e2e.log`. Los dumps del banco son auxiliares
 privados de prueba y no forman parte de la entrega.
