@@ -32,6 +32,12 @@ const { mutarAnular, estadoActual } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  // Historial POR LEAD (Fase 1 «sin topes»): aquí no se prueba el timeline, así
+  // que la consulta responde «sin páginas» y el drawer pinta su estado vacío.
+  useHistorialLead: () => ({
+    data: undefined, dataUpdatedAt: 0, hasNextPage: false, isFetchingNextPage: false,
+    isPending: false, error: null, fetchNextPage: vi.fn(), refetch: vi.fn(),
+  }),
   usePoliticaRentabilidad: () => ({ data: undefined, isPending: true, isError: false }),
   useSolicitudesTasa: () => ({ data: [], isPending: true, isError: false }),
   useCierresEstado: () => ({ data: estadoActual.filas }),

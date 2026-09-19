@@ -3900,6 +3900,18 @@ export type Database = {
         Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
         Returns: Json
       }
+      // Historial de UN lead por cursor keyset (migración 20260919185718). Devuelve
+      // jsonb `{ version, items, senales }`; los parámetros con default van como
+      // opcionales (el front omite los que no usa, igual que en cartera_pagina_fn).
+      actividades_de_lead_fn: {
+        Args: {
+          p_antes_de?: string
+          p_antes_id?: string
+          p_lead_id: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
       actividades_del_ambito_fn: {
         Args: never
         Returns: {

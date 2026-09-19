@@ -1,7 +1,7 @@
 // E2E — CREACIÓN de contrato vía "Registrar inversión" POR-CLIENTE de la cartera
 // unificada (#/mi-cartera). Migra los casos que vivían skipeados en
 // contratos.spec.ts (pantalla Contratos retirada en Fase 6, que entraba por un
-// picker de cliente que ya no existe): numeración 2026-01-XXXXXX, gate de los
+// picker de cliente que ya no existe): prefijos 2024/2025/2026-01-, gate de los
 // 6 dígitos, co-titulares dentro de p_contrato y el corte ANTES del servidor.
 // El MISMO ContratoNuevo se abre ahora prefijado desde la fila del cliente
 // (sin picker) y al crear, recargarContratos invalida crmQueryKeys.contratos()
@@ -67,67 +67,77 @@ async function llenarBase(form: Locator): Promise<void> {
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
 }
 
-test('Registrar inversión por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
-  await traducirRpcContratoLibre(page)
-  await loginReal(page) // cuenta real → aterriza en #/hoy desde que hay leads
-  await irAMiCartera(page)
+for (const prefijo of ['2024-01-', '2025-01-', '2026-01-']) {
+  test(`Registrar inversión por-cliente envía y muestra el prefijo ${prefijo}`, async ({ page }, testInfo) => {
+    const numero = `${prefijo}000777`
+    const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+    await traducirRpcContratoLibre(page)
+    await loginReal(page) // cuenta real → aterriza en #/hoy desde que hay leads
+    await irAMiCartera(page)
 
-  // Centinela de "sin reload": una marca en window que NO sobrevive a un
-  // location.reload(). Si el runtime recargara la página tras crear, se perdería
-  // y el assert final fallaría — así el test prueba LITERALMENTE que no hubo reload
-  // (el backend mock persiste fuera de la página, así que sin esto un reload pasaría).
-  await page.evaluate(() => { (window as unknown as { __sinReload?: boolean }).__sinReload = true })
+    // Centinela de "sin reload": una marca en window que NO sobrevive a un
+    // location.reload(). Si el runtime recargara la página tras crear, se perdería
+    // y el assert final fallaría — así el test prueba LITERALMENTE que no hubo reload
+    // (el backend mock persiste fuera de la página, así que sin esto un reload pasaría).
+    await page.evaluate(() => { (window as unknown as { __sinReload?: boolean }).__sinReload = true })
 
-  const form = await abrirFormContrato(page)
-  await llenarBase(form)
-  // El casillero filtra todo lo que no sea dígito (el maxLength=6 del DOM —
-  // fiel al portal — recorta ANTES, así que se prueba con ≤6 caracteres).
-  await form.locator('#ct-numero').fill('A1B2C3')
-  await expect(form.locator('#ct-numero')).toHaveValue('123')
-  await form.locator('#ct-numero').fill('000777')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+    const form = await abrirFormContrato(page)
+    // Comprueba el formulario en móvil; el acceso del arnés usa la navegación de escritorio.
+    if (prefijo === '2024-01-') await page.setViewportSize({ width: 390, height: 844 })
+    await llenarBase(form)
+    await expect(form.getByRole('combobox', { name: 'Prefijo del contrato' })).toHaveValue('2026-01-')
+    await form.getByRole('combobox', { name: 'Prefijo del contrato' }).selectOption(prefijo)
+    // El casillero filtra todo lo que no sea dígito (el maxLength=6 del DOM —
+    // fiel al portal — recorta ANTES, así que se prueba con ≤6 caracteres).
+    await form.locator('#ct-numero').fill('A1B2C3')
+    await expect(form.locator('#ct-numero')).toHaveValue('123')
+    await form.locator('#ct-numero').fill('000777')
+    await form.locator('#ct-numero').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath('selector-prefijo.png') })
+    await form.getByRole('button', { name: /Crear contrato/ }).click()
 
-  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).toBeVisible()
-  await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
-  // El servidor recibió el número COMPLETO (prefijo fijo + 6 dígitos), no vacío.
-  expect(estado.contratos[0]?.numero_contrato).toBe('2026-01-000777')
-  // Y recibe la fotografía completa que la RPC compara contra public.perfiles:
-  // no basta un centinela ambiguo como "usar cuenta actual".
-  expect(estado.ultimaCuentaPagoContrato).toEqual({
-    tipo: 'perfil',
-    cuenta_esperada: {
-      banco: 'BCP',
-      tipo_cuenta: 'ahorros',
-      numero_cuenta: '19112345678901',
-      cci: '00219112345678901234',
-      titular_distinto: false,
-      beneficiario_nombre: null,
-      beneficiario_dni: null,
-    },
+    await expect(page.getByRole('heading', { name: `Contrato ${numero} creado` })).toBeVisible()
+    await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
+    // El servidor recibió el número COMPLETO (prefijo elegido + 6 dígitos).
+    expect(estado.contratos[0]?.numero_contrato).toBe(numero)
+    // Y recibe la fotografía completa que la RPC compara contra public.perfiles:
+    // no basta un centinela ambiguo como "usar cuenta actual".
+    expect(estado.ultimaCuentaPagoContrato).toEqual({
+      tipo: 'perfil',
+      cuenta_esperada: {
+        banco: 'BCP',
+        tipo_cuenta: 'ahorros',
+        numero_cuenta: '19112345678901',
+        cci: '00219112345678901234',
+        titular_distinto: false,
+        beneficiario_nombre: null,
+        beneficiario_dni: null,
+      },
+    })
+    expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(
+      /^f0000000-0000-4000-8000-/,
+    )
+
+    // El alta ya terminó y el resultado es durable. Cerrar por el CTA oficial
+    // dispara la misma finalización idempotente que Escape/overlay post-commit
+    // e invalida Mi cartera antes de volver a operar la tabla.
+    await page.getByRole('button', { name: 'Finalizar' }).click()
+    await expect(page.getByRole('heading', { name: `Contrato ${numero} creado` })).not.toBeVisible()
+    if (prefijo === '2024-01-') await page.setViewportSize({ width: 1280, height: 720 })
+
+    // La cartera se recarga SOLA (invalidación de contratos()): expandir al
+    // cliente revela la sub-fila nueva sin reload, con su ventana recién nacida
+    // ("Corregir" visible: es mía y la ventana de 5 h está viva).
+    await page.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE PORTAL UNO/ }).click()
+    const subFila = page.getByRole('row', { name: new RegExp(`Abrir detalle del contrato ${numero}`) })
+    await expect(subFila).toBeVisible()
+    await expect(subFila.getByRole('button', { name: 'Corregir' })).toBeVisible()
+
+    // El centinela sigue vivo → la página NUNCA se recargó; la sub-fila apareció
+    // por la invalidación de caché de TanStack Query, no por un reload.
+    expect(await page.evaluate(() => (window as unknown as { __sinReload?: boolean }).__sinReload === true)).toBe(true)
   })
-  expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(
-    /^f0000000-0000-4000-8000-/,
-  )
-
-  // El alta ya terminó y el resultado es durable. Cerrar por el CTA oficial
-  // dispara la misma finalización idempotente que Escape/overlay post-commit
-  // e invalida Mi cartera antes de volver a operar la tabla.
-  await page.getByRole('button', { name: 'Finalizar' }).click()
-  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).not.toBeVisible()
-
-  // La cartera se recarga SOLA (invalidación de contratos()): expandir al
-  // cliente revela la sub-fila nueva sin reload, con su ventana recién nacida
-  // ("Corregir" visible: es mía y la ventana de 5 h está viva).
-  await page.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE PORTAL UNO/ }).click()
-  const subFila = page.getByRole('row', { name: /Abrir detalle del contrato 2026-01-000777/ })
-  await expect(subFila).toBeVisible()
-  await expect(subFila.getByRole('button', { name: 'Corregir' })).toBeVisible()
-
-  // El centinela sigue vivo → la página NUNCA se recargó; la sub-fila apareció
-  // por la invalidación de caché de TanStack Query, no por un reload.
-  expect(await page.evaluate(() => (window as unknown as { __sinReload?: boolean }).__sinReload === true)).toBe(true)
-})
+}
 
 test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', async ({ page }) => {
   const estado = await montarBackendReal(page, {

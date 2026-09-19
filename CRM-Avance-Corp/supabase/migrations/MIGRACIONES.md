@@ -70,6 +70,143 @@ y luego `supabase/scripts/registrar-20260919211958.sql` (generado, fail-closed).
 **Reversa:** `scripts/gestion-diaria/reversa.sql` (solo retira objetos nuevos; tras
 retirar el front). Detalle en `scripts/gestion-diaria/README.md`.
 
+## 20260919185718 — Historial por lead: completo e igual para todos los roles
+
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
+exacto) y REGISTRADA (~16:05 Lima, `registrar-20260919185718.sql`; cuerpo md5 `bca9492d91f1d748b2c61b43cf7dd3ae`,
+idéntico al del archivo). Postflight en prod: gate propio + los 4 gates SLA OK. Sonda anónima por PostgREST:
+`{"p_lead_id":…}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` → PGRST202. FRONT: SIN PUBLICAR
+(PR #28 pendiente de merge commit y `release:crm`).** Ensayo previo en el banco: PASS (ver abajo). Fase 1 del plan «sin topes»
+(`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`, aprobado por Miguel el 19/09), que
+ejecuta F2 §5 del plan de escalabilidad del vault.
+
+**Pedido y causa.** Miguel (19/09): «el historial de seguimientos no está sincronizado entre
+analista, supervisor y gerencia: al analista le sale un seguimiento y al supervisor solo "Lead
+creado"». Medido en producción: el front descargaba TODO el ámbito con
+`crm.actividades_del_ambito_fn` (DEFINER, `order by creado_en desc limit 10000`) y filtraba por
+lead en el navegador; PostgREST corta cada respuesta a **1 000 filas** (`max_rows`), así que la
+fila 1 000 del supervisor Jorge era del 15/09 (5 609 actividades en 365 d), la de Carmen del 15/09
+(8 016) y la de gerencia del 17/09 (13 626), mientras la analista más activa (1 473) veía hasta el
+31/08. «Lead creado» es un `<li>` estático del front: verlo solo = cero filas para ese lead. La
+alarma comparaba contra 10 000: recorte mudo. Ritmo: 2 888 actividades/semana.
+
+**Las cuatro capas.** Tabla `crm.actividades` intacta. NÚCLEO `private.actividades_de_lead_core(uuid,int,timestamptz,uuid)`
+(`sql stable security invoker`, `search_path=''`): página keyset `(creado_en desc, id asc)` de
+UN lead + señales «alguna vez» (`tiene_reunion_realizada`, `tiene_contacto`,
+`ultima_conversacion_en`) con `exists`/`max`, sin `count(` ni `sum(1)` (vigía de contadores
+crudos). PUERTA `crm.actividades_de_lead_fn(p_lead_id, p_limite=100 [1..500], p_antes_de, p_antes_id)
+returns jsonb {version:1, items, senales}` (`plpgsql stable security invoker`): valida input
+(22023), `private.puede_acceder_crm()` (42501 admisión, P04) y `exists (select 1 from crm.leads
+where id = p_lead_id)` bajo `leads_select` (42501 «Lead fuera de tu cartera»: fuera de ámbito,
+borrado o inexistente responden igual; nunca un historial vacío). AYUDANTE
+`private.nombre_de_autor(uuid)`: el ÚNICO DEFINER, acotado a `crm.equipo` (históricos incluidos),
+concedido a `authenticated` — la policy de `public.perfiles` solo deja leer la fila propia.
+Precedente: `20260829183627` (Ficha 360). Solo LEE `public.perfiles`; no toca `public`.
+
+**Por qué INVOKER y no el DEFINER de la RPC vieja.** Filas con PII conversacional: la casa ya
+decidió (`20260810141953`) que el alcance lo pone la RLS y no un predicado copiado —
+`actividades_select` es co-extensiva con `leads_select`— y la RPC vieja se desincronizó una vez
+(`20260902050000`). Preflight y gate sellan `md5(pg_get_expr(polqual))` de las dos policies,
+medidas en prod el 19/09: `actividades_select` `e80e3af900b8d9616c28dcd836f1ac94`, `leads_select`
+`073deaeb5700bac14209ec795b71567e` (re-medir el día de instalar). Núcleo concedido a
+`authenticated` porque lo llama una puerta invoker; `private` no está expuesto a la API.
+Divergencia asumida: el lector global NO ve actividades de leads soft-borrados (la RPC vieja sí):
+coherente con la policy y con `20260902040000`.
+
+**Preflight/postflight.** Base compartida `private.assert_actividades_de_lead_base()` (la misma
+función corre en el preflight y dentro del gate, para que no diverjan): ayudantes de autoridad
+presentes; `USAGE` de `authenticated` sobre `private`; `SELECT` sobre `crm.leads.id` y sobre
+`crm.actividades` (grants de la cadena invoker); huellas md5 de las dos policies; y el CONJUNTO
+de permisivas de lectura (exactamente `leads_select` y `actividades_select`, solo para
+`authenticated`, con la restrictiva `crm_actor_activo_gate` en ambas: una permisiva nueva no
+cambia el md5 de la vieja pero sí rompe la co-extensividad). Candado «ya instalado». Gate propio
+`private.assert_actividades_de_lead()` (puerta y núcleo NO definer, `provolatile='s'`,
+`search_path=""`, owner postgres; ayudante definer con gate interno —`strpos(prosrc,'puede_acceder_crm')`,
+no LIKE—; ACL exactamente `{authenticated}` en las tres; base) + `assert_sla_nucleo/operacion/comandos/avisos`
+(los 4 rojos ajenos no se invocan, como en `20260918213000`). Mutantes del trinquete
+`private.assert_actividades_de_lead_mutantes()` (SOLO banco; cada mutación en su subtransacción, se
+deshace siempre): ayudante invoker, `actividades_select` abierta, permisiva nueva en `crm.leads`,
+ayudante sin gate interno, puerta definer → los 5 deben gritar. `notify pgrst`. Reversa: drop de
+las 3 funciones + 3 trinquetes; nada de datos que deshacer.
+
+**Revisiones (19/09).** `auditor-rls`: CHANGES_REQUESTED sin P0/P1; P2 aceptado (gate interno de
+admisión en `nombre_de_autor`, convención de los helpers de `private`), P3 aceptados (sello por
+conjunto de policies, grants anclados, señales en una sola pasada `bool_or`/`max filter`,
+coordinador → 42501 documentado como contrato, ledger). Medido en prod el 19/09: **0**
+actividades con autor fuera de `crm.equipo` y **0** con autor nulo → ninguna firma cambia.
+`revisor-a11y` (front): CHANGES_REQUESTED, 4 P2 aceptados (botón «Cargar más» inerte con
+`aria-disabled` en vez de `disabled` para no perder el foco; «Reintentar» enfoca la sección antes
+de refrescar; con fallo de la segunda página no se promete «Historial completo»; `FormCierre` y
+`ProximaAccion` no afirman plantón ni etapa de retroceso mientras el historial carga o si falló,
+con `role="status"` honesto) y P3 (una sola región viva fuera del `<ol>`, pedir más despliega,
+`min-h-6`, sufijo del veto por estado + `aria-live`, token `text-warning-text`).
+
+**Matriz `test-rls.mjs` (`testActividadesDeLead`, NOT RUN hasta el banco).** vend1/sup1/gerencia/directorio
+reciben el historial COMPLETO de juan en el orden del oráculo, incluidas tres notas propias
+sembradas (400 d, y dos de 300 d con el MISMO `creado_en`: el desempate por id cruzando el borde);
+nombre de autor presente; `senales.tiene_reunion_realizada` refleja todo el historial; INVOKER ≡
+RLS (la RPC devuelve a vend1 exactamente las filas que `from('actividades')` ya le muestra);
+keyset 2+2 contra oráculo sin repetidos ni huecos y señales iguales en ambas páginas;
+vend3/sup2/vend2 → 42501; vend1 → ana (otro subárbol) → 42501; recursión: sup1 y sup1Nested ven a
+carlos, sup1Nested no ve a juan; coordinador → 42501 «fuera de tu cartera» (visibilidad),
+vendInactive y clientBank → 42501 «No autorizado» (admisión); parkeado `luis`: sup1 sí, vend1 y
+sup2 no; inexistente → 42501; `p_limite` 0/501, cursor a medias y `p_lead_id` nulo → 22023; anon
+→ 42501/PGRST202; por vía fuera de banda: ACL exacta, forma (2 invoker, 1 definer con gate
+interno), trinquetes sin EXECUTE, gate en OK y los 5 mutantes detectados.
+
+**Front (mismo PR, publicar DESPUÉS del SQL: la clave nueva va en la REQUEST).**
+`listarActividadesDeLead` (pide `limite+1`, cursor de la última fila CRUDA, filas fuera de
+contrato CONTADAS en telemetría, 42501 con su propio mensaje); `useHistorialLead`
+(`useInfiniteQuery`, clave `crm/historial-lead/<id>`, invalidada con cancel+invalidate en
+`resincronizarReal`); `useActividadesDeLead` (demo = store, sin red) con la regla de
+deduplicación temporal de la fila optimista (`dataUpdatedAt > local_ts` ⇒ la sustituye el
+servidor; el id local es inventado, no sirve para deduplicar) y desempate determinista
+(`cambio_etapa`/`conversion` delante a igual `creado_en`). Consumidores: `Timeline` (estados
+cargando/error/vacío + «Cargar más gestiones» que no roba el foco), `DialogDescartar` (veto
+mientras carga o si falló), `ProximaAccion` y `CerrarTareaDialog` (retroceso con señales
+«alguna vez»: `retrocesoPorAnularReunion` cambia de firma), gates del store
+(`descartar`/`anularTarea` leen la caché y caen a la evidencia local). Enlaces `#lead=<id>`:
+`App.tsx` deja de contrastar contra la foto en memoria (`abrirLead` relee por id). Puente
+temporal `MAX_LEADS_AMBITO` 2 000 → 5 000 con alarma de tendencia a 4 000 (prod tenía 1 983,
++398/semana); muere en la Fase 4. `LIMITE_ACTIVIDADES_AMBITO` queda para la Fase 3.
+
+**Ensayo en el banco (`banco-f7`, `cwkiejoaqadcnaieghnf`, 19/09 ~15:00 Lima) — PASS.** El banco va en la
+versión `20260910234453` y no tiene el mundo SLA: se aplicó una copia con UNA divergencia (los cuatro
+`perform private.assert_sla_*()` del postflight, comentados; registrada en
+`supabase/scripts/banco/parches/DIVERGENCIAS.md`). Las huellas de `actividades_select` y `leads_select`
+del banco son idénticas a las de prod, así que preflight y postflight corrieron de verdad. Resultados:
+gate propio OK; `assert_actividades_de_lead_mutantes()` → **5 de 5 mutantes detectados** y el esquema
+intacto después (huella de la policy y conjunto de policies iguales; ayudante sigue DEFINER, puerta sigue
+INVOKER). Matriz de roles por SQL bajo `set role authenticated` + `request.jwt.claims` (la misma RLS que
+PostgREST; el gate por HTTP `test-rls.mjs` queda **NOT RUN** por falta de claves): 11 usuarios × 4 leads
+exactos —vend1 ve a juan (320 filas = RLS 320 = oráculo 320, mismo orden) y nada más; sup1 ve juan, luis
+(bandeja) y carlos (recursión) y no a ana; sup1Nested solo a carlos; gerencia y directorio los cuatro;
+vend2/vend3/sup2/coordinador → 42501 «Lead fuera de tu cartera» donde no les toca; vendInactive y
+clientBank → 42501 «No autorizado» en todo—; keyset 2+2 sin repetidos, prefijo del oráculo y señales
+iguales en ambas páginas; `p_limite` 0/501, cursor a medias y `p_lead_id` nulo → 22023; uuid
+inexistente → 42501; anon → 42501 (`permission denied for schema crm`); nombres de autor resueltos.
+`EXPLAIN` como vend1: `Index Scan using idx_actividades_lead` con `Index Cond (lead_id = …)` +
+`Incremental Sort` para el desempate por id, y la policy como SubPlan hasheado. El banco queda con las
+funciones instaladas (sin fila en `schema_migrations`: la registra `reregistrar.py` cuando se ponga al día).
+
+**Instalación y registro.** Orden en `supabase/scripts/historial-lead/README.md`: (1) el SQL con `!` +
+`db query --linked --file`; (2) el registrador `supabase/scripts/registrar-20260919185718.sql`
+(generado por `historial-lead/generar-registrador.mjs` desde el archivo y los md5 de
+`verificacion.json`, medidos EN PRODUCCIÓN tras instalar: puerta `34c9f8cf…`, núcleo `ef77de1e…`,
+ayudante `c9eed135…` — los del banco no valían para la puerta y el núcleo porque la copia del banco
+omitió comentarios internos de esos cuerpos; PIN fail-closed + gate propio OK + fila exacta o nada); (3) sonda anónima
+`actividades_de_lead_fn` → 42501 / `PGRST202`; (4) merge commit de la PR #28 antes de construir y
+deploy del front. El registrador NO se ejecutó en el banco (dry run NOT RUN); es un clon del de
+`20260919170500`, que sí corrió en prod ese mismo día.
+
+**Verificación local (19/09).** `npm run check` PASS (lint solo con avisos previos de
+`coverflow-carousel`; typecheck; vitest 251 archivos / 3 736 pruebas, con 5 nuevas del
+`Timeline`, 5 del hook, 14 de `lib/historial-lead` y 5 MSW del lector; build; bundle; duplicados).
+E2E PASS: 204 pasados / 26 omitidos, incluidos los 2 nuevos de `e2e/historial-lead.spec.ts`
+(la ficha muestra la gestión tras recargar con la lista global VACÍA; un lead fuera de la foto
+inicial se abre por enlace). `test:rls` en el banco: **NOT RUN** (sin `CRM_BANCO_PSQL_URL` en
+esta sesión); advisors: NOT RUN; `EXPLAIN` bajo sesión real: NOT RUN. Producción: NOT RUN.
+
 ## 20260919161807 — Convertir un lead mediante el registro común de inversiones
 
 **APLICADA EN PRODUCCIÓN el 19/09/2026**, promovida desde la rama probada como
@@ -959,7 +1096,7 @@ guards en `lib/vistas.ts` y omisión de `listarEquipo` en el boot del coordinado
 
 | Version | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
-| 20260723120000 | crm_descarte_coordinador_c1b | **Los leads que piden préstamo dejan de llegar al vendedor, con DOBLE filtro** (sobre 187 leads reales solo 1 pide crédito → un clasificador que cerrara solo destruiría depositantes por falsos positivos; por eso el código MARCA y solo Rosa CIERRA): (a) motivo `pide_credito` en `leads_motivo_descarte_check` (medir la basura de crédito sin contaminar `sin_interes`); (b) columnas `clasificacion_auto` (CHECK `posible_credito`\|null) + sello `descartado_en`/`descartado_por` (FK `public.perfiles` ON DELETE SET NULL, autorizada por Miguel) con grants por columna + 3 índices parciales; (c) `private.redactar_pii(text)` — correo→celular (con separadores)→documento, fuente única de redacción; (d) trigger `zz_sello_descarte` (último BEFORE): clasifica en el INSERT con regla ESTRECHA `\m(prestam\|financiamient)` sobre nota sin tildes (auditoría 2026-07-23: `credit*` marcaba "cooperativa de ahorro y crédito" y `prestar` marcaba "prestar información"), sella el cierre con `statement_timestamp()`+`auth.uid()`, limpia el sello al reabrir y hace `clasificacion_auto` INMUTABLE (dato de medición: sin él no hay matriz de confusión); (e) `leads_por_repartir()` v2 (DROP+CREATE por cambio de retorno, ACL re-emitida): + `clasificacion_auto` y `comentario` = nota REDACTADA y trunca a 400 — Rosa lee la pregunta del cliente, no sus datos de contacto; FIFO y filtros idénticos (la marca resalta en UI, no reordena); (f) `crm.descartar_lead(p_lead, p_motivo, p_nota)` — SOLO cola global (Rosa no cierra trabajo ajeno), FOR UPDATE + UPDATE CAS anti-carrera, idempotente para mismo actor+motivo (`ya_estaba`), nota se APPENDEA (`· DESCARTE: …`), no toca `activo` ni tenencia, descartar a un No Insista SÍ se permite (cerrar no es contactar); (g) `crm.deshacer_descarte(p_lead)` — ventana 24 h, SOLO descartes propios, reabre en `nuevo` (el guard incrementa `ciclo_actual`), choque con índice único vivo → 22023 humano. SQLSTATE: 42501 rol · 22023 argumento · P0002 fuera de cola/carrera/ajeno. Ambas RPC SECURITY DEFINER `search_path=''`, revoke public/anon + grant authenticated (clase WARN aceptada). Auditada ANTES de aplicar: 8 agentes, NO-GO→GO (`302b5c0`). | ✅ **Producción 2026-07-24** (registrada `20260724152923`): branch `crm-descarte-c1b` → oráculo `DESCARTE_TX_OK` (D01–D55) → advisors sin clases nuevas → gate RLS vivo **309/309** → merge → branch borrado. Deploy FE `index-B9S8YLrv.js` |
+| 20260723120000 | crm_descarte_coordinador_c1b | **Los leads que piden préstamo dejan de llegar al vendedor, con DOBLE filtro** (sobre 187 leads reales solo 1 pide crédito → un clasificador que cerrara solo destruiría depositantes por falsos positivos; por eso el código MARCA y solo Rosa CIERRA): (a) motivo `pide_credito` en `leads_motivo_descarte_check` (medir la basura de crédito sin contaminar `sin_interes`); (b) columnas `clasificacion_auto` (CHECK `posible_credito`\|null) + sello `descartado_en`/`descartado_por` (FK `public.perfiles` ON DELETE SET NULL, autorizada por Miguel) con grants por columna + 3 índices parciales; (c) `private.redactar_pii(text)` — correo→celular (con separadores)→documento, fuente única de redacción; (d) trigger `zz_sello_descarte` (último BEFORE): clasifica en el INSERT con regla ESTRECHA `\m(prestam\|financiamient)` sobre nota sin tildes (auditoría 2026-07-23: `credit*` marcaba "cooperativa de ahorro y crédito" y `prestar` marcaba "prestar información"), sella el cierre con `statement_timestamp()`+`auth.uid()`, limpia el sello al reabrir y hace `clasificacion_auto` INMUTABLE (dato de medición: sin él no hay matriz de confusión); (e) `leads_por_repartir()` v2 (DROP+CREATE por cambio de retorno, ACL re-emitida): + `clasificacion_auto` y `comentario` = nota REDACTADA y trunca a 400 — Rosa lee la pregunta del cliente, no sus datos de contacto; FIFO y filtros idénticos (la marca resalta en UI, no reordena); (f) `crm.descartar_lead(p_lead, p_motivo, p_nota)` — SOLO cola global (Rosa no cierra trabajo ajeno), FOR UPDATE + UPDATE CAS anti-carrera, idempotente para mismo actor+motivo (`ya_estaba`), nota se APPENDEA (`· DESCARTE: …`), no toca `activo` ni tenencia, descartar a un No Insista SÍ se permite (cerrar no es contactar); (g) `crm.deshacer_descarte(p_lead)` — ventana 24 h, SOLO descartes propios, reabre en `nuevo` (el guard incrementa `ciclo_actual`), choque con índice único vivo → 22023 humano. SQLSTATE: 42501 rol · 22023 argumento · P0002 fuera de cola/carrera/ajeno. Ambas RPC SECURITY DEFINER `search_path=''`, revoke public/anon + grant authenticated (clase WARN aceptada). Auditada ANTES de aplicar: 8 agentes, NO-GO→GO (`302b5c0`). | ✅ **Producción 2026-07-24** (registrada `20260724152923`): branch `crm-descarte-c1b` → oráculo `DESCARTE_TX_OK` (D01–D55) → advisors sin clases nuevas → gate RLS vivo **309/309** → merge → branch borrado. Deploy FE `index-B9S8YLrv.js` ⚠️ **19/09/2026:** lo de «única red si alguien revoca el grant de tabla» es FALSO: PostgreSQL arrastra las ACL por columna al revocar la tabla (medido, PG 17). Ver `20260919211105`. |
 
 Oráculo: `supabase/scripts/test-descarte.sql` (patrón 4A-4C; éxito = token
 `DESCARTE_TX_OK`; D01–D55: clasificador marca/no-marca y el cliente API no decide,
@@ -990,7 +1127,7 @@ gate por rol, `es_mio`/`puede_deshacer` propios vs ajenos, sin PII de contacto.
 
 | Version | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
-| 20260725012707 | crm_tenencia_desde_vendedor | **El reloj que mide al ASESOR, no al lead** (pedido de Miguel): con el circuito vivo (origen → hoja → cola de Rosa → bandeja del supervisor → vendedor) un lead pasa DÍAS antes de llegar a un asesor, y la cola lo medía desde `creado_en` → le nacía en ROJO CRÍTICO el primer segundo que lo veía. Columna nueva `crm.leads.tenencia_desde timestamptz` + trigger `trg_leads_zzz_tenencia_desde` → `private.trg_leads_tenencia_desde()` (SECURITY DEFINER, `search_path=pg_catalog`, sin leer ninguna tabla). Es una **PROYECCIÓN de `crm.lead_asignaciones.asignado_en` del episodio ABIERTO**: el ledger sigue SELLADO (RLS on, cero policies, cero grants) — abrirlo al cliente solo para pintar un reloj habría expuesto el historial completo de tenencia. **El trigger ESPEJA la condición del escritor del ledger** (`activo AND etapa operativa AND vendedor_id not null`), no solo el cambio de dueño: la auditoría (hallazgo A1) encontró 5 caminos de divergencia, y uno REPRODUCÍA el bug —un descartado reabierto al MISMO asesor conservaba el reloj viejo—. Mismos instantes que el ledger (`creado_en` en INSERT, `statement_timestamp()` al abrir episodio) → al compartir statement no pueden divergir. Backfill desde el ledger **ANTES** de crear el trigger (si no, la rama `else` lo borraría en el mismo statement) y con `trg_leads_before_update` apagado (si no, `actualizado_en := now()` reordenaría de golpe la cartera de todos los asesores, que el front ordena por esa columna). Índice `idx_leads_tenencia`. `grant select (tenencia_desde) to authenticated, service_role`. **⚠️ El grant NO es lo que protege la columna**: el ACL de `crm.leads` es de TABLA (`relacl` verificado en prod: `authenticated=arw`), así que un `revoke update (columna)` sería no-op silencioso y PostgREST acepta la columna en el body — **la inmutabilidad la sostiene el TRIGGER**, que reimpone `old.tenencia_desde` en todo UPDATE que no abra episodio. El `COMMENT ON COLUMN` lo dice así a propósito (la primera versión afirmaba "sin grant de UPDATE", que era **falso**, y ese texto vive en la BD engañando a la próxima auditoría). Auditada por `auditor-rls` ANTES de aplicar: veredicto NO-GO → 2 críticos + 2 altos + 4 medios corregidos → aplicada. | ✅ **Producción 2026-07-25**: branch `crm-tenencia` → oráculo `TENENCIA_TX_OK` (V01–V30) → advisors sin clases nuevas → gate RLS vivo **326/326** → merge → branch borrado. ⚠️ **prod la registró como versión `20260725015135`, NO como el `20260725012707` del nombre de archivo**: `apply_migration` por MCP sella su propio timestamp. No se corrige renombrando (nunca se edita una migración ya aplicada); la migración es IDEMPOTENTE de punta a punta (`add column if not exists`, `create or replace function`, `drop trigger if exists`, `create index if not exists`, y un backfill que ya no encuentra filas), así que un `db push` que la re-aplique no rompe nada |
+| 20260725012707 | crm_tenencia_desde_vendedor | **El reloj que mide al ASESOR, no al lead** (pedido de Miguel): con el circuito vivo (origen → hoja → cola de Rosa → bandeja del supervisor → vendedor) un lead pasa DÍAS antes de llegar a un asesor, y la cola lo medía desde `creado_en` → le nacía en ROJO CRÍTICO el primer segundo que lo veía. Columna nueva `crm.leads.tenencia_desde timestamptz` + trigger `trg_leads_zzz_tenencia_desde` → `private.trg_leads_tenencia_desde()` (SECURITY DEFINER, `search_path=pg_catalog`, sin leer ninguna tabla). Es una **PROYECCIÓN de `crm.lead_asignaciones.asignado_en` del episodio ABIERTO**: el ledger sigue SELLADO (RLS on, cero policies, cero grants) — abrirlo al cliente solo para pintar un reloj habría expuesto el historial completo de tenencia. **El trigger ESPEJA la condición del escritor del ledger** (`activo AND etapa operativa AND vendedor_id not null`), no solo el cambio de dueño: la auditoría (hallazgo A1) encontró 5 caminos de divergencia, y uno REPRODUCÍA el bug —un descartado reabierto al MISMO asesor conservaba el reloj viejo—. Mismos instantes que el ledger (`creado_en` en INSERT, `statement_timestamp()` al abrir episodio) → al compartir statement no pueden divergir. Backfill desde el ledger **ANTES** de crear el trigger (si no, la rama `else` lo borraría en el mismo statement) y con `trg_leads_before_update` apagado (si no, `actualizado_en := now()` reordenaría de golpe la cartera de todos los asesores, que el front ordena por esa columna). Índice `idx_leads_tenencia`. `grant select (tenencia_desde) to authenticated, service_role`. **⚠️ El grant NO es lo que protege la columna**: el ACL de `crm.leads` es de TABLA (`relacl` verificado en prod: `authenticated=arw`), así que un `revoke update (columna)` sería no-op silencioso y PostgREST acepta la columna en el body — **la inmutabilidad la sostiene el TRIGGER**, que reimpone `old.tenencia_desde` en todo UPDATE que no abra episodio. El `COMMENT ON COLUMN` lo dice así a propósito (la primera versión afirmaba "sin grant de UPDATE", que era **falso**, y ese texto vive en la BD engañando a la próxima auditoría). Auditada por `auditor-rls` ANTES de aplicar: veredicto NO-GO → 2 críticos + 2 altos + 4 medios corregidos → aplicada. | ✅ **Producción 2026-07-25**: branch `crm-tenencia` → oráculo `TENENCIA_TX_OK` (V01–V30) → advisors sin clases nuevas → gate RLS vivo **326/326** → merge → branch borrado. ⚠️ **prod la registró como versión `20260725015135`, NO como el `20260725012707` del nombre de archivo**: `apply_migration` por MCP sella su propio timestamp. No se corrige renombrando (nunca se edita una migración ya aplicada); la migración es IDEMPOTENTE de punta a punta (`add column if not exists`, `create or replace function`, `drop trigger if exists`, `create index if not exists`, y un backfill que ya no encuentra filas), así que un `db push` que la re-aplique no rompe nada ⚠️ **19/09/2026:** lo de «única red si alguien revoca el grant de tabla» es FALSO: PostgreSQL arrastra las ACL por columna al revocar la tabla (medido, PG 17). Ver `20260919211105`. |
 | 20260725060657 | crm_avance_automatico_etapa | **La etapa avanza sola cuando el hecho YA ocurrió** (pedido de Miguel, textual: «cuando el vendedor registre una acción de que SÍ contactó a la persona, y el lead está en la primera fase del pipeline, el prospecto se mueva solo de etapa»). Dos triggers AFTER INSERT, ambos **SOLO DE SUBIDA**: (a) `trg_zz_actividades_avance_etapa` sobre `crm.actividades` → `private.trg_actividades_avance_etapa()`: una CONVERSACIÓN sube el lead de `nuevo` a `contactado`. **Solo los 3 tipos bidireccionales** (`llamada_realizada`, `whatsapp_recibido`, `reunion_realizada`), NO los 5 de `TIPOS_CONTACTO`: «no contestó» y «mensaje enviado» son INTENTOS, y avanzar por ellos convertiría ese botón en un *posponer la alarma 48 h* (umbral `nuevo` 24 h → `contactado` 72 h en `private.umbral_estancamiento`) e inflaría la conversión sin que nadie mienta a propósito. Por eso NACE `TIPOS_CONVERSACION` en `tipos.ts` como subconjunto ESTRICTO y separado: `TIPOS_CONTACTO` responde «¿el asesor trabajó?» (mide esfuerzo → SLA y cola), `TIPOS_CONVERSACION` responde «¿el cliente respondió?» (mide embudo → etapa). Jamás fusionarlos. (b) `trg_zz_tareas_avance_etapa` sobre `crm.tareas` → `private.trg_tareas_avance_etapa()`: agendar una reunión sube el lead a `reunion_agendada`, con CINCO guardas — `tipo='reunion'`, `reagendada_de is null` (**la que más importa: el rebote automático tras un no-show NO es progreso; sin ella, plantar al asesor ASCENDERÍA el lead, la mentira más fácil de fabricar del sistema**), `estado='pendiente'`+`activo`, `vence_en > now()` (agendar en el pasado no es agendar), y un `exists` de contacto real (nunca afirmar «reunión agendada» sobre un lead que NADIE tocó, incluido el parkeado que agenda un supervisor). Sube solo desde `nuevo`/`contactado`: desde `propuesta_enviada` sería un RETROCESO que además reiniciaría el SLA de 120 h a 72 h. (c) `CREATE OR REPLACE` de `private.trg_leads_cambio_etapa` (jamás DROP+CREATE: borraría la ACL) para añadir `automatico` al `metadata` de la actividad, alimentado por un `set_config('crm.avance_auto', …, true)` LOCAL a la transacción — sin esa marca el historial atribuiría al vendedor movimientos que él no pidió, y el cliente no puede encenderlo por PostgREST (aserción del gate). **NUNCA BAJAN DE ETAPA**: un `cambio_etapa` es un hecho registrado con autor, no un estado reversible; el retroceso sigue siendo decisión explícita de una persona. La recursión se corta por DOMINIO (los tipos que emite el sistema —`cambio_etapa`/`reasignacion`/`conversion`— jamás están en la lista que dispara), reforzado por el `WHEN` del trigger y por un `if` repetido dentro de la función. Idempotencia por el predicado `etapa='nuevo'` DENTRO del UPDATE (sin ventana entre leer y escribir): tres contactos seguidos escriben UN solo `cambio_etapa`. Sin columnas nuevas → sin GRANTs nuevos y sin `gen:types`. Espejo del front en `app/src/lib/avance-automatico.ts` (fuente única de las dos reglas, y ÚNICA implementación en modo demo, donde `persistir()` sale en seco). **Correcciones de la auditoría `auditor-rls` (veredicto NO-GO → corregido):** **C1 CRÍTICO — escalada cerrada.** El trigger de tareas lleva GATE DE ÁMBITO propio porque la policy `tareas_insert` **nunca consulta `crm.leads`**: valida el `vendedor_id` de la fila NUEVA, que `trg_tareas_before_insert` (SECURITY DEFINER) ya derivó del lead saltándose la RLS. Para un lead de la COLA GLOBAL sale `null` y la rama `supervisor|gerencia AND vendedor_id IS NULL` del WITH CHECK lo deja pasar → **cualquier supervisor** podía ascender leads que `leads_select` ni le deja VER (61 leads en esa cola al auditar). Gate: dueño no nulo + `puede_ver_cartera` o gerencia, con `auth.uid() is null` para sistema. ⚠️ **El hueco de `tareas_insert` es PREVIO y sigue abierto** (un supervisor puede crear tareas sobre leads invisibles): se documenta, no se toca aquí — el gate impide que ARRASTRE una escritura sobre `crm.leads`. **A1 — ciclo de deadlock cerrado.** El trigger hacía que `crm.cerrar_tarea` pasara a bloquear `tareas → leads`, mientras `trg_leads_sync_tareas` bloquea `leads → tareas`: cerrar una tarea mientras el supervisor reasigna el mismo lead daba `40P01`. Se unifica el orden con un `for no key update` sobre el lead al inicio de `cerrar_tarea`. **Verificado contra la BD VIVA** (no contra el repo: el ledger ya documenta que prod puede derivar): `diff` del `prosrc` de producción contra el cuerpo de esta migración = **+15 líneas, −0**. El `prosrc` vivo no tiene comentarios, así que el REPLACE no borra doctrina de la BD. El subselect del lock REPITE el filtro de ámbito del `for update` (2ª pasada, MEDIO-1): si solo buscara por id, un usuario con rol podría tomar un lock sobre el lead de una tarea ajena y, si otra transacción lo tuviera tomado, esperar hasta el `statement_timeout` — un oráculo de temporización sobre si ese lead se está escribiendo. **M1** trigger renombrado a `trg_zz_actividades_avance_etapa`: Postgres ordena por nombre COMPLETO, y `trg_actividades_zz_…` corría ANTES que `trg_audit_actividades` dejando `audit_log` en orden causal invertido. **M2** las tres funciones a `search_path='pg_catalog'` (la convención endurecida del repo; `public` era superficie de shadowing gratis). **M3** `set local lock_timeout='5s'` (CREATE TRIGGER toma SHARE ROW EXCLUSIVE sobre dos tablas calientes). **M4** guarda de reentrada por el propio flag: hoy no hay recursión posible por dominio, pero un futuro webhook de WhatsApp o auto-log de llamadas la abriría. **M5/M6/B2** oráculo: `order by creado_en, id` (la actividad y su `cambio_etapa` comparten `now()`), aserciones V10b/V10c de no-cascada y de no-fuga del flag, y `row_count` en V17 para que no pase en vacío. **B1** los 5 leads transitorios se desactivan al final del gate. **Decisión explícita (N2):** un lead con `no_contactar` SÍ avanza al registrar una conversación — registrar lo que pasó no es aprobarlo (pudo llamar él), y bloquearlo dejaría el dato inconsistente con su propio timeline; lo que la Ley 29571 prohíbe es CONTACTAR, y de eso se ocupa el kill-switch de `motor-siguiente.ts`. Fijado en V23. | ✅ EN PROD (merge 2026-07-26, reescrita por Supabase como `20260726062402`) |
 | 20260725221530 | crm_tareas_insert_exige_lead_visible | **Cierra un hueco PREVIO de `tareas_insert`** (lo destapó la auditoría del avance automático como hallazgo C1; corregido por orden de Miguel el 2026-07-25). La policy validaba la TENENCIA de la fila nueva (`vendedor_id`/`asignado_supervisor_id`) pero **nunca consultaba `crm.leads`** — y esos campos no los manda el cliente: los DERIVA `private.trg_tareas_before_insert`, que es SECURITY DEFINER y lee el lead saltándose la RLS. Para un lead de la COLA GLOBAL ambos salen `null` y el WITH CHECK pasaba por la rama `supervisor|gerencia AND vendedor_id IS NULL` → **cualquier supervisor con el UUID podía crear tareas sobre un lead que `leads_select` no le deja ni VER** (61 leads en esa cola al auditar), metiéndose trabajo ajeno en la agenda. `ALTER POLICY` (no DROP+CREATE: conserva nombre, comando, roles y USING, y la tabla no queda ni un instante sin policy) añadiendo `lead_id is null or exists (select 1 from crm.leads l where l.id = lead_id)`. El `exists` NO es SECURITY DEFINER → lo filtra `leads_select`, misma técnica que ya usaba `actividades_insert` y por la que esa vía nunca tuvo el problema. Es un ESTRECHAMIENTO puro: vendedor sobre lead suyo, supervisor sobre su equipo o su bandeja, gerencia sobre cualquiera, tareas de cliente (`lead_id` null), `crm.cerrar_tarea` y `service_role` siguen todos igual. | ✅ EN PROD (merge 2026-07-26, reescrita por Supabase como `20260726062424`) |
 | 20260726151751 | crm_anular_autoria_y_retroceso_reunion | **Anular con AUTORÍA, y la reunión que se cae devuelve el lead a su etapa** — dos pedidos de Miguel (2026-07-26), textuales: «si se anula la reu y no se reagenda una en ese mismo momento, debería bajar de etapa» y «separa lo que cancela el sistema y lo que cancela el asesor». Son **la misma pieza**: sin la separación no se puede disparar el retroceso solo cuando lo ordena una persona. (a) Columna `crm.tareas.cancelada_por` (`'asesor'|'sistema'`) con CHECK bicondicional. Grants: `crm.tareas` los tiene A NIVEL DE TABLA, así que la columna nueva es visible para PostgREST sin GRANT extra (≠ `crm.leads`, que los tiene por columna). Backfill a `'sistema'` apagando **por nombre** los 3 triggers que estorban: el BEFORE aborta todo update sobre una tarea cerrada, `trg_tareas_touch` movería `actualizado_en` —el campo por el que la métrica atribuye los cierres a un periodo, así que cada cancelación histórica saltaría al mes en curso— y `log_audit_crm` escribiría un evento de negocio que no ocurrió (**excepción consciente** a «trigger de auditoría en toda tabla `crm.*`»). En prod afectó a 0 filas (verificado: 4 completadas / 2 pendientes / 1 no_show / **0 canceladas**), luego toda cancelación preexistente es por construcción del sistema. (b) `private.trg_tareas_before_update` SELLA la etiqueta (la deriva de CÓMO entró la escritura, jamás del payload) y **cierra un hueco previo**: `cancelada` era el único cierre que no exigía la RPC — cualquiera con una sesión válida podía vaciar su agenda por PATCH a `/rest/v1/tareas` sin quedar etiquetado y saltándose el retroceso. El portazo se limita a sesiones HUMANAS (`auth.uid() is not null`) para no romper service_role/seeds/teardown del gate, que reciben `'sistema'` — la verdad literal: ahí no hay asesor. (c) `private.trg_tareas_before_insert` sella lo mismo al nacer (antes solo estaba a salvo por accidente de secuencia). (d) `private.trg_leads_sync_tareas` marca `'sistema'` vía la GUC LOCAL nueva `crm.cancela_sistema`. (e) **`private.retroceso_por_anular_reunion`**, llamada INLINE al final de `crm.cerrar_tarea`: baja el lead de `reunion_agendada` a `contactado`, o a `nuevo` si NUNCA hubo contacto real en el ciclo vigente. **Es la ÚNICA excepción a «las etapas nunca bajan solas»** de 20260725060657, y solo porque el disparo es humano: la doctrina protege HECHOS, y aquí el hecho es que una persona declaró que la reunión ya no existe — sostener `reunion_agendada` sin reunión viva no conserva un hecho, sostiene uno falso, y el más caro (ese lead deja de aparecer como pendiente de agendar). Cuatro guardas: etapa EXACTAMENTE `reunion_agendada`, ninguna otra reunión pendiente viva, ninguna `reunion_realizada` **del ciclo vigente**, y el gate de ámbito de C1 (dueño + alcance del actor) porque es SECURITY DEFINER y su UPDATE ignora `leads_update`. Helper nuevo `private.inicio_ciclo_lead` (ledger `crm.lead_asignaciones`) para el anclaje al ciclo. (f) `crm.metricas_agenda_fn` separa `canceladas_asesor`/`canceladas_sistema` —`canceladas` sigue siendo el TOTAL— y **saca las del sistema del denominador de `pct_completadas`**, lo que arregla un sesgo vivo desde 20260719013000: convertir un lead cancela sus pendientes por trigger y cada una BAJABA el % del vendedor, o sea que el mejor resultado del embudo le empeoraba la nota. Las del asesor SÍ siguen contando: sacarlas convertiría el botón nuevo en una salida gratis. `version` sigue en 1 (claves aditivas) y el contrato Valibot del front las declara OPCIONALES para que ninguno de los dos órdenes de despliegue rompa el panel. **Auditoría `auditor-rls`: NO-GO → corregido.** **A1 (ALTO):** el CHECK «bicondicional» de la 1ª versión no restringía nada — `null in ('asesor','sistema')` evalúa a NULL y un CHECK solo se viola con FALSE, así que la fila «cancelada sin autor» entraba (confirmado ejecutándolo contra el motor); resuelto con `is not null` explícito. **M1 (MEDIO):** el retroceso era un AFTER UPDATE y corría ANTES de que existiera la reunión reagendada → bajaba y subía, dejando 2 `cambio_etapa` espurios en un log INMUTABLE, y en un lead sin contacto registrado la subida ni lo devolvía (degradaba DOS etapas); resuelto moviéndolo INLINE al final de la RPC, sin perder cobertura (la etiqueta `'asesor'` solo la pone esa RPC) y dejando el orden de bloqueo explícito. **M2** sello en INSERT, **M3** anclaje al ciclo (un lead reabierto habría quedado con el retroceso bloqueado para siempre), **M4** `disable trigger` por nombre en vez de `user` (que FIJA `tgenabled` en 'O' en vez de restaurarlo), **B4** índice retirado (no servía al CTE `cierres`, habría nacido *unused* en advisors), **B5** limitación de la cola global documentada, **M5** documentado en el `comment on column`: la etiqueta dice CÓMO entró la cancelación, no QUIÉN la firmó — un supervisor puede anular la tarea de su vendedor y se agrupa igual por `vendedor_id`, como el resto de métricas. Espejo del front en `app/src/lib/avance-automatico.ts` (`retrocesoPorAnularReunion`, con la divergencia del ciclo documentada) y `lib/agenda-equipo-vista.ts` (`canceladasAsesor`/`canceladasSistema`). Requiere `gen:types`. | ✅ EN PROD (merge 2026-07-26, reescrita por Supabase como `20260726161945`). Ciclo completo verde en el branch `crm-anular-retroceso`: oráculo nuevo `ANULAR_TX_OK` (22 aserciones, incluida V14b = anular+reagendar escribe CERO `cambio_etapa`, y V15c = no se puede mover el embudo de un equipo ajeno), regresión `AVANCE_TX_OK` y `TAREAS_TX_OK` (esta migración reescribe `cerrar_tarea` y los 3 triggers de tareas/leads, así que ambos son suyos), **gate RLS 347/347** (319 antes) y advisors sin clases nuevas. Verificado en prod tras el merge: columna, CHECK con `IS NOT NULL`, ACL de `cerrar_tarea` intacta para authenticated+service_role, los 2 helpers de `private` sin EXECUTE para nadie, y CERO rastro de `trg_zz_tareas_retroceso_etapa` (el trigger de la 1ª versión). Backfill: 0 filas (prod tenía 0 canceladas). `database.types.ts` actualizado a mano —el archivo está CURADO, no es salida cruda del generador: `cancelada_por` va solo en `Row` porque el front nunca la escribe— y el comentario de `Update.estado` corregido, que afirmaba que 'cancelada' pasaba sin la RPC y eso es justo lo que esta migración cerró. Branch borrado. |
@@ -10500,3 +10637,51 @@ vista» (chip por fila, ficha y tarjeta) y con un filtro más.
   ámbito (select directo) pide `alta_manual` + `creado_por` y el mapper deriva la
   misma regla para el drawer; el nombre del autor se resuelve con el equipo
   visible.
+
+## 20260919211105 — Grant por columna: `alta_manual` y `creado_por` en `crm.leads`
+
+**✅ INSTALADA Y REGISTRADA EN PRODUCCIÓN el 19/09/2026** (Miguel con `!`).
+Pedido de Miguel del 19/09 sobre el P3 del auditor RLS de
+`20260919170500`: las dos columnas que lee `crm.cartera_filtrada_fn` (invoker)
+solo eran legibles por el ACL de TABLA (`authenticated=rw`, `service_role=arwd`,
+medido en producción) y no tenían ACL propia, contra la convención de la casa.
+
+- `grant select (alta_manual, creado_por) on crm.leads to authenticated,
+  service_role;` — solo SELECT, molde de `tenencia_desde` (`20260725012707`): las
+  únicas escritoras (`crm.crear_lead_si_disponible`, `crm.importar_lead_fn`) son
+  SECURITY DEFINER y `private.leads_before_update` sella ambas columnas.
+- Preflight: columnas presentes, sin ACL propia, escritoras SECURITY DEFINER.
+  Postflight por `aclexplode`: exactamente dos entradas SELECT (authenticated y
+  service_role), anon sin lectura, `relacl` y las demás ACL por columna intactas.
+- 🔴 **Hallazgo medido (PG 17, banco):** un `revoke select on crm.leads` de TABLA
+  ARRASTRA las ACL por columna del mismo privilegio (`tenencia_desde` pierde su
+  `r`). El grant por columna NO es «la única red si alguien revoca el grant de
+  tabla», como prometen notas de `20260723120000` y `20260725012707`: su valor es
+  convención, registro y que, al pasar a privilegios por columna, estas dos estén
+  en la lista a reponer. El ensayo lo asevera.
+- Ensayo (`../scripts/leads-grant-procedencia/`, copia `cartera_procedencia_20260919`
+  con ACL a paridad): hecho de la cascada, instalación deshecha, guarda del
+  preflight (ACL previa), instalación real, cierre simulado a privilegios por
+  columna, oráculo como analista (select directo + RPC), guardas de la reversa
+  (ACL de tabla cerrada → se niega; sin nada que revertir → se niega), reversa y
+  reinstalación; repetible (si el grant quedó puesto, arranca con la reversa).
+  `verificacion.json` PASS; sha256 migración `407d8f0b…`, reversa `882d0308…`.
+  Registrador generado: `scripts/registrar-20260919211105.sql`.
+- Auditor RLS (subagente, 19/09): SQL correcto, solo SELECT justificado (escritoras
+  SECURITY DEFINER, `authenticated` sin INSERT de tabla, trigger restaura desde OLD);
+  CHANGES_REQUESTED solo documental → atendido: README del ensayo reescrito con la
+  cascada, cabecera sin prometer red, reversa simétrica (comprueba también
+  `service_role`), punteros en las filas de `20260723120000` y `20260725012707`.
+- `check:scripts` PASS · `test:rls:preflight` NOT RUN (requiere `SUPABASE_URL`;
+  lo corre CI) · `test-rls.mjs` sin casos nuevos: no cambia visibilidad ni policies.
+- Sin front: hoy el grant es redundante. Orden: migración → registrador. Reversa:
+  `../scripts/leads-grant-procedencia/reversa.sql`.
+
+**Acta de instalación (19/09, hora UTC):**
+- ~21:30 SQL aplicado con `db query --linked --file`. Verificado en producción:
+  `alta_manual` y `creado_por` con `{authenticated=r/postgres,service_role=r/postgres}`
+  (idéntico a `tenencia_desde` y al ensayo); `relacl` intacto
+  (`authenticated=rw`, `service_role=arwd`); anon sin lectura; columnas con ACL
+  propia: 11 (eran 9).
+- ~21:33 versión registrada con `scripts/registrar-20260919211105.sql` (cuerpo
+  md5 `e97fcd25…`, igual al archivo del repo; PIN de las dos ACL superado).

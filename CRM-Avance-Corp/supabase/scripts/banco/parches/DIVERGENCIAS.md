@@ -200,3 +200,24 @@ era imitar a producción, no relajar el oráculo.
 Efecto secundario bienvenido: `-c` con varias sentencias las corre en **una transacción**
 salvo que el fichero traiga sus propios `BEGIN`/`COMMIT` — la misma atomicidad que buscaba
 el `-1`, y la misma que tiene producción.
+
+## 19/09/2026 — ensayo de `20260919185718_crm_actividades_de_lead.sql` (historial por lead)
+
+El banco está en la versión `20260910234453` y **no tiene el mundo SLA del 07/09** (ni
+`private.assert_sla_nucleo/operacion/comandos/avisos`). La migración se aplicó desde una copia en
+el scratchpad con UNA diferencia respecto al archivo versionado:
+
+| Qué se neutralizó | Por qué | Qué sigue vivo |
+|---|---|---|
+| Los cuatro `perform private.assert_sla_*()` del postflight (comentados) | Esas funciones no existen en el banco; no son objetos de esta migración y en producción están verdes (`20260918213000` las corre igual) | Todo lo demás al byte: preflight con `assert_actividades_de_lead_base()` (huellas y conjunto de policies, grants, USAGE), las 4 funciones, el gate propio `assert_actividades_de_lead()` y los 5 mutantes |
+
+Lo que el banco NO puede reproducir de este ensayo: la matriz `test-rls.mjs` por PostgREST
+(la sesión no dispone de la clave de servicio ni de `CRM_DEMO_PASSWORD`); se sustituyó por la misma
+matriz ejecutada por SQL bajo `set role authenticated` + `request.jwt.claims` de cada usuario
+fixture, que aplica exactamente la misma RLS. El gate por PostgREST queda NOT RUN hasta que se corra
+con las claves.
+
+**Resultado (19/09 ~15:00 Lima): PASS.** Gate OK, 5/5 mutantes detectados, esquema intacto después; matriz
+11 usuarios × 4 leads exacta por SQL bajo la RLS real; keyset y validaciones correctas; `EXPLAIN` por
+`idx_actividades_lead`. Detalle en `supabase/migrations/MIGRACIONES.md` (entrada 20260919185718). El banco
+queda con las funciones instaladas y sin fila en `schema_migrations` (la pone `reregistrar.py`).

@@ -16,7 +16,9 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   CrmApiError,
+  TAMANO_PAGINA_HISTORIAL,
   cerrarTarea,
+  listarActividadesDeLead,
   listarActividadesDelAmbito,
   listarLeads,
   listarLeadsDelAmbito,
@@ -310,21 +312,49 @@ describe('listarLeadsDelAmbito (msw)', () => {
   })
 
   // Alarma de topes (F0 escalabilidad): tope lleno = probable recorte MUDO del
-  // servidor. Se cuentan las filas CRUDAS recibidas (2000), no las que
-  // sobreviven al parse — el recorte ocurre antes de validar.
-  it('avisa a observabilidad cuando la respuesta llena el tope de 2000', async () => {
-    const { capturadas } = carteraConCap(2150)
+  // servidor. Se cuentan las filas CRUDAS recibidas (5000, el puente de la
+  // Fase 1 «sin topes»), no las que sobreviven al parse — el recorte ocurre
+  // antes de validar.
+  it('avisa a observabilidad cuando la respuesta llena el tope de 5000', async () => {
+    const { capturadas } = carteraConCap(5150)
 
     const leads = await listarLeadsDelAmbito()
 
-    expect(leads).toHaveLength(2000)
-    expect(capturadas).toHaveLength(4)
+    expect(leads).toHaveLength(5000)
+    expect(capturadas).toHaveLength(10)
     expect(console.error).toHaveBeenCalledWith(
       '[ac-crm]',
       expect.objectContaining({
         evento: 'crm_api.tope_alcanzado',
         datos: expect.objectContaining({
-          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 2000 }),
+          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 5000 }),
+        }),
+      }),
+    )
+  })
+
+  // La alarma de TENDENCIA del puente suena semanas antes del techo: a 4 000
+  // filas ya avisa aunque el tope de 5 000 no se haya tocado.
+  it('avisa la tendencia a 4000 sin declarar lleno el tope de 5000', async () => {
+    carteraConCap(4200)
+
+    const leads = await listarLeadsDelAmbito()
+
+    expect(leads).toHaveLength(4200)
+    expect(console.error).toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({
+        evento: 'crm_api.tope_alcanzado',
+        datos: expect.objectContaining({
+          contexto: expect.objectContaining({ lectura: 'leads_del_ambito_tendencia', tope: 4000 }),
+        }),
+      }),
+    )
+    expect(console.error).not.toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({
+        datos: expect.objectContaining({
+          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 5000 }),
         }),
       }),
     )
@@ -502,6 +532,97 @@ describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
         }),
       }),
     )
+  })
+})
+
+describe('listarActividadesDeLead — historial por lead con cursor keyset (msw)', () => {
+  const RUTA = 'http://supabase.test/rest/v1/rpc/actividades_de_lead_fn'
+  const LEAD = '44444444-4444-4444-8444-444444444444'
+  const senales = { tiene_reunion_realizada: true, tiene_contacto: true, ultima_conversacion_en: '2026-09-10T10:00:00+00:00' }
+  const filaAct = (i: number, sobre: Record<string, unknown> = {}) => ({
+    id: `55555555-0000-4000-8000-${String(i).padStart(12, '0')}`,
+    lead_id: LEAD,
+    tipo: 'llamada_no_contestada',
+    detalle: null,
+    autor_nombre: 'ANALISTA PRUEBA',
+    // Empates de fecha a propósito: el desempate por id es parte del cursor.
+    creado_en: new Date(Date.parse('2026-09-19T12:00:00Z') - Math.floor(i / 3) * 60_000).toISOString(),
+    ...sobre,
+  })
+
+  it('pide limite+1, recorta a la página, avanza desde la última fila CRUDA y traduce las señales', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RUTA, async ({ request }) => {
+      cuerpos.push(await request.json() as Record<string, unknown>)
+      const filas = Array.from({ length: TAMANO_PAGINA_HISTORIAL + 1 }, (_, i) => filaAct(i))
+      return HttpResponse.json({ version: 1, items: filas, senales })
+    }))
+
+    const pagina = await listarActividadesDeLead(LEAD, null)
+
+    expect(cuerpos[0]).toEqual({ p_lead_id: LEAD, p_limite: TAMANO_PAGINA_HISTORIAL + 1 })
+    expect(pagina.items).toHaveLength(TAMANO_PAGINA_HISTORIAL)
+    const ultima = filaAct(TAMANO_PAGINA_HISTORIAL - 1)
+    expect(pagina.cursor).toEqual({ creadoEn: ultima.creado_en, id: ultima.id })
+    expect(pagina.senales).toEqual({
+      tieneReunionRealizada: true,
+      tieneContacto: true,
+      ultimaConversacionEn: '2026-09-10T10:00:00+00:00',
+    })
+
+    await listarActividadesDeLead(LEAD, pagina.cursor)
+    expect(cuerpos[1]).toEqual({
+      p_lead_id: LEAD,
+      p_limite: TAMANO_PAGINA_HISTORIAL + 1,
+      p_antes_de: ultima.creado_en,
+      p_antes_id: ultima.id,
+    })
+  })
+
+  it('sin la fila de más no hay más páginas: cursor null', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({ version: 1, items: [filaAct(0), filaAct(1)], senales })))
+
+    const pagina = await listarActividadesDeLead(LEAD, null)
+
+    expect(pagina.items.map((a) => a.id)).toEqual([filaAct(0).id, filaAct(1).id])
+    expect(pagina.cursor).toBeNull()
+  })
+
+  it('una fila fuera de contrato o de OTRO lead se descarta CONTADA (telemetría), no en silencio', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({
+      version: 1,
+      items: [filaAct(0), filaAct(1, { tipo: 'tipo_futuro' }), filaAct(2, { lead_id: 'otro-lead' })],
+      senales,
+    })))
+
+    const pagina = await listarActividadesDeLead(LEAD, null)
+
+    expect(pagina.items.map((a) => a.id)).toEqual([filaAct(0).id])
+    expect(console.error).toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({
+        evento: 'crm.actividades.lead_filas_invalidas',
+        datos: expect.objectContaining({ contexto: expect.objectContaining({ descartadas: 2, pagina: 3 }) }),
+      }),
+    )
+  })
+
+  it('42501 es la denegación explícita de la puerta, con su propio mensaje', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json(
+      { code: '42501', message: 'Lead fuera de tu cartera', details: null, hint: null },
+      { status: 403 },
+    )))
+
+    await expect(listarActividadesDeLead(LEAD, null)).rejects.toMatchObject({
+      code: '42501',
+      message: 'Este lead ya no está en tu cartera.',
+    })
+  })
+
+  it('un payload sin señales o con versión desconocida no se acepta como historial', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({ version: 2, items: [] })))
+
+    await expect(listarActividadesDeLead(LEAD, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })
 

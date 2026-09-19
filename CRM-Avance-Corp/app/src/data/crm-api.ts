@@ -4,6 +4,7 @@ import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
 import { sb, type ClienteCrm } from '@/lib/supabase'
 import type { Database, Json } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
+import type { SenalesLead } from '@/lib/historial-lead'
 import {
   CATEGORIAS_INTERES,
   ETAPAS,
@@ -587,11 +588,18 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
 // ── Ámbito acotado para el store (lotes internos de transporte) ────────────────
 // El store necesita TODA la cartera del ámbito para los cálculos agregados
 // (métricas, embudo, colas). La RLS ya recorta a lo visible; el tope alto es una
-// salvaguarda de payload, no seguridad. Con volumen bajo (piloto) sobra.
-// Exportado para F4: con el ámbito EN el tope, la foto de miembros de los
-// grupos del supervisor puede estar incompleta y reconocer se desactiva —
-// una foto trunca aceptada por el servidor callaría al lead 2001 (Codex #5).
-export const MAX_LEADS_AMBITO = 2000
+// salvaguarda de payload, no seguridad.
+//
+// PUENTE TEMPORAL (Fase 1 del plan «sin topes», 19/09/2026): 2 000 → 5 000.
+// Producción tenía 1 983 leads con +398 por semana; al cruzar el tope, los
+// leads menos tocados desaparecían de la búsqueda, la agenda y la bandeja de
+// reparto. El coste real del puente es solo que la alarma de 2 000 ya no
+// suena; por eso hay una alarma de TENDENCIA a 4 000. El tope entero muere en
+// la Fase 4 (ninguna pantalla depende de la foto del ámbito).
+// Sigue exportado por `alertas-provider` (`fotoConfiable`), aunque esa rama
+// solo corre ya en modo legado/demo: con el SLA operativo activo no actúa.
+export const MAX_LEADS_AMBITO = 5000
+const ALARMA_TENDENCIA_LEADS = 4000
 const TAMANO_TRANSPORTE_LEADS = 500
 
 /** Literales de la sintaxis PostgREST: los cursores son datos del servidor,
@@ -643,6 +651,8 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
     cursor = { actualizado: ultima.actualizado_en, id: ultima.id }
   }
   avisarTopeAlcanzado('leads_del_ambito', MAX_LEADS_AMBITO, data.length)
+  // Alarma de tendencia del puente: suena SEMANAS antes de chocar el techo.
+  avisarTopeAlcanzado('leads_del_ambito_tendencia', ALARMA_TENDENCIA_LEADS, data.length)
   const items: Lead[] = []
   const vistos = new Set<string>()
   let descartadas = 0
@@ -1515,6 +1525,128 @@ export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<
     if (r.success) items.push(r.output)
   }
   return items
+}
+
+// ── Historial de UN lead (RPC SECURITY INVOKER crm.actividades_de_lead_fn,
+//    migración 20260919185718 — Fase 1 del plan «sin topes») ─────────────────
+// El historial deja de filtrarse en el navegador de la lista global del ámbito
+// (que PostgREST recorta a 1 000 filas y decapitaba a supervisores y gerencia):
+// se pide POR LEAD, paginado por cursor keyset (creado_en desc, id asc) y sin
+// ventana de fecha. El servidor responde 42501 si el lead no es visible —
+// nunca un historial vacío que se confunda con «sin gestiones».
+export const TAMANO_PAGINA_HISTORIAL = 100
+
+/** Posición exacta en el orden `(creado_en desc, id asc)`. */
+export interface CursorHistorial {
+  creadoEn: string
+  id: string
+}
+
+export interface PaginaHistorial {
+  items: Actividad[]
+  /** `null` = no hay más páginas; nunca se infiere de `items.length`. */
+  cursor: CursorHistorial | null
+  /** Señales «alguna vez» sobre TODO el historial (viajan en cada página; valen las de la primera). */
+  senales: SenalesLead
+}
+
+const HistorialLeadSchema = v.object({
+  version: v.literal(1),
+  items: v.array(v.unknown()),
+  senales: v.object({
+    tiene_reunion_realizada: v.boolean(),
+    tiene_contacto: v.boolean(),
+    ultima_conversacion_en: v.nullable(v.string()),
+  }),
+})
+
+/** Lo MÍNIMO para poder avanzar: si la última fila cruda no lo cumple, no hay cursor honesto. */
+const CursorHistorialRowSchema = v.object({
+  id: v.string(),
+  creado_en: v.string(),
+})
+
+export async function listarActividadesDeLead(
+  leadId: string,
+  cursor: CursorHistorial | null,
+  signal?: AbortSignal,
+): Promise<PaginaHistorial> {
+  // Se pide UNA fila de más: distingue «hay más» de «justo cabía» sin gastar
+  // una petición extra que vuelva vacía al final del historial.
+  const argumentos: Database['crm']['Functions']['actividades_de_lead_fn']['Args'] = {
+    p_lead_id: leadId,
+    p_limite: TAMANO_PAGINA_HISTORIAL + 1,
+  }
+  if (cursor) {
+    argumentos.p_antes_de = cursor.creadoEn
+    argumentos.p_antes_id = cursor.id
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('actividades_de_lead_fn', argumentos)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    // 42501 NO es «se cayó el servidor»: es la denegación explícita de la
+    // puerta (lead fuera del ámbito, borrado o cuenta ajena al CRM).
+    const fallo =
+      error.code === '42501'
+        ? new CrmApiError('Este lead ya no está en tu cartera.', '42501')
+        : new CrmApiError('No se pudo cargar el historial del lead.', error.code || 'POSTGREST_ERROR')
+    // Sin el id del lead: el canal de observabilidad no lleva identificadores.
+    registrarError('crm.actividades.lead_fallido', fallo, { conCursor: cursor != null })
+    throw fallo
+  }
+  const payload = v.safeParse(HistorialLeadSchema, data)
+  if (!payload.success) {
+    throw new CrmApiError('El historial del lead no cumple el contrato esperado.', 'ROW_CONTRACT')
+  }
+  const crudas = payload.output.items
+  if (crudas.length > TAMANO_PAGINA_HISTORIAL + 1) {
+    throw new CrmApiError('El historial del lead devolvió más filas de las pedidas.', 'ROW_CONTRACT')
+  }
+  const hayMas = crudas.length > TAMANO_PAGINA_HISTORIAL
+  const ventana = hayMas ? crudas.slice(0, TAMANO_PAGINA_HISTORIAL) : crudas
+
+  const items: Actividad[] = []
+  let descartadas = 0
+  for (const cruda of ventana) {
+    const r = v.safeParse(ActividadRowSchema, cruda)
+    // Una fila de OTRO lead sería un bug del servidor, no un dato: fuera.
+    if (r.success && r.output.lead_id === leadId) items.push(r.output)
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    // A diferencia del listado global (que las tiraba en silencio), aquí una
+    // fila fuera de contrato SE CUENTA: un tipo nuevo en la base desaparecería
+    // del historial de todos sin que nadie se enterara.
+    registrarError(
+      'crm.actividades.lead_filas_invalidas',
+      new CrmApiError('Filas del historial fuera de contrato', 'ROW_CONTRACT'),
+      { descartadas, pagina: ventana.length },
+    )
+  }
+
+  // El cursor sale de la ÚLTIMA FILA CRUDA de la ventana, no de la última
+  // válida: avanzar desde una fila anterior repetiría filas, y anular el cursor
+  // cortaría el historial fingiendo que ya no hay nada.
+  const ultima = ventana.at(-1)
+  const cursorCrudo = ultima !== undefined ? v.safeParse(CursorHistorialRowSchema, ultima) : null
+  if (hayMas && !cursorCrudo?.success) {
+    throw new CrmApiError('No se puede avanzar en el historial del lead.', 'ROW_CONTRACT')
+  }
+  const s = payload.output.senales
+  return {
+    items,
+    cursor: hayMas && cursorCrudo?.success
+      ? { creadoEn: cursorCrudo.output.creado_en, id: cursorCrudo.output.id }
+      : null,
+    senales: {
+      tieneReunionRealizada: s.tiene_reunion_realizada,
+      tieneContacto: s.tiene_contacto,
+      ultimaConversacionEn: s.ultima_conversacion_en,
+    },
+  }
 }
 
 /**

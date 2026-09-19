@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PanelActionsContext, StoreDataContext } from '@/lib/store-context'
 import type { PanelesActions, StoreDataApi } from '@/lib/store'
 import type { Lead, Tarea } from '@/lib/tipos'
@@ -100,12 +101,18 @@ function montar(tareas: Tarea[]) {
     abrirNuevoLead: vi.fn(),
     cerrarPaneles: vi.fn(),
   } satisfies PanelesActions
+  // El diálogo de cerrar tarea lee el historial POR LEAD (useActividadesDeLead)
+  // con TanStack: el hook necesita un cliente de consultas aunque aquí la
+  // lectura falle en seco (sin Supabase) y el diálogo pinte su estado de error.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <StoreDataContext.Provider value={api}>
-      <PanelActionsContext.Provider value={paneles}>
-        <Agenda />
-      </PanelActionsContext.Provider>
-    </StoreDataContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <StoreDataContext.Provider value={api}>
+        <PanelActionsContext.Provider value={paneles}>
+          <Agenda />
+        </PanelActionsContext.Provider>
+      </StoreDataContext.Provider>
+    </QueryClientProvider>,
   )
   return { reprogramarTarea, abrirLead }
 }
