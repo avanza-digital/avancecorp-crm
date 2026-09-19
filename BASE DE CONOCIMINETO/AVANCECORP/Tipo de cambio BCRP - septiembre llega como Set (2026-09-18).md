@@ -30,6 +30,12 @@ octubre, por eso parecía intermitente.
 **Dato de control.** Con corte 2026-09-18 el promedio esperado es **3.3685** (punto medio
 compra/venta de los 7 días hábiles del 09 al 17 de septiembre; solo-compra daría 3.3644).
 
+**Estado.** Edge `crm-tipo-cambio` **v11 EN PROD** (18/09, `npx supabase@2.114.0 functions deploy … --use-api`,
+`verify_jwt=true`). Verificado con llamadas reales: corte 2026-09-18 → 200, `dias=7`, `promedio=3.3685`
+(`09.Set.26`→`17.Set.26`); 2026-08-31 → 200 (3.3491); 2026-09-01 → 200 cruzando `24.Aug.26`→`01.Set.26`;
+sin fecha → 200. Código en `main` (`43695f55`). El cambio de front (aviso con motivo real + textos
+«fuente BCRP») sale con el siguiente `/release-crm`.
+
 **Regla que deja.** Un período ilegible de una fuente externa NUNCA se descarta en silencio: se
 falla nombrándolo. Cuando un fallo de parseo y un fallo de la fuente producen el mismo mensaje,
 el bug se disfraza de «problema del proveedor» durante semanas.
