@@ -2,8 +2,11 @@
 
 ## 20260919185718 — Historial por lead: completo e igual para todos los roles
 
-**🧪 ENSAYADA EN EL BANCO el 19/09/2026 (PASS, ver abajo); PRODUCCIÓN: NOT RUN (la instala Miguel
-con `!` + `db query --linked --file`, nunca `apply_migration` ni `db push`).** Fase 1 del plan «sin topes»
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
+exacto) y REGISTRADA (~16:05 Lima, `registrar-20260919185718.sql`; cuerpo md5 `bca9492d91f1d748b2c61b43cf7dd3ae`,
+idéntico al del archivo). Postflight en prod: gate propio + los 4 gates SLA OK. Sonda anónima por PostgREST:
+`{"p_lead_id":…}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` → PGRST202. FRONT: SIN PUBLICAR
+(PR #28 pendiente de merge commit y `release:crm`).** Ensayo previo en el banco: PASS (ver abajo). Fase 1 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`, aprobado por Miguel el 19/09), que
 ejecuta F2 §5 del plan de escalabilidad del vault.
 

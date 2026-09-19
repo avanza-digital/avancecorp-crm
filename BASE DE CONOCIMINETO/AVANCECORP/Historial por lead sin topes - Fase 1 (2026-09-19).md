@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, historial, actividades, fase-1, sin-topes]
 actualizado: 2026-09-19
-estado: implementada en local · SQL sin instalar en prod · front sin publicar
+estado: SQL EN PRODUCCIÓN (19/09 ~15:50 Lima) y registrada · banco PASS · front en PR #28 sin publicar
 ---
 
 # Historial por lead sin topes — Fase 1 (2026-09-19)
@@ -40,7 +40,7 @@ Mismo defecto de clase en las otras dos lecturas del arranque: las tareas del
 
 ## Lo que se hizo (Fase 1 de 4)
 
-**Servidor** — migración `20260919185718_crm_actividades_de_lead.sql`, en capas:
+**Servidor** — migración `20260919185718_crm_actividades_de_lead.sql` (EN PRODUCCIÓN el 19/09 ~15:50 Lima, registrada; ensayada antes en el banco `banco-f7`: gate OK, 5/5 mutantes, matriz de roles exacta), en capas:
 
 - Núcleo `private.actividades_de_lead_core(uuid,int,timestamptz,uuid)`: una
   página keyset `(creado_en desc, id asc)` del historial de UN lead más las
