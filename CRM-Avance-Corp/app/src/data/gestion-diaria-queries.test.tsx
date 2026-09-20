@@ -19,7 +19,9 @@ const dobles = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ actividadesDelAmbito: dobles.actividadesDelAmbito, actividades: dobles.actividades, ambito: dobles.ambito, equipo: dobles.equipo, tareas: dobles.tareas }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, actividadesDelAmbito: dobles.actividadesDelAmbito, actividades: dobles.actividades, ambito: dobles.ambito, equipo: dobles.equipo, tareas: dobles.tareas }),
 }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-19T18:00:00Z') }))
 vi.mock('./gestion-diaria-api', () => ({ listarRegistroActividad: dobles.listar, obtenerDiaAnalista: dobles.obtenerDia }))

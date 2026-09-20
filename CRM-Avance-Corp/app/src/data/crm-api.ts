@@ -106,7 +106,6 @@ import {
 import type { SeveridadAlerta } from '@/lib/alertas'
 import {
   ResumenCarteraSchema,
-  VENTANA_CONVERTIDOS_MS,
   VENTANA_CONVERTIDOS_DIAS,
   type ResumenCartera,
 } from '@/lib/resumen-cartera'
@@ -586,95 +585,12 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
   }
 }
 
-// ── Ámbito acotado para el store (lotes internos de transporte) ────────────────
-// El store necesita TODA la cartera del ámbito para los cálculos agregados
-// (métricas, embudo, colas). La RLS ya recorta a lo visible; el tope alto es una
-// salvaguarda de payload, no seguridad.
-//
-// PUENTE TEMPORAL (Fase 1 del plan «sin topes», 19/09/2026): 2 000 → 5 000.
-// Producción tenía 1 983 leads con +398 por semana; al cruzar el tope, los
-// leads menos tocados desaparecían de la búsqueda, la agenda y la bandeja de
-// reparto. El coste real del puente es solo que la alarma de 2 000 ya no
-// suena; por eso hay una alarma de TENDENCIA a 4 000. El tope entero muere en
-// la Fase 4 (ninguna pantalla depende de la foto del ámbito).
-// Sigue exportado por `alertas-provider` (`fotoConfiable`), aunque esa rama
-// solo corre ya en modo legado/demo: con el SLA operativo activo no actúa.
-export const MAX_LEADS_AMBITO = 5000
-const ALARMA_TENDENCIA_LEADS = 4000
-const TAMANO_TRANSPORTE_LEADS = 500
-
-/** Literales de la sintaxis PostgREST: los cursores son datos del servidor,
- * nunca operadores. Conservar el timestamp exacto evita perder microsegundos. */
-function literalFiltroPostgrest(valor: string): string {
-  return `"${valor.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
-export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]> {
-  // Ventana de convertidos (decisión de Miguel 2026-08-08, F1): un convertido
-  // con más de 45 días deja de ser lead operativo — MISMO corte que aplican
-  // las RPC de métricas del servidor, para que los tiles y las filas cuenten
-  // la misma película. El valor va entre comillas: en la mini-sintaxis de
-  // `.or()` de PostgREST el literal ISO viaja como valor citado, nunca como
-  // parte de la expresión lógica.
-  const corteConvertidos = new Date(Date.now() - VENTANA_CONVERTIDOS_MS).toISOString()
-  const ventana = `or(etapa.neq.convertido,convertido_en.gte.${literalFiltroPostgrest(corteConvertidos)})`
-  const data: unknown[] = []
-  let cursor: { actualizado: string; id: string } | null = null
-  // El límite de PostgREST (habitualmente 1000) prevalece sobre .limit(2000).
-  // Lotes de 500 completan el ámbito sin añadir scroll ni páginas a la UI.
-  while (data.length < MAX_LEADS_AMBITO) {
-    lanzarAbortSiCorresponde(signal)
-    const limite = Math.min(TAMANO_TRANSPORTE_LEADS, MAX_LEADS_AMBITO - data.length)
-    const despues: string | null = cursor
-      ? `or(actualizado_en.lt.${literalFiltroPostgrest(cursor.actualizado)},and(actualizado_en.eq.${literalFiltroPostgrest(cursor.actualizado)},id.gt.${literalFiltroPostgrest(cursor.id)}))`
-      : null
-    let consulta = cliente().schema('crm').from('leads').select(COLUMNAS_LEAD)
-      .or(despues ? `and(${ventana},${despues})` : ventana)
-      .order('actualizado_en', { ascending: false }).order('id', { ascending: true }).limit(limite)
-    if (signal) consulta = consulta.abortSignal(signal)
-    const { data: lote, error } = await consulta
-    lanzarAbortSiCorresponde(signal)
-    if (error) {
-      const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
-      registrarError('crm.leads.ambito_fallido', fallo)
-      throw fallo
-    }
-    const filas: unknown[] = lote ?? []
-    if (!Array.isArray(filas) || filas.length > limite) throw new CrmApiError('La cartera recibida no corresponde al lote solicitado.', 'ROW_CONTRACT')
-    data.push(...filas)
-    if (filas.length < limite || data.length === MAX_LEADS_AMBITO) break
-    const ultima = filas[filas.length - 1] as Record<string, unknown> | undefined
-    if (!ultima || typeof ultima.id !== 'string' || typeof ultima.actualizado_en !== 'string'
-      || !Number.isFinite(Date.parse(ultima.actualizado_en))
-      || (cursor && cursor.id === ultima.id && cursor.actualizado === ultima.actualizado_en)) {
-      throw new CrmApiError('No se pudo continuar la lectura de la cartera.', 'ROW_CONTRACT')
-    }
-    cursor = { actualizado: ultima.actualizado_en, id: ultima.id }
-  }
-  avisarTopeAlcanzado('leads_del_ambito', MAX_LEADS_AMBITO, data.length)
-  // Alarma de tendencia del puente: suena SEMANAS antes de chocar el techo.
-  avisarTopeAlcanzado('leads_del_ambito_tendencia', ALARMA_TENDENCIA_LEADS, data.length)
-  const items: Lead[] = []
-  const vistos = new Set<string>()
-  let descartadas = 0
-  for (const cruda of data) {
-    const r = v.safeParse(LeadRowSchema, cruda)
-    // Los lotes no son una transacción de lectura: un cambio concurrente no
-    // debe producir dos tarjetas de la misma identidad en el store.
-    if (r.success) {
-      if (!vistos.has(r.output.id)) { vistos.add(r.output.id); items.push(aLead(r.output)) }
-    }
-    else descartadas += 1
-  }
-  if (descartadas > 0) {
-    registrarError(
-      'crm.leads.ambito_filas_invalidas',
-      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
-      { descartadas, limite: MAX_LEADS_AMBITO },
-    )
-  }
-  return items
-}
+// ── La foto del ámbito MURIÓ (Fase 4e «sin topes», 20/09/2026) ─────────────────
+// `listarLeadsDelAmbito`, `MAX_LEADS_AMBITO` (5 000), el puente y su alarma de
+// tendencia ya no existen: ninguna pantalla depende de bajar todos los leads
+// del ámbito. Cada una pide al servidor lo que muestra (`cartera_pagina_fn` /
+// `cartera_filtrada_fn` por cursor, bandeja sin analista, cartera propia,
+// búsqueda global) y la ficha se relee por id (`obtenerLeadDelAmbitoPorId`).
 
 /** Ficha completa por identidad: la tabla y su RLS siguen siendo la puerta de
  * acceso. La cola resumida nunca se convierte en un Lead parcial. */
@@ -896,6 +812,125 @@ export async function listarCarteraPagina(
   }
 
   return { items, cursor: siguiente }
+}
+
+/**
+ * Alarma de TENDENCIA de la bandeja sin analista (Fase 4c): no corta, avisa.
+ * Hoy la bandeja tiene 3 leads abiertos sin analista en producción.
+ */
+const ALARMA_TENDENCIA_BANDEJA = 2000
+
+/**
+ * Bandeja de leads SIN analista (Fase 4c «sin topes»): lo que Equipo,
+ * Derivaciones y Hoy · Supervisor filtraban de la foto inicial
+ * (`vendedor_id == null`). Pide a `crm.cartera_pagina_fn` (INVOKER: la RLS
+ * decide qué bandejas ve cada actor: el supervisor la suya, gerencia todas) con
+ * `p_sin_asignar` por cursor hasta que no haya más; sin tope en el navegador.
+ * Devuelve leads ACTIVOS sin analista (de cualquier etapa): la pantalla decide
+ * si quiere solo los abiertos.
+ */
+export async function listarLeadsSinAsignar(signal?: AbortSignal): Promise<Lead[]> {
+  return listarLeadsPorCursor({ etapa: 'todas', vendedorId: 'sin_asignar', integrada: false }, 'bandeja', signal)
+}
+
+/**
+ * Los leads del PROPIO analista (Fase 4d «sin topes»): lo que Hoy · Analista
+ * necesita para su higiene, sus citas y su pulso, sin la foto inicial. Bajo la
+ * RLS del analista `cartera_pagina_fn` sin filtro ya es SOLO su cartera; se
+ * recorre por cursor hasta agotarla (acotada por su propia cartera).
+ */
+export async function listarLeadsPropios(signal?: AbortSignal): Promise<Lead[]> {
+  return listarLeadsPorCursor({ etapa: 'todas', vendedorId: 'todos', integrada: false }, 'propios', signal)
+}
+
+/** Recorre `cartera_pagina_fn` por cursor hasta agotar la lista que pinta el filtro. */
+async function listarLeadsPorCursor(filtros: FiltrosCartera, etiqueta: string, signal?: AbortSignal): Promise<Lead[]> {
+  const vistos = new Set<string>()
+  const items: Lead[] = []
+  let cursor: CursorCartera | null = null
+  let vueltas = 0
+  do {
+    const pagina: PaginaCartera = await listarCarteraPagina(filtros, cursor, signal)
+    for (const l of pagina.items) {
+      if (vistos.has(l.id)) continue
+      vistos.add(l.id)
+      items.push(l)
+    }
+    // Avance ESTRICTO del cursor: repetir o retroceder sería un bucle.
+    if (pagina.cursor && cursor
+      && !(pagina.cursor.actualizadoEn < cursor.actualizadoEn
+        || (pagina.cursor.actualizadoEn === cursor.actualizadoEn && pagina.cursor.id > cursor.id))) {
+      throw new CrmApiError('La lista no avanza por cursor.', 'ROW_CONTRACT')
+    }
+    cursor = pagina.cursor
+    vueltas += 1
+  // Salvaguarda contra un servidor que nunca agota (el avance estricto ya
+  // impide ciclar): 2 000 páginas = 100 000 filas, muy por encima de cualquier
+  // bandeja o cartera propia (Codex 20/09: 200 era un tope nuevo de 10 000).
+  } while (cursor && vueltas < 2000)
+  if (cursor) throw new CrmApiError('La lista no termina de paginar.', 'ROW_CONTRACT')
+  if (items.length > ALARMA_TENDENCIA_BANDEJA) {
+    registrarError(`crm.leads.${etiqueta}_tendencia`,
+      new CrmApiError('La lista por cursor supera la alarma de tendencia', 'TENDENCIA'), { filas: items.length })
+  }
+  return items
+}
+
+/** Resultados del buscador global (Fase 4a «sin topes»): los que caben en el desplegable. */
+export const TAMANO_BUSQUEDA_GLOBAL = 8
+
+/**
+ * Buscador global de la barra (Fase 4a «sin topes»): pide al SERVIDOR los leads
+ * del ámbito que casan con el texto, en vez de filtrar la foto inicial en el
+ * navegador. Reutiliza `crm.cartera_pagina_fn` (INVOKER: el alcance lo pone la
+ * RLS; texto = nombre ILIKE, y teléfono/DNI a partir de 3 dígitos; índices
+ * trigram en las tres columnas), ordenada por actualización reciente. Devuelve
+ * como máximo `limite` filas: el servidor recorta, el navegador NO.
+ *
+ * Quien decide si el texto viaja es `textoBuscable` (mismo mínimo que el
+ * servidor, que rechaza con 22023 por debajo de 2 caracteres): por debajo del
+ * mínimo no hay petición y el resultado es vacío.
+ */
+export async function buscarLeadsGlobal(
+  texto: string,
+  signal?: AbortSignal,
+  limite: number = TAMANO_BUSQUEDA_GLOBAL,
+): Promise<Lead[]> {
+  const buscable = textoBuscable(texto)
+  if (buscable === null) return []
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cartera_pagina_fn', { p_limite: limite, p_texto: buscable })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo =
+      error.code === '42501'
+        ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
+        : new CrmApiError('No se pudo buscar en tus leads.', error.code || 'POSTGREST_ERROR')
+    // Sin el texto: puede ser un nombre, un teléfono o un DNI.
+    registrarError('crm.leads.busqueda_global_fallida', fallo, { largo: buscable.length })
+    throw fallo
+  }
+  const crudas = Array.isArray(data) ? data : []
+  if (crudas.length > limite) {
+    throw new CrmApiError('La búsqueda devolvió más filas de las pedidas.', 'ROW_CONTRACT')
+  }
+  const items: Lead[] = []
+  let descartadas = 0
+  for (const cruda of crudas) {
+    const r = v.safeParse(LeadCarteraRowSchema, cruda)
+    if (r.success) items.push({ ...aLead(r.output), ultimo_contacto_en: r.output.ultimo_contacto_en })
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    registrarError('crm.leads.busqueda_global_filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'), { descartadas })
+  }
+  if (new Set(items.map((l) => l.id)).size !== items.length) {
+    throw new CrmApiError('La búsqueda devolvió leads repetidos.', 'ROW_CONTRACT')
+  }
+  return items
 }
 
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────

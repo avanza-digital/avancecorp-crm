@@ -29,6 +29,8 @@ beforeEach(() => {
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS, vendedores: [
       { perfil_id: 'v-1', nombre_completo: 'ANA TORRES' },
       { perfil_id: 'v-2', nombre_completo: 'LUIS PEREZ' },

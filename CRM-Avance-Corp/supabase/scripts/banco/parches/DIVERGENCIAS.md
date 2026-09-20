@@ -257,3 +257,9 @@ CUAL (ya en producción) y después esta, cada una en un solo mensaje. Guion:
 **Resultado (19/09 ~21:00 Lima): PASS.** Gate OK, 18/18 mutantes, esquema intacto (gate de la Fase 1 OK después);
 11 actores con puerta = las 8 más recientes de la tabla en orden; 22023/42501/anon correctos; `EXPLAIN` por
 `actividades_recientes_idx`. `test-rls.mjs` por HTTP sigue NOT RUN (sin claves).
+
+## 20260920045202 — lead embebido completo en las tareas por cursor (Fase 4b «sin topes»)
+
+Ensayo en el contenedor local (copias `lead_embebido_20260920` y `lead_embebido_20260920b` desde
+`conversion_inversion_base_20260919`, con la Fase 2 `20260919235100` instalada antes tal cual). Archivos EXACTOS,
+sin divergencias. Resultado en `scripts/tareas-lead-embebido/verificacion.json`.

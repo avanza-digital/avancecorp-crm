@@ -306,3 +306,21 @@ describe('Agenda — bandeja compacta', () => {
     expect(screen.queryByText('Seguimiento 01')).not.toBeInTheDocument()
   })
 })
+
+describe('Fase 4b «sin topes» — en sesión real el lead viene embebido en la tarea', () => {
+  it('pinta el capital desde la tarea (sin la foto de leads) y lista la tarea cuyo lead no es visible', () => {
+    montar([
+      tarea({
+        id: 't-emb', lead_id: 'l-fuera-de-la-foto', titulo: 'Llamar a Rosa',
+        lead_nombre: 'ROSA LIMA', lead_etapa: 'contactado', lead_telefono: '+51988877766',
+        lead_monto_estimado: '12000', lead_moneda: 'USD', lead_no_contactar: false,
+      }),
+      tarea({ id: 't-sin', lead_id: 'l-invisible', titulo: 'Llamar a lead ajeno', lead_nombre: null }),
+    ])
+    // El capital sale de los campos embebidos: ese lead NO está en `ambito.leads`.
+    expect(screen.getByText(/en juego/)).toHaveTextContent(/12/)
+    // La tarea con lead no visible viaja con el lead en nulo y se lista igual.
+    expect(screen.getByText('Llamar a lead ajeno')).toBeInTheDocument()
+    expect(screen.getAllByText(/en juego/)).toHaveLength(1)
+  })
+})

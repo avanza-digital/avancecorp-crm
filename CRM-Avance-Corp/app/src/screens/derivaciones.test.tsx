@@ -115,6 +115,8 @@ vi.mock('@/lib/auth-context', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS_AMBITO, vendedores: ASESORES, esGlobal: false },
     recargar: RECARGAR,
   }),
@@ -130,6 +132,8 @@ vi.mock('@/data/crm-queries', () => ({
       refetch: vi.fn(),
     }
   },
+  // Fase 4c: la bandeja real viene del servidor; aquí, la misma foto del fixture.
+  useLeadsSinAsignar: () => ({ data: LEADS_AMBITO, isPending: false, isFetching: false, error: null, refetch: vi.fn() }),
   useDerivarLeadsEquipo: () => ({ isPending: false, mutateAsync: GUARDAR }),
   useRevertirDerivacionEquipo: () => ({ isPending: false, mutateAsync: DEVOLVER }),
 }))

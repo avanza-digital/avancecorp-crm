@@ -63,7 +63,7 @@ import { planPorLead } from '@/lib/plan-lead'
 import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
 import { agendaDeTareas, esDeHoy, fechaLima, tareaAEvento, type EventoAgenda } from '@/lib/agenda-derivada'
 import { capitalObjetivo, metaVigente, capitalReal, metaConversionAplicable, objetivosCero, periodoLima } from '@/lib/objetivos'
-import { useConversionMensual } from '@/data/crm-queries'
+import { useConversionMensual, useLeadsPropios } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -890,8 +890,25 @@ export function HoyVendedor(): JSX.Element {
   // Universo del analista — ambito.leads ya es SOLO su cartera. Memoizado porque
   // de él cuelgan `idsMios` y la agenda derivada: un array nuevo en cada render
   // reventaría esos memos sin que haya cambiado un solo dato.
-  const mios = useMemo(() => ambito.leads.filter((l) => l.activo), [ambito.leads])
-  const idsMios = useMemo(() => new Set(mios.map((l) => l.id)), [mios])
+  // Fase 4d «sin topes»: en sesión real la cartera propia la sirve el servidor
+  // (`cartera_pagina_fn` bajo la RLS del analista, por cursor hasta agotarla);
+  // la demo sigue con su foto local.
+  const sesionRealPropios = yo != null && !yo.demo
+  const propios = useLeadsPropios(sesionRealPropios)
+  const mios = useMemo(
+    () => (sesionRealPropios ? (propios.data ?? []) : ambito.leads).filter((l) => l.activo),
+    [sesionRealPropios, propios.data, ambito.leads],
+  )
+  const cargandoMios = sesionRealPropios && propios.isPending
+  // Fase 4e: el store conoce la cartera propia (verbos de escritura por id).
+  const { conocerLeads } = useCRMData()
+  useEffect(() => { conocerLeads(propios.data ?? []) }, [conocerLeads, propios.data])
+  // Sin la cartera propia (cargando o caída) NO se filtra: las tareas ya llegan
+  // autorizadas por la RLS y ocultarlas leería «sin trabajo» (Codex 20/09).
+  const idsMios = useMemo<ReadonlySet<string> | null>(
+    () => (sesionRealPropios && (propios.isPending || propios.error) ? null : new Set(mios.map((l) => l.id))),
+    [sesionRealPropios, propios.isPending, propios.error, mios],
+  )
 
   // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo
   // demo vivo — esta pantalla ya no cuenta filas para sus tiles. Sin payload
@@ -1033,7 +1050,7 @@ export function HoyVendedor(): JSX.Element {
   // solo hoy — los números no cuadraban con las filas de abajo y un día
   // realmente vacío se leía como un día lleno.
   const agenda = useMemo(() => {
-    const mias = tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id))
+    const mias = tareas.filter((t) => t.lead_id && (idsMios === null || idsMios.has(t.lead_id)))
     return agendaDeTareas(mias, ahora).filter((ev) => ev.vencida || esDeHoy(ev, ahora))
   }, [tareas, idsMios, ahora])
 
@@ -1081,8 +1098,8 @@ export function HoyVendedor(): JSX.Element {
   const itemsHigiene = (
     higiene
       ? colaHigiene(
-          tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)),
-          ambito.leads,
+          tareas.filter((t) => t.lead_id && (idsMios === null || idsMios.has(t.lead_id))),
+          mios,
           conTarea,
           ahora,
           new Set(colaVisible.map((i) => i.lead.id)),
@@ -1183,7 +1200,7 @@ export function HoyVendedor(): JSX.Element {
 
       {/* El trabajo gana el primer pantallazo. Sin cartera, el vacío ofrece una
           salida real; con cartera, «Ahora» reemplaza la antigua fila de KPI. */}
-      {modoSla.legado && (mios.length === 0 ? (
+      {modoSla.legado && (mios.length === 0 && !cargandoMios ? (
         <Card>
           <PanelVacio
             icono={Users}

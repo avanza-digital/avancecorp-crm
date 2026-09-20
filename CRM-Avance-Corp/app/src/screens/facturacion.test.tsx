@@ -39,7 +39,9 @@ const dobles = vi.hoisted(() => ({
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ yo: { ...dobles.yo, demo: dobles.demo } }),
 }))
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ equipo: dobles.equipo }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, equipo: dobles.equipo }) }))
 vi.mock('@/lib/tipo-cambio', () => ({
   useTipoCambio: (habilitado = true, fechaCorte?: string) => {
     dobles.tcArgs.push({ habilitado, fechaCorte })

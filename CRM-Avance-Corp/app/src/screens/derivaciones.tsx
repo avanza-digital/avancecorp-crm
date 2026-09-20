@@ -22,6 +22,7 @@ import {
   useDerivarLeadsEquipo,
   useReporteDerivacionesEquipo,
   useRevertirDerivacionEquipo,
+  useLeadsSinAsignar,
 } from '@/data/crm-queries'
 import { mensajeDeError } from '@/data/crm-api'
 import { useAuth } from '@/lib/auth-context'
@@ -401,10 +402,19 @@ export function Derivaciones(): JSX.Element {
   const ahora = useAhora()
   const { tc } = useTipoCambio()
 
+  // Fase 4c «sin topes»: en sesión real la bandeja la sirve el servidor
+  // (`cartera_pagina_fn` sin analista, bajo RLS); la demo filtra su foto local.
+  const sesionRealBandeja = yo != null && !yo.demo
+  const bandejaServidor = useLeadsSinAsignar(sesionRealBandeja)
   const leadsPorRepartir = useMemo(
-    () => ambito.leads.filter((lead) => esAbierto(lead) && lead.vendedor_id == null),
-    [ambito.leads],
+    () => (sesionRealBandeja ? (bandejaServidor.data ?? []) : ambito.leads)
+      .filter((lead) => esAbierto(lead) && lead.vendedor_id == null),
+    [sesionRealBandeja, bandejaServidor.data, ambito.leads],
   )
+  const bandejaCargando = sesionRealBandeja && bandejaServidor.isPending
+  const { conocerLeads } = useCRMData()
+  useEffect(() => { conocerLeads(bandejaServidor.data ?? []) }, [conocerLeads, bandejaServidor.data])
+  const bandejaError = sesionRealBandeja && bandejaServidor.error instanceof Error ? bandejaServidor.error : null
   const {
     modo,
     setModo,
@@ -617,7 +627,13 @@ export function Derivaciones(): JSX.Element {
           <SectionHead
             icon={SendHorizontal}
             title="Derivar hoy"
-            right={leadsPorRepartir.length > 0 ? (
+            right={bandejaCargando ? (
+              <span role="status" className="text-[11px] text-muted-foreground">Cargando bandeja…</span>
+            ) : bandejaError ? (
+              <button type="button" onClick={() => void bandejaServidor.refetch()} className="text-[11px] font-semibold text-destructive-text hover:underline">
+                No se pudo cargar la bandeja · Reintentar
+              </button>
+            ) : leadsPorRepartir.length > 0 ? (
               <Badge color={SEMAFORO.atencion} variant="outline" dot>
                 {leadsPorRepartir.length} en bandeja
               </Badge>

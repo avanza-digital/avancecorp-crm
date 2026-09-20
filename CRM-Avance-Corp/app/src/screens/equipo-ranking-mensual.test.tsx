@@ -75,6 +75,8 @@ const TOTAL_INDISPONIBLE = totalConversion(false, null)
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: {
       leads: [],
       vendedores: CONVERSION_OPERATIVA === undefined && CONVERSION_EQUIPO_OPERATIVA === undefined ? [] : [VENDEDOR],

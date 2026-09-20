@@ -35,6 +35,8 @@ import { useAlertasCRM } from '@/lib/alertas-context'
 import { useRespuestasTasa } from '@/lib/respuestas-tasa-context'
 import { CampanaRespuestasTasa } from './respuestas-tasa'
 import { normalizarTelefono } from '@/lib/validacion'
+import { useBusquedaGlobal } from '@/data/crm-queries'
+import { MIN_DIGITOS_BUSQUEDA, MIN_TEXTO_BUSQUEDA, textoBuscable } from '@/lib/cartera-keyset'
 
 /** ¿Lo tecleado parece un TELÉFONO? (dígitos y separadores, ≥6 dígitos).
  *  Habilita el atajo «Verificar disponibilidad» del vacío del buscador. */
@@ -108,6 +110,22 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
     .slice(0, 8)
 }
 
+/** Lista vacía estable (misma referencia entre renders). */
+const SIN_RESULTADOS: readonly Lead[] = []
+
+/** Retraso del texto antes de pedir al servidor (Fase 4a): ≥ 300 ms entre teclas. */
+const RETRASO_BUSQUEDA_MS = 300
+
+/** El valor que queda cuando el usuario deja de teclear durante `ms` milisegundos. */
+function useValorAsentado<T>(valor: T, ms: number): T {
+  const [asentado, setAsentado] = useState(valor)
+  useEffect(() => {
+    const id = window.setTimeout(() => setAsentado(valor), ms)
+    return () => window.clearTimeout(id)
+  }, [valor, ms])
+  return asentado
+}
+
 export function Topbar({
   vista,
   ayudaAbierta = false,
@@ -119,7 +137,7 @@ export function Topbar({
 }) {
   const { yo } = useAuth()
   const soloRoles = administraSoloRolesCrm(yo)
-  const { ambito } = useCRMData()
+  const { ambito, conocerLeads } = useCRMData()
   // F4: la campana cuenta `pendientes` (las que piden acción hoy), no todo lo
   // visible — una alerta reconocida sigue en la lista, atenuada, sin sumar.
   const { pendientes, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
@@ -143,10 +161,49 @@ export function Topbar({
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(0)
 
-  const resultados = useMemo(
-    () => buscarLeads(ambito.leads, qDiferida),
-    [ambito.leads, qDiferida],
+  // Fase 4a «sin topes»: en sesión real la búsqueda la responde el SERVIDOR
+  // (`cartera_pagina_fn` por texto, bajo RLS) y no la foto inicial de leads;
+  // la demo sigue filtrando su ámbito local. El texto viaja asentado (300 ms)
+  // y solo por encima del mínimo que el servidor acepta (`textoBuscable`).
+  const sesionReal = yo != null && !yo.demo
+  const qAsentada = useValorAsentado(q, RETRASO_BUSQUEDA_MS)
+  const textoServidor = sesionReal ? textoBuscable(qAsentada) : null
+  const busqueda = useBusquedaGlobal(textoServidor, sesionReal && leadsVisibles)
+  const resultadosLocales = useMemo(
+    () => (sesionReal ? [] : buscarLeads(ambito.leads, qDiferida)),
+    [sesionReal, ambito.leads, qDiferida],
   )
+  // Solo cuentan los resultados de la consulta del texto ACTUAL: mientras el
+  // texto se asienta, la petición vuela o la consulta está apagada, la lista
+  // es vacía (Codex, 20/09: Enter elegía un resultado del texto anterior).
+  const textoActual = sesionReal ? textoBuscable(q) : null
+  const resultadosServidor = useMemo(
+    () => (sesionReal && textoServidor !== null && textoActual === textoServidor
+      && !busqueda.isPlaceholderData && busqueda.data ? busqueda.data : SIN_RESULTADOS),
+    [sesionReal, textoServidor, textoActual, busqueda.isPlaceholderData, busqueda.data],
+  )
+  const resultados = sesionReal ? resultadosServidor : resultadosLocales
+  // Fase 4e: lo que el buscador muestra, el store lo conoce (abrir y actuar por id).
+  useEffect(() => { conocerLeads(resultadosServidor) }, [conocerLeads, resultadosServidor])
+  // Estados del desplegable en sesión real (la demo responde al instante).
+  const bajoMinimo = sesionReal && q.trim() !== '' && textoBuscable(q) === null
+  const buscando = sesionReal && !bajoMinimo
+    && (busqueda.isFetching || textoActual !== textoServidor)
+  // El error solo se muestra cuando NO se está reintentando: así el reintento
+  // enseña «Buscando…» y un segundo fallo vuelve a anunciarse (revisor a11y).
+  const errorBusqueda = sesionReal && !busqueda.isFetching && busqueda.error instanceof Error ? busqueda.error : null
+  // Región viva PERSISTENTE (existe desde el montaje): los lectores de pantalla
+  // anuncian con fiabilidad lo que CAMBIA en una región que ya existía, no un
+  // nodo que nace con texto. El error va aparte, en su propio role="alert".
+  const anuncio = !abierto || q.trim() === '' || errorBusqueda
+    ? ''
+    : bajoMinimo
+      ? `Escribe al menos ${MIN_TEXTO_BUSQUEDA} letras, o ${MIN_DIGITOS_BUSQUEDA} dígitos.`
+      : buscando && resultados.length === 0
+        ? 'Buscando en tus leads…'
+        : resultados.length === 0
+          ? 'Sin resultados en tus leads.'
+          : `${resultados.length} ${resultados.length === 1 ? 'resultado' : 'resultados'}. Usa las flechas para recorrerlos.`
   // Índice resaltado, siempre dentro de rango aunque cambien los resultados.
   const iActivo = resultados.length > 0 ? Math.min(activo, resultados.length - 1) : 0
 
@@ -187,6 +244,13 @@ export function Topbar({
       e.stopPropagation()
       setAbierto(false)
       inputRef.current?.blur()
+      return
+    }
+    // Con el error a la vista, Enter reintenta: el botón «Reintentar» es
+    // solo-ratón (tabIndex -1 para no robar el foco al combobox).
+    if (e.key === 'Enter' && abierto && errorBusqueda) {
+      e.preventDefault()
+      void busqueda.refetch()
       return
     }
     if (resultados.length === 0) return
@@ -241,19 +305,44 @@ export function Topbar({
             aria-expanded={abierto && q.trim() !== ''}
             aria-controls="topbar-busqueda-lista"
             aria-autocomplete="list"
+            aria-activedescendant={abierto && resultados.length > 0 ? `topbar-busqueda-op-${resultados[iActivo]?.id ?? ''}` : undefined}
             aria-label="Buscar lead por nombre, teléfono o DNI"
             className="h-8 w-60 rounded-lg border border-input bg-background pl-8 pr-8 text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 lg:w-72"
           />
           <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
             /
           </kbd>
+          <p role="status" className="sr-only">{anuncio}</p>
 
           {abierto && q.trim() !== '' && (
             <div
               id="topbar-busqueda-lista"
               className="ac-pop absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-pop)]"
             >
-              {resultados.length === 0 ? (
+              {errorBusqueda ? (
+                <div className="px-3 py-2.5">
+                  <p role="alert" className="text-[11px] text-destructive-text">{errorBusqueda.message} Pulsa Enter para reintentar.</p>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onMouseDown={(e) => e.preventDefault() /* no robar el foco al input */}
+                    onClick={() => void busqueda.refetch()}
+                    className="mt-1.5 cursor-pointer text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              ) : bajoMinimo ? (
+                <div className="px-3 py-2.5">
+                  <p className="text-[11px] text-muted-foreground">
+                    Escribe al menos {MIN_TEXTO_BUSQUEDA} letras, o {MIN_DIGITOS_BUSQUEDA} dígitos de teléfono o DNI.
+                  </p>
+                </div>
+              ) : buscando && resultados.length === 0 ? (
+                <div className="px-3 py-2.5">
+                  <p className="text-[11px] text-muted-foreground">Buscando en tus leads…</p>
+                </div>
+              ) : resultados.length === 0 ? (
                 <div className="px-3 py-2.5">
                   {/* "en tus leads" acota el vacío a lo que este buscador SÍ mira:
                       un "Sin resultados" a secas se lee como "esa persona no existe". */}
@@ -304,7 +393,7 @@ export function Topbar({
                   {resultados.map((l, i) => {
                     const et = ETAPA_INFO[l.etapa]
                     return (
-                      <li key={l.id} role="option" aria-selected={i === iActivo}>
+                      <li key={l.id} id={`topbar-busqueda-op-${l.id}`} role="option" aria-selected={i === iActivo}>
                         <button
                           type="button"
                           tabIndex={-1}

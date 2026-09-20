@@ -6056,6 +6056,10 @@ async function testActividadesDeLead(sessions, seed) {
 // pendientes que su propia sesión ya ve en la tabla, en el orden (vence_en, id).
 // Se siembran dos tareas de vend1 con el MISMO vence_en: el desempate por id es
 // parte del cursor y un empate que cruza el borde de página es el caso que falla.
+/** Claves del lead que la Fase 4b (20260920045202) embebe además de nombre y etapa. */
+const CLAVES_LEAD_4B = ['lead_telefono', 'lead_monto_estimado', 'lead_moneda', 'lead_vendedor_id',
+  'lead_supervisor_id', 'lead_correo', 'lead_no_contactar', 'lead_telefono_alternativo'];
+
 async function testTareasPendientes(sessions, seed) {
   console.log('\n— Tareas pendientes por cursor: invoker ≡ RLS, sin tope —');
 
@@ -6114,6 +6118,10 @@ async function testTareasPendientes(sessions, seed) {
     check(items.every((t) => typeof t.id === 'string' && typeof t.vence_en === 'string'
       && t.estado === 'pendiente' && t.activo === true && 'lead_nombre' in t && 'lead_etapa' in t),
       `${key}: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa`);
+    // Fase 4b (20260920045202): las ocho claves nuevas del lead viajan SIEMPRE
+    // (nulas si el lead no es visible), para todos los roles.
+    check(items.every((t) => CLAVES_LEAD_4B.every((k) => k in t)),
+      `${key}: cada tarea trae las ocho claves del lead de la Fase 4b`);
     if (borradaSembrada) {
       check(!recibidos.includes(borrada.id) && !esperados.includes(borrada.id),
         `${key}: la tarea borrada no viaja ni por la puerta ni por la tabla`);
@@ -6127,6 +6135,55 @@ async function testTareasPendientes(sessions, seed) {
     check(mias.length === 2 && mias.every((t) => t.lead_nombre === juan.name && typeof t.lead_etapa === 'string'),
       'vend1: las tareas sembradas viajan con lead_nombre/lead_etapa de juan',
       JSON.stringify(mias.map((t) => [t.lead_nombre, t.lead_etapa])));
+  }
+
+  // Fase 4b: los valores embebidos son EXACTAMENTE los que la tabla crm.leads
+  // le muestra al mismo actor (mismo oráculo, misma sesión), para vend1 y gerencia.
+  for (const key of ['vend1', 'gerencia']) {
+    const r = await positive(`${key} pide sus tareas para contrastar el lead embebido con crm.leads`, rpc(key, { p_limite: 1000 }));
+    const l = await positive(`${key}: lee el lead de juan directo de la tabla (oraculo)`,
+      sessions[key].client.schema('crm').from('leads')
+        .select('nombre_completo, etapa, telefono, monto_estimado, moneda, vendedor_id, asignado_supervisor_id, correo, no_contactar, telefono_alternativo')
+        .eq('id', juanLead.id).maybeSingle());
+    if (!r || !l || !l.data) continue;
+    const mias = (r.data?.items ?? []).filter((t) => sembradas.some((s) => s.id === t.id));
+    const lead = l.data;
+    const iguales = mias.length === 2 && mias.every((t) =>
+      t.lead_nombre === lead.nombre_completo && t.lead_etapa === lead.etapa && t.lead_telefono === lead.telefono
+      && ((t.lead_monto_estimado == null && lead.monto_estimado == null)
+        || Number(t.lead_monto_estimado ?? NaN) === Number(lead.monto_estimado ?? NaN)))
+      && mias.every((t) => t.lead_moneda === lead.moneda && t.lead_vendedor_id === lead.vendedor_id
+      && t.lead_supervisor_id === lead.asignado_supervisor_id && t.lead_correo === lead.correo
+      && t.lead_no_contactar === lead.no_contactar && t.lead_telefono_alternativo === lead.telefono_alternativo);
+    check(iguales, `${key}: telefono, capital, tenencia, correo, no_contactar y telefono alternativo embebidos = crm.leads bajo su sesion`);
+  }
+
+  // Fase 4b, caso DENEGADO: una tarea visible cuyo lead NO lo es viaja con las
+  // diez claves del lead en nulo. La tenencia diverge DESPUÉS de crear la tarea
+  // (el BEFORE INSERT copia la del lead): se siembra sobre un lead de vend3 y,
+  // como admin (sin RLS), se re-apunta la tarea a vend1.
+  const anaLead = seed.leadByName.get(LEAD_BY_KEY.ana.name);
+  const ajena = { id: randomUUID(), titulo: 'GATE TAREAS CURSOR LEAD AJENO' };
+  const ajenaSembrada = anaLead && await positive(
+    'sembrar tarea sobre el lead de vend3 (ana) para re-apuntarla a vend1',
+    admin.schema('crm').from('tareas').insert({
+      id: ajena.id, lead_id: anaLead.id, tipo: 'tarea', titulo: ajena.titulo,
+      vence_en: empate, creado_por: seed.profileIdByKey.vend3,
+    }),
+  );
+  if (ajenaSembrada) {
+    const movida = await positive('admin re-apunta la tarea ajena a vend1 (la tenencia del lead no cambia)',
+      admin.schema('crm').from('tareas').update({ vendedor_id: seed.profileIdByKey.vend1 }).eq('id', ajena.id));
+    const r = movida && await positive('vend1 pide sus tareas con la ajena re-apuntada', rpc('vend1', { p_limite: 1000 }));
+    if (r) {
+      const fila = (r.data?.items ?? []).find((t) => t.id === ajena.id);
+      check(Boolean(fila) && fila.lead_id === anaLead.id
+        && ['lead_nombre', 'lead_etapa', ...CLAVES_LEAD_4B].every((k) => k in fila && fila[k] === null),
+        'vend1: la tarea re-apuntada viaja (su RLS la muestra) con las diez claves del lead en NULO (leads_select no le muestra a ana)',
+        JSON.stringify(fila ? { lead_nombre: fila.lead_nombre, lead_telefono: fila.lead_telefono, lead_correo: fila.lead_correo } : null));
+    }
+    await requireAdmin('retirar la tarea ajena del gate (cancelación, nunca DELETE)',
+      admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).eq('id', ajena.id));
   }
 
   // Paginación keyset: páginas de 2 (+1) reconstruyen el oráculo entero sin

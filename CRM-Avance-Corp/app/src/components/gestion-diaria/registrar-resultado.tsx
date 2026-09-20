@@ -37,12 +37,12 @@ import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useCRMData } from '@/lib/store-context'
 import type { RegistrarLlamadaInput } from '@/lib/store'
 import { presentarCitas } from '@/lib/terminologia'
-import { ETAPA_INFO, type Lead, type Tarea } from '@/lib/tipos'
+import { ETAPA_INFO, type LeadContactable, type Tarea } from '@/lib/tipos'
 
 type DecisionNumero = 'segundo_numero' | 'descartar' | 'reintento' | 'solo_registrar'
 
 export interface RegistrarResultadoProps {
-  lead: Lead
+  lead: LeadContactable
   /** Tarea de LLAMADA pendiente que esta llamada cierra (la elige `tareaQueCierra`). */
   tarea?: Tarea | null | undefined
   /** Nota precargada (el composer del drawer la trae escrita). */

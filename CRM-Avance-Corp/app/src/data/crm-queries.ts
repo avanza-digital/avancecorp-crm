@@ -33,6 +33,9 @@ import {
   listarReporteDerivacionesEquipo,
   listarResumenCartera,
   listarActividadesRecientes,
+  buscarLeadsGlobal,
+  listarLeadsSinAsignar,
+  listarLeadsPropios,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -76,10 +79,10 @@ import {
 import { SENALES_VACIAS, type SenalesLead } from '@/lib/historial-lead'
 import type { Actividad } from '@/lib/tipos'
 
-// El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
-// pantallas que aún no migraron; la prohibición general de claves de leads se
-// levanta en F3. La ÚNICA excepción viva es `carteraPagina` (F2): esa pantalla
-// ya no cuenta filas del store, pagina por cursor keyset contra el servidor.
+// Fase 4e «sin topes» (20/09/2026): el store ya NO carga la foto del ámbito;
+// cada pantalla pide al servidor lo que muestra (cartera por cursor, columnas
+// del Pipeline, bandeja sin analista, cartera propia, búsqueda global) y el
+// store solo conoce lo que las pantallas le registran (`conocerLeads`).
 export const crmQueryKeys = {
   raiz: ['crm'] as const,
   config: () => [...crmQueryKeys.raiz, 'config'] as const,
@@ -217,6 +220,13 @@ export const crmQueryKeys = {
   // Bitácora de Hoy · Directorio (Fase 3 «sin topes»): cuelga del prefijo de
   // métricas del ámbito para que cada mutación la invalide como a los tiles.
   actividadesRecientes: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'actividades-recientes', limite] as const,
+  // Buscador global (Fase 4a): una lista por texto; cuelga de `leads` para que
+  // una mutación de lead la invalide como al resto de listas de leads.
+  busquedaGlobal: (texto: string) => [...crmQueryKeys.leads(), 'busqueda-global', texto] as const,
+  // Bandeja sin analista (Fase 4c): cuelga de `leads` (repartir/derivar la invalida).
+  leadsSinAsignar: () => [...crmQueryKeys.leads(), 'sin-asignar'] as const,
+  // Los leads del propio analista (Fase 4d): Hoy · Analista sin la foto inicial.
+  leadsPropios: () => [...crmQueryKeys.leads(), 'propios'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -509,6 +519,47 @@ export function useActividadesRecientes(habilitada: boolean, limite: number) {
     enabled: habilitada,
     staleTime: 30_000,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/**
+ * Buscador global de la barra (Fase 4a «sin topes»): `texto` ya viene
+ * normalizado y por encima del mínimo (`textoBuscable`), o `null` cuando no
+ * hay nada que pedir. Sin `keepPreviousData`: la barra solo pinta la lista de
+ * la consulta del texto actual (una lista anterior dejaba elegir con Enter un
+ * resultado ajeno al texto; Codex 20/09).
+ */
+export function useBusquedaGlobal(texto: string | null, habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.busquedaGlobal(texto ?? ''),
+    queryFn: ({ signal }) => buscarLeadsGlobal(texto ?? '', signal),
+    enabled: habilitada && texto !== null,
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Bandeja de leads sin analista (Fase 4c «sin topes»): Equipo, Derivaciones y
+ * Hoy · Supervisor la piden al servidor en vez de filtrar la foto inicial.
+ */
+export function useLeadsSinAsignar(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.leadsSinAsignar(),
+    queryFn: ({ signal }) => listarLeadsSinAsignar(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/** Los leads del propio analista (Fase 4d «sin topes»), por cursor hasta agotar su cartera. */
+export function useLeadsPropios(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.leadsPropios(),
+    queryFn: ({ signal }) => listarLeadsPropios(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
     refetchOnWindowFocus: 'always',
   })
 }

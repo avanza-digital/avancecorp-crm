@@ -31,4 +31,13 @@ export const TareaRowSchema = v.object({
   /** Embebidos por crm.tareas_pendientes_fn (Fase 2 «sin topes»); nulos si el lead no es visible. */
   lead_nombre: v.optional(v.nullable(v.string())),
   lead_etapa: v.optional(v.nullable(v.string())),
+  /** Fase 4b «sin topes» (20260920045202): teléfono, capital y tenencia del lead; opcionales por si el servidor aún no los manda. */
+  lead_telefono: v.optional(v.nullable(v.string())),
+  lead_monto_estimado: v.optional(v.nullable(v.union([v.number(), v.string()]))),
+  lead_moneda: v.optional(v.nullable(v.string())),
+  lead_vendedor_id: v.optional(v.nullable(v.string())),
+  lead_supervisor_id: v.optional(v.nullable(v.string())),
+  lead_correo: v.optional(v.nullable(v.string())),
+  lead_no_contactar: v.optional(v.nullable(v.boolean())),
+  lead_telefono_alternativo: v.optional(v.nullable(v.string())),
 })

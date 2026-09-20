@@ -28,6 +28,23 @@ const cambiarEtapa = vi.fn((id: string, etapa: EtapaActiva) => {
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
+// Fase 4d: en sesión real cada columna viene del servidor (etapa + analista);
+// aquí, la misma foto del fixture filtrada como lo haría cartera_filtrada_fn.
+const COLUMNAS = vi.hoisted(() => ({ cargarMas: vi.fn(), pagina: 20 }))
+vi.mock('@/data/use-cartera-paginada', () => ({
+  useCarteraPaginada: (_foto: readonly Lead[], f: { etapa?: string; vendedorId?: string }) => {
+    const todos = LEADS.filter((l) => l.activo && (f.etapa === 'todas' || !f.etapa || l.etapa === f.etapa)
+      && (f.vendedorId === 'todos' || !f.vendedorId ? true : f.vendedorId === 'sin_asignar' ? l.vendedor_id == null : l.vendedor_id === f.vendedorId))
+    // Como el servidor: una página de 20 y «hay más»; el total lo dice el resumen.
+    return {
+      leads: todos.slice(0, COLUMNAS.pagina), resumen: { totales: { vivos: todos.length } }, hayMas: todos.length > COLUMNAS.pagina,
+      cargando: false, cargandoMas: false, error: null, cargarMas: COLUMNAS.cargarMas, recargar: vi.fn(),
+    }
+  },
+}))
+vi.mock('@/data/crm-queries', () => ({
+  useLeadsSinAsignar: () => ({ data: LEADS.filter((l) => l.vendedor_id == null), isPending: false, isFetching: false, error: null, refetch: vi.fn() }),
+}))
 vi.mock('@/data/use-estado-sla-operativo', () => ({
   useEstadoSlaOperativo: () => ({
     indice: new Map(),
@@ -38,6 +55,8 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS, vendedores: VENDEDORES, esGlobal: YO?.rol === 'gerencia' },
     actividadesDelAmbito: [],
     cambiarEtapa,
@@ -218,7 +237,7 @@ describe('tablero Pipeline · chip de capital', () => {
 })
 
 describe('tablero Pipeline · bandeja compacta', () => {
-  it('pagina una etapa sin acumular todas las cards en la columna', () => {
+  it('en sesión real la columna pinta la página servida y pide «Cargar más» al servidor (Fase 4d)', () => {
     montar(
       Array.from({ length: 21 }, (_, i) => lead({
         id: `lead-${i + 1}`,
@@ -226,15 +245,14 @@ describe('tablero Pipeline · bandeja compacta', () => {
       })),
     )
 
-    expect(screen.getByText('1–20 de 21')).toBeInTheDocument()
+    // 20 cargadas de 21 (el total lo dice el servidor), sin paginador local.
+    expect(screen.getByText('20 de 21')).toBeInTheDocument()
     expect(cardDe('LEAD 01')).toBeInTheDocument()
     expect(screen.queryByText('LEAD 21')).not.toBeInTheDocument()
     expect(zonaDe('Nuevo').className).toContain('overflow-y-auto')
+    expect(screen.queryByRole('button', { name: 'Ver página siguiente de Nuevo' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver página siguiente de Nuevo' }))
-
-    expect(screen.getByText('21–21 de 21')).toBeInTheDocument()
-    expect(cardDe('LEAD 21')).toBeInTheDocument()
-    expect(screen.queryByText('LEAD 01')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar más leads de Nuevo' }))
+    expect(COLUMNAS.cargarMas).toHaveBeenCalledTimes(1)
   })
 })

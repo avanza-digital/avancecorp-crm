@@ -5,8 +5,8 @@
 // nombrada con el rótulo que ese rol ve en su menú.
 // Contextos mockeados a mano (sin red): el topbar solo consume `yo`, el ámbito y
 // las acciones de paneles.
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AlertaCRM } from '@/lib/alertas'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -22,10 +22,19 @@ let CARGANDO_ALERTAS = false
 let ERRORES_ALERTAS: string[] = []
 const abrirLead = vi.fn()
 const abrirNuevoLead = vi.fn()
+// Fase 4a «sin topes»: el buscador de la sesión REAL pregunta al servidor por
+// este hook; la demo lo deja apagado (habilitada=false) y filtra su foto local.
+let BUSQUEDA: { data: Lead[] | undefined; isFetching: boolean; isPlaceholderData?: boolean; error: Error | null; refetch: ReturnType<typeof vi.fn> } = {
+  data: undefined, isFetching: false, error: null, refetch: vi.fn(),
+}
+const useBusquedaGlobal = vi.fn((_texto: string | null, _habilitada: boolean) => BUSQUEDA)
+vi.mock('@/data/crm-queries', () => ({ useBusquedaGlobal: (texto: string | null, habilitada: boolean) => useBusquedaGlobal(texto, habilitada) }))
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ ambito: { leads: LEADS, vendedores: [], esGlobal: false } }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, ambito: { leads: LEADS, vendedores: [], esGlobal: false } }),
   usePanelesActions: () => ({ abrirLead, abrirNuevoLead }),
 }))
 vi.mock('@/lib/alertas-context', () => ({
@@ -145,7 +154,7 @@ describe('Topbar — buscador', () => {
     const user = userEvent.setup()
     montar({ rol: 'coordinador' })
     await user.type(campoBusqueda(), 'zzz')
-    expect(screen.getByText(/Sin resultados en tus leads/)).toBeInTheDocument()
+    expect(screen.getByText(/Sin resultados en tus leads/, { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
     expect(screen.queryByText(/menú lateral/)).not.toBeInTheDocument()
   })
 
@@ -280,5 +289,118 @@ describe('Topbar — atajo «Verificar disponibilidad»', () => {
 
     expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/se verifica con el celular/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('Topbar — buscador en sesión REAL (Fase 4a «sin topes»)', () => {
+  beforeEach(() => {
+    BUSQUEDA = { data: undefined, isFetching: false, error: null, refetch: vi.fn() }
+    useBusquedaGlobal.mockClear()
+  })
+
+  it('la demo no pregunta al servidor: el hook queda apagado y la foto local responde', async () => {
+    const user = userEvent.setup()
+    montar()
+    await user.type(campoBusqueda(), 'perez')
+    await screen.findByRole('button', { name: /JUAN PEREZ ROJAS/ })
+    expect(useBusquedaGlobal).toHaveBeenLastCalledWith(null, false)
+  })
+
+  it('pide al servidor el texto asentado y pinta lo que responde, nunca la foto local', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.data = [lead({ id: 'srv-1', nombre_completo: 'JUANA DEL SERVIDOR' })]
+    montar({ rol: 'gerencia', demo: false, leads: [lead({ id: 'local-1', nombre_completo: 'JUANA LOCAL NO SALE' })] })
+    await user.type(campoBusqueda(), 'jua')
+    await waitFor(() => expect(useBusquedaGlobal).toHaveBeenLastCalledWith('jua', true))
+    await user.click(await screen.findByRole('button', { name: /JUANA DEL SERVIDOR/ }))
+    expect(abrirLead).toHaveBeenCalledWith('srv-1')
+    expect(screen.queryByText(/JUANA LOCAL NO SALE/)).not.toBeInTheDocument()
+  })
+
+  it('por debajo del mínimo no pide nada y lo explica', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'j')
+    expect(await screen.findByText(/Escribe al menos 2 letras, o 3 dígitos/, { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
+    await waitFor(() => expect(useBusquedaGlobal).toHaveBeenLastCalledWith(null, true))
+  })
+
+  it('mientras el servidor responde, lo dice en vez de fingir «sin resultados»', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.isFetching = true
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'jua')
+    expect(await screen.findByRole('status')).toHaveTextContent('Buscando en tus leads…')
+    expect(screen.queryByText(/Sin resultados/)).not.toBeInTheDocument()
+    expect(document.getElementById('topbar-busqueda-lista')).not.toBeNull()
+  })
+
+  it('anuncia el desenlace en la región viva: cuántos resultados o que no hubo', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.data = [lead({ id: 'srv-1', nombre_completo: 'JUANA DEL SERVIDOR' })]
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'jua')
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 resultado. Usa las flechas'))
+    expect(campoBusqueda()).toHaveAttribute('aria-activedescendant', 'topbar-busqueda-op-srv-1')
+    BUSQUEDA = { ...BUSQUEDA, data: [] }
+    await user.type(campoBusqueda(), 'n')
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Sin resultados en tus leads.'))
+  })
+
+  it('con el error a la vista, Enter reintenta sin sacar el foco del buscador', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.error = new Error('No se pudo buscar en tus leads.')
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'jua')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pulsa Enter para reintentar')
+    await user.keyboard('{Enter}')
+    expect(BUSQUEDA.refetch).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(BUSQUEDA.refetch).toHaveBeenCalledTimes(2)
+    expect(campoBusqueda()).toHaveFocus()
+  })
+
+  it('no deja elegir con Enter ni con las flechas un resultado de un texto anterior (Codex 20/09)', async () => {
+    const user = userEvent.setup()
+    // La consulta del texto nuevo aún no respondió: lo que hay es la lista del texto anterior.
+    BUSQUEDA = { ...BUSQUEDA, data: [lead({ id: 'srv-vieja', nombre_completo: 'ANA DEL TEXTO ANTERIOR' })], isFetching: true, isPlaceholderData: true }
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'rosa')
+    await waitFor(() => expect(useBusquedaGlobal).toHaveBeenLastCalledWith('rosa', true))
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(campoBusqueda()).not.toHaveAttribute('aria-activedescendant')
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(abrirLead).not.toHaveBeenCalled()
+    expect(screen.getByText('Buscando en tus leads…', { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
+  })
+
+  it('con un solo carácter no reaparece la lista de la consulta anterior', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.data = [lead({ id: 'srv-1', nombre_completo: 'JUANA DEL SERVIDOR' })]
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'j')
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(abrirLead).not.toHaveBeenCalled()
+  })
+
+  it('mientras reintenta, enseña «Buscando…» y no el error viejo', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.error = new Error('No se pudo buscar en tus leads.')
+    BUSQUEDA.isFetching = true
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'jua')
+    expect(await screen.findByText('Buscando en tus leads…', { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('si el servidor falla, lo dice y ofrece reintentar', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.error = new Error('No se pudo buscar en tus leads.')
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'jua')
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo buscar en tus leads.')
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(BUSQUEDA.refetch).toHaveBeenCalled()
   })
 })

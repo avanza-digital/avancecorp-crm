@@ -20,13 +20,15 @@ import {
   cerrarTarea,
   listarActividadesDeLead,
   listarLeads,
-  listarLeadsDelAmbito,
   obtenerLeadDelAmbitoPorId,
   listarResumenCartera,
   listarTareasDelAmbito,
   TAMANO_LOTE_TAREAS,
   listarActividadesRecientes,
   TAMANO_BITACORA_RECIENTES,
+  buscarLeadsGlobal,
+  TAMANO_BUSQUEDA_GLOBAL,
+  listarLeadsSinAsignar,
   reprogramarReunion,
 } from './crm-api'
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
@@ -257,181 +259,8 @@ describe('listarLeads (msw)', () => {
   })
 })
 
-describe('listarLeadsDelAmbito (msw)', () => {
-  function carteraConCap(cantidad: number, capServidor = 1000) {
-    const capturadas: URL[] = []
-    // Empates de timestamp atraviesan el borde de página: el ID debe ser el
-    // desempate. Son identidades sintéticas, sin datos de producción.
-    const filas = Array.from({ length: cantidad }, (_, i) => fila({
-      id: `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
-      actualizado_en: new Date(Date.parse('2026-07-02T12:00:00Z') - Math.floor(i / 750) * 1000).toISOString(),
-    }))
-    server.use(http.get(RUTA_LEADS, ({ request }) => {
-      const url = new URL(request.url); capturadas.push(url)
-      expect(request.headers.get('accept-profile')).toBe('crm')
-      const criterio = url.searchParams.get('or') ?? ''
-      expect(criterio).toContain('etapa.neq.convertido')
-      expect(criterio).toContain('convertido_en.gte.')
-      const actualizado = /actualizado_en\.lt\."([^"]+)"/.exec(criterio)?.[1]
-      const id = /id\.gt\."([^"]+)"/.exec(criterio)?.[1]
-      const elegibles = actualizado && id ? filas.filter((f) => String(f.actualizado_en) < actualizado
-        || (f.actualizado_en === actualizado && String(f.id) > id)) : filas
-      const limite = Number(url.searchParams.get('limit'))
-      return HttpResponse.json(elegibles.slice(0, Math.min(limite, capServidor)))
-    }))
-    return { capturadas, filas }
-  }
-
-  it('recupera la fila 1148 de 1157 pese al máximo de 1000 filas de PostgREST', async () => {
-    const { capturadas, filas } = carteraConCap(1157)
-    const leads = await listarLeadsDelAmbito()
-    expect(leads).toHaveLength(1157)
-    expect(leads[1147]?.id).toBe(filas[1147]!.id)
-    expect(new Set(leads.map((l) => l.id)).size).toBe(1157)
-    expect(capturadas).toHaveLength(3)
-    expect(capturadas.every((url) => url.searchParams.get('limit') === '500')).toBe(true)
-    expect(capturadas.every((url) => url.searchParams.get('order') === 'actualizado_en.desc,id.asc')).toBe(true)
-    expect(capturadas.every((url) => !url.searchParams.has('offset'))).toBe(true)
-    expect(capturadas[1]?.searchParams.get('or')).toContain(String(filas[499]!.id))
-  })
-  it('descarta y registra filas inválidas también en la ruta real del store', async () => {
-    server.use(
-      http.get(RUTA_LEADS, () =>
-        HttpResponse.json([
-          fila({ id: 'l-ambito-ok' }),
-          fila({ id: 'l-ambito-sin-capital', monto_estimado: null }),
-        ]),
-      ),
-    )
-
-    const leads = await listarLeadsDelAmbito()
-
-    expect(leads.map((lead) => lead.id)).toEqual(['l-ambito-ok'])
-    expect(console.error).toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({ evento: 'crm.leads.ambito_filas_invalidas' }),
-    )
-  })
-
-  // Alarma de topes (F0 escalabilidad): tope lleno = probable recorte MUDO del
-  // servidor. Se cuentan las filas CRUDAS recibidas (5000, el puente de la
-  // Fase 1 «sin topes»), no las que sobreviven al parse — el recorte ocurre
-  // antes de validar.
-  it('avisa a observabilidad cuando la respuesta llena el tope de 5000', async () => {
-    const { capturadas } = carteraConCap(5150)
-
-    const leads = await listarLeadsDelAmbito()
-
-    expect(leads).toHaveLength(5000)
-    expect(capturadas).toHaveLength(10)
-    expect(console.error).toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({
-        evento: 'crm_api.tope_alcanzado',
-        datos: expect.objectContaining({
-          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 5000 }),
-        }),
-      }),
-    )
-  })
-
-  // La alarma de TENDENCIA del puente suena semanas antes del techo: a 4 000
-  // filas ya avisa aunque el tope de 5 000 no se haya tocado.
-  it('avisa la tendencia a 4000 sin declarar lleno el tope de 5000', async () => {
-    carteraConCap(4200)
-
-    const leads = await listarLeadsDelAmbito()
-
-    expect(leads).toHaveLength(4200)
-    expect(console.error).toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({
-        evento: 'crm_api.tope_alcanzado',
-        datos: expect.objectContaining({
-          contexto: expect.objectContaining({ lectura: 'leads_del_ambito_tendencia', tope: 4000 }),
-        }),
-      }),
-    )
-    expect(console.error).not.toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({
-        datos: expect.objectContaining({
-          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 5000 }),
-        }),
-      }),
-    )
-  })
-
-  it('no entrega una cartera parcial si falla una página posterior', async () => {
-    let llamadas = 0
-    server.use(http.get(RUTA_LEADS, () => ++llamadas === 1
-      ? HttpResponse.json(Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` })))
-      : HttpResponse.json({ code: '42501', message: 'Sin acceso' }, { status: 403 })))
-    await expect(listarLeadsDelAmbito()).rejects.toMatchObject({ code: '42501' })
-    expect(llamadas).toBe(2)
-  })
-
-  it('no duplica una identidad que reaparece tras un cambio concurrente entre lotes', async () => {
-    let llamadas = 0
-    server.use(http.get(RUTA_LEADS, () => HttpResponse.json(++llamadas === 1
-      ? Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` }))
-      : [fila({ id: 'l-10' }), fila({ id: 'l-500' })])))
-    const leads = await listarLeadsDelAmbito()
-    expect(leads).toHaveLength(501)
-    expect(leads.filter((lead) => lead.id === 'l-10')).toHaveLength(1)
-  })
-
-  it('detiene la carga sin pedir otro lote cuando se cancela la sesión', async () => {
-    const cancelacion = new AbortController()
-    let llamadas = 0
-    server.use(http.get(RUTA_LEADS, () => {
-      llamadas += 1
-      cancelacion.abort()
-      return HttpResponse.json(Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` })))
-    }))
-    await expect(listarLeadsDelAmbito(cancelacion.signal)).rejects.toMatchObject({ name: 'AbortError' })
-    expect(llamadas).toBe(1)
-  })
-
-  it('NO dispara la alarma de tope por debajo del límite', async () => {
-    server.use(
-      http.get(RUTA_LEADS, () => HttpResponse.json([fila({ id: 'l-bajo-tope' })])),
-    )
-
-    await listarLeadsDelAmbito()
-
-    expect(console.error).not.toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({ evento: 'crm_api.tope_alcanzado' }),
-    )
-  })
-
-  // Ventana de convertidos (F1): el corte viaja como filtro OR de PostgREST —
-  // un convertido con más de 45 días no debe llegar al navegador. El mismo
-  // corte lo aplican las RPC de métricas; si este param desaparece, tiles y
-  // tabla contarían películas distintas.
-  it('pide al servidor la ventana de convertidos de 45 días (etapa.neq OR convertido_en.gte)', async () => {
-    const capturadas: URL[] = []
-    server.use(
-      http.get(RUTA_LEADS, ({ request }) => {
-        capturadas.push(new URL(request.url))
-        return HttpResponse.json([])
-      }),
-    )
-
-    const antes = Date.now()
-    await listarLeadsDelAmbito()
-
-    const or = capturadas[0]?.searchParams.get('or') ?? ''
-    expect(or).toContain('etapa.neq.convertido')
-    const sello = /convertido_en\.gte\."([^"]+)"/.exec(or)?.[1]
-    expect(sello).toBeTruthy()
-    // El corte es "hoy − 45 días" calculado al momento de la llamada.
-    const corteMs = Date.parse(sello ?? '')
-    expect(Math.abs(corteMs - (antes - 45 * 86_400_000))).toBeLessThan(60_000)
-  })
-})
-
+// La foto del ámbito (`listarLeadsDelAmbito`, tope 5 000 y alarma 4 000) murió en la
+// Fase 4e «sin topes»: sus casos se retiraron con ella.
 describe('obtenerLeadDelAmbitoPorId (msw)', () => {
   it('lee la ficha completa por ID en crm con activo=true y aplica el mapeador canónico', async () => {
     let pedida: URL | undefined
@@ -983,5 +812,101 @@ describe('cerrarTarea (msw)', () => {
         p_motivo_no_realizada: 'cancelada_cliente',
       },
     ])
+  })
+})
+
+describe('buscarLeadsGlobal (msw) — Fase 4a «sin topes»', () => {
+  const RUTA_PAGINA = 'http://supabase.test/rest/v1/rpc/cartera_pagina_fn'
+  const filaCartera = (sobre: Record<string, unknown> = {}) => fila({ ultimo_contacto_en: null, ...sobre })
+
+  it('pide al servidor el texto normalizado con el tope del desplegable y mapea las filas', async () => {
+    let cuerpo: Record<string, unknown> | null = null
+    server.use(
+      http.post(RUTA_PAGINA, async ({ request }) => {
+        cuerpo = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json([
+          filaCartera({ id: 'l-b-1', nombre_completo: 'Juana Prueba', monto_estimado: '2500.00' }),
+          filaCartera({ id: 'l-b-2', nombre_completo: 'Juan Pérez', etapa: 'contactado' }),
+        ])
+      }),
+    )
+    const filas = await buscarLeadsGlobal('  jua ')
+    expect(cuerpo).toEqual({ p_limite: TAMANO_BUSQUEDA_GLOBAL, p_texto: 'jua' })
+    expect(filas.map((l) => [l.id, l.nombre_completo, l.monto_estimado])).toEqual([
+      ['l-b-1', 'Juana Prueba', 2500],
+      ['l-b-2', 'Juan Pérez', 1000],
+    ])
+  })
+
+  it('por debajo del mínimo no hay petición y el resultado es vacío', async () => {
+    let llamadas = 0
+    server.use(http.post(RUTA_PAGINA, () => { llamadas += 1; return HttpResponse.json([]) }))
+    await expect(buscarLeadsGlobal('j')).resolves.toEqual([])
+    expect(llamadas).toBe(0)
+  })
+
+  it('descarta las filas fuera de contrato y conserva las válidas', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json([
+      filaCartera({ id: 'l-b-1' }),
+      { id: 'rota', nombre_completo: 42 },
+    ])))
+    const filas = await buscarLeadsGlobal('prueba')
+    expect(filas.map((l) => l.id)).toEqual(['l-b-1'])
+  })
+
+  it('más filas de las pedidas o ids repetidos → ROW_CONTRACT', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(
+      Array.from({ length: TAMANO_BUSQUEDA_GLOBAL + 1 }, (_, i) => filaCartera({ id: `l-b-${i}` })),
+    )))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json([filaCartera({ id: 'l-b-1' }), filaCartera({ id: 'l-b-1' })])))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('42501 se explica como cuenta sin acceso, no como avería', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(
+      { code: '42501', message: 'No autorizado', details: null, hint: null }, { status: 403 },
+    )))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({
+      code: '42501', message: 'Tu cuenta no tiene acceso a la cartera del CRM.',
+    })
+  })
+})
+
+describe('listarLeadsSinAsignar (msw) — Fase 4c «sin topes»', () => {
+  const RUTA_PAGINA = 'http://supabase.test/rest/v1/rpc/cartera_pagina_fn'
+  const filaCartera = (i: number, sobre: Record<string, unknown> = {}) => fila({
+    id: `l-sa-${i}`, vendedor_id: null, actualizado_en: new Date(Date.parse('2026-08-01T12:00:00.000Z') - i * 60_000).toISOString(),
+    ultimo_contacto_en: null, ...sobre,
+  })
+
+  it('pide sin analista por cursor hasta agotar y une las páginas sin repetidos', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RUTA_PAGINA, async ({ request }) => {
+      const b = (await request.json()) as Record<string, unknown>
+      cuerpos.push(b)
+      // Página de 50 (+1): la primera trae 51 (hay más), la segunda 2.
+      if (!b.p_antes_id) return HttpResponse.json(Array.from({ length: 51 }, (_, i) => filaCartera(i)))
+      return HttpResponse.json([filaCartera(50), filaCartera(51)])
+    }))
+    const leads = await listarLeadsSinAsignar()
+    expect(cuerpos[0]).toMatchObject({ p_limite: 51, p_sin_asignar: true })
+    expect(cuerpos[0]).not.toHaveProperty('p_vendedor_id')
+    expect(cuerpos[1]).toMatchObject({ p_antes_id: 'l-sa-49', p_antes_de: new Date(Date.parse('2026-08-01T12:00:00.000Z') - 49 * 60_000).toISOString() })
+    expect(leads).toHaveLength(52)
+    expect(new Set(leads.map((l) => l.id)).size).toBe(52)
+    expect(leads.every((l) => l.vendedor_id == null)).toBe(true)
+  })
+
+  it('una bandeja pequeña es una sola petición', async () => {
+    let llamadas = 0
+    server.use(http.post(RUTA_PAGINA, () => { llamadas += 1; return HttpResponse.json([filaCartera(0), filaCartera(1)]) }))
+    await expect(listarLeadsSinAsignar()).resolves.toHaveLength(2)
+    expect(llamadas).toBe(1)
+  })
+
+  it('un cursor que no avanza corta con ROW_CONTRACT en vez de ciclar', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(Array.from({ length: 51 }, (_, i) => filaCartera(i)))))
+    await expect(listarLeadsSinAsignar()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })

@@ -13,7 +13,7 @@
 // Directorio (solo lectura) copia/abre pero NO registra (sin seguimiento).
 // El contenedor corta la propagación: viven dentro de filas clicables (colas)
 // y no deben abrir la ficha al contactar.
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import {
   CalendarPlus,
@@ -60,9 +60,9 @@ import { presentarCitas } from '@/lib/terminologia'
 import {
   ETAPA_INFO,
   type EtapaActiva,
-  type Lead,
   type Tarea,
   type TipoActividadManual,
+  type LeadContactable,
 } from '@/lib/tipos'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export function AccionesContacto({
   conAgendar,
   destacada,
 }: {
-  lead: Lead
+  lead: LeadContactable
   compacto?: boolean
   /** Oculta las etiquetas SIEMPRE (columnas angostas, p. ej. la cola en 2/5). */
   soloIcono?: boolean
@@ -104,6 +104,15 @@ export function AccionesContacto({
   // Contacto pendiente de ESTA instancia (canal + cuándo se hizo click).
   const pendiente = useRef<{ canal: Canal; ts: number } | null>(null)
   const [dialogo, setDialogo] = useState<Canal | null>(null)
+  // Fase 4e «sin topes»: antes de registrar un contacto el store tiene que
+  // conocer el lead (sin foto inicial se relee por id bajo su RLS).
+  const { asegurarLead } = useCRMData()
+  const abrirRegistro = useCallback((canal: Canal) => {
+    void asegurarLead(lead.id).then((ok) => {
+      if (ok) setDialogo(canal)
+      else toast.error('Este lead ya no está disponible en tu ámbito.')
+    }).catch(() => toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'))
+  }, [asegurarLead, lead.id])
 
   useEffect(() => {
     if (!escribe) return
@@ -113,7 +122,7 @@ export function AccionesContacto({
       pendiente.current = null // un solo disparo por contacto (focus y visibilitychange llegan juntos)
       // Volvió casi al instante (< 4 s): no llegó a llamar/escribir — no preguntamos.
       if (Date.now() - p.ts < ESPERA_MS) return
-      setDialogo(p.canal)
+      abrirRegistro(p.canal)
     }
     window.addEventListener('focus', alVolver)
     document.addEventListener('visibilitychange', alVolver)
@@ -121,7 +130,7 @@ export function AccionesContacto({
       window.removeEventListener('focus', alVolver)
       document.removeEventListener('visibilitychange', alVolver)
     }
-  }, [escribe])
+  }, [escribe, abrirRegistro])
 
   const marcar = (canal: Canal) => () => {
     if (escribe) pendiente.current = { canal, ts: Date.now() }
@@ -139,7 +148,7 @@ export function AccionesContacto({
       // Portapapeles no disponible (contexto inseguro o permiso denegado).
       toast.info(`Marca ${num} desde tu celular`)
     }
-    if (escribe) setDialogo('tel')
+    if (escribe) abrirRegistro('tel')
   }
 
   const wa = numeroWhatsapp(lead.telefono)
@@ -233,8 +242,8 @@ export function AccionesContacto({
  * cambia la fecha desde la ficha. Pedirle el formulario por adelantado para el
  * 90% de los casos idénticos es justo la fricción que esto quita.
  */
-function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undefined }): JSX.Element | null {
-  const { crearTarea, tareasDe } = useCRMData()
+function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: string | undefined }): JSX.Element | null {
+  const { crearTarea, tareasDe, asegurarLead } = useCRMData()
   const ahora = useAhora()
   // ANTI-DUPLICADO: si ya tiene plan VIVO no se le encima otro. Ojo con la
   // palabra: una tarea VENCIDA no es un plan (lib/plan-lead.ts). Mirar
@@ -242,7 +251,18 @@ function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undef
   // cola acababa de destapar por tener una tarea muerta.
   if (tareasDe(lead.id).some((t) => esPlanVivo(t, ahora))) return null
 
-  const agendar = () => {
+  const agendar = async () => {
+    let conocido = false
+    try {
+      conocido = await asegurarLead(lead.id)
+    } catch {
+      toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.')
+      return
+    }
+    if (!conocido) {
+      toast.error('Este lead ya no está disponible en tu ámbito.')
+      return
+    }
     const vence = proximoSlotSugerido(ahora)
     const res = crearTarea({
       lead_id: lead.id,
@@ -266,7 +286,7 @@ function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undef
       type="button"
       className={CLASE_ACCION}
       aria-label={`Agendar el siguiente paso con ${lead.nombre_completo}`}
-      onClick={agendar}
+      onClick={() => void agendar()}
     >
       <CalendarPlus /> <span className={labelCls}>Agendar</span>
     </button>
@@ -276,7 +296,7 @@ function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undef
 // ── Dialog de resultado de la LLAMADA (resultado tipificado, F2) ──────────────
 // `tareaQueCierra` sigue decidiendo qué tarea de llamada pendiente cierra este
 // contacto; el panel la ofrece con su casilla, como antes.
-function DialogResultadoLlamada({ lead, onClose }: { lead: Lead; onClose: () => void }): JSX.Element {
+function DialogResultadoLlamada({ lead, onClose }: { lead: LeadContactable; onClose: () => void }): JSX.Element {
   const { tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -358,7 +378,7 @@ function DialogResultado({
   canal,
   onClose,
 }: {
-  lead: Lead
+  lead: LeadContactable
   canal: Canal
   onClose: () => void
 }): JSX.Element {
