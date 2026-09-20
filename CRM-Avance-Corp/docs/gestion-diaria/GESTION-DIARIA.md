@@ -1,33 +1,31 @@
 # GESTIÓN DIARIA — el documento único
 
-> **Este archivo es el ÚNICO que hay que leer para retomar el módulo.** Reúne lo que antes vivía
-> en tres documentos separados: el estado, el plan por fases y el diseño técnico de los cortes.
+> **Este archivo es el ÚNICO que hay que leer para retomar el módulo.** Reúne el estado, el plan
+> por fases y el diseño técnico de los cortes, que antes vivían en tres documentos separados.
 > Unificado el 20/09/2026 a petición de Miguel.
 >
 > **Para retomar, di: «retomemos gestión diaria F4».**
 
-Al lado de este archivo, en la misma carpeta, quedan las fuentes que NO se tocan:
+Al lado, en la misma carpeta, quedan las fuentes que NO se editan:
 
 | Archivo | Qué es |
 |---|---|
-| `PLAN.md` | El encargo original de Miguel, tal como llegó. Histórico: no se edita. |
-| `UI-UX-playbook.pdf` | El playbook de diseño del proyecto (7 páginas). |
-| `mockups/` | Los 6 mockups del encargo. Ojo: el de «Mi día» (`4-analista-mi-dia.html`) quedó SUPERADO por el rediseño del 20/09 — ver «Lo que la Fase 3 cambió del plan». |
-
----
+| `PLAN.md` | El encargo original de Miguel, tal como llegó. Histórico. |
+| `UI-UX-playbook.pdf` | El playbook de diseño del proyecto. |
+| `mockups/` | Los 6 mockups del encargo. **`4-analista-mi-dia.html` está SUPERADO** por el rediseño del 20/09: no es la referencia de «Mi día». |
 
 ## Índice
 
-1. **Dónde estamos y cómo retomar** — el estado por fase, las decisiones selladas y lo que falta.
-2. **El plan por fases** — F0 a F6. Dentro: «Lo que la Fase 3 cambió del plan», que gobierna F4 y F5.
-3. **Diseño técnico — los cortes del día (F4)** — el modelo de datos, la puerta y el cálculo, revisado por Codex.
+1. **Dónde estamos y cómo retomar** — estado por fase, decisiones selladas, qué falta.
+2. **El plan por fases** — F0 a F6. Dentro: «Lo que la Fase 3 cambió del plan» (gobierna F4 y F5) y «Lo que este plan YA NO dice».
+3. **Diseño técnico — los cortes del día (F4)** — modelo de datos, puerta y cálculo, revisado por Codex.
 
 ---
 
 # 1 · Dónde estamos y cómo retomar
 
 Este archivo es el punto de entrada para seguir el módulo en otra sesión. El plan aprobado
-completo está al lado: `GESTION-DIARIA.md` (con el PLAN.md original del handoff,
+completo está al lado: `PLAN-POR-FASES-2026-09-19.md` (con el PLAN.md original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
@@ -38,7 +36,7 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 | F0 · Cimientos | Plus Jakarta Sans, primitivas `Tabs` / `RadioGroup` / `exportar-csv`, docs y nota del vault | ✅ en prod | PR #29 |
 | F1 · Módulo + registro crudo | Vista `gestion-diaria` en el menú (Operación) para los 3 roles; registro del día por analista/tipo/etapa con paginación; CSV para gerencia | ✅ en prod (SQL `20260919211958` instalada y registrada el 20/09) | PR #34; puerta `crm.registro_actividad_fn` |
 | F2 · Resultado tipificado | Toda llamada del CRM se cierra con 1 de 7 resultados; tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»; Deshacer 24 h | ✅ en prod (SQL `20260920005000` instalada y registrada el 20/09; front `crm-20260920T034405Z-afc391974382`, build `build-20260920T034404914Z`) | PR #38; acta PR #41; puertas `crm.registrar_llamada_v3`, `crm.deshacer_resultado_llamada` |
-| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | ✅ **EN PROD** el 20/09 (SQL `20260920041500` instalada y registrada; front `crm-20260920T062207Z-12230ee2ea0f`) | PR #42; puerta `crm.gestion_diaria_analista_fn` |
+| F3 · Analista «Mi día» | Dos paneles: «Ahora» con la persona que toca y su única acción primaria, y la cola en cuatro pestañas con su conteo. Marcador, horas, seguimiento y descartes en «Mi actividad». Piso tipográfico 16 px | ✅ **COMPLETA EN PROD** 20/09 (SQL `20260920041500` + 3 releases de front) | PRs #42, #44, #47, #50, #51 |
 | F4 · Supervisor «Mi equipo hoy» | Tabla del equipo con tasa (chip solo con ≥ 5 llamadas útiles), llamadas por hora por analista, alertas del día | ⏭️ SIGUIENTE (su núcleo ya existe: `private.gestion_diaria_llamadas` acepta varios analistas) | plan §F4 |
 | F5 · Gerencia «Toda la operación» | Pulso del día vs ayer y 7 días, por equipo, drill-down hasta el registro | pendiente | plan §F5 |
 | F6 · Absorber Seguimiento | `#/seguimiento` → alias de `gestion-diaria`; retirar la vista vieja (cerrar → observar → derribar) | pendiente (tras ≥ 1 semana de F3–F5 en prod) | plan §F6 |
@@ -76,25 +74,32 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 
 ### Pendiente de Miguel ahora
 
-- **F3 COMPLETA EN PRODUCCIÓN el 20/09.** PR #42 fusionada por squash (`12230ee2`); el contenido llegó entero y
-  `afc39197` —lo que estaba vivo— seguía siendo ancestro, así que el preflight no se rompió. SQL instalada y
-  registrada (~01:19 Lima) y front publicado (`crm-20260920T062207Z-12230ee2ea0f`).
-- **Prueba de negocio pendiente:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-- **Fusionar la PR #44** (saca del tronco el symlink `node_modules` que coló la rama de F3) y solo entonces integrar
-  `avancecorp/main` en el `main` local: hasta que eso pase, el checkout intentaría escribir el symlink encima de la
-  carpeta `node_modules` real del taller.
-- Prueba de negocio de F2 en el CRM: una llamada real con «volver a llamar» crea la tarea en Agenda; «no le interesa» manda el lead al Centro de rescate con su motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa.
-- Prueba de negocio de F3: como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-- Fusionar la PR de acta #41.
+- **Prueba de negocio de F3:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
+- **Decidir el color del nivel «Bajo»** del marcador: hoy ROJO; Codex pide ÁMBAR para que el rojo
+  signifique solo «se venció». Es un cambio de significado, no de estilo.
+- **Qué hacer con el código sin commitear del taller** (`analista.tsx` y sus tests, modificados a
+  las 11:04 del 20/09 por otra sesión, con un rediseño distinto de la misma pantalla). Sigue en
+  disco, intacto, y ya no aplica: la pantalla se rehízo.
+- **El repositorio fusiona por SQUASH por defecto.** El 20/09 costó un rescate: la PR #47 se
+  fusionó con una foto anterior a su último commit y hubo que traerlo en la #50. Merece la pena
+  cambiar el ajuste en GitHub.
 
 ### Lo que F3 dejó escrito (importa para F4)
 
-- `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` ya acepta VARIOS analistas y devuelve una fila por cada uno: es el núcleo de la tabla del equipo. Los umbrales viven en `private.gestion_diaria_umbrales()` (F4 añadirá ahí «sin llamadas desde las 11:00», «parado 2 h» y «15 pp bajo el equipo», re-sellando su md5).
-- `crm.equipo_visible_fn` NO filtra activos salvo en la rama «yo mismo», y para el lector global trae coordinación y directorio: quien lo use como autorización exige `ev.activo` y `ev.rol_crm`. Su cuerpo está sellado por md5 en el gate de F3.
-- El nivel de la tasa se juzga con el valor SIN redondear; el % que se muestra sí va redondeado.
-- `puede_deshacer` es falso cuando el actor no es el autor: el deshacer de F2 exige serlo. F4 no debe ofrecerlo por el analista.
-- El marcador depende de quién mira tras una reasignación (la RLS acota por dueño actual del lead). F4 lo verá al correr como supervisor.
-- El Sheet de la ficha es MODAL: deja inerte lo de atrás, así que un panel «global» no es alcanzable mientras está abierta (por eso `GuardadosSlaPendientes` conserva su copia dentro).
+**El plan maestro lo tiene entero**, en la sección «Lo que la Fase 3 cambió del plan». Lo corto:
+
+1. **Dos paneles, no una columna.** Piso tipográfico **16 px** con un e2e que lo mide sobre el
+   estilo calculado. Una sola acción primaria por pantalla. Lo secundario se **pliega** a un
+   segundo nivel, no se encoge. `Tabs`, `AccionesContacto` y `PanelVacio` ya tienen tamaño grande.
+2. **Nada de «SLA» en pantalla**: se dice el tiempo. `referencia_en` YA es el vencimiento, así que
+   el chip se calcula en el navegador — salvo `sin_conversacion`, que no lleva límite.
+3. **La regla de la caché parcial:** *una ausencia en una colección parcial significa
+   «desconocido», nunca «no existe»*. Costó cinco bugs, uno en producción. `gestion_diaria_equipo_fn`
+   debe ser una proyección autosuficiente, o la pantalla hidrata por id. Todo estado remoto
+   distingue cargando / vacío / error / sin autorización.
+4. **El teléfono NO viaja en la cola.** Si F4 quiere contacto directo desde la tabla del equipo,
+   hay que decidir si lo trae la puerta o se hidrata.
+5. **El núcleo de F4 ya existe:** `private.gestion_diaria_llamadas` acepta varios analistas.
 
 ### Referencias
 
@@ -104,7 +109,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 20/09/2026:** F0, F1 y F2 EN PRODUCCIÓN; sigue F3. Dónde estamos y cómo retomar: `GESTION-DIARIA.md` (misma carpeta).
+> **Estado al 20/09/2026:** F0, F1 y F2 EN PRODUCCIÓN; sigue F3. Dónde estamos y cómo retomar: `ESTADO-Y-RETOMAR-2026-09-20.md` (misma carpeta).
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -231,15 +236,104 @@ Verificación: `npm run check`. Codex: no.
 
 ---
 
-### Fase 3 — Analista «Mi día» · LEVEL 2–3 · 1 migración + 1 PR
+### Fase 3 — Analista «Mi día» · ✅ COMPLETA EN PRODUCCIÓN (20/09/2026)
+
+> **Cerrada el 20/09.** SQL `20260920041500` instalada y registrada; front publicado en tres
+> releases el mismo día: la pantalla original (`crm-20260920T062207Z-12230ee2ea0f`), el rediseño
+> por densidad (`crm-20260920T193711Z-6fd1252e5689`) y la familia de bugs de caché parcial
+> (`crm-20260920T203400Z-438b94cee902`). Lo que sigue describe lo PLANEADO; debajo, lo que
+> cambió al construirlo y lo que F4 y F5 heredan.
+
 
 **Qué obtiene Miguel:** el analista ve a quién llamar ahora, su marcador del día, sus compromisos y sus descartes de hoy (con deshacer), y salta al siguiente al guardar.
 
 **Servidor (`…_crm_gestion_diaria_analista.sql`):** núcleo `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` (llamadas, útiles, contestadas, tasa, leads únicos, ratio, primera/última, desglose por resultado, **llamadas por hora Lima**, citas agendadas con la definición de `metricas_agenda_fn:128-135`), registrado como auxiliar auditado del censo. Puerta `crm.gestion_diaria_analista_fn(p_dia date default null)` (gate: molde `metricas_vendedores_fn:793-835`): `marcador`, `compromisos` (tareas pendientes futuras llamada/cita sobre leads en `contactado`/`propuesta_enviada`), `sin_conversacion` (estrena `crm.politica_abandono.dias_abandono` con `greatest(última conversación real, tenencia_desde)`; los intentos no protegen), `telefonos` por lead de la cola (teléfono, segundo número, última observación de número errado), `intentos`, `descartados_hoy` (para el deshacer), `generado_en`. La cola sigue saliendo de `crm.cola_accion_v2_fn` (md5 en el preflight).
 
-**Front:** `screens/gestion-diaria/analista.tsx`. Fuente ÚNICA de la cola: `listarColaSla` (v2, `data/sla-operacion-api.ts:20`); orden por una función pura NUEVA y probada `ordenarColaDiaria()` = `primera_atencion` → `tarea_vencida` → `tarea_hoy` → `sin_conversacion`, agrupada por bucket (no se reutiliza `seleccionarPrioridadesVendedor`, que es un TOP-3 del ítem v1 y sigue gobernando la franja «Ahora» de Hoy); test compartido que comprueba que el primer ítem de Hoy es el primero aquí. Filas con `AccionesContacto` (tel/WhatsApp 44 px) y «Registrar resultado» (panel de la Fase 2; al guardar avanza a la siguiente fila). Marcador con `StatStrip` (sin meta). «Mi seguimiento» (compromisos). «Descartados hoy» con «Deshacer». `<GuardadosSlaPendientes/>` pasa a montarse UNA vez en `App.tsx` y se retira de `sla-operacion.tsx:80` y `:172` en la misma entrega. `SlaOperacionBoundary` para el modo legado. Vacíos con `PanelVacio`. Hook real/demo/fail-closed, 60 s. Tests con estado real, `gate:realidad`, `revisor-a11y`, e2e Analista.
+**Front — LO QUE SE CONSTRUYÓ.** La descripción original de este punto describía la pantalla
+apilada, que se rehízo el mismo día (ver «Lo que la Fase 3 cambió del plan»). Lo que hay:
+`screens/gestion-diaria/analista.tsx` con DOS paneles —`tarjeta-ahora.tsx` y `cola-de-hoy.tsx`— y
+el segundo nivel `mi-actividad.tsx`. La cola sigue saliendo de `listarColaSla` (v2) ordenada por
+`ordenarColaDiaria()`, la función pura del plan, que NO cambió. `chip-tiempo.tsx` dice el tiempo en
+palabras. `GuardadosSlaPendientes` se monta una vez en `App.tsx`. **Descartados:** la `StatStrip`
+(nace a 12 px) y el salto automático a la fila siguiente (ahora «Ahora» avanza por derivación).
 
 **Despliegue:** SQL primero, front después. Codex: 1.
+
+---
+
+### Lo que la Fase 3 cambió del plan, y que GOBIERNA de aquí en adelante
+
+Escrito el 20/09/2026, después de construirla, enseñarla y corregirla con los analistas.
+
+#### 1. Densidad: el layout es de DOS paneles, no una columna
+
+El plan y el mockup `4-analista-mi-dia.html` apilaban cola, marcador, seguimiento y descartes.
+Se construyó así y los analistas devolvieron: **«demasiada información, muchas letras pequeñas»**.
+27 entidades en pantalla, texto hasta 10 px, scroll para ver la mitad y 16 botones azules.
+
+Lo que quedó, y que **F4 y F5 nacen así**:
+
+- **Dos paneles en una fila.** «Ahora» (la persona que toca, su contexto y la ÚNICA acción
+  primaria) y la lista, con los grupos como PESTAÑAS y su conteo: una sola lista a la vista.
+- **Cuatro tamaños de letra y NINGUNO por debajo de 16 px** — 24/32-700, 20/28-600, 18/28-500,
+  16/24-400. Hay un e2e que lo mide sobre el estilo CALCULADO de cada nodo con texto, no sobre
+  la clase escrita: si alguien mete un `text-xs` dentro, el test se cae.
+- **Una sola acción primaria visible por pantalla.** El resto, secundario o detrás de «···».
+- **Lo secundario se pliega a un segundo nivel**, no se encoge. El marcador, el gráfico por
+  hora, el seguimiento y los descartes viven en «Mi actividad», que conserva pestaña, página y
+  persona elegida al volver. La `StatStrip` del plan NO se usa: nace a 12 px.
+- **Sin huecos grises:** los paneles y las filas estiran para llenar el alto.
+
+Las primitivas `Tabs` y `AccionesContacto` ya tienen tamaño grande (`tamano="grande"`, `grande`)
+sin cambiar cómo se ven en el resto del CRM. `PanelVacio` tiene `tamano="grande"`.
+
+#### 2. La sigla «SLA» no se dice en pantalla
+
+Se dice el tiempo: «Quedan 40 min», «Se pasó hace 45 min», «El tiempo corre desde que te lo
+asignaron». La sigla puede seguir en nombres de funciones y columnas. Hay un test que la prohíbe
+en las ayudas de los grupos.
+
+Y un hallazgo que F4 y F5 reutilizan: **`referencia_en` YA es el vencimiento** que manda
+`cola_accion_v2_fn`, así que el chip se calcula en el navegador, sin pedir nada nuevo al
+servidor. La EXCEPCIÓN es `sin_conversacion`, cuya referencia es la última conversación y no un
+límite: lleva su propio texto. Y el tono «vencido» equivale exactamente a `severidad = 'critica'`,
+por eso el chip «Crítica» desapareció sin perder información.
+
+#### 3. LA REGLA DE LA CACHÉ PARCIAL (la que más caro salió)
+
+> **Una ausencia en una caché o colección parcial significa «desconocido», nunca «no existe».**
+> La caché puede cambiar la latencia, pero nunca lo que la pantalla muestra ni lo que deja hacer.
+
+Desde la Fase 4 «sin topes» el store **ya no carga todos los leads**: los trae por demanda. La
+cola viene de OTRA consulta que **no trae el teléfono**. Cruzar las dos tratando la parcial como
+completa produjo CINCO bugs, uno de ellos en producción:
+
+| # | Síntoma | Arreglo |
+|---|---|---|
+| 1 | Sin «Llamar» hasta abrir la ficha (reportado por Miguel) | se pide el lead al elegir la fila, con deduplicación y guarda de carrera |
+| 2 | El resultado podía cerrar OTRA tarea, o ninguna | `tarea_id` de la fila es autoritativa: se pide por id, nunca se adivina |
+| 3 | Con la cola caída, «Vencidas (0)» | dice «?»: no está vacío, no se sabe |
+| 4 | Un lead sin `senal` salía «sin gestiones» | «Historial no cargado» ≠ «Sin gestiones previas» |
+| 5 | «Registrar resultado» navegaba a la ficha para cargar | queda en «Abriendo…» mientras pide |
+
+**Para F4 y F5:** `gestion_diaria_equipo_fn` y la de gerencia tienen que ser **proyecciones
+autosuficientes** —traer lo que la pantalla pinta— o la pantalla debe **hidratar por id** de
+forma explícita. Y todo estado remoto distingue cuatro cosas: cargando, vacío de verdad, error y
+sin autorización. Nunca un `?? []` que las mezcle.
+
+#### 4. Lo que el plan decía y NO se hizo
+
+- **`telefonos` por lead en la puerta**: la puerta no lo devuelve. El teléfono se hidrata desde
+  el store. Si F4 necesita contacto directo desde la tabla del equipo, hay que decidirlo: o la
+  puerta lo trae, o se hidrata igual.
+- **`StatStrip`**: descartada por tamaño (ver 1).
+- **El salto automático a la fila siguiente al guardar**: ahora «Ahora» pasa al siguiente por
+  derivación, y el lead recién cerrado se oculta hasta que el servidor contesta.
+
+#### 5. Decisión de producto pendiente
+
+El nivel **«Bajo»** del marcador sigue en ROJO. Codex pide ámbar, para que el rojo signifique
+solo «se venció» y no se mezcle rendimiento con incumplimiento. Sin decidir.
 
 ---
 
@@ -247,7 +341,7 @@ Verificación: `npm run check`. Codex: no.
 
 **Qué obtiene Miguel:** el supervisor ve, ordenado por problema, quién se está cayendo hoy y la tabla de su equipo con el ratio llamadas/lead; desde cada fila abre el registro de la Fase 1.
 
-**Servidor (`…_crm_gestion_diaria_equipo.sql`):** `crm.gestion_diaria_equipo_fn(p_dia date default null, p_supervisor_id uuid default null)` (supervisor: su subárbol; gerencia: cualquier equipo; vendedor: 42501). Devuelve `equipo` (una fila por analista activo del núcleo + `vencidas` canónicas + `citas_hoy` + `primer_intento_vencido` + `llamadas_por_hora` [24 enteros, hora Lima, decisión #8]), `resumen`, y `alertas[]` en servidor con `private.gestion_diaria_umbrales()`: `sin_llamadas_hoy`, `tasa_baja`, `parado_2h`, `primer_intento_vencido` (asignaciones con `primera_gestion_en is null` y `primera_gestion_limite_en < now()`, leídas del núcleo SLA por definer), `tarea_vencida` y `por_repartir` (estos dos como UN grupo por supervisor, con `miembros[]`, `tipo` en singular exacto). Postflight que ensaya identidad por identidad (`set_config('request.jwt.claims')`, patrón `20260916205617:240-379`). `auditor-rls`, `test-rls`.
+**Servidor (`…_crm_gestion_diaria_equipo.sql`):** `crm.gestion_diaria_equipo_fn(p_dia date default null, p_supervisor_id uuid default null)` (supervisor: su subárbol; gerencia: cualquier equipo; vendedor: 42501). Devuelve `equipo` (una fila por analista activo del núcleo + `vencidas` canónicas + `citas_hoy` + `primer_intento_vencido` + `llamadas_por_hora` [24 enteros, hora Lima, decisión #8]), `resumen`, y `alertas[]` en servidor con `private.gestion_diaria_umbrales()`: `tasa_baja` (nace VACÍA), `parado_2h`, los CORTES DEL DÍA (abajo; sustituyen al `sin_llamadas_hoy` de las 11:00), `primer_intento_vencido` (asignaciones con `primera_gestion_en is null` y `primera_gestion_limite_en < now()`, leídas del núcleo SLA por definer), `tarea_vencida` y `por_repartir` (estos dos como UN grupo por supervisor, con `miembros[]`, `tipo` en singular exacto). Postflight que ensaya identidad por identidad (`set_config('request.jwt.claims')`, patrón `20260916205617:240-379`). `auditor-rls`, `test-rls`.
 
 **Front:** `components/gestion-diaria/tabla-equipo-diaria.tsx` (UNA tabla para supervisor y Nivel 3 de gerencia; `jscpd` 0,8 % vigila) sobre `common/tabla.tsx`, orden por columna con `aria-sort` (pocas llamadas al final), chips con texto («55 % · Bien», «100 % · 2 llamadas»), fila expandible con las barras «llamadas por hora» del analista (decisión #8), patrón responsive de `ranking-vendedores.tsx`, buscador de analista y chip «Con problema hoy» (filtros de cliente). `components/gestion-diaria/alertas-del-dia.tsx`: 1 rojo por decisión, máx. 2 ámbar; Reconocer/Posponer SOLO en `tarea_vencida` y `por_repartir` mediante un adaptador `alertaDiariaAAlertaCRM()` (id `grupo:<tipo>:<supervisorId>`, campos de `AlertaCRM`, `lib/alertas.ts:39-60`) + `reconocerAlertaSupervisor` + `aplicarReconocimientos`; los demás llevan «Se retira sola al resolverse». `screens/gestion-diaria/supervisor.tsx` con tira KPI, tabla y drawer del registro. Tests + estado real + e2e Supervisor.
 
@@ -491,6 +585,8 @@ Reglas que salieron de la revisión y que no son negociables:
 
 ---
 
+---
+
 ### Fase 5 — Gerencia «Toda la operación» · LEVEL 3 · 1 migración + 1 PR
 
 **Qué obtiene Miguel:** «¿Hoy es un día normal?» sin un clic; el supervisor con el problema; su equipo (misma tabla); el registro crudo exportable.
@@ -530,7 +626,7 @@ Cuando las fases 3–5 lleven al menos una semana en producción sin incidencias
 
 ### Fuera de v1 (escrito para no perderlo)
 
-Cuota diaria (§7.2) · reconocer/posponer para `sin_llamadas_hoy`, `tasa_baja`, `parado_2h`, `primer_intento_vencido` (exige ampliar el CHECK regex y policy para gerencia) · columna de estado del teléfono en `crm.leads` · «Crear tarea» sobre lead ajeno desde el registro · «Avisar al supervisor» · conversiones de hoy · «rango normal» de la tasa · alternancia de canal de la cadencia (llamada fallida → WhatsApp) más allá de lo que ya propone `sugerirSiguiente` · entrada por rango del registro desde un módulo Métricas · refactor de las 4 copias artesanales de tabs · fecha en el hash · medición del abandono del panel (paneles abiertos vs resultados).
+Cuota diaria (§7.2) · reconocer/posponer para `tasa_baja` (nace VACÍA), `parado_2h`, los CORTES DEL DÍA (abajo; sustituyen al `sin_llamadas_hoy` de las 11:00), `primer_intento_vencido` (exige ampliar el CHECK regex y policy para gerencia) · columna de estado del teléfono en `crm.leads` · «Crear tarea» sobre lead ajeno desde el registro · «Avisar al supervisor» · conversiones de hoy · «rango normal» de la tasa · alternancia de canal de la cadencia (llamada fallida → WhatsApp) más allá de lo que ya propone `sugerirSiguiente` · entrada por rango del registro desde un módulo Métricas · refactor de las 4 copias artesanales de tabs · fecha en el hash · medición del abandono del panel (paneles abiertos vs resultados).
 
 ### Riesgos que quedan aunque el plan se cumpla
 
@@ -553,7 +649,28 @@ Cuota diaria (§7.2) · reconocer/posponer para `sin_llamadas_hoy`, `tasa_baja`,
 
 ### Acciones manuales de Miguel
 
-1. Confirmar submotivos y umbrales con los datos de la Fase 0. 2. Reconectar el MCP de Codex. 3. Autorizar el ensayo en banco (contenedor local: sin coste). 4. Instalar cada migración con `!` y publicar cada front con `/release-crm`, en ese orden, fase por fase. 5. Probar en producción lo indicado tras cada fase.
+**Hechas** (20/09/2026): confirmar submotivos y umbrales · reconectar el MCP de Codex · autorizar
+el ensayo en banco · instalar y publicar F1, F2 y F3.
+
+**Pendientes:**
+
+1. **Prueba de negocio de F3:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
+2. **El mínimo del sábado** para el primer corte: medio día no puede exigir lo de uno entero. Se fija al publicar la política.
+3. **Instalar y publicar F4**, y después F5: SQL con `!` primero, front con `/release-crm` después.
+4. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
+
+### Lo que este plan YA NO dice, y por qué
+
+Para que nadie construya contra algo superado:
+
+- **El mockup `mockups/4-analista-mi-dia.html` está SUPERADO.** Describe la pantalla apilada que se
+  rehízo el 20/09. Se conserva como histórico del encargo; **no es la referencia de «Mi día»**.
+- **La `StatStrip` y el «salto a la fila siguiente»** de la Fase 3: descartados al construir.
+- **La alerta «sin llamadas a las 11:00»** de la Fase 4: la sustituyen los dos cortes del día.
+- **Los umbrales 45 / 25 / 5 como constantes en el código**: desde F4 son perillas de gerencia,
+  versionadas y con fecha de vigencia.
+- **El «telefonos por lead» en la puerta de F3**: no se construyó. El teléfono se hidrata desde el
+  store, y eso es lo que produjo los cinco bugs de la caché parcial.
 
 ---
 
@@ -675,7 +792,7 @@ Resolviendo en `v_ini` y exigiendo que `vigente_desde` sea el inicio de una jorn
 - **Sábado:** se evalúa si `aplica_sabado` (default **true**, porque la regla vigente del sistema es L–S). Domingo nunca.
 - **Feriados: no existe calendario laboral en el repo** (`grep feriado|festivo|dias_no_laborables|calendario_laboral` sobre `supabase/migrations/` y `app/src/` → **0 resultados**) y **no propongo crearlo**. Mi heurística de «día atípico» (silenciar si menos de un tercio del roster registró llamadas) **la retiro**: Codex (F3) demostró que apaga la alarma exactamente el día en que nadie llamó, que es el día que más importa. En su lugar: la alerta **se emite siempre**, y cuando la participación del equipo entero está por los suelos lleva una marca de contexto («actividad excepcionalmente baja en todo el equipo — revisa si hoy es feriado o hubo una incidencia») y se presenta como **una** alerta de equipo, no como N individuales. Silenciar un día requiere una decisión explícita, no una inferencia.
 - **Analista que entró a media mañana:** no se prorratea. La alerta incluye `primera_llamada_en` (ya lo devuelve el núcleo, `:483-484`) para que el supervisor lea el contexto. **Quien tiene cero llamadas SÍ entra en el grupo del corte** — corrección de Codex (F4): mi deduplicación original lo dejaba solo en `sin_llamadas_hoy` y fuera del aviso fuerte, o sea que el que peor está recibía el aviso más débil. `sin_llamadas_hoy` se suprime **en la presentación** para quien ya está dentro del grupo del corte, no en el cálculo.
-- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`), **menos** quien no tiene cartera abierta — decisión de negocio, pregunta 3 de Miguel.
+- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `PLAN-POR-FASES-2026-09-19.md`), **menos** quien no tiene cartera abierta — decisión de negocio, pregunta 3 de Miguel.
 
 **Historia.** Todo se deriva del log de actividades; **no hay tabla de «evaluaciones de corte»**. Limitación que hay que decir en pantalla (Codex F10, aceptado): un día pasado se recalcula con **el equipo y la jerarquía de hoy**, no con los de entonces. Reproducir «lo que el supervisor vio aquel día» es un contrato distinto y más caro; si Miguel lo quiere para evaluaciones de desempeño, entonces —y solo entonces— hace falta un registro derivado, que **no** es automáticamente «otro origen de verdad». Pendiente de verificar: que ningún escritor fije `creado_en` a mano en `crm.actividades` (inserciones tardías romperían el recálculo).
 
@@ -745,7 +862,7 @@ Los siete archivos con `Record<Vista,…>` exhaustivo (si falta uno, el typechec
 - **Tabla de feriados.** No existe calendario laboral (0 resultados) y crearlo es asumir un mantenimiento anual para un beneficio que se resuelve con contexto en la alerta.
 - **Heurística de «día atípico» que silencia.** Retirada por la refutación de Codex (F3).
 - **Push, correo o WhatsApp en v1.** El molde de push existe pero dispara por INSERT, no por reloj.
-- **Cuota diaria por analista.** Está **fuera de v1 por decisión escrita** (`GESTION-DIARIA.md`, «Fuera de v1»; `PLAN.md:256-258`). Los cortes no son la cuota: miden ritmo, no volumen objetivo.
+- **Cuota diaria por analista.** Está **fuera de v1 por decisión escrita** (`PLAN-POR-FASES-2026-09-19.md`, «Fuera de v1»; `PLAN.md:256-258`). Los cortes no son la cuota: miden ritmo, no volumen objetivo.
 - **Perilla por analista** (molde `crm.equipo.capacidad_leads_objetivo`). Empieza global; si hace falta individualizar, es otra fase.
 - **Meter los cortes en `config-sla`** ni escribirlos por PostgREST al estilo `politica_abandono`.
 - **Tabla de snapshots de corte en v1** — pero **sin descartarla por principio**: si Miguel quiere «lo que el supervisor vio aquel día» como evidencia, un registro derivado es legítimo (corrección de Codex, F10).
@@ -768,7 +885,7 @@ Los siete archivos con `Record<Vista,…>` exhaustivo (si falta uno, el typechec
 **VERIFICATION: NOT RUN** — es un diseño; no hay lint, typecheck, tests ni build que correr todavía.
 
 **Archivos citados (rutas absolutas):**
-`/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260920041500_crm_gestion_diaria_analista.sql` · `.../20260807203757_crm_metas_sla_versionados.sql` · `.../20260816221500_crm_lead_libre_f1_verificacion.sql` · `.../20260823204930_crm_alertas_reconocimientos.sql` · `.../20260910225540_crm_notificaciones_push_tasa.sql` · `.../supabase/migrations/MIGRACIONES.md` · `.../docs/gestion-diaria/GESTION-DIARIA.md` · `.../docs/gestion-diaria/PLAN.md` · `.../app/src/lib/alertas.ts` · `.../app/src/lib/reconocimientos-alertas.ts` · `.../app/src/lib/motor-siguiente.ts` · `.../app/src/lib/vistas.ts` · `.../app/src/screens/config.tsx` · `.../app/src/screens/config-sla.tsx` · `.../app/src/components/app/guardados-sla-pendientes.tsx` · `.../app/src/App.tsx` · `.../app/src/data/crm-config-api.ts` · `.../app/src/data/crm-config-queries.ts` · `.../app/src/data/crm-queries.ts`
+`/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260920041500_crm_gestion_diaria_analista.sql` · `.../20260807203757_crm_metas_sla_versionados.sql` · `.../20260816221500_crm_lead_libre_f1_verificacion.sql` · `.../20260823204930_crm_alertas_reconocimientos.sql` · `.../20260910225540_crm_notificaciones_push_tasa.sql` · `.../supabase/migrations/MIGRACIONES.md` · `.../docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md` · `.../docs/gestion-diaria/PLAN.md` · `.../app/src/lib/alertas.ts` · `.../app/src/lib/reconocimientos-alertas.ts` · `.../app/src/lib/motor-siguiente.ts` · `.../app/src/lib/vistas.ts` · `.../app/src/screens/config.tsx` · `.../app/src/screens/config-sla.tsx` · `.../app/src/components/app/guardados-sla-pendientes.tsx` · `.../app/src/App.tsx` · `.../app/src/data/crm-config-api.ts` · `.../app/src/data/crm-config-queries.ts` · `.../app/src/data/crm-queries.ts`
 
 ---
 
