@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, tareas, agenda, fase-2, sin-topes]
 actualizado: 2026-09-19
-estado: EN PRODUCCIÓN COMPLETA (19/09) — SQL ~19:47 Lima, registrada; front ~20:00 Lima (release crm-20260920T005739Z-380643a84725, PR #35)
+estado: SQL PREPARADO Y ENSAYADO (sin instalar en prod) · front en PR · publicar servidor ANTES que front
 ---
 
 # Tareas sin tope — Fase 2 del plan «sin topes» (2026-09-19)
@@ -74,14 +74,13 @@ banco remoto `banco-f7` no sirve para esto (sin mundo SLA ni postventa) y no se 
 
 ## Lo que falta
 
-1. ~~Instalar el SQL con `!` → md5 en prod → registrador → sonda anónima~~ HECHO el 19/09 ~19:52 Lima: gerencia ya recibe sus 1 156 pendientes por la puerta (1 000 + 156).
-2. ~~Fusionar la PR, front en worktree limpio, `release:crm`, preflight, publicar, smoke~~ HECHO ~20:00 Lima: release `crm-20260920T005739Z-380643a84725` (commit `380643a8`), smoke OK.
-3. Acta en `MIGRACIONES.md` (hecha), mapa de capas (Foco 2) y `main` al tronco (bloqueado por un cambio ajeno sin commitear en la nota «Procedencia del lead»: decisión de Miguel).
+1. **[Miguel]** instalar el SQL con `!` → medir md5 en prod → registrador → sonda anónima.
+2. Fusionar la PR, front en worktree limpio con `npm ci`, `release:crm`, preflight, publicar, smoke.
+3. Acta en `MIGRACIONES.md` (ya escrita como «preparada»), mapa de capas (Foco 2), `main` el mismo día.
 4. Fases 3 y 4 del plan (pipeline por columna, retirar la RPC vieja de actividades, leads sin foto).
 
 ## Lecciones
 
-- El worktree de release necesita `npm ci` en `app/` Y en la raíz de `CRM-Avance-Corp/` (el empaquetador vive ahí), y las dos `VITE_*` públicas por entorno; el preflight resuelve el build vivo leyendo los ZIP de `releases/` del taller, así que el ZIP que publique otra sesión hay que copiarlo ahí.
 - El `node_modules` del taller puede ir por detrás del `package-lock` (faltaba la fuente de la PR #29):
   un `npm install` reconcilia sin borrar; los E2E y el build no arrancan sin eso.
 - Soft-borrar un lead cancela sus tareas pendientes por trigger: «tarea visible con lead invisible» no

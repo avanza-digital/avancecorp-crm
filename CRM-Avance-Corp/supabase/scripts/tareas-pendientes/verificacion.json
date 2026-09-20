@@ -15,23 +15,11 @@
     "volumen": "1 200 tareas sembradas para vend1 (300 vencimientos con 4 empates cada uno): la puerta en lotes de 501 (3 vueltas) reconstruye exactamente las 1 203 filas que su RLS muestra en la tabla, sin repetidos ni huecos"
   },
   "produccion": {
-    "instalada": "2026-09-19 ~19:47 America/Lima (2026-09-20 00:47 UTC) por Miguel con `!` + db query --linked --file (archivo exacto; rows [])",
-    "gate_tras_instalar": "OK",
-    "exec_authenticated": true,
-    "exec_anon": false,
-    "exec_service_role": false,
-    "puerta_definer": false,
-    "indice_valido": true,
-    "md5_medidos_en": "produccion, tras la instalacion (pg_get_functiondef del archivo exacto); identicos a los de la copia local porque el archivo fue el mismo byte a byte",
-    "md5_gate": "cb32d6c7a31dad61f1aea7842e185465",
-    "gerencia_por_la_puerta": "pagina 1 = 1 000, pagina 2 = 156, total 1 156 = count bajo su RLS, 1 156 ids distintos, todas con lead_nombre/lead_etapa, 0 leads invisibles",
-    "vendedor_por_la_puerta": "90 = 90 filas de su RLS, mismo orden",
-    "explain_rpc_gerencia_501": "Execution Time 58.8 ms (2 582 buffers), sesion real",
-    "registrada": "2026-09-19 ~19:52 America/Lima; cuerpo md5 3812914e49d1897ca24433165150d389 = archivo",
-    "sonda_anonima": "{\"p_limite\":10} → 42501 permission denied for schema crm; {\"p_nope\":1} → PGRST202 (Content-Profile: crm)"
+    "instalada": "PENDIENTE (Miguel con `!` + db query --linked --file)",
+    "md5_medidos_en": "PENDIENTE: medir en produccion tras instalar y regenerar el registrador"
   },
-  "md5_puerta": "5edd699559108383a0e44a90b51d9ad6",
-  "md5_nucleo": "6c7b921a01e4e81f6a76c7b8f5154421",
+  "md5_puerta": "PENDIENTE",
+  "md5_nucleo": "PENDIENTE",
   "policies_selladas": {
     "tareas_select": "073deaeb5700bac14209ec795b71567e",
     "medidas_en": "produccion 2026-09-19 (identica en la copia local y en banco-f7)"
@@ -44,15 +32,5 @@
   "revisiones": {
     "auditor_rls": "CHANGES_REQUESTED sin P0/P1: sin fuga ni desfase; aceptados el acta en el ledger, 5 mutantes mas y la cita del grant por columna; el caso «tarea visible con lead invisible» no es sembrable por soft-delete (documentado); la hipotesis sobre la condicion de indice queda para la Fase 4",
     "codex_cli_solo_lectura": "CHANGES_REQUESTED con 3 P2, los tres aceptados: (1) alarma de postventa devuelta a 2 000 (espejo del limit de postventa_agenda_fn); (2) el cursor debe avanzar en sentido ESTRICTO (repeticion, retroceso y ciclo A→B→A cortan con ROW_CONTRACT; pruebas MSW nuevas); (3) el gate comprueba relrowsecurity de crm.tareas y crm.leads, con sus dos mutantes. Tambien: mutantes con desenlace triple, guardia de admision comprobada por su forma exacta (+ mutante «nombre solo en comentario»), orden cronologico por unidades de codigo en vez de localeCompare (defecto preexistente, con prueba), oraculo del test-rls protegido contra el max_rows, umbral de tendencia probado con 20 001, mock E2E con keyset por valor, matriz > 1 000 filas en la copia"
-  },
-  "publicacion": {
-    "release": "crm-20260920T005739Z-380643a84725",
-    "commit": "380643a8 (PR #35 squash sobre el tronco 71edebcf)",
-    "buildId": "build-20260920T005738619Z",
-    "sha256_zip": "11689799c10225612b996e0f77d54bb1eb4a367035af14b644acd6249ad1b550",
-    "preflight": "ok: vivo build-20260919T222832122Z/4bd3dc1b (sesion de prefijos) contenido en el candidato",
-    "publicado": "2026-09-19 ~20:00 America/Lima por Miguel desde su terminal (deploy-hostinger-mcp.mjs deploy; MCP de Hostinger sin conectar)",
-    "smoke": "HTTP 200; version.json = buildId del ZIP; index-CIwyW_hp.js 200; index.html byte a byte; ZIP 404",
-    "rollback": "crm-20260919T222832Z-4bd3dc1b5d1a.zip (copiado a CRM-Avance-Corp/releases/)"
   }
 }

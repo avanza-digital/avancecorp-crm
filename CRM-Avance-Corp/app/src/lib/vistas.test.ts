@@ -9,9 +9,9 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 
 const VISTAS_POR_GATE = {
   abierto: {
-    vendedor: ['hoy', 'alertas', 'seguimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'alertas', 'seguimiento', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'seguimiento', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-rentabilidad'],
+    vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
+    supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
+    gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-rentabilidad'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-rentabilidad'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
     // «hoy» es la única vista de leads sin capacidad exigida y se la habría

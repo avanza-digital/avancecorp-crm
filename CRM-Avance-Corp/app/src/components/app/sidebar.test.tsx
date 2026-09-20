@@ -120,7 +120,7 @@ describe('Sidebar — temporizadores del asomo', () => {
 
     const grupos = {
       Dirección: ['Resumen', 'Ranking', 'Rendimiento', 'Conversiones', 'Citas', 'Facturación', 'Empresas'],
-      Operación: ['Seguimiento', 'Pipeline', 'Leads', 'Agenda', 'Cartera', 'Repartir leads', 'Base para gestión', 'Gestión de equipo'],
+      Operación: ['Seguimiento', 'Gestión Diaria', 'Pipeline', 'Leads', 'Agenda', 'Cartera', 'Repartir leads', 'Base para gestión', 'Gestión de equipo'],
       Administración: ['Metas', 'Configuración'],
     }
     const nombres = Object.values(grupos).flat()

@@ -1,0 +1,12 @@
+{
+  "version": "20260919211958",
+  "nombre": "crm_gestion_diaria_registro",
+  "base": "gestion_diaria_20260919",
+  "ensayado_en": "2026-09-19T21:57:16.409Z",
+  "md5_puerta": "5f1b1f0e649b43fa1f5136c8c1a3feb6",
+  "md5_nucleo": "d1c922eb5081e30f3581b95a95d74656",
+  "sha256_migracion": "04bbbaca08fb2c82d0f4c097e91e0465933a4db3a2e1762f3c133b6e3a2b9610",
+  "mutantes": "OK: 10 mutantes detectados por private.assert_gestion_diaria()",
+  "oraculo": "GESTION_DIARIA_REGISTRO_OK",
+  "censo_intacto": true
+}

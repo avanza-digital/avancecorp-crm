@@ -47,6 +47,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
   alertas: { t: 'Pendientes', s: 'Acciones y señales que requieren tu atención' },
   seguimiento: { t: 'Seguimiento', s: 'Prioridades y plazos de la cartera activa' },
+  'gestion-diaria': { t: 'Gestión Diaria', s: 'Qué está pasando hoy y qué hay que hacer ahora' },
   conversiones: { t: 'Conversiones', s: 'Conversión de leads a clientes' },
   'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los analistas' },
   reuniones: { t: 'Citas', s: 'Pactadas, concretadas, no realizadas y modalidad' },

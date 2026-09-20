@@ -12,6 +12,9 @@ export const VISTAS = [
   'hoy',
   'alertas',
   'seguimiento',
+  // Gestión Diaria (19/09/2026): módulo propio del mundo leads; absorbe
+  // Seguimiento en su última fase (cerrar → observar → derribar).
+  'gestion-diaria',
   'conversiones',
   'ranking-vendedores',
   'reuniones',
@@ -84,7 +87,7 @@ export function esVistaGerencia(vista: Vista): boolean {
  * mientras Miguel no las apruebe, no aparecen en NAV ni son alcanzables por URL
  * para cuentas reales (el demo sí las muestra). Fuente única para sidebar y App.
  */
-export const VISTAS_LEADS = ['hoy', 'seguimiento', 'pipeline', 'cartera', 'agenda', 'rescate', 'rescate-carpeta'] as const satisfies readonly Vista[]
+export const VISTAS_LEADS = ['hoy', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'rescate', 'rescate-carpeta'] as const satisfies readonly Vista[]
 
 export function esVistaLeads(vista: Vista): boolean {
   return (VISTAS_LEADS as readonly Vista[]).includes(vista)

@@ -43,6 +43,7 @@ export type { Vista } from '@/lib/router'
 const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy })))
 const Alertas = lazy(() => import('@/screens/alertas').then((m) => ({ default: m.Alertas })))
 const Seguimiento = lazy(() => import('@/screens/seguimiento').then((m) => ({ default: m.Seguimiento })))
+const GestionDiaria = lazy(() => import('@/screens/gestion-diaria').then((m) => ({ default: m.GestionDiaria })))
 const ConversionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ConversionesGerencia })))
 const RankingVendedoresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RankingVendedoresGerencia })))
 const ReunionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ReunionesGerencia })))
@@ -72,6 +73,7 @@ const PANTALLA_POR_VISTA = {
   hoy: Hoy,
   alertas: Alertas,
   seguimiento: Seguimiento,
+  'gestion-diaria': GestionDiaria,
   conversiones: ConversionesGerencia,
   'ranking-vendedores': RankingVendedoresGerencia,
   reuniones: ReunionesGerencia,

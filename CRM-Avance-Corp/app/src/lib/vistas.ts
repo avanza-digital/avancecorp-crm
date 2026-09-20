@@ -22,6 +22,7 @@ const CAPACIDAD_POR_VISTA = {
   hoy: null,
   alertas: 'verAlertas',
   seguimiento: 'verLeads',
+  'gestion-diaria': 'verLeads',
   conversiones: null,
   'ranking-vendedores': null,
   reuniones: null,
@@ -98,6 +99,9 @@ export function vistaPermitida(
   // La cola operativa se ofrece a quienes ya la tenían en Hoy. Directorio
   // conserva su auditoría ejecutiva y no incorpora este módulo de gestión.
   if (vista === 'seguimiento') return rol === 'gerencia' || rol === 'supervisor' || rol === 'vendedor'
+  // Gestión Diaria: los mismos tres roles operativos. Directorio tiene `verLeads`
+  // pero es lector: no entra a un módulo de gestión (decisión de Miguel, 19/09/2026).
+  if (vista === 'gestion-diaria') return rol === 'gerencia' || rol === 'supervisor' || rol === 'vendedor'
 
   const capacidad = CAPACIDAD_POR_VISTA[vista]
   return capacidad === null || can(rol, capacidad)
