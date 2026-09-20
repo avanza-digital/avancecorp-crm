@@ -77,6 +77,8 @@ describe('Timeline — historial por lead: estados honestos', () => {
 
     montar()
 
+    const historial = screen.getByRole('region', { name: 'Historial de actividades' })
+    expect(historial).toHaveClass('ac-scroll', 'max-h-80', 'overflow-y-auto', 'overscroll-contain')
     expect(screen.getByRole('list')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('status')).toHaveTextContent('Cargando el historial…')
     expect(screen.queryByText('Sin gestiones todavía.')).not.toBeInTheDocument()

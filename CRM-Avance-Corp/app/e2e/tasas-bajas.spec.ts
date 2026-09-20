@@ -24,6 +24,7 @@ for (const ancho of [1440, 390]) {
     await page.goto('/#/cartera')
     await page.getByRole('row', { name: `Abrir ficha de ${lead.nombre_completo}`, exact: true }).click()
     const ficha = page.getByRole('dialog', { name: lead.nombre_completo, exact: true })
+    await ficha.getByRole('button', { name: 'Mostrar solicitud de tasa' }).click()
     const tasa = ficha.getByLabel('Tasa anual (%)')
     await expect(tasa).toBeEditable()
     await tasa.fill('16')
