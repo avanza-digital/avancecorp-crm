@@ -14,6 +14,30 @@ import {
   type RegistroPagina,
 } from '@/lib/gestion-diaria'
 
+const DeshacerResultadoSchema = v.object({
+  ok: v.literal(true),
+  actividad_id: v.string(),
+  lead_id: v.string(),
+  tarea_cancelada: v.boolean(),
+  descarte_revertido: v.boolean(),
+  cita_no_restaurada: v.boolean(),
+  ciclo_nuevo: v.boolean(),
+  etapa: v.string(),
+})
+export type DeshacerResultado = v.InferOutput<typeof DeshacerResultadoSchema>
+
+/** Deshace los EFECTOS de un resultado de llamada (≤ 24 h, solo el autor):
+ *  cancela la tarea creada y revierte el descarte si sigue vigente. La llamada
+ *  queda en el historial. El servidor rechaza con SQLSTATE y texto humano. */
+export async function deshacerResultadoLlamada(actividadId: string): Promise<DeshacerResultado> {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  const { data, error } = await sb.schema('crm').rpc('deshacer_resultado_llamada', { p_actividad_id: actividadId })
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(DeshacerResultadoSchema, data)
+  if (!parsed.success) throw new CrmApiError('El servidor no confirmó el deshacer.', 'GESTION_DIARIA_CONTRACT')
+  return parsed.output
+}
+
 export async function listarRegistroActividad(
   filtros: FiltrosRegistro,
   cursor: CursorRegistro | null,

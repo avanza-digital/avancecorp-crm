@@ -10,7 +10,8 @@ import { slaOperacionKeys } from '@/data/sla-operacion-queries'
 const NOMBRES: Record<string, string> = {
   registrar_actividad_v2: 'Contacto', cerrar_tarea_v2: 'Cierre de tarea',
   cerrar_reunion_v2: 'Cierre de cita', reprogramar_reunion_v2: 'Reprogramación de cita',
-  reprogramar_tarea_v2: 'Reprogramación de tarea',
+  reprogramar_tarea_v2: 'Reprogramación de tarea', cerrar_reunion_v3: 'Cierre de cita',
+  registrar_llamada_v3: 'Resultado de llamada',
 }
 
 /** El núcleo conserva el envío original; este panel solo pide su confirmación

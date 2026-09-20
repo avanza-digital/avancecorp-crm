@@ -64,6 +64,7 @@ import {
 } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 import { presentarCitas } from '@/lib/terminologia'
+import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
 
 /** Opciones de resultado por tipo de tarea (1 tap, sin formularios). */
 interface OpcionCierre {
@@ -142,16 +143,37 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
 
 export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
   const [ocupado, setOcupado] = useState(false)
+  const { lead } = useCRMData()
+  // Gestión Diaria F2: una tarea de LLAMADA sobre un lead se cierra con el
+  // resultado tipificado (panel del mockup 5), que además la cierra
+  // (p_tarea_id). El diálogo conserva su cuarta salida («anular»); al pulsar
+  // «Registrar resultado» el panel ocupa su lugar (un solo diálogo a la vez).
+  // Las tareas de cliente (perfil) y el resto de tipos siguen su cierre de siempre.
+  const [panelLlamada, setPanelLlamada] = useState<string | null>(null)
+  const leadDeLlamada = tarea?.tipo === 'llamada' && tarea.lead_id && !tarea.inversionista_id ? lead(tarea.lead_id) : undefined
+  // El panel se APILA sobre este diálogo (Radix apila modales y `escape-dialogo`
+  // cierra por capas): así el origen del foco (el botón «Registrar resultado…»)
+  // sigue montado y, al cerrar los dos, el foco vuelve a la fila de la agenda
+  // desde la que se abrió (revisión a11y 20/09). Sustituirlo desmontaba el
+  // origen y el foco caía al cuerpo del documento.
   return (
-    <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
-      {tarea && (tarea.inversionista_id
-        ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
-        : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} />)}
-    </Dialog>
+    <>
+      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
+        {tarea && (tarea.inversionista_id
+          ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
+          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
+      </Dialog>
+      {tarea && leadDeLlamada && panelLlamada === tarea.id && (
+        <RegistrarResultado key={tarea.id} lead={leadDeLlamada} tarea={tarea} onClose={() => { setPanelLlamada(null); onCerrar() }} />
+      )}
+    </>
   )
 }
 
-function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void }) {
+function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onCerrar: () => void; onRegistrarLlamada?: (() => void) | undefined }) {
+  // Tarea de LLAMADA de un lead: el resultado (siete opciones) vive en el panel
+  // de Gestión Diaria; aquí quedan el contexto del lead y «anular».
+  const llamadaTipificada = onRegistrarLlamada != null
   const { lead, completarTarea, anularTarea, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
   const l = tarea.lead_id ? lead(tarea.lead_id) : undefined
@@ -584,6 +606,20 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
         {/* Resultado 1-tap */}
         <div>
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">¿Qué pasó?</p>
+          {llamadaTipificada && !anulando && (
+            <button
+              type="button"
+              disabled={procesando}
+              onClick={onRegistrarLlamada}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--accent)]/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            >
+              <PhoneCall className="size-4" aria-hidden /> Registrar resultado de la llamada
+            </button>
+          )}
+          {llamadaTipificada && !anulando && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">Siete resultados (contestó, volver a llamar, agendó cita, no le interesa, número errado…): la tarea se cierra al guardar.</p>
+          )}
+          {!llamadaTipificada && (
           <div className={cn('grid gap-2', opciones.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
             {opciones.map((op) => (
               <button
@@ -605,6 +641,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               </button>
             ))}
           </div>
+          )}
           {/* LA CUARTA SALIDA. Deliberadamente FUERA de la grilla y en tono
               menor: no es "qué pasó" (no pasó nada), es "esto ya no aplica".
               Meterla como tercer botón junto a Contestó/No contestó la
@@ -806,7 +843,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             actividad, así que dejar visible un campo que promete "va al
             timeline del lead" sería tragarse en silencio lo que el analista
             escribió. Si tiene algo que contar, cierra la tarea con resultado. */}
-        {!anulando && (
+        {!anulando && !llamadaTipificada && (
           <Textarea
             aria-label="Nota del resultado (opcional)"
             placeholder={
@@ -974,14 +1011,16 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             <Button key="cancelar" variant="ghost" size="sm" disabled={procesando} onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button
-              key="cerrar"
-              size="sm"
-              onClick={() => void confirmar()}
-              disabled={requiereEleccion || procesando}
-            >
-              <CheckCircle2 /> {procesando ? 'Guardando…' : 'Cerrar tarea'}
-            </Button>
+            {!llamadaTipificada && (
+              <Button
+                key="cerrar"
+                size="sm"
+                onClick={() => void confirmar()}
+                disabled={requiereEleccion || procesando}
+              >
+                <CheckCircle2 /> {procesando ? 'Guardando…' : 'Cerrar tarea'}
+              </Button>
+            )}
           </>
         )}
       </DialogFooter>

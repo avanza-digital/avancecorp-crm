@@ -66,7 +66,11 @@ export function Sheet({ open, onClose, children, ariaLabel, className, modal = t
             evento.preventDefault()
             requestAnimationFrame(() => destino.focus())
           }}
-          onInteractOutside={(evento) => { if (!modal) evento.preventDefault() }}
+          // Un clic en un toast (p. ej. «Deshacer» del resultado de llamada) no
+          // es «fuera»: no cierra la ficha. Los toasts viven en un portal ajeno.
+          onInteractOutside={(evento) => {
+            if (!modal || (evento.target instanceof Element && evento.target.closest('[data-sonner-toaster]'))) evento.preventDefault()
+          }}
           aria-label={ariaLabel}
           aria-describedby={undefined}
           data-slot="sheet"

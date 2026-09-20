@@ -2827,6 +2827,7 @@ export async function montarBackendReal(
     // Comandos SLA con recibo. Este doble ejercita el transporte y la UI;
     // reglas, locks y prórrogas se prueban con PostgreSQL real en el banco SQL.
     const comandoSla = p.match(/^\/rest\/v1\/rpc\/(registrar_actividad|cerrar_tarea|cerrar_reunion|reprogramar_reunion|reprogramar_tarea)_v2$/)?.[1]
+      ?? (p === '/rest/v1/rpc/registrar_llamada_v3' ? 'registrar_llamada' : undefined)
     if (comandoSla && method === 'POST') {
       estado.llamadas.rpcSlaComandos.push(comandoSla)
       const args = (req.postDataJSON() ?? {}) as Record<string, unknown>
@@ -2837,9 +2838,10 @@ export async function montarBackendReal(
       if (previo) return previo.huella === huella ? json(route, previo.respuesta)
         : json(route, { code: '23505', message: 'Recibo incompatible' }, 409)
       const tarea = estado.tareas.find((t) => t.id === args.p_tarea_id)
-      const leadId = comandoSla === 'registrar_actividad' ? args.p_lead_id : tarea?.lead_id
+      const leadId = comandoSla === 'registrar_actividad' || comandoSla === 'registrar_llamada' ? args.p_lead_id : tarea?.lead_id
       const lead = estado.leads.find((l) => l.id === leadId)
-      if (!lead || (comandoSla !== 'registrar_actividad' && !tarea)) return json(route, { code: 'P0002', message: 'Oportunidad o tarea no disponible' }, 400)
+      if (!lead || (comandoSla !== 'registrar_actividad' && comandoSla !== 'registrar_llamada' && !tarea)) return json(route, { code: 'P0002', message: 'Oportunidad o tarea no disponible' }, 400)
+      if (comandoSla === 'registrar_llamada' && args.p_tarea_id && !tarea) return json(route, { code: '22023', message: 'Tarea no encontrada, cerrada o de otro lead' }, 400)
       if (estado.fallarProximoInsertActividad && comandoSla === 'registrar_actividad') {
         estado.fallarProximoInsertActividad = false
         return json(route, { code: '23514', message: 'Actividad rechazada' }, 400)
@@ -2853,7 +2855,26 @@ export async function montarBackendReal(
           estado: 'pendiente', activo: true, reprogramaciones: 0, creado_en: new Date().toISOString(),
           creado_por: UID, confirmada_en: null, reagendada_de: null })
       }
-      if (comandoSla === 'registrar_actividad') {
+      // Gestión Diaria F2: el resultado tipificado (espejo del núcleo
+      // private.llamada_registrar): actividad con metadata, cierre de la tarea
+      // de llamada, avance automático, descarte con motivo, siguiente.
+      let extraRespuesta: Record<string, unknown> = {}
+      if (comandoSla === 'registrar_llamada') {
+        const resultado = String(args.p_resultado)
+        const tipo = ['no_contesto', 'numero_errado', 'no_es_la_persona'].includes(resultado) ? 'llamada_no_contestada' : 'llamada_realizada'
+        const descartar = ['no_interesado', 'pide_otro_producto'].includes(resultado) || args.p_descartar === true
+        const actividadId = tarea ? crypto.randomUUID() : operacion
+        actividadesSla.push({ id: actividadId, lead_id: lead.id, tipo, detalle: args.p_detalle ?? null,
+          creado_en: new Date().toISOString(), autor_nombre: 'Gerente Real',
+          metadata: { evento: 'resultado_llamada', resultado, submotivo: args.p_submotivo ?? null, intento_n: 1,
+            etapa_anterior: lead.etapa, descartado: descartar, no_insista: args.p_no_insista === true, siguiente_id: siguiente?.id ?? null, tarea_id: tarea?.id ?? null } })
+        if (tarea) { tarea.estado = 'completada'; tarea.resultado_actividad_id = actividadId }
+        if (lead.etapa === 'nuevo' && tipo === 'llamada_realizada') lead.etapa = 'contactado'
+        if (descartar) { lead.etapa = 'descartado'; lead.motivo_descarte = resultado === 'pide_otro_producto' ? 'pide_credito' : resultado === 'no_interesado' ? 'sin_interes' : resultado === 'no_contesto' ? 'no_responde' : 'datos_invalidos' }
+        else guardarSiguiente()
+        extraRespuesta = { actividad_id: actividadId, siguiente_id: descartar ? null : (siguiente?.id ?? null), descartado: descartar,
+          no_insista: args.p_no_insista === true, resultado, intento_n: 1, deshecho: false, etapa: lead.etapa, replay: false }
+      } else if (comandoSla === 'registrar_actividad') {
         actividadesSla.push({ id: operacion, lead_id: lead.id, tipo: args.p_tipo, detalle: args.p_detalle,
           creado_en: new Date().toISOString(), autor_nombre: 'Gerente Real' })
         if (lead.etapa === 'nuevo' && ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada'].includes(String(args.p_tipo))) lead.etapa = 'contactado'
@@ -2869,13 +2890,28 @@ export async function montarBackendReal(
         tarea!.estado = args.p_estado
         guardarSiguiente()
       }
-      const respuesta = { version: 2, ok: true, operacion_id: operacion, lead_id: lead.id, comando: comandoSla }
+      const respuesta = { version: 2, ok: true, operacion_id: operacion, lead_id: lead.id, comando: comandoSla, ...extraRespuesta }
       recibosSla.set(operacion, { huella, respuesta })
       if (estado.perderProximaRespuestaSla) {
         estado.perderProximaRespuestaSla = false
         return route.abort('failed')
       }
       return json(route, respuesta)
+    }
+
+    // Gestión Diaria F2: deshacer los EFECTOS de un resultado de llamada.
+    if (p === '/rest/v1/rpc/deshacer_resultado_llamada' && method === 'POST') {
+      const args = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const act = actividadesSla.find((a) => a.id === args.p_actividad_id) as (Record<string, unknown> & { metadata?: Record<string, unknown> }) | undefined
+      if (!act || act.metadata?.evento !== 'resultado_llamada') return json(route, { code: 'P0002', message: 'Resultado no encontrado o no es tuyo' }, 400)
+      if (act.metadata.deshecho_en) return json(route, { code: '22023', message: 'Este resultado ya se deshizo' }, 400)
+      const lead = estado.leads.find((l) => l.id === act.lead_id)!
+      const sig = estado.tareas.find((t) => t.id === act.metadata?.siguiente_id && t.estado === 'pendiente')
+      if (sig) sig.estado = 'cancelada'
+      const revierte = act.metadata.descartado === true && lead.etapa === 'descartado'
+      if (revierte) { lead.etapa = act.metadata.etapa_anterior === 'nuevo' ? 'nuevo' : 'contactado'; lead.motivo_descarte = null }
+      act.metadata = { ...act.metadata, deshecho_en: new Date().toISOString() }
+      return json(route, { ok: true, actividad_id: act.id, lead_id: lead.id, tarea_cancelada: Boolean(sig), descarte_revertido: revierte, cita_no_restaurada: false, ciclo_nuevo: revierte, etapa: lead.etapa })
     }
 
     // ── RPC cerrar_tarea (cierre atómico: resultado al log + tarea siguiente) ──

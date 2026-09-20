@@ -1503,6 +1503,9 @@ const ActividadRowSchema = v.object({
   detalle: v.nullable(v.string()),
   autor_nombre: v.string(),
   creado_en: v.string(),
+  // Desde Gestión Diaria F2 el historial trae la metadata (resultado de llamada);
+  // las RPC que aún no la mandan siguen validando: opcional.
+  metadata: v.optional(v.record(v.string(), v.unknown())),
 })
 
 // ── Actividad reciente del ámbito (RPC SECURITY INVOKER crm.actividades_recientes_fn,

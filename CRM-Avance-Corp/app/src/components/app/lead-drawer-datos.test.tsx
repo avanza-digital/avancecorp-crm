@@ -421,12 +421,15 @@ describe('LeadDrawer — rótulo del capital según el desenlace', () => {
 
 // Un cambio de etapa silencioso asusta más que ayuda: el composer tiraba el
 // `avance` del store y el stepper se movía solo, sin explicación.
+// Desde Gestión Diaria F2 los tipos de LLAMADA no salen por este composer: abren
+// el panel del resultado tipificado. El composer sigue para WhatsApp y notas.
 describe('LeadDrawer — el composer canta el avance automático de etapa', () => {
   it('lo dice cuando el contacto sube la etapa del lead', async () => {
     const user = userEvent.setup()
     montar({ avance: 'contactado' })
 
     await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'whatsapp_recibido')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(toast.success).toHaveBeenCalledWith('Actividad registrada · pasó a Contactado (demo)')
@@ -437,9 +440,23 @@ describe('LeadDrawer — el composer canta el avance automático de etapa', () =
     montar()
 
     await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'nota')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(toast.success).toHaveBeenCalledWith('Actividad registrada (demo)')
+  })
+
+  it('una LLAMADA abre el panel del resultado tipificado en vez de registrar el tipo pelado', async () => {
+    const user = userEvent.setup()
+    const { registrarActividad } = montar()
+
+    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    await user.type(screen.getByRole('textbox', { name: 'Detalle de la actividad' }), 'Dijo que la llame el lunes')
+    await user.click(screen.getByRole('button', { name: 'Registrar' }))
+
+    expect(registrarActividad).not.toHaveBeenCalled()
+    expect(screen.getByText(/Cómo salió la llamada con/)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Nota de la llamada' })).toHaveValue('Dijo que la llame el lunes')
   })
 })
 
@@ -771,6 +788,7 @@ describe('confirmación de actividad SLA', () => {
     const persistenciaActividad = new Promise<boolean>((resuelve) => { resolver = resuelve })
     const { registrarActividad } = montar({ persistenciaActividad })
     await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'whatsapp_recibido')
     await user.type(screen.getByRole('textbox', { name: 'Detalle de la actividad' }), 'Conversación confirmada')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
     expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled()

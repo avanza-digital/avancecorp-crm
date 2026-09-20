@@ -22,8 +22,10 @@ test('el historial de la ficha llega POR LEAD y sobrevive a recargar aunque la l
   await expect(ficha.getByText('Sin gestiones todavía.')).toBeVisible()
 
   await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
-  const dialogo = page.getByRole('dialog', { name: /Lograste comunicarte/ })
-  await dialogo.getByRole('button', { name: 'No contestó', exact: true }).click()
+  // Gestión Diaria F2: la llamada se cierra con su resultado tipificado.
+  const dialogo = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await dialogo.getByRole('radio', { name: /^No contestó/ }).check()
+  await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(dialogo).toHaveCount(0)
   await expect(ficha.locator('li', { hasText: 'Llamada no contestada' }).first()).toBeVisible()
 
