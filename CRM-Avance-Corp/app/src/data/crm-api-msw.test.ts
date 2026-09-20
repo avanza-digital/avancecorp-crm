@@ -25,6 +25,7 @@ import {
   obtenerLeadDelAmbitoPorId,
   listarResumenCartera,
   listarTareasDelAmbito,
+  TAMANO_LOTE_TAREAS,
   reprogramarReunion,
 } from './crm-api'
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
@@ -510,16 +511,13 @@ describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
   // validar), así que basta responder N objetos vacíos: la lectura devuelve []
   // (filas fuera de contrato) pero el tope SÍ debe avisarse. Cubre que cada
   // call-site pasa su constante correcta.
+  // Las tareas ya no tienen tope (Fase 2 «sin topes»): su alarma es de
+  // tendencia y se prueba en su propio bloque, más abajo.
   it.each([
-    ['tareas_del_ambito', 2000, 'GET', 'http://supabase.test/rest/v1/tareas', () => listarTareasDelAmbito()],
-    ['actividades_del_ambito', 10000, 'POST', 'http://supabase.test/rest/v1/rpc/actividades_del_ambito_fn', () => listarActividadesDelAmbito()],
-  ] as const)('avisa cuando %s llena su tope de %i', async (lectura, tope, metodo, ruta, invocar) => {
+    ['actividades_del_ambito', 10000, 'http://supabase.test/rest/v1/rpc/actividades_del_ambito_fn', () => listarActividadesDelAmbito()],
+  ] as const)('avisa cuando %s llena su tope de %i', async (lectura, tope, ruta, invocar) => {
     const filasVacias = Array.from({ length: tope }, () => ({}))
-    server.use(
-      metodo === 'GET'
-        ? http.get(ruta, () => HttpResponse.json(filasVacias))
-        : http.post(ruta, () => HttpResponse.json(filasVacias)),
-    )
+    server.use(http.post(ruta, () => HttpResponse.json(filasVacias)))
 
     await invocar()
 
@@ -626,6 +624,186 @@ describe('listarActividadesDeLead — historial por lead con cursor keyset (msw)
   })
 })
 
+describe('listarTareasDelAmbito — tareas pendientes por cursor keyset (msw)', () => {
+  const RUTA = 'http://supabase.test/rest/v1/rpc/tareas_pendientes_fn'
+  const POSTVENTA = 'http://supabase.test/rest/v1/rpc/postventa_agenda_fn'
+  const LEAD = '44444444-4444-4444-8444-444444444444'
+  const filaTarea = (i: number, sobre: Record<string, unknown> = {}) => ({
+    id: `66666666-0000-4000-8000-${String(i).padStart(12, '0')}`,
+    lead_id: LEAD, perfil_id: null, vendedor_id: null, asignado_supervisor_id: null,
+    tipo: 'llamada', titulo: `Tarea ${i}`, nota: null,
+    // Empates de vencimiento a propósito: el desempate por id es parte del cursor.
+    vence_en: new Date(Date.parse('2027-01-01T15:00:00Z') + Math.floor(i / 3) * 60_000).toISOString(),
+    duracion_min: null, estado: 'pendiente', modalidad_reunion: null, ubicacion_reunion: null,
+    enlace_reunion: null, resultado_reunion: null, motivo_no_realizada: null, detalle_cierre_reunion: null,
+    confirmada_en: null, reagendada_de: null, reprogramaciones: 0, activo: true,
+    creado_en: '2026-09-19T15:00:00+00:00', lead_nombre: 'CLIENTE DE PRUEBA', lead_etapa: 'contactado',
+    ...sobre,
+  })
+  /** Servidor de ensayo: pagina `total` tareas por cursor como lo hace crm.tareas_pendientes_fn. */
+  const servidorPaginado = (total: number, cuerpos: Record<string, unknown>[] = []) => {
+    const todas = Array.from({ length: total }, (_, i) => filaTarea(i))
+    return http.post(RUTA, async ({ request }) => {
+      const cuerpo = await request.json() as { p_limite: number; p_despues_de?: string; p_despues_id?: string }
+      cuerpos.push(cuerpo)
+      const desde = cuerpo.p_despues_de
+        ? todas.findIndex((t) => t.vence_en === cuerpo.p_despues_de && t.id === cuerpo.p_despues_id) + 1
+        : 0
+      return HttpResponse.json({ version: 1, items: todas.slice(desde, desde + cuerpo.p_limite) })
+    })
+  }
+  beforeEach(() => {
+    server.use(http.post(POSTVENTA, () => HttpResponse.json([])))
+  })
+
+  it('recorre los lotes con el cursor de la última fila cruda y devuelve el ámbito COMPLETO, sin tope', async () => {
+    const total = 2 * TAMANO_LOTE_TAREAS + 200
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(servidorPaginado(total, cuerpos))
+
+    const tareas = await listarTareasDelAmbito()
+
+    expect(tareas.map((t) => t.id)).toEqual(Array.from({ length: total }, (_, i) => filaTarea(i).id))
+    const borde1 = filaTarea(TAMANO_LOTE_TAREAS - 1)
+    const borde2 = filaTarea(2 * TAMANO_LOTE_TAREAS - 1)
+    expect(cuerpos).toEqual([
+      { p_limite: TAMANO_LOTE_TAREAS + 1 },
+      { p_limite: TAMANO_LOTE_TAREAS + 1, p_despues_de: borde1.vence_en, p_despues_id: borde1.id },
+      { p_limite: TAMANO_LOTE_TAREAS + 1, p_despues_de: borde2.vence_en, p_despues_id: borde2.id },
+    ])
+    expect(tareas[0]).toMatchObject({ lead_nombre: 'CLIENTE DE PRUEBA', lead_etapa: 'contactado' })
+    expect(console.error).not.toHaveBeenCalledWith('[ac-crm]', expect.objectContaining({ evento: 'crm_api.tope_alcanzado' }))
+  })
+
+  it('justo un lote sin la fila de más termina en una sola petición', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(servidorPaginado(TAMANO_LOTE_TAREAS, cuerpos))
+
+    await expect(listarTareasDelAmbito()).resolves.toHaveLength(TAMANO_LOTE_TAREAS)
+    expect(cuerpos).toHaveLength(1)
+  })
+
+  it('una tarea repetida entre lotes (los lotes no son una transacción) cuenta una sola vez', async () => {
+    let llamada = 0
+    server.use(http.post(RUTA, () => {
+      llamada += 1
+      const items = llamada === 1
+        ? Array.from({ length: TAMANO_LOTE_TAREAS + 1 }, (_, i) => filaTarea(i))
+        : [filaTarea(TAMANO_LOTE_TAREAS - 1), ...Array.from({ length: 10 }, (_, i) => filaTarea(TAMANO_LOTE_TAREAS + i))]
+      return HttpResponse.json({ version: 1, items })
+    }))
+
+    const tareas = await listarTareasDelAmbito()
+
+    expect(tareas).toHaveLength(TAMANO_LOTE_TAREAS + 10)
+    expect(new Set(tareas.map((t) => t.id)).size).toBe(tareas.length)
+  })
+
+  it('la alarma de tendencia suena a 20 000 sin cortar la lectura (20 001 filas llegan enteras)', async () => {
+    server.use(servidorPaginado(20_001))
+
+    const tareas = await listarTareasDelAmbito()
+
+    expect(tareas).toHaveLength(20_001)
+    expect(console.error).toHaveBeenCalledWith('[ac-crm]', expect.objectContaining({
+      evento: 'crm_api.tope_alcanzado',
+      datos: expect.objectContaining({ contexto: expect.objectContaining({ lectura: 'tareas_del_ambito_tendencia', tope: 20_000 }) }),
+    }))
+  })
+
+  it('un servidor que ignora el cursor se corta con ROW_CONTRACT en vez de girar para siempre', async () => {
+    const pagina = Array.from({ length: TAMANO_LOTE_TAREAS + 1 }, (_, i) => filaTarea(i))
+    server.use(http.post(RUTA, () => HttpResponse.json({ version: 1, items: pagina })))
+
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('un servidor que cicla (A→B→A) se corta: el cursor debe avanzar en sentido estricto', async () => {
+    const lote = (desde: number) => Array.from({ length: TAMANO_LOTE_TAREAS + 1 }, (_, i) => filaTarea(desde + i))
+    let llamada = 0
+    server.use(http.post(RUTA, () => {
+      llamada += 1
+      return HttpResponse.json({ version: 1, items: llamada % 2 === 1 ? lote(0) : lote(2 * TAMANO_LOTE_TAREAS) })
+    }))
+
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    expect(llamada).toBe(3)
+  })
+
+  it('un servidor que retrocede se corta aunque la página sea distinta de la anterior', async () => {
+    const lote = (desde: number) => Array.from({ length: TAMANO_LOTE_TAREAS + 1 }, (_, i) => filaTarea(desde + i))
+    let llamada = 0
+    server.use(http.post(RUTA, () => {
+      llamada += 1
+      return HttpResponse.json({ version: 1, items: llamada === 1 ? lote(TAMANO_LOTE_TAREAS) : lote(0) })
+    }))
+
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    expect(llamada).toBe(2)
+  })
+
+  it('ordena cronológicamente aunque la precisión de los segundos varíe entre filas y rutas', async () => {
+    const entero = filaTarea(0, { vence_en: '2027-01-01T15:00:00+00:00' })
+    const milesima = filaTarea(1, { vence_en: '2027-01-01T15:00:00.001+00:00' })
+    const persona = '33333333-3333-4333-8333-333333333333'
+    const neutral = filaTarea(2, {
+      vence_en: '2027-01-01T15:00:00.5+00:00', lead_id: null, perfil_id: null,
+      inversionista_id: persona, inversionista_canonico_id: persona, postventa_revision: 1,
+      postventa_perfil_ids: ['99999999-9999-4999-8999-999999999999'],
+    })
+    server.use(
+      http.post(RUTA, () => HttpResponse.json({ version: 1, items: [milesima, entero] })),
+      http.post(POSTVENTA, () => HttpResponse.json([neutral])),
+    )
+
+    const tareas = await listarTareasDelAmbito()
+
+    // `localeCompare` habría puesto «.001» delante de «+00:00»; el orden de
+    // unidades de código es el cronológico.
+    expect(tareas.map((t) => t.id)).toEqual([entero.id, milesima.id, neutral.id])
+  })
+
+  it('una fila fuera de contrato se descarta CONTADA y el cursor sigue saliendo de la fila cruda', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    let llamada = 0
+    server.use(http.post(RUTA, async ({ request }) => {
+      cuerpos.push(await request.json() as Record<string, unknown>)
+      llamada += 1
+      const items = llamada === 1
+        ? Array.from({ length: TAMANO_LOTE_TAREAS + 1 }, (_, i) => filaTarea(i, i === TAMANO_LOTE_TAREAS - 1 ? { tipo: 'tipo_futuro' } : {}))
+        : [filaTarea(TAMANO_LOTE_TAREAS)]
+      return HttpResponse.json({ version: 1, items })
+    }))
+
+    const tareas = await listarTareasDelAmbito()
+
+    // 501 crudas en dos lotes, una fuera de contrato: la última fila cruda de
+    // la ventana (la inválida) sigue siendo el cursor y la lectura continúa.
+    const invalida = filaTarea(TAMANO_LOTE_TAREAS - 1)
+    expect(cuerpos[1]).toEqual({ p_limite: TAMANO_LOTE_TAREAS + 1, p_despues_de: invalida.vence_en, p_despues_id: invalida.id })
+    expect(tareas).toHaveLength(TAMANO_LOTE_TAREAS)
+    expect(console.error).toHaveBeenCalledWith('[ac-crm]', expect.objectContaining({
+      evento: 'crm.tareas.filas_invalidas',
+      datos: expect.objectContaining({ contexto: expect.objectContaining({ descartadas: 1 }) }),
+    }))
+  })
+
+  it('un payload con versión desconocida no se acepta como agenda', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({ version: 2, items: [] })))
+
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('un rechazo de la puerta viaja con su código', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json(
+      { code: '42501', message: 'No autorizado', details: null, hint: null },
+      { status: 403 },
+    )))
+
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({ code: '42501', message: 'No se pudo cargar la agenda.' })
+  })
+})
+
 describe('agenda mixta con postventa instalada (msw)', () => {
   const perfil = '99999999-9999-4999-8999-999999999999'
   const persona = '33333333-3333-4333-8333-333333333333'
@@ -641,17 +819,17 @@ describe('agenda mixta con postventa instalada (msw)', () => {
     const neutral = {...base, id: '22222222-2222-4222-8222-222222222222', perfil_id: null,
       inversionista_id: persona, inversionista_canonico_id: persona, postventa_revision: 1,
       postventa_perfil_ids: [perfil], vence_en: '2027-01-04T15:00:00.000Z'}
-    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+    server.use(http.post('http://supabase.test/rest/v1/rpc/tareas_pendientes_fn', () => HttpResponse.json({ version: 1, items: [base] })),
       http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json([neutral])))
     await expect(listarTareasDelAmbito()).resolves.toEqual([neutral, base])
   })
   it('una transición apagada devuelve íntegra la agenda anterior', async () => {
-    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+    server.use(http.post('http://supabase.test/rest/v1/rpc/tareas_pendientes_fn', () => HttpResponse.json({ version: 1, items: [base] })),
       http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json([])))
     await expect(listarTareasDelAmbito()).resolves.toEqual([base])
   })
   it.each(['42501', '40001', 'PGRST123'])('no oculta una respuesta fallida %s como agenda completa', async code => {
-    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+    server.use(http.post('http://supabase.test/rest/v1/rpc/tareas_pendientes_fn', () => HttpResponse.json({ version: 1, items: [base] })),
       http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json({code, message: 'Fallo de ensayo'}, {status: 500})))
     await expect(listarTareasDelAmbito()).rejects.toMatchObject({code})
   })

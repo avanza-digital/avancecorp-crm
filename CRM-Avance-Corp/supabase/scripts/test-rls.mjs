@@ -6049,6 +6049,169 @@ async function testActividadesDeLead(sessions, seed) {
   }
 }
 
+// — Tareas pendientes por cursor (Fase 2 del plan «sin topes», 20260919235100) —
+// La agenda deja de leer `from('tareas')` (PostgREST recortaba a 1 000) y pide
+// `crm.tareas_pendientes_fn(p_limite, p_despues_de, p_despues_id)` por lotes.
+// INVOKER ≡ RLS: para cada rol la puerta devuelve EXACTAMENTE las tareas
+// pendientes que su propia sesión ya ve en la tabla, en el orden (vence_en, id).
+// Se siembran dos tareas de vend1 con el MISMO vence_en: el desempate por id es
+// parte del cursor y un empate que cruza el borde de página es el caso que falla.
+async function testTareasPendientes(sessions, seed) {
+  console.log('\n— Tareas pendientes por cursor: invoker ≡ RLS, sin tope —');
+
+  const juan = LEAD_BY_KEY.juan;
+  const juanLead = seed.leadByName.get(juan.name);
+  const autor = seed.profileIdByKey[juan.sellerKey];
+  const empate = '2027-03-01T15:00:00Z';
+  const sembradas = [
+    { id: randomUUID(), titulo: 'GATE TAREAS CURSOR EMPATE A', vence_en: empate },
+    { id: randomUUID(), titulo: 'GATE TAREAS CURSOR EMPATE B', vence_en: empate },
+  ];
+  for (const fila of sembradas) {
+    await requireAdmin(
+      `sembrar tarea pendiente (${fila.titulo})`,
+      admin.schema('crm').from('tareas').insert({
+        id: fila.id, lead_id: juanLead.id, tipo: 'tarea', titulo: fila.titulo,
+        vence_en: fila.vence_en, creado_por: autor,
+      }),
+    );
+  }
+  // Una borrada (soft-delete) sobre el mismo lead: no debe viajar por ningún camino.
+  const borrada = { id: randomUUID(), titulo: 'GATE TAREAS CURSOR BORRADA' };
+  const borradaSembrada = await positive(
+    'sembrar tarea borrada (activo=false) sobre juan',
+    admin.schema('crm').from('tareas').insert({
+      id: borrada.id, lead_id: juanLead.id, tipo: 'tarea', titulo: borrada.titulo,
+      vence_en: empate, creado_por: autor, activo: false,
+    }),
+  );
+  const rpc = (key, args = {}) => sessions[key].client.schema('crm').rpc('tareas_pendientes_fn', args);
+  // Oráculo por sesión: la MISMA lectura que la pantalla hacía directo.
+  const oraculoRls = (key) => positive(
+    `${key}: tareas pendientes directo de la tabla (oraculo RLS)`,
+    sessions[key].client.schema('crm').from('tareas').select('id, vence_en')
+      .or('lead_id.not.is.null,perfil_id.not.is.null')
+      .eq('estado', 'pendiente').eq('activo', true)
+      .order('vence_en', { ascending: true }).order('id', { ascending: true }),
+  );
+
+  for (const key of ['vend1', 'vend2', 'sup1', 'sup1Nested', 'sup2', 'vendNested', 'gerencia', 'directorio', 'coordinador']) {
+    const directo = await oraculoRls(key);
+    const r = await positive(`${key} lee las tareas pendientes por la puerta`, rpc(key, { p_limite: 1000 }));
+    if (!directo || !r) continue;
+    const payload = r.data ?? {};
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    check(payload.version === 1 && Array.isArray(payload.items),
+      `${key}: el payload cumple el contrato {version, items}`);
+    const esperados = (directo.data ?? []).map((t) => t.id);
+    const recibidos = items.map((t) => t.id);
+    // El oráculo por PostgREST se recorta a 1 000 filas: la igualdad solo es
+    // honesta por debajo de ese tope (los fixtures tienen decenas).
+    assertSeed(esperados.length < 1000, `${key}: el oraculo de tareas roza el max_rows de PostgREST`);
+    check(recibidos.length === esperados.length && recibidos.every((id, i) => id === esperados[i]),
+      `${key}: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)`,
+      JSON.stringify({ rpc: recibidos.length, rls: esperados.length }));
+    check(items.every((t) => typeof t.id === 'string' && typeof t.vence_en === 'string'
+      && t.estado === 'pendiente' && t.activo === true && 'lead_nombre' in t && 'lead_etapa' in t),
+      `${key}: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa`);
+    if (borradaSembrada) {
+      check(!recibidos.includes(borrada.id) && !esperados.includes(borrada.id),
+        `${key}: la tarea borrada no viaja ni por la puerta ni por la tabla`);
+    }
+  }
+
+  // El lead embebido: las sembradas de juan viajan con su nombre y su etapa.
+  const v1 = await positive('vend1 pide sus tareas para comprobar el lead embebido', rpc('vend1', { p_limite: 1000 }));
+  if (v1) {
+    const mias = (v1.data?.items ?? []).filter((t) => sembradas.some((s) => s.id === t.id));
+    check(mias.length === 2 && mias.every((t) => t.lead_nombre === juan.name && typeof t.lead_etapa === 'string'),
+      'vend1: las tareas sembradas viajan con lead_nombre/lead_etapa de juan',
+      JSON.stringify(mias.map((t) => [t.lead_nombre, t.lead_etapa])));
+  }
+
+  // Paginación keyset: páginas de 2 (+1) reconstruyen el oráculo entero sin
+  // repetidos ni huecos, con el empate de vence_en cruzando o no el borde.
+  const oraculoV1 = await oraculoRls('vend1');
+  if (oraculoV1) {
+    const esperados = (oraculoV1.data ?? []).map((t) => t.id);
+    assertSeed(esperados.length >= 3, 'vend1 necesita al menos 3 tareas pendientes para paginar');
+    const paginado = [];
+    let cursor = null;
+    let ok = true;
+    for (let vuelta = 1; vuelta <= 50; vuelta += 1) {
+      const args = { p_limite: 3 };
+      if (cursor) { args.p_despues_de = cursor.vence_en; args.p_despues_id = cursor.id; }
+      const p = await positive(`vend1 pide la pagina ${vuelta} de 2 (+1)`, rpc('vend1', args));
+      if (!p) { ok = false; break; }
+      const items = p.data?.items ?? [];
+      const ventana = items.slice(0, 2);
+      paginado.push(...ventana.map((t) => t.id));
+      if (items.length <= 2) break;
+      cursor = { vence_en: ventana[1].vence_en, id: ventana[1].id };
+    }
+    check(ok && new Set(paginado).size === paginado.length, 'vend1: las paginas no repiten ninguna tarea');
+    check(ok && paginado.length === esperados.length && paginado.every((id, i) => id === esperados[i]),
+      'vend1: las paginas de 2 reconstruyen el oraculo completo sin huecos (empate de vence_en incluido)',
+      JSON.stringify({ paginado: paginado.length, oraculo: esperados.length }));
+  }
+
+  // Denegación solo por ADMISIÓN (P04: revocado ≠ ajeno). El alcance es de la RLS.
+  await expectExpectedFailure(
+    'vendInactive: membresia revocada → 42501 de ADMISION (P04)',
+    rpc('vendInactive'), ['42501'], /no autorizado/i,
+  );
+  await expectExpectedFailure(
+    'clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION',
+    rpc('clientBank'), ['42501'], /no autorizado/i,
+  );
+
+  // Input inválido: 22023 ANTES de leer nada.
+  await expectExpectedFailure('p_limite 0 → 22023', rpc('vend1', { p_limite: 0 }), ['22023'], /p_limite/);
+  await expectExpectedFailure('p_limite 1001 → 22023', rpc('vend1', { p_limite: 1001 }), ['22023'], /p_limite/);
+  await expectExpectedFailure(
+    'cursor a medias (solo p_despues_de) → 22023',
+    rpc('vend1', { p_despues_de: new Date().toISOString() }), ['22023'], /cursor/i,
+  );
+  await expectExpectedFailure(
+    'cursor a medias (solo p_despues_id) → 22023',
+    rpc('vend1', { p_despues_id: randomUUID() }), ['22023'], /cursor/i,
+  );
+
+  // ACL + forma (vía fuera de banda del banco): puerta y núcleo INVOKER, EXECUTE
+  // exactamente para authenticated, índice del cursor válido, gate propio en OK.
+  if (process.env.CRM_BANCO_PSQL_URL) {
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`tareas por cursor: ${etiqueta}`, sql);
+    check(cuenta('grants', `select count(*) from unnest(array['crm.tareas_pendientes_fn(integer,timestamptz,uuid)','private.tareas_pendientes_core(integer,timestamptz,uuid)']) f(firma)
+      where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+         or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+      'tareas por cursor: puerta y nucleo exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('invoker', `select count(*) from pg_proc p where p.oid in ('crm.tareas_pendientes_fn(integer,timestamptz,uuid)'::regprocedure, 'private.tareas_pendientes_core(integer,timestamptz,uuid)'::regprocedure) and not p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""']`) === 2,
+      'tareas por cursor: puerta y nucleo son INVOKER, stable y con search_path vacio');
+    check(cuenta('indice', `select count(*) from pg_index i where i.indexrelid = 'crm.tareas_pendientes_keyset_idx'::regclass and i.indisvalid and i.indpred is not null`) === 1,
+      'tareas por cursor: el indice parcial del cursor existe y es valido');
+    check(cuenta('gate revocado', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol), unnest(array['private.assert_tareas_pendientes()','private.assert_tareas_pendientes_base()']) f(firma) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`) === 0,
+      'tareas por cursor: los dos trinquetes no tienen EXECUTE para la API');
+    check(textoFueraDeBanda('gate propio', 'select private.assert_tareas_pendientes()').startsWith('OK'),
+      'tareas por cursor: el trinquete private.assert_tareas_pendientes() responde OK');
+    let mutantes = '';
+    try {
+      mutantes = textoFueraDeBanda('mutantes del trinquete', 'select private.assert_tareas_pendientes_mutantes()');
+    } catch (error) {
+      mutantes = `FALLO: ${error?.message ?? String(error)}`;
+    }
+    check(mutantes.startsWith('OK'), `tareas por cursor: los 17 mutantes del trinquete fueron detectados (${mutantes})`);
+  } else {
+    console.log('  · ACL/forma de las tareas por cursor: NOT RUN (sin CRM_BANCO_PSQL_URL)');
+  }
+
+  // Las sembradas se retiran como el resto de transitorias: cancelación, nunca DELETE.
+  await requireAdmin(
+    'retirar las tareas sembradas del gate de tareas por cursor',
+    admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).in('id', sembradas.map((s) => s.id)),
+  );
+}
+
 // — Ventana de actividades del ámbito (F0 del plan de escalabilidad) ---------
 // 20260808163638 recorta actividades_del_ambito_fn a 365 días + limit 10000.
 // Se siembra con service_role una actividad VIEJA (400 días) sobre un lead de
@@ -12838,6 +13001,11 @@ async function testAnon(seed) {
     ['42501', 'PGRST202'],
   );
   await expectExplicitAuthorizationDenied(
+    'anon no ejecuta las tareas pendientes por cursor',
+    anon.schema('crm').rpc('tareas_pendientes_fn', { p_limite: 10 }),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
     'anon no ejecuta la cartera paginada por keyset',
     anon.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
     ['42501', 'PGRST202'],
@@ -13426,6 +13594,7 @@ async function main() {
       await testOffboardingMatrix(sessions, verifiedSeed);
       await testVentanaActividades(sessions, verifiedSeed);
       await testActividadesDeLead(sessions, verifiedSeed);
+      await testTareasPendientes(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);
