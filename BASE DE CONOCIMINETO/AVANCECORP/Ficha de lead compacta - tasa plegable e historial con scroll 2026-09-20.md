@@ -1,7 +1,7 @@
 ---
 tags: [crm, leads, ux, tasa, historial]
 fecha: 2026-09-20
-estado: validado-local-pendiente-publicacion
+estado: publicado-verificado
 ---
 
 # Ficha de lead compacta — tasa plegable e historial con scroll
@@ -38,11 +38,30 @@ anteriores» siguen funcionando dentro de la región denominada
 - Pruebas nuevas: el panel inicia oculto sin liberar la conversión y el timeline
   conserva región, altura máxima y overflow vertical.
 - **PASS:** lint (solo cuatro avisos preexistentes en `coverflow-carousel.tsx`),
-  typecheck, 16 pruebas focales, suite completa de 264 archivos / 3.898 pruebas,
+  typecheck, 16 pruebas focales, suite completa de 264 archivos / 3.895 pruebas,
   build y `git diff --check`.
 - **PASS:** 8 E2E afectados en escritorio/móvil y recorrido Playwright local con
   tasa cerrada, tasa abierta e historial de 12 actividades desplazado dentro de
   su propio riel. Las capturas locales quedan fuera del release.
 
-Pendiente integrar en `avancecorp/main`, construir desde ese commit limpio y
-publicar solamente el frontend del CRM.
+## Publicación verificada
+
+- **PR:** `#48`, integrado por squash en `avancecorp/main` el 2026-09-20.
+- **Commit fuente:** `004bd69f330324b28ac71ed7a3874acced7785d8`.
+- **CI de `main`: PASS:** `verify` en 11 min 57 s y `e2e` en 13 min 27 s.
+- **Release:** `crm-20260920T182520Z-004bd69f3303`.
+- **Build ID:** `build-20260920T182519890Z`.
+- **ZIP:** 2.255.016 bytes; SHA-256
+  `51e1ab8cbda28a5b96fb44383990deeb01c54c6cef862471fa09eacd58074122`.
+- **Destino:** `https://crm.miavance.com/`; publicación aceptada por Hostinger
+  y verificada el 2026-09-20 a las 13:52 (-05).
+- **PASS en vivo:** portada y `version.json` responden 200; el `index.html` y
+  los 12 assets JS/CSS de entrada coinciden byte por byte con el release; el
+  ZIP responde 404 tanto en `crm.miavance.com` como en `miavance.com`.
+- **NOT RUN:** smoke visual directo en producción porque no había navegador
+  interactivo conectado a la sesión. Quedan como evidencia equivalente el
+  recorrido visual local y los E2E del PR y de `main`, ambos aprobados.
+
+No se publicó backend, migraciones ni cambios de datos. El rollback inmediato
+conservado es el release `crm-20260920T074547Z-dbfa9d6bffcf`, commit
+`dbfa9d6bffcfdf5e9b1cbc2c5a577a56a6cda737`.
