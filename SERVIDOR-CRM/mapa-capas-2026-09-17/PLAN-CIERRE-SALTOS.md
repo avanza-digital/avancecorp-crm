@@ -17,7 +17,7 @@ Un paso = un PR. Si un paso se complica, se parte en dos; no se mezclan pasos.
 | # | Foco | Qué leen directo | Saltos | Qué se hace |
 |---|---|---|---|---|
 | 1 | Leads y cartera | `crm.leads`, `alertas_reconocimientos`, `recordatorios_disponibilidad` | 17 | 1–2 puertas de lectura/escritura; 16 pantallas y el store pasan por ellas |
-| 2 | Agenda, tareas y reuniones | `crm.tareas`, `crm.actividades`, `crm.agenda_ics` | 12 | puertas de agenda; las pantallas dejan `from()` |
+| 2 | Agenda, tareas y reuniones | `crm.tareas`, `crm.actividades`, `crm.agenda_ics` | 12 → 6 (19/09) | puertas de agenda; las pantallas dejan `from()`. 19/09: la lista de tareas va por `crm.tareas_pendientes_fn` (Fase 2 «sin topes») y el historial por `crm.actividades_de_lead_fn` (Fase 1); quedan escrituras y la lectura puntual por id |
 | 3 | Contratos y capital | `crm.operaciones_cartera` | 3 | una puerta |
 | 4 | Clientes (perfiles) | `public.perfiles` | 3 | una puerta |
 

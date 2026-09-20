@@ -1,5 +1,15 @@
 # Mapa de capas del servidor CRM — 17/09/2026
 
+**Regenerado el 19/09/2026 (~20:30 Lima) en disco tras la Fase 2 «sin topes».** Mismos guiones (`evidencia/sql/*.sql`
+releídas del catálogo vivo, `analyze-front.mjs`, `analyze-edges.mjs`, `mapa-datos.py`, plantilla): 682 funciones (antes
+657: historial por lead `20260919185718`, tareas por cursor `20260919235100`, Gestión Diaria F1 `20260919211958`, grant
+por columna `20260919211105`), 169 saltos (antes 171; A 51, antes 56). Los saltos A «Agenda, tareas y reuniones ⇢
+pantalla» pasan de 12 a 6: desaparecen los de Config · Metas, Config · Usuarios, Derivaciones, Equipo, Pipeline y
+Seguimiento, que bebían de la lectura directa de `crm.tareas` del arranque (hoy `crm.tareas_pendientes_fn`); quedan las
+escrituras por PostgREST (`insertarTarea`/`actualizarTarea`) y la lectura puntual `obtenerTareaDelAmbitoPorId` (Fase 3/4).
+**El artifact en línea sigue en la v3.1 del 17/09**: republicar en la misma URL exige leer antes el artifact (0,8 MB) en la
+conversación; queda para una sesión con contexto fresco (`mapa-capas-crm.html` de esta carpeta es la versión vigente).
+
 **Artifact interactivo (privado):** https://claude.ai/artifact/7rSe49eefhyVyuXgKZpg81 (versión 3.1, 17/09/2026 ~00:10 UTC del 18/09)
 **Página en disco:** `mapa-capas-crm.html` (es el mismo HTML publicado; ábrelo con `file://`).
 
