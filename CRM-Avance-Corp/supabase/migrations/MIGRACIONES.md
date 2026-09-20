@@ -80,6 +80,159 @@ Concurrencia (dos sesiones) **NOT RUN**: el orden de candados se alineó por con
 (el front llama a la RPC nueva: SQL primero). Reversa: `scripts/gestion-diaria-resultado/reversa.sql`
 (conserva la metadata escrita: es historia).
 
+## 20260919235100 — Tareas pendientes por cursor: la agenda sin tope (Fase 2 «sin topes»)
+
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~19:47 Lima, Miguel con `!` + `db query --linked --file`, archivo
+exacto; el primer intento de las ~19:30 no llegó a la base: sin objetos, sin registro y sin rastro en los
+logs) y REGISTRADA (~19:52 Lima, `registrar-20260919235100.sql`; cuerpo md5 `3812914e49d1897ca24433165150d389`,
+idéntico al del archivo). Verificado en prod tras instalar: gate propio OK; puerta invoker; EXECUTE solo
+`authenticated` (anon y service_role sin); índice válido; md5 de `pg_get_functiondef` puerta
+`5edd699559108383a0e44a90b51d9ad6`, núcleo `6c7b921a01e4e81f6a76c7b8f5154421`, gate `cb32d6c7a31dad61f1aea7842e185465`
+(iguales a los de la copia local: mismo archivo byte a byte). **Gerencia por la puerta, sesión real: página 1 =
+1 000, página 2 = 156, total 1 156 = su RLS, 1 156 ids distintos, todas con `lead_nombre`/`lead_etapa`**; un
+vendedor: 90 = 90 en el mismo orden; la llamada de 501 tarda 58,8 ms. Sonda anónima por PostgREST
+(`Content-Profile: crm`): `{"p_limite":10}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` →
+PGRST202. **FRONT PUBLICADO ~20:00 Lima: release `crm-20260920T005739Z-380643a84725` (commit `380643a8` = PR #35
+fusionada por squash; SHA-256 `11689799…`), construido en un worktree LIMPIO en ese commit con `npm ci` propio
+(`app/` y raíz) y las dos `VITE_*` públicas por entorno; `npm run check` PASS (259 archivos, 3 821 tests, bundle
+limpio); `ARTEFACTO_OK`; preflight OK (vivo `build-20260919T222832122Z`/`4bd3dc1b` de la sesión de prefijos ⊂
+candidato; su ZIP se copió al taller para resolverlo y como rollback); publicado por Miguel desde su terminal con
+`deploy-hostinger-mcp.mjs deploy` (la MCP de Hostinger no conectó). Smoke: HTTP 200, `version.json`
+`build-20260920T005738619Z`, `index-CIwyW_hp.js` 200, `index.html` byte a byte el del ZIP, ZIP 404. Gerencia ya
+recibe sus 1 156 pendientes en la agenda (1 000 + 156 por la puerta). `main` local pendiente de integrar el tronco
+(un cambio ajeno sin commitear en una nota del vault lo bloquea).** Fase 2 del plan «sin topes»
+(`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`; objetivo fijado por Miguel el 19/09: que ninguna
+pantalla pierda tareas por el corte de 1 000 filas y que las tareas se lean por una puerta de la capa 3).
+
+**Pedido y causa (medida en prod el 19/09, noche).** El front pedía las tareas pendientes del ámbito en
+UNA llamada directa a `crm.tareas` (`limit 2000`, orden `vence_en asc, id asc`); PostgREST recorta a
+**1 000** y la alarma (calibrada a 2 000) nunca sonaba. Gerencia: **1 156 pendientes → ya perdía 156**, las
+de vencimiento más lejano (Agenda mes/semana, Citas de gerencia, avisos de vencidas). Supervisores 699 y
+457; ritmo 1 236 tareas nuevas/semana. `crm.tareas`: 5 067 filas, 1 160 pendientes activas (1 156
+ancladas a lead o perfil; 4 solo a `inversionista_id`, que sirve `postventa_agenda_fn`), 0 con lead
+borrado, 112 vencimientos empatados (el desempate por id es real). Además la pantalla leía la tabla
+directo: salto de capa (Etapa 1, foco 2 del plan de cierre de saltos).
+
+**Las cuatro capas.** Tabla `crm.tareas` intacta salvo UN índice parcial nuevo
+`tareas_pendientes_keyset_idx (vence_en, id) where estado='pendiente' and activo` (rendimiento, no
+seguridad: no forma parte del gate). NÚCLEO `private.tareas_pendientes_core(int,timestamptz,uuid)`
+(`sql stable security invoker`, `search_path=''`, EXECUTE a `authenticated` porque lo llama una puerta
+invoker; `private` no está expuesto): página keyset `(vence_en asc, id asc)` en forma de **tupla**
+`(vence_en, id) > (p_despues_de, p_despues_id)` (ambas ASC: legal e indexable; la cartera keyset explica
+lo contrario para su caso mixto), mismo predicado que usaba la pantalla (`estado='pendiente' and activo
+and (lead_id is not null or perfil_id is not null)`), `left join crm.leads` bajo `leads_select` para
+`lead_nombre`/`lead_etapa` (**nullable**: `tareas_select` mira columnas de la tarea, no del lead; el
+único camino real «tarea visible, lead no» es el re-apuntado por `inversionista_id` de `20260910150039`),
+`to_jsonb` de las 22 columnas de `COLUMNAS_TAREA` + las dos del lead (ni `creado_por`, ni
+`cancelada_por*`, ni `inversionista_id` viajan). PUERTA `crm.tareas_pendientes_fn(p_limite=500 [1..1000],
+p_despues_de, p_despues_id) returns jsonb {version:1, items}` (`plpgsql stable security invoker`): 22023
+por input (tope 1 000 porque el front pide 500+1; el payload es UN jsonb y `max_rows` no lo recorta),
+`private.puede_acceder_crm()` → 42501 «No autorizado» (P04), y delega. **Sin predicado de ámbito
+copiado**: el alcance lo pone `tareas_select` y la puerta devuelve exactamente lo que la tabla ya
+mostraba a cada rol (coordinador: `{version:1, items:[]}`, igual que la tabla). Se DESCARTÓ la «pista de
+ámbito» del plan (un `vendedor_id = any(vendedor_ids_visibles)` redundante + índice por vendedor): medido
+en prod bajo sesión real (`set role authenticated` + `request.jwt.claims`), sin índice ni pista la lectura
+tarda **15 ms** para un analista (90 visibles de 1 164) y **13 ms** para gerencia (1 156); un predicado
+copiado por milisegundos que nadie nota sería la semilla del próximo desfase (`20260902050000`).
+
+**Preflight/postflight.** Base compartida `private.assert_tareas_pendientes_base()` (misma función en el
+preflight y dentro del gate): ayudantes de autoridad; USAGE de `authenticated` sobre `private`; SELECT
+sobre `crm.tareas`; `has_column_privilege` de `crm.leads.id/nombre_completo/etapa` (grants POR COLUMNA:
+la falla muda conocida); huella `md5(pg_get_expr(polqual))` de `tareas_select` medida en prod el 19/09 =
+`073deaeb5700bac14209ec795b71567e` (idéntica a la de `leads_select`: `20260902040000` dejó ambos cuerpos
+textualmente iguales); conjunto de PERMISIVAS de lectura = exactamente `tareas_select`, solo para
+`authenticated`; restrictiva `crm_actor_activo_gate` presente (la restrictiva `tareas_postventa_lectura`
+no se sella: solo resta y la puerta la hereda por ser invoker). Candado «ya instalada» (funciones e
+índice). Gate propio `private.assert_tareas_pendientes()`: puerta y núcleo NO definer, `provolatile='s'`,
+`search_path=""`, owner postgres; guardia de admisión en la puerta (`strpos(prosrc,'puede_acceder_crm')`);
+ACL exactamente `{authenticated}`; base (que además exige **RLS activa** —`relrowsecurity`— en `crm.tareas`
+y `crm.leads`: desactivarla deja las policies en el catálogo sin aplicarse). Postflight: gate + índice válido +
+`assert_sla_nucleo/operacion/comandos/avisos` (los 4 rojos ajenos no se invocan). **17 mutantes**
+(`private.assert_tareas_pendientes_mutantes()`, solo banco, subtransacciones con desenlace triple: detectado /
+NO detectado / NO aplicado —un DDL roto ya no cuenta como defensa probada—): puerta definer, núcleo definer,
+`tareas_select using (true)`, permisiva nueva, puerta sin guardia, guardia solo en un comentario, puerta a
+anon, núcleo a anon, núcleo sin `search_path`, núcleo volatile, `tareas_select to public`, sin
+`crm_actor_activo_gate`, `revoke select` de `crm.leads` (la trampa del revoke de tabla, deshecha por el
+bloque) y de `crm.tareas`, sin USAGE de `private`, RLS desactivada en `crm.tareas` y en `crm.leads`.
+`notify pgrst`. Reversa: drop de las 5 funciones + índice; nada de datos que deshacer.
+
+**Ensayo LOCAL (19/09, tres corridas; la última ~20:10 Lima tras las revisiones) — PASS, sin divergencias.** No se usó `banco-f7` (va en `20260910234453`,
+sin mundo SLA ni restrictiva de postventa): copia `tareas_cursor_20260919` en el contenedor local
+`supabase_db_avancecorp-f5-bank` (58322), creada como `supabase_admin` desde
+`conversion_inversion_base_20260919` (paridad `20260917235656`, CON los 4 `assert_sla_*` y CON
+`tareas_postventa_lectura`), archivo EXACTO aplicado en un solo mensaje (`psql -c`). Guion
+`supabase/scripts/tareas-pendientes/ensayar-local.sh`; resultado en `verificacion.json`; nota en
+`scripts/banco/parches/DIVERGENCIAS.md`. Gate OK; **17/17 mutantes** detectados y esquema intacto (9
+policies, huella igual, RLS activa en ambas tablas, puerta/núcleo invoker, anon sin EXECUTE, USAGE y grants
+presentes, índice válido); matriz de **11 actores**
+por SQL bajo la RLS real: ids de la puerta = ids de la tabla en orden `(vence_en, id)` para todos
+(gerencia 7, sup1 5, sup2 2, sup1Nested 1, vend1 3, vend2 0, vend3 1, vend4 0, vendNested 1, coordinador
+0, directorio 7), forma pendiente+activa+`lead_nombre`/`lead_etapa`, la tarea borrada no viaja por ningún
+camino, vend1 ve las dos sembradas (MISMO `vence_en`) con el nombre y la etapa de juan; keyset de 2 (+1)
+reconstruye el oráculo sin repetidos ni huecos; `p_limite` 0/1001 y cursor a medias en los dos sentidos →
+22023; vendInactive y clientBank → 42501 «No autorizado»; anon → `permission denied for schema crm`.
+**Volumen > 1 000:** 1 200 tareas sembradas para vend1 (300 vencimientos con 4 empates cada uno): la puerta
+en lotes de 501 (3 vueltas) reconstruye exactamente las 1 203 filas que su RLS muestra, sin repetidos ni
+huecos. `EXPLAIN` con planificador normal y cursor profundo (vend1 y gerencia): `Limit → Sort → Bitmap Heap
+Scan` con `Bitmap Index Scan on tareas_pendientes_keyset_idx` (`Index Cond ROW(vence_en, id) > ROW(cursor)`,
+703 filas tras el cursor); con `enable_seqscan off`, `Index Scan` directo. Experimento adicional:
+el camino «tarea visible con lead invisible» NO se puede sembrar por soft-delete (al poner `activo=false`
+un lead, el trigger de sincronización cancela sus pendientes: medido); queda documentado, no clavado.
+`test-rls.mjs` por HTTP (`testTareasPendientes` + sonda anónima): **NOT RUN** (sin claves en la sesión).
+
+**Revisiones (19/09).** `auditor-rls`: CHANGES_REQUESTED sin P0/P1; **sin fuga ni desfase** (puerta y
+núcleo invoker; el `left join` no filtra tareas; `to_jsonb` no expone columnas de más; EXECUTE del núcleo
+a `authenticated` no es problema; tupla con cursor nulo correcta; sin `count(`). Aceptados: P2 esta acta;
+P3 cinco mutantes más; P3 cita errónea del grant por columna (corregida). P3 «caso tarea visible con lead
+invisible»: intentado y no sembrable por soft-delete (arriba). P3 (hipótesis MEDIUM): en `language sql` el
+`p_despues_de is null or (...)` puede impedir que la tupla sea condición de índice; medido en la copia con
+cursor profundo: el planificador SÍ usa el índice (`Bitmap Index Scan` con la `ROW` como condición);
+irrelevante a esta escala (13–15 ms), se re-mide en prod. **Codex (CLI `codex exec --sandbox read-only`,
+porque el MCP no conectó): CHANGES_REQUESTED con 3 P2, los tres ACEPTADOS:** (1) la alarma de postventa
+volvía a 20 000 sin que su RPC dejara de tener `limit 2000` → restaurada a 2 000
+(`LIMITE_AGENDA_POSTVENTA`, alarma `tareas_postventa`); (2) la protección del bucle solo detectaba la
+repetición consecutiva → el cursor debe AVANZAR en sentido estricto en el orden del servidor (repetición,
+retroceso y ciclo A→B→A cortan con `ROW_CONTRACT`; pruebas MSW nuevas); (3) el gate no comprobaba
+`relrowsecurity` → base + 2 mutantes. También aceptados: mutantes con desenlace triple (un DDL que no aplica
+ya no cuenta), guardia de admisión comprobada por su forma exacta (+ mutante «nombre solo en un
+comentario»), orden cronológico de la fusión con postventa por unidades de código en vez de
+`localeCompare` (defecto PREEXISTENTE: la colación ponía `…:00.001+00:00` delante de `…:00+00:00`; con
+prueba), oráculo del `test-rls` protegido contra el `max_rows`, umbral de tendencia probado con 20 001,
+mock E2E con keyset por valor, matriz > 1 000 filas en la copia. Rechazado/aplazado: medir el plan «sin
+forzar índices» ya está hecho en la copia y se repite en prod; el mutante de propietario (`owner`) no se
+añade (exige otro rol en el banco).
+
+**Front (misma PR, publicar DESPUÉS del SQL).** `listarTareasDelAmbito` (`crm-api.ts`): bucle por cursor
+contra `tareas_pendientes_fn` en lotes de `TAMANO_LOTE_TAREAS = 500` (pide 501), **sin constante de
+tope**; `ALARMA_TENDENCIA_TAREAS = 20 000` avisa (`crm_api.tope_alcanzado`, lectura
+`tareas_del_ambito_tendencia`) pero no corta; la agenda de postventa conserva su alarma a 2 000
+(`LIMITE_AGENDA_POSTVENTA`, espejo del `limit 2000` de su RPC); cursor de la ÚLTIMA FILA CRUDA que debe
+AVANZAR en sentido estricto (`avanzaCursorTarea`: repetición, retroceso o ciclo → `ROW_CONTRACT`, nunca
+gira para siempre); dedupe por id entre lotes; filas fuera de contrato contadas; fusión con
+`postventa_agenda_fn` ordenada por `compararTareasPorVencimiento` (unidades de código). `Tarea` gana
+`lead_nombre?`/`lead_etapa?` (`TareaRowSchema` opcional nullable; nadie los consume hasta la Fase 4).
+`database.types.ts` a mano (`tareas_pendientes_fn`). Ruta E2E `/rest/v1/rpc/tareas_pendientes_fn` en
+`_helpers.ts` (keyset por VALOR sobre `estado.tareas`, como el servidor); la ruta GET `/rest/v1/tareas`
+sigue viva para `obtenerTareaDelAmbitoPorId` (salto pendiente para la Fase 3/4). MSW: bucle de 3 lotes con
+cursores exactos, un solo lote, repetidos entre lotes, tendencia con 20 001 filas enteras, cursor que no
+avanza, ciclo A→B→A, retroceso, orden cronológico con precisión mixta, fila fuera de contrato contada (y el
+cursor que sale de ella), versión desconocida, 42501. Pantallas intactas.
+
+**Matriz `test-rls.mjs` (`testTareasPendientes`, NOT RUN hasta el banco).** Siembra dos tareas de juan con
+el MISMO `vence_en` y una borrada; para vend1/vend2/sup1/sup1Nested/sup2/vendNested/gerencia/directorio/
+coordinador: puerta = `from('tareas')` de la misma sesión en orden `(vence_en, id)`, forma, la borrada no
+viaja; lead embebido (juan); páginas de 2 (+1) reconstruyen el oráculo; vendInactive/clientBank → 42501
+«No autorizado»; `p_limite` 0/1001 y cursor a medias en los dos sentidos → 22023; anon → 42501/PGRST202;
+fuera de banda: ACL exacta, forma, índice válido, trinquetes sin EXECUTE, gate OK, 11 mutantes. Las
+sembradas se retiran por cancelación.
+
+**Orden de instalación.** `npx supabase db query --linked --file supabase/migrations/20260919235100_crm_tareas_pendientes_keyset.sql`
+(Miguel con `!`) → medir md5 de `pg_get_functiondef` en prod → `node supabase/scripts/tareas-pendientes/generar-registrador.mjs`
+→ `npx supabase db query --linked --file supabase/scripts/registrar-20260919235100.sql` → sonda anónima
+(`{"p_limite":10}` → 42501; `{"p_nope":1}` → PGRST202) → `EXPLAIN` bajo sesión real → fusionar PR →
+worktree limpio + `npm ci` → `release:crm` + preflight → publicar → smoke contra el ZIP → actualizar esta
+acta, mapa de capas (Foco 2 sin la lectura directa de `crm.tareas`), vault y `main` el mismo día.
+
 ## 20260919211958 — Gestión Diaria (F1): registro crudo de actividad por ámbito y día
 
 **🧪 ENSAYADA EN EL BANCO LOCAL el 19/09/2026 · PENDIENTE DE INSTALAR en producción.**
@@ -149,6 +302,7 @@ entero; gerencia filtra por equipo (subárbol del supervisor, solo activos) desd
 y luego `supabase/scripts/registrar-20260919211958.sql` (generado, fail-closed).
 **Reversa:** `scripts/gestion-diaria/reversa.sql` (solo retira objetos nuevos; tras
 retirar el front). Detalle en `scripts/gestion-diaria/README.md`.
+
 
 ## 20260919185718 — Historial por lead: completo e igual para todos los roles
 

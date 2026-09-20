@@ -1,0 +1,398 @@
+{
+  "status": "PASS",
+  "at": "2026-09-19T22:33:48.512Z",
+  "domain": "crm.miavance.com",
+  "files": [
+    {
+      "file": "assets/agenda-BkslJ5AX.js",
+      "status": 200,
+      "sha256": "873f9dfdb4c3b247b6c31d70bc054f11c80eccdbf3063a90e8e9bdf9e5473c44",
+      "bytes": 30791
+    },
+    {
+      "file": "assets/agenda-vistas-BsHc5ReW.js",
+      "status": 200,
+      "sha256": "a7b9a9a2836b15afd46ccb5cf6d7ba1177001ce6cbbe85ddad8545276b3e8c1a",
+      "bytes": 3652
+    },
+    {
+      "file": "assets/alertas-aryRvxeG.js",
+      "status": 200,
+      "sha256": "c720f24cdf61c664013fe47c7ced7814c175cb57a86b59b1a8d196d5bb1814d4",
+      "bytes": 15216
+    },
+    {
+      "file": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "bytes": 947
+    },
+    {
+      "file": "assets/aviso-degradacion-py2WSmqW.js",
+      "status": 200,
+      "sha256": "4dd572970f923b128ce08b6e1cf0c640318271d6ec353e5689fbe6100ca2b606",
+      "bytes": 1198
+    },
+    {
+      "file": "assets/button-WZlb2LPp.js",
+      "status": 200,
+      "sha256": "d0845813f6a20cd482b480205e335d3e70d9e89a1082da1823ff4da53823c3cf",
+      "bytes": 1964
+    },
+    {
+      "file": "assets/card-5iFsqjqS.js",
+      "status": 200,
+      "sha256": "4871585e53b22b83408cd6ae3842fe7c9d7f1c8f476ba34c8cfecaf1394b2a89",
+      "bytes": 737
+    },
+    {
+      "file": "assets/cartera-BTAX9OCd.js",
+      "status": 200,
+      "sha256": "98e7fc0ae0b19c6926e3ae494d23fbb00f98fa8fbee4f46eabfd2af4b4a4c0cb",
+      "bytes": 15883
+    },
+    {
+      "file": "assets/cierres-externos-seccion-DmPLcPd6.js",
+      "status": 200,
+      "sha256": "6ab70cc1cdd1f119f2776149ca90faa8ac70df14bc67bfd6eb76b7e9d84dbe9a",
+      "bytes": 15196
+    },
+    {
+      "file": "assets/clientes-vista-BT9wOPoj.js",
+      "status": 200,
+      "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "bytes": 304
+    },
+    {
+      "file": "assets/config-citas-_mhsHXxg.js",
+      "status": 200,
+      "sha256": "edc89e81dfce1c589ea12faad41b2df718600292675141c5f55979cf597c6fbf",
+      "bytes": 16925
+    },
+    {
+      "file": "assets/config-DJBtd4Wa.js",
+      "status": 200,
+      "sha256": "25fc15b94af4178056f80e5a43e02524969ede0ff8c2b6b376311d46f9353c68",
+      "bytes": 11877
+    },
+    {
+      "file": "assets/config-metas-C7uwlLdF.js",
+      "status": 200,
+      "sha256": "dbc716da213598186797f91b413c825a69b6b79028fc4899491b854a926e37aa",
+      "bytes": 16003
+    },
+    {
+      "file": "assets/config-productos-CYYVTzAj.js",
+      "status": 200,
+      "sha256": "3926a47630ab403a148b17aaacf7d56ff40646ebd1bdedd7fca176cc2c09b430",
+      "bytes": 27032
+    },
+    {
+      "file": "assets/config-rentabilidad-CjG4p6Uw.js",
+      "status": 200,
+      "sha256": "63629468c8b3a0808c0d91fe76f68ee34fa7b1f6984a51b328438066e1843b06",
+      "bytes": 14368
+    },
+    {
+      "file": "assets/config-sla-DAayGgJf.js",
+      "status": 200,
+      "sha256": "dec23348c4a762ee83fa9f024883cbe3c85b51ee6d30f5f3b94dd2c085fd3bd9",
+      "bytes": 17133
+    },
+    {
+      "file": "assets/config-usuarios-Dsh3VEhE.js",
+      "status": 200,
+      "sha256": "b0ff8dee520dd0ceefa672c4ebf1c07f20808dd299a7fb90a908ece97ae6cadf",
+      "bytes": 23830
+    },
+    {
+      "file": "assets/configuracion-shell-HOkYz4d6.js",
+      "status": 200,
+      "sha256": "d6d7e01e5c217df36f40baf2310e5ff0c5a5973b7b54ba5bbc4589fd44123dfa",
+      "bytes": 1805
+    },
+    {
+      "file": "assets/control-citas-D561QmPB.js",
+      "status": 200,
+      "sha256": "533ad6be828268ae4ba9be297267f1f409c26170ebebb495160ac94d36a0fc9f",
+      "bytes": 4187
+    },
+    {
+      "file": "assets/controles-periodo-derivaciones-BxM_UDjt.js",
+      "status": 200,
+      "sha256": "e026e71b4008967e9fb9f58892960a20dcb3df268cb5c2fa01601b0561d84ef1",
+      "bytes": 2528
+    },
+    {
+      "file": "assets/crm-api-BIMIVp-L.js",
+      "status": 200,
+      "sha256": "c474aace5d36e62531ea823c2b4456e5303c1e3a966194d88543d2ea14120bbc",
+      "bytes": 217886
+    },
+    {
+      "file": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "bytes": 244552
+    },
+    {
+      "file": "assets/derivaciones-CQ675v2Z.js",
+      "status": 200,
+      "sha256": "a0758f0e839f15b6188fa28ca61a4829406bceaf0de3d2a584dc59d27b16fa19",
+      "bytes": 13081
+    },
+    {
+      "file": "assets/desglose-monedas-iVbv6Mun.js",
+      "status": 200,
+      "sha256": "f1638e4ec20665facce8cfb0480dee235a5856c9743af8cd45a224c0ddd5f239",
+      "bytes": 701
+    },
+    {
+      "file": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "bytes": 12574
+    },
+    {
+      "file": "assets/distribucion-lecturas-0QJWWIae.js",
+      "status": 200,
+      "sha256": "4b5ee3cb535687fc3ba44335924d80bfe6380f858002e9d784e95526972f2df9",
+      "bytes": 7528
+    },
+    {
+      "file": "assets/echart-bar-zaBjtg2h.js",
+      "status": 200,
+      "sha256": "5136a8f0985bb0c9216c3fc6e6c66af1de4e51eb01c91a8c501a304d5b862c5c",
+      "bytes": 21988
+    },
+    {
+      "file": "assets/echart-C5GPmthq.js",
+      "status": 200,
+      "sha256": "270dfc0a2bc45b42b631b9abed4467c7d98ab168f3a34db7c24d5745fcb6f776",
+      "bytes": 487201
+    },
+    {
+      "file": "assets/echart-line-tx9JLlab.js",
+      "status": 200,
+      "sha256": "80802f189c717a4724f3873eab462cc67a033994a12073217115869e0a05e658",
+      "bytes": 45314
+    },
+    {
+      "file": "assets/equipo-BDLfTsUY.js",
+      "status": 200,
+      "sha256": "1ef65a896830a48561f15d6d582aefab1623643ee3ca124a102f341de398d4c6",
+      "bytes": 26131
+    },
+    {
+      "file": "assets/facturacion-DEZyJYiR.js",
+      "status": 200,
+      "sha256": "0b8e260c08435c6152b5c8ce81cbcbee547283c66b9873d7bd9e00a5ba6a38db",
+      "bytes": 30930
+    },
+    {
+      "file": "assets/gerencia-BaLUQF8y.css",
+      "status": 200,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "bytes": 17293
+    },
+    {
+      "file": "assets/gerencia-Bsx8spgC.js",
+      "status": 200,
+      "sha256": "4e98b44ae97561ecfca28a94b4b77c77d5897d1df51ec7eaab3bd2c82d7ab9b6",
+      "bytes": 100151
+    },
+    {
+      "file": "assets/gerencia-DILsw97X.js",
+      "status": 200,
+      "sha256": "c1d9328e448cd5d736ea28e54b8909233d288af948c84c8043a088244c804cee",
+      "bytes": 190188
+    },
+    {
+      "file": "assets/historial-decisiones-tasa-gerencia-D9_KlFIe.js",
+      "status": 200,
+      "sha256": "650eda8dec5d63cfff06dda06d02d2268a3638c6f90ec9726c2a40d0da60e24e",
+      "bytes": 14169
+    },
+    {
+      "file": "assets/hoy-BEW3VgNb.js",
+      "status": 200,
+      "sha256": "9e0edb20e3ff70e5da26e95ffc73f8cf551eb72454cea999f6b7c64a19caf1a8",
+      "bytes": 92028
+    },
+    {
+      "file": "assets/index-DEdo03gm.js",
+      "status": 200,
+      "sha256": "de2d221f22c607a2a3a93c82d02d94e869726c68890a29782a7ee40ae5a7a43f",
+      "bytes": 676899
+    },
+    {
+      "file": "assets/index-DGwLqPuj.css",
+      "status": 200,
+      "sha256": "7e6c30a08b36083ead2920898a69634909eced58dd6c034966d377b63a178a0c",
+      "bytes": 151778
+    },
+    {
+      "file": "assets/kpi-card-1yWptDAV.js",
+      "status": 200,
+      "sha256": "560d70596162136900307f4dfc9011f6e56c6c252dc31e0bce23a5fa61507a27",
+      "bytes": 1141
+    },
+    {
+      "file": "assets/lead-hover-card-DhL42m2j.js",
+      "status": 200,
+      "sha256": "5b9c1abd493136dded2f3a689515437952715d9ba568f7525c7e4e6fe2317b58",
+      "bytes": 33882
+    },
+    {
+      "file": "assets/metricas-multiempresa-BPDfMLAt.js",
+      "status": 200,
+      "sha256": "238c03539d746b43886626a16bfe3cf3862c276139caa2b00e2a25a597023210",
+      "bytes": 19822
+    },
+    {
+      "file": "assets/mi-cartera-BfEQB_j5.js",
+      "status": 200,
+      "sha256": "e78e0f230a7b3b9d6deaeebe84b618390d4bef6b2a2ce3f7194d5805238104c1",
+      "bytes": 209958
+    },
+    {
+      "file": "assets/notificaciones-tasa-CnxedVym.js",
+      "status": 200,
+      "sha256": "f03f72e58ae4065f83a77f859bef67dcf65cd2630391f2fe500b610527aacac9",
+      "bytes": 4175
+    },
+    {
+      "file": "assets/paginacion-8FKfgWEB.js",
+      "status": 200,
+      "sha256": "5337abbcdc1bf1109696e91deb7dee40c50357d0b8d8df62ef844a851a76a0a2",
+      "bytes": 990
+    },
+    {
+      "file": "assets/pipeline-BnZupF7h.js",
+      "status": 200,
+      "sha256": "a37452db1356d812f55b5a3684b518d51c3ad8d151aeed264270b00de0cddcac",
+      "bytes": 15198
+    },
+    {
+      "file": "assets/progress-ihJe77sD.js",
+      "status": 200,
+      "sha256": "c0f30e595e09eb175b9f42b0e6e1ef2e1f699b447e7cda4581d192dfe7abf2f7",
+      "bytes": 426
+    },
+    {
+      "file": "assets/ranking-vendedores-B5KdA-jT.js",
+      "status": 200,
+      "sha256": "b586c9b829bb46fe8f4f8c660c1f1781ed4f095e749d8f33745f6996d0a71907",
+      "bytes": 36647
+    },
+    {
+      "file": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "bytes": 190815
+    },
+    {
+      "file": "assets/repartir--TEgq14D.js",
+      "status": 200,
+      "sha256": "11428b3f26973561c88303e9111ccaeee9c534dfd5215c4280bd2de98f866a64",
+      "bytes": 50646
+    },
+    {
+      "file": "assets/rescate-carpeta-Rg9UAb0B.js",
+      "status": 200,
+      "sha256": "5fee884f168e3c2c3662aa74b65cd43b3e11a04c1e9e6b81aac85414ec76e03a",
+      "bytes": 205
+    },
+    {
+      "file": "assets/rescate-descartados-CPKJzC6v.js",
+      "status": 200,
+      "sha256": "bd4e924a33901fd92da1567d3c060616e7f18607eb1d2dafab861ce45c85b9a5",
+      "bytes": 30768
+    },
+    {
+      "file": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "bytes": 694
+    },
+    {
+      "file": "assets/section-head-CDG5dILk.js",
+      "status": 200,
+      "sha256": "1311d0d1783364948b667302d4c57dc66581f67a94a1de2211cbe72416ffa56f",
+      "bytes": 432
+    },
+    {
+      "file": "assets/seguimiento-C5Ae-zgZ.js",
+      "status": 200,
+      "sha256": "0ac644854698a9265d6b14d8f22d2c0ad3bef44b648fe41f6a54f4bb46788f69",
+      "bytes": 815
+    },
+    {
+      "file": "assets/stat-strip-Dpo5BeTI.js",
+      "status": 200,
+      "sha256": "85d7a544c86ce405dffdece8449a911a88213b71e6d379655d3ec89f46948bc4",
+      "bytes": 2196
+    },
+    {
+      "file": "assets/tabla-Bn3dsrNn.js",
+      "status": 200,
+      "sha256": "5963d017c256e3d69ed3a9f1ec13df23edcf7e1b856fb2feb81479df5318e5c4",
+      "bytes": 701
+    },
+    {
+      "file": "assets/ui-vendor-CxdW9C0K.js",
+      "status": 200,
+      "sha256": "f4160289026b483d3e3fea9ec46964d9d4d44f0c1eaa27f5cca4a735ba5c3f5a",
+      "bytes": 92481
+    },
+    {
+      "file": "assets/use-metricas-vendedores-operativas-CJgMQZVP.js",
+      "status": 200,
+      "sha256": "5553c07cd185bacced71965ce2881eb2ab91ee374c9c54a7749c30b5b599cb39",
+      "bytes": 1526
+    },
+    {
+      "file": "assets/use-periodo-gerencia-CLSlpQc2.js",
+      "status": 200,
+      "sha256": "a8f28040f8efa47b75e84a7876f6ad1d89deb22a9a070785309315463cd70bb4",
+      "bytes": 289
+    },
+    {
+      "file": "assets/use-resumen-cartera-operativo-igeaXdx-.js",
+      "status": 200,
+      "sha256": "c8bb8446ab6f28c9b62582cf0da1da81a5df27c1788febbb58853938846b37e5",
+      "bytes": 488
+    },
+    {
+      "file": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "bytes": 298
+    },
+    {
+      "file": "assets/utils-BsoIYpJ8.js",
+      "status": 200,
+      "sha256": "a4732ff9235bab7de446d452279f1d79c01d917b962ad17c4d34530ed6e35e63",
+      "bytes": 26939
+    },
+    {
+      "file": "index.html",
+      "status": 200,
+      "sha256": "7ee2e5009afbd5ab60bbaf33d4935b1ea6ad8fa26becc489632b38319362ddd9",
+      "bytes": 1431
+    },
+    {
+      "file": "sw-crm.js",
+      "status": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "bytes": 3742
+    },
+    {
+      "file": "version.json",
+      "status": 200,
+      "sha256": "ed2ca83d7962fe26ed02e713ec0b2433f960b618dd38ed06472ed32231f6944b",
+      "bytes": 51
+    }
+  ],
+  "errors": []
+}

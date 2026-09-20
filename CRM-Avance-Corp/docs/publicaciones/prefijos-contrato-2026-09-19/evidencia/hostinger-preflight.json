@@ -1,0 +1,75 @@
+{
+  "mode": "preflight",
+  "startedAt": "2026-09-19T22:31:56.994Z",
+  "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+  "events": [
+    {
+      "at": "2026-09-19T22:31:57.817Z",
+      "check": "baseline",
+      "domain": "miavance.com",
+      "file": "admin/analista.html",
+      "status": 200,
+      "sha256": "9d3825b8fedab6c2a85ee1ade48d2b077207b7bd0425a0333abed0ff8f0e9e67",
+      "bytes": 25176
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "miavance.com",
+      "file": "admin/contratos.html",
+      "status": 200,
+      "sha256": "9fc6a409c236a5d11f5042e7150ec7d31edf33765f39ea3fa69e50fcafa2824d",
+      "bytes": 22454
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "miavance.com",
+      "file": "js/admin/analista.js",
+      "status": 200,
+      "sha256": "267c66deafe0a40c75d7109691d4bb17980a32e1f89197c17dca15a7c88e35b4",
+      "bytes": 59642
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "miavance.com",
+      "file": "js/admin/contratos.js",
+      "status": 200,
+      "sha256": "0b43d4b08b5f6bc8ff7492de5a0e24ea7e177e8b92a7484cfc8f086b8605586f",
+      "bytes": 86540
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "miavance.com",
+      "file": "service-worker.js",
+      "status": 200,
+      "sha256": "50765032c262f65bd362c8a379b3f4e273d3e02bec1009f045b8a6ce25ffbef6",
+      "bytes": 8933
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "crm.miavance.com",
+      "file": "",
+      "status": 200,
+      "sha256": "aa745207f6607452fc8e9572e7a820a01151db40224f172e265c9a8cd60a5243",
+      "bytes": 1431
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "check": "baseline",
+      "domain": "crm.miavance.com",
+      "file": "assets/index-BYzCJylp.js",
+      "status": 200,
+      "sha256": "b37dbdffe0637fc9148cb64c6e1d9d032aa59df6deaefc35a89ea9e12472b16c",
+      "bytes": 676504
+    },
+    {
+      "at": "2026-09-19T22:31:57.818Z",
+      "status": "PASS",
+      "checks": 7
+    }
+  ]
+}

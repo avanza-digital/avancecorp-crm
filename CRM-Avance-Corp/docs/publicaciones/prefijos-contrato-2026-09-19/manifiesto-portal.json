@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "estado": "PUBLICADO_Y_VERIFICADO",
+  "destino": "miavance.com",
+  "modo": "parche de seis archivos; no reemplaza el sitio completo",
+  "commit_portal": "35198b14a8b70790faf55443ca6b1df95c70882e",
+  "archivo": {
+    "nombre": "portal-parche-prefijos-35198b14a8b7.zip",
+    "bytes": 55855,
+    "sha256": "8b4016f1f522009a946c2bfbf42b512970debf09a0c945eda4775052ba349f74"
+  },
+  "archivos_en_orden_de_publicacion": [
+    {
+      "ruta": "js/admin/numero-contrato-core.js",
+      "bytes": 658,
+      "sha256": "61db862ed4bc53773f41d20515b87a44dec28e057e392480259dbe11f2816a7a"
+    },
+    {
+      "ruta": "js/admin/analista.js",
+      "bytes": 59519,
+      "sha256": "b71046891998cf581e2c294bdfc52b84815a83f768007b411728e04c391bc5bf"
+    },
+    {
+      "ruta": "js/admin/contratos.js",
+      "bytes": 86939,
+      "sha256": "000467302cb7590430b8476d1687c254b656e9bc1e58529ea6915c48eff0135c"
+    },
+    {
+      "ruta": "admin/analista.html",
+      "bytes": 25211,
+      "sha256": "d1fa77ab3c420e898c20266f38422945869cff1600df64411959969a6d708716"
+    },
+    {
+      "ruta": "admin/contratos.html",
+      "bytes": 22511,
+      "sha256": "133ba3350e247f34e2f1420e826a3e7a8368c49252a1a190c7b1d029627e726a"
+    },
+    {
+      "ruta": "service-worker.js",
+      "bytes": 8933,
+      "sha256": "aa53b4dd31fdd77e4bdfab540308cffd9d3bdac72d00c70ba41fb97d84735ecc"
+    }
+  ],
+  "despues": "Completado: purga CDN y 6/6 archivos comprobados por HTTP y SHA-256; actualizar pestañas antiguas antes de operar.",
+  "publicado_en": "2026-09-19T22:32:13.033Z"
+}

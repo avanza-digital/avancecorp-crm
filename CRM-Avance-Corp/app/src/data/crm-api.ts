@@ -2203,14 +2203,55 @@ const COLUMNAS_TAREA = (
 
 
 
-// Salvaguarda de payload (no seguridad): la RLS ya recorta al ámbito.
-const MAX_TAREAS_AMBITO = 2000
+/** Lote por llamada de `crm.tareas_pendientes_fn` (Fase 2 «sin topes»); el front pide `lote + 1`. */
+export const TAMANO_LOTE_TAREAS = 500
+/**
+ * Alarma de TENDENCIA, no tope: la lectura sigue hasta que el servidor dice
+ * que no hay más. Si el ámbito supera este volumen suena (es la señal de
+ * pasar la agenda a lecturas por ventana, Fase 4), pero no corta nada.
+ */
+const ALARMA_TENDENCIA_TAREAS = 20000
+/**
+ * Espejo del `limit 2000` de `crm.postventa_agenda_fn` (20260910150039): esa
+ * ruta SÍ tiene tope en el servidor hasta que se pagine, y su alarma se
+ * calibra contra ÉL (revisión de Codex del 19/09).
+ */
+const LIMITE_AGENDA_POSTVENTA = 2000
+
+const TareasPendientesSchema = v.object({
+  version: v.literal(1),
+  items: v.array(v.unknown()),
+})
+
+/** Lo MÍNIMO para poder avanzar: si la última fila cruda no lo cumple, no hay cursor honesto. */
+const CursorTareaRowSchema = v.object({
+  id: v.string(),
+  vence_en: v.string(),
+})
 
 /**
- * Tareas PENDIENTES del ámbito (HOY + Agenda beben de aquí). Las cerradas no
- * viajan: su historia vive en crm.actividades (timeline del lead).
+ * Orden del servidor (`vence_en asc, id asc`) comparado por UNIDADES DE CÓDIGO,
+ * no con `localeCompare`: el servidor serializa `timestamptz` siempre con el
+ * mismo desplazamiento (`+00:00`) y con precisión variable, y en ese formato el
+ * orden de código es el cronológico; la colación de `localeCompare` pone «.»
+ * antes que «+» y ponía `…:00.001+00:00` delante de `…:00+00:00` (revisión de
+ * Codex del 19/09). Los ids son uuid en hexadecimal: mismo orden que en Postgres.
  */
-/** Lectura puntual de Agenda por su puerta RLS; no depende del límite del lote. */
+export function compararTareasPorVencimiento(
+  a: { vence_en: string; id: string },
+  b: { vence_en: string; id: string },
+): number {
+  if (a.vence_en !== b.vence_en) return a.vence_en < b.vence_en ? -1 : 1
+  if (a.id !== b.id) return a.id < b.id ? -1 : 1
+  return 0
+}
+
+/** El cursor debe AVANZAR en sentido estricto; un servidor que devuelve la misma página, retrocede o cicla (A→B→A) se corta. */
+function avanzaCursorTarea(previo: { venceEn: string; id: string }, fila: { vence_en: string; id: string }): boolean {
+  return compararTareasPorVencimiento(fila, { vence_en: previo.venceEn, id: previo.id }) > 0
+}
+
+/** Lectura puntual de Agenda por su puerta RLS; no depende del lote. */
 export async function obtenerTareaDelAmbitoPorId(leadId: string, id: string, signal?: AbortSignal): Promise<Tarea | null> {
   let consulta = cliente().schema('crm').from('tareas').select(COLUMNAS_TAREA)
     .eq('id', id).eq('lead_id', leadId).eq('estado', 'pendiente').eq('activo', true)
@@ -2227,32 +2268,75 @@ export async function obtenerTareaDelAmbitoPorId(leadId: string, id: string, sig
   return resultado.output
 }
 
+/**
+ * Tareas PENDIENTES del ámbito (HOY, Agenda, Citas de gerencia, cerrar tarea y
+ * la ficha beben de aquí). Las cerradas no viajan: su historia vive en
+ * crm.actividades (historial del lead).
+ *
+ * Fase 2 «sin topes»: lotes por cursor keyset (vence_en asc, id asc) contra
+ * `crm.tareas_pendientes_fn` (INVOKER: devuelve exactamente lo que la RLS ya
+ * mostraba en la tabla) hasta que el servidor no devuelve la fila extra. Sin
+ * constante de tope: la lectura directa la recortaba PostgREST a 1 000 filas
+ * y gerencia perdía las tareas de vencimiento más lejano.
+ */
 export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea[]> {
-  let consulta = cliente()
-    .schema('crm')
-    .from('tareas')
-    .select(COLUMNAS_TAREA)
-    .or('lead_id.not.is.null,perfil_id.not.is.null')
-    .eq('estado', 'pendiente')
-    .eq('activo', true)
-    .order('vence_en', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(MAX_TAREAS_AMBITO)
-  if (signal) consulta = consulta.abortSignal(signal)
-
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudo cargar la agenda.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.tareas.ambito_fallido', fallo)
-    throw fallo
+  const crudas: unknown[] = []
+  let cursor: { venceEn: string; id: string } | null = null
+  for (;;) {
+    lanzarAbortSiCorresponde(signal)
+    // Se pide UNA fila de más: distingue «hay más» de «justo cabía» sin gastar
+    // una petición extra que vuelva vacía al final.
+    const argumentos: Database['crm']['Functions']['tareas_pendientes_fn']['Args'] = {
+      p_limite: TAMANO_LOTE_TAREAS + 1,
+    }
+    if (cursor) {
+      argumentos.p_despues_de = cursor.venceEn
+      argumentos.p_despues_id = cursor.id
+    }
+    let consulta = cliente().schema('crm').rpc('tareas_pendientes_fn', argumentos)
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error } = await consulta
+    lanzarAbortSiCorresponde(signal)
+    if (error) {
+      const fallo = new CrmApiError('No se pudo cargar la agenda.', error.code || 'POSTGREST_ERROR')
+      registrarError('crm.tareas.ambito_fallido', fallo, { conCursor: cursor != null })
+      throw fallo
+    }
+    const payload = v.safeParse(TareasPendientesSchema, data)
+    if (!payload.success) {
+      throw new CrmApiError('La agenda recibida no cumple el contrato esperado.', 'ROW_CONTRACT')
+    }
+    const lote = payload.output.items
+    if (lote.length > TAMANO_LOTE_TAREAS + 1) {
+      throw new CrmApiError('La agenda devolvió más filas de las pedidas.', 'ROW_CONTRACT')
+    }
+    const hayMas = lote.length > TAMANO_LOTE_TAREAS
+    const ventana = hayMas ? lote.slice(0, TAMANO_LOTE_TAREAS) : lote
+    crudas.push(...ventana)
+    if (!hayMas) break
+    // El cursor sale de la ÚLTIMA FILA CRUDA de la ventana, no de la última
+    // válida: avanzar desde una fila anterior repetiría filas, y cortar aquí
+    // fingiría que ya no hay más. Y debe avanzar en sentido ESTRICTO: un
+    // servidor que repite, retrocede o cicla se corta con error, nunca se gira
+    // para siempre.
+    const ultima = v.safeParse(CursorTareaRowSchema, ventana.at(-1))
+    if (!ultima.success || (cursor !== null && !avanzaCursorTarea(cursor, ultima.output))) {
+      throw new CrmApiError('No se pudo continuar la lectura de la agenda.', 'ROW_CONTRACT')
+    }
+    cursor = { venceEn: ultima.output.vence_en, id: ultima.output.id }
   }
-  avisarTopeAlcanzado('tareas_del_ambito', MAX_TAREAS_AMBITO, (data ?? []).length)
+  // Alarma de tendencia: suena semanas antes de que el volumen sea un problema.
+  avisarTopeAlcanzado('tareas_del_ambito_tendencia', ALARMA_TENDENCIA_TAREAS, crudas.length)
   const items: Tarea[] = []
+  const vistos = new Set<string>()
   let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of crudas) {
     const resultado = v.safeParse(TareaRowSchema, cruda)
-    if (resultado.success) items.push(resultado.output)
+    // Los lotes no son una transacción de lectura: una tarea reprogramada entre
+    // dos lotes no debe aparecer dos veces en la agenda.
+    if (resultado.success) {
+      if (!vistos.has(resultado.output.id)) { vistos.add(resultado.output.id); items.push(resultado.output) }
+    }
     else descartadas += 1
   }
   if (descartadas > 0) {
@@ -2263,13 +2347,13 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
     )
   }
   // F6 es compatible con el servidor anterior: solo PGRST202 significa no instalada.
-  // Las filas neutrales del SELECT legado se sustituyen por la respuesta completa.
+  // Las filas neutrales de los lotes se sustituyen por la respuesta completa.
   const { listarAgendaPostventa } = await import('./postventa-api')
   const neutrales = await listarAgendaPostventa(signal)
-  avisarTopeAlcanzado('tareas_postventa', MAX_TAREAS_AMBITO, neutrales.length)
+  avisarTopeAlcanzado('tareas_postventa', LIMITE_AGENDA_POSTVENTA, neutrales.length)
   const unicas = new Map(items.filter(t => t.lead_id || t.perfil_id).map(t => [t.id, t]))
   for (const tarea of neutrales) unicas.set(tarea.id, tarea)
-  return [...unicas.values()].sort((a, b) => a.vence_en.localeCompare(b.vence_en) || a.id.localeCompare(b.id))
+  return [...unicas.values()].sort(compararTareasPorVencimiento)
 }
 
 type TareaInsert = Database['crm']['Tables']['tareas']['Insert']

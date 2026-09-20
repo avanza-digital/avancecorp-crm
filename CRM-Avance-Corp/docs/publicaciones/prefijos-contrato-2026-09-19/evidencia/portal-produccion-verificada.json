@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "at": "2026-09-19T22:33:02.306Z",
+  "domain": "miavance.com",
+  "files": [
+    {
+      "file": "admin/analista.html",
+      "status": 200,
+      "sha256": "d1fa77ab3c420e898c20266f38422945869cff1600df64411959969a6d708716",
+      "bytes": 25211
+    },
+    {
+      "file": "admin/contratos.html",
+      "status": 200,
+      "sha256": "133ba3350e247f34e2f1420e826a3e7a8368c49252a1a190c7b1d029627e726a",
+      "bytes": 22511
+    },
+    {
+      "file": "js/admin/analista.js",
+      "status": 200,
+      "sha256": "b71046891998cf581e2c294bdfc52b84815a83f768007b411728e04c391bc5bf",
+      "bytes": 59519
+    },
+    {
+      "file": "js/admin/contratos.js",
+      "status": 200,
+      "sha256": "000467302cb7590430b8476d1687c254b656e9bc1e58529ea6915c48eff0135c",
+      "bytes": 86939
+    },
+    {
+      "file": "js/admin/numero-contrato-core.js",
+      "status": 200,
+      "sha256": "61db862ed4bc53773f41d20515b87a44dec28e057e392480259dbe11f2816a7a",
+      "bytes": 658
+    },
+    {
+      "file": "service-worker.js",
+      "status": 200,
+      "sha256": "aa53b4dd31fdd77e4bdfab540308cffd9d3bdac72d00c70ba41fb97d84735ecc",
+      "bytes": 8933
+    }
+  ],
+  "errors": []
+}

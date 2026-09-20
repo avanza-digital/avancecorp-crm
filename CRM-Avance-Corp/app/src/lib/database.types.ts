@@ -3852,6 +3852,10 @@ export type Database = {
         Returns: Json
       }
       postventa_agenda_fn: { Args: never; Returns: Json }
+      tareas_pendientes_fn: {
+        Args: { p_despues_de?: string; p_despues_id?: string; p_limite?: number }
+        Returns: Json
+      }
       inversionista_documento_fn: {
         Args: { p_documento: string; p_fuente: string; p_inversionista: string }
         Returns: Json

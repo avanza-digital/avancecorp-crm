@@ -303,6 +303,9 @@ export interface Tarea {
   reprogramaciones: number
   activo: boolean
   creado_en: string
+  /** Embebidos por crm.tareas_pendientes_fn (Fase 2 «sin topes»); nulos si el lead no es visible. */
+  lead_nombre?: string | null | undefined
+  lead_etapa?: string | null | undefined
 }
 
 /** Respuesta autoritativa de crm.reprogramar_reunion (F2). La validación
