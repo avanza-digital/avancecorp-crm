@@ -5,7 +5,7 @@
     Distribución y derivaciones            3 tabla
     Agenda, tareas y reuniones             4 tabla
     Citas de Gerencia                      4 tabla
-    SLA y cola operativa                   11 tabla  · huérfanos: 1
+    SLA y cola operativa                   11 tabla
     Conversión y cierres                   9 tabla  · huérfanos: 1
     Tasa y rentabilidad                    6 tabla
     Contratos y capital                    12 tabla
@@ -34,20 +34,20 @@
     Metas y productos                      4 fn, 4 trigger
     Métricas y reportes                    1 fn, 3 trigger
     Usuarios, equipo y permisos            20 fn, 6 trigger
-    Auditoría, vigías y guardas            34 fn, 7 trigger  · huérfanos: 8
+    Auditoría, vigías y guardas            36 fn, 7 trigger  · huérfanos: 9
     Ayuda al vendedor                      7 fn, 1 trigger
-    Sin módulo                             3 fn
+    Sin módulo                             6 fn
     pg_cron · 10 tareas                    1 actor
 
 [3] Puertas — 18 nodos
-    Leads y cartera                        1 edge, 21 puerta, 4 puerta cerrada, 1 vista  · huérfanos: 2
-    Distribución y derivaciones            15 puerta, 2 puerta cerrada  · huérfanos: 3
+    Leads y cartera                        1 edge, 21 puerta, 4 puerta cerrada, 1 vista  · huérfanos: 1
+    Distribución y derivaciones            15 puerta, 2 puerta cerrada  · huérfanos: 2
     Agenda, tareas y reuniones             1 edge, 11 puerta, 1 puerta cerrada  · huérfanos: 2
     Citas de Gerencia                      5 puerta
     SLA y cola operativa                   17 puerta
-    Conversión y cierres                   1 edge, 20 puerta, 2 puerta cerrada  · huérfanos: 4
+    Conversión y cierres                   1 edge, 20 puerta, 2 puerta cerrada  · huérfanos: 2
     Tasa y rentabilidad                    1 edge, 17 puerta, 3 puerta cerrada
-    Contratos y capital                    2 edge, 27 puerta, 18 puerta cerrada, 1 vista  · huérfanos: 15
+    Contratos y capital                    2 edge, 27 puerta, 18 puerta cerrada, 1 vista  · huérfanos: 12
     Inversiones e identidad                2 edge, 38 puerta, 2 puerta cerrada  · huérfanos: 7
     Postventa                              11 puerta
     Clientes (perfiles)                    4 edge, 11 puerta, 6 puerta cerrada, 1 vista  · huérfanos: 2
@@ -57,7 +57,7 @@
     Auditoría, vigías y guardas            2 puerta cerrada
     Ayuda al vendedor                      2 puerta
     Notificaciones del portal              4 edge  · huérfanos: 1
-    Sin módulo                             1 edge, 2 puerta
+    Sin módulo                             1 edge, 3 puerta
 
 [4] Pantallas — 30 nodos
     Login                                  1 pantalla
@@ -91,21 +91,21 @@
     Hoja comercial (puente de leads)       1 actor
     Calendario externo (feed ICS)          1 actor
 
-== SANAS (430 líneas de grupo, 2598 aristas objeto) ==
+== SANAS (427 líneas de grupo, 2624 aristas objeto) ==
   S1   Usuarios, equipo y permisos  → Conversión y cierres                    37  [transversal]
   S2   Inversiones e identidad      → Inversiones e identidad                105
-  S3   Auditoría, vigías y guardas  → Inversiones e identidad                  5  [transversal]
-  S4   Conversión y cierres         → Inversiones e identidad                  9
-  S5   Usuarios, equipo y permisos  → Leads y cartera                         34  [transversal]
-  S6   Leads y cartera              → Leads y cartera                         29
+  S3   Conversión y cierres         → Inversiones e identidad                  9
+  S4   Auditoría, vigías y guardas  → Inversiones e identidad                  5  [transversal]
+  S5   Leads y cartera              → Leads y cartera                         29
+  S6   Usuarios, equipo y permisos  → Leads y cartera                         34  [transversal]
   S7   Usuarios, equipo y permisos  → Agenda, tareas y reuniones              19  [transversal]
   S8   Agenda, tareas y reuniones   → Agenda, tareas y reuniones               9
-  S9   Metas y productos            → Inversiones e identidad                  7
-  S10  Usuarios, equipo y permisos  → Inversiones e identidad                 30  [transversal]
-  S11  Usuarios, equipo y permisos  → Distribución y derivaciones              3  [transversal]
-  S12  Distribución y derivaciones  → Distribución y derivaciones             16
-  S13  Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
-  S14  Inversiones e identidad      → Clientes (perfiles)                      4
+  S9   Usuarios, equipo y permisos  → Inversiones e identidad                 30  [transversal]
+  S10  Metas y productos            → Inversiones e identidad                  7
+  S11  Distribución y derivaciones  → Distribución y derivaciones             16
+  S12  Usuarios, equipo y permisos  → Distribución y derivaciones              3  [transversal]
+  S13  Inversiones e identidad      → Clientes (perfiles)                      4
+  S14  Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
   S15  Contratos y capital          → Contratos y capital                     58
   S16  Contratos y capital          → Contratos y capital                     56
   S17  Metas y productos            → Contratos y capital                      7
@@ -113,21 +113,21 @@
   S19  Usuarios, equipo y permisos  → Leads y cartera                         15  [transversal]
   S20  Clientes (perfiles)          → Inversiones e identidad                  9
   S21  Contratos y capital          → Métricas y reportes                      5
-  S22  Conversión y cierres         → Métricas y reportes                      5
-  S23  Usuarios, equipo y permisos  → Métricas y reportes                     16  [transversal]
-  S24  Conversión y cierres         → Conversión y cierres                    35
-  S25  Contratos y capital          → Conversión y cierres                     6
+  S22  Usuarios, equipo y permisos  → Métricas y reportes                     16  [transversal]
+  S23  Conversión y cierres         → Métricas y reportes                      5
+  S24  Contratos y capital          → Conversión y cierres                     6
+  S25  Conversión y cierres         → Conversión y cierres                    35
   S26  Usuarios, equipo y permisos  → Citas de Gerencia                        3
-  S27  Contratos y capital          → Conversión y cierres                     1
-  S28  Leads y cartera              → Conversión y cierres                     1
+  S27  Leads y cartera              → Conversión y cierres                     1
+  S28  Contratos y capital          → Conversión y cierres                     1
   S29  SLA y cola operativa         → SLA y cola operativa                    20
   S30  Usuarios, equipo y permisos  → Ayuda al vendedor                        2  [transversal]
   S31  Contratos y capital          → Inversiones e identidad                 15
-  S32  Auditoría, vigías y guardas  → SLA y cola operativa                     1  [transversal]
-  S33  Usuarios, equipo y permisos  → SLA y cola operativa                    12  [transversal]
+  S32  Usuarios, equipo y permisos  → SLA y cola operativa                    12  [transversal]
+  S33  Auditoría, vigías y guardas  → SLA y cola operativa                     1  [transversal]
   S34  Distribución y derivaciones  → Leads y cartera                          4
-  S35  Contratos y capital          → Metas y productos                        3
-  S36  Inversiones e identidad      → Metas y productos                        1
+  S35  Inversiones e identidad      → Metas y productos                        1
+  S36  Contratos y capital          → Metas y productos                        3
   S37  Usuarios, equipo y permisos  → Metas y productos                       10  [transversal]
   S38  Leads y cartera              → Conversión y cierres                     3
   S39  SLA y cola operativa         → Agenda, tareas y reuniones               4
@@ -135,22 +135,22 @@
   S41  SLA y cola operativa         → Agenda, tareas y reuniones               1
   S42  Inversiones e identidad      → Conversión y cierres                    25
   S43  Citas de Gerencia            → Citas de Gerencia                        3
-  S44  Leads y cartera              → Clientes (perfiles)                      1
-  S45  Clientes (perfiles)          → Clientes (perfiles)                      6
-  S46  Contratos y capital          → Inversiones e identidad                  3
-  S47  Tasa y rentabilidad          → Inversiones e identidad                  2
+  S44  Clientes (perfiles)          → Clientes (perfiles)                      6
+  S45  Leads y cartera              → Clientes (perfiles)                      1
+  S46  Tasa y rentabilidad          → Inversiones e identidad                  2
+  S47  Contratos y capital          → Inversiones e identidad                  3
   S48  Ayuda al vendedor            → Ayuda al vendedor                        5
   S49  Usuarios, equipo y permisos  → Contratos y capital                     24  [transversal]
   S50  Distribución y derivaciones  → Conversión y cierres                     3
-  S51  Auditoría, vigías y guardas  → Conversión y cierres                     7  [transversal]
-  S52  Tasa y rentabilidad          → Conversión y cierres                     4
+  S51  Tasa y rentabilidad          → Conversión y cierres                     4
+  S52  Auditoría, vigías y guardas  → Conversión y cierres                     7  [transversal]
   S53  Clientes (perfiles)          → Conversión y cierres                     2
   S54  Usuarios, equipo y permisos  → Clientes (perfiles)                      5
   S55  Inversiones e identidad      → Clientes (perfiles)                      3
-  S56  Usuarios, equipo y permisos  → Inversiones e identidad                  4
-  S57  Leads y cartera              → Inversiones e identidad                  8
-  S58  Clientes (perfiles)          → Contratos y capital                      8
-  S59  Inversiones e identidad      → Contratos y capital                      3
+  S56  Leads y cartera              → Inversiones e identidad                  8
+  S57  Usuarios, equipo y permisos  → Inversiones e identidad                  4
+  S58  Inversiones e identidad      → Contratos y capital                      3
+  S59  Clientes (perfiles)          → Contratos y capital                      8
   S60  Inversiones e identidad      → Contratos y capital                      5
   S61  Inversiones e identidad      → Leads y cartera                         23
   S62  Clientes (perfiles)          → Contratos y capital                      2
@@ -160,372 +160,369 @@
   S66  Leads y cartera              → Metas y productos                        1
   S67  Conversión y cierres         → Leads y cartera                          8
   S68  Leads y cartera              → Distribución y derivaciones              3
-  S69  Inversiones e identidad      → Sin módulo                               2
-  S70  Usuarios, equipo y permisos  → Sin módulo                               2  [transversal]
-  S71  Leads y cartera              → Sin módulo                               1
-  S72  Leads y cartera              → Sin módulo                               1
-  S73  SLA y cola operativa         → Sin módulo                               1
-  S74  Agenda, tareas y reuniones   → Sin módulo                               1
+  S69  Usuarios, equipo y permisos  → Sin módulo                               4  [transversal]
+  S70  Leads y cartera              → Sin módulo                               1
+  S71  Agenda, tareas y reuniones   → Sin módulo                               1
+  S72  SLA y cola operativa         → Sin módulo                               1
+  S73  Inversiones e identidad      → Sin módulo                               2
+  S74  Leads y cartera              → Sin módulo                               1
   S75  Usuarios, equipo y permisos  → Leads y cartera                          3
   S76  Tasa y rentabilidad          → Tasa y rentabilidad                     29
   S77  Inversiones e identidad      → Usuarios, equipo y permisos              2
-  S78  Usuarios, equipo y permisos  → Tasa y rentabilidad                     10  [transversal]
-  S79  Contratos y capital          → Tasa y rentabilidad                      3
-  S80  Clientes (perfiles)          → Tasa y rentabilidad                      1
-  S81  Clientes (perfiles)          → Leads y cartera                          1
-  S82  Postventa                    → Inversiones e identidad                 11
-  S83  Conversión y cierres         → Inversiones e identidad                  1
-  S84  Postventa                    → Inversiones e identidad                  1
-  S85  Leads y cartera              → Inversiones e identidad                  1
-  S86  Postventa                    → Leads y cartera                          1
-  S87  Distribución y derivaciones  → Agenda, tareas y reuniones               1
-  S88  Distribución y derivaciones  → Citas de Gerencia                        1
-  S89  Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
-  S90  Conversión y cierres         → Métricas y reportes                      1
-  S91  Contratos y capital          → Usuarios, equipo y permisos              1
-  S92  Postventa                    → Postventa                               27
-  S93  Usuarios, equipo y permisos  → Postventa                                7  [transversal]
-  S94  Inversiones e identidad      → Postventa                                1
-  S95  Inversiones e identidad      → Postventa                                5
-  S96  Leads y cartera              → Postventa                                2
-  S97  Clientes (perfiles)          → Postventa                                1
-  S98  Sin módulo                   → Sin módulo                               1
-  S99  Usuarios, equipo y permisos  → Agenda, tareas y reuniones               2
-  S100 Conversión y cierres         → Tasa y rentabilidad                      1
-  S101 Contratos y capital          → Leads y cartera                          1
-  S102 Distribución y derivaciones  → Métricas y reportes                      1
-  S103 Inversiones e identidad      → Tasa y rentabilidad                      1
-  S104 Agenda, tareas y reuniones   → Leads y cartera                         11
-  S105 Sin módulo                   → Leads y cartera                          1
-  S106 Agenda, tareas y reuniones   → Agenda, tareas y reuniones              18
-  S107 Leads y cartera              → Agenda, tareas y reuniones               6
-  S108 Sin módulo                   → Agenda, tareas y reuniones               2
-  S109 Usuarios, equipo y permisos  → Distribución y derivaciones              5
-  S110 Clientes (perfiles)          → Distribución y derivaciones              5
-  S111 Inversiones e identidad      → Agenda, tareas y reuniones               3
-  S112 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               6
-  S113 Postventa                    → Agenda, tareas y reuniones               1
-  S114 Clientes (perfiles)          → Agenda, tareas y reuniones               5
-  S115 Inversiones e identidad      → Agenda, tareas y reuniones               2
-  S116 Conversión y cierres         → Conversión y cierres                    19
-  S117 Contratos y capital          → Conversión y cierres                     4
-  S118 Usuarios, equipo y permisos  → Inversiones e identidad                  7
-  S119 Clientes (perfiles)          → Inversiones e identidad                 16
-  S120 Inversiones e identidad      → Inversiones e identidad                140
-  S121 Leads y cartera              → Auditoría, vigías y guardas              8  [transversal]
-  S122 Sin módulo                   → Auditoría, vigías y guardas              8  [transversal]
-  S123 Usuarios, equipo y permisos  → Auditoría, vigías y guardas             16  [transversal]
-  S124 Clientes (perfiles)          → Auditoría, vigías y guardas              8  [transversal]
-  S125 Agenda, tareas y reuniones   → Auditoría, vigías y guardas              7  [transversal]
-  S126 Usuarios, equipo y permisos  → Auditoría, vigías y guardas              3  [transversal]
-  S127 Conversión y cierres         → Auditoría, vigías y guardas              2  [transversal]
+  S78  Sin módulo                   → Sin módulo                               2
+  S79  Usuarios, equipo y permisos  → Sin módulo                               1
+  S80  Usuarios, equipo y permisos  → Tasa y rentabilidad                     10  [transversal]
+  S81  Contratos y capital          → Tasa y rentabilidad                      3
+  S82  Clientes (perfiles)          → Tasa y rentabilidad                      1
+  S83  Clientes (perfiles)          → Leads y cartera                          1
+  S84  Postventa                    → Inversiones e identidad                 11
+  S85  Conversión y cierres         → Inversiones e identidad                  1
+  S86  Postventa                    → Inversiones e identidad                  1
+  S87  Leads y cartera              → Inversiones e identidad                  1
+  S88  Postventa                    → Leads y cartera                          1
+  S89  Distribución y derivaciones  → Agenda, tareas y reuniones               1
+  S90  Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
+  S91  Distribución y derivaciones  → Citas de Gerencia                        1
+  S92  Conversión y cierres         → Métricas y reportes                      1
+  S93  Contratos y capital          → Usuarios, equipo y permisos              1
+  S94  Postventa                    → Postventa                               27
+  S95  Usuarios, equipo y permisos  → Postventa                                7  [transversal]
+  S96  Inversiones e identidad      → Postventa                                1
+  S97  Inversiones e identidad      → Postventa                                5
+  S98  Leads y cartera              → Postventa                                2
+  S99  Clientes (perfiles)          → Postventa                                1
+  S100 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               2
+  S101 Conversión y cierres         → Tasa y rentabilidad                      1
+  S102 Contratos y capital          → Leads y cartera                          1
+  S103 Distribución y derivaciones  → Métricas y reportes                      1
+  S104 Inversiones e identidad      → Tasa y rentabilidad                      1
+  S105 Agenda, tareas y reuniones   → Leads y cartera                         11
+  S106 Sin módulo                   → Leads y cartera                          1
+  S107 Agenda, tareas y reuniones   → Agenda, tareas y reuniones              18
+  S108 Leads y cartera              → Agenda, tareas y reuniones               6
+  S109 Sin módulo                   → Agenda, tareas y reuniones               2
+  S110 Usuarios, equipo y permisos  → Distribución y derivaciones              5
+  S111 Clientes (perfiles)          → Distribución y derivaciones              5
+  S112 Inversiones e identidad      → Agenda, tareas y reuniones               3
+  S113 Inversiones e identidad      → Agenda, tareas y reuniones               2
+  S114 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               6
+  S115 Postventa                    → Agenda, tareas y reuniones               1
+  S116 Clientes (perfiles)          → Agenda, tareas y reuniones               5
+  S117 Conversión y cierres         → Conversión y cierres                    19
+  S118 Contratos y capital          → Conversión y cierres                     4
+  S119 Inversiones e identidad      → Inversiones e identidad                140
+  S120 Usuarios, equipo y permisos  → Inversiones e identidad                  7
+  S121 Clientes (perfiles)          → Inversiones e identidad                 16
+  S122 Sin módulo                   → Auditoría, vigías y guardas             14  [transversal]
+  S123 Leads y cartera              → Auditoría, vigías y guardas              8  [transversal]
+  S124 Usuarios, equipo y permisos  → Auditoría, vigías y guardas             18  [transversal]
+  S125 Clientes (perfiles)          → Auditoría, vigías y guardas              9  [transversal]
+  S126 Agenda, tareas y reuniones   → Auditoría, vigías y guardas              8  [transversal]
+  S127 Usuarios, equipo y permisos  → Auditoría, vigías y guardas              4  [transversal]
   S128 Citas de Gerencia            → Auditoría, vigías y guardas              3  [transversal]
-  S129 Citas de Gerencia            → Auditoría, vigías y guardas              5  [transversal]
-  S130 Inversiones e identidad      → Auditoría, vigías y guardas              4  [transversal]
-  S131 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
-  S132 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
-  S133 Auditoría, vigías y guardas  → Auditoría, vigías y guardas             17  [transversal]
-  S134 SLA y cola operativa         → Auditoría, vigías y guardas             12  [transversal]
-  S135 Inversiones e identidad      → Métricas y reportes                      2
-  S136 Leads y cartera              → Inversiones e identidad                 19
-  S137 Conversión y cierres         → Inversiones e identidad                 22
-  S138 Leads y cartera              → Leads y cartera                         40
-  S139 Leads y cartera              → Inversiones e identidad                  2
-  S140 Usuarios, equipo y permisos  → Contratos y capital                      8  [transversal]
-  S141 Metas y productos            → Contratos y capital                      4
-  S142 Conversión y cierres         → Contratos y capital                      3
-  S143 Leads y cartera              → Contratos y capital                      4
+  S129 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
+  S130 Conversión y cierres         → Auditoría, vigías y guardas              2  [transversal]
+  S131 Citas de Gerencia            → Auditoría, vigías y guardas              5  [transversal]
+  S132 Inversiones e identidad      → Auditoría, vigías y guardas              4  [transversal]
+  S133 Métricas y reportes          → Auditoría, vigías y guardas              1  [transversal]
+  S134 Auditoría, vigías y guardas  → Auditoría, vigías y guardas             17  [transversal]
+  S135 SLA y cola operativa         → Auditoría, vigías y guardas             12  [transversal]
+  S136 Inversiones e identidad      → Métricas y reportes                      2
+  S137 Leads y cartera              → Inversiones e identidad                 19
+  S138 Conversión y cierres         → Inversiones e identidad                 22
+  S139 Leads y cartera              → Leads y cartera                         40
+  S140 Leads y cartera              → Inversiones e identidad                  2
+  S141 Usuarios, equipo y permisos  → Contratos y capital                      8  [transversal]
+  S142 Metas y productos            → Contratos y capital                      4
+  S143 Conversión y cierres         → Contratos y capital                      3
   S144 Conversión y cierres         → Contratos y capital                      4
-  S145 Contratos y capital          → Inversiones e identidad                 10
+  S145 Leads y cartera              → Contratos y capital                      4
   S146 Conversión y cierres         → Inversiones e identidad                  3
-  S147 Usuarios, equipo y permisos  → Inversiones e identidad                 14  [transversal]
-  S148 Clientes (perfiles)          → Inversiones e identidad                  1
-  S149 Usuarios, equipo y permisos  → Leads y cartera                          4
-  S150 Metas y productos            → Conversión y cierres                     2
-  S151 Usuarios, equipo y permisos  → Conversión y cierres                     3  [transversal]
-  S152 Agenda, tareas y reuniones   → Citas de Gerencia                        4
-  S153 Inversiones e identidad      → Citas de Gerencia                        1
-  S154 Usuarios, equipo y permisos  → Citas de Gerencia                        2
+  S147 Contratos y capital          → Inversiones e identidad                 10
+  S148 Usuarios, equipo y permisos  → Inversiones e identidad                 14  [transversal]
+  S149 Clientes (perfiles)          → Inversiones e identidad                  1
+  S150 Usuarios, equipo y permisos  → Leads y cartera                          4
+  S151 Metas y productos            → Conversión y cierres                     2
+  S152 Usuarios, equipo y permisos  → Conversión y cierres                     3  [transversal]
+  S153 Agenda, tareas y reuniones   → Citas de Gerencia                        4
+  S154 Inversiones e identidad      → Citas de Gerencia                        1
   S155 Contratos y capital          → Citas de Gerencia                        2
-  S156 Clientes (perfiles)          → Citas de Gerencia                        2
-  S157 Inversiones e identidad      → Citas de Gerencia                        1
-  S158 Conversión y cierres         → Citas de Gerencia                        5
-  S159 Leads y cartera              → Citas de Gerencia                        3
-  S160 Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
-  S161 Conversión y cierres         → Citas de Gerencia                        1
-  S162 Clientes (perfiles)          → Clientes (perfiles)                     19
-  S163 Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
-  S164 Inversiones e identidad      → Tasa y rentabilidad                      2
-  S165 Clientes (perfiles)          → Tasa y rentabilidad                      6
+  S156 Conversión y cierres         → Citas de Gerencia                        5
+  S157 Leads y cartera              → Citas de Gerencia                        3
+  S158 Inversiones e identidad      → Citas de Gerencia                        1
+  S159 Usuarios, equipo y permisos  → Citas de Gerencia                        2  [transversal]
+  S160 Usuarios, equipo y permisos  → Citas de Gerencia                        2
+  S161 Clientes (perfiles)          → Citas de Gerencia                        2
+  S162 Conversión y cierres         → Citas de Gerencia                        1
+  S163 Clientes (perfiles)          → Clientes (perfiles)                     19
+  S164 Usuarios, equipo y permisos  → Clientes (perfiles)                      8  [transversal]
+  S165 Inversiones e identidad      → Tasa y rentabilidad                      2
   S166 Inversiones e identidad      → Tasa y rentabilidad                      2
-  S167 Leads y cartera              → Tasa y rentabilidad                      7
-  S168 Citas de Gerencia            → Citas de Gerencia                        5
-  S169 Auditoría, vigías y guardas  → Citas de Gerencia                        1  [transversal]
-  S170 Leads y cartera              → Conversión y cierres                    11
-  S171 Inversiones e identidad      → Metas y productos                        4
+  S167 Clientes (perfiles)          → Tasa y rentabilidad                      6
+  S168 Leads y cartera              → Tasa y rentabilidad                      7
+  S169 Citas de Gerencia            → Citas de Gerencia                        5
+  S170 Auditoría, vigías y guardas  → Citas de Gerencia                        1  [transversal]
+  S171 Leads y cartera              → Conversión y cierres                    11
   S172 Metas y productos            → Metas y productos                       12
-  S173 Clientes (perfiles)          → Leads y cartera                          6
-  S174 Inversiones e identidad      → Leads y cartera                         17
-  S175 Inversiones e identidad      → Leads y cartera                         13
-  S176 Tasa y rentabilidad          → Tasa y rentabilidad                     19
-  S177 Leads y cartera              → Sin módulo                               2
-  S178 SLA y cola operativa         → Sin módulo                               2
-  S179 Usuarios, equipo y permisos  → Usuarios, equipo y permisos             19  [transversal]
-  S180 Clientes (perfiles)          → Usuarios, equipo y permisos              8  [transversal]
-  S181 Contratos y capital          → Tasa y rentabilidad                      4
-  S182 Conversión y cierres         → Tasa y rentabilidad                      2
-  S183 Usuarios, equipo y permisos  → Distribución y derivaciones              7  [transversal]
-  S184 Agenda, tareas y reuniones   → Inversiones e identidad                  2
-  S185 Inversiones e identidad      → Auditoría, vigías y guardas             32  [transversal]
-  S186 Contratos y capital          → Inversiones e identidad                  6
-  S187 Auditoría, vigías y guardas  → Inversiones e identidad                 10  [transversal]
-  S188 Conversión y cierres         → Leads y cartera                          3
-  S189 Auditoría, vigías y guardas  → Leads y cartera                          1  [transversal]
-  S190 Leads y cartera              → Distribución y derivaciones              2
-  S191 Inversiones e identidad      → Distribución y derivaciones              1
-  S192 Inversiones e identidad      → Distribución y derivaciones              1
-  S193 Leads y cartera              → Distribución y derivaciones              7
-  S194 Auditoría, vigías y guardas  → Distribución y derivaciones              1  [transversal]
-  S195 Agenda, tareas y reuniones   → Sin módulo                               2
-  S196 Leads y cartera              → Sin módulo                               2
-  S197 Inversiones e identidad      → Sin módulo                               2
-  S198 SLA y cola operativa         → Sin módulo                               1
-  S199 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               7  [transversal]
-  S200 Conversión y cierres         → Leads y cartera                          3
-  S201 Contratos y capital          → Leads y cartera                          3
-  S202 Contratos y capital          → Leads y cartera                          1
-  S203 Agenda, tareas y reuniones   → Conversión y cierres                     2
-  S204 Usuarios, equipo y permisos  → Conversión y cierres                     2
+  S173 Inversiones e identidad      → Metas y productos                        4
+  S174 Clientes (perfiles)          → Leads y cartera                          6
+  S175 Inversiones e identidad      → Leads y cartera                         17
+  S176 Inversiones e identidad      → Leads y cartera                         13
+  S177 Tasa y rentabilidad          → Tasa y rentabilidad                     19
+  S178 Leads y cartera              → Sin módulo                               3
+  S179 SLA y cola operativa         → Sin módulo                               2
+  S180 Usuarios, equipo y permisos  → Usuarios, equipo y permisos             19  [transversal]
+  S181 Clientes (perfiles)          → Usuarios, equipo y permisos              8  [transversal]
+  S182 Contratos y capital          → Tasa y rentabilidad                      4
+  S183 Conversión y cierres         → Tasa y rentabilidad                      2
+  S184 Usuarios, equipo y permisos  → Distribución y derivaciones              7  [transversal]
+  S185 Agenda, tareas y reuniones   → Inversiones e identidad                  2
+  S186 SLA y cola operativa         → Sin módulo                               2
+  S187 Agenda, tareas y reuniones   → Sin módulo                               6
+  S188 Inversiones e identidad      → Auditoría, vigías y guardas             32  [transversal]
+  S189 Contratos y capital          → Inversiones e identidad                  6
+  S190 Auditoría, vigías y guardas  → Inversiones e identidad                 10  [transversal]
+  S191 Conversión y cierres         → Leads y cartera                          3
+  S192 Auditoría, vigías y guardas  → Leads y cartera                          1  [transversal]
+  S193 Leads y cartera              → Distribución y derivaciones              2
+  S194 Inversiones e identidad      → Distribución y derivaciones              1
+  S195 Auditoría, vigías y guardas  → Distribución y derivaciones              1  [transversal]
+  S196 Inversiones e identidad      → Distribución y derivaciones              1
+  S197 Leads y cartera              → Distribución y derivaciones              7
+  S198 Leads y cartera              → Sin módulo                               2
+  S199 Inversiones e identidad      → Sin módulo                               2
+  S200 Usuarios, equipo y permisos  → Agenda, tareas y reuniones               7  [transversal]
+  S201 Conversión y cierres         → Leads y cartera                          3
+  S202 Contratos y capital          → Leads y cartera                          3
+  S203 Contratos y capital          → Leads y cartera                          1
+  S204 Citas de Gerencia            → Conversión y cierres                     1
   S205 Contratos y capital          → Conversión y cierres                     2
-  S206 Clientes (perfiles)          → Conversión y cierres                     2
-  S207 Citas de Gerencia            → Conversión y cierres                     1
-  S208 Conversión y cierres         → Distribución y derivaciones              6
-  S209 Agenda, tareas y reuniones   → Distribución y derivaciones              1
+  S206 Usuarios, equipo y permisos  → Conversión y cierres                     2
+  S207 Clientes (perfiles)          → Conversión y cierres                     2
+  S208 Agenda, tareas y reuniones   → Conversión y cierres                     2
+  S209 Conversión y cierres         → Distribución y derivaciones              6
   S210 Contratos y capital          → Distribución y derivaciones              1
   S211 SLA y cola operativa         → Distribución y derivaciones              2
-  S212 Leads y cartera              → SLA y cola operativa                    19
+  S212 Agenda, tareas y reuniones   → Distribución y derivaciones              1
   S213 Agenda, tareas y reuniones   → SLA y cola operativa                    11
-  S214 Usuarios, equipo y permisos  → Sin módulo                               1  [transversal]
+  S214 Leads y cartera              → SLA y cola operativa                    19
   S215 Usuarios, equipo y permisos  → Sin módulo                               1
   S216 Clientes (perfiles)          → Sin módulo                               1
-  S217 Inversiones e identidad      → Postventa                               13
-  S218 Inversiones e identidad      → Postventa                               14
-  S219 Conversión y cierres         → Postventa                                1
-  S220 Agenda, tareas y reuniones   → Postventa                                3
-  S221 Postventa                    → Postventa                                5
-  S222 Leads y cartera              → Postventa                                3
-  S223 Usuarios, equipo y permisos  → Postventa                                3  [transversal]
-  S224 Leads y cartera              → Postventa                                3
-  S225 Metas y productos            → Inversiones e identidad                  1
-  S226 Clientes (perfiles)          → Agenda, tareas y reuniones               1
-  S227 Clientes (perfiles)          → Contratos y capital                      1
-  S228 Usuarios, equipo y permisos  → Tasa y rentabilidad                      7  [transversal]
-  S229 Auditoría, vigías y guardas  → Conversión y cierres                     1
-  S230 Ayuda al vendedor            → Ayuda al vendedor                        2
-  S231 Usuarios, equipo y permisos  → Clientes (perfiles)                      3
-  S232 Agenda, tareas y reuniones   → Clientes (perfiles)                      2
-  S233 Inversiones e identidad      → Clientes (perfiles)                      3
-  S234 Inversiones e identidad      → Clientes (perfiles)                      3
+  S217 Usuarios, equipo y permisos  → Sin módulo                               1  [transversal]
+  S218 Inversiones e identidad      → Postventa                               13
+  S219 Inversiones e identidad      → Postventa                               14
+  S220 Conversión y cierres         → Postventa                                1
+  S221 Agenda, tareas y reuniones   → Postventa                                3
+  S222 Postventa                    → Postventa                                5
+  S223 Leads y cartera              → Postventa                                3
+  S224 Usuarios, equipo y permisos  → Postventa                                3  [transversal]
+  S225 Leads y cartera              → Postventa                                3
+  S226 Metas y productos            → Inversiones e identidad                  1
+  S227 Clientes (perfiles)          → Agenda, tareas y reuniones               1
+  S228 Clientes (perfiles)          → Contratos y capital                      1
+  S229 Usuarios, equipo y permisos  → Tasa y rentabilidad                      7  [transversal]
+  S230 Auditoría, vigías y guardas  → Conversión y cierres                     1
+  S231 Ayuda al vendedor            → Ayuda al vendedor                        2
+  S232 Inversiones e identidad      → Clientes (perfiles)                      3
+  S233 Usuarios, equipo y permisos  → Clientes (perfiles)                      3
+  S234 Agenda, tareas y reuniones   → Clientes (perfiles)                      2
   S235 Leads y cartera              → Clientes (perfiles)                      1
-  S236 Metas y productos            → Tasa y rentabilidad                      1
-  S237 Contratos y capital          → Tasa y rentabilidad                      5
-  S238 Distribución y derivaciones  → Distribución y derivaciones              2
-  S239 Leads y cartera              → Agenda, tareas y reuniones               4
-  S240 Inversiones e identidad      → Conversión y cierres                     3
-  S241 Auditoría, vigías y guardas  → Conversión y cierres                     1  [transversal]
-  S242 SLA y cola operativa         → SLA y cola operativa                    50
+  S236 Inversiones e identidad      → Clientes (perfiles)                      3
+  S237 Metas y productos            → Tasa y rentabilidad                      1
+  S238 Contratos y capital          → Tasa y rentabilidad                      5
+  S239 Distribución y derivaciones  → Distribución y derivaciones              2
+  S240 Leads y cartera              → Agenda, tareas y reuniones               4
+  S241 Inversiones e identidad      → Conversión y cierres                     3
+  S242 Auditoría, vigías y guardas  → Conversión y cierres                     1  [transversal]
   S243 Leads y cartera              → SLA y cola operativa                     2
-  S244 Agenda, tareas y reuniones   → SLA y cola operativa                     1
+  S244 SLA y cola operativa         → SLA y cola operativa                    50
   S245 Usuarios, equipo y permisos  → SLA y cola operativa                     7  [transversal]
-  S246 Clientes (perfiles)          → SLA y cola operativa                     4
-  S247 Clientes (perfiles)          → Tasa y rentabilidad                      1
-  S248 Auditoría, vigías y guardas  → Inversiones e identidad                  3
-  S249 SLA y cola operativa         → Leads y cartera                          1
+  S246 Agenda, tareas y reuniones   → SLA y cola operativa                     1
+  S247 Clientes (perfiles)          → SLA y cola operativa                     4
+  S248 Clientes (perfiles)          → Tasa y rentabilidad                      1
+  S249 Auditoría, vigías y guardas  → Inversiones e identidad                  3
   S250 SLA y cola operativa         → Leads y cartera                          1
-  S251 Usuarios, equipo y permisos  → Contratos y capital                      2
+  S251 SLA y cola operativa         → Leads y cartera                          1
   S252 Agenda, tareas y reuniones   → Contratos y capital                      2
-  S253 Metas y productos            → Contratos y capital                      1
+  S253 Usuarios, equipo y permisos  → Contratos y capital                      2
   S254 Inversiones e identidad      → Contratos y capital                      1
-  S255 Leads y cartera              → Contratos y capital                      1
-  S256 Conversión y cierres         → Metas y productos                        1
-  S257 Agenda, tareas y reuniones   → Usuarios, equipo y permisos              1  [transversal]
-  S258 Leads y cartera              → Usuarios, equipo y permisos              1  [transversal]
-  S259 Usuarios, equipo y permisos  → Contratos y capital                      2
-  S260 Leads y cartera              → Métricas y reportes                      1
-  S261 Contratos y capital          → Clientes (perfiles)                      1
-  S262 Agenda, tareas y reuniones   → Auditoría, vigías y guardas              5  [transversal]
-  S263 Conversión y cierres         → Auditoría, vigías y guardas              8  [transversal]
-  S264 Leads y cartera              → Auditoría, vigías y guardas              7  [transversal]
-  S265 Contratos y capital          → Auditoría, vigías y guardas              8  [transversal]
-  S266 Tasa y rentabilidad          → Auditoría, vigías y guardas              7  [transversal]
-  S267 SLA y cola operativa         → Auditoría, vigías y guardas             13  [transversal]
-  S268 Metas y productos            → Auditoría, vigías y guardas             12  [transversal]
-  S269 Postventa                    → Auditoría, vigías y guardas              3  [transversal]
-  S270 Citas de Gerencia            → Métricas y reportes                      3
-  S271 Contratos y capital          → Clientes (perfiles)                      2
-  S272 Notificaciones del portal    → Auditoría, vigías y guardas              2  [transversal]
-  S273 Notificaciones del portal    → Clientes (perfiles)                      1
-  S274 Contratos y capital          → pg_cron · 10 tareas                      1
-  S275 Leads y cartera              → pg_cron · 10 tareas                      2
-  S276 Auditoría, vigías y guardas  → pg_cron · 10 tareas                      4  [transversal]
-  S277 Tasa y rentabilidad          → pg_cron · 10 tareas                      1
-  S278 Notificaciones del portal    → Contratos y capital                      2
-  S279 Usuarios, equipo y permisos  → Conversión y cierres                     2
-  S280 Tasa y rentabilidad          → Conversión y cierres                     1
-  S281 Clientes (perfiles)          → Inversiones e identidad                  1
-  S282 Auditoría, vigías y guardas  → Tasa y rentabilidad                      1
-  S283 Auditoría, vigías y guardas  → Notificaciones del portal                1
-  S284 Inversiones e identidad      → Sin módulo                               2
-  S285 Clientes (perfiles)          → Usuarios, equipo y permisos              1
-  S286 SLA y cola operativa         → Hoy · Analista                           7
-  S287 Contratos y capital          → Hoy · Analista                           1
-  S288 Agenda, tareas y reuniones   → Hoy · Analista                           4
-  S289 Conversión y cierres         → Hoy · Analista                           1
-  S290 Postventa                    → Hoy · Analista                          11
-  S291 Leads y cartera              → Hoy · Analista                           2
-  S292 Tasa y rentabilidad          → Hoy · Analista                           3
-  S293 Sin módulo                   → Hoy · Analista                           2
-  S294 Usuarios, equipo y permisos  → Hoy · Analista                           1
-  S295 Metas y productos            → Hoy · Analista                           2
-  S296 Inversiones e identidad      → Hoy · Analista                           3
-  S297 Contratos y capital          → Hoy · Supervisor                         1
-  S298 Conversión y cierres         → Hoy · Supervisor                         3
-  S299 Agenda, tareas y reuniones   → Hoy · Supervisor                         4
-  S300 SLA y cola operativa         → Hoy · Supervisor                         5
-  S301 Leads y cartera              → Hoy · Supervisor                         2
-  S302 Métricas y reportes          → Hoy · Supervisor                         1
-  S303 Tasa y rentabilidad          → Hoy · Supervisor                         3
-  S304 Usuarios, equipo y permisos  → Hoy · Supervisor                         1
-  S305 Metas y productos            → Hoy · Supervisor                         2
-  S306 Sin módulo                   → Hoy · Supervisor                         2
-  S307 Postventa                    → Hoy · Supervisor                        10
-  S308 Inversiones e identidad      → Hoy · Supervisor                         1
-  S309 Contratos y capital          → Gerencia (Hoy + 5 vistas)                1
-  S310 Citas de Gerencia            → Gerencia (Hoy + 5 vistas)                2
-  S311 Distribución y derivaciones  → Gerencia (Hoy + 5 vistas)                2
-  S312 Conversión y cierres         → Gerencia (Hoy + 5 vistas)                6
-  S313 Metas y productos            → Gerencia (Hoy + 5 vistas)                2
-  S314 SLA y cola operativa         → Gerencia (Hoy + 5 vistas)                7
-  S315 Leads y cartera              → Gerencia (Hoy + 5 vistas)                3
-  S316 Tasa y rentabilidad          → Gerencia (Hoy + 5 vistas)                5
-  S317 Métricas y reportes          → Gerencia (Hoy + 5 vistas)                2
-  S318 Agenda, tareas y reuniones   → Gerencia (Hoy + 5 vistas)                6
-  S319 Usuarios, equipo y permisos  → Gerencia (Hoy + 5 vistas)                1
-  S320 Postventa                    → Gerencia (Hoy + 5 vistas)               11
-  S321 Sin módulo                   → Gerencia (Hoy + 5 vistas)                2
-  S322 Inversiones e identidad      → Gerencia (Hoy + 5 vistas)                3
-  S323 Contratos y capital          → Hoy · Directorio                         1
-  S324 Agenda, tareas y reuniones   → Hoy · Directorio                         1
-  S325 Leads y cartera              → Hoy · Directorio                         1
-  S326 Métricas y reportes          → Hoy · Directorio                         1
-  S327 SLA y cola operativa         → Seguimiento                              2
-  S328 Usuarios, equipo y permisos  → Seguimiento                              1
-  S329 Agenda, tareas y reuniones   → Seguimiento                              1
-  S330 Metas y productos            → Seguimiento                              2
-  S331 Postventa                    → Seguimiento                             10
-  S332 Inversiones e identidad      → Seguimiento                              1
-  S333 Contratos y capital          → Facturación                              1
-  S334 Métricas y reportes          → Facturación                              1
-  S335 Inversiones e identidad      → Informes por empresa                     2
-  S336 SLA y cola operativa         → Pipeline                                 1
-  S337 Leads y cartera              → Pipeline                                 1
-  S338 Usuarios, equipo y permisos  → Pipeline                                 1
-  S339 Agenda, tareas y reuniones   → Pipeline                                 1
-  S340 Metas y productos            → Pipeline                                 2
-  S341 Postventa                    → Pipeline                                10
-  S342 Inversiones e identidad      → Pipeline                                 1
-  S343 Conversión y cierres         → Leads (cartera)                          1
-  S344 Leads y cartera              → Leads (cartera)                          2
-  S345 SLA y cola operativa         → Agenda                                   4
-  S346 Agenda, tareas y reuniones   → Agenda                                   4
-  S347 Sin módulo                   → Agenda                                   2
-  S348 Postventa                    → Agenda                                  11
-  S349 Inversiones e identidad      → Agenda                                   3
-  S350 Leads y cartera              → Agenda                                   1
-  S351 Usuarios, equipo y permisos  → Agenda                                   1
-  S352 Metas y productos            → Agenda                                   2
-  S353 Contratos y capital          → Cartera (clientes)                       9
-  S354 Clientes (perfiles)          → Cartera (clientes)                       8
-  S355 Leads y cartera              → Cartera (clientes)                       1
-  S356 Inversiones e identidad      → Cartera (clientes)                      20
-  S357 Conversión y cierres         → Cartera (clientes)                       3
-  S358 Tasa y rentabilidad          → Cartera (clientes)                       8
-  S359 Postventa                    → Cartera (clientes)                      11
-  S360 Sin módulo                   → Cartera (clientes)                       1
-  S361 Usuarios, equipo y permisos  → Cartera (clientes)                       1
-  S362 Agenda, tareas y reuniones   → Cartera (clientes)                       1
-  S363 Metas y productos            → Cartera (clientes)                       2
-  S364 Distribución y derivaciones  → Repartir                                 9
-  S365 Leads y cartera              → Repartir                                 3
-  S366 Leads y cartera              → Rescate descartados                      3
-  S367 Leads y cartera              → Rescate carpeta                          3
-  S368 Contratos y capital          → Derivaciones                             1
-  S369 Distribución y derivaciones  → Derivaciones                             3
-  S370 Usuarios, equipo y permisos  → Derivaciones                             1
-  S371 Agenda, tareas y reuniones   → Derivaciones                             1
-  S372 Metas y productos            → Derivaciones                             2
-  S373 Postventa                    → Derivaciones                            10
-  S374 Inversiones e identidad      → Derivaciones                             1
-  S375 Contratos y capital          → Equipo                                   1
-  S376 Metas y productos            → Equipo                                   2
-  S377 Conversión y cierres         → Equipo                                   3
-  S378 Métricas y reportes          → Equipo                                   1
-  S379 SLA y cola operativa         → Equipo                                   2
-  S380 Leads y cartera              → Equipo                                   1
-  S381 Usuarios, equipo y permisos  → Equipo                                   1
-  S382 Agenda, tareas y reuniones   → Equipo                                   1
-  S383 Postventa                    → Equipo                                  10
-  S384 Inversiones e identidad      → Equipo                                   1
-  S385 Inversiones e identidad      → Configuración                            1
-  S386 Metas y productos            → Configuración                            1
-  S387 SLA y cola operativa         → Configuración                            1
-  S388 Agenda, tareas y reuniones   → Configuración                            1
-  S389 Usuarios, equipo y permisos  → Configuración                            1
-  S390 Usuarios, equipo y permisos  → Config · Usuarios                        8
-  S391 Agenda, tareas y reuniones   → Config · Usuarios                        1
-  S392 Metas y productos            → Config · Usuarios                        2
-  S393 Postventa                    → Config · Usuarios                       10
-  S394 Inversiones e identidad      → Config · Usuarios                        1
-  S395 Inversiones e identidad      → Config · Productos                       6
-  S396 Metas y productos            → Config · Metas                           3
-  S397 Conversión y cierres         → Config · Metas                           1
-  S398 Usuarios, equipo y permisos  → Config · Metas                           1
-  S399 Agenda, tareas y reuniones   → Config · Metas                           1
-  S400 Postventa                    → Config · Metas                          10
-  S401 Inversiones e identidad      → Config · Metas                           1
-  S402 SLA y cola operativa         → Config · SLA                             6
-  S403 Tasa y rentabilidad          → Config · Rentabilidad                    3
-  S404 Citas de Gerencia            → Config · Citas                           3
-  S405 Usuarios, equipo y permisos  → App CRM · sesión, store y avisos         9
-  S406 Tasa y rentabilidad          → App CRM · sesión, store y avisos        15
-  S407 Contratos y capital          → App CRM · sesión, store y avisos        10
-  S408 Leads y cartera              → App CRM · sesión, store y avisos        17
-  S409 Metas y productos            → App CRM · sesión, store y avisos         3
-  S410 Ayuda al vendedor            → App CRM · sesión, store y avisos         2
-  S411 SLA y cola operativa         → App CRM · sesión, store y avisos        15
-  S412 Conversión y cierres         → App CRM · sesión, store y avisos         9
-  S413 Agenda, tareas y reuniones   → App CRM · sesión, store y avisos         8
-  S414 Clientes (perfiles)          → App CRM · sesión, store y avisos         8
-  S415 Distribución y derivaciones  → App CRM · sesión, store y avisos        14
+  S255 Metas y productos            → Contratos y capital                      1
+  S256 Leads y cartera              → Contratos y capital                      1
+  S257 Conversión y cierres         → Metas y productos                        1
+  S258 Agenda, tareas y reuniones   → Usuarios, equipo y permisos              1  [transversal]
+  S259 Leads y cartera              → Usuarios, equipo y permisos              1  [transversal]
+  S260 Usuarios, equipo y permisos  → Contratos y capital                      2
+  S261 Leads y cartera              → Métricas y reportes                      1
+  S262 Contratos y capital          → Clientes (perfiles)                      1
+  S263 Agenda, tareas y reuniones   → Auditoría, vigías y guardas              5  [transversal]
+  S264 Conversión y cierres         → Auditoría, vigías y guardas              8  [transversal]
+  S265 Leads y cartera              → Auditoría, vigías y guardas              7  [transversal]
+  S266 Contratos y capital          → Auditoría, vigías y guardas              8  [transversal]
+  S267 Tasa y rentabilidad          → Auditoría, vigías y guardas              7  [transversal]
+  S268 SLA y cola operativa         → Auditoría, vigías y guardas             13  [transversal]
+  S269 Metas y productos            → Auditoría, vigías y guardas             12  [transversal]
+  S270 Postventa                    → Auditoría, vigías y guardas              3  [transversal]
+  S271 Citas de Gerencia            → Métricas y reportes                      3
+  S272 Contratos y capital          → Clientes (perfiles)                      2
+  S273 Notificaciones del portal    → Auditoría, vigías y guardas              2  [transversal]
+  S274 Notificaciones del portal    → Clientes (perfiles)                      1
+  S275 Contratos y capital          → pg_cron · 10 tareas                      1
+  S276 Leads y cartera              → pg_cron · 10 tareas                      2
+  S277 Auditoría, vigías y guardas  → pg_cron · 10 tareas                      4  [transversal]
+  S278 Tasa y rentabilidad          → pg_cron · 10 tareas                      1
+  S279 Notificaciones del portal    → Contratos y capital                      2
+  S280 Usuarios, equipo y permisos  → Conversión y cierres                     2
+  S281 Tasa y rentabilidad          → Conversión y cierres                     1
+  S282 Clientes (perfiles)          → Inversiones e identidad                  1
+  S283 Auditoría, vigías y guardas  → Tasa y rentabilidad                      1
+  S284 Auditoría, vigías y guardas  → Notificaciones del portal                1
+  S285 Inversiones e identidad      → Sin módulo                               2
+  S286 Clientes (perfiles)          → Usuarios, equipo y permisos              1
+  S287 SLA y cola operativa         → Hoy · Analista                           7
+  S288 Contratos y capital          → Hoy · Analista                           1
+  S289 Agenda, tareas y reuniones   → Hoy · Analista                           4
+  S290 Conversión y cierres         → Hoy · Analista                           1
+  S291 Postventa                    → Hoy · Analista                          11
+  S292 Leads y cartera              → Hoy · Analista                           4
+  S293 Tasa y rentabilidad          → Hoy · Analista                           3
+  S294 Sin módulo                   → Hoy · Analista                           2
+  S295 Usuarios, equipo y permisos  → Hoy · Analista                           1
+  S296 Metas y productos            → Hoy · Analista                           2
+  S297 Inversiones e identidad      → Hoy · Analista                           3
+  S298 Contratos y capital          → Hoy · Supervisor                         1
+  S299 Conversión y cierres         → Hoy · Supervisor                         3
+  S300 Agenda, tareas y reuniones   → Hoy · Supervisor                         4
+  S301 SLA y cola operativa         → Hoy · Supervisor                         5
+  S302 Leads y cartera              → Hoy · Supervisor                         2
+  S303 Métricas y reportes          → Hoy · Supervisor                         1
+  S304 Tasa y rentabilidad          → Hoy · Supervisor                         3
+  S305 Usuarios, equipo y permisos  → Hoy · Supervisor                         1
+  S306 Metas y productos            → Hoy · Supervisor                         2
+  S307 Sin módulo                   → Hoy · Supervisor                         2
+  S308 Postventa                    → Hoy · Supervisor                        10
+  S309 Inversiones e identidad      → Hoy · Supervisor                         1
+  S310 Contratos y capital          → Gerencia (Hoy + 5 vistas)                1
+  S311 Citas de Gerencia            → Gerencia (Hoy + 5 vistas)                2
+  S312 Distribución y derivaciones  → Gerencia (Hoy + 5 vistas)                2
+  S313 Conversión y cierres         → Gerencia (Hoy + 5 vistas)                6
+  S314 Metas y productos            → Gerencia (Hoy + 5 vistas)                2
+  S315 SLA y cola operativa         → Gerencia (Hoy + 5 vistas)                7
+  S316 Leads y cartera              → Gerencia (Hoy + 5 vistas)                5
+  S317 Tasa y rentabilidad          → Gerencia (Hoy + 5 vistas)                5
+  S318 Métricas y reportes          → Gerencia (Hoy + 5 vistas)                2
+  S319 Agenda, tareas y reuniones   → Gerencia (Hoy + 5 vistas)                6
+  S320 Usuarios, equipo y permisos  → Gerencia (Hoy + 5 vistas)                1
+  S321 Postventa                    → Gerencia (Hoy + 5 vistas)               11
+  S322 Sin módulo                   → Gerencia (Hoy + 5 vistas)                2
+  S323 Inversiones e identidad      → Gerencia (Hoy + 5 vistas)                3
+  S324 Contratos y capital          → Hoy · Directorio                         1
+  S325 Agenda, tareas y reuniones   → Hoy · Directorio                         1
+  S326 Leads y cartera              → Hoy · Directorio                         1
+  S327 Métricas y reportes          → Hoy · Directorio                         1
+  S328 SLA y cola operativa         → Seguimiento                              2
+  S329 Contratos y capital          → Facturación                              1
+  S330 Métricas y reportes          → Facturación                              1
+  S331 Inversiones e identidad      → Informes por empresa                     2
+  S332 SLA y cola operativa         → Pipeline                                 1
+  S333 Leads y cartera              → Pipeline                                 3
+  S334 Usuarios, equipo y permisos  → Pipeline                                 1
+  S335 Agenda, tareas y reuniones   → Pipeline                                 1
+  S336 Metas y productos            → Pipeline                                 2
+  S337 Postventa                    → Pipeline                                10
+  S338 Inversiones e identidad      → Pipeline                                 1
+  S339 Conversión y cierres         → Leads (cartera)                          1
+  S340 Leads y cartera              → Leads (cartera)                          2
+  S341 SLA y cola operativa         → Agenda                                   4
+  S342 Agenda, tareas y reuniones   → Agenda                                   4
+  S343 Sin módulo                   → Agenda                                   2
+  S344 Postventa                    → Agenda                                  11
+  S345 Inversiones e identidad      → Agenda                                   3
+  S346 Leads y cartera              → Agenda                                   1
+  S347 Usuarios, equipo y permisos  → Agenda                                   1
+  S348 Metas y productos            → Agenda                                   2
+  S349 Contratos y capital          → Cartera (clientes)                       9
+  S350 Clientes (perfiles)          → Cartera (clientes)                       8
+  S351 Leads y cartera              → Cartera (clientes)                       1
+  S352 Inversiones e identidad      → Cartera (clientes)                      20
+  S353 Conversión y cierres         → Cartera (clientes)                       3
+  S354 Tasa y rentabilidad          → Cartera (clientes)                       8
+  S355 Postventa                    → Cartera (clientes)                      11
+  S356 Sin módulo                   → Cartera (clientes)                       1
+  S357 Usuarios, equipo y permisos  → Cartera (clientes)                       1
+  S358 Agenda, tareas y reuniones   → Cartera (clientes)                       1
+  S359 Metas y productos            → Cartera (clientes)                       2
+  S360 Distribución y derivaciones  → Repartir                                 9
+  S361 Leads y cartera              → Repartir                                 3
+  S362 Leads y cartera              → Rescate descartados                      3
+  S363 Leads y cartera              → Rescate carpeta                          3
+  S364 Contratos y capital          → Derivaciones                             1
+  S365 Distribución y derivaciones  → Derivaciones                             3
+  S366 Usuarios, equipo y permisos  → Derivaciones                             1
+  S367 Agenda, tareas y reuniones   → Derivaciones                             1
+  S368 Metas y productos            → Derivaciones                             2
+  S369 Leads y cartera              → Derivaciones                             2
+  S370 Postventa                    → Derivaciones                            10
+  S371 Inversiones e identidad      → Derivaciones                             1
+  S372 Contratos y capital          → Equipo                                   1
+  S373 Metas y productos            → Equipo                                   2
+  S374 Conversión y cierres         → Equipo                                   3
+  S375 Métricas y reportes          → Equipo                                   1
+  S376 SLA y cola operativa         → Equipo                                   2
+  S377 Leads y cartera              → Equipo                                   3
+  S378 Usuarios, equipo y permisos  → Equipo                                   1
+  S379 Agenda, tareas y reuniones   → Equipo                                   1
+  S380 Postventa                    → Equipo                                  10
+  S381 Inversiones e identidad      → Equipo                                   1
+  S382 Inversiones e identidad      → Configuración                            1
+  S383 Metas y productos            → Configuración                            1
+  S384 SLA y cola operativa         → Configuración                            1
+  S385 Agenda, tareas y reuniones   → Configuración                            1
+  S386 Usuarios, equipo y permisos  → Configuración                            1
+  S387 Usuarios, equipo y permisos  → Config · Usuarios                        8
+  S388 Agenda, tareas y reuniones   → Config · Usuarios                        1
+  S389 Metas y productos            → Config · Usuarios                        2
+  S390 Postventa                    → Config · Usuarios                       10
+  S391 Inversiones e identidad      → Config · Usuarios                        1
+  S392 Inversiones e identidad      → Config · Productos                       6
+  S393 Metas y productos            → Config · Metas                           3
+  S394 Conversión y cierres         → Config · Metas                           1
+  S395 Usuarios, equipo y permisos  → Config · Metas                           1
+  S396 Agenda, tareas y reuniones   → Config · Metas                           1
+  S397 Postventa                    → Config · Metas                          10
+  S398 Inversiones e identidad      → Config · Metas                           1
+  S399 SLA y cola operativa         → Config · SLA                             6
+  S400 Tasa y rentabilidad          → Config · Rentabilidad                    3
+  S401 Citas de Gerencia            → Config · Citas                           3
+  S402 Usuarios, equipo y permisos  → App CRM · sesión, store y avisos         9
+  S403 Tasa y rentabilidad          → App CRM · sesión, store y avisos        15
+  S404 Contratos y capital          → App CRM · sesión, store y avisos        13
+  S405 Leads y cartera              → App CRM · sesión, store y avisos        18
+  S406 Metas y productos            → App CRM · sesión, store y avisos         3
+  S407 Ayuda al vendedor            → App CRM · sesión, store y avisos         2
+  S408 SLA y cola operativa         → App CRM · sesión, store y avisos        15
+  S409 Conversión y cierres         → App CRM · sesión, store y avisos        12
+  S410 Agenda, tareas y reuniones   → App CRM · sesión, store y avisos         9
+  S411 Sin módulo                   → App CRM · sesión, store y avisos         4
+  S412 Distribución y derivaciones  → App CRM · sesión, store y avisos        15
+  S413 Clientes (perfiles)          → App CRM · sesión, store y avisos         8
+  S414 Métricas y reportes          → App CRM · sesión, store y avisos         3
+  S415 Citas de Gerencia            → App CRM · sesión, store y avisos         5
   S416 Inversiones e identidad      → App CRM · sesión, store y avisos        29
-  S417 Métricas y reportes          → App CRM · sesión, store y avisos         3
-  S418 Citas de Gerencia            → App CRM · sesión, store y avisos         5
-  S419 Postventa                    → App CRM · sesión, store y avisos        11
-  S420 Sin módulo                   → App CRM · sesión, store y avisos         3
-  S421 Leads y cartera              → Hoja comercial (puente de leads)         1
-  S422 Agenda, tareas y reuniones   → Calendario externo (feed ICS)            1
-  S423 Tasa y rentabilidad          → Portal del cliente (public_html)         1
-  S424 Clientes (perfiles)          → Portal del cliente (public_html)         7
-  S425 Contratos y capital          → Portal del cliente (public_html)         9
-  S426 Inversiones e identidad      → Portal del cliente (public_html)         1
-  S427 Métricas y reportes          → Portal del cliente (public_html)         4
-  S428 Agenda, tareas y reuniones   → Portal del cliente (public_html)         1
-  S429 Usuarios, equipo y permisos  → Portal del cliente (public_html)         2
-  S430 Notificaciones del portal    → Portal del cliente (public_html)         2
+  S417 Postventa                    → App CRM · sesión, store y avisos        11
+  S418 Leads y cartera              → Hoja comercial (puente de leads)         1
+  S419 Agenda, tareas y reuniones   → Calendario externo (feed ICS)            1
+  S420 Tasa y rentabilidad          → Portal del cliente (public_html)         1
+  S421 Clientes (perfiles)          → Portal del cliente (public_html)         7
+  S422 Contratos y capital          → Portal del cliente (public_html)         9
+  S423 Inversiones e identidad      → Portal del cliente (public_html)         1
+  S424 Métricas y reportes          → Portal del cliente (public_html)         4
+  S425 Agenda, tareas y reuniones   → Portal del cliente (public_html)         1
+  S426 Usuarios, equipo y permisos  → Portal del cliente (public_html)         2
+  S427 Notificaciones del portal    → Portal del cliente (public_html)         2
 
-== LIBRETA DE DECISIONES: 33 aceptados · 1 en corrección · 141 pendientes · 0 cerrados confirmados ==
+== LIBRETA DE DECISIONES: 33 aceptados · 1 en corrección · 142 pendientes · 0 cerrados confirmados ==
 
-== SALTOS (175) por severidad {'A': 51, 'M': 89, 'B': 32, 'D': 3} ==
+== SALTOS (176) por severidad {'A': 51, 'M': 90, 'B': 32, 'D': 3} ==
   A1   Leads y cartera              ⇢ Agenda                                   1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
   A2   Leads y cartera              ⇢ Alertas                                  1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
   A3   Leads y cartera              ⇢ App CRM · sesión, store y avisos         3  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)
@@ -649,7 +646,7 @@
   M70  Agenda, tareas y reuniones   ⇢ Agenda, tareas y reuniones               2  salta inversion      inversión: el núcleo depende de una puerta
   M71  Agenda, tareas y reuniones   ⇢ SLA y cola operativa                     3  salta inversion      inversión: el núcleo depende de una puerta
   M72  Agenda, tareas y reuniones   ⇢ Auditoría, vigías y guardas             13  salta inversion      inversión: el núcleo depende de una puerta
-  M73  SLA y cola operativa         ⇢ Auditoría, vigías y guardas             13  salta inversion      inversión: el núcleo depende de una puerta
+  M73  SLA y cola operativa         ⇢ Auditoría, vigías y guardas             15  salta inversion      inversión: el núcleo depende de una puerta
   M74  SLA y cola operativa         ⇢ Sin módulo                               2  salta inversion      inversión: el núcleo depende de una puerta
   M75  Conversión y cierres         ⇢ Conversión y cierres                     1  salta inversion      inversión: el núcleo depende de una puerta
   M76  Tasa y rentabilidad          ⇢ Tasa y rentabilidad                      1  salta inversion      inversión: el núcleo depende de una puerta
@@ -663,9 +660,10 @@
   M84  Usuarios, equipo y permisos  ⇢ Contratos y capital                      5  salta inversion      inversión: el núcleo depende de una puerta
   M85  Usuarios, equipo y permisos  ⇢ Clientes (perfiles)                      7  salta inversion      inversión: el núcleo depende de una puerta
   M86  Usuarios, equipo y permisos  ⇢ Usuarios, equipo y permisos              4  salta inversion      inversión: el núcleo depende de una puerta
-  M87  Auditoría, vigías y guardas  ⇢ Contratos y capital                      1  salta inversion      inversión: el núcleo depende de una puerta
-  M88  Sin módulo                   ⇢ Agenda, tareas y reuniones               1  salta inversion      inversión: el núcleo depende de una puerta
-  M89  Sin módulo                   ⇢ Auditoría, vigías y guardas              4  salta inversion      inversión: el núcleo depende de una puerta
+  M87  Usuarios, equipo y permisos  ⇢ Auditoría, vigías y guardas              2  salta inversion      inversión: el núcleo depende de una puerta
+  M88  Auditoría, vigías y guardas  ⇢ Contratos y capital                      1  salta inversion      inversión: el núcleo depende de una puerta
+  M89  Sin módulo                   ⇢ Agenda, tareas y reuniones               1  salta inversion      inversión: el núcleo depende de una puerta
+  M90  Sin módulo                   ⇢ Auditoría, vigías y guardas              6  salta inversion      inversión: el núcleo depende de una puerta
   B1   Agenda, tareas y reuniones   ⇢ App CRM · sesión, store y avisos         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
   B2   Agenda, tareas y reuniones   ⇢ Configuración                            1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
   B3   Clientes (perfiles)          ⇢ Portal del cliente (public_html)         1  salta Núcleo+Puerta  la pantalla lee/escribe la tabla directo por PostgREST (RLS activa)  [aceptado]
@@ -704,18 +702,18 @@
 
 == META == {
  "totales": {
-  "funciones": 691,
-  "firmas": 698,
+  "funciones": 697,
+  "firmas": 704,
   "relaciones": 119,
   "edge": 21,
   "cron": 10,
   "pantallas": 26,
-  "aristas_objeto": 3708,
-  "sanas": 430,
-  "saltos": 175,
+  "aristas_objeto": 3745,
+  "sanas": 427,
+  "saltos": 176,
   "por_sev": {
    "A": 51,
-   "M": 89,
+   "M": 90,
    "B": 32,
    "D": 3
   }
@@ -726,7 +724,7 @@
   "public.rpc ← Edge ×1"
  ],
  "comparacion": {
-  "tablas_solo_c1": 51,
+  "tablas_solo_c1": 57,
   "funciones_solo_c1": 7,
   "funciones_solo_c2": 0
  },
@@ -741,6 +739,9 @@
   "private.es_lector_global",
   "private.f4_comprobante_autorizado",
   "private.f4_comprobante_visible",
+  "private.gestion_diaria_analista_core",
+  "private.gestion_diaria_llamadas",
+  "private.gestion_diaria_umbrales",
   "private.membresia_crm_revocada",
   "private.nombre_de_autor",
   "private.normalizar_telefono",
