@@ -111,7 +111,7 @@ export function AccionesContacto({
     void asegurarLead(lead.id).then((ok) => {
       if (ok) setDialogo(canal)
       else toast.error('Este lead ya no está disponible en tu ámbito.')
-    })
+    }).catch(() => toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'))
   }, [asegurarLead, lead.id])
 
   useEffect(() => {
@@ -252,7 +252,14 @@ function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: str
   if (tareasDe(lead.id).some((t) => esPlanVivo(t, ahora))) return null
 
   const agendar = async () => {
-    if (!(await asegurarLead(lead.id))) {
+    let conocido = false
+    try {
+      conocido = await asegurarLead(lead.id)
+    } catch {
+      toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.')
+      return
+    }
+    if (!conocido) {
       toast.error('Este lead ya no está disponible en tu ámbito.')
       return
     }

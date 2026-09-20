@@ -449,14 +449,28 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(montaje.panelState().leadAbiertoId).toBe(ID_A)
     })
 
-    it('abre inmediatamente una fila activa ya cargada sin otra lectura', async () => {
+    it('abre una fila conocida RELEYÉNDOLA por id (Fase 4e: lo conocido puede estar revocado)', async () => {
       const montaje = montar()
       await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
 
-      expect(await abrir(montaje, leadBase().id)).toBe(true)
+      expect(await abrir(montaje, ID_A)).toBe(true)
 
-      expect(montaje.panelState().leadAbiertoId).toBe(leadBase().id)
-      expect(obtenerLeadPorId).not.toHaveBeenCalled()
+      expect(montaje.panelState().leadAbiertoId).toBe(ID_A)
+      expect(obtenerLeadPorId).toHaveBeenCalledTimes(1)
+      expect(montaje.api().lead(ID_A)).toMatchObject({ id: ID_A, vendedor_nombre: 'Analista Real' })
+    })
+
+    it('una fila conocida que el servidor ya no autoriza deja de ser conocida al intentar abrirla', async () => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(montaje.api().lead(leadBase().id)).toBeDefined()
+      obtenerLeadPorId.mockResolvedValueOnce(null)
+
+      expect(await abrir(montaje, leadBase().id)).toBe(false)
+
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+      expect(montaje.api().lead(leadBase().id)).toBeUndefined()
     })
 
     it.each(['sin acceso', 'error remoto'] as const)('no inventa ni abre una ficha ante %s', async (caso) => {
@@ -592,9 +606,43 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([ID_A, ID_B])
       expect(montaje.api().ambito.vendedores.map((m) => m.perfil_id)).toContain('u-v2')
       expect(montaje.api().lead(ID_A)?.vendedor_nombre).toBe('Analista Descendiente')
+      // Fase 4e: abrir siempre relee por id (una fila por apertura).
+      obtenerLeadPorId.mockResolvedValueOnce({ ...filaA(), vendedor_id: 'u-v2' })
       expect(await abrir(montaje, ID_A)).toBe(true)
+      obtenerLeadPorId.mockResolvedValueOnce({ ...filaB(), vendedor_id: null, asignado_supervisor_id: 'u-s2' })
       expect(await abrir(montaje, ID_B)).toBe(true)
-      expect(obtenerLeadPorId).not.toHaveBeenCalled()
+      expect(obtenerLeadPorId).toHaveBeenCalledTimes(2)
+    })
+
+    it('asegurarLead relee por id, registra la fila y descarta una respuesta tardía de otra identidad (Fase 4e)', async () => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      // La misma referencia entre cambios del store: los efectos de registro
+      // de las pantallas no se re-disparan con cada mutación (Codex 20/09).
+      const conocer = montaje.api().conocerLeads
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      let ok!: boolean
+      await act(async () => { ok = await montaje.api().asegurarLead(ID_A) })
+      expect(ok).toBe(true)
+      expect(montaje.api().lead(ID_A)).toMatchObject({ id: ID_A, vendedor_nombre: 'Analista Real' })
+      expect(montaje.api().conocerLeads).toBe(conocer)
+
+      // Revocado: deja de ser conocido.
+      obtenerLeadPorId.mockResolvedValueOnce(null)
+      await act(async () => { ok = await montaje.api().asegurarLead(ID_A) })
+      expect(ok).toBe(false)
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+
+      // Lectura en vuelo como gerencia; cambia la identidad; la respuesta tardía no entra.
+      const lectura = diferida<LecturaLead>()
+      obtenerLeadPorId.mockReturnValueOnce(lectura.promesa)
+      let tardia!: Promise<boolean>
+      act(() => { tardia = montaje.api().asegurarLead(ID_B) })
+      listarLeads.mockResolvedValueOnce([])
+      montaje.rerenderAuth('vendedor')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      await act(async () => { lectura.resolver(filaB()); expect(await tardia).toBe(false) })
+      expect(montaje.api().lead(ID_B)).toBeUndefined()
     })
 
     it('resync conserva la ficha fuera del boot con una fila fresca y revalidada', async () => {

@@ -903,7 +903,12 @@ export function HoyVendedor(): JSX.Element {
   // Fase 4e: el store conoce la cartera propia (verbos de escritura por id).
   const { conocerLeads } = useCRMData()
   useEffect(() => { conocerLeads(propios.data ?? []) }, [conocerLeads, propios.data])
-  const idsMios = useMemo(() => new Set(mios.map((l) => l.id)), [mios])
+  // Sin la cartera propia (cargando o caída) NO se filtra: las tareas ya llegan
+  // autorizadas por la RLS y ocultarlas leería «sin trabajo» (Codex 20/09).
+  const idsMios = useMemo<ReadonlySet<string> | null>(
+    () => (sesionRealPropios && (propios.isPending || propios.error) ? null : new Set(mios.map((l) => l.id))),
+    [sesionRealPropios, propios.isPending, propios.error, mios],
+  )
 
   // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo
   // demo vivo — esta pantalla ya no cuenta filas para sus tiles. Sin payload
@@ -1045,7 +1050,7 @@ export function HoyVendedor(): JSX.Element {
   // solo hoy — los números no cuadraban con las filas de abajo y un día
   // realmente vacío se leía como un día lleno.
   const agenda = useMemo(() => {
-    const mias = tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id))
+    const mias = tareas.filter((t) => t.lead_id && (idsMios === null || idsMios.has(t.lead_id)))
     return agendaDeTareas(mias, ahora).filter((ev) => ev.vencida || esDeHoy(ev, ahora))
   }, [tareas, idsMios, ahora])
 
@@ -1093,7 +1098,7 @@ export function HoyVendedor(): JSX.Element {
   const itemsHigiene = (
     higiene
       ? colaHigiene(
-          tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)),
+          tareas.filter((t) => t.lead_id && (idsMios === null || idsMios.has(t.lead_id))),
           mios,
           conTarea,
           ahora,

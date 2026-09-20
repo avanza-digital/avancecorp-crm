@@ -143,7 +143,15 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
 
 export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
   const [ocupado, setOcupado] = useState(false)
-  const { lead } = useCRMData()
+  const { lead, asegurarLead } = useCRMData()
+  // Fase 4e «sin topes»: sin foto inicial, el lead de la llamada puede no ser
+  // conocido aún (entrar a la Agenda sin abrir su ficha); se asegura por id al
+  // abrir el diálogo para que el panel tipificado aparezca (Codex 20/09).
+  const leadIdLlamada = tarea?.tipo === 'llamada' && tarea.lead_id && !tarea.inversionista_id ? tarea.lead_id : null
+  const conocido = leadIdLlamada ? lead(leadIdLlamada) != null : true
+  useEffect(() => {
+    if (leadIdLlamada && !conocido) void asegurarLead(leadIdLlamada).catch(() => {})
+  }, [leadIdLlamada, conocido, asegurarLead])
   // Gestión Diaria F2: una tarea de LLAMADA sobre un lead se cierra con el
   // resultado tipificado (panel del mockup 5), que además la cierra
   // (p_tarea_id). El diálogo conserva su cuarta salida («anular»); al pulsar

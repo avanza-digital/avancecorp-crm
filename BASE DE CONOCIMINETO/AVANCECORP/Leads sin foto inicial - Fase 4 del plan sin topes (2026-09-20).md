@@ -86,6 +86,26 @@ sin analista en prod). Hoy · Supervisor solo usa la bandeja local en demo (sin 
   alcance ya lo puso la RLS.
 - Alertas: `fotoConfiable` ya no depende de un tope; en real con SLA apagado se dice que no hay foto.
 
+## Revisión de Codex del tramo 4c–4e (20/09, CLI solo lectura) — aplicada
+
+- **[P1] Bucle de registro:** `conocerLeads` nacía en el memo de la api (nuevo en cada cambio del
+  store) y los efectos de las pantallas se re-disparaban; dos proyecciones del mismo lead (con y sin
+  `recibido_en`) se pisaban sin fin. → `conocerLeads`/`asegurarLead` viven a nivel de componente con
+  identidad ESTABLE (leen sesión y roster de `contextoPanelRef`); test de identidad.
+- **[P1] Lectura sin guarda de sesión:** `asegurarLead` no comprobaba época/identidad al volver. → Guarda
+  como `abrirLead` (una respuesta tardía de otra identidad no entra); test.
+- **[P1] Lo conocido puede estar revocado:** `abrirLead` abría un conocido sin releer y la resincronización
+  solo revalidaba la ficha abierta. → En real, `abrirLead` y `asegurarLead` SIEMPRE releen por id (una
+  fila) y retiran el lead si el servidor ya no lo autoriza; `buscar` lee el estado vivo (un verbo
+  capturado por un render anterior encuentra el lead recién conocido). Sin deshacer explícito de
+  ediciones rechazadas: la ficha abierta se revalida en la resincronización y las pantallas re-registran
+  sus filas frescas (seguimiento: revertir en cada verbo).
+- **[P1] Cerrar una llamada desde la Agenda sin abrir el lead** perdía el panel tipificado. → El diálogo
+  asegura el lead por id al abrirse.
+- **[P2]** `agendar` con el verbo capturado antes de conocer el lead (→ `buscar` vivo); lecturas que fallan
+  con aviso; la cartera propia caída ya no vacía la agenda de Hoy (sin filtro mientras carga o falla);
+  el tope del bucle por cursor pasa de 200 a 2 000 páginas (100 000 filas).
+
 ## Decisiones
 
 - **`no_contactar` es fail-closed:** sin el dato (servidor anterior) se asume que NO se puede

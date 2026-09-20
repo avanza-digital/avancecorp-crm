@@ -854,6 +854,39 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const aperturaAbortRef = useRef<AbortController | null>(null)
   const contextoPanelRef = useRef({ yo, realActivo, demoActivo, datos, equipo, leadAbiertoId })
   contextoPanelRef.current = { yo, realActivo, demoActivo, datos, equipo, leadAbiertoId }
+
+  // Fase 4e «sin topes»: leads CONOCIDOS. Identidad ESTABLE (no viven en el memo
+  // de la api) para que los efectos de registro de las pantallas solo se
+  // disparen cuando cambian SUS datos, nunca con cada cambio del store
+  // (Codex 20/09: un callback nuevo por render re-registraba en bucle).
+  const conRosterVivo = useCallback((l: Lead): Lead => {
+    const roster = contextoPanelRef.current.equipo
+    const nombreDe = (id: string | null | undefined) =>
+      id ? (roster.find((m) => m.perfil_id === id)?.nombre_completo ?? null) : null
+    return { ...l, vendedor_nombre: nombreDe(l.vendedor_id), cargado_por_nombre: nombreDe(l.cargado_por) }
+  }, [])
+  const conocerLeads = useCallback((nuevos: readonly Lead[]) => {
+    if (!contextoPanelRef.current.realActivo || nuevos.length === 0) return
+    setDatos((d) => fusionarLeadsConocidos(d, nuevos.map(conRosterVivo)))
+  }, [conRosterVivo])
+  // Siempre relee por id bajo la RLS (una fila): un lead conocido puede haber
+  // cambiado de mano o de estado desde que la pantalla lo registró. Guarda de
+  // sesión/época como abrirLead: una respuesta tardía de otra identidad no
+  // entra en el store (Codex 20/09).
+  const asegurarLead = useCallback(async (id: string): Promise<boolean> => {
+    const contexto = contextoPanelRef.current
+    if (!contexto.realActivo) return contexto.demoActivo && contexto.datos.leads.some((l) => l.id === id && l.activo)
+    const epoca = epocaRef.current
+    const fila = await obtenerLeadDelAmbitoPorId(id, AbortSignal.timeout(LIMITE_CARGA_REAL_MS))
+    const ahora = contextoPanelRef.current
+    if (epocaRef.current !== epoca || ahora.yo?.id !== contexto.yo?.id || ahora.yo?.rol !== contexto.yo?.rol || !ahora.realActivo) return false
+    if (!fila) {
+      setDatos((d) => (d.leads.some((l) => l.id === id) ? { ...d, leads: d.leads.filter((l) => l.id !== id) } : d))
+      return false
+    }
+    setDatos((d) => fusionarLeadsConocidos(d, [conRosterVivo(fila)]))
+    return true
+  }, [conRosterVivo])
   useEffect(() => () => { aperturaAbortRef.current?.abort(); aperturaRef.current += 1 }, [])
 
   const abrirLead = useCallback(async (id: string): Promise<boolean> => {
@@ -863,7 +896,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const epoca = epocaRef.current
     setNuevoLeadAbierto(false)
     if (!contexto.realActivo && !contexto.demoActivo) return false
-    if (contexto.datos.leads.some((l) => l.id === id && l.activo)) {
+    // Demo: el espejo local basta. Real: SIEMPRE se relee por id bajo la RLS,
+    // aunque el lead ya sea conocido (Fase 4e: lo conocido puede estar revocado).
+    if (!contexto.realActivo && contexto.datos.leads.some((l) => l.id === id && l.activo)) {
       setLeadAbiertoId(id)
       return true
     }
@@ -888,13 +923,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       ])
       if (!vigente()) return false
       if (!fila) {
+        // Revocado: deja de ser conocido para que ningún verbo actúe sobre él.
+        setDatos((actual) => (actual.leads.some((l) => l.id === id) ? { ...actual, leads: actual.leads.filter((l) => l.id !== id) } : actual))
         toast.error('La oportunidad ya no está disponible en tu cartera.')
         return false
       }
-      const nombreDe = (perfilId: string | null | undefined) =>
-        perfilId ? (contextoPanelRef.current.equipo.find((m) => m.perfil_id === perfilId)?.nombre_completo ?? null) : null
-      setDatos((actual) => actual.leads.some((l) => l.id === id) ? actual
-        : { ...actual, leads: [...actual.leads, { ...fila, vendedor_nombre: nombreDe(fila.vendedor_id), cargado_por_nombre: nombreDe(fila.cargado_por) }] })
+      // La fila fresca manda sobre la conocida.
+      setDatos((actual) => fusionarLeadsConocidos(actual, [conRosterVivo(fila)]))
       setLeadAbiertoId(id)
       return true
     } catch (error) {
@@ -907,7 +942,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       clearTimeout(reloj)
       if (aperturaAbortRef.current === control) aperturaAbortRef.current = null
     }
-  }, [])
+  }, [conRosterVivo])
   const abrirNuevoLead = useCallback((etapa?: EtapaActiva, telefono?: string) => {
     aperturaRef.current += 1
     aperturaAbortRef.current?.abort()
@@ -1511,13 +1546,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // global permitía a un supervisor mutar leads del otro equipo (hallazgo de
     // los tests de auditoría). Fuera del ámbito → "no encontrado", igual que
     // RLS (0 filas), sin revelar existencia.
-    const buscar = (id: string) => ambito.leads.find((l) => l.id === id)
-    const nombrePorIdRoster = new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo] as const))
-    const conRoster = (l: Lead): Lead => ({
-      ...l,
-      vendedor_nombre: l.vendedor_id ? (nombrePorIdRoster.get(l.vendedor_id) ?? null) : null,
-      cargado_por_nombre: l.cargado_por ? (nombrePorIdRoster.get(l.cargado_por) ?? null) : null,
-    })
+    // En real lee el estado VIVO: un verbo capturado por un render anterior
+    // (p. ej. agendar justo después de asegurarLead) encuentra el lead recién
+    // conocido. En demo, el espejo de ámbito por rol.
+    const buscar = (id: string) => realActivo
+      ? contextoPanelRef.current.datos.leads.find((l) => l.id === id && l.activo)
+      : ambito.leads.find((l) => l.id === id)
 
     // Contrato común de los cuatro verbos de agenda: solo una tarea pendiente
     // y activa puede cerrarse, reprogramarse, confirmarse o anularse.
@@ -1686,18 +1720,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       lead: (id) => buscar(id),
       // Los nombres del roster viajan en el lead (mismo espejo que el arranque
       // y la apertura por id): analista y quien lo cargó.
-      conocerLeads: (nuevos) => {
-        if (!realActivo || nuevos.length === 0) return
-        setDatos((d) => fusionarLeadsConocidos(d, nuevos.map(conRoster)))
-      },
-      asegurarLead: async (id) => {
-        if (buscar(id)) return true
-        if (!realActivo) return false
-        const fila = await obtenerLeadDelAmbitoPorId(id, AbortSignal.timeout(LIMITE_CARGA_REAL_MS))
-        if (!fila) return false
-        setDatos((d) => fusionarLeadsConocidos(d, [conRoster(fila)]))
-        return true
-      },
+      conocerLeads,
+      asegurarLead,
       actividadesDe: (leadId) =>
         // Espejo de actividades_select: solo el timeline de leads del ámbito.
         (realActivo || idsDelAmbito.has(leadId))
@@ -3306,6 +3330,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     ambito,
     demoActivo,
     realActivo,
+    conocerLeads,
+    asegurarLead,
     equipo,
     auxiliares,
     resincronizarReal,

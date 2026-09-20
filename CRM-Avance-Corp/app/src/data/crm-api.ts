@@ -864,7 +864,10 @@ async function listarLeadsPorCursor(filtros: FiltrosCartera, etiqueta: string, s
     }
     cursor = pagina.cursor
     vueltas += 1
-  } while (cursor && vueltas < 200)
+  // Salvaguarda contra un servidor que nunca agota (el avance estricto ya
+  // impide ciclar): 2 000 páginas = 100 000 filas, muy por encima de cualquier
+  // bandeja o cartera propia (Codex 20/09: 200 era un tope nuevo de 10 000).
+  } while (cursor && vueltas < 2000)
   if (cursor) throw new CrmApiError('La lista no termina de paginar.', 'ROW_CONTRACT')
   if (items.length > ALARMA_TENDENCIA_BANDEJA) {
     registrarError(`crm.leads.${etiqueta}_tendencia`,
