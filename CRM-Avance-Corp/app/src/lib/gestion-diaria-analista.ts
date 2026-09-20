@@ -308,6 +308,23 @@ export const ETIQUETA_NIVEL: Record<NonNullable<Marcador['nivel']>, string> = {
   bajo: 'Bajo',
 }
 
+
+/**
+ * El color de cada nivel del marcador. Verde NO (decisión #3 de Miguel): «Bien»
+ * va en navy. Y «Bajo» va en ÁMBAR, no en rojo (decisión del 20/09/2026, sobre
+ * el hallazgo de Codex): el rojo de esta pantalla significa UNA sola cosa, «se
+ * venció». Teñir de rojo una tasa baja mezclaba el rendimiento del analista con
+ * el incumplimiento de un plazo, y dejaba un chip rojo con dos significados.
+ * La diferencia entre «Atención» y «Bajo» la dice el TEXTO, nunca el color.
+ *
+ * Son los tokens de TEXTO («-text»), no los saturados: el chip pinta el color
+ * puro sobre un tinte al 12 %, donde los vivos no llegan al contraste.
+ */
+export const COLOR_NIVEL: Record<NonNullable<Marcador['nivel']>, string> = {
+  bien: 'var(--primary)',
+  atencion: 'var(--warning-text)',
+  bajo: 'var(--warning-text)',
+}
 /**
  * Detalle de una fila en una línea, con lo que el analista necesita ANTES de
  * marcar. Sin señales del servidor no se inventa nada: se dice lo que se sabe.

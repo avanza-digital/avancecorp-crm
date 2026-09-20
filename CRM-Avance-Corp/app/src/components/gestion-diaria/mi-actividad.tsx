@@ -16,18 +16,9 @@ import { Button } from '@/components/ui/button'
 import { Tabs } from '@/components/ui/tabs'
 import { presentarCitas } from '@/lib/terminologia'
 import {
-  ETIQUETA_NIVEL, barrasPorHora, cuandoLimaDe, horaLimaDe, llamadasFueraDeFranja, textoTasa,
+  COLOR_NIVEL, ETIQUETA_NIVEL, barrasPorHora, cuandoLimaDe, horaLimaDe, llamadasFueraDeFranja, textoTasa,
   type Descartado, type DiaAnalista,
 } from '@/lib/gestion-diaria-analista'
-
-// Verde NO (decisión #3 de Miguel): «Bien» va en navy sobre fondo tenue. Y los
-// tokens de TEXTO, no los saturados: el chip `soft` pinta el color puro sobre
-// un tinte al 12 %, donde `--warning` da ~3:1 y `--destructive` ~4:1.
-const COLOR_NIVEL: Record<'bien' | 'atencion' | 'bajo', string> = {
-  bien: 'var(--primary)',
-  atencion: 'var(--warning-text)',
-  bajo: 'var(--destructive-text)',
-}
 
 type Seccion = 'resumen' | 'horas' | 'seguimiento' | 'descartes'
 
