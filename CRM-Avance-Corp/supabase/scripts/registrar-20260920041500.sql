@@ -58,9 +58,17 @@ begin
 -- `private.actividades_de_lead_core` (F2). Exige re-sellar el md5 del núcleo en
 -- `private.assert_gestion_diaria_registro()` (cuerpo de F1 intacto salvo la huella).
 --
+-- QUIÉN PUEDE MIRAR. Un analista, solo su propio día. Supervisor, gerencia y
+-- lector global, el de un miembro ACTIVO de su roster visible que lleve leads
+-- (`crm.equipo_visible_fn` incluye dados de baja y, para el lector global,
+-- coordinación y directorio: por eso se exige `activo` y `rol_crm`). Denegación
+-- explícita con 42501, nunca un día vacío que parezca «no llamó».
+--
 -- GATE. `private.assert_gestion_diaria_analista()` (forma y ACL de puerta y
 -- núcleos, md5 propios, cola v2 y politica_abandono en su forma, cadena invoker
--- con sus grants, sin contadores crudos) entra al paraguas
+-- con sus grants, tareas_select por la base de las tareas por cursor,
+-- politica_abandono_select por huella y conjunto, el cuerpo de crm.equipo_visible_fn
+-- —que es la autorización para mirar el día de otro—, sin contadores crudos) entra al paraguas
 -- `private.assert_gestion_diaria()` = _registro (F1) + _resultado (F2) + _analista (F3).
 --
 -- CENSO ANALÍTICO (trinquete rojo): ninguna función nueva cuenta a crudo
@@ -118,7 +126,8 @@ begin
     ('private.registro_actividad_core(timestamptz,timestamptz,uuid[],text[],text,integer,timestamptz,uuid)', 'd1c922eb5081e30f3581b95a95d74656'),
     ('private.assert_gestion_diaria_registro()',                                                              'd2ab883a409638299c135d4bee043575'),
     ('private.assert_gestion_diaria()',                                                                       '32148d3276427fb6004201323e4b9a1f'),
-    ('crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)',                                                   'ef9b56eddeaad5c4297ac0e20777799c')
+    ('crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)',                                                   'ef9b56eddeaad5c4297ac0e20777799c'),
+    ('crm.equipo_visible_fn()',                                                                               '200162f4519586a6c68d8ccf0cf591f7')
   ) as m(firma, md5) loop
     if to_regprocedure(v_firma) is null
        or md5(pg_get_functiondef(to_regprocedure(v_firma))) is distinct from v_md5 then
@@ -131,8 +140,11 @@ begin
      or not exists (select 1 from crm.politica_abandono where singleton)
      or not (select relrowsecurity from pg_class where oid = 'crm.politica_abandono'::regclass)
      or not exists (select 1 from pg_policy where polrelid = 'crm.politica_abandono'::regclass and polname = 'politica_abandono_select')
-     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'dias_abandono', 'SELECT') then
-    raise exception 'PREFLIGHT: crm.politica_abandono no esta en su forma (fila unica, RLS, policy de lectura, SELECT de dias_abandono)';
+     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'dias_abandono', 'SELECT')
+     -- `singleton` también se LEE (el where de la fila única): sin su SELECT la
+     -- cadena invoker falla en ejecución aunque el resto esté (Codex, 20/09).
+     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'singleton', 'SELECT') then
+    raise exception 'PREFLIGHT: crm.politica_abandono no esta en su forma (fila unica, RLS, policy de lectura, SELECT de singleton y dias_abandono)';
   end if;
   -- La cadena INVOKER: lo que los núcleos leen tiene que ser legible por authenticated.
   if not has_function_privilege('authenticated', 'private.puede_acceder_crm()', 'EXECUTE')
@@ -238,7 +250,10 @@ as $function$
   agg as (
     select l.vendedor_id,
            cardinality(array_agg(l.id)) as llamadas,
-           coalesce(cardinality(array_agg(l.id) filter (where l.tipo = 'llamada_realizada')), 0) as contestadas,
+           -- Contestadas ⊆ útiles POR CONSTRUCCIÓN: la tasa nunca puede pasar del
+           -- 100 % aunque una fila histórica llevara un resultado incoherente
+           -- con su tipo (hoy no hay ninguna: medido en producción el 20/09).
+           coalesce(cardinality(array_agg(l.id) filter (where l.tipo = 'llamada_realizada' and l.util)), 0) as contestadas,
            coalesce(cardinality(array_agg(l.id) filter (where l.util)), 0) as utiles,
            cardinality(array_agg(distinct l.lead_id)) as leads_tocados,
            min(l.creado_en) as primera_llamada_en,
@@ -432,8 +447,10 @@ as $function$
            a.creado_en,
            (a.metadata ? 'deshecho_en') as deshecho,
            coalesce((a.metadata->>'no_insista')::boolean, false) as no_insista,
-           (l.etapa = 'descartado' and l.descartado_en is not null
-              and l.descartado_en = nullif(a.metadata->>'descartado_en', '')::timestamptz) as vigente
+           -- Nunca null: el front valida booleanos y un descarte sin sello
+           -- (imposible hoy, medido en producción) no puede tumbar el día.
+           coalesce(l.etapa = 'descartado' and l.descartado_en is not null
+              and l.descartado_en = nullif(a.metadata->>'descartado_en', '')::timestamptz, false) as vigente
     from crm.actividades a
     join crm.leads l on l.id = a.lead_id
     where a.creado_por = p_analista
@@ -455,11 +472,14 @@ as $function$
         'llamadas', m.llamadas,
         'contestadas', m.contestadas,
         'utiles', m.utiles,
+        -- El % que se MUESTRA va redondeado; el NIVEL se decide con la tasa sin
+        -- redondear (Codex, 20/09): 13 de 29 es 44,83 % y eso es «atención»,
+        -- no «bien», aunque redondee a 45.
         'tasa_contacto_pct', case when m.utiles > 0 then round(100.0 * m.contestadas / m.utiles) end,
         'nivel', case
           when m.utiles > 0 and m.utiles >= (m.u->>'minimo_llamadas_utiles')::integer then
-            case when round(100.0 * m.contestadas / m.utiles) >= (m.u->>'bien_min_pct')::numeric then 'bien'
-                 when round(100.0 * m.contestadas / m.utiles) >= (m.u->>'atencion_min_pct')::numeric then 'atencion'
+            case when 100.0 * m.contestadas / m.utiles >= (m.u->>'bien_min_pct')::numeric then 'bien'
+                 when 100.0 * m.contestadas / m.utiles >= (m.u->>'atencion_min_pct')::numeric then 'atencion'
                  else 'bajo' end
         end,
         'leads_tocados', m.leads_tocados,
@@ -495,8 +515,8 @@ as $function$
         'actividad_id', d.actividad_id, 'lead_id', d.lead_id, 'lead_nombre', d.lead_nombre, 'lead_etapa', d.lead_etapa,
         'resultado', d.resultado, 'submotivo', d.submotivo, 'motivo_descarte', d.motivo_descarte,
         'creado_en', d.creado_en, 'deshecho', d.deshecho, 'vigente', d.vigente, 'no_insista', d.no_insista,
-        'puede_deshacer', (p_actor = p_analista and not d.deshecho and d.vigente and not d.no_insista
-                           and d.creado_en >= p_ahora - interval '24 hours'))
+        'puede_deshacer', coalesce(p_actor = p_analista and not d.deshecho and d.vigente and not d.no_insista
+                           and d.creado_en >= p_ahora - interval '24 hours', false))
         order by d.creado_en desc, d.actividad_id)
       from descartados d), '[]'::jsonb)
   );
@@ -551,7 +571,13 @@ begin
     if v_rol = 'vendedor' then
       raise exception 'Solo puedes ver tu propio dia' using errcode = '42501';
     end if;
-    if not exists (select 1 from crm.equipo_visible_fn() ev where ev.perfil_id = v_analista) then
+    -- ACTIVO y que lleve leads: `crm.equipo_visible_fn` incluye a los dados de
+    -- baja (vendedor_ids_visibles lo hace a propósito) y, para el lector global,
+    -- a coordinación y directorio. El día es de quien gestiona (Codex, 20/09).
+    if not exists (
+      select 1 from crm.equipo_visible_fn() ev
+      where ev.perfil_id = v_analista and ev.activo and ev.rol_crm in ('vendedor', 'supervisor')
+    ) then
       raise exception 'Solo puedes ver el dia de analistas activos de tu equipo' using errcode = '42501';
     end if;
   end if;
@@ -777,10 +803,14 @@ begin
 
   -- 2. Los CUERPOS propios, sellados (medidos en el banco, dos pasadas).
   for v_firma, v_md5 in select * from (values
-    ('crm.gestion_diaria_analista_fn(date,uuid)',                                                          '547374a60eff8fd8ac631cf9daccc1ab'),
-    ('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)',    'f97fe787e45face3bc3eb99b4990b79b'),
-    ('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])',                                    '431e9fd8198adcb1cd7416cd0f15acaa'),
-    ('private.gestion_diaria_umbrales()',                                                                   '6ab633af9f5356f3fa11cf309ff4b25c')
+    ('crm.gestion_diaria_analista_fn(date,uuid)',                                                          'ba3d0502ae4bf0d010677562d47634a5'),
+    ('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)',    'b08d96d051c210e24b1fb74484670b93'),
+    ('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])',                                    '45e6e7a82c54b2f15110b828ba70761d'),
+    ('private.gestion_diaria_umbrales()',                                                                   '6ab633af9f5356f3fa11cf309ff4b25c'),
+    -- El roster ES la autorización para mirar el día de otro: si alguien lo
+    -- reescribe, este gate se pone en rojo y hay que re-sellar a conciencia
+    -- (md5 medido en producción el 20/09/2026).
+    ('crm.equipo_visible_fn()',                                                                             '200162f4519586a6c68d8ccf0cf591f7')
   ) as m(firma, md5) loop
     if to_regprocedure(v_firma) is null
        or md5(pg_get_functiondef(to_regprocedure(v_firma))) is distinct from v_md5 then
@@ -802,12 +832,24 @@ begin
   end if;
 
   -- 4. La perilla del abandono: fila única bajo RLS, legible por el actor.
+  -- La perilla, sellada como las policies de F1: huella de la expresión y el
+  -- conjunto de permisivas de lectura EXACTO (una permisiva nueva la abriría a
+  -- quien no debe). Huella medida en producción el 20/09/2026.
   if to_regclass('crm.politica_abandono') is null
      or not (select relrowsecurity from pg_class where oid = 'crm.politica_abandono'::regclass)
-     or not exists (select 1 from pg_policy where polrelid = 'crm.politica_abandono'::regclass
-                    and polname = 'politica_abandono_select' and polcmd = 'r')
-     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'dias_abandono', 'SELECT') then
-    raise exception 'crm.politica_abandono perdio su forma (RLS, policy de lectura o SELECT de dias_abandono)';
+     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'dias_abandono', 'SELECT')
+     or not has_column_privilege('authenticated', 'crm.politica_abandono', 'singleton', 'SELECT') then
+    raise exception 'crm.politica_abandono perdio su forma (RLS o SELECT de singleton/dias_abandono)';
+  end if;
+  if (select md5(pg_get_expr(pol.polqual, pol.polrelid)) from pg_policy pol
+       where pol.polrelid = 'crm.politica_abandono'::regclass and pol.polname = 'politica_abandono_select')
+     is distinct from '97d4f815a6e61ba941d22c4c4d47298d' then
+    raise exception 'politica_abandono_select cambio desde la auditoria: re-auditar quien lee la perilla del abandono';
+  end if;
+  if (select array_agg(pol.polname::text order by pol.polname) from pg_policy pol
+       where pol.polrelid = 'crm.politica_abandono'::regclass and pol.polpermissive and pol.polcmd in ('r', '*'))
+     is distinct from array['politica_abandono_select']::text[] then
+    raise exception 'crm.politica_abandono tiene otras permisivas de lectura: re-auditar quien ve la perilla';
   end if;
 
   -- 5. La cadena invoker: tareas bajo RLS con su policy de lectura, y las
@@ -884,7 +926,11 @@ begin
     ('17 politica sin policy',        'drop policy politica_abandono_select on crm.politica_abandono'),
     ('18 politica sin SELECT',        'revoke select on table crm.politica_abandono from authenticated'),
     ('19 tareas_select abierta',      'alter policy tareas_select on crm.tareas using (true)'),
-    ('20 permisiva nueva en tareas',  'create policy tareas_mutante_gestion_diaria on crm.tareas for select to authenticated using (true)')
+    ('20 permisiva nueva en tareas',  'create policy tareas_mutante_gestion_diaria on crm.tareas for select to authenticated using (true)'),
+    ('21 politica abierta',           'alter policy politica_abandono_select on crm.politica_abandono using (true)'),
+    ('22 permisiva nueva en politica','create policy politica_mutante_gestion_diaria on crm.politica_abandono for select to authenticated using (true)'),
+    ('23 politica sin singleton',     $m$do $x$ begin revoke select on table crm.politica_abandono from authenticated; grant select (dias_abandono) on crm.politica_abandono to authenticated; end $x$$m$),
+    ('24 roster vaciado',             $m$create or replace function crm.equipo_visible_fn() returns table(perfil_id uuid, nombre_completo text, rol_crm text, supervisor_id uuid, activo boolean) language sql stable security definer set search_path to '' as $b$ select e.perfil_id, p.nombre_completo, e.rol_crm, e.supervisor_id, e.activo from crm.equipo e join public.perfiles p on p.id = e.perfil_id where false $b$$m$)
   ) as m(nombre, sql) loop
     begin
       begin
@@ -944,9 +990,9 @@ $mig_gd_analista$;
   -- 1) PIN: lo que la migración hizo ES verdad — puerta y núcleos con la
   --    definición ensayada, el núcleo del registro re-sellado y el paraguas OK.
   if to_regprocedure('crm.gestion_diaria_analista_fn(date,uuid)') is null
-     or md5(pg_get_functiondef('crm.gestion_diaria_analista_fn(date,uuid)'::regprocedure)) is distinct from '547374a60eff8fd8ac631cf9daccc1ab'
-     or md5(pg_get_functiondef('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)'::regprocedure)) is distinct from 'f97fe787e45face3bc3eb99b4990b79b'
-     or md5(pg_get_functiondef('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])'::regprocedure)) is distinct from '431e9fd8198adcb1cd7416cd0f15acaa'
+     or md5(pg_get_functiondef('crm.gestion_diaria_analista_fn(date,uuid)'::regprocedure)) is distinct from 'ba3d0502ae4bf0d010677562d47634a5'
+     or md5(pg_get_functiondef('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)'::regprocedure)) is distinct from 'b08d96d051c210e24b1fb74484670b93'
+     or md5(pg_get_functiondef('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])'::regprocedure)) is distinct from '45e6e7a82c54b2f15110b828ba70761d'
      or md5(pg_get_functiondef('private.gestion_diaria_umbrales()'::regprocedure)) is distinct from '6ab633af9f5356f3fa11cf309ff4b25c'
      or md5(pg_get_functiondef('private.registro_actividad_core(timestamptz,timestamptz,uuid[],text[],text,integer,timestamptz,uuid)'::regprocedure)) is distinct from '3430460e4ab59aa185ec8305788cc9a4'
      or to_regprocedure('private.assert_gestion_diaria_analista()') is null

@@ -99,7 +99,7 @@ assert.ok(!migracion.includes('_PENDIENTE_'));
 sql(migracion);
 assert.match(gate(), /^OK: Gestion Diaria \[OK.*\] \[OK.*\] \[OK.*\]$/, 'gate paraguas tras instalar');
 const mutantesF3 = sql("set gestion_diaria.banco = on; select private.assert_gestion_diaria_analista_mutantes()");
-assert.match(mutantesF3, /^OK: 20 mutantes detectados/, mutantesF3);
+assert.match(mutantesF3, /^OK: 24 mutantes detectados/, mutantesF3);
 const mutantesF2 = sql("set gestion_diaria.banco = on; select private.assert_gestion_diaria_resultado_mutantes()");
 assert.match(mutantesF2, /^OK: 14 mutantes detectados/, mutantesF2);
 const mutantesF1 = sql("set gestion_diaria.banco = on; select private.assert_gestion_diaria_mutantes()");
