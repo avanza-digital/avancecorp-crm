@@ -86,15 +86,14 @@ export function GestionDiariaAnalista(): JSX.Element {
   // pantalla no puede perderlo de vista ni dejar un id fantasma guardado.
   const elegida = elegido === null ? null : filas.find((f) => f.lead_id === elegido) ?? null
   // Quién manda sobre la pestaña, en orden: el lead elegido (la pestaña LO
-  // SIGUE), luego la que pidió el analista mientras tenga gente, y si no la
-  // primera con gente. Así no se queda clavada en una pestaña vacía ni salta
-  // sola cuando un refetch rellena un grupo anterior.
-  const pedidaViva = pestanaPedida !== null && (pestanas.find((p) => p.clave === pestanaPedida)?.total ?? 0) > 0
+  // SIGUE), luego la que pidió el analista —AUNQUE ESTÉ VACÍA, porque pulsar un
+  // grupo y que no se abra es peor que verlo vacío: su conteo ya está a la
+  // vista—, y solo si nunca pidió ninguna, la primera con gente. Al registrar
+  // un resultado se borra la petición, así que la cola sigue sola al siguiente
+  // grupo en vez de dejarte mirando el que acabas de vaciar.
   const activa: GrupoDia = elegida !== null
     ? elegida.grupo
-    : pedidaViva && pestanaPedida !== null
-      ? pestanaPedida
-      : pestanas.find((p) => p.total > 0)?.clave ?? 'primera_atencion'
+    : pestanaPedida ?? pestanas.find((p) => p.total > 0)?.clave ?? 'primera_atencion'
 
   const delGrupo = pestanas.find((p) => p.clave === activa)?.filas ?? []
   // La página se deriva del elegido: si lo eligió, se ve; si no, la que pidió.
@@ -135,6 +134,9 @@ export function GestionDiariaAnalista(): JSX.Element {
   async function alGuardar(leadId: string) {
     setCerrados((c) => (c.includes(leadId) ? c : [...c, leadId]))
     setElegido(null)
+    // Registrar es «dame el siguiente»: se suelta la pestaña pedida para que la
+    // cola avance sola al grupo que todavía tenga gente.
+    setPestanaPedida(null)
     // El Dialog devuelve el foco al botón que lo abrió en su propio cuadro; ese
     // botón sigue vivo (está en «Ahora»), así que aquí no se le quita el foco a
     // nadie: solo se recoloca en el encabezado cuando quedó suelto.

@@ -306,6 +306,18 @@ describe('GestionDiariaAnalista · dos resultados seguidos (carrera)', () => {
   })
 })
 
+describe('GestionDiariaAnalista · abrir una pestaña vacía', () => {
+  it('pulsar un grupo sin gente LO ABRE y lo dice, en vez de rebotar a otro', async () => {
+    render(<GestionDiariaAnalista />)
+    // «Hoy (0)» está vacío en el fixture: pulsarlo tiene que abrirlo.
+    fireEvent.click(screen.getByRole('tab', { name: /^Hoy/ }))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /^Hoy/ })).toHaveAttribute('aria-selected', 'true')
+    })
+    expect(screen.getByText(/Nada en este grupo/)).toBeInTheDocument()
+  })
+})
+
 describe('GestionDiariaAnalista · el foco nunca se pierde', () => {
   it('al entrar y salir de «Mi actividad» el foco va al encabezado, no al body', async () => {
     render(<GestionDiariaAnalista />)
