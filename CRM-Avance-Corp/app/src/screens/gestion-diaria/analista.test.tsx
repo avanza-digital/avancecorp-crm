@@ -19,10 +19,12 @@ const dobles = vi.hoisted(() => ({
   abrirLead: vi.fn(),
   deshacer: vi.fn(async () => ({ ok: true })),
   panel: { props: null as Record<string, unknown> | null },
+  obtenerTarea: vi.fn(async () => null as Record<string, unknown> | null),
   tareas: [] as Array<Record<string, unknown>>,
   // El ámbito tiene que traer TODOS los leads de la cola: «Ahora» necesita el
   // lead para armar el panel, y sin él la pantalla manda a abrir la ficha.
   leads: [] as Array<Record<string, unknown>>,
+  asegurarLead: vi.fn(async () => true),
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z') }))
@@ -30,7 +32,8 @@ vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: dobles.leads },
     tareasDe: () => dobles.tareas,
-    asegurarLead: async () => true,
+    asegurarLead: dobles.asegurarLead,
+    obtenerTareaParaRevision: dobles.obtenerTarea,
   }),
   usePanelesActions: () => ({ abrirLead: dobles.abrirLead }),
 }))
@@ -82,6 +85,8 @@ beforeEach(() => {
   dobles.errorDia = null
   dobles.cola = { data: { items: [itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'), itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z')] }, error: null, refetch: vi.fn(), isFetching: false }
   dobles.panel.props = null
+  dobles.asegurarLead = vi.fn(async () => true)
+  dobles.obtenerTarea = vi.fn(async () => null)
   dobles.leads = [
     { id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' },
     ...['l2', 'l3', 'l4', 'l5', 'l6'].map((x) => ({ id: x, nombre_completo: `LEAD ${x}`, telefono: '+51999000222', etapa: 'nuevo' })),
@@ -236,6 +241,93 @@ describe('GestionDiariaAnalista · Mi actividad', () => {
     abrir()
     fireEvent.click(await screen.findByRole('tab', { name: /Mi seguimiento/ }))
     expect(await screen.findByRole('button', { name: 'MARTÍN MUÑOZ' })).toBeInTheDocument()
+  })
+})
+
+describe('GestionDiariaAnalista · el teléfono del lead elegido', () => {
+  it('pide el lead al servidor en cuanto se elige: no hay que abrir la ficha', async () => {
+    // El ámbito llega VACÍO, como en «Vencidas»: desde la Fase 4e el store no
+    // carga todos los leads. Antes, sin lead no había botón de llamar y el
+    // analista tenía que dar un rodeo por la ficha.
+    dobles.leads = []
+    let contestar: (ok: boolean) => void = () => {}
+    dobles.asegurarLead = vi.fn(() => new Promise<boolean>((r) => { contestar = r }))
+    render(<GestionDiariaAnalista />)
+    await waitFor(() => expect(dobles.asegurarLead).toHaveBeenCalledWith('l1'))
+    // Mientras viaja, se DICE que viene; no se le manda a la ficha.
+    expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/Buscando su número/)
+    contestar(true)
+  })
+
+  it('no lo pide dos veces aunque el reloj recalcule la fila', async () => {
+    dobles.leads = []
+    const { rerender } = render(<GestionDiariaAnalista />)
+    await waitFor(() => expect(dobles.asegurarLead).toHaveBeenCalledTimes(1))
+    rerender(<GestionDiariaAnalista />)
+    expect(dobles.asegurarLead).toHaveBeenCalledTimes(1)
+  })
+
+  it('si el lead YA está en el ámbito, no se pide nada y el botón está', async () => {
+    render(<GestionDiariaAnalista />)
+    await waitFor(() => expect(screen.getByTestId('acciones-contacto')).toBeInTheDocument())
+    expect(dobles.asegurarLead).not.toHaveBeenCalled()
+  })
+
+  it('si no se pudo traer, lo dice y ofrece la ficha, sin prometer una llamada', async () => {
+    dobles.leads = []
+    dobles.asegurarLead = vi.fn(async () => { throw new Error('sin red') })
+    render(<GestionDiariaAnalista />)
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/No se pudo traer su número/)
+    })
+  })
+})
+
+describe('GestionDiariaAnalista · lo que NO está cargado no es lo que NO existe', () => {
+  it('la tarea que dice la fila se PIDE si no está en el store, no se adivina otra', async () => {
+    dobles.tareas = [{ id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' }]
+    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-de-la-fila', titulo: 'La que manda' }))
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-de-la-fila' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('button', { name: /^Registrar resultado de / }))
+    await waitFor(() => expect(dobles.obtenerTarea).toHaveBeenCalledWith('l1', 't-de-la-fila'))
+    await waitFor(() => expect(dobles.panel.props?.tarea).toMatchObject({ id: 't-de-la-fila' }))
+  })
+
+  it('si el servidor tampoco la da, se abre SIN tarea: mejor ninguna que la equivocada', async () => {
+    dobles.tareas = [{ id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' }]
+    dobles.obtenerTarea = vi.fn(async () => null)
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-fantasma' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('button', { name: /^Registrar resultado de / }))
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(dobles.panel.props?.tarea).toBeNull()
+  })
+
+  it('sin señal, el historial se dice «no cargado», nunca «sin gestiones»', () => {
+    // Un lead que viene de la cola pero no de la cartera del día (tope de 500).
+    dobles.dia = { ...DIA_LLENO, cartera: [] } as unknown as DiaAnalista
+    render(<GestionDiariaAnalista />)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(ahora).toHaveTextContent(/Historial no cargado/)
+    expect(ahora).not.toHaveTextContent(/Sin gestiones previas/)
+  })
+
+  it('si la cola se cae, sus grupos dicen «?» y no «0»', () => {
+    dobles.cola = { data: undefined, error: new Error('502'), refetch: vi.fn(), isFetching: false }
+    render(<GestionDiariaAnalista />)
+    const tabs = screen.getByRole('tablist', { name: 'Grupos de la cola' })
+    // Los tres primeros salen de la cola: su conteo es DESCONOCIDO.
+    expect(within(tabs).getByRole('tab', { name: /^Vencidas/ })).toHaveTextContent('Vencidas?')
+    expect(within(tabs).getByRole('tab', { name: /^Hoy/ })).toHaveTextContent('Hoy?')
+    // «Sin conversación» sale del día, que sí llegó: ese conteo es real.
+    expect(within(tabs).getByRole('tab', { name: /^Sin conversación/ })).toHaveTextContent('Sin conversación1')
   })
 })
 
