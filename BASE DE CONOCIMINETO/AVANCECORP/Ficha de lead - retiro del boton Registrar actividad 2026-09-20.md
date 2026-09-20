@@ -62,7 +62,7 @@ tipos de actividad ni datos.
 - **PASS:** recorrido E2E focalizado de Supervisor; el aviso permanece visible,
   «Registrar gestión» no existe y el compositor no puede abrirse.
 - **PASS:** gate integral: lint (solo cuatro avisos preexistentes en
-  `coverflow-carousel.tsx`), typecheck, 265 archivos / 3.933 pruebas con
+  `coverflow-carousel.tsx`), typecheck, 265 archivos / 3.935 pruebas con
   cobertura, configuración de release, 8 pruebas del worker de tasas, build,
   verificación del bundle y control de duplicación.
 - **PASS:** suite E2E completa: 222 recorridos aprobados y 26 omitidos por las
