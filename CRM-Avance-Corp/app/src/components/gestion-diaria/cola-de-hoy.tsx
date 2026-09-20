@@ -29,7 +29,7 @@ export interface PestanaCola {
 }
 
 export function ColaDeHoy({
-  idBase, pestanas, activa, onPestana, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas,
+  idBase, pestanas, activa, onPestana, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas, colaCaida,
 }: {
   /** Base de `useId()` de la pantalla: dos instancias no pueden compartir id. */
   idBase: string
@@ -44,6 +44,12 @@ export function ColaDeHoy({
   cargando: boolean
   /** El servidor dice que hay más de lo que cabe en esta lectura. */
   hayMas: boolean
+  /**
+   * La cola del servidor no llegó. Los tres primeros grupos SALEN de ella, así
+   * que sus conteos no son ceros: son desconocidos. Decir «Vencidas (0)» haría
+   * que el analista se fuera a casa creyendo que no debía nada (Codex, 20/09).
+   */
+  colaCaida: boolean
 }): JSX.Element {
   const grupo = pestanas.find((p) => p.clave === activa) ?? pestanas[0]
   const vista = paginaDeFilas(grupo?.filas ?? [], pagina, FILAS_POR_PAGINA)
@@ -57,7 +63,7 @@ export function ColaDeHoy({
 
       {cargando ? (
         <PanelCargando filas={FILAS_POR_PAGINA} />
-      ) : vacioTodo ? (
+      ) : vacioTodo && !colaCaida ? (
         <PanelVacio
           icono={PhoneCall}
           titulo="No tienes nada pendiente ahora"
@@ -73,9 +79,11 @@ export function ColaDeHoy({
           pestanas={pestanas.map((p) => ({
             valor: p.clave,
             etiqueta: p.etiqueta,
-            // Con `hayMas` el servidor tiene filas que esta lectura no trajo:
-            // el conteo es un MÍNIMO y se dice con el «+», no se promete total.
-            extra: hayMas ? `${p.total}+` : String(p.total),
+            // Con la cola caída, los grupos que salen de ella no tienen conteo
+            // conocido: «?» y no «0». Con `hayMas` el conteo es un MÍNIMO.
+            extra: colaCaida && p.clave !== 'sin_conversacion'
+              ? '?'
+              : hayMas ? `${p.total}+` : String(p.total),
           }))}
           className="flex min-h-0 flex-1 flex-col [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
         >
@@ -83,7 +91,9 @@ export function ColaDeHoy({
 
           {vista.total === 0 ? (
             <p role="status" className="text-base text-[var(--muted-foreground-strong)]">
-              Nada en este grupo. Mira las otras pestañas: su número está al lado del nombre.
+              {colaCaida && grupo?.clave !== 'sin_conversacion'
+                ? 'No se pudo leer este grupo del servidor. No está vacío: no se sabe. Actualiza para verlo.'
+                : 'Nada en este grupo. Mira las otras pestañas: su número está al lado del nombre.'}
             </p>
           ) : (
             <>

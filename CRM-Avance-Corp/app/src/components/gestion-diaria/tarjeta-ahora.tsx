@@ -33,7 +33,7 @@ function ultimasGestiones(fila: FilaDiaria): string[] {
   return lineas
 }
 
-export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, onRegistrar, onAbrirFicha }: {
+export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, cargandoLead, abriendoPanel, onRegistrar, onAbrirFicha }: {
   /** Base de `useId()` de la pantalla: dos instancias no pueden compartir id. */
   idBase: string
   fila: FilaDiaria | null
@@ -42,6 +42,10 @@ export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, onReg
   /** 1-based dentro del grupo visible; 0 cuando no hay nadie. */
   posicion: number
   total: number
+  /** El número se está pidiendo al servidor: no es que no exista. */
+  cargandoLead: boolean
+  /** Se está pidiendo la tarea que cierra el resultado. */
+  abriendoPanel: boolean
   onRegistrar: () => void
   onAbrirFicha: () => void
 }): JSX.Element {
@@ -78,16 +82,24 @@ export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, onReg
       </p>
       <ChipTiempo fila={fila} ahora={ahora} className="self-start" />
 
-      {gestiones.length > 0 && (
-        <>
-          <div className="h-px bg-border" aria-hidden />
-          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-          <ul role="list" aria-label="Últimas gestiones" className="space-y-2">
-            {gestiones.map((g) => (
-              <li key={g} className="text-base text-[var(--muted-foreground-strong)]">{g}</li>
-            ))}
-          </ul>
-        </>
+      <div className="h-px bg-border" aria-hidden />
+      {/* «No cargado» NO es «no hay». `senal` solo existe para los leads que la
+          cartera del día devolvió (tope de 500), así que una fila que venga de
+          la cola puede no traerla: decir «sin gestiones» ahí haría llamar a
+          alguien creyendo que es la primera vez (Codex, 20/09). */}
+      {fila.senal === null ? (
+        <p className="text-base text-[var(--muted-foreground-strong)]">
+          Historial no cargado. Ábrelo en la ficha antes de llamar.
+        </p>
+      ) : gestiones.length === 0 ? (
+        <p className="text-base text-[var(--muted-foreground-strong)]">Sin gestiones previas.</p>
+      ) : (
+        /* oxlint-disable-next-line jsx-a11y/no-redundant-roles */
+        <ul role="list" aria-label="Últimas gestiones" className="space-y-2">
+          {gestiones.map((g) => (
+            <li key={g} className="text-base text-[var(--muted-foreground-strong)]">{g}</li>
+          ))}
+        </ul>
       )}
 
       <div className="space-y-3">
@@ -96,13 +108,21 @@ export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, onReg
           // `asegurarLead` de la Fase 4e, la espera de 4 s que distingue una
           // llamada real de un click sin salir, y el escudo de propagación.
           <AccionesContacto lead={lead} destacada grande />
+        ) : cargandoLead ? (
+          // «Cargando» y no «abre la ficha»: el número está en camino y decirle
+          // que dé un rodeo sería mentirle.
+          <p role="status" className="text-base text-[var(--muted-foreground-strong)]">Buscando su número…</p>
         ) : (
-          <p className="text-base text-[var(--muted-foreground-strong)]">Abre la ficha para llamar.</p>
+          <p className="text-base text-[var(--muted-foreground-strong)]">
+            No se pudo traer su número. Abre la ficha para llamar.
+          </p>
         )}
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="h-12 text-base font-normal" onClick={onRegistrar}
+          <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default"
+            aria-disabled={abriendoPanel} aria-busy={abriendoPanel}
+            onClick={() => { if (!abriendoPanel) onRegistrar() }}
             aria-label={`Registrar resultado de ${fila.nombre_completo}`}>
-            <ClipboardList aria-hidden /> Registrar resultado
+            <ClipboardList aria-hidden /> {abriendoPanel ? 'Abriendo…' : 'Registrar resultado'}
           </Button>
           <Button variant="outline" className="h-12 text-base font-normal" onClick={onAbrirFicha}
             aria-label={`Abrir la ficha de ${fila.nombre_completo}`}>

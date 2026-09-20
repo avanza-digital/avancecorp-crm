@@ -15,7 +15,7 @@
 // «Hoy» NO cambia: sigue siendo «las 3 cosas de ahora» (decisión de Miguel).
 // Esta pantalla es la cola COMPLETA del día, y las dos comparten el primer
 // ítem: el lead sin primer intento manda en ambas (test compartido).
-import { useId, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
 import { ArrowLeft, BarChart3, ClipboardList, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -41,7 +41,7 @@ const LIMITE_COLA = 100
 export function GestionDiariaAnalista(): JSX.Element {
   const { yo } = useAuth()
   const ahora = useAhora()
-  const { ambito, tareasDe } = useCRMData()
+  const { ambito, tareasDe, asegurarLead, obtenerTareaParaRevision } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const id = useId()
 
@@ -61,6 +61,11 @@ export function GestionDiariaAnalista(): JSX.Element {
   // el primero hacía que el `finally` de uno destapara al otro.
   const [cerrados, setCerrados] = useState<readonly string[]>([])
   const encabezado = useRef<HTMLHeadingElement>(null)
+  // Leads que ya se pidieron al servidor: `asegurarLead` no está deduplicado y
+  // la fila elegida se recalcula con el reloj de cada minuto.
+  const pedidos = useRef(new Set<string>())
+  const [cargandoLead, setCargandoLead] = useState<string | null>(null)
+  const [abriendoPanel, setAbriendoPanel] = useState(false)
 
   const dia = useDiaAnalista(null, null)
   // La cola del día: la misma fuente que «Seguimiento comercial», sin filtros.
@@ -106,6 +111,31 @@ export function GestionDiariaAnalista(): JSX.Element {
   const posicion = fila === null ? 0 : delGrupo.findIndex((f) => f.lead_id === fila.lead_id) + 1
   const lead = fila === null ? null : leadsPorId.get(fila.lead_id) ?? null
 
+  // EL TELÉFONO NO VIAJA EN LA COLA. `cola_accion_v2_fn` devuelve del lead solo
+  // id, nombre, etapa y analista; el número vive en el ámbito del store, que
+  // desde la Fase 4e «sin topes» ya NO carga todos los leads: los trae por
+  // demanda. Por eso en «Vencidas» —cuyos leads rara vez están cargados— no
+  // salía «Llamar» hasta abrir la ficha, que es quien los traía (bug reportado
+  // en producción el 20/09/2026). Aquí se piden en cuanto se eligen, sin
+  // obligar al analista a dar un rodeo por la ficha.
+  useEffect(() => {
+    const id = fila?.lead_id
+    if (id === undefined || leadsPorId.has(id) || pedidos.current.has(id)) return
+    pedidos.current.add(id)
+    setCargandoLead(id)
+    let vigente = true
+    void asegurarLead(id)
+      .catch(() => {
+        // Si falló, que se pueda reintentar al volver a elegirlo: si no, el
+        // lead se quedaría sin número para siempre en esta sesión.
+        pedidos.current.delete(id)
+      })
+      .finally(() => { if (vigente) setCargandoLead((c) => (c === id ? null : c)) })
+    // Cambiar de fila antes de que conteste no debe dejar el «cargando» pegado
+    // ni pisar el estado de la fila nueva.
+    return () => { vigente = false }
+  }, [asegurarLead, fila?.lead_id, leadsPorId])
+
   function elegir(f: FilaDiaria) {
     setElegido(f.lead_id)
   }
@@ -118,17 +148,33 @@ export function GestionDiariaAnalista(): JSX.Element {
   function irAPagina(p: number) {
     setPagina(Math.min(Math.max(p, 0), vista.paginas - 1))
   }
-  function abrirPanel() {
-    if (fila === null) return
+  async function abrirPanel() {
+    if (fila === null || abriendoPanel) return
     const suyo = leadsPorId.get(fila.lead_id)
     if (suyo === undefined) { void abrirLead(fila.lead_id); return }
-    // La tarea la dice la FILA (`tarea_id` viene de la cola del servidor). Solo
-    // si no llega —o si esa tarea no está en el caché local— se cae al cálculo
-    // de siempre, que devuelve `null` en cuanto hay dos candidatas: quedarse
-    // con la equivocada cerraría la tarea que no era.
+    // `tarea_id` viene de la cola del SERVIDOR y es autoritativa: ese id viaja
+    // de vuelta para cerrar la tarea. Las tareas del store son una colección
+    // PARCIAL igual que los leads, así que no encontrarla ahí no significa que
+    // no exista — se pide por id. Caer al cálculo de siempre cerraría otra
+    // tarea telefónica, o ninguna (Codex, 20/09).
     const pendientes = tareasDe(suyo.id)
-    const suya = fila.tarea_id === null ? undefined : pendientes.find((x) => x.id === fila.tarea_id)
-    setPanel({ lead: suyo, tarea: suya ?? tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null })
+    if (fila.tarea_id !== null) {
+      const local = pendientes.find((x) => x.id === fila.tarea_id)
+      if (local !== undefined) { setPanel({ lead: suyo, tarea: local }); return }
+      setAbriendoPanel(true)
+      try {
+        const traida = await obtenerTareaParaRevision(suyo.id, fila.tarea_id)
+        // Si el servidor tampoco la da, se abre SIN tarea: mejor no cerrar
+        // ninguna que cerrar la que no era.
+        setPanel({ lead: suyo, tarea: traida })
+      } catch {
+        setPanel({ lead: suyo, tarea: null })
+      } finally {
+        setAbriendoPanel(false)
+      }
+      return
+    }
+    setPanel({ lead: suyo, tarea: tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null })
   }
   /** Al guardar, «Ahora» pasa al siguiente y el foco vuelve al encabezado. */
   async function alGuardar(leadId: string) {
@@ -246,7 +292,9 @@ export function GestionDiariaAnalista(): JSX.Element {
           <TarjetaAhora
             idBase={id}
             fila={fila} lead={lead} ahora={ahora} posicion={posicion} total={delGrupo.length}
-            onRegistrar={abrirPanel}
+            cargandoLead={fila !== null && cargandoLead === fila.lead_id}
+            onRegistrar={() => { void abrirPanel() }}
+            abriendoPanel={abriendoPanel}
             onAbrirFicha={() => { if (fila !== null) void abrirLead(fila.lead_id) }}
           />
           <ColaDeHoy
@@ -254,7 +302,7 @@ export function GestionDiariaAnalista(): JSX.Element {
             pestanas={pestanas} activa={activa} onPestana={cambiarPestana}
             pagina={vista.pagina} onPagina={irAPagina}
             elegido={fila?.lead_id ?? null} onElegir={elegir}
-            ahora={ahora} cargando={colaCargando} hayMas={paginaCola?.hay_mas === true}
+            ahora={ahora} cargando={colaCargando} hayMas={paginaCola?.hay_mas === true} colaCaida={colaCaida}
           />
         </div>
       )}
