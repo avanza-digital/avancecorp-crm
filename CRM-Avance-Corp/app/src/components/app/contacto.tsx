@@ -43,6 +43,7 @@ import {
   type EstadoCamposReunion,
 } from '@/components/app/campos-reunion'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
+import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
 import { useAuth } from '@/lib/auth-context'
 import { puedeEscribir } from '@/lib/roles'
 import { useCRMData } from '@/lib/store-context'
@@ -213,7 +214,10 @@ export function AccionesContacto({
         </a>
       )}
       {conAgendar && escribe && <BotonAgendar lead={lead} labelCls={labelCls} />}
-      {dialogo && <DialogResultado lead={lead} canal={dialogo} onClose={() => setDialogo(null)} />}
+      {/* Gestión Diaria F2: TODA llamada se cierra con el resultado tipificado
+          (panel del mockup 5). WhatsApp conserva su diálogo de dos opciones. */}
+      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} />}
+      {dialogo === 'wa' && <DialogResultado lead={lead} canal={dialogo} onClose={() => setDialogo(null)} />}
     </div>
   )
 }
@@ -269,7 +273,18 @@ function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undef
   )
 }
 
-// ── Dialog de resultado del contacto ──────────────────────────────────────────
+// ── Dialog de resultado de la LLAMADA (resultado tipificado, F2) ──────────────
+// `tareaQueCierra` sigue decidiendo qué tarea de llamada pendiente cierra este
+// contacto; el panel la ofrece con su casilla, como antes.
+function DialogResultadoLlamada({ lead, onClose }: { lead: Lead; onClose: () => void }): JSX.Element {
+  const { tareasDe } = useCRMData()
+  const { yo } = useAuth()
+  const ahora = useAhora()
+  const [tarea] = useState(() => tareaQueCierra(tareasDe(lead.id), 'tel', yo?.id, ahora))
+  return <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} />
+}
+
+// ── Dialog de resultado del contacto (WhatsApp) ───────────────────────────────
 
 const OPCIONES: Record<Canal, ReadonlyArray<{ tipo: TipoActividadManual; label: string; icono: LucideIcon }>> = {
   tel: [
@@ -524,8 +539,8 @@ function DialogResultado({
         {sinConfirmar && <p role="alert" className="text-sm text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" size="sm" disabled={procesando} onClick={onClose}>
-          Omitir
+        <Button variant="ghost" size="sm" disabled={procesando} onClick={() => { onClose(); toast.info('Contacto sin registrar: no quedó en el historial') }}>
+          Cerrar sin registrar
         </Button>
         {sinConfirmar && <Button size="sm" disabled={procesando} onClick={() => void enviar(sinConfirmar)}>
           {procesando ? 'Confirmando…' : 'Reintentar guardado'}

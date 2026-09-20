@@ -5,6 +5,7 @@ import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
+import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
@@ -1544,10 +1545,17 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
   // plegado tras una fila con aspecto de input y se despliega a un click.
   const [guardandoActividad, setGuardandoActividad] = useState(false)
   const [errorActividad, setErrorActividad] = useState<string | null>(null)
+  // Gestión Diaria F2: una LLAMADA se registra con su resultado tipificado; el
+  // composer abre el panel (con la nota ya escrita) en vez de mandar el tipo pelado.
+  const [panelLlamada, setPanelLlamada] = useState(false)
 
   const registrar = async () => {
     if (guardandoActividad) return
     setErrorActividad(null)
+    if (tipo === 'llamada_realizada' || tipo === 'llamada_no_contestada') {
+      setPanelLlamada(true)
+      return
+    }
     const res = registrarActividad(l.id, tipo, detalle)
     if (!res.ok) {
       if (res.error) toast.error(res.error)
@@ -1607,6 +1615,9 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
         </button>
       )}
 
+      {panelLlamada && (
+        <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => { setPanelLlamada(false); setDetalle(''); setComponiendo(false) }} />
+      )}
       {escribe && activa && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <Select

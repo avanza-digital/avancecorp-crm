@@ -50,4 +50,6 @@ Fases: **F0** cimientos (medición, Jakarta, primitivas tabs/radio-group/exporta
 
 SLA en modo `activo` desde el 07/09 · 18 analistas y 3 supervisores activos · 5 089 llamadas, **0** con metadata · vencidas canónicas **737** (662 por día Lima) · `politica_abandono`: 7 días, sin ningún consumidor hasta ahora · últimos 14 días: 2 638 llamadas, tasa global 46 %, equipo Carmen 33 % (1 425) vs equipo Jorge 62 % (1 207); analistas entre 6 % y 100 %; ratio llamadas/lead hasta 4,9 (dos analistas) · hora pico 10–12 y 15–17, casi nada después de las 18 · descartes vivos: sin_interes 210, pide_credito 191, datos_invalidos 130, otro 52, sin_fondos 51, no_responde 34, competencia 4 (todos con dueño) · en texto libre: «préstamo» 176, «crédito» 145, «no interesa» 107, «sin fondos» 70, «número errado» 53, «desconfianza» 8.
 
+Fase 2 (resultado tipificado, 20/09): [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]].
+
 Relacionadas: [[Acceso y roles del CRM]] · [[Nucleo operativo SLA - arquitectura y consumidores 2026-09-06]] · [[Terminología comercial del CRM]] · [[Inicio]]

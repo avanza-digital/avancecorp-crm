@@ -1,5 +1,75 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260920005000 — Gestión Diaria (F2): resultado tipificado de llamada
+
+**🧪 ENSAYADA EN EL BANCO LOCAL el 20/09/2026 · PENDIENTE DE INSTALAR en producción ·
+prerequisito DURO: `20260919211958` (F1) instalada y registrada ANTES (el preflight lo exige).**
+Fase 2 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`):
+cada llamada del CRM se cierra con uno de SIETE resultados y sus efectos ocurren en la misma
+transacción (tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»),
+con deshacer de 24 h para quien la registró. Decisiones de Miguel: «no le interesa» y «pide otro
+producto» DESCARTAN (submotivos `sin_fondos_ahora→sin_fondos`, `ya_invirtio_con_otro→competencia`,
+`desconfianza|no_le_interesa_invertir|otro→sin_interes`; `prestamo|credito|otro→pide_credito`);
+en número errado / no es la persona el ANALISTA decide (2.º número, `datos_invalidos`, reintento 7 días)
+y esas llamadas no entran en la tasa.
+
+Crea: CHECK de FORMA `actividades_resultado_llamada_forma` (NOT VALID + VALIDATE; catálogo cerrado);
+trigger `trg_00_actividades_resultado_solo_nucleo` (las claves del resultado solo entran bajo el GUC
+`crm.op_resultado_llamada`; exime escritores internos con `auth.uid()` nulo; append-only del resultado);
+núcleo `private.llamada_registrar(...)` (DEFINER, sin EXECUTE fuera de postgres) que COMPONE sobre los
+writers sellados `crm.registrar_actividad_v2` / `crm.cerrar_tarea_v2` (recibo idempotente) y escribe el
+resultado en `metadata` (`{evento:'resultado_llamada', resultado, submotivo, intento_n, etapa_anterior,
+siguiente_id, tarea_id, descartado, no_insista, etapa_al_descartar, motivo_descarte, descartado_en}`);
+puertas `crm.registrar_llamada_v3(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)` y
+`crm.deshacer_resultado_llamada(uuid)` (EXECUTE solo `authenticated`; `service_role` sin EXECUTE);
+`create or replace private.actividades_de_lead_core` con `metadata` por LISTA BLANCA; el gate de F1
+se RENOMBRA a `private.assert_gestion_diaria_registro()` (cuerpo intacto) y `private.assert_gestion_diaria()`
+pasa a ser el paraguas con `assert_gestion_diaria_resultado()` (forma/ACL, CHECK validado y sellado por md5
+de su definición, trigger habilitado, md5 de los cuerpos propios y de TODO lo que compone: registrar_actividad_v2,
+cerrar_tarea_v2, cerrar_tarea, sla_ejecutar_comando, reabrir_lead_fn, marcar_no_contactar y 5 triggers;
+`assert_sla_comandos()`), más 14 mutantes (solo banco). Sin `count(` ni `sum(1)`: censo idéntico.
+Primer camino de UPDATE sobre `crm.actividades.metadata` (log inmutable → «append por núcleo bajo GUC»,
+auditado por `trg_audit_actividades_cambio_baja`). No toca `public`.
+
+**Reglas que quedan escritas (auditor-rls, Codex ×2 y tres refutadores, 19–20/09):** quién registra =
+los mismos roles que el writer (vendedor, supervisor y gerencia: no hay veto de solo lectura para gerencia
+desde 20260807123000); el supervisor registra «volver a llamar»/«agendó cita» SIN tarea (la agenda es del
+analista; al dueño se le exige); la validación TEMPORAL (fecha futura, ventana L–S 07:00–20:00 Lima para
+llamada/WhatsApp) solo a operaciones nuevas: un reintento tardío recupera su recibo; el replay compara
+resultado/submotivo/descarte/No insistir con lo persistido (23505 si difieren); orden de candados de la casa
+(documento → persona → lead → recibo/tarea: `private.bloquear_personas_de_leads` antes del lead cuando hay
+«No insistir» o se revierte un descarte; los NOWAIT de marcar_no_contactar pueden dar 40001); DESHACER ES UNA
+REAPERTURA (compone sobre `reabrir_lead_fn`: ciclo nuevo, SLA y tenencia reiniciados, el descarte queda en el
+ledger; la respuesta lo dice con `ciclo_nuevo`); 23505 de reabrir (otro lead vivo con el mismo teléfono) se
+traduce a 22023 humano; «No insistir» no se deshace (levantarlo es de Gerencia); la tarea que la llamada CERRÓ
+no se reabre; `reunion_agendada` se restaura como `contactado` (la cita la canceló el sistema); un número errado
+no cuenta como intento sin respuesta para «no responde» (≥ 2, espejo de `INTENTOS_MIN_NO_RESPONDE`).
+**Rechazado con evidencia:** «orden lead→recibo vs writer» (el recibo es fila propia de (actor, operación):
+no puede formar ciclo con otro actor). **Diferido a F3 (deuda declarada):** la lista blanca de
+`private.registro_actividad_core` (F1) no expone `deshecho_en/descartado/no_insista` → hasta F3 el registro de
+Gestión Diaria muestra un resultado deshecho como vigente; F3 DEBE filtrar por `deshecho_en` y marcar en el
+Centro de rescate los descartes deshechos.
+
+**PASS local (banco, copia `gestion_diaria_f2_20260919` desde `conversion_inversion_base_20260919` + 185718 + F1):**
+preflight, instalación, gate paraguas OK, 14/14 mutantes F2 + 10/10 de F1, oráculo por actor
+`GESTION_DIARIA_RESULTADO_OK` (A–V: sobre y metadata · replay idéntico/tardío/con otro contenido → 23505 ·
+validaciones 22023 sin rastro · descarte con submotivo y deshacer · deshacer ajeno P0002 y a 25 h 22023 ·
+número errado con y sin 2.º número · cita creada y cancelada con retroceso · «no responde» exige 2 intentos ·
+cierre de tarea de llamada por p_tarea_id · lead ajeno/inexistente 42501 sin fuga · supervisor · No insistir
+P0429 · reapertura del supervisor deja el deshacer sin descarte que revertir · teléfono ya vivo 22023 ·
+RLS: INSERT falso 42501, UPDATE 42501, historial y registro con metadata, ACL), censo intacto, ciclo con
+DATOS CONFIRMADOS (llamada real, reversa, reinstalación) y reinstalación determinista (md5 puerta
+`92d2dcfb4cc03c158a42292980226ba2`, núcleo y deshacer en `scripts/gestion-diaria-resultado/verificacion.json`
+y en el registrador `scripts/registrar-20260920005000.sql`). **Matriz `test-rls.mjs`:** bloque
+`testGestionDiariaResultado` (permitido/denegado por rol, replay, validaciones, falsificación, deshacer);
+`node --check` PASS; corrida viva **NOT RUN** (exige banco remoto con el mundo SLA). Advisors **NOT RUN**.
+Concurrencia (dos sesiones) **NOT RUN**: el orden de candados se alineó por construcción.
+
+**Despliegue:** `!npx supabase db query --linked --file supabase/migrations/20260920005000_crm_gestion_diaria_resultado_llamada.sql`
+(DESPUÉS de F1 y su registrador) → `supabase/scripts/registrar-20260920005000.sql` → `/release-crm`
+(el front llama a la RPC nueva: SQL primero). Reversa: `scripts/gestion-diaria-resultado/reversa.sql`
+(conserva la metadata escrita: es historia).
+
 ## 20260919211958 — Gestión Diaria (F1): registro crudo de actividad por ámbito y día
 
 **🧪 ENSAYADA EN EL BANCO LOCAL el 19/09/2026 · PENDIENTE DE INSTALAR en producción.**

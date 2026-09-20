@@ -37,17 +37,23 @@ const LEAD = {
   activo: true,
 } as Lead
 
+// Desde Gestión Diaria F2 la tarea de LLAMADA de un lead se cierra con el panel
+// del resultado tipificado (ver el bloque «tarea de llamada» abajo). El flujo
+// «resultado 1-tap + siguiente + plantón» de este diálogo sigue vivo para los
+// demás tipos: aquí se prueba con una tarea de WhatsApp.
 const TAREA: Tarea = {
   id: 't1',
   lead_id: 'l1',
-  tipo: 'llamada',
-  titulo: 'Llamar a Ana',
+  tipo: 'whatsapp',
+  titulo: 'Escribir a Ana',
   vence_en: '2026-07-18T15:00:00.000Z',
   estado: 'pendiente',
   reprogramaciones: 0,
   activo: true,
   creado_en: '2026-07-17T15:00:00.000Z',
 }
+
+const TAREA_LLAMADA: Tarea = { ...TAREA, id: 't-llamada', tipo: 'llamada', titulo: 'Llamar a Ana' }
 
 const TAREA_CLIENTE: Tarea = {
   ...TAREA,
@@ -113,6 +119,9 @@ function montar(
     actividadesDe: (id: string) => (id === l.id ? actividades : []),
     // El aviso ámbar solo se emite si al lead NO le queda otra tarea viva.
     tareasDe: () => (tarea ? [tarea, ...otrasTareas] : otrasTareas),
+    // El panel del resultado tipificado (tarea de llamada) escribe por aquí.
+    registrarLlamada: vi.fn(() => ({ ok: true, persistido: Promise.resolve(true), confirmacion: Promise.resolve(null) })),
+    deshacerResultadoLlamada: vi.fn(() => ({ ok: true })),
   } as unknown as StoreDataApi
   const onCerrar = vi.fn()
   // El diálogo lee el historial POR LEAD (useActividadesDeLead): en sesión
@@ -132,40 +141,40 @@ function montar(
 }
 
 describe('CerrarTareaDialog', () => {
-  it('una llamada NO se puede cerrar sin resultado (botón deshabilitado)', () => {
+  it('un WhatsApp NO se puede cerrar sin resultado (botón deshabilitado)', () => {
     montar()
     expect(screen.getByRole('button', { name: /cerrar tarea/i })).toBeDisabled()
   })
 
-  it('elegir "No contestó" enciende la sugerencia del motor (WhatsApp, alternancia)', async () => {
+  it('elegir "Enviado" enciende la sugerencia del motor (llamada, alternancia)', async () => {
     const user = userEvent.setup()
     montar()
-    await user.click(screen.getByRole('button', { name: 'No contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Enviado' }))
     expect(screen.getByText('Siguiente acción propuesta')).toBeInTheDocument()
-    expect(screen.getByLabelText('Título de la siguiente')).toHaveValue('WhatsApp a Ana')
-    expect(screen.getByLabelText('Tipo de la siguiente')).toHaveValue('whatsapp')
+    expect(screen.getByLabelText('Título de la siguiente')).toHaveValue('Llamar a Ana')
+    expect(screen.getByLabelText('Tipo de la siguiente')).toHaveValue('llamada')
   })
 
   it('confirmar envía el payload completo con la siguiente al store', async () => {
     const user = userEvent.setup()
     const { completarTarea, onCerrar } = montar()
-    await user.click(screen.getByRole('button', { name: 'No contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Enviado' }))
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
     expect(completarTarea).toHaveBeenCalledTimes(1)
     const payload = completarTarea.mock.calls[0]?.[0]
     expect(payload).toMatchObject({
       tarea_id: 't1',
       estado: 'completada',
-      resultado_tipo: 'llamada_no_contestada',
+      resultado_tipo: 'whatsapp_enviado',
     })
-    expect(payload?.siguiente).toMatchObject({ tipo: 'whatsapp', titulo: 'WhatsApp a Ana' })
+    expect(payload?.siguiente).toMatchObject({ tipo: 'llamada', titulo: 'Llamar a Ana' })
     expect(onCerrar).toHaveBeenCalled()
   })
 
   it('"Saltar esta vez" es UN toque: cierra sin siguiente y avisa el amarillo', async () => {
     const user = userEvent.setup()
     const { completarTarea } = montar()
-    await user.click(screen.getByRole('button', { name: 'Contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Respondió' }))
     await user.click(screen.getByRole('button', { name: 'Saltar esta vez' }))
     expect(screen.getByText(/sin próxima acción/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
@@ -178,7 +187,7 @@ describe('CerrarTareaDialog', () => {
   it('canta el avance de etapa junto con la siguiente agendada', async () => {
     const user = userEvent.setup()
     montar(TAREA, [], { ok: true, avance: 'contactado' })
-    await user.click(screen.getByRole('button', { name: 'Contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Respondió' }))
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
 
     expect(toast.success).toHaveBeenCalledWith(
@@ -189,7 +198,7 @@ describe('CerrarTareaDialog', () => {
   it('canta el avance también cuando se salta la siguiente (aviso ámbar)', async () => {
     const user = userEvent.setup()
     montar(TAREA, [], { ok: true, avance: 'contactado' })
-    await user.click(screen.getByRole('button', { name: 'Contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Respondió' }))
     await user.click(screen.getByRole('button', { name: 'Saltar esta vez' }))
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
 
@@ -201,7 +210,7 @@ describe('CerrarTareaDialog', () => {
   it('sin avance no se inventa ningún cambio de etapa en el aviso', async () => {
     const user = userEvent.setup()
     montar(TAREA, [], { ok: true })
-    await user.click(screen.getByRole('button', { name: 'Contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Respondió' }))
     await user.click(screen.getByRole('button', { name: 'Saltar esta vez' }))
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
 
@@ -319,7 +328,7 @@ describe('CerrarTareaDialog', () => {
     resultadoCierre: ReturnType<StoreDataApi['completarTarea']>,
   ) {
     const m = montar(TAREA, intentosSinRespuesta(), resultadoCierre)
-    await user.click(screen.getByRole('button', { name: 'No contestó' }))
+    await user.click(screen.getByRole('button', { name: 'Enviado' }))
     await user.click(screen.getByRole('checkbox', { name: /cerrar el lead por/i }))
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
     return m
@@ -433,7 +442,7 @@ describe('CerrarTareaDialog', () => {
       const user = userEvent.setup()
       const { anularTarea } = await abrirAnular(user)
 
-      await user.click(screen.getByRole('button', { name: 'Contestó' }))
+      await user.click(screen.getByRole('button', { name: 'Respondió' }))
 
       expect(screen.queryByRole('button', { name: /sí, anular/i })).not.toBeInTheDocument()
       expect(screen.getByLabelText(/nota del resultado/i)).toBeInTheDocument()
@@ -474,7 +483,7 @@ describe('CerrarTareaDialog', () => {
     it('asomarse a anular y volver NO borra la siguiente que ya se escribió', async () => {
       const user = userEvent.setup()
       const { completarTarea } = montar()
-      await user.click(screen.getByRole('button', { name: 'Contestó' }))
+      await user.click(screen.getByRole('button', { name: 'Respondió' }))
       const titulo = screen.getByLabelText('Título de la siguiente')
       await user.clear(titulo)
       await user.type(titulo, 'Mandar cronograma firmado')
@@ -499,6 +508,27 @@ describe('CerrarTareaDialog', () => {
     })
   })
 })
+describe('CerrarTareaDialog — tarea de LLAMADA (Gestión Diaria F2)', () => {
+  it('no ofrece «Contestó/No contestó»: el resultado se registra en el panel tipificado', async () => {
+    const user = userEvent.setup()
+    montar(TAREA_LLAMADA)
+    expect(screen.queryByRole('button', { name: 'Contestó' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^cerrar tarea$/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /registrar resultado de la llamada/i }))
+    expect(screen.getByText(/Cómo salió la llamada con Ana/)).toBeInTheDocument()
+    expect(screen.getAllByRole('radio', { name: /./ })).toHaveLength(7)
+    expect(screen.getByRole('checkbox', { name: /cerrar también «Llamar a Ana»/i })).toBeChecked()
+  })
+
+  it('conserva la cuarta salida: anular sigue disponible para una llamada', async () => {
+    const user = userEvent.setup()
+    const { anularTarea } = montar(TAREA_LLAMADA)
+    await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+    await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+    expect(anularTarea).toHaveBeenCalledWith('t-llamada')
+  })
+})
+
 describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa', () => {
   // Miguel, 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
   // momento, debería bajar de etapa». El diálogo lo dice ANTES del tap; los
@@ -553,7 +583,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
   it('anular una LLAMADA no menciona etapas aunque el lead esté en reunión', async () => {
     const user = userEvent.setup()
-    montar(TAREA, CONTACTO, { ok: true }, [REUNION], EN_REUNION)
+    montar(TAREA_LLAMADA, CONTACTO, { ok: true }, [REUNION], EN_REUNION)
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
 

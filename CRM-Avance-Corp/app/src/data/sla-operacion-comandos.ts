@@ -4,7 +4,7 @@ import type { Tarea } from '@/lib/tipos'
 import { CrmApiError } from './crm-api'
 
 type Comando = 'registrar_actividad_v2' | 'cerrar_tarea_v2' | 'cerrar_reunion_v2' |
-  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2'
+  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3'
 type Argumentos<C extends Comando> = Omit<Database['crm']['Functions'][C]['Args'], 'p_operacion_id'>
 type Peticion = { [C in Comando]: [actor: string | null, comando: C, sujeto: string, argumentos: Argumentos<C>, tarea?: Tarea] }[Comando]
 interface Intencion {
@@ -18,15 +18,20 @@ interface Intencion {
 }
 const PREFIJO = 'crm.sla.operacion.v2:'
 const EVENTO = 'crm:sla-intenciones-cambiadas'
-const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2'])
-const vuelos = new Map<string, Promise<void>>()
+const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2', 'registrar_llamada_v3'])
+const vuelos = new Map<string, Promise<Respuesta | undefined>>()
 const notificar = () => { if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO)) }
 
 // La identidad de la petición se guarda ANTES de enviarla. Una respuesta de
 // red perdida conserva el mismo recibo al reintentar, incluso tras recargar.
 // Ninguna regla comercial se calcula aquí: la RPC gobierna el resultado.
+// Tres cubos: la actividad libre (por lead), el cierre/reprogramación (por tarea)
+// y el resultado de llamada (por lead). Sin el tercero, una llamada que cierra
+// una tarea compartiría llave con `cerrar_tarea_v2` y el segundo guardado
+// moriría con SLA_CONFIRMACION_PENDIENTE aunque fuera otra operación.
 function clave(actor: string, sujeto: string, comando: Comando): string {
-  return `${PREFIJO}${actor}:${comando === 'registrar_actividad_v2' ? 'actividad' : 'tarea'}:${sujeto}`
+  const cubo = comando === 'registrar_actividad_v2' ? 'actividad' : comando === 'registrar_llamada_v3' ? 'llamada' : 'tarea'
+  return `${PREFIJO}${actor}:${cubo}:${sujeto}`
 }
 
 function leer(llave: string): Intencion | null {
@@ -68,7 +73,20 @@ function huella(comando: Comando, args: Record<string, Json | undefined>): strin
 
 export function tareaConConfirmacionPendiente(actor: string | null, id: string): Tarea | undefined {
   if (!actor) return undefined
-  try { return leer(clave(actor, id, 'cerrar_tarea_v2'))?.tarea } catch { return undefined }
+  try {
+    const cierre = leer(clave(actor, id, 'cerrar_tarea_v2'))?.tarea
+    if (cierre) return cierre
+    // Un resultado de llamada que CIERRA esa tarea vive en el cubo 'llamada'
+    // (por lead): la agenda tiene que verlo igual, o dejaría cerrar la misma
+    // tarea dos veces mientras el primer guardado sigue sin confirmar.
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const llave = sessionStorage.key(i)
+      if (!llave?.startsWith(`${PREFIJO}${actor}:llamada:`)) continue
+      const dato = leer(llave)
+      if (dato?.comando === 'registrar_llamada_v3' && dato.argumentos.p_tarea_id === id) return dato.tarea
+    }
+    return undefined
+  } catch { return undefined }
 }
 
 export function limpiarIntencionesSla(): void {
@@ -103,7 +121,7 @@ export function listarPendientesSla(actor: string | null): Array<{ operacion: st
 
 // Recuperación explícita tras recargar: reenvía el contenido conservado del
 // gesto original. No vuelve a calcular fechas ni crea otra identidad.
-export async function confirmarPendienteSla(actor: string | null, operacion: string): Promise<void> {
+export async function confirmarPendienteSla(actor: string | null, operacion: string): Promise<Respuesta | undefined> {
   if (!actor) throw new CrmApiError('La sesión no está disponible', 'SLA_SIN_SESION')
   for (let i = 0; i < sessionStorage.length; i += 1) {
     const llave = sessionStorage.key(i)
@@ -118,7 +136,13 @@ export async function confirmarPendienteSla(actor: string | null, operacion: str
   throw new CrmApiError('Esta operación ya no está pendiente. Actualiza la vista para comprobar el resultado.', 'SLA_SIN_PENDIENTE')
 }
 
-export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos, tarea]: Peticion): Promise<void> {
+/** Sobre confirmado por el servidor (`{ok:true, version:2, operacion_id, comando, lead_id, …}`).
+ *  Se devuelve para que el llamador conozca los ids que nacieron en la
+ *  transacción (p. ej. `actividad_id` del resultado de llamada, que alimenta
+ *  el «Deshacer» del toast). */
+export type Respuesta = Record<string, Json>
+
+export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos, tarea]: Peticion): Promise<Respuesta | undefined> {
   if (!actor || !sb) throw new CrmApiError('La sesión no está disponible', 'SLA_SIN_SESION')
   const llave = clave(actor, sujeto, comando)
   const firma = huella(comando, argumentos)
@@ -137,7 +161,7 @@ export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos,
     throw new CrmApiError('No se pudo preparar el guardado. Habilita el almacenamiento de esta pestaña y reintenta.', 'SLA_ALMACENAMIENTO')
   }
   const enviada = intencion
-  const ejecutar = async () => {
+  const ejecutar = async (): Promise<Respuesta | undefined> => {
     const { data, error } = await sb!.schema('crm').rpc(comando, {
       ...enviada.argumentos, p_operacion_id: enviada.operacion,
     } as Database['crm']['Functions'][Comando]['Args'])
@@ -162,6 +186,7 @@ export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos,
     }
     // Solo borrar el recibo que acabamos de confirmar (p. ej. tras un logout).
     if (leer(llave)?.operacion === enviada.operacion) sessionStorage.removeItem(llave)
+    return respuesta
   }
   const vuelo = ejecutar().catch((causa: unknown) => {
     if (causa instanceof CrmApiError) throw causa
