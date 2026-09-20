@@ -288,6 +288,32 @@ El de las 11:30 sí puede apagarse solo, si el analista se pone al día antes de
 Así que: **pop-up que exige reconocer, reconocimiento guardado en el servidor, y el aviso de las
 11:30 se retira solo si se resuelve.** Además, contador en la campana del topbar, que ya existe.
 
+#### Las dos reglas que Miguel cerró (20/09/2026)
+
+**1 · El corte cuenta TODA llamada, no solo las «útiles».**
+
+Entran `llamada_realizada` y `llamada_no_contestada`; NO se descuenta el número errado ni el «no
+es la persona». El corte mide **actividad**: si marcó, marcó. La **calidad ya la mide la tasa de
+contacto**, que es otra cosa y tiene su propio umbral.
+
+Y hay una razón práctica: si el corte descontara las llamadas inútiles, un analista con una lista
+de números malos aparecería como si no hubiera trabajado — y el problema de esa lista no es suyo.
+
+*(La medición del 20/09 que fijó los valores de arranque se hizo con esta definición: toda llamada.
+Si se cambiara a «solo útiles», esos números dejan de valer y hay que volver a medir.)*
+
+**2 · El fallo de las 11:30 SE BORRA si se pone al día antes de las 16:00.**
+
+El primer corte es un empujón, no un expediente. Si a las 11:30 lleva 1 llamada y a las 13:00 ya
+lleva 6, el aviso **se retira solo** y no deja rastro en la pantalla del supervisor.
+
+El de las 16:00 **no se borra**: cierra el día. Es lo que justifica que ese sí exija reconocer y
+el otro no (ver el apartado del pop-up).
+
+Consecuencia para el pop-up de las 11:30: se comprueba si el fallo **sigue vigente** en el momento
+de pintarlo, no si ocurrió. Un supervisor que abre el CRM a las 15:00 no debe ver un aviso de las
+11:30 que el analista ya resolvió a mediodía.
+
 #### Quien tiene CERO llamadas entra en el aviso del corte
 
 Parece obvio y es justo lo contrario de lo que salía a la primera: si a quien no ha llamado nada
@@ -352,13 +378,7 @@ Reglas que salieron de la revisión y que no son negociables:
   el supervisor lo descarta al verlo. Sin resolver.
 - **Dónde se guarda el reconocimiento del pop-up.** La tabla de reconocimientos que ya existe tiene
   los tipos cerrados por CHECK: ampliarla exige una migración a propósito, que es lo correcto.
-- **DOS PREGUNTAS DE NEGOCIO PARA MIGUEL**, que cambian el número y no las decide el código:
-  1. **¿El corte cuenta TODA llamada, o solo las «útiles»?** (útil = la que no acabó en número
-     errado ni «no es la persona»). Recomendación: **toda llamada** — el corte mide actividad, y la
-     tasa ya mide calidad.
-  2. **¿El incumplimiento de las 11:30 desaparece si se pone al día antes de las 16:00?**
-     Recomendación: **sí**, y por eso ese aviso se retira solo; el de las 16:00 no, porque cierra
-     el día.
+- Todo lo demás está decidido: ver «Las dos reglas que Miguel cerró» justo abajo.
 - **Un día pasado se recalcula con el equipo y la jerarquía de HOY**, no con los de entonces. Hay
   que decirlo en pantalla. Si algún día esto se usa para evaluar desempeño, hará falta guardar la
   evaluación del día, que es un contrato distinto y más caro.
