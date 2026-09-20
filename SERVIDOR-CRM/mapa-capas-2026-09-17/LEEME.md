@@ -1,6 +1,17 @@
 # Mapa de capas del servidor CRM — 17/09/2026
 
-**Regenerado el 19/09/2026 (~20:30 Lima) en disco tras la Fase 2 «sin topes».** Mismos guiones (`evidencia/sql/*.sql`
+**Regenerado el 20/09/2026 (~10:40 Lima; catálogo leído 15:38 UTC) en disco, con la Fase 4 «sin topes» ya en producción.**
+Mismos guiones. 697 funciones (antes 691: +6 de Gestión Diaria F3, `20260920041500`, instalada después de la lectura
+anterior), 176 saltos (antes 175; A 51 → 51, M 89 → 90) y 427 sanas (antes 430). **La Fase 4 no añade ni quita ningún salto**:
+el único +1 son 6 conexiones de las funciones de Gestión Diaria F3 hacia sus aserciones `assert_gestion_diaria_analista*`
+(la misma inversión de gates que dejó la Fase 3), y la lectura directa de `crm.leads` que queda es
+`obtenerLeadDelAmbitoPorId` (`crm-api.ts`, relectura puntual por id bajo RLS de la 4e; su salto A ya existía). La mejora
+de la Fase 4 es de VOLUMEN (ya no baja los 1 983 leads), no de capas, y el mapa no la mide. Sanas: `cartera_pagina_fn` y
+`cartera_filtrada_fn` pasan de Cartera/app a Hoy·Analista y Gerencia; Seguimiento pierde 15 porque `seguimiento.tsx` solo
+importa el panel `sla-operacion` y el árbol de ese panel ya no alcanza el cargador del arranque (otras 10 pantallas siguen
+alcanzando `tareas_pendientes_fn`). **El artifact en línea sigue en la v3.1 del 17/09** (ver más abajo).
+
+**Regeneración anterior — 19/09/2026 (~20:30 Lima), tras la Fase 2 «sin topes».** Mismos guiones (`evidencia/sql/*.sql`
 releídas del catálogo vivo, `analyze-front.mjs`, `analyze-edges.mjs`, `mapa-datos.py`, plantilla): 682 funciones (antes
 657: historial por lead `20260919185718`, tareas por cursor `20260919235100`, Gestión Diaria F1 `20260919211958`, grant
 por columna `20260919211105`), 169 saltos (antes 171; A 51, antes 56). Los saltos A «Agenda, tareas y reuniones ⇢

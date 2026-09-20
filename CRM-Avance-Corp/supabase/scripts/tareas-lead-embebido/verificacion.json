@@ -22,7 +22,8 @@
   "produccion": {
     "instalada": "✅ 2026-09-20 ~06:03 UTC (20/09 ~01:03 Lima): Miguel con `!` + `npx supabase db query --linked --file supabase/migrations/20260920045202_crm_tareas_pendientes_lead_embebido.sql` (rows []). Medido después en prod (06:04 UTC): gate OK; base OK (once columnas); núcleo INVOKER, stable, search_path=\"\", owner postgres, ACL {postgres, authenticated}; la primera fila del núcleo trae las 10 claves lead_* (+ lead_id); mutantes presentes (no se corren en prod); sin registrar hasta el registrador.",
     "md5_medidos_en": "produccion 2026-09-20 06:04 UTC: núcleo idéntico a la copia local (699288313e…); la puerta conserva el md5 de la Fase 2 (5edd699559…), como corresponde (no cambió)",
-    "registrada": "✅ 2026-09-20 ~06:29 UTC (20/09 ~01:29 Lima): Miguel con `!` + registrar-20260920045202.sql (rows []). Relectura: fila version 20260920045202 / name crm_tareas_pendientes_lead_embebido / 1 statement / md5 del cuerpo 3f99a4178fb7e6a4c0c9b554b6eb9000 = md5 del archivo local; ultima_version = 20260920045202; gate OK después."
+    "registrada": "✅ 2026-09-20 ~06:29 UTC (20/09 ~01:29 Lima): Miguel con `!` + registrar-20260920045202.sql (rows []). Relectura: fila version 20260920045202 / name crm_tareas_pendientes_lead_embebido / 1 statement / md5 del cuerpo 3f99a4178fb7e6a4c0c9b554b6eb9000 = md5 del archivo local; ultima_version = 20260920045202; gate OK después.",
+    "front": "✅ 2026-09-20: PR #43 fusionada 07:42 UTC (squash dbfa9d6b) y publicada 07:45 UTC en el release crm-20260920T074547Z-dbfa9d6bffcf (version.json vivo = build-20260920T074546386Z; / y el bundle index-C2TmFe55.js responden 200; el preflight de la sesión de acta dio ok con el árbol de main idéntico al vivo)."
   },
   "md5_puerta": "5edd699559108383a0e44a90b51d9ad6",
   "md5_nucleo": "699288313e80228963b92b8a56c3fe5c",
