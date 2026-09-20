@@ -2777,6 +2777,24 @@ export async function montarBackendReal(
     }
 
     // ── agenda: crm.tareas (el boot las carga SIEMPRE junto a los leads) ──
+    // Fase 2 «sin topes»: la agenda pide las tareas pendientes por cursor
+    // (vence_en asc, id asc) en lotes, sobre el mismo estado que el SELECT
+    // directo servía. El mock pagina como el servidor: ancladas a lead o
+    // perfil, pendientes y activas, después del cursor, `p_limite` filas.
+    if (p === '/rest/v1/rpc/tareas_pendientes_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_limite?: number; p_despues_de?: string; p_despues_id?: string }
+      const pendientes = estado.tareas
+        .filter((t) => t.estado === 'pendiente' && t.activo !== false && (t.lead_id || t.perfil_id))
+        .sort((a, b) => String(a.vence_en).localeCompare(String(b.vence_en)) || String(a.id).localeCompare(String(b.id)))
+      // Keyset REAL por valor, como `(vence_en, id) > (cursor)` en el servidor: si la
+      // fila del cursor desaparece entre lotes, la lectura sigue desde su valor.
+      const despuesDe = body.p_despues_de
+      const despuesId = String(body.p_despues_id ?? '')
+      const siguientes = despuesDe
+        ? pendientes.filter((t) => String(t.vence_en) > despuesDe || (String(t.vence_en) === despuesDe && String(t.id) > despuesId))
+        : pendientes
+      return json(route, { version: 1, items: siguientes.slice(0, Number(body.p_limite ?? 500)) })
+    }
     if (p === '/rest/v1/tareas') {
       if (method === 'GET') return json(route, estado.tareas)
       if (method === 'POST') {

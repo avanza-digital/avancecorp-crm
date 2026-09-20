@@ -28,4 +28,7 @@ export const TareaRowSchema = v.object({
   reprogramaciones: v.number(),
   activo: v.boolean(),
   creado_en: v.string(),
+  /** Embebidos por crm.tareas_pendientes_fn (Fase 2 «sin topes»); nulos si el lead no es visible. */
+  lead_nombre: v.optional(v.nullable(v.string())),
+  lead_etapa: v.optional(v.nullable(v.string())),
 })

@@ -221,3 +221,27 @@ con las claves.
 11 usuarios × 4 leads exacta por SQL bajo la RLS real; keyset y validaciones correctas; `EXPLAIN` por
 `idx_actividades_lead`. Detalle en `supabase/migrations/MIGRACIONES.md` (entrada 20260919185718). El banco
 queda con las funciones instaladas y sin fila en `schema_migrations` (la pone `reregistrar.py`).
+
+## 19/09/2026 — ensayo de `20260919235100_crm_tareas_pendientes_keyset.sql` (tareas por cursor)
+
+**Sin divergencias.** No se usó `banco-f7` (sigue en `20260910234453`, sin el mundo SLA ni la
+restrictiva `tareas_postventa_lectura`): el ensayo corrió en el **contenedor local**
+`supabase_db_avancecorp-f5-bank` (puerto 58322) sobre la copia `tareas_cursor_20260919`, creada
+como `supabase_admin` desde `conversion_inversion_base_20260919` (paridad `20260917235656`, CON los
+cuatro `assert_sla_*` y CON la policy de postventa), así que la migración se aplicó **tal cual** y en
+un solo mensaje (`psql -c`), como producción. Guion reproducible:
+`supabase/scripts/tareas-pendientes/ensayar-local.sh`; resultado en
+`supabase/scripts/tareas-pendientes/verificacion.json`.
+
+Lo que la copia NO reproduce: la matriz `test-rls.mjs` por PostgREST (sin clave de servicio ni
+`CRM_DEMO_PASSWORD`); se sustituyó por la misma matriz por SQL bajo `set role authenticated` +
+`request.jwt.claims` de los 11 actores fixture. El caso `testTareasPendientes` queda escrito para el
+próximo ciclo del banco. Los md5 del registrador se miden en producción tras instalar (los de la
+copia son solo referencia).
+
+**Resultado (19/09, tres corridas; la última ~20:10 Lima tras auditor-rls y Codex): PASS.** Gate OK, 17/17
+mutantes detectados y esquema intacto; 11 actores con puerta = tabla en orden `(vence_en, id)`; keyset de 2 (+1)
+con empate de `vence_en` sin repetidos ni huecos; volumen > 1 000 (1 200 tareas de vend1 en lotes de 500+1 =
+tabla); 22023/42501/anon correctos; `EXPLAIN` con planificador normal y cursor profundo por
+`tareas_pendientes_keyset_idx` (`Bitmap Index Scan`, `ROW(vence_en, id) > ROW(cursor)`).
+La copia queda con la migración instalada y las tareas sembradas canceladas.
