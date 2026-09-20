@@ -71,7 +71,7 @@ supabase/scripts/registrar-20260920045202.sql` → fusionar PR → `/release-crm
 `crm-20260920T062207Z-12230ee2ea0f`, build `build-20260920T062206730Z`, commit `12230ee2`.**
 Ensayada antes en el banco local. Prerrequisito duro: `20260920005000` (F2) instalada **y
 registrada**. Fase 3 del plan aprobado el 19/09
-(`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`).
+(`docs/gestion-diaria/GESTION-DIARIA.md`).
 
 **Verificado en producción tras instalar** (solo lecturas): la fila registrada con un único
 `statement`; las cinco funciones nuevas presentes (`gestion_diaria_umbrales`,
@@ -291,7 +291,7 @@ verdes. Ensayo en prod sin escribir (DO + identidad real + raise): registro «vo
 deshacer cancela la tarea, sin rastro. Front publicado en `crm-20260920T034405Z-afc391974382`
 (build `build-20260920T034404914Z`, tronco `afc39197`). Prerequisito cumplido: F1 (`20260919211958`) instalada y
 registrada antes.**
-Fase 2 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`):
+Fase 2 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/GESTION-DIARIA.md`):
 cada llamada del CRM se cierra con uno de SIETE resultados y sus efectos ocurren en la misma
 transacción (tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»),
 con deshacer de 24 h para quien la registró. Decisiones de Miguel: «no le interesa» y «pide otro
@@ -526,7 +526,7 @@ acta, mapa de capas (Foco 2 sin la lectura directa de `crm.tareas`), vault y `ma
 en prod: md5 puerta `5f1b1f0e…` y núcleo `d1c922eb…` (los del banco), gate OK, índice nuevo presente y el viejo
 retirado. Front: el build vivo desde `build-20260920T005738619Z` ya llamaba a la RPC; con la instalación la
 pantalla de Gestión Diaria quedó operativa; consolidado en `crm-20260920T034405Z-afc391974382`.**
-Fase 1 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`):
+Fase 1 del plan aprobado por Miguel el 19/09 (`docs/gestion-diaria/GESTION-DIARIA.md`):
 el supervisor lee HOY el texto íntegro de las llamadas de su equipo y gerencia
 «ve absolutamente todo», sin esperar al resultado tipificado (F2). Solo lectura.
 
