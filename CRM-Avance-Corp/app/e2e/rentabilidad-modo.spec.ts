@@ -58,6 +58,7 @@ test('el interruptor cambia un lead abierto sin cerrar sesión ni sustituir la t
   await page.goto('/#/cartera')
   await page.getByRole('row', { name: 'Abrir ficha de ' + lead.nombre_completo, exact: true }).click()
   const ficha = page.getByRole('dialog', { name: lead.nombre_completo, exact: true })
+  await ficha.getByRole('button', { name: 'Mostrar solicitud de tasa' }).click()
   await expect(ficha.getByRole('button', { name: 'Solicitar tasa superior' })).toBeVisible()
   modo = 'observacion'
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })))

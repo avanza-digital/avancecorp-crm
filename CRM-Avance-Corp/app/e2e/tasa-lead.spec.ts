@@ -37,6 +37,7 @@ for (const ancho of [1440, 390]) {
     await expect(page.getByRole('heading', { level: 1, name: 'Hoy', exact: true })).toBeVisible()
     let ficha = await abrir(page)
     await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeEnabled()
+    await ficha.getByRole('button', { name: 'Mostrar solicitud de tasa' }).click()
     await ficha.getByRole('button', { name: 'Solicitar tasa superior' }).click()
     await ficha.getByLabel('Tasa solicitada (%)').fill('18')
     await ficha.getByLabel('Motivo comercial').fill('Referido con inversión prevista de largo plazo')
@@ -56,6 +57,7 @@ for (const ancho of [1440, 390]) {
       resuelta_por: 'd7090000-0000-4000-8000-000000000002', resuelta_en: new Date().toISOString() }
     await page.reload()
     ficha = await abrir(page)
+    await ficha.getByRole('button', { name: 'Mostrar solicitud de tasa' }).click()
     await expect(ficha.getByLabel('Tasa anual (%)')).toHaveValue('18')
     await expect(ficha.getByRole('button', { name: /Convertir a cliente/ })).toBeEnabled()
     await ficha.screenshot({ path: info.outputPath(`aprobada-${ancho}.png`) })

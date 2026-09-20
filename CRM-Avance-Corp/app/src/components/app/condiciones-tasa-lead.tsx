@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Percent } from 'lucide-react'
+import { ChevronDown, Pencil, Percent } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +12,7 @@ import { formatDateLocal, vencimientoDesdePlazo, type ModalidadContrato, type Ti
 import { fmtFecha, money, type Moneda } from '@/lib/format'
 import { parseMonto } from '@/lib/numero'
 import type { Lead } from '@/lib/tipos'
+import { cn } from '@/lib/utils'
 
 export interface EstadoCondicionesLead {
   condiciones: CondicionesTasaLead
@@ -22,6 +23,49 @@ interface Props {
   demo: boolean
   puedeEditar: boolean
   onCambio: (estado: EstadoCondicionesLead | null) => void
+}
+
+/**
+ * Disclosure compacto para la ficha del lead. El panel permanece montado cuando
+ * está cerrado: sus consultas y `onCambio` siguen protegiendo la conversión, y
+ * cualquier borrador conserva su estado al volver a abrirlo.
+ */
+export function SolicitudTasaLeadPlegable(props: Props) {
+  const [abierta, setAbierta] = useState(false)
+  const idPanel = `solicitud-tasa-${props.lead.id}`
+
+  return <section aria-label="Solicitud de tasa">
+    <Button
+      type="button"
+      variant="outline"
+      aria-expanded={abierta}
+      aria-controls={idPanel}
+      aria-label={`${abierta ? 'Ocultar' : 'Mostrar'} solicitud de tasa`}
+      onClick={() => setAbierta((valor) => !valor)}
+      className={cn(
+        'h-auto min-h-11 w-full justify-between gap-3 px-3.5 py-2.5 text-left',
+        abierta && 'border-primary/30 bg-primary/[0.03]',
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <Percent className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="min-w-0">
+          <span className="block text-xs font-bold text-foreground">Solicitud de tasa</span>
+          <span className="block text-[11px] font-normal text-muted-foreground">Condiciones y aprobación</span>
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-primary">
+        {abierta ? 'Ocultar' : 'Mostrar'}
+        <ChevronDown
+          className={cn('size-4 transition-transform motion-reduce:transition-none', abierta && 'rotate-180')}
+          aria-hidden
+        />
+      </span>
+    </Button>
+    <div id={idPanel} hidden={!abierta} className="mt-2">
+      <CondicionesTasaLeadPanel {...props} />
+    </div>
+  </section>
 }
 
 /** Una relectura fallida conserva el candado; nunca equivale a «no hay solicitudes». */

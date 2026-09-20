@@ -1,9 +1,11 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-19
+actualizado: 2026-09-20
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Ficha de lead compacta - tasa plegable e historial con scroll 2026-09-20]] — **VALIDADO, PENDIENTE DE PUBLICACIÓN:** la solicitud de tasa inicia plegada sin desmontar su validación y el historial usa un riel de scroll de altura acotada. 3.898 pruebas, 8 E2E afectados, lint, typecheck, build y recorrido visual local PASS.
 
 - [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] — **F0, F1 y F2 EN PRODUCCIÓN (20/09); sigue F3 «Mi día».** Módulo nuevo por rol con resultado de llamada tipificado y obligatorio (ver [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]]); 8 decisiones de Miguel selladas; absorbe Seguimiento al final. Plan y estado: `CRM-Avance-Corp/docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md` y `ESTADO-Y-RETOMAR-2026-09-20.md`.
 
