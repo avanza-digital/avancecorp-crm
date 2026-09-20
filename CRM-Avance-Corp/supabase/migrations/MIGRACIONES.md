@@ -12,8 +12,12 @@ con MENOS gestiones en sus leads, 29 en 6 leads): 8 ítems en **35 ms frío / 26
 `actividades_recientes_idx` + filtro RLS (subplan hasheado sobre leads), 13 335 filas descartadas, 6 158 buffers en caché;
 analista con MÁS (1 473): 19 ms. Umbral 200 ms: PASA → el índice cubriente NO se aplica. **Sonda anónima** con la clave
 pública del bundle vivo (`Content-Profile: crm`): `{"p_limite":8}` y `{"p_limite":0}` → 401/42501 `permission denied
-for schema crm`; `{"p_nope":1}` → 404/PGRST202. Front en la misma PR (#39), a publicar DESPUÉS del SQL: pendiente
-`/release-crm`.** Fase 3 del plan «sin topes»
+for schema crm`; `{"p_nope":1}` → 404/PGRST202. **FRONT EN PRODUCCIÓN** el 19/09 ~22:44 Lima (20/09 03:44 UTC) en el release conjunto con Gestión Diaria F1+F2,
+construido por esa sesión desde el tronco `afc39197` (squash de la PR #39): ZIP `crm-20260920T034405Z-afc391974382.zip`
+(sha256 `d15415fb…`), manifiesto al lado en `releases/`; preflight OK (vivo `380643a8` → candidato `afc39197`);
+smoke: `version.json` = `build-20260920T034404914Z`, `/` 200, `assets/index-CpHlTkE1.js` 200 = dist. Contrastado
+aparte desde esta sesión: el chunk vivo `crm-api-CfwDpQD3.js` llama a `actividades_recientes_fn` y ya no menciona
+`actividades_del_ambito_fn`. Acta en PR #40.** Fase 3 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`); objetivo fijado por Miguel el 19/09: que ninguna
 pantalla dependa de descargar el registro de actividades del ámbito, que la RPC vieja salga del arranque y
 se deprecie, y que muera el último tope de actividades del front.

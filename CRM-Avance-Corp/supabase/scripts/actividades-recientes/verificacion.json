@@ -33,5 +33,11 @@
     "auditor_rls": "CHANGES_REQUESTED sin P0/P1: sin fuga ni desfase; aceptados: sello compartido de actividades_select documentado (cabecera + ledger), 2 mutantes de nombre_de_autor (18 → 20), EXECUTE de puede_acceder_crm en la base, negativa cruzada de subarbol + bordes de p_limite en test-rls, comentarios de co-extensividad corregidos (no se sella leads_select: es estructural), rotulo del front «Sin nombre de lead». Pendiente tras instalar: medir en prod el caso peor (analista con pocas gestiones visibles recorre el indice entero antes de reunir 8; umbral sugerido 200 ms; contingencia: indice cubriente include (lead_id))",
     "codex": "CHANGES_REQUESTED (CLI `codex exec --sandbox read-only`, el MCP no conecta) con 3 P2 de front, los tres ACEPTADOS: (F1) la conservacion de optimistas estaba en el arranque y no en la resincronizacion → arranque parte de cero (tambien ante cambio de identidad sin logout) y resincronizacion conserva solo optimistas de los ultimos 10 min (VIDA_OPTIMISTA_MS: retencion acotada); (F2) crear reunion y cerrar reunion decidian el avance optimista con la lista local → ahora `huboContacto` usa las senales del historial por lead (mas optimistas vivas) y sin cache no anuncia avance (lo decide el servidor); (F3) la «espera mas larga» de la bandeja del supervisor caia a creado_en → en sesion real se omite la antiguedad (el CTA dice «Pendientes en tu bandeja»; el conteo del RPC sigue). Pruebas nuevas: descartar por no_responde sin cache pide abrir la ficha; la resincronizacion conserva las optimistas; tests del supervisor adaptados. Sin hallazgos de seguridad."
   },
-  "md5_gate_referencia": "6394111e65bbc3b8d47719f499762848"
+  "md5_gate_referencia": "6394111e65bbc3b8d47719f499762848",
+  "front": {
+    "release": "crm-20260920T034405Z-afc391974382.zip",
+    "build_id": "build-20260920T034404914Z",
+    "publicado": "2026-09-20 03:44 UTC (19/09 ~22:44 Lima) por la sesión Gestión Diaria desde el tronco afc39197 (release conjunto con GD F1+F2); preflight OK vivo 380643a8 → afc39197; smoke / 200, index-CpHlTkE1.js 200 = dist",
+    "contraste_bundle_vivo": "crm-api-CfwDpQD3.js: actividades_recientes_fn presente, actividades_del_ambito_fn ausente (curl desde esta sesión, 03:52 UTC)"
+  }
 }

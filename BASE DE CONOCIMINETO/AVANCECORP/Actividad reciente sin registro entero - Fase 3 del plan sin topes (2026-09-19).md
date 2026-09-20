@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, actividades, directorio, fase-3, sin-topes]
 actualizado: 2026-09-19
-estado: SQL EN PRODUCCIÓN Y REGISTRADA (19/09 ~22:38 Lima) · PR #39 fusionada (afc39197) · acta PR #40 · front en el tronco, publicación en el release conjunto con Gestión Diaria
+estado: EN PRODUCCIÓN COMPLETA el 19/09 (SQL ~22:38 Lima; front ~22:44 en crm-20260920T034405Z-afc391974382) · PR #39 fusionada (afc39197) · acta PR #40 · RPC vieja en observación hasta ~27/09
 ---
 
 # Actividad reciente sin registro entero — Fase 3 del plan «sin topes» (2026-09-19)
@@ -66,8 +66,9 @@ la Fase 4, donde se retira la foto de leads.
 
 ## Lo que falta
 
-1. **Front:** sale en el release que construye la sesión de Gestión Diaria desde el tronco `afc39197`
-   (preflight obligatorio; deploy en el terminal de Miguel). Anotar el ZIP aquí y en el acta (PR #40).
+1. ~~Front~~ ✅ publicado ~22:44 Lima en el release conjunto con Gestión Diaria F1+F2 (`crm-20260920T034405Z-afc391974382.zip`,
+   `build-20260920T034404914Z`, preflight OK vivo `380643a8` → `afc39197`); el chunk vivo llama a
+   `actividades_recientes_fn` y ya no a `actividades_del_ambito_fn`.
 2. **[Miguel]** fusionar la PR #40 (acta: ledger, `verificacion.json`, registrador).
 3. Observar `actividades_del_ambito_fn` una semana en los logs de PostgREST y depreciarla por migración
    aparte (~27/09). Regenerar el mapa de capas (el arranque ya no llama a la RPC vieja; el directorio llama
