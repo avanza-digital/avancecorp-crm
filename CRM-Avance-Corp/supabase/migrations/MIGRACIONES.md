@@ -2,9 +2,27 @@
 
 ## 20260920041500 — Gestión Diaria (F3): el día del analista
 
-**🧪 ENSAYADA EN EL BANCO LOCAL el 20/09/2026 · PENDIENTE DE INSTALAR EN PRODUCCIÓN.**
-Prerrequisito duro: `20260920005000` (F2) instalada **y registrada**. Fase 3 del plan
-aprobado el 19/09 (`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`).
+**✅ SQL EN PRODUCCIÓN el 20/09/2026 (~01:19 Lima = 06:19 UTC, Miguel con `!` +
+`db query --linked --file`, archivo exacto) y REGISTRADA acto seguido con
+`registrar-20260920041500.sql` (fail-closed: relee la fila y exige
+`cardinality(statements) = 1`). Front publicado el mismo día: release
+`crm-20260920T062207Z-12230ee2ea0f`, build `build-20260920T062206730Z`, commit `12230ee2`.**
+Ensayada antes en el banco local. Prerrequisito duro: `20260920005000` (F2) instalada **y
+registrada**. Fase 3 del plan aprobado el 19/09
+(`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`).
+
+**Verificado en producción tras instalar** (solo lecturas): la fila registrada con un único
+`statement`; las cinco funciones nuevas presentes (`gestion_diaria_umbrales`,
+`gestion_diaria_llamadas`, `gestion_diaria_analista_core`, `assert_gestion_diaria_analista`
+y `assert_gestion_diaria_analista_mutantes`); la puerta `crm.gestion_diaria_analista_fn` con
+`prosecdef = false` (INVOKER) y `anon` **sin** EXECUTE; y el gate paraguas
+`private.assert_gestion_diaria()` en VERDE para las tres fases — devuelve
+«OK: Gestion Diaria […registro…] […resultado de llamada…] […dia del analista — puerta y
+nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y
+politica_abandono en su forma…]». Advisors de seguridad: las 5 preexistentes, **ninguna
+nueva**. Smoke del front: `version.json` vivo idéntico al del dist, raíz y bundle HTTP 200,
+y el bundle sirve `gestion_diaria_analista_fn`. El preflight pasó
+(`live=build-20260920T034404914Z/afc391974382 candidate=12230ee2ea0f`).
 
 - **Qué entrega.** Puerta `crm.gestion_diaria_analista_fn(p_dia date default null,
   p_analista_id uuid default null)` (INVOKER, stable, `search_path` vacío, EXECUTE solo

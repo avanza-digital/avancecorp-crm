@@ -27,8 +27,11 @@ _DEV_NO_SUBIR/
 _no-subir-a-hostinger/
 
 # --- Dependencias ---
-node_modules/
-**/node_modules/
+# Sin barra final A PROPOSITO: con `node_modules/` git solo ignora DIRECTORIOS,
+# y el symlink `node_modules` que lleva cada worktree es un blob -> se colaba
+# al commit (paso el 20/09/2026 en la rama de Gestion Diaria F3).
+node_modules
+**/node_modules
 
 # --- Índices y artefactos locales de herramientas (reconstruibles; no versionar) ---
 .codegraph/

@@ -12,7 +12,7 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 | F0 · Cimientos | Plus Jakarta Sans, primitivas `Tabs` / `RadioGroup` / `exportar-csv`, docs y nota del vault | ✅ en prod | PR #29 |
 | F1 · Módulo + registro crudo | Vista `gestion-diaria` en el menú (Operación) para los 3 roles; registro del día por analista/tipo/etapa con paginación; CSV para gerencia | ✅ en prod (SQL `20260919211958` instalada y registrada el 20/09) | PR #34; puerta `crm.registro_actividad_fn` |
 | F2 · Resultado tipificado | Toda llamada del CRM se cierra con 1 de 7 resultados; tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»; Deshacer 24 h | ✅ en prod (SQL `20260920005000` instalada y registrada el 20/09; front `crm-20260920T034405Z-afc391974382`, build `build-20260920T034404914Z`) | PR #38; acta PR #41; puertas `crm.registrar_llamada_v3`, `crm.deshacer_resultado_llamada` |
-| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | 🔵 **PR #42 abierta** (SQL `20260920041500` ensayado, SIN instalar) | PR #42; puerta `crm.gestion_diaria_analista_fn` |
+| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | ✅ **EN PROD** el 20/09 (SQL `20260920041500` instalada y registrada; front `crm-20260920T062207Z-12230ee2ea0f`) | PR #42; puerta `crm.gestion_diaria_analista_fn` |
 | F4 · Supervisor «Mi equipo hoy» | Tabla del equipo con tasa (chip solo con ≥ 5 llamadas útiles), llamadas por hora por analista, alertas del día | ⏭️ SIGUIENTE (su núcleo ya existe: `private.gestion_diaria_llamadas` acepta varios analistas) | plan §F4 |
 | F5 · Gerencia «Toda la operación» | Pulso del día vs ayer y 7 días, por equipo, drill-down hasta el registro | pendiente | plan §F5 |
 | F6 · Absorber Seguimiento | `#/seguimiento` → alias de `gestion-diaria`; retirar la vista vieja (cerrar → observar → derribar) | pendiente (tras ≥ 1 semana de F3–F5 en prod) | plan §F6 |
@@ -50,7 +50,13 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 
 ## Pendiente de Miguel ahora
 
-- **PR #42 (F3): fusionar con MERGE COMMIT**, instalar `20260920041500` con `!`, luego `scripts/registrar-20260920041500.sql`, y después el front con `/release-crm`.
+- **F3 COMPLETA EN PRODUCCIÓN el 20/09.** PR #42 fusionada por squash (`12230ee2`); el contenido llegó entero y
+  `afc39197` —lo que estaba vivo— seguía siendo ancestro, así que el preflight no se rompió. SQL instalada y
+  registrada (~01:19 Lima) y front publicado (`crm-20260920T062207Z-12230ee2ea0f`).
+- **Prueba de negocio pendiente:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
+- **Fusionar la PR #44** (saca del tronco el symlink `node_modules` que coló la rama de F3) y solo entonces integrar
+  `avancecorp/main` en el `main` local: hasta que eso pase, el checkout intentaría escribir el symlink encima de la
+  carpeta `node_modules` real del taller.
 - Prueba de negocio de F2 en el CRM: una llamada real con «volver a llamar» crea la tarea en Agenda; «no le interesa» manda el lead al Centro de rescate con su motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa.
 - Prueba de negocio de F3: como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
 - Fusionar la PR de acta #41.
