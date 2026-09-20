@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -11,7 +12,7 @@ import {
 } from '@/lib/store-context'
 import type { PanelesActions, ResultadoMut, StoreDataApi } from '@/lib/store'
 import type { EtapaActiva, Lead, Tarea } from '@/lib/tipos'
-import { LeadDrawer } from './lead-drawer'
+import { LeadDrawer, Timeline } from './lead-drawer'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -143,6 +144,51 @@ function montar({
   )
 
   return { editarLead, registrarActividad, crearTarea, anularTarea }
+}
+
+function montarComposerSla({
+  avance,
+  persistenciaActividad,
+}: {
+  avance?: EtapaActiva
+  persistenciaActividad?: Promise<boolean>
+} = {}) {
+  const registrarActividad = vi.fn<StoreDataApi['registrarActividad']>(() =>
+    ({ ok: true, ...(avance ? { avance } : {}), ...(persistenciaActividad ? { persistido: persistenciaActividad } : {}) }),
+  )
+  const api = {
+    actividadesDe: () => [],
+    tareasDe: () => [],
+    registrarActividad,
+    registrarLlamada: vi.fn(),
+    deshacerResultadoLlamada: vi.fn(),
+  } as unknown as StoreDataApi
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  function ComposerInvocadoPorSla() {
+    const [componiendo, setComponiendo] = useState(true)
+    return (
+      <Timeline
+        l={LEAD}
+        escribe
+        activa
+        componiendo={componiendo}
+        setComponiendo={setComponiendo}
+      />
+    )
+  }
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={SESION}>
+        <StoreDataContext.Provider value={api}>
+          <ComposerInvocadoPorSla />
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
+  )
+
+  return { registrarActividad }
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -421,14 +467,14 @@ describe('LeadDrawer — rótulo del capital según el desenlace', () => {
 
 // Un cambio de etapa silencioso asusta más que ayuda: el composer tiraba el
 // `avance` del store y el stepper se movía solo, sin explicación.
-// Desde Gestión Diaria F2 los tipos de LLAMADA no salen por este composer: abren
-// el panel del resultado tipificado. El composer sigue para WhatsApp y notas.
-describe('LeadDrawer — el composer canta el avance automático de etapa', () => {
+// El acceso rápido ya no se muestra en la ficha; el mismo composer permanece
+// disponible cuando una acción SLA lo invoca. Desde Gestión Diaria F2 los tipos
+// de LLAMADA abren el panel del resultado tipificado.
+describe('Timeline — el composer invocado por SLA canta el avance automático de etapa', () => {
   it('lo dice cuando el contacto sube la etapa del lead', async () => {
     const user = userEvent.setup()
-    montar({ avance: 'contactado' })
+    montarComposerSla({ avance: 'contactado' })
 
-    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
     await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'whatsapp_recibido')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -437,9 +483,8 @@ describe('LeadDrawer — el composer canta el avance automático de etapa', () =
 
   it('sin avance, el aviso no inventa un cambio de etapa', async () => {
     const user = userEvent.setup()
-    montar()
+    montarComposerSla()
 
-    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
     await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'nota')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -448,15 +493,18 @@ describe('LeadDrawer — el composer canta el avance automático de etapa', () =
 
   it('una LLAMADA abre el panel del resultado tipificado en vez de registrar el tipo pelado', async () => {
     const user = userEvent.setup()
-    const { registrarActividad } = montar()
+    const { registrarActividad } = montarComposerSla()
 
-    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
     await user.type(screen.getByRole('textbox', { name: 'Detalle de la actividad' }), 'Dijo que la llame el lunes')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(registrarActividad).not.toHaveBeenCalled()
     expect(screen.getByText(/Cómo salió la llamada con/)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Nota de la llamada' })).toHaveValue('Dijo que la llame el lunes')
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar sin registrar' }))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Actividad del lead' })).toHaveFocus())
+    expect(screen.queryByLabelText('Tipo de actividad')).not.toBeInTheDocument()
   })
 })
 
@@ -786,8 +834,7 @@ describe('confirmación de actividad SLA', () => {
     const user = userEvent.setup()
     let resolver!: (valor: boolean) => void
     const persistenciaActividad = new Promise<boolean>((resuelve) => { resolver = resuelve })
-    const { registrarActividad } = montar({ persistenciaActividad })
-    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    const { registrarActividad } = montarComposerSla({ persistenciaActividad })
     await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'whatsapp_recibido')
     await user.type(screen.getByRole('textbox', { name: 'Detalle de la actividad' }), 'Conversación confirmada')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
