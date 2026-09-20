@@ -1548,6 +1548,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
   // Gestión Diaria F2: una LLAMADA se registra con su resultado tipificado; el
   // composer abre el panel (con la nota ya escrita) en vez de mandar el tipo pelado.
   const [panelLlamada, setPanelLlamada] = useState(false)
+  const refAbrirComposer = useRef<HTMLButtonElement>(null)
 
   const registrar = async () => {
     if (guardandoActividad) return
@@ -1607,6 +1608,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
 
       {escribe && activa && !componiendo && (
         <button
+          ref={refAbrirComposer}
           type="button"
           onClick={() => setComponiendo(true)}
           className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
@@ -1616,7 +1618,12 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
       )}
 
       {panelLlamada && (
-        <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => { setPanelLlamada(false); setDetalle(''); setComponiendo(false) }} />
+        <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => {
+          setPanelLlamada(false); setDetalle(''); setComponiendo(false)
+          // El botón «Registrar» del composer se desmonta con el panel: el foco
+          // vuelve al control que lo sustituye, no al contenedor de la ficha.
+          requestAnimationFrame(() => refAbrirComposer.current?.focus())
+        }} />
       )}
       {escribe && activa && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">

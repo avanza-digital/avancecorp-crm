@@ -144,11 +144,21 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
   // queda en el contenedor del diálogo, fuera de este árbol.
   const elegirRef = useRef(elegir)
   elegirRef.current = elegir
+  const raiz = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || ES_CAMPO(e.target)) return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.isComposing || ES_CAMPO(e.target)) return
+      // Solo mientras ESTE diálogo tiene el foco (WCAG 2.1.4: atajos de un
+      // carácter acotados al componente), no cualquier modal apilado.
+      const dialogo = raiz.current?.closest<HTMLElement>('[role="dialog"]')
+      if (!dialogo || !(e.target instanceof Node) || !dialogo.contains(e.target)) return
       const r = RESULTADOS.find((x) => x.atajo === e.key)
-      if (r) { e.preventDefault(); elegirRef.current(r.clave) }
+      if (!r) return
+      e.preventDefault()
+      elegirRef.current(r.clave)
+      // El foco sigue a la elección: el lector anuncia el radio marcado y nada
+      // queda enfocado dentro de un bloque que este cambio desmonta.
+      requestAnimationFrame(() => dialogo.querySelector<HTMLInputElement>(`input[name="resultado-llamada"][value="${r.clave}"]`)?.focus())
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -244,14 +254,14 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
     : []
   const opcionesDecision: OpcionRadio<DecisionNumero>[] = [
     ...(tieneSegundoNumero ? [{ valor: 'segundo_numero' as const, etiqueta: `Llamar al 2.º número (${lead.telefono_alternativo})`, detalle: 'Se agenda para hoy' }] : []),
-    { valor: 'descartar' as const, etiqueta: 'Descartar por datos inválidos', detalle: 'Sale de tu cartera; puedes deshacerlo durante 24 h' },
+    { valor: 'descartar' as const, etiqueta: 'Descartar por datos inválidos', detalle: 'Sale de tu cartera; puedes deshacerlo desde el aviso al guardar' },
     { valor: 'reintento' as const, etiqueta: 'Mantener con reintento a 7 días', detalle: 'Se agenda otra llamada' },
     { valor: 'solo_registrar' as const, etiqueta: 'Solo registrar', detalle: 'Sin tarea ni descarte' },
   ]
 
   return (
     <Dialog open onClose={() => { if (!enviando.current) onClose() }} ariaLabel="Resultado de la llamada" className="w-[520px]">
-      <div>
+      <div ref={raiz}>
         <DialogHeader>
           <DialogTitle>¿Cómo salió la llamada con {nombre}?</DialogTitle>
           <DialogDescription>
@@ -260,44 +270,44 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
         </DialogHeader>
         <DialogBody className="space-y-3">
           <fieldset disabled={procesando || sinConfirmar !== null} className="min-w-0 space-y-3">
-            <RadioGroup<ResultadoLlamada> leyenda="Resultado" opciones={opciones} valor={resultado} onCambio={elegir} obligatorio nombre="resultado-llamada" />
+            <RadioGroup<ResultadoLlamada> leyenda="Resultado" opciones={opciones} valor={resultado} onCambio={elegir} obligatorio nombre="resultado-llamada" descripcion="Atajos: las teclas 1 a 7 eligen el resultado." />
 
             {def?.paso === 'submotivo' && (
-              <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-2.5">
+              <div className="space-y-2 rounded-xl border border-destructive/30 p-2.5">
                 <RadioGroup<SubmotivoLlamada> leyenda={def.clave === 'no_interesado' ? '¿Por qué no le interesa?' : '¿Qué producto pide?'} opciones={opcionesSubmotivo} valor={submotivo} onCambio={setSubmotivo} obligatorio nombre="submotivo-llamada" />
                 <p className="text-xs font-semibold text-foreground/85">
-                  {nombre} saldrá de tu cartera hacia el Centro de rescate; puedes deshacerlo durante 24 h.
+                  {nombre} saldrá de tu cartera hacia el Centro de rescate; puedes deshacerlo desde el aviso al guardar (el servidor lo admite 24 h).
                   {cancelaria > 0 && ` Se cancelarán ${cancelaria} ${cancelaria === 1 ? 'tarea pendiente' : 'tareas pendientes'}.`}
                 </p>
                 <label className="flex cursor-pointer items-start gap-2 text-[11px] font-semibold text-foreground/85">
                   <input type="checkbox" className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-[var(--accent)]" checked={noInsista} onChange={(e) => setNoInsista(e.target.checked)} />
-                  <span>Pidió que no lo vuelvan a llamar <span className="font-normal text-muted-foreground">(Ley 29571; esta marca no se puede deshacer desde aquí)</span></span>
+                  <span>Pidió que no lo vuelvan a llamar <span className="font-normal text-[var(--muted-foreground-strong)]">(Ley 29571; esta marca no se puede deshacer desde aquí)</span></span>
                 </label>
               </div>
             )}
 
             {def?.paso === 'decision_numero' && (
-              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2.5">
+              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
                 <RadioGroup<DecisionNumero> leyenda="¿Qué hacemos con este número?" opciones={opcionesDecision} valor={decision} onCambio={setDecision} obligatorio nombre="decision-numero" descripcion="Esta llamada cuenta como intento, pero no entra en la tasa de contacto." />
               </div>
             )}
 
             {ofrecePerdido && (
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-2.5 text-[11px] font-semibold text-foreground/85">
+              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-destructive/30 p-2.5 text-[11px] font-semibold text-foreground/85">
                 <input type="checkbox" className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-[var(--accent)]" checked={perdido} onChange={(e) => setPerdido(e.target.checked)} />
-                <span>Marcar perdido: no responde <span className="font-normal text-muted-foreground">(ya van {intentosPrevios} intentos sin respuesta; sale de tu cartera, deshacer 24 h)</span></span>
+                <span>Marcar perdido: no responde <span className="font-normal text-[var(--muted-foreground-strong)]">(ya van {intentosPrevios} intentos sin respuesta; sale de tu cartera; deshacer desde el aviso)</span></span>
               </label>
             )}
 
             {muestraSiguiente && campos && (
-              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2.5">
+              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
                 {siguienteOpcional ? (
                   <label className="flex cursor-pointer items-start gap-2 text-[11px] font-semibold text-foreground/85">
                     <input type="checkbox" className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-[var(--accent)]" checked={agendar} onChange={(e) => setAgendar(e.target.checked)} />
-                    <span>Agendar el siguiente intento <span className="font-normal text-muted-foreground">(el sistema propone el canal y la fecha)</span></span>
+                    <span>Agendar el siguiente intento <span className="font-normal text-[var(--muted-foreground-strong)]">(el sistema propone el canal y la fecha)</span></span>
                   </label>
                 ) : (
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{campos.tipo === 'reunion' ? 'La cita' : 'Cuándo volver a llamar'}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted-foreground-strong)]">{campos.tipo === 'reunion' ? 'La cita' : 'Cuándo volver a llamar'}</p>
                 )}
                 {(!siguienteOpcional || agendar) && (
                   <div className="grid grid-cols-2 gap-2">
@@ -314,7 +324,7 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
                       <Input id="siguiente-hora" type="time" value={campos.hora} onChange={(e) => editar({ hora: e.target.value })} className="h-8 text-xs" />
                     </div>
                     {campos.tipo !== 'reunion' && (
-                      <p className="col-span-2 text-[10px] text-muted-foreground">Ventana legal: lunes a sábado, 07:00–20:00 (Lima).</p>
+                      <p className="col-span-2 text-[10px] text-[var(--muted-foreground-strong)]">Ventana legal: lunes a sábado, 07:00–20:00 (Lima).</p>
                     )}
                     {campos.tipo === 'reunion' && (
                       <div className="col-span-2"><CamposReunion valor={camposReunion} onChange={setCamposReunion} /></div>

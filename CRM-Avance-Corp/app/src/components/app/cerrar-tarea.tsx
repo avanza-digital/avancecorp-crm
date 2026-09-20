@@ -151,15 +151,22 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
   // Las tareas de cliente (perfil) y el resto de tipos siguen su cierre de siempre.
   const [panelLlamada, setPanelLlamada] = useState<string | null>(null)
   const leadDeLlamada = tarea?.tipo === 'llamada' && tarea.lead_id && !tarea.inversionista_id ? lead(tarea.lead_id) : undefined
-  if (tarea && leadDeLlamada && panelLlamada === tarea.id) {
-    return <RegistrarResultado key={tarea.id} lead={leadDeLlamada} tarea={tarea} onClose={() => { setPanelLlamada(null); onCerrar() }} />
-  }
+  // El panel se APILA sobre este diálogo (Radix apila modales y `escape-dialogo`
+  // cierra por capas): así el origen del foco (el botón «Registrar resultado…»)
+  // sigue montado y, al cerrar los dos, el foco vuelve a la fila de la agenda
+  // desde la que se abrió (revisión a11y 20/09). Sustituirlo desmontaba el
+  // origen y el foco caía al cuerpo del documento.
   return (
-    <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
-      {tarea && (tarea.inversionista_id
-        ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
-        : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
-    </Dialog>
+    <>
+      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
+        {tarea && (tarea.inversionista_id
+          ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
+          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
+      </Dialog>
+      {tarea && leadDeLlamada && panelLlamada === tarea.id && (
+        <RegistrarResultado key={tarea.id} lead={leadDeLlamada} tarea={tarea} onClose={() => { setPanelLlamada(null); onCerrar() }} />
+      )}
+    </>
   )
 }
 
@@ -604,7 +611,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
               type="button"
               disabled={procesando}
               onClick={onRegistrarLlamada}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--accent)]/20"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--accent)]/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
             >
               <PhoneCall className="size-4" aria-hidden /> Registrar resultado de la llamada
             </button>
