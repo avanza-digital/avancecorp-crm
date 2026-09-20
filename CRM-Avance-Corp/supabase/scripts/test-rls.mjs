@@ -7823,6 +7823,83 @@ async function testGestionDiariaRegistro(sessions, seed) {
   }
 }
 
+// Gestión Diaria F3: el día del analista. La puerta es INVOKER: un analista solo
+// el suyo (42501 si pide otro); supervisor, gerencia y lector global cualquiera
+// de su roster visible (42501 explícito, también para un uuid inexistente);
+// coordinador y analista dado de baja 42501; anon sin EXECUTE. La cartera y los
+// descartados solo traen leads del analista pedido y ninguna clave sensible;
+// «puede_deshacer» solo es cierto para el propio autor.
+async function testGestionDiariaAnalista(sessions, seed) {
+  console.log('\n— Gestión Diaria: el día del analista (F3) —');
+  const FN = 'gestion_diaria_analista_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  {
+    const probe = await sessions.gerencia.client.schema('crm').rpc(FN, {});
+    if (probe.error?.code === 'PGRST202') {
+      const msg = `⚠ ${FN} NO desplegada en esta base: bloque del día del analista SALTADO (no probado)`;
+      if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+      else console.log(`  ${msg}`);
+      return;
+    }
+  }
+  const sobre = (data) => Boolean(data && typeof data === 'object' && data.version === 1 && data.zona === 'America/Lima'
+    && data.marcador && Array.isArray(data.cartera) && Array.isArray(data.compromisos) && Array.isArray(data.descartados));
+  const SENSIBLES = ['telefono', 'dni', 'monto_estimado', 'correo', 'deshecho_por', 'fecha_nacimiento'];
+  const sinSensibles = (data) => !SENSIBLES.some((k) => JSON.stringify(data ?? {}).includes(`"${k}"`));
+
+  // A. El analista: su propio día (sin claves sensibles); pedir a otro → 42501.
+  {
+    const { data, error } = await sessions.vend1.client.schema('crm').rpc(FN, {});
+    check(!error && sobre(data) && data.analista_id === id('vend1') && sinSensibles(data),
+      `vend1 lee su propio día (${error?.code ?? (data?.marcador?.llamadas ?? '?') + ' llamadas'})`);
+    const ajeno = await sessions.vend1.client.schema('crm').rpc(FN, { p_analista_id: id('vend2') });
+    check(isAuthorizationError(ajeno.error), `vend1 NO puede pedir el día de vend2 (${ajeno.error?.code ?? 'sin error!'})`);
+  }
+  // B. El supervisor: su subárbol (anidado incluido); nunca otro equipo ni un uuid
+  //    inexistente; nunca «puede_deshacer» por otro.
+  {
+    for (const quien of ['vend1', 'vendNested']) {
+      const { data, error } = await sessions.sup1.client.schema('crm').rpc(FN, { p_analista_id: id(quien) });
+      check(!error && sobre(data) && data.analista_id === id(quien) && data.descartados.every((d) => d.puede_deshacer === false),
+        `sup1 lee el día de ${quien} sin poder deshacer por él (${error?.code ?? 'ok'})`);
+    }
+    const ajeno = await sessions.sup1.client.schema('crm').rpc(FN, { p_analista_id: id('vend3') });
+    check(isAuthorizationError(ajeno.error), `sup1 NO puede pedir a vend3 (equipo de sup2) (${ajeno.error?.code ?? 'sin error!'})`);
+    const nadie = await sessions.sup1.client.schema('crm').rpc(FN, { p_analista_id: '00000000-0000-4000-8000-000000000000' });
+    check(isAuthorizationError(nadie.error), `sup1 con un uuid inexistente recibe 42501 (${nadie.error?.code ?? 'sin error!'})`);
+  }
+  // C. Gerencia y directorio: cualquier analista; cada cartera trae solo leads del pedido.
+  {
+    const ger = await sessions.gerencia.client.schema('crm').rpc(FN, { p_analista_id: id('vend3') });
+    check(!ger.error && sobre(ger.data) && ger.data.analista_id === id('vend3'), `gerencia lee el día de vend3 (${ger.error?.code ?? 'ok'})`);
+    const dir = await sessions.directorio.client.schema('crm').rpc(FN, { p_analista_id: id('vend1') });
+    check(!dir.error && sobre(dir.data), `directorio lee el día de vend1 (${dir.error?.code ?? 'ok'})`);
+    const otro = await sessions.gerencia.client.schema('crm').rpc(FN, { p_analista_id: id('vend2') });
+    const deVend3 = new Set((ger.data?.cartera ?? []).map((l) => l.lead_id));
+    check(!otro.error && (otro.data?.cartera ?? []).every((l) => !deVend3.has(l.lead_id)),
+      `la cartera de vend2 no comparte leads con la de vend3 (${otro.error?.code ?? 'ok'})`);
+  }
+  // D. Coordinador y analista dado de baja: 42501 explícito, nunca un día vacío.
+  for (const quien of ['coordinador', 'vendInactive']) {
+    const { error } = await sessions[quien].client.schema('crm').rpc(FN, {});
+    check(isAuthorizationError(error), `${quien} recibe 42501 en ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+  // E. Validaciones 22023 antes de leer: día futuro, más de un año atrás.
+  for (const [nombre, extra] of [
+    ['día futuro', { p_dia: new Date(Date.now() + 2 * 86400 * 1000).toISOString().slice(0, 10) }],
+    ['hace más de un año', { p_dia: new Date(Date.now() - 400 * 86400 * 1000).toISOString().slice(0, 10) }],
+  ]) {
+    const { error } = await sessions.gerencia.client.schema('crm').rpc(FN, { p_analista_id: id('vend1'), ...extra });
+    check(error?.code === '22023', `${FN} rechaza ${nombre} con 22023 (${error?.code ?? 'sin error!'})`);
+  }
+  // F. anon: sin EXECUTE -> error de AUTORIZACION, no cualquier error.
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-gestion-diaria-analista'));
+    const { error } = await anon.schema('crm').rpc(FN, {});
+    check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+}
+
 async function testGestionDiariaResultado(sessions, seed) {
   console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
   const FN = 'registrar_llamada_v3';
@@ -14031,6 +14108,7 @@ async function main() {
       await testFacturacionDiaria(sessions, verifiedSeed);
       await testGestionDiariaRegistro(sessions, verifiedSeed);
       await testGestionDiariaResultado(sessions, verifiedSeed);
+      await testGestionDiariaAnalista(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }

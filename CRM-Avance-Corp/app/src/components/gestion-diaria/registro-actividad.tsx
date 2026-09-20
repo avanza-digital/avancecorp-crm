@@ -13,6 +13,8 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useAhora } from '@/lib/ahora'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS, TERMINALES, type Etapa } from '@/lib/tipos'
 import {
@@ -28,9 +30,12 @@ import { Select } from '@/components/ui/select'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 
 const LIMITE_PAGINA = 25
+// Tokens de TEXTO: el chip `soft` pinta el color puro sobre un tinte al 12 %, y
+// ahí `--warning` da ~3:1 (index.css). Misma escala que el chip de nivel de «Mi
+// día», que ahora convive con este en la pantalla del analista.
 const TONO: Record<'ok' | 'atencion' | 'neutro', string> = {
   ok: 'var(--primary)',
-  atencion: 'var(--warning)',
+  atencion: 'var(--warning-text)',
   neutro: 'var(--muted-foreground-strong)',
 }
 const TODAS_LAS_ETAPAS = [...ETAPAS, ...TERMINALES]
@@ -50,6 +55,7 @@ interface Props {
 
 export function RegistroActividad({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar }: Props) {
   const { yo } = useAuth()
+  const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const id = useId()
@@ -118,7 +124,10 @@ export function RegistroActividad({ dia, analistaIds, mostrarAnalista, permitirE
   }
 
   const corte = pagina ? new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(pagina.generado_en)) : null
-  const esHoy = dia === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date())
+  // El reloj de la APP (useAhora), no `new Date()`: con el reloj real esta
+  // comparación cambiaba sola al pasar la medianoche de Lima y el rótulo «de
+  // hoy» dejaba de coincidir con el día que se está listando.
+  const esHoy = dia === fechaLima(ahora)
   const seRefresca = esHoy && cursorVigente === null
 
   const lista = (

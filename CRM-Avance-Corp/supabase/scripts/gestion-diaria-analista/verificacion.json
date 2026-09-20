@@ -1,0 +1,19 @@
+{
+  "version": "20260920041500",
+  "nombre": "crm_gestion_diaria_analista",
+  "base": "gestion_diaria_f3_20260920",
+  "ensayado_en": "2026-09-20T05:00:34.794Z",
+  "md5_puerta": "ba3d0502ae4bf0d010677562d47634a5",
+  "md5_core": "b08d96d051c210e24b1fb74484670b93",
+  "md5_llamadas": "45e6e7a82c54b2f15110b828ba70761d",
+  "md5_umbrales": "6ab633af9f5356f3fa11cf309ff4b25c",
+  "md5_registro_core": "3430460e4ab59aa185ec8305788cc9a4",
+  "sha256_migracion": "195221f8c706fe5b4e4dd6e12190380885ffc8891d550f4c14840fc3e9d0c9ba",
+  "sha256_reversa": "19815289715e6ab1ad16bab5420f7e0e76b7d931514b0ce71e341b2df29c95d4",
+  "mutantes_f3": "OK: 24 mutantes detectados por private.assert_gestion_diaria()",
+  "mutantes_f2": "OK: 14 mutantes detectados por private.assert_gestion_diaria()",
+  "mutantes_f1": "OK: 10 mutantes detectados por private.assert_gestion_diaria()",
+  "oraculo": "GESTION_DIARIA_ANALISTA_OK",
+  "censo_intacto": true,
+  "reversa_a_produccion": true
+}
