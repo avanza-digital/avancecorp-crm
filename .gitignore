@@ -50,3 +50,7 @@ tmp/
 
 # Datos comerciales de Miguel: proyecciones por analista. No van al historial.
 CRM-Avance-Corp/PROYECCION DE VENTAS*.xlsx
+
+# Carpeta de lectura de Miguel (su LEEME: «no está en git»); la copia con seguimiento
+# vive en CRM-Avance-Corp/docs/gestion-diaria/.
+CRM-Avance-Corp/GESTION DIARIA/

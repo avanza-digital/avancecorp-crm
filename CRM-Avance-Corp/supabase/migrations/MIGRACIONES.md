@@ -8,7 +8,11 @@ local; `ultima_version` = 20260920045202). Medido en prod tras instalar: gate OK
 `699288313e80228963b92b8a56c3fe5c` IDÉNTICO a la copia local (instalación byte a byte), INVOKER, stable, `search_path=""`,
 owner postgres, ACL `{postgres, authenticated}`; la puerta conserva el md5 de la Fase 2 (`5edd699559108383a0e44a90b51d9ad6`);
 la primera fila del núcleo trae las 10 claves `lead_*`. Cambio ADITIVO sobre la Fase 2 (`20260919235100`): el front
-(PR #43, Fase 4 completa 4a–4e) lo trata como opcional; pendiente `/release-crm`.** Fase 4b del plan «sin topes» (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`): la
+(PR #43, Fase 4 completa 4a–4e) lo trata como opcional. ✅ FRONT EN PRODUCCIÓN (20/09): PR #43 fusionada a las
+~02:42 Lima (07:42 UTC, squash `dbfa9d6b`) y publicada a las ~02:45 Lima en el release
+`crm-20260920T074547Z-dbfa9d6bffcf` (`version.json` vivo = `build-20260920T074546386Z`, bundle 200; el preflight
+del mismo día confirmó que `main` local `a37a7e6f` tiene el árbol idéntico al vivo). Con esto la Fase 4 «sin topes»
+queda COMPLETA en producción.** Fase 4b del plan «sin topes» (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`): la
 Agenda deja de depender de la foto inicial de leads.
 
 **Causa.** La Agenda sacaba de la foto, por cada tarea, el teléfono del lead (recordatorio por WhatsApp), el
@@ -56,7 +60,7 @@ Ruta E2E `tareas_pendientes_fn` con las claves nuevas. Deuda ajena detectada: el
 **Orden de instalación.** `npx supabase db query --linked --file supabase/migrations/20260920045202_crm_tareas_pendientes_lead_embebido.sql`
 (desde `CRM-Avance-Corp/`, Miguel con `!`) → medir md5 de puerta y núcleo en prod → `node
 supabase/scripts/tareas-lead-embebido/generar-registrador.mjs` → `npx supabase db query --linked --file
-supabase/scripts/registrar-20260920045202.sql` → fusionar PR → `/release-crm` → actualizar esta acta.
+supabase/scripts/registrar-20260920045202.sql` → fusionar PR → `/release-crm` → actualizar esta acta (todo hecho el 20/09).
 
 ## 20260920041500 — Gestión Diaria (F3): el día del analista
 
