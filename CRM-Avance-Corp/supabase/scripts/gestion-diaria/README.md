@@ -2,7 +2,7 @@
 
 Estado: **ensayada en el banco local el 19/09/2026, pendiente de instalar en
 producción** (acta en `../../migrations/MIGRACIONES.md`, entrada `20260919211958`).
-Plan completo en `../../../docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`.
+Plan completo en `../../../docs/gestion-diaria/GESTION-DIARIA.md`.
 
 ## Qué entrega
 

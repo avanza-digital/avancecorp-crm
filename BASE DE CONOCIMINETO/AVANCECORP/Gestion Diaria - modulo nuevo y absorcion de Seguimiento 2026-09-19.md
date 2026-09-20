@@ -8,7 +8,7 @@ fecha: 2026-09-19
 
 **Qué es.** Módulo nuevo del CRM que responde una sola pregunta: *¿qué está pasando hoy y qué hay que hacer ahora?* Tres vistas por rol (analista «Mi día», supervisor «Mi equipo hoy», gerencia «Toda la operación») y una pieza que lo desbloquea: **el resultado de llamada tipificado y obligatorio** (7 opciones), guardado en `crm.actividades.metadata` sin tocar el CHECK de `tipo`. Absorbe [[Seguimiento - modulo propio y vista por rol 2026-09-07]].
 
-**Dónde vive el plan.** `CRM-Avance-Corp/docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md` (aprobado por Miguel el 19/09), junto al planteamiento original `PLAN.md`, los seis mockups y el `UI-UX-playbook.pdf` (llegaron en `GESTION DIARIA/gestion-diaria-handoff.zip`).
+**Dónde vive el plan.** `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md` (aprobado por Miguel el 19/09), junto al planteamiento original `PLAN.md`, los seis mockups y el `UI-UX-playbook.pdf` (llegaron en `GESTION DIARIA/gestion-diaria-handoff.zip`).
 
 ## Decisiones de Miguel (19/09) — no re-preguntar
 
