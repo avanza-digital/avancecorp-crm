@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, actividades, directorio, fase-3, sin-topes]
 actualizado: 2026-09-19
-estado: SQL PREPARADO Y ENSAYADO (sin instalar en prod) · front listo · PR pendiente · publicar servidor ANTES que front
+estado: SQL EN PRODUCCIÓN Y REGISTRADA (19/09 ~22:38 Lima) · PR #39 fusionada (afc39197) · acta PR #40 · front en el tronco, publicación en el release conjunto con Gestión Diaria
 ---
 
 # Actividad reciente sin registro entero — Fase 3 del plan «sin topes» (2026-09-19)
@@ -45,12 +45,33 @@ y `listarActividadesDelAmbito` borrados; la ruta E2E de la RPC vieja retirada.
 **Desvío del plan (con evidencia):** el Pipeline por columna con keyset no hace falta para esta fase y pasa a
 la Fase 4, donde se retira la foto de leads.
 
+## Instalación en producción (19/09, noche)
+
+- Revisiones aplicadas antes de la PR: `auditor-rls` (CHANGES_REQUESTED sin P0/P1: sello compartido
+  documentado, 20 mutantes, EXECUTE en la base, negativa cruzada y bordes en `test-rls`) y Codex por CLI
+  (3 P2 de front: arranque desde cero + optimistas 10 min en la resincronización, `huboContacto` por las
+  señales del historial por lead, supervisor sin «espera más larga» en sesión real). PR #39 fusionada por
+  Miguel (squash `afc39197`); antes hubo que integrar en local la #38 (Gestión Diaria F2: las dos añadían
+  una entrada arriba del ledger) y el «Update branch» que Miguel pulsó en la web.
+- **SQL instalada** ~22:23 Lima (Miguel con `!` + `db query --linked --file`, `rows []`) y **registrada**
+  ~22:38 con `registrar-20260920014500.sql` (cuerpo md5 `bfc3ff1b…` = archivo). Medido en prod después:
+  gate OK; puerta `a58a58a7…` y núcleo `4689f6bf…` IDÉNTICOS a la copia local (instalación byte a byte);
+  ACL `{postgres, authenticated}`, INVOKER, `search_path=""`.
+- **Caso peor medido** (deuda del auditor): analista activo con MENOS gestiones en sus leads (29 en 6 leads):
+  8 ítems en 35 ms frío / 26 ms caliente; el Index Scan sobre `actividades_recientes_idx` descarta 13 335
+  filas con el filtro RLS (subplan hasheado sobre leads) y toca 6 158 buffers en caché. Analista con MÁS
+  (1 473): 19 ms. Umbral 200 ms: pasa; el índice cubriente con `lead_id` NO se aplica.
+- **Sonda anónima** con la clave pública del bundle vivo: `{"p_limite":8}` y `{"p_limite":0}` → 42501
+  `permission denied for schema crm` (la admisión corta antes que la validación); `{"p_nope":1}` → PGRST202.
+
 ## Lo que falta
 
-1. Revisiones (`auditor-rls`, Codex) y PR.
-2. **[Miguel]** instalar el SQL con `!` → md5 en prod → registrador → sonda anónima → fusionar → `/release-crm`.
+1. **Front:** sale en el release que construye la sesión de Gestión Diaria desde el tronco `afc39197`
+   (preflight obligatorio; deploy en el terminal de Miguel). Anotar el ZIP aquí y en el acta (PR #40).
+2. **[Miguel]** fusionar la PR #40 (acta: ledger, `verificacion.json`, registrador).
 3. Observar `actividades_del_ambito_fn` una semana en los logs de PostgREST y depreciarla por migración
-   aparte (~27/09).
+   aparte (~27/09). Regenerar el mapa de capas (el arranque ya no llama a la RPC vieja; el directorio llama
+   a `actividades_recientes_fn`).
 4. Fase 4: leads sin foto (búsqueda, Agenda y Citas con `lead_nombre`, bandejas, higiene, arranque sin
    leads, Pipeline por columna).
 
