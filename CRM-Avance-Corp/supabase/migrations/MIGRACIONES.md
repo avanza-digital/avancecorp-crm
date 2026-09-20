@@ -2,9 +2,25 @@
 
 ## 20260919235100 — Tareas pendientes por cursor: la agenda sin tope (Fase 2 «sin topes»)
 
-**📋 SQL PREPARADO Y ENSAYADO, SIN INSTALAR EN PRODUCCIÓN (19/09/2026, noche). Front en la misma PR,
-a publicar DESPUÉS del SQL (la clave nueva va en la REQUEST: sin la puerta, la agenda de todos los roles
-fallaría con «No se pudo cargar la agenda»).** Fase 2 del plan «sin topes»
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~19:47 Lima, Miguel con `!` + `db query --linked --file`, archivo
+exacto; el primer intento de las ~19:30 no llegó a la base: sin objetos, sin registro y sin rastro en los
+logs) y REGISTRADA (~19:52 Lima, `registrar-20260919235100.sql`; cuerpo md5 `3812914e49d1897ca24433165150d389`,
+idéntico al del archivo). Verificado en prod tras instalar: gate propio OK; puerta invoker; EXECUTE solo
+`authenticated` (anon y service_role sin); índice válido; md5 de `pg_get_functiondef` puerta
+`5edd699559108383a0e44a90b51d9ad6`, núcleo `6c7b921a01e4e81f6a76c7b8f5154421`, gate `cb32d6c7a31dad61f1aea7842e185465`
+(iguales a los de la copia local: mismo archivo byte a byte). **Gerencia por la puerta, sesión real: página 1 =
+1 000, página 2 = 156, total 1 156 = su RLS, 1 156 ids distintos, todas con `lead_nombre`/`lead_etapa`**; un
+vendedor: 90 = 90 en el mismo orden; la llamada de 501 tarda 58,8 ms. Sonda anónima por PostgREST
+(`Content-Profile: crm`): `{"p_limite":10}` → 42501 `permission denied for schema crm`; `{"p_nope":1}` →
+PGRST202. **FRONT PUBLICADO ~20:00 Lima: release `crm-20260920T005739Z-380643a84725` (commit `380643a8` = PR #35
+fusionada por squash; SHA-256 `11689799…`), construido en un worktree LIMPIO en ese commit con `npm ci` propio
+(`app/` y raíz) y las dos `VITE_*` públicas por entorno; `npm run check` PASS (259 archivos, 3 821 tests, bundle
+limpio); `ARTEFACTO_OK`; preflight OK (vivo `build-20260919T222832122Z`/`4bd3dc1b` de la sesión de prefijos ⊂
+candidato; su ZIP se copió al taller para resolverlo y como rollback); publicado por Miguel desde su terminal con
+`deploy-hostinger-mcp.mjs deploy` (la MCP de Hostinger no conectó). Smoke: HTTP 200, `version.json`
+`build-20260920T005738619Z`, `index-CIwyW_hp.js` 200, `index.html` byte a byte el del ZIP, ZIP 404. Gerencia ya
+recibe sus 1 156 pendientes en la agenda (1 000 + 156 por la puerta). `main` local pendiente de integrar el tronco
+(un cambio ajeno sin commitear en una nota del vault lo bloquea).** Fase 2 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`; objetivo fijado por Miguel el 19/09: que ninguna
 pantalla pierda tareas por el corte de 1 000 filas y que las tareas se lean por una puerta de la capa 3).
 
