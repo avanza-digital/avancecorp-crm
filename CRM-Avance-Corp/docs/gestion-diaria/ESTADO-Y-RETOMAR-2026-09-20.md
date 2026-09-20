@@ -12,7 +12,7 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 | F0 · Cimientos | Plus Jakarta Sans, primitivas `Tabs` / `RadioGroup` / `exportar-csv`, docs y nota del vault | ✅ en prod | PR #29 |
 | F1 · Módulo + registro crudo | Vista `gestion-diaria` en el menú (Operación) para los 3 roles; registro del día por analista/tipo/etapa con paginación; CSV para gerencia | ✅ en prod (SQL `20260919211958` instalada y registrada el 20/09) | PR #34; puerta `crm.registro_actividad_fn` |
 | F2 · Resultado tipificado | Toda llamada del CRM se cierra con 1 de 7 resultados; tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»; Deshacer 24 h | ✅ en prod (SQL `20260920005000` instalada y registrada el 20/09; front `crm-20260920T034405Z-afc391974382`, build `build-20260920T034404914Z`) | PR #38; acta PR #41; puertas `crm.registrar_llamada_v3`, `crm.deshacer_resultado_llamada` |
-| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | ✅ **EN PROD** el 20/09 (SQL `20260920041500` instalada y registrada; front `crm-20260920T062207Z-12230ee2ea0f`) | PR #42; puerta `crm.gestion_diaria_analista_fn` |
+| F3 · Analista «Mi día» | Dos paneles: «Ahora» con la persona que toca y su única acción primaria, y la cola en cuatro pestañas con su conteo. Marcador, horas, seguimiento y descartes en «Mi actividad». Piso tipográfico 16 px | ✅ **COMPLETA EN PROD** 20/09 (SQL `20260920041500` + 3 releases de front) | PRs #42, #44, #47, #50, #51 |
 | F4 · Supervisor «Mi equipo hoy» | Tabla del equipo con tasa (chip solo con ≥ 5 llamadas útiles), llamadas por hora por analista, alertas del día | ⏭️ SIGUIENTE (su núcleo ya existe: `private.gestion_diaria_llamadas` acepta varios analistas) | plan §F4 |
 | F5 · Gerencia «Toda la operación» | Pulso del día vs ayer y 7 días, por equipo, drill-down hasta el registro | pendiente | plan §F5 |
 | F6 · Absorber Seguimiento | `#/seguimiento` → alias de `gestion-diaria`; retirar la vista vieja (cerrar → observar → derribar) | pendiente (tras ≥ 1 semana de F3–F5 en prod) | plan §F6 |
@@ -50,25 +50,32 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 
 ## Pendiente de Miguel ahora
 
-- **F3 COMPLETA EN PRODUCCIÓN el 20/09.** PR #42 fusionada por squash (`12230ee2`); el contenido llegó entero y
-  `afc39197` —lo que estaba vivo— seguía siendo ancestro, así que el preflight no se rompió. SQL instalada y
-  registrada (~01:19 Lima) y front publicado (`crm-20260920T062207Z-12230ee2ea0f`).
-- **Prueba de negocio pendiente:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-- **Fusionar la PR #44** (saca del tronco el symlink `node_modules` que coló la rama de F3) y solo entonces integrar
-  `avancecorp/main` en el `main` local: hasta que eso pase, el checkout intentaría escribir el symlink encima de la
-  carpeta `node_modules` real del taller.
-- Prueba de negocio de F2 en el CRM: una llamada real con «volver a llamar» crea la tarea en Agenda; «no le interesa» manda el lead al Centro de rescate con su motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa.
-- Prueba de negocio de F3: como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-- Fusionar la PR de acta #41.
+- **Prueba de negocio de F3:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
+- **Decidir el color del nivel «Bajo»** del marcador: hoy ROJO; Codex pide ÁMBAR para que el rojo
+  signifique solo «se venció». Es un cambio de significado, no de estilo.
+- **Qué hacer con el código sin commitear del taller** (`analista.tsx` y sus tests, modificados a
+  las 11:04 del 20/09 por otra sesión, con un rediseño distinto de la misma pantalla). Sigue en
+  disco, intacto, y ya no aplica: la pantalla se rehízo.
+- **El repositorio fusiona por SQUASH por defecto.** El 20/09 costó un rescate: la PR #47 se
+  fusionó con una foto anterior a su último commit y hubo que traerlo en la #50. Merece la pena
+  cambiar el ajuste en GitHub.
 
 ## Lo que F3 dejó escrito (importa para F4)
 
-- `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` ya acepta VARIOS analistas y devuelve una fila por cada uno: es el núcleo de la tabla del equipo. Los umbrales viven en `private.gestion_diaria_umbrales()` (F4 añadirá ahí «sin llamadas desde las 11:00», «parado 2 h» y «15 pp bajo el equipo», re-sellando su md5).
-- `crm.equipo_visible_fn` NO filtra activos salvo en la rama «yo mismo», y para el lector global trae coordinación y directorio: quien lo use como autorización exige `ev.activo` y `ev.rol_crm`. Su cuerpo está sellado por md5 en el gate de F3.
-- El nivel de la tasa se juzga con el valor SIN redondear; el % que se muestra sí va redondeado.
-- `puede_deshacer` es falso cuando el actor no es el autor: el deshacer de F2 exige serlo. F4 no debe ofrecerlo por el analista.
-- El marcador depende de quién mira tras una reasignación (la RLS acota por dueño actual del lead). F4 lo verá al correr como supervisor.
-- El Sheet de la ficha es MODAL: deja inerte lo de atrás, así que un panel «global» no es alcanzable mientras está abierta (por eso `GuardadosSlaPendientes` conserva su copia dentro).
+**El plan maestro lo tiene entero**, en la sección «Lo que la Fase 3 cambió del plan». Lo corto:
+
+1. **Dos paneles, no una columna.** Piso tipográfico **16 px** con un e2e que lo mide sobre el
+   estilo calculado. Una sola acción primaria por pantalla. Lo secundario se **pliega** a un
+   segundo nivel, no se encoge. `Tabs`, `AccionesContacto` y `PanelVacio` ya tienen tamaño grande.
+2. **Nada de «SLA» en pantalla**: se dice el tiempo. `referencia_en` YA es el vencimiento, así que
+   el chip se calcula en el navegador — salvo `sin_conversacion`, que no lleva límite.
+3. **La regla de la caché parcial:** *una ausencia en una colección parcial significa
+   «desconocido», nunca «no existe»*. Costó cinco bugs, uno en producción. `gestion_diaria_equipo_fn`
+   debe ser una proyección autosuficiente, o la pantalla hidrata por id. Todo estado remoto
+   distingue cargando / vacío / error / sin autorización.
+4. **El teléfono NO viaja en la cola.** Si F4 quiere contacto directo desde la tabla del equipo,
+   hay que decidir si lo trae la puerta o se hidrata.
+5. **El núcleo de F4 ya existe:** `private.gestion_diaria_llamadas` acepta varios analistas.
 
 ## Referencias
 
