@@ -29,8 +29,10 @@ export interface PestanaCola {
 }
 
 export function ColaDeHoy({
-  pestanas, activa, onPestana, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas,
+  idBase, pestanas, activa, onPestana, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas,
 }: {
+  /** Base de `useId()` de la pantalla: dos instancias no pueden compartir id. */
+  idBase: string
   pestanas: readonly PestanaCola[]
   activa: GrupoDia
   onPestana: (grupo: GrupoDia) => void
@@ -45,11 +47,13 @@ export function ColaDeHoy({
 }): JSX.Element {
   const grupo = pestanas.find((p) => p.clave === activa) ?? pestanas[0]
   const vista = paginaDeFilas(grupo?.filas ?? [], pagina, FILAS_POR_PAGINA)
+  const sinAnterior = vista.pagina === 0
+  const sinSiguiente = vista.pagina >= vista.paginas - 1
   const vacioTodo = pestanas.every((p) => p.total === 0)
 
   return (
-    <section aria-labelledby="cola-titulo" className="flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-6">
-      <h2 id="cola-titulo" className="text-xl font-semibold text-primary">Cola de hoy</h2>
+    <section aria-labelledby={`${idBase}-cola`} className="flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-6">
+      <h3 id={`${idBase}-cola`} className="text-xl font-semibold text-primary">Cola de hoy</h3>
 
       {cargando ? (
         <PanelCargando filas={FILAS_POR_PAGINA} />
@@ -58,6 +62,7 @@ export function ColaDeHoy({
           icono={PhoneCall}
           titulo="No tienes nada pendiente ahora"
           detalle="Ningún lead sin primer intento, ninguna tarea vencida ni de hoy, y toda tu cartera tuvo conversación esta semana."
+          tamano="grande"
         />
       ) : (
         <Tabs
@@ -71,13 +76,13 @@ export function ColaDeHoy({
           <p className="text-base text-[var(--muted-foreground-strong)]">{grupo?.ayuda}</p>
 
           {vista.total === 0 ? (
-            <p className="text-base text-[var(--muted-foreground-strong)]">
+            <p role="status" className="text-base text-[var(--muted-foreground-strong)]">
               Nada en este grupo. Mira las otras pestañas: su número está al lado del nombre.
             </p>
           ) : (
             <>
               {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-              <ol role="list" aria-label={`${grupo?.etiqueta} (${vista.total})`} className="flex min-h-0 flex-1 flex-col gap-2">
+              <ol role="list" aria-label={`${grupo?.etiqueta} (${vista.rango})`} className="flex min-h-0 flex-1 flex-col gap-2">
                 {vista.filas.map((fila) => {
                   const seleccionada = fila.lead_id === elegido
                   return (
@@ -88,7 +93,7 @@ export function ColaDeHoy({
                         onClick={() => onElegir(fila)}
                         className={cn(
                           'flex w-full min-h-[5.5rem] cursor-pointer items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition-colors',
-                          'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card',
                           seleccionada
                             ? 'border-2 border-primary bg-card'
                             : 'border border-border-strong bg-card hover:bg-muted',
@@ -108,14 +113,20 @@ export function ColaDeHoy({
               </ol>
 
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <p className="text-base text-[var(--muted-foreground-strong)]">
+                {/* Se ANUNCIA: al pasar de página cambian las cinco filas y sin
+                    esto el lector de pantalla no diría nada (WCAG 4.1.3). */}
+                <p role="status" aria-live="polite" className="text-base text-[var(--muted-foreground-strong)]">
                   {vista.rango}{hayMas && ' · puede haber más en Seguimiento comercial'}
                 </p>
                 <div className="flex gap-3">
-                  <Button variant="outline" className="h-12 text-base font-normal"
-                    disabled={vista.pagina === 0} onClick={() => onPagina(vista.pagina - 1)}>Anterior</Button>
-                  <Button variant="outline" className="h-12 text-base font-normal"
-                    disabled={vista.pagina >= vista.paginas - 1} onClick={() => onPagina(vista.pagina + 1)}>Siguiente</Button>
+                  {/* `aria-disabled` y no `disabled`, con la guarda en el handler:
+                      el botón se deshabilita a sí mismo al pulsarse (última página)
+                      y un `disabled` sobre el elemento enfocado manda el foco al
+                      body — la misma regla de la casa que «Deshacer». */}
+                  <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default"
+                    aria-disabled={sinAnterior} onClick={() => { if (!sinAnterior) onPagina(vista.pagina - 1) }}>Anterior</Button>
+                  <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default"
+                    aria-disabled={sinSiguiente} onClick={() => { if (!sinSiguiente) onPagina(vista.pagina + 1) }}>Siguiente</Button>
                 </div>
               </div>
             </>

@@ -33,7 +33,9 @@ function ultimasGestiones(fila: FilaDiaria): string[] {
   return lineas
 }
 
-export function TarjetaAhora({ fila, lead, ahora, posicion, total, onRegistrar, onAbrirFicha }: {
+export function TarjetaAhora({ idBase, fila, lead, ahora, posicion, total, onRegistrar, onAbrirFicha }: {
+  /** Base de `useId()` de la pantalla: dos instancias no pueden compartir id. */
+  idBase: string
   fila: FilaDiaria | null
   lead: Lead | null
   ahora: number
@@ -46,11 +48,11 @@ export function TarjetaAhora({ fila, lead, ahora, posicion, total, onRegistrar, 
   if (fila === null) {
     return (
       <section
-        aria-labelledby="ahora-titulo"
+        aria-labelledby={`${idBase}-ahora`}
         className="flex w-full shrink-0 flex-col gap-4 rounded-2xl border border-border bg-card p-6 lg:w-[22rem]"
       >
-        <h2 id="ahora-titulo" className="text-xl font-semibold text-primary">Ahora</h2>
-        <p className="text-base text-[var(--muted-foreground-strong)]">
+        <h3 id={`${idBase}-ahora`} className="text-xl font-semibold text-primary">Ahora</h3>
+        <p role="status" className="text-base text-[var(--muted-foreground-strong)]">
           No queda nadie por llamar en este grupo. Revisa las otras pestañas de tu cola.
         </p>
       </section>
@@ -60,11 +62,16 @@ export function TarjetaAhora({ fila, lead, ahora, posicion, total, onRegistrar, 
   const gestiones = ultimasGestiones(fila)
   return (
     <section
-      aria-labelledby="ahora-titulo"
+      aria-labelledby={`${idBase}-ahora`}
       className="flex w-full shrink-0 flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-6 lg:w-[22rem]"
     >
-      <h2 id="ahora-titulo" className="text-xl font-semibold text-primary">Ahora</h2>
+      <h3 id={`${idBase}-ahora`} className="text-xl font-semibold text-primary">Ahora</h3>
 
+      {/* Elegir una fila sustituye TODO este panel y el foco se queda en la
+          fila: sin esto el cambio sería mudo. No se pone `aria-live` en la
+          sección entera porque el chip de tiempo se recalcula cada minuto y
+          la región parlotearía sola. */}
+      <span className="sr-only" role="status">Ahora: {fila.nombre_completo}</span>
       <p className="text-lg font-medium leading-7 text-foreground">{fila.nombre_completo}</p>
       <p className="text-base text-[var(--muted-foreground-strong)]">
         {etapa}{total > 0 && ` · ${posicion} de ${total} en este grupo`}

@@ -118,7 +118,7 @@ export function GestionDiariaAnalista(): JSX.Element {
     // nadie: solo se recoloca en el encabezado cuando quedó suelto.
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const activo = document.activeElement
-      if (activo === null || activo === document.body) encabezado.current?.focus()
+      if (activo === null || activo === document.body || activo === document.documentElement) encabezado.current?.focus()
     }))
     try {
       await Promise.all([dia.recargar(), cola.refetch()])
@@ -127,6 +127,17 @@ export function GestionDiariaAnalista(): JSX.Element {
       // sigue pendiente, y entonces debe volver a verse.
       setRecienCerrado(null)
     }
+  }
+  /**
+   * P1 de accesibilidad: el botón que abre o cierra «Mi actividad» se DESMONTA
+   * al pulsarlo (las dos ramas del ternario son de tipo distinto), así que el
+   * foco caería al `body` y habría que volver a tabular la barra lateral entera.
+   * El encabezado ya es focalizable y su texto distingue los dos niveles: mover
+   * el foco ahí resuelve el foco Y el anuncio del cambio de vista.
+   */
+  function cambiarNivel(actividad: boolean) {
+    setVerActividad(actividad)
+    requestAnimationFrame(() => encabezado.current?.focus())
   }
   async function deshacer(d: Descartado) {
     if (deshaciendo !== null) return
@@ -163,7 +174,7 @@ export function GestionDiariaAnalista(): JSX.Element {
         <div className="flex flex-wrap items-center gap-3">
           {verActividad ? (
             <>
-              <Button variant="outline" className="h-12 text-base font-normal" onClick={() => setVerActividad(false)}>
+              <Button variant="outline" className="h-12 text-base font-normal" onClick={() => cambiarNivel(false)}>
                 <ArrowLeft aria-hidden /> Volver a mi día
               </Button>
               <Button variant="outline" className="h-12 text-base font-normal" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
@@ -172,7 +183,7 @@ export function GestionDiariaAnalista(): JSX.Element {
               </Button>
             </>
           ) : (
-            <Button variant="outline" className="h-12 gap-4 text-base font-normal" onClick={() => setVerActividad(true)}>
+            <Button variant="outline" className="h-12 gap-4 text-base font-normal" onClick={() => cambiarNivel(true)}>
               <BarChart3 aria-hidden /> Mi actividad
               {m !== undefined && (
                 <span className="text-lg font-medium text-foreground">
@@ -202,18 +213,20 @@ export function GestionDiariaAnalista(): JSX.Element {
       ) : dia.dia === null && dia.cargando ? (
         <PanelCargando filas={6} />
       ) : dia.dia === null ? (
-        <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." />
+        <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." tamano="grande" />
       ) : verActividad ? (
         <MiActividad dia={dia.dia} deshaciendo={deshaciendo}
           onDeshacer={(d) => { void deshacer(d) }} onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
       ) : (
         <div id={`${id}-dia`} className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
           <TarjetaAhora
+            idBase={id}
             fila={fila} lead={lead} ahora={ahora} posicion={posicion} total={delGrupo.length}
             onRegistrar={abrirPanel}
             onAbrirFicha={() => { if (fila !== null) void abrirLead(fila.lead_id) }}
           />
           <ColaDeHoy
+            idBase={id}
             pestanas={pestanas} activa={activa} onPestana={cambiarPestana}
             pagina={vista.pagina} onPagina={setPagina}
             elegido={fila?.lead_id ?? null} onElegir={elegir}

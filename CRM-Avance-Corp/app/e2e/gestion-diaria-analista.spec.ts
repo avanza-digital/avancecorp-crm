@@ -25,7 +25,7 @@ test('Analista: «Mi día» abre con «Ahora» y su cola en pestañas', async ({
   const tabs = page.getByRole('tablist', { name: 'Grupos de la cola' })
   await expect(tabs.getByRole('tab')).toHaveCount(4)
   await expect(tabs.getByRole('tab', { name: /^Sin primer intento/ })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('list', { name: /^Sin primer intento \(\d+\)$/ })).toHaveCount(1)
+  await expect(page.getByRole('list', { name: /^Sin primer intento \(\d+(–\d+)? de \d+\)$/ })).toHaveCount(1)
 })
 
 test('Analista: el tiempo se dice en palabras, sin la sigla SLA', async ({ page }) => {
@@ -44,7 +44,7 @@ test('Analista: la fila elegida y «Ahora» son la misma persona', async ({ page
 
   // Elegir la fila la marca y la sube a «Ahora». (Que elegir OTRA cambie el
   // panel se prueba en unitario: el demo trae una sola fila por grupo.)
-  const fila = page.getByRole('list', { name: /\(\d+\)$/ }).first().getByRole('listitem').first().getByRole('button')
+  const fila = page.getByRole('list', { name: /\(\d+(–\d+)? de \d+\)$/ }).first().getByRole('listitem').first().getByRole('button')
   // El botón concatena nombre y chip sin separador: se lee el span del nombre.
   const nombre = (await fila.locator('span > span').first().textContent() ?? '').trim()
   expect(nombre).not.toBe('')
@@ -110,10 +110,9 @@ test('Analista: ningún texto de «Mi día» baja de 16 px', async ({ page }) =>
   // es la queja literal de los analistas («muchas letras pequeñas»), así que se
   // comprueba en píxeles, no por la clase que se escribió.
   const chicos = await page.evaluate(() => {
-    const raices = [
-      document.querySelector('[aria-label="Ahora"]'),
-      document.querySelector('[aria-labelledby="cola-titulo"]'),
-    ].filter((n): n is Element => n !== null)
+    const raices = Array.from(document.querySelectorAll('section[aria-labelledby]'))
+      .filter((s) => ['Ahora', 'Cola de hoy'].includes(
+        (document.getElementById(s.getAttribute('aria-labelledby') ?? '')?.textContent ?? '').trim()))
     const fallos: string[] = []
     for (const raiz of raices) {
       for (const el of raiz.querySelectorAll<HTMLElement>('*')) {

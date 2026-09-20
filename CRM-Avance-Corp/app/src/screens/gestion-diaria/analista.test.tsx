@@ -95,7 +95,7 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
       'Sin primer intento1', 'Vencidas1', 'Hoy0', 'Sin conversación1',
     ])
     // Una sola lista a la vista: la del grupo activo.
-    expect(screen.getAllByRole('list', { name: /\(\d+\)$/ })).toHaveLength(1)
+    expect(screen.getAllByRole('list', { name: /\(\d+(–\d+)? de \d+\)$/ })).toHaveLength(1)
   })
 
   it('el tiempo se DICE en palabras y nunca aparece la sigla SLA', () => {
@@ -227,6 +227,50 @@ describe('GestionDiariaAnalista · Mi actividad', () => {
   })
 })
 
+describe('GestionDiariaAnalista · el foco nunca se pierde', () => {
+  it('al entrar y salir de «Mi actividad» el foco va al encabezado, no al body', async () => {
+    render(<GestionDiariaAnalista />)
+    // El botón que abre el segundo nivel se DESMONTA al pulsarlo: sin recolocar
+    // el foco, el teclado caería al principio del documento.
+    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Mi actividad de hoy' }))
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a mi día' }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' }))
+    })
+  })
+
+  it('la paginación usa aria-disabled, no disabled: el botón pulsado conserva el foco', () => {
+    dobles.cola = {
+      data: { items: Array.from({ length: 7 }, (_, i) => itemCola(`p${i}`, 'primera_atencion', `2026-09-20T1${i}:00:00Z`)) },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    const siguiente = screen.getByRole('button', { name: 'Siguiente' })
+    expect(screen.getByRole('button', { name: 'Anterior' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Anterior' })).not.toBeDisabled()
+
+    siguiente.focus()
+    fireEvent.click(siguiente)
+    // Segunda página: «Siguiente» se apaga a sí mismo. Con `disabled` el foco
+    // se habría ido al body (regla de la casa, boton-guardar.tsx).
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toHaveAttribute('aria-disabled', 'true')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(screen.getByText('6–7 de 7')).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('la fila elegida se marca con aria-current y lo dice también con texto', () => {
+    render(<GestionDiariaAnalista />)
+    const lista = screen.getByRole('list', { name: /^Sin primer intento/ })
+    const fila = within(lista).getByRole('button', { name: /NUEVO SIN INTENTO/ })
+    fireEvent.click(fila)
+    expect(fila).toHaveAttribute('aria-current', 'true')
+    expect(within(fila).getByText('Elegido')).toBeInTheDocument()
+  })
+})
+
 describe('GestionDiariaAnalista · estados que hoy se ven en producción', () => {
   it('ESTADO DE PRODUCCIÓN: sin cola y sin llamadas, lo dice y no fabrica nada', async () => {
     dobles.dia = {
@@ -256,6 +300,7 @@ describe('GestionDiariaAnalista · estados que hoy se ven en producción', () =>
     render(<GestionDiariaAnalista />)
     expect(screen.getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir la ficha de NUEVO SIN INTENTO' })).toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'Sin primer intento (1)' })).toBeInTheDocument()
+    // El nombre lleva el RANGO: prometía el total del grupo y contenía una página.
+    expect(screen.getByRole('list', { name: 'Sin primer intento (1–1 de 1)' })).toBeInTheDocument()
   })
 })

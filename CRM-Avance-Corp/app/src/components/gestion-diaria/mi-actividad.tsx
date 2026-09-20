@@ -119,11 +119,14 @@ function PorHora({ dia }: { dia: DiaAnalista }): JSX.Element {
       {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
       <ul role="list" aria-label="Llamadas por hora, de 08 a 20 (Lima)" className="flex items-end gap-2">
         {barras.map((b) => (
-          <li
-            key={b.hora}
-            aria-label={`${b.hora}:00 — ${b.llamadas} ${b.llamadas === 1 ? 'llamada' : 'llamadas'}, ${b.contestadas} ${b.contestadas === 1 ? 'contestada' : 'contestadas'}`}
-            className="flex min-w-0 flex-1 flex-col items-center gap-2"
-          >
+          <li key={b.hora} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            {/* Texto REAL, no un `aria-label` sobre un `<li>` estático: el
+                soporte de aria-label en un listitem no enfocable es desigual y
+                todo lo demás va `aria-hidden`. `contestadas` no se dibuja en
+                ninguna barra, así que este es su único camino. */}
+            <span className="sr-only">
+              {b.hora}:00 — {b.llamadas} {b.llamadas === 1 ? 'llamada' : 'llamadas'}, {b.contestadas} {b.contestadas === 1 ? 'contestada' : 'contestadas'}
+            </span>
             <span aria-hidden className="text-base tabular-nums text-[var(--muted-foreground-strong)]">
               {b.llamadas === 0 ? '–' : b.llamadas}
             </span>
@@ -147,7 +150,7 @@ function EnlaceLead({ nombre, onAbrir }: { nombre: string; onAbrir: () => void }
     <button
       type="button"
       onClick={onAbrir}
-      className="inline-flex min-h-11 items-center rounded-md text-lg font-medium leading-7 text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40"
+      className="inline-flex min-h-11 items-center rounded-md text-lg font-medium leading-7 text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
     >
       {nombre}
     </button>
@@ -156,7 +159,7 @@ function EnlaceLead({ nombre, onAbrir }: { nombre: string; onAbrir: () => void }
 
 function Seguimiento({ dia, onAbrirFicha }: { dia: DiaAnalista; onAbrirFicha: (leadId: string) => void }): JSX.Element {
   if (dia.compromisos.length === 0) {
-    return <PanelVacio icono={CalendarClock} titulo="Sin compromisos a partir de mañana" detalle="Lo de hoy y lo vencido ya está en tu cola." />
+    return <PanelVacio icono={CalendarClock} titulo="Sin compromisos a partir de mañana" detalle="Lo de hoy y lo vencido ya está en tu cola." tamano="grande" />
   }
   return (
     <div className="space-y-3">
@@ -212,7 +215,7 @@ function Descartados({ dia, deshaciendo, onDeshacer, onAbrirFicha }: {
             {d.puede_deshacer ? (
               // `aria-disabled` y no `disabled`: deshabilitar el botón enfocado
               // manda el foco al body (regla de la casa, boton-guardar.tsx).
-              <Button variant="outline" className="h-12 text-base font-normal" aria-disabled={deshaciendo !== null}
+              <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default" aria-disabled={deshaciendo !== null}
                 aria-label={`Deshacer el descarte de ${d.lead_nombre}`}
                 onClick={() => { if (deshaciendo === null) onDeshacer(d) }}>
                 <RotateCcw aria-hidden /> {deshaciendo === d.actividad_id ? 'Deshaciendo…' : 'Deshacer'}

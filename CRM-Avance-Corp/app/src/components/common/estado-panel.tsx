@@ -140,19 +140,29 @@ export function PanelVacio({
   titulo,
   detalle,
   children,
+  tamano = 'normal',
 }: {
   icono: LucideIcon
   titulo: string
   detalle?: ReactNode
   children?: ReactNode
+  /**
+   * `grande` para las pantallas de trabajo con piso tipográfico de 16 px («Mi
+   * día»). El vacío es el estado que MÁS se ve en producción según el gate de
+   * realidad, así que no puede quedarse en 12 px cuando el resto subió.
+   */
+  tamano?: 'normal' | 'grande' | undefined
 }) {
+  const grande = tamano === 'grande'
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
       <span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
         <Icono className="size-5" aria-hidden />
       </span>
-      <p className="text-sm font-semibold text-foreground">{titulo}</p>
-      {detalle != null && <p className="max-w-xs text-xs text-muted-foreground">{detalle}</p>}
+      <p className={grande ? 'text-lg font-medium leading-7 text-foreground' : 'text-sm font-semibold text-foreground'}>{titulo}</p>
+      {detalle != null && (
+        <p className={grande ? 'max-w-md text-base text-[var(--muted-foreground-strong)]' : 'max-w-xs text-xs text-muted-foreground'}>{detalle}</p>
+      )}
       {children}
     </div>
   )
