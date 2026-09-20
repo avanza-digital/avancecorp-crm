@@ -3,43 +3,40 @@
 // mundo SLA) y el resto del día —marcador, compromisos, señales por lead y los
 // descartes con su «Deshacer»— de `crm.gestion_diaria_analista_fn`. Aquí no se
 // calcula negocio: se ORDENA (`ordenarColaDiaria`, función pura probada) y se
-// presenta. Al guardar un resultado, la pantalla salta a la fila siguiente.
+// presenta.
+//
+// DENSIDAD (20/09/2026). Los analistas devolvieron «demasiada información,
+// muchas letras pequeñas». La pantalla pasa a DOS paneles en una fila: «Ahora»
+// con la persona que toca y su única acción primaria, y la cola en cuatro
+// PESTAÑAS con su conteo, de las que solo se ve una lista. El marcador, las
+// llamadas por hora, el seguimiento y los descartes se mudan a «Mi actividad»,
+// un segundo nivel. Piso tipográfico 16 px en todo: ni un `text-xs`.
 //
 // «Hoy» NO cambia: sigue siendo «las 3 cosas de ahora» (decisión de Miguel).
 // Esta pantalla es la cola COMPLETA del día, y las dos comparten el primer
 // ítem: el lead sin primer intento manda en ambas (test compartido).
 import { useId, useMemo, useRef, useState, type JSX } from 'react'
-import { CalendarClock, ClipboardList, PhoneCall, RefreshCw, RotateCcw, Target, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, ClipboardList, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { ETAPA_INFO, type Etapa, type Lead, type Tarea } from '@/lib/tipos'
+import type { Lead, Tarea } from '@/lib/tipos'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
-import { presentarCitas } from '@/lib/terminologia'
 import {
-  ETIQUETA_NIVEL, GRUPOS_DIA, agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, filasDiariasDemo,
-  horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, textoTasa,
-  type Descartado, type DiaAnalista, type FilaDiaria,
+  filasDiariasDemo, horaLimaDe, ordenarColaDiaria, paginaDeFilas, pestanasDiarias, textoTasa,
+  type Descartado, type FilaDiaria, type GrupoDia,
 } from '@/lib/gestion-diaria-analista'
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
 import { useColaSlaPagina } from '@/data/sla-operacion-queries'
-import { AccionesContacto } from '@/components/app/contacto'
 import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
-import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { ColaDeHoy, FILAS_POR_PAGINA } from '@/components/gestion-diaria/cola-de-hoy'
+import { MiActividad } from '@/components/gestion-diaria/mi-actividad'
+import { TarjetaAhora } from '@/components/gestion-diaria/tarjeta-ahora'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const LIMITE_COLA = 100
-// Verde NO (decisión #3 de Miguel): «Bien» va en navy sobre fondo tenue. Y los
-// tokens de TEXTO, no los saturados: el chip `soft` pinta el color puro sobre un
-// tinte al 12 %, donde `--warning` da ~3:1 y `--destructive` ~4:1 (index.css).
-const COLOR_NIVEL: Record<'bien' | 'atencion' | 'bajo', string> = {
-  bien: 'var(--primary)',
-  atencion: 'var(--warning-text)',
-  bajo: 'var(--destructive-text)',
-}
 
 export function GestionDiariaAnalista(): JSX.Element {
   const { yo } = useAuth()
@@ -47,10 +44,23 @@ export function GestionDiariaAnalista(): JSX.Element {
   const { ambito, tareasDe } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const id = useId()
+
+  // TODO el estado vive AQUÍ, por encima de la cascada de carga/error: el hook
+  // del día es fail-closed (un refetch fallido devuelve `null`) y, si la
+  // pestaña o la persona elegida colgaran del subárbol, un parpadeo de red le
+  // borraría al analista dónde estaba.
   const [panel, setPanel] = useState<{ lead: Lead; tarea: Tarea | null } | null>(null)
   const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
+  const [verActividad, setVerActividad] = useState(false)
+  const [elegido, setElegido] = useState<string | null>(null)
+  const [pestanaPedida, setPestanaPedida] = useState<GrupoDia | null>(null)
+  const [pagina, setPagina] = useState(0)
+  // Los leads cuyo resultado se acaba de guardar: siguen en la cola hasta que el
+  // servidor conteste, y sin esto «Ahora» volvería a proponer al que ya cerraste.
+  // Es un CONJUNTO y no un solo id: registrar dos seguidos antes de que vuelva
+  // el primero hacía que el `finally` de uno destapara al otro.
+  const [cerrados, setCerrados] = useState<readonly string[]>([])
   const encabezado = useRef<HTMLHeadingElement>(null)
-  const botones = useRef(new Map<string, HTMLButtonElement>())
 
   const dia = useDiaAnalista(null, null)
   // La cola del día: la misma fuente que «Seguimiento comercial», sin filtros.
@@ -59,33 +69,95 @@ export function GestionDiariaAnalista(): JSX.Element {
   // La cola y el día son DOS consultas: mientras la cola no ha llegado, decir
   // «no tienes nada pendiente» sería mentir (solo estarían los sin conversación).
   const colaCargando = !yo?.demo && cola.error == null && paginaCola === undefined
+  const colaCaida = !yo?.demo && cola.error != null
 
   const leadsPorId = useMemo(() => new Map(ambito.leads.map((l) => [l.id, l])), [ambito.leads])
   const filas = useMemo<FilaDiaria[]>(() => {
     if (dia.dia === null) return []
-    if (yo?.demo) return filasDiariasDemo(dia.dia.cartera, ahora, dia.dia.dia)
-    return ordenarColaDiaria(paginaCola?.items ?? [], dia.dia.cartera)
-  }, [ahora, dia.dia, paginaCola?.items, yo?.demo])
-  const grupos = useMemo(() => agruparDiaria(filas), [filas])
+    const todas = yo?.demo
+      ? filasDiariasDemo(dia.dia.cartera, ahora, dia.dia.dia)
+      : ordenarColaDiaria(paginaCola?.items ?? [], dia.dia.cartera)
+    return cerrados.length === 0 ? todas : todas.filter((f) => !cerrados.includes(f.lead_id))
+  }, [ahora, cerrados, dia.dia, paginaCola?.items, yo?.demo])
 
-  function abrirPanel(fila: FilaDiaria) {
-    const lead = leadsPorId.get(fila.lead_id)
-    if (lead === undefined) { void abrirLead(fila.lead_id); return }
-    setPanel({ lead, tarea: tareaQueCierra(tareasDe(lead.id), 'tel', yo?.id, ahora) ?? null })
+  const pestanas = useMemo(() => pestanasDiarias(filas), [filas])
+  // El elegido se busca en TODAS las filas, no solo en la pestaña abierta: un
+  // refetch puede moverlo de grupo (de «Hoy» a «Vencidas» al dar la hora) y la
+  // pantalla no puede perderlo de vista ni dejar un id fantasma guardado.
+  const elegida = elegido === null ? null : filas.find((f) => f.lead_id === elegido) ?? null
+  // Quién manda sobre la pestaña, en orden: el lead elegido (la pestaña LO
+  // SIGUE), luego la que pidió el analista mientras tenga gente, y si no la
+  // primera con gente. Así no se queda clavada en una pestaña vacía ni salta
+  // sola cuando un refetch rellena un grupo anterior.
+  const pedidaViva = pestanaPedida !== null && (pestanas.find((p) => p.clave === pestanaPedida)?.total ?? 0) > 0
+  const activa: GrupoDia = elegida !== null
+    ? elegida.grupo
+    : pedidaViva && pestanaPedida !== null
+      ? pestanaPedida
+      : pestanas.find((p) => p.total > 0)?.clave ?? 'primera_atencion'
+
+  const delGrupo = pestanas.find((p) => p.clave === activa)?.filas ?? []
+  // La página se deriva del elegido: si lo eligió, se ve; si no, la que pidió.
+  const indiceElegida = elegida === null ? -1 : delGrupo.findIndex((f) => f.lead_id === elegida.lead_id)
+  const paginaPedida = indiceElegida >= 0 ? Math.floor(indiceElegida / FILAS_POR_PAGINA) : pagina
+  const vista = paginaDeFilas(delGrupo, paginaPedida, FILAS_POR_PAGINA)
+  // Sin elección explícita, «Ahora» es el primero de la página: el orden del
+  // servidor ya dice quién urge más.
+  const fila = elegida ?? vista.filas[0] ?? null
+  const posicion = fila === null ? 0 : delGrupo.findIndex((f) => f.lead_id === fila.lead_id) + 1
+  const lead = fila === null ? null : leadsPorId.get(fila.lead_id) ?? null
+
+  function elegir(f: FilaDiaria) {
+    setElegido(f.lead_id)
   }
-  /** Al guardar, el foco salta a la fila siguiente: el analista sigue marcando. */
-  function saltarASiguiente(leadId: string) {
-    const siguiente = filas[filas.findIndex((f) => f.lead_id === leadId) + 1]
-    // DOS cuadros: el Dialog devuelve el foco al botón que lo abrió en SU propio
-    // requestAnimationFrame, y un solo cuadro perdía la carrera (o lo pedía con
-    // el diálogo aún abierto, y el FocusScope lo arrastraba de vuelta). Y solo
-    // se salta si el foco quedó suelto: nunca se le quita al usuario uno útil.
+  function cambiarPestana(grupo: GrupoDia) {
+    setPestanaPedida(grupo)
+    setPagina(0)
+    setElegido(null)
+  }
+  /** Se guarda ya acotada: si la lista encoge y vuelve a crecer, no salta sola. */
+  function irAPagina(p: number) {
+    setPagina(Math.min(Math.max(p, 0), vista.paginas - 1))
+  }
+  function abrirPanel() {
+    if (fila === null) return
+    const suyo = leadsPorId.get(fila.lead_id)
+    if (suyo === undefined) { void abrirLead(fila.lead_id); return }
+    // La tarea la dice la FILA (`tarea_id` viene de la cola del servidor). Solo
+    // si no llega —o si esa tarea no está en el caché local— se cae al cálculo
+    // de siempre, que devuelve `null` en cuanto hay dos candidatas: quedarse
+    // con la equivocada cerraría la tarea que no era.
+    const pendientes = tareasDe(suyo.id)
+    const suya = fila.tarea_id === null ? undefined : pendientes.find((x) => x.id === fila.tarea_id)
+    setPanel({ lead: suyo, tarea: suya ?? tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null })
+  }
+  /** Al guardar, «Ahora» pasa al siguiente y el foco vuelve al encabezado. */
+  async function alGuardar(leadId: string) {
+    setCerrados((c) => (c.includes(leadId) ? c : [...c, leadId]))
+    setElegido(null)
+    // El Dialog devuelve el foco al botón que lo abrió en su propio cuadro; ese
+    // botón sigue vivo (está en «Ahora»), así que aquí no se le quita el foco a
+    // nadie: solo se recoloca en el encabezado cuando quedó suelto.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const destino = siguiente ? botones.current.get(siguiente.lead_id) ?? null : encabezado.current
       const activo = document.activeElement
-      const suelto = activo === null || activo === document.body || activo === botones.current.get(leadId)
-      if (destino !== null && suelto) destino.focus()
+      if (activo === null || activo === document.body || activo === document.documentElement) encabezado.current?.focus()
     }))
+    // `allSettled` y no `all`: si una de las dos lecturas falla, la otra sigue
+    // su curso y aquí no queda un rechazo sin capturar. Y se destapa SOLO este
+    // lead, no el de un guardado que todavía esté en vuelo.
+    await Promise.allSettled([dia.recargar(), ...(yo?.demo ? [] : [cola.refetch()])])
+    setCerrados((c) => c.filter((x) => x !== leadId))
+  }
+  /**
+   * P1 de accesibilidad: el botón que abre o cierra «Mi actividad» se DESMONTA
+   * al pulsarlo (las dos ramas del ternario son de tipo distinto), así que el
+   * foco caería al `body` y habría que volver a tabular la barra lateral entera.
+   * El encabezado ya es focalizable y su texto distingue los dos niveles: mover
+   * el foco ahí resuelve el foco Y el anuncio del cambio de vista.
+   */
+  function cambiarNivel(actividad: boolean) {
+    setVerActividad(actividad)
+    requestAnimationFrame(() => encabezado.current?.focus())
   }
   async function deshacer(d: Descartado) {
     if (deshaciendo !== null) return
@@ -93,6 +165,9 @@ export function GestionDiariaAnalista(): JSX.Element {
     try {
       const { deshacerResultadoLlamada } = await import('@/data/gestion-diaria-api')
       await deshacerResultadoLlamada(d.actividad_id)
+      // El lead vuelve a la cartera: si estaba tapado por un guardado propio,
+      // se destapa — pero solo ese, no los de otros guardados en vuelo.
+      setCerrados((c) => c.filter((x) => x !== d.lead_id))
       await dia.recargar()
       toast.success(`Deshecho: ${d.lead_nombre} vuelve a tu cartera`)
     } catch (causa) {
@@ -104,262 +179,90 @@ export function GestionDiariaAnalista(): JSX.Element {
   }
 
   const corte = dia.dia ? horaLimaDe(dia.dia.generado_en) : null
-  const colaCaida = !yo?.demo && (cola.error != null)
+  const m = dia.dia?.marcador
 
   return (
-    <div className="mx-auto w-full max-w-[1640px] space-y-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto flex w-full max-w-[1640px] flex-col gap-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 ref={encabezado} tabIndex={-1} className="text-xl font-bold leading-tight text-primary">¿A quién llamo ahora?</h2>
-          <p className="mt-1 text-sm text-[var(--muted-foreground-strong)]">
-            Tu cola del día completa, ordenada por urgencia. {corte ? `Corte ${corte} (Lima)` : 'Sin corte confirmado'} · se actualiza cada minuto.
+          {/* h2 y no h1: el `<h1>` de la vista lo pone el topbar del CRM. */}
+          <h2 ref={encabezado} tabIndex={-1} className="text-2xl font-bold leading-8 text-primary">
+            {verActividad ? 'Mi actividad de hoy' : '¿A quién llamo ahora?'}
+          </h2>
+          <p className="mt-1 text-base text-[var(--muted-foreground-strong)]">
+            {corte ? `Corte ${corte} (Lima)` : 'Sin corte confirmado'} · se actualiza cada minuto
           </p>
         </div>
-        <Button variant="outline" size="sm" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
-          onClick={() => { if (dia.enVuelo) return; void dia.recargar(); void cola.refetch() }}>
-          <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /> Actualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {verActividad ? (
+            <>
+              <Button variant="outline" className="h-12 text-base font-normal" onClick={() => cambiarNivel(false)}>
+                <ArrowLeft aria-hidden /> Volver a mi día
+              </Button>
+              <Button variant="outline" className="h-12 text-base font-normal" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
+                onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
+                <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /> Actualizar
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" className="h-12 gap-4 text-base font-normal" onClick={() => cambiarNivel(true)}>
+              <BarChart3 aria-hidden /> Mi actividad
+              {m !== undefined && (
+                <span className="text-lg font-medium text-foreground">
+                  {m.llamadas} {m.llamadas === 1 ? 'llamada' : 'llamadas'} · {textoTasa(m)}
+                </span>
+              )}
+            </Button>
+          )}
+        </div>
       </header>
+
+      {/* Los avisos viven en el PRIMER nivel y se ven en los dos: si la cola se
+          cae mientras el analista mira su actividad, tiene que enterarse. */}
+      {colaCaida && (
+        <p role="alert" className="text-base font-medium text-[var(--destructive-text)]">
+          No se pudo leer la cola del servidor: solo se muestran los leads sin conversación. Actualiza para verla completa.
+        </p>
+      )}
+      {dia.dia?.cartera_truncada === true && (
+        <p role="status" className="text-base text-[var(--muted-foreground-strong)]">
+          Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
+        </p>
+      )}
 
       {dia.error != null && dia.dia === null ? (
         <PanelError mensaje="No se pudo cargar tu día. Lo que ves no está confirmado." onReintentar={() => { void dia.recargar() }} reintentando={dia.enVuelo} />
       ) : dia.dia === null && dia.cargando ? (
         <PanelCargando filas={6} />
       ) : dia.dia === null ? (
-        <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." />
+        <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." tamano="grande" />
+      ) : verActividad ? (
+        <MiActividad dia={dia.dia} deshaciendo={deshaciendo}
+          onDeshacer={(d) => { void deshacer(d) }} onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
       ) : (
-        <>
-          <Marcador dia={dia.dia} />
-
-          <section aria-labelledby={`${id}-cola`} className="space-y-4">
-            <h3 id={`${id}-cola`} className="text-base font-bold text-primary">
-              Tu cola de hoy <span className="text-sm font-semibold text-[var(--muted-foreground-strong)]">
-                · {colaCargando ? 'cargando…' : `${filas.length} ${filas.length === 1 ? 'pendiente' : 'pendientes'}`}</span>
-            </h3>
-            {colaCaida && (
-              <p role="alert" className="text-xs font-semibold text-destructive">
-                No se pudo leer la cola del servidor: solo se muestran los leads sin conversación. Reintenta para verla completa.
-              </p>
-            )}
-            {dia.dia.cartera_truncada && (
-              <p role="status" className="text-xs font-semibold text-[var(--muted-foreground-strong)]">
-                Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
-              </p>
-            )}
-            {colaCargando ? (
-              <PanelCargando filas={4} />
-            ) : grupos.length === 0 ? (
-              <PanelVacio icono={PhoneCall} titulo="No tienes nada pendiente ahora"
-                detalle="Ningún lead sin primer intento, ninguna tarea vencida ni de hoy, y toda tu cartera tuvo conversación esta semana." />
-            ) : grupos.map(({ grupo, filas: delGrupo }) => {
-              const meta = GRUPOS_DIA.find((g) => g.clave === grupo)!
-              return (
-                <div key={grupo} className="space-y-2">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <h4 className="text-sm font-bold text-foreground">{meta.etiqueta} · {delGrupo.length}</h4>
-                    <span className="text-xs text-[var(--muted-foreground-strong)]">{meta.ayuda}</span>
-                  </div>
-                  {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-                  <ol role="list" aria-label={`${meta.etiqueta} (${delGrupo.length})`} aria-busy={colaCargando}
-                    className="divide-y divide-border rounded-xl border border-border bg-card">
-                    {delGrupo.map((fila) => (
-                      <FilaCola key={fila.lead_id} fila={fila} lead={leadsPorId.get(fila.lead_id) ?? null}
-                        sinConversacionDias={dia.dia!.sin_conversacion_dias}
-                        registrarRef={(el) => { if (el) botones.current.set(fila.lead_id, el); else botones.current.delete(fila.lead_id) }}
-                        onRegistrar={() => abrirPanel(fila)} onAbrirFicha={() => { void abrirLead(fila.lead_id) }} />
-                    ))}
-                  </ol>
-                </div>
-              )
-            })}
-          </section>
-
-          <Compromisos dia={dia.dia} onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
-          <Descartados dia={dia.dia} deshaciendo={deshaciendo} onDeshacer={(d) => { void deshacer(d) }}
-            onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
-          {yo?.demo && <p className="text-xs text-muted-foreground">Datos de ejemplo: en la sesión real tu día sale del servidor.</p>}
-        </>
+        <div id={`${id}-dia`} className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+          <TarjetaAhora
+            idBase={id}
+            fila={fila} lead={lead} ahora={ahora} posicion={posicion} total={delGrupo.length}
+            onRegistrar={abrirPanel}
+            onAbrirFicha={() => { if (fila !== null) void abrirLead(fila.lead_id) }}
+          />
+          <ColaDeHoy
+            idBase={id}
+            pestanas={pestanas} activa={activa} onPestana={cambiarPestana}
+            pagina={vista.pagina} onPagina={irAPagina}
+            elegido={fila?.lead_id ?? null} onElegir={elegir}
+            ahora={ahora} cargando={colaCargando} hayMas={paginaCola?.hay_mas === true}
+          />
+        </div>
       )}
+
+      {yo?.demo && <p className="text-base text-[var(--muted-foreground-strong)]">Datos de ejemplo: en la sesión real tu día sale del servidor.</p>}
 
       {panel !== null && (
         <RegistrarResultado lead={panel.lead} tarea={panel.tarea} onClose={() => setPanel(null)}
-          onGuardado={() => saltarASiguiente(panel.lead.id)} />
+          onGuardado={() => { void alGuardar(panel.lead.id) }} />
       )}
     </div>
-  )
-}
-
-function Marcador({ dia }: { dia: DiaAnalista }): JSX.Element {
-  const id = useId()
-  const m = dia.marcador
-  const barras = barrasPorHora(m)
-  const fuera = llamadasFueraDeFranja(m)
-  const stats: StatChipData[] = [
-    { icon: PhoneCall, label: 'Llamadas', value: String(m.llamadas), sub: `${m.contestadas} contestadas`, tone: 'primary' },
-    {
-      icon: Target, label: 'Tasa de contacto', value: textoTasa(m),
-      // El «—» de la tasa sin llamadas útiles no lo pronuncia un lector de
-      // pantalla: se dice «sin dato» para que no suene a cero.
-      ...(m.tasa_contacto_pct === null ? { valorAccesible: 'sin dato' } : {}),
-      sub: m.nivel === null ? `Se juzga desde ${dia.umbrales.minimo_llamadas_utiles} llamadas útiles` : ETIQUETA_NIVEL[m.nivel],
-      tone: m.nivel === 'bajo' ? 'bad' : m.nivel === 'atencion' ? 'warn' : 'primary',
-    },
-    { icon: Users, label: 'Leads tocados', value: String(m.leads_tocados) },
-    { icon: CalendarClock, label: presentarCitas('Citas agendadas'), value: String(m.citas_agendadas) },
-  ]
-  return (
-    <section aria-labelledby={`${id}-marcador`} className="space-y-3">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h3 id={`${id}-marcador`} className="text-base font-bold text-primary">Mi marcador de hoy</h3>
-        {m.nivel !== null && <Badge color={COLOR_NIVEL[m.nivel]} dot>{ETIQUETA_NIVEL[m.nivel]}</Badge>}
-      </div>
-      <StatStrip stats={stats} />
-      <p className="text-xs text-[var(--muted-foreground-strong)]">
-        Llamadas = marcadas + no contestadas. No incluye WhatsApp ni citas. Un número errado no entra en la tasa.
-        {m.primera_llamada_en !== null && ` Primera ${horaLimaDe(m.primera_llamada_en)}, última ${horaLimaDe(m.ultima_llamada_en)} (Lima).`}
-      </p>
-      {m.llamadas > 0 && (
-        <div>
-          <h4 id={`${id}-horas`} className="text-xs font-semibold text-[var(--muted-foreground-strong)]">Llamadas por hora (08–20, Lima)</h4>
-          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-          <ul role="list" className="mt-2 flex items-end gap-1" aria-labelledby={`${id}-horas`}>
-            {barras.map((b) => (
-              <li key={b.hora} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                <span className="w-full rounded-t bg-primary/80" style={{ height: `${Math.round((b.llamadas / b.maximo) * 40) + 2}px` }}
-                  aria-hidden />
-                <span className="sr-only">
-                  {b.hora}:00 — {b.llamadas} {b.llamadas === 1 ? 'llamada' : 'llamadas'}, {b.contestadas} {b.contestadas === 1 ? 'contestada' : 'contestadas'}
-                </span>
-                <span aria-hidden className="text-[10px] tabular-nums text-muted-foreground">{b.hora}</span>
-              </li>
-            ))}
-          </ul>
-          {fuera > 0 && <p className="mt-1 text-[11px] text-[var(--muted-foreground-strong)]">{fuera} fuera de la franja 08–20.</p>}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function FilaCola({ fila, lead, sinConversacionDias, onRegistrar, onAbrirFicha, registrarRef }: {
-  fila: FilaDiaria
-  lead: Lead | null
-  sinConversacionDias: number
-  onRegistrar: () => void
-  onAbrirFicha: () => void
-  registrarRef: (el: HTMLButtonElement | null) => void
-}): JSX.Element {
-  const etapa = ETAPA_INFO[fila.etapa as Etapa]?.label ?? fila.etapa
-  return (
-    <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={onAbrirFicha}
-            className="inline-flex min-h-9 items-center rounded-md text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">
-            {fila.nombre_completo}
-          </button>
-          <Badge color="var(--muted-foreground-strong)" variant="outline">{etapa}</Badge>
-          {/* La severidad NO viaja solo en el color: se dice (regla de la casa). */}
-          {fila.severidad === 'critica' && <Badge color="var(--destructive-text)" variant="outline">Crítica</Badge>}
-          {fila.referencia_en !== null && (
-            <span className="text-xs tabular-nums text-[var(--muted-foreground-strong)]">{cuandoLimaDe(fila.referencia_en)}</span>
-          )}
-        </div>
-        <p className="text-xs text-[var(--muted-foreground-strong)]">{detalleDeFila(fila, sinConversacionDias)}</p>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {lead !== null
-          ? <AccionesContacto lead={lead} destacada />
-          : <span className="text-xs text-muted-foreground">Abre la ficha para llamar</span>}
-        <Button ref={registrarRef} variant="accent" size="sm" className="h-11 sm:h-9"
-          aria-label={`Registrar resultado de ${fila.nombre_completo}`} onClick={onRegistrar}>
-          Registrar resultado
-        </Button>
-      </div>
-    </li>
-  )
-}
-
-function Compromisos({ dia, onAbrirFicha }: { dia: DiaAnalista; onAbrirFicha: (leadId: string) => void }): JSX.Element {
-  const id = useId()
-  return (
-    <section aria-labelledby={`${id}-titulo`} className="space-y-2">
-      <h3 id={`${id}-titulo`} className="text-base font-bold text-primary">
-        Mi seguimiento <span className="text-sm font-semibold text-[var(--muted-foreground-strong)]">· {dia.compromisos_total} {dia.compromisos_total === 1 ? 'compromiso' : 'compromisos'}</span>
-      </h3>
-      {dia.compromisos.length === 0 ? (
-        <PanelVacio icono={CalendarClock} titulo="Sin compromisos a partir de mañana" detalle="Lo de hoy y lo vencido ya está en tu cola." />
-      ) : (
-        /* oxlint-disable-next-line jsx-a11y/no-redundant-roles */
-        <ol role="list" aria-label="Mis compromisos" className="divide-y divide-border rounded-xl border border-border bg-card">
-          {dia.compromisos.map((c) => (
-            <li key={c.tarea_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-              <div className="min-w-0">
-                <button type="button" onClick={() => onAbrirFicha(c.lead_id)}
-                  className="inline-flex min-h-9 items-center rounded-md text-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">
-                  {c.lead_nombre}
-                </button>
-                <p className="text-xs text-[var(--muted-foreground-strong)]">
-                  {c.tipo === 'reunion' ? presentarCitas('Reunión') : 'Llamada'} · {presentarCitas(c.titulo)}
-                  {c.modalidad_reunion !== null ? ` · ${c.modalidad_reunion}` : ''}
-                </p>
-              </div>
-              <span className="text-xs font-semibold tabular-nums text-foreground">{cuandoLimaDe(c.vence_en)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-      {dia.compromisos_total > dia.compromisos.length && (
-        <p className="text-xs text-[var(--muted-foreground-strong)]">
-          Se muestran los {dia.compromisos.length} más próximos de {dia.compromisos_total}. El resto está en Agenda.
-        </p>
-      )}
-    </section>
-  )
-}
-
-function Descartados({ dia, deshaciendo, onDeshacer, onAbrirFicha }: {
-  dia: DiaAnalista
-  deshaciendo: string | null
-  onDeshacer: (d: Descartado) => void
-  onAbrirFicha: (leadId: string) => void
-}): JSX.Element | null {
-  const id = useId()
-  if (dia.descartados.length === 0) return null
-  return (
-    <section aria-labelledby={`${id}-titulo`} className="space-y-2">
-      <h3 id={`${id}-titulo`} className="text-base font-bold text-primary">Descartados hoy · {dia.descartados.length}</h3>
-      <p className="text-xs text-[var(--muted-foreground-strong)]">
-        Están en el Centro de rescate con su motivo. Puedes deshacer el descarte durante 24 horas; el lead vuelve a tu cartera con un ciclo nuevo.
-      </p>
-      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-      <ol role="list" aria-label="Descartados hoy" className="divide-y divide-border rounded-xl border border-border bg-card">
-        {dia.descartados.map((d) => (
-          <li key={d.actividad_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-            <div className="min-w-0">
-              <button type="button" onClick={() => onAbrirFicha(d.lead_id)}
-                className="inline-flex min-h-9 items-center rounded-md text-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">
-                {d.lead_nombre}
-              </button>
-              <p className="text-xs text-[var(--muted-foreground-strong)]">
-                {horaLimaDe(d.creado_en)} · {(d.submotivo ?? d.resultado ?? '').replaceAll('_', ' ')}
-                {d.deshecho ? ' · ya deshecho' : d.no_insista ? ' · pidió no ser contactado' : !d.vigente ? ' · el descarte ya no está vigente' : ''}
-              </p>
-            </div>
-            {d.puede_deshacer ? (
-              // `aria-disabled` y no `disabled`: deshabilitar el botón enfocado
-              // manda el foco al body (regla de la casa, boton-guardar.tsx).
-              <Button variant="outline" size="sm" aria-disabled={deshaciendo !== null}
-                aria-label={`Deshacer el descarte de ${d.lead_nombre}`}
-                onClick={() => { if (deshaciendo === null) onDeshacer(d) }}>
-                <RotateCcw aria-hidden /> {deshaciendo === d.actividad_id ? 'Deshaciendo…' : 'Deshacer'}
-              </Button>
-            ) : (
-              <span className="text-xs text-muted-foreground">Sin deshacer</span>
-            )}
-          </li>
-        ))}
-      </ol>
-    </section>
   )
 }

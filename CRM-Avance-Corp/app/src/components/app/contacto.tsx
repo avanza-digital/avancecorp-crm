@@ -82,6 +82,7 @@ export function AccionesContacto({
   soloIcono,
   conAgendar,
   destacada,
+  grande,
 }: {
   lead: LeadContactable
   compacto?: boolean
@@ -96,6 +97,12 @@ export function AccionesContacto({
   conAgendar?: boolean
   /** Targets táctiles de 44 px para la franja primaria «Ahora» (Ley de Fitts). */
   destacada?: boolean
+  /**
+   * 48 px y 18 px para «Mi día», donde «Llamar» es la ÚNICA acción primaria de
+   * la pantalla y el piso tipográfico es 16 px (queja de los analistas del
+   * 20/09/2026). Se apoya en `destacada`, que ya tiñe el primer hijo de azul.
+   */
+  grande?: boolean
 }): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -163,6 +170,10 @@ export function AccionesContacto({
         destacada && [
           '[&_a]:!h-11 [&_a]:!px-3 [&_button]:!h-11 [&_button]:!px-3 sm:[&_a]:!h-9 sm:[&_button]:!h-9',
           '[&>*:first-child]:!border-accent [&>*:first-child]:!bg-accent [&>*:first-child]:!text-white',
+        ],
+        grande && [
+          'gap-3 [&_a]:!h-12 [&_a]:!px-5 [&_a]:!text-lg [&_button]:!h-12 [&_button]:!px-5 [&_button]:!text-lg',
+          'sm:[&_a]:!h-12 sm:[&_button]:!h-12 [&_svg]:!size-5',
         ],
       )}
       // Escudo de propagación: ni el click en los links ni las teclas dentro del

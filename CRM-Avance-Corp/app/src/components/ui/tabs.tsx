@@ -22,14 +22,27 @@ interface TabsProps<V extends string> {
   /** Contenido del panel activo (un solo `tabpanel`, enlazado al tab seleccionado). */
   children?: ReactNode | undefined
   className?: string | undefined
+  /**
+   * `grande` para pantallas de trabajo donde la letra no puede bajar de 16 px
+   * y el objetivo táctil es de 48 (queja de los analistas del 20/09/2026:
+   * «muchas letras pequeñas»). El default `normal` deja intacto lo que ya
+   * usaba esta primitiva: ranking, supervisor, repartir y rentabilidad.
+   */
+  tamano?: 'normal' | 'grande' | undefined
 }
+
+const CLASES_TAMANO = {
+  normal: { tab: 'min-h-11 px-3 py-2 text-xs font-semibold', extra: 'text-[11px]' },
+  grande: { tab: 'min-h-12 px-4 py-2 text-base font-normal', extra: 'text-base' },
+} as const
 
 // Ids del tab y del panel de un valor (interno: el panel activo vive dentro del componente).
 function idsDeTab(idBase: string, valor: string): { tab: string; panel: string } {
   return { tab: `${idBase}-tab-${valor}`, panel: `${idBase}-panel-${valor}` }
 }
 
-export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className }: TabsProps<V>) {
+export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className, tamano = 'normal' }: TabsProps<V>) {
+  const medidas = CLASES_TAMANO[tamano]
   const idAuto = useId()
   const base = `tabs${idAuto.replaceAll(':', '')}`
   const valores = pestanas.map((p) => p.valor)
@@ -67,12 +80,13 @@ export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, ch
               onClick={() => onCambio(p.valor)}
               onKeyDown={alTecla}
               className={cn(
-                'inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none',
+                'inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none',
+                medidas.tab,
                 seleccionada ? 'bg-white text-primary shadow-sm' : 'text-[var(--muted-foreground-strong)] hover:text-primary',
               )}
             >
               {p.etiqueta}
-              {p.extra !== undefined && <span className="tabular-nums text-[11px] font-bold text-muted-foreground">{p.extra}</span>}
+              {p.extra !== undefined && <span className={cn('tabular-nums font-bold text-[var(--muted-foreground-strong)]', medidas.extra)}>{p.extra}</span>}
             </button>
           )
         })}

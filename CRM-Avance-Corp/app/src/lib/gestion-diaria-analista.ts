@@ -194,6 +194,99 @@ export function ordenarColaDiaria(
   })
 }
 
+/**
+ * TONO y TEXTO del tiempo de una fila. No dice «SLA»: dice el tiempo que queda
+ * o el que se pasó (regla de Miguel, 20/09/2026 — «eso no lo entiendo nada»).
+ *
+ * `referencia_en` YA ES un vencimiento para los tres buckets de la cola v2
+ * (`20260907212612_crm_sla_avisos_por_accion_y_rol.sql`: el límite de primera
+ * gestión, o el `vence_en` de la tarea), así que el chip se calcula aquí, sin
+ * pedirle nada nuevo al servidor. La EXCEPCIÓN es `sin_conversacion`, que esta
+ * misma capa fabrica con la ÚLTIMA CONVERSACIÓN (un instante pasado que no es
+ * un límite): decir ahí «se pasó hace 12 días» sería mentir, así que lleva su
+ * propio texto.
+ *
+ * El tono `vencido` equivale exactamente a `severidad === 'critica'` en los dos
+ * buckets que la producen, así que el chip DICE la severidad en palabras: por
+ * eso desaparece el chip «Crítica» y no se pierde nada (regla de la casa: el
+ * estado nunca viaja solo en el color).
+ */
+export function textoTiempoDeFila(
+  fila: FilaDiaria,
+  ahora: number,
+): { texto: string; tono: 'vencido' | 'pendiente' | 'neutro' } {
+  if (fila.grupo === 'sin_conversacion') {
+    const dias = fila.senal?.dias_sin_conversacion
+    if (dias === undefined) return { texto: 'Sin conversación reciente', tono: 'neutro' }
+    return { texto: `Sin conversación hace ${dias} ${dias === 1 ? 'día' : 'días'}`, tono: 'neutro' }
+  }
+  if (fila.referencia_en === null) return { texto: 'Sin hora confirmada', tono: 'neutro' }
+  const limite = Date.parse(fila.referencia_en)
+  if (Number.isNaN(limite)) return { texto: 'Sin hora confirmada', tono: 'neutro' }
+  const restante = limite - ahora
+  // El minuto del vencimiento se dice aparte: con `Math.round` el instante
+  // exacto salía como «Se pasó hace 1 min», y un milisegundo antes como
+  // «Quedan 1 min». Ojo: el reloj late cada 60 s, así que el paso a «vencido»
+  // puede tardar hasta un minuto en pintarse. Es aceptable y queda dicho.
+  if (Math.abs(restante) < 60_000) {
+    return restante > 0
+      ? { texto: 'Vence en menos de 1 min', tono: 'pendiente' }
+      : { texto: 'Se pasó hace menos de 1 min', tono: 'vencido' }
+  }
+  const cuanto = duracionLarga(Math.abs(restante))
+  return restante > 0
+    ? { texto: `Quedan ${cuanto}`, tono: 'pendiente' }
+    : { texto: `Se pasó hace ${cuanto}`, tono: 'vencido' }
+}
+
+/** «45 min» · «1 h 20 min» · «3 días». Un solo escalón, sin «hace un momento». */
+function duracionLarga(ms: number): string {
+  // `floor`, no `round`: a los 59 min 30 s decir «1 h» adelanta el reloj y el
+  // analista lo lee como que le queda más tiempo del que tiene.
+  const minutos = Math.max(Math.floor(ms / 60_000), 1)
+  if (minutos < 60) return `${minutos} min`
+  if (minutos < 1440) {
+    const horas = Math.floor(minutos / 60)
+    const resto = minutos % 60
+    return resto === 0 ? `${horas} h` : `${horas} h ${resto} min`
+  }
+  const dias = Math.floor(minutos / 1440)
+  return `${dias} ${dias === 1 ? 'día' : 'días'}`
+}
+
+/**
+ * Las CUATRO pestañas del día, incluidas las vacías: su conteo es lo que deja
+ * ver el volumen de los grupos que no están a la vista (a diferencia de
+ * `agruparDiaria`, que borra los vacíos porque pintaba todos los bloques).
+ */
+export function pestanasDiarias(
+  filas: readonly FilaDiaria[],
+): { clave: GrupoDia; etiqueta: string; ayuda: string; total: number; filas: FilaDiaria[] }[] {
+  return GRUPOS_DIA.map((g) => {
+    const suyas = filas.filter((f) => f.grupo === g.clave)
+    return { clave: g.clave, etiqueta: g.etiqueta, ayuda: g.ayuda, total: suyas.length, filas: suyas }
+  })
+}
+
+/**
+ * Paginación de cliente dentro de un grupo. Devuelve la página ya ACOTADA: la
+ * pantalla nunca guarda un número fuera de rango, así que al encoger la lista
+ * (un registro que saca una fila) no se queda en una página vacía.
+ */
+export function paginaDeFilas(
+  filas: readonly FilaDiaria[],
+  pagina: number,
+  porPagina: number,
+): { filas: FilaDiaria[]; pagina: number; paginas: number; rango: string; total: number } {
+  const total = filas.length
+  const paginas = Math.max(Math.ceil(total / porPagina), 1)
+  const actual = Math.min(Math.max(pagina, 0), paginas - 1)
+  const desde = actual * porPagina
+  const visibles = filas.slice(desde, desde + porPagina)
+  const rango = total === 0 ? '0 de 0' : `${desde + 1}–${desde + visibles.length} de ${total}`
+  return { filas: visibles, pagina: actual, paginas, rango, total }
+}
+
 /** Las filas agrupadas y en orden, para pintar un bloque por grupo. */
 export function agruparDiaria(filas: readonly FilaDiaria[]): { grupo: GrupoDia; filas: FilaDiaria[] }[] {
   return GRUPOS_DIA
