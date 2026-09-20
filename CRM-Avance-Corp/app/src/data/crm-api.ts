@@ -914,7 +914,21 @@ const ALARMA_TENDENCIA_BANDEJA = 2000
  * si quiere solo los abiertos.
  */
 export async function listarLeadsSinAsignar(signal?: AbortSignal): Promise<Lead[]> {
-  const filtros: FiltrosCartera = { etapa: 'todas', vendedorId: 'sin_asignar', integrada: false }
+  return listarLeadsPorCursor({ etapa: 'todas', vendedorId: 'sin_asignar', integrada: false }, 'bandeja', signal)
+}
+
+/**
+ * Los leads del PROPIO analista (Fase 4d «sin topes»): lo que Hoy · Analista
+ * necesita para su higiene, sus citas y su pulso, sin la foto inicial. Bajo la
+ * RLS del analista `cartera_pagina_fn` sin filtro ya es SOLO su cartera; se
+ * recorre por cursor hasta agotarla (acotada por su propia cartera).
+ */
+export async function listarLeadsPropios(signal?: AbortSignal): Promise<Lead[]> {
+  return listarLeadsPorCursor({ etapa: 'todas', vendedorId: 'todos', integrada: false }, 'propios', signal)
+}
+
+/** Recorre `cartera_pagina_fn` por cursor hasta agotar la lista que pinta el filtro. */
+async function listarLeadsPorCursor(filtros: FiltrosCartera, etiqueta: string, signal?: AbortSignal): Promise<Lead[]> {
   const vistos = new Set<string>()
   const items: Lead[] = []
   let cursor: CursorCartera | null = null
@@ -930,15 +944,15 @@ export async function listarLeadsSinAsignar(signal?: AbortSignal): Promise<Lead[
     if (pagina.cursor && cursor
       && !(pagina.cursor.actualizadoEn < cursor.actualizadoEn
         || (pagina.cursor.actualizadoEn === cursor.actualizadoEn && pagina.cursor.id > cursor.id))) {
-      throw new CrmApiError('La bandeja no avanza por cursor.', 'ROW_CONTRACT')
+      throw new CrmApiError('La lista no avanza por cursor.', 'ROW_CONTRACT')
     }
     cursor = pagina.cursor
     vueltas += 1
   } while (cursor && vueltas < 200)
-  if (cursor) throw new CrmApiError('La bandeja no termina de paginar.', 'ROW_CONTRACT')
+  if (cursor) throw new CrmApiError('La lista no termina de paginar.', 'ROW_CONTRACT')
   if (items.length > ALARMA_TENDENCIA_BANDEJA) {
-    registrarError('crm.leads.bandeja_tendencia',
-      new CrmApiError('La bandeja sin analista supera la alarma de tendencia', 'TENDENCIA'), { filas: items.length })
+    registrarError(`crm.leads.${etiqueta}_tendencia`,
+      new CrmApiError('La lista por cursor supera la alarma de tendencia', 'TENDENCIA'), { filas: items.length })
   }
   return items
 }

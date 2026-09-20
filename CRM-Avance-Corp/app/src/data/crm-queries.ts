@@ -35,6 +35,7 @@ import {
   listarActividadesRecientes,
   buscarLeadsGlobal,
   listarLeadsSinAsignar,
+  listarLeadsPropios,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -224,6 +225,8 @@ export const crmQueryKeys = {
   busquedaGlobal: (texto: string) => [...crmQueryKeys.leads(), 'busqueda-global', texto] as const,
   // Bandeja sin analista (Fase 4c): cuelga de `leads` (repartir/derivar la invalida).
   leadsSinAsignar: () => [...crmQueryKeys.leads(), 'sin-asignar'] as const,
+  // Los leads del propio analista (Fase 4d): Hoy · Analista sin la foto inicial.
+  leadsPropios: () => [...crmQueryKeys.leads(), 'propios'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -544,6 +547,17 @@ export function useLeadsSinAsignar(habilitada: boolean) {
   return useQuery({
     queryKey: crmQueryKeys.leadsSinAsignar(),
     queryFn: ({ signal }) => listarLeadsSinAsignar(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/** Los leads del propio analista (Fase 4d «sin topes»), por cursor hasta agotar su cartera. */
+export function useLeadsPropios(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.leadsPropios(),
+    queryFn: ({ signal }) => listarLeadsPropios(signal),
     enabled: habilitada,
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',

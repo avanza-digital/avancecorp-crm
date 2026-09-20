@@ -30,6 +30,8 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { minutosLegibles } from '@/lib/sla-versionado'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
+import { useCarteraPaginada, type CarteraPaginada } from '@/data/use-cartera-paginada'
+import { useLeadsSinAsignar } from '@/data/crm-queries'
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
 // `semaforoEstancamiento`, para que color y número no puedan divergir).
@@ -54,6 +56,8 @@ const MS_CLICK_FANTASMA = 60
  * siendo el panorama completo y los filtros no se pierden al avanzar.
  */
 const LEADS_POR_PAGINA = 20
+/** En sesión real las columnas no parten de ninguna foto local. */
+const SIN_FOTO: readonly Lead[] = []
 const PAGINA_INICIAL_POR_ETAPA: Record<EtapaActiva, number> = {
   nuevo: 0,
   contactado: 0,
@@ -213,8 +217,14 @@ export function Pipeline() {
     PAGINA_INICIAL_POR_ETAPA,
   )
   const mostrarFiltro = can(yo?.rol, 'filtrarPorVendedor') && ambito.vendedores.length > 1
+  // Fase 4d «sin topes»: en sesión real cada columna es su propia lista
+  // servida por `cartera_filtrada_fn` (etapa + analista, cursor keyset y
+  // «Cargar más»), y la bandeja «por repartir» viene del servidor; la demo
+  // sigue paginando su foto local en el navegador.
+  const sesionReal = yo != null && !yo.demo
+  const bandejaSinAsignar = useLeadsSinAsignar(sesionReal)
   // Bandeja "por repartir": sin analista asignado y aún en etapa de trabajo.
-  const porRepartir = leads.filter(
+  const porRepartir = (sesionReal ? (bandejaSinAsignar.data ?? []) : leads).filter(
     (l) => l.vendedor_id == null && !['convertido', 'descartado'].includes(l.etapa),
   )
   // El filtro degrada solo a "Todos" cuando deja de tener sentido (analista
@@ -228,6 +238,18 @@ export function Pipeline() {
       : fVend !== 'todos' && !ambito.vendedores.some((v) => v.perfil_id === fVend)
         ? 'todos'
         : fVend
+  // Una lista por columna (orden fijo de hooks): el filtro de analista viaja al
+  // servidor con cada etapa. En demo estos hooks no tocan la red ni la foto.
+  const vendedorFiltro = filtro === 'todos' ? 'todos' : filtro === 'por_repartir' ? 'sin_asignar' : filtro
+  const columnaNuevo = useCarteraPaginada(SIN_FOTO, { etapa: 'nuevo', vendedorId: vendedorFiltro, integrada: true })
+  const columnaContactado = useCarteraPaginada(SIN_FOTO, { etapa: 'contactado', vendedorId: vendedorFiltro, integrada: true })
+  const columnaReunion = useCarteraPaginada(SIN_FOTO, { etapa: 'reunion_agendada', vendedorId: vendedorFiltro, integrada: true })
+  const columnaPropuesta = useCarteraPaginada(SIN_FOTO, { etapa: 'propuesta_enviada', vendedorId: vendedorFiltro, integrada: true })
+  const columnasServidor: Record<EtapaActiva, CarteraPaginada> = {
+    nuevo: columnaNuevo, contactado: columnaContactado, reunion_agendada: columnaReunion, propuesta_enviada: columnaPropuesta,
+  }
+  const buscarEnTablero = (id: string): Lead | undefined =>
+    sesionReal ? ETAPAS.flatMap((c) => columnasServidor[c.k].leads).find((x) => x.id === id) : ambito.leads.find((x) => x.id === id)
   // Solo las COLUMNAS se filtran; los stats y terminales resumen el ámbito completo.
   const enTablero =
     filtro === 'todos'
@@ -284,7 +306,7 @@ export function Pipeline() {
 
   const mover = (id: string, etapa: EtapaActiva) => {
     if (etapa === 'propuesta_enviada') {
-      const l = ambito.leads.find((x) => x.id === id)
+      const l = buscarEnTablero(id)
       if (l && l.etapa !== 'propuesta_enviada') {
         setPidiendoCapital(l)
         return
@@ -410,11 +432,15 @@ export function Pipeline() {
       {/* Kanban */}
       <div className="ac-scroll -mx-1 flex min-h-[28rem] flex-1 gap-3 overflow-x-auto px-1 pb-3 md:min-h-0">
         {ETAPAS.map((col) => {
-          const enCol = enTablero.filter((l) => l.etapa === col.k)
-          const totalPaginas = Math.max(1, Math.ceil(enCol.length / LEADS_POR_PAGINA))
-          const pagina = Math.min(paginaPorEtapa[col.k], totalPaginas - 1)
+          const servida = columnasServidor[col.k]
+          const enCol = sesionReal ? servida.leads : enTablero.filter((l) => l.etapa === col.k)
+          const totalPaginas = sesionReal ? 1 : Math.max(1, Math.ceil(enCol.length / LEADS_POR_PAGINA))
+          const pagina = sesionReal ? 0 : Math.min(paginaPorEtapa[col.k], totalPaginas - 1)
           const inicio = pagina * LEADS_POR_PAGINA
-          const visibles = enCol.slice(inicio, inicio + LEADS_POR_PAGINA)
+          const visibles = sesionReal ? enCol : enCol.slice(inicio, inicio + LEADS_POR_PAGINA)
+          // Total de la columna: en real lo dice el servidor (totales.vivos del
+          // filtro etapa+analista); el capital se suma sobre lo CARGADO.
+          const totalCol = sesionReal ? (servida.resumen?.totales.vivos ?? enCol.length) : enCol.length
           const { pen: totalPEN, usd: totalUSD } = capitalPorMoneda(enCol)
           const totalTxt = [
             totalPEN > 0 ? moneyK(totalPEN) : '',
@@ -433,10 +459,10 @@ export function Pipeline() {
                 />
                 <p className="text-[13px] font-bold text-foreground">{col.label}</p>
                 <span className="grid min-w-5 place-items-center rounded-full bg-muted px-1.5 text-[11px] font-bold tabular-nums text-muted-foreground">
-                  {enCol.length}
+                  {totalCol}
                 </span>
-                <p className="ml-auto text-[11px] font-extrabold tabular-nums" style={{ color: col.color }}>
-                  {totalTxt}
+                <p className="ml-auto text-[11px] font-extrabold tabular-nums" style={{ color: col.color }} title={sesionReal && servida.hayMas ? 'Capital de lo cargado hasta ahora' : undefined}>
+                  {totalTxt}{sesionReal && servida.hayMas && totalTxt ? ' ·' : ''}
                 </p>
               </div>
 
@@ -488,15 +514,37 @@ export function Pipeline() {
                 ))}
                 {enCol.length === 0 && (
                   <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-[11px] text-muted-foreground">
-                    {destino ? 'Suelta aquí para mover el lead' : 'Sin leads en esta etapa'}
+                    {sesionReal && servida.cargando ? 'Cargando leads…' : destino ? 'Suelta aquí para mover el lead' : 'Sin leads en esta etapa'}
                   </div>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5 px-1 pt-2">
                 <span className="mr-auto text-[10px] font-semibold tabular-nums text-muted-foreground" aria-live="polite">
-                  {enCol.length === 0 ? 'Sin leads' : `${inicio + 1}–${inicio + visibles.length} de ${enCol.length}`}
+                  {sesionReal
+                    ? servida.cargando ? 'Cargando…' : enCol.length === 0 ? 'Sin leads' : `${enCol.length} de ${totalCol}`
+                    : enCol.length === 0 ? 'Sin leads' : `${inicio + 1}–${inicio + visibles.length} de ${enCol.length}`}
                 </span>
-                {totalPaginas > 1 && (
+                {sesionReal && servida.error != null && (
+                  <button
+                    type="button"
+                    onClick={() => void servida.recargar()}
+                    className="cursor-pointer text-[10px] font-semibold text-destructive-text hover:underline"
+                  >
+                    No se pudo cargar · Reintentar
+                  </button>
+                )}
+                {sesionReal && servida.hayMas && (
+                  <button
+                    type="button"
+                    disabled={servida.cargandoMas}
+                    onClick={servida.cargarMas}
+                    aria-label={`Cargar más leads de ${col.label}`}
+                    className="cursor-pointer rounded-lg border border-border bg-card px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+                  >
+                    {servida.cargandoMas ? 'Cargando…' : 'Cargar más'}
+                  </button>
+                )}
+                {!sesionReal && totalPaginas > 1 && (
                   <>
                     <button
                       type="button"

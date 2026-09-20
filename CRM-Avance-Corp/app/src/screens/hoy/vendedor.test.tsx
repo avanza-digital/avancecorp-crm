@@ -44,6 +44,8 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     ...actual,
     // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
     useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
+    // Fase 4d: la cartera propia viene del servidor; aquí, la misma foto del fixture.
+    useLeadsPropios: () => ({ data: LEADS, isPending: false, isFetching: false, error: null, refetch: () => {} }),
     useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
     useResponderTopeTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
     useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
