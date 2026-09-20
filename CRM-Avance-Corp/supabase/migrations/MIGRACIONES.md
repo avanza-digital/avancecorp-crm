@@ -2,9 +2,26 @@
 
 ## 20260920014500 — Actividad reciente del ámbito: el arranque deja de bajar el registro (Fase 3 «sin topes»)
 
-**📋 SQL PREPARADO Y ENSAYADO, SIN INSTALAR EN PRODUCCIÓN (19/09/2026, noche; 20/09 UTC). Front en la misma PR, a
-publicar DESPUÉS del SQL (la bitácora del directorio llama a una puerta nueva; sin ella fallaría con
-«No se pudo cargar la actividad reciente» y el resto del CRM seguiría igual).** Fase 3 del plan «sin topes»
+**✅ SQL EN PRODUCCIÓN el 19/09/2026 (~22:23 Lima = 20/09 03:23 UTC, Miguel con `!` + `db query --linked --file`,
+archivo exacto) y REGISTRADA (~22:38 Lima, `registrar-20260920014500.sql`; cuerpo md5 `bfc3ff1bc8c2d9a06b1a25975d49c299`
+= archivo local; `ultima_version` = 20260920014500). Medido en prod tras instalar: gate propio OK; puerta md5
+`a58a58a7288c8431daa7698aa6779fa4` y núcleo `4689f6bfbfffd07cb105aabd246863e1` IDÉNTICOS a la copia local (instalación
+byte a byte); ambos INVOKER, stable, `search_path=""`, owner postgres, ACL `{postgres, authenticated}`. **Tiempo del
+caso peor** (deuda del auditor; sesión real `set local role authenticated` + `request.jwt.claims` del analista activo
+con MENOS gestiones en sus leads, 29 en 6 leads): 8 ítems en **35 ms frío / 26 ms caliente**; plan real Index Scan
+`actividades_recientes_idx` + filtro RLS (subplan hasheado sobre leads), 13 335 filas descartadas, 6 158 buffers en caché;
+analista con MÁS (1 473): 19 ms. Umbral 200 ms: PASA → el índice cubriente NO se aplica. **Sonda anónima** con la clave
+pública del bundle vivo (`Content-Profile: crm`): `{"p_limite":8}` y `{"p_limite":0}` → 401/42501 `permission denied
+for schema crm`; `{"p_nope":1}` → 404/PGRST202. **FRONT EN PRODUCCIÓN** el 19/09 ~22:44 Lima (20/09 03:44 UTC) en el release conjunto con Gestión Diaria F1+F2,
+construido por esa sesión desde el tronco `afc39197` (squash de la PR #39): ZIP `crm-20260920T034405Z-afc391974382.zip`
+(sha256 `d15415fb…`), manifiesto al lado en `releases/`; preflight OK (vivo `380643a8` → candidato `afc39197`);
+smoke: `version.json` = `build-20260920T034404914Z`, `/` 200, `assets/index-CpHlTkE1.js` 200 = dist. Contrastado
+aparte desde esta sesión: el chunk vivo `crm-api-CfwDpQD3.js` llama a `actividades_recientes_fn` y ya no menciona
+`actividades_del_ambito_fn`. Acta en PR #40. **Mapa de capas** regenerado en disco el 19/09 ~23:00 Lima
+(evidencia viva + front del tronco): 175 saltos (169 tras la Fase 2); la Fase 3 aporta SOLO 2 aristas «inversión» de sus
+gates (`assert_actividades_recientes` y `_mutantes` llaman a la puerta a propósito: mismo patrón aceptado de las Fases 1 y 2);
+puerta, núcleo y pantallas quedan «adyacente». Los saltos «puerta mixta» nuevos (`crm.deshacer_resultado_llamada` →
+`crm.actividades`/`crm.tareas`/`crm.leads`) y el resto de inversiones son de Gestión Diaria F2 (#38).** Fase 3 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`); objetivo fijado por Miguel el 19/09: que ninguna
 pantalla dependa de descargar el registro de actividades del ámbito, que la RPC vieja salga del arranque y
 se deprecie, y que muera el último tope de actividades del front.
