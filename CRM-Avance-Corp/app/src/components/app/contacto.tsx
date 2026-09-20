@@ -539,8 +539,12 @@ function DialogResultado({
         {sinConfirmar && <p role="alert" className="text-sm text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" size="sm" disabled={procesando} onClick={() => { onClose(); toast.info('Contacto sin registrar: no quedó en el historial') }}>
-          Cerrar sin registrar
+        <Button variant="ghost" size="sm" disabled={procesando} onClick={() => {
+          onClose()
+          if (sinConfirmar) toast.warning('Guardado pendiente de confirmar: verifícalo en «Guardados por confirmar»')
+          else toast.info('Contacto sin registrar: no quedó en el historial')
+        }}>
+          {sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
         </Button>
         {sinConfirmar && <Button size="sm" disabled={procesando} onClick={() => void enviar(sinConfirmar)}>
           {procesando ? 'Confirmando…' : 'Reintentar guardado'}

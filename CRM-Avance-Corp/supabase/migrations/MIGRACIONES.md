@@ -44,8 +44,18 @@ ledger; la respuesta lo dice con `ciclo_nuevo`); 23505 de reabrir (otro lead viv
 traduce a 22023 humano; «No insistir» no se deshace (levantarlo es de Gerencia); la tarea que la llamada CERRÓ
 no se reabre; `reunion_agendada` se restaura como `contactado` (la cita la canceló el sistema); un número errado
 no cuenta como intento sin respuesta para «no responde» (≥ 2, espejo de `INTENTOS_MIN_NO_RESPONDE`).
+**Codex consulta 2 (diff, 20/09) — P1 real corregido:** el trigger anti-falsificación reservaba `tarea_id`,
+que `crm.cerrar_reunion` ya escribe en metadata al cerrar una cita → cerrar citas habría fallado con 42501.
+Ahora reserva SOLO las claves exclusivas del resultado (`resultado, submotivo, intento_n, etapa_al_descartar,
+no_insista, deshecho_en, deshecho_por, descarte_revertido, cita_no_restaurada` + `evento` propio; medido en el
+banco: ningún escritor vivo las usa) y el CHECK queda acotado a `evento='resultado_llamada'`. Oráculo W: cerrar
+una cita creada por la v3 con `cerrar_reunion_v3` (completada con capital y plantón) sigue funcionando. Sus P2
+aplicados: identidad revalidada bajo el candado del lead (`lead_dentro_de_bloqueo` → 40001), ventana de 24 h
+juzgada tras los candados, reintento del front sin re-validar como operación nueva, deshacer en demo con el
+estado vigente, espejo demo de cita y «No insistir», sugerencia sin duplicar un plan vivo, evidencia de
+«no responde» sin números errados, cierre honesto con guardado pendiente, cuerpo del panel con scroll.
 **Rechazado con evidencia:** «orden lead→recibo vs writer» (el recibo es fila propia de (actor, operación):
-no puede formar ciclo con otro actor). **Diferido a F3 (deuda declarada):** la lista blanca de
+no puede formar ciclo con otro actor; Codex lo aceptó en la consulta 2). **Diferido a F3 (deuda declarada):** la lista blanca de
 `private.registro_actividad_core` (F1) no expone `deshecho_en/descartado/no_insista` → hasta F3 el registro de
 Gestión Diaria muestra un resultado deshecho como vigente; F3 DEBE filtrar por `deshecho_en` y marcar en el
 Centro de rescate los descartes deshechos.

@@ -199,16 +199,19 @@ $preflight$;
 -- histórico (4 889 llamadas con metadata = {}) sigue siendo válido. `otro` es
 -- submotivo de los dos catálogos (una sola lista de valores).
 alter table crm.actividades add constraint actividades_resultado_llamada_forma check (
-  (metadata->>'resultado' is null or metadata->>'resultado' in (
-    'no_contesto', 'volver_a_llamar', 'agendo_reunion', 'no_interesado',
-    'numero_errado', 'no_es_la_persona', 'pide_otro_producto'))
-  and (metadata->>'submotivo' is null or metadata->>'submotivo' in (
-    'sin_fondos_ahora', 'ya_invirtio_con_otro', 'desconfianza', 'no_le_interesa_invertir',
-    'prestamo', 'credito', 'otro'))
+  coalesce(metadata->>'evento', '') <> 'resultado_llamada'
+  or (
+    metadata->>'resultado' in (
+      'no_contesto', 'volver_a_llamar', 'agendo_reunion', 'no_interesado',
+      'numero_errado', 'no_es_la_persona', 'pide_otro_producto')
+    and (metadata->>'submotivo' is null or metadata->>'submotivo' in (
+      'sin_fondos_ahora', 'ya_invirtio_con_otro', 'desconfianza', 'no_le_interesa_invertir',
+      'prestamo', 'credito', 'otro'))
+  )
 ) not valid;
 alter table crm.actividades validate constraint actividades_resultado_llamada_forma;
 comment on constraint actividades_resultado_llamada_forma on crm.actividades is
-  'Gestión Diaria F2: si metadata trae resultado/submotivo de llamada, son del catálogo cerrado (7 resultados, 7 submotivos). De forma, no de presencia.';
+  'Gestión Diaria F2: toda actividad con evento=resultado_llamada trae un resultado del catálogo cerrado (7) y, si hay submotivo, uno de los 7. De forma, no de presencia; acotado al evento propio para no vetar metadata ajena.';
 
 -- Las claves del resultado solo las escribe el núcleo (o su deshacer), bajo el
 -- GUC de transacción `crm.op_resultado_llamada`. Un INSERT del cliente API con
@@ -224,10 +227,12 @@ begin
   if (select auth.uid()) is null then
     return new;
   end if;
-  if (v_meta ?| array['resultado', 'submotivo', 'intento_n', 'descartado', 'etapa_al_descartar',
-                      'descartado_en', 'no_insista', 'tarea_id', 'siguiente_id', 'deshecho_en',
-                      'deshecho_por', 'motivo_descarte', 'tarea_cancelada', 'descarte_revertido',
-                      'cita_no_restaurada']
+  -- Claves EXCLUSIVAS del resultado de llamada (ningún escritor vivo las usa:
+  -- medido en el banco el 20/09; `tarea_id` la escribe crm.cerrar_reunion y
+  -- `descartado`/`siguiente_id`/`motivo_descarte` son nombres genéricos, por
+  -- eso NO se reservan). El evento propio se reserva siempre.
+  if (v_meta ?| array['resultado', 'submotivo', 'intento_n', 'etapa_al_descartar', 'no_insista',
+                      'deshecho_en', 'deshecho_por', 'descarte_revertido', 'cita_no_restaurada']
       or v_meta->>'evento' in ('resultado_llamada', 'resultado_deshecho'))
      and coalesce(pg_catalog.current_setting('crm.op_resultado_llamada', true), 'off') <> 'on' then
     raise exception 'El resultado de una llamada solo lo escribe crm.registrar_llamada_v3 (y crm.deshacer_resultado_llamada)'
@@ -289,6 +294,7 @@ declare
   v_intentos integer;
   v_tarea_tipo text;
   v_vendedor uuid;
+  v_bloqueo jsonb;
   v_guc_previo text := coalesce(pg_catalog.current_setting('crm.op_resultado_llamada', true), 'off');
 begin
   -- ── 1. Validación PURA del input: antes de bloquear ni escribir nada ───────
@@ -379,9 +385,15 @@ begin
       raise exception 'Registrar "No insistir" requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
     end if;
     perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
-    perform private.bloquear_personas_de_leads(array[p_lead_id], null);
+    v_bloqueo := private.bloquear_personas_de_leads(array[p_lead_id], null);
   end if;
   select l.etapa, l.vendedor_id into v_etapa_antes, v_vendedor from crm.leads l where l.id = p_lead_id for update;
+  -- Tras esperar por el lead, la identidad bloqueada debe seguir siendo la suya
+  -- (D-13: documento/persona pudieron cambiar mientras se esperaba) → 40001.
+  if v_bloqueo is not null and private.resolver_en_puertas_bajo_candado()
+     and not private.lead_dentro_de_bloqueo(p_lead_id, v_bloqueo) then
+    raise exception 'La persona del lead cambio mientras se registraba; vuelve a intentarlo' using errcode = '40001';
+  end if;
 
   -- ── 3. ¿Replay? (recibo ya confirmado para este actor y operación) ─────────
   select r.respuesta into v_previa
@@ -628,6 +640,7 @@ declare
   v_guc_previo text := coalesce(pg_catalog.current_setting('crm.op_resultado_llamada', true), 'off');
   v_nota uuid;
   v_ahora timestamptz;
+  v_bloqueo jsonb;
 begin
   if v_uid is null or v_rol is null or v_rol not in ('vendedor', 'supervisor', 'gerencia') then
     raise exception 'No autorizado' using errcode = '42501';
@@ -672,11 +685,20 @@ begin
       raise exception 'Deshacer requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
     end if;
     perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
-    perform private.bloquear_personas_de_leads(array[v_act.lead_id], null);
+    v_bloqueo := private.bloquear_personas_de_leads(array[v_act.lead_id], null);
   end if;
   select * into v_lead from crm.leads l where l.id = v_act.lead_id for update;
   if private.sla_gestion_permitida(v_uid, v_act.lead_id) is distinct from true then
     raise exception 'El lead cambio de responsable; recarga la ficha' using errcode = '42501';
+  end if;
+  if v_bloqueo is not null and private.resolver_en_puertas_bajo_candado()
+     and not private.lead_dentro_de_bloqueo(v_lead.id, v_bloqueo) then
+    raise exception 'La persona del lead cambio mientras se deshacia; vuelve a intentarlo' using errcode = '40001';
+  end if;
+  -- La ventana de 24 h se juzga con el reloj DESPUÉS de esperar los candados.
+  v_ahora := pg_catalog.clock_timestamp();
+  if v_act.creado_en < v_ahora - interval '24 hours' then
+    raise exception 'Solo se puede deshacer dentro de las 24 horas' using errcode = '22023';
   end if;
 
   -- (a) La tarea que ESTE resultado creó, si sigue pendiente: se cancela por la
@@ -913,7 +935,7 @@ begin
       and strpos(pg_get_constraintdef(c.oid), 'submotivo') > 0
       -- La DEFINICIÓN COMPLETA, sellada: un octavo valor conservaría todos los
       -- LIKE de arriba y pasaría (Codex, 19/09). Huella medida en el banco.
-      and md5(pg_get_constraintdef(c.oid)) = '2bc2448a51cca7a3a2ae20c374aac0de'
+      and md5(pg_get_constraintdef(c.oid)) = 'ec46b200b9181592b0f48af06009c4c7'
   ) then
     raise exception 'Falta o cambio el CHECK actividades_resultado_llamada_forma (o no esta validado)';
   end if;
@@ -935,10 +957,10 @@ begin
   --    los de TODO lo que la v3 compone (texto vivo de producción el 19/09/2026).
   --    Un `create or replace` sobre cualquiera exige re-sellar aquí a conciencia.
   for v_firma, v_md5 in select * from (values
-    ('private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)', '8238f40039229fa7c90e44e025780f9e'),
+    ('private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)', 'fec6bfd18b0ca26623f84b55daddef64'),
     ('crm.registrar_llamada_v3(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)',        '92d2dcfb4cc03c158a42292980226ba2'),
-    ('crm.deshacer_resultado_llamada(uuid)',                                                  '3012849bb663273b9f63ff0a6638db72'),
-    ('private.trg_actividades_resultado_solo_nucleo()',                                       '3cb719bc5b4f231427d0344cb54aeb2a'),
+    ('crm.deshacer_resultado_llamada(uuid)',                                                  '5869117e03ac55d699d248244a71bb31'),
+    ('private.trg_actividades_resultado_solo_nucleo()',                                       '19952736370f64026f747c19b54ab38e'),
     ('private.actividades_de_lead_core(uuid,integer,timestamptz,uuid)',                       '805b3489aeab94371328f28229f23fe5'),
     ('crm.registrar_actividad_v2(uuid,uuid,text,text,jsonb)',                                 '52a44ac20288a9283801a28047efba18'),
     ('crm.cerrar_tarea_v2(uuid,uuid,text,text,text,jsonb,text,text)',                         'f5147d689ec8a213ec9320dad322de4b'),
@@ -1084,8 +1106,8 @@ $mig_gd_resultado$;
   --    definición ensayada, CHECK validado, trigger presente y gate paraguas OK.
   if to_regprocedure('crm.registrar_llamada_v3(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)') is null
      or md5(pg_get_functiondef('crm.registrar_llamada_v3(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)'::regprocedure)) is distinct from '92d2dcfb4cc03c158a42292980226ba2'
-     or md5(pg_get_functiondef('private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)'::regprocedure)) is distinct from '8238f40039229fa7c90e44e025780f9e'
-     or md5(pg_get_functiondef('crm.deshacer_resultado_llamada(uuid)'::regprocedure)) is distinct from '3012849bb663273b9f63ff0a6638db72'
+     or md5(pg_get_functiondef('private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)'::regprocedure)) is distinct from 'fec6bfd18b0ca26623f84b55daddef64'
+     or md5(pg_get_functiondef('crm.deshacer_resultado_llamada(uuid)'::regprocedure)) is distinct from '5869117e03ac55d699d248244a71bb31'
      or not exists (select 1 from pg_constraint where conrelid = 'crm.actividades'::regclass
                     and conname = 'actividades_resultado_llamada_forma' and convalidated)
      or not exists (select 1 from pg_trigger where tgrelid = 'crm.actividades'::regclass

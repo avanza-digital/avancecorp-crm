@@ -406,6 +406,23 @@ begin
   v2 := crm.deshacer_resultado_llamada(v_op);
   if (v2->>'ciclo_nuevo')::boolean is not true or (v2->>'descarte_revertido')::boolean is not true then raise exception 'V: %', v2; end if;
 
+  -- ── W. REGRESIÓN (Codex consulta 2): cerrar una cita por crm.cerrar_reunion_v3 (escribe
+  --      metadata.tarea_id / resultado_reunion) sigue funcionando con el trigger instalado ──
+  v_op := gen_random_uuid();
+  v := crm.registrar_llamada_v3(v_op, L[6], 'agendo_reunion', null, 'Cita para cerrar',
+         jsonb_build_object('tipo','reunion','titulo','Cita W','vence_en', v_ts16, 'modalidad_reunion', 'presencial', 'ubicacion_reunion', 'Oficina'));
+  v_sig := (v->>'siguiente_id')::uuid;
+  v2 := crm.cerrar_reunion_v3(gen_random_uuid(), v_sig, 'completada', 'propuesta', null, 'Entrevista hecha', null, 30000, 'PEN');
+  if (v2->>'ok')::boolean is not true then raise exception 'W: cerrar_reunion_v3 completada: %', v2; end if;
+  if not exists (select 1 from crm.actividades where lead_id = L[6] and tipo = 'reunion_realizada' and (metadata->>'tarea_id')::uuid = v_sig) then
+    raise exception 'W: la actividad de la cita con metadata.tarea_id no se escribio';
+  end if;
+  v_op := gen_random_uuid();
+  v := crm.registrar_llamada_v3(v_op, L[6], 'agendo_reunion', null, 'Otra cita',
+         jsonb_build_object('tipo','reunion','titulo','Cita W2','vence_en', v_ts16 + interval '1 day', 'modalidad_reunion', 'virtual'));
+  v2 := crm.cerrar_reunion_v3(gen_random_uuid(), (v->>'siguiente_id')::uuid, 'no_show', null, null, 'No vino', null, null, null);
+  if (v2->>'ok')::boolean is not true then raise exception 'W: cerrar_reunion_v3 no_show: %', v2; end if;
+
   -- ── Q. Bajo la RLS (rol authenticated): falsificación vetada, lecturas con metadata ──
   perform set_config('role', 'authenticated', true);
   begin

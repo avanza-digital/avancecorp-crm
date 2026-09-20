@@ -89,6 +89,15 @@ export function tareaConConfirmacionPendiente(actor: string | null, id: string):
   } catch { return undefined }
 }
 
+/** ¿Quedó una intención sin confirmar (respuesta perdida) para este sujeto y
+ *  comando? El store la usa para NO re-validar como operación nueva un
+ *  reintento: el servidor la reconoce por su recibo aunque el lead ya esté
+ *  cerrado, la tarea completada o la fecha propuesta haya pasado. */
+export function hayIntencionPendienteSla(actor: string | null, comando: Comando, sujeto: string): boolean {
+  if (!actor) return false
+  try { return leer(clave(actor, sujeto, comando)) !== null } catch { return false }
+}
+
 export function limpiarIntencionesSla(): void {
   vuelos.clear()
   try {

@@ -85,7 +85,7 @@ import {
   type ObjetivosPorVendedor,
 } from './objetivos'
 import { presentarDisponibilidadLead } from './disponibilidad-lead'
-import { ejecutarComandoSla, tareaConConfirmacionPendiente, type Respuesta } from '@/data/sla-operacion-comandos'
+import { ejecutarComandoSla, hayIntencionPendienteSla, tareaConConfirmacionPendiente, type Respuesta } from '@/data/sla-operacion-comandos'
 import { deshacerResultadoLlamada as deshacerResultadoLlamadaFn } from '@/data/gestion-diaria-api'
 import { gestionDiariaKeys } from '@/data/gestion-diaria-queries'
 import {
@@ -2922,7 +2922,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return noEncontrado()
-        if (TERMINALES_K.has(actual.etapa)) {
+        // REINTENTO de una operación cuya respuesta se perdió: el servidor la
+        // reconoce por su recibo y NO la valida como nueva (el lead ya puede
+        // estar descartado por ella, la tarea completada, la fecha pasada). Aquí
+        // tampoco: solo se comprueba el catálogo y se reenvía tal cual.
+        const reintento = realActivo && hayIntencionPendienteSla(miId, 'registrar_llamada_v3', id)
+        if (!reintento && TERMINALES_K.has(actual.etapa)) {
           return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
         }
         if (!esResultadoLlamada(input.resultado)) {
@@ -2957,7 +2962,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }
           if (def.clave === 'volver_a_llamar' && input.siguiente.tipo !== 'llamada') return { ok: false, error: 'Indica cuándo volver a llamar' }
           if (def.clave === 'agendo_reunion' && input.siguiente.tipo !== 'reunion') return { ok: false, error: 'Indica la fecha de la cita' }
-          if (Date.parse(vence) <= Date.now()) return { ok: false, error: 'La tarea siguiente debe ser futura' }
+          if (!reintento && Date.parse(vence) <= Date.now()) return { ok: false, error: 'La tarea siguiente debe ser futura' }
           const reunion = prepararReunionTarea(input.siguiente.tipo, input.siguiente)
           if (!reunion.ok) return reunion.resultado
           siguientePayload = {
@@ -2968,14 +2973,22 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         } else if (soyDueno && (def.clave === 'volver_a_llamar' || def.clave === 'agendo_reunion')) {
           return { ok: false, error: def.clave === 'volver_a_llamar' ? 'Indica cuándo volver a llamar' : 'Indica la fecha de la cita' }
         }
-        const tarea = input.tarea_id ? tareas.find((t) => t.id === input.tarea_id && t.lead_id === id && t.estado === 'pendiente' && t.activo) : undefined
-        if (input.tarea_id && (!tarea || tarea.tipo !== 'llamada')) {
+        const tarea = input.tarea_id
+          ? tareas.find((t) => t.id === input.tarea_id && t.lead_id === id && t.activo && (reintento || t.estado === 'pendiente'))
+          : undefined
+        if (input.tarea_id && !reintento && (!tarea || tarea.tipo !== 'llamada')) {
           return { ok: false, error: 'Solo una tarea de llamada pendiente se cierra con el resultado de una llamada' }
         }
         const motivo = descartar ? motivoDeDescarte(def.clave, submotivo) : null
         const detalle = input.detalle?.trim() || null
-        const avance = avancePorContacto(actual, def.tipo)
-        const etapaAlDescartar = avance ?? actual.etapa
+        // Avance automático: la conversación (nuevo → contactado) y, si se agendó
+        // una cita, la cita (→ reunion_agendada), como los triggers del servidor.
+        const avanceContacto = avancePorContacto(actual, def.tipo)
+        const avanceCita = siguientePayload?.tipo === 'reunion'
+          ? avancePorReunion({ ...actual, etapa: avanceContacto ?? actual.etapa }, { tipo: 'reunion', estado: 'pendiente', activo: true, vence_en: siguientePayload.vence_en }, true, Date.now())
+          : null
+        const avance = avanceCita ?? avanceContacto
+        const etapaAlDescartar = avanceContacto ?? actual.etapa
         // ESPEJO OPTIMISTA: la llamada con su resultado, el avance automático
         // (nuevo → contactado) y, si descarta, el descarte. El servidor escribe
         // la verdad en la misma transacción; el resync la sustituye.
@@ -2996,8 +3009,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setDatos((d) => ({
           leads: d.leads.map((l) => {
             if (l.id !== id) return l
-            if (descartar) return { ...l, etapa: 'descartado' as const, motivo_descarte: motivo }
-            return avance ? { ...l, etapa: avance } : l
+            const conVeto = input.no_insista === true ? { ...l, no_contactar: true } : l
+            if (descartar) return { ...conVeto, etapa: 'descartado' as const, motivo_descarte: motivo }
+            return avance ? { ...conVeto, etapa: avance } : conVeto
           }),
           actividades: [actDescarte, actAvance, act, ...d.actividades].filter((a): a is Actividad => a !== null),
         }))
@@ -3063,12 +3077,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }, { invalidarConversionRango: true, invalidarAgenda: true, invalidarReuniones: true })
           return { ok: true, persistido }
         }
-        const act = datos.actividades.find((a) => a.id === actividadId)
+        // El toast que llama aquí puede haber capturado un `api` anterior al
+        // registro: se lee el estado VIGENTE, no el del cierre.
+        const act = contextoPanelRef.current.datos.actividades.find((a) => a.id === actividadId)
         const meta = act?.metadata
         if (!act || !meta || meta.evento !== 'resultado_llamada') return { ok: false, error: 'Esta actividad no es un resultado de llamada' }
         if (meta.deshecho_en) return { ok: false, error: 'Este resultado ya se deshizo' }
         if (meta.no_insista === true) return { ok: false, error: 'Este resultado marcó «No insistir»: esa restricción solo la levanta Gerencia' }
-        const leadActual = buscar(act.lead_id)
+        const leadActual = contextoPanelRef.current.datos.leads.find((l) => l.id === act.lead_id)
         if (!leadActual) return noEncontrado()
         const etapaAlDescartar = typeof meta.etapa_al_descartar === 'string' ? meta.etapa_al_descartar : 'nuevo'
         const restaurar = etapaAlDescartar === 'reunion_agendada' ? 'contactado' : etapaAlDescartar

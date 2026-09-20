@@ -66,6 +66,7 @@ if (migracion.includes('_PENDIENTE_')) {
     MD5_DESHACER_PENDIENTE_000000000000: md5Vivo(DESHACER),
     MD5_TRIGGER_PENDIENTE_0000000000000: md5Vivo(TRIGGER_FN),
     MD5_HISTORIAL_PENDIENTE_00000000000: md5Vivo(HISTORIAL),
+    MD5_CHECK_PENDIENTE_00000000000000: sql(`select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'actividades_resultado_llamada_forma'`),
   };
   for (const [k, v] of Object.entries(sellos)) {
     assert.match(v, /^[0-9a-f]{32}$/, `md5 de ${k}`);

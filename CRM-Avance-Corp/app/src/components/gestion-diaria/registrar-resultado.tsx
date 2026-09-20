@@ -26,6 +26,7 @@ import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { camposDeSugerencia, isoDeCampos, type CamposSiguiente } from '@/lib/campos-siguiente'
 import { evidenciaNoResponde } from '@/lib/descarte-evidencia'
+import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
 import { slotHabil, sugerirSiguiente } from '@/lib/motor-siguiente'
 import {
@@ -79,7 +80,11 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
   const [resultado, setResultado] = useState<ResultadoLlamada | null>(null)
   const [submotivo, setSubmotivo] = useState<SubmotivoLlamada | null>(null)
   const [decision, setDecision] = useState<DecisionNumero | null>(null)
-  const [agendar, setAgendar] = useState(true)
+  // ANTI-DUPLICADO (misma regla que el diálogo anterior): si el lead ya tiene
+  // un plan vivo que esta llamada no cierra, el siguiente intento no se
+  // propone marcado. El analista puede marcarlo igual.
+  const otroPlanVivo = pendientes.some((t) => t.id !== tarea?.id && esPlanVivo(t, ahora))
+  const [agendar, setAgendar] = useState(!otroPlanVivo)
   const [perdido, setPerdido] = useState(false)
   const [noInsista, setNoInsista] = useState(false)
   const [cierraTarea, setCierraTarea] = useState(true)
@@ -93,7 +98,13 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
 
   const def = resultado ? definicionResultado(resultado) : null
   // Intentos sin respuesta ya registrados: al 6.º se ofrece «marcar perdido».
-  const intentosPrevios = historial.cargando || historial.error ? null : evidenciaNoResponde(historial.items).intentos
+  // Un número errado no es «no responde» (mismo criterio que el servidor).
+  const intentosPrevios = historial.cargando || historial.error
+    ? null
+    : evidenciaNoResponde(historial.items.filter((a) => {
+      const r = a.metadata?.resultado
+      return r !== 'numero_errado' && r !== 'no_es_la_persona'
+    })).intentos
   const ofrecePerdido = resultado === 'no_contesto' && intentosPrevios !== null && intentosPrevios + 1 >= INTENTOS_PARA_OFRECER_PERDIDO
   const tieneSegundoNumero = Boolean(lead.telefono_alternativo)
 
@@ -101,7 +112,7 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
     setResultado(r)
     setSubmotivo(null)
     setDecision(r === 'numero_errado' || r === 'no_es_la_persona' ? (tieneSegundoNumero ? 'segundo_numero' : null) : null)
-    setAgendar(true)
+    setAgendar(!otroPlanVivo)
     setPerdido(false)
     setNoInsista(false)
     setEditados(null)
@@ -261,7 +272,9 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
 
   return (
     <Dialog open onClose={() => { if (!enviando.current) onClose() }} ariaLabel="Resultado de la llamada" className="w-[520px]">
-      <div ref={raiz}>
+      {/* Columna flex que hereda la altura del Dialog: sin esto el cuerpo no
+          obtiene su scroll interno y «Guardar» queda fuera de la pantalla. */}
+      <div ref={raiz} className="flex min-h-0 flex-1 flex-col">
         <DialogHeader>
           <DialogTitle>¿Cómo salió la llamada con {nombre}?</DialogTitle>
           <DialogDescription>
@@ -350,8 +363,14 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
           {sinConfirmar && <p role="alert" className="text-sm text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
         </DialogBody>
         <DialogFooter>
-          <Button variant="ghost" size="sm" disabled={procesando} onClick={() => { onClose(); toast.info('Llamada sin registrar: no quedó en el historial') }}>
-            Cerrar sin registrar
+          {/* Con un guardado sin confirmar NO se afirma que no quedó nada: el
+              servidor pudo haberlo escrito. Queda en «Guardados por confirmar». */}
+          <Button variant="ghost" size="sm" disabled={procesando} onClick={() => {
+            onClose()
+            if (sinConfirmar) toast.warning('Guardado pendiente de confirmar: verifícalo en «Guardados por confirmar»')
+            else toast.info('Llamada sin registrar: no quedó en el historial')
+          }}>
+            {sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
           </Button>
           {sinConfirmar
             ? <Button size="sm" disabled={procesando} onClick={() => void enviar(sinConfirmar)}>{procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
