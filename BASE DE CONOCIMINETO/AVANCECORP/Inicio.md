@@ -5,7 +5,7 @@ actualizado: 2026-09-20
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Ficha de lead - retiro del boton Registrar actividad 2026-09-20]] — **PUBLICADO Y VERIFICADO:** se retiró únicamente el acceso rápido visible de Actividad; el historial conserva su scroll y el compositor sigue disponible desde acciones SLA. Commit `438b94ce`, build `build-20260920T202855561Z`; CI de `main`, hashes de 14 recursos y protección del ZIP PASS.
+- [[Ficha de lead - retiro del boton Registrar actividad 2026-09-20]] — **PUBLICADO; CORRECCIÓN DE SUPERVISIÓN VALIDADA LOCAL Y PENDIENTE DE REPUBLICACIÓN:** el acceso rápido fue retirado y el historial conserva su scroll. Publicación inicial `438b94ce`, build `build-20260920T202855561Z`, hashes y protección del ZIP PASS. El aviso de seguimiento ya no ofrece ni puede abrir el compositor para Supervisor o Gerencia; `vendedor` conserva su gestión SLA.
 
 - [[Ficha de lead compacta - tasa plegable e historial con scroll 2026-09-20]] — **PUBLICADO Y VERIFICADO:** la solicitud de tasa inicia plegada sin desmontar su validación y el historial usa un riel de scroll de altura acotada. Commit `004bd69f`, build `build-20260920T182519890Z`; CI de `main`, artefacto, hashes y smoke HTTP en producción PASS.
 

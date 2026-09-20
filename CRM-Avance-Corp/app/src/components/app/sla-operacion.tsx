@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS } from '@/lib/tipos'
 import { slaOperacionKeys, useColaSlaPagina, useEstadosSlaV2, useModoSla } from '@/data/sla-operacion-queries'
-import { ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, textoAvisoSla, type AvisoSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type SenalSla } from '@/lib/sla-operacion'
+import { ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, puedeRegistrarGestionSla, textoAvisoSla, type AvisoSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type SenalSla } from '@/lib/sla-operacion'
 
 export function SlaOperacionBoundary({ children, legado }: { children: ReactNode; legado?: ReactNode }) {
   const modo = useModoSla()
@@ -160,6 +160,7 @@ export function ColaSlaPanel() {
 
 export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined }) {
   const { yo } = useAuth()
+  const puedeRegistrarGestion = puedeRegistrarGestionSla(yo?.rol)
   const consulta = useEstadosSlaV2([leadId])
   if (yo?.demo) return null
   if (consulta.error) return <FalloSla onReintentar={() => void consulta.refetch()} />
@@ -172,7 +173,7 @@ export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?
   // ficha es un Sheet MODAL y, mientras está abierta, marca como aria-hidden e
   // inerte todo lo que hay detrás — el aviso global queda fuera del alcance del
   // lector de pantalla y del puntero. Dos copias, nunca alcanzables a la vez.
-  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
+  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} supervision={!puedeRegistrarGestion} onActuar={onActuar} /></div>
 }
 export function DetalleSla({ estado, supervision = false, onActuar }: {
   estado: EstadoSlaV2; supervision?: boolean; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined
@@ -197,7 +198,7 @@ export function DetalleSla({ estado, supervision = false, onActuar }: {
             {aviso.bucket === 'tarea_vencida' && <p className="mt-0.5 text-muted-foreground">Programada: {fechaSla(aviso.referencia_en)} · Lima</p>}
             {aviso.bucket === 'revision_comercial' && <p className="mt-0.5 text-muted-foreground">{etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</p>}
           </div>
-          {onActuar && <Button variant="outline" size="sm" disabled={abriendo !== null} onClick={() => void actuar(aviso)}>{abriendo === aviso.id ? 'Abriendo…' : texto.boton}<ArrowUpRight aria-hidden /></Button>}
+          {onActuar && texto.boton && <Button variant="outline" size="sm" disabled={abriendo !== null} onClick={() => void actuar(aviso)}>{abriendo === aviso.id ? 'Abriendo…' : texto.boton}<ArrowUpRight aria-hidden /></Button>}
         </li>
       })}
     </ul>}
