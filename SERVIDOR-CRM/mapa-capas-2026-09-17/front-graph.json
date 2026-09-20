@@ -33,13 +33,13 @@
      "name": "HoyVendedor"
     }
    ],
-   "simbolos": 704,
+   "simbolos": 752,
    "calls": [
     {
      "kind": "rpc",
      "name": "reprogramar_reunion_v2",
      "schema": "crm",
-     "line": 2019,
+     "line": 2096,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -48,7 +48,7 @@
      "kind": "rpc",
      "name": "reprogramar_tarea_v2",
      "schema": "crm",
-     "line": 2043,
+     "line": 2120,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -70,7 +70,7 @@
     {
      "kind": "rpc",
      "name": "<dinámico>",
-     "line": 141,
+     "line": 174,
      "raw": "comando",
      "file": "data/sla-operacion-comandos.ts",
      "symbol": "ejecutarComandoSla"
@@ -80,7 +80,7 @@
      "name": "reprogramar_reunion",
      "schema": "crm",
      "root": "cliente",
-     "line": 2533,
+     "line": 2577,
      "file": "data/crm-api.ts",
      "symbol": "reprogramarReunion"
     },
@@ -89,7 +89,7 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2365,
+     "line": 2409,
      "file": "data/crm-api.ts",
      "symbol": "actualizarTarea"
     },
@@ -98,7 +98,7 @@
      "name": "conversion_mensual_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5272,
+     "line": 5316,
      "file": "data/crm-api.ts",
      "symbol": "obtenerConversionMensual"
     },
@@ -125,7 +125,7 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2360,
+     "line": 2404,
      "file": "data/crm-api.ts",
      "symbol": "insertarTarea"
     },
@@ -134,7 +134,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -152,7 +152,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -161,7 +161,7 @@
      "name": "cola_accion_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5402,
+     "line": 5446,
      "file": "data/crm-api.ts",
      "symbol": "listarColaAccion"
     },
@@ -170,7 +170,7 @@
      "name": "solicitudes_tasa_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4669,
+     "line": 4713,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -179,7 +179,7 @@
      "name": "solicitudes_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4671,
+     "line": 4715,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -188,16 +188,34 @@
      "name": "responder_tope_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4649,
+     "line": 4693,
      "file": "data/crm-api.ts",
      "symbol": "responderTopeTasa"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3090,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3091,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
     },
     {
      "kind": "table",
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -206,25 +224,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -233,7 +242,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -242,7 +251,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -313,7 +322,7 @@
      "kind": "rpc",
      "name": "registrar_actividad_v2",
      "schema": "crm",
-     "line": 2851,
+     "line": 2938,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.registrarActividad"
@@ -322,7 +331,7 @@
      "kind": "rpc",
      "name": "cerrar_reunion_v3",
      "schema": "crm",
-     "line": 594,
+     "line": 637,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -331,7 +340,7 @@
      "kind": "rpc",
      "name": "cerrar_tarea_v2",
      "schema": "crm",
-     "line": 606,
+     "line": 649,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -341,7 +350,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 2125,
+     "line": 2169,
      "file": "data/crm-api.ts",
      "symbol": "actualizarLead"
     },
@@ -350,9 +359,18 @@
      "name": "actividades",
      "schema": "crm",
      "root": "cliente",
-     "line": 2164,
+     "line": 2208,
      "file": "data/crm-api.ts",
      "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "deshacer_resultado_llamada",
+     "schema": "crm",
+     "root": "sb",
+     "line": 34,
+     "file": "data/gestion-diaria-api.ts",
+     "symbol": "deshacerResultadoLlamada"
     },
     {
      "kind": "rpc",
@@ -413,7 +431,7 @@
      "name": "cerrar_tarea",
      "schema": "crm",
      "root": "cliente",
-     "line": 2448,
+     "line": 2492,
      "file": "data/crm-api.ts",
      "symbol": "cerrarTarea"
     },
@@ -422,7 +440,7 @@
      "name": "actividades_de_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 1585,
+     "line": 1629,
      "file": "data/crm-api.ts",
      "symbol": "listarActividadesDeLead"
     }
@@ -437,7 +455,7 @@
      "name": "HoySupervisor"
     }
    ],
-   "simbolos": 689,
+   "simbolos": 760,
    "calls": [
     {
      "kind": "edge",
@@ -458,7 +476,7 @@
      "name": "conversion_mensual_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5272,
+     "line": 5316,
      "file": "data/crm-api.ts",
      "symbol": "obtenerConversionMensual"
     },
@@ -467,7 +485,7 @@
      "name": "metricas_agenda_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5180,
+     "line": 5224,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasAgenda"
     },
@@ -485,7 +503,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -503,7 +521,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -512,7 +530,7 @@
      "name": "cola_accion_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5402,
+     "line": 5446,
      "file": "data/crm-api.ts",
      "symbol": "listarColaAccion"
     },
@@ -521,7 +539,7 @@
      "name": "metricas_vendedores_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5433,
+     "line": 5477,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasVendedores"
     },
@@ -529,7 +547,7 @@
      "kind": "rpc",
      "name": "registrar_actividad_v2",
      "schema": "crm",
-     "line": 2851,
+     "line": 2938,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.registrarActividad"
@@ -539,7 +557,7 @@
      "name": "solicitudes_tasa_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4669,
+     "line": 4713,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -548,7 +566,7 @@
      "name": "solicitudes_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4671,
+     "line": 4715,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -557,7 +575,7 @@
      "name": "responder_tope_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4649,
+     "line": 4693,
      "file": "data/crm-api.ts",
      "symbol": "responderTopeTasa"
     },
@@ -566,7 +584,7 @@
      "name": "cierres_externos_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 6192,
+     "line": 6236,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierresExternos"
     },
@@ -575,7 +593,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -584,25 +602,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -611,7 +620,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -620,7 +629,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -629,14 +638,32 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2360,
+     "line": 2404,
      "file": "data/crm-api.ts",
      "symbol": "insertarTarea"
     },
     {
      "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3090,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3091,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
+    },
+    {
+     "kind": "rpc",
      "name": "<dinámico>",
-     "line": 141,
+     "line": 174,
      "raw": "comando",
      "file": "data/sla-operacion-comandos.ts",
      "symbol": "ejecutarComandoSla"
@@ -645,7 +672,7 @@
      "kind": "rpc",
      "name": "cerrar_reunion_v3",
      "schema": "crm",
-     "line": 594,
+     "line": 637,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -654,7 +681,7 @@
      "kind": "rpc",
      "name": "cerrar_tarea_v2",
      "schema": "crm",
-     "line": 606,
+     "line": 649,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -664,7 +691,7 @@
      "name": "anular_cierre_externo",
      "schema": "crm",
      "root": "cliente",
-     "line": 6013,
+     "line": 6057,
      "file": "data/crm-api.ts",
      "symbol": "anularCierreExterno"
     },
@@ -769,12 +796,30 @@
     },
     {
      "kind": "rpc",
+     "name": "deshacer_resultado_llamada",
+     "schema": "crm",
+     "root": "sb",
+     "line": 34,
+     "file": "data/gestion-diaria-api.ts",
+     "symbol": "deshacerResultadoLlamada"
+    },
+    {
+     "kind": "rpc",
      "name": "cerrar_tarea",
      "schema": "crm",
      "root": "cliente",
-     "line": 2448,
+     "line": 2492,
      "file": "data/crm-api.ts",
      "symbol": "cerrarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "actividades_de_lead_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1629,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesDeLead"
     }
    ]
   },
@@ -795,7 +840,7 @@
      "name": "CitasGerencia"
     }
    ],
-   "simbolos": 1305,
+   "simbolos": 1359,
    "calls": [
     {
      "kind": "edge",
@@ -816,7 +861,7 @@
      "name": "metricas_reuniones_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5349,
+     "line": 5393,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasReuniones"
     },
@@ -825,7 +870,7 @@
      "name": "metricas_distribucion_leads_v3_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5135,
+     "line": 5179,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasDistribucionLeadsV3"
     },
@@ -834,7 +879,7 @@
      "name": "actualizar_capacidad_leads_objetivo",
      "schema": "crm",
      "root": "cliente",
-     "line": 5733,
+     "line": 5777,
      "file": "data/crm-api.ts",
      "symbol": "actualizarCapacidadLeadsObjetivo"
     },
@@ -843,7 +888,7 @@
      "name": "conversion_mensual_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5272,
+     "line": 5316,
      "file": "data/crm-api.ts",
      "symbol": "obtenerConversionMensual"
     },
@@ -852,7 +897,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -861,7 +906,7 @@
      "name": "metricas_conversiones_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5211,
+     "line": 5255,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasConversiones"
     },
@@ -870,7 +915,7 @@
      "name": "metricas_conversiones_equipo_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5315,
+     "line": 5359,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasConversionesEquipo"
     },
@@ -878,7 +923,7 @@
      "kind": "rpc",
      "name": "reprogramar_reunion_v2",
      "schema": "crm",
-     "line": 2019,
+     "line": 2096,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -887,7 +932,7 @@
      "kind": "rpc",
      "name": "reprogramar_tarea_v2",
      "schema": "crm",
-     "line": 2043,
+     "line": 2120,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -906,7 +951,7 @@
      "name": "cierres_externos_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 6192,
+     "line": 6236,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierresExternos"
     },
@@ -915,7 +960,7 @@
      "name": "alertas_reconocimientos_vigentes",
      "schema": "crm",
      "root": "cliente",
-     "line": 1809,
+     "line": 1853,
      "file": "data/crm-api.ts",
      "symbol": "listarReconocimientosAlertas"
     },
@@ -924,7 +969,7 @@
      "name": "solicitudes_tasa_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4669,
+     "line": 4713,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -933,7 +978,7 @@
      "name": "solicitudes_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4671,
+     "line": 4715,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -942,7 +987,7 @@
      "name": "resolver_solicitud_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4637,
+     "line": 4681,
      "file": "data/crm-api.ts",
      "symbol": "resolverSolicitudTasa"
     },
@@ -951,7 +996,7 @@
      "name": "observacion_rentabilidad_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4954,
+     "line": 4998,
      "file": "data/crm-api.ts",
      "symbol": "listarObservacionRentabilidad"
     },
@@ -960,7 +1005,7 @@
      "name": "altas_nuevas_por_analista_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4156,
+     "line": 4200,
      "file": "data/crm-api.ts",
      "symbol": "listarAltasNuevasPorAnalista"
     },
@@ -969,14 +1014,23 @@
      "name": "metricas_agenda_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5180,
+     "line": 5224,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasAgenda"
     },
     {
      "kind": "rpc",
+     "name": "actividades_recientes_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1536,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesRecientes"
+    },
+    {
+     "kind": "rpc",
      "name": "<dinámico>",
-     "line": 141,
+     "line": 174,
      "raw": "comando",
      "file": "data/sla-operacion-comandos.ts",
      "symbol": "ejecutarComandoSla"
@@ -986,7 +1040,7 @@
      "name": "reprogramar_reunion",
      "schema": "crm",
      "root": "cliente",
-     "line": 2533,
+     "line": 2577,
      "file": "data/crm-api.ts",
      "symbol": "reprogramarReunion"
     },
@@ -995,7 +1049,7 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2365,
+     "line": 2409,
      "file": "data/crm-api.ts",
      "symbol": "actualizarTarea"
     },
@@ -1004,7 +1058,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -1013,7 +1067,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -1022,25 +1076,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -1049,7 +1094,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -1058,7 +1103,7 @@
      "name": "cierre_mes_estado_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 982,
+     "line": 983,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierreMesEstado"
     },
@@ -1067,7 +1112,7 @@
      "name": "anular_cierre_externo",
      "schema": "crm",
      "root": "cliente",
-     "line": 6013,
+     "line": 6057,
      "file": "data/crm-api.ts",
      "symbol": "anularCierreExterno"
     },
@@ -1094,7 +1139,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -1103,7 +1148,7 @@
      "name": "cola_accion_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5402,
+     "line": 5446,
      "file": "data/crm-api.ts",
      "symbol": "listarColaAccion"
     },
@@ -1112,7 +1157,7 @@
      "name": "metricas_vendedores_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5433,
+     "line": 5477,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasVendedores"
     },
@@ -1120,7 +1165,7 @@
      "kind": "rpc",
      "name": "registrar_actividad_v2",
      "schema": "crm",
-     "line": 2851,
+     "line": 2938,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.registrarActividad"
@@ -1130,7 +1175,7 @@
      "name": "responder_tope_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4649,
+     "line": 4693,
      "file": "data/crm-api.ts",
      "symbol": "responderTopeTasa"
     },
@@ -1148,9 +1193,27 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2360,
+     "line": 2404,
      "file": "data/crm-api.ts",
      "symbol": "insertarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3090,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3091,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
     },
     {
      "kind": "rpc",
@@ -1255,7 +1318,7 @@
      "kind": "rpc",
      "name": "cerrar_reunion_v3",
      "schema": "crm",
-     "line": 594,
+     "line": 637,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -1264,7 +1327,7 @@
      "kind": "rpc",
      "name": "cerrar_tarea_v2",
      "schema": "crm",
-     "line": 606,
+     "line": 649,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -1292,7 +1355,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 2125,
+     "line": 2169,
      "file": "data/crm-api.ts",
      "symbol": "actualizarLead"
     },
@@ -1301,16 +1364,25 @@
      "name": "actividades",
      "schema": "crm",
      "root": "cliente",
-     "line": 2164,
+     "line": 2208,
      "file": "data/crm-api.ts",
      "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "deshacer_resultado_llamada",
+     "schema": "crm",
+     "root": "sb",
+     "line": 34,
+     "file": "data/gestion-diaria-api.ts",
+     "symbol": "deshacerResultadoLlamada"
     },
     {
      "kind": "rpc",
      "name": "cerrar_tarea",
      "schema": "crm",
      "root": "cliente",
-     "line": 2448,
+     "line": 2492,
      "file": "data/crm-api.ts",
      "symbol": "cerrarTarea"
     },
@@ -1319,7 +1391,7 @@
      "name": "actividades_de_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 1585,
+     "line": 1629,
      "file": "data/crm-api.ts",
      "symbol": "listarActividadesDeLead"
     }
@@ -1334,7 +1406,7 @@
      "name": "HoyDirectorio"
     }
    ],
-   "simbolos": 213,
+   "simbolos": 221,
    "calls": [
     {
      "kind": "edge",
@@ -1351,11 +1423,20 @@
      "symbol": "useTipoCambio"
     },
     {
+     "kind": "rpc",
+     "name": "actividades_recientes_fn",
+     "schema": "crm",
+     "root": "cliente",
+     "line": 1536,
+     "file": "data/crm-api.ts",
+     "symbol": "listarActividadesRecientes"
+    },
+    {
      "kind": "table",
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -1364,7 +1445,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -1373,7 +1454,7 @@
      "name": "metricas_vendedores_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5433,
+     "line": 5477,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasVendedores"
     }
@@ -1395,7 +1476,7 @@
      "name": "recordatorios_disponibilidad",
      "schema": "crm",
      "root": "cliente",
-     "line": 1781,
+     "line": 1825,
      "file": "data/crm-api.ts",
      "symbol": "eliminarRecordatorioDisponibilidad"
     }
@@ -1435,14 +1516,14 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
     {
      "kind": "rpc",
      "name": "<dinámico>",
-     "line": 141,
+     "line": 174,
      "raw": "comando",
      "file": "data/sla-operacion-comandos.ts",
      "symbol": "ejecutarComandoSla"
@@ -1452,7 +1533,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -1461,25 +1542,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -1488,7 +1560,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -1497,7 +1569,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -1632,7 +1704,7 @@
      "name": "facturacion_diaria_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4108,
+     "line": 4152,
      "file": "data/crm-api.ts",
      "symbol": "listarFacturacionDiaria"
     }
@@ -1678,14 +1750,14 @@
      "name": "Pipeline"
     }
    ],
-   "simbolos": 360,
+   "simbolos": 357,
    "calls": [
     {
      "kind": "table",
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 2125,
+     "line": 2169,
      "file": "data/crm-api.ts",
      "symbol": "actualizarLead"
     },
@@ -1703,7 +1775,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -1712,7 +1784,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -1721,7 +1793,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -1730,25 +1802,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -1757,7 +1820,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -1766,7 +1829,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -1887,7 +1950,7 @@
      "name": "cierres_estado_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 6158,
+     "line": 6202,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierresEstado"
     },
@@ -1896,14 +1959,14 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
     {
      "kind": "rpc",
      "name": "<dinámico>",
-     "line": 795,
+     "line": 796,
      "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'",
      "file": "data/crm-api.ts",
      "symbol": "listarCarteraPagina"
@@ -1919,13 +1982,13 @@
      "name": "Agenda"
     }
    ],
-   "simbolos": 546,
+   "simbolos": 594,
    "calls": [
     {
      "kind": "rpc",
      "name": "reprogramar_reunion_v2",
      "schema": "crm",
-     "line": 2019,
+     "line": 2096,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -1934,7 +1997,7 @@
      "kind": "rpc",
      "name": "reprogramar_tarea_v2",
      "schema": "crm",
-     "line": 2043,
+     "line": 2120,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.reprogramarTarea"
@@ -1944,14 +2007,14 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
     {
      "kind": "rpc",
      "name": "<dinámico>",
-     "line": 141,
+     "line": 174,
      "raw": "comando",
      "file": "data/sla-operacion-comandos.ts",
      "symbol": "ejecutarComandoSla"
@@ -1961,7 +2024,7 @@
      "name": "reprogramar_reunion",
      "schema": "crm",
      "root": "cliente",
-     "line": 2533,
+     "line": 2577,
      "file": "data/crm-api.ts",
      "symbol": "reprogramarReunion"
     },
@@ -1970,9 +2033,27 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2365,
+     "line": 2409,
      "file": "data/crm-api.ts",
      "symbol": "actualizarTarea"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3090,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
+    },
+    {
+     "kind": "rpc",
+     "name": "registrar_llamada_v3",
+     "schema": "crm",
+     "line": 3091,
+     "via": "wrapper:ejecutarComandoSla",
+     "file": "lib/store.tsx",
+     "symbol": "api.registrarLlamada"
     },
     {
      "kind": "rpc",
@@ -1988,7 +2069,7 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2360,
+     "line": 2404,
      "file": "data/crm-api.ts",
      "symbol": "insertarTarea"
     },
@@ -1996,7 +2077,7 @@
      "kind": "rpc",
      "name": "registrar_actividad_v2",
      "schema": "crm",
-     "line": 2851,
+     "line": 2938,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "api.registrarActividad"
@@ -2005,7 +2086,7 @@
      "kind": "rpc",
      "name": "cerrar_reunion_v3",
      "schema": "crm",
-     "line": 594,
+     "line": 637,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -2014,7 +2095,7 @@
      "kind": "rpc",
      "name": "cerrar_tarea_v2",
      "schema": "crm",
-     "line": 606,
+     "line": 649,
      "via": "wrapper:ejecutarComandoSla",
      "file": "lib/store.tsx",
      "symbol": "ejecutarCierreTarea"
@@ -2024,7 +2105,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 2125,
+     "line": 2169,
      "file": "data/crm-api.ts",
      "symbol": "actualizarLead"
     },
@@ -2033,9 +2114,18 @@
      "name": "actividades",
      "schema": "crm",
      "root": "cliente",
-     "line": 2164,
+     "line": 2208,
      "file": "data/crm-api.ts",
      "symbol": "insertarActividad"
+    },
+    {
+     "kind": "rpc",
+     "name": "deshacer_resultado_llamada",
+     "schema": "crm",
+     "root": "sb",
+     "line": 34,
+     "file": "data/gestion-diaria-api.ts",
+     "symbol": "deshacerResultadoLlamada"
     },
     {
      "kind": "rpc",
@@ -2105,7 +2195,7 @@
      "name": "cerrar_tarea",
      "schema": "crm",
      "root": "cliente",
-     "line": 2448,
+     "line": 2492,
      "file": "data/crm-api.ts",
      "symbol": "cerrarTarea"
     },
@@ -2114,7 +2204,7 @@
      "name": "actividades_de_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 1585,
+     "line": 1629,
      "file": "data/crm-api.ts",
      "symbol": "listarActividadesDeLead"
     },
@@ -2123,7 +2213,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -2132,25 +2222,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -2159,7 +2240,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -2168,7 +2249,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -2237,7 +2318,7 @@
      "name": "MiCartera"
     }
    ],
-   "simbolos": 963,
+   "simbolos": 972,
    "calls": [
     {
      "kind": "edge",
@@ -2250,7 +2331,7 @@
      "kind": "table",
      "name": "clientes_basicos",
      "schema": "crm",
-     "line": 3046,
+     "line": 3090,
      "via": "wrapper:leerListadoCarteraCompleto",
      "file": "data/crm-api.ts",
      "symbol": "listarClientes"
@@ -2259,7 +2340,7 @@
      "kind": "table",
      "name": "contratos_cartera",
      "schema": "crm",
-     "line": 3608,
+     "line": 3652,
      "via": "wrapper:leerListadoCarteraCompleto",
      "file": "data/crm-api.ts",
      "symbol": "listarMisContratos"
@@ -2268,7 +2349,7 @@
      "kind": "table",
      "name": "operaciones_cartera",
      "schema": "crm",
-     "line": 3686,
+     "line": 3730,
      "via": "wrapper:leerListadoCarteraCompleto",
      "file": "data/crm-api.ts",
      "symbol": "listarOperacionesCartera"
@@ -2278,7 +2359,7 @@
      "name": "resumen_cartera_clientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2994,
+     "line": 3038,
      "file": "data/crm-api.ts",
      "symbol": "obtenerResumenCarteraClientes"
     },
@@ -2287,7 +2368,7 @@
      "name": "actualizar_cliente_gerencia_con_domicilio",
      "schema": "crm",
      "root": "cliente",
-     "line": 3355,
+     "line": 3399,
      "file": "data/crm-api.ts",
      "symbol": "actualizarClientePortal"
     },
@@ -2296,7 +2377,7 @@
      "name": "perfiles",
      "schema": null,
      "root": "cliente",
-     "line": 3365,
+     "line": 3409,
      "file": "data/crm-api.ts",
      "symbol": "actualizarClientePortal"
     },
@@ -2305,21 +2386,21 @@
      "name": "corregir_documento_cliente_admin_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3381,
+     "line": 3425,
      "file": "data/crm-api.ts",
      "symbol": "corregirDocumentoClienteAdmin"
     },
     {
      "kind": "edge",
      "name": "corregir-correo-cliente",
-     "line": 3419,
+     "line": 3463,
      "file": "data/crm-api.ts",
      "symbol": "corregirCorreoClienteAdmin"
     },
     {
      "kind": "edge",
      "name": "crear-cliente",
-     "line": 3299,
+     "line": 3343,
      "file": "data/crm-api.ts",
      "symbol": "crearClientePortal"
     },
@@ -2328,7 +2409,7 @@
      "name": "completar_domicilio_cliente",
      "schema": "crm",
      "root": "cliente",
-     "line": 3529,
+     "line": 3573,
      "file": "data/crm-api.ts",
      "symbol": "completarDomicilioCliente"
     },
@@ -2337,7 +2418,7 @@
      "name": "crear_contrato_con_cuenta_pdf_v2",
      "schema": "crm",
      "root": "cliente",
-     "line": 2863,
+     "line": 2907,
      "file": "data/crm-api.ts",
      "symbol": "crearContrato"
     },
@@ -2346,7 +2427,7 @@
      "name": "reasignar_analista_contrato",
      "schema": null,
      "root": "cliente",
-     "line": 3975,
+     "line": 4019,
      "file": "data/crm-api.ts",
      "symbol": "reasignarAnalistaContrato"
     },
@@ -2355,7 +2436,7 @@
      "name": "actualizar_contrato_con_cuenta_pdf_v3",
      "schema": "crm",
      "root": "cliente",
-     "line": 3878,
+     "line": 3922,
      "file": "data/crm-api.ts",
      "symbol": "actualizarContrato"
     },
@@ -2378,7 +2459,7 @@
     {
      "kind": "from",
      "name": "<dinámico>",
-     "line": 2945,
+     "line": 2989,
      "raw": "tabla",
      "file": "data/crm-api.ts",
      "symbol": "leerListadoCarteraCompleto"
@@ -2386,7 +2467,7 @@
     {
      "kind": "from",
      "name": "<dinámico>",
-     "line": 2946,
+     "line": 2990,
      "raw": "tabla",
      "file": "data/crm-api.ts",
      "symbol": "leerListadoCarteraCompleto"
@@ -2396,7 +2477,7 @@
      "name": "metricas_conversiones_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5211,
+     "line": 5255,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasConversiones"
     },
@@ -2405,7 +2486,7 @@
      "name": "cliente_detalle_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3191,
+     "line": 3235,
      "file": "data/crm-api.ts",
      "symbol": "obtenerClienteDetalle"
     },
@@ -2414,7 +2495,7 @@
      "name": "cuentas_bancarias_cliente_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2672,
+     "line": 2716,
      "file": "data/crm-api.ts",
      "symbol": "listarCuentasBancariasCliente"
     },
@@ -2423,7 +2504,7 @@
      "name": "cliente_ficha_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3084,
+     "line": 3128,
      "file": "data/crm-api.ts",
      "symbol": "obtenerClienteFichaComercial"
     },
@@ -2432,7 +2513,7 @@
      "name": "actividades_cliente",
      "schema": "crm",
      "root": "cliente",
-     "line": 3726,
+     "line": 3770,
      "file": "data/crm-api.ts",
      "symbol": "listarActividadesCliente"
     },
@@ -2441,7 +2522,7 @@
      "name": "historial_tasa_cliente_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4785,
+     "line": 4829,
      "file": "data/crm-api.ts",
      "symbol": "obtenerHistorialTasaCliente"
     },
@@ -2459,7 +2540,7 @@
      "name": "atribucion_contrato_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3955,
+     "line": 3999,
      "file": "data/crm-api.ts",
      "symbol": "obtenerAtribucionContrato"
     },
@@ -2468,7 +2549,7 @@
      "name": "datos_legales_contrato_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3486,
+     "line": 3530,
      "file": "data/crm-api.ts",
      "symbol": "obtenerDatosLegalesContrato"
     },
@@ -2484,7 +2565,7 @@
      "name": "cronograma_contrato_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3772,
+     "line": 3816,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCronograma"
     },
@@ -2493,7 +2574,7 @@
      "name": "titulares_contrato_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 3808,
+     "line": 3852,
      "file": "data/crm-api.ts",
      "symbol": "obtenerTitulares"
     },
@@ -2613,7 +2694,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 3160,
+     "line": 3204,
      "file": "data/crm-api.ts",
      "symbol": "obtenerSegundoNumeroDelCliente"
     },
@@ -2622,7 +2703,7 @@
      "name": "cierres_externos_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 6192,
+     "line": 6236,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierresExternos"
     },
@@ -2631,7 +2712,7 @@
      "name": "resolver_tasa_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4410,
+     "line": 4454,
      "file": "data/crm-api.ts",
      "symbol": "resolverTasa"
     },
@@ -2640,7 +2721,7 @@
      "name": "resolver_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4412,
+     "line": 4456,
      "file": "data/crm-api.ts",
      "symbol": "resolverTasa"
     },
@@ -2649,7 +2730,7 @@
      "name": "politica_rentabilidad_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4886,
+     "line": 4930,
      "file": "data/crm-api.ts",
      "symbol": "obtenerPoliticaRentabilidad"
     },
@@ -2658,7 +2739,7 @@
      "name": "solicitar_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4607,
+     "line": 4651,
      "file": "data/crm-api.ts",
      "symbol": "solicitarTasa"
     },
@@ -2667,7 +2748,7 @@
      "name": "responder_tope_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4649,
+     "line": 4693,
      "file": "data/crm-api.ts",
      "symbol": "responderTopeTasa"
     },
@@ -2676,7 +2757,7 @@
      "name": "solicitudes_tasa_lead_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4669,
+     "line": 4713,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -2685,7 +2766,7 @@
      "name": "solicitudes_tasa_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4671,
+     "line": 4715,
      "file": "data/crm-api.ts",
      "symbol": "listarSolicitudesTasa"
     },
@@ -2721,7 +2802,7 @@
      "name": "tareas",
      "schema": "crm",
      "root": "cliente",
-     "line": 2360,
+     "line": 2404,
      "file": "data/crm-api.ts",
      "symbol": "insertarTarea"
     },
@@ -2784,7 +2865,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -2793,25 +2874,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -2820,7 +2892,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -2829,7 +2901,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -2838,7 +2910,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -2932,7 +3004,7 @@
      "name": "agenda_reparto_diaria",
      "schema": "crm",
      "root": "cliente",
-     "line": 1184,
+     "line": 1185,
      "file": "data/crm-api.ts",
      "symbol": "agendaRepartoDiaria"
     },
@@ -2941,7 +3013,7 @@
      "name": "guardar_agenda_reparto_diaria",
      "schema": "crm",
      "root": "cliente",
-     "line": 1221,
+     "line": 1222,
      "file": "data/crm-api.ts",
      "symbol": "guardarAgendaRepartoDiaria"
     },
@@ -2950,7 +3022,7 @@
      "name": "panel_distribucion_reparto",
      "schema": "crm",
      "root": "cliente",
-     "line": 1273,
+     "line": 1274,
      "file": "data/crm-api.ts",
      "symbol": "panelDistribucionReparto"
     },
@@ -2959,7 +3031,7 @@
      "name": "historial_derivaciones",
      "schema": "crm",
      "root": "cliente",
-     "line": 1149,
+     "line": 1150,
      "file": "data/crm-api.ts",
      "symbol": "historialDerivaciones"
     },
@@ -2968,7 +3040,7 @@
      "name": "leads_descartados",
      "schema": "crm",
      "root": "cliente",
-     "line": 1407,
+     "line": 1408,
      "file": "data/crm-api.ts",
      "symbol": "leadsDescartados"
     },
@@ -2977,7 +3049,7 @@
      "name": "deshacer_descarte",
      "schema": "crm",
      "root": "cliente",
-     "line": 1376,
+     "line": 1377,
      "file": "data/crm-api.ts",
      "symbol": "deshacerDescarte"
     },
@@ -2986,7 +3058,7 @@
      "name": "reporte_derivaciones_coordinacion_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5492,
+     "line": 5536,
      "file": "data/crm-api.ts",
      "symbol": "listarReporteDerivacionesCoordinacion"
     },
@@ -2995,7 +3067,7 @@
      "name": "leads_por_repartir",
      "schema": "crm",
      "root": "cliente",
-     "line": 1123,
+     "line": 1124,
      "file": "data/crm-api.ts",
      "symbol": "leadsPorRepartir"
     },
@@ -3004,7 +3076,7 @@
      "name": "supervisores_para_reparto",
      "schema": "crm",
      "root": "cliente",
-     "line": 1299,
+     "line": 1300,
      "file": "data/crm-api.ts",
      "symbol": "supervisoresParaReparto"
     },
@@ -3013,7 +3085,7 @@
      "name": "repartir_lead",
      "schema": "crm",
      "root": "cliente",
-     "line": 1349,
+     "line": 1350,
      "file": "data/crm-api.ts",
      "symbol": "repartirLead"
     },
@@ -3022,7 +3094,7 @@
      "name": "descartar_lead",
      "schema": "crm",
      "root": "cliente",
-     "line": 1363,
+     "line": 1364,
      "file": "data/crm-api.ts",
      "symbol": "descartarLead"
     },
@@ -3031,7 +3103,7 @@
      "name": "resumen_reparto_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5705,
+     "line": 5749,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenReparto"
     }
@@ -3053,7 +3125,7 @@
      "name": "rescate_descartes_meses",
      "schema": "crm",
      "root": "cliente",
-     "line": 1450,
+     "line": 1451,
      "file": "data/crm-api.ts",
      "symbol": "mesesRescateDescartes"
     },
@@ -3062,7 +3134,7 @@
      "name": "rescate_descartes_mes",
      "schema": "crm",
      "root": "cliente",
-     "line": 1465,
+     "line": 1466,
      "file": "data/crm-api.ts",
      "symbol": "descartesRescateDelMes"
     },
@@ -3071,7 +3143,7 @@
      "name": "rescatar_descartes",
      "schema": "crm",
      "root": "cliente",
-     "line": 1488,
+     "line": 1489,
      "file": "data/crm-api.ts",
      "symbol": "rescatarDescartes"
     },
@@ -3080,7 +3152,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     }
@@ -3102,7 +3174,7 @@
      "name": "rescate_descartes_meses",
      "schema": "crm",
      "root": "cliente",
-     "line": 1450,
+     "line": 1451,
      "file": "data/crm-api.ts",
      "symbol": "mesesRescateDescartes"
     },
@@ -3111,7 +3183,7 @@
      "name": "rescate_descartes_mes",
      "schema": "crm",
      "root": "cliente",
-     "line": 1465,
+     "line": 1466,
      "file": "data/crm-api.ts",
      "symbol": "descartesRescateDelMes"
     },
@@ -3120,7 +3192,7 @@
      "name": "rescatar_descartes",
      "schema": "crm",
      "root": "cliente",
-     "line": 1488,
+     "line": 1489,
      "file": "data/crm-api.ts",
      "symbol": "rescatarDescartes"
     },
@@ -3129,7 +3201,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     }
@@ -3165,7 +3237,7 @@
      "name": "reporte_derivaciones_equipo_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5593,
+     "line": 5637,
      "file": "data/crm-api.ts",
      "symbol": "listarReporteDerivacionesEquipo"
     },
@@ -3174,7 +3246,7 @@
      "name": "derivar_leads_equipo_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5639,
+     "line": 5683,
      "file": "data/crm-api.ts",
      "symbol": "derivarLeadsEquipo"
     },
@@ -3183,7 +3255,7 @@
      "name": "revertir_derivacion_equipo_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5672,
+     "line": 5716,
      "file": "data/crm-api.ts",
      "symbol": "revertirDerivacionEquipo"
     },
@@ -3192,7 +3264,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -3201,25 +3273,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -3228,7 +3291,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -3237,7 +3300,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -3246,7 +3309,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -3360,7 +3423,7 @@
      "name": "Equipo"
     }
    ],
-   "simbolos": 528,
+   "simbolos": 525,
    "calls": [
     {
      "kind": "edge",
@@ -3381,7 +3444,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -3390,7 +3453,7 @@
      "name": "conversion_mensual_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5272,
+     "line": 5316,
      "file": "data/crm-api.ts",
      "symbol": "obtenerConversionMensual"
     },
@@ -3399,7 +3462,7 @@
      "name": "metricas_conversiones_equipo_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5315,
+     "line": 5359,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasConversionesEquipo"
     },
@@ -3408,7 +3471,7 @@
      "name": "metricas_vendedores_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5433,
+     "line": 5477,
      "file": "data/crm-api.ts",
      "symbol": "listarMetricasVendedores"
     },
@@ -3417,7 +3480,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 2125,
+     "line": 2169,
      "file": "data/crm-api.ts",
      "symbol": "actualizarLead"
     },
@@ -3426,7 +3489,7 @@
      "name": "cierre_mes_estado_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 982,
+     "line": 983,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierreMesEstado"
     },
@@ -3444,7 +3507,7 @@
      "name": "resumen_cartera_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5379,
+     "line": 5423,
      "file": "data/crm-api.ts",
      "symbol": "listarResumenCartera"
     },
@@ -3453,7 +3516,7 @@
      "name": "cola_accion_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 5402,
+     "line": 5446,
      "file": "data/crm-api.ts",
      "symbol": "listarColaAccion"
     },
@@ -3462,7 +3525,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -3471,7 +3534,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -3480,25 +3543,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -3507,7 +3561,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -3672,7 +3726,7 @@
      "name": "agenda_ics",
      "schema": "crm",
      "root": "cliente",
-     "line": 2381,
+     "line": 2425,
      "file": "data/crm-api.ts",
      "symbol": "obtenerTokenIcs"
     },
@@ -3681,7 +3735,7 @@
      "name": "agenda_ics",
      "schema": "crm",
      "root": "cliente",
-     "line": 2396,
+     "line": 2440,
      "file": "data/crm-api.ts",
      "symbol": "crearTokenIcs"
     },
@@ -3690,7 +3744,7 @@
      "name": "agenda_ics",
      "schema": "crm",
      "root": "cliente",
-     "line": 2410,
+     "line": 2454,
      "file": "data/crm-api.ts",
      "symbol": "rotarTokenIcs"
     }
@@ -3773,7 +3827,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -3782,25 +3836,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -3809,7 +3854,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -3818,7 +3863,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -3827,7 +3872,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -4033,7 +4078,7 @@
      "name": "cierre_mes_estado_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 982,
+     "line": 983,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCierreMesEstado"
     },
@@ -4042,7 +4087,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 630,
+     "line": 631,
      "file": "data/crm-api.ts",
      "symbol": "listarLeadsDelAmbito"
     },
@@ -4051,25 +4096,16 @@
      "name": "equipo_visible_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 914,
+     "line": 915,
      "file": "data/crm-api.ts",
      "symbol": "listarEquipo"
-    },
-    {
-     "kind": "rpc",
-     "name": "actividades_del_ambito_fn",
-     "schema": "crm",
-     "root": "cliente",
-     "line": 1512,
-     "file": "data/crm-api.ts",
-     "symbol": "listarActividadesDelAmbito"
     },
     {
      "kind": "rpc",
      "name": "tareas_pendientes_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 2293,
+     "line": 2337,
      "file": "data/crm-api.ts",
      "symbol": "listarTareasDelAmbito"
     },
@@ -4078,7 +4114,7 @@
      "name": "configuracion_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 941,
+     "line": 942,
      "file": "data/crm-api.ts",
      "symbol": "obtenerMetasDelMes"
     },
@@ -4087,7 +4123,7 @@
      "name": "cumplimiento_metas_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 961,
+     "line": 962,
      "file": "data/crm-api.ts",
      "symbol": "obtenerCumplimientoMetas"
     },
@@ -4096,7 +4132,7 @@
      "name": "leads",
      "schema": "crm",
      "root": "cliente",
-     "line": 682,
+     "line": 683,
      "file": "data/crm-api.ts",
      "symbol": "obtenerLeadDelAmbitoPorId"
     },
@@ -4284,7 +4320,7 @@
      "name": "politica_rentabilidad_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4886,
+     "line": 4930,
      "file": "data/crm-api.ts",
      "symbol": "obtenerPoliticaRentabilidad"
     },
@@ -4293,7 +4329,7 @@
      "name": "publicar_politica_rentabilidad_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4922,
+     "line": 4966,
      "file": "data/crm-api.ts",
      "symbol": "publicarPoliticaRentabilidad"
     },
@@ -4302,7 +4338,7 @@
      "name": "historial_decisiones_tasa_gerencia_fn",
      "schema": "crm",
      "root": "cliente",
-     "line": 4717,
+     "line": 4761,
      "file": "data/crm-api.ts",
      "symbol": "listarHistorialDecisionesTasaGerencia"
     }
@@ -4350,7 +4386,7 @@
   }
  ],
  "shell": {
-  "symbols": 2839,
+  "symbols": 2892,
   "calls": [
    {
     "kind": "rpc",
@@ -4407,7 +4443,7 @@
     "name": "alertas_reconocimientos",
     "schema": "crm",
     "root": "cliente",
-    "line": 1845,
+    "line": 1889,
     "file": "data/crm-api.ts",
     "symbol": "reconocerAlertaSupervisor"
    },
@@ -4423,7 +4459,7 @@
     "name": "rescate_descartes_meses",
     "schema": "crm",
     "root": "cliente",
-    "line": 1450,
+    "line": 1451,
     "file": "data/crm-api.ts",
     "symbol": "mesesRescateDescartes"
    },
@@ -4432,7 +4468,7 @@
     "name": "rescate_descartes_mes",
     "schema": "crm",
     "root": "cliente",
-    "line": 1465,
+    "line": 1466,
     "file": "data/crm-api.ts",
     "symbol": "descartesRescateDelMes"
    },
@@ -4441,7 +4477,7 @@
     "name": "rescatar_descartes",
     "schema": "crm",
     "root": "cliente",
-    "line": 1488,
+    "line": 1489,
     "file": "data/crm-api.ts",
     "symbol": "rescatarDescartes"
    },
@@ -4473,7 +4509,7 @@
     "name": "ayuda_vendedor_inicio",
     "schema": "crm",
     "root": "cliente",
-    "line": 362,
+    "line": 363,
     "file": "data/crm-api.ts",
     "symbol": "obtenerInicioAyudaVendedor"
    },
@@ -4482,7 +4518,7 @@
     "name": "consultar_ayuda_vendedor",
     "schema": "crm",
     "root": "cliente",
-    "line": 394,
+    "line": 395,
     "file": "data/crm-api.ts",
     "symbol": "consultarAyudaVendedor"
    },
@@ -4500,7 +4536,7 @@
     "name": "recordatorios_disponibilidad",
     "schema": "crm",
     "root": "cliente",
-    "line": 1725,
+    "line": 1769,
     "file": "data/crm-api.ts",
     "symbol": "listarRecordatoriosDisponibilidad"
    },
@@ -4509,7 +4545,7 @@
     "name": "alertas_reconocimientos_vigentes",
     "schema": "crm",
     "root": "cliente",
-    "line": 1809,
+    "line": 1853,
     "file": "data/crm-api.ts",
     "symbol": "listarReconocimientosAlertas"
    },
@@ -4518,7 +4554,7 @@
     "name": "metricas_conversiones_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5211,
+    "line": 5255,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasConversiones"
    },
@@ -4527,7 +4563,7 @@
     "name": "leads",
     "schema": "crm",
     "root": "cliente",
-    "line": 630,
+    "line": 631,
     "file": "data/crm-api.ts",
     "symbol": "listarLeadsDelAmbito"
    },
@@ -4536,25 +4572,16 @@
     "name": "equipo_visible_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 914,
+    "line": 915,
     "file": "data/crm-api.ts",
     "symbol": "listarEquipo"
-   },
-   {
-    "kind": "rpc",
-    "name": "actividades_del_ambito_fn",
-    "schema": "crm",
-    "root": "cliente",
-    "line": 1512,
-    "file": "data/crm-api.ts",
-    "symbol": "listarActividadesDelAmbito"
    },
    {
     "kind": "rpc",
     "name": "tareas_pendientes_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 2293,
+    "line": 2337,
     "file": "data/crm-api.ts",
     "symbol": "listarTareasDelAmbito"
    },
@@ -4563,7 +4590,7 @@
     "name": "configuracion_metas_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 941,
+    "line": 942,
     "file": "data/crm-api.ts",
     "symbol": "obtenerMetasDelMes"
    },
@@ -4572,7 +4599,7 @@
     "name": "cumplimiento_metas_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 961,
+    "line": 962,
     "file": "data/crm-api.ts",
     "symbol": "obtenerCumplimientoMetas"
    },
@@ -4581,7 +4608,7 @@
     "name": "leads",
     "schema": "crm",
     "root": "cliente",
-    "line": 682,
+    "line": 683,
     "file": "data/crm-api.ts",
     "symbol": "obtenerLeadDelAmbitoPorId"
    },
@@ -4589,7 +4616,7 @@
     "kind": "rpc",
     "name": "reprogramar_reunion_v2",
     "schema": "crm",
-    "line": 2019,
+    "line": 2096,
     "via": "wrapper:ejecutarComandoSla",
     "file": "lib/store.tsx",
     "symbol": "api.reprogramarTarea"
@@ -4598,7 +4625,7 @@
     "kind": "rpc",
     "name": "reprogramar_tarea_v2",
     "schema": "crm",
-    "line": 2043,
+    "line": 2120,
     "via": "wrapper:ejecutarComandoSla",
     "file": "lib/store.tsx",
     "symbol": "api.reprogramarTarea"
@@ -4608,7 +4635,7 @@
     "name": "leads",
     "schema": "crm",
     "root": "cliente",
-    "line": 2125,
+    "line": 2169,
     "file": "data/crm-api.ts",
     "symbol": "actualizarLead"
    },
@@ -4617,7 +4644,7 @@
     "name": "cierres_estado_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 6158,
+    "line": 6202,
     "file": "data/crm-api.ts",
     "symbol": "obtenerCierresEstado"
    },
@@ -4625,7 +4652,7 @@
     "kind": "table",
     "name": "clientes_basicos",
     "schema": "crm",
-    "line": 3046,
+    "line": 3090,
     "via": "wrapper:leerListadoCarteraCompleto",
     "file": "data/crm-api.ts",
     "symbol": "listarClientes"
@@ -4634,7 +4661,7 @@
     "kind": "table",
     "name": "contratos_cartera",
     "schema": "crm",
-    "line": 3608,
+    "line": 3652,
     "via": "wrapper:leerListadoCarteraCompleto",
     "file": "data/crm-api.ts",
     "symbol": "listarMisContratos"
@@ -4643,7 +4670,7 @@
     "kind": "table",
     "name": "operaciones_cartera",
     "schema": "crm",
-    "line": 3686,
+    "line": 3730,
     "via": "wrapper:leerListadoCarteraCompleto",
     "file": "data/crm-api.ts",
     "symbol": "listarOperacionesCartera"
@@ -4653,7 +4680,7 @@
     "name": "resumen_cartera_clientes_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 2994,
+    "line": 3038,
     "file": "data/crm-api.ts",
     "symbol": "obtenerResumenCarteraClientes"
    },
@@ -4662,7 +4689,7 @@
     "name": "actualizar_cliente_gerencia_con_domicilio",
     "schema": "crm",
     "root": "cliente",
-    "line": 3355,
+    "line": 3399,
     "file": "data/crm-api.ts",
     "symbol": "actualizarClientePortal"
    },
@@ -4671,7 +4698,7 @@
     "name": "perfiles",
     "schema": null,
     "root": "cliente",
-    "line": 3365,
+    "line": 3409,
     "file": "data/crm-api.ts",
     "symbol": "actualizarClientePortal"
    },
@@ -4680,21 +4707,21 @@
     "name": "corregir_documento_cliente_admin_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3381,
+    "line": 3425,
     "file": "data/crm-api.ts",
     "symbol": "corregirDocumentoClienteAdmin"
    },
    {
     "kind": "edge",
     "name": "corregir-correo-cliente",
-    "line": 3419,
+    "line": 3463,
     "file": "data/crm-api.ts",
     "symbol": "corregirCorreoClienteAdmin"
    },
    {
     "kind": "edge",
     "name": "crear-cliente",
-    "line": 3299,
+    "line": 3343,
     "file": "data/crm-api.ts",
     "symbol": "crearClientePortal"
    },
@@ -4703,7 +4730,7 @@
     "name": "completar_domicilio_cliente",
     "schema": "crm",
     "root": "cliente",
-    "line": 3529,
+    "line": 3573,
     "file": "data/crm-api.ts",
     "symbol": "completarDomicilioCliente"
    },
@@ -4712,7 +4739,7 @@
     "name": "crear_contrato_con_cuenta_pdf_v2",
     "schema": "crm",
     "root": "cliente",
-    "line": 2863,
+    "line": 2907,
     "file": "data/crm-api.ts",
     "symbol": "crearContrato"
    },
@@ -4721,7 +4748,7 @@
     "name": "reasignar_analista_contrato",
     "schema": null,
     "root": "cliente",
-    "line": 3975,
+    "line": 4019,
     "file": "data/crm-api.ts",
     "symbol": "reasignarAnalistaContrato"
    },
@@ -4730,7 +4757,7 @@
     "name": "actualizar_contrato_con_cuenta_pdf_v3",
     "schema": "crm",
     "root": "cliente",
-    "line": 3878,
+    "line": 3922,
     "file": "data/crm-api.ts",
     "symbol": "actualizarContrato"
    },
@@ -4739,7 +4766,7 @@
     "name": "agenda_reparto_diaria",
     "schema": "crm",
     "root": "cliente",
-    "line": 1184,
+    "line": 1185,
     "file": "data/crm-api.ts",
     "symbol": "agendaRepartoDiaria"
    },
@@ -4748,7 +4775,7 @@
     "name": "guardar_agenda_reparto_diaria",
     "schema": "crm",
     "root": "cliente",
-    "line": 1221,
+    "line": 1222,
     "file": "data/crm-api.ts",
     "symbol": "guardarAgendaRepartoDiaria"
    },
@@ -4757,7 +4784,7 @@
     "name": "panel_distribucion_reparto",
     "schema": "crm",
     "root": "cliente",
-    "line": 1273,
+    "line": 1274,
     "file": "data/crm-api.ts",
     "symbol": "panelDistribucionReparto"
    },
@@ -4766,7 +4793,7 @@
     "name": "historial_derivaciones",
     "schema": "crm",
     "root": "cliente",
-    "line": 1149,
+    "line": 1150,
     "file": "data/crm-api.ts",
     "symbol": "historialDerivaciones"
    },
@@ -4775,7 +4802,7 @@
     "name": "leads_descartados",
     "schema": "crm",
     "root": "cliente",
-    "line": 1407,
+    "line": 1408,
     "file": "data/crm-api.ts",
     "symbol": "leadsDescartados"
    },
@@ -4784,7 +4811,7 @@
     "name": "deshacer_descarte",
     "schema": "crm",
     "root": "cliente",
-    "line": 1376,
+    "line": 1377,
     "file": "data/crm-api.ts",
     "symbol": "deshacerDescarte"
    },
@@ -4793,7 +4820,7 @@
     "name": "reporte_derivaciones_equipo_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5593,
+    "line": 5637,
     "file": "data/crm-api.ts",
     "symbol": "listarReporteDerivacionesEquipo"
    },
@@ -4802,7 +4829,7 @@
     "name": "derivar_leads_equipo_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5639,
+    "line": 5683,
     "file": "data/crm-api.ts",
     "symbol": "derivarLeadsEquipo"
    },
@@ -4811,7 +4838,7 @@
     "name": "revertir_derivacion_equipo_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5672,
+    "line": 5716,
     "file": "data/crm-api.ts",
     "symbol": "revertirDerivacionEquipo"
    },
@@ -4838,7 +4865,7 @@
     "name": "facturacion_diaria_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4108,
+    "line": 4152,
     "file": "data/crm-api.ts",
     "symbol": "listarFacturacionDiaria"
    },
@@ -5006,7 +5033,7 @@
     "name": "politica_rentabilidad_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4886,
+    "line": 4930,
     "file": "data/crm-api.ts",
     "symbol": "obtenerPoliticaRentabilidad"
    },
@@ -5015,7 +5042,7 @@
     "name": "publicar_politica_rentabilidad_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4922,
+    "line": 4966,
     "file": "data/crm-api.ts",
     "symbol": "publicarPoliticaRentabilidad"
    },
@@ -5051,7 +5078,7 @@
     "name": "solicitudes_tasa_lead_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4669,
+    "line": 4713,
     "file": "data/crm-api.ts",
     "symbol": "listarSolicitudesTasa"
    },
@@ -5060,7 +5087,7 @@
     "name": "solicitudes_tasa_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4671,
+    "line": 4715,
     "file": "data/crm-api.ts",
     "symbol": "listarSolicitudesTasa"
    },
@@ -5069,7 +5096,7 @@
     "name": "verificar_disponibilidad_lead",
     "schema": "crm",
     "root": "cliente",
-    "line": 1663,
+    "line": 1707,
     "file": "data/crm-api.ts",
     "symbol": "verificarDisponibilidadLead"
    },
@@ -5078,7 +5105,7 @@
     "name": "tomar_lead_libre",
     "schema": "crm",
     "root": "cliente",
-    "line": 1867,
+    "line": 1911,
     "file": "data/crm-api.ts",
     "symbol": "tomarLeadLibre"
    },
@@ -5087,7 +5114,7 @@
     "name": "recordatorios_disponibilidad",
     "schema": "crm",
     "root": "cliente",
-    "line": 1757,
+    "line": 1801,
     "file": "data/crm-api.ts",
     "symbol": "guardarRecordatorioDisponibilidad"
    },
@@ -5204,7 +5231,7 @@
     "name": "conversion_mensual_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5272,
+    "line": 5316,
     "file": "data/crm-api.ts",
     "symbol": "obtenerConversionMensual"
    },
@@ -5213,7 +5240,7 @@
     "name": "metricas_agenda_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5180,
+    "line": 5224,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasAgenda"
    },
@@ -5222,7 +5249,7 @@
     "name": "metricas_reuniones_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5349,
+    "line": 5393,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasReuniones"
    },
@@ -5231,7 +5258,7 @@
     "name": "metricas_distribucion_leads_v3_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5135,
+    "line": 5179,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasDistribucionLeadsV3"
    },
@@ -5240,7 +5267,7 @@
     "name": "actualizar_capacidad_leads_objetivo",
     "schema": "crm",
     "root": "cliente",
-    "line": 5733,
+    "line": 5777,
     "file": "data/crm-api.ts",
     "symbol": "actualizarCapacidadLeadsObjetivo"
    },
@@ -5249,14 +5276,23 @@
     "name": "metricas_conversiones_equipo_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5315,
+    "line": 5359,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasConversionesEquipo"
    },
    {
     "kind": "rpc",
+    "name": "actividades_recientes_fn",
+    "schema": "crm",
+    "root": "cliente",
+    "line": 1536,
+    "file": "data/crm-api.ts",
+    "symbol": "listarActividadesRecientes"
+   },
+   {
+    "kind": "rpc",
     "name": "<dinámico>",
-    "line": 141,
+    "line": 174,
     "raw": "comando",
     "file": "data/sla-operacion-comandos.ts",
     "symbol": "ejecutarComandoSla"
@@ -5266,7 +5302,7 @@
     "name": "reprogramar_reunion",
     "schema": "crm",
     "root": "cliente",
-    "line": 2533,
+    "line": 2577,
     "file": "data/crm-api.ts",
     "symbol": "reprogramarReunion"
    },
@@ -5275,7 +5311,7 @@
     "name": "tareas",
     "schema": "crm",
     "root": "cliente",
-    "line": 2365,
+    "line": 2409,
     "file": "data/crm-api.ts",
     "symbol": "actualizarTarea"
    },
@@ -5284,7 +5320,7 @@
     "name": "recordatorios_disponibilidad",
     "schema": "crm",
     "root": "cliente",
-    "line": 1781,
+    "line": 1825,
     "file": "data/crm-api.ts",
     "symbol": "eliminarRecordatorioDisponibilidad"
    },
@@ -5302,7 +5338,7 @@
     "name": "registro_actividad_fn",
     "schema": "crm",
     "root": "sb",
-    "line": 25,
+    "line": 49,
     "file": "data/gestion-diaria-api.ts",
     "symbol": "listarRegistroActividad"
    },
@@ -5320,17 +5356,35 @@
     "name": "resumen_cartera_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5379,
+    "line": 5423,
     "file": "data/crm-api.ts",
     "symbol": "listarResumenCartera"
    },
    {
     "kind": "rpc",
     "name": "<dinámico>",
-    "line": 795,
+    "line": 796,
     "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'",
     "file": "data/crm-api.ts",
     "symbol": "listarCarteraPagina"
+   },
+   {
+    "kind": "rpc",
+    "name": "registrar_llamada_v3",
+    "schema": "crm",
+    "line": 3090,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "api.registrarLlamada"
+   },
+   {
+    "kind": "rpc",
+    "name": "registrar_llamada_v3",
+    "schema": "crm",
+    "line": 3091,
+    "via": "wrapper:ejecutarComandoSla",
+    "file": "lib/store.tsx",
+    "symbol": "api.registrarLlamada"
    },
    {
     "kind": "rpc",
@@ -5351,7 +5405,7 @@
    {
     "kind": "from",
     "name": "<dinámico>",
-    "line": 2945,
+    "line": 2989,
     "raw": "tabla",
     "file": "data/crm-api.ts",
     "symbol": "leerListadoCarteraCompleto"
@@ -5359,7 +5413,7 @@
    {
     "kind": "from",
     "name": "<dinámico>",
-    "line": 2946,
+    "line": 2990,
     "raw": "tabla",
     "file": "data/crm-api.ts",
     "symbol": "leerListadoCarteraCompleto"
@@ -5369,7 +5423,7 @@
     "name": "cliente_detalle_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3191,
+    "line": 3235,
     "file": "data/crm-api.ts",
     "symbol": "obtenerClienteDetalle"
    },
@@ -5378,7 +5432,7 @@
     "name": "cuentas_bancarias_cliente_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 2672,
+    "line": 2716,
     "file": "data/crm-api.ts",
     "symbol": "listarCuentasBancariasCliente"
    },
@@ -5387,7 +5441,7 @@
     "name": "cliente_ficha_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3084,
+    "line": 3128,
     "file": "data/crm-api.ts",
     "symbol": "obtenerClienteFichaComercial"
    },
@@ -5396,7 +5450,7 @@
     "name": "actividades_cliente",
     "schema": "crm",
     "root": "cliente",
-    "line": 3726,
+    "line": 3770,
     "file": "data/crm-api.ts",
     "symbol": "listarActividadesCliente"
    },
@@ -5405,7 +5459,7 @@
     "name": "historial_tasa_cliente_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4785,
+    "line": 4829,
     "file": "data/crm-api.ts",
     "symbol": "obtenerHistorialTasaCliente"
    },
@@ -5414,7 +5468,7 @@
     "name": "atribucion_contrato_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3955,
+    "line": 3999,
     "file": "data/crm-api.ts",
     "symbol": "obtenerAtribucionContrato"
    },
@@ -5423,7 +5477,7 @@
     "name": "datos_legales_contrato_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3486,
+    "line": 3530,
     "file": "data/crm-api.ts",
     "symbol": "obtenerDatosLegalesContrato"
    },
@@ -5439,7 +5493,7 @@
     "name": "cronograma_contrato_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3772,
+    "line": 3816,
     "file": "data/crm-api.ts",
     "symbol": "obtenerCronograma"
    },
@@ -5448,7 +5502,7 @@
     "name": "titulares_contrato_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 3808,
+    "line": 3852,
     "file": "data/crm-api.ts",
     "symbol": "obtenerTitulares"
    },
@@ -5466,7 +5520,7 @@
     "name": "reporte_derivaciones_coordinacion_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5492,
+    "line": 5536,
     "file": "data/crm-api.ts",
     "symbol": "listarReporteDerivacionesCoordinacion"
    },
@@ -5475,7 +5529,7 @@
     "name": "leads_por_repartir",
     "schema": "crm",
     "root": "cliente",
-    "line": 1123,
+    "line": 1124,
     "file": "data/crm-api.ts",
     "symbol": "leadsPorRepartir"
    },
@@ -5484,7 +5538,7 @@
     "name": "supervisores_para_reparto",
     "schema": "crm",
     "root": "cliente",
-    "line": 1299,
+    "line": 1300,
     "file": "data/crm-api.ts",
     "symbol": "supervisoresParaReparto"
    },
@@ -5493,7 +5547,7 @@
     "name": "repartir_lead",
     "schema": "crm",
     "root": "cliente",
-    "line": 1349,
+    "line": 1350,
     "file": "data/crm-api.ts",
     "symbol": "repartirLead"
    },
@@ -5502,7 +5556,7 @@
     "name": "descartar_lead",
     "schema": "crm",
     "root": "cliente",
-    "line": 1363,
+    "line": 1364,
     "file": "data/crm-api.ts",
     "symbol": "descartarLead"
    },
@@ -5511,7 +5565,7 @@
     "name": "agenda_ics",
     "schema": "crm",
     "root": "cliente",
-    "line": 2381,
+    "line": 2425,
     "file": "data/crm-api.ts",
     "symbol": "obtenerTokenIcs"
    },
@@ -5520,7 +5574,7 @@
     "name": "agenda_ics",
     "schema": "crm",
     "root": "cliente",
-    "line": 2396,
+    "line": 2440,
     "file": "data/crm-api.ts",
     "symbol": "crearTokenIcs"
    },
@@ -5529,7 +5583,7 @@
     "name": "agenda_ics",
     "schema": "crm",
     "root": "cliente",
-    "line": 2410,
+    "line": 2454,
     "file": "data/crm-api.ts",
     "symbol": "rotarTokenIcs"
    },
@@ -5538,7 +5592,7 @@
     "name": "cierre_mes_estado_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 982,
+    "line": 983,
     "file": "data/crm-api.ts",
     "symbol": "obtenerCierreMesEstado"
    },
@@ -5574,7 +5628,7 @@
     "name": "historial_decisiones_tasa_gerencia_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4717,
+    "line": 4761,
     "file": "data/crm-api.ts",
     "symbol": "listarHistorialDecisionesTasaGerencia"
    },
@@ -5583,7 +5637,7 @@
     "name": "tareas",
     "schema": "crm",
     "root": "cliente",
-    "line": 2253,
+    "line": 2297,
     "file": "data/crm-api.ts",
     "symbol": "obtenerTareaDelAmbitoPorId"
    },
@@ -5591,7 +5645,7 @@
     "kind": "rpc",
     "name": "registrar_actividad_v2",
     "schema": "crm",
-    "line": 2851,
+    "line": 2938,
     "via": "wrapper:ejecutarComandoSla",
     "file": "lib/store.tsx",
     "symbol": "api.registrarActividad"
@@ -5601,7 +5655,7 @@
     "name": "crear_lead_si_disponible",
     "schema": "crm",
     "root": "cliente",
-    "line": 2089,
+    "line": 2133,
     "file": "data/crm-api.ts",
     "symbol": "insertarLead"
    },
@@ -5619,7 +5673,7 @@
     "name": "cola_accion_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5402,
+    "line": 5446,
     "file": "data/crm-api.ts",
     "symbol": "listarColaAccion"
    },
@@ -5628,7 +5682,7 @@
     "name": "metricas_vendedores_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5433,
+    "line": 5477,
     "file": "data/crm-api.ts",
     "symbol": "listarMetricasVendedores"
    },
@@ -5637,7 +5691,7 @@
     "name": "responder_tope_tasa_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4649,
+    "line": 4693,
     "file": "data/crm-api.ts",
     "symbol": "responderTopeTasa"
    },
@@ -5646,7 +5700,7 @@
     "name": "cierres_externos_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 6192,
+    "line": 6236,
     "file": "data/crm-api.ts",
     "symbol": "obtenerCierresExternos"
    },
@@ -5655,7 +5709,7 @@
     "name": "resolver_solicitud_tasa_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4637,
+    "line": 4681,
     "file": "data/crm-api.ts",
     "symbol": "resolverSolicitudTasa"
    },
@@ -5664,7 +5718,7 @@
     "name": "observacion_rentabilidad_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4954,
+    "line": 4998,
     "file": "data/crm-api.ts",
     "symbol": "listarObservacionRentabilidad"
    },
@@ -5673,7 +5727,7 @@
     "name": "altas_nuevas_por_analista_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4156,
+    "line": 4200,
     "file": "data/crm-api.ts",
     "symbol": "listarAltasNuevasPorAnalista"
    },
@@ -5691,7 +5745,7 @@
     "name": "tareas",
     "schema": "crm",
     "root": "cliente",
-    "line": 2360,
+    "line": 2404,
     "file": "data/crm-api.ts",
     "symbol": "insertarTarea"
    },
@@ -5699,7 +5753,7 @@
     "kind": "rpc",
     "name": "cerrar_reunion_v3",
     "schema": "crm",
-    "line": 594,
+    "line": 637,
     "via": "wrapper:ejecutarComandoSla",
     "file": "lib/store.tsx",
     "symbol": "ejecutarCierreTarea"
@@ -5708,7 +5762,7 @@
     "kind": "rpc",
     "name": "cerrar_tarea_v2",
     "schema": "crm",
-    "line": 606,
+    "line": 649,
     "via": "wrapper:ejecutarComandoSla",
     "file": "lib/store.tsx",
     "symbol": "ejecutarCierreTarea"
@@ -5718,9 +5772,18 @@
     "name": "actividades",
     "schema": "crm",
     "root": "cliente",
-    "line": 2164,
+    "line": 2208,
     "file": "data/crm-api.ts",
     "symbol": "insertarActividad"
+   },
+   {
+    "kind": "rpc",
+    "name": "deshacer_resultado_llamada",
+    "schema": "crm",
+    "root": "sb",
+    "line": 34,
+    "file": "data/gestion-diaria-api.ts",
+    "symbol": "deshacerResultadoLlamada"
    },
    {
     "kind": "rpc",
@@ -5829,7 +5892,7 @@
     "name": "leads",
     "schema": "crm",
     "root": "cliente",
-    "line": 3160,
+    "line": 3204,
     "file": "data/crm-api.ts",
     "symbol": "obtenerSegundoNumeroDelCliente"
    },
@@ -5838,7 +5901,7 @@
     "name": "resolver_tasa_lead_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4410,
+    "line": 4454,
     "file": "data/crm-api.ts",
     "symbol": "resolverTasa"
    },
@@ -5847,7 +5910,7 @@
     "name": "resolver_tasa_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4412,
+    "line": 4456,
     "file": "data/crm-api.ts",
     "symbol": "resolverTasa"
    },
@@ -5856,7 +5919,7 @@
     "name": "solicitar_tasa_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 4607,
+    "line": 4651,
     "file": "data/crm-api.ts",
     "symbol": "solicitarTasa"
    },
@@ -5865,7 +5928,7 @@
     "name": "resumen_reparto_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 5705,
+    "line": 5749,
     "file": "data/crm-api.ts",
     "symbol": "listarResumenReparto"
    },
@@ -5874,7 +5937,7 @@
     "name": "reabrir_lead_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 2142,
+    "line": 2186,
     "file": "data/crm-api.ts",
     "symbol": "reabrirLead"
    },
@@ -5883,7 +5946,7 @@
     "name": "editar_lead_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 2157,
+    "line": 2201,
     "file": "data/crm-api.ts",
     "symbol": "editarLeadFn"
    },
@@ -5901,7 +5964,7 @@
     "name": "anular_cierre_externo",
     "schema": "crm",
     "root": "cliente",
-    "line": 6013,
+    "line": 6057,
     "file": "data/crm-api.ts",
     "symbol": "anularCierreExterno"
    },
@@ -5928,7 +5991,7 @@
     "name": "cerrar_tarea",
     "schema": "crm",
     "root": "cliente",
-    "line": 2448,
+    "line": 2492,
     "file": "data/crm-api.ts",
     "symbol": "cerrarTarea"
    },
@@ -5937,7 +6000,7 @@
     "name": "actividades_de_lead_fn",
     "schema": "crm",
     "root": "cliente",
-    "line": 1585,
+    "line": 1629,
     "file": "data/crm-api.ts",
     "symbol": "listarActividadesDeLead"
    },
@@ -5955,7 +6018,7 @@
     "name": "anular_cierre_avance",
     "schema": "crm",
     "root": "cliente",
-    "line": 6084,
+    "line": 6128,
     "file": "data/crm-api.ts",
     "symbol": "anularCierreAvance"
    },
@@ -5994,7 +6057,7 @@
    "symbol": "listarCarteraPagina",
    "kind": "rpc",
    "name": "<dinámico>",
-   "line": 795,
+   "line": 796,
    "raw": "filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn'"
   },
   {
@@ -6002,7 +6065,7 @@
    "symbol": "leerListadoCarteraCompleto",
    "kind": "from",
    "name": "<dinámico>",
-   "line": 2945,
+   "line": 2989,
    "raw": "tabla"
   },
   {
@@ -6010,7 +6073,7 @@
    "symbol": "leerListadoCarteraCompleto",
    "kind": "from",
    "name": "<dinámico>",
-   "line": 2946,
+   "line": 2990,
    "raw": "tabla"
   },
   {
@@ -6018,11 +6081,11 @@
    "symbol": "ejecutarComandoSla",
    "kind": "rpc",
    "name": "<dinámico>",
-   "line": 141,
+   "line": 174,
    "raw": "comando"
   }
  ],
- "simbolosStore": 276,
+ "simbolosStore": 315,
  "inventario": [
   "edge::corregir-correo-cliente",
   "edge::crear-cliente",
@@ -6043,7 +6106,7 @@
   "rpc::inversionista_gestion_fn",
   "rpc::reasignar_analista_contrato",
   "rpc:crm:actividades_de_lead_fn",
-  "rpc:crm:actividades_del_ambito_fn",
+  "rpc:crm:actividades_recientes_fn",
   "rpc:crm:actualizar_borrador_producto_inversion",
   "rpc:crm:actualizar_capacidad_leads_objetivo",
   "rpc:crm:actualizar_cliente_gerencia_con_domicilio",
@@ -6102,6 +6165,7 @@
   "rpc:crm:desactivar_push_tasa_fn",
   "rpc:crm:descartar_lead",
   "rpc:crm:deshacer_descarte",
+  "rpc:crm:deshacer_resultado_llamada",
   "rpc:crm:editar_lead_fn",
   "rpc:crm:equipo_visible_fn",
   "rpc:crm:estado_sla_leads_fn",
@@ -6160,6 +6224,7 @@
   "rpc:crm:reabrir_lead_fn",
   "rpc:crm:reasignar_responsable_relacion_fn",
   "rpc:crm:registrar_actividad_v2",
+  "rpc:crm:registrar_llamada_v3",
   "rpc:crm:registrar_push_tasa_fn",
   "rpc:crm:registro_actividad_fn",
   "rpc:crm:repartir_lead",
