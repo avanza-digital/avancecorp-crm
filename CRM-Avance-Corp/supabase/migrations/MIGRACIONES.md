@@ -58,6 +58,103 @@ Ruta E2E `tareas_pendientes_fn` con las claves nuevas. Deuda ajena detectada: el
 supabase/scripts/tareas-lead-embebido/generar-registrador.mjs` → `npx supabase db query --linked --file
 supabase/scripts/registrar-20260920045202.sql` → fusionar PR → `/release-crm` → actualizar esta acta.
 
+## 20260920041500 — Gestión Diaria (F3): el día del analista
+
+**✅ SQL EN PRODUCCIÓN el 20/09/2026 (~01:19 Lima = 06:19 UTC, Miguel con `!` +
+`db query --linked --file`, archivo exacto) y REGISTRADA acto seguido con
+`registrar-20260920041500.sql` (fail-closed: relee la fila y exige
+`cardinality(statements) = 1`). Front publicado el mismo día: release
+`crm-20260920T062207Z-12230ee2ea0f`, build `build-20260920T062206730Z`, commit `12230ee2`.**
+Ensayada antes en el banco local. Prerrequisito duro: `20260920005000` (F2) instalada **y
+registrada**. Fase 3 del plan aprobado el 19/09
+(`docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md`).
+
+**Verificado en producción tras instalar** (solo lecturas): la fila registrada con un único
+`statement`; las cinco funciones nuevas presentes (`gestion_diaria_umbrales`,
+`gestion_diaria_llamadas`, `gestion_diaria_analista_core`, `assert_gestion_diaria_analista`
+y `assert_gestion_diaria_analista_mutantes`); la puerta `crm.gestion_diaria_analista_fn` con
+`prosecdef = false` (INVOKER) y `anon` **sin** EXECUTE; y el gate paraguas
+`private.assert_gestion_diaria()` en VERDE para las tres fases — devuelve
+«OK: Gestion Diaria […registro…] […resultado de llamada…] […dia del analista — puerta y
+nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y
+politica_abandono en su forma…]». Advisors de seguridad: las 5 preexistentes, **ninguna
+nueva**. Smoke del front: `version.json` vivo idéntico al del dist, raíz y bundle HTTP 200,
+y el bundle sirve `gestion_diaria_analista_fn`. El preflight pasó
+(`live=build-20260920T034404914Z/afc391974382 candidate=12230ee2ea0f`).
+
+- **Qué entrega.** Puerta `crm.gestion_diaria_analista_fn(p_dia date default null,
+  p_analista_id uuid default null)` (INVOKER, stable, `search_path` vacío, EXECUTE solo
+  `authenticated`): marcador del día (llamadas, contestadas, útiles, tasa de contacto con
+  su nivel, leads tocados, citas agendadas, primera/última llamada, desglose por resultado
+  y **llamadas por hora Lima**), compromisos desde mañana, señales por lead abierto
+  (incluido el bucket nuevo `sin_conversacion`) y los descartes del día con
+  `puede_deshacer`. Núcleos: `private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])`
+  —la definición ÚNICA de llamada/contacto/útil/tasa, que reutilizarán F4 y F5—,
+  `private.gestion_diaria_analista_core(...)` y `private.gestion_diaria_umbrales()`
+  (Bien ≥ 45 %, Atención ≥ 25 %, mínimo 5 llamadas útiles).
+- **Quién puede mirar.** Un analista, solo su propio día. Supervisor, gerencia y lector
+  global, el de un miembro **activo** de su roster visible que lleve leads (`ev.activo` y
+  `ev.rol_crm in ('vendedor','supervisor')`: `crm.equipo_visible_fn` incluye dados de baja
+  y, para el lector global, coordinación y directorio). Coordinador: 42501. `anon`: sin
+  EXECUTE. Denegación explícita, nunca un día vacío que parezca «no llamó».
+- **Deuda de F2 pagada.** `private.registro_actividad_core` (F1) amplía su lista blanca de
+  metadata con las claves del resultado de llamada y de su deshacer (la MISMA lista que
+  `private.actividades_de_lead_core`): el registro ya no muestra como vigente un resultado
+  deshecho. Exigió re-sellar el md5 del núcleo en `private.assert_gestion_diaria_registro()`
+  (cuerpo de F1 intacto salvo esa constante).
+- **Sin objetos de datos.** Ninguna tabla, columna, índice, policy ni trigger nuevos; la
+  migración solo LEE. `service_role` no gana ni pierde nada. Sin columnas nuevas en
+  `crm.leads`: no aplica grant por columna.
+- **Gate.** `private.assert_gestion_diaria_analista()` entra al paraguas
+  `private.assert_gestion_diaria()` = `_registro` (F1) + `_resultado` (F2) + `_analista`
+  (F3). Sella: forma y ACL de puerta y núcleos, sus md5, ausencia de contadores crudos,
+  `crm.cola_accion_v2_fn` en su forma, `crm.politica_abandono` (RLS, SELECT de `singleton`
+  y `dias_abandono`, policy por huella `97d4f815…` y conjunto de permisivas),
+  `tareas_select` vía `private.assert_tareas_pendientes_base()` (20260919235100) y el
+  CUERPO de `crm.equipo_visible_fn` (`200162f4…`), que es la autorización para mirar el día
+  de otro. **24 mutantes** (solo banco, `set gestion_diaria.banco = on`).
+- **Censo analítico** (trinquete en rojo por trabajos ajenos): ninguna función nueva usa
+  `count(` ni `sum(1)` (todo por `cardinality(array_agg())`); el postflight exige el censo
+  y el conjunto rojo IDÉNTICOS antes/después. Postflight: solo los 4 gates SLA verdes + el
+  paraguas propio.
+- **Revisiones.** `auditor-rls` (subagente): APPROVE WITH CHANGES, sin P0/P1; atendidos el
+  acta (esta fila), el bloque de `test-rls.mjs`, el sellado de `tareas_select` por su base,
+  los mutantes que faltaban, la reversa fail-closed y `puede_deshacer` solo para el autor.
+  **Codex** (`ROLE: SECONDARY_REVIEWER`, read-only): REQUEST_CHANGES con 4 P2, los cuatro
+  ACEPTADOS y aplicados — (1) el NIVEL se decide con la tasa **sin redondear** (13 de 29 es
+  44,83 %: «atención», no «bien»); (2) el destino tiene que ser activo y llevar leads;
+  (3) el gate no detectaba la falta de SELECT sobre `singleton`; (4) la perilla se sellaba
+  por presencia y no por huella. Además, por defensa en profundidad: `contestadas ⊆ útiles`
+  por construcción y `vigente`/`puede_deshacer` nunca nulos. RECHAZADO con evidencia:
+  «`array_agg(distinct lead_id)` puede contar un NULL» — `crm.actividades.lead_id` es
+  `NOT NULL` (medido en producción el 20/09).
+- **Desviaciones del plan, declaradas.** La firma lleva `p_analista_id` (el plan decía solo
+  `p_dia`): amplía la superficie a supervisor y gerencia DENTRO de la RLS, con 42501
+  explícito, y es lo que F4 necesitará. No se devuelven `telefonos` por lead (la cola v2 ya
+  los da): menos PII. El núcleo no se registra en
+  `private.auxiliares_analitica_lc_auditados()` porque no cuenta a crudo.
+- **Verificación.** Ensayo en banco (`supabase/scripts/gestion-diaria-analista/ensayar.mjs`,
+  copia `gestion_diaria_f3_20260920`): gate paraguas OK, **24 + 14 + 10 mutantes** detectados, oráculo por actor
+  bajo `role authenticated` con RLS activa (`test-gestion-diaria-analista.sql` →
+  `GESTION_DIARIA_ANALISTA_OK`), censo intacto, reversa que devuelve EXACTAMENTE los cuerpos
+  de producción y reinstalación determinista. `verificacion.json`: md5 puerta `ba3d0502…`,
+  núcleo `b08d96d0…`, llamadas `45e6e7a8…`, umbrales `6ab633af…`, registro `3430460e…`;
+  sha256 migración `195221f8…`, reversa `195221f8…R`.
+  `check:scripts` PASS · `test:rls` bloque `testGestionDiariaAnalista` añadido,
+  **corrida viva NOT RUN** (la corre el ciclo del `!`) · advisors **NOT RUN**.
+- **Orden de instalación.** SQL primero: `!npx supabase db query --linked --file
+  supabase/migrations/20260920041500_crm_gestion_diaria_analista.sql`, luego
+  `supabase/scripts/registrar-20260920041500.sql`, y el front DESPUÉS (`/release-crm`).
+  Reversa: `supabase/scripts/gestion-diaria-analista/reversa.sql`, tras retirar el front.
+- **Front (misma entrega).** `screens/gestion-diaria/analista.tsx` («Mi día»: cola agrupada
+  por `ordenarColaDiaria`, marcador, seguimiento y descartes con Deshacer),
+  `lib/gestion-diaria-analista.ts` (contrato + espejo demo), `useDiaAnalista`,
+  `obtenerDiaAnalista` con eco obligatorio, `RegistrarResultado` con `onGuardado` (salto a
+  la fila siguiente), `GuardadosSlaPendientes` montado UNA vez en `App.tsx`, y la RPC nueva
+  a mano en `database.types.ts`. Corregido de paso en F1: el registro calculaba «de hoy»
+  con el reloj real y no con el de la app (`useAhora`), así que su rótulo y su prueba
+  cambiaban solos al pasar la medianoche de Lima.
+
 ## 20260920014500 — Actividad reciente del ámbito: el arranque deja de bajar el registro (Fase 3 «sin topes»)
 
 **✅ SQL EN PRODUCCIÓN el 19/09/2026 (~22:23 Lima = 20/09 03:23 UTC, Miguel con `!` + `db query --linked --file`,

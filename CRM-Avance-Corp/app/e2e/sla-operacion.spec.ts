@@ -413,6 +413,9 @@ test('tras recargar verifica explícitamente el guardado original sin reconstrui
   await expect(page.locator('.ac-splash')).toBeHidden()
   ficha = page.getByRole('dialog', { name: /CLIENTE REAL UNO/ })
   await expect(ficha).toBeVisible()
+  // El aviso sigue dentro de la ficha: es un Sheet MODAL y deja inerte lo que
+  // hay detrás, así que el montaje global de App.tsx (Gestión Diaria F3) no es
+  // alcanzable mientras la ficha está abierta.
   const pendientes = ficha.getByRole('region', { name: 'Guardados por confirmar' })
   await expect(pendientes.getByRole('button', { name: 'Verificar guardado' })).toBeVisible()
   await pendientes.scrollIntoViewIfNeeded()

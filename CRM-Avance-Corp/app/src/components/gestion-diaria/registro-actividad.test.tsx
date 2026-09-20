@@ -21,6 +21,9 @@ const EQUIPO = [
   { perfil_id: 'u4', nombre_completo: 'ANALISTA BAJA', rol_crm: 'vendedor', supervisor_id: 'sup1', activo: false },
 ]
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' } }) }))
+// El reloj de la app, FIJO: sin esto «de hoy» dependía del día real y la suite
+// se ponía roja sola al pasar la medianoche de Lima.
+vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-19T18:02:00Z') }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).

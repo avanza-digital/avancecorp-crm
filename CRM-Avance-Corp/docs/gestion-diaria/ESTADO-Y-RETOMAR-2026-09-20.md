@@ -3,7 +3,7 @@
 Este archivo es el punto de entrada para seguir el módulo en otra sesión. El plan aprobado
 completo está al lado: `PLAN-POR-FASES-2026-09-19.md` (con el PLAN.md original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
-**«retomemos gestión diaria F3»**.
+**«retomemos gestión diaria F4»**.
 
 ## Estado por fase
 
@@ -12,8 +12,8 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 | F0 · Cimientos | Plus Jakarta Sans, primitivas `Tabs` / `RadioGroup` / `exportar-csv`, docs y nota del vault | ✅ en prod | PR #29 |
 | F1 · Módulo + registro crudo | Vista `gestion-diaria` en el menú (Operación) para los 3 roles; registro del día por analista/tipo/etapa con paginación; CSV para gerencia | ✅ en prod (SQL `20260919211958` instalada y registrada el 20/09) | PR #34; puerta `crm.registro_actividad_fn` |
 | F2 · Resultado tipificado | Toda llamada del CRM se cierra con 1 de 7 resultados; tarea siguiente, descarte con submotivo hacia el Centro de rescate, «No insistir»; Deshacer 24 h | ✅ en prod (SQL `20260920005000` instalada y registrada el 20/09; front `crm-20260920T034405Z-afc391974382`, build `build-20260920T034404914Z`) | PR #38; acta PR #41; puertas `crm.registrar_llamada_v3`, `crm.deshacer_resultado_llamada` |
-| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | ⏭️ SIGUIENTE | plan §F3 |
-| F4 · Supervisor «Mi equipo hoy» | Tabla del equipo con tasa (chip solo con ≥ 5 llamadas útiles), llamadas por hora por analista, alertas del día | pendiente | plan §F4 |
+| F3 · Analista «Mi día» | Cola del día (lead nuevo primero → vencidas → hoy → sin conversación), marcador, compromisos, descartados de hoy con Deshacer; núcleo `private.gestion_diaria_llamadas` (llamadas por hora) | ✅ **EN PROD** el 20/09 (SQL `20260920041500` instalada y registrada; front `crm-20260920T062207Z-12230ee2ea0f`) | PR #42; puerta `crm.gestion_diaria_analista_fn` |
+| F4 · Supervisor «Mi equipo hoy» | Tabla del equipo con tasa (chip solo con ≥ 5 llamadas útiles), llamadas por hora por analista, alertas del día | ⏭️ SIGUIENTE (su núcleo ya existe: `private.gestion_diaria_llamadas` acepta varios analistas) | plan §F4 |
 | F5 · Gerencia «Toda la operación» | Pulso del día vs ayer y 7 días, por equipo, drill-down hasta el registro | pendiente | plan §F5 |
 | F6 · Absorber Seguimiento | `#/seguimiento` → alias de `gestion-diaria`; retirar la vista vieja (cerrar → observar → derribar) | pendiente (tras ≥ 1 semana de F3–F5 en prod) | plan §F6 |
 
@@ -50,10 +50,26 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 
 ## Pendiente de Miguel ahora
 
+- **F3 COMPLETA EN PRODUCCIÓN el 20/09.** PR #42 fusionada por squash (`12230ee2`); el contenido llegó entero y
+  `afc39197` —lo que estaba vivo— seguía siendo ancestro, así que el preflight no se rompió. SQL instalada y
+  registrada (~01:19 Lima) y front publicado (`crm-20260920T062207Z-12230ee2ea0f`).
+- **Prueba de negocio pendiente:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
+- **Fusionar la PR #44** (saca del tronco el symlink `node_modules` que coló la rama de F3) y solo entonces integrar
+  `avancecorp/main` en el `main` local: hasta que eso pase, el checkout intentaría escribir el symlink encima de la
+  carpeta `node_modules` real del taller.
 - Prueba de negocio de F2 en el CRM: una llamada real con «volver a llamar» crea la tarea en Agenda; «no le interesa» manda el lead al Centro de rescate con su motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa.
+- Prueba de negocio de F3: como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
 - Fusionar la PR de acta #41.
-- `/mcp` → reconectar `codex`.
+
+## Lo que F3 dejó escrito (importa para F4)
+
+- `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` ya acepta VARIOS analistas y devuelve una fila por cada uno: es el núcleo de la tabla del equipo. Los umbrales viven en `private.gestion_diaria_umbrales()` (F4 añadirá ahí «sin llamadas desde las 11:00», «parado 2 h» y «15 pp bajo el equipo», re-sellando su md5).
+- `crm.equipo_visible_fn` NO filtra activos salvo en la rama «yo mismo», y para el lector global trae coordinación y directorio: quien lo use como autorización exige `ev.activo` y `ev.rol_crm`. Su cuerpo está sellado por md5 en el gate de F3.
+- El nivel de la tasa se juzga con el valor SIN redondear; el % que se muestra sí va redondeado.
+- `puede_deshacer` es falso cuando el actor no es el autor: el deshacer de F2 exige serlo. F4 no debe ofrecerlo por el analista.
+- El marcador depende de quién mira tras una reasignación (la RLS acota por dueño actual del lead). F4 lo verá al correr como supervisor.
+- El Sheet de la ficha es MODAL: deja inerte lo de atrás, así que un panel «global» no es alcanzable mientras está abierta (por eso `GuardadosSlaPendientes` conserva su copia dentro).
 
 ## Referencias
 
-PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2). Migraciones: `20260919211958`, `20260920005000` (ledger `supabase/migrations/MIGRACIONES.md`). Vault: «Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19» y «Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)». Memoria de sesión: `gestion-diaria-plan-por-fases.md` y `gestion-diaria-f2-resultado-llamada.md`.
+PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `20260919211958`, `20260920005000`, `20260920041500` (ledger `supabase/migrations/MIGRACIONES.md`). Vault: «Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19», «Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)» y «Gestion Diaria F3 - el dia del analista (2026-09-20)». Memoria de sesión: `gestion-diaria-plan-por-fases.md`, `gestion-diaria-f2-resultado-llamada.md` y `gestion-diaria-f3-analista.md`.

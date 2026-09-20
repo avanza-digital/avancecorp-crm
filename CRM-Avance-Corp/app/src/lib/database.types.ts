@@ -4283,6 +4283,10 @@ export type Database = {
       // que la deuda es del archivo completo, no de esta línea. Regenerar exige tocar
       // esos llamadores: tarea aparte.
       cerrar_reunion_v3: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_capital_estimado?: number | null; p_moneda?: string | null }; Returns: Json }
+      // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F3, migración
+      // 20260920041500: el día de un analista (marcador, compromisos, señales de cartera
+      // y descartes con su deshacer). Firma: (date,uuid), ambos con default null.
+      gestion_diaria_analista_fn: { Args: { p_dia?: string | null; p_analista_id?: string | null }; Returns: Json }
       // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F1, migración
       // 20260919211958: registro crudo de actividad por ventana Lima, analistas, tipos y
       // etapa, con cursor keyset. Firma: (date,date,uuid[],text[],text,integer,timestamptz,uuid).

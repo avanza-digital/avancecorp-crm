@@ -25,6 +25,8 @@ import { RespuestasTasaProvider } from '@/components/app/respuestas-tasa-provide
 import { recibeRespuestasTasa } from '@/lib/respuestas-tasa'
 import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
 import { LeadDrawer } from '@/components/app/lead-drawer'
+import { GuardadosSlaPendientes } from '@/components/app/guardados-sla-pendientes'
+import { createPortal } from 'react-dom'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { AreaConsultaGerencia } from '@/components/gerencia/area-consulta-gerencia'
@@ -476,6 +478,10 @@ function Workspace() {
           <LeadNuevo />
         </ErrorBoundary>
       </div>
+      {/* Los guardados por confirmar se montan UNA vez (antes vivían dentro de
+          la bandeja SLA, y desde Gestión Diaria F3 hay más de una pantalla que
+          registra gestiones). Se autoapaga si no hay ninguno. */}
+      <GuardadosSlaPendientesGlobal />
       </RespuestasTasaProvider>
     </AlertasCRMProvider>
   )
@@ -678,5 +684,21 @@ export default function App() {
       </div>
       {content}
     </>
+  )
+}
+
+/**
+ * El aviso de guardados por confirmar, fijo y POR ENCIMA de la ficha. Va por
+ * PORTAL a `document.body`: dentro del árbol de la app quedaba atrapado en el
+ * contexto de apilamiento de la raíz, por debajo de la capa del Sheet (que sí
+ * se porta a body), y su botón no recibía el clic. Se autoapaga cuando no hay
+ * ningún guardado pendiente.
+ */
+function GuardadosSlaPendientesGlobal() {
+  return createPortal(
+    <div className="fixed bottom-4 left-4 z-[60] w-[min(22rem,calc(100vw-2rem))] rounded-xl bg-card shadow-[var(--shadow-pop)] empty:hidden">
+      <ErrorBoundary><GuardadosSlaPendientes /></ErrorBoundary>
+    </div>,
+    document.body,
   )
 }
