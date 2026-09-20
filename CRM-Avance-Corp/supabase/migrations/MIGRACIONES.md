@@ -17,7 +17,11 @@ construido por esa sesión desde el tronco `afc39197` (squash de la PR #39): ZIP
 (sha256 `d15415fb…`), manifiesto al lado en `releases/`; preflight OK (vivo `380643a8` → candidato `afc39197`);
 smoke: `version.json` = `build-20260920T034404914Z`, `/` 200, `assets/index-CpHlTkE1.js` 200 = dist. Contrastado
 aparte desde esta sesión: el chunk vivo `crm-api-CfwDpQD3.js` llama a `actividades_recientes_fn` y ya no menciona
-`actividades_del_ambito_fn`. Acta en PR #40.** Fase 3 del plan «sin topes»
+`actividades_del_ambito_fn`. Acta en PR #40. **Mapa de capas** regenerado en disco el 19/09 ~23:00 Lima
+(evidencia viva + front del tronco): 175 saltos (169 tras la Fase 2); la Fase 3 aporta SOLO 2 aristas «inversión» de sus
+gates (`assert_actividades_recientes` y `_mutantes` llaman a la puerta a propósito: mismo patrón aceptado de las Fases 1 y 2);
+puerta, núcleo y pantallas quedan «adyacente». Los saltos «puerta mixta» nuevos (`crm.deshacer_resultado_llamada` →
+`crm.actividades`/`crm.tareas`/`crm.leads`) y el resto de inversiones son de Gestión Diaria F2 (#38).** Fase 3 del plan «sin topes»
 (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`); objetivo fijado por Miguel el 19/09: que ninguna
 pantalla dependa de descargar el registro de actividades del ámbito, que la RPC vieja salga del arranque y
 se deprecie, y que muera el último tope de actividades del front.
