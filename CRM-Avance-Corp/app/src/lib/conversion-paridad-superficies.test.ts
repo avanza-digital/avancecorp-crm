@@ -70,6 +70,8 @@ vi.mock('@/lib/auth-context', () => ({
 
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: [], vendedores: [VENDEDOR], esGlobal: true },
     equipo: [SUPERVISOR, VENDEDOR],
     actividades: [],

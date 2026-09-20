@@ -17,7 +17,9 @@ const dobles = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ actividadesDelAmbito: dobles.actividadesDelAmbito, actividades: dobles.actividades, ambito: dobles.ambito, equipo: dobles.equipo }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, actividadesDelAmbito: dobles.actividadesDelAmbito, actividades: dobles.actividades, ambito: dobles.ambito, equipo: dobles.equipo }),
 }))
 vi.mock('./gestion-diaria-api', () => ({ listarRegistroActividad: dobles.listar }))
 const { useRegistroActividadOperativo } = await import('./gestion-diaria-queries')

@@ -22,7 +22,9 @@ const EQUIPO = [
 ]
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' } }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: EQUIPO, ambito: { leads: [], vendedores: EQUIPO.filter((m) => m.rol_crm === 'vendedor'), esGlobal: true } }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, equipo: EQUIPO, ambito: { leads: [], vendedores: EQUIPO.filter((m) => m.rol_crm === 'vendedor'), esGlobal: true } }),
   usePanelesActions: () => ({ abrirLead: ESTADO.abrirLead }),
 }))
 vi.mock('@/data/gestion-diaria-queries', () => ({

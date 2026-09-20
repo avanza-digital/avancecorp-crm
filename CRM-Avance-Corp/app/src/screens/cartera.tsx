@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Search, Users, TrendingUp, Activity, CheckCircle2, PieChart, ChevronRight, Inbox } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,7 +51,7 @@ export function Cartera() {
   const { yo } = useAuth()
   const memoriaGerencia = useConsultaGerencia()
   const desdeRendimiento = yo?.rol === 'gerencia' ? memoriaGerencia?.consulta.gestionAnalista : null
-  const { ambito, cierresEstado } = useCRMData()
+  const { ambito, cierresEstado, conocerLeads } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
@@ -90,6 +90,8 @@ export function Cartera() {
       [fEtapa, fVend, qDiferido, fOrigen, fProc, periodo],
     ),
   )
+  // Fase 4e: el store conoce lo que la tabla muestra (verbos de escritura por id).
+  useEffect(() => { if (yo && !yo.demo) conocerLeads(cartera.leads) }, [yo, conocerLeads, cartera.leads])
   const resumen = rangoValido ? cartera.resumen ?? null : null
   const etiquetaConvertidos = 'Convertidos'
   const detalleConvertidos = 'Dentro de los filtros elegidos'

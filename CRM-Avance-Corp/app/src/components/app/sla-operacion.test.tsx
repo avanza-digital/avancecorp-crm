@@ -9,7 +9,9 @@ import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
 const abrir = vi.fn()
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'actor', rol: 'supervisor', demo: false } }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: [
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, equipo: [
     { perfil_id: 'analista', nombre_completo: 'Analista Uno', rol_crm: 'vendedor', activo: true },
     { perfil_id: 'supervisor', nombre_completo: 'Supervisor del Equipo', rol_crm: 'supervisor', activo: true },
     { perfil_id: 'gerencia', nombre_completo: 'Gerente Comercial', rol_crm: 'gerencia', activo: true },

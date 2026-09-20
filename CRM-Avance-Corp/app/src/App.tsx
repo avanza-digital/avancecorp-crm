@@ -11,7 +11,7 @@ import {
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { vincularCuentaPushTasa } from '@/lib/notificaciones-tasa'
-import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
+import { usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { escribirHash, leerHash, type Vista } from '@/lib/router'
 import { ContextoSplashVisible } from '@/lib/splash-visible'
@@ -325,7 +325,6 @@ function Workspace() {
   useEffect(() => {
     vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
   }, [yo?.id, yo?.rol, yo?.demo])
-  const { ambito } = useCRMData()
   const { leadAbiertoId, nuevoLeadAbierto } = usePanelesState()
   const { abrirLead, abrirNuevoLead, cerrarPaneles } = usePanelesActions()
   const rol = yo?.rol
@@ -361,8 +360,8 @@ function Workspace() {
   }, [panelTrabajoAbierto])
 
   // Contexto vivo para el listener de hashchange (registrado una sola vez).
-  const ctxRef = useRef({ rol, rolPortal, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles })
-  ctxRef.current = { rol, rolPortal, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles }
+  const ctxRef = useRef({ rol, rolPortal, vista, leadAbiertoId, abrirLead, cerrarPaneles, leadsVisibles })
+  ctxRef.current = { rol, rolPortal, vista, leadAbiertoId, abrirLead, cerrarPaneles, leadsVisibles }
 
   // Cuando el hash ORIGINA un cambio de estado, aquí queda el estado esperado:
   // el efecto estado→hash no escribe hasta converger (evita bucles y pisadas).
@@ -391,9 +390,8 @@ function Workspace() {
         ctx.leadsVisibles,
         ctx.rolPortal,
       )
-      // El hash NO se contrasta contra la foto de leads en memoria: esa foto
-      // está capada (MAX_LEADS_AMBITO) y dejaba inabrible por enlace a todo lead
-      // que no cupiera en ella (Fase 1 «sin topes», 19/09/2026). `abrirLead`
+      // El hash NO se contrasta contra ninguna foto de leads en memoria (la
+      // foto del ámbito murió en la Fase 4e «sin topes», 20/09/2026). `abrirLead`
       // relee cualquier lead por id a través de su propia puerta RLS y avisa si
       // ya no está disponible — esa es la comprobación de ámbito que vale.
       const leadDestino = destino === leido.vista ? leido.leadId : null

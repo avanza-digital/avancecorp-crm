@@ -18,7 +18,9 @@ const SUPERVISORA: Miembro = {
 }
 
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ ambito: { leads: [] }, equipo: [SUPERVISORA], actividades: [] }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, ambito: { leads: [] }, equipo: [SUPERVISORA], actividades: [] }),
   usePanelesActions: () => ({ abrirLead: vi.fn() }),
 }))
 vi.mock('@/lib/auth-context', () => ({

@@ -65,7 +65,6 @@ import {
   cerrarTarea,
   editarLeadFn,
   listarEquipo,
-  listarLeadsDelAmbito,
   obtenerLeadDelAmbitoPorId,
   obtenerTareaDelAmbitoPorId,
   obtenerCumplimientoMetas,
@@ -369,6 +368,17 @@ export interface StoreDataApi {
   // el recorte lo garantiza el store, no la disciplina de cada pantalla.
   actividadesDelAmbito: Actividad[]
   lead(id: string): Lead | undefined
+  /**
+   * Fase 4e «sin topes»: registra en el store los leads que una pantalla acaba
+   * de recibir del servidor (columnas, bandeja, cartera propia, búsqueda) para
+   * que los verbos de escritura los encuentren por id. No hace nada en demo.
+   */
+  conocerLeads(leads: readonly Lead[]): void
+  /**
+   * Garantiza que un lead sea conocido antes de escribir sobre él: si no lo
+   * está, lo relee por id a través de su puerta RLS. `false` si no es visible.
+   */
+  asegurarLead(id: string): Promise<boolean>
   actividadesDe(leadId: string): Actividad[] // orden desc por creado_en
   // Mutaciones — TODAS write-gated dentro del store
   // Agenda (crm.tareas): la fuente de verdad son las TAREAS; `agenda` es su
@@ -510,6 +520,23 @@ export interface PanelesActions {
 interface Datos {
   leads: Lead[]
   actividades: Actividad[]
+}
+
+/**
+ * Fusiona leads recién recibidos con los conocidos (por id; la fila nueva
+ * manda). Devuelve el MISMO estado si nada cambió, para no re-renderizar.
+ */
+function fusionarLeadsConocidos(d: Datos, nuevos: readonly Lead[]): Datos {
+  const porId = new Map(d.leads.map((l) => [l.id, l] as const))
+  let cambio = false
+  for (const n of nuevos) {
+    const previo = porId.get(n.id)
+    if (previo === n) continue
+    if (previo && JSON.stringify(previo) === JSON.stringify(n)) continue
+    porId.set(n.id, n)
+    cambio = true
+  }
+  return cambio ? { ...d, leads: [...porId.values()] } : d
 }
 
 const EQUIPO_VACIO: Miembro[] = []
@@ -952,8 +979,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // (`actividades_del_ambito_fn`, recortada a 1 000 filas). El historial
       // vive por lead (Fase 1) y la bitácora del directorio pide sus 8 filas
       // (`actividades_recientes_fn`); aquí solo quedan las optimistas locales.
+      // Fase 4e «sin topes»: el arranque ya NO baja la foto de leads del
+      // ámbito. `datos.leads` pasa a ser «leads conocidos»: lo que cada
+      // pantalla pidió al servidor (columnas del Pipeline, bandeja, cartera
+      // propia, búsqueda, fichas por id) y registró con `conocerLeads`.
       const [leads, miembros, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
-        listarLeadsDelAmbito(signal),
+        Promise.resolve<Lead[]>([]),
         esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
         listarTareasDelAmbito(signal),
         obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
@@ -1124,8 +1155,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // «todo lo local para siempre». El arranque, en cambio, parte de cero.
       void actividades
       const corteOptimistas = Date.now() - VIDA_OPTIMISTA_MS
+      // Los leads CONOCIDOS se conservan en la resincronización (los refrescan
+      // sus propias consultas al volver a registrarse, Fase 4e); la ficha
+      // ABIERTA se revalida por id: `leads` la trae fresca o, si el acceso se
+      // revocó, no la trae y se retira.
+      const abiertaId = contextoPanelRef.current.leadAbiertoId
       setDatos((d) => ({
-        leads,
+        leads: fusionarLeadsConocidos(
+          { ...d, leads: d.leads.filter((l) => l.id !== abiertaId || leads.some((f) => f.id === abiertaId)) },
+          leads,
+        ).leads,
         actividades: d.actividades.filter((a) => a.local === true && (a.local_ts ?? 0) > corteOptimistas),
       }))
       setTareas(tareasServidor)
@@ -1473,6 +1512,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // los tests de auditoría). Fuera del ámbito → "no encontrado", igual que
     // RLS (0 filas), sin revelar existencia.
     const buscar = (id: string) => ambito.leads.find((l) => l.id === id)
+    const nombrePorIdRoster = new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo] as const))
+    const conRoster = (l: Lead): Lead => ({
+      ...l,
+      vendedor_nombre: l.vendedor_id ? (nombrePorIdRoster.get(l.vendedor_id) ?? null) : null,
+      cargado_por_nombre: l.cargado_por ? (nombrePorIdRoster.get(l.cargado_por) ?? null) : null,
+    })
 
     // Contrato común de los cuatro verbos de agenda: solo una tarea pendiente
     // y activa puede cerrarse, reprogramarse, confirmarse o anularse.
@@ -1620,8 +1665,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         })
         return tarea
       },
+      // Fase 4e: en real el alcance ya lo puso la RLS (tareas y leads llegan
+      // recortados del servidor); el espejo `idsDelAmbito` solo acota la demo.
       tareasDe: (leadId) =>
-        idsDelAmbito.has(leadId)
+        (realActivo || idsDelAmbito.has(leadId))
           ? tareas
               .filter((t) => t.lead_id === leadId && t.estado === 'pendiente' && t.activo)
               .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
@@ -1637,9 +1684,23 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       actividades: datos.actividades,
       actividadesDelAmbito: datos.actividades.filter((a) => idsDelAmbito.has(a.lead_id)),
       lead: (id) => buscar(id),
+      // Los nombres del roster viajan en el lead (mismo espejo que el arranque
+      // y la apertura por id): analista y quien lo cargó.
+      conocerLeads: (nuevos) => {
+        if (!realActivo || nuevos.length === 0) return
+        setDatos((d) => fusionarLeadsConocidos(d, nuevos.map(conRoster)))
+      },
+      asegurarLead: async (id) => {
+        if (buscar(id)) return true
+        if (!realActivo) return false
+        const fila = await obtenerLeadDelAmbitoPorId(id, AbortSignal.timeout(LIMITE_CARGA_REAL_MS))
+        if (!fila) return false
+        setDatos((d) => fusionarLeadsConocidos(d, [conRoster(fila)]))
+        return true
+      },
       actividadesDe: (leadId) =>
         // Espejo de actividades_select: solo el timeline de leads del ámbito.
-        idsDelAmbito.has(leadId)
+        (realActivo || idsDelAmbito.has(leadId))
           ? datos.actividades.filter((a) => a.lead_id === leadId).sort((a, b) => b.creado_en.localeCompare(a.creado_en))
           : [],
 
@@ -1650,7 +1711,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const perfilId = input.perfil_id ?? null
         if ((leadId == null) === (perfilId == null)) return noEncontrado()
         const lead = leadId ? buscar(leadId) : undefined
-        if (leadId && (!lead || !idsDelAmbito.has(lead.id))) return noEncontrado()
+        if (leadId && (!lead || (!realActivo && !idsDelAmbito.has(lead.id)))) return noEncontrado()
         if (lead && !esAbierto(lead)) {
           return {
             ok: false,

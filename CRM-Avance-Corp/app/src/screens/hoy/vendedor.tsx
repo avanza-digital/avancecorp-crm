@@ -900,6 +900,9 @@ export function HoyVendedor(): JSX.Element {
     [sesionRealPropios, propios.data, ambito.leads],
   )
   const cargandoMios = sesionRealPropios && propios.isPending
+  // Fase 4e: el store conoce la cartera propia (verbos de escritura por id).
+  const { conocerLeads } = useCRMData()
+  useEffect(() => { conocerLeads(propios.data ?? []) }, [conocerLeads, propios.data])
   const idsMios = useMemo(() => new Set(mios.map((l) => l.id)), [mios])
 
   // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo

@@ -83,6 +83,8 @@ let COLA_ERROR = false
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS, vendedores: [], esGlobal: false },
     actividades: ACTIVIDADES,
     tareas: TAREAS,
@@ -1102,7 +1104,7 @@ describe('Hoy · analista — gestiones de clientes', () => {
 })
 
 describe('Hoy · analista — viernes de higiene', () => {
-  it('las filas "Sin próxima acción" traen el botón Agendar', () => {
+  it('las filas "Sin próxima acción" traen el botón Agendar', async () => {
     montar({
       ahora: VIERNES_2PM,
       leads: [lead({ id: 'l-1', nombre_completo: 'ANA TORRES' })],
@@ -1119,6 +1121,8 @@ describe('Hoy · analista — viernes de higiene', () => {
       name: 'Agendar el siguiente paso con ANA TORRES',
     })
     fireEvent.click(boton)
+    // Fase 4e: antes de agendar, el store asegura conocer el lead (asíncrono): se vacían las microtareas.
+    await act(async () => { await Promise.resolve() })
     expect(crearTarea).toHaveBeenCalledWith(expect.objectContaining({ lead_id: 'l-1', tipo: 'llamada' }))
   })
 

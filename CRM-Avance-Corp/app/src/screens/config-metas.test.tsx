@@ -23,7 +23,9 @@ vi.mock('sonner', () => ({
 // Publicar tiene que resincronizar el store: los paneles no leen de la consulta
 // del editor, así que sin esto gerencia publicaba y sus pantallas seguían
 // diciendo «Sin meta».
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ recargar: dobles.recargar }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, recargar: dobles.recargar }) }))
 
 vi.mock('@/data/crm-config-queries', () => ({
   useConfiguracionMetas: (periodo: string) => {

@@ -8,7 +8,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import {
   CrmApiError,
-  MAX_LEADS_AMBITO,
   mensajeDeError,
   reconocerAlertaSupervisor,
 } from '@/data/crm-api'
@@ -277,7 +276,10 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   // estar incompleta — una foto trunca que el servidor acepta callaría al
   // lead 2001. Sin foto confiable, reconocer se desactiva Y el libro se
   // ignora: la comparación de «empeoró» tampoco es de fiar.
-  const fotoConfiable = !legado || ambito.leads.length < MAX_LEADS_AMBITO
+  // Fase 4e «sin topes»: ya no hay foto de leads del ámbito; las derivaciones
+  // legado por actividad solo viven en demo (Fase 3), así que la «foto» es de
+  // fiar salvo en sesión real con el modo SLA apagado (donde no se calcula).
+  const fotoConfiable = !legado || Boolean(yo?.demo)
 
   // F4: el libro atenúa (reconocer) u oculta (posponer) las alertas AGRUPADAS
   // del supervisor. Con el libro caído se aplica []: TODO suena — un fallo de
@@ -393,7 +395,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         : null,
       // F4 (Codex #5): la foto trunca se DICE, no se disimula quitando botones.
       rol === 'supervisor' && !soloRoles && !fotoConfiable
-        ? 'Tu cartera alcanzó el tope local de leads: Reconocer y Posponer quedan desactivados porque la foto de los grupos podría estar incompleta.'
+        ? 'Reconocer y Posponer quedan desactivados sin el modo SLA activo: el CRM ya no descarga la foto de leads del ámbito.'
         : null,
     ]
     return mensajes.filter((mensaje): mensaje is string => Boolean(mensaje))

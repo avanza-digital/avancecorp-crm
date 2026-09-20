@@ -32,7 +32,9 @@ vi.mock('@/data/crm-queries', () => ({ useBusquedaGlobal: (texto: string | null,
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ ambito: { leads: LEADS, vendedores: [], esGlobal: false } }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, ambito: { leads: LEADS, vendedores: [], esGlobal: false } }),
   usePanelesActions: () => ({ abrirLead, abrirNuevoLead }),
 }))
 vi.mock('@/lib/alertas-context', () => ({

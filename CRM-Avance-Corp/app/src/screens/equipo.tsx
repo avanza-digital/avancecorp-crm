@@ -910,6 +910,8 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
     return { parkeados, vendedoresPorSupervisor, grupos }
   }, [sesionRealBandeja, bandejaServidor.data, ambito.leads, equipo])
   const bandejaCargando = sesionRealBandeja && bandejaServidor.isPending
+  const { conocerLeads } = useCRMData()
+  useEffect(() => { conocerLeads(bandejaServidor.data ?? []) }, [conocerLeads, bandejaServidor.data])
   const bandejaError = sesionRealBandeja && bandejaServidor.error instanceof Error ? bandejaServidor.error : null
 
   // Tablero derivado del payload: bloques por supervisor con sus analistas.

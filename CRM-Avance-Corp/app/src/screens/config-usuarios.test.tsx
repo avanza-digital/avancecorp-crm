@@ -32,7 +32,9 @@ vi.mock('@/lib/auth-context', () => ({
 }))
 
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ recargar: dobles.recargar }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, recargar: dobles.recargar }),
 }))
 
 vi.mock('@/data/crm-config-queries', () => ({

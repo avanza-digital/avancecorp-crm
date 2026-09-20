@@ -110,6 +110,9 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
     .slice(0, 8)
 }
 
+/** Lista vacía estable (misma referencia entre renders). */
+const SIN_RESULTADOS: readonly Lead[] = []
+
 /** Retraso del texto antes de pedir al servidor (Fase 4a): ≥ 300 ms entre teclas. */
 const RETRASO_BUSQUEDA_MS = 300
 
@@ -134,7 +137,7 @@ export function Topbar({
 }) {
   const { yo } = useAuth()
   const soloRoles = administraSoloRolesCrm(yo)
-  const { ambito } = useCRMData()
+  const { ambito, conocerLeads } = useCRMData()
   // F4: la campana cuenta `pendientes` (las que piden acción hoy), no todo lo
   // visible — una alerta reconocida sigue en la lista, atenuada, sin sumar.
   const { pendientes, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
@@ -174,9 +177,14 @@ export function Topbar({
   // texto se asienta, la petición vuela o la consulta está apagada, la lista
   // es vacía (Codex, 20/09: Enter elegía un resultado del texto anterior).
   const textoActual = sesionReal ? textoBuscable(q) : null
-  const resultadosServidor = sesionReal && textoServidor !== null && textoActual === textoServidor
-    && !busqueda.isPlaceholderData && busqueda.data ? busqueda.data : []
+  const resultadosServidor = useMemo(
+    () => (sesionReal && textoServidor !== null && textoActual === textoServidor
+      && !busqueda.isPlaceholderData && busqueda.data ? busqueda.data : SIN_RESULTADOS),
+    [sesionReal, textoServidor, textoActual, busqueda.isPlaceholderData, busqueda.data],
+  )
   const resultados = sesionReal ? resultadosServidor : resultadosLocales
+  // Fase 4e: lo que el buscador muestra, el store lo conoce (abrir y actuar por id).
+  useEffect(() => { conocerLeads(resultadosServidor) }, [conocerLeads, resultadosServidor])
   // Estados del desplegable en sesión real (la demo responde al instante).
   const bajoMinimo = sesionReal && q.trim() !== '' && textoBuscable(q) === null
   const buscando = sesionReal && !bajoMinimo

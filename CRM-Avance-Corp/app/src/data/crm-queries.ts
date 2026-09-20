@@ -79,10 +79,10 @@ import {
 import { SENALES_VACIAS, type SenalesLead } from '@/lib/historial-lead'
 import type { Actividad } from '@/lib/tipos'
 
-// El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
-// pantallas que aún no migraron; la prohibición general de claves de leads se
-// levanta en F3. La ÚNICA excepción viva es `carteraPagina` (F2): esa pantalla
-// ya no cuenta filas del store, pagina por cursor keyset contra el servidor.
+// Fase 4e «sin topes» (20/09/2026): el store ya NO carga la foto del ámbito;
+// cada pantalla pide al servidor lo que muestra (cartera por cursor, columnas
+// del Pipeline, bandeja sin analista, cartera propia, búsqueda global) y el
+// store solo conoce lo que las pantallas le registran (`conocerLeads`).
 export const crmQueryKeys = {
   raiz: ['crm'] as const,
   config: () => [...crmQueryKeys.raiz, 'config'] as const,

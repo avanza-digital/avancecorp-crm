@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, leads, agenda, buscador, fase-4, sin-topes]
 actualizado: 2026-09-20
-estado: 4a y 4b CONSTRUIDAS, ENSAYADAS Y REVISADAS (auditor-rls + Codex aplicados; SQL 20260920045202 sin instalar) · quedan 4c, 4d y 4e
+estado: 4a–4e CONSTRUIDAS (PR #43); SQL 20260920045202 EN PROD (~01:03 Lima) y registro pendiente; front por publicar
 ---
 
 # Leads sin foto inicial — Fase 4 del plan «sin topes» (2026-09-20)
@@ -58,6 +58,34 @@ muestra con las RPC existentes, el arranque no baja leads en sesión real, y mue
   el alcance; una tarea con lead no visible se lista sin capital ni recordatorio). La tarjeta
   flotante del lead solo con un `Lead` completo (demo): con el recorte no se inventa origen ni alta.
 
+## 4c — Bandeja sin analista por servidor (front)
+
+Equipo (bandeja global) y Derivaciones piden `cartera_pagina_fn` con `p_sin_asignar` por cursor hasta
+agotar (`listarLeadsSinAsignar`; RLS: el supervisor ve su bandeja, gerencia todas; hoy 3 leads abiertos
+sin analista en prod). Hoy · Supervisor solo usa la bandeja local en demo (sin cambios).
+
+## 4d — Pipeline por columna y Hoy · Analista (front)
+
+- Pipeline (real): cada columna es su propia lista servida por `cartera_filtrada_fn` (etapa + analista,
+  cursor keyset, «Cargar más», total del servidor, capital de lo cargado); «por repartir» del servidor.
+  La demo sigue paginando su foto local.
+- Hoy · Analista (real): la cartera propia por `cartera_pagina_fn` bajo su RLS, por cursor hasta agotarla
+  (`listarLeadsPropios`): higiene, citas con capital y pulso. La cola de acción ya no necesita la foto
+  (`mapearColaAccion` arma el lead desde la fila del RPC).
+
+## 4e — Arranque sin leads (front)
+
+- `cargarReal` ya no baja leads; `listarLeadsDelAmbito`, `MAX_LEADS_AMBITO`, el puente y su alarma
+  MURIERON (front y MSW). La ficha abierta sigue releyéndose por id.
+- `datos.leads` pasa a ser «leads CONOCIDOS»: cada pantalla registra con `conocerLeads` lo que recibió
+  del servidor (columnas del Pipeline, cartera propia, bandeja, buscador, tabla de Leads, fichas por id),
+  enriquecido con los nombres del roster como hacía el arranque. Los verbos de escritura los encuentran
+  por id; `asegurarLead(id)` relee por RLS antes de un contacto o de agendar desde una tarjeta.
+- La resincronización conserva los conocidos y revalida la ficha abierta (fresca o retirada si se revocó).
+- Los espejos `idsDelAmbito` (tareasDe, actividadesDe, crearTarea) solo acotan la demo: en real el
+  alcance ya lo puso la RLS.
+- Alertas: `fotoConfiable` ya no depende de un tope; en real con SLA apagado se dice que no hay foto.
+
 ## Decisiones
 
 - **`no_contactar` es fail-closed:** sin el dato (servidor anterior) se asume que NO se puede
@@ -72,17 +100,12 @@ muestra con las RPC existentes, el arranque no baja leads en sesión real, y mue
 
 ## Lo que falta
 
-1. PR sobre `main` → **[Miguel]** `!` con la migración → md5 en
-   prod → registrador → `!` → fusionar → `/release-crm` → acta, mapa de capas, `main` el mismo día.
-2. **4c** bandejas (Equipo parkeados, Derivaciones, Hoy·Supervisor) con `leads_por_repartir`.
-3. **4d** Pipeline por columna (`cartera_filtrada_fn` por etapa + cursor, tiles de
-   `resumen_cartera_fn`), Leads y cartera paginada sin foto, higiene de Hoy·Vendedor
-   (`cola_accion_v2_fn`/`resumen_tareas_fn`), dedup del store (`verificar_disponibilidad_lead`).
-4. **4e** arranque sin leads: `cargarReal`, `ambito` → módulo demo, `abrirLead` por id, alertas
-   (`fotoConfiable`), Gestión Diaria (`gestion-diaria-queries.ts` resuelve nombre/etapa desde la
-   foto: coordinar), logout endurecido antes de tocar `epocaRef`; borrar `MAX_LEADS_AMBITO`, puente,
-   alarma, fila MSW y ruta E2E.
-5. **Seguimientos de la revisión de Codex (20/09):**
+1. **[Miguel]** `!` con el registrador `registrar-20260920045202.sql` → fusionar la PR #43 →
+   `/release-crm` → acta, mapa de capas, `main` el mismo día.
+2. Desvíos aceptados respecto al plan: la dedup local del store (`conflictoDedup`) sigue comparando
+   contra los leads conocidos (la verdad es el índice único del servidor); `gestion-diaria-queries.ts`
+   solo usa la foto en demo (sin coordinación necesaria); el logout no se endureció (no se tocó `epocaRef`).
+3. **Seguimientos de la revisión de Codex (20/09):**
    - La búsqueda por servidor pierde la tolerancia a tildes que tenía el filtro local (`ILIKE`
      sin `unaccent`): en prod 249 de 1 983 leads activos llevan tilde o ñ y `unaccent` está
      instalado → migración aparte sobre `cartera_pagina_fn`/`cartera_filtrada_fn` (unaccent +

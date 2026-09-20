@@ -3,6 +3,8 @@
 // rollback offline y estado de carga con reintento. La capa @/data/crm-api se
 // mockea (sin red); CrmApiError se conserva real para el instanceof de persistir.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useEffect, useRef } from 'react'
+import type { Lead } from './tipos'
 import { act, render, waitFor } from '@testing-library/react'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -40,7 +42,6 @@ vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
   return {
     ...actual, // conserva CrmApiError real (instanceof en persistir)
-    listarLeadsDelAmbito: vi.fn(),
     obtenerLeadDelAmbitoPorId: vi.fn(),
     obtenerTareaDelAmbitoPorId: vi.fn(),
     listarEquipo: vi.fn(),
@@ -63,7 +64,16 @@ vi.mock('@/data/crm-api', async (importActual) => {
 const { StoreProvider, LIMITE_CARGA_REAL_MS } = await import('./store')
 const { CrmApiError } = crmApi
 
-const listarLeads = vi.mocked(crmApi.listarLeadsDelAmbito)
+// Fase 4e «sin topes»: el arranque ya no baja la foto de leads. Lo que antes
+// devolvía `listarLeadsDelAmbito` ahora lo REGISTRAN las pantallas con
+// `conocerLeads` tras recibirlo del servidor; la sonda del arnés lo hace por
+// ellas en cuanto termina cada arranque (misma semántica que el mock: una
+// semilla por defecto y semillas «once» por arranque).
+const SEMILLA: { siempre: Lead[]; cola: Lead[][] } = { siempre: [], cola: [] }
+const listarLeads = {
+  mockResolvedValue: (leads: Lead[]) => { SEMILLA.siempre = leads },
+  mockResolvedValueOnce: (leads: Lead[]) => { SEMILLA.cola.push(leads) },
+}
 const obtenerLeadPorId = vi.mocked(crmApi.obtenerLeadDelAmbitoPorId)
 const listarEquipo = vi.mocked(crmApi.listarEquipo)
 const insertarLead = vi.mocked(crmApi.insertarLead)
@@ -273,6 +283,20 @@ function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
     ref.estado = useStoreEstado()
     ref.panelActions = usePanelesActions()
     ref.panelState = usePanelesState()
+    // Al terminar cada arranque, las «pantallas» registran su semilla de leads.
+    const cargando = ref.estado.cargando
+    const api = ref.api
+    const sembradoTrasBoot = useRef(0)
+    useEffect(() => {
+      // Solo tras un arranque que consultó la operación (una llamada nueva a
+      // listarTareas): un rol sin operación o un arranque en vuelo no siembran.
+      const boots = listarTareas.mock.calls.length
+      if (!cargando && boots > sembradoTrasBoot.current) {
+        sembradoTrasBoot.current = boots
+        const semilla = SEMILLA.cola.shift() ?? SEMILLA.siempre
+        if (semilla.length > 0) api.conocerLeads(semilla)
+      }
+    }, [api, cargando])
     return null
   }
   const arbol = (nuevoRol: Rol, nuevaIdentidad: Partial<Yo> = {}) => (
@@ -325,6 +349,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     invalidarQueriesMock.mockReset().mockResolvedValue(undefined)
     vi.mocked(queryClient.cancelQueries).mockReset().mockResolvedValue(undefined)
     comandoSla.mockResolvedValue(undefined)
+    SEMILLA.cola = []
     listarLeads.mockResolvedValue([leadBase()])
     obtenerLeadPorId.mockReset().mockResolvedValue(null)
     listarEquipo.mockResolvedValue(ROSTER)
@@ -505,8 +530,9 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       await waitFor(() => expect(montaje.estado().cargando).toBe(false))
       let apertura!: ReturnType<PanelesActions['abrirLead']>
       act(() => { apertura = montaje.panelActions().abrirLead(ID_A) })
-      const nuevoBoot = diferida<Awaited<ReturnType<typeof crmApi.listarLeadsDelAmbito>>>()
-      listarLeads.mockReturnValueOnce(nuevoBoot.promesa)
+      const nuevoBoot = diferida<Awaited<ReturnType<typeof crmApi.listarTareasDelAmbito>>>()
+      listarTareas.mockReturnValueOnce(nuevoBoot.promesa)
+      listarLeads.mockResolvedValueOnce([]) // el nuevo actor arranca sin leads conocidos
 
       montaje.rerenderAuth('vendedor', cambio === 'otro actor' ? {} : { id: 'u-ger' })
 
@@ -650,7 +676,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(listarEquipo).toHaveBeenCalledTimes(1)
     expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
     expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
-    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -724,7 +750,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(listarEquipo).toHaveBeenCalledTimes(1)
     expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
     expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
-    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -851,7 +877,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     await waitFor(() => expect(estado().cargando).toBe(false))
     expect(api().leads).toHaveLength(1)
-    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -871,7 +897,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(estado().error).toBe(false)
     expect(api().leads).toEqual([])
     expect(api().equipo).toEqual([])
-    expect(listarLeads).not.toHaveBeenCalled()
+    expect(listarTareas).not.toHaveBeenCalled()
     expect(listarEquipo).not.toHaveBeenCalled()
     expect(listarTareas).not.toHaveBeenCalled()
     expect(obtenerMetasMock).not.toHaveBeenCalled()
@@ -947,7 +973,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   it('el gate de acciones está ABIERTO: crearLead persiste y resincroniza', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
-    listarLeads.mockClear()
 
     const res = mutar((a) =>
       a.crearLead({
@@ -965,7 +990,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(insertarLead).toHaveBeenCalledTimes(1)
     expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }))
     await expect(res.persistido).resolves.toEqual({ ok: true })
-    await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
+    await waitFor(() => expect(listarTareas).toHaveBeenCalledTimes(2)) // resync
     expect(invalidarQueriesMock).toHaveBeenCalledWith({
       queryKey: crmQueryKeys.conversionMensualPrefijo(),
     })
@@ -2012,7 +2037,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const id = api().leads[0]!.id
     editarLeadFn.mockRejectedValueOnce(new CrmApiError('No se pudo guardar el cambio', 'POSTGREST_ERROR'))
     // El resync de rollback también falla (offline).
-    listarLeads.mockRejectedValueOnce(new CrmApiError('sin red', 'POSTGREST_ERROR'))
+    listarTareas.mockRejectedValueOnce(new CrmApiError('sin red', 'POSTGREST_ERROR'))
 
     mutar((a) => a.editarLead(id, { correo: 'otro@correo.com' }))
 
@@ -2097,7 +2122,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     vi.useFakeTimers()
     try {
       // Promesa que jamás se asienta: el peor caso (ni éxito ni fallo).
-      listarLeads.mockImplementationOnce(() => new Promise(() => {}))
+      listarTareas.mockImplementationOnce(() => new Promise(() => {}))
       const { estado } = montar('supervisor')
       expect(estado().cargando).toBe(true)
       expect(estado().error).toBe(false)
@@ -2183,7 +2208,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('fallo de la carga inicial → estado.error (no pinta CRM vacío) y reintentar recupera', async () => {
-    listarLeads.mockRejectedValueOnce(new CrmApiError('caída inicial', 'POSTGREST_ERROR'))
+    listarTareas.mockRejectedValueOnce(new CrmApiError('caída inicial', 'POSTGREST_ERROR'))
     const { api, estado } = montar('supervisor')
     await waitFor(() => expect(estado().error).toBe(true))
     expect(api().leads).toHaveLength(0)

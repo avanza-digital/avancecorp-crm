@@ -248,6 +248,14 @@ export function Pipeline() {
   const columnasServidor: Record<EtapaActiva, CarteraPaginada> = {
     nuevo: columnaNuevo, contactado: columnaContactado, reunion_agendada: columnaReunion, propuesta_enviada: columnaPropuesta,
   }
+  // Fase 4e: el store conoce lo que el tablero muestra (los verbos de
+  // escritura resuelven el lead por id sin foto inicial).
+  const { conocerLeads } = useCRMData()
+  const leadsEnTablero = useMemo(
+    () => (sesionReal ? [...columnaNuevo.leads, ...columnaContactado.leads, ...columnaReunion.leads, ...columnaPropuesta.leads] : []),
+    [sesionReal, columnaNuevo.leads, columnaContactado.leads, columnaReunion.leads, columnaPropuesta.leads],
+  )
+  useEffect(() => { conocerLeads(leadsEnTablero) }, [conocerLeads, leadsEnTablero])
   const buscarEnTablero = (id: string): Lead | undefined =>
     sesionReal ? ETAPAS.flatMap((c) => columnasServidor[c.k].leads).find((x) => x.id === id) : ambito.leads.find((x) => x.id === id)
   // Solo las COLUMNAS se filtran; los stats y terminales resumen el ámbito completo.

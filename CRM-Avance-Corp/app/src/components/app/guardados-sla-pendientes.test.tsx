@@ -7,7 +7,9 @@ import { GuardadosSlaPendientes } from './guardados-sla-pendientes'
 const doble = vi.hoisted(() => ({ actor: { id: 'actor', rol: 'vendedor', demo: false },
   confirmar: vi.fn(), recargar: vi.fn(), listar: vi.fn() }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: doble.actor }) }))
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ recargar: doble.recargar }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, recargar: doble.recargar }) }))
 vi.mock('@/data/sla-operacion-comandos', () => ({ confirmarPendienteSla: doble.confirmar,
   listarPendientesSla: doble.listar, suscribirPendientesSla: () => () => undefined }))
 beforeEach(() => {

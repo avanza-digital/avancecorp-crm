@@ -20,13 +20,15 @@
     "gate": "cb32d6c7a31dad61f1aea7842e185465"
   },
   "produccion": {
-    "instalada": "PENDIENTE (Miguel con `!` + db query --linked --file)",
-    "md5_medidos_en": "PENDIENTE: medir en produccion tras instalar y regenerar el registrador"
+    "instalada": "✅ 2026-09-20 ~06:03 UTC (20/09 ~01:03 Lima): Miguel con `!` + `npx supabase db query --linked --file supabase/migrations/20260920045202_crm_tareas_pendientes_lead_embebido.sql` (rows []). Medido después en prod (06:04 UTC): gate OK; base OK (once columnas); núcleo INVOKER, stable, search_path=\"\", owner postgres, ACL {postgres, authenticated}; la primera fila del núcleo trae las 10 claves lead_* (+ lead_id); mutantes presentes (no se corren en prod); sin registrar hasta el registrador.",
+    "md5_medidos_en": "produccion 2026-09-20 06:04 UTC: núcleo idéntico a la copia local (699288313e…); la puerta conserva el md5 de la Fase 2 (5edd699559…), como corresponde (no cambió)",
+    "registrada": "PENDIENTE (Miguel con `!` + registrar-20260920045202.sql)"
   },
-  "md5_puerta": "PENDIENTE",
-  "md5_nucleo": "PENDIENTE",
+  "md5_puerta": "5edd699559108383a0e44a90b51d9ad6",
+  "md5_nucleo": "699288313e80228963b92b8a56c3fe5c",
   "revisiones": {
     "auditor_rls": "CHANGES_REQUESTED sin P0/P1 (20/09): sin fuga de PII (join bajo leads_select + restrictiva del actor activo; el mismo actor ya lee crm.leads por tabla), create or replace conserva dueño/ACL, reversa real. ACEPTADOS: comentarios «nulos en silencio» → «42501 para todos» (P3-a) y contadores; el raise del postflight imprime solo las claves que faltan, nunca la fila (P3-b); caso «tarea visible, lead no» reproducido con la siembra correcta (P3-c); mutante 18 para las columnas nuevas (test gap); casos a/b/c en test-rls.mjs (P2, NOT RUN hasta el banco). ANOTADO como deuda ajena: telefono_alternativo sin ACL por columna propia (P3-d; molde 20260919211105)",
     "codex": "CHANGES_REQUESTED (CLI `codex exec --sandbox read-only`, 20/09): sin ampliación de acceso a PII en el SQL. Front: [P1] los escritores del store (registrarLlamada/registrarActividad/tareasDe, cerrar-tarea) siguen resolviendo el lead por pertenencia a la foto → NO es regresión hoy (la foto sigue cargándose hasta la 4e; con lead no visible no se ofrecen acciones) → ANOTADO como requisito de la 4e (resolver por id bajo RLS). [P2] Enter elegía un resultado del texto anterior (keepPreviousData) → ACEPTADO: solo cuenta la lista de la consulta del texto ACTUAL, sin keepPreviousData; test. [P2] la lectura puntual de la tarea (revisión) borraba el lead embebido → ACEPTADO: conservarLeadEmbebido en el store; test. [P2] invalidación de `leads` sin cancelar antes → ACEPTADO: cancelQueries → invalidateQueries. [P2] la búsqueda real pierde la tolerancia a tildes (ILIKE sin unaccent): medido en prod 249/1 983 leads activos con tilde o ñ y `unaccent` instalado → ACEPTADO COMO SEGUIMIENTO: migración aparte sobre cartera_pagina_fn/cartera_filtrada_fn (unaccent + índice de expresión), misma limitación que ya tiene la pantalla Leads; decisión de Miguel. Riesgo aceptado: con un servidor anterior (sin teléfono embebido) no se ofrece «Llamar» (guardado en la Agenda)."
-  }
+  },
+  "md5_mutantes_referencia": "a15d332f78909018b650825a13fb25ef"
 }

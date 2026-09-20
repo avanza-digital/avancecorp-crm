@@ -412,6 +412,8 @@ export function Derivaciones(): JSX.Element {
     [sesionRealBandeja, bandejaServidor.data, ambito.leads],
   )
   const bandejaCargando = sesionRealBandeja && bandejaServidor.isPending
+  const { conocerLeads } = useCRMData()
+  useEffect(() => { conocerLeads(bandejaServidor.data ?? []) }, [conocerLeads, bandejaServidor.data])
   const bandejaError = sesionRealBandeja && bandejaServidor.error instanceof Error ? bandejaServidor.error : null
   const {
     modo,

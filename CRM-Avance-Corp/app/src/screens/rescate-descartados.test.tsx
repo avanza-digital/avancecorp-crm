@@ -19,7 +19,9 @@ let EQUIPO: Miembro[] = []
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: EQUIPO }),
+  useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, equipo: EQUIPO }),
   usePanelesActions: () => ({ abrirLead }),
 }))
 vi.mock('@/data/crm-api', () => ({

@@ -2793,6 +2793,11 @@ export async function montarBackendReal(
     // directo servía. El mock pagina como el servidor: ancladas a lead o
     // perfil, pendientes y activas, después del cursor, `p_limite` filas.
     if (p === '/rest/v1/rpc/tareas_pendientes_fn' && method === 'POST') {
+      // Fase 4e: el arranque ya no baja leads; «carga inicial caída» se simula
+      // tirando la primera lectura del arranque que sí queda (las tareas).
+      if (estado.leadsSiempreCaido) {
+        return json(route, { message: 'tareas caidas', code: 'PGRST000', details: null, hint: null }, 500)
+      }
       const body = (req.postDataJSON() ?? {}) as { p_limite?: number; p_despues_de?: string; p_despues_id?: string }
       const pendientes = estado.tareas
         .filter((t) => t.estado === 'pendiente' && t.activo !== false && (t.lead_id || t.perfil_id))

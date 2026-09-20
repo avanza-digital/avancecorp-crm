@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({ tareas: [] as Tarea[], obtener: vi.fn(), refet
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'actor', rol: 'vendedor' } }) }))
 vi.mock('@/data/sla-operacion-queries', () => ({ useEstadosSlaV2: () => ({ data: mocks.lectura, refetch: mocks.refetch }) }))
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ tareasDe: () => mocks.tareas, obtenerTareaParaRevision: mocks.obtener, actividadesDe: () => [] }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true, tareasDe: () => mocks.tareas, obtenerTareaParaRevision: mocks.obtener, actividadesDe: () => [] }) }))
 // Historial POR LEAD (Fase 1 «sin topes»): aquí se prueba la próxima acción,
 // no el timeline; sin historial no hay retroceso que anunciar.
 vi.mock('@/data/use-actividades-de-lead', () => ({

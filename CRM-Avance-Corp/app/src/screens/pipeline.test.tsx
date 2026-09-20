@@ -55,6 +55,8 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS, vendedores: VENDEDORES, esGlobal: YO?.rol === 'gerencia' },
     actividadesDelAmbito: [],
     cambiarEtapa,

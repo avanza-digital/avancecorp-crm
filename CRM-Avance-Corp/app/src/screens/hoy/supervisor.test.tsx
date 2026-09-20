@@ -49,6 +49,8 @@ vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
+    // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
+    conocerLeads: () => {}, asegurarLead: async () => true,
     ambito: { leads: LEADS, vendedores: VENDEDORES, esGlobal: false },
     actividades: [] as Actividad[],
     tareas: [],
