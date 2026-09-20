@@ -34,6 +34,7 @@ import {
   listarResumenCartera,
   listarActividadesRecientes,
   buscarLeadsGlobal,
+  listarLeadsSinAsignar,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -221,6 +222,8 @@ export const crmQueryKeys = {
   // Buscador global (Fase 4a): una lista por texto; cuelga de `leads` para que
   // una mutación de lead la invalide como al resto de listas de leads.
   busquedaGlobal: (texto: string) => [...crmQueryKeys.leads(), 'busqueda-global', texto] as const,
+  // Bandeja sin analista (Fase 4c): cuelga de `leads` (repartir/derivar la invalida).
+  leadsSinAsignar: () => [...crmQueryKeys.leads(), 'sin-asignar'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -530,6 +533,20 @@ export function useBusquedaGlobal(texto: string | null, habilitada: boolean) {
     queryFn: ({ signal }) => buscarLeadsGlobal(texto ?? '', signal),
     enabled: habilitada && texto !== null,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * Bandeja de leads sin analista (Fase 4c «sin topes»): Equipo, Derivaciones y
+ * Hoy · Supervisor la piden al servidor en vez de filtrar la foto inicial.
+ */
+export function useLeadsSinAsignar(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.leadsSinAsignar(),
+    queryFn: ({ signal }) => listarLeadsSinAsignar(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
   })
 }
 

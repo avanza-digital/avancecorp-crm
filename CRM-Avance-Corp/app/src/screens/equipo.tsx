@@ -35,7 +35,7 @@ import { moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { useCierreMesEstado, useConversionMensual, useCumplimientoMetas, useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { useCierreMesEstado, useConversionMensual, useCumplimientoMetas, useLeadsSinAsignar, useMetricasConversionesEquipo } from '@/data/crm-queries'
 import { periodoInicialGerencia, periodoMesCalendario, semanticaMetaMensual } from '@/components/gerencia/periodo'
 import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
@@ -885,8 +885,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
 
   // Roster y bandeja global: puro cliente (la bandeja es una lista operable y
   // sus contadores describen las filas que de verdad pinta).
+  // Fase 4c «sin topes»: en sesión real la bandeja la sirve el servidor
+  // (`cartera_pagina_fn` sin analista, bajo RLS); la demo filtra su foto local.
+  const sesionRealBandeja = yo != null && !yo.demo
+  const bandejaServidor = useLeadsSinAsignar(sesionRealBandeja)
   const d = useMemo(() => {
-    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
+    const fuente = sesionRealBandeja ? (bandejaServidor.data ?? []) : ambito.leads
+    const parkeados = fuente.filter((l) => esAbierto(l) && l.vendedor_id == null)
     // Analistas activos por supervisor en UNA pasada sobre el roster —
     // lo comparten los bloques y los optgroups de la bandeja global.
     const vendedoresPorSupervisor = new Map<string, Miembro[]>()
@@ -903,7 +908,9 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       .map((sup) => ({ sup, vs: vendedoresPorSupervisor.get(sup.perfil_id) ?? [] }))
       .filter((g) => g.vs.length > 0)
     return { parkeados, vendedoresPorSupervisor, grupos }
-  }, [ambito.leads, equipo])
+  }, [sesionRealBandeja, bandejaServidor.data, ambito.leads, equipo])
+  const bandejaCargando = sesionRealBandeja && bandejaServidor.isPending
+  const bandejaError = sesionRealBandeja && bandejaServidor.error instanceof Error ? bandejaServidor.error : null
 
   // Tablero derivado del payload: bloques por supervisor con sus analistas.
   const tablero = useMemo(() => {
@@ -1317,7 +1324,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             icon={Inbox}
             title="Por repartir (toda la empresa)"
             right={
-              d.parkeados.length > 0 ? (
+              bandejaCargando ? (
+                <span role="status" className="text-[11px] text-muted-foreground">Cargando bandeja…</span>
+              ) : bandejaError ? (
+                <button type="button" onClick={() => void bandejaServidor.refetch()} className="text-[11px] font-semibold text-destructive-text hover:underline">
+                  No se pudo cargar la bandeja · Reintentar
+                </button>
+              ) : d.parkeados.length > 0 ? (
                 <Badge color={SEMAFORO.atencion} variant="outline" dot>
                   {d.parkeados.length} en bandejas
                 </Badge>

@@ -29,6 +29,7 @@ import {
   TAMANO_BITACORA_RECIENTES,
   buscarLeadsGlobal,
   TAMANO_BUSQUEDA_GLOBAL,
+  listarLeadsSinAsignar,
   reprogramarReunion,
 } from './crm-api'
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
@@ -1043,5 +1044,43 @@ describe('buscarLeadsGlobal (msw) — Fase 4a «sin topes»', () => {
     await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({
       code: '42501', message: 'Tu cuenta no tiene acceso a la cartera del CRM.',
     })
+  })
+})
+
+describe('listarLeadsSinAsignar (msw) — Fase 4c «sin topes»', () => {
+  const RUTA_PAGINA = 'http://supabase.test/rest/v1/rpc/cartera_pagina_fn'
+  const filaCartera = (i: number, sobre: Record<string, unknown> = {}) => fila({
+    id: `l-sa-${i}`, vendedor_id: null, actualizado_en: new Date(Date.parse('2026-08-01T12:00:00.000Z') - i * 60_000).toISOString(),
+    ultimo_contacto_en: null, ...sobre,
+  })
+
+  it('pide sin analista por cursor hasta agotar y une las páginas sin repetidos', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RUTA_PAGINA, async ({ request }) => {
+      const b = (await request.json()) as Record<string, unknown>
+      cuerpos.push(b)
+      // Página de 50 (+1): la primera trae 51 (hay más), la segunda 2.
+      if (!b.p_antes_id) return HttpResponse.json(Array.from({ length: 51 }, (_, i) => filaCartera(i)))
+      return HttpResponse.json([filaCartera(50), filaCartera(51)])
+    }))
+    const leads = await listarLeadsSinAsignar()
+    expect(cuerpos[0]).toMatchObject({ p_limite: 51, p_sin_asignar: true })
+    expect(cuerpos[0]).not.toHaveProperty('p_vendedor_id')
+    expect(cuerpos[1]).toMatchObject({ p_antes_id: 'l-sa-49', p_antes_de: new Date(Date.parse('2026-08-01T12:00:00.000Z') - 49 * 60_000).toISOString() })
+    expect(leads).toHaveLength(52)
+    expect(new Set(leads.map((l) => l.id)).size).toBe(52)
+    expect(leads.every((l) => l.vendedor_id == null)).toBe(true)
+  })
+
+  it('una bandeja pequeña es una sola petición', async () => {
+    let llamadas = 0
+    server.use(http.post(RUTA_PAGINA, () => { llamadas += 1; return HttpResponse.json([filaCartera(0), filaCartera(1)]) }))
+    await expect(listarLeadsSinAsignar()).resolves.toHaveLength(2)
+    expect(llamadas).toBe(1)
+  })
+
+  it('un cursor que no avanza corta con ROW_CONTRACT en vez de ciclar', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(Array.from({ length: 51 }, (_, i) => filaCartera(i)))))
+    await expect(listarLeadsSinAsignar()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })

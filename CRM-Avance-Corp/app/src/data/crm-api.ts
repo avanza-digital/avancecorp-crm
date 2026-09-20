@@ -898,6 +898,51 @@ export async function listarCarteraPagina(
   return { items, cursor: siguiente }
 }
 
+/**
+ * Alarma de TENDENCIA de la bandeja sin analista (Fase 4c): no corta, avisa.
+ * Hoy la bandeja tiene 3 leads abiertos sin analista en producción.
+ */
+const ALARMA_TENDENCIA_BANDEJA = 2000
+
+/**
+ * Bandeja de leads SIN analista (Fase 4c «sin topes»): lo que Equipo,
+ * Derivaciones y Hoy · Supervisor filtraban de la foto inicial
+ * (`vendedor_id == null`). Pide a `crm.cartera_pagina_fn` (INVOKER: la RLS
+ * decide qué bandejas ve cada actor: el supervisor la suya, gerencia todas) con
+ * `p_sin_asignar` por cursor hasta que no haya más; sin tope en el navegador.
+ * Devuelve leads ACTIVOS sin analista (de cualquier etapa): la pantalla decide
+ * si quiere solo los abiertos.
+ */
+export async function listarLeadsSinAsignar(signal?: AbortSignal): Promise<Lead[]> {
+  const filtros: FiltrosCartera = { etapa: 'todas', vendedorId: 'sin_asignar', integrada: false }
+  const vistos = new Set<string>()
+  const items: Lead[] = []
+  let cursor: CursorCartera | null = null
+  let vueltas = 0
+  do {
+    const pagina: PaginaCartera = await listarCarteraPagina(filtros, cursor, signal)
+    for (const l of pagina.items) {
+      if (vistos.has(l.id)) continue
+      vistos.add(l.id)
+      items.push(l)
+    }
+    // Avance ESTRICTO del cursor: repetir o retroceder sería un bucle.
+    if (pagina.cursor && cursor
+      && !(pagina.cursor.actualizadoEn < cursor.actualizadoEn
+        || (pagina.cursor.actualizadoEn === cursor.actualizadoEn && pagina.cursor.id > cursor.id))) {
+      throw new CrmApiError('La bandeja no avanza por cursor.', 'ROW_CONTRACT')
+    }
+    cursor = pagina.cursor
+    vueltas += 1
+  } while (cursor && vueltas < 200)
+  if (cursor) throw new CrmApiError('La bandeja no termina de paginar.', 'ROW_CONTRACT')
+  if (items.length > ALARMA_TENDENCIA_BANDEJA) {
+    registrarError('crm.leads.bandeja_tendencia',
+      new CrmApiError('La bandeja sin analista supera la alarma de tendencia', 'TENDENCIA'), { filas: items.length })
+  }
+  return items
+}
+
 /** Resultados del buscador global (Fase 4a «sin topes»): los que caben en el desplegable. */
 export const TAMANO_BUSQUEDA_GLOBAL = 8
 
