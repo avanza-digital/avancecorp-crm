@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ColaSlaPanel, DetalleSla, SlaOperacionBoundary } from './sla-operacion'
 import { CrmApiError } from '@/data/crm-api'
-import { fechaSla, type ColaSlaPagina, type EstadoSlaV2 } from '@/lib/sla-operacion'
+import { fechaSla, puedeRegistrarGestionSla, type ColaSlaPagina, type EstadoSlaV2 } from '@/lib/sla-operacion'
 import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
 const abrir = vi.fn()
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'actor', rol: 'supervisor', demo: false } }) }))
@@ -268,6 +268,32 @@ describe('modelo de acción principal y perspectiva autorizada', () => {
     render(<DetalleSla estado={{ ...estadoNuevo, avisos: [inicial, tarea, revision], avisos_mostrados: [tarea, revision] }} supervision />)
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
     expect(screen.getByText('Se venció el plazo de esta etapa')).toBeInTheDocument()
+  })
+  it('supervisión conserva los avisos de gestión como información, sin botón para registrar actividad', () => {
+    const actuar = vi.fn()
+    const seguimiento = { ...inicial, id: 'av-seguimiento', bucket: 'seguimiento' as const }
+    render(<DetalleSla estado={{ ...estado, avisos: [inicial, seguimiento] }} supervision onActuar={actuar} />)
+
+    expect(screen.getByText('Revisa el contacto inicial con el cliente')).toBeVisible()
+    expect(screen.getByText('Revisa el seguimiento con el analista')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Registrar gestión' })).not.toBeInTheDocument()
+    expect(actuar).not.toHaveBeenCalled()
+  })
+  it('el analista conserva Registrar gestión y el aviso llega al callback', async () => {
+    const actuar = vi.fn(); const usuario = userEvent.setup()
+    const seguimiento = { ...inicial, id: 'av-seguimiento', bucket: 'seguimiento' as const }
+    render(<DetalleSla estado={{ ...estado, avisos: [seguimiento] }} onActuar={actuar} />)
+
+    await usuario.click(screen.getByRole('button', { name: 'Registrar gestión' }))
+    expect(actuar).toHaveBeenCalledWith(seguimiento)
+  })
+  it('solo el rol analista puede registrar una gestión SLA desde la ficha', () => {
+    expect(puedeRegistrarGestionSla('vendedor')).toBe(true)
+    expect(puedeRegistrarGestionSla('supervisor')).toBe(false)
+    expect(puedeRegistrarGestionSla('gerencia')).toBe(false)
+    expect(puedeRegistrarGestionSla('directorio')).toBe(false)
+    expect(puedeRegistrarGestionSla('coordinador')).toBe(false)
+    expect(puedeRegistrarGestionSla(undefined)).toBe(false)
   })
   it('no anticipa contacto por cobertura agotada cuando el servidor indicó próxima acción', () => {
     render(<DetalleSla estado={{ ...estadoNuevo, avisos: [], avisos_mostrados: [], operacion: { ...estadoNuevo.operacion!, aviso_principal: null } }} />)

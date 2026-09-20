@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import type { Rol } from './roles'
 
 const fecha = v.nullable(v.string())
 const indicador = v.nullable(v.boolean())
@@ -62,18 +63,29 @@ export const ACCIONES_SLA: Record<string, string> = {
   seguimiento: 'Retomar el contacto', revision_comercial: 'Definir el siguiente paso', datos_incompletos: 'Revisar datos',
   proxima_tarea: 'Próxima tarea', por_repartir: 'Asignar analista',
 }
+/**
+ * La gestión manual desde la ficha pertenece al analista asignado. Supervisión
+ * y Gerencia revisan el seguimiento, pero no deben registrar una actividad como
+ * si la hubieran realizado ellas. Es una regla de interfaz, no autorización.
+ */
+export function puedeRegistrarGestionSla(rol: Rol | null | undefined): boolean {
+  return rol === 'vendedor'
+}
+
 // Solo presentación: el servidor decide qué avisos corresponden al actor y cuándo.
+// `boton: null` hace inseparables el texto de revisión de supervisión y la
+// ausencia de una acción que fingiría una gestión del analista.
 export function textoAvisoSla(aviso: AvisoSla, supervision: boolean, modelo?: number) {
   if (modelo === 3 && aviso.bucket === 'primera_atencion') return {
-    titulo: supervision ? 'Revisa la primera gestión con el analista' : 'Realiza el primer intento y registra el resultado', boton: 'Registrar gestión',
+    titulo: supervision ? 'Revisa la primera gestión con el analista' : 'Realiza el primer intento y registra el resultado', boton: supervision ? null : 'Registrar gestión',
   }
   if (modelo === 3 && aviso.bucket === 'seguimiento') return {
-    titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el seguimiento', boton: 'Registrar gestión',
+    titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el seguimiento', boton: supervision ? null : 'Registrar gestión',
   }
   switch (aviso.bucket) {
     case 'tarea_vencida': return { titulo: 'Revisa la actividad pendiente', boton: 'Revisar actividad' }
-    case 'primera_atencion': return { titulo: supervision ? 'Revisa el contacto inicial con el cliente' : 'Contacta al cliente y registra el resultado', boton: 'Registrar gestión' }
-    case 'seguimiento': return { titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el contacto y registra el resultado', boton: 'Registrar gestión' }
+    case 'primera_atencion': return { titulo: supervision ? 'Revisa el contacto inicial con el cliente' : 'Contacta al cliente y registra el resultado', boton: supervision ? null : 'Registrar gestión' }
+    case 'seguimiento': return { titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el contacto y registra el resultado', boton: supervision ? null : 'Registrar gestión' }
     case 'revision_comercial': return { titulo: 'Revisa el caso y define el siguiente paso', boton: 'Revisar caso' }
     case 'por_repartir': return { titulo: 'Asigna un analista a esta oportunidad', boton: 'Ver asignación' }
     case 'datos_incompletos': return { titulo: supervision ? 'Revisa los datos de esta oportunidad' : 'Pide al supervisor revisar los datos', boton: 'Ver datos' }

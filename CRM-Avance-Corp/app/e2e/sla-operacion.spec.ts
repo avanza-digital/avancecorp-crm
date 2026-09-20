@@ -545,6 +545,31 @@ test('la campana abre pendientes y el aviso recupera una actividad fuera del lot
   expect(lecturas).toBe(1)
 })
 
+test('supervisión revisa el seguimiento sin poder abrir el compositor de actividad', async ({ page }) => {
+  const analista = 'aaaaaaaa-0000-4000-8000-000000000010'
+  const lead = leadReal({ vendedor_id: analista, nombre_completo: 'SEGUIMIENTO PARA REVISAR', etapa: 'contactado' })
+  await montarBackendReal(page, { leads: [lead], rolCrm: 'supervisor' })
+  const aviso = { id: 'aviso-seguimiento-supervisor', bucket: 'seguimiento', severidad: 'media', referencia_en: '2026-09-07T15:00:00Z', tarea_id: null }
+  const original = muestraSql.estado.filas[0]!
+  const fila = { ...original, lead_id: lead.id, avisos: [aviso], avisos_mostrados: [aviso],
+    operacion: { modelo: 3, aviso_principal: aviso, proxima_accion: null, proximo_cambio_en: null } }
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as { p_lead_ids: string[] }
+    await route.fulfill({ json: { ...muestraSql.estado, filas: args.p_lead_ids.length ? [fila] : [] } })
+  })
+
+  await loginReal(page)
+  await irAPipeline(page)
+  const ficha = await abrirLead(page, /SEGUIMIENTO PARA REVISAR/)
+  const pendientes = ficha.getByRole('region', { name: 'Pendientes y plazos' })
+
+  await expect(pendientes.getByText('Revisa el seguimiento con el analista', { exact: true })).toBeVisible()
+  await expect(pendientes.getByRole('button', { name: 'Registrar gestión' })).toHaveCount(0)
+  await expect(ficha.getByLabel('Tipo de actividad')).toHaveCount(0)
+  await expect(ficha.getByRole('button', { name: 'Registrar', exact: true })).toHaveCount(0)
+  await expect(ficha.getByRole('region', { name: 'Historial de actividades' })).toBeVisible()
+})
+
 test('cerrar una llamada contestada actualiza Primera atención aunque la lectura inicial llegue tarde', async ({ page }) => {
   const lead = leadReal({ vendedor_id: UID, nombre_completo: 'CONTACTO YA ATENDIDO', etapa: 'contactado' })
   const tarea = {

@@ -2,7 +2,7 @@ import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condici
 import { InversionDesdeLead } from './inversion-desde-lead'
 import { InversionDesdeLeadDemo } from './inversion-desde-lead-demo'
 import type { CondicionesTasaLead } from '@/data/crm-api'
-import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
+import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
 import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
@@ -179,6 +179,7 @@ function Ficha({ l }: { l: Lead }) {
   const { obtenerTareaParaRevision, ambito } = useCRMData()
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
+  const puedeRegistrarGestion = puedeRegistrarGestionSla(rol)
   const puedeReasignar = escribe && can(rol, 'reasignar')
   // Analista/supervisor conservan la regla de cartera propia. Gerencia puede
   // cerrar cualquier lead que ya tenga analista: el cliente conserva a ese
@@ -214,6 +215,7 @@ function Ficha({ l }: { l: Lead }) {
         toast.error('No se pudo abrir la actividad. Vuelve a intentarlo.')
       }
     } else if (aviso.bucket === 'primera_atencion' || aviso.bucket === 'seguimiento') {
+      if (!puedeRegistrarGestion) return
       setComponiendoGestion(true)
       refActividad.current?.scrollIntoView({ block: 'nearest' })
     } else {
@@ -291,7 +293,7 @@ function Ficha({ l }: { l: Lead }) {
           puedeReasignar={puedeReasignar}
           pedirEditar={pedirEditarDatos}
         /></div>
-        <div ref={refActividad}><Timeline l={l} escribe={escribe} activa={!esTerminal} componiendo={componiendoGestion} setComponiendo={setComponiendoGestion} /></div>
+        <div ref={refActividad}><Timeline l={l} escribe={escribe} activa={!esTerminal} puedeRegistrarGestion={puedeRegistrarGestion} componiendo={componiendoGestion} setComponiendo={setComponiendoGestion} /></div>
       </SheetBody>
 
       {escribe && !esTerminal && (
@@ -1511,7 +1513,7 @@ function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
 
 // Exportado para probar sus estados (cargando / error / vacío / cargar más)
 // sin montar el drawer entero, como ProximaAccion.
-export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead; escribe: boolean; activa: boolean; componiendo: boolean; setComponiendo: (valor: boolean) => void }) {
+export function Timeline({ l, escribe, activa, puedeRegistrarGestion, componiendo, setComponiendo }: { l: Lead; escribe: boolean; activa: boolean; puedeRegistrarGestion: boolean; componiendo: boolean; setComponiendo: (valor: boolean) => void }) {
   const { registrarActividad } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -1549,8 +1551,16 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
   // composer abre el panel (con la nota ya escrita) en vez de mandar el tipo pelado.
   const [panelLlamada, setPanelLlamada] = useState(false)
 
+  // Defensa terminal: aunque otra ruta futura intente activar el estado, una
+  // identidad de supervisión no conserva ni revive el composer al cambiar rol.
+  useEffect(() => {
+    if (puedeRegistrarGestion) return
+    setPanelLlamada(false)
+    setComponiendo(false)
+  }, [puedeRegistrarGestion, setComponiendo])
+
   const registrar = async () => {
-    if (guardandoActividad) return
+    if (!puedeRegistrarGestion || guardandoActividad) return
     setErrorActividad(null)
     if (tipo === 'llamada_realizada' || tipo === 'llamada_no_contestada') {
       setPanelLlamada(true)
@@ -1605,7 +1615,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
               : ''}
       </p>
 
-      {panelLlamada && (
+      {puedeRegistrarGestion && panelLlamada && (
         <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => {
           setPanelLlamada(false); setDetalle(''); setComponiendo(false)
           // El botón «Registrar» del composer se desmonta con el panel: el foco
@@ -1613,7 +1623,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
           requestAnimationFrame(() => refSeccion.current?.focus())
         }} />
       )}
-      {escribe && activa && componiendo && (
+      {escribe && activa && puedeRegistrarGestion && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <Select
             disabled={guardandoActividad}

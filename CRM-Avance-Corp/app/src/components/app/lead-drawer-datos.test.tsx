@@ -172,6 +172,7 @@ function montarComposerSla({
         l={LEAD}
         escribe
         activa
+        puedeRegistrarGestion
         componiendo={componiendo}
         setComponiendo={setComponiendo}
       />
