@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, servidor, front]
 fecha: 2026-09-20
-estado: ensayada-en-banco, pendiente-de-instalar
+estado: en-produccion
 ---
 
 # Gestión Diaria F2 — el resultado tipificado de la llamada (2026-09-20)
@@ -26,6 +26,6 @@ Fase 2 del plan de [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 20
 ## Dónde vive
 - Migración `20260920005000_crm_gestion_diaria_resultado_llamada.sql` (puertas `crm.registrar_llamada_v3`, `crm.deshacer_resultado_llamada`; núcleo `private.llamada_registrar`; gate paraguas `private.assert_gestion_diaria` = F1 + F2; 14 mutantes). Acta en `MIGRACIONES.md`. Ensayo: `supabase/scripts/gestion-diaria-resultado/`.
 - Front: `lib/resultado-llamada.ts` (catálogo, espejo del servidor), `components/gestion-diaria/registrar-resultado.tsx` (panel del mockup 5, atajos 1–7), `store.registrarLlamada` / `store.deshacerResultadoLlamada`, cubo `llamada` en `data/sla-operacion-comandos.ts`.
-- **Orden de instalación:** F1 (`20260919211958`) → F2 → front (`/release-crm`).
+- **En producción desde el 20/09/2026:** SQL F1 y F2 instaladas y registradas; front `crm-20260920T034405Z-afc391974382` (build `build-20260920T034404914Z`). Prueba de negocio pendiente de Miguel: una llamada real «volver a llamar» crea la tarea en Agenda; «no le interesa» manda el lead al Centro de rescate con motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa.
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] · [[Nucleo operativo SLA - arquitectura y consumidores 2026-09-06]] · [[Terminología comercial del CRM]] · [[Acceso y roles del CRM]] · [[Inicio]]
