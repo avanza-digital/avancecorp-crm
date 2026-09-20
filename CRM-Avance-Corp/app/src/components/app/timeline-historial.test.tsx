@@ -55,14 +55,14 @@ const act = (id: string, creado_en: string): Actividad => ({
   id, lead_id: LEAD.id, tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA PRUEBA', creado_en,
 })
 
-function montar() {
+function montar({ componiendo = false }: { componiendo?: boolean } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const api = { actividadesDe: () => [], registrarActividad: vi.fn(() => ({ ok: true })) } as unknown as StoreDataApi
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={SESION}>
         <StoreDataContext.Provider value={api}>
-          <Timeline l={LEAD} escribe activa componiendo={false} setComponiendo={vi.fn()} />
+          <Timeline l={LEAD} escribe activa componiendo={componiendo} setComponiendo={vi.fn()} />
         </StoreDataContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>,
@@ -72,6 +72,27 @@ function montar() {
 beforeEach(() => vi.clearAllMocks())
 
 describe('Timeline — historial por lead: estados honestos', () => {
+  it('no deja rastro del acceso rápido y coloca el historial justo debajo del título', () => {
+    listar.mockReturnValueOnce(new Promise(() => undefined))
+
+    montar()
+
+    expect(screen.queryByRole('button', { name: /Registrar actividad/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Registrar actividad…')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Historial de actividades' })).toHaveClass('mt-2')
+  })
+
+  it('mantiene el composer disponible cuando una acción SLA lo invoca', () => {
+    listar.mockReturnValueOnce(new Promise(() => undefined))
+
+    montar({ componiendo: true })
+
+    expect(screen.getByLabelText('Tipo de actividad')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Detalle de la actividad' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Registrar actividad/i })).not.toBeInTheDocument()
+  })
+
   it('mientras carga: lista ocupada, anuncio de carga y NINGÚN «Lead creado» a secas como única señal', () => {
     listar.mockReturnValueOnce(new Promise(() => undefined))
 

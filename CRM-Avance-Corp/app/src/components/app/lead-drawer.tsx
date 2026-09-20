@@ -1541,14 +1541,13 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
   const refSeccion = useRef<HTMLElement>(null)
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
-  // La sección se abre mayormente para LEER el historial: el composer vive
-  // plegado tras una fila con aspecto de input y se despliega a un click.
+  // La sección se abre mayormente para LEER el historial. El composer solo se
+  // muestra cuando una acción operativa (por ejemplo, un aviso SLA) lo solicita.
   const [guardandoActividad, setGuardandoActividad] = useState(false)
   const [errorActividad, setErrorActividad] = useState<string | null>(null)
   // Gestión Diaria F2: una LLAMADA se registra con su resultado tipificado; el
   // composer abre el panel (con la nota ya escrita) en vez de mandar el tipo pelado.
   const [panelLlamada, setPanelLlamada] = useState(false)
-  const refAbrirComposer = useRef<HTMLButtonElement>(null)
 
   const registrar = async () => {
     if (guardandoActividad) return
@@ -1606,23 +1605,12 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
               : ''}
       </p>
 
-      {escribe && activa && !componiendo && (
-        <button
-          ref={refAbrirComposer}
-          type="button"
-          onClick={() => setComponiendo(true)}
-          className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-        >
-          <Send className="size-3.5 shrink-0" aria-hidden /> Registrar actividad…
-        </button>
-      )}
-
       {panelLlamada && (
         <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => {
           setPanelLlamada(false); setDetalle(''); setComponiendo(false)
           // El botón «Registrar» del composer se desmonta con el panel: el foco
-          // vuelve al control que lo sustituye, no al contenedor de la ficha.
-          requestAnimationFrame(() => refAbrirComposer.current?.focus())
+          // vuelve a la sección Actividad, no al contenedor general de la ficha.
+          requestAnimationFrame(() => refSeccion.current?.focus())
         }} />
       )}
       {escribe && activa && componiendo && (
@@ -1664,7 +1652,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
       <div
         role="region"
         aria-label="Historial de actividades"
-        className="ac-scroll mt-3 max-h-80 overflow-y-auto overscroll-contain rounded-lg pr-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        className="ac-scroll mt-2 max-h-80 overflow-y-auto overscroll-contain rounded-lg pr-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
         <ol
           className="relative space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border"

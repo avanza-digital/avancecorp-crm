@@ -1,5 +1,5 @@
 // E2E de las ACCIONES del CRM en modo DEMO (sin backend). Recorre crear/editar/
-// mover/descartar+nota/reabrir/actividad/reasignar/convertir de punta a punta.
+// mover/descartar+nota/reabrir/ficha de actividad/reasignar/convertir de punta a punta.
 // En demo los toasts SÍ deben decir "(demo)" (espejo del guard yo?.demo).
 import { expect, test } from '@playwright/test'
 import { abrirLead, entrarDemo, irAPipeline } from './_helpers'
@@ -145,26 +145,17 @@ test('reabrir: un lead descartado vuelve a Nuevo con toast "(demo)"', async ({ p
   await expect(page.getByText(/Lead reabierto \(demo\)/i)).toBeVisible()
 })
 
-test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page }) => {
+test('actividad: no muestra el acceso rápido y conserva el historial con scroll', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
-  // El composer ahora es un disclosure con aspecto de input: se expande al clic.
-  await drawer.getByRole('button', { name: /Registrar actividad/ }).click()
-  // Desde Gestión Diaria F2 las LLAMADAS abren el panel del resultado tipificado;
-  // el composer sigue para WhatsApp y notas. «WhatsApp recibido» es CONVERSACIÓN
-  // y este lead demo está en 'nuevo' → la etapa sube sola (lib/avance-automatico)
-  // y el toast lo canta.
-  await drawer.getByLabel('Tipo de actividad').selectOption('whatsapp_recibido')
-  await drawer.getByLabel('Detalle de la actividad').fill('Llamada de prueba E2E')
-  await drawer.getByRole('button', { name: /^Registrar$/ }).click()
-  // Se asevera el aviso COMPLETO a propósito: un avance de etapa silencioso es
-  // justo lo que este comportamiento vino a evitar.
-  await expect(page.getByText(/Actividad registrada · pasó a Contactado \(demo\)/i)).toBeVisible()
-  await expect(drawer.getByText('Llamada de prueba E2E')).toBeVisible()
-  // Y el hecho de verdad, no solo el aviso: el stepper quedó en Contactado.
-  await expect(drawer.getByRole('button', { name: 'Contactado' })).toHaveAttribute('aria-current', 'step')
+  await expect(drawer.getByRole('button', { name: /Registrar actividad/i })).toHaveCount(0)
+  await expect(drawer.getByText('Registrar actividad…')).toHaveCount(0)
+  const historial = drawer.getByRole('region', { name: 'Historial de actividades' })
+  await expect(historial).toBeVisible()
+  await expect(historial).toHaveClass(/max-h-80/)
+  await expect(historial).toHaveClass(/overflow-y-auto/)
 })
 
 test('reasignar (gerencia): cambia el analista con toast "(demo)"', async ({ page }) => {
