@@ -127,7 +127,14 @@ Verificación: `npm run check`. Codex: no.
 
 ---
 
-## Fase 3 — Analista «Mi día» · LEVEL 2–3 · 1 migración + 1 PR
+## Fase 3 — Analista «Mi día» · ✅ COMPLETA EN PRODUCCIÓN (20/09/2026)
+
+> **Cerrada el 20/09.** SQL `20260920041500` instalada y registrada; front publicado en tres
+> releases el mismo día: la pantalla original (`crm-20260920T062207Z-12230ee2ea0f`), el rediseño
+> por densidad (`crm-20260920T193711Z-6fd1252e5689`) y la familia de bugs de caché parcial
+> (`crm-20260920T203400Z-438b94cee902`). Lo que sigue describe lo PLANEADO; debajo, lo que
+> cambió al construirlo y lo que F4 y F5 heredan.
+
 
 **Qué obtiene Miguel:** el analista ve a quién llamar ahora, su marcador del día, sus compromisos y sus descartes de hoy (con deshacer), y salta al siguiente al guardar.
 
@@ -136,6 +143,82 @@ Verificación: `npm run check`. Codex: no.
 **Front:** `screens/gestion-diaria/analista.tsx`. Fuente ÚNICA de la cola: `listarColaSla` (v2, `data/sla-operacion-api.ts:20`); orden por una función pura NUEVA y probada `ordenarColaDiaria()` = `primera_atencion` → `tarea_vencida` → `tarea_hoy` → `sin_conversacion`, agrupada por bucket (no se reutiliza `seleccionarPrioridadesVendedor`, que es un TOP-3 del ítem v1 y sigue gobernando la franja «Ahora» de Hoy); test compartido que comprueba que el primer ítem de Hoy es el primero aquí. Filas con `AccionesContacto` (tel/WhatsApp 44 px) y «Registrar resultado» (panel de la Fase 2; al guardar avanza a la siguiente fila). Marcador con `StatStrip` (sin meta). «Mi seguimiento» (compromisos). «Descartados hoy» con «Deshacer». `<GuardadosSlaPendientes/>` pasa a montarse UNA vez en `App.tsx` y se retira de `sla-operacion.tsx:80` y `:172` en la misma entrega. `SlaOperacionBoundary` para el modo legado. Vacíos con `PanelVacio`. Hook real/demo/fail-closed, 60 s. Tests con estado real, `gate:realidad`, `revisor-a11y`, e2e Analista.
 
 **Despliegue:** SQL primero, front después. Codex: 1.
+
+---
+
+## Lo que la Fase 3 cambió del plan, y que GOBIERNA de aquí en adelante
+
+Escrito el 20/09/2026, después de construirla, enseñarla y corregirla con los analistas.
+
+### 1. Densidad: el layout es de DOS paneles, no una columna
+
+El plan y el mockup `4-analista-mi-dia.html` apilaban cola, marcador, seguimiento y descartes.
+Se construyó así y los analistas devolvieron: **«demasiada información, muchas letras pequeñas»**.
+27 entidades en pantalla, texto hasta 10 px, scroll para ver la mitad y 16 botones azules.
+
+Lo que quedó, y que **F4 y F5 nacen así**:
+
+- **Dos paneles en una fila.** «Ahora» (la persona que toca, su contexto y la ÚNICA acción
+  primaria) y la lista, con los grupos como PESTAÑAS y su conteo: una sola lista a la vista.
+- **Cuatro tamaños de letra y NINGUNO por debajo de 16 px** — 24/32-700, 20/28-600, 18/28-500,
+  16/24-400. Hay un e2e que lo mide sobre el estilo CALCULADO de cada nodo con texto, no sobre
+  la clase escrita: si alguien mete un `text-xs` dentro, el test se cae.
+- **Una sola acción primaria visible por pantalla.** El resto, secundario o detrás de «···».
+- **Lo secundario se pliega a un segundo nivel**, no se encoge. El marcador, el gráfico por
+  hora, el seguimiento y los descartes viven en «Mi actividad», que conserva pestaña, página y
+  persona elegida al volver. La `StatStrip` del plan NO se usa: nace a 12 px.
+- **Sin huecos grises:** los paneles y las filas estiran para llenar el alto.
+
+Las primitivas `Tabs` y `AccionesContacto` ya tienen tamaño grande (`tamano="grande"`, `grande`)
+sin cambiar cómo se ven en el resto del CRM. `PanelVacio` tiene `tamano="grande"`.
+
+### 2. La sigla «SLA» no se dice en pantalla
+
+Se dice el tiempo: «Quedan 40 min», «Se pasó hace 45 min», «El tiempo corre desde que te lo
+asignaron». La sigla puede seguir en nombres de funciones y columnas. Hay un test que la prohíbe
+en las ayudas de los grupos.
+
+Y un hallazgo que F4 y F5 reutilizan: **`referencia_en` YA es el vencimiento** que manda
+`cola_accion_v2_fn`, así que el chip se calcula en el navegador, sin pedir nada nuevo al
+servidor. La EXCEPCIÓN es `sin_conversacion`, cuya referencia es la última conversación y no un
+límite: lleva su propio texto. Y el tono «vencido» equivale exactamente a `severidad = 'critica'`,
+por eso el chip «Crítica» desapareció sin perder información.
+
+### 3. LA REGLA DE LA CACHÉ PARCIAL (la que más caro salió)
+
+> **Una ausencia en una caché o colección parcial significa «desconocido», nunca «no existe».**
+> La caché puede cambiar la latencia, pero nunca lo que la pantalla muestra ni lo que deja hacer.
+
+Desde la Fase 4 «sin topes» el store **ya no carga todos los leads**: los trae por demanda. La
+cola viene de OTRA consulta que **no trae el teléfono**. Cruzar las dos tratando la parcial como
+completa produjo CINCO bugs, uno de ellos en producción:
+
+| # | Síntoma | Arreglo |
+|---|---|---|
+| 1 | Sin «Llamar» hasta abrir la ficha (reportado por Miguel) | se pide el lead al elegir la fila, con deduplicación y guarda de carrera |
+| 2 | El resultado podía cerrar OTRA tarea, o ninguna | `tarea_id` de la fila es autoritativa: se pide por id, nunca se adivina |
+| 3 | Con la cola caída, «Vencidas (0)» | dice «?»: no está vacío, no se sabe |
+| 4 | Un lead sin `senal` salía «sin gestiones» | «Historial no cargado» ≠ «Sin gestiones previas» |
+| 5 | «Registrar resultado» navegaba a la ficha para cargar | queda en «Abriendo…» mientras pide |
+
+**Para F4 y F5:** `gestion_diaria_equipo_fn` y la de gerencia tienen que ser **proyecciones
+autosuficientes** —traer lo que la pantalla pinta— o la pantalla debe **hidratar por id** de
+forma explícita. Y todo estado remoto distingue cuatro cosas: cargando, vacío de verdad, error y
+sin autorización. Nunca un `?? []` que las mezcle.
+
+### 4. Lo que el plan decía y NO se hizo
+
+- **`telefonos` por lead en la puerta**: la puerta no lo devuelve. El teléfono se hidrata desde
+  el store. Si F4 necesita contacto directo desde la tabla del equipo, hay que decidirlo: o la
+  puerta lo trae, o se hidrata igual.
+- **`StatStrip`**: descartada por tamaño (ver 1).
+- **El salto automático a la fila siguiente al guardar**: ahora «Ahora» pasa al siguiente por
+  derivación, y el lead recién cerrado se oculta hasta que el servidor contesta.
+
+### 5. Decisión de producto pendiente
+
+El nivel **«Bajo»** del marcador sigue en ROJO. Codex pide ámbar, para que el rojo signifique
+solo «se venció» y no se mezcle rendimiento con incumplimiento. Sin decidir.
 
 ---
 
