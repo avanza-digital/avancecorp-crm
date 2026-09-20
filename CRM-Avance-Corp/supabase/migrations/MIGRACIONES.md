@@ -2,9 +2,13 @@
 
 ## 20260920045202 — Tareas por cursor: el lead embebido completo (Fase 4b «sin topes»)
 
-**📋 SQL PREPARADO Y ENSAYADO, SIN INSTALAR EN PRODUCCIÓN (20/09/2026, madrugada). Cambio ADITIVO sobre la
-Fase 2 (`20260919235100`): el orden entre servidor y front es libre (claves nuevas en la RESPUESTA, opcionales
-para el front).** Fase 4b del plan «sin topes» (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`): la
+**✅ SQL EN PRODUCCIÓN el 20/09/2026 (~01:03 Lima = 06:03 UTC, Miguel con `!` + `db query --linked --file`, archivo
+exacto) y REGISTRADA (~01:29 Lima, `registrar-20260920045202.sql`; cuerpo md5 `3f99a4178fb7e6a4c0c9b554b6eb9000` = archivo
+local; `ultima_version` = 20260920045202). Medido en prod tras instalar: gate OK; base OK (once columnas); núcleo md5
+`699288313e80228963b92b8a56c3fe5c` IDÉNTICO a la copia local (instalación byte a byte), INVOKER, stable, `search_path=""`,
+owner postgres, ACL `{postgres, authenticated}`; la puerta conserva el md5 de la Fase 2 (`5edd699559108383a0e44a90b51d9ad6`);
+la primera fila del núcleo trae las 10 claves `lead_*`. Cambio ADITIVO sobre la Fase 2 (`20260919235100`): el front
+(PR #43, Fase 4 completa 4a–4e) lo trata como opcional; pendiente `/release-crm`.** Fase 4b del plan «sin topes» (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`): la
 Agenda deja de depender de la foto inicial de leads.
 
 **Causa.** La Agenda sacaba de la foto, por cada tarea, el teléfono del lead (recordatorio por WhatsApp), el
