@@ -151,6 +151,168 @@ Verificación: `npm run check`. Codex: no.
 
 ---
 
+### F4 · Los CORTES DEL DÍA y sus perillas (decisiones de Miguel, 20/09/2026)
+
+Sustituyen a la alerta «sin llamadas a las 11:00» del plan original, que nunca se probó contra
+datos reales. Miguel fijó dos cortes y una regla: **los números los pone GERENCIA, no el código.**
+
+#### Los dos cortes
+
+| Corte | Hora (Lima) | Qué exige | Si no se cumple |
+|---|---|---|---|
+| **Primero** | **11:30** | un mínimo de llamadas, configurable | avisa al supervisor con un aviso que **exige atención** |
+| **Segundo** | **16:00** | **150 % MÁS** que lo que tenía en el primer corte | avisa al supervisor |
+
+**«150 % más» es la lectura literal, confirmada:** con 20 llamadas a las 11:30, el segundo corte
+exige **50** (20 + el 150 % de 20 = ×2,5). Para que nadie vuelva a dudar, **la pantalla de
+gerencia muestra la cuenta en vivo** mientras se escribe el número: «con 20 llamadas al primer
+corte, exige 50 al segundo». La perilla se guarda como el porcentaje, no como el multiplicador.
+
+#### Qué configura gerencia, y qué NO
+
+Configurables desde la pantalla de gerencia, con valores de arranque:
+
+- **Hora del primer corte** — 11:30.
+- **Llamadas mínimas al primer corte** — el número que dispara el aviso. *Sin decidir: Miguel lo
+  pondrá al publicar, mirando su operación.*
+- **Hora del segundo corte** — 16:00.
+- **Crecimiento exigido en el segundo corte** — 150 %.
+- **Tasa muy baja** — **nace VACÍA y esa alerta NO salta hasta que se ponga.** Decisión explícita
+  de Miguel: «todavía no hay esa data». El reporte de F5 (abajo) es el que la va a producir.
+
+NO configurable, queda como está: **«parado» = más de 2 horas sin llamar** entre 09:00 y 18:00.
+
+#### La semana laboral (decisión de Miguel, 20/09/2026)
+
+| Día | Jornada | Cortes |
+|---|---|---|
+| Lunes a viernes | 09:00 – 18:00 | **dos**: 11:30 y 16:00 |
+| **Sábado** | **09:00 – 13:00** | **UNO: 11:30** |
+| **Domingo** | no se trabaja | **ninguno**; no salta ninguna alerta |
+
+**Por qué el sábado lleva un solo corte:** la jornada acaba a las 13:00, así que un corte a las
+16:00 no existe. El de las 11:30 sí encaja — cae a dos horas y media de empezar, exactamente igual
+que en un día entre semana. El sábado tiene su **propio mínimo de llamadas**, también configurable:
+medio día no puede exigir lo mismo que uno entero.
+
+El domingo la pantalla no calcula cortes ni pinta alertas de este tipo. Si un analista trabaja un
+domingo, sus llamadas se registran igual: lo que no se hace es juzgarlas contra un corte.
+
+**Ojo con la ventana de «parado»:** hoy es 09:00–18:00 todos los días. El sábado tiene que cerrarse
+a las 13:00, o marcará como «parado» a todo el equipo cada sábado por la tarde.
+
+#### El aviso: un POP-UP (decisión de Miguel, 20/09/2026)
+
+Miguel lo pidió así de claro: *«un aviso tipo pop-up para que se les haga complicado ignorar»*.
+Un chip en una lista se ignora; un diálogo, no.
+
+Reglas para que sea eficaz y no odioso — todas obligatorias:
+
+- **Una vez por corte y por día.** Salta al llegar el corte, o la primera vez que el supervisor
+  abre la pantalla después de esa hora. Nunca dos veces por el mismo corte.
+- **Se reconoce, y el reconocimiento se guarda EN EL SERVIDOR.** Si viviera en el navegador,
+  volvería a saltar al cambiar de equipo o de máquina, y eso es lo que mata una alerta.
+- **Dice quién y cuánto**, no «hay incumplimientos»: la lista de analistas con su cifra y lo que
+  se esperaba. Desde ahí se entra a su día.
+- **Nunca interrumpe algo a medias:** si hay otro diálogo abierto o el supervisor está escribiendo,
+  espera. Un pop-up que se come una tecla se gana el odio el primer día.
+- **No salta en domingo**, ni por un corte que no aplica a ese día.
+- **Se puede posponer** (a una hora), y quien lo pospone queda registrado: si se pospone siempre,
+  el número está mal puesto y eso hay que poder verlo.
+
+Va sobre el `Dialog` que ya existe en el CRM (Radix, con trampa de foco, `Escape` por capas y
+retorno de foco), no sobre uno nuevo.
+
+**Lo que la revisión añadió, y que es lo que hace que funcione:** hoy en esta app no existe nada
+bloqueante, y Codex desaconseja un modal que no se pueda cerrar. Pero encontró la razón por la que
+el pop-up **necesita** el reconocimiento en servidor, y no es un detalle técnico:
+
+> El corte de las 16:00 **no cesa**: es un hecho del pasado. Sin una forma de cerrarlo, el aviso
+> sería papel pintado a las 16:05 — y una alerta que no se puede apagar deja de ser una alerta.
+
+El de las 11:30 sí puede apagarse solo, si el analista se pone al día antes del segundo corte.
+Así que: **pop-up que exige reconocer, reconocimiento guardado en el servidor, y el aviso de las
+11:30 se retira solo si se resuelve.** Además, contador en la campana del topbar, que ya existe.
+
+#### Quien tiene CERO llamadas entra en el aviso del corte
+
+Parece obvio y es justo lo contrario de lo que salía a la primera: si a quien no ha llamado nada
+se le deja solo en la alerta «sin llamadas», **el que peor está recibe el aviso más débil**. Entra
+en el grupo del corte, y es «sin llamadas» lo que se calla para no decir dos veces lo mismo.
+
+#### Los feriados: la alerta NO se silencia sola
+
+El CRM no conoce el calendario laboral peruano, y **no se va a inferir**. La tentación era
+silenciar el aviso cuando casi nadie del equipo llamó — pero eso apaga la alarma exactamente el día
+en que nadie llamó, que es el día que más importa. En su lugar: **el aviso sale siempre**, y cuando
+la actividad de todo el equipo está por los suelos lleva una marca de contexto («actividad
+excepcionalmente baja en todo el equipo — revisa si hoy es feriado o hubo una incidencia») y se
+presenta como UNA alerta de equipo, no como N individuales. Silenciar un día es una decisión
+explícita de alguien, nunca una deducción del código.
+
+#### Cómo se guarda, y por qué VERSIONADA y no una perilla que se pisa
+
+Diseñado con Codex el 20/09/2026. Tabla nueva `crm.politica_gestion_diaria`, con el molde
+**versionado con vigencia** de `crm.sla_politicas`, **no** el singleton de `crm.politica_abandono`.
+
+**El motivo es uno y es duro:** la puerta de F3 ya admite consultar **días pasados** (hasta un año
+atrás). Con una fila que se pisa, el martes pasado se re-juzgaría con la perilla de hoy — y eso
+convierte un historial en una ficción. Absorbe además los tres umbrales que hoy están a fuego
+(45 / 25 / 5), para que siga habiendo **una sola** fuente.
+
+Reglas que salieron de la revisión y que no son negociables:
+
+- **La versión 1 se siembra con los umbrales de hoy y los cortes APAGADOS.** Los cortes nacen en la
+  versión 2, la que Miguel publique. Sembrarlos desde el principio haría parecer que la obligación
+  existía antes de inventarla, y juzgaría hacia atrás a gente que no la conocía.
+- **La política del día se resuelve al AMANECER de esa jornada**, no con la hora actual. Publicar
+  al mediodía no puede cambiar las reglas de un corte que ya ocurrió esa mañana. Y `vigente_desde`
+  tiene que ser el inicio de una jornada futura: **las reglas del día se fijan al amanecer y no se
+  mueven**.
+- **Solo gerencia escribe**, y por una función con `expected_version`: dos personas editando a la
+  vez no pueden pisarse. Ninguna escritura directa por la API.
+- **El cálculo vive en el núcleo**, no en la puerta ni en la pantalla, componiendo
+  `private.gestion_diaria_llamadas` que ya está en producción. Una sola definición de «llamada».
+
+#### El objetivo del segundo corte, con sus bordes
+
+`objetivo = techo( max( base × 2,5 ; mínimo absoluto ) )`, acotado por un **techo**.
+
+- **Se redondea hacia ARRIBA.** «Al menos un 150 % más» de 8 llamadas es 20; pero si el porcentaje
+  fuera 30 %, 8 × 1,3 = 10,4 y «al menos» significa **11**, no 10. Con 150 % el error queda oculto
+  porque salen enteros — por eso conviene fijarlo ahora.
+- **Un piso absoluto**, porque si a las 11:30 lleva **cero**, la cuenta siempre se cumple (0 × 2,5
+  = 0) y el que peor está sería el único que aprueba.
+- **Un techo absoluto**, porque si la mañana fue excepcional —40 llamadas— exigir 100 por la tarde
+  no es una meta, es una trampa.
+
+#### Lo que hay que resolver al construirlo
+
+- **Dónde se guarda.** Siguiendo el patrón que ya usa el CRM para perillas
+  (`crm.politica_abandono`, fila `singleton`), no uno nuevo. Con RLS, y escritura solo de
+  gerencia. `private.gestion_diaria_umbrales()` hoy está **a fuego** y tendrá que leer de ahí.
+- **Quién calcula el corte.** El SERVIDOR, nunca la pantalla: los dos cortes son hora de Lima y el
+  navegador del supervisor puede estar en otro huso.
+- **El analista que entró a media mañana.** Con permiso, una capacitación o media jornada: el
+  corte lo juzga igual. Hay que decidir si eso se corrige (con una marca de jornada) o se acepta y
+  el supervisor lo descarta al verlo. Sin resolver.
+- **Dónde se guarda el reconocimiento del pop-up.** La tabla de reconocimientos que ya existe tiene
+  los tipos cerrados por CHECK: ampliarla exige una migración a propósito, que es lo correcto.
+- **DOS PREGUNTAS DE NEGOCIO PARA MIGUEL**, que cambian el número y no las decide el código:
+  1. **¿El corte cuenta TODA llamada, o solo las «útiles»?** (útil = la que no acabó en número
+     errado ni «no es la persona»). Recomendación: **toda llamada** — el corte mide actividad, y la
+     tasa ya mide calidad.
+  2. **¿El incumplimiento de las 11:30 desaparece si se pone al día antes de las 16:00?**
+     Recomendación: **sí**, y por eso ese aviso se retira solo; el de las 16:00 no, porque cierra
+     el día.
+- **Un día pasado se recalcula con el equipo y la jerarquía de HOY**, no con los de entonces. Hay
+  que decirlo en pantalla. Si algún día esto se usa para evaluar desempeño, hará falta guardar la
+  evaluación del día, que es un contrato distinto y más caro.
+- **El riesgo de siempre:** una alerta que salta de más se ignora a la semana, y entonces da igual
+  lo bien construida que esté. Por eso los números los pone gerencia y no el código.
+
+---
+
 ## Fase 5 — Gerencia «Toda la operación» · LEVEL 3 · 1 migración + 1 PR
 
 **Qué obtiene Miguel:** «¿Hoy es un día normal?» sin un clic; el supervisor con el problema; su equipo (misma tabla); el registro crudo exportable.
@@ -160,6 +322,27 @@ Verificación: `npm run check`. Codex: no.
 **Front:** `screens/gestion-diaria/gerencia.tsx` con selector de DÍA único (por defecto hoy Lima; `validarPeriodoGerencia`), pulso con `StatStrip`/`KpiCard` (número que responde la pregunta en 32/800), tabla por equipo peor primero → «Ver equipo» → `TablaEquipoDiaria` → «Ver registro» → `RegistroActividad`. Drill-down enlazable: ampliar `RutaHash` (`router.ts:93-98`), `hashDe`/`leerHash` (`:132-156`) con `#/gestion-diaria/equipo/<uuid>` y `#/gestion-diaria/analista/<uuid>` (precedentes `:133-134`); el día vive en estado de sesión (v1). Banner «N tareas vencidas siguen pendientes» → desglose por equipo. Nota de corte del resultado tipificado. Tests + e2e Gerencia + protocolo `design-qa.md`.
 
 **Despliegue:** SQL primero, front después. Codex: 1.
+
+
+### F5 · El reporte de HÁBITOS para capacitar (decisión de Miguel, 20/09/2026)
+
+**Qué obtiene Miguel:** no el pulso del día, sino **dónde está el problema de fondo** — para saber
+a quién capacitar y en qué.
+
+Por analista, sobre los últimos N días:
+
+- **A qué hora hace su primera llamada.** Quien arranca a las 11 no tiene el mismo día que quien
+  arranca a las 9.
+- **Su hueco más largo sin llamar**, y a qué hora ocurre.
+- **Cómo se reparte su tasa de contacto** frente a la de su equipo y la de la operación.
+- **Cómo le fue en los dos cortes del día** (F4), cuántas veces los cumplió.
+
+**Este reporte cierra un círculo:** es el que produce el dato que hoy falta para poner el número de
+la alerta «tasa muy baja», que nace vacía en F4. Gerencia mira el reparto real, decide el umbral y
+lo publica en la misma pantalla de configuración.
+
+El núcleo vuelve a ser `private.gestion_diaria_llamadas`, que ya acepta varios analistas y rangos
+de fechas: no hace falta un contador nuevo.
 
 ---
 
