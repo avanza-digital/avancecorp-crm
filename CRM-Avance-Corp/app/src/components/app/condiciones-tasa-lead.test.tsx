@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { SolicitudTasa } from '@/data/crm-api'
 import type { Lead } from '@/lib/tipos'
-import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
+import { CondicionesTasaLeadPanel, SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 
 const dobles = vi.hoisted(() => ({ filas: [] as SolicitudTasa[], observacion: false, error: false, pending: false, inferior: false, enviar: vi.fn(), responder: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -27,10 +27,11 @@ function solicitud(estado: SolicitudTasa['estado'] = 'pendiente'): SolicitudTasa
     es_mia: true, puede_resolver: false, puede_responder: estado === 'aprobada_con_tope',
   }
 }
-function Arnes({ editar = true }: { editar?: boolean }) {
+function Arnes({ editar = true, plegable = false }: { editar?: boolean; plegable?: boolean }) {
   const [estado, setEstado] = useState<EstadoCondicionesLead | null>(null)
+  const Panel = plegable ? SolicitudTasaLeadPlegable : CondicionesTasaLeadPanel
   return <>
-    <CondicionesTasaLeadPanel lead={lead} demo={false} puedeEditar={editar} onCambio={setEstado} />
+    <Panel lead={lead} demo={false} puedeEditar={editar} onCambio={setEstado} />
     <button type="button" disabled={!estado || !!estado.bloqueo}>Convertir a cliente</button>
     <output data-testid="condiciones">{JSON.stringify(estado?.condiciones)}</output>
   </>
@@ -66,6 +67,26 @@ it('observación recupera la intención anterior si la bandeja responde después
   expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('18')
 })
 beforeEach(() => { dobles.observacion = false; dobles.inferior = false; dobles.filas = []; dobles.error = false; dobles.pending = false; dobles.enviar.mockReset(); dobles.responder.mockReset() })
+it('pliega la solicitud por defecto sin desmontar la validación de conversión', async () => {
+  render(<Arnes plegable />)
+
+  const mostrar = screen.getByRole('button', { name: 'Mostrar solicitud de tasa' })
+  const idPanel = mostrar.getAttribute('aria-controls')
+  const panel = idPanel ? document.getElementById(idPanel) : null
+  expect(mostrar).toHaveAttribute('aria-expanded', 'false')
+  expect(panel).toHaveAttribute('hidden')
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled())
+
+  fireEvent.click(mostrar)
+  const ocultar = screen.getByRole('button', { name: 'Ocultar solicitud de tasa' })
+  expect(ocultar).toHaveAttribute('aria-expanded', 'true')
+  expect(panel).not.toHaveAttribute('hidden')
+  expect(screen.getByText('Condiciones de inversión')).toBeVisible()
+
+  fireEvent.click(ocultar)
+  expect(panel).toHaveAttribute('hidden')
+  expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
+})
 it('envía la solicitud sobre el lead sin crear ni inventar un cliente y bloquea al prepararla', async () => {
   dobles.enviar.mockImplementation(async ({ intencion }) => ({ ...solicitud(), ...intencion }))
   render(<Arnes />)
