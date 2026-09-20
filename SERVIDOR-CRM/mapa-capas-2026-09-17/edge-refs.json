@@ -615,6 +615,39 @@
    }
   ]
  },
+ "crm-inversion-bienvenida": {
+  "dir": "CRM-Avance-Corp/supabase/functions/crm-inversion-bienvenida",
+  "archivos": 2,
+  "calls": [
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bienvenida_inversion_estado_fn",
+    "file": "handler.mjs",
+    "line": 46,
+    "via": "wrapper rpc()",
+    "veces": 1
+   },
+   {
+    "kind": "rpc",
+    "schema": "crm",
+    "name": "bienvenida_inversion_entrega_fn",
+    "file": "handler.mjs",
+    "line": 49,
+    "via": "wrapper rpc()",
+    "veces": 2
+   },
+   {
+    "kind": "table",
+    "schema": null,
+    "name": "rpc",
+    "file": "handler.mjs",
+    "line": 0,
+    "via": "url",
+    "veces": 1
+   }
+  ]
+ },
  "crm-tipo-cambio": {
   "dir": "CRM-Avance-Corp/supabase/functions/crm-tipo-cambio",
   "archivos": 2,
