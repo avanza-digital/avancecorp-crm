@@ -8,7 +8,7 @@
 //    inasistencia vs recordatorio genérico).
 //  * Tono "utility" (dato del trámite + pregunta contestable en una línea):
 //    listo para aprobarse como plantilla utility si algún día migran a la API.
-import type { Lead, Tarea } from './tipos'
+import type { LeadDeAgenda, Tarea } from './tipos'
 import { tareaAEvento } from './agenda-derivada'
 import { money, primerNombre } from './format'
 import { soloDigitos } from './telefono'
@@ -22,7 +22,7 @@ import { soloDigitos } from './telefono'
  * Mensaje de recordatorio de una cita: pide confirmación explícita y ancla el
  * valor a SU inversión. `null` si el lead no tiene teléfono utilizable.
  */
-export function mensajeRecordatorio(t: Tarea, lead: Lead, ahora: number): string {
+export function mensajeRecordatorio(t: Tarea, lead: LeadDeAgenda, ahora: number): string {
   const ev = tareaAEvento(t, ahora)
   const [dia, hora] = ev.cuando.split(' · ')
   const cuando = dia === 'Hoy' || dia === 'Mañana'
@@ -38,7 +38,7 @@ export function mensajeRecordatorio(t: Tarea, lead: Lead, ahora: number): string
 }
 
 /** Enlace wa.me con el recordatorio prellenado (null sin teléfono). */
-export function enlaceRecordatorio(t: Tarea, lead: Lead, ahora: number): string | null {
+export function enlaceRecordatorio(t: Tarea, lead: LeadDeAgenda, ahora: number): string | null {
   const tel = soloDigitos(lead.telefono ?? '')
   if (tel.length < 9) return null
   return `https://wa.me/${tel}?text=${encodeURIComponent(mensajeRecordatorio(t, lead, ahora))}`

@@ -13,6 +13,8 @@ import {
   siguienteMarJue,
   tareasPorDia,
   tituloSemana,
+  leadDeTarea,
+  conservarLeadEmbebido,
 } from './agenda-vistas'
 import type { Lead, Miembro, Tarea } from './tipos'
 
@@ -306,5 +308,66 @@ describe('agruparPorPersona', () => {
     const grupos = agruparPorPersona([t], () => undefined, equipo, AHORA)
     expect(grupos.map((g) => g.id)).toEqual(['v2'])
     expect(grupos[0]?.nombre).toBe('Aldo Analista')
+  })
+})
+
+describe('leadDeTarea — el lead embebido en la tarea (Fase 4b «sin topes»)', () => {
+  const base = {
+    id: 't-1', lead_id: 'l-1', perfil_id: null, vendedor_id: 'v-1', asignado_supervisor_id: null,
+    tipo: 'tarea', titulo: 'Llamar', nota: null, vence_en: '2027-01-01T15:00:00.000Z', duracion_min: null,
+    estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: '2026-12-01T00:00:00.000Z',
+  } as unknown as Tarea
+
+  it('arma el lead con lo que manda el servidor: nombre, etapa, teléfono, capital y tenencia', () => {
+    const lead = leadDeTarea({
+      ...base, lead_nombre: 'JUAN PEREZ', lead_etapa: 'contactado', lead_telefono: '+51999888777',
+      lead_monto_estimado: '2500.50', lead_moneda: 'USD', lead_vendedor_id: 'v-9', lead_supervisor_id: 's-2',
+    })
+    expect(lead).toEqual({
+      id: 'l-1', nombre_completo: 'JUAN PEREZ', etapa: 'contactado', telefono: '+51999888777',
+      monto_estimado: 2500.5, moneda: 'USD', vendedor_id: 'v-9', asignado_supervisor_id: 's-2',
+      correo: null, no_contactar: true, telefono_alternativo: null,
+    })
+    expect(leadDeTarea({ ...base, lead_nombre: 'X', lead_correo: 'x@y.pe', lead_no_contactar: false }))
+      .toMatchObject({ correo: 'x@y.pe', no_contactar: false })
+  })
+
+  it('sin el dato de «no contactar» (servidor anterior) asume que NO se puede contactar', () => {
+    expect(leadDeTarea({ ...base, lead_nombre: 'X' })?.no_contactar).toBe(true)
+  })
+
+  it('sin lead visible (nombre nulo) o sin lead no inventa nada', () => {
+    expect(leadDeTarea({ ...base, lead_nombre: null, lead_telefono: '+51999888777' })).toBeUndefined()
+    expect(leadDeTarea({ ...base, lead_id: null, lead_nombre: 'X' })).toBeUndefined()
+  })
+
+  it('con un servidor anterior (sin teléfono ni capital) deja esos campos en nulo y la moneda en soles', () => {
+    const lead = leadDeTarea({ ...base, lead_nombre: 'JUAN PEREZ', lead_etapa: 'nuevo' })
+    expect(lead).toMatchObject({ telefono: '', monto_estimado: null, moneda: 'PEN', vendedor_id: null, asignado_supervisor_id: null })
+  })
+
+  it('un monto ilegible no se convierte en NaN', () => {
+    expect(leadDeTarea({ ...base, lead_nombre: 'X', lead_monto_estimado: 'abc' })?.monto_estimado).toBeNull()
+  })
+})
+
+describe('conservarLeadEmbebido — la lectura puntual no borra el lead de la puerta', () => {
+  const base = {
+    id: 't-1', lead_id: 'l-1', tipo: 'tarea', titulo: 'Llamar', vence_en: '2027-01-01T15:00:00.000Z',
+    estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: '2026-12-01T00:00:00.000Z',
+  } as unknown as Tarea
+
+  it('copia las claves lead_* de la fila anterior cuando la nueva no las trae', () => {
+    const previa = { ...base, lead_nombre: 'JUAN', lead_etapa: 'nuevo', lead_telefono: '+51999', lead_no_contactar: false }
+    const nueva = { ...base, titulo: 'Llamar (revisada)' }
+    expect(conservarLeadEmbebido(nueva, previa)).toMatchObject({
+      titulo: 'Llamar (revisada)', lead_nombre: 'JUAN', lead_etapa: 'nuevo', lead_telefono: '+51999', lead_no_contactar: false,
+    })
+  })
+
+  it('lo que la nueva SÍ trae manda sobre lo anterior', () => {
+    const previa = { ...base, lead_nombre: 'JUAN', lead_etapa: 'nuevo' }
+    const nueva = { ...base, lead_nombre: 'JUAN PEREZ', lead_etapa: 'contactado' }
+    expect(conservarLeadEmbebido(nueva, previa)).toMatchObject({ lead_nombre: 'JUAN PEREZ', lead_etapa: 'contactado' })
   })
 })

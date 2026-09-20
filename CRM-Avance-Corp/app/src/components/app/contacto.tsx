@@ -60,9 +60,9 @@ import { presentarCitas } from '@/lib/terminologia'
 import {
   ETAPA_INFO,
   type EtapaActiva,
-  type Lead,
   type Tarea,
   type TipoActividadManual,
+  type LeadContactable,
 } from '@/lib/tipos'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export function AccionesContacto({
   conAgendar,
   destacada,
 }: {
-  lead: Lead
+  lead: LeadContactable
   compacto?: boolean
   /** Oculta las etiquetas SIEMPRE (columnas angostas, p. ej. la cola en 2/5). */
   soloIcono?: boolean
@@ -233,7 +233,7 @@ export function AccionesContacto({
  * cambia la fecha desde la ficha. Pedirle el formulario por adelantado para el
  * 90% de los casos idénticos es justo la fricción que esto quita.
  */
-function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undefined }): JSX.Element | null {
+function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: string | undefined }): JSX.Element | null {
   const { crearTarea, tareasDe } = useCRMData()
   const ahora = useAhora()
   // ANTI-DUPLICADO: si ya tiene plan VIVO no se le encima otro. Ojo con la
@@ -276,7 +276,7 @@ function BotonAgendar({ lead, labelCls }: { lead: Lead; labelCls: string | undef
 // ── Dialog de resultado de la LLAMADA (resultado tipificado, F2) ──────────────
 // `tareaQueCierra` sigue decidiendo qué tarea de llamada pendiente cierra este
 // contacto; el panel la ofrece con su casilla, como antes.
-function DialogResultadoLlamada({ lead, onClose }: { lead: Lead; onClose: () => void }): JSX.Element {
+function DialogResultadoLlamada({ lead, onClose }: { lead: LeadContactable; onClose: () => void }): JSX.Element {
   const { tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -358,7 +358,7 @@ function DialogResultado({
   canal,
   onClose,
 }: {
-  lead: Lead
+  lead: LeadContactable
   canal: Canal
   onClose: () => void
 }): JSX.Element {

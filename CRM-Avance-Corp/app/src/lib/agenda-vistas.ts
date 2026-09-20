@@ -16,7 +16,7 @@
 import { DIAS, LIMA_OFFSET_MS, MESES, fechaLima } from './agenda-derivada'
 import { normalizar } from './clientes-vista'
 import { DIA_MS, sinProximaAccion } from './inteligencia'
-import type { EtapaActiva, Lead, Miembro, Tarea, TipoTarea } from './tipos'
+import type { EtapaActiva, Lead, LeadDeAgenda, Miembro, Tarea, TipoTarea } from './tipos'
 
 const MESES_LARGOS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -178,7 +178,7 @@ export function aplicarFiltros(
   tareas: Tarea[],
   f: FiltrosAgenda,
   ahora: number,
-  leadDe: (id: string | null) => Lead | undefined,
+  leadDe: (id: string | null) => LeadDeAgenda | undefined,
 ): Tarea[] {
   const q = normalizar(f.q.trim())
   return tareas.filter((t) => {
@@ -220,7 +220,7 @@ export interface GrupoPersona {
  */
 export function agruparPorPersona(
   tareas: Tarea[],
-  leadDe: (id: string | null) => Lead | undefined,
+  leadDe: (id: string | null) => LeadDeAgenda | undefined,
   equipo: ReadonlyArray<Miembro>,
   ahora: number,
 ): GrupoPersona[] {
@@ -332,4 +332,53 @@ export function colaHigiene(
     items.push({ k: 'sin_accion', lead })
   }
   return items
+}
+
+// ── El lead embebido en la tarea (Fase 4b «sin topes») ───────────────────────
+
+/**
+ * Lo que la Agenda sabe del lead de una tarea SIN la foto inicial de leads:
+ * los campos que `crm.tareas_pendientes_fn` embebe bajo `leads_select`.
+ * `undefined` si la tarea no tiene lead o el lead no es visible (el servidor
+ * manda el nombre en nulo): la tarea se lista igual, sin capital ni
+ * recordatorio. Un servidor anterior a 20260920045202 no manda teléfono ni
+ * capital: quedan en nulo, nunca inventados.
+ */
+export function leadDeTarea(t: Tarea): LeadDeAgenda | undefined {
+  if (t.lead_id == null || t.lead_nombre == null) return undefined
+  const crudo = t.lead_monto_estimado
+  const monto = crudo == null ? null : typeof crudo === 'number' ? crudo : Number(crudo)
+  return {
+    id: t.lead_id,
+    nombre_completo: t.lead_nombre,
+    etapa: t.lead_etapa ?? '',
+    telefono: t.lead_telefono ?? '',
+    monto_estimado: monto != null && Number.isFinite(monto) ? monto : null,
+    moneda: t.lead_moneda === 'USD' ? 'USD' : 'PEN',
+    vendedor_id: t.lead_vendedor_id ?? null,
+    asignado_supervisor_id: t.lead_supervisor_id ?? null,
+    correo: t.lead_correo ?? null,
+    // Sin el dato (servidor anterior) se asume que NO se puede contactar: la
+    // veta legal de «no contactar» nunca se pierde por una clave ausente.
+    no_contactar: t.lead_no_contactar ?? true,
+    telefono_alternativo: t.lead_telefono_alternativo ?? null,
+  }
+}
+
+/** Claves del lead que `crm.tareas_pendientes_fn` embebe en cada tarea (Fase 2 + 4b). */
+export const CLAVES_LEAD_EMBEBIDO = [
+  'lead_nombre', 'lead_etapa', 'lead_telefono', 'lead_monto_estimado', 'lead_moneda',
+  'lead_vendedor_id', 'lead_supervisor_id', 'lead_correo', 'lead_no_contactar', 'lead_telefono_alternativo',
+] as const
+
+/**
+ * Una lectura puntual de la tarea (tabla, sin lead embebido) no debe borrar el
+ * lead que la fila anterior ya traía de la puerta: se copian sus claves.
+ */
+export function conservarLeadEmbebido(nueva: Tarea, previa: Tarea): Tarea {
+  const heredado: Partial<Tarea> = {}
+  for (const k of CLAVES_LEAD_EMBEBIDO) {
+    if (!(k in nueva) && k in previa) Object.assign(heredado, { [k]: previa[k] })
+  }
+  return { ...heredado, ...nueva }
 }

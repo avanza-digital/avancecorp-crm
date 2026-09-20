@@ -306,6 +306,56 @@ export interface Tarea {
   /** Embebidos por crm.tareas_pendientes_fn (Fase 2 «sin topes»); nulos si el lead no es visible. */
   lead_nombre?: string | null | undefined
   lead_etapa?: string | null | undefined
+  /** Fase 4b «sin topes»: teléfono, capital y tenencia del lead embebidos (nulos si no es visible; ausentes con un servidor anterior). */
+  lead_telefono?: string | null | undefined
+  lead_monto_estimado?: number | string | null | undefined
+  lead_moneda?: string | null | undefined
+  lead_vendedor_id?: string | null | undefined
+  lead_supervisor_id?: string | null | undefined
+  lead_correo?: string | null | undefined
+  lead_no_contactar?: boolean | null | undefined
+  lead_telefono_alternativo?: string | null | undefined
+}
+
+/**
+ * Lo que la Agenda necesita saber del lead de una tarea (Fase 4b «sin topes»).
+ * En sesión real sale de los campos embebidos en la propia tarea; en demo, de
+ * la foto local (un `Lead` completo cumple este contrato).
+ */
+export interface LeadDeAgenda {
+  id: string
+  nombre_completo: string
+  etapa: string
+  /** Vacío cuando el servidor no lo manda: nunca se inventa un número. */
+  telefono: string
+  monto_estimado: number | null
+  moneda: Moneda
+  vendedor_id?: string | null | undefined
+  asignado_supervisor_id?: string | null | undefined
+  vendedor_nombre?: string | null | undefined
+  correo?: string | null | undefined
+  no_contactar?: boolean | null | undefined
+  telefono_alternativo?: string | null | undefined
+}
+
+/** Lo que las acciones de contacto (llamar, WhatsApp, correo) necesitan del lead. */
+export interface LeadContactable {
+  id: string
+  nombre_completo: string
+  telefono: string
+  vendedor_id?: string | null | undefined
+  correo?: string | null | undefined
+  no_contactar?: boolean | null | undefined
+  telefono_alternativo?: string | null | undefined
+}
+
+/**
+ * ¿Es un `Lead` completo (la foto local de la demo) o el recorte embebido en
+ * una tarea? Lo que solo sabe pintar un lead entero (la tarjeta flotante) se
+ * omite con el recorte, en vez de inventar origen o fecha de alta.
+ */
+export function esLeadCompleto(l: LeadDeAgenda | Lead): l is Lead {
+  return 'origen' in l && 'creado_en' in l && 'activo' in l
 }
 
 /** Respuesta autoritativa de crm.reprogramar_reunion (F2). La validación

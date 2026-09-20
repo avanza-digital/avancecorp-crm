@@ -53,7 +53,16 @@ beforeEach(() => {
 
 describe('RegistroActividad — filas', () => {
   it('pinta hora Lima, chip con texto, lead, etapas y el detalle íntegro dentro del panel de la pestaña', () => {
-    montar()
+    // «se actualiza cada minuto» solo si el día listado es HOY en Lima
+    // (`esHoy` mira el reloj real): el reloj se fija al día del fixture, si no
+    // el test caducaba a la medianoche de Lima del 19/09 (visto el 20/09 00:04).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-19T18:02:00Z'))
+    try {
+      montar()
+    } finally {
+      vi.useRealTimers()
+    }
     const panel = screen.getByRole('tabpanel')
     const lista = within(panel).getByRole('list', { name: 'Registro de actividad' })
     const filas = within(lista).getAllByRole('listitem')

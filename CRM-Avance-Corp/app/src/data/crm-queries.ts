@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
-import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -520,8 +520,9 @@ export function useActividadesRecientes(habilitada: boolean, limite: number) {
 /**
  * Buscador global de la barra (Fase 4a «sin topes»): `texto` ya viene
  * normalizado y por encima del mínimo (`textoBuscable`), o `null` cuando no
- * hay nada que pedir. Conserva la lista anterior mientras llega la nueva para
- * que el desplegable no parpadee entre teclas.
+ * hay nada que pedir. Sin `keepPreviousData`: la barra solo pinta la lista de
+ * la consulta del texto actual (una lista anterior dejaba elegir con Enter un
+ * resultado ajeno al texto; Codex 20/09).
  */
 export function useBusquedaGlobal(texto: string | null, habilitada: boolean) {
   return useQuery({
@@ -529,7 +530,6 @@ export function useBusquedaGlobal(texto: string | null, habilitada: boolean) {
     queryFn: ({ signal }) => buscarLeadsGlobal(texto ?? '', signal),
     enabled: habilitada && texto !== null,
     staleTime: 30_000,
-    placeholderData: keepPreviousData,
   })
 }
 

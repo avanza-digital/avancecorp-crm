@@ -1,3 +1,4 @@
+import { conservarLeadEmbebido } from '@/lib/agenda-vistas'
 import { ejecutarEnvioPostventa } from '@/data/postventa-envios'
 import { refrescarPostventa } from '@/data/postventa-queries'
 // Store DEMO del CRM (F1b) — fuente de verdad de leads/actividades en memoria,
@@ -1058,7 +1059,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // mover un lead actualizaría los tiles y dejaría las FILAS de abajo en la
     // foto anterior. Invalidar (no refetch): un remonte dentro del staleTime
     // serviría la página rancia desde caché.
-    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() })
+    // Cancelar antes de invalidar (Codex, 20/09): una búsqueda global o una
+    // página en vuelo traería la foto de ANTES de la escritura y quedaría
+    // fresca 30 s.
+    void queryClient.cancelQueries({ queryKey: crmQueryKeys.leads() })
+      .then(() => queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }))
     // Historial POR LEAD (Fase 1 «sin topes»): cada mutación puede haber
     // escrito una gestión o un cambio de etapa. Cancelar antes de invalidar,
     // por lo mismo que arriba: una lectura en vuelo traería la foto de ANTES de
@@ -1606,7 +1611,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (epocaRef.current !== epoca || contextoPanelRef.current.yo?.id !== contexto.yo?.id
           || contextoPanelRef.current.yo?.rol !== contexto.yo?.rol || !contextoPanelRef.current.realActivo
           || contextoPanelRef.current.leadAbiertoId !== leadId) return null
-        if (tarea) setTareas((actuales) => [...actuales.filter((t) => t.id !== tareaId), tarea])
+        // Fase 4b: la lectura puntual (tabla) no trae el lead embebido; se
+        // conserva el de la fila que ya estaba (Codex, 20/09) para que la Agenda
+        // no pierda capital, contacto ni recordatorio al volver de la revisión.
+        if (tarea) setTareas((actuales) => {
+          const previa = actuales.find((t) => t.id === tareaId)
+          return [...actuales.filter((t) => t.id !== tareaId), previa ? conservarLeadEmbebido(tarea, previa) : tarea]
+        })
         return tarea
       },
       tareasDe: (leadId) =>

@@ -1,5 +1,59 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260920045202 — Tareas por cursor: el lead embebido completo (Fase 4b «sin topes»)
+
+**📋 SQL PREPARADO Y ENSAYADO, SIN INSTALAR EN PRODUCCIÓN (20/09/2026, madrugada). Cambio ADITIVO sobre la
+Fase 2 (`20260919235100`): el orden entre servidor y front es libre (claves nuevas en la RESPUESTA, opcionales
+para el front).** Fase 4b del plan «sin topes» (`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`): la
+Agenda deja de depender de la foto inicial de leads.
+
+**Causa.** La Agenda sacaba de la foto, por cada tarea, el teléfono del lead (recordatorio por WhatsApp), el
+capital en juego (monto y moneda), la tenencia (vendedor y bandeja: «el lead manda» al agrupar por persona) y lo
+que las acciones de contacto de la tarjeta necesitan (correo, la veta legal `no_contactar`, teléfono
+alternativo para el panel de resultado de llamada de Gestión Diaria). `tareas_pendientes_fn` solo embebía nombre y
+etapa.
+
+**Capas.** Núcleo `private.tareas_pendientes_core(int,timestamptz,uuid)`: `create or replace` con el MISMO
+cuerpo de la Fase 2 más `lead_telefono`, `lead_monto_estimado`, `lead_moneda`, `lead_vendedor_id`,
+`lead_supervisor_id`, `lead_correo`, `lead_no_contactar` y `lead_telefono_alternativo` (bajo `leads_select`,
+nulas si el lead no es visible); sigue INVOKER, stable, `search_path=""`, sin predicado copiado, sin `count(`.
+Base `private.assert_tareas_pendientes_base()`: `create or replace` con las once columnas de `crm.leads` que lee el
+núcleo comprobadas con `has_column_privilege` (grants POR COLUMNA). NO cambian la puerta, el índice ni el gate; los
+mutantes pasan a 18 (`create or replace`: el nuevo deja a `authenticated` solo id/nombre/etapa por columna y el gate grita
+por las ocho restantes; auditor-rls). Preflight: base de la Fase 2 OK, puerta/núcleo/gate presentes, gate OK, grants de las ocho
+columnas nuevas ya presentes (los usa la cartera por cursor). Postflight: base nueva OK, gate OK, la primera fila
+del núcleo trae las 10 claves `lead_*`, y los 4 gates del mundo SLA. Reversa: recrear núcleo y base con los cuerpos
+de `20260919235100`.
+
+**Ensayo LOCAL (20/09 ~00:00–00:06 Lima) — PASS, sin divergencias.** Copias `lead_embebido_20260920` (dos
+corridas: idempotente) y `lead_embebido_20260920b` (limpia) desde `conversion_inversion_base_20260919`, con la Fase
+2 instalada antes tal cual; guion `supabase/scripts/tareas-lead-embebido/ensayar-local.sh`. Gate OK antes y
+después; **18/18 mutantes** (los 17 de la Fase 2 + el de las columnas nuevas); matriz de 11 actores (RPC = tabla bajo su RLS, en
+orden, con las 10 claves); valores embebidos IGUALES a `crm.leads` bajo la misma sesión (vend1 y gerencia); errores
+22023/42501/anon intactos. Caso «tarea visible, lead no» REPRODUCIDO (tarea sembrada
+sobre un lead ajeno y re-apuntada a vend1 como postgres): viaja con las 10 claves `lead_*` en nulo; el front la lista sin
+capital ni recordatorio. Revisión `auditor-rls` (20/09): sin fuga de PII, sin P0/P1; aceptados comentarios, `raise` del
+postflight sin la fila (PII), siembra del caso denegado, mutante 18 y casos nuevos en `test-rls.mjs` (NOT RUN hasta el
+banco); deuda ajena anotada: `telefono_alternativo` sin ACL por columna propia. Revisión Codex (CLI, solo lectura): sin
+PII nueva; aceptados tres P2 de front (Enter con resultados del texto anterior, lead embebido perdido al revisar una tarea,
+cancelar antes de invalidar `leads`); el P1 (escritores del store por pertenencia a la foto) no es regresión hoy y queda
+como requisito de la 4e; la tolerancia a tildes de la búsqueda (249/1 983 leads con tilde o ñ; `unaccent` instalado) va a
+migración aparte, decisión de Miguel. Acta en `scripts/tareas-lead-embebido/verificacion.json`.
+
+**Front (misma PR).** `Tarea` gana los ocho campos opcionales; `leadDeTarea` (`lib/agenda-vistas.ts`) arma un
+`LeadDeAgenda` desde la tarea (sin dato de `no_contactar` asume que NO se puede contactar; monto ilegible → nulo);
+la Agenda en sesión real usa ese recorte en filtros, agrupado por persona, recordatorio, capital y acciones de
+contacto (`LeadContactable`), y ya no consulta `ambito.leads` ni aplica el gate `idsAmbito` (la RLS ya puso el
+alcance); la tarjeta flotante del lead solo con un `Lead` completo (demo). Citas de gerencia en real ya era por RPC.
+Ruta E2E `tareas_pendientes_fn` con las claves nuevas. Deuda ajena detectada: el test
+`components/gestion-diaria/registro-actividad.test.tsx:70` depende del reloj (falla pasada la medianoche de Lima;
+`esHoy` con `new Date()`).
+
+**Orden de instalación.** `npx supabase db query --linked --file supabase/migrations/20260920045202_crm_tareas_pendientes_lead_embebido.sql`
+(desde `CRM-Avance-Corp/`, Miguel con `!`) → medir md5 de puerta y núcleo en prod → `node
+supabase/scripts/tareas-lead-embebido/generar-registrador.mjs` → `npx supabase db query --linked --file
+supabase/scripts/registrar-20260920045202.sql` → fusionar PR → `/release-crm` → actualizar esta acta.
+
 ## 20260920014500 — Actividad reciente del ámbito: el arranque deja de bajar el registro (Fase 3 «sin topes»)
 
 **✅ SQL EN PRODUCCIÓN el 19/09/2026 (~22:23 Lima = 20/09 03:23 UTC, Miguel con `!` + `db query --linked --file`,

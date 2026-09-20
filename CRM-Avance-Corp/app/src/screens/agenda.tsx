@@ -59,6 +59,7 @@ import {
 import {
   agruparPorPersona,
   aplicarFiltros,
+  leadDeTarea,
   diasDeSemana,
   FILTROS_APAGADOS,
   hayFiltros,
@@ -75,7 +76,7 @@ import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import { etiquetaModalidadReunion } from '@/components/app/campos-reunion'
 import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import { money } from '@/lib/format'
-import { ETAPAS, TIPO_EVENTO, TIPOS_TAREA, type Lead, type Tarea } from '@/lib/tipos'
+import { ETAPAS, TIPO_EVENTO, TIPOS_TAREA, esLeadCompleto, type LeadDeAgenda, type Tarea } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 
 // ── Mini-KPIs del día ─────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ function TarjetaTarea({
   onCerrar,
 }: {
   t: Tarea
-  lead: Lead | undefined
+  lead: LeadDeAgenda | undefined
   ahora: number
   escribe: boolean
   /** Táctil: los saltos rápidos se pintan con área de toque, nunca en hover. */
@@ -258,7 +259,10 @@ function TarjetaTarea({
       <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 44 }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">
         <div className="flex flex-wrap items-center gap-1.5">
-          {lead ? (
+          {/* La tarjeta flotante necesita el lead ENTERO (origen, alta…): con el
+              recorte embebido en la tarea (sesión real, Fase 4b) se omite y la
+              ficha sigue a un clic. */}
+          {lead && esLeadCompleto(lead) ? (
             <LeadHoverCard lead={lead}>
               <p className="truncate text-sm font-semibold">{ev.titulo}</p>
             </LeadHoverCard>
@@ -402,7 +406,8 @@ function TarjetaTarea({
             </a>
           )}
         </span>
-        {lead && <AccionesContacto lead={lead} compacto soloIcono />}
+        {/* Sin teléfono (recorte de un servidor anterior) no se ofrece «Llamar». */}
+        {lead && lead.telefono !== '' && <AccionesContacto lead={lead} compacto soloIcono />}
         {escribe && (
           <button
             type="button"
@@ -909,13 +914,29 @@ export function Agenda() {
   // Ámbito (espejo RLS): leads visibles + tareas postventa de clientes. Estas
   // últimas ya llegan recortadas por la RLS de cartera y se identifican por
   // perfil_id; no dependen de que todavía exista un lead abierto.
-  const idsAmbito = useMemo(() => new Set(ambito.leads.map((l) => l.id)), [ambito.leads])
+  // Fase 4b «sin topes»: en sesión real las tareas llegan de
+  // `crm.tareas_pendientes_fn` ya recortadas por la RLS y con su lead embebido
+  // (nombre, etapa, teléfono, capital y tenencia): la foto inicial de leads no
+  // se consulta. La demo conserva su foto local como espejo del ámbito.
+  const sesionReal = yo != null && !yo.demo
+  const idsAmbito = useMemo(
+    () => new Set(sesionReal ? [] : ambito.leads.map((l) => l.id)),
+    [sesionReal, ambito.leads],
+  )
   // Lookup O(1): aplicarFiltros lo llama por CADA tarea en cada pulsación del
   // buscador — con la cartera de gerencia un find lineal se vuelve cuadrático.
   const leadPorId = useMemo(() => {
+    if (sesionReal) {
+      const porTarea = new Map<string, LeadDeAgenda>()
+      for (const t of tareas) {
+        const lead = leadDeTarea(t)
+        if (lead && !porTarea.has(lead.id)) porTarea.set(lead.id, lead)
+      }
+      return (id: string | null): LeadDeAgenda | undefined => (id ? porTarea.get(id) : undefined)
+    }
     const porId = new Map(ambito.leads.map((l) => [l.id, l] as const))
-    return (id: string | null): Lead | undefined => (id ? porId.get(id) : undefined)
-  }, [ambito.leads])
+    return (id: string | null): LeadDeAgenda | undefined => (id ? porId.get(id) : undefined)
+  }, [sesionReal, tareas, ambito.leads])
 
   const pendientes = useMemo(
     () =>
@@ -924,10 +945,13 @@ export function Agenda() {
           (t) =>
             t.estado === 'pendiente' &&
             t.activo &&
-            ((t.lead_id != null && idsAmbito.has(t.lead_id)) || t.perfil_id != null || t.inversionista_id != null),
+            // En real, el alcance ya lo puso la RLS (una tarea con lead no
+            // visible viaja con el lead en nulo y se lista igual); en demo,
+            // el espejo local del ámbito.
+            ((t.lead_id != null && (sesionReal || idsAmbito.has(t.lead_id))) || t.perfil_id != null || t.inversionista_id != null),
         )
         .sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
-    [tareas, idsAmbito],
+    [tareas, idsAmbito, sesionReal],
   )
   // Los KPIs cuentan la agenda COMPLETA (la verdad del día); los filtros solo
   // recortan lo que se lista — la nota "n de m" hace visible la diferencia.

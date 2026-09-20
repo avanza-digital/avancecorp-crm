@@ -170,11 +170,17 @@ export function Topbar({
     () => (sesionReal ? [] : buscarLeads(ambito.leads, qDiferida)),
     [sesionReal, ambito.leads, qDiferida],
   )
-  const resultados = sesionReal ? (busqueda.data ?? []) : resultadosLocales
+  // Solo cuentan los resultados de la consulta del texto ACTUAL: mientras el
+  // texto se asienta, la petición vuela o la consulta está apagada, la lista
+  // es vacía (Codex, 20/09: Enter elegía un resultado del texto anterior).
+  const textoActual = sesionReal ? textoBuscable(q) : null
+  const resultadosServidor = sesionReal && textoServidor !== null && textoActual === textoServidor
+    && !busqueda.isPlaceholderData && busqueda.data ? busqueda.data : []
+  const resultados = sesionReal ? resultadosServidor : resultadosLocales
   // Estados del desplegable en sesión real (la demo responde al instante).
   const bajoMinimo = sesionReal && q.trim() !== '' && textoBuscable(q) === null
   const buscando = sesionReal && !bajoMinimo
-    && (busqueda.isFetching || textoBuscable(q) !== textoServidor)
+    && (busqueda.isFetching || textoActual !== textoServidor)
   // El error solo se muestra cuando NO se está reintentando: así el reintento
   // enseña «Buscando…» y un segundo fallo vuelve a anunciarse (revisor a11y).
   const errorBusqueda = sesionReal && !busqueda.isFetching && busqueda.error instanceof Error ? busqueda.error : null

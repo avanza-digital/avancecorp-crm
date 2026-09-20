@@ -2804,7 +2804,22 @@ export async function montarBackendReal(
       const siguientes = despuesDe
         ? pendientes.filter((t) => String(t.vence_en) > despuesDe || (String(t.vence_en) === despuesDe && String(t.id) > despuesId))
         : pendientes
-      return json(route, { version: 1, items: siguientes.slice(0, Number(body.p_limite ?? 500)) })
+      // Fase 2 + 4b: el lead embebido (nombre, etapa, teléfono, capital y
+      // tenencia) bajo `leads_select`; nulo si el lead no es visible.
+      const leadDe = (id: unknown) => estado.leads.find((l) => l.id === id)
+      const items = siguientes.slice(0, Number(body.p_limite ?? 500)).map((t) => {
+        const l = leadDe(t.lead_id)
+        return {
+          ...t,
+          lead_nombre: l?.nombre_completo ?? null, lead_etapa: l?.etapa ?? null,
+          lead_telefono: l?.telefono ?? null, lead_monto_estimado: l?.monto_estimado ?? null,
+          lead_moneda: l?.moneda ?? null, lead_vendedor_id: l?.vendedor_id ?? null,
+          lead_supervisor_id: l?.asignado_supervisor_id ?? null,
+          lead_correo: l?.correo ?? null, lead_no_contactar: l?.no_contactar ?? false,
+          lead_telefono_alternativo: l?.telefono_alternativo ?? null,
+        }
+      })
+      return json(route, { version: 1, items })
     }
     if (p === '/rest/v1/tareas') {
       if (method === 'GET') return json(route, estado.tareas)

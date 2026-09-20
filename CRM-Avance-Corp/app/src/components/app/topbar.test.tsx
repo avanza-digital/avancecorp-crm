@@ -24,7 +24,7 @@ const abrirLead = vi.fn()
 const abrirNuevoLead = vi.fn()
 // Fase 4a «sin topes»: el buscador de la sesión REAL pregunta al servidor por
 // este hook; la demo lo deja apagado (habilitada=false) y filtra su foto local.
-let BUSQUEDA: { data: Lead[] | undefined; isFetching: boolean; error: Error | null; refetch: ReturnType<typeof vi.fn> } = {
+let BUSQUEDA: { data: Lead[] | undefined; isFetching: boolean; isPlaceholderData?: boolean; error: Error | null; refetch: ReturnType<typeof vi.fn> } = {
   data: undefined, isFetching: false, error: null, refetch: vi.fn(),
 }
 const useBusquedaGlobal = vi.fn((_texto: string | null, _habilitada: boolean) => BUSQUEDA)
@@ -356,6 +356,30 @@ describe('Topbar — buscador en sesión REAL (Fase 4a «sin topes»)', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(BUSQUEDA.refetch).toHaveBeenCalledTimes(2)
     expect(campoBusqueda()).toHaveFocus()
+  })
+
+  it('no deja elegir con Enter ni con las flechas un resultado de un texto anterior (Codex 20/09)', async () => {
+    const user = userEvent.setup()
+    // La consulta del texto nuevo aún no respondió: lo que hay es la lista del texto anterior.
+    BUSQUEDA = { ...BUSQUEDA, data: [lead({ id: 'srv-vieja', nombre_completo: 'ANA DEL TEXTO ANTERIOR' })], isFetching: true, isPlaceholderData: true }
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'rosa')
+    await waitFor(() => expect(useBusquedaGlobal).toHaveBeenLastCalledWith('rosa', true))
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(campoBusqueda()).not.toHaveAttribute('aria-activedescendant')
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(abrirLead).not.toHaveBeenCalled()
+    expect(screen.getByText('Buscando en tus leads…', { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
+  })
+
+  it('con un solo carácter no reaparece la lista de la consulta anterior', async () => {
+    const user = userEvent.setup()
+    BUSQUEDA.data = [lead({ id: 'srv-1', nombre_completo: 'JUANA DEL SERVIDOR' })]
+    montar({ rol: 'gerencia', demo: false, leads: [] })
+    await user.type(campoBusqueda(), 'j')
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(abrirLead).not.toHaveBeenCalled()
   })
 
   it('mientras reintenta, enseña «Buscando…» y no el error viejo', async () => {

@@ -1,0 +1,32 @@
+{
+  "migracion": "20260920045202_crm_tareas_pendientes_lead_embebido.sql",
+  "ensayo": {
+    "donde": "contenedor local supabase_db_avancecorp-f5-bank (puerto 58322); copias lead_embebido_20260920 (dos corridas: idempotente), _b, _c (fallo de dollar-quoting del archivo, corregido) y _d (limpia, archivo final) creadas desde conversion_inversion_base_20260919 (paridad 20260917235656, CON mundo SLA); la copia no tenia la Fase 2, asi que el guion instalo antes 20260919235100 TAL CUAL (ya en prod) y despues esta migracion",
+    "cuando": "2026-09-20 ~00:00–00:30 America/Lima (ultima corrida _d con el archivo final)",
+    "como": "supabase/scripts/tareas-lead-embebido/ensayar-local.sh: archivos EXACTOS aplicados en un solo mensaje (psql -c), sin divergencias",
+    "gate": "OK antes y despues; base nueva OK (once columnas de crm.leads con grant SELECT para authenticated)",
+    "mutantes": "OK: 18 mutantes detectados por private.assert_tareas_pendientes() (los 17 de la Fase 2 + el nuevo: crm.leads solo concede a authenticated id/nombre_completo/etapa → el gate grita por las ocho columnas nuevas); esquema intacto (md5 tareas_select 073deaeb…, RLS activa en tareas y leads, nucleo INVOKER, owner postgres, ACL {postgres, authenticated})",
+    "matriz_sql": "11 actores bajo set role authenticated + request.jwt.claims: ids de la RPC = tabla bajo su RLS, en orden (gerencia 6, sup1 4, sup2 2, sup1Nested 1, vend1 2, vend2 0, vend3 1, vend4 0, vendNested 1, coordinador 0, directorio 6); forma_ok con las 10 claves lead_* en todas las filas",
+    "valores": "vend1 (2 tareas con lead) y gerencia (6): nombre, etapa, telefono, monto, moneda, vendedor_id, supervisor, correo, no_contactar y telefono_alternativo IGUALES a crm.leads bajo la MISMA sesion; la tarea sembrada de juan trae telefono",
+    "lead_no_visible": "REPRODUCIDO (siembra correcta tras el auditor-rls: el BEFORE INSERT copia la tenencia del lead, asi que se siembra sobre un lead de otro analista y como postgres se re-apunta la tarea a vend1): vend1 recibe la tarea con las 10 claves lead_* en nulo (ajena_viaja=1, lead_nulo=true); el dueño del lead deja de verla (tareas_select mira la tenencia de la TAREA, no la del lead). El front la lista sin capital ni recordatorio (leadDeTarea → undefined)",
+    "errores": "p_limite 0/1001 → 22023; vendInactive → 42501 No autorizado; anon → permission denied for schema crm (sin cambios respecto a la Fase 2)",
+    "explain_copia": "vend1 y gerencia: Limit sobre el indice del cursor con el left join a crm.leads (mismo plan de la Fase 2, dos columnas mas por fila)",
+    "test_rls_http": "NOT RUN (sin SUPABASE_SERVICE_ROLE_KEY ni CRM_DEMO_PASSWORD en la sesion); testTareasPendientes de la Fase 2 sigue vigente y valida la forma minima",
+    "forma": "forma_ok con las 10 claves lead_* en todas las filas de los 11 actores"
+  },
+  "md5_copia_solo_referencia": {
+    "puerta": "5edd699559108383a0e44a90b51d9ad6",
+    "nucleo": "699288313e80228963b92b8a56c3fe5c",
+    "gate": "cb32d6c7a31dad61f1aea7842e185465"
+  },
+  "produccion": {
+    "instalada": "PENDIENTE (Miguel con `!` + db query --linked --file)",
+    "md5_medidos_en": "PENDIENTE: medir en produccion tras instalar y regenerar el registrador"
+  },
+  "md5_puerta": "PENDIENTE",
+  "md5_nucleo": "PENDIENTE",
+  "revisiones": {
+    "auditor_rls": "CHANGES_REQUESTED sin P0/P1 (20/09): sin fuga de PII (join bajo leads_select + restrictiva del actor activo; el mismo actor ya lee crm.leads por tabla), create or replace conserva dueño/ACL, reversa real. ACEPTADOS: comentarios «nulos en silencio» → «42501 para todos» (P3-a) y contadores; el raise del postflight imprime solo las claves que faltan, nunca la fila (P3-b); caso «tarea visible, lead no» reproducido con la siembra correcta (P3-c); mutante 18 para las columnas nuevas (test gap); casos a/b/c en test-rls.mjs (P2, NOT RUN hasta el banco). ANOTADO como deuda ajena: telefono_alternativo sin ACL por columna propia (P3-d; molde 20260919211105)",
+    "codex": "CHANGES_REQUESTED (CLI `codex exec --sandbox read-only`, 20/09): sin ampliación de acceso a PII en el SQL. Front: [P1] los escritores del store (registrarLlamada/registrarActividad/tareasDe, cerrar-tarea) siguen resolviendo el lead por pertenencia a la foto → NO es regresión hoy (la foto sigue cargándose hasta la 4e; con lead no visible no se ofrecen acciones) → ANOTADO como requisito de la 4e (resolver por id bajo RLS). [P2] Enter elegía un resultado del texto anterior (keepPreviousData) → ACEPTADO: solo cuenta la lista de la consulta del texto ACTUAL, sin keepPreviousData; test. [P2] la lectura puntual de la tarea (revisión) borraba el lead embebido → ACEPTADO: conservarLeadEmbebido en el store; test. [P2] invalidación de `leads` sin cancelar antes → ACEPTADO: cancelQueries → invalidateQueries. [P2] la búsqueda real pierde la tolerancia a tildes (ILIKE sin unaccent): medido en prod 249/1 983 leads activos con tilde o ñ y `unaccent` instalado → ACEPTADO COMO SEGUIMIENTO: migración aparte sobre cartera_pagina_fn/cartera_filtrada_fn (unaccent + índice de expresión), misma limitación que ya tiene la pantalla Leads; decisión de Miguel. Riesgo aceptado: con un servidor anterior (sin teléfono embebido) no se ofrece «Llamar» (guardado en la Agenda)."
+  }
+}
