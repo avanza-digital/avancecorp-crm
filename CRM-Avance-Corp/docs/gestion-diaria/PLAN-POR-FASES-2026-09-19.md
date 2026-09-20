@@ -168,15 +168,69 @@ exige **50** (20 + el 150 % de 20 = ×2,5). Para que nadie vuelva a dudar, **la 
 gerencia muestra la cuenta en vivo** mientras se escribe el número: «con 20 llamadas al primer
 corte, exige 50 al segundo». La perilla se guarda como el porcentaje, no como el multiplicador.
 
+#### Los valores de arranque, medidos contra producción (20/09/2026)
+
+Se midieron **90 días reales: 22 analistas, 399 días de trabajo** (lectura de solo lectura sobre
+`crm.actividades`, llamadas realizadas + no contestadas, hora de Lima, sin domingos).
+
+**Lo que hace el equipo HOY:**
+
+| | A las 11:30 | A las 16:00 | Todo el día |
+|---|---|---|---|
+| La mitad de los días | **2** | **7** | **10** |
+| 1 de cada 4 (los buenos) | 5 | 13 | 17 |
+| 1 de cada 10 (los muy buenos) | 10 | 22 | 28 |
+| Récord | — | 56 | **70** |
+
+**Por qué los números de arranque son los que son.** Se simularon contra esos 399 días:
+
+| Mínimo a las 11:30 | Días que fallarían |
+|---|---|
+| 8 | **82 %** |
+| 5 | 71 % |
+| **3** | **54 %** |
+| 2 | ~35 % |
+
+Un mínimo de 8 —la primera intuición— haría saltar la alerta **8 de cada 10 días**. Eso no es una
+alerta: es ruido, y el supervisor la apaga mentalmente en una semana. **Miguel fijó 3** el
+20/09/2026: señala a la mitad peor, que es algo real, sin quemar la alerta.
+
+El **techo casi no cambia nada**: con 25 recortaría el 8 % de los días, con 30 el 6 %. Se pone en
+**30** porque sin él la cuenta llegaría a pedir **73** llamadas en la tarde de una mañana
+excepcional, que es más que el récord absoluto del equipo en un día entero.
+
+**Valores con los que nace la versión 2 (los que gerencia publica el primer día):**
+
+| Perilla | Arranque | Por qué |
+|---|---|---|
+| Hora del primer corte | **11:30** | decisión de Miguel |
+| Mínimo de llamadas al primer corte | **3** | fallaría el 54 % de los días; con 8 sería el 82 % |
+| Hora del segundo corte | **16:00** | decisión de Miguel |
+| Crecimiento exigido | **150 %** | decisión de Miguel: con 20 exige 50 |
+| Piso absoluto del segundo corte | **8** | decisión de Miguel: caza al que llegó a mediodía con cero |
+| Techo absoluto del segundo corte | **30** | sin él la cuenta pediría hasta 73, más que el récord del equipo |
+| Mínimo del sábado (medio día) | **sin fijar** | Miguel lo pone al publicar |
+| Tasa muy baja | **vacía** | no hay dato; la produce el reporte de F5 |
+
+**Todos son perillas: gerencia los sube cuando el equipo suba.** Ese es el punto de que sean
+configurables y no constantes en el código.
+
+#### Dos cosas que la medición dejó a la vista, y que no son de F4
+
+- **Diez llamadas al día de media es poco** para un equipo comercial. Puede que llamen más de lo
+  que registran — y entonces el problema es de REGISTRO, no de actividad. Lo aclara el reporte de
+  hábitos de F5.
+- **399 días con llamadas entre 22 analistas en 90 días** son unos 18 días por persona. O no todos
+  llaman a diario, o no todos registran. Mismo reporte.
+
 #### Qué configura gerencia, y qué NO
 
 Configurables desde la pantalla de gerencia, con valores de arranque:
 
 - **Hora del primer corte** — 11:30.
-- **Llamadas mínimas al primer corte** — el número que dispara el aviso. *Sin decidir: Miguel lo
-  pondrá al publicar, mirando su operación.*
+- **Llamadas mínimas al primer corte** — **3** de arranque, medido (ver arriba).
 - **Hora del segundo corte** — 16:00.
-- **Crecimiento exigido en el segundo corte** — 150 %.
+- **Crecimiento exigido en el segundo corte** — 150 %, con **piso 8** y **techo 30**.
 - **Tasa muy baja** — **nace VACÍA y esa alerta NO salta hasta que se ponga.** Decisión explícita
   de Miguel: «todavía no hay esa data». El reporte de F5 (abajo) es el que la va a producir.
 
