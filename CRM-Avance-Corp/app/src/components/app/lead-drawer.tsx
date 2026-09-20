@@ -1,4 +1,4 @@
-import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
+import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 import { InversionDesdeLead } from './inversion-desde-lead'
 import { InversionDesdeLeadDemo } from './inversion-desde-lead-demo'
 import type { CondicionesTasaLead } from '@/data/crm-api'
@@ -278,7 +278,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}</div>
-        {!esTerminal && tieneAnalista && <CondicionesTasaLeadPanel lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
+        {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
@@ -1661,10 +1661,15 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
         </div>
       )}
 
-      <ol
-        className="relative mt-3 space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border"
-        aria-busy={historial.cargando || historial.cargandoMas}
+      <div
+        role="region"
+        aria-label="Historial de actividades"
+        className="ac-scroll mt-3 max-h-80 overflow-y-auto overscroll-contain rounded-lg pr-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
+        <ol
+          className="relative space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border"
+          aria-busy={historial.cargando || historial.cargandoMas}
+        >
         {/* Estados HONESTOS del historial servido: cargando, fallo y vacío se
             distinguen entre sí y de «Lead creado» (que hoy era la única señal). */}
         {historial.cargando && [0, 1].map((n) => (
@@ -1782,7 +1787,8 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
             </p>
           </div>
         </li>
-      </ol>
+        </ol>
+      </div>
     </section>
   )
 }
