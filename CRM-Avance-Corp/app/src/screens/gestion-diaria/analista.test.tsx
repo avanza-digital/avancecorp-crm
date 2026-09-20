@@ -1,7 +1,11 @@
-// «Mi día» del analista: la cola agrupada en el orden que manda, el marcador
-// con su tasa y su conteo, los compromisos, los descartes con Deshacer, y el
-// ESTADO DE PRODUCCIÓN (un día sin llamadas ni cola) que es lo que hoy vería
-// un analista real. Fail-closed: si el servidor cae, se dice, no se pinta.
+// «Mi día» del analista, layout de DOS PANELES (20/09/2026): «Ahora» con la
+// persona que toca y su única acción primaria, y la cola en cuatro pestañas de
+// las que solo se ve una lista. El marcador, las horas, el seguimiento y los
+// descartes viven en «Mi actividad». Se comprueba lo que el analista necesita:
+// a quién llamar, que el tiempo se diga en palabras (nunca «SLA»), que al
+// registrar no le vuelvan a proponer al que acaba de cerrar, y el ESTADO DE
+// PRODUCCIÓN (un día sin llamadas ni cola). Fail-closed: si el servidor cae,
+// se dice, no se pinta.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
@@ -19,7 +23,11 @@ const dobles = vi.hoisted(() => ({
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z') }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ ambito: { leads: [{ id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' }] }, tareasDe: () => [] }),
+  useCRMData: () => ({
+    ambito: { leads: [{ id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' }] },
+    tareasDe: () => [],
+    asegurarLead: async () => true,
+  }),
   usePanelesActions: () => ({ abrirLead: dobles.abrirLead }),
 }))
 vi.mock('@/data/gestion-diaria-queries', () => ({
@@ -72,99 +80,182 @@ beforeEach(() => {
   dobles.panel.props = null
 })
 
-describe('GestionDiariaAnalista', () => {
-  it('agrupa la cola con el lead sin primer intento ARRIBA de lo vencido', () => {
+
+describe('GestionDiariaAnalista · a quién llamo ahora', () => {
+  it('«Ahora» propone al primero del grupo que manda: el lead sin primer intento', () => {
     render(<GestionDiariaAnalista />)
-    // El gráfico por hora también es una lista, pero se nombra por su encabezado.
-    const grupos = screen.getAllByRole('list').map((l) => l.getAttribute('aria-label')).filter((n) => n !== null)
-    expect(grupos.slice(0, 3)).toEqual(['Sin primer intento (1)', 'Vencidas (1)', 'Sin conversación (1)'])
-    const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
-    expect(within(primero).getByRole('button', { name: 'NUEVO SIN INTENTO' })).toBeInTheDocument()
-    expect(within(primero).getByText('Ningún intento todavía')).toBeInTheDocument()
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
   })
 
-  it('el marcador lleva el % con su conteo y el chip de nivel', () => {
+  it('las cuatro pestañas están, con su conteo, aunque solo se vea una lista', () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.getByText('63 % · 8 llamadas')).toBeInTheDocument()
-    expect(screen.getAllByText('Bien').length).toBeGreaterThan(0)
-    expect(screen.getByText(/No incluye WhatsApp ni citas/)).toBeInTheDocument()
+    const tablist = screen.getByRole('tablist', { name: 'Grupos de la cola' })
+    expect(within(tablist).getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Sin primer intento1', 'Vencidas1', 'Hoy0', 'Sin conversación1',
+    ])
+    // Una sola lista a la vista: la del grupo activo.
+    expect(screen.getAllByRole('list', { name: /\(\d+\)$/ })).toHaveLength(1)
   })
 
-  it('sin llamadas útiles no hay chip ni porcentaje inventado', () => {
-    dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, llamadas: 0, contestadas: 0, utiles: 0, tasa_contacto_pct: null, nivel: null, por_hora: [] } } as DiaAnalista
+  it('el tiempo se DICE en palabras y nunca aparece la sigla SLA', () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.getByText('—')).toBeInTheDocument()
-    expect(screen.getByText(/Se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
-    expect(screen.queryByText('Bien')).not.toBeInTheDocument()
+    // l1 vence a las 14:00 y el reloj del test son las 18:00 (cuatro horas).
+    expect(screen.getAllByText('Se pasó hace 4 h').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/SLA/)).not.toBeInTheDocument()
   })
 
-  it('«Registrar resultado» abre el panel de la Fase 2 con el lead de la fila', () => {
+  it('cambiar de pestaña cambia la lista y a quién propone «Ahora»', async () => {
     render(<GestionDiariaAnalista />)
-    const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
-    fireEvent.click(within(primero).getByRole('button', { name: /Registrar resultado/ }))
-    expect(screen.getByRole('dialog', { name: 'Resultado (mock)' })).toBeInTheDocument()
-    const props = dobles.panel.props ?? {}
-    expect((props['lead'] as { id: string }).id).toBe('l1')
-    expect(typeof props['onGuardado']).toBe('function')
+    fireEvent.click(screen.getByRole('tab', { name: /Sin conversación/ }))
+    await waitFor(() => {
+      expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l3')).toBeInTheDocument()
+    })
+    // El mismo texto sale en «Ahora» y en su fila: es la misma persona.
+    expect(screen.getAllByText('Sin conversación hace 12 días')).toHaveLength(2)
   })
 
-  it('el descarte del día se puede deshacer y recarga el día', async () => {
+  it('elegir una fila de la lista la lleva a «Ahora»', async () => {
+    dobles.cola = {
+      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T17:00:00Z')] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
     render(<GestionDiariaAnalista />)
-    fireEvent.click(screen.getByRole('button', { name: /Deshacer/ }))
-    await waitFor(() => expect(dobles.deshacer).toHaveBeenCalledWith('act1'))
-    expect(dobles.recargar).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /LEAD l5/ }))
+    await waitFor(() => {
+      expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l5')).toBeInTheDocument()
+    })
   })
 
-  it('un descarte que ya no se puede deshacer lo dice, sin botón', () => {
-    dobles.dia = { ...DIA_LLENO, descartados: [{ ...DIA_LLENO.descartados[0]!, deshecho: true, puede_deshacer: false }] } as DiaAnalista
+  it('hay UNA sola acción primaria: «Registrar resultado» abre el panel de la Fase 2', async () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.getByText('Sin deshacer')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Deshacer/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' }))
+    await waitFor(() => expect(dobles.panel.props?.lead).toMatchObject({ id: 'l1' }))
   })
 
-  it('si el servidor cae, se dice; no se pinta un día vacío', () => {
-    dobles.dia = null
-    dobles.errorDia = new Error('caído')
+  it('tras registrar, «Ahora» NO vuelve a proponer al que se acaba de cerrar', async () => {
+    let soltar: () => void = () => {}
+    dobles.recargar = vi.fn(() => new Promise<void>((r) => { soltar = () => { r() } }))
+    dobles.cola = {
+      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T17:00:00Z')] },
+      error: null, refetch: vi.fn(async () => {}), isFetching: false,
+    }
     render(<GestionDiariaAnalista />)
-    expect(screen.getByText(/no está confirmado/)).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: /Sin primer intento/ })).not.toBeInTheDocument()
-  })
-
-  it('si cae SOLO la cola, se avisa y quedan los leads sin conversación', () => {
-    dobles.cola = { data: undefined, error: new Error('caído'), refetch: vi.fn(), isFetching: false }
-    render(<GestionDiariaAnalista />)
-    expect(screen.getByRole('alert')).toHaveTextContent(/solo se muestran los leads sin conversación/)
-    expect(screen.getByRole('list', { name: 'Sin conversación (1)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' }))
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    const guardado = dobles.panel.props?.onGuardado
+    expect(typeof guardado).toBe('function')
+    ;(guardado as () => void)()
+    // Mientras el servidor no contesta, el cerrado desaparece de la vista: si
+    // no, el analista volvería a llamar al mismo.
+    await waitFor(() => {
+      expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l5')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('NUEVO SIN INTENTO')).not.toBeInTheDocument()
+    soltar()
   })
 
   it('mientras la cola no llega dice «cargando», no «no tienes nada pendiente»', () => {
     dobles.cola = { data: undefined, error: null, refetch: vi.fn(), isFetching: true }
     render(<GestionDiariaAnalista />)
-    expect(screen.queryByText('No tienes nada pendiente ahora')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 3, name: /Tu cola de hoy/ })).toHaveTextContent('cargando…')
+    expect(document.querySelector('[aria-busy]')).not.toBeNull()
+    expect(screen.queryByText(/No tienes nada pendiente/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Grupos de la cola' })).not.toBeInTheDocument()
   })
 
-  it('las listas llevan role explícito y cada acción dice sobre qué lead actúa', () => {
+  it('si la cola se cae lo dice, y el aviso se ve también desde «Mi actividad»', async () => {
+    dobles.cola = { data: undefined, error: new Error('502'), refetch: vi.fn(), isFetching: false }
     render(<GestionDiariaAnalista />)
-    const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
-    expect(primero.tagName).toBe('OL')
-    expect(primero).toHaveAttribute('role', 'list')
-    expect(within(primero).getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Deshacer el descarte de ELENA VARGAS' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/No se pudo leer la cola del servidor/)
+    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
+})
 
-  it('la severidad crítica se DICE, no solo se pinta', () => {
-    dobles.cola = { data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), severidad: 'critica' }] }, error: null, refetch: vi.fn(), isFetching: false }
+describe('GestionDiariaAnalista · Mi actividad', () => {
+  const abrir = () => { fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ })) }
+
+  it('la cabecera resume el día sin ocupar la pantalla', () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.getByText('Crítica')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Mi actividad/ })).toHaveTextContent('9 llamadas · 63 % · 8 llamadas')
   })
 
-  it('ESTADO DE PRODUCCIÓN: sin cola y sin llamadas, lo dice y no fabrica nada', () => {
-    dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, llamadas: 0, contestadas: 0, utiles: 0, tasa_contacto_pct: null, nivel: null, por_hora: [] }, cartera: [], compromisos: [], compromisos_total: 0, descartados: [] } as DiaAnalista
+  it('el marcador completo vive en el segundo nivel, con su chip de nivel', async () => {
+    render(<GestionDiariaAnalista />)
+    abrir()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Mi actividad de hoy' })).toBeInTheDocument())
+    expect(screen.getByText('63 % · 8 llamadas')).toBeInTheDocument()
+    expect(screen.getByText('Bien')).toBeInTheDocument()
+    expect(screen.getByText('Leads tocados')).toBeInTheDocument()
+  })
+
+  it('sin llamadas útiles no hay chip ni porcentaje inventado', async () => {
+    dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, utiles: 0, tasa_contacto_pct: null, nivel: null } } as DiaAnalista
+    render(<GestionDiariaAnalista />)
+    abrir()
+    await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument())
+    expect(screen.queryByText('Bien')).not.toBeInTheDocument()
+    expect(screen.getByText(/El nivel se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
+  })
+
+  it('el descarte del día se puede deshacer y recarga el día', async () => {
+    render(<GestionDiariaAnalista />)
+    abrir()
+    fireEvent.click(await screen.findByRole('tab', { name: /Descartados hoy/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer el descarte de ELENA VARGAS' }))
+    await waitFor(() => expect(dobles.deshacer).toHaveBeenCalledWith('act1'))
+    expect(dobles.recargar).toHaveBeenCalled()
+  })
+
+  it('un descarte que ya no se puede deshacer lo dice, sin botón', async () => {
+    dobles.dia = {
+      ...DIA_LLENO,
+      descartados: [{ ...DIA_LLENO.descartados[0], puede_deshacer: false, deshecho: true }],
+    } as DiaAnalista
+    render(<GestionDiariaAnalista />)
+    abrir()
+    fireEvent.click(await screen.findByRole('tab', { name: /Descartados hoy/ }))
+    expect(await screen.findByText('Sin deshacer')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Deshacer el descarte/ })).not.toBeInTheDocument()
+  })
+
+  it('los compromisos de mañana en adelante viven aquí, no en la cola', async () => {
+    render(<GestionDiariaAnalista />)
+    abrir()
+    fireEvent.click(await screen.findByRole('tab', { name: /Mi seguimiento/ }))
+    expect(await screen.findByRole('button', { name: 'MARTÍN MUÑOZ' })).toBeInTheDocument()
+  })
+})
+
+describe('GestionDiariaAnalista · estados que hoy se ven en producción', () => {
+  it('ESTADO DE PRODUCCIÓN: sin cola y sin llamadas, lo dice y no fabrica nada', async () => {
+    dobles.dia = {
+      ...DIA_LLENO,
+      marcador: { ...DIA_LLENO.marcador, llamadas: 0, contestadas: 0, utiles: 0, tasa_contacto_pct: null, nivel: null, leads_tocados: 0, citas_agendadas: 0, primera_llamada_en: null, ultima_llamada_en: null, por_hora: [] },
+      compromisos: [], compromisos_total: 0, cartera: [], descartados: [],
+    } as unknown as DiaAnalista
     dobles.cola = { data: { items: [] }, error: null, refetch: vi.fn(), isFetching: false }
     render(<GestionDiariaAnalista />)
     expect(screen.getByText('No tienes nada pendiente ahora')).toBeInTheDocument()
-    expect(screen.getByText('Sin compromisos a partir de mañana')).toBeInTheDocument()
-    expect(screen.queryByText(/Descartados hoy/)).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/No queda nadie por llamar/)
+    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
+    expect(await screen.findByText('—')).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('tab', { name: /Llamadas por hora/ }))
+    expect(await screen.findByText(/Todavía no has marcado hoy/)).toBeInTheDocument()
+  })
+
+  it('si el día no carga, se dice y no se pinta una cola a medias', () => {
+    dobles.dia = null
+    dobles.errorDia = new Error('500')
+    render(<GestionDiariaAnalista />)
+    expect(screen.getByText(/No se pudo cargar tu día/)).toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Grupos de la cola' })).not.toBeInTheDocument()
+  })
+
+  it('cada acción dice sobre qué lead actúa y las listas llevan role explícito', () => {
+    render(<GestionDiariaAnalista />)
+    expect(screen.getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir la ficha de NUEVO SIN INTENTO' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Sin primer intento (1)' })).toBeInTheDocument()
   })
 })

@@ -5,14 +5,21 @@
 import { expect, test } from '@playwright/test'
 import { entrarDemo } from './_helpers'
 
+// Cada rol abre el registro con SU pregunta. Se nombran exactas porque desde
+// el layout de dos paneles (20/09/2026) el analista trae dos h2 más —«¿A quién
+// llamo ahora?» y «Cola de hoy»—, y un locator por «hoy» ya casa con varios.
+const PREGUNTA_DEL_ROL = {
+  Analista: '¿Qué hice hoy?',
+  Supervisor: '¿Qué está pasando hoy en mi equipo?',
+  Gerencia: '¿Qué está pasando hoy?',
+} as const
+
 for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
   test(`${rol} abre Gestión Diaria y ve su registro del día`, async ({ page }) => {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page).toHaveURL(/#\/gestion-diaria$/)
-    // Desde la Fase 3 el analista abre con «Mi día»: el registro conserva su
-    // propio h2 y hay que nombrarlo (antes había uno solo en la pantalla).
-    await expect(page.getByRole('heading', { level: 2, name: /hoy/i })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: PREGUNTA_DEL_ROL[rol], exact: true })).toBeVisible()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
     await expect(page.getByRole('tab', { name: /Llamadas/ })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('tab', { name: 'Todo' }).click()
@@ -21,7 +28,10 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     const lista = page.getByRole('list', { name: 'Registro de actividad' })
     await expect(lista.getByRole('listitem').first()).toBeVisible()
     await expect(lista.getByText(/Contestó|No contestó/).first()).toBeVisible()
-    await expect(page.getByRole('tabpanel')).toBeVisible()
+    // El panel se nombra por su pestaña: «Mi día» aporta sus propios tabpanel
+    // (los grupos de la cola), así que un `getByRole('tabpanel')` pelado casa
+    // con varios en la pantalla del analista.
+    await expect(page.getByRole('tabpanel', { name: 'Todo' })).toBeVisible()
     if (rol === 'Gerencia') {
       await expect(page.getByLabel('Día del registro')).toBeVisible()
       await expect(page.getByRole('combobox', { name: 'Equipo' })).toBeVisible()
