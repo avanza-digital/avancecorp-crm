@@ -8,7 +8,7 @@ set local lock_timeout = '5s';
 drop function if exists private.assert_gestion_diaria_analista_mutantes();
 drop function if exists private.assert_gestion_diaria_analista();
 drop function if exists crm.gestion_diaria_analista_fn(date, uuid);
-drop function if exists private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz);
+drop function if exists private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz, uuid);
 drop function if exists private.gestion_diaria_llamadas(timestamptz, timestamptz, uuid[]);
 drop function if exists private.gestion_diaria_umbrales();
 
@@ -188,6 +188,12 @@ begin
   if md5(pg_get_functiondef('private.registro_actividad_core(timestamptz,timestamptz,uuid[],text[],text,integer,timestamptz,uuid)'::regprocedure))
      is distinct from 'd1c922eb5081e30f3581b95a95d74656' then
     raise exception 'REVERSA: el nucleo del registro no volvio a su cuerpo de F1';
+  end if;
+  if md5(pg_get_functiondef('private.assert_gestion_diaria_registro()'::regprocedure)) is distinct from 'd2ab883a409638299c135d4bee043575' then
+    raise exception 'REVERSA: el gate de F1 no volvio a su cuerpo de produccion';
+  end if;
+  if md5(pg_get_functiondef('private.assert_gestion_diaria()'::regprocedure)) is distinct from '32148d3276427fb6004201323e4b9a1f' then
+    raise exception 'REVERSA: el paraguas no volvio a su cuerpo de F2';
   end if;
   perform private.assert_sla_comandos();
 end;

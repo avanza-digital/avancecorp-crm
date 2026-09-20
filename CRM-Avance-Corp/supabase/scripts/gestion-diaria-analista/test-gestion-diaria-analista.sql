@@ -341,6 +341,11 @@ begin
     raise exception '8: acepto una fecha de hace mas de un ano';
   exception when invalid_parameter_value then null;
   end;
+  begin
+    perform crm.gestion_diaria_analista_fn('-infinity'::date);
+    raise exception '8: acepto -infinity';
+  exception when invalid_parameter_value then null;
+  end;
   -- 9. Un día pasado: marcador de ese día (base), sin los descartes de hoy; cartera y compromisos siguen siendo los de hoy
   r := crm.gestion_diaria_analista_fn((select hoy from o_ventana) - 30);
   reset role;
@@ -386,6 +391,9 @@ begin
      or not exists (select 1 from jsonb_array_elements(r->'descartados') i where (i->>'lead_id')::uuid = L[4]) then
     raise exception '11: el supervisor no ve el dia de su analista: %', r - 'cartera';
   end if;
+  if exists (select 1 from jsonb_array_elements(r->'descartados') i where (i->>'puede_deshacer')::boolean) then
+    raise exception '11: el supervisor no puede deshacer por el analista (el deshacer exige ser el autor): %', r->'descartados';
+  end if;
   if v_sup_ajeno is distinct from a.sup1 then
     begin
       perform crm.gestion_diaria_analista_fn(null, a.v_ajeno);
@@ -410,6 +418,9 @@ begin
   reset role;
   if (r#>>'{marcador,llamadas}')::int <> b.llamadas + 6 or (r#>>'{marcador,citas_agendadas}')::int <> b.citas + 1 then
     raise exception '12: gerencia no ve el dia del analista: %', r - 'cartera';
+  end if;
+  if exists (select 1 from jsonb_array_elements(r->'descartados') i where (i->>'puede_deshacer')::boolean) then
+    raise exception '12: gerencia no puede deshacer por el analista: %', r->'descartados';
   end if;
 
   -- 13. El coordinador no entra

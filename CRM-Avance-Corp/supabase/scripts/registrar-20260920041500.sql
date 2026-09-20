@@ -91,7 +91,7 @@ declare
 begin
   -- Nada de F3 instalado todavía.
   if to_regprocedure('crm.gestion_diaria_analista_fn(date,uuid)') is not null
-     or to_regprocedure('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz)') is not null
+     or to_regprocedure('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)') is not null
      or to_regprocedure('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])') is not null
      or to_regprocedure('private.gestion_diaria_umbrales()') is not null
      or to_regprocedure('private.assert_gestion_diaria_analista()') is not null
@@ -107,6 +107,11 @@ begin
      or to_regprocedure('crm.deshacer_resultado_llamada(uuid)') is null
      or private.assert_gestion_diaria() not like 'OK%' then
     raise exception 'PREFLIGHT: faltan la Fase 1 (20260919211958) o la Fase 2 (20260920005000) de Gestion Diaria, o su paraguas no esta en verde';
+  end if;
+  -- La base de las tareas por cursor (20260919235100) sella tareas_select: el gate de F3 la llama.
+  if to_regprocedure('private.assert_tareas_pendientes_base()') is null
+     or private.assert_tareas_pendientes_base() not like 'OK%' then
+    raise exception 'PREFLIGHT: falta o esta en rojo private.assert_tareas_pendientes_base() (20260919235100)';
   end if;
   -- Lo que esta fase toca o de lo que depende, EXACTAMENTE como vive en producción (md5 medidos el 20/09/2026).
   for v_firma, v_md5 in select * from (values
@@ -304,7 +309,8 @@ create function private.gestion_diaria_analista_core(
   p_ini timestamptz,
   p_fin timestamptz,
   p_desde_compromisos timestamptz,
-  p_ahora timestamptz
+  p_ahora timestamptz,
+  p_actor uuid
 ) returns jsonb
 language sql
 stable
@@ -416,6 +422,9 @@ as $function$
     -- Descartes del día firmados por el analista (F2): para ofrecer «Deshacer»
     -- hasta 24 h. `vigente` = el descarte del lead sigue siendo ESTE (mismo
     -- sello descartado_en), el criterio que aplica crm.deshacer_resultado_llamada.
+    -- `puede_deshacer` solo es cierto para el PROPIO analista (p_actor): el
+    -- deshacer de F2 exige ser el autor; un supervisor que mira el día de otro
+    -- recibe false (auditor RLS, 20/09).
     select a.id as actividad_id, a.lead_id, l.nombre_completo as lead_nombre, l.etapa as lead_etapa,
            a.metadata->>'resultado' as resultado,
            a.metadata->>'submotivo' as submotivo,
@@ -486,16 +495,16 @@ as $function$
         'actividad_id', d.actividad_id, 'lead_id', d.lead_id, 'lead_nombre', d.lead_nombre, 'lead_etapa', d.lead_etapa,
         'resultado', d.resultado, 'submotivo', d.submotivo, 'motivo_descarte', d.motivo_descarte,
         'creado_en', d.creado_en, 'deshecho', d.deshecho, 'vigente', d.vigente, 'no_insista', d.no_insista,
-        'puede_deshacer', (not d.deshecho and d.vigente and not d.no_insista
+        'puede_deshacer', (p_actor = p_analista and not d.deshecho and d.vigente and not d.no_insista
                            and d.creado_en >= p_ahora - interval '24 hours'))
         order by d.creado_en desc, d.actividad_id)
       from descartados d), '[]'::jsonb)
   );
 $function$;
-comment on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz) is
-  'NÚCLEO (Gestión Diaria F3): el día de un analista bajo la RLS del actor — marcador de la ventana (por gestion_diaria_llamadas + umbrales), compromisos (tareas pendientes de llamada/cita desde p_desde_compromisos sobre leads que ya conversaron; hasta 100 + total), cartera (señales por lead abierto, hasta 500, con sin_conversacion según crm.politica_abandono) y descartados del día con puede_deshacer. Puro: sin auth ni autoridad propia; sin contadores crudos.';
-revoke all on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz) from public, anon, authenticated, service_role;
-grant execute on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz) to authenticated;
+comment on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz, uuid) is
+  'NÚCLEO (Gestión Diaria F3): el día de un analista bajo la RLS del actor — marcador de la ventana (por gestion_diaria_llamadas + umbrales), compromisos (tareas pendientes de llamada/cita desde p_desde_compromisos sobre leads que ya conversaron; hasta 100 + total), cartera (señales por lead abierto, hasta 500, con sin_conversacion según crm.politica_abandono) y descartados del día con puede_deshacer (solo si p_actor es el analista: el deshacer exige ser el autor). Puro: sin auth ni autoridad propia; sin contadores crudos.';
+revoke all on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz, uuid) from public, anon, authenticated, service_role;
+grant execute on function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz, uuid) to authenticated;
 
 -- ── CAPA 3 · PUERTA ─────────────────────────────────────────────────────────
 create function crm.gestion_diaria_analista_fn(
@@ -518,8 +527,8 @@ declare
   v_manana timestamptz;
 begin
   -- EL INPUT SE VALIDA ANTES DE LEER NADA (22023, mensajes en lenguaje llano).
-  if v_dia > v_hoy then
-    raise exception 'El dia no admite fechas futuras' using errcode = '22023';
+  if not pg_catalog.isfinite(v_dia) or v_dia > v_hoy then
+    raise exception 'El dia debe ser una fecha real no posterior a hoy' using errcode = '22023';
   end if;
   if v_hoy - v_dia > 365 then
     raise exception 'El dia no puede ser anterior a un ano' using errcode = '22023';
@@ -552,7 +561,7 @@ begin
   v_fin := ((v_dia + 1)::timestamp) at time zone 'America/Lima';
   v_manana := ((v_hoy + 1)::timestamp) at time zone 'America/Lima';
 
-  return private.gestion_diaria_analista_core(v_analista, v_dia, v_ini, v_fin, v_manana, now());
+  return private.gestion_diaria_analista_core(v_analista, v_dia, v_ini, v_fin, v_manana, now(), v_uid);
 end;
 $function$;
 comment on function crm.gestion_diaria_analista_fn(date, uuid) is
@@ -736,7 +745,7 @@ begin
   --    EXECUTE exactamente para authenticated (la cadena corre como el actor).
   foreach v_firma in array array[
     'crm.gestion_diaria_analista_fn(date,uuid)',
-    'private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz)',
+    'private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)',
     'private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])',
     'private.gestion_diaria_umbrales()'
   ] loop
@@ -768,8 +777,8 @@ begin
 
   -- 2. Los CUERPOS propios, sellados (medidos en el banco, dos pasadas).
   for v_firma, v_md5 in select * from (values
-    ('crm.gestion_diaria_analista_fn(date,uuid)',                                                          'b93970c865a6abc318a6372b8535c0e2'),
-    ('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz)',    'df3712f027acfc8cbc95c7d08a2db5b5'),
+    ('crm.gestion_diaria_analista_fn(date,uuid)',                                                          '547374a60eff8fd8ac631cf9daccc1ab'),
+    ('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)',    'f97fe787e45face3bc3eb99b4990b79b'),
     ('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])',                                    '431e9fd8198adcb1cd7416cd0f15acaa'),
     ('private.gestion_diaria_umbrales()',                                                                   '6ab633af9f5356f3fa11cf309ff4b25c')
   ) as m(firma, md5) loop
@@ -814,8 +823,12 @@ begin
      or not has_function_privilege('authenticated', 'private.rol_crm(uuid)', 'EXECUTE') then
     raise exception 'La cadena invoker del dia del analista perdio un permiso (tareas, leads.tenencia_desde/sla_global_iniciado_en/descartado_en, equipo_visible_fn, ayudantes)';
   end if;
+  -- tareas_select sellada por huella, por conjunto de permisivas y con la
+  -- restrictiva del actor activo: UNA sola fuente, la base de las tareas por
+  -- cursor (20260919235100). Constantes copiadas podrían divergir; llamándola no.
+  perform private.assert_tareas_pendientes_base();
 
-  return 'OK: dia del analista — puerta y nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y politica_abandono en su forma, cadena invoker con sus permisos';
+  return 'OK: dia del analista — puerta y nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y politica_abandono en su forma, cadena invoker con sus permisos, tareas_select sellada por la base de las tareas por cursor';
 end;
 $function$;
 comment on function private.assert_gestion_diaria_analista() is
@@ -856,14 +869,22 @@ begin
     ('2 nucleo llamadas para anon',   'grant execute on function private.gestion_diaria_llamadas(timestamptz, timestamptz, uuid[]) to anon'),
     ('3 puerta sin EXECUTE',          'revoke execute on function crm.gestion_diaria_analista_fn(date, uuid) from authenticated'),
     ('4 puerta volatile',             'alter function crm.gestion_diaria_analista_fn(date, uuid) volatile'),
-    ('5 nucleo sin search_path',      'alter function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz) reset search_path'),
+    ('5 nucleo sin search_path',      'alter function private.gestion_diaria_analista_core(uuid, date, timestamptz, timestamptz, timestamptz, timestamptz, uuid) reset search_path'),
     ('6 umbrales reescritos',         $m$create or replace function private.gestion_diaria_umbrales() returns jsonb language sql stable security invoker set search_path to '' as $b$ select jsonb_build_object('version', 1, 'bien_min_pct', 1, 'atencion_min_pct', 0, 'minimo_llamadas_utiles', 0) $b$$m$),
     ('7 nucleo llamadas reescrito',   $m$create or replace function private.gestion_diaria_llamadas(p_ini timestamptz, p_fin timestamptz, p_vendedor_ids uuid[]) returns table (vendedor_id uuid, llamadas integer, contestadas integer, utiles integer, leads_tocados integer, citas_agendadas integer, primera_llamada_en timestamptz, ultima_llamada_en timestamptz, por_resultado jsonb, por_hora jsonb) language sql stable security invoker set search_path to '' as $b$ select null::uuid, 0, 0, 0, 0, 0, null::timestamptz, null::timestamptz, '{}'::jsonb, '[]'::jsonb where false $b$$m$),
     ('8 registro F1 alterado',        'alter function private.registro_actividad_core(timestamptz, timestamptz, uuid[], text[], text, integer, timestamptz, uuid) set lock_timeout = ''3s'''),
     ('9 cola v2 invoker',             'alter function crm.cola_accion_v2_fn(integer, text, text, uuid, jsonb) security invoker'),
     ('10 politica_abandono sin RLS',  'alter table crm.politica_abandono disable row level security'),
     ('11 umbrales sin EXECUTE',       'revoke execute on function private.gestion_diaria_umbrales() from authenticated'),
-    ('12 puerta con otra firma',      'drop function crm.gestion_diaria_analista_fn(date, uuid)')
+    ('12 puerta con otra firma',      'drop function crm.gestion_diaria_analista_fn(date, uuid)'),
+    ('13 tareas sin RLS',             'alter table crm.tareas disable row level security'),
+    ('14 tareas sin SELECT',          'revoke select on table crm.tareas from authenticated'),
+    ('15 leads sin SELECT',           'revoke select on table crm.leads from authenticated'),
+    ('16 roster sin EXECUTE',         'revoke execute on function crm.equipo_visible_fn() from authenticated'),
+    ('17 politica sin policy',        'drop policy politica_abandono_select on crm.politica_abandono'),
+    ('18 politica sin SELECT',        'revoke select on table crm.politica_abandono from authenticated'),
+    ('19 tareas_select abierta',      'alter policy tareas_select on crm.tareas using (true)'),
+    ('20 permisiva nueva en tareas',  'create policy tareas_mutante_gestion_diaria on crm.tareas for select to authenticated using (true)')
   ) as m(nombre, sql) loop
     begin
       begin
@@ -905,7 +926,7 @@ begin
     select 1 from pg_proc p
     where p.oid in (
       to_regprocedure('crm.gestion_diaria_analista_fn(date,uuid)'),
-      to_regprocedure('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz)'),
+      to_regprocedure('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)'),
       to_regprocedure('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])'),
       to_regprocedure('private.gestion_diaria_umbrales()'),
       to_regprocedure('private.registro_actividad_core(timestamptz,timestamptz,uuid[],text[],text,integer,timestamptz,uuid)'))
@@ -923,8 +944,8 @@ $mig_gd_analista$;
   -- 1) PIN: lo que la migración hizo ES verdad — puerta y núcleos con la
   --    definición ensayada, el núcleo del registro re-sellado y el paraguas OK.
   if to_regprocedure('crm.gestion_diaria_analista_fn(date,uuid)') is null
-     or md5(pg_get_functiondef('crm.gestion_diaria_analista_fn(date,uuid)'::regprocedure)) is distinct from 'b93970c865a6abc318a6372b8535c0e2'
-     or md5(pg_get_functiondef('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz)'::regprocedure)) is distinct from 'df3712f027acfc8cbc95c7d08a2db5b5'
+     or md5(pg_get_functiondef('crm.gestion_diaria_analista_fn(date,uuid)'::regprocedure)) is distinct from '547374a60eff8fd8ac631cf9daccc1ab'
+     or md5(pg_get_functiondef('private.gestion_diaria_analista_core(uuid,date,timestamptz,timestamptz,timestamptz,timestamptz,uuid)'::regprocedure)) is distinct from 'f97fe787e45face3bc3eb99b4990b79b'
      or md5(pg_get_functiondef('private.gestion_diaria_llamadas(timestamptz,timestamptz,uuid[])'::regprocedure)) is distinct from '431e9fd8198adcb1cd7416cd0f15acaa'
      or md5(pg_get_functiondef('private.gestion_diaria_umbrales()'::regprocedure)) is distinct from '6ab633af9f5356f3fa11cf309ff4b25c'
      or md5(pg_get_functiondef('private.registro_actividad_core(timestamptz,timestamptz,uuid[],text[],text,integer,timestamptz,uuid)'::regprocedure)) is distinct from '3430460e4ab59aa185ec8305788cc9a4'
