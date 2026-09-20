@@ -108,7 +108,7 @@ export type DiaAnalista = v.InferOutput<typeof DiaAnalistaSchema>
  * leads que llevan demasiados días sin una conversación real.
  */
 export const GRUPOS_DIA = [
-  { clave: 'primera_atencion', etiqueta: 'Sin primer intento', ayuda: 'El SLA corre desde la asignación' },
+  { clave: 'primera_atencion', etiqueta: 'Sin primer intento', ayuda: 'El tiempo corre desde que te lo asignaron' },
   { clave: 'tarea_vencida', etiqueta: 'Vencidas', ayuda: 'Lo primero de lo ya comprometido' },
   { clave: 'tarea_hoy', etiqueta: 'Hoy', ayuda: 'Lo que tú mismo acordaste para hoy' },
   { clave: 'sin_conversacion', etiqueta: 'Sin conversación', ayuda: 'Nadie ha conversado con ellos en días' },
