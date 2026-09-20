@@ -1,5 +1,8 @@
 # Plan por fases — Módulo GESTIÓN DIARIA (CRM Avance Corp)
 
+> **Estado al 20/09/2026:** F0, F1 y F2 EN PRODUCCIÓN; sigue F3. Dónde estamos y cómo retomar: `ESTADO-Y-RETOMAR-2026-09-20.md` (misma carpeta).
+
+
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
 
 ## Context
