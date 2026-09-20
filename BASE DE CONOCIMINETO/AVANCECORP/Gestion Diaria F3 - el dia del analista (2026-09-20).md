@@ -1,10 +1,14 @@
 ---
 tags: [crm, gestion-diaria, servidor, front]
 fecha: 2026-09-20
-estado: ensayada-en-banco, pendiente-de-instalar
+estado: en-produccion
 ---
 
 # Gestión Diaria F3 — el día del analista (2026-09-20)
+
+> **En producción desde el 20/09/2026.** SQL `20260920041500` instalada y registrada (~01:19 Lima); front
+> `crm-20260920T062207Z-12230ee2ea0f` (build `build-20260920T062206730Z`, commit `12230ee2`). El gate paraguas
+> `private.assert_gestion_diaria()` responde en verde para F1+F2+F3 y los advisors no sumaron ninguna alerta.
 
 Fase 3 del plan de [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]], después de [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]]. El analista abre Gestión Diaria y lo primero que ve es **a quién llamar ahora**: su cola completa del día, agrupada y ordenada, con el panel del resultado en cada fila. Debajo, su marcador, sus compromisos y los descartes de hoy con «Deshacer».
 
