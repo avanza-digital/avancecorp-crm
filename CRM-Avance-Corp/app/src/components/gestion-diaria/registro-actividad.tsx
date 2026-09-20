@@ -30,9 +30,12 @@ import { Select } from '@/components/ui/select'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 
 const LIMITE_PAGINA = 25
+// Tokens de TEXTO: el chip `soft` pinta el color puro sobre un tinte al 12 %, y
+// ahí `--warning` da ~3:1 (index.css). Misma escala que el chip de nivel de «Mi
+// día», que ahora convive con este en la pantalla del analista.
 const TONO: Record<'ok' | 'atencion' | 'neutro', string> = {
   ok: 'var(--primary)',
-  atencion: 'var(--warning)',
+  atencion: 'var(--warning-text)',
   neutro: 'var(--muted-foreground-strong)',
 }
 const TODAS_LAS_ETAPAS = [...ETAPAS, ...TERMINALES]

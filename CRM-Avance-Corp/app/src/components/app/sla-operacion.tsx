@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { GuardadosSlaPendientes } from './guardados-sla-pendientes'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, RefreshCw, ArrowUpRight, ListFilter, X } from 'lucide-react'
 import './sla-operacion.css'
@@ -167,7 +168,11 @@ export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?
   const estado = consulta.data.filas.find((fila) => fila.lead_id === leadId)
   if (!estado) return <p role="alert" className="text-xs">El estado de seguimiento no está disponible para esta oportunidad.</p>
   if (estado.evaluacion === 'no_aplica') return null
-  return <div className="space-y-3"><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
+  // El aviso vive TAMBIÉN aquí, no solo en el montaje global de App.tsx: la
+  // ficha es un Sheet MODAL y, mientras está abierta, marca como aria-hidden e
+  // inerte todo lo que hay detrás — el aviso global queda fuera del alcance del
+  // lector de pantalla y del puntero. Dos copias, nunca alcanzables a la vez.
+  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
 }
 export function DetalleSla({ estado, supervision = false, onActuar }: {
   estado: EstadoSlaV2; supervision?: boolean; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined

@@ -30,6 +30,22 @@ export const EQUIPO_DEMO: Miembro[] = [
 /** ISO de hace N días (acepta fracciones: hace(0.5) = hace 12 h). */
 export const hace = (dias: number) => new Date(Date.now() - dias * 86_400_000).toISOString()
 
+/**
+ * ISO de un instante de HOY en Lima, repartido por la parte del día que YA
+ * transcurrió: `hoyLima(0.5)` cae a mitad de camino entre la medianoche de Lima
+ * y ahora. Las gestiones «de hoy» del demo iban con `hace(0.05)` y dejaban de
+ * ser de hoy en la madrugada de Lima — la pantalla decía «todavía no hay
+ * actividad hoy» y la prueba de extremo a extremo se ponía roja sola. Así son
+ * de hoy a cualquier hora, siempre pasadas y siempre en el mismo orden.
+ */
+export const hoyLima = (fraccion: number) => {
+  const ahora = Date.now()
+  const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ahora))
+  const medianoche = Date.parse(`${dia}T00:00:00-05:00`)
+  const transcurrido = Math.max(ahora - medianoche, 60_000)
+  return new Date(medianoche + Math.round(transcurrido * Math.min(Math.max(fraccion, 0), 0.99))).toISOString()
+}
+
 // 20 leads. Teléfonos ÚNICOS +519########, DNIs únicos de 8 dígitos.
 // Reparto: d-v1 → l1,l2,l8,l9,l12,l15,l16,l17 · d-v2 → l3,l6,l10,l18,l19 ·
 // d-v3 → l4,l7,l13,l20 · parkeados (vendedor_id null): l5,l11 → d-sup1 y l14 → d-sup2.
@@ -154,11 +170,11 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   { id: 'act43', lead_id: 'l20', tipo: 'llamada_realizada', detalle: 'Evalúa subir su contrato actual; quedó en avisar', autor_nombre: 'ANALISTA TRES', creado_en: hace(8) },
   // Gestión Diaria (19/09/2026): gestiones de HOY para que el registro del día
   // tenga filas en demo. Una sin detalle a propósito (31 % del histórico real).
-  { id: 'act44', lead_id: 'l2', tipo: 'llamada_realizada', detalle: 'Contestó: pide que la llamen el lunes a las 10 con la propuesta impresa', autor_nombre: 'ANALISTA UNO', creado_en: hace(0.05) },
-  { id: 'act45', lead_id: 'l1', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA UNO', creado_en: hace(0.08) },
-  { id: 'act46', lead_id: 'l2', tipo: 'whatsapp_enviado', detalle: 'Le envié la dirección de la oficina', autor_nombre: 'ANALISTA UNO', creado_en: hace(0.12) },
-  { id: 'act47', lead_id: 'l3', tipo: 'llamada_realizada', detalle: 'Está en Huancayo hasta el jueves; confirma la cita del viernes', autor_nombre: 'ANALISTA DOS', creado_en: hace(0.16) },
-  { id: 'act48', lead_id: 'l4', tipo: 'llamada_no_contestada', detalle: 'NC las llamadas ni los mensajes', autor_nombre: 'ANALISTA TRES', creado_en: hace(0.2) },
+  { id: 'act44', lead_id: 'l2', tipo: 'llamada_realizada', detalle: 'Contestó: pide que la llamen el lunes a las 10 con la propuesta impresa', autor_nombre: 'ANALISTA UNO', creado_en: hoyLima(0.92) },
+  { id: 'act45', lead_id: 'l1', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA UNO', creado_en: hoyLima(0.8) },
+  { id: 'act46', lead_id: 'l2', tipo: 'whatsapp_enviado', detalle: 'Le envié la dirección de la oficina', autor_nombre: 'ANALISTA UNO', creado_en: hoyLima(0.66) },
+  { id: 'act47', lead_id: 'l3', tipo: 'llamada_realizada', detalle: 'Está en Huancayo hasta el jueves; confirma la cita del viernes', autor_nombre: 'ANALISTA DOS', creado_en: hoyLima(0.5) },
+  { id: 'act48', lead_id: 'l4', tipo: 'llamada_no_contestada', detalle: 'NC las llamadas ni los mensajes', autor_nombre: 'ANALISTA TRES', creado_en: hoyLima(0.34) },
 ]
 
 // Tareas de agenda demo (espejo de crm.tareas) — lead_ids vigentes y con señal

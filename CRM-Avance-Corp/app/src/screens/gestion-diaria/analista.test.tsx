@@ -75,7 +75,8 @@ beforeEach(() => {
 describe('GestionDiariaAnalista', () => {
   it('agrupa la cola con el lead sin primer intento ARRIBA de lo vencido', () => {
     render(<GestionDiariaAnalista />)
-    const grupos = screen.getAllByRole('list').map((l) => l.getAttribute('aria-label')).filter((n) => n !== 'Llamadas por hora')
+    // El gráfico por hora también es una lista, pero se nombra por su encabezado.
+    const grupos = screen.getAllByRole('list').map((l) => l.getAttribute('aria-label')).filter((n) => n !== null)
     expect(grupos.slice(0, 3)).toEqual(['Sin primer intento (1)', 'Vencidas (1)', 'Sin conversación (1)'])
     const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
     expect(within(primero).getByRole('button', { name: 'NUEVO SIN INTENTO' })).toBeInTheDocument()
@@ -100,7 +101,7 @@ describe('GestionDiariaAnalista', () => {
   it('«Registrar resultado» abre el panel de la Fase 2 con el lead de la fila', () => {
     render(<GestionDiariaAnalista />)
     const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
-    fireEvent.click(within(primero).getByRole('button', { name: 'Registrar resultado' }))
+    fireEvent.click(within(primero).getByRole('button', { name: /Registrar resultado/ }))
     expect(screen.getByRole('dialog', { name: 'Resultado (mock)' })).toBeInTheDocument()
     const props = dobles.panel.props ?? {}
     expect((props['lead'] as { id: string }).id).toBe('l1')
@@ -134,6 +135,28 @@ describe('GestionDiariaAnalista', () => {
     render(<GestionDiariaAnalista />)
     expect(screen.getByRole('alert')).toHaveTextContent(/solo se muestran los leads sin conversación/)
     expect(screen.getByRole('list', { name: 'Sin conversación (1)' })).toBeInTheDocument()
+  })
+
+  it('mientras la cola no llega dice «cargando», no «no tienes nada pendiente»', () => {
+    dobles.cola = { data: undefined, error: null, refetch: vi.fn(), isFetching: true }
+    render(<GestionDiariaAnalista />)
+    expect(screen.queryByText('No tienes nada pendiente ahora')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: /Tu cola de hoy/ })).toHaveTextContent('cargando…')
+  })
+
+  it('las listas llevan role explícito y cada acción dice sobre qué lead actúa', () => {
+    render(<GestionDiariaAnalista />)
+    const primero = screen.getByRole('list', { name: 'Sin primer intento (1)' })
+    expect(primero.tagName).toBe('OL')
+    expect(primero).toHaveAttribute('role', 'list')
+    expect(within(primero).getByRole('button', { name: 'Registrar resultado de NUEVO SIN INTENTO' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer el descarte de ELENA VARGAS' })).toBeInTheDocument()
+  })
+
+  it('la severidad crítica se DICE, no solo se pinta', () => {
+    dobles.cola = { data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), severidad: 'critica' }] }, error: null, refetch: vi.fn(), isFetching: false }
+    render(<GestionDiariaAnalista />)
+    expect(screen.getByText('Crítica')).toBeInTheDocument()
   })
 
   it('ESTADO DE PRODUCCIÓN: sin cola y sin llamadas, lo dice y no fabrica nada', () => {

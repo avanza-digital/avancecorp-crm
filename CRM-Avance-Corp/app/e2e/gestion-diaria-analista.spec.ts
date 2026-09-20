@@ -17,28 +17,31 @@ test('Analista: «Mi día» abre con la cola agrupada y su marcador', async ({ p
   await expect(page.getByRole('heading', { level: 2, name: '¿Qué hice hoy?' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Analista' })).toHaveCount(0)
 
-  // El primer grupo de la cola es «Sin primer intento»: el lead nuevo manda.
-  const grupos = page.getByRole('list').filter({ hasNotText: 'Registro de actividad' })
+  // El primer grupo de la cola es «Sin primer intento»: el lead nuevo manda
+  // (decisión #2 de Miguel). Los grupos son <ol> con nombre; el gráfico de
+  // llamadas por hora es un <ul> y no cuenta.
   const primerGrupo = page.getByRole('list', { name: /^Sin primer intento/ })
   await expect(primerGrupo).toBeVisible()
-  await expect(grupos.first()).toHaveAttribute('aria-label', /Sin primer intento/)
+  await expect(page.locator('ol[aria-label]').first()).toHaveAttribute('aria-label', /^Sin primer intento/)
 
   // Cada fila ofrece registrar el resultado; el panel de la Fase 2 se abre.
   await primerGrupo.getByRole('button', { name: 'Registrar resultado' }).first().click()
-  await expect(page.getByRole('dialog', { name: 'Resultado de la llamada' })).toBeVisible()
-  await expect(page.getByRole('radio', { name: /No contestó/ })).toBeVisible()
+  const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await expect(panel).toBeVisible({ timeout: 10_000 })
+  // Los radios llevan su detalle en el nombre accesible: se busca por regex.
+  await expect(panel.getByRole('radio', { name: /No contest/ })).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog', { name: 'Resultado de la llamada' })).toHaveCount(0)
+  await expect(panel).toHaveCount(0)
 
   // Y el seguimiento (compromisos a partir de mañana) tiene su sección propia.
   await expect(page.getByRole('heading', { level: 3, name: /Mi seguimiento/ })).toBeVisible()
 })
 
-test('Supervisor y Gerencia no ven «Mi día» todavía (llega en la Fase 4)', async ({ page }) => {
-  for (const rol of ['Supervisor', 'Gerencia'] as const) {
+for (const rol of ['Supervisor', 'Gerencia'] as const) {
+  test(`${rol} no ve «Mi día» todavía (llega en la Fase 4)`, async ({ page }) => {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
-    await expect(page.getByRole('heading', { level: 2 })).not.toHaveText('¿A quién llamo ahora?')
+    await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveCount(0)
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
-  }
-})
+  })
+}

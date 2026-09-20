@@ -32,11 +32,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const LIMITE_COLA = 100
+// Verde NO (decisión #3 de Miguel): «Bien» va en navy sobre fondo tenue. Y los
+// tokens de TEXTO, no los saturados: el chip `soft` pinta el color puro sobre un
+// tinte al 12 %, donde `--warning` da ~3:1 y `--destructive` ~4:1 (index.css).
 const COLOR_NIVEL: Record<'bien' | 'atencion' | 'bajo', string> = {
-  // Verde NO (decisión #3 de Miguel): «Bien» va en navy sobre fondo tenue.
   bien: 'var(--primary)',
-  atencion: 'var(--warning)',
-  bajo: 'var(--destructive)',
+  atencion: 'var(--warning-text)',
+  bajo: 'var(--destructive-text)',
 }
 
 export function GestionDiariaAnalista(): JSX.Element {
@@ -54,6 +56,9 @@ export function GestionDiariaAnalista(): JSX.Element {
   // La cola del día: la misma fuente que «Seguimiento comercial», sin filtros.
   const cola = useColaSlaPagina({ senal: 'todas', etapa: null, analista_id: null }, null, LIMITE_COLA, !yo?.demo)
   const paginaCola = cola.error ? undefined : cola.data
+  // La cola y el día son DOS consultas: mientras la cola no ha llegado, decir
+  // «no tienes nada pendiente» sería mentir (solo estarían los sin conversación).
+  const colaCargando = !yo?.demo && cola.error == null && paginaCola === undefined
 
   const leadsPorId = useMemo(() => new Map(ambito.leads.map((l) => [l.id, l])), [ambito.leads])
   const filas = useMemo<FilaDiaria[]>(() => {
@@ -70,12 +75,17 @@ export function GestionDiariaAnalista(): JSX.Element {
   }
   /** Al guardar, el foco salta a la fila siguiente: el analista sigue marcando. */
   function saltarASiguiente(leadId: string) {
-    const indice = filas.findIndex((f) => f.lead_id === leadId)
-    const siguiente = filas[indice + 1]
-    if (siguiente === undefined) { encabezado.current?.focus(); return }
-    // El re-render por la invalidación de la cola llega después del cierre del
-    // diálogo: el foco se pide en el siguiente cuadro, cuando la fila ya existe.
-    requestAnimationFrame(() => botones.current.get(siguiente.lead_id)?.focus())
+    const siguiente = filas[filas.findIndex((f) => f.lead_id === leadId) + 1]
+    // DOS cuadros: el Dialog devuelve el foco al botón que lo abrió en SU propio
+    // requestAnimationFrame, y un solo cuadro perdía la carrera (o lo pedía con
+    // el diálogo aún abierto, y el FocusScope lo arrastraba de vuelta). Y solo
+    // se salta si el foco quedó suelto: nunca se le quita al usuario uno útil.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const destino = siguiente ? botones.current.get(siguiente.lead_id) ?? null : encabezado.current
+      const activo = document.activeElement
+      const suelto = activo === null || activo === document.body || activo === botones.current.get(leadId)
+      if (destino !== null && suelto) destino.focus()
+    }))
   }
   async function deshacer(d: Descartado) {
     if (deshaciendo !== null) return
@@ -105,7 +115,8 @@ export function GestionDiariaAnalista(): JSX.Element {
             Tu cola del día completa, ordenada por urgencia. {corte ? `Corte ${corte} (Lima)` : 'Sin corte confirmado'} · se actualiza cada minuto.
           </p>
         </div>
-        <Button variant="outline" size="sm" disabled={dia.enVuelo} onClick={() => { void dia.recargar(); void cola.refetch() }}>
+        <Button variant="outline" size="sm" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
+          onClick={() => { if (dia.enVuelo) return; void dia.recargar(); void cola.refetch() }}>
           <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /> Actualizar
         </Button>
       </header>
@@ -122,7 +133,8 @@ export function GestionDiariaAnalista(): JSX.Element {
 
           <section aria-labelledby={`${id}-cola`} className="space-y-4">
             <h3 id={`${id}-cola`} className="text-base font-bold text-primary">
-              Tu cola de hoy <span className="text-sm font-semibold text-[var(--muted-foreground-strong)]">· {filas.length} {filas.length === 1 ? 'pendiente' : 'pendientes'}</span>
+              Tu cola de hoy <span className="text-sm font-semibold text-[var(--muted-foreground-strong)]">
+                · {colaCargando ? 'cargando…' : `${filas.length} ${filas.length === 1 ? 'pendiente' : 'pendientes'}`}</span>
             </h3>
             {colaCaida && (
               <p role="alert" className="text-xs font-semibold text-destructive">
@@ -134,7 +146,9 @@ export function GestionDiariaAnalista(): JSX.Element {
                 Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
               </p>
             )}
-            {grupos.length === 0 ? (
+            {colaCargando ? (
+              <PanelCargando filas={4} />
+            ) : grupos.length === 0 ? (
               <PanelVacio icono={PhoneCall} titulo="No tienes nada pendiente ahora"
                 detalle="Ningún lead sin primer intento, ninguna tarea vencida ni de hoy, y toda tu cartera tuvo conversación esta semana." />
             ) : grupos.map(({ grupo, filas: delGrupo }) => {
@@ -145,7 +159,9 @@ export function GestionDiariaAnalista(): JSX.Element {
                     <h4 className="text-sm font-bold text-foreground">{meta.etiqueta} · {delGrupo.length}</h4>
                     <span className="text-xs text-[var(--muted-foreground-strong)]">{meta.ayuda}</span>
                   </div>
-                  <ol aria-label={`${meta.etiqueta} (${delGrupo.length})`} className="divide-y divide-border rounded-xl border border-border bg-card">
+                  {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+                  <ol role="list" aria-label={`${meta.etiqueta} (${delGrupo.length})`} aria-busy={colaCargando}
+                    className="divide-y divide-border rounded-xl border border-border bg-card">
                     {delGrupo.map((fila) => (
                       <FilaCola key={fila.lead_id} fila={fila} lead={leadsPorId.get(fila.lead_id) ?? null}
                         sinConversacionDias={dia.dia!.sin_conversacion_dias}
@@ -174,6 +190,7 @@ export function GestionDiariaAnalista(): JSX.Element {
 }
 
 function Marcador({ dia }: { dia: DiaAnalista }): JSX.Element {
+  const id = useId()
   const m = dia.marcador
   const barras = barrasPorHora(m)
   const fuera = llamadasFueraDeFranja(m)
@@ -191,9 +208,9 @@ function Marcador({ dia }: { dia: DiaAnalista }): JSX.Element {
     { icon: CalendarClock, label: presentarCitas('Citas agendadas'), value: String(m.citas_agendadas) },
   ]
   return (
-    <section aria-label="Mi marcador de hoy" className="space-y-3">
+    <section aria-labelledby={`${id}-marcador`} className="space-y-3">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="text-base font-bold text-primary">Mi marcador de hoy</h3>
+        <h3 id={`${id}-marcador`} className="text-base font-bold text-primary">Mi marcador de hoy</h3>
         {m.nivel !== null && <Badge color={COLOR_NIVEL[m.nivel]} dot>{ETIQUETA_NIVEL[m.nivel]}</Badge>}
       </div>
       <StatStrip stats={stats} />
@@ -203,13 +220,16 @@ function Marcador({ dia }: { dia: DiaAnalista }): JSX.Element {
       </p>
       {m.llamadas > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-[var(--muted-foreground-strong)]">Llamadas por hora (08–20, Lima)</h4>
-          <ul className="mt-2 flex items-end gap-1" aria-label="Llamadas por hora">
+          <h4 id={`${id}-horas`} className="text-xs font-semibold text-[var(--muted-foreground-strong)]">Llamadas por hora (08–20, Lima)</h4>
+          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+          <ul role="list" className="mt-2 flex items-end gap-1" aria-labelledby={`${id}-horas`}>
             {barras.map((b) => (
               <li key={b.hora} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                 <span className="w-full rounded-t bg-primary/80" style={{ height: `${Math.round((b.llamadas / b.maximo) * 40) + 2}px` }}
                   aria-hidden />
-                <span className="sr-only">{b.hora}:00 — {b.llamadas} llamadas, {b.contestadas} contestadas</span>
+                <span className="sr-only">
+                  {b.hora}:00 — {b.llamadas} {b.llamadas === 1 ? 'llamada' : 'llamadas'}, {b.contestadas} {b.contestadas === 1 ? 'contestada' : 'contestadas'}
+                </span>
                 <span aria-hidden className="text-[10px] tabular-nums text-muted-foreground">{b.hora}</span>
               </li>
             ))}
@@ -238,7 +258,9 @@ function FilaCola({ fila, lead, sinConversacionDias, onRegistrar, onAbrirFicha, 
             className="inline-flex min-h-9 items-center rounded-md text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">
             {fila.nombre_completo}
           </button>
-          <Badge color={fila.severidad === 'critica' ? 'var(--destructive)' : 'var(--muted-foreground-strong)'} variant="outline">{etapa}</Badge>
+          <Badge color="var(--muted-foreground-strong)" variant="outline">{etapa}</Badge>
+          {/* La severidad NO viaja solo en el color: se dice (regla de la casa). */}
+          {fila.severidad === 'critica' && <Badge color="var(--destructive-text)" variant="outline">Crítica</Badge>}
           {fila.referencia_en !== null && (
             <span className="text-xs tabular-nums text-[var(--muted-foreground-strong)]">{cuandoLimaDe(fila.referencia_en)}</span>
           )}
@@ -246,8 +268,11 @@ function FilaCola({ fila, lead, sinConversacionDias, onRegistrar, onAbrirFicha, 
         <p className="text-xs text-[var(--muted-foreground-strong)]">{detalleDeFila(fila, sinConversacionDias)}</p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {lead !== null && <AccionesContacto lead={lead} destacada />}
-        <Button ref={registrarRef} variant="accent" size="sm" className="h-11 sm:h-9" onClick={onRegistrar}>
+        {lead !== null
+          ? <AccionesContacto lead={lead} destacada />
+          : <span className="text-xs text-muted-foreground">Abre la ficha para llamar</span>}
+        <Button ref={registrarRef} variant="accent" size="sm" className="h-11 sm:h-9"
+          aria-label={`Registrar resultado de ${fila.nombre_completo}`} onClick={onRegistrar}>
           Registrar resultado
         </Button>
       </div>
@@ -265,7 +290,8 @@ function Compromisos({ dia, onAbrirFicha }: { dia: DiaAnalista; onAbrirFicha: (l
       {dia.compromisos.length === 0 ? (
         <PanelVacio icono={CalendarClock} titulo="Sin compromisos a partir de mañana" detalle="Lo de hoy y lo vencido ya está en tu cola." />
       ) : (
-        <ol aria-label="Mis compromisos" className="divide-y divide-border rounded-xl border border-border bg-card">
+        /* oxlint-disable-next-line jsx-a11y/no-redundant-roles */
+        <ol role="list" aria-label="Mis compromisos" className="divide-y divide-border rounded-xl border border-border bg-card">
           {dia.compromisos.map((c) => (
             <li key={c.tarea_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
               <div className="min-w-0">
@@ -306,7 +332,8 @@ function Descartados({ dia, deshaciendo, onDeshacer, onAbrirFicha }: {
       <p className="text-xs text-[var(--muted-foreground-strong)]">
         Están en el Centro de rescate con su motivo. Puedes deshacer el descarte durante 24 horas; el lead vuelve a tu cartera con un ciclo nuevo.
       </p>
-      <ol aria-label="Descartados hoy" className="divide-y divide-border rounded-xl border border-border bg-card">
+      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+      <ol role="list" aria-label="Descartados hoy" className="divide-y divide-border rounded-xl border border-border bg-card">
         {dia.descartados.map((d) => (
           <li key={d.actividad_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
             <div className="min-w-0">
@@ -320,7 +347,11 @@ function Descartados({ dia, deshaciendo, onDeshacer, onAbrirFicha }: {
               </p>
             </div>
             {d.puede_deshacer ? (
-              <Button variant="outline" size="sm" disabled={deshaciendo !== null} onClick={() => onDeshacer(d)}>
+              // `aria-disabled` y no `disabled`: deshabilitar el botón enfocado
+              // manda el foco al body (regla de la casa, boton-guardar.tsx).
+              <Button variant="outline" size="sm" aria-disabled={deshaciendo !== null}
+                aria-label={`Deshacer el descarte de ${d.lead_nombre}`}
+                onClick={() => { if (deshaciendo === null) onDeshacer(d) }}>
                 <RotateCcw aria-hidden /> {deshaciendo === d.actividad_id ? 'Deshaciendo…' : 'Deshacer'}
               </Button>
             ) : (

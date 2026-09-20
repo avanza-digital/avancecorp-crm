@@ -10,7 +10,9 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page).toHaveURL(/#\/gestion-diaria$/)
-    await expect(page.getByRole('heading', { level: 2 })).toContainText(/hoy/i)
+    // Desde la Fase 3 el analista abre con «Mi día»: el registro conserva su
+    // propio h2 y hay que nombrarlo (antes había uno solo en la pantalla).
+    await expect(page.getByRole('heading', { level: 2, name: /hoy/i })).toBeVisible()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
     await expect(page.getByRole('tab', { name: /Llamadas/ })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('tab', { name: 'Todo' }).click()
