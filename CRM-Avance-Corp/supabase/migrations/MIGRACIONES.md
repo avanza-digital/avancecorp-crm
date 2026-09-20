@@ -1,5 +1,111 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260920014500 — Actividad reciente del ámbito: el arranque deja de bajar el registro (Fase 3 «sin topes»)
+
+**📋 SQL PREPARADO Y ENSAYADO, SIN INSTALAR EN PRODUCCIÓN (19/09/2026, noche; 20/09 UTC). Front en la misma PR, a
+publicar DESPUÉS del SQL (la bitácora del directorio llama a una puerta nueva; sin ella fallaría con
+«No se pudo cargar la actividad reciente» y el resto del CRM seguiría igual).** Fase 3 del plan «sin topes»
+(`~/.claude/plans/ok-dame-un-plan-replicated-shannon.md`); objetivo fijado por Miguel el 19/09: que ninguna
+pantalla dependa de descargar el registro de actividades del ámbito, que la RPC vieja salga del arranque y
+se deprecie, y que muera el último tope de actividades del front.
+
+**Pedido y causa (medida en prod el 19/09, noche).** El arranque llamaba a `crm.actividades_del_ambito_fn`
+(DEFINER, `limit 10000`), recortada a **1 000** filas por PostgREST: 13 645 actividades en 365 días, 2 886
+nuevas por semana, 326 leads en `nuevo`; la alarma del front (`LIMITE_ACTIVIDADES_AMBITO = 10 000`) nunca
+sonaba. Con el modo SLA `activo` en prod (desde el 07/09), en sesión real esa lista solo la usaba DE VERDAD
+la bitácora «Actividad reciente» de Hoy · Directorio (8 filas). Los cuatro hooks operativos
+(`useEstadoSlaOperativo`, `useResumenCarteraOperativo`, `useColaAccionOperativa`,
+`useMetricasVendedoresOperativas`) la reciben pero solo la usan en DEMO; el semáforo del Pipeline se pinta con
+la fotografía SLA (`estado_sla_leads_v2_fn`) y usa el índice de contactos solo como respaldo; la «espera más
+larga» de la bandeja de Hoy · Supervisor cae a `tenencia_desde`/`creado_en` (`referenciaEspera`), que para un
+lead parkeado es el mismo instante que su `reasignacion`; las alertas LEGADO (`derivarAlertasVendedor/Supervisor`)
+solo corren en demo o con el modo SLA apagado. **Desvío del plan (con evidencia):** el Pipeline por columna
+con keyset NO hace falta en esta fase y pasa a la Fase 4 (donde se retira la foto de leads).
+
+**Las cuatro capas.** Tabla `crm.actividades` intacta (índice existente `actividades_recientes_idx (creado_en
+desc, id)`). NÚCLEO `private.actividades_recientes_core(int)` (`sql stable security invoker`, `search_path=''`,
+EXECUTE a `authenticated`): las N gestiones más recientes bajo `actividades_select`, `left join crm.leads`
+bajo `leads_select` para `lead_nombre` (nullable; co-extensivas, certificado en la Fase 1) y
+`private.nombre_de_autor` (el único DEFINER, de la Fase 1) para `autor_nombre`; sin `count(`. PUERTA
+`crm.actividades_recientes_fn(p_limite=8 [1..50]) returns jsonb {version:1, items}` (`plpgsql stable security
+invoker`): 22023 por input, `private.puede_acceder_crm()` → 42501 «No autorizado», delega. **Sin predicado de
+ámbito copiado**: la puerta devuelve exactamente las N más recientes que la tabla ya muestra a cada rol
+(coordinador: `[]`, igual que la tabla). Es un feed de tamaño fijo, no una página: sin cursor ni «hay más».
+
+**Preflight/postflight.** Base compartida `private.assert_actividades_recientes_base()`: ayudantes de autoridad
+y `nombre_de_autor` con su gate interno (la Fase 1 debe estar instalada); USAGE sobre `private`; SELECT sobre
+`crm.actividades`; EXECUTE de `authenticated` sobre `nombre_de_autor`; `has_column_privilege` de
+`crm.leads.id/nombre_completo`; **RLS activa** en las dos tablas; huella de `actividades_select` medida en prod
+el 19/09 = `e80e3af900b8d9616c28dcd836f1ac94`; conjunto de permisivas de lectura = exactamente
+`actividades_select` solo para `authenticated`; restrictiva `crm_actor_activo_gate` presente. Candado «ya
+instalada». Gate propio `private.assert_actividades_recientes()` (puerta y núcleo no definer, stable,
+`search_path=""`, owner postgres; guardia de admisión por su FORMA exacta; ACL exactamente `{authenticated}`;
+base). Postflight: gate + `assert_sla_nucleo/operacion/comandos/avisos` (los 4 rojos ajenos no se invocan).
+**20 mutantes** con desenlace triple (detectado / no detectado / no aplicado): puerta y núcleo definer,
+`actividades_select using (true)`, permisiva nueva, puerta sin guardia, guardia solo en comentario, puerta y
+núcleo a anon, núcleo sin `search_path`, núcleo volatile, policy a public, sin `crm_actor_activo_gate`, sin
+SELECT de `crm.actividades` y de `crm.leads`, sin USAGE de `private`, sin EXECUTE sobre `nombre_de_autor`,
+`nombre_de_autor` sin DEFINER y sin gate interno, RLS desactivada en `crm.actividades` y en `crm.leads`.
+**Sello compartido (auditoría RLS):** la huella de `actividades_select` la clavan tres bases (Fase 1, Gestión
+Diaria F1 y esta); la migración que cambie esa policy debe re-auditar los tres consumidores y reemplazar las
+tres `_base` en la misma transacción (deuda: centralizar el sello). `leads_select` NO se sella aquí: la
+co-extensividad es estructural (el `exists` de `actividades_select` corre bajo `leads_select`) y
+`nombre_completo` es NOT NULL, así que un `lead_nombre` nulo solo llegaría si cambiara `actividades_select`. `notify pgrst`. Reversa: drop de las 5 funciones; nada de
+datos que deshacer.
+
+**Ensayo LOCAL (19/09 ~21:00 Lima) — PASS, sin divergencias.** Copia `sin_topes_f3_20260920` en el contenedor
+local `supabase_db_avancecorp-f5-bank` (58322), creada como `supabase_admin` desde
+`conversion_inversion_base_20260919` (paridad `20260917235656`, CON mundo SLA); como la copia no tiene la Fase 1,
+el guion instala antes `20260919185718` TAL CUAL (ya en prod) y después esta, las dos en un solo mensaje.
+Guion `supabase/scripts/actividades-recientes/ensayar-local.sh`; resultado en `verificacion.json`. Gate OK;
+**18/18 mutantes** y esquema intacto (gate de la Fase 1 también OK después); matriz de **11 actores** por SQL bajo
+la RLS real: ids de la puerta = las 8 más recientes de la tabla en orden `(creado_en desc, id asc)` para todos
+(gerencia 8, sup1 8, sup2 3, sup1Nested 1, vend1 7, vend2 0, vend3 1, vend4 0, vendNested 1, coordinador 0,
+directorio 8), con autor, con lead y con las 7 claves; `p_limite` 0/51 → 22023; vendInactive y clientBank →
+42501 «No autorizado»; anon → `permission denied for schema crm`. `test-rls.mjs` por HTTP
+(`testActividadesRecientes` + sonda anónima): **NOT RUN** (sin claves en la sesión).
+
+**Front (misma PR, publicar DESPUÉS del SQL).** `listarActividadesDelAmbito` y `LIMITE_ACTIVIDADES_AMBITO`
+BORRADOS (era el último tope de actividades del front); `listarActividadesRecientes(limite=8)` +
+`useActividadesRecientes` (clave bajo `metricasAmbito()`, refresco al volver a la pestaña y cada minuto; filas
+fuera de contrato CONTADAS; 42501 con su mensaje). `cargarReal` ya no baja actividades: el store solo conserva
+las optimistas locales (la resincronización las preserva; el historial por lead las deduplica por tiempo).
+Gates fuera de React (`descartar` por «No responde», retroceso al anular): sin historial en caché en sesión real
+NO se juzga sobre una lista vacía — el descarte pide abrir la ficha y el retroceso se deja al servidor
+(`retroceso_por_anular_reunion`), con telemetría `crm.anular.retroceso_sin_historial`. Hoy · Directorio pinta la
+bitácora servida con `lead_nombre` (o «Lead fuera del ámbito»), con estados cargando/error/reintentar.
+**Alertas LEGADO en sesión real** (modo SLA apagado): ya no se derivan (derivar sobre una lista vacía inventaría
+«sin contacto» para toda la cartera) y la campana lo dice: «Las alertas por actividad de leads necesitan el
+modo SLA activo…»; en demo siguen. Ruta E2E `/rest/v1/rpc/actividades_recientes_fn` en `_helpers.ts`; la de
+`actividades_del_ambito_fn` se RETIRA a propósito (una llamada olvidada falla por loopback muerto). MSW: contrato,
+`p_limite`, filas inválidas contadas, `lead_nombre` nulo tolerado, más filas de las pedidas, versión
+desconocida, 42501. Tests de alertas adaptados al contrato nuevo (los cuatro F4 que dependían de alertas
+derivadas en sesión real se sustituyen por uno del contrato nuevo; el espejo demo F4 sigue).
+
+**Revisiones (19/09, noche).** `auditor-rls`: CHANGES_REQUESTED sin P0/P1, **sin fuga ni desfase**; aceptados: sello
+compartido documentado (cabecera + acta), 2 mutantes de `nombre_de_autor` (18 → 20), EXECUTE de `puede_acceder_crm`
+en la base, negativa cruzada de subárbol y bordes de `p_limite` en `test-rls`, comentarios de co-extensividad y
+rótulo del front; pendiente tras instalar: medir en prod el caso peor (analista con pocas gestiones visibles; umbral
+200 ms; contingencia índice cubriente `include (lead_id)`). **Codex (CLI, solo lectura): CHANGES_REQUESTED con 3 P2
+de front, los tres aceptados:** la conservación de optimistas estaba en el arranque y no en la resincronización
+(corregido: arranque parte de cero, resincronización conserva solo optimistas de los últimos 10 minutos); crear y
+cerrar reunión decidían el avance optimista mirando la lista local (ahora `huboContacto` usa las señales del
+historial por lead y sin caché no anuncia avance: lo decide el servidor); la «espera más larga» de la bandeja del
+supervisor caía a `creado_en` (en sesión real se omite la antigüedad; el conteo del RPC sigue). Pruebas de regresión
+añadidas en `store-real.test.tsx`.
+
+**OBSERVAR → DERRIBAR.** `crm.actividades_del_ambito_fn` sigue viva y sin llamadas desde el front publicado.
+Tras una semana sin llamadas en los logs de PostgREST (`query_logs`, ruta
+`/rest/v1/rpc/actividades_del_ambito_fn`; fecha orientativa: a partir del 27/09/2026), migración aparte de
+deprecación (`revoke execute` de `authenticated` + `comment on`), nunca un `drop` inmediato.
+
+**Orden de instalación.** `npx supabase db query --linked --file supabase/migrations/20260920014500_crm_actividades_recientes.sql`
+(Miguel con `!`) → medir md5 de `pg_get_functiondef` en prod → `node supabase/scripts/actividades-recientes/generar-registrador.mjs`
+→ `npx supabase db query --linked --file supabase/scripts/registrar-20260920014500.sql` → sonda anónima
+(`{"p_limite":8}` → 42501; `{"p_nope":1}` → PGRST202) → fusionar PR → worktree limpio + `npm ci` (app y raíz) →
+`release:crm` + preflight → publicar (terminal de Miguel) → smoke contra el ZIP → actualizar esta acta, mapa
+de capas, vault y `main` el mismo día.
+
 ## 20260920005000 — Gestión Diaria (F2): resultado tipificado de llamada
 
 **🧪 ENSAYADA EN EL BANCO LOCAL el 20/09/2026 · PENDIENTE DE INSTALAR en producción ·

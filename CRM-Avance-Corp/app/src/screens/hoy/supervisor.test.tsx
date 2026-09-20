@@ -653,7 +653,7 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(acceso).toHaveAttribute('href', '#/derivaciones')
     expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
     expect(within(acceso).getByText('2')).toBeInTheDocument()
-    expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
+    expect(within(acceso).getByText('Pendientes en tu bandeja · Repartir →')).toBeInTheDocument()
 
     acceso.focus()
     expect(acceso).toHaveFocus()
@@ -685,7 +685,7 @@ describe('Hoy · supervisor — reparto compacto', () => {
 
     const acceso = screen.getByRole('link', { name: 'Repartir 7 leads pendientes' })
     expect(within(acceso).getByText('7')).toBeInTheDocument()
-    expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
+    expect(within(acceso).getByText('Pendientes en tu bandeja · Repartir →')).toBeInTheDocument()
   })
 
   it('sin resumen mantiene el destino y evita inventar un conteo o una alerta', () => {

@@ -25,6 +25,10 @@ vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ yo: { demo: false, rol: 'directorio' } }),
 }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-08-27T12:00:00Z') }))
+// Fase 3 «sin topes»: la bitácora la sirve una RPC; aquí no hay QueryClient.
+vi.mock('@/data/crm-queries', () => ({
+  useActividadesRecientes: () => ({ data: [], isPending: false, error: null, refetch: vi.fn() }),
+}))
 vi.mock('@/data/use-resumen-cartera-operativo', () => ({
   useResumenCarteraOperativo: () => ({ resumen: RESUMEN, error: null, recargar: vi.fn() }),
 }))

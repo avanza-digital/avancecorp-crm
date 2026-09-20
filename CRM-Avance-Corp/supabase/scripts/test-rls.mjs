@@ -6212,6 +6212,109 @@ async function testTareasPendientes(sessions, seed) {
   );
 }
 
+// — Actividad reciente (Fase 3 del plan «sin topes», 20260920014500) ———————
+// La bitácora de Hoy · Directorio deja de pintar 8 filas de un registro
+// descargado entero (recortado a 1 000) y pide `crm.actividades_recientes_fn`.
+// INVOKER ≡ RLS: para cada rol la puerta devuelve EXACTAMENTE las N gestiones
+// más recientes que su propia sesión ya ve en la tabla, en el mismo orden,
+// con el nombre del lead (bajo leads_select) y la firma del autor.
+async function testActividadesRecientes(sessions, seed) {
+  console.log('\n— Actividad reciente: las N mas nuevas de cada RLS, con lead y autor —');
+  const rpc = (key, args = {}) => sessions[key].client.schema('crm').rpc('actividades_recientes_fn', args);
+
+  for (const key of ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio', 'coordinador']) {
+    const directo = await positive(
+      `${key}: actividades directo de la tabla (oraculo RLS)`,
+      sessions[key].client.schema('crm').from('actividades').select('id, lead_id, creado_en')
+        .order('creado_en', { ascending: false }).order('id', { ascending: true }).limit(8),
+    );
+    const r = await positive(`${key} lee la actividad reciente por la puerta`, rpc(key, { p_limite: 8 }));
+    if (!directo || !r) continue;
+    const payload = r.data ?? {};
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    check(payload.version === 1 && Array.isArray(payload.items),
+      `${key}: el payload cumple el contrato {version, items}`);
+    const esperados = (directo.data ?? []).map((a) => a.id);
+    const recibidos = items.map((a) => a.id);
+    check(recibidos.length === esperados.length && recibidos.every((id, i) => id === esperados[i]),
+      `${key}: la puerta (invoker) devuelve EXACTAMENTE las ${esperados.length} mas recientes que su RLS muestra, en orden (creado_en desc, id asc)`,
+      JSON.stringify({ rpc: recibidos.length, rls: esperados.length }));
+    check(items.every((a) => typeof a.autor_nombre === 'string' && a.autor_nombre.length > 0
+      && 'lead_nombre' in a && (a.lead_nombre === null || typeof a.lead_nombre === 'string')
+      && typeof a.tipo === 'string' && typeof a.creado_en === 'string'),
+      `${key}: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)`);
+    const sinNombre = items.filter((a) => a.lead_nombre === null).length;
+    // Un NULL solo seria posible si actividades_select dejara de referenciar
+    // crm.leads (lo atrapa la huella sellada): se cuenta, nunca se espera.
+    if (sinNombre > 0) console.log(`  · ${key}: ${sinNombre} de ${items.length} filas sin nombre de lead (solo posible si cambia actividades_select)`);
+  }
+
+  // Negativa CRUZADA de subárbol sobre la puerta nueva (la igualdad con el
+  // oráculo pasaría si tabla y puerta se rompieran igual): una gestión fresca
+  // sobre juan (vend1, bajo sup1) la ve vend1 entre sus 8 y NO la ve vend3
+  // (subárbol de sup2). Sembrada con service_role; el log es INSERT-only.
+  const juanLead = seed.leadByName.get(LEAD_BY_KEY.juan.name);
+  const fresca = { id: randomUUID(), detalle: 'gate actividad reciente: negativa cruzada' };
+  await requireAdmin(
+    'sembrar una gestion fresca sobre juan',
+    admin.schema('crm').from('actividades').insert({
+      id: fresca.id, lead_id: juanLead.id, tipo: 'nota', detalle: fresca.detalle,
+      creado_por: seed.profileIdByKey[LEAD_BY_KEY.juan.sellerKey],
+    }),
+  );
+  const v1 = await positive('vend1 relee la actividad reciente tras la siembra', rpc('vend1', { p_limite: 8 }));
+  if (v1) {
+    check((v1.data?.items ?? []).some((a) => a.id === fresca.id),
+      'vend1 recibe la gestion fresca de juan entre sus 8 mas recientes');
+  }
+  const v3 = await positive('vend3 relee la actividad reciente tras la siembra', rpc('vend3', { p_limite: 50 }));
+  if (v3) {
+    check(!(v3.data?.items ?? []).some((a) => a.id === fresca.id),
+      'vend3 (otro subarbol) NO recibe la gestion de juan aunque pida 50');
+  }
+
+  // Denegación solo por ADMISIÓN (P04: revocado ≠ ajeno). El alcance es de la RLS.
+  await expectExpectedFailure(
+    'vendInactive: membresia revocada → 42501 de ADMISION (P04)',
+    rpc('vendInactive'), ['42501'], /no autorizado/i,
+  );
+  await expectExpectedFailure(
+    'clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION',
+    rpc('clientBank'), ['42501'], /no autorizado/i,
+  );
+  // Input inválido: 22023 ANTES de leer nada (es una bitácora de 1..50); los
+  // bordes 1 y 50 se aceptan.
+  await expectExpectedFailure('p_limite 0 → 22023', rpc('vend1', { p_limite: 0 }), ['22023'], /p_limite/);
+  await expectExpectedFailure('p_limite 51 → 22023', rpc('vend1', { p_limite: 51 }), ['22023'], /p_limite/);
+  await expectExpectedFailure('p_limite nulo explicito → 22023', rpc('vend1', { p_limite: null }), ['22023'], /p_limite/);
+  await positive('p_limite 1 (borde) se acepta', rpc('vend1', { p_limite: 1 }));
+  await positive('p_limite 50 (borde) se acepta', rpc('vend1', { p_limite: 50 }));
+
+  if (process.env.CRM_BANCO_PSQL_URL) {
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`actividad reciente: ${etiqueta}`, sql);
+    check(cuenta('grants', `select count(*) from unnest(array['crm.actividades_recientes_fn(integer)','private.actividades_recientes_core(integer)']) f(firma)
+      where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+         or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+      'actividad reciente: puerta y nucleo exponen EXECUTE exactamente a authenticated');
+    check(cuenta('invoker', `select count(*) from pg_proc p where p.oid in ('crm.actividades_recientes_fn(integer)'::regprocedure, 'private.actividades_recientes_core(integer)'::regprocedure) and not p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""']`) === 2,
+      'actividad reciente: puerta y nucleo son INVOKER, stable y con search_path vacio');
+    check(cuenta('gate revocado', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol), unnest(array['private.assert_actividades_recientes()','private.assert_actividades_recientes_base()']) f(firma) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`) === 0,
+      'actividad reciente: los dos trinquetes no tienen EXECUTE para la API');
+    check(textoFueraDeBanda('gate propio', 'select private.assert_actividades_recientes()').startsWith('OK'),
+      'actividad reciente: el trinquete private.assert_actividades_recientes() responde OK');
+    let mutantes = '';
+    try {
+      mutantes = textoFueraDeBanda('mutantes del trinquete', 'select private.assert_actividades_recientes_mutantes()');
+    } catch (error) {
+      mutantes = `FALLO: ${error?.message ?? String(error)}`;
+    }
+    check(mutantes.startsWith('OK'), `actividad reciente: los 20 mutantes del trinquete fueron detectados (${mutantes})`);
+  } else {
+    console.log('  · ACL/forma de la actividad reciente: NOT RUN (sin CRM_BANCO_PSQL_URL)');
+  }
+}
+
 // — Ventana de actividades del ámbito (F0 del plan de escalabilidad) ---------
 // 20260808163638 recorta actividades_del_ambito_fn a 365 días + limit 10000.
 // Se siembra con service_role una actividad VIEJA (400 días) sobre un lead de
@@ -13282,6 +13385,11 @@ async function testAnon(seed) {
     ['42501', 'PGRST202'],
   );
   await expectExplicitAuthorizationDenied(
+    'anon no ejecuta la actividad reciente',
+    anon.schema('crm').rpc('actividades_recientes_fn', { p_limite: 8 }),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
     'anon no ejecuta la cartera paginada por keyset',
     anon.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
     ['42501', 'PGRST202'],
@@ -13871,6 +13979,7 @@ async function main() {
       await testVentanaActividades(sessions, verifiedSeed);
       await testActividadesDeLead(sessions, verifiedSeed);
       await testTareasPendientes(sessions, verifiedSeed);
+      await testActividadesRecientes(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);

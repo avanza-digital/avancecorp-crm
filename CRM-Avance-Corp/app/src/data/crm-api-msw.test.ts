@@ -19,13 +19,14 @@ import {
   TAMANO_PAGINA_HISTORIAL,
   cerrarTarea,
   listarActividadesDeLead,
-  listarActividadesDelAmbito,
   listarLeads,
   listarLeadsDelAmbito,
   obtenerLeadDelAmbitoPorId,
   listarResumenCartera,
   listarTareasDelAmbito,
   TAMANO_LOTE_TAREAS,
+  listarActividadesRecientes,
+  TAMANO_BITACORA_RECIENTES,
   reprogramarReunion,
 } from './crm-api'
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
@@ -506,30 +507,73 @@ describe('listarResumenCartera (msw)', () => {
   })
 })
 
-describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
-  // La alarma cuenta las filas CRUDAS del servidor (el recorte ocurre antes de
-  // validar), así que basta responder N objetos vacíos: la lectura devuelve []
-  // (filas fuera de contrato) pero el tope SÍ debe avisarse. Cubre que cada
-  // call-site pasa su constante correcta.
-  // Las tareas ya no tienen tope (Fase 2 «sin topes»): su alarma es de
-  // tendencia y se prueba en su propio bloque, más abajo.
-  it.each([
-    ['actividades_del_ambito', 10000, 'http://supabase.test/rest/v1/rpc/actividades_del_ambito_fn', () => listarActividadesDelAmbito()],
-  ] as const)('avisa cuando %s llena su tope de %i', async (lectura, tope, ruta, invocar) => {
-    const filasVacias = Array.from({ length: tope }, () => ({}))
-    server.use(http.post(ruta, () => HttpResponse.json(filasVacias)))
+describe('listarActividadesRecientes — bitácora del directorio (msw)', () => {
+  // Fase 3 «sin topes»: ya no hay lecturas acotadas por un tope en el front
+  // (actividades: por lead y por bitácora; tareas: por cursor). Esta es la
+  // única lectura nueva y es un feed de tamaño fijo, no una página.
+  const RUTA = 'http://supabase.test/rest/v1/rpc/actividades_recientes_fn'
+  const filaReciente = (i: number, sobre: Record<string, unknown> = {}) => ({
+    id: `77777777-0000-4000-8000-${String(i).padStart(12, '0')}`,
+    lead_id: '44444444-4444-4444-8444-444444444444',
+    lead_nombre: 'CLIENTE DE PRUEBA',
+    tipo: 'llamada_realizada',
+    detalle: null,
+    autor_nombre: 'ANALISTA PRUEBA',
+    creado_en: `2026-09-19T12:0${i}:00+00:00`,
+    ...sobre,
+  })
 
-    await invocar()
+  it('pide exactamente el tamaño de la bitácora y devuelve las filas con el lead embebido', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RUTA, async ({ request }) => {
+      cuerpos.push(await request.json() as Record<string, unknown>)
+      return HttpResponse.json({ version: 1, items: [filaReciente(2), filaReciente(1), filaReciente(0)] })
+    }))
 
-    expect(console.error).toHaveBeenCalledWith(
-      '[ac-crm]',
-      expect.objectContaining({
-        evento: 'crm_api.tope_alcanzado',
-        datos: expect.objectContaining({
-          contexto: expect.objectContaining({ lectura, tope }),
-        }),
-      }),
-    )
+    const filas = await listarActividadesRecientes()
+
+    expect(cuerpos).toEqual([{ p_limite: TAMANO_BITACORA_RECIENTES }])
+    expect(filas.map((a) => a.id)).toEqual([filaReciente(2).id, filaReciente(1).id, filaReciente(0).id])
+    expect(filas[0]).toMatchObject({ lead_nombre: 'CLIENTE DE PRUEBA', autor_nombre: 'ANALISTA PRUEBA' })
+  })
+
+  it('una fila fuera de contrato se descarta CONTADA; un lead sin nombre visible se tolera', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({
+      version: 1,
+      items: [filaReciente(0, { tipo: 'tipo_futuro' }), filaReciente(1, { lead_nombre: null })],
+    })))
+
+    const filas = await listarActividadesRecientes()
+
+    expect(filas).toHaveLength(1)
+    expect(filas[0]?.lead_nombre).toBeNull()
+    expect(console.error).toHaveBeenCalledWith('[ac-crm]', expect.objectContaining({
+      evento: 'crm.actividades.recientes_filas_invalidas',
+      datos: expect.objectContaining({ contexto: expect.objectContaining({ descartadas: 1, recibidas: 2 }) }),
+    }))
+  })
+
+  it('más filas de las pedidas o una versión desconocida no se aceptan como bitácora', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({
+      version: 1,
+      items: Array.from({ length: TAMANO_BITACORA_RECIENTES + 1 }, (_, i) => filaReciente(i)),
+    })))
+    await expect(listarActividadesRecientes()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+
+    server.use(http.post(RUTA, () => HttpResponse.json({ version: 2, items: [] })))
+    await expect(listarActividadesRecientes()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('42501 es la denegación de admisión de la puerta, con su propio mensaje', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json(
+      { code: '42501', message: 'No autorizado', details: null, hint: null },
+      { status: 403 },
+    )))
+
+    await expect(listarActividadesRecientes()).rejects.toMatchObject({
+      code: '42501',
+      message: 'Tu cuenta no tiene acceso a la actividad del CRM.',
+    })
   })
 })
 

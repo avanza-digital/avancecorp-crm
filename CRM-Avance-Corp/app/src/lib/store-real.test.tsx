@@ -44,7 +44,6 @@ vi.mock('@/data/crm-api', async (importActual) => {
     obtenerLeadDelAmbitoPorId: vi.fn(),
     obtenerTareaDelAmbitoPorId: vi.fn(),
     listarEquipo: vi.fn(),
-    listarActividadesDelAmbito: vi.fn(),
     listarTareasDelAmbito: vi.fn(),
     obtenerMetasDelMes: vi.fn(),
     obtenerCumplimientoMetas: vi.fn(),
@@ -67,7 +66,6 @@ const { CrmApiError } = crmApi
 const listarLeads = vi.mocked(crmApi.listarLeadsDelAmbito)
 const obtenerLeadPorId = vi.mocked(crmApi.obtenerLeadDelAmbitoPorId)
 const listarEquipo = vi.mocked(crmApi.listarEquipo)
-const listarActs = vi.mocked(crmApi.listarActividadesDelAmbito)
 const insertarLead = vi.mocked(crmApi.insertarLead)
 const actualizarLead = vi.mocked(crmApi.actualizarLead)
 const reabrirLead = vi.mocked(crmApi.reabrirLead)
@@ -330,7 +328,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     listarLeads.mockResolvedValue([leadBase()])
     obtenerLeadPorId.mockReset().mockResolvedValue(null)
     listarEquipo.mockResolvedValue(ROSTER)
-    listarActs.mockResolvedValue([])
     insertarLead.mockImplementation(async (fila) => {
       if (!fila.id) throw new Error('El test real exige el id optimista')
       return { estado: 'creado', lead_id: fila.id }
@@ -654,7 +651,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
     expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
     expect(listarLeads).toHaveBeenCalledTimes(1)
-    expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -716,7 +712,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(estado().cargando).toBe(false))
     vi.clearAllMocks()
     listarLeads.mockResolvedValue([leadBase()])
-    listarActs.mockResolvedValue([])
     listarTareas.mockResolvedValue([])
     listarEquipo.mockResolvedValue(ROSTER)
     obtenerMetasMock.mockResolvedValue(configuracionMetas())
@@ -730,7 +725,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
     expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
     expect(listarLeads).toHaveBeenCalledTimes(1)
-    expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -858,7 +852,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(estado().cargando).toBe(false))
     expect(api().leads).toHaveLength(1)
     expect(listarLeads).toHaveBeenCalledTimes(1)
-    expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
@@ -880,7 +873,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().equipo).toEqual([])
     expect(listarLeads).not.toHaveBeenCalled()
     expect(listarEquipo).not.toHaveBeenCalled()
-    expect(listarActs).not.toHaveBeenCalled()
     expect(listarTareas).not.toHaveBeenCalled()
     expect(obtenerMetasMock).not.toHaveBeenCalled()
     expect(obtenerCumplimientoMock).not.toHaveBeenCalled()
@@ -1411,11 +1403,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       if (rechazar) throw new CrmApiError('No se pudo guardar la llamada', 'P0409')
       guardado = true
       if (origen === 'tarea') listarTareas.mockResolvedValue([{ ...tarea, estado: 'completada' }])
-      listarActs.mockResolvedValue([{
-        id: '33333333-3333-4333-8333-333333333333', lead_id: lead.id,
-        tipo: 'llamada_realizada', detalle: null, autor_nombre: 'Analista de prueba',
-        creado_en: new Date().toISOString(),
-      }])
     })
     const claves = [
       slaOperacionKeys.estado('u-v1', [lead.id]),
@@ -2205,5 +2192,35 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     act(() => estado().reintentar())
     await waitFor(() => expect(estado().error).toBe(false))
     await waitFor(() => expect(api().leads).toHaveLength(1))
+  })
+})
+
+describe('Fase 3 «sin topes» — el store ya no baja el registro de actividades', () => {
+  it('descartar por «no_responde» SIN historial en caché pide abrir la ficha en vez de juzgar sobre una lista vacía', async () => {
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = leadBase().id
+
+    const res = mutar((a) => a.descartar(id, 'no_responde'))
+
+    expect(res.ok).toBe(false)
+    expect(res.error).toContain('Abre la ficha')
+    expect(api().lead(id)?.etapa).not.toBe('descartado')
+  })
+
+  it('la resincronización conserva las gestiones optimistas recientes (el historial por lead las sustituye después)', async () => {
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = leadBase().id
+    expect(mutar((a) => a.registrarActividad(id, 'llamada_realizada', 'Contactó'))).toMatchObject({ ok: true })
+    // La llamada más el cambio de etapa optimista (nuevo → contactado): ambas locales.
+    const localesAntes = api().actividades.filter((a) => a.local === true && a.lead_id === id)
+    expect(localesAntes.length).toBeGreaterThanOrEqual(1)
+    expect(localesAntes.some((a) => a.tipo === 'llamada_realizada')).toBe(true)
+
+    await act(async () => { expect(await api().recargar()).toBe(true) })
+
+    const localesDespues = api().actividades.filter((a) => a.local === true && a.lead_id === id)
+    expect(localesDespues.map((a) => a.id)).toEqual(localesAntes.map((a) => a.id))
   })
 })

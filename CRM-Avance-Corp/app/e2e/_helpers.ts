@@ -2602,7 +2602,18 @@ export async function montarBackendReal(
     // P-055 Fase 3: el detalle pregunta de quién es la venta. NULL = «no puedes
     // ver ese contrato» y el bloque no se pinta — suficiente para estos specs.
     if (p === '/rest/v1/rpc/atribucion_contrato_fn') return json(route, null)
-    if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, actividadesSla)
+    // Fase 3 «sin topes»: el arranque ya NO baja `actividades_del_ambito_fn`
+    // (sin ruta a propósito: una llamada olvidada falla por loopback muerto).
+    // La bitácora de Hoy · Directorio pide las N más recientes con el nombre
+    // del lead embebido, como `crm.actividades_recientes_fn`.
+    if (p === '/rest/v1/rpc/actividades_recientes_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_limite?: number }
+      const items = [...actividadesSla]
+        .sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)) || String(a.id).localeCompare(String(b.id)))
+        .slice(0, Number(body.p_limite ?? 8))
+        .map((a) => ({ ...a, lead_nombre: estado.leads.find((l) => l.id === a.lead_id)?.nombre_completo ?? null }))
+      return json(route, { version: 1, items })
+    }
     // Historial POR LEAD (Fase 1 «sin topes»): páginas por cursor keyset
     // (creado_en desc, id asc) sobre las mismas gestiones que registra este mock,
     // más las señales «alguna vez» que el pipeline usa para el retroceso.

@@ -361,6 +361,12 @@ export interface Actividad {
   local_ts?: number
 }
 
+/** Fila de la bitácora servida por `crm.actividades_recientes_fn` (Fase 3 «sin topes»). */
+export interface ActividadReciente extends Actividad {
+  /** Nombre del lead bajo `leads_select`; null si la gestión es visible y el lead no. */
+  lead_nombre: string | null
+}
+
 export const ETAPA_INFO: Record<Etapa, { label: string; color: string }> = Object.fromEntries(
   [...ETAPAS, ...TERMINALES].map((e) => [e.k, { label: e.label, color: e.color }]),
 ) as Record<Etapa, { label: string; color: string }>

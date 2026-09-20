@@ -14,6 +14,7 @@ import {
   TERMINALES,
   TIPOS_ACTIVIDAD,
   type Actividad,
+  type ActividadReciente,
   type AgendaRepartoDiaria,
   type AsignacionAgendaReparto,
   type CategoriaInteres,
@@ -1507,25 +1508,65 @@ const ActividadRowSchema = v.object({
   metadata: v.optional(v.record(v.string(), v.unknown())),
 })
 
-// Espejo del LIMIT de crm.actividades_del_ambito_fn (migración 20260808163638):
-// el tope vive en el SERVIDOR; esta constante solo alimenta la alarma de topes.
-const LIMITE_ACTIVIDADES_AMBITO = 10000
+// ── Actividad reciente del ámbito (RPC SECURITY INVOKER crm.actividades_recientes_fn,
+// Fase 3 «sin topes»). Sustituye a la descarga del registro entero
+// (`actividades_del_ambito_fn`, recortada a 1 000 filas por PostgREST) que el
+// arranque hacía para que UNA pantalla pintara 8 filas. Es una bitácora, no una
+// página: no hay cursor ni «hay más».
+export const TAMANO_BITACORA_RECIENTES = 8
 
-export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<Actividad[]> {
-  let consulta = cliente().schema('crm').rpc('actividades_del_ambito_fn')
+const ActividadRecienteRowSchema = v.object({
+  ...ActividadRowSchema.entries,
+  // Bajo `leads_select`, co-extensiva con `actividades_select`: viene casi
+  // siempre; si no, la pantalla lo rotula, nunca lo inventa.
+  lead_nombre: v.nullable(v.string()),
+})
+
+const ActividadesRecientesSchema = v.object({
+  version: v.literal(1),
+  items: v.array(v.unknown()),
+})
+
+export async function listarActividadesRecientes(
+  limite: number = TAMANO_BITACORA_RECIENTES,
+  signal?: AbortSignal,
+): Promise<ActividadReciente[]> {
+  const argumentos: Database['crm']['Functions']['actividades_recientes_fn']['Args'] = { p_limite: limite }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('actividades_recientes_fn', argumentos)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError('No se pudo cargar el historial.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.actividades.listado_fallido', fallo)
+    const fallo =
+      error.code === '42501'
+        ? new CrmApiError('Tu cuenta no tiene acceso a la actividad del CRM.', '42501')
+        : new CrmApiError('No se pudo cargar la actividad reciente.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.actividades.recientes_fallido', fallo, { limite })
     throw fallo
   }
-  avisarTopeAlcanzado('actividades_del_ambito', LIMITE_ACTIVIDADES_AMBITO, (data ?? []).length)
-  const items: Actividad[] = []
-  for (const cruda of data ?? []) {
-    const r = v.safeParse(ActividadRowSchema, cruda)
+  const payload = v.safeParse(ActividadesRecientesSchema, data)
+  if (!payload.success) {
+    throw new CrmApiError('La actividad reciente no cumple el contrato esperado.', 'ROW_CONTRACT')
+  }
+  if (payload.output.items.length > limite) {
+    throw new CrmApiError('La actividad reciente devolvió más filas de las pedidas.', 'ROW_CONTRACT')
+  }
+  const items: ActividadReciente[] = []
+  let descartadas = 0
+  for (const cruda of payload.output.items) {
+    const r = v.safeParse(ActividadRecienteRowSchema, cruda)
     if (r.success) items.push(r.output)
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    // CONTADAS (no en silencio): un tipo nuevo en la base desaparecería de la
+    // bitácora de todos sin que nadie se enterara.
+    registrarError(
+      'crm.actividades.recientes_filas_invalidas',
+      new CrmApiError('Filas de la actividad reciente fuera de contrato', 'ROW_CONTRACT'),
+      { descartadas, recibidas: payload.output.items.length },
+    )
   }
   return items
 }

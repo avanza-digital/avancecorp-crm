@@ -180,6 +180,12 @@ export function HoySupervisor(): JSX.Element {
   // HOY solo resume la bandeja; la operación completa vive en Derivar leads.
   // Conservamos el índice local para resumir la espera observable del caso más
   // rezagado sin añadir otra consulta; si no hubo actividad, parte del ingreso.
+  // Fase 3 «sin topes»: en sesión real el arranque ya no baja el registro de
+  // actividades, y sin él la «espera» de un parkeado caería a `creado_en`
+  // (un lead de 30 días parkeado hace una hora diría «30 días»; su
+  // `tenencia_desde` se anula al quedar sin analista). Antes que exagerar, en
+  // sesión real se omite la antigüedad: el conteo del RPC sigue siendo la
+  // verdad y el CTA lo dice sin cifra. En demo sigue el timeline del fixture.
   const bandejaReparto = useMemo(() => {
     const parkeados = ambito.leads.filter(
       (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado' && l.vendedor_id == null,
@@ -189,6 +195,7 @@ export function HoySupervisor(): JSX.Element {
   }, [ambito, actividades])
 
   const esperaMasLargaReparto = useMemo(() => {
+    if (!yo?.demo) return null
     if (bandejaReparto.parkeados.length === 0) return null
     let maxima = 0
     for (const lead of bandejaReparto.parkeados) {
@@ -198,7 +205,7 @@ export function HoySupervisor(): JSX.Element {
       )
     }
     return maxima
-  }, [actividades, ahora, bandejaReparto])
+  }, [actividades, ahora, bandejaReparto, yo?.demo])
 
   // El conteo del RPC sigue siendo la autoridad. Si el detalle local aún no
   // está disponible, el CTA conserva la verdad y omite la antigüedad.

@@ -196,6 +196,11 @@ export function Pipeline() {
   // Índice de CONTACTO REAL (no de cualquier actividad): la `reasignacion` que
   // el sistema escribe al repartir apagaría el semáforo de un lead que nadie
   // ha llamado. Se construye UNA vez por render, no una por card.
+  // Fase 3 «sin topes»: en sesión real el arranque ya no baja el registro de
+  // actividades; el color y los días de cada card salen de la fotografía SLA
+  // (`estado_sla_leads_v2_fn`) y este índice —solo optimistas locales— es el
+  // respaldo del «hace X» cuando un lead aún no tiene fotografía. En demo
+  // sigue siendo el timeline del fixture.
   const indiceContacto = useMemo(() => indexarUltimoContacto(actividadesDelAmbito), [actividadesDelAmbito])
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const ahora = useAhora() // reloj vivo: "hace X" de las cards se refresca solo

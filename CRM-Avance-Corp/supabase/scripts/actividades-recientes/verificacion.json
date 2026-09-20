@@ -1,0 +1,33 @@
+{
+  "migracion": "20260920014500_crm_actividades_recientes.sql",
+  "ensayo": {
+    "donde": "contenedor local supabase_db_avancecorp-f5-bank (puerto 58322), copia sin_topes_f3_20260920 creada desde conversion_inversion_base_20260919 (paridad 20260917235656, CON mundo SLA); la copia no tenia la Fase 1, asi que el guion instalo antes 20260919185718 TAL CUAL (ya en prod) y despues esta migracion",
+    "cuando": "2026-09-19 ~21:30 America/Lima (segunda corrida, tras el auditor-rls)",
+    "como": "supabase/scripts/actividades-recientes/ensayar-local.sh: archivos EXACTOS aplicados en un solo mensaje (psql -c), sin divergencias",
+    "gate": "OK (y el gate de la Fase 1 sigue OK despues)",
+    "mutantes": "OK: 20 mutantes detectados por private.assert_actividades_recientes(), con desenlace triple (detectado / no detectado / no aplicado); esquema intacto despues (3 policies, md5 actividades_select e80e3af9…, RLS activa en ambas tablas, puerta y nucleo invoker, anon sin EXECUTE, USAGE y EXECUTE sobre nombre_de_autor presentes); incluye nombre_de_autor sin DEFINER y sin gate interno",
+    "matriz_sql": "11 actores bajo set role authenticated + request.jwt.claims: ids de la puerta = las 8 mas recientes de la tabla en orden (creado_en desc, id asc) para todos (gerencia 8, sup1 8, sup2 3, sup1Nested 1, vend1 7, vend2 0, vend3 1, vend4 0, vendNested 1, coordinador 0, directorio 8); todas con autor, con lead_nombre y con las 7 claves",
+    "errores": "p_limite 0/51 → 22023; vendInactive y clientBank → 42501 No autorizado; anon → permission denied for schema crm",
+    "explain_copia": "vend1 y gerencia: Limit → Index Scan using actividades_recientes_idx (se detiene en cuanto reune las 8 visibles) + lectura de crm.leads para el nombre; el plan real de produccion se mide tras instalar",
+    "test_rls_http": "NOT RUN (sin SUPABASE_SERVICE_ROLE_KEY ni CRM_DEMO_PASSWORD en la sesion); el caso testActividadesRecientes queda escrito para el proximo ciclo del banco"
+  },
+  "md5_copia_solo_referencia": {
+    "puerta": "a58a58a7288c8431daa7698aa6779fa4",
+    "nucleo": "4689f6bfbfffd07cb105aabd246863e1",
+    "gate": "6394111e65bbc3b8d47719f499762848"
+  },
+  "produccion": {
+    "instalada": "PENDIENTE (Miguel con `!` + db query --linked --file)",
+    "md5_medidos_en": "PENDIENTE: medir en produccion tras instalar y regenerar el registrador"
+  },
+  "md5_puerta": "PENDIENTE",
+  "md5_nucleo": "PENDIENTE",
+  "policies_selladas": {
+    "actividades_select": "e80e3af900b8d9616c28dcd836f1ac94",
+    "medidas_en": "produccion 2026-09-19 (identica en la copia local)"
+  },
+  "revisiones": {
+    "auditor_rls": "CHANGES_REQUESTED sin P0/P1: sin fuga ni desfase; aceptados: sello compartido de actividades_select documentado (cabecera + ledger), 2 mutantes de nombre_de_autor (18 → 20), EXECUTE de puede_acceder_crm en la base, negativa cruzada de subarbol + bordes de p_limite en test-rls, comentarios de co-extensividad corregidos (no se sella leads_select: es estructural), rotulo del front «Sin nombre de lead». Pendiente tras instalar: medir en prod el caso peor (analista con pocas gestiones visibles recorre el indice entero antes de reunir 8; umbral sugerido 200 ms; contingencia: indice cubriente include (lead_id))",
+    "codex": "CHANGES_REQUESTED (CLI `codex exec --sandbox read-only`, el MCP no conecta) con 3 P2 de front, los tres ACEPTADOS: (F1) la conservacion de optimistas estaba en el arranque y no en la resincronizacion → arranque parte de cero (tambien ante cambio de identidad sin logout) y resincronizacion conserva solo optimistas de los ultimos 10 min (VIDA_OPTIMISTA_MS: retencion acotada); (F2) crear reunion y cerrar reunion decidian el avance optimista con la lista local → ahora `huboContacto` usa las senales del historial por lead (mas optimistas vivas) y sin cache no anuncia avance (lo decide el servidor); (F3) la «espera mas larga» de la bandeja del supervisor caia a creado_en → en sesion real se omite la antiguedad (el CTA dice «Pendientes en tu bandeja»; el conteo del RPC sigue). Pruebas nuevas: descartar por no_responde sin cache pide abrir la ficha; la resincronizacion conserva las optimistas; tests del supervisor adaptados. Sin hallazgos de seguridad."
+  }
+}

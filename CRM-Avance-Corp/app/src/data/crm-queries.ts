@@ -32,6 +32,7 @@ import {
   listarMetricasVendedores,
   listarReporteDerivacionesEquipo,
   listarResumenCartera,
+  listarActividadesRecientes,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -213,6 +214,9 @@ export const crmQueryKeys = {
   // de gerencia en cada llamada del analista. Se retira en F3.
   metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
+  // Bitácora de Hoy · Directorio (Fase 3 «sin topes»): cuelga del prefijo de
+  // métricas del ámbito para que cada mutación la invalide como a los tiles.
+  actividadesRecientes: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'actividades-recientes', limite] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -490,6 +494,22 @@ export function useResumenCartera(habilitada: boolean) {
     queryKey: crmQueryKeys.resumenCartera(),
     queryFn: ({ signal }) => listarResumenCartera(signal),
     enabled: habilitada,
+  })
+}
+
+/**
+ * Las N gestiones más recientes visibles (Fase 3 «sin topes»): sustituye a
+ * la descarga del registro entero que el arranque hacía para pintar 8 filas.
+ * Se refresca al volver a la pestaña y cada minuto: es un feed, no una foto.
+ */
+export function useActividadesRecientes(habilitada: boolean, limite: number) {
+  return useQuery({
+    queryKey: crmQueryKeys.actividadesRecientes(limite),
+    queryFn: ({ signal }) => listarActividadesRecientes(limite, signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: 'always',
   })
 }
 
