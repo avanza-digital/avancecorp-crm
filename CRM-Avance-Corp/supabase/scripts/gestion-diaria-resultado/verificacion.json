@@ -1,0 +1,14 @@
+{
+  "version": "20260920005000",
+  "nombre": "crm_gestion_diaria_resultado_llamada",
+  "base": "gestion_diaria_f2_20260919",
+  "ensayado_en": "2026-09-20T02:03:48.374Z",
+  "md5_puerta": "92d2dcfb4cc03c158a42292980226ba2",
+  "md5_nucleo": "fec6bfd18b0ca26623f84b55daddef64",
+  "md5_deshacer": "5869117e03ac55d699d248244a71bb31",
+  "sha256_migracion": "556b023541dff847c2f7a1b71aad20a1e3cb499147c6adfc2f29d8a3231193c8",
+  "mutantes_f2": "OK: 14 mutantes detectados por private.assert_gestion_diaria()",
+  "mutantes_f1": "OK: 10 mutantes detectados por private.assert_gestion_diaria()",
+  "oraculo": "GESTION_DIARIA_RESULTADO_OK",
+  "censo_intacto": true
+}

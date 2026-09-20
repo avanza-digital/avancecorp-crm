@@ -5,6 +5,7 @@ import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
+import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
@@ -1544,10 +1545,18 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
   // plegado tras una fila con aspecto de input y se despliega a un click.
   const [guardandoActividad, setGuardandoActividad] = useState(false)
   const [errorActividad, setErrorActividad] = useState<string | null>(null)
+  // Gestión Diaria F2: una LLAMADA se registra con su resultado tipificado; el
+  // composer abre el panel (con la nota ya escrita) en vez de mandar el tipo pelado.
+  const [panelLlamada, setPanelLlamada] = useState(false)
+  const refAbrirComposer = useRef<HTMLButtonElement>(null)
 
   const registrar = async () => {
     if (guardandoActividad) return
     setErrorActividad(null)
+    if (tipo === 'llamada_realizada' || tipo === 'llamada_no_contestada') {
+      setPanelLlamada(true)
+      return
+    }
     const res = registrarActividad(l.id, tipo, detalle)
     if (!res.ok) {
       if (res.error) toast.error(res.error)
@@ -1599,6 +1608,7 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
 
       {escribe && activa && !componiendo && (
         <button
+          ref={refAbrirComposer}
           type="button"
           onClick={() => setComponiendo(true)}
           className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
@@ -1607,6 +1617,14 @@ export function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { 
         </button>
       )}
 
+      {panelLlamada && (
+        <RegistrarResultado lead={l} notaInicial={detalle} onClose={() => {
+          setPanelLlamada(false); setDetalle(''); setComponiendo(false)
+          // El botón «Registrar» del composer se desmonta con el panel: el foco
+          // vuelve al control que lo sustituye, no al contenedor de la ficha.
+          requestAnimationFrame(() => refAbrirComposer.current?.focus())
+        }} />
+      )}
       {escribe && activa && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <Select

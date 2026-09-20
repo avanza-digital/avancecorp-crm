@@ -7720,6 +7720,129 @@ async function testGestionDiariaRegistro(sessions, seed) {
   }
 }
 
+async function testGestionDiariaResultado(sessions, seed) {
+  console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
+  const FN = 'registrar_llamada_v3';
+  const DESHACER = 'deshacer_resultado_llamada';
+  const id = (key) => seed.profileIdByKey[key];
+  const uuid = () => crypto.randomUUID();
+
+  // Salto RUIDOSO si la puerta aun no esta en esta base; con
+  // CRM_RLS_EXIGE_GESTION_DIARIA=1 el salto es un FALLO (ciclo del `!`).
+  {
+    const probe = await sessions.gerencia.client.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: '00000000-0000-4000-8000-000000000000', p_resultado: 'no_contesto' });
+    if (probe.error?.code === 'PGRST202') {
+      const msg = `⚠ ${FN} NO desplegada en esta base: bloque de resultado de llamada SALTADO (no probado)`;
+      if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+      else console.log(`  ${msg}`);
+      return;
+    }
+  }
+
+  // Leads transitorios por la via legal (crm.crear_lead_si_disponible), como el
+  // oraculo del banco: uno para vend1 y uno para vend3 (equipo de sup2).
+  const nacidos = [];
+  const crear = async (vendedorKey, sufijo) => {
+    const leadId = uuid();
+    const { error } = await sessions.gerencia.client.schema('crm').rpc('crear_lead_si_disponible', {
+      p_id: leadId, p_nombre_completo: `RLS F2 ${sufijo}`, p_telefono: `9996${String(Math.floor(Math.random() * 90000) + 10000)}`,
+      p_origen: 'oficina', p_monto_estimado: 25000, p_moneda: 'PEN', p_vendedor_id: id(vendedorKey), p_etapa: 'nuevo',
+      p_correo: null, p_dni: null, p_genero: null, p_fecha_nacimiento: null, p_distrito: null, p_categoria_interes: null,
+      p_nota: 'transitorio test-rls F2', p_telefono_alternativo: null,
+    });
+    check(!error, `gerencia crea el lead transitorio ${sufijo} (${error?.code ?? 'ok'})`);
+    nacidos.push(leadId);
+    return leadId;
+  };
+  const leadV1 = await crear('vend1', 'vend1');
+  const leadV3 = await crear('vend3', 'vend3');
+  const manana = () => {
+    // 10:00 Lima de manana (o pasado manana si cae domingo): dentro de la ventana legal.
+    const d = new Date(Date.now() + 24 * 3600 * 1000);
+    const fecha = new Date(d.getTime() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+    const dow = new Date(`${fecha}T12:00:00Z`).getUTCDay();
+    const fecha2 = dow === 0 ? new Date(d.getTime() + 24 * 3600 * 1000 - 5 * 3600 * 1000).toISOString().slice(0, 10) : fecha;
+    return `${fecha2}T10:00:00-05:00`;
+  };
+
+  try {
+    // A. Permitido: vend1 «volver a llamar» con tarea siguiente; replay identico sin duplicar.
+    const op = uuid();
+    const siguiente = { tipo: 'llamada', titulo: 'Volver a llamar', vence_en: manana() };
+    const a = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: op, p_lead_id: leadV1, p_resultado: 'volver_a_llamar', p_siguiente: siguiente });
+    check(!a.error && a.data?.ok === true && a.data.comando === 'registrar_llamada' && a.data.actividad_id === op && a.data.replay === false && Boolean(a.data.siguiente_id),
+      `vend1 registra «volver a llamar» con siguiente (${a.error?.code ?? 'ok'})`);
+    const b = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: op, p_lead_id: leadV1, p_resultado: 'volver_a_llamar', p_siguiente: siguiente });
+    check(!b.error && b.data?.replay === true && b.data.actividad_id === op && b.data.siguiente_id === a.data?.siguiente_id,
+      `replay identico devuelve lo guardado sin escribir (${b.error?.code ?? 'ok'})`);
+    const c = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: op, p_lead_id: leadV1, p_resultado: 'no_contesto', p_siguiente: siguiente });
+    check(c.error?.code === '23505', `replay con otro resultado -> 23505 (${c.error?.code ?? 'sin error!'})`);
+    const hist = await sessions.vend1.client.schema('crm').rpc('actividades_de_lead_fn', { p_lead_id: leadV1, p_limite: 50 });
+    check(!hist.error && (hist.data?.items ?? []).some((i) => i.id === op && i.metadata?.resultado === 'volver_a_llamar'),
+      `el historial por lead trae metadata.resultado (${hist.error?.code ?? 'ok'})`);
+
+    // B. Denegado: vend1 sobre lead de vend3 y sobre uuid inexistente: MISMO 42501.
+    for (const [nombre, leadId] of [['lead de vend3', leadV3], ['uuid inexistente', uuid()]]) {
+      const { error } = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: leadId, p_resultado: 'no_contesto' });
+      check(isAuthorizationError(error) && error?.message === 'Gestion no disponible en tu ambito', `vend1 sobre ${nombre} -> 42501 sin fuga (${error?.code ?? 'sin error!'})`);
+    }
+    // C. Supervisor de OTRO equipo denegado; coordinador, inactivo, directorio y cliente: 42501.
+    {
+      const { error } = await sessions.sup1.client.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: leadV3, p_resultado: 'no_contesto' });
+      check(isAuthorizationError(error), `sup1 sobre lead de vend3 -> 42501 (${error?.code ?? 'sin error!'})`);
+    }
+    for (const quien of ['coordinador', 'vendInactive', 'directorio', 'clientBank']) {
+      if (!sessions[quien]) continue;
+      const { error } = await sessions[quien].client.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: leadV1, p_resultado: 'no_contesto' });
+      check(isAuthorizationError(error), `${quien} NO registra llamadas (${error?.code ?? 'sin error!'})`);
+      const d = await sessions[quien].client.schema('crm').rpc(DESHACER, { p_actividad_id: op });
+      check(isAuthorizationError(d.error) || d.error?.code === 'P0002', `${quien} NO deshace (${d.error?.code ?? 'sin error!'})`);
+    }
+    // D. Validaciones 22023 sin rastro: submotivo ausente, dueno sin fecha, descarte indebido.
+    for (const [nombre, args] of [
+      ['«no le interesa» sin submotivo', { p_resultado: 'no_interesado' }],
+      ['dueno «agendo cita» sin cita', { p_resultado: 'agendo_reunion' }],
+      ['«volver a llamar» con descarte', { p_resultado: 'volver_a_llamar', p_descartar: true, p_siguiente: siguiente }],
+      ['resultado fuera de catalogo', { p_resultado: 'buzon' }],
+    ]) {
+      const { error } = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: leadV1, ...args });
+      check(error?.code === '22023', `${nombre} -> 22023 (${error?.code ?? 'sin error!'})`);
+    }
+    // E. Falsificacion bajo RLS: INSERT directo con metadata.resultado muere en el trigger.
+    {
+      const { error } = await sessions.vend1.client.schema('crm').from('actividades').insert({ lead_id: leadV1, tipo: 'nota', detalle: 'falsa', metadata: { resultado: 'no_contesto' }, creado_por: id('vend1') });
+      check(isAuthorizationError(error), `INSERT directo con metadata.resultado -> 42501 (${error?.code ?? 'sin error!'})`);
+      const nota = await sessions.vend1.client.schema('crm').from('actividades').insert({ lead_id: leadV1, tipo: 'nota', detalle: 'revision', metadata: { evento: 'revision' }, creado_por: id('vend1') });
+      check(!nota.error, `una nota normal con metadata sigue entrando (${nota.error?.code ?? 'ok'})`);
+    }
+    // F. Descarte con submotivo + deshacer por el autor; deshacer ajeno (sup1) -> P0002.
+    const op2 = uuid();
+    const f = await sessions.vend1.client.schema('crm').rpc(FN, { p_operacion_id: op2, p_lead_id: leadV1, p_resultado: 'no_interesado', p_submotivo: 'sin_fondos_ahora' });
+    check(!f.error && f.data?.descartado === true && f.data.etapa === 'descartado', `vend1 «no le interesa» descarta (${f.error?.code ?? f.data?.etapa})`);
+    const ajeno = await sessions.sup1.client.schema('crm').rpc(DESHACER, { p_actividad_id: op2 });
+    check(ajeno.error?.code === 'P0002', `sup1 NO deshace lo del analista -> P0002 (${ajeno.error?.code ?? 'sin error!'})`);
+    const propio = await sessions.vend1.client.schema('crm').rpc(DESHACER, { p_actividad_id: op2 });
+    check(!propio.error && propio.data?.descarte_revertido === true && propio.data.etapa === 'contactado', `vend1 deshace su descarte (${propio.error?.code ?? propio.data?.etapa})`);
+    const otra = await sessions.vend1.client.schema('crm').rpc(DESHACER, { p_actividad_id: op2 });
+    check(otra.error?.code === '22023', `segundo deshacer -> 22023 (${otra.error?.code ?? 'sin error!'})`);
+    // G. anon: sin EXECUTE.
+    {
+      const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-gestion-diaria-f2'));
+      const { error } = await anon.schema('crm').rpc(FN, { p_operacion_id: uuid(), p_lead_id: leadV1, p_resultado: 'no_contesto' });
+      check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+    }
+  } finally {
+    // Limpieza fuera de banda: los recibos SLA no se borran (trg_sla_recibo_guard,
+    // 55000) y su FK diferida impide borrar el lead: se da de BAJA (activo=false),
+    // como el offboarding de la casa. Sus rastros quedan como historia del banco.
+    for (const leadId of nacidos) {
+      ejecutarFueraDeBanda(`dar de baja el lead transitorio F2 ${leadId}`,
+        `update crm.leads set activo = false, nombre_completo = nombre_completo || ' (baja test-rls)' where id = '${leadId}';`,
+        { tolerante: true });
+    }
+  }
+}
+
 async function testFacturacionDiaria(sessions, seed) {
   console.log('\n— Facturación diaria (día x analista x supervisor) —');
   const FN = 'facturacion_diaria_fn';
@@ -13798,6 +13921,7 @@ async function main() {
       await testAltasNuevasPorAnalista(sessions, verifiedSeed);
       await testFacturacionDiaria(sessions, verifiedSeed);
       await testGestionDiariaRegistro(sessions, verifiedSeed);
+      await testGestionDiariaResultado(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }

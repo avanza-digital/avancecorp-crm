@@ -152,13 +152,15 @@ test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page 
 
   // El composer ahora es un disclosure con aspecto de input: se expande al clic.
   await drawer.getByRole('button', { name: /Registrar actividad/ }).click()
+  // Desde Gestión Diaria F2 las LLAMADAS abren el panel del resultado tipificado;
+  // el composer sigue para WhatsApp y notas. «WhatsApp recibido» es CONVERSACIÓN
+  // y este lead demo está en 'nuevo' → la etapa sube sola (lib/avance-automatico)
+  // y el toast lo canta.
+  await drawer.getByLabel('Tipo de actividad').selectOption('whatsapp_recibido')
   await drawer.getByLabel('Detalle de la actividad').fill('Llamada de prueba E2E')
   await drawer.getByRole('button', { name: /^Registrar$/ }).click()
-
-  // El composer arranca en 'llamada_realizada', que es CONVERSACIÓN, y este
-  // lead demo está en 'nuevo' → la etapa sube sola (lib/avance-automatico) y el
-  // toast lo canta. Se asevera el aviso COMPLETO a propósito: un avance de
-  // etapa silencioso es justo lo que este comportamiento vino a evitar.
+  // Se asevera el aviso COMPLETO a propósito: un avance de etapa silencioso es
+  // justo lo que este comportamiento vino a evitar.
   await expect(page.getByText(/Actividad registrada · pasó a Contactado \(demo\)/i)).toBeVisible()
   await expect(drawer.getByText('Llamada de prueba E2E')).toBeVisible()
   // Y el hecho de verdad, no solo el aviso: el stepper quedó en Contactado.

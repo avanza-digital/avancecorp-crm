@@ -419,3 +419,11 @@ body {
   [data-slot='card'] { break-inside: avoid; page-break-inside: avoid; }
   @page { margin: 12mm; }
 }
+
+/* Los toasts (sonner) siguen siendo clicables con un modal abierto (Radix pone
+   `pointer-events: none` en el body y solo el diálogo lo recupera): el «Deshacer»
+   del resultado de llamada vive en un toast y el panel se abre desde la ficha,
+   que es un Sheet modal. Sin esto el botón se ve pero el clic cae en la ficha. */
+[data-sonner-toaster] {
+  pointer-events: auto;
+}

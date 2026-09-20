@@ -1502,6 +1502,9 @@ const ActividadRowSchema = v.object({
   detalle: v.nullable(v.string()),
   autor_nombre: v.string(),
   creado_en: v.string(),
+  // Desde Gestión Diaria F2 el historial trae la metadata (resultado de llamada);
+  // las RPC que aún no la mandan siguen validando: opcional.
+  metadata: v.optional(v.record(v.string(), v.unknown())),
 })
 
 // Espejo del LIMIT de crm.actividades_del_ambito_fn (migración 20260808163638):

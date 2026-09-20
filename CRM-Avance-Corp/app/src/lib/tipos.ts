@@ -349,6 +349,10 @@ export interface Actividad {
   detalle: string | null
   autor_nombre: string
   creado_en: string // ISO
+  /** Claves libres del servidor (resultado de llamada desde Gestión Diaria F2:
+   *  `{evento:'resultado_llamada', resultado, submotivo?, intento_n, …}`). Las RPC
+   *  viejas no la traen: siempre opcional, nunca se infiere nada de su ausencia. */
+  metadata?: Record<string, unknown> | undefined
   /** Solo en el espejo optimista del navegador: el servidor aún no la confirmó
    *  (su `id` es inventado). Jamás viene del servidor. */
   local?: true

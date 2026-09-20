@@ -85,7 +85,17 @@ import {
   type ObjetivosPorVendedor,
 } from './objetivos'
 import { presentarDisponibilidadLead } from './disponibilidad-lead'
-import { ejecutarComandoSla, tareaConConfirmacionPendiente } from '@/data/sla-operacion-comandos'
+import { ejecutarComandoSla, hayIntencionPendienteSla, tareaConConfirmacionPendiente, type Respuesta } from '@/data/sla-operacion-comandos'
+import { deshacerResultadoLlamada as deshacerResultadoLlamadaFn } from '@/data/gestion-diaria-api'
+import { gestionDiariaKeys } from '@/data/gestion-diaria-queries'
+import {
+  definicionResultado,
+  esResultadoLlamada,
+  motivoDeDescarte,
+  SUBMOTIVOS,
+  type ResultadoLlamada,
+  type SubmotivoLlamada,
+} from './resultado-llamada'
 
 /**
  * Estado de la CARGA remota (solo sesión real). La app lo usa para decidir
@@ -231,6 +241,28 @@ export interface CompletarTareaInput {
     ubicacion_reunion?: string | null
     enlace_reunion?: string | null
   } | null
+}
+
+/** Entrada del resultado tipificado de una llamada (Gestión Diaria F2). El
+ *  servidor (`crm.registrar_llamada_v3`) es quien decide; esto es su espejo. */
+export interface RegistrarLlamadaInput {
+  resultado: ResultadoLlamada
+  submotivo?: SubmotivoLlamada | null
+  detalle?: string | null
+  siguiente?: CompletarTareaInput['siguiente']
+  /** Tarea de LLAMADA pendiente que esta llamada cierra (tareaQueCierra). */
+  tarea_id?: string | null
+  /** Decisión del analista en número errado / no es la persona / «no responde». */
+  descartar?: boolean
+  /** «Pidió que no lo vuelvan a llamar» (Ley 29571). Irreversible desde aquí. */
+  no_insista?: boolean
+}
+
+/** Lo que el servidor confirmó (o el espejo demo): alimenta el «Deshacer». */
+export interface ConfirmacionLlamada {
+  actividad_id: string
+  siguiente_id: string | null
+  descartado: boolean
 }
 
 /** Cambios editables de la ficha (espejo del contrato F1b). */
@@ -442,6 +474,18 @@ export interface StoreDataApi {
    *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
    *  cambio de etapa silencioso asusta más que ayuda. */
   registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string, siguiente?: CompletarTareaInput['siguiente']): ResultadoMut & { avance?: EtapaActiva; persistido?: Promise<boolean> }
+  /** Resultado TIPIFICADO de una llamada (Gestión Diaria F2): registra la
+   *  llamada y sus efectos en una sola operación idempotente (tarea siguiente,
+   *  descarte con submotivo, No insistir). `confirmacion` resuelve con los ids
+   *  reales cuando el servidor confirma (null si no se confirmó). */
+  registrarLlamada(id: string, input: RegistrarLlamadaInput): ResultadoMut & {
+    avance?: EtapaActiva
+    descartado?: boolean
+    persistido?: Promise<boolean>
+    confirmacion?: Promise<ConfirmacionLlamada | null>
+  }
+  /** Deshace los EFECTOS de un resultado de llamada (≤ 24 h, solo el autor). */
+  deshacerResultadoLlamada(actividadId: string): ResultadoMut & { persistido?: Promise<boolean> }
   reasignar(id: string, vendedorId: string | null): ResultadoMut
   // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
   // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
@@ -580,7 +624,7 @@ interface CierreTareaServidor {
 }
 
 /** Selecciona una sola vez el contrato/RPC de cierre según el tipo de tarea. */
-function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
+function ejecutarCierreTarea(input: CierreTareaServidor): Promise<unknown> {
   // cerrar_reunion sigue siendo el motor especializado del mundo LEAD. Para
   // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y
   // conserva la clasificación sin contaminar etapas/SLA de leads.
@@ -1430,7 +1474,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // el contrato booleano histórico para los flujos que solo necesitan
     // encadenar operaciones. En demo ambas variantes resuelven de inmediato.
     const persistirConDetalle = (
-      op: () => Promise<void>,
+      // Lo que devuelva la operación se ignora: solo importa que resuelva
+      // (los comandos SLA devuelven su sobre para quien lo necesite).
+      op: () => Promise<unknown>,
       {
         notificarError = true,
         revertirOptimista,
@@ -1451,7 +1497,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // La operación se inicia en este mismo tick (contrato histórico del
       // store), pero una excepción síncrona también se convierte en rechazo:
       // ninguna mutación debe escapar como unhandled error.
-      let escritura: Promise<void>
+      let escritura: Promise<unknown>
       try {
         escritura = op()
       } catch (causa: unknown) {
@@ -1499,7 +1545,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     }
 
     const persistir = (
-      op: () => Promise<void>,
+      op: () => Promise<unknown>,
       impacto: {
         invalidarNucleosConversion?: boolean
         invalidarConversionRango?: boolean
@@ -2869,6 +2915,197 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }, ...prev])
         }
         return avance ? { ok: true, avance, persistido } : { ok: true, persistido }
+      },
+
+      registrarLlamada: (id, input) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const actual = buscar(id)
+        if (!actual) return noEncontrado()
+        // REINTENTO de una operación cuya respuesta se perdió: el servidor la
+        // reconoce por su recibo y NO la valida como nueva (el lead ya puede
+        // estar descartado por ella, la tarea completada, la fecha pasada). Aquí
+        // tampoco: solo se comprueba el catálogo y se reenvía tal cual.
+        const reintento = realActivo && hayIntencionPendienteSla(miId, 'registrar_llamada_v3', id)
+        if (!reintento && TERMINALES_K.has(actual.etapa)) {
+          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
+        }
+        if (!esResultadoLlamada(input.resultado)) {
+          return { ok: false, error: 'Elige el resultado de la llamada' }
+        }
+        const def = definicionResultado(input.resultado)
+        const submotivo = input.submotivo ?? null
+        // ESPEJO de las validaciones del núcleo (private.llamada_registrar): el
+        // servidor manda, esto evita cantar un éxito que va a rechazar.
+        if (def.paso === 'submotivo') {
+          if (!submotivo || !SUBMOTIVOS[def.clave as 'no_interesado' | 'pide_otro_producto'].some((s) => s.clave === submotivo)) {
+            return { ok: false, error: def.clave === 'no_interesado' ? 'Indica por qué no le interesa' : 'Indica qué producto pide' }
+          }
+        } else if (submotivo) {
+          return { ok: false, error: 'El submotivo solo acompaña a «no le interesa» o «pide otro producto»' }
+        }
+        const descartar = def.descarta || input.descartar === true
+        if (descartar && (def.clave === 'volver_a_llamar' || def.clave === 'agendo_reunion')) {
+          return { ok: false, error: 'Este resultado no descarta al lead' }
+        }
+        if (input.no_insista && !def.descarta) {
+          return { ok: false, error: '«No insistir» solo acompaña a «no le interesa» o «pide otro producto»' }
+        }
+        const soyDueno = actual.vendedor_id != null && actual.vendedor_id === miId
+        let siguientePayload: SiguienteCierre = null
+        if (input.siguiente) {
+          if (descartar) return { ok: false, error: 'Un lead descartado no recibe tarea siguiente' }
+          const vence = normalizarFechaTarea(input.siguiente.vence_en)
+          const titulo = input.siguiente.titulo.trim()
+          if (!esTipoTarea(input.siguiente.tipo) || !vence || !titulo || titulo.length > 200) {
+            return { ok: false, error: 'La siguiente tarea necesita tipo, título y fecha válidos' }
+          }
+          if (def.clave === 'volver_a_llamar' && input.siguiente.tipo !== 'llamada') return { ok: false, error: 'Indica cuándo volver a llamar' }
+          if (def.clave === 'agendo_reunion' && input.siguiente.tipo !== 'reunion') return { ok: false, error: 'Indica la fecha de la cita' }
+          if (!reintento && Date.parse(vence) <= Date.now()) return { ok: false, error: 'La tarea siguiente debe ser futura' }
+          const reunion = prepararReunionTarea(input.siguiente.tipo, input.siguiente)
+          if (!reunion.ok) return reunion.resultado
+          siguientePayload = {
+            id: uid(), tipo: input.siguiente.tipo,
+            titulo: input.siguiente.tipo === 'reunion' ? normalizarCitasInternas(titulo) : titulo,
+            vence_en: vence, ...reunion.campos,
+          }
+        } else if (soyDueno && (def.clave === 'volver_a_llamar' || def.clave === 'agendo_reunion')) {
+          return { ok: false, error: def.clave === 'volver_a_llamar' ? 'Indica cuándo volver a llamar' : 'Indica la fecha de la cita' }
+        }
+        const tarea = input.tarea_id
+          ? tareas.find((t) => t.id === input.tarea_id && t.lead_id === id && t.activo && (reintento || t.estado === 'pendiente'))
+          : undefined
+        if (input.tarea_id && !reintento && (!tarea || tarea.tipo !== 'llamada')) {
+          return { ok: false, error: 'Solo una tarea de llamada pendiente se cierra con el resultado de una llamada' }
+        }
+        const motivo = descartar ? motivoDeDescarte(def.clave, submotivo) : null
+        const detalle = input.detalle?.trim() || null
+        // Avance automático: la conversación (nuevo → contactado) y, si se agendó
+        // una cita, la cita (→ reunion_agendada), como los triggers del servidor.
+        const avanceContacto = avancePorContacto(actual, def.tipo)
+        const avanceCita = siguientePayload?.tipo === 'reunion'
+          ? avancePorReunion({ ...actual, etapa: avanceContacto ?? actual.etapa }, { tipo: 'reunion', estado: 'pendiente', activo: true, vence_en: siguientePayload.vence_en }, true, Date.now())
+          : null
+        const avance = avanceCita ?? avanceContacto
+        const etapaAlDescartar = avanceContacto ?? actual.etapa
+        // ESPEJO OPTIMISTA: la llamada con su resultado, el avance automático
+        // (nuevo → contactado) y, si descarta, el descarte. El servidor escribe
+        // la verdad en la misma transacción; el resync la sustituye.
+        const act: Actividad = {
+          ...actividadAuto(id, def.tipo, detalle),
+          metadata: {
+            evento: 'resultado_llamada', resultado: def.clave, submotivo, descartado: descartar,
+            no_insista: input.no_insista === true, etapa_anterior: actual.etapa, etapa_al_descartar: etapaAlDescartar,
+            siguiente_id: siguientePayload?.id ?? null, tarea_id: tarea?.id ?? null,
+          },
+        }
+        const actAvance = avance
+          ? actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[avance].label}`)
+          : null
+        const actDescarte = descartar
+          ? actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[etapaAlDescartar].label} → ${ETAPA_INFO.descartado.label}`)
+          : null
+        setDatos((d) => ({
+          leads: d.leads.map((l) => {
+            if (l.id !== id) return l
+            const conVeto = input.no_insista === true ? { ...l, no_contactar: true } : l
+            if (descartar) return { ...conVeto, etapa: 'descartado' as const, motivo_descarte: motivo }
+            return avance ? { ...conVeto, etapa: avance } : conVeto
+          }),
+          actividades: [actDescarte, actAvance, act, ...d.actividades].filter((a): a is Actividad => a !== null),
+        }))
+        if (!realActivo) {
+          setTareas((prev) => {
+            const conCierre = prev.map((t) => t.id === tarea?.id ? { ...t, estado: 'completada' as const } : t)
+            const conDescarte = descartar
+              ? conCierre.map((t) => t.lead_id === id && t.estado === 'pendiente' ? { ...t, estado: 'cancelada' as const } : t)
+              : conCierre
+            return siguientePayload ? [{
+              id: siguientePayload.id!, lead_id: id, tipo: siguientePayload.tipo as Tarea['tipo'],
+              titulo: siguientePayload.titulo, vence_en: siguientePayload.vence_en,
+              estado: 'pendiente', reprogramaciones: 0, activo: true,
+              creado_en: new Date().toISOString(), creado_por: miId,
+              vendedor_id: actual.vendedor_id ?? null, asignado_supervisor_id: actual.asignado_supervisor_id ?? null,
+              modalidad_reunion: siguientePayload.modalidad_reunion ?? null,
+              ubicacion_reunion: siguientePayload.ubicacion_reunion ?? null,
+              enlace_reunion: siguientePayload.enlace_reunion ?? null,
+            }, ...conDescarte] : conDescarte
+          })
+        }
+        let respuesta: Respuesta | undefined
+        const persistido = persistir(async () => {
+          const argumentos = {
+            p_lead_id: id,
+            p_resultado: def.clave,
+            p_submotivo: submotivo,
+            p_detalle: detalle,
+            p_siguiente: siguientePayload,
+            p_tarea_id: tarea?.id ?? null,
+            p_descartar: descartar,
+            p_no_insista: input.no_insista === true,
+          }
+          respuesta = tarea
+            ? await ejecutarComandoSla(miId, 'registrar_llamada_v3', id, argumentos, tarea)
+            : await ejecutarComandoSla(miId, 'registrar_llamada_v3', id, argumentos)
+          void queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() })
+          void queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(id) })
+        }, { invalidarConversionRango: descartar, invalidarAgenda: Boolean(siguientePayload) || tarea != null, invalidarReuniones: siguientePayload?.tipo === 'reunion' })
+        const confirmacion: Promise<ConfirmacionLlamada | null> = persistido.then((ok) => {
+          if (!ok) return null
+          if (!realActivo) return { actividad_id: act.id, siguiente_id: siguientePayload?.id ?? null, descartado: descartar }
+          if (!respuesta || typeof respuesta.actividad_id !== 'string') return null
+          return {
+            actividad_id: respuesta.actividad_id,
+            siguiente_id: typeof respuesta.siguiente_id === 'string' ? respuesta.siguiente_id : null,
+            descartado: respuesta.descartado === true,
+          }
+        })
+        return { ok: true, ...(avance ? { avance } : {}), descartado: descartar, persistido, confirmacion }
+      },
+
+      deshacerResultadoLlamada: (actividadId) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        if (realActivo) {
+          // Sin espejo optimista: el ámbito no trae la metadata de la llamada y
+          // el servidor decide (24 h, autor, ámbito vigente). El resync pinta.
+          const persistido = persistir(async () => {
+            const r = await deshacerResultadoLlamadaFn(actividadId)
+            void queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() })
+            void queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(r.lead_id) })
+          }, { invalidarConversionRango: true, invalidarAgenda: true, invalidarReuniones: true })
+          return { ok: true, persistido }
+        }
+        // El toast que llama aquí puede haber capturado un `api` anterior al
+        // registro: se lee el estado VIGENTE, no el del cierre.
+        const act = contextoPanelRef.current.datos.actividades.find((a) => a.id === actividadId)
+        const meta = act?.metadata
+        if (!act || !meta || meta.evento !== 'resultado_llamada') return { ok: false, error: 'Esta actividad no es un resultado de llamada' }
+        if (meta.deshecho_en) return { ok: false, error: 'Este resultado ya se deshizo' }
+        if (meta.no_insista === true) return { ok: false, error: 'Este resultado marcó «No insistir»: esa restricción solo la levanta Gerencia' }
+        const leadActual = contextoPanelRef.current.datos.leads.find((l) => l.id === act.lead_id)
+        if (!leadActual) return noEncontrado()
+        const etapaAlDescartar = typeof meta.etapa_al_descartar === 'string' ? meta.etapa_al_descartar : 'nuevo'
+        const restaurar = etapaAlDescartar === 'reunion_agendada' ? 'contactado' : etapaAlDescartar
+        const revierte = meta.descartado === true && leadActual.etapa === 'descartado'
+        const nota = actividadAuto(act.lead_id, 'nota', `Resultado de llamada deshecho (${String(meta.resultado)})${revierte ? ' · descarte revertido' : ''}`)
+        nota.metadata = { evento: 'resultado_deshecho', actividad_id: actividadId, descarte_revertido: revierte }
+        setDatos((d) => ({
+          leads: revierte
+            ? d.leads.map((l) => (l.id === act.lead_id ? { ...l, etapa: restaurar as Lead['etapa'], motivo_descarte: null } : l))
+            : d.leads,
+          actividades: [
+            ...(revierte ? [actividadAuto(act.lead_id, 'cambio_etapa', `${ETAPA_INFO.descartado.label} → ${ETAPA_INFO[restaurar as Lead['etapa']].label}`)] : []),
+            nota,
+            ...d.actividades.map((a) => (a.id === actividadId ? { ...a, metadata: { ...meta, deshecho_en: new Date().toISOString() } } : a)),
+          ],
+        }))
+        if (typeof meta.siguiente_id === 'string') {
+          const sig = meta.siguiente_id
+          setTareas((prev) => prev.map((t) => (t.id === sig && t.estado === 'pendiente' ? { ...t, estado: 'cancelada' as const } : t)))
+        }
+        return { ok: true, persistido: Promise.resolve(true) }
       },
 
       reasignar: (id, vendedorId) => {

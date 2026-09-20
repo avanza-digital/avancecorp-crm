@@ -331,7 +331,7 @@ test('el contacto y su siguiente tarea se confirman juntos antes de cerrar el di
   const backend = await montarBackendReal(page, { leads: [leadReal({ vendedor_id: UID })] })
   let confirmar!: () => void
   const confirmacion = new Promise<void>((resolve) => { confirmar = resolve })
-  await page.route('**/rest/v1/rpc/registrar_actividad_v2', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
     await confirmacion
     await route.fallback()
   })
@@ -339,16 +339,17 @@ test('el contacto y su siguiente tarea se confirman juntos antes de cerrar el di
   await irAPipeline(page)
   const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
   await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
-  const dialogo = page.getByRole('dialog', { name: /Lograste comunicarte/ })
-  await expect(dialogo.getByRole('checkbox', { name: /Agendar el siguiente paso/ })).toBeChecked()
-  await dialogo.getByRole('button', { name: 'No contestó', exact: true }).click()
-  await expect(dialogo.getByRole('button', { name: 'No contestó', exact: true })).toBeDisabled()
-  await expect(page.getByText(/Contacto registrado/)).toHaveCount(0)
+  const dialogo = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await dialogo.getByRole('radio', { name: /^No contestó/ }).check()
+  await expect(dialogo.getByRole('checkbox', { name: /Agendar el siguiente intento/ })).toBeChecked()
+  await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(dialogo.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
+  await expect(page.getByText(/Llamada registrada/)).toHaveCount(0)
   expect(backend.tareas).toHaveLength(0)
   confirmar()
   await expect(dialogo).toHaveCount(0)
-  await expect(page.getByText(/Contacto registrado.*siguiente/)).toBeVisible()
-  expect(backend.llamadas.rpcSlaComandos).toEqual(['registrar_actividad'])
+  await expect(page.getByText(/Llamada registrada.*siguiente/)).toBeVisible()
+  expect(backend.llamadas.rpcSlaComandos).toEqual(['registrar_llamada'])
   expect(backend.llamadas.insertActividad).toBe(0)
   expect(backend.tareas).toHaveLength(1)
   await expect(ficha.getByText(String(backend.tareas[0]?.titulo), { exact: true })).toBeVisible()
@@ -359,7 +360,7 @@ test('el reintento tras perder la respuesta conserva la siguiente tarea aunque e
     leads: [leadReal({ vendedor_id: UID })], perderProximaRespuestaSla: true,
   })
   const enviados: unknown[] = []
-  await page.route('**/rest/v1/rpc/registrar_actividad_v2', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
     enviados.push(route.request().postDataJSON())
     await route.fallback()
   })
@@ -367,20 +368,21 @@ test('el reintento tras perder la respuesta conserva la siguiente tarea aunque e
   await irAPipeline(page)
   const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
   await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
-  const dialogo = page.getByRole('dialog', { name: /Lograste comunicarte/ })
-  await dialogo.getByRole('textbox', { name: 'Nota del contacto' }).fill('Intento documentado para reintentar')
-  await dialogo.getByRole('button', { name: 'No contestó', exact: true }).click()
+  const dialogo = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await dialogo.getByRole('textbox', { name: 'Nota de la llamada' }).fill('Intento documentado para reintentar')
+  await dialogo.getByRole('radio', { name: /^No contestó/ }).check()
+  await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(dialogo.getByRole('button', { name: 'Reintentar guardado' })).toBeVisible()
   await expect.poll(() => backend.tareas.length).toBe(1)
   // El store terminó el resync y ahora sabe que el plan ya existe. Eso no
   // debe convertir el reintento original en una actividad sin siguiente.
   await expect(page.getByText(/Confirmación pendiente.*se actualizó la vista/)).toBeVisible()
-  await expect(dialogo.getByRole('textbox', { name: 'Nota del contacto' })).toHaveValue('Intento documentado para reintentar')
-  await expect(dialogo.getByRole('button', { name: 'No contestó', exact: true })).toBeDisabled()
-  await expect(page.getByText(/Contacto registrado/)).toHaveCount(0)
+  await expect(dialogo.getByRole('textbox', { name: 'Nota de la llamada' })).toHaveValue('Intento documentado para reintentar')
+  await expect(dialogo.getByRole('radio', { name: /^No contestó/ })).toBeDisabled()
+  await expect(page.getByText(/Llamada registrada/)).toHaveCount(0)
   await dialogo.getByRole('button', { name: 'Reintentar guardado' }).click()
   await expect(dialogo).toHaveCount(0)
-  await expect(page.getByText(/Contacto registrado.*siguiente/)).toBeVisible()
+  await expect(page.getByText(/Llamada registrada.*siguiente/)).toBeVisible()
   expect(enviados).toHaveLength(2)
   expect(enviados[1]).toEqual(enviados[0])
   expect(backend.tareas).toHaveLength(1)
@@ -390,7 +392,7 @@ test('el reintento tras perder la respuesta conserva la siguiente tarea aunque e
 test('tras recargar verifica explícitamente el guardado original sin reconstruir el formulario', async ({ page }) => {
   const backend = await montarBackendReal(page, { leads: [leadReal({ vendedor_id: UID })], perderProximaRespuestaSla: true })
   const enviados: unknown[] = []
-  await page.route('**/rest/v1/rpc/registrar_actividad_v2', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
     enviados.push(route.request().postDataJSON()); await route.fallback()
   })
   await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
@@ -401,9 +403,10 @@ test('tras recargar verifica explícitamente el guardado original sin reconstrui
   await irAPipeline(page)
   let ficha = await abrirLead(page, /CLIENTE REAL UNO/)
   await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
-  const dialogo = page.getByRole('dialog', { name: /Lograste comunicarte/ })
-  await dialogo.getByRole('textbox', { name: 'Nota del contacto' }).fill('Conservar después de recargar')
-  await dialogo.getByRole('button', { name: 'No contestó', exact: true }).click()
+  const dialogo = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await dialogo.getByRole('textbox', { name: 'Nota de la llamada' }).fill('Conservar después de recargar')
+  await dialogo.getByRole('radio', { name: /^No contestó/ }).check()
+  await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(dialogo.getByRole('button', { name: 'Reintentar guardado' })).toBeVisible()
   await expect.poll(() => backend.tareas.length).toBe(1)
   await page.reload()
@@ -580,16 +583,20 @@ test('cerrar una llamada contestada actualiza Primera atención aunque la lectur
     await expect.poll(() => lecturasAntes).toBeGreaterThan(0)
     await ficha.getByRole('button', { name: /Cerrar tarea — Llamada inicial/ }).click()
     const cierre = page.getByRole('dialog', { name: 'Cerrar tarea', exact: true })
-    await cierre.getByRole('button', { name: 'Contestó', exact: true }).click()
-    await cierre.getByRole('button', { name: 'Saltar esta vez', exact: true }).click()
-    await cierre.getByRole('button', { name: 'Cerrar tarea', exact: true }).click()
+    // Gestión Diaria F2: la tarea de llamada se cierra con el resultado tipificado.
+    await cierre.getByRole('button', { name: /Registrar resultado de la llamada/ }).click()
+    const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+    await panel.getByRole('radio', { name: /^No contestó/ }).check()
+    await panel.getByRole('checkbox', { name: /Agendar el siguiente intento/ }).uncheck()
+    await panel.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(panel).toBeHidden()
     await expect(cierre).toBeHidden()
     liberarLectura()
     await expect.poll(() => lecturasDespues).toBeGreaterThan(0)
     const avisos = ficha.getByRole('region', { name: 'Pendientes y plazos' })
     await expect(avisos.getByText('Ver plazos', { exact: true })).toBeVisible()
     await expect(avisos.getByText('Contacta al cliente y registra el resultado', { exact: true })).toHaveCount(0)
-    expect(backend.llamadas.rpcSlaComandos).toEqual(['cerrar_tarea'])
+    expect(backend.llamadas.rpcSlaComandos).toEqual(['registrar_llamada'])
     expect(backend.tareas).toHaveLength(1)
     expect(backend.tareas[0]?.estado).toBe('completada')
   } finally {
