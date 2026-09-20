@@ -47,6 +47,9 @@ import {
 } from '@/lib/tipos'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
+import { useActividadesRecientes } from '@/data/crm-queries'
+import type { ActividadReciente } from '@/lib/tipos'
+
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { AvisoCoberturaConversion } from '@/components/common/aviso-cobertura-conversion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
@@ -55,6 +58,9 @@ import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
+
+/** Filas de la bitácora «Actividad reciente» (mismo valor que pide la puerta por defecto). */
+const FILAS_BITACORA = 8
 
 // Mismo mapa de iconos del timeline del drawer (consistencia visual).
 const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
@@ -157,14 +163,23 @@ export function HoyDirectorio(): JSX.Element {
   // declara y su tarjeta lo rotula como lo que es (ámbito de 45 días).
   const metricaMensual = vendedoresOp.metricas?.mesMetrica != null
 
-  // La bitácora sigue en cliente (ninguna RPC F1 sirve un feed de actividad;
-  // candidata a F2). Solo copia y ordena para las 8 filas que pinta.
-  const recientes = useMemo(
-    () => [...actividades].sort((a, b) => b.creado_en.localeCompare(a.creado_en)).slice(0, 8),
-    [actividades],
+  // Fase 3 «sin topes»: la bitácora la sirve `crm.actividades_recientes_fn`
+  // (las 8 más recientes visibles, con el nombre del lead embebido); el
+  // arranque ya no baja el registro de actividades. En demo sigue el timeline
+  // del fixture. Orden por unidades de código, no `localeCompare` (Fase 2).
+  const sesionReal = Boolean(yo && !yo.demo)
+  const bitacora = useActividadesRecientes(sesionReal, FILAS_BITACORA)
+  const recientes = useMemo<ActividadReciente[]>(
+    () => sesionReal
+      ? (bitacora.data ?? [])
+      : [...actividades]
+          .sort((a, b) => (a.creado_en === b.creado_en ? 0 : a.creado_en < b.creado_en ? 1 : -1))
+          .slice(0, FILAS_BITACORA)
+          .map((a) => ({ ...a, lead_nombre: ambito.leads.find((l) => l.id === a.lead_id)?.nombre_completo ?? null })),
+    [actividades, ambito.leads, bitacora.data, sesionReal],
   )
-
-  const leadDe = (id: string) => ambito.leads.find((l) => l.id === id)
+  const bitacoraCargando = sesionReal && bitacora.isPending
+  const bitacoraError = sesionReal && Boolean(bitacora.error)
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -507,14 +522,30 @@ export function HoyDirectorio(): JSX.Element {
             right={<span className="text-xs text-muted-foreground">Últimas 8 · toda la operación</span>}
           />
           <CardContent className="space-y-1">
-            {recientes.length === 0 && (
+            {bitacoraCargando && (
+              <p role="status" className="py-4 text-center text-xs text-muted-foreground">
+                Cargando la actividad reciente…
+              </p>
+            )}
+            {bitacoraError && (
+              <p role="alert" className="py-4 text-center text-xs text-muted-foreground">
+                No se pudo cargar la actividad reciente.{' '}
+                <button
+                  type="button"
+                  onClick={() => { void bitacora.refetch() }}
+                  className="cursor-pointer font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Reintentar
+                </button>
+              </p>
+            )}
+            {!bitacoraCargando && !bitacoraError && recientes.length === 0 && (
               <p className="py-4 text-center text-xs text-muted-foreground">
                 Aún no hay actividad registrada
               </p>
             )}
             {recientes.map((a) => {
               const Icono = ICONO_ACTIVIDAD[a.tipo]
-              const lead = leadDe(a.lead_id)
               return (
                 <button
                   key={a.id}
@@ -528,7 +559,7 @@ export function HoyDirectorio(): JSX.Element {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">
-                      {lead?.nombre_completo ?? 'Lead fuera del ámbito'}
+                      {a.lead_nombre ?? 'Sin nombre de lead'}
                     </span>
                     <span className="block truncate text-[11.5px] text-muted-foreground">
                       {TIPOS_ACTIVIDAD[a.tipo]} · {a.autor_nombre}

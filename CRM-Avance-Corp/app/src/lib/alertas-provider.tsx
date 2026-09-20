@@ -204,7 +204,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         // F3: los recordatorios VENCIDOS primero — son acción inmediata y
         // barata («verifica si ya está libre»); los vigentes no suenan.
         ...derivarAlertasRecordatorios(recordatorios.data ?? [], ahora),
-        ...(legado ? derivarAlertasVendedor({
+        // Fase 3 «sin topes»: el arranque real ya no baja el registro de
+        // actividades, así que las alertas LEGADO (derivadas de él) solo se
+        // pueden calcular en demo. En sesión real con el modo SLA apagado no
+        // se inventan alertas «sin contacto» sobre una lista vacía: se callan.
+        ...(legado && yo.demo ? derivarAlertasVendedor({
           vendedorId: yo.id,
           leads: ambito.leads,
           actividades: actividadesDelAmbito,
@@ -215,7 +219,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       ]
     }
     if (rol === 'supervisor') {
-      return legado ? derivarAlertasSupervisor({
+      return legado && yo.demo ? derivarAlertasSupervisor({
         supervisorId: yo.id,
         leads: ambito.leads,
         actividades: actividadesDelAmbito,
@@ -341,6 +345,13 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   const errores = useMemo(() => {
     if (yo?.demo || soloRoles) return []
     const mensajes = [
+      // Fase 3 «sin topes»: sin el registro de actividades del ámbito (ya no se
+      // descarga), las alertas LEGADO por actividad no pueden calcularse en
+      // sesión real; con el modo SLA apagado la campana se calla y lo DICE.
+      // (La demo ya salió arriba; un rol no nulo implica sesión.)
+      legado && (rol === 'vendedor' || rol === 'supervisor')
+        ? 'Las alertas por actividad de leads necesitan el modo SLA activo: el CRM ya no descarga el registro de actividades del ámbito.'
+        : null,
       rol === 'gerencia' && conversionActual.error
         ? mensajeDeError(conversionActual.error, 'No se pudo calcular la conversión actual.')
         : null,

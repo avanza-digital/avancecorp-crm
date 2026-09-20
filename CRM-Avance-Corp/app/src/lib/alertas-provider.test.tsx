@@ -271,18 +271,14 @@ describe('AlertasCRMProvider', () => {
   it('deriva al analista solo desde su ámbito local y no habilita métricas globales', () => {
     montar('vendedor')
 
-    expect(derivarVendedor).toHaveBeenCalledWith({
-      vendedorId: 'v1',
-      leads: LEADS,
-      actividades: ACTIVIDADES,
-      tareas: TAREAS,
-      ahora: Date.UTC(2026, 7, 6, 17),
-      estadosSla: ESTADOS_SLA,
-    })
+    // Fase 3 «sin topes»: en sesión real ya no hay registro de actividades del
+    // ámbito; con el modo SLA apagado el provider NO deriva alertas por
+    // actividad (inventaría «sin contacto») y lo dice. Los recordatorios siguen.
+    expect(derivarVendedor).not.toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent('modo SLA activo')
     expect(derivarSupervisor).not.toHaveBeenCalled()
     expect(derivarGerencia).not.toHaveBeenCalled()
     expect(consultasConversion.mock.calls.every(([habilitada]) => habilitada === false)).toBe(true)
-    expect(screen.getByRole('status')).toHaveTextContent('personal-1')
     // F3: con el gate abierto la campana SÍ consulta, y el recordatorio ya
     // vencido del arnés suena mediante la derivación real del provider.
     expect(consultaRecordatorios).toHaveBeenCalledWith(true)
@@ -325,7 +321,7 @@ describe('AlertasCRMProvider', () => {
   })
 
   it('deriva al supervisor con su roster visible y no consulta datos de Gerencia', () => {
-    montar('supervisor')
+    montar('supervisor', { demo: true })
 
     expect(derivarSupervisor).toHaveBeenCalledWith({
       supervisorId: 's1',
@@ -387,32 +383,6 @@ describe('AlertasCRMProvider', () => {
     })
   })
 
-  it('F4 (Codex #1): con el libro en ERROR, los asientos CACHEADOS no se aplican — todo suena', () => {
-    // El asiento pospondría equipo-1… pero el refetch falló: data conservada
-    // por TanStack + error presente ⇒ el provider debe ignorar la caché.
-    RECONOCIMIENTOS = [{
-      id: '4c1f2a10-9f6a-49a4-8f7e-000000000002',
-      alerta_id: 'equipo-1',
-      accion: 'posponer',
-      miembros: ['lead-2'],
-      severidad: 'critica',
-      hasta: '2026-08-07T17:00:00.000Z',
-      creado_en: '2026-08-06T10:00:00.000Z',
-      secuencia: 1,
-    }]
-    RECONOCIMIENTOS_ERROR = new Error('refetch caído')
-    montar('supervisor')
-
-    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
-      pendientes: number
-      pospuestas: number
-      alertas: Array<{ id: string }>
-    }
-    expect(estado.pendientes).toBe(1)
-    expect(estado.pospuestas).toBe(0)
-    expect(estado.alertas[0]?.id).toBe('equipo-1')
-  })
-
   it('F4 (Codex R2): con el gate de leads CERRADO el supervisor ni consulta el libro', () => {
     LEADS_VISIBLES = false
     montar('supervisor')
@@ -449,34 +419,6 @@ describe('AlertasCRMProvider', () => {
     })
   })
 
-  it('F4 (Codex #5): con el ámbito EN el tope local, reconocer se desactiva y el libro se ignora', () => {
-    LEADS = Array.from({ length: 2000 }, (_, i) => ({ id: `lead-${i}` }))
-    RECONOCIMIENTOS = [{
-      id: '4c1f2a10-9f6a-49a4-8f7e-000000000003',
-      alerta_id: 'equipo-1',
-      accion: 'reconocer',
-      miembros: ['lead-2'],
-      severidad: 'critica',
-      hasta: null,
-      creado_en: '2026-08-06T10:00:00.000Z',
-      secuencia: 1,
-    }]
-    montar('supervisor')
-
-    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
-      pendientes: number
-      errores: string[]
-      alertas: Array<{ miembros?: string[]; reconocimiento?: unknown }>
-    }
-    // Sin foto confiable: nada se atenúa (el asiento NO se aplica)…
-    expect(estado.pendientes).toBe(1)
-    expect(estado.alertas[0]?.reconocimiento).toBeUndefined()
-    // …los botones no existen (sin miembros no hay reconocer)…
-    expect(estado.alertas[0]?.miembros).toBeUndefined()
-    // …y el motivo se DICE.
-    expect(estado.errores.join(' ')).toContain('tope local de leads')
-  })
-
   it('F4: el analista ni consulta el libro ni puede asentar en él', () => {
     montar('vendedor')
 
@@ -485,9 +427,11 @@ describe('AlertasCRMProvider', () => {
     expect(reconocerServidor).not.toHaveBeenCalled()
   })
 
-  it('F4: un asiento vigente ATENÚA en el contexto — pendientes descuenta y la alerta lleva su traza', () => {
-    // Asiento que cubre a `equipo-1` (misma foto, misma severidad), fresco
-    // respecto del reloj congelado del arnés (2026-08-06T17:00Z).
+  it('Fase 3 «sin topes»: en sesión REAL con el modo SLA apagado no se derivan alertas por actividad y se dice por qué', () => {
+    // Antes el provider derivaba desde el registro de actividades que bajaba
+    // el arranque (recortado a 1 000 filas). Ya no existe: derivar sobre una
+    // lista vacía inventaría «sin contacto» para toda la cartera. El libro F4
+    // real queda sin alertas que atenuar; el espejo demo (test de arriba) vive.
     RECONOCIMIENTOS = [{
       id: '4c1f2a10-9f6a-49a4-8f7e-000000000001',
       alerta_id: 'equipo-1',
@@ -500,28 +444,15 @@ describe('AlertasCRMProvider', () => {
     }]
     montar('supervisor')
 
+    expect(derivarSupervisor).not.toHaveBeenCalled()
     const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
       pendientes: number
-      alertas: Array<{ id: string; reconocimiento?: { accion: string } }>
+      errores: string[]
+      alertas: unknown[]
     }
+    expect(estado.alertas).toEqual([])
     expect(estado.pendientes).toBe(0)
-    // La alerta NO se borra: sigue visible, con su traza de reconocimiento.
-    expect(estado.alertas[0]?.id).toBe('equipo-1')
-    expect(estado.alertas[0]?.reconocimiento?.accion).toBe('reconocer')
-  })
-
-  it('F4: un libro ilegible se DICE, las alertas suenan COMPLETAS y Reintentar lo reintenta', () => {
-    RECONOCIMIENTOS_ERROR = new Error('red caída')
-    montar('supervisor')
-
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'No se pudieron leer tus reconocimientos; las alertas se muestran completas.',
-    )
-    // Degradación honesta: sin libro, nada se atenúa ni se oculta.
-    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as { pendientes: number }
-    expect(estado.pendientes).toBe(1)
-    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }))
-    expect(refetchReconocimientos).toHaveBeenCalledTimes(1)
+    expect(estado.errores.join(' ')).toContain('modo SLA activo')
   })
 })
 

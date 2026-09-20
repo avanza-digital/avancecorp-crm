@@ -3916,6 +3916,7 @@ export type Database = {
         }
         Returns: Json
       }
+      actividades_recientes_fn: { Args: { p_limite?: number }; Returns: Json }
       actividades_del_ambito_fn: {
         Args: never
         Returns: {

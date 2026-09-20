@@ -63,7 +63,6 @@ import {
   actualizarTarea,
   cerrarTarea,
   editarLeadFn,
-  listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
   obtenerLeadDelAmbitoPorId,
@@ -658,6 +657,14 @@ function uid(): string {
 
 /** ¿El id local es un UUID válido para persistirlo tal cual en el servidor? */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/**
+ * Fase 3 «sin topes»: cuánto sobrevive una actividad OPTIMISTA local a las
+ * resincronizaciones. El servidor ya no trae el registro de actividades; las
+ * locales solo sirven hasta que el historial por lead (invalidado en cada
+ * resincronización) las sustituye. Diez minutos cubren cualquier refetch y
+ * acotan la retención.
+ */
+const VIDA_OPTIMISTA_MS = 10 * 60_000
 
 /**
  * Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. El índice
@@ -896,10 +903,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // no puede convertirse en «sin meta» ni en resultados confirmados en cero.
       let objetivosError = false
       let cumplimientoMetasError = false
-      const [leads, miembros, actividades, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
+      // Fase 3 «sin topes»: el arranque ya NO baja el registro de actividades
+      // (`actividades_del_ambito_fn`, recortada a 1 000 filas). El historial
+      // vive por lead (Fase 1) y la bitácora del directorio pide sus 8 filas
+      // (`actividades_recientes_fn`); aquí solo quedan las optimistas locales.
+      const [leads, miembros, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
         listarLeadsDelAmbito(signal),
         esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
-        listarActividadesDelAmbito(signal),
         listarTareasDelAmbito(signal),
         obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
           registrarError('crm.metas.configuracion_boot_degradada', error)
@@ -942,7 +952,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
       return {
         miembros,
-        actividades,
+        actividades: [] as Actividad[],
         tareas: tareasAmbito,
         objetivos: configuracionMetas
           ? objetivosDesdeConfiguracion(configuracionMetas, yo?.id)
@@ -1058,7 +1068,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // Otra ficha se abrió mientras se revalidaba la anterior: esta foto
       // podría excluirla. No sobrescribir la intención más reciente.
       if (aperturaRef.current !== miApertura) return false
-      setDatos({ leads, actividades })
+      // Fase 3 «sin topes»: el servidor ya no trae actividades. La
+      // resincronización conserva las optimistas locales RECIENTES (misma
+      // sesión; el historial por lead las deduplica por tiempo cuando llega la
+      // lectura posterior) y poda las viejas: la retención es acotada, no
+      // «todo lo local para siempre». El arranque, en cambio, parte de cero.
+      void actividades
+      const corteOptimistas = Date.now() - VIDA_OPTIMISTA_MS
+      setDatos((d) => ({
+        leads,
+        actividades: d.actividades.filter((a) => a.local === true && (a.local_ts ?? 0) > corteOptimistas),
+      }))
       setTareas(tareasServidor)
       setAuxiliares((prev) => ({
         ...prev,
@@ -1181,6 +1201,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
             // borrar la pantalla de error que el analista está viendo.
             if (cancelado || agotado) return
+            // Arranque (o cambio de identidad/ámbito sin logout): se parte de
+            // cero. `actividades` viene vacío del servidor desde la Fase 3 y
+            // así también se descarta cualquier optimista de otro ámbito.
             setDatos({ leads, actividades })
             setTareas(tareasServidor)
             setAuxiliares({
@@ -1365,19 +1388,28 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Evidencia del historial de UN lead para los gates que corren fuera de
     // React (descartar por «no responde», retroceso al anular una reunión).
     // Primero la caché del historial servido por lead (lo que la ficha ya
-    // cargó) fusionada con las optimistas locales; si nunca se cargó, cae al
-    // filtro sobre `datos.actividades` — en la Fase 1 nunca peor que antes.
+    // cargó) fusionada con las optimistas locales. Fase 3 «sin topes»: en
+    // sesión real el arranque ya no baja actividades, así que SIN caché no hay
+    // evidencia (`null`): el gate rehúsa y pide abrir la ficha en vez de
+    // juzgar sobre una lista que solo tiene optimistas. En demo, el timeline
+    // del fixture sigue siendo la evidencia.
     const historialLocalDe = (id: string) => datos.actividades.filter((a) => a.lead_id === id)
-    const evidenciaDeLead = (id: string): Actividad[] => {
+    const evidenciaDeLead = (id: string): Actividad[] | null => {
       const cache = leerHistorialEnCache(queryClient, id)
-      if (!cache) return historialLocalDe(id)
+      if (!cache) return yo?.demo ? historialLocalDe(id) : null
       return fusionarHistorial(historialLocalDe(id), cache.items, cache.leidoEn)
     }
-    const senalesDeLead = (id: string): SenalesLead => {
+    const senalesDeLead = (id: string): SenalesLead | null => {
       const cache = leerHistorialEnCache(queryClient, id)
-      if (!cache) return senalesDesdeActividades(historialLocalDe(id))
+      if (!cache) return yo?.demo ? senalesDesdeActividades(historialLocalDe(id)) : null
       return combinarSenales(cache.senales, senalesDesdeActividades(localesVivas(historialLocalDe(id), cache.leidoEn)))
     }
+    // «¿Alguna vez hubo contacto?» para el espejo optimista del avance por
+    // reunión: la señal del historial servido (más las optimistas vivas); sin
+    // caché, solo lo optimista local — si no alcanza, el avance lo decide el
+    // servidor y la resincronización lo refleja (sin anuncio optimista).
+    const huboContacto = (id: string): boolean =>
+      senalesDeLead(id)?.tieneContacto ?? senalesDesdeActividades(historialLocalDe(id)).tieneContacto
 
     const aplicar = (id: string, parche: Partial<Lead>, actividad?: Actividad) => {
       setDatos((d) => ({
@@ -1628,7 +1660,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ? avancePorReunion(
               lead,
               tarea,
-              datos.actividades.some((a) => a.lead_id === lead.id && TIPOS_CONTACTO_K.has(a.tipo)),
+              huboContacto(lead.id),
               Date.now(),
             )
           : null
@@ -1849,8 +1881,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                   asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
                 },
                 sigLocal,
-                (resultado != null && TIPOS_CONTACTO_K.has(resultado)) ||
-                  datos.actividades.some((a) => a.lead_id === t.lead_id && TIPOS_CONTACTO_K.has(a.tipo)),
+                (resultado != null && TIPOS_CONTACTO_K.has(resultado)) || huboContacto(t.lead_id),
                 Date.now(),
               )
             : null
@@ -2145,12 +2176,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // mismo render— y por eso `retrocesoPorAnularReunion` excluye la tarea
         // en curso por id en vez de fiarse de su estado.
         const lead = t.lead_id ? buscar(t.lead_id) : undefined
-        const retroceso = lead
+        // Sin historial en caché (sesión real, ficha no abierta) no se adivina
+        // el retroceso: el servidor lo decide igual (`retroceso_por_anular_reunion`)
+        // y la resincronización lo refleja. Solo se pierde el espejo optimista.
+        const senales = lead ? senalesDeLead(lead.id) : null
+        if (lead && !senales) {
+          registrarError('crm.anular.retroceso_sin_historial', new Error('Historial del lead sin cargar al anular'))
+        }
+        const retroceso = lead && senales
           ? retrocesoPorAnularReunion(
               lead,
               t,
               tareas.filter((x) => x.lead_id === lead.id),
-              senalesDeLead(lead.id),
+              senales,
             )
           : null
         if (retroceso && lead) {
@@ -2509,7 +2547,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // llame al store por otra vía. Ver lib/descarte-evidencia.ts para por
         // qué esto NO es un trigger de BD (rompería los descartes de Rosa).
         if (MOTIVOS_CON_EVIDENCIA.has(motivo)) {
-          const veto = vetoNoResponde(evidenciaDeLead(id))
+          const evidencia = evidenciaDeLead(id)
+          const veto = evidencia
+            ? vetoNoResponde(evidencia)
+            : 'Abre la ficha del lead para revisar sus intentos antes de descartarlo por «No responde».'
           if (veto) {
             toast.error(veto)
             return { ok: false, codigo: 'sin_permiso', error: veto }

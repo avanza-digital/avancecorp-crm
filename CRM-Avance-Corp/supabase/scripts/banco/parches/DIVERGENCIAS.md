@@ -245,3 +245,15 @@ con empate de `vence_en` sin repetidos ni huecos; volumen > 1 000 (1 200 tareas 
 tabla); 22023/42501/anon correctos; `EXPLAIN` con planificador normal y cursor profundo por
 `tareas_pendientes_keyset_idx` (`Bitmap Index Scan`, `ROW(vence_en, id) > ROW(cursor)`).
 La copia queda con la migración instalada y las tareas sembradas canceladas.
+
+## 19/09/2026 (noche) — ensayo de `20260920014500_crm_actividades_recientes.sql` (actividad reciente, Fase 3)
+
+**Sin divergencias.** Copia `sin_topes_f3_20260920` en el contenedor local (`supabase_db_avancecorp-f5-bank`,
+58322) desde `conversion_inversion_base_20260919` (paridad `20260917235656`, CON mundo SLA). La copia no tenía
+la Fase 1 (`private.nombre_de_autor`, que el preflight exige): el guion instala primero `20260919185718` TAL
+CUAL (ya en producción) y después esta, cada una en un solo mensaje. Guion:
+`supabase/scripts/actividades-recientes/ensayar-local.sh`; resultado en su `verificacion.json`.
+
+**Resultado (19/09 ~21:00 Lima): PASS.** Gate OK, 18/18 mutantes, esquema intacto (gate de la Fase 1 OK después);
+11 actores con puerta = las 8 más recientes de la tabla en orden; 22023/42501/anon correctos; `EXPLAIN` por
+`actividades_recientes_idx`. `test-rls.mjs` por HTTP sigue NOT RUN (sin claves).
