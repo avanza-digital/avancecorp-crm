@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+  "source_clean": true,
+  "sha256": "d22bbf92654be4a003491cb161160d9549a7d2b164cea76771a0ad74423f1c53",
+  "files": 102,
+  "app_tree": "f0cec7e5e10a7a4c5ee1f609af22f1a5f2e734fa",
+  "portal_commit": "35198b14a8b70790faf55443ca6b1df95c70882e",
+  "equivalence": "4bd3dc1b solo agrega actas respecto a 0d1c1ae3; app y portal idénticos al PR #31 aprobado y al check local de 3773 pruebas",
+  "release_commands": [
+    "npm run release:crm",
+    "npm run release:crm:verify -- releases/crm-20260919T222832Z-4bd3dc1b5d1a.manifest.json"
+  ]
+}

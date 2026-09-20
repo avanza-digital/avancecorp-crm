@@ -1,0 +1,97 @@
+{
+  "mode": "portal",
+  "startedAt": "2026-09-19T22:32:06.417Z",
+  "commit": "4bd3dc1b5d1a71f60ec1abd6192f2dc92a4a1d3e",
+  "events": [
+    {
+      "at": "2026-09-19T22:32:11.009Z",
+      "stage": "portal",
+      "uploadHost": "srv1722-files.hstgr.io",
+      "files": 6
+    },
+    {
+      "at": "2026-09-19T22:32:11.010Z",
+      "stage": "upload-start",
+      "file": "js/admin/numero-contrato-core.js",
+      "sha256": "61db862ed4bc53773f41d20515b87a44dec28e057e392480259dbe11f2816a7a"
+    },
+    {
+      "at": "2026-09-19T22:32:11.605Z",
+      "stage": "uploaded",
+      "file": "js/admin/numero-contrato-core.js",
+      "bytes": 658,
+      "sha256": "61db862ed4bc53773f41d20515b87a44dec28e057e392480259dbe11f2816a7a"
+    },
+    {
+      "at": "2026-09-19T22:32:11.605Z",
+      "stage": "upload-start",
+      "file": "js/admin/analista.js",
+      "sha256": "b71046891998cf581e2c294bdfc52b84815a83f768007b411728e04c391bc5bf"
+    },
+    {
+      "at": "2026-09-19T22:32:11.940Z",
+      "stage": "uploaded",
+      "file": "js/admin/analista.js",
+      "bytes": 59519,
+      "sha256": "b71046891998cf581e2c294bdfc52b84815a83f768007b411728e04c391bc5bf"
+    },
+    {
+      "at": "2026-09-19T22:32:11.940Z",
+      "stage": "upload-start",
+      "file": "js/admin/contratos.js",
+      "sha256": "000467302cb7590430b8476d1687c254b656e9bc1e58529ea6915c48eff0135c"
+    },
+    {
+      "at": "2026-09-19T22:32:12.192Z",
+      "stage": "uploaded",
+      "file": "js/admin/contratos.js",
+      "bytes": 86939,
+      "sha256": "000467302cb7590430b8476d1687c254b656e9bc1e58529ea6915c48eff0135c"
+    },
+    {
+      "at": "2026-09-19T22:32:12.193Z",
+      "stage": "upload-start",
+      "file": "admin/analista.html",
+      "sha256": "d1fa77ab3c420e898c20266f38422945869cff1600df64411959969a6d708716"
+    },
+    {
+      "at": "2026-09-19T22:32:12.362Z",
+      "stage": "uploaded",
+      "file": "admin/analista.html",
+      "bytes": 25211,
+      "sha256": "d1fa77ab3c420e898c20266f38422945869cff1600df64411959969a6d708716"
+    },
+    {
+      "at": "2026-09-19T22:32:12.363Z",
+      "stage": "upload-start",
+      "file": "admin/contratos.html",
+      "sha256": "133ba3350e247f34e2f1420e826a3e7a8368c49252a1a190c7b1d029627e726a"
+    },
+    {
+      "at": "2026-09-19T22:32:12.532Z",
+      "stage": "uploaded",
+      "file": "admin/contratos.html",
+      "bytes": 22511,
+      "sha256": "133ba3350e247f34e2f1420e826a3e7a8368c49252a1a190c7b1d029627e726a"
+    },
+    {
+      "at": "2026-09-19T22:32:12.533Z",
+      "stage": "upload-start",
+      "file": "service-worker.js",
+      "sha256": "aa53b4dd31fdd77e4bdfab540308cffd9d3bdac72d00c70ba41fb97d84735ecc"
+    },
+    {
+      "at": "2026-09-19T22:32:12.701Z",
+      "stage": "uploaded",
+      "file": "service-worker.js",
+      "bytes": 8933,
+      "sha256": "aa53b4dd31fdd77e4bdfab540308cffd9d3bdac72d00c70ba41fb97d84735ecc"
+    },
+    {
+      "at": "2026-09-19T22:32:13.033Z",
+      "status": "PASS",
+      "stage": "portal-upload-and-cache-purge",
+      "files": 6
+    }
+  ]
+}
