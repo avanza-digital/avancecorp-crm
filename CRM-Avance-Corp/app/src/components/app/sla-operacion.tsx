@@ -5,7 +5,6 @@ import './sla-operacion.css'
 import { CrmApiError } from '@/data/crm-api'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
-import { GuardadosSlaPendientes } from './guardados-sla-pendientes'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS } from '@/lib/tipos'
@@ -77,7 +76,6 @@ export function ColaSlaPanel() {
   const hayFiltros = filtros.senal !== 'pendientes' || filtros.etapa !== null || filtros.analista_id !== null
   const limpiar = () => { setFiltros({ senal: 'pendientes', etapa: null, analista_id: null }); setCursores([null]); setErrorApertura(false) }
   return <section className="sla-bandeja" aria-label="Seguimiento comercial">
-    <GuardadosSlaPendientes />
     <header className="sla-cabecera">
       <div>
         <h2 ref={encabezado} tabIndex={-1} className="sla-titulo">Seguimiento comercial</h2>
@@ -169,7 +167,7 @@ export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?
   const estado = consulta.data.filas.find((fila) => fila.lead_id === leadId)
   if (!estado) return <p role="alert" className="text-xs">El estado de seguimiento no está disponible para esta oportunidad.</p>
   if (estado.evaluacion === 'no_aplica') return null
-  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
+  return <div className="space-y-3"><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
 }
 export function DetalleSla({ estado, supervision = false, onActuar }: {
   estado: EstadoSlaV2; supervision?: boolean; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined

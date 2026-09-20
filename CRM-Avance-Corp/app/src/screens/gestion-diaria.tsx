@@ -2,12 +2,15 @@
 // Fase 1 (19/09/2026): las tres vistas comparten la sección «Registro» del día;
 // el analista ve el suyo, el supervisor su equipo y gerencia todo, con día a
 // elegir y exportación. «Mi día», «Mi equipo hoy» y el pulso llegan en las
-// fases 3–5 del plan (docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md).
+// fases 4–5 del plan (docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md).
+// Fase 3 (20/09/2026): el analista abre con «Mi día» — la cola completa, su
+// marcador, sus compromisos y sus descartes — y conserva el registro debajo.
 import { useState, type JSX } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
+import { GestionDiariaAnalista } from '@/screens/gestion-diaria/analista'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
 import { CalendarCheck2 } from 'lucide-react'
@@ -34,10 +37,15 @@ export function GestionDiaria(): JSX.Element {
 
   switch (yo.rol) {
     case 'vendedor':
+      // Fase 3: el analista entra a «Mi día» (cola, marcador, compromisos y
+      // descartes). Su registro crudo sigue debajo, sin filtros de equipo.
       return (
-        <div className="mx-auto w-full max-w-[1640px] space-y-6">
-          <Cabecera pregunta="¿Qué hice hoy?" detalle="Tu registro de actividad de hoy, con el texto íntegro de cada gestión. La cola del día y el marcador llegan en la siguiente entrega." />
-          <RegistroActividad dia={hoy} analistaIds={[yo.id]} mostrarAnalista={false} permitirExportar={false} />
+        <div className="mx-auto w-full max-w-[1640px] space-y-8">
+          <GestionDiariaAnalista />
+          <div className="space-y-6">
+            <Cabecera pregunta="¿Qué hice hoy?" detalle="Tu registro de actividad de hoy, con el texto íntegro de cada gestión." />
+            <RegistroActividad dia={hoy} analistaIds={[yo.id]} mostrarAnalista={false} permitirExportar={false} />
+          </div>
         </div>
       )
     case 'supervisor':

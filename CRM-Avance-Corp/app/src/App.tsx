@@ -25,6 +25,7 @@ import { RespuestasTasaProvider } from '@/components/app/respuestas-tasa-provide
 import { recibeRespuestasTasa } from '@/lib/respuestas-tasa'
 import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
 import { LeadDrawer } from '@/components/app/lead-drawer'
+import { GuardadosSlaPendientes } from '@/components/app/guardados-sla-pendientes'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { AreaConsultaGerencia } from '@/components/gerencia/area-consulta-gerencia'
@@ -476,6 +477,10 @@ function Workspace() {
         <ErrorBoundary>
           <LeadDrawer />
           <LeadNuevo />
+          {/* Los guardados por confirmar se montan UNA vez (antes vivían dentro
+              de la bandeja SLA, y desde Gestión Diaria F3 hay más de una
+              pantalla que registra gestiones). Se autoapaga si no hay ninguno. */}
+          <GuardadosSlaPendientes />
         </ErrorBoundary>
       </div>
       </RespuestasTasaProvider>

@@ -48,6 +48,10 @@ export interface RegistrarResultadoProps {
   /** Nota precargada (el composer del drawer la trae escrita). */
   notaInicial?: string | undefined
   onClose: () => void
+  /** Se llama SOLO cuando el servidor confirmó el resultado (nunca al cancelar
+   *  ni al quedar «por confirmar»): Gestión Diaria lo usa para saltar a la
+   *  siguiente fila de la cola del día. `onClose` se dispara igual, después. */
+  onGuardado?: (() => void) | undefined
 }
 
 const PLANTILLA: Tarea = {
@@ -68,7 +72,7 @@ const ES_CAMPO = (el: EventTarget | null): boolean => {
   return el instanceof HTMLInputElement && !['radio', 'checkbox', 'button', 'submit'].includes(el.type)
 }
 
-export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: RegistrarResultadoProps): JSX.Element {
+export function RegistrarResultado({ lead, tarea, notaInicial, onClose, onGuardado }: RegistrarResultadoProps): JSX.Element {
   const { registrarLlamada, deshacerResultadoLlamada, tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -220,6 +224,7 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose }: Regist
       if (!confirmado) { setSinConfirmar(entrada); return }
       const confirmacion = await (res.confirmacion ?? Promise.resolve(null))
       onClose()
+      onGuardado?.()
       const partes = [`Llamada registrada · ${etiquetaResultado(entrada.resultado)}`]
       if (entrada.tarea_id && tarea) partes.push(`tarea cerrada («${presentarCitas(tarea.titulo)}»)`)
       if (res.avance && !res.descartado) partes.push(`pasó a ${ETAPA_INFO[res.avance].label}`)

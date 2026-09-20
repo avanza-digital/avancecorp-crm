@@ -1,4 +1,5 @@
-// Capa de datos de Gestión Diaria: la única que habla con `crm.registro_actividad_fn`.
+// Capa de datos de Gestión Diaria: la única que habla con `crm.registro_actividad_fn`
+// y `crm.gestion_diaria_analista_fn`.
 // Valida la respuesta en la frontera (Valibot) y exige que el servidor haga eco
 // de la ventana y el límite pedidos: una página que no corresponde a lo pedido
 // se rechaza, nunca se pinta.
@@ -13,6 +14,7 @@ import {
   type FiltrosRegistro,
   type RegistroPagina,
 } from '@/lib/gestion-diaria'
+import { DiaAnalistaSchema, type DiaAnalista } from '@/lib/gestion-diaria-analista'
 
 const DeshacerResultadoSchema = v.object({
   ok: v.literal(true),
@@ -67,4 +69,28 @@ export async function listarRegistroActividad(
     throw new CrmApiError('La página recibida no corresponde a lo pedido.', 'GESTION_DIARIA_CONTRACT')
   }
   return pagina
+}
+
+/** El día de un analista (Fase 3): marcador, compromisos, señales de cartera y
+ *  descartes con su «Deshacer». `p_analista_id` null = el actor; un analista
+ *  solo puede pedir el suyo (el servidor responde 42501, no un día vacío).
+ *  Se exige ECO del día y del analista pedidos: una respuesta que no
+ *  corresponde a lo pedido se rechaza, nunca se pinta. */
+export async function obtenerDiaAnalista(
+  dia: string | null,
+  analistaId: string | null,
+  signal?: AbortSignal,
+): Promise<DiaAnalista> {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  let consulta = sb.schema('crm').rpc('gestion_diaria_analista_fn', { p_dia: dia, p_analista_id: analistaId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(DiaAnalistaSchema, data)
+  if (!parsed.success) throw new CrmApiError('No se pudo confirmar el día del analista.', 'GESTION_DIARIA_CONTRACT')
+  const respuesta = parsed.output
+  if ((dia !== null && respuesta.dia !== dia) || (analistaId !== null && respuesta.analista_id !== analistaId)) {
+    throw new CrmApiError('El día recibido no corresponde a lo pedido.', 'GESTION_DIARIA_CONTRACT')
+  }
+  return respuesta
 }
