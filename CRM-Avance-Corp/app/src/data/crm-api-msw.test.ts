@@ -27,6 +27,8 @@ import {
   TAMANO_LOTE_TAREAS,
   listarActividadesRecientes,
   TAMANO_BITACORA_RECIENTES,
+  buscarLeadsGlobal,
+  TAMANO_BUSQUEDA_GLOBAL,
   reprogramarReunion,
 } from './crm-api'
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
@@ -983,5 +985,63 @@ describe('cerrarTarea (msw)', () => {
         p_motivo_no_realizada: 'cancelada_cliente',
       },
     ])
+  })
+})
+
+describe('buscarLeadsGlobal (msw) — Fase 4a «sin topes»', () => {
+  const RUTA_PAGINA = 'http://supabase.test/rest/v1/rpc/cartera_pagina_fn'
+  const filaCartera = (sobre: Record<string, unknown> = {}) => fila({ ultimo_contacto_en: null, ...sobre })
+
+  it('pide al servidor el texto normalizado con el tope del desplegable y mapea las filas', async () => {
+    let cuerpo: Record<string, unknown> | null = null
+    server.use(
+      http.post(RUTA_PAGINA, async ({ request }) => {
+        cuerpo = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json([
+          filaCartera({ id: 'l-b-1', nombre_completo: 'Juana Prueba', monto_estimado: '2500.00' }),
+          filaCartera({ id: 'l-b-2', nombre_completo: 'Juan Pérez', etapa: 'contactado' }),
+        ])
+      }),
+    )
+    const filas = await buscarLeadsGlobal('  jua ')
+    expect(cuerpo).toEqual({ p_limite: TAMANO_BUSQUEDA_GLOBAL, p_texto: 'jua' })
+    expect(filas.map((l) => [l.id, l.nombre_completo, l.monto_estimado])).toEqual([
+      ['l-b-1', 'Juana Prueba', 2500],
+      ['l-b-2', 'Juan Pérez', 1000],
+    ])
+  })
+
+  it('por debajo del mínimo no hay petición y el resultado es vacío', async () => {
+    let llamadas = 0
+    server.use(http.post(RUTA_PAGINA, () => { llamadas += 1; return HttpResponse.json([]) }))
+    await expect(buscarLeadsGlobal('j')).resolves.toEqual([])
+    expect(llamadas).toBe(0)
+  })
+
+  it('descarta las filas fuera de contrato y conserva las válidas', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json([
+      filaCartera({ id: 'l-b-1' }),
+      { id: 'rota', nombre_completo: 42 },
+    ])))
+    const filas = await buscarLeadsGlobal('prueba')
+    expect(filas.map((l) => l.id)).toEqual(['l-b-1'])
+  })
+
+  it('más filas de las pedidas o ids repetidos → ROW_CONTRACT', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(
+      Array.from({ length: TAMANO_BUSQUEDA_GLOBAL + 1 }, (_, i) => filaCartera({ id: `l-b-${i}` })),
+    )))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json([filaCartera({ id: 'l-b-1' }), filaCartera({ id: 'l-b-1' })])))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('42501 se explica como cuenta sin acceso, no como avería', async () => {
+    server.use(http.post(RUTA_PAGINA, () => HttpResponse.json(
+      { code: '42501', message: 'No autorizado', details: null, hint: null }, { status: 403 },
+    )))
+    await expect(buscarLeadsGlobal('prueba')).rejects.toMatchObject({
+      code: '42501', message: 'Tu cuenta no tiene acceso a la cartera del CRM.',
+    })
   })
 })

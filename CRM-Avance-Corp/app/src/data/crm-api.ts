@@ -898,6 +898,63 @@ export async function listarCarteraPagina(
   return { items, cursor: siguiente }
 }
 
+/** Resultados del buscador global (Fase 4a «sin topes»): los que caben en el desplegable. */
+export const TAMANO_BUSQUEDA_GLOBAL = 8
+
+/**
+ * Buscador global de la barra (Fase 4a «sin topes»): pide al SERVIDOR los leads
+ * del ámbito que casan con el texto, en vez de filtrar la foto inicial en el
+ * navegador. Reutiliza `crm.cartera_pagina_fn` (INVOKER: el alcance lo pone la
+ * RLS; texto = nombre ILIKE, y teléfono/DNI a partir de 3 dígitos; índices
+ * trigram en las tres columnas), ordenada por actualización reciente. Devuelve
+ * como máximo `limite` filas: el servidor recorta, el navegador NO.
+ *
+ * Quien decide si el texto viaja es `textoBuscable` (mismo mínimo que el
+ * servidor, que rechaza con 22023 por debajo de 2 caracteres): por debajo del
+ * mínimo no hay petición y el resultado es vacío.
+ */
+export async function buscarLeadsGlobal(
+  texto: string,
+  signal?: AbortSignal,
+  limite: number = TAMANO_BUSQUEDA_GLOBAL,
+): Promise<Lead[]> {
+  const buscable = textoBuscable(texto)
+  if (buscable === null) return []
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cartera_pagina_fn', { p_limite: limite, p_texto: buscable })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo =
+      error.code === '42501'
+        ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
+        : new CrmApiError('No se pudo buscar en tus leads.', error.code || 'POSTGREST_ERROR')
+    // Sin el texto: puede ser un nombre, un teléfono o un DNI.
+    registrarError('crm.leads.busqueda_global_fallida', fallo, { largo: buscable.length })
+    throw fallo
+  }
+  const crudas = Array.isArray(data) ? data : []
+  if (crudas.length > limite) {
+    throw new CrmApiError('La búsqueda devolvió más filas de las pedidas.', 'ROW_CONTRACT')
+  }
+  const items: Lead[] = []
+  let descartadas = 0
+  for (const cruda of crudas) {
+    const r = v.safeParse(LeadCarteraRowSchema, cruda)
+    if (r.success) items.push({ ...aLead(r.output), ultimo_contacto_en: r.output.ultimo_contacto_en })
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    registrarError('crm.leads.busqueda_global_filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'), { descartadas })
+  }
+  if (new Set(items.map((l) => l.id)).size !== items.length) {
+    throw new CrmApiError('La búsqueda devolvió leads repetidos.', 'ROW_CONTRACT')
+  }
+  return items
+}
+
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────
 // 'coordinador' (C1) es OFF-ROSTER, como 'directorio': equipo_visible_fn no debe
 // devolverlo; si alguna vez lo hiciera, el picklist lo descarta A PROPÓSITO en el

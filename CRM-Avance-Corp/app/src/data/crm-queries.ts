@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -33,6 +33,7 @@ import {
   listarReporteDerivacionesEquipo,
   listarResumenCartera,
   listarActividadesRecientes,
+  buscarLeadsGlobal,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -217,6 +218,9 @@ export const crmQueryKeys = {
   // Bitácora de Hoy · Directorio (Fase 3 «sin topes»): cuelga del prefijo de
   // métricas del ámbito para que cada mutación la invalide como a los tiles.
   actividadesRecientes: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'actividades-recientes', limite] as const,
+  // Buscador global (Fase 4a): una lista por texto; cuelga de `leads` para que
+  // una mutación de lead la invalide como al resto de listas de leads.
+  busquedaGlobal: (texto: string) => [...crmQueryKeys.leads(), 'busqueda-global', texto] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -510,6 +514,22 @@ export function useActividadesRecientes(habilitada: boolean, limite: number) {
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: 'always',
+  })
+}
+
+/**
+ * Buscador global de la barra (Fase 4a «sin topes»): `texto` ya viene
+ * normalizado y por encima del mínimo (`textoBuscable`), o `null` cuando no
+ * hay nada que pedir. Conserva la lista anterior mientras llega la nueva para
+ * que el desplegable no parpadee entre teclas.
+ */
+export function useBusquedaGlobal(texto: string | null, habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.busquedaGlobal(texto ?? ''),
+    queryFn: ({ signal }) => buscarLeadsGlobal(texto ?? '', signal),
+    enabled: habilitada && texto !== null,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
   })
 }
 
