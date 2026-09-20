@@ -19,13 +19,17 @@ const dobles = vi.hoisted(() => ({
   abrirLead: vi.fn(),
   deshacer: vi.fn(async () => ({ ok: true })),
   panel: { props: null as Record<string, unknown> | null },
+  tareas: [] as Array<Record<string, unknown>>,
+  // El ámbito tiene que traer TODOS los leads de la cola: «Ahora» necesita el
+  // lead para armar el panel, y sin él la pantalla manda a abrir la ficha.
+  leads: [] as Array<Record<string, unknown>>,
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z') }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: [{ id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' }] },
-    tareasDe: () => [],
+    ambito: { leads: dobles.leads },
+    tareasDe: () => dobles.tareas,
     asegurarLead: async () => true,
   }),
   usePanelesActions: () => ({ abrirLead: dobles.abrirLead }),
@@ -78,6 +82,14 @@ beforeEach(() => {
   dobles.errorDia = null
   dobles.cola = { data: { items: [itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'), itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z')] }, error: null, refetch: vi.fn(), isFetching: false }
   dobles.panel.props = null
+  dobles.leads = [
+    { id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' },
+    ...['l2', 'l3', 'l4', 'l5', 'l6'].map((x) => ({ id: x, nombre_completo: `LEAD ${x}`, telefono: '+51999000222', etapa: 'nuevo' })),
+  ]
+  dobles.tareas = [
+    { id: 't-de-la-fila', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T20:00:00Z', titulo: 'La que dice la fila' },
+    { id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' },
+  ]
 })
 
 
@@ -224,6 +236,73 @@ describe('GestionDiariaAnalista · Mi actividad', () => {
     abrir()
     fireEvent.click(await screen.findByRole('tab', { name: /Mi seguimiento/ }))
     expect(await screen.findByRole('button', { name: 'MARTÍN MUÑOZ' })).toBeInTheDocument()
+  })
+})
+
+describe('GestionDiariaAnalista · dos resultados seguidos (carrera)', () => {
+  /** La cola con tres leads del mismo grupo y un `recargar` que se suelta a mano. */
+  function tresYControl() {
+    const sueltas: Array<() => void> = []
+    dobles.recargar = vi.fn(() => new Promise<void>((r) => { sueltas.push(() => { r() }) }))
+    dobles.cola = {
+      data: { items: ['l1', 'l5', 'l6'].map((x, i) => itemCola(x, 'primera_atencion', `2026-09-20T1${i}:00:00Z`)) },
+      error: null, refetch: vi.fn(async () => {}), isFetching: false,
+    }
+    return sueltas
+  }
+  const guardarElDeAhora = async () => {
+    fireEvent.click(screen.getByRole('button', { name: /^Registrar resultado de / }))
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    const guardado = dobles.panel.props?.onGuardado
+    dobles.panel.props = null
+    ;(guardado as () => void)()
+  }
+
+  it('el segundo guardado NO destapa al primero cuando este termina', async () => {
+    const sueltas = tresYControl()
+    render(<GestionDiariaAnalista />)
+
+    await guardarElDeAhora()                       // cierra l1
+    await waitFor(() => expect(screen.queryAllByText('NUEVO SIN INTENTO')).toHaveLength(0))
+    await guardarElDeAhora()                       // cierra l5, con l1 aún en vuelo
+    await waitFor(() => expect(screen.queryAllByText('LEAD l5')).toHaveLength(0))
+
+    // Termina el PRIMERO. Su lead puede volver —el servidor aún lo devuelve—,
+    // pero el SEGUNDO sigue en vuelo y NO puede destaparse: antes, el `finally`
+    // del primero ponía el estado a null y l5 reaparecía con su chip viejo.
+    sueltas[0]?.()
+    await waitFor(() => expect(screen.getAllByText('NUEVO SIN INTENTO').length).toBeGreaterThan(0))
+    expect(screen.queryAllByText('LEAD l5')).toHaveLength(0)
+
+    // Y cuando termina el suyo, l5 vuelve por su cuenta.
+    sueltas[1]?.()
+    await waitFor(() => expect(screen.getAllByText('LEAD l5').length).toBeGreaterThan(0))
+  })
+
+  it('si la recarga falla, no queda un rechazo suelto y el lead vuelve a verse', async () => {
+    dobles.recargar = vi.fn(async () => { throw new Error('502') })
+    dobles.cola = {
+      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z')] },
+      error: null, refetch: vi.fn(async () => {}), isFetching: false,
+    }
+    const alRechazo = vi.fn()
+    window.addEventListener('unhandledrejection', alRechazo)
+    render(<GestionDiariaAnalista />)
+    await guardarElDeAhora()
+    // `allSettled`: la otra lectura sigue su curso y el lead se destapa igual.
+    await waitFor(() => expect(screen.getAllByText('NUEVO SIN INTENTO').length).toBeGreaterThan(0))
+    expect(alRechazo).not.toHaveBeenCalled()
+    window.removeEventListener('unhandledrejection', alRechazo)
+  })
+
+  it('el panel cierra la tarea que dice la FILA, no la que adivine el caché', async () => {
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-de-la-fila' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('button', { name: /^Registrar resultado de / }))
+    await waitFor(() => expect(dobles.panel.props?.tarea).toMatchObject({ id: 't-de-la-fila' }))
   })
 })
 

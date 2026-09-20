@@ -224,6 +224,15 @@ export function textoTiempoDeFila(
   const limite = Date.parse(fila.referencia_en)
   if (Number.isNaN(limite)) return { texto: 'Sin hora confirmada', tono: 'neutro' }
   const restante = limite - ahora
+  // El minuto del vencimiento se dice aparte: con `Math.round` el instante
+  // exacto salía como «Se pasó hace 1 min», y un milisegundo antes como
+  // «Quedan 1 min». Ojo: el reloj late cada 60 s, así que el paso a «vencido»
+  // puede tardar hasta un minuto en pintarse. Es aceptable y queda dicho.
+  if (Math.abs(restante) < 60_000) {
+    return restante > 0
+      ? { texto: 'Vence en menos de 1 min', tono: 'pendiente' }
+      : { texto: 'Se pasó hace menos de 1 min', tono: 'vencido' }
+  }
   const cuanto = duracionLarga(Math.abs(restante))
   return restante > 0
     ? { texto: `Quedan ${cuanto}`, tono: 'pendiente' }
@@ -232,7 +241,9 @@ export function textoTiempoDeFila(
 
 /** «45 min» · «1 h 20 min» · «3 días». Un solo escalón, sin «hace un momento». */
 function duracionLarga(ms: number): string {
-  const minutos = Math.max(Math.round(ms / 60_000), 1)
+  // `floor`, no `round`: a los 59 min 30 s decir «1 h» adelanta el reloj y el
+  // analista lo lee como que le queda más tiempo del que tiene.
+  const minutos = Math.max(Math.floor(ms / 60_000), 1)
   if (minutos < 60) return `${minutos} min`
   if (minutos < 1440) {
     const horas = Math.floor(minutos / 60)

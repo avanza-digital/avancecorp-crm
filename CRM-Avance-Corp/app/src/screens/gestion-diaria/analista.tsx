@@ -55,9 +55,11 @@ export function GestionDiariaAnalista(): JSX.Element {
   const [elegido, setElegido] = useState<string | null>(null)
   const [pestanaPedida, setPestanaPedida] = useState<GrupoDia | null>(null)
   const [pagina, setPagina] = useState(0)
-  // El lead cuyo resultado se acaba de guardar: sigue en la cola hasta que el
+  // Los leads cuyo resultado se acaba de guardar: siguen en la cola hasta que el
   // servidor conteste, y sin esto «Ahora» volvería a proponer al que ya cerraste.
-  const [recienCerrado, setRecienCerrado] = useState<string | null>(null)
+  // Es un CONJUNTO y no un solo id: registrar dos seguidos antes de que vuelva
+  // el primero hacía que el `finally` de uno destapara al otro.
+  const [cerrados, setCerrados] = useState<readonly string[]>([])
   const encabezado = useRef<HTMLHeadingElement>(null)
 
   const dia = useDiaAnalista(null, null)
@@ -75,23 +77,33 @@ export function GestionDiariaAnalista(): JSX.Element {
     const todas = yo?.demo
       ? filasDiariasDemo(dia.dia.cartera, ahora, dia.dia.dia)
       : ordenarColaDiaria(paginaCola?.items ?? [], dia.dia.cartera)
-    return recienCerrado === null ? todas : todas.filter((f) => f.lead_id !== recienCerrado)
-  }, [ahora, dia.dia, paginaCola?.items, recienCerrado, yo?.demo])
+    return cerrados.length === 0 ? todas : todas.filter((f) => !cerrados.includes(f.lead_id))
+  }, [ahora, cerrados, dia.dia, paginaCola?.items, yo?.demo])
 
   const pestanas = useMemo(() => pestanasDiarias(filas), [filas])
-  // La pestaña que pidió el analista manda, PERO si su grupo se vacía se cae
-  // sola al primero que tenga gente: si no, la pantalla se queda clavada en una
-  // pestaña vacía que nadie volvió a pedir.
+  // El elegido se busca en TODAS las filas, no solo en la pestaña abierta: un
+  // refetch puede moverlo de grupo (de «Hoy» a «Vencidas» al dar la hora) y la
+  // pantalla no puede perderlo de vista ni dejar un id fantasma guardado.
+  const elegida = elegido === null ? null : filas.find((f) => f.lead_id === elegido) ?? null
+  // Quién manda sobre la pestaña, en orden: el lead elegido (la pestaña LO
+  // SIGUE), luego la que pidió el analista mientras tenga gente, y si no la
+  // primera con gente. Así no se queda clavada en una pestaña vacía ni salta
+  // sola cuando un refetch rellena un grupo anterior.
   const pedidaViva = pestanaPedida !== null && (pestanas.find((p) => p.clave === pestanaPedida)?.total ?? 0) > 0
-  const activa: GrupoDia = pedidaViva && pestanaPedida !== null
-    ? pestanaPedida
-    : pestanas.find((p) => p.total > 0)?.clave ?? 'primera_atencion'
+  const activa: GrupoDia = elegida !== null
+    ? elegida.grupo
+    : pedidaViva && pestanaPedida !== null
+      ? pestanaPedida
+      : pestanas.find((p) => p.total > 0)?.clave ?? 'primera_atencion'
 
   const delGrupo = pestanas.find((p) => p.clave === activa)?.filas ?? []
-  const vista = paginaDeFilas(delGrupo, pagina, FILAS_POR_PAGINA)
+  // La página se deriva del elegido: si lo eligió, se ve; si no, la que pidió.
+  const indiceElegida = elegida === null ? -1 : delGrupo.findIndex((f) => f.lead_id === elegida.lead_id)
+  const paginaPedida = indiceElegida >= 0 ? Math.floor(indiceElegida / FILAS_POR_PAGINA) : pagina
+  const vista = paginaDeFilas(delGrupo, paginaPedida, FILAS_POR_PAGINA)
   // Sin elección explícita, «Ahora» es el primero de la página: el orden del
   // servidor ya dice quién urge más.
-  const fila = delGrupo.find((f) => f.lead_id === elegido) ?? vista.filas[0] ?? null
+  const fila = elegida ?? vista.filas[0] ?? null
   const posicion = fila === null ? 0 : delGrupo.findIndex((f) => f.lead_id === fila.lead_id) + 1
   const lead = fila === null ? null : leadsPorId.get(fila.lead_id) ?? null
 
@@ -103,15 +115,25 @@ export function GestionDiariaAnalista(): JSX.Element {
     setPagina(0)
     setElegido(null)
   }
+  /** Se guarda ya acotada: si la lista encoge y vuelve a crecer, no salta sola. */
+  function irAPagina(p: number) {
+    setPagina(Math.min(Math.max(p, 0), vista.paginas - 1))
+  }
   function abrirPanel() {
     if (fila === null) return
     const suyo = leadsPorId.get(fila.lead_id)
     if (suyo === undefined) { void abrirLead(fila.lead_id); return }
-    setPanel({ lead: suyo, tarea: tareaQueCierra(tareasDe(suyo.id), 'tel', yo?.id, ahora) ?? null })
+    // La tarea la dice la FILA (`tarea_id` viene de la cola del servidor). Solo
+    // si no llega —o si esa tarea no está en el caché local— se cae al cálculo
+    // de siempre, que devuelve `null` en cuanto hay dos candidatas: quedarse
+    // con la equivocada cerraría la tarea que no era.
+    const pendientes = tareasDe(suyo.id)
+    const suya = fila.tarea_id === null ? undefined : pendientes.find((x) => x.id === fila.tarea_id)
+    setPanel({ lead: suyo, tarea: suya ?? tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null })
   }
   /** Al guardar, «Ahora» pasa al siguiente y el foco vuelve al encabezado. */
   async function alGuardar(leadId: string) {
-    setRecienCerrado(leadId)
+    setCerrados((c) => (c.includes(leadId) ? c : [...c, leadId]))
     setElegido(null)
     // El Dialog devuelve el foco al botón que lo abrió en su propio cuadro; ese
     // botón sigue vivo (está en «Ahora»), así que aquí no se le quita el foco a
@@ -120,13 +142,11 @@ export function GestionDiariaAnalista(): JSX.Element {
       const activo = document.activeElement
       if (activo === null || activo === document.body || activo === document.documentElement) encabezado.current?.focus()
     }))
-    try {
-      await Promise.all([dia.recargar(), cola.refetch()])
-    } finally {
-      // El servidor ya contestó: si el lead sigue en la cola es porque de verdad
-      // sigue pendiente, y entonces debe volver a verse.
-      setRecienCerrado(null)
-    }
+    // `allSettled` y no `all`: si una de las dos lecturas falla, la otra sigue
+    // su curso y aquí no queda un rechazo sin capturar. Y se destapa SOLO este
+    // lead, no el de un guardado que todavía esté en vuelo.
+    await Promise.allSettled([dia.recargar(), ...(yo?.demo ? [] : [cola.refetch()])])
+    setCerrados((c) => c.filter((x) => x !== leadId))
   }
   /**
    * P1 de accesibilidad: el botón que abre o cierra «Mi actividad» se DESMONTA
@@ -145,7 +165,9 @@ export function GestionDiariaAnalista(): JSX.Element {
     try {
       const { deshacerResultadoLlamada } = await import('@/data/gestion-diaria-api')
       await deshacerResultadoLlamada(d.actividad_id)
-      setRecienCerrado(null)
+      // El lead vuelve a la cartera: si estaba tapado por un guardado propio,
+      // se destapa — pero solo ese, no los de otros guardados en vuelo.
+      setCerrados((c) => c.filter((x) => x !== d.lead_id))
       await dia.recargar()
       toast.success(`Deshecho: ${d.lead_nombre} vuelve a tu cartera`)
     } catch (causa) {
@@ -178,7 +200,7 @@ export function GestionDiariaAnalista(): JSX.Element {
                 <ArrowLeft aria-hidden /> Volver a mi día
               </Button>
               <Button variant="outline" className="h-12 text-base font-normal" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
-                onClick={() => { if (dia.enVuelo) return; void dia.recargar(); void cola.refetch() }}>
+                onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
                 <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /> Actualizar
               </Button>
             </>
@@ -228,7 +250,7 @@ export function GestionDiariaAnalista(): JSX.Element {
           <ColaDeHoy
             idBase={id}
             pestanas={pestanas} activa={activa} onPestana={cambiarPestana}
-            pagina={vista.pagina} onPagina={setPagina}
+            pagina={vista.pagina} onPagina={irAPagina}
             elegido={fila?.lead_id ?? null} onElegir={elegir}
             ahora={ahora} cargando={colaCargando} hayMas={paginaCola?.hay_mas === true}
           />

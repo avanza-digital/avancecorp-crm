@@ -70,7 +70,13 @@ export function ColaDeHoy({
           tamano="grande"
           valor={activa}
           onCambio={onPestana}
-          pestanas={pestanas.map((p) => ({ valor: p.clave, etiqueta: p.etiqueta, extra: String(p.total) }))}
+          pestanas={pestanas.map((p) => ({
+            valor: p.clave,
+            etiqueta: p.etiqueta,
+            // Con `hayMas` el servidor tiene filas que esta lectura no trajo:
+            // el conteo es un MÍNIMO y se dice con el «+», no se promete total.
+            extra: hayMas ? `${p.total}+` : String(p.total),
+          }))}
           className="flex min-h-0 flex-1 flex-col [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
         >
           <p className="text-base text-[var(--muted-foreground-strong)]">{grupo?.ayuda}</p>
@@ -116,7 +122,7 @@ export function ColaDeHoy({
                 {/* Se ANUNCIA: al pasar de página cambian las cinco filas y sin
                     esto el lector de pantalla no diría nada (WCAG 4.1.3). */}
                 <p role="status" aria-live="polite" className="text-base text-[var(--muted-foreground-strong)]">
-                  {vista.rango}{hayMas && ' · puede haber más en Seguimiento comercial'}
+                  {vista.rango}{hayMas && ' de los cargados · hay más en Seguimiento comercial'}
                 </p>
                 <div className="flex gap-3">
                   {/* `aria-disabled` y no `disabled`, con la guarda en el handler:

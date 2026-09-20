@@ -54,8 +54,19 @@ describe('textoTiempoDeFila', () => {
     expect(textoTiempoDeFila(fila({ referencia_en: 'no-es-una-fecha' }), AHORA).tono).toBe('neutro')
   })
 
-  it('nunca dice «Quedan 0 min»: por debajo del minuto sigue quedando 1', () => {
-    expect(textoTiempoDeFila(fila({ referencia_en: '2026-09-20T15:00:20Z' }), AHORA).texto).toBe('Quedan 1 min')
+  it('el minuto del vencimiento se dice aparte, sin saltar a «1 min»', () => {
+    // Justo antes, justo encima y justo después: los tres tienen que leerse
+    // distinto de «Quedan 1 min» / «Se pasó hace 1 min», que era lo que salía.
+    expect(textoTiempoDeFila(fila({ referencia_en: '2026-09-20T15:00:20Z' }), AHORA))
+      .toEqual({ texto: 'Vence en menos de 1 min', tono: 'pendiente' })
+    expect(textoTiempoDeFila(fila({ referencia_en: '2026-09-20T15:00:00Z' }), AHORA))
+      .toEqual({ texto: 'Se pasó hace menos de 1 min', tono: 'vencido' })
+    expect(textoTiempoDeFila(fila({ referencia_en: '2026-09-20T14:59:40Z' }), AHORA))
+      .toEqual({ texto: 'Se pasó hace menos de 1 min', tono: 'vencido' })
+  })
+
+  it('no adelanta el reloj: a los 59 min 30 s todavía son minutos, no «1 h»', () => {
+    expect(textoTiempoDeFila(fila({ referencia_en: '2026-09-20T15:59:30Z' }), AHORA).texto).toBe('Quedan 59 min')
   })
 })
 
