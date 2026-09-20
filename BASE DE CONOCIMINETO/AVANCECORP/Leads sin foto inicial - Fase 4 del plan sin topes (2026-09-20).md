@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, leads, agenda, buscador, fase-4, sin-topes]
 actualizado: 2026-09-20
-estado: 4a–4e CONSTRUIDAS (PR #43); SQL 20260920045202 EN PROD (~01:03 Lima) y registro pendiente; front por publicar
+estado: FASE 4 COMPLETA EN PRODUCCIÓN (20/09) — 4a–4e en la PR #43 fusionada (squash dbfa9d6b); SQL 20260920045202 instalada y registrada; front en el release crm-20260920T074547Z-dbfa9d6bffcf
 ---
 
 # Leads sin foto inicial — Fase 4 del plan «sin topes» (2026-09-20)
@@ -120,8 +120,11 @@ sin analista en prod). Hoy · Supervisor solo usa la bandeja local en demo (sin 
 
 ## Lo que falta
 
-1. **[Miguel]** `!` con el registrador `registrar-20260920045202.sql` → fusionar la PR #43 →
-   `/release-crm` → acta, mapa de capas, `main` el mismo día.
+1. ✅ **Hecho el 20/09.** Registrador ejecutado (~01:29 Lima) → PR #43 fusionada a las 02:42 Lima
+   (squash `dbfa9d6b`) → front publicado a las 02:45 Lima en `crm-20260920T074547Z-dbfa9d6bffcf`
+   (`version.json` vivo = `build-20260920T074546386Z`; `/` y el bundle responden 200; el preflight de
+   hoy confirma que `main` local, `a37a7e6f`, tiene el árbol idéntico al vivo). Acta en el ledger y mapa
+   de capas regenerado el mismo día.
 2. Desvíos aceptados respecto al plan: la dedup local del store (`conflictoDedup`) sigue comparando
    contra los leads conocidos (la verdad es el índice único del servidor); `gestion-diaria-queries.ts`
    solo usa la foto en demo (sin coordinación necesaria); el logout no se endureció (no se tocó `epocaRef`).
@@ -130,9 +133,9 @@ sin analista en prod). Hoy · Supervisor solo usa la bandeja local en demo (sin 
      sin `unaccent`): en prod 249 de 1 983 leads activos llevan tilde o ñ y `unaccent` está
      instalado → migración aparte sobre `cartera_pagina_fn`/`cartera_filtrada_fn` (unaccent +
      índice de expresión); la pantalla Leads tiene hoy la misma limitación. **Decisión de Miguel.**
-   - Requisito de la 4e: los escritores del store (`registrarLlamada`, `registrarActividad`,
-     `tareasDe`, cerrar tarea) resuelven el lead por pertenencia a la foto; sin foto deben
-     resolverlo por id bajo RLS. Hoy no es regresión (la foto sigue cargándose).
+   - ✅ Requisito de la 4e, aplicado en `68dd2d52`: los escritores del store (`registrarLlamada`,
+     `registrarActividad`, `tareasDe`, cerrar tarea) ya no dependen de la foto; `asegurarLead(id)`
+     relee el lead por id bajo RLS antes de contactar o agendar.
    - Aplicados: la barra solo pinta la lista de la consulta del texto ACTUAL (Enter ya no
      elige un resultado del texto anterior; sin `keepPreviousData`); la lectura puntual de una
      tarea conserva el lead embebido (`conservarLeadEmbebido`); `leads` se cancela antes de

@@ -12,17 +12,9 @@ proyecto Supabase del portal (`dctqcbznekcyxhjujuci`) con esquema **`crm`** dedi
 
 ## Mapa del código
 
-| Ruta | Qué es |
-|------|--------|
-| `app/` | Front: React 19 + TS + Vite + Tailwind 4 + TanStack Query + XState + Valibot |
-| `app/src/lib/` | Dominio y lógica pura (cada módulo con su `.test.ts` al lado) |
-| `app/src/screens/` | Pantallas por rol (comercial / coordinador / gerencia) |
-| `app/e2e/` | Specs Playwright (smoke por rol, modo demo) |
-| `supabase/migrations/` | Migraciones del esquema `crm` + ledger `MIGRACIONES.md` |
-| `supabase/scripts/` | `test-rls.mjs` (matriz RLS), `seed-demo.mjs`, fixtures |
-| `supabase/functions/` | Fuentes versionadas de las Edge Functions propias del CRM |
-| `scripts/` | `crear-artefacto-release.mjs` (ZIP + manifiesto SHA-256), Apps Script de leads |
-| `../../_supabase_functions/functions/` | Edges compartidas/legadas del portal; los espejos CRM deben quedar byte a byte iguales |
+La estructura la enseña `ls` (`app/`, `supabase/`, `scripts/`). Lo que `ls` no dice: las Edge
+Functions compartidas/legadas del portal viven en `../../_supabase_functions/functions/` y los
+espejos del CRM en `supabase/functions/` deben quedar **byte a byte iguales**.
 
 ## Comandos
 
