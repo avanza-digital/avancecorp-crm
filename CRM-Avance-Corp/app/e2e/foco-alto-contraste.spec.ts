@@ -53,13 +53,14 @@ test('en modo normal el control enfocado tiene un `outline` de verdad, no solo e
 
 test('la regla NO alcanza al modal: abrirlo no pinta un borde alrededor de la ventana', async ({ page }) => {
   await entrarDemo(page, 'Analista')
-  await page.getByRole('button', { name: 'Gestión Diaria' }).click()
 
-  const ahora = page.getByRole('region', { name: 'Ahora' })
-  await ahora.getByRole('button', { name: /Más acciones para/ }).click()
-  await page.getByRole('menuitem', { name: 'Registrar resultado' }).click()
-  const panel = page.getByRole('dialog').first()
-  await expect(panel).toBeVisible({ timeout: 10_000 })
-  const estilo = await panel.evaluate((el) => getComputedStyle(el).outlineStyle)
+  // «Nuevo lead» de la cabecera: un modal que existe en toda la app, para que
+  // esta prueba no dependa de la pantalla que se esté rediseñando.
+  await page.getByRole('button', { name: 'Nuevo lead' }).click()
+  const modal = page.getByRole('dialog').first()
+  await expect(modal).toBeVisible({ timeout: 10_000 })
+  // El contenedor del modal usa `outline-none` A SECAS, no `focus-visible:…`:
+  // recibe el foco al abrirse y no debe quedar rodeado de un borde.
+  const estilo = await modal.evaluate((el) => getComputedStyle(el).outlineStyle)
   expect(estilo).toBe('none')
 })
