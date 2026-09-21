@@ -1,6 +1,6 @@
 # F4 · Etapa 1 — Vista del equipo
 
-Estado al 21/09/2026: **VALIDADA LOCALMENTE, pendiente de integración y publicación.** Sin
+Estado al 21/09/2026: **RECONCILIADA Y VALIDADA LOCALMENTE; pendiente de publicación.** Sin
 instalación ni publicación en producción. Rama `codex/gestion-diaria-f4-vista-equipo`,
 basada en `avancecorp/main` (`37a936c7`), en worktree separado del taller compartido.
 
@@ -141,9 +141,72 @@ los mocks HTTP del navegador ni los preflights offline con una prueba remota.
 
 ## Próximo paso para ponerla en uso
 
-Integrar esta candidata preservando los cambios ajenos del taller. Presentar y
+La reconciliación local está resuelta; conservar los cambios ajenos del taller. Presentar y
 aprobar el SQL exacto antes de instalarlo en producción. Publicar primero el
 servidor y después el frontend mediante invocación humana de `$release-crm` o
 `/release-crm`, desde el commit verificado de `avancecorp/main`. No activar cortes
 ni TypeSafe como parte de esta etapa. Completar el recorrido de negocio con el
 supervisor; no declarar esta etapa publicada sólo por pasar las pruebas locales.
+
+## Integración con el taller autorizada el 21/09
+
+Miguel autorizó reconciliar Main `40f2501b` con la candidata `997e1290`, conservando
+las dos líneas. Los nueve conflictos están resueltos. El remoto se comprobó en
+`37a936c7`; no hubo push ni publicación. El commit de integración mantiene ambos
+padres y la ancestría de lo publicado, sin squash ni reemplazo del historial.
+
+Se conserva el diseño local de «Mi día»: Ahora y cola en dos columnas, nombre
+enfocable, acciones secundarias en menú y registro/detalles plegados. Se mantienen
+los arreglos publicados de cuatro pestañas incluso vacías, paginación, caché
+parcial, tarea autoritativa, resultados concurrentes y estado desconocido distinto
+de cero. El nivel Bajo sigue ámbar y el texto conserva 16 px, incluido el menú.
+
+«Llamar» y el menú usan el mismo panel y la misma tarea autoritativa. La validación
+tardía de un contacto desmontado no abre el resultado del lead anterior. El foco
+anuncia la ficha del lead, se conserva la posición dentro del grupo y Tab sale del
+menú sin caer al body. En móvil las pestañas se desplazan sin solapar etiquetas.
+Dos componentes duplicados y sin consumidores (`MiActividad`, `TarjetaAhora`) se
+retiran de runtime; pueden recuperarse del commit padre `997e1290`. Las pruebas
+ejercen la pantalla realmente conectada, no esas variantes retiradas.
+
+La vista de supervisor, el SQL F4 y `lead-drawer.tsx`/`sla-operacion.tsx` mantienen
+su contenido de `997e1290`: la reconciliación no revierte el bloqueo de creación de
+actividad desde avisos de supervisión. No se modifica ninguna migración versionada.
+
+### Review de integración y criterio del PRIMARY
+
+Una revisión nueva mediante `scripts/claude-review`, sin herramientas ni escritura,
+devolvió `CHANGES_REQUESTED` (confianza media) sobre el primer diff. Se atendieron
+la resolución común de tarea, cobertura del contacto real, componentes duplicados,
+posición del lead, etiqueta de acción, tipografía del menú y foco/navegación.
+
+La tarea por caché del camino primario ya existía antes; no se atribuye falsamente
+a esta fusión, pero queda resuelta para «Mi día». La hipótesis de desmontaje en cada
+refetch no se reprodujo: `colaCargando` requiere ausencia de datos, no `isFetching`.
+Una prueba con datos presentes y refetch activo conserva el contacto sin remontar.
+
+WhatsApp mantiene su flujo previo: el avance solicitado es por resultado de llamada;
+no se equiparan ambos canales ni se cambian sus reglas. El registro histórico es
+un detalle optativo: su fallo se ve al abrirlo; los errores que impiden decidir la
+cola siguen visibles fuera de los plegables. El foco al elegir fila no compite con
+ningún diálogo y pasa el recorrido real. `idBase` sólo se usa para la cola: no queda
+una referencia a `id-dia`. «Mi actividad» abre y enfoca el detalle; su resumen
+nativo permite cerrarlo. No se realizó otra consulta para obtener un PASS.
+
+### Verificación de la integración
+
+PASS: `npm run check`: 270 archivos / 3.991 pruebas, lint, tipos, cobertura,
+configuración, build, bundle y duplicación 0,50 %. Sólo persisten cuatro avisos de
+accesibilidad preexistentes en `coverflow-carousel.tsx`. Lint final repetido PASS.
+PASS: 12 recorridos focalizados de analista/supervisor después de las correcciones,
+incluyendo menú por teclado, contacto, 16 px, dos columnas y móvil sin solapamiento.
+Las capturas `evidencia-f4-vista/analista-integracion-*.png` se inspeccionaron.
+PASS: suite completa final de navegador, 225 aprobadas, 26 omisiones preexistentes
+y cero fallos (251 casos, 2,4 minutos). Sustituye para esta integración el ensayo
+anterior de 224 aprobadas: se añadió la comprobación de diseño móvil/escritorio.
+
+PASS: tres oráculos SQL repetidos en la base local exclusiva y contrato real
+PostgreSQL authenticated → validador del frontend. Se conservan los ensayos anteriores
+de reversa, tipos, advisors y mutantes de F1–F3; no se presentan como repetidos aquí.
+La matriz HTTP general, instalación SQL, publicación y validación humana productiva
+siguen NOT RUN. La aprobación de integración no autoriza ninguna de esas acciones.
