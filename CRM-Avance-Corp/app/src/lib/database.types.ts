@@ -4287,6 +4287,7 @@ export type Database = {
       // 20260920041500: el día de un analista (marcador, compromisos, señales de cartera
       // y descartes con su deshacer). Firma: (date,uuid), ambos con default null.
       gestion_diaria_analista_fn: { Args: { p_dia?: string | null; p_analista_id?: string | null }; Returns: Json }
+      gestion_diaria_equipo_fn: { Args: { p_dia?: string | null; p_supervisor_id?: string | null }; Returns: Json }
       // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F1, migración
       // 20260919211958: registro crudo de actividad por ventana Lima, analistas, tipos y
       // etapa, con cursor keyset. Firma: (date,date,uuid[],text[],text,integer,timestamptz,uuid).

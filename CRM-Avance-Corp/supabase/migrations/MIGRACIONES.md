@@ -1,5 +1,28 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921040335 — Gestión Diaria F4: vista del equipo, etapa 1
+
+**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Puerta `crm.gestion_diaria_equipo_fn(date,uuid)`
+y núcleo INVOKER: roster activo completo, incluso con cero actividad; reutilizan
+`private.gestion_diaria_llamadas` sin modificarla. Pendientes completos bajo RLS,
+no derivados de la caché parcial. Adaptador privado DEFINER sin parámetros,
+admisión explícita y agregados por analista del núcleo SLA autorizado existente.
+Sin tablas, políticas, escrituras de negocio ni cambios en `public`.
+
+Ensayo en copia local exclusiva `gestion_diaria_f4_vista_chvrqh`: gates F1–F4 y
+SLA, roles, ámbito ajeno, fecha inválida/futura, 31 llamadas (29 útiles), tasa
+sin redondear al calificar, 270 tareas adicionales, revocación, censo intacto,
+reversa exacta de F3 y reinstalación determinista PASS. Evidencia y ejecución:
+`supabase/scripts/gestion-diaria-equipo/ensayar.mjs`, los oráculos `test-equipo.sql`,
+`test-jerarquia.sql` y `test-calendario.sql`, `verificacion.json` y `reversa.sql`.
+También PASS: puente inactivo/ciclos, ámbitos gerencia/lector global, cero cartera,
+calendario Lima y modo observación; 48 mutantes previos más nueve nuevos, contrato
+SQL→frontend, cotejo de tipos generados y advisors locales. Claude pidió cambios
+en la candidata anterior: defecto jerárquico reproducido y corregido, accesibilidad
+ajustada; no se atribuye un PASS final al reviewer. Acta y límites en
+`docs/gestion-diaria/F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
+Los cortes, pop-ups y configuración gerencial pertenecen a etapas posteriores.
+
 ## 20260920045202 — Tareas por cursor: el lead embebido completo (Fase 4b «sin topes»)
 
 **✅ SQL EN PRODUCCIÓN el 20/09/2026 (~01:03 Lima = 06:03 UTC, Miguel con `!` + `db query --linked --file`, archivo

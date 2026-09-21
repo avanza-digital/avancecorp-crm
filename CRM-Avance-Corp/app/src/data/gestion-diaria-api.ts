@@ -15,6 +15,7 @@ import {
   type RegistroPagina,
 } from '@/lib/gestion-diaria'
 import { DiaAnalistaSchema, type DiaAnalista } from '@/lib/gestion-diaria-analista'
+import { DiaEquipoSchema, type DiaEquipo } from '@/lib/gestion-diaria-equipo'
 
 const DeshacerResultadoSchema = v.object({
   ok: v.literal(true),
@@ -93,4 +94,18 @@ export async function obtenerDiaAnalista(
     throw new CrmApiError('El día recibido no corresponde a lo pedido.', 'GESTION_DIARIA_CONTRACT')
   }
   return respuesta
+}
+
+/** Foto completa del equipo: el eco de día y supervisor evita mezclar ámbitos. */
+export async function obtenerDiaEquipo(dia: string, supervisorId: string, signal?: AbortSignal): Promise<DiaEquipo> {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  let consulta = sb.schema('crm').rpc('gestion_diaria_equipo_fn', { p_dia: dia, p_supervisor_id: supervisorId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw new CrmApiError(error.message, error.code)
+  const resultado = v.safeParse(DiaEquipoSchema, data)
+  if (!resultado.success || resultado.output.dia !== dia || resultado.output.supervisor_id !== supervisorId) {
+    throw new CrmApiError('No se pudo confirmar el equipo y el día solicitados.', 'GESTION_DIARIA_CONTRACT')
+  }
+  return resultado.output
 }

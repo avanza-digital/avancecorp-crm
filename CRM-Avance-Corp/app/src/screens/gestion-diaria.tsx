@@ -11,6 +11,7 @@ import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
 import { GestionDiariaAnalista } from '@/screens/gestion-diaria/analista'
+import { GestionDiariaSupervisor } from '@/screens/gestion-diaria/supervisor'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
 import { CalendarCheck2 } from 'lucide-react'
@@ -49,12 +50,7 @@ export function GestionDiaria(): JSX.Element {
         </div>
       )
     case 'supervisor':
-      return (
-        <div className="mx-auto w-full max-w-[1640px] space-y-6">
-          <Cabecera pregunta="¿Qué está pasando hoy en mi equipo?" detalle="El registro de actividad de tu equipo, con el texto íntegro de cada llamada. Las alertas y la tabla del equipo llegan en la siguiente entrega." />
-          <RegistroActividad dia={hoy} analistaIds={null} mostrarAnalista permitirExportar={false} />
-        </div>
-      )
+      return <GestionDiariaSupervisor />
     case 'gerencia':
       return (
         <div className="mx-auto w-full max-w-[1640px] space-y-6">

@@ -16,6 +16,9 @@ vi.mock('@/components/gestion-diaria/registro-actividad', () => ({
 vi.mock('@/screens/gestion-diaria/analista', () => ({
   GestionDiariaAnalista: () => <section aria-label="Mi día (mock)" />,
 }))
+vi.mock('@/screens/gestion-diaria/supervisor', () => ({
+  GestionDiariaSupervisor: () => <section aria-label="Mi equipo hoy (mock)" />,
+}))
 const { GestionDiaria } = await import('./gestion-diaria')
 
 beforeEach(() => { yo = { id: 'u1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }; RECIBIDO.props = null })
@@ -30,10 +33,10 @@ describe('GestionDiaria por rol', () => {
   it('supervisor: su equipo (la RLS recorta), con filtro de analista y sin exportación', () => {
     yo = { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' }
     render(<GestionDiaria />)
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('mi equipo')
+    expect(screen.getByLabelText('Mi equipo hoy (mock)')).toBeInTheDocument()
     // «Mi día» es del analista: el supervisor lo recibe en la Fase 4.
     expect(screen.queryByLabelText('Mi día (mock)')).not.toBeInTheDocument()
-    expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19', analistaIds: null, mostrarAnalista: true, permitirExportar: false })
+    expect(RECIBIDO.props).toBeNull()
     expect(screen.queryByLabelText('Día del registro')).not.toBeInTheDocument()
   })
   it('gerencia: todo, exportable, y elige el día sin poder ir al futuro', () => {
