@@ -29,10 +29,20 @@ Sin cambios de frontend, SQL, Edge o cron; sin datos reales enviados ni publicac
 La skill `typesafe-ai` orientó las tres salidas tipadas, el estado mínimo, la separación
 de incertidumbre/fallos y la obligación de medir antes de activar.
 
-Próximo paso: acordar anonimización y criterios con ambos supervisores, preparar
+Continuación preparada: guía y banco local ciego de veinte casos ficticios, con
+exportación/reanudación por espacio y comparación de acuerdo. No usa claves, no accede
+al CRM ni llama a TypeSafe; A/B no autentica revisores. La duda sobre el criterio se
+separa de información insuficiente. No se ha realizado la sesión de los supervisores.
+Ver [[Gestion Diaria F4.1 - banco humano y reglas de cortes (2026-09-21)]].
+
+Próximo paso humano: hacer ese ejercicio, acordar anonimización y criterios, preparar
 100–200 notas en total que representen a ambos equipos, con etiquetas de su respectivo
 supervisor y una validación independiente del ajuste. Conservar revisor/equipo en la
 evidencia y medir los resultados por equipo además del agregado.
+Antes de transferir la primera nota real, rotar la clave expuesta y confirmar/aceptar
+retención y tratamiento de la cuenta. Las fuentes públicas prometen no entrenar con
+entradas, pero no acreditan retención cero para nuestra cuenta. Esos requisitos siguen
+pendientes; investigar las páginas no equivale a cerrar la condición contractual.
 Después se decide si construir/activar las sugerencias con permisos por equipo,
 caché versionada y revisión humana. Cualquier SQL requiere autorización específica.
 

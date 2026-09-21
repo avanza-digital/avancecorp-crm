@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Revisión de criterio · Gestión Diaria</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.mjs"></script>
+  </head>
+  <body>
+    <a class="saltar" href="#principal">Ir a la revisión</a>
+    <header><div class="marca">AVANCE CORP <span>Gestión Diaria</span></div><span class="alcance">Ejercicio local · datos ficticios</span></header>
+    <main id="principal" tabindex="-1">
+      <p class="antetitulo">Preparación del piloto TypeSafe</p>
+      <h1>Un criterio compartido, caso por caso</h1>
+      <p class="introduccion">Compara el resultado de una llamada con su nota. Aquí cuenta tu criterio: no se muestran respuestas de la IA.</p>
+      <p class="aviso">Solo 20 casos ficticios. Sin acceso al CRM ni llamadas a TypeSafe. Equipo A/B identifica el ejercicio; no autentica al supervisor ni protege datos reales.</p>
+      <p id="estado" role="status">Cargando los casos locales…</p>
+      <section id="eleccion" hidden aria-labelledby="titulo-eleccion">
+        <h2 id="titulo-eleccion">Elige tu espacio de revisión</h2>
+        <p>Acuerden quién usa A y quién B. Cada supervisor trabaja por separado sobre los mismos ejemplos ficticios.</p>
+        <nav aria-label="Espacio de revisión"><a class="boton principal" href="/equipo-a">Comenzar · Equipo A</a><a class="boton" href="/equipo-b">Comenzar · Equipo B</a></nav>
+      </section>
+      <div id="ejercicio" hidden>
+        <div class="barra"><strong id="equipo"></strong><span id="progreso"></span></div>
+        <progress id="avance" max="20" value="0" aria-label="Casos revisados"></progress>
+        <div class="columnas">
+          <section aria-labelledby="titulo-caso">
+            <div id="caso">
+              <h2 id="titulo-caso" tabindex="-1"></h2>
+              <dl class="evidencia"><dt>Resultado registrado</dt><dd id="resultado"></dd><dt>Nota de esta llamada</dt><dd id="nota"></dd></dl>
+              <form id="formulario">
+                <fieldset><legend>¿Cómo se relacionan?</legend><div id="opciones"></div></fieldset>
+                <div class="acciones"><button type="button" id="anterior">Anterior</button><button class="principal" id="siguiente" type="submit" disabled>Continuar</button></div>
+              </form>
+            </div>
+            <div id="resumen" hidden>
+              <h2 id="titulo-resumen" tabindex="-1">Tu recorrido está completo</h2>
+              <p id="resumen-texto"></p>
+              <p>Descarga tus respuestas y entrégalas al responsable del piloto. Coincidir entre supervisores no demuestra que la IA acierte ni activa el producto.</p>
+              <button id="volver" type="button">Volver al primer caso</button>
+            </div>
+          </section>
+          <aside aria-label="Guía de revisión">
+            <details open><summary>Qué tener en cuenta</summary><ul id="reglas"></ul></details>
+            <h2>Conserva tu avance</h2>
+            <p>Las respuestas viven solo en esta pestaña. Descarga el archivo antes de salir o recargar.</p>
+            <button id="descargar" type="button">Descargar mis respuestas</button>
+            <label class="cargar" for="archivo">Retomar un archivo de este equipo</label>
+            <input id="archivo" type="file" accept=".json,application/json">
+            <p class="ayuda">Solo acepta respuestas del ejercicio vigente, no archivos de notas reales. Importar sustituye el avance de esta pestaña tras confirmarlo.</p>
+          </aside>
+        </div>
+      </div>
+      <noscript><p>Activa JavaScript para revisar los ejemplos ficticios. No se guardó ninguna respuesta.</p></noscript>
+    </main>
+    <footer>No evalúa a trabajadores. No modifica resultados, tareas, descartes ni alertas del CRM.</footer>
+  </body>
+</html>

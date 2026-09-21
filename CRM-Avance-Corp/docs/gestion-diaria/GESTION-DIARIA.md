@@ -171,8 +171,8 @@ Se preservaron los trabajos concurrentes de Main. Evidencia:
 Miguel expresó conformidad visual tras revisar la vista local el 21/09; después
 autorizó la publicación por separado. Esa conformidad no se presenta como una
 prueba integral de negocio ni como la autorización que permitió el despliegue.
-La siguiente implementación de F4 es la etapa 3; las decisiones
-pendientes de cortes siguen siendo requisitos de su activación.
+La siguiente implementación de F4 es la etapa 3. Las tres decisiones de cortes
+se cerraron después el 21/09 (ver abajo); implementación y activación siguen separadas.
 
 **Etapa 2 publicada y cerrada técnicamente:** Miguel invocó `$release-crm` y
 aprobó el PR #64. Se publicó `baa63aeac71e5a074309aae92a064b67756189f1`, build
@@ -196,7 +196,7 @@ no designar un único responsable. Sigue preparado el ensayo, no los avisos del 
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
-- **F4 posterior:** las decisiones pendientes de los cortes bloquean su activación, no la etapa 1. Ver etapas 3–6; no inventar mínimos de sábado ni límites de aplazamiento.
+- **F4 posterior:** reglas cerradas el 21/09: sábado mínimo 3, analistas sin leads abiertos fuera de los avisos de corte pero visibles en tabla, y un aplazamiento de una hora por aviso/supervisor/día sin reaviso al cierre o después. Falta implementar y verificar etapas 3–6; no se activaron cortes.
 - **Resuelto para esta integración:** el nivel «Bajo» conserva el ámbar publicado en PR #55. Se reconciliaron las dos variantes de «Mi día»: desplegables y flujo horizontal del taller, junto con los arreglos de caché, pestañas y permisos publicados.
 
 ### Lo que F3 dejó escrito (importa para F4)
@@ -559,8 +559,10 @@ exigen ocho; con ocho, veinte; con
 veinte, treinta por el techo.
 
 Se considera lograda cuando los cálculos del servidor respetan `America/Lima`, cuentan toda
-llamada registrada, incluyen a quien lleva cero, aplican el sábado solo el corte de las
-11:30 con mínimo propio y no emiten avisos de jornada el domingo. El primer aviso se retira
+llamada registrada, incluyen a quien lleva cero si tiene leads abiertos asignados,
+aplican el sábado solo el corte de las 11:30 con mínimo inicial de tres y no emiten
+avisos de jornada el domingo. Sin cartera abierta, el analista permanece en la tabla
+pero queda excluido del aviso de corte. El primer aviso se retira
 si el analista alcanza el mínimo antes de las 16:00; el resultado del segundo corte permanece
 aunque llame después. La política aplicable queda fijada al inicio de la jornada consultada.
 
@@ -574,6 +576,9 @@ otro diálogo abierto o el supervisor esté escribiendo y no reaparece en cada r
 Se considera lograda cuando el reconocimiento y el aplazamiento de una hora se guardan en
 servidor, se respetan entre dispositivos y se reflejan igual en el pop-up, la campana y la
 lista. Los reavisos pedidos expresamente al posponer se distinguen de una aparición duplicada.
+Se permite un solo aplazamiento por aviso, supervisor y día Lima. No hay reaviso
+a las 18:00 o después entre semana, ni a las 13:00 o después el sábado; el pendiente
+sigue visible sin convertirse en resuelto. No se arrastra un reaviso al día siguiente.
 Los avisos de inactividad, tareas vencidas, primeros intentos fuera de plazo y leads por
 repartir se agrupan sin repetir el mismo problema. La alerta de tasa muy baja empieza
 desactivada. No se silencian feriados por inferirlos de una baja actividad.
@@ -610,18 +615,26 @@ servidor se publica el frontend; comprobado el funcionamiento, gerencia publica 
 que activa los cortes desde una jornada futura. F4 se puede cerrar y operar por completo con
 TypeSafe desactivado.
 
-#### Decisiones pendientes para activar los cortes
+#### Decisiones cerradas por Miguel el 21/09/2026
 
-Faltan el mínimo de llamadas del sábado, confirmar si se excluye de los cortes a los
-analistas sin cartera abierta y cerrar los límites del aplazamiento (repeticiones y qué
-ocurre al alcanzar el cierre de jornada). No se inventan esos valores. Lo ya acordado —horas,
-valores entre semana, definición de llamada, vigencia futura, pop-up y posibilidad de
-posponer una hora— no se vuelve a preguntar.
+El sábado, de 09:00 a 13:00, hay un único corte a las 11:30 con mínimo inicial
+de **tres llamadas**. Sigue siendo una perilla independiente de gerencia.
 
-Estas decisiones bloquean la activación de los cortes, no la construcción de la vista del
-equipo. Mostrar a un analista sin actividad o sin cartera no implica decidir que deba recibir
-un aviso de incumplimiento. Hasta cerrar las decisiones y publicar la política futura, los
-cortes permanecen desactivados; no se asigna un mínimo de sábado ni una exclusión provisional.
+Los analistas **sin ningún lead abierto asignado no reciben el aviso de ritmo
+de los cortes**, aunque permanecen visibles en la tabla. No se extiende esta
+exclusión por inferencia a tareas vencidas ni a todas las demás alertas.
+
+**«Posponer 1 hora» se permite una sola vez por aviso, supervisor y día Lima**,
+guardado en servidor y respetado entre dispositivos. No se reavisa al llegar
+el cierre o después (18:00 L–V; 13:00 sábado), ni se difiere al siguiente día.
+El pendiente permanece visible, sujeto a las reglas de resolución del primer
+y segundo corte ya acordadas. Ejemplos: sábado 11:30 → 12:30 puede reavisar si
+sigue vigente; sábado 12:15 → 13:15 no; entre semana 17:00 → 18:00 tampoco.
+
+Estas decisiones ya no son bloqueos de negocio. **No equivalen a implementación,
+instalación de SQL ni activación.** Los cortes siguen apagados hasta verificar
+etapas 3–6 y publicar una política futura. Se añaden pruebas de cartera vacía,
+aplazamiento repetido/concurrente, cambio de dispositivo y límites exactos del cierre.
 
 #### Contrato técnico de la entrega
 
@@ -697,7 +710,7 @@ excepcional, que es más que el récord absoluto del equipo en un día entero.
 | Crecimiento exigido | **150 %** | decisión de Miguel: con 20 exige 50 |
 | Piso absoluto del segundo corte | **8** | decisión de Miguel: caza al que llegó a mediodía con cero |
 | Techo absoluto del segundo corte | **30** | sin él la cuenta pediría hasta 73, más que el récord del equipo |
-| Mínimo del sábado (medio día) | **sin fijar** | Miguel lo pone al publicar |
+| Mínimo del sábado (medio día) | **3** | aprobado por Miguel el 21/09/2026 |
 | Tasa muy baja | **vacía** | no hay dato; la produce el reporte de F5 |
 
 **Todos son perillas: gerencia los sube cuando el equipo suba.** Ese es el punto de que sean
@@ -719,7 +732,7 @@ Configurables desde la pantalla de gerencia, con valores de arranque:
 - **Llamadas mínimas al primer corte** — **3** de arranque, medido (ver arriba).
 - **Hora del segundo corte** — 16:00.
 - **Crecimiento exigido en el segundo corte** — 150 %, con **piso 8** y **techo 30**.
-- **Mínimo del sábado** — independiente; pendiente de fijar antes de activar su corte.
+- **Mínimo del sábado** — independiente; **3** de arranque, aprobado el 21/09/2026.
 - **Umbrales de contacto** — 45 / 25 / 5 de arranque, dentro de la misma política versionada.
 - **Tasa muy baja** — **nace VACÍA y esa alerta NO salta hasta que se ponga.** Decisión explícita
   de Miguel: «todavía no hay esa data». El reporte de F5 (abajo) es el que la va a producir.
@@ -738,7 +751,7 @@ NO configurable: **«parado» = más de 2 horas sin llamar**, dentro de 09:00–
 **Por qué el sábado lleva un solo corte:** la jornada acaba a las 13:00, así que un corte a las
 16:00 no existe. El de las 11:30 sí encaja — cae a dos horas y media de empezar, exactamente igual
 que en un día entre semana. El sábado tiene su **propio mínimo de llamadas**, también configurable:
-medio día no puede exigir lo mismo que uno entero.
+Miguel fijó **3** el 21/09/2026; no hay segundo corte de tarde.
 
 El domingo la pantalla no calcula cortes ni pinta alertas de este tipo. Si un analista trabaja un
 domingo, sus llamadas se registran igual: lo que no se hace es juzgarlas contra un corte.
@@ -756,7 +769,7 @@ Reglas para que sea eficaz y no odioso — todas obligatorias:
 - **Una vez por corte y por día.** Salta al llegar el corte, o la primera vez que el supervisor
   abre la pantalla después de esa hora si el problema sigue vigente. No se repite por un
   refresco o cambio de dispositivo; el reaviso solicitado expresamente al posponer se trata
-  por separado. Los límites de aplazamientos repetidos siguen pendientes.
+  por separado: una sola vez por aviso/supervisor/día Lima, sin reaviso al cierre o después.
 - **Se reconoce, y el reconocimiento se guarda EN EL SERVIDOR.** Si viviera en el navegador,
   volvería a saltar al cambiar de equipo o de máquina, y eso es lo que mata una alerta.
 - **Dice quién y cuánto**, no «hay incumplimientos»: la lista de analistas con su cifra y lo que
@@ -764,8 +777,9 @@ Reglas para que sea eficaz y no odioso — todas obligatorias:
 - **Nunca interrumpe algo a medias:** si hay otro diálogo abierto o el supervisor está escribiendo,
   espera. Un pop-up que se come una tecla se gana el odio el primer día.
 - **No salta en domingo**, ni por un corte que no aplica a ese día.
-- **Se puede posponer** (a una hora), y quien lo pospone queda registrado: si se pospone siempre,
-  el número está mal puesto y eso hay que poder verlo.
+- **Se puede posponer una hora, una sola vez por aviso/supervisor/día**; queda registrado
+  quién lo hizo. Al cierre o después no se reavisa ni se agenda para el siguiente día:
+  el pendiente sigue visible sin marcarlo como resuelto.
 
 Va sobre el `Dialog` que ya existe en el CRM (Radix, con trampa de foco, `Escape` por capas y
 retorno de foco), no sobre uno nuevo.
@@ -874,9 +888,9 @@ segundo corte. Con los valores iniciales, base 0 → 8, base 8 → 20 y base 20 
   contexto al supervisor. No se deduce de las llamadas el motivo de una ausencia o un permiso.
 - **Dónde se guarda el reconocimiento del pop-up.** La tabla de reconocimientos que ya existe tiene
   los tipos cerrados por CHECK: ampliarla exige una migración a propósito, que es lo correcto.
-- **Pendientes de activación:** mínimo del sábado, exclusión de analistas sin cartera abierta
-  y límites de repetición y cierre de jornada del aplazamiento de una hora. Las demás reglas
-  cerradas se detallan en «Las dos reglas que Miguel cerró» y en las etapas de F4.
+- **Decisiones de negocio cerradas el 21/09:** sábado mínimo 3, exclusión de cartera vacía
+  solo en los avisos de corte y aplazamiento único sin reaviso al cierre o después. Falta
+  implementar/verificar y activar con vigencia futura; no volver a pedir estas decisiones.
 - **Un día pasado se recalcula con el equipo y la jerarquía de HOY**, no con los de entonces. Hay
   que decirlo en pantalla. Si algún día esto se usa para evaluar desempeño, hará falta guardar la
   evaluación del día, que es un contrato distinto y más caro.
@@ -896,6 +910,13 @@ que ambos supervisores validarán las notas, cada uno las de su propio equipo.
 La responsabilidad queda definida por el equipo; no se espera elegir a uno solo.
 No se enviaron registros reales.
 
+**Preparación humana local posterior:** guía de clasificación y banco ciego de veinte
+casos ficticios para ambos supervisores, con exportación/reanudación por espacio y
+comparación de acuerdo. No autentica identidades ni admite notas reales; las revisiones
+humanas aún no se ejecutaron. Protocolo, tratamiento de datos y criterios propuestos:
+[F4.1-GUIA-REVISION-HUMANA.md](F4.1-GUIA-REVISION-HUMANA.md). Ni acuerdo sintético ni
+confianza del modelo habilitan producción.
+
 Es una entrega posterior y separada de F4. Su activación depende de la utilidad demostrada
 por el piloto; no es requisito para cerrar F4 ni para construir F5. TypeSafe interpreta
 texto: los conteos, cortes, tasas, horarios, permisos y decisiones oficiales siguen en el
@@ -911,12 +932,19 @@ conversaciones anteriores. Primero se confirma que el volumen y la calidad de la
 permiten evaluar el caso; una nota como «se llamó» puede no aportar evidencia suficiente.
 
 Antes de extraer o transferir esa muestra se acuerdan con ambos supervisores la
-anonimización, los criterios de aceptación y la resolución de desacuerdos. La muestra
+anonimización, los criterios de aceptación y la resolución de desacuerdos. Antes de la
+primera transferencia real se debe rotar la clave expuesta y confirmar/aceptar la
+retención y tratamiento aplicables a la cuenta; la política pública no acredita ZDR.
+Primero ambos supervisores practican con el mismo banco ficticio sin ver la salida de
+la IA. Las dudas sobre la guía no cuentan como acuerdos ni como notas insuficientes. La muestra
 total de 100–200 notas debe representar a ambos equipos: cada supervisor recibe y
 etiqueta solo las de su equipo, respetando el ámbito autorizado del CRM. La evidencia
 de revisión conserva quién revisó y a qué equipo corresponde; se mide el resultado
 por equipo, además del agregado, sin convertir el piloto en evaluación de personas.
-Se separan los ejemplos de ajuste de las notas reservadas para validación. El ensayo técnico del
+Se separan por lead los ejemplos de ajuste de las notas reservadas para validación,
+incluidos duplicados. Se mide por equipo con mínimos de casos positivos, denominadores
+e intervalos de incertidumbre; muestra insuficiente no equivale a PASS. Un cambio de
+modelo/pregunta exige nueva validación independiente. El ensayo técnico del
 21/09 usa exclusivamente 20 fixtures sintéticos escritos por Codex, sin etiquetas humanas:
 primera consulta por lote 20/20; control aislado v2 19/20 con una falsa alerta en «Se gestionó».
 Se conserva el desacuerdo, sin rebajar umbrales para obtener un PASS. No cierra esta etapa.
@@ -1000,8 +1028,9 @@ tests. No sustituye `scripts/claude-review` ni los gates del proyecto.
 En la revisión documental del 21/09, Claude devolvió `CHANGES_REQUESTED` sobre el resumen
 aportado, no sobre código. Se incorporaron las aclaraciones de la base fija de las 11:30 y
 de los valores iniciales configurables. La propuesta de inventar valores provisionales para
-sábado o analistas sin cartera no se acepta: son decisiones pendientes de Miguel y bloquean
-la activación, como establece F4. Los horarios de Lima, feriados y la independencia de F6
+sábado o analistas sin cartera no se aceptó entonces: estaban pendientes de Miguel.
+Posteriormente el propio Miguel cerró esas tres reglas (apartado de decisiones de F4);
+no se usaron valores inventados. Los horarios de Lima, feriados y la independencia de F6
 respecto de TypeSafe ya están definidos en el plan. Las comprobaciones documentales del
 PRIMARY pasan; esto no constituye una aprobación del piloto ni una verificación de producto.
 
@@ -1089,14 +1118,17 @@ requisitos para cerrar F4.
 **Hechas** (20/09/2026): confirmar submotivos y umbrales · reconectar el MCP de Codex · autorizar
 el ensayo en banco · instalar y publicar F1, F2 y F3.
 
+**Hechas después (21/09):** publicar F4 etapas 1–2; confirmar ambos supervisores por
+su equipo; fijar sábado en 3 llamadas; excluir cartera vacía de avisos de corte;
+aprobar un único aplazamiento por aviso/supervisor/día, sin reaviso al cierre o después.
+
 **Pendientes:**
 
 1. **Prueba de negocio de F3:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-2. **El mínimo del sábado** para el primer corte: medio día no puede exigir lo de uno entero. Se fija al publicar la política.
-3. **Cerrar las otras reglas pendientes de los cortes:** analistas sin cartera abierta y límites de repetición y cierre de jornada al posponer una hora.
-4. **Instalar y publicar F4**, y después F5: SQL con `!` primero, front con `/release-crm` después. El piloto F4.1 no bloquea ninguna de esas entregas.
-5. **F4.1:** responsables definidos: ambos supervisores, cada uno por su equipo. Preparar la muestra anonimizada de ambos equipos, las etiquetas y los criterios de aceptación. El acceso a TypeSafe ya se verificó; la falsa alerta del ensayo aislado queda como caso de revisión. Decidir la integración visible solo tras el piloto humano y verificar el aislamiento entre equipos.
-6. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
+2. **Prueba de negocio de F4 etapas 1–2:** recorrido productivo del supervisor; no sustituido por smoke HTTP ni conformidad visual local.
+3. **Autorizar la SQL candidata y publicación de F4 etapas 3–6 cuando estén verificadas**, y después F5. Las reglas de negocio ya están cerradas. El piloto F4.1 no bloquea estas entregas.
+4. **F4.1:** realizar el banco ficticio con ambos supervisores, acordar criterios/presupuesto/retención y rotar la clave antes de transferir notas reales. Después autorizar/preparar la muestra de ambos equipos y sus etiquetas independientes. La guía y el banco ya están preparados, no la evaluación humana. Decidir la integración visible solo tras el piloto y verificar aislamiento por equipo también en cola/caché.
+5. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
 
 ### Lo que este plan YA NO dice, y por qué
 
@@ -1135,9 +1167,11 @@ el domingo no tiene avisos de jornada. Se usa pop-up con reconocimiento en servi
 aplazamiento de una hora; las nuevas políticas rigen desde una jornada futura. No volver a
 preguntar esas decisiones ni usar las propuestas anteriores que las contradigan.
 
-Antes de activar, faltan tres definiciones: mínimo del sábado, exclusión o inclusión en los
-cortes de los analistas sin cartera abierta y límites de repetición y cierre de jornada del
-aplazamiento. El aviso requiere CRM abierto; no se incluye push con la aplicación cerrada.
+El 21/09 Miguel cerró las tres definiciones restantes: sábado mínimo tres; sin
+leads abiertos asignados, fuera de avisos de corte pero visibles en tabla; un solo
+aplazamiento por aviso/supervisor/día sin reaviso al cierre o después. El pendiente
+sigue visible. Falta implementar, verificar y activar mediante política futura.
+El aviso requiere CRM abierto; no se incluye push con la aplicación cerrada.
 
 ---
 
@@ -1146,7 +1180,7 @@ aplazamiento. El aviso requiere CRM abierto; no se incluye push con la aplicaci�
 «150 % más» significa multiplicar por 2,5 antes del piso y el techo. Se guarda el porcentaje
 y la pantalla explica tanto la cuenta como el objetivo final acotado. La base es siempre el
 acumulado al primer corte, inicialmente 11:30, no a las 11:00. El mínimo inicial de ese
-corte entre semana es tres; el del sábado sigue pendiente y debe ser independiente.
+corte entre semana es tres; el del sábado también arranca en tres, como perilla independiente.
 
 ---
 
@@ -1172,7 +1206,7 @@ corte_2_incremento_pct integer                -- 150
 corte_2_minimo_llamadas integer               -- piso absoluto
 corte_2_techo_llamadas integer                -- techo absoluto (ver §7)
 aplica_sabado boolean not null default true   -- la regla vigente es L–S
-corte_1_minimo_llamadas_sabado integer        -- pendiente; obligatorio para activar el sábado
+corte_1_minimo_llamadas_sabado integer        -- arranque 3; obligatorio para activar el sábado
 tasa_baja_diferencia_pp integer              -- nullable: NULL desactiva esta alerta
 publicada_por uuid / publicada_en timestamptz
 check (not cortes_activos or (corte_1_hora is not null and … ))
@@ -1225,7 +1259,7 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 ### 4 · El cálculo de los cortes
 
-**Dónde vive: en el núcleo, no en la puerta y desde luego no en la pantalla.** `private.gestion_diaria_cortes(p_dia, p_ini, p_vendedor_ids, p_politica jsonb)`; `crm.gestion_diaria_equipo_fn` (Fase 4, aún sin escribir) **solo autoriza y compone**. Corrección de Codex (F8): yo lo tenía en la puerta, y la regla de la casa es que la puerta no lleva lógica de negocio.
+**Dónde vive: en el núcleo, no en la puerta y desde luego no en la pantalla.** `private.gestion_diaria_cortes(p_dia, p_ini, p_vendedor_ids, p_politica jsonb)`; la puerta `crm.gestion_diaria_equipo_fn` (ya publicada en F4 etapa 1) **solo autoriza y compone** al incorporar los cortes. Corrección de Codex (F8): yo lo tenía en la puerta, y la regla de la casa es que la puerta no lleva lógica de negocio.
 
 **Cómo se mide.** Componiendo el núcleo que **ya está en producción**, `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` (`…041500…sql:206-307`), con tres ventanas: `[día, corte_1)`, `[día, corte_2)`, `[día, min(ahora, fin_día))`. Composición, no duplicación: sigue habiendo **una sola** definición de llamada. **No se usa `por_hora`**: es un array disperso de **hora entera** (`:235`, `extract(hour from … at time zone 'America/Lima')`) y no puede expresar las 11:30.
 
@@ -1242,10 +1276,10 @@ Resolviendo en `v_ini` y exigiendo que `vigente_desde` sea el inicio de una jorn
 - **Corte 1 (11:30):** falla si `llamadas_acumuladas < corte_1_minimo_llamadas`.
 - **Corte 2 (16:00):** objetivo = `max(ceil(base × (100 + incremento)/100), corte_2_minimo_llamadas)`, acotado por `corte_2_techo_llamadas`. **`ceil`, no `round`** (Codex F9): con base 8 e incremento 30 %, el objetivo es 10,4 y «al menos» significa **11**; `round` daría 10. Con 150 % el defecto queda oculto porque salen enteros.
 - **Base cero:** si el acumulado del corte 1 es 0, la razón siempre pasa (0 × 2,5 = 0) y con base 1 pide 3 — por eso el **piso absoluto** manda en ese caso.
-- **Sábado:** si `aplica_sabado` (default **true**), jornada 09:00–13:00 con solo el primer corte a las 11:30 y mínimo independiente. No se calcula corte de tarde ni inactividad después de las 13:00. Domingo sin avisos de jornada.
+- **Sábado:** si `aplica_sabado` (default **true**), jornada 09:00–13:00 con solo el primer corte a las 11:30 y mínimo independiente inicial de **3**. No se calcula corte de tarde ni inactividad desde las 13:00. Domingo sin avisos de jornada.
 - **Feriados: no existe calendario laboral en el repo** (`grep feriado|festivo|dias_no_laborables|calendario_laboral` sobre `supabase/migrations/` y `app/src/` → **0 resultados**) y **no propongo crearlo**. Mi heurística de «día atípico» (silenciar si menos de un tercio del roster registró llamadas) **la retiro**: Codex (F3) demostró que apaga la alarma exactamente el día en que nadie llamó, que es el día que más importa. En su lugar: la alerta **se emite siempre**, y cuando la participación del equipo entero está por los suelos lleva una marca de contexto («actividad excepcionalmente baja en todo el equipo — revisa si hoy es feriado o hubo una incidencia») y se presenta como **una** alerta de equipo, no como N individuales. Silenciar un día requiere una decisión explícita, no una inferencia.
 - **Analista que entró a media mañana:** no se prorratea. La alerta incluye `primera_llamada_en` (ya lo devuelve el núcleo, `:483-484`) para que el supervisor lea el contexto. **Quien tiene cero llamadas SÍ entra en el grupo del corte** — corrección de Codex (F4): mi deduplicación original lo dejaba solo en `sin_llamadas_hoy` y fuera del aviso fuerte, o sea que el que peor está recibía el aviso más débil. `sin_llamadas_hoy` se suprime **en la presentación** para quien ya está dentro del grupo del corte, no en el cálculo.
-- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`). La exclusión de quien no tiene cartera abierta sigue pendiente; no se implementa como una decisión ya aprobada. Cero llamadas no excluye por sí solo a un analista.
+- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`). Miguel aprobó excluir del aviso de corte a quien no tenga ningún lead abierto asignado, sin ocultarlo en tabla. Cero llamadas no excluye por sí solo a un analista con cartera abierta. No extrapolar esta exclusión a las demás alertas.
 
 **Historia.** Todo se deriva del log de actividades; **no hay tabla de «evaluaciones de corte»**. Limitación que hay que decir en pantalla (Codex F10, aceptado): un día pasado se recalcula con **el equipo y la jerarquía de hoy**, no con los de entonces. Reproducir «lo que el supervisor vio aquel día» es un contrato distinto y más caro; si Miguel lo quiere para evaluaciones de desempeño, entonces —y solo entonces— hace falta un registro derivado, que **no** es automáticamente «otro origen de verdad». Pendiente de verificar: que ningún escritor fije `creado_en` a mano en `crm.actividades` (inserciones tardías romperían el recálculo).
 
@@ -1261,8 +1295,10 @@ interacción en curso, espera; antes de aparecer vuelve a comprobar si el proble
 El servidor conserva el reconocimiento y el aplazamiento de una hora. La identidad del corte
 debe distinguir **supervisor + jornada Lima + corte**. Así un reconocimiento de ayer nunca
 oculta el de hoy y un refresco o cambio de dispositivo no produce otra aparición del mismo
-aviso. El reaviso tras posponer es explícito; cantidad de aplazamientos y tratamiento del
-cierre de jornada se cierran antes de activarlo.
+aviso. El reaviso tras posponer es explícito: **una sola vez por aviso/supervisor/día**,
+sin reaviso al cierre o después (18:00 L–V, 13:00 sábado), ni traslado al día siguiente.
+El pendiente sigue visible. Validar el límite y la concurrencia en servidor, sin
+confundir reconocimiento o supresión del pop-up con resolución del problema.
 
 **Extensión del mecanismo existente.** `crm.alertas_reconocimientos` restringe los tipos por
 CHECK y valida el actor a partir del identificador (`20260823204930…:44-46,105-113`). Ampliar
@@ -1306,7 +1342,7 @@ Los siete archivos con `Record<Vista,…>` exhaustivo (si falta uno, el typechec
 
 ### 7 · Riesgos
 
-1. **El ruido.** Mitigaciones: **una** alerta por corte por supervisor con `miembros[]` (no N alertas — regla «una alerta por DECISIÓN», `lib/alertas.ts:405-411`); el corte 1 se retira si se resuelve; techo «1 rojo por decisión, máx. 2 ámbar» del playbook; pop-up sin repeticiones por refresco y con reconocimiento en servidor. La exclusión de analistas sin cartera sigue pendiente. Los cortes se activan con política futura tras verificar el flujo, sin convertir la antigua barra persistente en un requisito. Sin ejecución programada y sin CRM abierto no hay muestra completa de avisos; no prometer observación exhaustiva.
+1. **El ruido.** Mitigaciones: **una** alerta por corte por supervisor con `miembros[]` (no N alertas — regla «una alerta por DECISIÓN», `lib/alertas.ts:405-411`); el corte 1 se retira si se resuelve; techo «1 rojo por decisión, máx. 2 ámbar» del playbook; pop-up sin repeticiones por refresco y con reconocimiento en servidor. La exclusión de analistas sin leads abiertos de los avisos de corte ya fue aprobada el 21/09. Los cortes se activan con política futura tras verificar el flujo, sin convertir la antigua barra persistente en un requisito. Sin ejecución programada y sin CRM abierto no hay muestra completa de avisos; no prometer observación exhaustiva.
 2. **La injusticia del objetivo relativo** (la levanta Codex y es de negocio, no técnica): con ×2,5, quien llevaba 20 necesita 50 y quien llevaba 8 necesita 20. El primero puede acabar con 30 llamadas y **fallar**, mientras el segundo cumple con 20. Por eso propongo `corte_2_techo_llamadas`: quien ya superó un volumen absoluto no falla la regla relativa. El piso solo no lo arregla.
 3. **Re-sellado de md5 y mutantes** (`…041500…sql:800-801`, `:907`, `:912`): si se re-sella sin re-medir en producción, el gate deja de proteger y nadie se entera.
 4. **Deriva del duplicado del front**: `app/src/lib/gestion-diaria-analista.ts:300` repite 45/25/5 a mano para el modo demo y `analista.test.tsx:46` los fija en el fixture. Al hacer configurables los umbrales, ese duplicado se convierte en mentira. Hay que anotarlo como demo explícita.

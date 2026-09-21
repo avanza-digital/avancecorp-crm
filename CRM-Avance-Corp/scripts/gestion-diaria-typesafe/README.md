@@ -11,6 +11,30 @@ node scripts/gestion-diaria-typesafe/piloto.mjs
 node scripts/gestion-diaria-typesafe/piloto.mjs --vivo
 ```
 
+## Banco local para ambos supervisores
+
+`npm run gestion-diaria:banco` abre un servidor solo en `127.0.0.1:5274`.
+Entrar en `http://127.0.0.1:5274/` y elegir Equipo A o B. Cada supervisor revisa
+los mismos veinte ejemplos ficticios, uno a uno y sin soluciones/modelo visibles.
+No hay login: A/B separa archivos del ejercicio, **no implementa permisos del CRM**.
+No acepta corpus de notas reales, no lee claves ni llama a TypeSafe.
+
+Descargar respuestas antes de cerrar; pueden retomarse desde el JSON del mismo
+espacio/versión. Nada se guarda en el servidor ni en almacenamiento persistente
+del navegador. La exportación solo lleva IDs, categorías y metadatos del ejercicio.
+Una duda sobre la guía se registra aparte de «información insuficiente».
+
+Comparar los dos archivos: `npm run gestion-diaria:comparar -- /ruta/a.json /ruta/b.json`.
+La salida mide acuerdo, no precisión del modelo. Siempre mantiene deshabilitada
+la muestra real y la producción; tampoco autentica al autor. Los tests usan
+respuestas ficticias, no sustituyen el ejercicio de los supervisores.
+
+Guía, privacidad, desacuerdos y criterios **propuestos, pendientes de acuerdo**:
+[F4.1-GUIA-REVISION-HUMANA.md](../../docs/gestion-diaria/F4.1-GUIA-REVISION-HUMANA.md).
+Ejecutar todos los checks de esta familia con `npm run test:gestion-diaria-typesafe`.
+
+## Ensayo técnico anterior
+
 Sin `--vivo` no hay red ni lectura de clave. El modo vivo realiza 20 peticiones,
 una por nota y como máximo cuatro simultáneas, sin reintentos automáticos y
 con límite de 15 segundos por petición, utilizando el cliente Jev existente sin

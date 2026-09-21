@@ -21,17 +21,22 @@ implementación o publicación.
    el registro del día y la ficha del lead.
 3. **Cortes de jornada:** detectar ritmo insuficiente con las reglas acordadas y calculadas
    en Lima. Entre semana, 11:30 mínimo 3; 16:00 base ×2,5 con redondeo hacia arriba, piso 8
-   y techo 30. Sábado solo 11:30 dentro de 09:00–13:00; domingo sin avisos de jornada.
+   y techo 30. Sábado solo 11:30, mínimo 3, dentro de 09:00–13:00; domingo sin avisos de jornada.
+   Sin leads abiertos asignados no se recibe aviso de corte, pero se permanece en tabla.
 4. **Alertas y seguimiento:** pop-up con evidencia, reconocimiento en servidor y posibilidad
-   de posponer una hora; coherencia entre dispositivos, campana y lista, sin duplicados.
+   de posponer una hora una vez por aviso/supervisor/día, sin reaviso al cierre o después;
+   coherencia entre dispositivos, campana y lista, sin duplicados y con el pendiente visible.
 5. **Configuración gerencial:** ajustar reglas con versiones y vigencia futura. Esta pantalla
    pertenece a F4, no a F5; la alerta de tasa muy baja nace desactivada.
 6. **Validación y activación:** probar permisos, cálculos, calendario, estados y regresiones;
    publicar servidor y frontend y activar los cortes con una política futura tras verificar.
 
-Pendientes antes de activar: mínimo del sábado, tratamiento de analistas sin cartera abierta
-y límites del aplazamiento (repeticiones y cierre de jornada). No se reabren las decisiones
-ya cerradas ni se inventan estos valores.
+Decisiones cerradas por Miguel el 21/09: sábado mínimo 3; excluir de avisos de corte
+a quien no tiene leads abiertos asignados sin ocultarlo en tabla; un aplazamiento por
+aviso/supervisor/día, sin reaviso desde las 18:00 L–V o 13:00 sábado, ni al día siguiente.
+El pendiente queda visible, conservando las reglas de resolución acordadas. No extender
+la exclusión a todas las demás alertas. Falta implementación/verificación/activación;
+estas decisiones no autorizan SQL ni publicación y no se vuelven a preguntar.
 
 ## Añadido F4.1 — TypeSafe
 
@@ -68,8 +73,9 @@ no cambia código ni instala o activa funcionalidad.
 
 La revisión documental de Claude del 21/09 pidió aclaraciones: el plan deja explícito que
 la base de las 11:30 no cambia después y que los umbrales son valores iniciales configurables.
-No se adoptan mínimos ni exclusiones provisionales: las decisiones pendientes bloquean la
-activación de los cortes, no la vista del equipo. Las verificaciones de documentación pasan;
+No se adoptaron mínimos ni exclusiones provisionales: entonces esas decisiones bloqueaban
+la activación de los cortes, no la vista del equipo. Miguel las cerró posteriormente
+como recoge el apartado vigente anterior. Las verificaciones de documentación pasan;
 no se acredita implementación ni resultado del piloto.
 
 Actualización de implementación inicial del 21/09: F4 etapa 1 cuenta con una candidata validada
@@ -82,7 +88,7 @@ Actualización posterior del 21/09: la etapa 1 ya fue publicada, como registra
 la etapa 2 y se implementó el detalle horario y el recorrido al registro/ficha
 en el taller aislado, sin nuevas SQL ni publicación. Ver
 [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]]. Las etapas
-3–6 y el piloto TypeSafe conservan su alcance y sus decisiones pendientes.
+3–6 y el piloto TypeSafe conservan su alcance; las decisiones de cortes se cerraron después.
 
 Cierre posterior del 21/09: la etapa 2 se publicó desde `baa63aea`, PR #64,
 con autorización `$release-crm`, CI y 110 controles HTTP finales PASS. Fuente,
@@ -97,6 +103,11 @@ una falsa alerta en «Se gestionó». No se enviaron datos reales ni se activó 
 Miguel aclaró que ambos supervisores validarán el piloto, cada uno únicamente las
 notas de su propio equipo; no queda pendiente elegir a uno solo. Estado y
 continuación en [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]].
+
+Preparación posterior: banco local de veinte ejemplos ficticios compartidos para alinear
+la rúbrica de ambos supervisores, sin soluciones visibles ni acceso al CRM. Guía y comparación
+de etiquetas preparadas; la revisión humana y las condiciones para notas reales siguen
+pendientes. Ver [[Gestion Diaria F4.1 - banco humano y reglas de cortes (2026-09-21)]].
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] ·
 [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]] ·
