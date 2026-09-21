@@ -24,7 +24,10 @@ describe('GestionDiaria por rol', () => {
   it('analista: «Mi día» primero y su propio registro debajo, sin filtro de analista ni exportación', () => {
     render(<GestionDiaria />)
     expect(screen.getByLabelText('Mi día (mock)')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: '¿Qué hice hoy?' })).toBeInTheDocument()
+    // Densidad (20/09/2026): el registro propio es un plegable — su título es
+    // el h3 del `summary` y lleva el resumen al lado; arranca cerrado.
+    const registro = screen.getByRole('heading', { level: 3, name: /¿Qué hice hoy\?/ })
+    expect(registro.closest('details')).not.toHaveAttribute('open')
     expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19', analistaIds: ['u1'], mostrarAnalista: false, permitirExportar: false })
   })
   it('supervisor: su equipo (la RLS recorta), con filtro de analista y sin exportación', () => {

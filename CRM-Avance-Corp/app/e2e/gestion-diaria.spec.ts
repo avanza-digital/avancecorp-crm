@@ -10,9 +10,15 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page).toHaveURL(/#\/gestion-diaria$/)
-    // Desde la Fase 3 el analista abre con «Mi día»: el registro conserva su
-    // propio h2 y hay que nombrarlo (antes había uno solo en la pantalla).
-    await expect(page.getByRole('heading', { level: 2, name: /hoy/i })).toBeVisible()
+    if (rol === 'Analista') {
+      // Desde la Fase 3 el analista abre con «Mi día»; y desde la densidad del
+      // 20/09 su propio registro vive PLEGADO —es memoria, no trabajo
+      // pendiente—, así que hay que abrirlo para verlo.
+      await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
+      await page.getByRole('heading', { name: /¿Qué hice hoy\?/ }).click()
+    } else {
+      await expect(page.getByRole('heading', { level: 2, name: /hoy/i })).toBeVisible()
+    }
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
     await expect(page.getByRole('tab', { name: /Llamadas/ })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('tab', { name: 'Todo' }).click()
@@ -21,7 +27,9 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     const lista = page.getByRole('list', { name: 'Registro de actividad' })
     await expect(lista.getByRole('listitem').first()).toBeVisible()
     await expect(lista.getByText(/Contestó|No contestó/).first()).toBeVisible()
-    await expect(page.getByRole('tabpanel')).toBeVisible()
+    // `last()`: la pantalla del analista puede traer su propio tabpanel antes
+    // que el del registro; el del registro es siempre el último.
+    await expect(page.getByRole('tabpanel').last()).toBeVisible()
     if (rol === 'Gerencia') {
       await expect(page.getByLabel('Día del registro')).toBeVisible()
       await expect(page.getByRole('combobox', { name: 'Equipo' })).toBeVisible()
