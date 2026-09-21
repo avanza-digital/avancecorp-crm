@@ -5,6 +5,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
+import { proximoSlotSugerido } from '@/lib/agenda-derivada'
 
 vi.stubEnv('VITE_ENABLE_DEMO', 'true')
 const { StoreProvider } = await import('./store')
@@ -29,7 +30,7 @@ async function montar() {
   return hook
 }
 
-const manana = () => new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+const manana = () => proximoSlotSugerido(Date.now())
 
 describe('store demo · registrarLlamada / deshacerResultadoLlamada', () => {
   beforeEach(() => window.sessionStorage.clear())
@@ -61,7 +62,7 @@ describe('store demo · registrarLlamada / deshacerResultadoLlamada', () => {
     expect(lead).toBeDefined()
     let res!: ReturnType<typeof result.current.registrarLlamada>
     act(() => {
-      res = result.current.registrarLlamada(lead!.id, { resultado: 'no_interesado', submotivo: 'ya_invirtio_con_otro' })
+      res = result.current.registrarLlamada(lead!.id, { resultado: 'no_interesado', submotivo: 'ya_invirtio_con_otro', descartar: true })
     })
     expect(res.ok).toBe(true)
     expect(res.descartado).toBe(true)
@@ -77,6 +78,33 @@ describe('store demo · registrarLlamada / deshacerResultadoLlamada', () => {
     expect(acts.some((a) => a.tipo === 'nota' && a.metadata?.evento === 'resultado_deshecho')).toBe(true)
     act(() => { deshecho = result.current.deshacerResultadoLlamada(conf!.actividad_id) })
     expect(deshecho.ok).toBe(false)
+  })
+
+  it.each(['no_interesado', 'pide_otro_producto'] as const)('%s conserva el lead y agenda sin descartar', async (resultado) => {
+    const { result } = await montar()
+    const lead = result.current.ambito.leads.find((l) => l.etapa === 'nuevo' && l.vendedor_id === 'd-v1')!
+    let res!: ReturnType<typeof result.current.registrarLlamada>
+    act(() => {
+      res = result.current.registrarLlamada(lead.id, { resultado, submotivo: 'otro', siguiente: { tipo: 'whatsapp', titulo: 'Seguimiento acordado', vence_en: manana() } })
+    })
+    expect(res.ok).toBe(true)
+    expect(res.descartado).toBe(false)
+    const confirmacion = await res.confirmacion!
+    expect(result.current.lead(lead.id)).toMatchObject({ vendedor_id: 'd-v1', etapa: 'contactado' })
+    expect(result.current.tareasDe(lead.id).find((t) => t.id === confirmacion?.siguiente_id)).toMatchObject({ tipo: 'whatsapp', titulo: 'Seguimiento acordado' })
+    expect(result.current.actividadesDe(lead.id).find((a) => a.id === confirmacion?.actividad_id)?.metadata).toMatchObject({ resultado, submotivo: 'otro', descartado: false })
+  })
+
+  it('no admite agenda junto con descarte o No insistir ni tipos incompatibles', async () => {
+    const { result } = await montar()
+    const lead = result.current.ambito.leads.find((l) => l.etapa === 'nuevo' && l.vendedor_id === 'd-v1')!
+    const siguiente = { tipo: 'whatsapp', titulo: 'Seguimiento', vence_en: manana() }
+    const antes = result.current.actividadesDe(lead.id).length
+    expect(result.current.registrarLlamada(lead.id, { resultado: 'no_interesado', submotivo: 'otro', descartar: true, siguiente }).ok).toBe(false)
+    expect(result.current.registrarLlamada(lead.id, { resultado: 'no_interesado', submotivo: 'otro', no_insista: true, siguiente }).ok).toBe(false)
+    expect(result.current.registrarLlamada(lead.id, { resultado: 'numero_errado', siguiente }).ok).toBe(false)
+    expect(result.current.actividadesDe(lead.id)).toHaveLength(antes)
+    expect(result.current.lead(lead.id)?.etapa).toBe('nuevo')
   })
 
   it('espeja los rechazos del servidor: submotivo obligatorio, dueño sin fecha, descarte indebido', async () => {

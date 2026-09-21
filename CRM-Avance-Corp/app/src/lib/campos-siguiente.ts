@@ -34,6 +34,16 @@ export interface CamposSiguiente {
   hora: string // 'HH:MM'      (input type=time)
 }
 
+const TITULO_POR_TIPO: Record<TipoTarea, string> = {
+  llamada: 'Llamar a', whatsapp: 'WhatsApp a', reunion: 'Cita con', tarea: 'Tarea —',
+}
+
+/** La ficha del lead y el resultado de llamada sugieren el mismo título. */
+export function tituloProximaAccion(tipo: TipoTarea, nombre: string): string {
+  const primero = nombre.trim().split(/\s+/)[0] ?? ''
+  return `${TITULO_POR_TIPO[tipo]} ${primero}`.trim()
+}
+
 /** Sugerencia del motor → los cuatro campos del formulario. */
 export function camposDeSugerencia(s: SugerenciaSiguiente): CamposSiguiente {
   const ms = Date.parse(s.vence_en)

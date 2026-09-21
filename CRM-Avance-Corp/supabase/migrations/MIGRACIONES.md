@@ -1,5 +1,27 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921153654 — Resultado de llamada: seguimiento y descarte separados
+
+**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Miguel confirmó «separar el resultado del
+descarte» y autorizó probar únicamente en `gestion_diaria_f4_vista_chvrqh`.
+`crm.registrar_llamada_v4` compone actividad/cierre y próxima acción atómicos;
+`no_interesado` y `pide_otro_producto` requieren submotivo, pero solo descartan
+con `p_descartar=true`. No admite siguiente con descarte o veto de contacto.
+Solo el dueño agenda; conserva los roles, ámbitos y candados anteriores.
+
+V3 y su núcleo no cambian: los recibos legacy se confirman por la misma puerta.
+Gate v4 (cuerpos, forma y ACL) añadido al gate F2 sin retirar sus sellos, por
+tanto incluido en los paraguas F3/F4. Sin tablas, policies ni cambios de datos
+históricos o de `public`. Tipos cotejados con la generación desde el banco.
+
+Ensayo local: oráculo bajo `authenticated`, F2/F3/F4, 48 mutantes previos,
+nueve de F4 y cinco de v4, gates SLA, censo, reversa/reinstalación con datos v4
+preservados. F1 histórico falla su antigua whitelist de metadata también sin
+v4; no se acredita PASS a ese oráculo. Scripts y límites:
+`supabase/scripts/resultado-llamada-seguimiento/` y
+`docs/gestion-diaria/RESULTADO-LLAMADA-SEGUIMIENTO.md`.
+Producción, registro de la migración y publicación requieren otra aprobación.
+
 ## 20260921040335 — Gestión Diaria F4: vista del equipo, etapa 1
 
 **LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Puerta `crm.gestion_diaria_equipo_fn(date,uuid)`

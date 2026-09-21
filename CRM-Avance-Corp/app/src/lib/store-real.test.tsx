@@ -4,7 +4,7 @@
 // mockea (sin red); CrmApiError se conserva real para el instanceof de persistir.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useRef } from 'react'
-import type { Lead } from './tipos'
+import type { Lead, Tarea } from './tipos'
 import { act, render, waitFor } from '@testing-library/react'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -16,9 +16,12 @@ import type { Yo } from './tipos'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import type { CumplimientoMetasRpc } from './objetivos'
 import * as crmApi from '@/data/crm-api'
-import { ejecutarComandoSla } from '@/data/sla-operacion-comandos'
+import { ejecutarComandoSla, hayIntencionPendienteSla, hayLlamadaV3Pendiente, tareaConConfirmacionPendiente } from '@/data/sla-operacion-comandos'
 
-vi.mock('@/data/sla-operacion-comandos', () => ({ ejecutarComandoSla: vi.fn(), tareaConConfirmacionPendiente: vi.fn() }))
+vi.mock('@/data/sla-operacion-comandos', () => ({
+  ejecutarComandoSla: vi.fn(), tareaConConfirmacionPendiente: vi.fn(),
+  hayIntencionPendienteSla: vi.fn(), hayLlamadaV3Pendiente: vi.fn(),
+}))
 import { crmQueryKeys } from '@/data/crm-queries'
 import { slaOperacionKeys } from '@/data/sla-operacion-queries'
 import { queryClient } from './query-client'
@@ -349,6 +352,9 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     invalidarQueriesMock.mockReset().mockResolvedValue(undefined)
     vi.mocked(queryClient.cancelQueries).mockReset().mockResolvedValue(undefined)
     comandoSla.mockResolvedValue(undefined)
+    vi.mocked(hayIntencionPendienteSla).mockReset().mockReturnValue(false)
+    vi.mocked(hayLlamadaV3Pendiente).mockReset().mockReturnValue(false)
+    vi.mocked(tareaConConfirmacionPendiente).mockReset()
     SEMILLA.cola = []
     listarLeads.mockResolvedValue([leadBase()])
     obtenerLeadPorId.mockReset().mockResolvedValue(null)
@@ -373,6 +379,70 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     insertarActividad.mockResolvedValue(undefined)
   })
   afterEach(() => vi.clearAllMocks())
+
+  it('resultado sin interés y seguimiento se envían a v4 sin descarte ni escrituras sueltas', async () => {
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    const siguiente = { tipo: 'tarea', titulo: 'Preparar información', vence_en: new Date(Date.now() + 86_400_000).toISOString() }
+    const r = mutar((a) => a.registrarLlamada(lead.id, { resultado: 'no_interesado', submotivo: 'otro', siguiente }))
+    expect(r.ok).toBe(true)
+    await act(async () => { expect(await r.persistido).toBe(true) })
+    expect(comandoSla).toHaveBeenCalledWith('u-v1', 'registrar_llamada_v4', lead.id, expect.objectContaining({
+      p_resultado: 'no_interesado', p_submotivo: 'otro', p_descartar: false, p_no_insista: false,
+      p_siguiente: expect.objectContaining(siguiente),
+    }))
+    expect(insertarActividad).not.toHaveBeenCalled()
+    expect(insertarTarea).not.toHaveBeenCalled()
+    expect(actualizarLead).not.toHaveBeenCalled()
+  })
+
+  it('un recibo legacy bloquea una nueva interpretación antes del optimista o de la red', async () => {
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    vi.mocked(hayLlamadaV3Pendiente).mockReturnValue(true)
+    const antes = api().actividadesDe(lead.id)
+    const r = mutar((a) => a.registrarLlamada(lead.id, { resultado: 'no_interesado', submotivo: 'otro', descartar: false }))
+    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('Guardados por confirmar') })
+    expect(api().actividadesDe(lead.id)).toEqual(antes)
+    expect(comandoSla).not.toHaveBeenCalled()
+  })
+
+  it('un replay conserva p_tarea_id aunque la tarea cerrada ya no esté en las pendientes', async () => {
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    const tarea = { id: 'tarea-cerrada', lead_id: lead.id, tipo: 'llamada', titulo: 'Llamar',
+      vence_en: new Date().toISOString(), estado: 'pendiente', activo: true, reprogramaciones: 0,
+      creado_en: new Date().toISOString() } as Tarea
+    vi.mocked(hayIntencionPendienteSla).mockReturnValue(true)
+    vi.mocked(tareaConConfirmacionPendiente).mockReturnValue(tarea)
+    expect(api().tareas).toHaveLength(0)
+    const r = mutar((a) => a.registrarLlamada(lead.id, {
+      resultado: 'no_interesado', submotivo: 'otro', tarea_id: tarea.id,
+      siguiente: { tipo: 'tarea', titulo: 'Siguiente', vence_en: new Date(Date.now() - 86_400_000).toISOString() },
+    }))
+    expect(r.ok).toBe(true)
+    await act(async () => { expect(await r.persistido).toBe(true) })
+    expect(comandoSla).toHaveBeenCalledWith('u-v1', 'registrar_llamada_v4', lead.id,
+      expect.objectContaining({ p_tarea_id: tarea.id, p_descartar: false }), tarea)
+  })
+
+  it('un replay con siguiente llega al servidor aunque el dueño haya cambiado', async () => {
+    const lead = { ...leadBase(), vendedor_id: 'u-ger' }
+    listarLeads.mockResolvedValue([lead])
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    vi.mocked(hayIntencionPendienteSla).mockReturnValue(true)
+    const r = mutar((a) => a.registrarLlamada(lead.id, {
+      resultado: 'no_interesado', submotivo: 'otro',
+      siguiente: { tipo: 'tarea', titulo: 'Siguiente original', vence_en: new Date(Date.now() - 86_400_000).toISOString() },
+    }))
+    expect(r.ok).toBe(true)
+    await act(async () => { expect(await r.persistido).toBe(true) })
+    expect(comandoSla).toHaveBeenCalledWith('u-v1', 'registrar_llamada_v4', lead.id, expect.objectContaining({ p_descartar: false }))
+  })
 
   it('carga el ámbito operativo y resuelve vendedor_nombre desde el roster', async () => {
     const { api } = montar('supervisor')

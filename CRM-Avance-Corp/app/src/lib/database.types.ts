@@ -4994,6 +4994,20 @@ export type Database = {
       // ESCRITO A MANO (gen:types sigue roto). Gestión Diaria F2, migración
       // 20260920005000: resultado tipificado de llamada (recibo idempotente por
       // p_operacion_id) y su deshacer de 24 h.
+      registrar_llamada_v4: {
+        Args: {
+          p_descartar?: boolean
+          p_detalle?: string
+          p_lead_id: string
+          p_no_insista?: boolean
+          p_operacion_id: string
+          p_resultado: string
+          p_siguiente?: Json
+          p_submotivo?: string
+          p_tarea_id?: string
+        }
+        Returns: Json
+      }
       registrar_llamada_v3: { Args: { p_operacion_id: string; p_lead_id: string; p_resultado: string; p_submotivo?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_tarea_id?: string | null; p_descartar?: boolean | null; p_no_insista?: boolean | null }; Returns: Json }
       deshacer_resultado_llamada: { Args: { p_actividad_id: string }; Returns: Json }
       registrar_reingreso_lead_fn: {

@@ -103,6 +103,7 @@ import {
 } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
+import { tituloProximaAccion } from '@/lib/campos-siguiente'
 import { presentarCitas } from '@/lib/terminologia'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -503,18 +504,6 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
 // tipo llamada, título prellenado, próximo día hábil 10:00 — ventana legal
 // L–S 07:00–20:00 como sugerencia, no candado).
 
-const TITULO_POR_TIPO: Record<TipoTarea, string> = {
-  llamada: 'Llamar a',
-  whatsapp: 'WhatsApp a',
-  reunion: 'Cita con',
-  tarea: 'Tarea —',
-}
-
-function tituloSugerido(tipo: TipoTarea, nombre: string): string {
-  const primero = nombre.trim().split(/\s+/)[0] ?? ''
-  return `${TITULO_POR_TIPO[tipo]} ${primero}`.trim()
-}
-
 /** ¿El instante cae fuera de la ventana legal peruana (L–S 07:00–20:00)? */
 function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
   const d = new Date(`${fecha}T${hora}:00-05:00`)
@@ -571,7 +560,7 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
 
   const slot = proximoSlotSugerido(ahora)
   const [tipo, setTipo] = useState<TipoTarea>('llamada')
-  const [titulo, setTitulo] = useState(() => tituloSugerido('llamada', l.nombre_completo))
+  const [titulo, setTitulo] = useState(() => tituloProximaAccion('llamada', l.nombre_completo))
   const [tituloEditado, setTituloEditado] = useState(false)
   const [fecha, setFecha] = useState(() => fechaLima(Date.parse(slot)))
   const [hora, setHora] = useState('10:00')
@@ -599,7 +588,7 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
     if (!esTipoTarea(v)) return
     setTipo(v)
     // El título sugerido sigue al tipo mientras el analista no lo haya tocado.
-    if (!tituloEditado) setTitulo(tituloSugerido(v, l.nombre_completo))
+    if (!tituloEditado) setTitulo(tituloProximaAccion(v, l.nombre_completo))
   }
 
   /**
@@ -715,7 +704,7 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
     partes.push('la verás en Hoy y en Agenda')
     toast.success(`${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}`)
     setTituloEditado(false)
-    setTitulo(tituloSugerido(tipo, l.nombre_completo))
+    setTitulo(tituloProximaAccion(tipo, l.nombre_completo))
     setAgendarOtra(false) // vuelve a plegarse: ya hay próxima acción visible
   }
 

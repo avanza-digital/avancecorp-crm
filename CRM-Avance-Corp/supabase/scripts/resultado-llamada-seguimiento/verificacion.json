@@ -1,0 +1,32 @@
+{
+  "base": "gestion_diaria_f4_vista_chvrqh",
+  "ensayado_en": "2026-09-21T16:13:06.631Z",
+  "md5": {
+    "puerta": "cbd0a3da63397507c2312d0cf15c0b8c",
+    "core": "d6c4407c92e7f38c055653b4a4ead538"
+  },
+  "sha256_migracion": "d863988a96bba84482b1ee0b387d5218dce44b896e69abfb6f2d1479778d8fc8",
+  "sha256_reversa": "96f83e4cfd718c4dbcbb95c333c9fb7c84cc1391b1346b75fc45e89189706fe3",
+  "tests": [
+    "v4 authenticated: seguimiento, cierre, descarte, veto, replay y permisos",
+    "F2 legacy",
+    "F3",
+    "F4 equipo",
+    "F4 jerarquia",
+    "F4 calendario",
+    "F1: 10 mutantes",
+    "F2: 14 mutantes",
+    "F3: 24 mutantes",
+    "v4 mutante: puerta expuesta anon",
+    "v4 mutante: puerta expuesta PUBLIC",
+    "v4 mutante: nucleo expuesto",
+    "v4 mutante: authenticated sin acceso",
+    "v4 mutante: cuerpo modificado",
+    "gate paraguas tras mutantes",
+    "reversa y reinstalacion conservan lead, tarea e historial v4",
+    "gates SLA"
+  ],
+  "censo_intacto": true,
+  "reinstalacion_determinista": true,
+  "datos_v4_preservados": true
+}

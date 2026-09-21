@@ -49,6 +49,15 @@ puertas `crm.registrar_llamada_v3` y `crm.deshacer_resultado_llamada`, SQL `2026
 instalada el 20/09, frontend `crm-20260920T034405Z-afc391974382` y build
 `build-20260920T034404914Z`.
 
+Ampliación aprobada el 21/09: **resultado y descarte se separan**. El formulario
+contrae los otros seis resultados al elegir uno, ofrece «Cambiar resultado» y
+permite agendar desde «No le interesa» y «Pide otro producto». Implementada en
+el taller aislado y probada únicamente en la base local autorizada; todavía NO
+está publicada. Nueva puerta `crm.registrar_llamada_v4`, candidata
+`20260921153654_crm_resultado_llamada_seguimiento.sql`. Detalles, revisión,
+pruebas y límites: [RESULTADO-LLAMADA-SEGUIMIENTO.md](RESULTADO-LLAMADA-SEGUIMIENTO.md).
+No confundir esta mejora transversal de F2/F3 con el cierre de F4.
+
 **F3 — Analista «Mi día».** Ayudar al analista a saber a quién atender ahora y qué le queda
 pendiente, con una única acción principal y una cola completa en cuatro pestañas. Su actividad,
 horas y descartes quedan en un segundo nivel, conservando un piso tipográfico de 16 px.
@@ -91,8 +100,8 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 1. «Hoy» se queda igual; Gestión Diaria es un módulo distinto (grupo Operación).
 2. Cola del analista: lead nuevo sin primer intento primero, luego vencidas, luego las de hoy.
 3. Plus Jakarta Sans sí; verde no (navy sobre fondo tenue para «Bien»).
-4. «Contestó · no le interesa» descarta en la misma operación, con submotivo y Deshacer 24 h.
-5. «Pide otro producto» también descarta (motivo `pide_credito`). Ambos caen en el Centro de rescate, reabribles por el supervisor.
+4. **Actualización 21/09:** «Contestó · no le interesa» registra el resultado y el submotivo; NO descarta por elegirlo. El analista puede conservarlo y agendar una próxima acción o marcar el descarte expresamente.
+5. **Actualización 21/09:** «Pide otro producto» tampoco descarta automáticamente. Solo si se marca «Descartar y enviar al Centro de rescate» aplica el motivo `pide_credito`. El descarte explícito conserva el rescate y Deshacer 24 h. «No volver a contactar» sigue bloqueando nuevas acciones; no se elimina al deshacer.
 6. Número errado / no es la persona: el analista decide (2.º número hoy · descartar por datos inválidos · reintento a 7 días · solo registrar). No entran en la tasa.
 7. Tasa: el % siempre con el conteo al lado; chip y alerta solo con ≥ 5 llamadas útiles.
 8. Supervisor y gerencia ven llamadas por rango de horas (08–20 Lima) por analista (F3/F4).
@@ -174,8 +183,8 @@ Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18�
 1. **«Hoy» se queda igual.** Gestión Diaria es un módulo DISTINTO en el menú (grupo Operación, donde hoy está Seguimiento). La pantalla de entrada de cada rol no cambia.
 2. **Cola del analista: el lead nuevo sin primer intento va primero**, luego vencidas, luego las de hoy (regla del 25/08).
 3. **Plus Jakarta Sans sí, verde no.** Se carga la tipografía en todo el CRM; los estados «Bien» van en navy sobre fondo tenue (el azul `#2563eb` se reserva a enlaces, selección y foco, como manda el mockup 6 «un significado, un color»).
-4. **«Contestó · no le interesa» descarta el lead en la misma operación**, con submotivo obligatorio y deshacer de 24 h (ese deshacer NO existe hoy para el analista: se construye, ver Fase 2).
-5. **«Pide otro producto» también descarta**, con motivo «pide crédito / otro producto» y submotivo agregable. Ambos descartes (4 y 5) caen en el **Centro de rescate** ya existente (`crm.rescate_descartes_mes`, `20260820181756:87-126`), donde el supervisor o gerencia pueden reabrirlos (`crm.reabrir_lead_fn`, `20260906150000:87-180`). Verificado: esa carpeta lee los episodios descartados del equipo y excluye a propósito `datos_invalidos`.
+4. **«Contestó · no le interesa» registra el resultado con submotivo obligatorio, sin descarte automático** (decisión que sustituye la anterior, 21/09). Puede acompañarse de una próxima acción.
+5. **«Pide otro producto» también separa el resultado del descarte**. En ambos casos, descartar es una elección expresa e incompatible con crear una próxima acción en ese guardado. Solo el descarte alimenta el **Centro de rescate** existente (`crm.rescate_descartes_mes`) y su deshacer/reapertura. La carpeta sigue excluyendo a propósito `datos_invalidos`.
 6. **«Número errado» / «No es la persona»: el analista decide.** Si el lead tiene segundo número, el panel propone la tarea «llamar al segundo número» hoy; si no, el panel ofrece «Descartar por datos inválidos» (con deshacer 24 h) o «Mantener con reintento a 7 días» y el analista elige. Estas llamadas cuentan como intento pero NO entran en la tasa de contacto.
 7. **Tasa de contacto: el % se muestra siempre con el conteo al lado** («100 % · 2 llamadas», como el mockup 3). Con menos de 5 llamadas no hay chip Bien/Atención/Bajo ni alerta, y esas filas van al final del orden por tasa.
 
@@ -264,7 +273,19 @@ Verificación: `npm run check`. Codex: no.
 
 ### Fase 2 — El resultado tipificado · LEVEL 3 · 1 migración + 1 PR
 
-**Qué obtiene Miguel:** cada llamada del CRM, en cualquier pantalla, se cierra con uno de los 7 resultados; «volver a llamar» crea la tarea sola; «no le interesa» y «pide otro producto» descartan con motivo real hacia el Centro de rescate; todo con «Deshacer» de 24 h.
+**Qué obtiene Miguel:** cada llamada del CRM, en cualquier pantalla, se registra con uno de los 7 resultados; la elección contrae los demás. «Volver a llamar» crea la tarea; «No le interesa» y «Pide otro producto» permiten conservar el lead y programar llamada, WhatsApp, cita o tarea. El descarte es una decisión aparte y explícita, con motivo real y los efectos de Deshacer admitidos por el servidor durante 24 h.
+
+**Ampliación del 21/09, pendiente de producción:** `registrar_llamada_v4` y su núcleo
+versionado aplican la nueva decisión. La puerta v3 y su núcleo se conservan literalmente
+para clientes anteriores y recibos pendientes: nunca reinterpretar un guardado viejo como
+una solicitud v4. El panel de guardados reenvía la puerta, UUID y contenido originales.
+Motivo compacto; título, tipo, fecha, hora y campos de cita compartidos con la ficha;
+descarte y veto eliminan la próxima acción del envío sin borrar el borrador visible al
+desmarcarlos. Pruebas y orden de activación en el acta enlazada arriba.
+
+**Diseño original de F2 que sigue como antecedente:** las firmas v3 y los detalles que
+siguen explican lo entregado el 20/09. Donde contradigan el desacople, gobierna la
+ampliación v4; no editar retrospectivamente la migración instalada de F2.
 
 **Servidor (`…_crm_gestion_diaria_resultado_llamada.sql`):**
 - CHECK de FORMA sobre `crm.actividades.metadata` (`metadata->>'resultado' is null or … in (catálogo)`), `NOT VALID` + `VALIDATE` (patrón `actividades_creado_en_finito`, `20260818045032:248-252`). De forma, no de presencia: `registrar_actividad_v2` y `cerrar_tarea_v2` siguen insertando sin metadata. Gobierna también el INSERT directo de `insertarActividad` (`crm-api.ts:2163-2166`).
@@ -805,8 +826,9 @@ conversaciones anteriores. Primero se confirma que el volumen y la calidad de la
 permiten evaluar el caso; una nota como «se llamó» puede no aportar evidencia suficiente.
 
 Se usa una pregunta acotada de `Choice` con tres salidas: compatible, posible contradicción
-e información insuficiente. Ejemplo sintético: resultado «No le interesa» y nota «Pidió que
-lo llame el viernes». Se devuelve una sugerencia de revisión; el modelo no puede comprobar
+e información insuficiente. Ejemplo sintético: resultado «No contestó» y nota «Conversamos
+y confirmó la cita». «No le interesa» con una próxima llamada NO es una contradicción
+por sí solo desde la decisión del 21/09. Se devuelve una sugerencia de revisión; el modelo no puede comprobar
 que la llamada ocurrió ni que una de las dos versiones sea verdadera.
 
 Se considera lograda esta etapa cuando existe una evaluación humana con aciertos, falsas
@@ -948,7 +970,7 @@ requisitos para cerrar F4.
 
 **Front (por PR):** `npm run test:coverage` antes · `npm run check` · `npm run check:all` en las fases que cambien flujos de usuario, navegación o roles, incluida F4 · `gate:realidad` · `revisor-a11y` · `design-qa.md` en fases 3–5 · preflight `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>` · PR con merge commit ANTES de construir · `/release-crm` por Miguel · bundle vivo contrastado · `git push avancecorp main` el mismo día.
 
-**Prueba de negocio (Miguel, tras cada fase):** F1: como supervisor, leer el texto de una llamada de su equipo y comprobar que NO ve otro equipo; como gerencia, exportar CSV. F2: registrar una llamada real con «volver a llamar» y ver la tarea en Agenda; «no le interesa» → el lead aparece en el Centro de rescate con motivo; «Deshacer» dentro de 24 h lo devuelve a su etapa. F3: como analista, comprobar que el primer ítem coincide con «Ahora» de Hoy. F4: tabla y detalle del equipo, cortes, pop-up, reconocimiento/aplazamiento entre dispositivos y publicación gerencial de reglas futuras; conservar el reconocimiento de vencidas y por repartir. F4.1: piloto contra etiquetas humanas y sugerencias confirmables/descartables sin alterar registros ni bloquear F4. F5: pulso y cuadre remedidos, drill-down hasta el registro.
+**Prueba de negocio (Miguel, tras cada fase):** F1: como supervisor, leer el texto de una llamada de su equipo y comprobar que NO ve otro equipo; como gerencia, exportar CSV. F2: elegir un resultado y ver contraídas las demás opciones; «No le interesa» + motivo + próxima acción conserva el lead y crea la tarea; solo al marcar descarte aparece en el Centro de rescate; «Deshacer» dentro de 24 h revierte los efectos admitidos, nunca el veto de contacto. F3: como analista, comprobar que el primer ítem coincide con «Ahora» de Hoy. F4: tabla y detalle del equipo, cortes, pop-up, reconocimiento/aplazamiento entre dispositivos y publicación gerencial de reglas futuras; conservar el reconocimiento de vencidas y por repartir. F4.1: piloto contra etiquetas humanas y sugerencias confirmables/descartables sin alterar registros ni bloquear F4. F5: pulso y cuadre remedidos, drill-down hasta el registro.
 
 ### Acciones manuales de Miguel
 

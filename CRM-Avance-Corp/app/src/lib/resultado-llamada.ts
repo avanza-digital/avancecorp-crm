@@ -1,13 +1,13 @@
 // lib/resultado-llamada.ts — el catálogo del RESULTADO TIPIFICADO de una llamada
-// (Gestión Diaria, Fase 2). Espejo EXACTO del servidor (migración
-// 20260920005000): mismas 7 claves de resultado, mismos submotivos y el mismo
+// (Gestión Diaria, Fase 2). Espejo del contrato v4 (20260921153654):
+// conserva las 7 claves y submotivos de 20260920005000 y el mismo
 // mapeo a tipo de actividad y a motivo de descarte. `resultado-llamada.test.ts`
 // fija las claves para que el front no invente una que el CHECK del servidor
-// rechazaría.
+// rechazaría. Desde v4 el descarte se decide aparte; v3 queda para recibos legacy.
 //
 // Vocabulario visible: se dice «cita», nunca «reunión» (decisión del 27/08);
 // las claves técnicas (`agendo_reunion`, tipo de tarea `reunion`) no cambian.
-import type { MotivoDescarte, TipoActividadManual } from './tipos'
+import type { MotivoDescarte, TipoActividadManual, TipoTarea } from './tipos'
 
 export const RESULTADOS_LLAMADA = [
   'no_contesto', 'volver_a_llamar', 'agendo_reunion', 'no_interesado',
@@ -39,19 +39,26 @@ export interface DefinicionResultado {
   paso: PasoDelResultado
   /** ¿Cuenta como llamada ÚTIL para la tasa de contacto? */
   util: boolean
-  /** ¿Descarta el lead en la misma operación? */
-  descarta: boolean
+  /** Ofrece descarte separado del resultado; nunca lo ejecuta por elegirlo. */
+  descarteOpcional: boolean
 }
 
 export const RESULTADOS: readonly DefinicionResultado[] = [
-  { clave: 'no_contesto', etiqueta: 'No contestó', detalle: 'Se propone el siguiente intento', atajo: '1', tipo: 'llamada_no_contestada', paso: 'sugerencia', util: true, descarta: false },
-  { clave: 'volver_a_llamar', etiqueta: 'Contestó · volver a llamar', detalle: 'Se agenda la llamada con fecha y hora', atajo: '2', tipo: 'llamada_realizada', paso: 'siguiente_llamada', util: true, descarta: false },
-  { clave: 'agendo_reunion', etiqueta: 'Contestó · agendó cita', detalle: 'Se agenda la cita con fecha, hora y modalidad', atajo: '3', tipo: 'llamada_realizada', paso: 'cita', util: true, descarta: false },
-  { clave: 'no_interesado', etiqueta: 'Contestó · no le interesa', detalle: 'Se descarta con el motivo; se puede deshacer 24 h', atajo: '4', tipo: 'llamada_realizada', paso: 'submotivo', util: true, descarta: true },
-  { clave: 'numero_errado', etiqueta: 'Número errado', detalle: 'Tú decides: segundo número, descartar o reintentar', atajo: '5', tipo: 'llamada_no_contestada', paso: 'decision_numero', util: false, descarta: false },
-  { clave: 'no_es_la_persona', etiqueta: 'No es la persona', detalle: 'Tú decides: segundo número, descartar o reintentar', atajo: '6', tipo: 'llamada_no_contestada', paso: 'decision_numero', util: false, descarta: false },
-  { clave: 'pide_otro_producto', etiqueta: 'Pide otro producto', detalle: 'Se descarta como «pide crédito»; se puede deshacer 24 h', atajo: '7', tipo: 'llamada_realizada', paso: 'submotivo', util: true, descarta: true },
+  { clave: 'no_contesto', etiqueta: 'No contestó', detalle: 'Se propone el siguiente intento', atajo: '1', tipo: 'llamada_no_contestada', paso: 'sugerencia', util: true, descarteOpcional: false },
+  { clave: 'volver_a_llamar', etiqueta: 'Contestó · volver a llamar', detalle: 'Se agenda la llamada con fecha y hora', atajo: '2', tipo: 'llamada_realizada', paso: 'siguiente_llamada', util: true, descarteOpcional: false },
+  { clave: 'agendo_reunion', etiqueta: 'Contestó · agendó cita', detalle: 'Se agenda la cita con fecha, hora y modalidad', atajo: '3', tipo: 'llamada_realizada', paso: 'cita', util: true, descarteOpcional: false },
+  { clave: 'no_interesado', etiqueta: 'Contestó · no le interesa', detalle: 'Registra el motivo y elige la próxima acción', atajo: '4', tipo: 'llamada_realizada', paso: 'submotivo', util: true, descarteOpcional: true },
+  { clave: 'numero_errado', etiqueta: 'Número errado', detalle: 'Tú decides: segundo número, descartar o reintentar', atajo: '5', tipo: 'llamada_no_contestada', paso: 'decision_numero', util: false, descarteOpcional: false },
+  { clave: 'no_es_la_persona', etiqueta: 'No es la persona', detalle: 'Tú decides: segundo número, descartar o reintentar', atajo: '6', tipo: 'llamada_no_contestada', paso: 'decision_numero', util: false, descarteOpcional: false },
+  { clave: 'pide_otro_producto', etiqueta: 'Pide otro producto', detalle: 'Registra qué necesita y elige la próxima acción', atajo: '7', tipo: 'llamada_realizada', paso: 'submotivo', util: true, descarteOpcional: true },
 ]
+
+/** Espejo del contrato v4; conserva las restricciones de los otros resultados. */
+export function tiposSiguientesDeResultado(resultado: ResultadoLlamada): readonly TipoTarea[] {
+  if (resultado === 'no_interesado' || resultado === 'pide_otro_producto') return ['llamada', 'whatsapp', 'reunion', 'tarea']
+  if (resultado === 'no_contesto') return ['llamada', 'whatsapp']
+  return resultado === 'agendo_reunion' ? ['reunion'] : ['llamada']
+}
 
 const POR_CLAVE: ReadonlyMap<ResultadoLlamada, DefinicionResultado> = new Map(RESULTADOS.map((r) => [r.clave, r]))
 

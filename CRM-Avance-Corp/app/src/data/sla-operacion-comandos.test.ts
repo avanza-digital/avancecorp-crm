@@ -5,7 +5,7 @@ vi.mock('@/lib/supabase', async () => {
   const { createClient } = await import('@supabase/supabase-js')
   return { sb: createClient('http://supabase.test', 'anon-fake', { auth: { persistSession: false } }) }
 })
-import { ejecutarComandoSla, limpiarIntencionesSla, tareaConConfirmacionPendiente, listarPendientesSla, confirmarPendienteSla } from './sla-operacion-comandos'
+import { ejecutarComandoSla, limpiarIntencionesSla, tareaConConfirmacionPendiente, listarPendientesSla, confirmarPendienteSla, hayLlamadaV3Pendiente } from './sla-operacion-comandos'
 import type { Tarea } from '@/lib/tipos'
 
 const servidor = setupServer()
@@ -22,6 +22,73 @@ afterEach(() => { servidor.resetHandlers(); vi.restoreAllMocks(); vi.unstubAllGl
 afterAll(() => servidor.close())
 
 describe('recibos de gestiones SLA', () => {
+  const entradaLlamada = { p_lead_id: 'lead', p_resultado: 'no_interesado', p_submotivo: 'otro', p_descartar: false }
+  const sobreLlamada = (cuerpo: Record<string, unknown>) => ({
+    ok: true, version: 2, operacion_id: cuerpo.p_operacion_id, lead_id: 'lead',
+    comando: 'registrar_llamada', actividad_id: cuerpo.p_tarea_id ? 'actividad-cierre' : cuerpo.p_operacion_id,
+    resultado: cuerpo.p_resultado, descartado: cuerpo.p_descartar === true, no_insista: cuerpo.p_no_insista === true,
+    siguiente_id: cuerpo.p_siguiente ? 'siguiente' : null,
+  })
+
+  it('v4 recupera la respuesta perdida sin reinterpretar resultado ni descarte', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    servidor.use(http.post(ruta, async ({ request, params }) => {
+      expect(params.comando).toBe('registrar_llamada_v4')
+      const cuerpo = await request.json() as Record<string, unknown>; cuerpos.push(cuerpo)
+      return cuerpos.length === 1 ? HttpResponse.error() : HttpResponse.json(sobreLlamada(cuerpo))
+    }))
+    const args = { ...entradaLlamada, p_siguiente: { tipo: 'tarea', titulo: 'Informar', vence_en: '2026-10-01T15:00:00Z' } }
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v4', 'lead', args)).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    const pendiente = listarPendientesSla('actor')[0]!
+    expect(pendiente.comando).toBe('registrar_llamada_v4')
+    await confirmarPendienteSla('actor', pendiente.operacion)
+    expect(cuerpos[1]).toEqual(cuerpos[0])
+    expect(listarPendientesSla('actor')).toEqual([])
+  })
+
+  it('un pendiente v3 bloquea v4 y se recupera con la puerta y el UUID originales', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    const puertas: unknown[] = []
+    servidor.use(http.post(ruta, async ({ request, params }) => {
+      const cuerpo = await request.json() as Record<string, unknown>
+      cuerpos.push(cuerpo); puertas.push(params.comando)
+      return cuerpos.length === 1 ? HttpResponse.error() : HttpResponse.json({
+        ...sobreLlamada(cuerpo), descartado: params.comando === 'registrar_llamada_v3',
+      })
+    }))
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v3', 'lead', entradaLlamada)).rejects.toBeDefined()
+    expect(hayLlamadaV3Pendiente('actor', 'lead')).toBe(true)
+    expect(hayLlamadaV3Pendiente('otro', 'lead')).toBe(false)
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v4', 'lead', entradaLlamada)).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    expect(cuerpos).toHaveLength(1)
+    await confirmarPendienteSla('actor', listarPendientesSla('actor')[0]!.operacion)
+    expect(cuerpos[1]).toEqual(cuerpos[0])
+    expect(hayLlamadaV3Pendiente('actor', 'lead')).toBe(false)
+    await ejecutarComandoSla('actor', 'registrar_llamada_v4', 'lead', entradaLlamada)
+    expect(puertas).toEqual(['registrar_llamada_v3', 'registrar_llamada_v3', 'registrar_llamada_v4'])
+    expect(cuerpos[2]!.p_operacion_id).not.toBe(cuerpos[0]!.p_operacion_id)
+  })
+
+  it.each([
+    { resultado: 'no_contesto' }, { descartado: true }, { no_insista: true },
+    { actividad_id: 'otra' }, { siguiente_id: 'no-pedida' },
+  ])('v4 conserva el recibo si HTTP 200 confirma efectos distintos: %j', async (parche) => {
+    servidor.use(http.post(ruta, async ({ request }) => {
+      const cuerpo = await request.json() as Record<string, unknown>
+      return HttpResponse.json({ ...sobreLlamada(cuerpo), ...parche })
+    }))
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v4', 'lead', entradaLlamada))
+      .rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    expect(listarPendientesSla('actor')).toHaveLength(1)
+  })
+
+  it('v4 mantiene protegida la tarea cerrada hasta confirmar', async () => {
+    const tarea = { id: 'tarea', lead_id: 'lead', tipo: 'llamada', estado: 'pendiente', activo: true } as Tarea
+    servidor.use(http.post(ruta, () => HttpResponse.error()))
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v4', 'lead', { ...entradaLlamada, p_tarea_id: tarea.id }, tarea)).rejects.toBeDefined()
+    expect(tareaConConfirmacionPendiente('actor', 'tarea')).toEqual(tarea)
+  })
+
   it('recupera una respuesta perdida con exactamente el mismo UUID y payload', async () => {
     const cuerpos: Record<string, unknown>[] = []
     servidor.use(http.post(ruta, async ({ request }) => {

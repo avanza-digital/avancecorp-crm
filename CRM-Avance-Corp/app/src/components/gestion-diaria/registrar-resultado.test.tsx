@@ -49,12 +49,13 @@ interface Montaje {
   actividades?: Actividad[]
   pendientes?: Tarea[]
   confirmacion?: ConfirmacionLlamada
+  persistido?: Promise<boolean>
 }
 
-function montar({ lead = LEAD, tarea = null, yo = 'v1', rol = 'vendedor', actividades = [], pendientes = [], confirmacion = { actividad_id: 'act-1', siguiente_id: null, descartado: false } }: Montaje = {}) {
+function montar({ lead = LEAD, tarea = null, yo = 'v1', rol = 'vendedor', actividades = [], pendientes = [], confirmacion = { actividad_id: 'act-1', siguiente_id: null, descartado: false }, persistido = Promise.resolve(true) }: Montaje = {}) {
   vi.useRealTimers()
   vi.spyOn(Date, 'now').mockReturnValue(AHORA)
-  const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => ({ ok: true, persistido: Promise.resolve(true), confirmacion: Promise.resolve(confirmacion) }))
+  const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => ({ ok: true, persistido, confirmacion: Promise.resolve(confirmacion) }))
   const deshacerResultadoLlamada = vi.fn<StoreDataApi['deshacerResultadoLlamada']>(() => ({ ok: true, persistido: Promise.resolve(true) }))
   const api = {
     registrarLlamada, deshacerResultadoLlamada,
@@ -83,6 +84,91 @@ const peticion = (fn: ReturnType<typeof montar>['registrarLlamada']): RegistrarL
 }
 
 describe('RegistrarResultado', () => {
+  it('contrae los otros seis resultados, conserva el foco y permite cambiarlos sin borrar el borrador', async () => {
+    const user = userEvent.setup()
+    montar()
+    await user.click(screen.getByRole('radio', { name: /No contestó/ }))
+    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(screen.getByRole('radio', { name: /No contestó/ })).toHaveFocus()
+    await user.clear(screen.getByLabelText('Título'))
+    await user.type(screen.getByLabelText('Título'), 'Seguimiento personalizado')
+    screen.getByRole('button', { name: 'Cambiar resultado' }).focus()
+    await user.keyboard('4')
+    expect(screen.getByRole('radio', { name: /No contestó/ })).toBeChecked()
+    expect(screen.getByLabelText('Título')).toHaveValue('Seguimiento personalizado')
+    await user.click(screen.getByRole('button', { name: 'Cambiar resultado' }))
+    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(7)
+    await user.keyboard('1')
+    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(screen.getByLabelText('Título')).toHaveValue('Seguimiento personalizado')
+    await user.click(screen.getByRole('button', { name: 'Cambiar resultado' }))
+    await user.click(screen.getByRole('radio', { name: /no le interesa/ }))
+    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(screen.getByRole('checkbox', { name: /Descartar y enviar/ })).not.toBeChecked()
+  })
+
+  it.each(['llamada', 'whatsapp', 'reunion', 'tarea'])('«no le interesa» agenda %s sin descartar y conserva el título editado', async (tipo) => {
+    const user = userEvent.setup()
+    const { registrarLlamada } = montar()
+    await user.click(screen.getByRole('radio', { name: /no le interesa/ }))
+    await user.selectOptions(screen.getByLabelText(/¿Por qué no le interesa/), 'sin_fondos_ahora')
+    await user.clear(screen.getByLabelText('Título'))
+    await user.type(screen.getByLabelText('Título'), 'Retomar en octubre')
+    await user.selectOptions(screen.getByLabelText('Tipo de próxima acción'), tipo)
+    expect(screen.getByLabelText('Título')).toHaveValue('Retomar en octubre')
+    if (tipo === 'reunion') await user.selectOptions(screen.getByLabelText('Modalidad de la cita'), 'virtual')
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+    expect(peticion(registrarLlamada)).toMatchObject({
+      resultado: 'no_interesado', submotivo: 'sin_fondos_ahora', descartar: false,
+      siguiente: { tipo, titulo: 'Retomar en octubre' },
+    })
+  })
+
+  it('«pide otro producto»: descartar oculta la agenda sin perder los campos si se desmarca', async () => {
+    const user = userEvent.setup()
+    const { registrarLlamada } = montar()
+    await user.click(screen.getByRole('radio', { name: /Pide otro producto/ }))
+    await user.selectOptions(screen.getByLabelText(/¿Qué producto pide/), 'credito')
+    await user.selectOptions(screen.getByLabelText('Tipo de próxima acción'), 'whatsapp')
+    const titulo = (screen.getByLabelText('Título') as HTMLInputElement).value
+    await user.click(screen.getByRole('checkbox', { name: /Descartar y enviar/ }))
+    expect(screen.queryByLabelText('Fecha')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /Descartar y enviar/ }))
+    expect(screen.getByLabelText('Título')).toHaveValue(titulo)
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+    expect(peticion(registrarLlamada)).toMatchObject({ resultado: 'pide_otro_producto', descartar: false, siguiente: { tipo: 'whatsapp' } })
+  })
+
+  it('«No volver a contactar» no descarta, pero quita la próxima acción del envío', async () => {
+    const user = userEvent.setup()
+    const { registrarLlamada } = montar()
+    await user.click(screen.getByRole('radio', { name: /no le interesa/ }))
+    await user.selectOptions(screen.getByLabelText(/¿Por qué no le interesa/), 'desconfianza')
+    await user.click(screen.getByRole('checkbox', { name: /no lo vuelvan a llamar/i }))
+    expect(screen.queryByLabelText('Fecha')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('No volver a contactar')
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+    expect(peticion(registrarLlamada)).toMatchObject({ descartar: false, no_insista: true })
+    expect(peticion(registrarLlamada).siguiente).toBeUndefined()
+  })
+
+  it('la confirmación incierta congela opciones y reenvía exactamente la misma entrada', async () => {
+    const user = userEvent.setup()
+    const { registrarLlamada, onClose } = montar({ persistido: Promise.resolve(false) })
+    await user.click(screen.getByRole('radio', { name: /No contestó/ }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await screen.findByRole('button', { name: 'Reintentar guardado' })
+    await user.keyboard('4')
+    expect(screen.getByRole('radio', { name: /No contestó/ })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Cambiar resultado' })).toBeDisabled()
+    expect(onClose).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Reintentar guardado' }))
+    expect(registrarLlamada.mock.calls[1]).toEqual(registrarLlamada.mock.calls[0])
+  })
+
   it('ofrece los siete resultados con atajos y no guarda sin elegir uno', () => {
     montar()
     const radios = screen.getAllByRole('radio')
@@ -117,20 +203,23 @@ describe('RegistrarResultado', () => {
     expect(peticion(registrarLlamada).siguiente).toBeUndefined()
   })
 
-  it('«no le interesa» exige submotivo y avisa del descarte con deshacer 24 h', async () => {
+  it('«no le interesa» exige submotivo y solo descarta si el analista lo elige', async () => {
     const user = userEvent.setup()
     const { registrarLlamada } = montar({ pendientes: [TAREA] })
     await user.click(screen.getByRole('radio', { name: /no le interesa/ }))
+    expect(screen.queryByText(/saldrá de tu cartera/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Descartar y enviar/ })).not.toBeChecked()
+    await user.click(screen.getByRole('checkbox', { name: /Descartar y enviar/ }))
     expect(screen.getByText(/saldrá de tu cartera/i)).toBeInTheDocument()
     expect(screen.getByText(/Se cancelarán 1 tarea pendiente/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(toast.error).toHaveBeenCalledWith('Indica por qué no le interesa')
     expect(registrarLlamada).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('radio', { name: 'Sin fondos ahora' }))
+    await user.selectOptions(screen.getByLabelText(/¿Por qué no le interesa/), 'sin_fondos_ahora')
     await user.click(screen.getByRole('checkbox', { name: /no lo vuelvan a llamar/i }))
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
-    expect(peticion(registrarLlamada)).toMatchObject({ resultado: 'no_interesado', submotivo: 'sin_fondos_ahora', no_insista: true })
+    expect(peticion(registrarLlamada)).toMatchObject({ resultado: 'no_interesado', submotivo: 'sin_fondos_ahora', descartar: true, no_insista: true })
     // Con «No insistir» no hay Deshacer: la restricción legal no se revierte desde aquí.
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/No insistir marcado/)))
   })
