@@ -1,6 +1,6 @@
 ---
 tags: [crm, gestion-diaria, supervisor, plan, typesafe]
-estado: etapas 1 y 2 publicadas — etapas 3 a 6 y piloto TypeSafe pendientes
+estado: etapas 1 y 2 publicadas — TypeSafe técnico probado, piloto humano pendiente
 fecha: 2026-09-20
 ---
 
@@ -49,8 +49,8 @@ información insuficiente. La evaluación es asíncrona, se protege por permisos
 su versión para evitar resultados obsoletos. No modifica resultados, métricas, cortes ni
 leads automáticamente y un fallo del servicio no bloquea el CRM.
 
-Tener la skill no acredita acceso a la API. No se enviaron datos del CRM a TypeSafe en esta
-sesión ni se ejecutó el piloto. La consulta inicial a Claude sobre esta ampliación no produjo una
+Tener la skill no acredita acceso a la API. En la planificación del 20/09 no se enviaron
+datos del CRM a TypeSafe ni se ejecutó el piloto. La consulta inicial a Claude sobre esta ampliación no produjo una
 revisión válida y no se registra como PASS. El diseño se apoyó en la skill y documentación
 oficial de TypeSafe; su utilidad para estas notas todavía debe medirse.
 
@@ -88,7 +88,14 @@ Cierre posterior del 21/09: la etapa 2 se publicó desde `baa63aea`, PR #64,
 con autorización `$release-crm`, CI y 110 controles HTTP finales PASS. Fuente,
 artefacto, recuperación y límites en [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]].
 La siguiente implementación de F4 es la etapa 3; el recorrido humano productivo
-y el piloto F4.1 no se presentan como ejecutados.
+y el piloto humano F4.1 no se presentan como ejecutados.
+
+Arranque TypeSafe posterior del 21/09: Miguel pidió ambas vías, revisión asistida en el
+CRM y apoyo técnico al desarrollo. La API respondió con `jev-1.13.0`; se preparó un
+ensayo sintético y se probó el toolkit técnico existente. Control aislado: 19/20,
+una falsa alerta en «Se gestionó». No se enviaron datos reales ni se activó el CRM.
+Miguel indicó que un supervisor validará el piloto y comunicará quién. Estado y
+continuación en [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]].
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] ·
 [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]] ·

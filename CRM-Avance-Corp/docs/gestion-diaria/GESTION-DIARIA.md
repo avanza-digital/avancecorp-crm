@@ -83,7 +83,11 @@ Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 **F4.1 — Revisión asistida con TypeSafe.** Comprobar primero si ayuda a detectar posibles
 contradicciones entre el resultado de una llamada y su nota; incorporar las sugerencias a la
 revisión del supervisor solo si el piloto demuestra utilidad. Son dos etapas: evaluación y
-posterior integración condicionada. Está planificada, no implementada, y no bloquea F4 ni F5.
+posterior integración condicionada. El 21/09 se verificó el acceso a la API y se preparó un
+ensayo técnico sintético: 19/20 coincidencias con notas aisladas, una falsa alerta. El piloto
+humano y la integración visible siguen pendientes; no bloquea F4 ni F5. Miguel designará
+al supervisor que validará las notas reales anonimizadas. Estado y evidencia:
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 **F5 — Gerencia «Toda la operación».** Dar una visión global del día frente a ayer y a los
 últimos siete días con actividad, identificar equipos que requieren atención y profundizar
@@ -96,8 +100,10 @@ funcionalidad. Pendiente, después de al menos una semana de F3–F5 en producci
 incidencias; se aplica la secuencia cerrar → observar → derribar descrita en §F6.
 
 **Añadido acordado el 20/09/2026: F4.1 — Revisión asistida con TypeSafe.** Se documenta como
-un piloto posterior a F4 y una integración condicionada a sus resultados. No está implementado,
-no condiciona el cierre de F4 y no bloquea F5. Los objetivos y criterios de cierre están escritos
+un piloto y una integración condicionada a sus resultados. El 21/09 Miguel pidió ambos usos:
+ayuda en Gestión Diaria y apoyo técnico a las revisiones. Este último se probó con Jev;
+el arranque sintético de F4.1 no equivale a integración productiva. No condiciona el cierre
+de F4 y no bloquea F5. Los objetivos y criterios de cierre están escritos
 en texto en las secciones F4 y F4.1. La pantalla de configuración de gerencia pertenece a F4;
 el tablero global y el reporte de hábitos pertenecen a F5.
 
@@ -177,6 +183,14 @@ recuperación y límites en
 Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y la
 implementación de la etapa 3; no se anuncia F4 completa.
 
+**TypeSafe, avance separado posterior al release:** API verificada con `jev-1.13.0`,
+ensayo sintético reproducible y apoyo técnico comprobados localmente. No se enviaron
+notas reales ni se modificaron SQL, Edge, cron o frontend. La evaluación aislada obtuvo
+19/20, con una falsa alerta en una nota genérica; no es calibración productiva.
+Miguel confirmó que un supervisor validará el piloto humano y comunicará su identidad.
+Hasta entonces queda preparado el ensayo, no los avisos del CRM. Ver
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
 - **F4 posterior:** las decisiones pendientes de los cortes bloquean su activación, no la etapa 1. Ver etapas 3–6; no inventar mínimos de sábado ni límites de aplazamiento.
@@ -207,7 +221,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 TypeSafe continúa planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1.
+> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 tiene API y ensayo sintético comprobados; piloto humano e integración productiva pendientes. Dónde estamos y cómo retomar: sección 1.
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -872,8 +886,10 @@ segundo corte. Con los valores iniciales, base 0 → 8, base 8 → 20 y base 20 
 
 **Objetivo general:** reducir el esfuerzo del supervisor al revisar registros, señalando
 posibles contradicciones entre el resultado tipificado de una llamada y la nota escrita por
-el analista. El añadido al plan fue aceptado por Miguel el 20/09/2026. **Estado: planificación;
-sin piloto ejecutado, integración implementada ni acceso a la API verificado.**
+el analista. El añadido al plan fue aceptado por Miguel el 20/09/2026. **Estado al 21/09:
+arranque técnico local implementado y acceso a la API verificado; piloto humano e integración
+del CRM pendientes.** Miguel pidió también apoyo técnico de Jev a las revisiones y confirmó
+que designará un supervisor para validar las notas. No se enviaron registros reales.
 
 Es una entrega posterior y separada de F4. Su activación depende de la utilidad demostrada
 por el piloto; no es requisito para cerrar F4 ni para construir F5. TypeSafe interpreta
@@ -888,6 +904,13 @@ en las notas reales del negocio. Se prepara una muestra anonimizada de aproximad
 casos compatibles, contradicciones, notas cortas, ambigüedad, negaciones y referencias a
 conversaciones anteriores. Primero se confirma que el volumen y la calidad de las notas
 permiten evaluar el caso; una nota como «se llamó» puede no aportar evidencia suficiente.
+
+Antes de extraer o transferir esa muestra, Miguel indica el supervisor responsable y se
+acuerdan anonimización, criterios de aceptación y resolución de desacuerdos. Se separan
+los ejemplos de ajuste de las notas reservadas para validación. El ensayo técnico del
+21/09 usa exclusivamente 20 fixtures sintéticos escritos por Codex, sin etiquetas humanas:
+primera consulta por lote 20/20; control aislado v2 19/20 con una falsa alerta en «Se gestionó».
+Se conserva el desacuerdo, sin rebajar umbrales para obtener un PASS. No cierra esta etapa.
 
 Se usa una pregunta acotada de `Choice` con tres salidas: compatible, posible contradicción
 e información insuficiente. Ejemplo sintético: resultado «No contestó» y nota «Conversamos
@@ -944,10 +967,20 @@ Diseño orientado por la skill local `typesafe-ai`, la documentación oficial de
 [confianza](https://docs.typesafe.ai/confidence), consultadas el 20/09/2026. Antes de integrar
 se consulta el contrato vigente de la API o SDK elegido y se valida con datos del dominio.
 
-La consulta inicial a Claude sobre TypeSafe no produjo un dictamen válido; no se registra como PASS.
-El piloto y la implementación están **NOT RUN**. Esta actualización documenta objetivos y
-alcance, no acredita resultados del modelo ni autoriza transferir datos de clientes sin
-preparar el conjunto y las condiciones de uso correspondientes.
+La consulta inicial del 20/09 a Claude sobre TypeSafe no produjo un dictamen válido;
+no se registra como PASS. El 21/09 se consultaron el contrato HTTP y `Choice` vigentes y
+se implementó el ensayo aislado sin datos reales. API y 14 tests del ensayo **PASS**;
+comparación sintética aislada **FAIL (19/20, una falsa alerta)**, evidencia conservada.
+Piloto humano, servidor de sugerencias e interfaz **NOT RUN / no implementados**.
+No se autoriza transferir datos de clientes sin preparar el conjunto y las condiciones
+de uso correspondientes. Detalle de revisión con Claude, checks y resultados:
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+
+**Apoyo técnico:** Jev se probó para ordenar extractos de código como ayuda a Codex y
+Claude, no como autoridad de aprobación. Las 22 pruebas del toolkit existente pasan;
+en el ensayo de relevancia ninguno de los tres extractos superó el corte existente de
+2 puntos. Se preserva esa incertidumbre y se verifican las conclusiones con código y
+tests. No sustituye `scripts/claude-review` ni los gates del proyecto.
 
 En la revisión documental del 21/09, Claude devolvió `CHANGES_REQUESTED` sobre el resumen
 aportado, no sobre código. Se incorporaron las aclaraciones de la base fija de las 11:30 y
@@ -1047,7 +1080,7 @@ el ensayo en banco · instalar y publicar F1, F2 y F3.
 2. **El mínimo del sábado** para el primer corte: medio día no puede exigir lo de uno entero. Se fija al publicar la política.
 3. **Cerrar las otras reglas pendientes de los cortes:** analistas sin cartera abierta y límites de repetición y cierre de jornada al posponer una hora.
 4. **Instalar y publicar F4**, y después F5: SQL con `!` primero, front con `/release-crm` después. El piloto F4.1 no bloquea ninguna de esas entregas.
-5. **F4.1:** preparar muestra anonimizada y revisión humana, configurar acceso a TypeSafe cuando corresponda y decidir la activación con los resultados del piloto.
+5. **F4.1:** Miguel designará al supervisor; después, preparar muestra anonimizada, etiquetas y criterios de aceptación. El acceso a TypeSafe ya se verificó; la falsa alerta del ensayo aislado queda como caso de revisión. Decidir la integración visible solo tras el piloto humano.
 6. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
 
 ### Lo que este plan YA NO dice, y por qué
