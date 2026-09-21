@@ -13,6 +13,7 @@ import {
   etiquetaResultado,
   motivoDeDescarte,
   tipoDeResultado,
+  tiposSiguientesDeResultado,
 } from './resultado-llamada'
 
 // ESPEJO DEL SERVIDOR (migración 20260920005000): el CHECK
@@ -47,14 +48,24 @@ describe('catálogo del resultado de llamada (espejo del servidor)', () => {
     }
   })
 
-  it('solo «no le interesa» y «pide otro producto» descartan por sí mismos', () => {
-    expect(RESULTADOS.filter((r) => r.descarta).map((r) => r.clave)).toEqual(['no_interesado', 'pide_otro_producto'])
+  it('«no le interesa» y «pide otro producto» ofrecen el descarte como decisión separada', () => {
+    expect(RESULTADOS.filter((r) => r.descarteOpcional).map((r) => r.clave)).toEqual(['no_interesado', 'pide_otro_producto'])
     expect(motivoDeDescarte('no_interesado', 'sin_fondos_ahora')).toBe('sin_fondos')
     expect(motivoDeDescarte('no_interesado', 'prestamo')).toBeNull()
     expect(motivoDeDescarte('pide_otro_producto', 'credito')).toBe('pide_credito')
     expect(motivoDeDescarte('numero_errado', null)).toBe('datos_invalidos')
     expect(motivoDeDescarte('no_contesto', null)).toBe('no_responde')
     expect(motivoDeDescarte('volver_a_llamar', null)).toBeNull()
+  })
+
+  it('ofrece las cuatro acciones de la ficha para seguimiento sin ampliar los otros resultados', () => {
+    for (const resultado of ['no_interesado', 'pide_otro_producto'] as const) {
+      expect(tiposSiguientesDeResultado(resultado)).toEqual(['llamada', 'whatsapp', 'reunion', 'tarea'])
+    }
+    expect(tiposSiguientesDeResultado('no_contesto')).toEqual(['llamada', 'whatsapp'])
+    expect(tiposSiguientesDeResultado('volver_a_llamar')).toEqual(['llamada'])
+    expect(tiposSiguientesDeResultado('agendo_reunion')).toEqual(['reunion'])
+    expect(tiposSiguientesDeResultado('numero_errado')).toEqual(['llamada'])
   })
 
   it('número errado y «no es la persona» no entran en la tasa de contacto', () => {

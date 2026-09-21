@@ -4,7 +4,7 @@ import type { Tarea } from '@/lib/tipos'
 import { CrmApiError } from './crm-api'
 
 type Comando = 'registrar_actividad_v2' | 'cerrar_tarea_v2' | 'cerrar_reunion_v2' |
-  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3'
+  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3' | 'registrar_llamada_v4'
 type Argumentos<C extends Comando> = Omit<Database['crm']['Functions'][C]['Args'], 'p_operacion_id'>
 type Peticion = { [C in Comando]: [actor: string | null, comando: C, sujeto: string, argumentos: Argumentos<C>, tarea?: Tarea] }[Comando]
 interface Intencion {
@@ -18,7 +18,8 @@ interface Intencion {
 }
 const PREFIJO = 'crm.sla.operacion.v2:'
 const EVENTO = 'crm:sla-intenciones-cambiadas'
-const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2', 'registrar_llamada_v3'])
+const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2', 'registrar_llamada_v3', 'registrar_llamada_v4'])
+const esLlamada = (comando: Comando) => comando === 'registrar_llamada_v3' || comando === 'registrar_llamada_v4'
 const vuelos = new Map<string, Promise<Respuesta | undefined>>()
 const notificar = () => { if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO)) }
 
@@ -30,7 +31,7 @@ const notificar = () => { if (typeof window !== 'undefined') window.dispatchEven
 // una tarea compartiría llave con `cerrar_tarea_v2` y el segundo guardado
 // moriría con SLA_CONFIRMACION_PENDIENTE aunque fuera otra operación.
 function clave(actor: string, sujeto: string, comando: Comando): string {
-  const cubo = comando === 'registrar_actividad_v2' ? 'actividad' : comando === 'registrar_llamada_v3' ? 'llamada' : 'tarea'
+  const cubo = comando === 'registrar_actividad_v2' ? 'actividad' : esLlamada(comando) ? 'llamada' : 'tarea'
   return `${PREFIJO}${actor}:${cubo}:${sujeto}`
 }
 
@@ -83,7 +84,7 @@ export function tareaConConfirmacionPendiente(actor: string | null, id: string):
       const llave = sessionStorage.key(i)
       if (!llave?.startsWith(`${PREFIJO}${actor}:llamada:`)) continue
       const dato = leer(llave)
-      if (dato?.comando === 'registrar_llamada_v3' && dato.argumentos.p_tarea_id === id) return dato.tarea
+      if (dato && esLlamada(dato.comando) && dato.argumentos.p_tarea_id === id) return dato.tarea
     }
     return undefined
   } catch { return undefined }
@@ -96,6 +97,12 @@ export function tareaConConfirmacionPendiente(actor: string | null, id: string):
 export function hayIntencionPendienteSla(actor: string | null, comando: Comando, sujeto: string): boolean {
   if (!actor) return false
   try { return leer(clave(actor, sujeto, comando)) !== null } catch { return false }
+}
+
+/** Nunca convertir un recibo legacy en una petición con semántica v4. */
+export function hayLlamadaV3Pendiente(actor: string | null, sujeto: string): boolean {
+  if (!actor) return false
+  try { return leer(clave(actor, sujeto, 'registrar_llamada_v3'))?.comando === 'registrar_llamada_v3' } catch { return false }
 }
 
 export function limpiarIntencionesSla(): void {
@@ -190,8 +197,20 @@ export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos,
       // `cerrar_reunion_v3` confirma `cerrar_reunion`, igual que la v2. Sin
       // contemplar la v3 aquí, un cierre que el servidor SÍ escribió se
       // anunciaría como «no confirmado» y el analista lo repetiría.
-      respuesta.comando !== comando.replace(/_v[23]$/, '') || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
+      respuesta.comando !== comando.replace(/_v[234]$/, '') || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
       throw new CrmApiError('El servidor no confirmó el guardado. Reintenta con los mismos datos.', 'SLA_CONFIRMACION_PENDIENTE')
+    }
+    if (comando === 'registrar_llamada_v4' && (
+      respuesta.resultado !== enviada.argumentos.p_resultado ||
+      respuesta.descartado !== (enviada.argumentos.p_descartar === true) ||
+      respuesta.no_insista !== (enviada.argumentos.p_no_insista === true) ||
+      typeof respuesta.actividad_id !== 'string' || !respuesta.actividad_id ||
+      (!enviada.argumentos.p_tarea_id && respuesta.actividad_id !== enviada.operacion) ||
+      (enviada.argumentos.p_siguiente != null
+        ? typeof respuesta.siguiente_id !== 'string' || !respuesta.siguiente_id
+        : respuesta.siguiente_id !== null)
+    )) {
+      throw new CrmApiError('El servidor no confirmó el resultado y su próxima acción. Reintenta el mismo guardado.', 'SLA_CONFIRMACION_PENDIENTE')
     }
     // Solo borrar el recibo que acabamos de confirmar (p. ej. tras un logout).
     if (leer(llave)?.operacion === enviada.operacion) sessionStorage.removeItem(llave)

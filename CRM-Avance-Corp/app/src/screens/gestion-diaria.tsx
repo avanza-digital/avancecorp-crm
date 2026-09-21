@@ -2,15 +2,20 @@
 // Fase 1 (19/09/2026): las tres vistas comparten la sección «Registro» del día;
 // el analista ve el suyo, el supervisor su equipo y gerencia todo, con día a
 // elegir y exportación. «Mi día», «Mi equipo hoy» y el pulso llegan en las
-// fases 4–5 del plan (docs/gestion-diaria/PLAN-POR-FASES-2026-09-19.md).
+// fases 4–5 del plan (docs/gestion-diaria/GESTION-DIARIA.md).
 // Fase 3 (20/09/2026): el analista abre con «Mi día» — la cola completa, su
 // marcador, sus compromisos y sus descartes — y conserva el registro debajo.
+// Densidad (20/09/2026): el registro del propio analista («¿Qué hice hoy?») se
+// pliega. Es memoria, no trabajo pendiente: releer el log propio no cambia a
+// quién hay que llamar, y abierto duplicaba el largo de la pantalla.
 import { useState, type JSX } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
 import { GestionDiariaAnalista } from '@/screens/gestion-diaria/analista'
+import { GestionDiariaSupervisor } from '@/screens/gestion-diaria/supervisor'
+import { Plegable } from '@/components/gestion-diaria/plegable'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
 import { CalendarCheck2 } from 'lucide-react'
@@ -31,6 +36,7 @@ export function GestionDiaria(): JSX.Element {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
   const [dia, setDia] = useState(hoy)
+  const [registroAbierto, setRegistroAbierto] = useState(false)
   const diaValido = /^\d{4}-\d{2}-\d{2}$/.test(dia) && dia <= hoy ? dia : hoy
 
   if (!yo) return <PanelVacio icono={CalendarCheck2} titulo="Sin sesión" detalle="Vuelve a entrar para ver la gestión del día." />
@@ -38,23 +44,17 @@ export function GestionDiaria(): JSX.Element {
   switch (yo.rol) {
     case 'vendedor':
       // Fase 3: el analista entra a «Mi día» (cola, marcador, compromisos y
-      // descartes). Su registro crudo sigue debajo, sin filtros de equipo.
+      // descartes). Su registro crudo sigue debajo, plegado.
       return (
-        <div className="mx-auto w-full max-w-[1640px] space-y-8">
+        <div className="mx-auto w-full max-w-[1640px] space-y-6">
           <GestionDiariaAnalista />
-          <div className="space-y-6">
-            <Cabecera pregunta="¿Qué hice hoy?" detalle="Tu registro de actividad de hoy, con el texto íntegro de cada gestión." />
+          <Plegable titulo="¿Qué hice hoy?" resumen="tu registro del día" abierto={registroAbierto} onAbrir={setRegistroAbierto}>
             <RegistroActividad dia={hoy} analistaIds={[yo.id]} mostrarAnalista={false} permitirExportar={false} />
-          </div>
+          </Plegable>
         </div>
       )
     case 'supervisor':
-      return (
-        <div className="mx-auto w-full max-w-[1640px] space-y-6">
-          <Cabecera pregunta="¿Qué está pasando hoy en mi equipo?" detalle="El registro de actividad de tu equipo, con el texto íntegro de cada llamada. Las alertas y la tabla del equipo llegan en la siguiente entrega." />
-          <RegistroActividad dia={hoy} analistaIds={null} mostrarAnalista permitirExportar={false} />
-        </div>
-      )
+      return <GestionDiariaSupervisor />
     case 'gerencia':
       return (
         <div className="mx-auto w-full max-w-[1640px] space-y-6">

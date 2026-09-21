@@ -12,6 +12,7 @@ const NOMBRES: Record<string, string> = {
   cerrar_reunion_v2: 'Cierre de cita', reprogramar_reunion_v2: 'Reprogramación de cita',
   reprogramar_tarea_v2: 'Reprogramación de tarea', cerrar_reunion_v3: 'Cierre de cita',
   registrar_llamada_v3: 'Resultado de llamada',
+  registrar_llamada_v4: 'Resultado de llamada',
 }
 
 /** El núcleo conserva el envío original; este panel solo pide su confirmación

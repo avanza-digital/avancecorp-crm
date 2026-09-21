@@ -2847,7 +2847,7 @@ export async function montarBackendReal(
     // Comandos SLA con recibo. Este doble ejercita el transporte y la UI;
     // reglas, locks y prórrogas se prueban con PostgreSQL real en el banco SQL.
     const comandoSla = p.match(/^\/rest\/v1\/rpc\/(registrar_actividad|cerrar_tarea|cerrar_reunion|reprogramar_reunion|reprogramar_tarea)_v2$/)?.[1]
-      ?? (p === '/rest/v1/rpc/registrar_llamada_v3' ? 'registrar_llamada' : undefined)
+      ?? (/^\/rest\/v1\/rpc\/registrar_llamada_v[34]$/.test(p) ? 'registrar_llamada' : undefined)
     if (comandoSla && method === 'POST') {
       estado.llamadas.rpcSlaComandos.push(comandoSla)
       const args = (req.postDataJSON() ?? {}) as Record<string, unknown>
@@ -2882,7 +2882,8 @@ export async function montarBackendReal(
       if (comandoSla === 'registrar_llamada') {
         const resultado = String(args.p_resultado)
         const tipo = ['no_contesto', 'numero_errado', 'no_es_la_persona'].includes(resultado) ? 'llamada_no_contestada' : 'llamada_realizada'
-        const descartar = ['no_interesado', 'pide_otro_producto'].includes(resultado) || args.p_descartar === true
+        const descartar = args.p_descartar === true
+          || (p.endsWith('_v3') && ['no_interesado', 'pide_otro_producto'].includes(resultado))
         const actividadId = tarea ? crypto.randomUUID() : operacion
         actividadesSla.push({ id: actividadId, lead_id: lead.id, tipo, detalle: args.p_detalle ?? null,
           creado_en: new Date().toISOString(), autor_nombre: 'Gerente Real',

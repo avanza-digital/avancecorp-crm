@@ -331,7 +331,7 @@ test('el contacto y su siguiente tarea se confirman juntos antes de cerrar el di
   const backend = await montarBackendReal(page, { leads: [leadReal({ vendedor_id: UID })] })
   let confirmar!: () => void
   const confirmacion = new Promise<void>((resolve) => { confirmar = resolve })
-  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v4', async (route) => {
     await confirmacion
     await route.fallback()
   })
@@ -341,7 +341,7 @@ test('el contacto y su siguiente tarea se confirman juntos antes de cerrar el di
   await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
   const dialogo = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
   await dialogo.getByRole('radio', { name: /^No contestó/ }).check()
-  await expect(dialogo.getByRole('checkbox', { name: /Agendar el siguiente intento/ })).toBeChecked()
+  await expect(dialogo.getByRole('checkbox', { name: /Agendar próxima acción/ })).toBeChecked()
   await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(dialogo.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
   await expect(page.getByText(/Llamada registrada/)).toHaveCount(0)
@@ -360,7 +360,7 @@ test('el reintento tras perder la respuesta conserva la siguiente tarea aunque e
     leads: [leadReal({ vendedor_id: UID })], perderProximaRespuestaSla: true,
   })
   const enviados: unknown[] = []
-  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v4', async (route) => {
     enviados.push(route.request().postDataJSON())
     await route.fallback()
   })
@@ -392,7 +392,7 @@ test('el reintento tras perder la respuesta conserva la siguiente tarea aunque e
 test('tras recargar verifica explícitamente el guardado original sin reconstruir el formulario', async ({ page }) => {
   const backend = await montarBackendReal(page, { leads: [leadReal({ vendedor_id: UID })], perderProximaRespuestaSla: true })
   const enviados: unknown[] = []
-  await page.route('**/rest/v1/rpc/registrar_llamada_v3', async (route) => {
+  await page.route('**/rest/v1/rpc/registrar_llamada_v4', async (route) => {
     enviados.push(route.request().postDataJSON()); await route.fallback()
   })
   await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
@@ -615,7 +615,7 @@ test('cerrar una llamada contestada actualiza Primera atención aunque la lectur
     await cierre.getByRole('button', { name: /Registrar resultado de la llamada/ }).click()
     const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
     await panel.getByRole('radio', { name: /^No contestó/ }).check()
-    await panel.getByRole('checkbox', { name: /Agendar el siguiente intento/ }).uncheck()
+    await panel.getByRole('checkbox', { name: /Agendar próxima acción/ }).uncheck()
     await panel.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(panel).toBeHidden()
     await expect(cierre).toBeHidden()

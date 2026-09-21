@@ -83,6 +83,8 @@ export function AccionesContacto({
   conAgendar,
   destacada,
   grande,
+  onGuardado,
+  onRegistrarLlamada,
 }: {
   lead: LeadContactable
   compacto?: boolean
@@ -103,6 +105,15 @@ export function AccionesContacto({
    * 20/09/2026). Se apoya en `destacada`, que ya tiñe el primer hijo de azul.
    */
   grande?: boolean
+  /**
+   * Aviso de que la LLAMADA quedó registrada. Lo usa «Mi día» para pasar al
+   * siguiente lead de la cola desde la acción primaria, igual que ya hacía al
+   * registrar desde el panel: sin esto, el camino principal —Llamar— dejaba la
+   * cola parada en el lead recién atendido (hallazgo de Codex, 20/09/2026).
+   */
+  onGuardado?: (() => void) | undefined
+  /** «Mi día» resuelve su tarea de servidor y usa el mismo panel desde ambos accesos. */
+  onRegistrarLlamada?: (() => void) | undefined
 }): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -111,15 +122,22 @@ export function AccionesContacto({
   // Contacto pendiente de ESTA instancia (canal + cuándo se hizo click).
   const pendiente = useRef<{ canal: Canal; ts: number } | null>(null)
   const [dialogo, setDialogo] = useState<Canal | null>(null)
+  const vigente = useRef(true)
+  useEffect(() => {
+    vigente.current = true
+    return () => { vigente.current = false }
+  }, [])
   // Fase 4e «sin topes»: antes de registrar un contacto el store tiene que
   // conocer el lead (sin foto inicial se relee por id bajo su RLS).
   const { asegurarLead } = useCRMData()
   const abrirRegistro = useCallback((canal: Canal) => {
     void asegurarLead(lead.id).then((ok) => {
-      if (ok) setDialogo(canal)
-      else toast.error('Este lead ya no está disponible en tu ámbito.')
+      if (!vigente.current) return
+      if (!ok) { toast.error('Este lead ya no está disponible en tu ámbito.'); return }
+      if (canal === 'tel' && onRegistrarLlamada) onRegistrarLlamada()
+      else setDialogo(canal)
     }).catch(() => toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'))
-  }, [asegurarLead, lead.id])
+  }, [asegurarLead, lead.id, onRegistrarLlamada])
 
   useEffect(() => {
     if (!escribe) return
@@ -236,7 +254,7 @@ export function AccionesContacto({
       {conAgendar && escribe && <BotonAgendar lead={lead} labelCls={labelCls} />}
       {/* Gestión Diaria F2: TODA llamada se cierra con el resultado tipificado
           (panel del mockup 5). WhatsApp conserva su diálogo de dos opciones. */}
-      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} />}
+      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} onGuardado={onGuardado} />}
       {dialogo === 'wa' && <DialogResultado lead={lead} canal={dialogo} onClose={() => setDialogo(null)} />}
     </div>
   )
@@ -307,12 +325,16 @@ function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: str
 // ── Dialog de resultado de la LLAMADA (resultado tipificado, F2) ──────────────
 // `tareaQueCierra` sigue decidiendo qué tarea de llamada pendiente cierra este
 // contacto; el panel la ofrece con su casilla, como antes.
-function DialogResultadoLlamada({ lead, onClose }: { lead: LeadContactable; onClose: () => void }): JSX.Element {
+function DialogResultadoLlamada({ lead, onClose, onGuardado }: {
+  lead: LeadContactable
+  onClose: () => void
+  onGuardado?: (() => void) | undefined
+}): JSX.Element {
   const { tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
   const [tarea] = useState(() => tareaQueCierra(tareasDe(lead.id), 'tel', yo?.id, ahora))
-  return <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} />
+  return <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} onGuardado={onGuardado} />
 }
 
 // ── Dialog de resultado del contacto (WhatsApp) ───────────────────────────────

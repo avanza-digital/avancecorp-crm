@@ -1,5 +1,50 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921153654 — Resultado de llamada: seguimiento y descarte separados
+
+**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Miguel confirmó «separar el resultado del
+descarte» y autorizó probar únicamente en `gestion_diaria_f4_vista_chvrqh`.
+`crm.registrar_llamada_v4` compone actividad/cierre y próxima acción atómicos;
+`no_interesado` y `pide_otro_producto` requieren submotivo, pero solo descartan
+con `p_descartar=true`. No admite siguiente con descarte o veto de contacto.
+Solo el dueño agenda; conserva los roles, ámbitos y candados anteriores.
+
+V3 y su núcleo no cambian: los recibos legacy se confirman por la misma puerta.
+Gate v4 (cuerpos, forma y ACL) añadido al gate F2 sin retirar sus sellos, por
+tanto incluido en los paraguas F3/F4. Sin tablas, policies ni cambios de datos
+históricos o de `public`. Tipos cotejados con la generación desde el banco.
+
+Ensayo local: oráculo bajo `authenticated`, F2/F3/F4, 48 mutantes previos,
+nueve de F4 y cinco de v4, gates SLA, censo, reversa/reinstalación con datos v4
+preservados. F1 histórico falla su antigua whitelist de metadata también sin
+v4; no se acredita PASS a ese oráculo. Scripts y límites:
+`supabase/scripts/resultado-llamada-seguimiento/` y
+`docs/gestion-diaria/RESULTADO-LLAMADA-SEGUIMIENTO.md`.
+Producción, registro de la migración y publicación requieren otra aprobación.
+
+## 20260921040335 — Gestión Diaria F4: vista del equipo, etapa 1
+
+**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Puerta `crm.gestion_diaria_equipo_fn(date,uuid)`
+y núcleo INVOKER: roster activo completo, incluso con cero actividad; reutilizan
+`private.gestion_diaria_llamadas` sin modificarla. Pendientes completos bajo RLS,
+no derivados de la caché parcial. Adaptador privado DEFINER sin parámetros,
+admisión explícita y agregados por analista del núcleo SLA autorizado existente.
+Sin tablas, políticas, escrituras de negocio ni cambios en `public`.
+
+Ensayo en copia local exclusiva `gestion_diaria_f4_vista_chvrqh`: gates F1–F4 y
+SLA, roles, ámbito ajeno, fecha inválida/futura, 31 llamadas (29 útiles), tasa
+sin redondear al calificar, 270 tareas adicionales, revocación, censo intacto,
+reversa exacta de F3 y reinstalación determinista PASS. Evidencia y ejecución:
+`supabase/scripts/gestion-diaria-equipo/ensayar.mjs`, los oráculos `test-equipo.sql`,
+`test-jerarquia.sql` y `test-calendario.sql`, `verificacion.json` y `reversa.sql`.
+También PASS: puente inactivo/ciclos, ámbitos gerencia/lector global, cero cartera,
+calendario Lima y modo observación; 48 mutantes previos más nueve nuevos, contrato
+SQL→frontend, cotejo de tipos generados y advisors locales. Claude pidió cambios
+en la candidata anterior: defecto jerárquico reproducido y corregido, accesibilidad
+ajustada; no se atribuye un PASS final al reviewer. Acta y límites en
+`docs/gestion-diaria/F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
+Los cortes, pop-ups y configuración gerencial pertenecen a etapas posteriores.
+
 ## 20260920045202 — Tareas por cursor: el lead embebido completo (Fase 4b «sin topes»)
 
 **✅ SQL EN PRODUCCIÓN el 20/09/2026 (~01:03 Lima = 06:03 UTC, Miguel con `!` + `db query --linked --file`, archivo

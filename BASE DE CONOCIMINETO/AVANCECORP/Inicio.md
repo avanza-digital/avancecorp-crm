@@ -1,15 +1,21 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-20
+actualizado: 2026-09-21
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Gestion Diaria - resultado separado del descarte (2026-09-21)]] — **AMPLIACIÓN F2/F3 LOCAL, SIN PUBLICAR:** las siete opciones se contraen al elegir; «No le interesa» y «Pide otro producto» permiten agendar y conservar el lead. Descarte explícito, veto respetado, v3/recibos preservados. Miguel autorizó únicamente el banco local; F4 conserva sus pendientes.
+
+- [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]] — **INTEGRADO EN `main` LOCAL, SIN PUBLICAR (21/09):** «Mi día» pasa a dos paneles hermanos —«Ahora» con una sola acción primaria y la cola en pestañas, con la fila como selector—, y un solo rojo reservado a lo vencido. Revisado por Codex y `revisor-a11y`: `key={lead.id}` evita que un refresco escriba el resultado sobre el lead equivocado, y el menú «···» completa el patrón APG. De ahí salió un arreglo de TODA la app: el foco desaparecía en alto contraste y llegaba a 1,8:1 (81 controles en 41 archivos), resuelto con dos reglas globales en `index.css` y vigilado por `verify:bundle` — el parche llegó a vivir sólo en `npm run dev`. Commits `313ac607`, `40f2501b`, `a561d728`, `1ff8b5e5`; lint, typecheck, 3.992 pruebas, build y e2e PASS.
+
+- [[Auditoria de conversiones - capas backend a frontend (2026-09-21)]] — **AUDITORÍA CERRADA «CON LO QUE HAY» (21/09), CORRECCIONES PENDIENTES DE OK:** 10 de 11 cifras de gerencia salen del núcleo único (Citas no); pero rango/Distribución recalculan en vivo meses sellados y publican el numerador BRUTO mientras Ranking/Metas/HOY sirven foto y NETO — dos verdades para el mismo mes; la sonda de paridad compara el núcleo consigo mismo; la deuda por anulaciones se descuenta en dos meses abiertos a la vez; ningún gate protege «un solo núcleo». Sonda de producción escrita y pendiente (`supabase/scripts/sonda-paridad-conversion-prod.sql`). Cómo retomar desde otra cuenta: `CRM-Avance-Corp/docs/auditorias/conversion-2026-09-21/RETOMAR-EN-OTRA-CUENTA.md`.
 
 - [[Ficha de lead - retiro del boton Registrar actividad 2026-09-20]] — **CORRECCIÓN DE SUPERVISIÓN PUBLICADA Y VERIFICADA:** el acceso rápido fue retirado y el historial conserva su scroll. El aviso de seguimiento ya no ofrece ni puede abrir el compositor para Supervisor o Gerencia; `vendedor` conserva su gestión SLA. Release `crm-20260920T223427Z-8b3252b48455`, build `build-20260920T223425954Z`; CI, hashes de producción y protección del ZIP PASS.
 
 - [[Ficha de lead compacta - tasa plegable e historial con scroll 2026-09-20]] — **PUBLICADO Y VERIFICADO:** la solicitud de tasa inicia plegada sin desmontar su validación y el historial usa un riel de scroll de altura acotada. Commit `004bd69f`, build `build-20260920T182519890Z`; CI de `main`, artefacto, hashes y smoke HTTP en producción PASS.
 
-- [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] — **F0, F1 y F2 EN PRODUCCIÓN (20/09); sigue F3 «Mi día».** Módulo nuevo por rol con resultado de llamada tipificado y obligatorio (ver [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]]); 8 decisiones de Miguel selladas; absorbe Seguimiento al final. Plan y estado: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md` y `GESTION-DIARIA.md`.
+- [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] — **F0–F3 EN PRODUCCIÓN; F4 etapa 1 RECONCILIADA Y VALIDADA LOCALMENTE, SIN PUBLICAR (21/09).** Candidata inicial `997e1290` integrada con Main `40f2501b`; permisos, datos completos y pruebas verificados: [[Gestion Diaria F4 - vista del equipo validada localmente (2026-09-21)]]. Objetivos de las seis etapas y piloto TypeSafe: [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]]. Las etapas 2–6 y F4.1 siguen pendientes. Plan único: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
 
 - [[Conversion de lead con Nueva inversion - preparado 2026-09-19]] — **VALIDADO, SIN PUBLICAR:** Convertir a cliente usa el proceso de Cartera; el lead se cierra sólo al confirmar. SQL y banco hasta US$5 autorizados; pruebas locales/remotas y 284 aserciones bancarias PASS. Pendiente publicación coordinada mediante `$release-crm`.
 

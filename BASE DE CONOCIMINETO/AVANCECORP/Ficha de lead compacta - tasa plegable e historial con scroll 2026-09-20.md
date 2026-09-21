@@ -39,7 +39,8 @@ anteriores» siguen funcionando dentro de la región denominada
   conserva región, altura máxima y overflow vertical.
 - **PASS:** lint (solo cuatro avisos preexistentes en `coverflow-carousel.tsx`),
   typecheck, 16 pruebas focales, suite completa de 264 archivos / 3.895 pruebas,
-  build y `git diff --check`.
+  build y `git diff --check`. El ensayo previo del taller local registró 3.898
+  pruebas; el acta del commit publicado registró 3.895 (bancos distintos).
 - **PASS:** 8 E2E afectados en escritorio/móvil y recorrido Playwright local con
   tasa cerrada, tasa abierta e historial de 12 actividades desplazado dentro de
   su propio riel. Las capturas locales quedan fuera del release.

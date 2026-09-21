@@ -85,7 +85,7 @@ export function ColaDeHoy({
               ? '?'
               : hayMas ? `${p.total}+` : String(p.total),
           }))}
-          className="flex min-h-0 flex-1 flex-col [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
+          className="flex min-h-0 flex-1 flex-col [&>[role=tablist]]:max-w-full [&>[role=tablist]]:flex-row [&>[role=tablist]]:overflow-x-auto [&_[role=tab]]:flex-none [&_[role=tab]]:whitespace-nowrap [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
         >
           <p className="text-base text-[var(--muted-foreground-strong)]">{grupo?.ayuda}</p>
 

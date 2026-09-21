@@ -29,15 +29,17 @@ interface RadioGroupProps<V extends string> {
   /** Texto de ayuda o error, enlazado por `aria-describedby`. */
   descripcion?: ReactNode | undefined
   invalido?: boolean | undefined
+  /** Formularios operativos: todas las etiquetas y ayudas con piso de 16 px. */
+  grande?: boolean | undefined
 }
 
-export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambio, nombre, obligatorio, className, descripcion, invalido }: RadioGroupProps<V>) {
+export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambio, nombre, obligatorio, className, descripcion, invalido, grande }: RadioGroupProps<V>) {
   const idAuto = useId()
   const name = nombre ?? `radio${idAuto.replaceAll(':', '')}`
   const idDescripcion = `${name}-descripcion`
   return (
     <fieldset className={cn('space-y-2', className)} aria-describedby={descripcion !== undefined ? idDescripcion : undefined} aria-invalid={invalido || undefined}>
-      <legend className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+      <legend className={cn('mb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground', grande && 'text-base normal-case tracking-normal')}>
         {leyenda}
         {obligatorio && <span className="ml-1 normal-case tracking-normal text-[var(--muted-foreground-strong)]">· obligatorio</span>}
       </legend>
@@ -60,20 +62,20 @@ export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambi
               disabled={opcion.deshabilitada}
               required={obligatorio}
               onChange={() => onCambio(opcion.valor)}
-              className="size-4 shrink-0 accent-[var(--accent)]"
+              className={cn('size-4 shrink-0 accent-[var(--accent)]', grande && 'size-5')}
             />
             <span className="min-w-0 flex-1">
-              <span className={cn('block text-sm', marcada ? 'font-bold text-primary' : 'font-semibold')}>{opcion.etiqueta}</span>
-              {opcion.detalle !== undefined && <span className="block text-xs text-muted-foreground">{opcion.detalle}</span>}
+              <span className={cn('block text-sm', grande && 'text-base', marcada ? 'font-bold text-primary' : 'font-semibold')}>{opcion.etiqueta}</span>
+              {opcion.detalle !== undefined && <span className={cn('block text-xs text-muted-foreground', grande && 'text-base')}>{opcion.detalle}</span>}
             </span>
             {opcion.atajo !== undefined && (
-              <kbd aria-hidden className="rounded border border-border bg-muted px-1.5 text-[11px] font-bold text-[var(--muted-foreground-strong)]">{opcion.atajo}</kbd>
+              <kbd aria-hidden className={cn('rounded border border-border bg-muted px-1.5 text-[11px] font-bold text-[var(--muted-foreground-strong)]', grande && 'text-base')}>{opcion.atajo}</kbd>
             )}
           </label>
         )
       })}
       {descripcion !== undefined && (
-        <p id={idDescripcion} className={cn('text-xs', invalido ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{descripcion}</p>
+        <p id={idDescripcion} className={cn('text-xs', grande && 'text-base', invalido ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{descripcion}</p>
       )}
     </fieldset>
   )

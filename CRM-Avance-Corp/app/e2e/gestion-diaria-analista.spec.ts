@@ -13,13 +13,15 @@ test('Analista: «Mi día» abre con «Ahora» y su cola en pestañas', async ({
 
   await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
   // El registro crudo de la Fase 1 sigue debajo, sin filtro de analista.
-  await expect(page.getByRole('heading', { level: 2, name: '¿Qué hice hoy?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /¿Qué hice hoy\?/ })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Analista' })).toHaveCount(0)
 
   // «Ahora» responde la pregunta: una persona y su única acción primaria.
   const ahora = page.getByRole('region', { name: 'Ahora' })
   await expect(ahora).toBeVisible()
-  await expect(ahora.getByRole('button', { name: /^Registrar resultado de / })).toBeVisible()
+  await expect(ahora.getByRole('button', { name: /^Más acciones para / })).toBeVisible()
+  await expect(ahora.getByRole('link', { name: /Llamar a/ })
+    .or(ahora.getByRole('button', { name: /Copiar el número de/ }))).toBeVisible()
 
   // Los cuatro grupos están como pestañas con su conteo; solo se ve una lista.
   const tabs = page.getByRole('tablist', { name: 'Grupos de la cola' })
@@ -51,6 +53,7 @@ test('Analista: la fila elegida y «Ahora» son la misma persona', async ({ page
   await fila.click()
   await expect(fila).toHaveAttribute('aria-current', 'true')
   await expect(ahora).toContainText(nombre)
+  await expect(ahora.getByRole('button', { name: `Abrir la ficha de ${nombre}`, exact: true })).toBeFocused()
 })
 
 test('Analista: cambiar de pestaña cambia a quién propone «Ahora»', async ({ page }) => {
@@ -77,7 +80,14 @@ test('Analista: el panel de resultado se abre desde «Ahora»', async ({ page })
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const ahora = page.getByRole('region', { name: 'Ahora' })
-  await ahora.getByRole('button', { name: /^Registrar resultado de / }).click()
+  await ahora.getByRole('button', { name: /^Más acciones para / }).click()
+  const registrar = page.getByRole('menuitem', { name: 'Registrar resultado' })
+  expect(await registrar.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16)
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('menu')).toHaveCount(0)
+  expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true)
+  await ahora.getByRole('button', { name: /^Más acciones para / }).click()
+  await registrar.click()
   const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
   await expect(panel).toBeVisible({ timeout: 10_000 })
   await expect(panel.getByRole('radio', { name: /No contest/ })).toBeVisible()
@@ -85,20 +95,21 @@ test('Analista: el panel de resultado se abre desde «Ahora»', async ({ page })
   await expect(panel).toHaveCount(0)
 })
 
-test('Analista: el marcador y los descartes viven en «Mi actividad»', async ({ page }) => {
+test('Analista: detalle y registro plegados; la cola sigue visible al abrirlos', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
-  // En la pantalla principal NO están.
-  await expect(page.getByRole('tablist', { name: 'Secciones de mi actividad' })).toHaveCount(0)
-
+  const actividad = page.getByRole('heading', { name: /Mi actividad de hoy/ }).locator('xpath=ancestor::details')
+  const registro = page.getByRole('heading', { name: /¿Qué hice hoy\?/ }).locator('xpath=ancestor::details')
+  await expect(actividad).not.toHaveAttribute('open')
+  await expect(registro).not.toHaveAttribute('open')
+  await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).not.toBeVisible()
   await page.getByRole('button', { name: /^Mi actividad/ }).click()
-  await expect(page.getByRole('heading', { level: 2, name: 'Mi actividad de hoy' })).toBeVisible()
-  const secciones = page.getByRole('tablist', { name: 'Secciones de mi actividad' })
-  await expect(secciones.getByRole('tab')).toHaveCount(4)
-  await expect(page.getByText('Leads tocados')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Volver a mi día' }).click()
+  await expect(actividad).toHaveAttribute('open')
+  await expect(actividad.locator('summary')).toBeFocused()
   await expect(page.getByRole('region', { name: 'Ahora' })).toBeVisible()
+  await expect(actividad.getByRole('list', { name: 'Marcador de hoy' })).toBeVisible()
+  await registro.locator('summary').click()
+  await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
 })
 
 test('Analista: ningún texto de «Mi día» baja de 16 px', async ({ page }) => {
@@ -130,11 +141,39 @@ test('Analista: ningún texto de «Mi día» baja de 16 px', async ({ page }) =>
   expect(chicos, `Textos por debajo de 16 px:\n${chicos.join('\n')}`).toEqual([])
 })
 
+test('Analista: integración en dos columnas y móvil sin desbordamiento', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await entrarDemo(page, 'Analista')
+  await page.getByRole('button', { name: 'Gestión Diaria' }).click()
+  const ahora = page.getByRole('region', { name: 'Ahora' })
+  const cola = page.getByRole('region', { name: 'Cola de hoy' })
+  await expect(ahora).toBeVisible()
+  const a = (await ahora.boundingBox())!
+  const c = (await cola.boundingBox())!
+  expect(c.x).toBeGreaterThanOrEqual(a.x + a.width)
+  expect(Math.abs(c.y - a.y)).toBeLessThan(2)
+  await page.screenshot({ path: info.outputPath('analista-integracion-escritorio.png'), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await page.getByRole('heading', { name: '¿A quién llamo ahora?' }).scrollIntoViewIfNeeded()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  const tabs = cola.getByRole('tablist')
+  expect(await tabs.evaluate((raiz) => Array.from(raiz.querySelectorAll('button')).every((boton) =>
+    boton.scrollWidth <= boton.clientWidth && getComputedStyle(boton).whiteSpace === 'nowrap'))).toBe(true)
+  await tabs.getByRole('tab').first().focus()
+  await page.keyboard.press('End')
+  await expect(tabs.getByRole('tab').last()).toBeFocused()
+  await expect(tabs.getByRole('tab').last()).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('Home')
+  await page.screenshot({ path: info.outputPath('analista-integracion-movil.png'), fullPage: true })
+})
+
 for (const rol of ['Supervisor', 'Gerencia'] as const) {
-  test(`${rol} no ve «Mi día» todavía (llega en la Fase 4)`, async ({ page }) => {
+  test(`${rol} conserva su vista y registro, sin la cola personal del analista`, async ({ page }) => {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveCount(0)
+    if (rol === 'Supervisor') await page.getByRole('button', { name: 'Ver registro del equipo', exact: true }).click()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
   })
 }

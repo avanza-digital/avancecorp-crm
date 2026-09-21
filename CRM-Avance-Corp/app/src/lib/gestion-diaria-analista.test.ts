@@ -5,8 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, diaAnalistaDesdeDemo, filasDiariasDemo,
-  horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, textoTasa,
-  type ItemColaSla, type SenalCartera,
+  horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, resumenMarcador, textoTasa, tiempoDeFila,
+  type FilaDiaria, type ItemColaSla, type SenalCartera,
 } from './gestion-diaria-analista'
 import { seleccionarPrioridadesVendedor } from '@/screens/hoy/prioridades-vendedor'
 import type { ItemCola } from './inteligencia'
@@ -134,6 +134,60 @@ describe('detalleDeFila', () => {
   it('el número errado manda sobre todo lo demás: es lo que hay que resolver', () => {
     expect(detalleDeFila(fila('tarea_hoy', senal('l', { numero_errado_detalle: 'Contesta otra persona', llamadas_ciclo: 2 })), 7))
       .toBe('Número errado: Contesta otra persona')
+  })
+})
+
+describe('tiempoDeFila', () => {
+  const AHORA = Date.parse('2026-09-20T18:00:00Z')
+  const fila = (extra: Partial<FilaDiaria> = {}): FilaDiaria =>
+    ({ lead_id: 'l', nombre_completo: 'L', etapa: 'nuevo', grupo: 'primera_atencion', referencia_en: null,
+      tarea_id: null, severidad: 'media', senal: null, ...extra })
+
+  it('dice el tiempo que QUEDA, nunca una hora suelta ni la sigla', () => {
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-20T19:20:00Z' }), AHORA)).toEqual({ texto: 'Quedan 1 h 20 min', vencido: false })
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-20T18:40:00Z' }), AHORA)).toEqual({ texto: 'Quedan 40 min', vencido: false })
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-20T20:00:00Z' }), AHORA)).toEqual({ texto: 'Quedan 2 h', vencido: false })
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-23T18:00:00Z' }), AHORA)).toEqual({ texto: 'Quedan 3 días', vencido: false })
+  })
+
+  it('lo vencido se dice con palabras, que es lo que pinta de rojo', () => {
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-20T17:15:00Z' }), AHORA)).toEqual({ texto: 'Se pasó hace 45 min', vencido: true })
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-19T15:00:00Z' }), AHORA)).toEqual({ texto: 'Se pasó hace 1 día', vencido: true })
+  })
+
+  it('por debajo del minuto no dice «0 min»', () => {
+    expect(tiempoDeFila(fila({ referencia_en: '2026-09-20T18:00:30Z' }), AHORA).texto).toBe('Quedan menos de 1 min')
+  })
+
+  it('`sin_conversacion` no tiene hora límite: se mide en días', () => {
+    const s = senal('l', { dias_sin_conversacion: 12, sin_conversacion: true })
+    expect(tiempoDeFila(fila({ grupo: 'sin_conversacion', senal: s, referencia_en: '2026-09-08T18:00:00Z' }), AHORA))
+      .toEqual({ texto: 'Sin conversación hace 12 días', vencido: false })
+    expect(tiempoDeFila(fila({ grupo: 'sin_conversacion', senal: null }), AHORA).texto).toBe('Sin conversación')
+  })
+
+  it('sin hora legible no se inventa un reloj, pero la severidad SÍ se dice', () => {
+    expect(tiempoDeFila(fila({ referencia_en: null }), AHORA)).toEqual({ texto: 'Sin hora límite', vencido: false })
+    expect(tiempoDeFila(fila({ referencia_en: 'no-es-fecha', severidad: 'critica' }), AHORA))
+      .toEqual({ texto: 'Crítica, sin hora', vencido: true })
+  })
+})
+
+describe('resumenMarcador', () => {
+  const umbrales = { version: 1 as const, bien_min_pct: 45, atencion_min_pct: 25, minimo_llamadas_utiles: 5 }
+  const marcador = (extra: Record<string, unknown> = {}) => ({
+    llamadas: 9, contestadas: 5, utiles: 8, tasa_contacto_pct: 63, nivel: 'bien' as const, leads_tocados: 7,
+    citas_agendadas: 1, primera_llamada_en: null, ultima_llamada_en: null, por_resultado: {}, por_hora: [],
+    ...extra,
+  })
+
+  it('el % NUNCA va solo: lleva pegado el conteo de útiles sobre el que se calcula', () => {
+    expect(resumenMarcador({ marcador: marcador(), umbrales })).toBe('9 llamadas · 63 % contacto (8 útiles) · 1 cita')
+  })
+
+  it('sin tasa dice por qué, y no un cero que no es cierto', () => {
+    expect(resumenMarcador({ marcador: marcador({ llamadas: 1, utiles: 0, tasa_contacto_pct: null, nivel: null, citas_agendadas: 0 }), umbrales }))
+      .toBe('1 llamada · sin tasa aún (desde 5 útiles) · 0 citas')
   })
 })
 

@@ -3,7 +3,74 @@
 // siguiente y el toast ofrece «Deshacer», que la cancela. En demo el espejo es
 // local; lo que se comprueba es el flujo y la estructura, no el servidor.
 import { expect, test } from '@playwright/test'
-import { entrarDemo, irAPipeline, abrirLead } from './_helpers'
+import { entrarDemo, irAPipeline, abrirLead, montarBackendReal, leadReal, loginReal, UID } from './_helpers'
+
+for (const ancho of [1440, 390]) {
+  test('Mi día: resultado contraído y seguimiento sin descarte a ' + ancho + 'px', async ({ page }, info) => {
+    await page.setViewportSize({ width: ancho, height: ancho === 390 ? 844 : 1000 })
+    await entrarDemo(page, 'Analista')
+    await page.getByRole('button', { name: 'Gestión Diaria' }).click()
+    const ocultarMenu = page.getByRole('button', { name: 'Ocultar menú', exact: true })
+    if (ancho === 390 && await ocultarMenu.isVisible()) await ocultarMenu.click()
+    const ahora = page.getByRole('region', { name: 'Ahora' })
+    const llamar = ahora.getByRole('button', { name: /Copiar el número de/ })
+    await llamar.click()
+    const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+    await expect(panel.locator('input[name="resultado-llamada"]')).toHaveCount(7)
+    await panel.getByRole('radio', { name: /no le interesa/ }).check()
+    await expect(panel.locator('input[name="resultado-llamada"]')).toHaveCount(1)
+    await expect(panel.getByRole('radio', { name: /no le interesa/ })).toBeFocused()
+    await expect(panel.getByRole('button', { name: 'Guardar' })).toBeInViewport()
+    await panel.getByLabel(/¿Por qué no le interesa/).selectOption('sin_fondos_ahora')
+    await panel.getByRole('checkbox', { name: /Agendar próxima acción/ }).check()
+    await panel.getByLabel('Tipo de próxima acción').selectOption('whatsapp')
+    await panel.getByLabel('Título').fill('Retomar inversión cuando tenga fondos')
+    await panel.getByRole('button', { name: 'Cambiar resultado' }).click()
+    await expect(panel.locator('input[name="resultado-llamada"]')).toHaveCount(7)
+    await panel.getByRole('button', { name: 'Mantener resultado' }).click()
+    await expect(panel.getByLabel('Título')).toHaveValue('Retomar inversión cuando tenga fondos')
+    await expect(panel.getByRole('checkbox', { name: /Descartar y enviar/ })).not.toBeChecked()
+    expect(await panel.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    const pequenos = await panel.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*'))
+      .filter((el) => el.getClientRects().length > 0 && Array.from(el.childNodes)
+        .some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()))
+      .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) < 16)
+      .map((el) => el.textContent?.trim()))
+    expect(pequenos).toEqual([])
+    await panel.getByRole('radio', { name: /no le interesa/ }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: info.outputPath('resultado-contraido-' + ancho + '.png') })
+    await panel.getByLabel('Tipo de próxima acción').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: info.outputPath('proxima-accion-' + ancho + '.png') })
+    await panel.getByRole('button', { name: 'Guardar' }).click()
+    await expect(panel).toHaveCount(0)
+    await expect(page.getByText(/Llamada registrada · No le interesa/)).toBeVisible()
+    await expect(page.getByText(/lead descartado \(Centro de rescate\)/)).toHaveCount(0)
+  })
+}
+
+test('ruta autenticada simulada: pide otro producto usa v4 y mantiene el lead con seguimiento', async ({ page }) => {
+  const backend = await montarBackendReal(page, { rolCrm: 'vendedor', leads: [leadReal({ vendedor_id: UID })] })
+  await loginReal(page)
+  await irAPipeline(page)
+  const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
+  await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
+  const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await panel.getByRole('radio', { name: /Pide otro producto/ }).check()
+  await panel.getByLabel(/¿Qué producto pide/).selectOption('credito')
+  await panel.getByRole('checkbox', { name: /Agendar próxima acción/ }).check()
+  await panel.getByLabel('Tipo de próxima acción').selectOption('whatsapp')
+  const peticion = page.waitForRequest('**/rest/v1/rpc/registrar_llamada_v4')
+  await panel.getByRole('button', { name: 'Guardar' }).click()
+  const args = (await peticion).postDataJSON() as Record<string, unknown>
+  expect(args).toMatchObject({ p_resultado: 'pide_otro_producto', p_submotivo: 'credito', p_descartar: false })
+  await expect(panel).toHaveCount(0)
+  await expect(page.getByText(/Llamada registrada · Pide otro producto.*siguiente/)).toBeVisible()
+  expect(backend.leads[0]).toMatchObject({ vendedor_id: UID, etapa: 'contactado', motivo_descarte: null })
+  expect(backend.tareas).toHaveLength(1)
+  expect(backend.tareas[0]).toMatchObject({ lead_id: backend.leads[0]!.id, tipo: 'whatsapp', estado: 'pendiente' })
+  expect(backend.llamadas.insertActividad).toBe(0)
+})
+
 
 test('Analista: llamar → resultado «volver a llamar» → tarea creada → deshacer', async ({ page }) => {
   await entrarDemo(page, 'Analista')
@@ -15,6 +82,8 @@ test('Analista: llamar → resultado «volver a llamar» → tarea creada → de
   await expect(panel).toBeVisible()
   await expect(panel.getByRole('radio')).toHaveCount(7)
   await panel.getByRole('radio', { name: /volver a llamar/ }).check()
+  await expect(panel.getByRole('radio')).toHaveCount(1)
+  await expect(panel.getByRole('button', { name: 'Cambiar resultado' })).toBeVisible()
   await expect(panel.getByRole('textbox', { name: 'Fecha' })).toHaveValue(/^\d{4}-\d{2}-\d{2}$/)
   await panel.getByRole('button', { name: 'Guardar' }).click()
   await expect(panel).toHaveCount(0)
@@ -23,17 +92,19 @@ test('Analista: llamar → resultado «volver a llamar» → tarea creada → de
   await expect(page.getByText(/Deshecho: María vuelve a su etapa/)).toBeVisible()
 })
 
-test('Analista: «no le interesa» exige submotivo y avisa del descarte', async ({ page }) => {
+test('Analista: «no le interesa» solo descarta cuando se marca explícitamente', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
   await drawer.getByRole('button', { name: /Copiar el número de MARÍA LÓPEZ CASTRO y registrar la llamada/ }).click()
   const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
   await panel.getByRole('radio', { name: /no le interesa/ }).check()
+  await expect(panel.getByText(/saldrá de tu cartera/)).toHaveCount(0)
+  await panel.getByRole('checkbox', { name: /Descartar y enviar/ }).check()
   await expect(panel.getByText(/saldrá de tu cartera/)).toBeVisible()
   await panel.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByText('Indica por qué no le interesa')).toBeVisible()
-  await panel.getByRole('radio', { name: 'Desconfianza' }).check()
+  await panel.getByLabel(/¿Por qué no le interesa/).selectOption('desconfianza')
   await panel.getByRole('button', { name: 'Guardar' }).click()
   await expect(panel).toHaveCount(0)
   await expect(page.getByText(/lead descartado \(Centro de rescate\)/)).toBeVisible()

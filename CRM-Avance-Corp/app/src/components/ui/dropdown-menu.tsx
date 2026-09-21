@@ -65,6 +65,11 @@ export function DropdownMenu({
     onOpenChange?.(open)
   }, [open, onOpenChange])
 
+  /** El disparador real es el botón del consumidor: el primero dentro de la raíz. */
+  const enfocarDisparador = () => {
+    raiz.current?.querySelector<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')?.focus()
+  }
+
   const alternar = () => {
     if (!open && raiz.current) {
       // Si el trigger está al fondo de su contenedor de scroll (o del viewport),
@@ -79,13 +84,40 @@ export function DropdownMenu({
     setOpen((v) => !v)
   }
 
+  /** Las opciones enfocables del panel, en orden de lectura. */
+  const opciones = () =>
+    [...(raiz.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? [])]
+
   useEffect(() => {
     if (!open) return
+    // Al abrir, el foco entra al menú: quien lo anuncia como `menu` promete el
+    // patrón del APG, y hasta hoy solo cumplía Escape (revisión de a11y,
+    // 20/09/2026). Sin esto, las flechas no hacían nada y el foco se quedaba
+    // fuera de lo que el lector de pantalla acababa de anunciar.
+    opciones()[0]?.focus()
     const click = (e: MouseEvent) => {
       if (raiz.current && !raiz.current.contains(e.target as Node)) setOpen(false)
     }
     const tecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      // Escape cierra Y devuelve el foco al disparador: cerrarlo con el foco
+      // dentro de un ítem que se desmonta lo mandaba al `body`, y el siguiente
+      // TAB reiniciaba la página (hallazgo de Codex, 20/09/2026).
+      if (e.key === 'Escape') { setOpen(false); enfocarDisparador(); return }
+      if (!raiz.current?.contains(e.target as Node)) return
+      // Tab sale del menú, así que el menú se cierra: si no, queda un panel
+      // flotante con `aria-expanded="true"` y el foco en otra parte.
+      if (e.key === 'Tab') { enfocarDisparador(); setOpen(false); return }
+      const items = opciones()
+      if (items.length === 0) return
+      const i = items.indexOf(document.activeElement as HTMLElement)
+      const destino = e.key === 'Home' ? items[0]
+        : e.key === 'End' ? items[items.length - 1]
+          : e.key === 'ArrowDown' ? items[i < 0 ? 0 : (i + 1) % items.length]
+            : e.key === 'ArrowUp' ? items[i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length]
+              : undefined
+      if (destino === undefined) return
+      e.preventDefault()
+      destino.focus()
     }
     document.addEventListener('mousedown', click)
     document.addEventListener('keydown', tecla)
@@ -117,7 +149,7 @@ export function DropdownMenu({
         {disparador}
       </span>
       {open && (
-        <MenuCtx.Provider value={{ cerrar: () => setOpen(false) }}>
+        <MenuCtx.Provider value={{ cerrar: () => { setOpen(false); enfocarDisparador() } }}>
           <div
             role="menu"
             data-slot="dropdown-menu"
@@ -152,13 +184,20 @@ export function DropdownItem({ children, onSelect, disabled, destructive, classN
     <button
       type="button"
       role="menuitem"
-      disabled={disabled}
+      // `aria-disabled` y no `disabled`: deshabilitar el botón que TIENE el foco
+      // lo manda al `body` y el siguiente TAB reinicia la página (regla de la
+      // casa, `boton-guardar.tsx`). Aquí dejó de ser hipotético: «Mi día»
+      // deshabilita «Registrar resultado» mientras resuelve la tarea, y ese
+      // ítem es justo el que el menú acaba de enfocar al abrirse.
+      aria-disabled={disabled === true ? true : undefined}
       onClick={() => {
+        if (disabled === true) return
         onSelect?.()
         ctx?.cerrar()
       }}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0',
+        // 14 px: 13 px quedaba por debajo del piso de lectura que pidió el dueño.
+        'flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors aria-disabled:cursor-default aria-disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0',
         destructive ? 'text-destructive hover:bg-destructive/10' : 'text-foreground hover:bg-muted',
         className,
       )}

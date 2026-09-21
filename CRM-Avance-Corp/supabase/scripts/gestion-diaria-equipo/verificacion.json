@@ -1,0 +1,27 @@
+{
+  "estado": "PASS",
+  "base": "gestion_diaria_f4_vista_chvrqh",
+  "ensayado_en": "2026-09-21T05:13:55.012Z",
+  "sha256_migracion": "f9a9aad16a683e1b87118fe03976cb206d752f0f375c93b4dc375e044c49af02",
+  "funciones": [
+    {
+      "firma": "crm.gestion_diaria_equipo_fn(date,uuid)",
+      "md5": "6fee13c7191e5fc17647f9b684a3630c"
+    },
+    {
+      "firma": "private.gestion_diaria_equipo_core(date,uuid)",
+      "md5": "70d6b23ee4d9f1f397ccfbae8f1dee5a"
+    },
+    {
+      "firma": "private.gestion_diaria_equipo_pendientes()",
+      "md5": "6de28503dd0a32bd98de95d1f5de3532"
+    }
+  ],
+  "censo_intacto": true,
+  "reversa_exacta": true,
+  "oraculos": [
+    "GESTION_DIARIA_EQUIPO_OK",
+    "GESTION_DIARIA_JERARQUIA_OK",
+    "GESTION_DIARIA_CALENDARIO_OK"
+  ]
+}

@@ -84,7 +84,7 @@ import {
   type ObjetivosPorVendedor,
 } from './objetivos'
 import { presentarDisponibilidadLead } from './disponibilidad-lead'
-import { ejecutarComandoSla, hayIntencionPendienteSla, tareaConConfirmacionPendiente, type Respuesta } from '@/data/sla-operacion-comandos'
+import { ejecutarComandoSla, hayIntencionPendienteSla, hayLlamadaV3Pendiente, tareaConConfirmacionPendiente, type Respuesta } from '@/data/sla-operacion-comandos'
 import { deshacerResultadoLlamada as deshacerResultadoLlamadaFn } from '@/data/gestion-diaria-api'
 import { gestionDiariaKeys } from '@/data/gestion-diaria-queries'
 import {
@@ -92,6 +92,8 @@ import {
   esResultadoLlamada,
   motivoDeDescarte,
   SUBMOTIVOS,
+  tiposSiguientesDeResultado,
+  dentroDeVentanaLegal,
   type ResultadoLlamada,
   type SubmotivoLlamada,
 } from './resultado-llamada'
@@ -243,7 +245,7 @@ export interface CompletarTareaInput {
 }
 
 /** Entrada del resultado tipificado de una llamada (Gestión Diaria F2). El
- *  servidor (`crm.registrar_llamada_v3`) es quien decide; esto es su espejo. */
+ *  servidor (`crm.registrar_llamada_v4`) es quien decide; esto es su espejo. */
 export interface RegistrarLlamadaInput {
   resultado: ResultadoLlamada
   submotivo?: SubmotivoLlamada | null
@@ -251,7 +253,7 @@ export interface RegistrarLlamadaInput {
   siguiente?: CompletarTareaInput['siguiente']
   /** Tarea de LLAMADA pendiente que esta llamada cierra (tareaQueCierra). */
   tarea_id?: string | null
-  /** Decisión del analista en número errado / no es la persona / «no responde». */
+  /** Decisión explícita, separada del resultado (incluye falta de interés/producto). */
   descartar?: boolean
   /** «Pidió que no lo vuelvan a llamar» (Ley 29571). Irreversible desde aquí. */
   no_insista?: boolean
@@ -3063,7 +3065,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // reconoce por su recibo y NO la valida como nueva (el lead ya puede
         // estar descartado por ella, la tarea completada, la fecha pasada). Aquí
         // tampoco: solo se comprueba el catálogo y se reenvía tal cual.
-        const reintento = realActivo && hayIntencionPendienteSla(miId, 'registrar_llamada_v3', id)
+        if (realActivo && hayLlamadaV3Pendiente(miId, id)) {
+          return { ok: false, error: 'Confirma primero el resultado anterior en «Guardados por confirmar». No se cambia su descarte ni su próxima acción.' }
+        }
+        const reintento = realActivo && hayIntencionPendienteSla(miId, 'registrar_llamada_v4', id)
         if (!reintento && TERMINALES_K.has(actual.etapa)) {
           return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
         }
@@ -3072,7 +3077,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
         const def = definicionResultado(input.resultado)
         const submotivo = input.submotivo ?? null
-        // ESPEJO de las validaciones del núcleo (private.llamada_registrar): el
+        // ESPEJO de las validaciones del núcleo (private.llamada_registrar_v4): el
         // servidor manda, esto evita cantar un éxito que va a rechazar.
         if (def.paso === 'submotivo') {
           if (!submotivo || !SUBMOTIVOS[def.clave as 'no_interesado' | 'pide_otro_producto'].some((s) => s.clave === submotivo)) {
@@ -3081,17 +3086,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         } else if (submotivo) {
           return { ok: false, error: 'El submotivo solo acompaña a «no le interesa» o «pide otro producto»' }
         }
-        const descartar = def.descarta || input.descartar === true
+        const descartar = input.descartar === true
         if (descartar && (def.clave === 'volver_a_llamar' || def.clave === 'agendo_reunion')) {
           return { ok: false, error: 'Este resultado no descarta al lead' }
         }
-        if (input.no_insista && !def.descarta) {
+        if (input.no_insista && !def.descarteOpcional) {
           return { ok: false, error: '«No insistir» solo acompaña a «no le interesa» o «pide otro producto»' }
         }
         const soyDueno = actual.vendedor_id != null && actual.vendedor_id === miId
         let siguientePayload: SiguienteCierre = null
         if (input.siguiente) {
           if (descartar) return { ok: false, error: 'Un lead descartado no recibe tarea siguiente' }
+          if (input.no_insista || (!reintento && actual.no_contactar)) return { ok: false, error: 'No volver a contactar impide agendar una próxima acción' }
+          if (!reintento && !soyDueno) return { ok: false, error: 'La próxima acción solo la agenda el analista dueño del lead' }
           const vence = normalizarFechaTarea(input.siguiente.vence_en)
           const titulo = input.siguiente.titulo.trim()
           if (!esTipoTarea(input.siguiente.tipo) || !vence || !titulo || titulo.length > 200) {
@@ -3100,6 +3107,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (def.clave === 'volver_a_llamar' && input.siguiente.tipo !== 'llamada') return { ok: false, error: 'Indica cuándo volver a llamar' }
           if (def.clave === 'agendo_reunion' && input.siguiente.tipo !== 'reunion') return { ok: false, error: 'Indica la fecha de la cita' }
           if (!reintento && Date.parse(vence) <= Date.now()) return { ok: false, error: 'La tarea siguiente debe ser futura' }
+          if (!tiposSiguientesDeResultado(def.clave).includes(input.siguiente.tipo)) return { ok: false, error: 'Tipo de próxima acción no válido para este resultado' }
+          if (!reintento && (input.siguiente.tipo === 'llamada' || input.siguiente.tipo === 'whatsapp') && !dentroDeVentanaLegal(vence)) {
+            return { ok: false, error: 'Solo se contacta de lunes a sábado entre 07:00 y 20:00 (Lima)' }
+          }
           const reunion = prepararReunionTarea(input.siguiente.tipo, input.siguiente)
           if (!reunion.ok) return reunion.resultado
           siguientePayload = {
@@ -3112,6 +3123,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
         const tarea = input.tarea_id
           ? tareas.find((t) => t.id === input.tarea_id && t.lead_id === id && t.activo && (reintento || t.estado === 'pendiente'))
+            ?? (reintento ? tareaConConfirmacionPendiente(miId, input.tarea_id) : undefined)
           : undefined
         if (input.tarea_id && !reintento && (!tarea || tarea.tipo !== 'llamada')) {
           return { ok: false, error: 'Solo una tarea de llamada pendiente se cierra con el resultado de una llamada' }
@@ -3175,16 +3187,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           const argumentos = {
             p_lead_id: id,
             p_resultado: def.clave,
-            p_submotivo: submotivo,
-            p_detalle: detalle,
+            ...(submotivo !== null ? { p_submotivo: submotivo } : {}),
+            ...(detalle !== null ? { p_detalle: detalle } : {}),
             p_siguiente: siguientePayload,
-            p_tarea_id: tarea?.id ?? null,
+            ...(input.tarea_id ? { p_tarea_id: input.tarea_id } : {}),
             p_descartar: descartar,
             p_no_insista: input.no_insista === true,
           }
           respuesta = tarea
-            ? await ejecutarComandoSla(miId, 'registrar_llamada_v3', id, argumentos, tarea)
-            : await ejecutarComandoSla(miId, 'registrar_llamada_v3', id, argumentos)
+            ? await ejecutarComandoSla(miId, 'registrar_llamada_v4', id, argumentos, tarea)
+            : await ejecutarComandoSla(miId, 'registrar_llamada_v4', id, argumentos)
           void queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() })
           void queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(id) })
         }, { invalidarConversionRango: descartar, invalidarAgenda: Boolean(siguientePayload) || tarea != null, invalidarReuniones: siguientePayload?.tipo === 'reunion' })
