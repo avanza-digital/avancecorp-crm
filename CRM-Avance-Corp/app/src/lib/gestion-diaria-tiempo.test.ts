@@ -4,7 +4,9 @@
 // «vencido» coincide con la severidad crítica del servidor — que es lo que
 // permite retirar el chip «Crítica» sin perder información.
 import { describe, expect, it } from 'vitest'
-import { paginaDeFilas, pestanasDiarias, textoTiempoDeFila, type FilaDiaria } from './gestion-diaria-analista'
+import {
+  COLOR_NIVEL, ETIQUETA_NIVEL, paginaDeFilas, pestanasDiarias, textoTiempoDeFila, type FilaDiaria,
+} from './gestion-diaria-analista'
 
 const AHORA = Date.parse('2026-09-20T15:00:00Z')
 
@@ -99,5 +101,21 @@ describe('paginaDeFilas', () => {
 
   it('sin filas no inventa un rango', () => {
     expect(paginaDeFilas([], 0, 5)).toMatchObject({ rango: '0 de 0', paginas: 1, total: 0 })
+  })
+})
+
+describe('el rojo de «Mi día» significa UNA sola cosa', () => {
+  it('«Bajo» va en ÁMBAR: el rojo queda reservado a «se venció»', () => {
+    // Decisión de Miguel del 20/09/2026 sobre el hallazgo de Codex. Si alguien
+    // devuelve el rojo al nivel, un chip rojo pasaría a significar dos cosas:
+    // una tasa baja y un plazo incumplido.
+    expect(COLOR_NIVEL.bajo).toBe('var(--warning-text)')
+    expect(COLOR_NIVEL.bajo).not.toBe('var(--destructive-text)')
+    expect(Object.values(COLOR_NIVEL)).not.toContain('var(--destructive-text)')
+  })
+
+  it('el nivel NO viaja solo en el color: «Atención» y «Bajo» comparten tono y los separa el texto', () => {
+    expect(COLOR_NIVEL.atencion).toBe(COLOR_NIVEL.bajo)
+    expect(ETIQUETA_NIVEL.atencion).not.toBe(ETIQUETA_NIVEL.bajo)
   })
 })
