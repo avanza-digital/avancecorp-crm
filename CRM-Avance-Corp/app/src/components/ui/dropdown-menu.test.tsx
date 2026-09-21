@@ -2,7 +2,7 @@
 // `role="menu"`: teclado completo y foco que vuelve al disparador. Hasta el
 // 20/09/2026 solo cumplía Escape, y «Mi día» metió ahí una acción principal
 // («Registrar resultado»), así que la promesa pasó a ser exigible.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DropdownItem, DropdownMenu } from './dropdown-menu'
 
@@ -49,6 +49,27 @@ describe('DropdownMenu', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Acciones' })).toHaveFocus()
+  })
+
+  it('un ítem deshabilitado no se ejecuta, no roba el foco y NO usa `disabled`', () => {
+    const elegido = vi.fn()
+    render(
+      <DropdownMenu trigger={<button type="button">Acciones</button>}>
+        <DropdownItem disabled onSelect={elegido}>Primera</DropdownItem>
+        <DropdownItem>Segunda</DropdownItem>
+      </DropdownMenu>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Acciones' }))
+    const inerte = screen.getByRole('menuitem', { name: 'Primera' })
+    // `aria-disabled`, no `disabled`: si no, deshabilitar el ítem enfocado
+    // manda el foco al body y el siguiente TAB reinicia la página.
+    expect(inerte).toHaveAttribute('aria-disabled', 'true')
+    expect(inerte).not.toBeDisabled()
+    // Y el foco de apertura se salta el inerte.
+    expect(screen.getByRole('menuitem', { name: 'Segunda' })).toHaveFocus()
+    fireEvent.click(inerte)
+    expect(elegido).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 
   it('elegir una opción cierra y devuelve el foco', () => {

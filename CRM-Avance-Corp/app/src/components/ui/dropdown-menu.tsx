@@ -86,7 +86,7 @@ export function DropdownMenu({
 
   /** Las opciones enfocables del panel, en orden de lectura. */
   const opciones = () =>
-    [...(raiz.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])]
+    [...(raiz.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? [])]
 
   useEffect(() => {
     if (!open) return
@@ -184,14 +184,20 @@ export function DropdownItem({ children, onSelect, disabled, destructive, classN
     <button
       type="button"
       role="menuitem"
-      disabled={disabled}
+      // `aria-disabled` y no `disabled`: deshabilitar el botón que TIENE el foco
+      // lo manda al `body` y el siguiente TAB reinicia la página (regla de la
+      // casa, `boton-guardar.tsx`). Aquí dejó de ser hipotético: «Mi día»
+      // deshabilita «Registrar resultado» mientras resuelve la tarea, y ese
+      // ítem es justo el que el menú acaba de enfocar al abrirse.
+      aria-disabled={disabled === true ? true : undefined}
       onClick={() => {
+        if (disabled === true) return
         onSelect?.()
         ctx?.cerrar()
       }}
       className={cn(
         // 14 px: 13 px quedaba por debajo del piso de lectura que pidió el dueño.
-        'flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0',
+        'flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors aria-disabled:cursor-default aria-disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0',
         destructive ? 'text-destructive hover:bg-destructive/10' : 'text-foreground hover:bg-muted',
         className,
       )}

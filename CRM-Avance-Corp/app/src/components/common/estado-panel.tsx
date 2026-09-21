@@ -54,8 +54,8 @@ export function PanelSinConexion({
         <CloudOff className="size-5" aria-hidden />
       </span>
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-foreground">Sin conexión</p>
-        <p className="max-w-xs text-xs text-muted-foreground">
+        <p className="text-base font-semibold text-foreground">Sin conexión</p>
+        <p className="max-w-xs text-sm text-[var(--muted-foreground-strong)]">
           No pudimos traer esta información. Se cargará sola en cuanto vuelva la
           conexión — tu sesión sigue activa.
         </p>
@@ -118,8 +118,8 @@ export function PanelError({
         <WifiOff className="size-5" aria-hidden />
       </span>
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-foreground">{mensaje}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-base font-semibold text-foreground">{mensaje}</p>
+        <p className="text-sm text-[var(--muted-foreground-strong)]">
           Revisa tu conexión y vuelve a intentarlo — tu sesión sigue activa.
         </p>
       </div>
@@ -148,8 +148,10 @@ export function PanelVacio({
   children?: ReactNode
   /**
    * `grande` para las pantallas de trabajo con piso tipográfico de 16 px («Mi
-   * día»). El vacío es el estado que MÁS se ve en producción según el gate de
-   * realidad, así que no puede quedarse en 12 px cuando el resto subió.
+   * día»): título de 18 px y detalle de 16. El vacío es el estado que MÁS se ve
+   * en producción según el gate de realidad, así que el tamaño NORMAL también
+   * respeta el piso de la casa —16 px el título, 14 el detalle— desde el
+   * 21/09/2026 (decisión de Miguel); antes se quedaba en 14 y 12.
    */
   tamano?: 'normal' | 'grande' | undefined
 }) {
@@ -159,9 +161,9 @@ export function PanelVacio({
       <span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
         <Icono className="size-5" aria-hidden />
       </span>
-      <p className={grande ? 'text-lg font-medium leading-7 text-foreground' : 'text-sm font-semibold text-foreground'}>{titulo}</p>
+      <p className={grande ? 'text-lg font-medium leading-7 text-foreground' : 'text-base font-semibold text-foreground'}>{titulo}</p>
       {detalle != null && (
-        <p className={grande ? 'max-w-md text-base text-[var(--muted-foreground-strong)]' : 'max-w-xs text-xs text-muted-foreground'}>{detalle}</p>
+        <p className={grande ? 'max-w-md text-base text-[var(--muted-foreground-strong)]' : 'max-w-xs text-sm text-[var(--muted-foreground-strong)]'}>{detalle}</p>
       )}
       {children}
     </div>
