@@ -268,6 +268,66 @@ export function llamadasFueraDeFranja(marcador: Pick<Marcador, 'por_hora'>): num
   return marcador.por_hora.filter((h) => h.hora < 8 || h.hora > 20).reduce((total, h) => total + h.llamadas, 0)
 }
 
+/**
+ * El tiempo de la fila EN PALABRAS: «Quedan 40 min», «Se pasó hace 45 min».
+ * Regla de Miguel (20/09/2026): en pantalla no se dice «SLA» ni se muestra una
+ * hora suelta que el analista tenga que restar de memoria — se dice cuánto
+ * falta. `referencia_en` YA es el límite que manda en los tres buckets de la
+ * cola (`cola_accion_v2_fn`: `v_primera` o el `vence_en` de la tarea).
+ *
+ * `sin_conversacion` NO tiene hora límite: ese grupo se mide en días, y se
+ * dice así. Y si la hora no se puede leer no se inventa un reloj: si el
+ * servidor marcó la fila como crítica, eso sí se dice (la severidad nunca
+ * viaja solo en el color).
+ */
+export function tiempoDeFila(fila: FilaDiaria, ahora: number): { texto: string; vencido: boolean } {
+  if (fila.grupo === 'sin_conversacion') {
+    const dias = fila.senal?.dias_sin_conversacion ?? null
+    if (dias === null) return { texto: 'Sin conversación', vencido: false }
+    return { texto: `Sin conversación hace ${dias} ${dias === 1 ? 'día' : 'días'}`, vencido: false }
+  }
+  const ms = fila.referencia_en === null ? Number.NaN : Date.parse(fila.referencia_en)
+  if (!Number.isFinite(ms)) {
+    return fila.severidad === 'critica'
+      ? { texto: 'Crítica, sin hora', vencido: true }
+      : { texto: 'Sin hora límite', vencido: false }
+  }
+  const resta = ms - ahora
+  return resta < 0
+    ? { texto: `Se pasó hace ${duracionEnPalabras(-resta)}`, vencido: true }
+    : { texto: `Quedan ${duracionEnPalabras(resta)}`, vencido: false }
+}
+
+/** «1 h 20 min», «40 min», «3 días». Nunca «0 min». */
+function duracionEnPalabras(ms: number): string {
+  const minutos = Math.floor(ms / 60_000)
+  if (minutos < 1) return 'menos de 1 min'
+  if (minutos < 60) return `${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) {
+    const resto = minutos % 60
+    return resto === 0 ? `${horas} h` : `${horas} h ${String(resto).padStart(2, '0')} min`
+  }
+  const dias = Math.floor(horas / 24)
+  return dias === 1 ? '1 día' : `${dias} días`
+}
+
+/**
+ * El marcador del día en UNA línea, para la cabecera (decisión de Miguel,
+ * 20/09/2026: el marcador es contexto, no trabajo pendiente). Respeta la
+ * decisión #7: el % NUNCA va solo — lleva pegado el conteo de útiles sobre el
+ * que se calcula, que no es el total de llamadas.
+ */
+export function resumenMarcador(dia: Pick<DiaAnalista, 'marcador' | 'umbrales'>): string {
+  const m = dia.marcador
+  const llamadas = m.llamadas === 1 ? '1 llamada' : `${m.llamadas} llamadas`
+  const tasa = m.tasa_contacto_pct === null
+    ? `sin tasa aún (desde ${dia.umbrales.minimo_llamadas_utiles} útiles)`
+    : `${m.tasa_contacto_pct} % contacto (${m.utiles === 1 ? '1 útil' : `${m.utiles} útiles`})`
+  const citas = m.citas_agendadas === 1 ? '1 cita' : `${m.citas_agendadas} citas`
+  return `${llamadas} · ${tasa} · ${citas}`
+}
+
 // ── Espejo DEMO ─────────────────────────────────────────────────────────────
 // En demo no hay servidor: el día se arma con la MISMA regla escrita, sobre el
 // ámbito en memoria (que ya viene recortado por rol, espejo de la RLS). Es un

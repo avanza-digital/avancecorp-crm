@@ -82,6 +82,7 @@ export function AccionesContacto({
   soloIcono,
   conAgendar,
   destacada,
+  onGuardado,
 }: {
   lead: LeadContactable
   compacto?: boolean
@@ -96,6 +97,13 @@ export function AccionesContacto({
   conAgendar?: boolean
   /** Targets táctiles de 44 px para la franja primaria «Ahora» (Ley de Fitts). */
   destacada?: boolean
+  /**
+   * Aviso de que la LLAMADA quedó registrada. Lo usa «Mi día» para pasar al
+   * siguiente lead de la cola desde la acción primaria, igual que ya hacía al
+   * registrar desde el panel: sin esto, el camino principal —Llamar— dejaba la
+   * cola parada en el lead recién atendido (hallazgo de Codex, 20/09/2026).
+   */
+  onGuardado?: (() => void) | undefined
 }): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -225,7 +233,7 @@ export function AccionesContacto({
       {conAgendar && escribe && <BotonAgendar lead={lead} labelCls={labelCls} />}
       {/* Gestión Diaria F2: TODA llamada se cierra con el resultado tipificado
           (panel del mockup 5). WhatsApp conserva su diálogo de dos opciones. */}
-      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} />}
+      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} onGuardado={onGuardado} />}
       {dialogo === 'wa' && <DialogResultado lead={lead} canal={dialogo} onClose={() => setDialogo(null)} />}
     </div>
   )
@@ -296,12 +304,16 @@ function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: str
 // ── Dialog de resultado de la LLAMADA (resultado tipificado, F2) ──────────────
 // `tareaQueCierra` sigue decidiendo qué tarea de llamada pendiente cierra este
 // contacto; el panel la ofrece con su casilla, como antes.
-function DialogResultadoLlamada({ lead, onClose }: { lead: LeadContactable; onClose: () => void }): JSX.Element {
+function DialogResultadoLlamada({ lead, onClose, onGuardado }: {
+  lead: LeadContactable
+  onClose: () => void
+  onGuardado?: (() => void) | undefined
+}): JSX.Element {
   const { tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
   const [tarea] = useState(() => tareaQueCierra(tareasDe(lead.id), 'tel', yo?.id, ahora))
-  return <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} />
+  return <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} onGuardado={onGuardado} />
 }
 
 // ── Dialog de resultado del contacto (WhatsApp) ───────────────────────────────
