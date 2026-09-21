@@ -17,11 +17,13 @@ La interfaz conserva la opción elegida y contrae las otras seis; «Cambiar resu
 las vuelve a mostrar. El motivo es un selector compacto para dejar espacio a la agenda.
 Se reutilizan título, campos de cita y reglas de la ficha.
 
-Implementado en taller aislado y probado solo en la base local autorizada
-`gestion_diaria_f4_vista_chvrqh`. Nueva SQL `20260921153654`, puerta v4. No se
-instaló en producción ni se publicó. V3, su núcleo y recibos conservados;
-reversa con datos v4 sin pérdida comprobada. Revisión Claude recibida y evaluada,
-sin atribuir un PASS final del reviewer.
+**PUBLICADO el 21/09** desde `526e728e`, PR #62, release
+`crm-20260921T170501Z-526e728e31ff`. Después del banco local autorizado
+`gestion_diaria_f4_vista_chvrqh`, Miguel autorizó la SQL exacta y `$release-crm`.
+SQL `20260921153654`, puerta v4, instalada y registrada. V3, núcleo y recibos
+conservados; reversa ensayada únicamente en local. Claude revisó y el PRIMARY
+contrastó su dictamen con pruebas; no se atribuye un PASS final al reviewer.
+Evidencia productiva y límites: [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]].
 
 Acta con verificación, límites y decisión sobre observaciones:
 `CRM-Avance-Corp/docs/gestion-diaria/RESULTADO-LLAMADA-SEGUIMIENTO.md`.

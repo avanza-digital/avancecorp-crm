@@ -238,16 +238,26 @@ describe('tablero Pipeline · chip de capital', () => {
 
 describe('tablero Pipeline · bandeja compacta', () => {
   it('en sesión real la columna pinta la página servida y pide «Cargar más» al servidor (Fase 4d)', () => {
+    VENDEDORES = [
+      { perfil_id: 'v-1', nombre_completo: 'ANA TORRES', rol_crm: 'vendedor', activo: true, supervisor_id: null },
+    ]
     montar(
       Array.from({ length: 21 }, (_, i) => lead({
         id: `lead-${i + 1}`,
         nombre_completo: `LEAD ${String(i + 1).padStart(2, '0')}`,
+        // Las páginas reales traen el id, sin el nombre resuelto por el store.
+        vendedor_id: i === 1 ? 'v-fuera-del-equipo' : i === 2 ? null : 'v-1',
+        vendedor_nombre: null,
       })),
     )
 
     // 20 cargadas de 21 (el total lo dice el servidor), sin paginador local.
     expect(screen.getByText('20 de 21')).toBeInTheDocument()
     expect(cardDe('LEAD 01')).toBeInTheDocument()
+    expect(within(cardDe('LEAD 01')).getByText('ANA')).toBeInTheDocument()
+    expect(within(cardDe('LEAD 02')).getByText('Analista asignado')).toBeInTheDocument()
+    expect(within(cardDe('LEAD 03')).getByText('sin asignar')).toBeInTheDocument()
+    expect(screen.getAllByText('sin asignar')).toHaveLength(1)
     expect(screen.queryByText('LEAD 21')).not.toBeInTheDocument()
     expect(zonaDe('Nuevo').className).toContain('overflow-y-auto')
     expect(screen.queryByRole('button', { name: 'Ver página siguiente de Nuevo' })).not.toBeInTheDocument()

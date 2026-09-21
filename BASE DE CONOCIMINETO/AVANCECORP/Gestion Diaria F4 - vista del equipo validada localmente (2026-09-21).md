@@ -1,10 +1,20 @@
 ---
 tags: [crm, gestion-diaria, supervisor, f4, verificacion]
-estado: reconciliada y validada localmente — sin publicar
+estado: etapa 1 publicada — etapas 2–6 pendientes
 fecha: 2026-09-21
 ---
 
 # Gestión Diaria F4 — vista del equipo validada localmente
+
+**Actualización productiva:** el 21/09 Miguel autorizó las dos SQL y `$release-crm`,
+y aprobó/integró PR #62. F4 etapa 1 y resultado v4 están publicados desde
+`526e728e`, release `crm-20260921T170501Z-526e728e31ff`. SQL instalado y registrado;
+CI, gates productivos y recursos ejecutables verificados. No repetir aprobación,
+integración ni instalación. Retomar recorrido de negocio y F4 etapa 2.
+Ver [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]].
+
+Lo que sigue conserva el historial de preparación, anterior a esa autorización;
+sus referencias a «sin publicar» no describen el estado vigente.
 
 La etapa 1 permite ver a todos los analistas activos autorizados, incluso sin
 actividad ni cartera, con sus pendientes y motivos de atención. No demuestra

@@ -51,10 +51,11 @@ instalada el 20/09, frontend `crm-20260920T034405Z-afc391974382` y build
 
 Ampliación aprobada el 21/09: **resultado y descarte se separan**. El formulario
 contrae los otros seis resultados al elegir uno, ofrece «Cambiar resultado» y
-permite agendar desde «No le interesa» y «Pide otro producto». Implementada en
-el taller aislado y probada únicamente en la base local autorizada; todavía NO
-está publicada. Nueva puerta `crm.registrar_llamada_v4`, candidata
-`20260921153654_crm_resultado_llamada_seguimiento.sql`. Detalles, revisión,
+permite agendar desde «No le interesa» y «Pide otro producto». **PUBLICADA el
+21/09/2026** tras autorización expresa del SQL y del release, aprobación e
+integración del PR #62. Puerta `crm.registrar_llamada_v4`, migración
+`20260921153654_crm_resultado_llamada_seguimiento.sql` instalada y registrada.
+Fuente publicada: `526e728e31ff64adaf9b737fa5e408ebe32005a2`. Detalles, revisión,
 pruebas y límites: [RESULTADO-LLAMADA-SEGUIMIENTO.md](RESULTADO-LLAMADA-SEGUIMIENTO.md).
 No confundir esta mejora transversal de F2/F3 con el cierre de F4.
 
@@ -68,10 +69,12 @@ y PRs #42, #44, #47, #50 y #51.
 registrada, quién tiene pendientes y dónde debe intervenir, sin ocultar a los analistas con
 cero actividad. Se construye en seis etapas: vista del equipo, detalle del analista, cortes
 de jornada, alertas y seguimiento, configuración gerencial, y validación y activación.
-La etapa 1 está implementada y validada localmente al 21/09. Main local ya contiene
-el merge `03249ba9`, con padres `997e1290` (candidata F4) y `40f2501b` (taller).
-La integración local se documenta en `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
-Faltan aprobación e instalación del SQL y publicación. Las etapas 2–6 siguen pendientes. Sus criterios de cierre se desarrollan en §F4.
+La etapa 1 está **PUBLICADA el 21/09**, con SQL `20260921040335` instalado y
+registrado. Main local y `avancecorp/main` coincidieron en `526e728e` antes de
+construir y publicar una copia limpia de ese commit. Acta de publicación,
+verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
+Queda el recorrido de negocio con el supervisor; las etapas 2–6 siguen pendientes.
+Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
 **F4.1 — Revisión asistida con TypeSafe.** Comprobar primero si ayuda a detectar posibles
@@ -118,28 +121,37 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 
 ### Cómo retomar (receta)
 
-1. **Tronco:** `avancecorp/main` (espejo del `main` local del taller). Fusionar siempre con merge commit; el preflight de deploy lee la ancestría. Antes de construir, fusionar; antes de publicar, `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
+1. **Main único:** `avancecorp/main` (espejo del `main` local del taller). Integrar el remoto sin sobrescribirlo y exigir igualdad de commits antes de construir/publicar. El preflight comprueba la ancestría del despliegue anterior: `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
 2. **Taller y aislamiento:** comprobar `git status`, `git worktree list` y las notas de esta entrega. La candidata F4 se ha trabajado en `/private/tmp/avancecorp-gd-f4-vista.chvRqh`; no crear otro worktree ni reutilizar una rama antigua automáticamente. Preservar los cambios ajenos sin commitear.
 3. **Banco local F4:** `gestion_diaria_f4_vista_chvrqh` dentro de `supabase_db_avancecorp-f5-bank`. Los scripts en `supabase/scripts/gestion-diaria-equipo/` fijan ese destino; sus fixtures terminan en ROLLBACK. No ejecutar estos ensayos contra producción.
-4. **Servidor:** migración de etapa 1 `20260921040335_crm_gestion_diaria_equipo_vista.sql`, ya versionada: no editarla. Mostrar el SQL exacto y obtener aprobación antes de cualquier instalación productiva. La autorización de reconciliar ramas NO autoriza SQL, activación ni deploy.
+4. **Servidor:** `20260921040335_crm_gestion_diaria_equipo_vista.sql` y `20260921153654_crm_resultado_llamada_seguimiento.sql` ya están instaladas y registradas: no editarlas ni reinstalarlas. Miguel autorizó expresamente estas dos SQL y `$release-crm`. Esa autorización no se extiende a otras migraciones, cortes o TypeSafe.
 5. **Front y tipos:** la firma F4 ya está cotejada contra los tipos generados de la copia local; no usar el antiguo fallo de `gen:types` como permiso para inventar contratos. Repetir `npm run check` y `npm run test:e2e` tras cambios de integración. La publicación requiere invocación humana de `$release-crm` o `/release-crm`.
 6. **Revisión:** aplicar `.ai/REVIEW_PROTOCOL.md` y `.ai/VERIFICATION.md`: un solo PRIMARY escribe; Claude revisa mediante `scripts/claude-review`, con evidencia saneada, sin herramientas ni recursión. No encadenar revisiones automáticas ni confundir su dictamen con checks reales.
 7. **Trampas conocidas:** el hook de Bash bloquea comandos con `.env` o `*_KEY=` literales; los radios del panel llevan su descripción en el nombre accesible (Playwright: regex); un `div` envoltorio dentro de `Dialog` rompe el scroll del cuerpo (`flex min-h-0 flex-1 flex-col`); con un Sheet modal abierto los toasts no reciben clic sin la regla `[data-sonner-toaster]`.
 
-### Pendiente de Miguel ahora
+### Punto de reanudación y pendiente de Miguel
 
-**Punto de reanudación del objetivo:** la conciliación ya no bloquea la vista del
-equipo. Main avanzó por fast-forward al merge `03249ba9`; contiene el remoto
-verificado `37a936c7`, pero no se ha subido. Los 22 archivos ajenos se comprobaron
-por huella y conservaron su contenido; la entrada pendiente de temperatura en el
-ledger se restituyó íntegra, sin commitearla. Sigue disponible el respaldo de los
-cinco archivos que se cruzaban: stash `1af9b3b15b41e1d705593c331506c6533b0d52db`.
-Antes de publicar habrá que sincronizar `avancecorp/main` y construir desde el
-commit verificado. Continuar con la aprobación del SQL exacto y el recorrido del
-supervisor; no abrir las etapas siguientes ni activar TypeSafe por esta integración.
+**Publicación completada:** PR #62 aprobado e integrado por `miguejbs98`;
+release `crm-20260921T170501Z-526e728e31ff`, build `build-20260921T170500239Z`,
+en `https://crm.miavance.com/`. CI del PR y de Main, gates SQL, artefacto y
+archivos ejecutables servidos PASS. Los 36 archivos ajenos al release conservaron
+su contenido; las 101 líneas del ledger de temperatura siguen íntegras y sin
+commitear. No repetir conciliación, aprobación ni instalación de estas dos SQL.
 
-- **Prueba de negocio:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar sus pendientes y abrir el registro.
-- **SQL y publicación:** aprobar el SQL exacto antes de instalarlo y solicitar el release por el mecanismo del proyecto. Esta reconciliación es local y no habilita producción.
+**Checkpoint solicitado por Miguel (21/09):** después de la publicación confirmó
+«perfecto ahora si me gusta mas» y pidió guardar todo el progreso. Se registra
+su conformidad con la mejora visible del formulario; no se interpreta como una
+matriz completa de pruebas de negocio ni como aprobación de nuevas etapas.
+Este guardado conserva el plan, actas, ledger y memoria en Git local, sin otro
+deploy, SQL ni activación. La versión productiva sigue siendo `526e728e`.
+
+**Siguiente objetivo F4:** completar el recorrido de negocio de la etapa 1 y
+retomar la **etapa 2, detalle y registro del analista**. Antes de construir más,
+contrastar lo que ya ofrecen el detalle desplegable y el registro de F1 con el
+circuito analista → actividad → ficha; no duplicarlos ni dar por cerrada la etapa 2.
+
+- **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
+- **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
 - **F4 posterior:** las decisiones pendientes de los cortes bloquean su activación, no la etapa 1. Ver etapas 3–6; no inventar mínimos de sábado ni límites de aplazamiento.
 - **Resuelto para esta integración:** el nivel «Bajo» conserva el ámbar publicado en PR #55. Se reconciliaron las dos variantes de «Mi día»: desplegables y flujo horizontal del taller, junto con los arreglos de caché, pestañas y permisos publicados.
 
@@ -168,7 +180,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 20/09/2026:** F0–F3 EN PRODUCCIÓN; sigue F4. F4.1 TypeSafe está planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1 de este documento.
+> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapa 1 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 2; F4 no está cerrada. F4.1 TypeSafe continúa planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1.
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -275,7 +287,7 @@ Verificación: `npm run check`. Codex: no.
 
 **Qué obtiene Miguel:** cada llamada del CRM, en cualquier pantalla, se registra con uno de los 7 resultados; la elección contrae los demás. «Volver a llamar» crea la tarea; «No le interesa» y «Pide otro producto» permiten conservar el lead y programar llamada, WhatsApp, cita o tarea. El descarte es una decisión aparte y explícita, con motivo real y los efectos de Deshacer admitidos por el servidor durante 24 h.
 
-**Ampliación del 21/09, pendiente de producción:** `registrar_llamada_v4` y su núcleo
+**Ampliación del 21/09, publicada:** `registrar_llamada_v4` y su núcleo
 versionado aplican la nueva decisión. La puerta v3 y su núcleo se conservan literalmente
 para clientes anteriores y recibos pendientes: nunca reinterpretar un guardado viejo como
 una solicitud v4. El panel de guardados reenvía la puerta, UUID y contenido originales.
@@ -414,17 +426,13 @@ vencidos; no se vuelve a presentar esta decisión como pendiente.
 investigarlos y sepa dónde intervenir desde una misma pantalla. Se reutilizan el registro de
 actividades de F1, los resultados tipificados de F2 y el núcleo diario construido en F3.
 
-**Estado al 21/09:** etapa 1 validada localmente, sin instalación ni publicación productiva;
-etapas 2–6 pendientes. La candidata está en `997e1290`, rama
-`codex/gestion-diaria-f4-vista-equipo`, worktree `/private/tmp/avancecorp-gd-f4-vista.chvRqh`.
-Incluye la migración `20260921040335_crm_gestion_diaria_equipo_vista.sql` y el acta
-`docs/gestion-diaria/F4-VISTA-EQUIPO-IMPLEMENTACION.md` dentro del CRM de esa rama.
-Miguel autorizó reconciliar las ramas el 21/09. Los nueve conflictos se resolvieron
-conservando funcionalidades de ambas: dos columnas y desplegables del taller,
+**Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
+`20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
+etapas 2–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
-legibilidad de 16 px y protección de los avisos de supervisión. La etapa 1 del supervisor
-y su SQL conservan el mismo contenido. El acta registra la verificación y el estado exacto
-de integración. No hay instalación, push ni publicación productiva.
+legibilidad de 16 px y protección de los avisos de supervisión.
+Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
+Evidencia productiva y recuperación: `PUBLICACION-2026-09-21.md`.
 
 Las seis etapas siguientes organizan la entrega de F4; no son seis fases globales nuevas
 ni exigen una migración por etapa. Sus objetivos y
@@ -432,6 +440,12 @@ criterios de cierre se acordaron con Miguel el 20/09/2026. TypeSafe se incorpora
 F4.1 y no participa en los cálculos ni permisos de esta fase.
 
 #### F4 · Etapa 1 — Vista «Mi equipo hoy»
+
+Publicación del 21/09: `npm run check` y CI PASS (4.016 pruebas); navegador
+completo PASS (231 aprobadas, 26 omisiones). Puerta productiva comprobada como
+dos Gerencia y tres Supervisores: roster exacto de 18/18/10/0/8 analistas,
+fechas hasta 365 días y denegación de ámbitos ajenos. No se crearon datos de
+negocio para estas comprobaciones. El recorrido humano sigue pendiente.
 
 Validación local tras reconciliar: `npm run check` PASS (3.991 pruebas); navegador completo, 225 pruebas aprobadas y
 26 omisiones preexistentes; tres oráculos SQL bajo identidad autorizada, nueve mutantes

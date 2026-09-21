@@ -77,6 +77,7 @@ const pillCls = (activo: boolean) =>
 
 interface LeadCardProps {
   l: Lead
+  nombreVendedor: string | null
   /** Semáforo por ETAPA — lo calcula la pantalla, que es quien tiene el índice
    *  de contacto (construirlo por card sería O(actividades) × O(leads)). */
   semaforo: SemaforoEtapa
@@ -88,7 +89,7 @@ interface LeadCardProps {
   onDragEnd: () => void
 }
 
-function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
+function LeadCard({ l, nombreVendedor, semaforo, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
   // ac-lift (will-change) crea un stacking context por card: mientras el menú
   // está abierto hay que elevar ESTA card o el panel queda bajo la siguiente.
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -122,13 +123,15 @@ function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragS
         )}
       </div>
       <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2">
-        {l.vendedor_nombre ? (
+        {l.vendedor_id == null ? (
+          <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
+        ) : nombreVendedor ? (
           <span className="flex items-center gap-1.5">
-            <Avatar nombre={l.vendedor_nombre} className="size-5 text-[8px]" />
-            <span className="text-[11px] text-muted-foreground">{l.vendedor_nombre.split(' ')[0]}</span>
+            <Avatar nombre={nombreVendedor} className="size-5 text-[8px]" />
+            <span className="text-[11px] text-muted-foreground">{nombreVendedor.split(' ')[0]}</span>
           </span>
         ) : (
-          <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
+          <span className="text-[11px] text-muted-foreground">Analista asignado</span>
         )}
         <span className="flex items-center gap-1">
           {/* El punto y el número salen del MISMO episodio de etapa sellado en
@@ -210,6 +213,12 @@ export function Pipeline() {
   const ahora = useAhora() // reloj vivo: "hace X" de las cards se refresca solo
   // F1c: el tablero SIEMPRE trabaja sobre el ámbito del rol, nunca el global.
   const leads = ambito.leads
+  // Las páginas del servidor traen el id del analista; su nombre se resuelve
+  // con el equipo visible, igual que en la lista de Leads.
+  const nombrePorId = useMemo(
+    () => new Map(ambito.vendedores.map((m) => [m.perfil_id, m.nombre_completo])),
+    [ambito.vendedores],
+  )
 
   // ── Filtro por analista (pills) — solo roles con la capacidad y >1 analista ──
   const [fVend, setFVend] = useState<string>('todos') // 'todos' | 'por_repartir' | perfil_id
@@ -503,6 +512,7 @@ export function Pipeline() {
                   <LeadCard
                     key={l.id}
                     l={l}
+                    nombreVendedor={l.vendedor_id == null ? null : nombrePorId.get(l.vendedor_id) ?? l.vendedor_nombre ?? null}
                     semaforo={semaforoEstancamiento(
                       l,
                       indiceContacto,
