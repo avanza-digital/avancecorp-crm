@@ -5,6 +5,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[CI del CRM sin E2E en GitHub (2026-09-21)]] — Por decisión de Miguel, GitHub Actions conserva el gate de calidad y retira el job E2E, que puede ejecutarse localmente cuando corresponde.
+
 - [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]] — **ETAPA 2 LOCAL, SIN PUBLICAR:** detalle de llamadas por hora de Lima, acceso al registro F1 y ficha fuera de la caché inicial, regreso con foco y filtros, legibilidad de 16 px y revocación sin conservar páginas visibles. Candidata en el taller existente, rama `codex/gestion-diaria-f4-detalle-analista`; no se tocaron SQL, cortes ni TypeSafe. Ver acta para checks, revisión y siguiente paso.
 
 - [[Eliminar contratos - permiso permanente y registro inicial (2026-09-21)]] — **PUBLICADO Y VERIFICADO:** permiso permanente de Admin/Superadmin corregido para el alta unificada. 001457 eliminado con auditoría exacta de contrato/13 cuotas/registro/solicitud y PDF conservado; 35 pruebas SQL y 48 Edge PASS. No retirar esta capacidad en futuros cambios.
