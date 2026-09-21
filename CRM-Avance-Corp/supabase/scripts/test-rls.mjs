@@ -6816,7 +6816,126 @@ async function testMetricasServidor(sessions, seed) {
       .find((v) => v.vendedor_id === seed.profileIdByKey.vendInactive);
     check(filaInactivo?.activo === false,
       'gerencia ve la fila del analista desactivado marcada activo=false');
+    // F1 (21/09/2026): el entero `conversion_pct` se retiro del wire. Lista
+    // EXACTA de claves por fila, como en metricas_conversiones_equipo_fn: un
+    // campo de mas es superficie sin auditar, uno de menos es un contrato roto.
+    const clavesVend = [...new Set((mvGerencia.data?.vendedores ?? []).flatMap((f) => Object.keys(f)))].sort();
+    check(clavesVend.length === 0 || JSON.stringify(clavesVend) === JSON.stringify([
+      'activo', 'activos', 'capital_pen', 'capital_usd', 'convertidos',
+      'dias_sin_actividad_max', 'nucleo_conversion_pct', 'nucleo_convertidos',
+      'nucleo_divisor', 'nucleo_numerador', 'operaciones_cartera', 'rol_crm',
+      'sin_tocar', 'vendedor_id',
+    ]), 'F1: cada fila de vendedores trae SOLO las 14 claves del contrato (sin conversion_pct)', clavesVend.join(','));
+    const clavesEq = [...new Set((mvGerencia.data?.equipos ?? []).flatMap((f) => Object.keys(f)))].sort();
+    check(clavesEq.length === 0 || JSON.stringify(clavesEq) === JSON.stringify([
+      'activos', 'capital_pen', 'capital_usd', 'convertidos', 'nucleo_conversion_pct',
+      'nucleo_convertidos', 'nucleo_divisor', 'nucleo_numerador', 'operaciones_cartera',
+      'parkeados', 'supervisor_id', 'vendedores',
+    ]), 'F1: cada fila de equipos trae SOLO las 12 claves del contrato (sin conversion_pct)', clavesEq.join(','));
+    check(!('conversion_pct' in (mvGerencia.data?.nucleo_total ?? {})),
+      'F1: nucleo_total no lleva el entero conversion_pct');
   }
+  // F1: la retirada tambien rige en los recortes por rol; no es solo la vista global.
+  for (const [quien, lectura] of [['sup2', mvSup2], ['vend1', mvVend1]]) {
+    if (!lectura) continue;
+    const filas = [...(lectura.data?.vendedores ?? []), ...(lectura.data?.equipos ?? [])];
+    check(filas.every((f) => !('conversion_pct' in f)),
+      `F1: ${quien} no recibe el entero conversion_pct en ninguna fila`);
+    check(filas.every((f) => ['nucleo_convertidos', 'operaciones_cartera', 'nucleo_divisor',
+      'nucleo_numerador', 'nucleo_conversion_pct'].every((k) => k in f)),
+      `F1: ${quien} sigue recibiendo las 5 claves nucleo_* en cada fila`);
+  }
+
+  // F2 (21/09/2026): la puerta de Citas devuelve ademas `testigo`, el calculo
+  // INDEPENDIENTE del Deposito % del mes sin filtros. Se fija su forma exacta y
+  // su aritmetica interna; y se reafirma que solo gerencia entra por esa puerta.
+  const mesLimaF2 = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' })
+    .format(new Date());
+  const [anioF2, mesNumF2] = mesLimaF2.split('-').map(Number);
+  const desdeF2 = `${mesLimaF2}-01`;
+  const hastaF2 = `${mesLimaF2}-${String(new Date(Date.UTC(anioF2, mesNumF2, 0)).getUTCDate()).padStart(2, '0')}`;
+  const citasGer = await positive(
+    'gerencia lee la consulta de citas del mes con testigo',
+    sessions.gerencia.client.schema('crm').rpc('citas_gerencia_consulta_fn', { p_desde: desdeF2, p_hasta: hastaF2 }),
+  );
+  if (citasGer) {
+    const t = citasGer.data?.testigo;
+    check(t != null && typeof t === 'object', 'F2: el payload de citas trae `testigo`');
+    if (t) {
+      const claves = Object.keys(t).sort();
+      check(JSON.stringify(claves) === JSON.stringify([
+        'base_conversion', 'calculado_en', 'clientes_periodo', 'clientes_vinculados', 'configuracion',
+        'conversion_pct', 'entrevistas', 'personas_entrevistadas', 'reglas_listas', 'version',
+      ]), 'F2: el testigo trae SOLO sus 10 claves', claves.join(','));
+      check(t.version === 1 && typeof t.reglas_listas === 'boolean', 'F2: testigo version 1 con reglas_listas booleano');
+      const enteros = ['entrevistas', 'personas_entrevistadas', 'clientes_periodo', 'clientes_vinculados', 'base_conversion'];
+      check(enteros.every((k) => Number.isInteger(t[k]) && t[k] >= 0), 'F2: los conteos del testigo son enteros no negativos');
+      check(t.personas_entrevistadas <= t.entrevistas && t.clientes_vinculados <= t.clientes_periodo,
+        'F2: personas <= entrevistas y vinculados <= clientes del periodo');
+      const baseEsperada = t.configuracion?.base_depositos === 'entrevistas' ? t.entrevistas : t.personas_entrevistadas;
+      check(t.base_conversion === baseEsperada, 'F2: la base sigue a la configuracion vigente', `${t.base_conversion} vs ${baseEsperada}`);
+      const pctEsperado = t.reglas_listas && t.base_conversion > 0
+        ? Math.round((10000 * t.clientes_vinculados) / t.base_conversion) / 100 : null;
+      check(t.conversion_pct === pctEsperado, 'F2: conversion_pct es su propia division (o null sin reglas/base)',
+        `${t.conversion_pct} vs ${pctEsperado}`);
+      // Sin PII: el testigo son conteos, nunca identificadores.
+      check(!JSON.stringify(t).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i),
+        'F2: el testigo no arrastra ningun identificador');
+    }
+  }
+  for (const [quien, sesion] of [['sup1', sessions.sup1], ['vend1', sessions.vend1], ['coordinador', sessions.coordinador], ['clientBank', sessions.clientBank]]) {
+    await expectExplicitAuthorizationDenied(
+      `F2: ${quien} no entra por la puerta de citas de gerencia (ni al testigo)`,
+      sesion.client.schema('crm').rpc('citas_gerencia_consulta_fn', { p_desde: desdeF2, p_hasta: hastaF2 }),
+      ['42501'],
+    );
+  }
+
+  // F3 (21/09/2026): la alarma de un solo nucleo. Solo la clave de servicio
+  // (gates) puede leerla; un usuario del CRM, del rol que sea, recibe 42501.
+  const alarma = await positive(
+    'la clave de servicio lee la alarma de conversion',
+    admin.schema('crm').rpc('alarma_conversion_fn'),
+  );
+  if (alarma) {
+    const a = alarma.data;
+    check(a?.cuadra === true, 'F3: los cuatro caminos de la conversion del mes coinciden en el fixture',
+      JSON.stringify(a?.detalle ?? a));
+    check(a?.caminos_leidos === 4, 'F3: la alarma leyo los cuatro caminos');
+    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'cuadra', 'detalle', 'hasta', 'mes']),
+      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos y detalle', Object.keys(a ?? {}).join(','));
+    check(!JSON.stringify(a).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i),
+      'F3: la alarma no arrastra ningun identificador');
+  }
+  // La alarma es del gate, no de una pantalla: NINGUN rol del CRM entra, ni el
+  // lector global (`directorio`), que es justamente el que SI pasa el gate
+  // interno de los cuatro caminos y por tanto el que un aflojamiento del
+  // candado externo dejaria entrar.
+  for (const [quien, sesion] of [
+    ['gerencia', sessions.gerencia], ['directorio', sessions.directorio],
+    ['coordinador', sessions.coordinador], ['sup1', sessions.sup1],
+    ['vend1', sessions.vend1], ['vendInactive', sessions.vendInactive],
+    ['clientBank', sessions.clientBank],
+  ]) {
+    await expectExplicitAuthorizationDenied(
+      `F3: ${quien} no puede leer la alarma (es del gate, no de una pantalla)`,
+      sesion.client.schema('crm').rpc('alarma_conversion_fn'),
+      ['42501'],
+    );
+  }
+  // Un mes que no empieza el dia 1 se rechaza con 22023, no con un veredicto.
+  await expectExpectedFailure(
+    'F3: la alarma exige el dia 1 de un mes',
+    admin.schema('crm').rpc('alarma_conversion_fn', { p_mes: '2026-09-15' }),
+    ['22023'], /dia 1 de un mes/i,
+  );
+  // Dos llamadas en la MISMA peticion: la alarma restaura los claims que
+  // impersona, asi que la segunda no se deniega a si misma (P1 del auditor).
+  const alarmaDoble = await positive(
+    'F3: dos lecturas seguidas de la alarma no se deniegan entre si',
+    admin.schema('crm').rpc('alarma_conversion_fn'),
+  );
+  if (alarmaDoble) check(alarmaDoble.data?.caminos_leidos === 4, 'F3: la segunda lectura sigue leyendo los cuatro caminos');
 
   // series_comerciales_fn v2 (F6.c): shape de 7 arrays paralelos. La clave de
   // cohorte lleva su apellido y la conversion OFICIAL del nucleo viaja aparte

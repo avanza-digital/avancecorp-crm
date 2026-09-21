@@ -2,10 +2,11 @@ import { PostventaPersona, type ControlesPostventa } from './postventa-persona'
 // La ficha neutral comparte la cabecera, las secciones, la banca y el Sheet
 // publicados. Una cooperativa nunca se adapta a un perfil ficticio de Avance.
 import { useEffect, useId, useRef, useState } from 'react'
-import { CalendarClock, ChevronDown, FileText, History, Landmark, UserRound, WalletCards } from 'lucide-react'
+import { CalendarClock, ChevronDown, FileText, History, Landmark, TrendingUp, UserRound, WalletCards } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SheetBody, SheetFooter } from '@/components/ui/sheet'
 import { Paginacion } from '@/components/common/paginacion'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
@@ -18,7 +19,7 @@ import { EMPRESA_NOMBRE, type FichaInversionista, type InversionFuente, type Res
 import type { OperacionInversion } from './inversion-nueva'
 import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
-import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
 import { ContratoEliminar } from './contrato-eliminar'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
@@ -127,7 +128,8 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
       {onEliminar && i.empresa === 'avance' && i.contrato && <Button variant="destructive" size="xs" className="min-h-10"
         aria-label={`Eliminar contrato ${referenciaAccesible}`} onClick={() => onEliminar(i)}>Eliminar contrato</Button>}
     {onOperacion && i.empresa === 'avance' && i.contrato && i.perfil_id && <>
-      {i.estado === 'activo' && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>Aumentar inversión</Button>}
+      {i.estado === 'activo' && <Button variant="outline" size="xs" className="min-h-10" title={AYUDA_UPGRADE} aria-label={`${ETIQUETA_UPGRADE} sobre ${referenciaAccesible}`}
+        onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>{ETIQUETA_UPGRADE}</Button>}
       {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}
     </>}
     {postventa && i.empresa !== 'avance' && !i.es_demo && ['vigente', 'activo', 'vencido'].includes(i.estado) && <>
@@ -151,6 +153,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
   const [gestion, setGestion] = useState<{fuente:string|null}|null>(null)
   const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
+  const [eligiendoUpgrade, setEligiendoUpgrade] = useState(false)
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
   const [bancaAbierta, setBancaAbierta] = useState(false)
@@ -200,6 +203,12 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     const k = `${i.empresa}:${i.moneda}`
     grupos.set(k, [...(grupos.get(k) ?? []), i])
   }
+  // Upgrade: el mismo permiso que abre el botón de cada tarjeta, elevado a la
+  // cabecera de la sección. Solo Avance, solo contratos ACTIVOS: el upgrade
+  // declara el contrato que amplía para heredarle la tasa.
+  const ampliables = onOperacion && ficha.capacidades.nueva_inversion && !desactualizada
+    ? ficha.inversiones.filter(i => i.empresa === 'avance' && i.contrato && i.perfil_id && i.estado === 'activo')
+    : []
   const siguiente = ficha.tareas[0]
   const vencimiento = ficha.continuidad?.proximo_vencimiento
   const pendiente = Boolean(vencimiento && vencimiento <= fechaLima(Date.now()))
@@ -251,12 +260,23 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       </FichaComercialSeccion>
       <FichaComercialSeccion icono={WalletCards} titulo="Inversiones y contratos"
         sectionRef={inversionesRef}
-        descripcion="Capital, vencimientos y oportunidades para renovar o aumentar la inversión."
-        accion={onNuevaInversion && <Button size="xs" className="min-h-10" onClick={() => onNuevaInversion(ficha)}
-          disabled={desactualizada || !ficha.capacidades.nueva_inversion}>
-          {ficha.inversiones_total ? 'Registrar nueva inversión' : 'Registrar primera inversión'}
-        </Button>}>
+        descripcion="Capital, vencimientos y oportunidades para renovar o registrar un upgrade."
+        accion={(onNuevaInversion || ampliables.length > 0) && <div className="flex flex-wrap justify-end gap-1.5 sm:flex-nowrap sm:shrink-0">
+          {ampliables.length > 0 && <Button variant="outline" size="xs" className="min-h-10" title={AYUDA_UPGRADE}
+            onClick={() => {
+              const unica = ampliables.length === 1 ? ampliables[0] : null
+              if (unica) onOperacion?.({tipo: 'upgrade', fuente: unica})
+              else setEligiendoUpgrade(true)
+            }}>
+            <TrendingUp aria-hidden /> <span className="whitespace-nowrap">{ETIQUETA_UPGRADE}</span>
+          </Button>}
+          {onNuevaInversion && <Button size="xs" className="min-h-10" onClick={() => onNuevaInversion(ficha)}
+            disabled={desactualizada || !ficha.capacidades.nueva_inversion}>
+            {ficha.inversiones_total ? 'Registrar nueva inversión' : 'Registrar primera inversión'}
+          </Button>}
+        </div>}>
         {onNuevaInversion && !ficha.capacidades.nueva_inversion && <p className="text-xs text-muted-foreground">{ficha.capacidades.motivo_no_operable}</p>}
+        {ampliables.length > 0 && <p className="text-[11px] leading-relaxed text-muted-foreground">{AYUDA_UPGRADE}</p>}
         <p className="sr-only">{ficha.inversiones_total} {ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha</p>
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
           <h4 className="text-[11px] font-bold text-muted-foreground">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
@@ -305,6 +325,26 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     {contratoEliminar && onEliminar && !desactualizada && <ContratoEliminar
       key={contratoEliminar.fuente_id} inversion={contratoEliminar} onConfirmar={onEliminar}
       onCerrar={() => setContratoEliminar(null)} />}
+    {eligiendoUpgrade && ampliables.length > 0 && <Dialog open onClose={() => setEligiendoUpgrade(false)}
+      ariaLabel="Elegir el contrato que amplía el upgrade" className="w-[520px]">
+      <DialogHeader><DialogTitle>¿Qué contrato amplía este upgrade?</DialogTitle></DialogHeader>
+      <DialogBody className="space-y-3">
+        <p className="text-xs text-muted-foreground">{AYUDA_UPGRADE}</p>
+        <ul className="space-y-2" aria-label="Contratos activos que puede ampliar el upgrade">
+          {ampliables.map(i => <li key={i.fuente_id}>
+            <Button variant="outline" className="min-h-11 w-full justify-between gap-3"
+              onClick={() => {setEligiendoUpgrade(false); onOperacion?.({tipo: 'upgrade', fuente: i})}}>
+              <span className="truncate">Contrato {i.numero || 'sin número'}{i.vence_en ? ` · vence ${fmtFecha(i.vence_en)}` : ''}</span>
+              <span className="tabular-nums font-semibold">{money(i.capital, i.moneda)}</span>
+            </Button>
+          </li>)}
+        </ul>
+        {ficha.inversiones_total > ficha.inversiones.length && <p className="text-[11px] text-muted-foreground">
+          Se muestran las inversiones de esta página de la ficha.
+        </p>}
+      </DialogBody>
+      <DialogFooter><Button variant="outline" onClick={() => setEligiendoUpgrade(false)}>Cancelar</Button></DialogFooter>
+    </Dialog>}
     {gestion && <GestionInversionistaDialogo actor={actor} persona={p.inversionista_id} fuente={gestion.fuente}
       onCerrar={()=>setGestion(null)} onRevocado={onRevocado} />}
   </>

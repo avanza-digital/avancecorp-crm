@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Puente al lanzador del reviewer, que vive en la raíz del repo.
+#
+# Por qué existe: `.mcp.json` arranca `./scripts/codex-review-mcp` con una ruta
+# RELATIVA al directorio desde el que se abrió Claude Code. Cuando la sesión
+# empieza dentro de `CRM-Avance-Corp/` —que es lo normal al trabajar en el CRM—
+# esa ruta no encontraba nada y el MCP moría con «Connection closed» (pasó el
+# 21/09). Este puente hace que la misma ruta relativa funcione desde las dos
+# carpetas, sin escribir rutas absolutas en un archivo que está en git.
+#
+# No añade permisos ni afloja nada: reenvía los argumentos tal cual al lanzador
+# real, que es quien impone read-only, sin shell, sin agentes y sin MCP heredados.
+set -euo pipefail
+aqui=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+exec bash "$aqui/../../scripts/codex-review-mcp" "$@"

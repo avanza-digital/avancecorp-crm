@@ -1,10 +1,10 @@
 ---
 tags: [crm, gestion-diaria, supervisor, f4, verificacion]
-estado: etapa 2 con conformidad visual local — sin publicar
+estado: etapa 2 publicada y verificada — cierre técnico
 fecha: 2026-09-21
 ---
 
-# Gestión Diaria F4 — detalle del analista preparado
+# Gestión Diaria F4 — detalle del analista publicado
 
 Miguel pidió retomar F4, etapa 2. Se conserva el alcance del plan principal:
 explicar los indicadores mediante sus actividades y abrir la ficha del lead
@@ -44,21 +44,37 @@ Acta técnica y estado exacto de los checks:
 `CRM-Avance-Corp/docs/gestion-diaria/F4-DETALLE-ANALISTA.md`.
 Plan vigente: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
 
-No se ejecutaron migraciones, escrituras de negocio, push ni deploy para esta
-etapa. Las SQL de la entrega anterior permanecen instaladas sin cambios.
+Durante la preparación no se ejecutaron migraciones, escrituras de negocio,
+push ni deploy. Las SQL de la entrega anterior permanecen sin cambios.
 Miguel expresó conformidad visual tras revisar la vista local el 21/09 («ok
-listo si me gusta que sigue?»). No es una autorización de publicación ni una
-prueba integral de negocio contra datos reales. Quedan la verificación real
-pendiente y la publicación autorizada antes de darla por activada.
+listo si me gusta que sigue?»). Esa conformidad no fue la autorización de
+publicación ni una prueba integral de negocio contra datos reales; después
+se recibió una orden de release por separado.
 La siguiente implementación es F4 etapa 3; mínimos del sábado y
 otras decisiones de cortes siguen pendientes. TypeSafe continúa separado.
 
 Actualización de release: Miguel invocó `$release-crm` después de la conformidad
-visual. La publicación de esta etapa está autorizada, aún no efectuada. Preflight
+visual y aprobó e integró el PR #64. **Publicada y verificada el 21/09 a las
+15:07 Lima**, fuente `baa63aeac71e5a074309aae92a064b67756189f1`, build
+`build-20260921T200508459Z`. Main y remoto coincidieron antes de construir
+y subir; el árbol de app probado es idéntico al del artefacto. Preflight
 SQL de lectura PASS para cinco identidades, roster, horarios, paginación y siete
 rechazos esperados. Main se integró conservando sus cierres previos y los cambios
-pendientes de otras tareas quedaron intactos. Acta vigente de preparación:
+pendientes de otras tareas quedaron intactos. CI del PR: 4.051 pruebas y
+232 E2E/26 omitidos PASS. Release/build y 110 comprobaciones HTTP finales PASS;
+los 68 recursos JS/CSS coinciden con el manifiesto.
+
+ZIP `crm-20260921T200509Z-baa63aeac71e.zip`, SHA-256
+`d513d1265123d7c38f800ccec9805a9611749df5830dbf5909c2d505b81c20e3`.
+Artefactos, recibo, evidencia y recuperación anterior conservados en
+`CRM-Avance-Corp/releases/`. Acta vigente:
 `CRM-Avance-Corp/docs/gestion-diaria/F4-ETAPA2-PUBLICACION-2026-09-21.md`.
+
+La etapa 2 queda cerrada técnicamente, sin nuevas SQL ni activación de cortes.
+Siguen NOT RUN el recorrido humano autenticado productivo, VoiceOver y la
+matriz general Auth/HTTP. El script `gate:realidad` completo tampoco se ejecutó;
+la evidencia SQL alternativa y sus límites están en el acta. No se declara F4
+completa ni el piloto TypeSafe realizado.
 
 Relacionadas: [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] ·
 [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] ·
