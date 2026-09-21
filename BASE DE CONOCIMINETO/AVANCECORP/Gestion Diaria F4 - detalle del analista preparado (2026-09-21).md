@@ -1,6 +1,6 @@
 ---
 tags: [crm, gestion-diaria, supervisor, f4, verificacion]
-estado: etapa 2 implementada localmente — sin publicar
+estado: etapa 2 con conformidad visual local — sin publicar
 fecha: 2026-09-21
 ---
 
@@ -45,9 +45,12 @@ Acta técnica y estado exacto de los checks:
 Plan vigente: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
 
 No se ejecutaron migraciones, escrituras de negocio, push ni deploy para esta
-etapa. Las SQL de la entrega anterior permanecen instaladas sin cambios. El
-detalle necesita revisión humana y autorización de publicación antes de darse
-por activado. La siguiente implementación es F4 etapa 3; mínimos del sábado y
+etapa. Las SQL de la entrega anterior permanecen instaladas sin cambios.
+Miguel expresó conformidad visual tras revisar la vista local el 21/09 («ok
+listo si me gusta que sigue?»). No es una autorización de publicación ni una
+prueba integral de negocio contra datos reales. Quedan la verificación real
+pendiente y la publicación autorizada antes de darla por activada.
+La siguiente implementación es F4 etapa 3; mínimos del sábado y
 otras decisiones de cortes siguen pendientes. TypeSafe continúa separado.
 
 Relacionadas: [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] ·

@@ -1,6 +1,6 @@
 # F4 · Etapa 2 — Detalle del analista
 
-Fecha: 21/09/2026. Estado: **implementada localmente; no publicada**.
+Fecha: 21/09/2026. Estado: **implementada localmente, con conformidad visual de Miguel; no publicada**.
 Plan principal: [GESTION-DIARIA.md](GESTION-DIARIA.md).
 Publicación anterior: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
 
@@ -158,7 +158,10 @@ No se modificó el formulario de llamada aprobado ni la ficha de supervisión.
 No se implementaron cortes, avisos automáticos, configuración de gerencia ni
 TypeSafe. La vista sigue siendo «hoy», sin añadir selector histórico.
 
-Revisar esta candidata con Miguel y autorizar su publicación por separado. La
-siguiente implementación del plan es F4 etapa 3. Su activación conserva las
+Miguel revisó la vista local y expresó conformidad visual el 21/09 («ok listo si
+me gusta que sigue?»). Esta conformidad no equivale a una prueba integral de
+negocio con datos reales ni autoriza publicar. Quedan el gate real pendiente,
+la integración con Main vigente y la autorización de publicación por separado.
+La siguiente implementación del plan es F4 etapa 3. Su activación conserva las
 decisiones pendientes: mínimo del sábado, analistas sin cartera y límites del
-aplazamiento. No se inventa su conformidad ni se adelanta la activación.
+aplazamiento. No se inventan esas decisiones ni se adelanta la activación.

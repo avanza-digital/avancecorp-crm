@@ -158,8 +158,10 @@ La candidata está en `codex/gestion-diaria-f4-detalle-analista`, en el taller
 existente `/private/tmp/avancecorp-gd-f4-vista.chvRqh`, basada en `b0d2ff89`.
 Se preservaron los trabajos concurrentes de Main; no se integra ni publica
 automáticamente esta etapa. Evidencia: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
-El siguiente paso es revisar la candidata con Miguel y autorizar por separado
-su publicación. La siguiente implementación de F4 es la etapa 3; las decisiones
+Miguel expresó conformidad visual tras revisar la vista local el 21/09. El siguiente
+paso es completar la verificación real pendiente y autorizar por separado
+su publicación; la conformidad visual no es una orden de despliegue.
+La siguiente implementación de F4 es la etapa 3; las decisiones
 pendientes de cortes siguen siendo requisitos de su activación.
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
@@ -482,7 +484,8 @@ vigente. Su ámbito se limita al equipo autorizado y la proyección procede del 
 
 #### F4 · Etapa 2 — Detalle y registro del analista
 
-**Estado al 21/09:** candidata implementada en el taller, no publicada. Acta y
+**Estado al 21/09:** candidata implementada en el taller, con conformidad visual
+de Miguel en local; no publicada. Acta y
 verificaciones: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md). No requiere una
 migración nueva: utiliza `marcador.por_hora` de F4 y el registro paginado de F1.
 Cada fila mantiene sus indicadores y añade conteos legibles de llamadas y
@@ -497,7 +500,8 @@ paginación, actualización real desde página 2 y retirada de páginas acumulad
 al recibir una revocación. No atribuye ausencia a un vacío filtrado ni sustituye
 por ceros un desglose horario inconsistente. Los avisos automáticos de cortes
 siguen pendientes de las etapas 3–4; el acceso actual parte de la fila y su
-motivo de atención. El cierre productivo exige revisión humana y publicación.
+motivo de atención. La revisión visual local está conforme; el cierre productivo
+conserva la verificación real pendiente y la publicación autorizada.
 
 El objetivo es explicar los indicadores mediante las actividades que los originan. Cada fila
 permite desplegar llamadas por hora de Lima, abrir el registro del día y llegar a la ficha
