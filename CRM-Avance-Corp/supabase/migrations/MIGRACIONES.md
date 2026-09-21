@@ -2,8 +2,11 @@
 
 ## 20260921153654 — Resultado de llamada: seguimiento y descarte separados
 
-**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Miguel confirmó «separar el resultado del
-descarte» y autorizó probar únicamente en `gestion_diaria_f4_vista_chvrqh`.
+**INSTALADA Y REGISTRADA EN PRODUCCIÓN el 21/09/2026.** Después del ensayo en
+`gestion_diaria_f4_vista_chvrqh`, Miguel autorizó esta SQL exacta y `$release-crm`.
+Archivo aplicado mediante CLI al proyecto `dctqcbznekcyxhjujuci`; versión/nombre
+originales registrados con un único statement idéntico al archivo completo.
+SHA-256 `d863988a96bba84482b1ee0b387d5218dce44b896e69abfb6f2d1479778d8fc8`.
 `crm.registrar_llamada_v4` compone actividad/cierre y próxima acción atómicos;
 `no_interesado` y `pide_otro_producto` requieren submotivo, pero solo descartan
 con `p_descartar=true`. No admite siguiente con descarte o veto de contacto.
@@ -20,11 +23,17 @@ preservados. F1 histórico falla su antigua whitelist de metadata también sin
 v4; no se acredita PASS a ese oráculo. Scripts y límites:
 `supabase/scripts/resultado-llamada-seguimiento/` y
 `docs/gestion-diaria/RESULTADO-LLAMADA-SEGUIMIENTO.md`.
-Producción, registro de la migración y publicación requieren otra aprobación.
+Frontend publicado desde `526e728e`, PR #62, release
+`crm-20260921T170501Z-526e728e31ff`. Gates productivos, permisos y v3 intactos;
+acta: `docs/gestion-diaria/PUBLICACION-2026-09-21.md`. No reinstalar ni editar.
 
 ## 20260921040335 — Gestión Diaria F4: vista del equipo, etapa 1
 
-**LOCAL, SIN INSTALAR EN PRODUCCIÓN.** Puerta `crm.gestion_diaria_equipo_fn(date,uuid)`
+**INSTALADA Y REGISTRADA EN PRODUCCIÓN el 21/09/2026**, antes de v4, con
+autorización expresa de Miguel. SHA-256
+`f9a9aad16a683e1b87118fe03976cb206d752f0f375c93b4dc375e044c49af02`.
+Registro con versión/nombre originales y archivo completo en un único statement.
+Puerta `crm.gestion_diaria_equipo_fn(date,uuid)`
 y núcleo INVOKER: roster activo completo, incluso con cero actividad; reutilizan
 `private.gestion_diaria_llamadas` sin modificarla. Pendientes completos bajo RLS,
 no derivados de la caché parcial. Adaptador privado DEFINER sin parámetros,
@@ -44,6 +53,11 @@ en la candidata anterior: defecto jerárquico reproducido y corregido, accesibil
 ajustada; no se atribuye un PASS final al reviewer. Acta y límites en
 `docs/gestion-diaria/F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
 Los cortes, pop-ups y configuración gerencial pertenecen a etapas posteriores.
+Frontend publicado en `crm-20260921T170501Z-526e728e31ff`, fuente `526e728e`.
+Cinco identidades productivas bajo authenticated devuelven el roster autorizado
+(18/18/10/0/8), con cero actividad y límites comprobados. Tablas/ACL/RLS, policies,
+objetos de public y censo intactos. Detalles, advisors y límites reales en
+`docs/gestion-diaria/PUBLICACION-2026-09-21.md`. No reinstalar ni editar.
 
 ## 20260920045202 — Tareas por cursor: el lead embebido completo (Fase 4b «sin topes»)
 

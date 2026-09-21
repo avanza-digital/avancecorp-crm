@@ -1,8 +1,11 @@
 # F4 · Etapa 1 — Vista del equipo
 
-Estado al 21/09/2026: **RECONCILIADA Y VALIDADA LOCALMENTE; pendiente de publicación.** Sin
-instalación ni publicación en producción. Rama `codex/gestion-diaria-f4-vista-equipo`,
-basada en `avancecorp/main` (`37a936c7`), en worktree separado del taller compartido.
+Estado al 21/09/2026: **ETAPA 1 PUBLICADA**, con SQL instalado y registrado.
+Fuente `526e728e31ff64adaf9b737fa5e408ebe32005a2`, PR #62, release
+`crm-20260921T170501Z-526e728e31ff`. Preparada en un taller aislado y publicada
+desde Main sincronizado y fuente limpia, conservando los trabajos ajenos.
+Acta vigente: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
+F4 completa no está cerrada; faltan etapas 2–6 y el recorrido humano de etapa 1.
 
 ## Objetivo y límites
 
@@ -67,7 +70,7 @@ en cero. Demo y sesión ausente no llaman al servidor al pulsar Actualizar.
 
 ## Servidor y reversibilidad
 
-Migración nueva, no publicada:
+Migración instalada y registrada el 21/09 con autorización expresa:
 `supabase/migrations/20260921040335_crm_gestion_diaria_equipo_vista.sql`.
 La puerta y el núcleo son INVOKER. El adaptador privado de pendientes usa el
 núcleo SLA autorizado sin recibir identificadores arbitrarios. Los cuerpos y
@@ -98,7 +101,7 @@ el núcleo completo bajo la misma identidad; cuando no hay evaluación se entreg
 NULL. No se duplica el cálculo SLA en el navegador. La clasificación de actividad
 es intencional y queda comprobada; no se exige igualdad con el registro crudo.
 
-## Evidencia de verificación
+## Evidencia de verificación local, anterior a publicación
 
 PASS: `node supabase/scripts/gestion-diaria-equipo/ensayar.mjs` desde el CRM.
 Ensaya tres oráculos SQL con `SET ROLE authenticated`: equipo completo, equipos
@@ -134,21 +137,25 @@ pliega con su control existente en móvil y el scroll horizontal queda en la tab
 PASS: `npm run check:scripts`, sintaxis de los cuatro scripts propios y
 `git diff --check`.
 
-NOT RUN: instalación/publicación productiva y recorrido humano en producción.
+En estos ensayos locales, instalación/publicación y recorrido humano eran NOT RUN.
+La instalación y publicación se completaron después, según el acta vigente; el
+recorrido humano sigue pendiente.
 La matriz HTTP general del CRM no se ejecutó contra esta copia; los oráculos de
 esta entrega sí ejercen roles reales y permisos en PostgreSQL. No confundir
 los mocks HTTP del navegador ni los preflights offline con una prueba remota.
 
-## Próximo paso para ponerla en uso
+## Próximo paso
 
-La reconciliación local está resuelta; conservar los cambios ajenos del taller. Presentar y
-aprobar el SQL exacto antes de instalarlo en producción. Publicar primero el
-servidor y después el frontend mediante invocación humana de `$release-crm` o
-`/release-crm`, desde el commit verificado de `avancecorp/main`. No activar cortes
-ni TypeSafe como parte de esta etapa. Completar el recorrido de negocio con el
-supervisor; no declarar esta etapa publicada sólo por pasar las pruebas locales.
+La aprobación del SQL exacto y `$release-crm`, instalación, registro y despliegue
+ya están completados. La puerta productiva devolvió el roster autorizado de cinco
+identidades (18/18/10/0/8 analistas), sin crear datos de negocio. Completar el
+recorrido humano del supervisor y continuar F4 etapa 2 conforme al plan.
+No activar cortes ni TypeSafe como parte de esta entrega.
 
-## Integración con el taller autorizada el 21/09
+## Historial: integración con el taller autorizada el 21/09
+
+Las siguientes notas describen el momento anterior a la autorización productiva;
+el estado de publicación vigente es el del encabezado y su acta enlazada.
 
 Miguel autorizó reconciliar Main `40f2501b` con la candidata `997e1290`, conservando
 las dos líneas. Los nueve conflictos están resueltos. El remoto se comprobó en

@@ -2,16 +2,21 @@
 
 ## Estado y alcance
 
-Implementado en el taller aislado `/private/tmp/avancecorp-gd-f4-vista.chvRqh`,
-rama `codex/gestion-diaria-f4-vista-equipo`, sobre `427159e1`.
-No se tocó el árbol principal, que tiene otros trabajos en curso. No está publicado.
+**PUBLICADO el 21/09/2026**, PR #62, fuente
+`526e728e31ff64adaf9b737fa5e408ebe32005a2`, release
+`crm-20260921T170501Z-526e728e31ff`. SQL v4 instalado y registrado antes del front.
+Preparado en `/private/tmp/avancecorp-gd-f4-vista.chvRqh`; Main se sincronizó con
+`avancecorp/main` preservando los trabajos ajenos. Evidencia y límites vigentes:
+[PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
 
 Miguel pidió contraer las otras seis opciones al seleccionar un resultado y poder
 agendar desde el mismo formulario, como en la ficha del lead. Confirmó expresamente
 «Sí, separar el resultado del descarte» y «Sí, probar únicamente en local».
+Después autorizó expresamente ambas SQL productivas y `$release-crm`, y aprobó
+e integró el PR #62. El permiso local inicial ya no es el estado de autorización vigente.
 
-Es una ampliación transversal de F2 y de la pantalla del analista F3. No cierra F4
-ni instala su SQL en producción. La vista del equipo y sus etapas posteriores
+Es una ampliación transversal de F2 y de la pantalla del analista F3. No cierra F4.
+En esta publicación se instaló también el SQL de su etapa 1; las etapas posteriores
 conservan los pendientes del [plan principal](GESTION-DIARIA.md).
 
 ## Comportamiento entregado
@@ -43,7 +48,7 @@ anteriores de los otros cinco resultados se mantienen.
 
 ## Servidor y compatibilidad
 
-Candidata: `supabase/migrations/20260921153654_crm_resultado_llamada_seguimiento.sql`.
+Migración instalada: `supabase/migrations/20260921153654_crm_resultado_llamada_seguimiento.sql`.
 Puerta `crm.registrar_llamada_v4`, núcleo privado `private.llamada_registrar_v4`.
 Componen los writers existentes de actividad/cierre y agenda en una transacción:
 un error revierte todo. No se reescriben datos históricos, tablas, policies ni
@@ -62,9 +67,10 @@ Los tipos v4 se obtuvieron del banco instalado, sin sustituir contratos ajenos.
 La reversa restaura literalmente el gate F2 y retira solo las funciones nuevas.
 Se ensayó con actividad, tarea y lead v4 reales: sus huellas no cambiaron. En
 producción sería necesario coordinar antes el frontend y resolver recibos v4
-inciertos. Ninguna ejecución productiva está autorizada.
+inciertos. La instalación fue autorizada y completada; una reversa productiva
+no está autorizada automáticamente por ese permiso y no se ejecutó.
 
-## Verificación
+## Verificación de implementación (previa a publicación)
 
 Banco autorizado exclusivo: `gestion_diaria_f4_vista_chvrqh`, contenedor
 `supabase_db_avancecorp-f5-bank`. Evidencia reproducible:
@@ -134,16 +140,14 @@ permanece privado y el control de cuerpos/ACL y sus mutantes pasa. No se amplió
 esta tarea a rediseñar todo el sistema de sellos. El aviso de «Cambiar resultado»
 controla las seis alternativas realmente retiradas del DOM y conserva la selección.
 
-## Para continuar
+## Publicación y continuación
 
-Reconciliar esta rama con el Main vigente, preservando los otros trabajos. Antes
-de publicar, exigir Main local igual a `avancecorp/main` y construir de ese commit.
+Instalación, registro, integración, CI y despliegue completados; no repetirlos.
+Gates productivos F1–F4/v4 y SLA PASS, v3 y catálogo previo intactos. La revisión
+adicional de Claude para publicar y su contraste con evidencia están en el acta
+de publicación; no se atribuye un PASS final al reviewer.
 
-Mostrar el SQL exacto a Miguel y obtener autorización separada antes de instalar
-y registrar la candidata en producción. Verificar allí permisos, gates y firma,
-y solo después publicar el frontend. No retirar v3 mientras existan clientes o
-recibos pendientes que dependan de ella. Una reversión productiva necesita la misma
-coordinación; el permiso local no la autoriza.
-
-Después de cerrar esta mejora, retomar F4 desde su estado real y sus autorizaciones,
-sin marcar terminada una fase solo por tener código o pruebas locales.
+Queda el recorrido de uso normal con analista y supervisor, no un guardado ficticio
+en producción. Retomar F4 etapa 2 desde el plan, aprovechando el detalle y registro
+ya disponibles. No retirar v3 mientras existan clientes o recibos que dependan de
+ella; una reversión requiere coordinar guardados inciertos. F4 completa sigue abierta.
