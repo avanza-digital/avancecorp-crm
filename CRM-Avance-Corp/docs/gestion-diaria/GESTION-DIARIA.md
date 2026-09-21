@@ -59,9 +59,9 @@ y PRs #42, #44, #47, #50 y #51.
 registrada, quién tiene pendientes y dónde debe intervenir, sin ocultar a los analistas con
 cero actividad. Se construye en seis etapas: vista del equipo, detalle del analista, cortes
 de jornada, alertas y seguimiento, configuración gerencial, y validación y activación.
-La etapa 1 está implementada y validada localmente al 21/09. La candidata inicial
-`997e1290` está reconciliada con Main `40f2501b` en la rama
-`codex/gestion-diaria-f4-vista-equipo`; la integración local se documenta en el acta.
+La etapa 1 está implementada y validada localmente al 21/09. Main local ya contiene
+el merge `03249ba9`, con padres `997e1290` (candidata F4) y `40f2501b` (taller).
+La integración local se documenta en `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
 Faltan aprobación e instalación del SQL y publicación. Las etapas 2–6 siguen pendientes. Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
@@ -118,6 +118,16 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 7. **Trampas conocidas:** el hook de Bash bloquea comandos con `.env` o `*_KEY=` literales; los radios del panel llevan su descripción en el nombre accesible (Playwright: regex); un `div` envoltorio dentro de `Dialog` rompe el scroll del cuerpo (`flex min-h-0 flex-1 flex-col`); con un Sheet modal abierto los toasts no reciben clic sin la regla `[data-sonner-toaster]`.
 
 ### Pendiente de Miguel ahora
+
+**Punto de reanudación del objetivo:** la conciliación ya no bloquea la vista del
+equipo. Main avanzó por fast-forward al merge `03249ba9`; contiene el remoto
+verificado `37a936c7`, pero no se ha subido. Los 22 archivos ajenos se comprobaron
+por huella y conservaron su contenido; la entrada pendiente de temperatura en el
+ledger se restituyó íntegra, sin commitearla. Sigue disponible el respaldo de los
+cinco archivos que se cruzaban: stash `1af9b3b15b41e1d705593c331506c6533b0d52db`.
+Antes de publicar habrá que sincronizar `avancecorp/main` y construir desde el
+commit verificado. Continuar con la aprobación del SQL exacto y el recorrido del
+supervisor; no abrir las etapas siguientes ni activar TypeSafe por esta integración.
 
 - **Prueba de negocio:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar sus pendientes y abrir el registro.
 - **SQL y publicación:** aprobar el SQL exacto antes de instalarlo y solicitar el release por el mecanismo del proyecto. Esta reconciliación es local y no habilita producción.

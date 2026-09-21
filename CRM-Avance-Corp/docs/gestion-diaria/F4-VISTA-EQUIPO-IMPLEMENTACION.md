@@ -210,3 +210,18 @@ PostgreSQL authenticated → validador del frontend. Se conservan los ensayos an
 de reversa, tipos, advisors y mutantes de F1–F3; no se presentan como repetidos aquí.
 La matriz HTTP general, instalación SQL, publicación y validación humana productiva
 siguen NOT RUN. La aprobación de integración no autoriza ninguna de esas acciones.
+
+### Incorporación a Main local
+
+Main avanzó por fast-forward a `03249ba904bbdb49f02b0a108a436fc17aa941ec`, merge
+con padres `997e1290` y `40f2501b`. El código incorporado es el mismo que pasó los
+gates anteriores en el worktree aislado. No hubo push ni despliegue.
+
+Los 22 archivos ajenos a la reconciliación conservaron sus huellas y estado. Las
+101 líneas pendientes del ledger de temperatura se restituyeron exactamente y
+siguen sin commitear. Los cinco archivos que se cruzaban tienen respaldo recuperable
+en el stash `1af9b3b15b41e1d705593c331506c6533b0d52db`; no aplicar ese stash entero
+sobre la integración, porque también conserva versiones anteriores de los documentos
+ya reconciliados. La conciliación está cerrada: el objetivo continúa con aprobación
+del SQL exacto, instalación autorizada y validación del recorrido del supervisor.
+La publicación requiere su autorización separada y el mecanismo de release vigente.

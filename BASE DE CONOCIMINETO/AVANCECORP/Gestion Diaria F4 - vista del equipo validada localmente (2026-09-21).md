@@ -18,7 +18,7 @@ El 21/09 Miguel autorizó reconciliar las ramas, preservando los cambios de amba
 no autorizó instalación SQL ni publicación.
 
 El plan principal sigue siendo `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
-El acta de esta candidata vive en su rama, en
+El acta de esta entrega está incorporada a Main local, en
 `CRM-Avance-Corp/docs/gestion-diaria/F4-VISTA-EQUIPO-IMPLEMENTACION.md`, con capturas,
 comandos y límites. SQL exacto: `20260921040335_crm_gestion_diaria_equipo_vista.sql`.
 
@@ -38,7 +38,7 @@ CHANGES_REQUESTED; no se inventa una aprobación final del reviewer.
 
 ## Pendiente para uso productivo
 
-Integrar preservando el taller, mostrar y aprobar el SQL antes de instalarlo y
+La integración local ya está completada. Mostrar y aprobar el SQL antes de instalarlo y
 publicar con invocación humana de `$release-crm` o `/release-crm`. Completar el
 recorrido de negocio con el supervisor. No hubo instalación, push ni deploy.
 La matriz HTTP general y la validación humana en producción no se acreditan con
@@ -66,6 +66,15 @@ Verificación final de integración: `npm run check` PASS, 270 archivos y 3.991 
 navegador completo PASS, 225 aprobadas y 26 omisiones preexistentes. Tres oráculos
 SQL locales y contrato PostgreSQL→frontend repetidos PASS. Capturas de analista
 en escritorio/móvil inspeccionadas; ninguna instalación ni publicación productiva.
+
+Main local avanzó por fast-forward al merge `03249ba9` (padres `997e1290` y
+`40f2501b`). Se verificaron por huella los 22 archivos ajenos; las 101 líneas
+pendientes del ledger de temperatura se restituyeron sin commitearlas. Respaldo
+recuperable de los cinco archivos que se cruzaban: stash
+`1af9b3b15b41e1d705593c331506c6533b0d52db`. No reaplicarlo entero: contiene también
+versiones antiguas de documentos ya reconciliados. La próxima sesión debe retomar
+el objetivo F4 desde la aprobación del SQL, no repetir la conciliación ni adelantar
+TypeSafe o los cortes. Instalación y publicación siguen necesitando aprobación.
 
 Relacionadas: [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] ·
 [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] · [[Inicio]].
