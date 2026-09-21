@@ -361,9 +361,11 @@ export function cuandoLimaDe(iso: string): string {
 }
 
 /** Barras de llamadas por hora 08–20 Lima (decisión #8), con el máximo para escalar. */
+export const FRANJA_LLAMADAS = { desde: 8, hasta: 20 } as const
+
 export function barrasPorHora(marcador: Pick<Marcador, 'por_hora'>): { hora: number; llamadas: number; contestadas: number; maximo: number }[] {
   const porHora = new Map(marcador.por_hora.map((h) => [h.hora, h]))
-  const horas = Array.from({ length: 13 }, (_, i) => i + 8)
+  const horas = Array.from({ length: FRANJA_LLAMADAS.hasta - FRANJA_LLAMADAS.desde + 1 }, (_, i) => i + FRANJA_LLAMADAS.desde)
   const maximo = Math.max(1, ...horas.map((h) => porHora.get(h)?.llamadas ?? 0))
   return horas.map((hora) => ({
     hora,
@@ -375,7 +377,7 @@ export function barrasPorHora(marcador: Pick<Marcador, 'por_hora'>): { hora: num
 
 /** Llamadas que quedan fuera de la franja 08–20 (se declaran, no se esconden). */
 export function llamadasFueraDeFranja(marcador: Pick<Marcador, 'por_hora'>): number {
-  return marcador.por_hora.filter((h) => h.hora < 8 || h.hora > 20).reduce((total, h) => total + h.llamadas, 0)
+  return marcador.por_hora.filter((h) => h.hora < FRANJA_LLAMADAS.desde || h.hora > FRANJA_LLAMADAS.hasta).reduce((total, h) => total + h.llamadas, 0)
 }
 
 /**

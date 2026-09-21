@@ -1,7 +1,7 @@
 // Contrato de F4. En real, todos los indicadores proceden de una sola foto
 // autorizada del servidor. Aquí sólo se valida, busca, ordena y presenta.
 import * as v from 'valibot'
-import { MarcadorSchema, UmbralesSchema } from './gestion-diaria-analista'
+import { MarcadorSchema, UmbralesSchema, type Marcador } from './gestion-diaria-analista'
 
 const Natural = v.pipe(v.number(), v.integer(), v.minValue(0))
 export const MOTIVOS_EQUIPO = {
@@ -104,4 +104,20 @@ export function tiempoSinLlamar(minutos: number | null): string {
   if (minutos === null) return 'Sin llamadas hoy'
   if (minutos === 0) return 'Menos de 1 min'
   return minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} min`
+}
+
+/** No pintar barras a cero si llegó un desglose parcial o inconsistente. */
+export function horarioConfirmado(marcador: Marcador): boolean {
+  const horas = marcador.por_hora
+  const contestadasPorHora = horas.reduce((total, h) => total + h.contestadas, 0)
+  return new Set(horas.map((h) => h.hora)).size === horas.length
+    && horas.every((h) => Number.isInteger(h.hora) && h.hora >= 0 && h.hora <= 23
+      && Number.isInteger(h.llamadas) && h.llamadas >= 0
+      && Number.isInteger(h.contestadas) && h.contestadas >= 0 && h.contestadas <= h.llamadas)
+    && horas.reduce((total, h) => total + h.llamadas, 0) === marcador.llamadas
+    // gestion_diaria_llamadas cuenta por hora todas las llamada_realizada;
+    // el total para la tasa excluye numero_errado/no_es_la_persona. Admitir
+    // esa diferencia histórica sólo dentro del número de llamadas no útiles.
+    && contestadasPorHora >= marcador.contestadas
+    && contestadasPorHora - marcador.contestadas <= marcador.llamadas - marcador.utiles
 }

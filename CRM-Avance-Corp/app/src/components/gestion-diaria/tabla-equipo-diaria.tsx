@@ -2,8 +2,10 @@ import { useId } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { TablaEnvoltura, Th, Td } from '@/components/common/tabla'
 import { Button } from '@/components/ui/button'
-import { COLOR_NIVEL, ETIQUETA_NIVEL, horaLimaDe, textoTasa } from '@/lib/gestion-diaria-analista'
-import { MOTIVOS_EQUIPO, tiempoSinLlamar, type FilaEquipoDiario, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
+import { COLOR_NIVEL, ETIQUETA_NIVEL, textoTasa } from '@/lib/gestion-diaria-analista'
+import { MOTIVOS_EQUIPO, type FilaEquipoDiario, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
+import type { PestanaRegistro } from '@/lib/gestion-diaria'
+import { DetalleAnalista } from './detalle-analista'
 
 const COLUMNAS: { orden: OrdenEquipo; titulo: string }[] = [
   { orden: 'nombre', titulo: 'Analista' }, { orden: 'llamadas', titulo: 'Llamadas' },
@@ -11,11 +13,12 @@ const COLUMNAS: { orden: OrdenEquipo; titulo: string }[] = [
   { orden: 'atencion', titulo: 'Atención' },
 ]
 
-export function TablaEquipoDiaria({ filas, filtros, ordenar, abrirRegistro }: {
+export function TablaEquipoDiaria({ filas, dia, filtros, ordenar, abrirRegistro }: {
   filas: readonly FilaEquipoDiario[]
+  dia: string
   filtros: FiltrosEquipo
   ordenar: (orden: OrdenEquipo) => void
-  abrirRegistro: (id: string) => void
+  abrirRegistro: (id: string, pestana?: PestanaRegistro) => void
 }) {
   const tablaId = useId()
   return (
@@ -69,14 +72,7 @@ export function TablaEquipoDiaria({ filas, filtros, ordenar, abrirRegistro }: {
                 <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
                   <details className="min-w-0 flex-1">
                     <summary className="w-fit cursor-pointer rounded-md py-3 font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring">Detalle de {f.nombre_completo}</summary>
-                    <dl className="grid gap-x-8 gap-y-3 py-3 sm:grid-cols-2 lg:grid-cols-4">
-                      {[
-                        ['Llamadas útiles', f.marcador.utiles], ['Leads distintos', f.marcador.leads_tocados],
-                        ['Llamadas por lead', f.llamadas_por_lead ?? '—'], ['Citas pendientes para hoy', f.citas_hoy],
-                        ['Primera llamada', horaLimaDe(f.marcador.primera_llamada_en)], ['Última llamada', horaLimaDe(f.marcador.ultima_llamada_en)],
-                        ['Tiempo sin llamar', tiempoSinLlamar(f.minutos_sin_llamar)], ['Última gestión', horaLimaDe(f.ultima_gestion_en)],
-                      ].map(([titulo, valor]) => <div key={titulo}><dt className="text-[var(--muted-foreground-strong)]">{titulo}</dt><dd className="mt-1 font-semibold tabular-nums">{valor}</dd></div>)}
-                    </dl>
+                    <DetalleAnalista fila={f} dia={dia} abrirLlamadas={() => abrirRegistro(f.analista_id, 'llamadas')} />
                   </details>
                   <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirRegistro(f.analista_id)} aria-label={`Ver registro de ${f.nombre_completo}`}>Ver registro</Button>
                 </div>

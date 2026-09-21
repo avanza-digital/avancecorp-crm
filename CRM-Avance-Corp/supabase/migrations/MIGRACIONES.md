@@ -1,5 +1,18 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921183436 — Eliminación administrativa del contrato con registro inicial
+
+**INSTALADA Y VERIFICADA: versión remota 20260921185355.** Miguel pidió conservar
+permanentemente la eliminación por Admin/Superadmin y autorizó retirar 001457.
+El alta unificada añadía automáticamente un evento `registro` y una solicitud
+confirmada que el borrado rechazaba. La copia inmutable v3 archiva ambos; la
+solicitud queda cancelada conservando sus revisiones, correcciones y datos.
+Se preservan PDF, permisos, historial posterior, meses cerrados y renovaciones.
+
+Dos cuerpos, mismas firmas/ACL. Pre/postflight por huellas. 35 pruebas SQL y
+concurrencia y 48 Edge/Storage PASS. Acta y límites:
+`../scripts/contratos-eliminar/REGISTRO-INICIAL-20260921.md`.
+
 ## 20260921153654 — Resultado de llamada: seguimiento y descarte separados
 
 **INSTALADA Y REGISTRADA EN PRODUCCIÓN el 21/09/2026.** Después del ensayo en
