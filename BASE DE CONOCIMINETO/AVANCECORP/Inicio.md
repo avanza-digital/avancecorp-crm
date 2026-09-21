@@ -5,6 +5,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Pipeline - etiqueta sin asignar por nombre ausente (2026-09-21)]] — **PUBLICADO Y SESIÓN CERRADA:** Pipeline resuelve el nombre del analista por su ID y reserva «sin asignar» para leads sin responsable. Fuente `b0d2ff89`, PR #63; 4.016 pruebas, CI y 108 comprobaciones HTTP PASS. Conformidad de Miguel y checkpoint documental local; artefactos, evidencias y recuperación conservados.
+
 - [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] — **PUBLICADO Y CHECKPOINT GUARDADO:** F4 etapa 1 y ampliación F2/F3, SQL instalado/registrado y frontend `526e728e`, PR #62. Build `build-20260921T170500239Z`; 4.016 pruebas, 231 E2E y verificaciones productivas PASS, con límites documentados. Miguel confirmó que la mejora le gusta y pidió guardar el progreso; conformidad visible registrada, sin atribuir una prueba completa. Sigue recorrido de negocio y F4 etapa 2; cortes y TypeSafe no activados.
 
 - [[Gestion Diaria - resultado separado del descarte (2026-09-21)]] — **AMPLIACIÓN F2/F3 PUBLICADA:** las siete opciones se contraen al elegir; «No le interesa» y «Pide otro producto» permiten agendar y conservar el lead. Descarte explícito, veto respetado, v3/recibos preservados. Autorización productiva y publicación completadas; F4 conserva sus etapas 2–6 pendientes.
