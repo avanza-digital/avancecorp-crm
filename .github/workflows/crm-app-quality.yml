@@ -1,7 +1,11 @@
 name: CRM app quality
 
 on:
-  # La regla de Main exige verify en toda PR; un filtro paths lo dejaría pendiente.
+  # SIN filtro `paths` en `pull_request`, A PROPÓSITO. La regla de `main` exige el
+  # check `verify` en toda PR, y un workflow que no se dispara NO publica su
+  # resultado: la PR se queda esperando para siempre. Eso ya pasó aquí una vez.
+  # El ahorro para las PR de solo documentación se decide DENTRO (job `cambios`),
+  # donde siempre hay un resultado que publicar.
   pull_request:
   push:
     branches: [main, tronco]
@@ -17,7 +21,71 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  # ───────────────────────────────────────────────────────────────────────────
+  # ¿Esta PR toca SOLO documentación? Lista blanca explícita y cerrada: todo lo
+  # que no esté en ella exige la comprobación completa. Ante cualquier duda —un
+  # diff que no se puede calcular, un archivo desconocido— se corre TODO.
+  # Nunca al revés: un detector que falla no puede significar «no hay nada».
+  # ───────────────────────────────────────────────────────────────────────────
+  cambios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      solo_docs: ${{ steps.clasificar.outputs.solo_docs }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clasificar el diff
+        id: clasificar
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # En `push` no hay PR que clasificar: se corre todo.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "No es una PR: se comprueba todo."
+            echo "solo_docs=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "${BASE:-}" ] || [ -z "${HEAD:-}" ]; then
+            echo "Sin base o head: se comprueba todo."
+            echo "solo_docs=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # `--no-renames` da las DOS rutas de un renombrado: si algo sale de una
+          # carpeta de código, se ve.
+          if ! git diff --name-only --no-renames "$BASE...$HEAD" > /tmp/cambiados.txt; then
+            echo "No se pudo calcular el diff: se comprueba todo."
+            echo "solo_docs=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ ! -s /tmp/cambiados.txt ]; then
+            echo "Diff vacío o ilegible: se comprueba todo."
+            echo "solo_docs=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "Archivos de la PR:"; sed 's/^/  /' /tmp/cambiados.txt
+
+          # LISTA BLANCA. Solo prosa y material de apoyo que NO entra en el
+          # build, ni en las pruebas, ni en la configuración. Cualquier `.md`
+          # fuera de estas rutas (un README que un script lee, por ejemplo)
+          # exige la comprobación completa.
+          solo_docs=true
+          while IFS= read -r f; do
+            case "$f" in
+              CRM-Avance-Corp/docs/*.md|CRM-Avance-Corp/docs/**/*.md) ;;
+              CRM-Avance-Corp/docs/*.pdf|CRM-Avance-Corp/docs/**/*.pdf) ;;
+              "BASE DE CONOCIMINETO/"*.md) ;;
+              CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md) ;;
+              *) echo "  -> «$f» no es documentación: se comprueba todo."; solo_docs=false; break ;;
+            esac
+          done < /tmp/cambiados.txt
+          echo "solo_docs=$solo_docs" >> "$GITHUB_OUTPUT"
+          echo "Resultado: solo_docs=$solo_docs"
+
+  app-check:
+    needs: cambios
+    if: ${{ needs.cambios.outputs.solo_docs != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -38,13 +106,15 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Lint, typecheck and test with coverage
+      # `check` ya construye el bundle por dentro y lo verifica (`build &&
+      # verify:bundle && dup`): el paso «Build production bundle» que había aquí
+      # compilaba la app por SEGUNDA vez sin comprobar nada nuevo.
+      - name: Lint, typecheck, test con cobertura y build
         run: npm run check
 
-      - name: Build production bundle
-        run: npm run build
-
   e2e:
+    needs: cambios
+    if: ${{ needs.cambios.outputs.solo_docs != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -71,6 +141,8 @@ jobs:
       - name: E2E smoke por rol (modo demo)
         # La suite tiene más de 200 casos. Un solo worker agotaba los 20 min;
         # cada prueba usa su contexto y backend interceptado independientes.
+        # Subir de 2 no se hace sin medir: más workers pueden traer fallos
+        # intermitentes por contención, y un e2e inestable es peor que uno lento.
         run: npm run test:e2e -- --workers=2
 
       - name: Upload report on failure
@@ -82,3 +154,51 @@ jobs:
             CRM-Avance-Corp/app/playwright-report/
             CRM-Avance-Corp/app/test-results/
           retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # `verify` es el ÚNICO check que exige la regla de `main`, así que corre
+  # SIEMPRE y es quien decide. No hace `echo OK`: mira el resultado de los demás
+  # y falla ante cualquier cosa que no sea un éxito o una omisión que él mismo
+  # autorizó. Con esto los e2e pasan a BLOQUEAR sin tocar la regla del repo.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify:
+    needs: [cambios, app-check, e2e]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Evaluar los resultados
+        env:
+          DET: ${{ needs.cambios.result }}
+          DOCS: ${{ needs.cambios.outputs.solo_docs }}
+          APP: ${{ needs.app-check.result }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          set -euo pipefail
+          echo "detector=$DET · solo_docs=$DOCS · app-check=$APP · e2e=$E2E"
+
+          # El detector es la única fuente de la excepción: si él falla, no hay
+          # excepción que valga.
+          if [ "$DET" != "success" ]; then
+            echo "::error::El detector de cambios no terminó bien ($DET). No se puede saber qué toca esta PR."
+            exit 1
+          fi
+
+          if [ "$DOCS" = "true" ]; then
+            if [ "$APP" = "skipped" ] && [ "$E2E" = "skipped" ]; then
+              echo "PR de solo documentación: las comprobaciones de la app se omiten a propósito."
+              exit 0
+            fi
+            echo "::error::Se clasificó como documentación pero los jobs no se omitieron (app-check=$APP, e2e=$E2E)."
+            exit 1
+          fi
+
+          fallo=0
+          for par in "app-check:$APP" "e2e:$E2E"; do
+            nombre="${par%%:*}"; res="${par#*:}"
+            if [ "$res" != "success" ]; then
+              echo "::error::$nombre terminó en «$res» y esta PR sí toca la app."
+              fallo=1
+            fi
+          done
+          exit $fallo
