@@ -1,7 +1,7 @@
 ---
 tags: [crm, leads, ux, actividad, historial]
 fecha: 2026-09-20
-estado: correccion-supervision-validada-local-pendiente-publicacion
+estado: correccion-supervision-publicada-verificada
 ---
 
 # Ficha de lead — retiro del botón Registrar actividad
@@ -77,7 +77,7 @@ tipos de actividad ni datos.
   CI del PR `35534976884` y CI de `main` `35535637932`; en ambas ejecuciones
   terminaron en verde `verify` y la suite E2E completa.
 
-## Publicación
+## Primera publicación
 
 - Publicado el 20/09/2026 a las 15:44 (Lima) en `crm.miavance.com` mediante el
   conector oficial de Hostinger.
@@ -101,9 +101,35 @@ tipos de actividad ni datos.
 No se modificó backend, base de datos, permisos ni datos. El commit posterior
 de esta acta es solo documental y no requiere volver a desplegar el frontend.
 
-## Corrección de supervisión
+## Corrección de supervisión publicada
 
-La primera versión quedó publicada en el build `build-20260920T202855561Z`.
-La corrección de la ruta secundaria de Supervisor y Gerencia está validada en
-local y CI, pero todavía requiere una nueva publicación. No modifica backend,
-base de datos, permisos ni datos.
+- Publicada el 20/09/2026 a las 17:43 (Lima) en `crm.miavance.com` mediante el
+  conector oficial de Hostinger.
+- La corrección funcional entró por el PR
+  [#58](https://github.com/avanza-digital/avancecorp-crm/pull/58), commit de
+  merge `9ba94a99fc58ed5798ee9d6e596541b89b14a959`.
+- El artefacto se construyó desde el `main` vigente y verificado
+  `8b3252b48455ec1d5c55633049c34345a91f43fb`, después de integrar el cambio
+  documental simultáneo del PR #57 sin alterar la corrección funcional.
+- Release: `crm-20260920T223427Z-8b3252b48455`.
+- Build: `build-20260920T223425954Z`.
+- ZIP privado: 2.257.630 bytes; SHA-256
+  `6e6fe08a71d620aebe6c37ca6811b4f7bc17b1c0a4e49a1c057a6f828c30759d`.
+- **PASS:** CI del PR #58 (`35540767365` y repetición `35541127994`) y CI de
+  `main` `35541869175`; calidad, build y E2E completos terminaron en verde.
+- **PASS:** `index.html`, `version.json`, los 11 bundles JavaScript iniciales y
+  la hoja CSS respondieron HTTP 200 y coincidieron byte por byte con el
+  manifiesto del artefacto correctivo.
+- **PASS:** el ZIP respondió HTTP 404 tanto desde `crm.miavance.com` como desde
+  `miavance.com`.
+- El rollback inmediato conservado es la primera publicación
+  `crm-20260920T202856Z-438b94cee902`, commit
+  `438b94cee90237f68975c03d619837b8cd549468`.
+- **NOT RUN:** inspección visual manual en navegador integrado; la sesión no
+  tenía navegador conectado. La regla por rol y la imposibilidad de abrir el
+  compositor quedaron cubiertas por pruebas unitarias y E2E focalizadas, además
+  de la suite E2E completa aprobada.
+
+No se modificó backend, base de datos, permisos ni datos. El commit posterior
+de esta actualización del acta es solo documental y no requiere volver a
+desplegar el frontend.
