@@ -1,5 +1,149 @@
 # Ledger de migraciones — esquema `crm`
 
+## ✅ INSTALADAS EN PRODUCCIÓN el 21/09/2026 — tres de cuatro
+
+Miguel autorizó («hazlo todo») y añadió la condición permanente: **«siempre
+asegúrate de no dañar nada»**. Aplicadas con `supabase db query --linked --file`
+(desde `CRM-Avance-Corp/`, que es donde vive el enlace) y registradas una a una
+con `supabase migration repair --status applied <versión> --linked`, **con su
+sello de archivo** — al contrario que `20260921185355`, que el MCP
+`apply_migration` registró con un sello inventado.
+
+| Versión | Qué | Verificado en prod |
+|---|---|---|
+| `20260921181323` | Testigo del «Depósito %» de Citas | testigo creado y declarado · la función grande **intacta** (`c651d607…`) · sello coherente · `anon` sin acceso · Citas responde (247 citas) y el testigo publica 32 entrevistas · 28 personas · 3 vinculados · 10,71 % |
+| `20260921182011` | La alarma de un solo núcleo | `cuadra: true`, 4 caminos, 4,06 % los cuatro · `authenticated` NO · `anon` NO · `service_role` SÍ |
+| `20260921190145` | El vigilante de analítica | **`OK: 34 candidatos declarados y con huella vigente; 30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar`** |
+
+**EL VIGILANTE PASÓ DE ROJO A VERDE EN PRODUCCIÓN.** 0 sin declarar, 0 huellas
+caducadas. El cron vigía de las 06:49 deja de alertar.
+
+**Ningún número se movió:** núcleo directo, mensual, rango y distribución dan los
+cuatro `1170 / 47.500 = 4.06 %`, 18 filas de analistas, 79 convertidos.
+
+**Advisors: ningún aviso nuevo.** 5 tipos, todos preexistentes (214 funciones
+`SECURITY DEFINER` ejecutables por `authenticated` es la arquitectura del
+proyecto). Ninguna de las dos funciones nuevas aparece.
+
+## 🔴 `20260921175538` (F1, el campo muerto) — NO INSTALADA, Y NO DEBE INSTALARSE AÚN
+
+**Habría roto el CRM.** El bundle vivo (`build-20260921T200508459Z`, commit
+`baa63aeac71e`, publicado hoy a las 20:05 desde árbol limpio) declara
+`conversion_pct: v.number()` — **obligatorio**, en las filas de analista y de
+equipo. Si el servidor deja de mandarlo, valibot rechaza el paquete ENTERO y
+**Gestión de equipo y Directorio se quedan sin datos**.
+
+El front que lo admite opcional está escrito (`app/src/lib/metricas-vendedores.ts`
++ 3 tests «F1 (21/09/2026)») pero **sin commitear ni publicar**.
+
+**Orden obligatorio:** commit → PR → `/release-crm` → comprobar que el `buildId`
+vivo contiene el cambio → ENTONCES instalar `20260921175538`. Anotar aquí ese
+`buildId` antes de aplicar.
+
+## ENSAYO DEL 21/09 — las cuatro migraciones, en un banco que ES producción
+
+**El ciclo del branch de Supabase no sirve, por 5.ª vez.** El branch
+`conversion-f1-f3b` acabó en `MIGRATIONS_FAILED` con **86 de 309** migraciones,
+parado en `20260812000259_crm_cierres_externos` — el mismo sitio del 16/08 y del
+01/09. Causa raíz encontrada hoy y más profunda de lo que decía el vault: **el
+historial del CRM no es autónomo.** Su primera migración (`20260709000001`) ya
+necesita `public.perfiles`, que es del PORTAL y no está en esta carpeta. Por eso
+`[db.migrations] enabled = false` en `config.toml` y por eso un replay local
+también muere en la migración #1. Branch borrado.
+
+**Receta que SÍ funcionó — banco en Docker, producción al byte** (~15 min):
+
+1. `supabase db dump --linked --schema public,crm,private --keep-comments -f esquema-prod.sql` (3 MB, solo esquema).
+2. `supabase db reset --local --no-seed` (base limpia; **`--local`, nunca `--linked`**).
+3. Crear lo que el stack local no trae: rol `crm_metricas_bridge`, extensiones
+   `btree_gist` y `pg_trgm` en el esquema `extensions`. Sin ellas, 17 errores de
+   índices y grants; con ellas, 3 (solo cambios de propietario).
+4. Cargar el esquema. **Verificación que convierte el banco en prueba:** las
+   huellas `md5(prosrc)` coinciden con producción — `metricas_vendedores_fn`,
+   `citas_gerencia_consulta`, su envoltorio, `contrato_eliminar_auditado` y el
+   censo del trinquete: **las cinco IGUAL**. 247 funciones `crm`, 423 `private`,
+   81 tablas.
+5. Semilla de CONFIGURACIÓN (nunca datos personales): las 3 tablas del trinquete
+   (36 exenciones + sello + techo, extraídas del volcado y el resto borrado sin
+   cargarlo), `crm.conversion_pesos` (peso del referido 0,15) y **un solo perfil
+   de gerencia** (portal `admin` + `crm.equipo` `gerencia`: el portal no admite
+   «gerencia» como rol suyo). Con eso el banco reproduce el rojo de producción
+   palabra por palabra.
+
+**RESULTADO — las cuatro APLICADAS, todos los preflights y postflights en verde:**
+
+| Migración | Veredicto en el banco |
+|---|---|
+| `20260921175538` F1 | ✅ ya no emite el entero · su declaración sigue vigente |
+| `20260921181323` F2 | ✅ el testigo existe · el envoltorio lo compone |
+| `20260921182011` F3 | ✅ existe · solo `service_role` · sin datos degrada a `sin_perfil_de_gerencia_activo` |
+| `20260921190145` F3b | ✅ **`OK: 34 candidatos declarados y con huella vigente; 30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar`** |
+
+**EL VIGILANTE PASA DE ROJO A VERDE.** Antes: `Contadores crudos SIN declarar:
+crm.contrato_eliminar_auditado`. Después: `OK`.
+
+**EL MUTANTE, CAZADO** (`supabase/scripts/conversion/mutante-alarma.sql`):
+`antes: cuadra=true` → mutante que suma 1 al numerador del rango →
+`MUTANTE CAZADO: cuadra=false` → `ROLLBACK`. La alarma **puede** sonar. Y el
+mutante hace DOS llamadas en la misma transacción, así que también acredita el
+arreglo del P1 del auditor (los claims impersonados se restauran).
+
+**Bug propio que el banco cazó:** el postflight (f) de F1 falló en el primer
+intento. No era un fallo de F1 — el volcado era solo de esquema y la tabla de
+declaraciones estaba vacía. Verificado contra producción que la expresión de
+huella del `update` de F1 es **exactamente** la declarada (`176007f70e…`).
+
+**Lo que el banco NO puede acreditar:** los 293 tests de `test-rls.mjs` (harían
+falta los fixtures completos), los advisors de Supabase (son de la nube), y que
+las funciones de distribución conserven su propietario `crm_metricas_bridge`
+(3 `alter owner` no aplicaron en el banco por permisos del rol local — importa
+para la F4, que sí toca `metricas_distribucion_leads_v3_fn`).
+
+**Sigue haciendo falta el OK expreso de Miguel para instalar en producción.**
+
+## 20260921190145 — El vigilante de analítica vuelve a funcionar
+
+**PENDIENTE DE BRANCH. Fase F3b**, decisión de Miguel del 21/09: «los inspectores
+no son sospechosos».
+
+**Estado de partida, medido en producción** (ensayo con `raise` final, nada
+escrito): `private.assert_analitica_leads_citas()` en **ROJO por dos motivos**.
+(1) `crm.contrato_eliminar_auditado(uuid,uuid)` en el censo sin declarar —
+**falso positivo probado**: menciona `crm.leads` al limpiar el vínculo del lead,
+y su único `count()` es `count(distinct c.conrelid)` sobre `pg_constraint`, o sea
+llaves foráneas del catálogo. (2) Declararla **no basta**: el error solo cambia a
+«Los contadores crudos subieron de 30 a 31: el trinquete solo deja bajar». La
+carraca está disparada desde la migración del **05/09** y el techo no puede subir.
+
+**Qué hace:** declara el falso positivo con su razón, resella, y añade al censo
+UNA cláusula que excluye a los **verificadores** —piezas que cuentan para
+comprobar cifras ajenas y no publican ninguna propia— **atados a su huella
+declarada**: `crm.contrato_eliminar_auditado` y `private.citas_testigo_mes`
+(el testigo de F2). Si el cuerpo de un verificador cambia, la huella deja de
+casar, vuelve al censo y el trinquete salta. No es apagar el detector.
+
+**Ninguna huella escrita a mano.** El primer intento las incrustaba como
+literales y la prueba en producción demostró que una de las dos estaba **mal**
+(venía del mensaje de error de un ensayo, no del censo): el falso positivo habría
+seguido dentro y el vigilante en rojo. Ahora la huella sale de la declaración,
+calculada por la base con la misma expresión del censo.
+
+**PROBADO EN PRODUCCIÓN, SIN ESCRIBIR NADA** (declaración + resello + censo
+estrechado dentro de un `do` que termina en `raise`):
+
+```
+censo=34 · sujetos=30 · techo=30
+VEREDICTO = OK: 34 candidatos declarados y con huella vigente;
+            30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar
+```
+
+Comprobado además que el censo **no** es uno de los 4 auxiliares auditados y que
+la única huella que el assert fija es la de `auxiliares_analitica_lc_auditados()`,
+que esta migración no toca. Funciona en cualquier orden respecto a F2.
+
+Reversa: reinstalar `private.contadores_crudos_leads_citas()` de `20260830120000`
+(donde se define) y borrar la exención, resellando.
+
 ## 20260921183436 — Eliminación administrativa del contrato con registro inicial
 
 **INSTALADA Y VERIFICADA: versión remota 20260921185355.** Miguel pidió conservar
@@ -12,6 +156,144 @@ Se preservan PDF, permisos, historial posterior, meses cerrados y renovaciones.
 Dos cuerpos, mismas firmas/ACL. Pre/postflight por huellas. 35 pruebas SQL y
 concurrencia y 48 Edge/Storage PASS. Acta y límites:
 `../scripts/contratos-eliminar/REGISTRO-INICIAL-20260921.md`.
+
+## 20260921182011 — Alarma de un solo núcleo para la conversión
+
+**PENDIENTE DE BRANCH.** Fase F3 del plan «Una sola definición de conversión»
+(21/09/2026). `crm.alarma_conversion_fn(p_mes)` lee los cuatro caminos de la
+conversión del mes (núcleo directo, mensual, rango, distribución) y devuelve
+`{mes, hasta, cuadra, caminos_leidos, detalle}` — solo agregados. Sustituye,
+para el gate, a la sonda que se comparaba consigo misma.
+
+**SECURITY DEFINER con impersonación, justificado en la cabecera:** solo
+`service_role` (o un operador sin claims) puede ejecutarla; `authenticated` y
+`anon` reciben 42501 aunque sean gerencia. Fija transaccionalmente los claims de
+un perfil de gerencia activo únicamente para que las RPC pasen su gate; no
+escribe nada. Postflight con humo real (lee los 4 caminos como operador).
+
+Consumidores: `supabase/scripts/gate-realidad.mjs` (supuesto
+`conversion_un_solo_nucleo`, con la clave de servicio) y `test-rls.mjs` (bloque
+F3: service lee `cuadra=true`; gerencia/sup1/vend1 → 42501).
+
+**El mutante manda:** `supabase/scripts/conversion/mutante-alarma.sql` (SOLO en
+branch) reemplaza en una transacción el envoltorio del rango por uno que suma 1
+al numerador y exige que la alarma diga `cuadra=false`; termina siempre en
+`rollback`. Si el mutante sobrevive, F3 no está cerrada.
+
+Versión manual para producción (solo lectura, `db query`):
+`supabase/scripts/conversion/alarma.sql`. Corrida el 21/09 contra prod:
+`cuadra=true`, 4 caminos, 3.97 %.
+
+**Revisión `auditor-rls` (21/09): CAMBIOS, con un P1 que era un bug de verdad.**
+Los claims de `set_config(..., true)` viven hasta el fin de la **transacción**,
+no de la llamada: sin restaurarlos, la segunda llamada dentro de una misma
+transacción entraba como `authenticated` y **se denegaba a sí misma** — que es
+exactamente lo que hace el mutante, así que el mutante moría con «No autorizado»
+antes de comprobar nada. Corregido: se restauran en los dos caminos de salida
+(normal y `exception`), como ya hacen `20260905233000` y `20260902050000`, y
+`test-rls` añade el caso de las dos lecturas seguidas. Otros tres arreglos:
+`raise notice` en vez de excepción cuando el branch no tiene gerencia sembrada;
+`coalesce(sum(),0)` + `motivo: 'sin_datos'` para que un mes vacío no salga rojo
+(pasaba las primeras horas del día 1 en Lima); y búsqueda del gerente por
+`crm.equipo` en vez de evaluar `private.rol_crm` por cada perfil del portal.
+Denegados ampliados a `directorio` (el lector global, el caso que más importa),
+`coordinador`, `vendInactive` y `clientBank`, más `p_mes` inválido → 22023.
+
+Reversa: `drop function crm.alarma_conversion_fn(date)` y quitar el supuesto.
+
+## 20260921181323 — Testigo del servidor para el «Depósito %» de Citas
+
+**PENDIENTE DE BRANCH.** Fase F2 del plan «Una sola definición de conversión»
+(21/09/2026). Citas calcula en el navegador el «Depósito %» (8 reglas + 9 filtros,
+`components/citas/avance.ts`); los hechos ya venían del núcleo, pero nadie
+contrastaba la aritmética. Se añade **`private.citas_testigo_mes(date,date)`**,
+función NUEVA e INDEPENDIENTE (no reutiliza ninguna CTE de la grande) que calcula
+el total del mes sin filtros con la configuración vigente, y el envoltorio
+`crm.citas_gerencia_consulta_fn` pasa a devolver el payload `|| {testigo}`.
+`private.citas_gerencia_consulta` (17 KB, huella `c651d60710ec3f45f428fe3b68617210`,
+reconstruida en local con los parches en sitio de `20260914044939` y
+`20260915170018` y verificada contra producción) **no se toca**; el preflight y el
+postflight lo exigen. Gate gerencia y ACL idénticos a la función grande.
+
+Front: `testigo` opcional en el esquema (`data/citas-gerencia.ts`),
+`calcularAvanceCitas` devuelve `testigoCuadra` (`null` con filtros o sin testigo;
+`false` si discrepa) y la cabecera de Avance mensual muestra «Cifras en revisión».
+Tests «F2 (21/09/2026)» en `components/citas/avance.test.ts`, con mutantes.
+
+**Prueba que manda en el branch:** el testigo de septiembre debe coincidir con el
+total que hoy calcula el navegador sin filtros. Si difiere, se investiga la
+fórmula ANTES de publicar; no se relaja el testigo.
+
+**Revisión `auditor-rls` (21/09): CAMBIOS.** P1 real: el testigo es un contador
+crudo y consume `private.conversion_cierres`, así que el trinquete
+`private.assert_analitica_leads_citas()` exige declararlo. Corregido: `lock` de
+las dos tablas del trinquete, `insert` de la exención con huella y razón, y
+resello; el postflight exige que el testigo quede declarado con la huella de su
+cuerpo y que el sello coincida. **NO se pone el assert en el preflight**: el
+trinquete YA ESTÁ EN ROJO en producción por `crm.contrato_eliminar_auditado(uuid,uuid)`
+(sin declarar desde el 05/09) — deuda ajena que no debe bloquear esto.
+Los tres P2 de datos se **descartaron midiendo producción el 21/09**: 0 reuniones
+completadas sin analista, 0 perfiles con más de una canónica, 0 desfases entre el
+mes de la ficha y el del ledger. Aun así se blindó la subconsulta de identidad
+con `order by 1 limit 1`, porque un 21000 ahí tumbaría toda la pantalla de Citas.
+
+**Deuda previa que este trabajo saca a la luz (no es de aquí):** censo al 21/09
+= **35 contadores crudos contra un tope de 30**, y 1 sin declarar. El tope solo
+puede bajar (`trg_analitica_lc_tope_solo_baja`), así que el exceso necesita una
+decisión de diseño aparte. Mientras siga así, `npm run gate:analitica` está en
+rojo y el cron vigía de las 06:49 alerta cada día.
+
+Reversa: reinstalar el envoltorio de `20260909015744` (última definición; cuerpo
+idéntico al de `20260909003243`) y `drop function private.citas_testigo_mes(date,date)`.
+
+## 20260921175538 — Fuera el campo muerto `conversion_pct` de `metricas_vendedores_fn`
+
+**PENDIENTE DE BRANCH.** Fase F1 del plan «Una sola definición de conversión»
+(21/09/2026). En cada fila de `vendedores` y `equipos` viajaba un entero
+`conversion_pct` = `round(nucleo_conversion_pct)`, y **0** cuando el núcleo no
+podía publicar: un «no medible» convertido en cero. Ninguna pantalla lo lee
+(CRM y portal comprobados el 21/09); el front solo consume `nucleo_*`.
+
+Cuerpo BYTE A BYTE el de `20260828173154` (md5 `d8226991aba1783b042eaf087568ba49`,
+verificado contra producción) menos los dos bloques de salida: 12 líneas
+quitadas, 0 añadidas (`diff` de cuerpos: 12/0). Preflight que se niega si la
+huella viva no es ésa; postflight que exige la **huella candidata
+`9675b589f24c595ad58ead3d767b083c`**, la ausencia de las dos fórmulas retiradas
+(`strpos`), el contrato de entrada intacto, owner/definer/stable/`search_path=""`
+y la ACL exacta (solo postgres y authenticated). Sin cambios de roles, ámbitos,
+grants ni de `public`.
+
+**Corrección posterior a la auditoría (21/09), encontrada midiendo producción:**
+`crm.metricas_vendedores_fn()` **está declarada en el trinquete de analítica con
+huella vigente** (`declarada=true, huella_ok=true`). Cambiarle el cuerpo caducaba
+esa razón y habría puesto `assert_analitica_leads_citas()` en rojo con «la razón
+caducó» — un rojo nuevo causado por esta misma migración. Ahora refresca su
+propia declaración (huella calculada por la base, razón actualizada con la
+retirada del entero) y resella, en la misma transacción; el postflight (f) exige
+`declarada and huella_ok` y que el sello coincida. El auditor no lo vio porque
+auditó permisos y ámbitos, no la interacción con el trinquete.
+
+**Revisión `auditor-rls` (21/09):** 1.ª pasada CAMBIOS — P0 literal del
+`comment on` sin cerrar (mío, al extraerlo con una expresión regular), P2 sin
+postflight, P2 `test-rls.mjs` sin casos, P3 catálogo sin calificar. Sin hallazgos
+de seguridad. Los cuatro corregidos; `test-rls.mjs` ahora exige la lista EXACTA
+de 14 claves por vendedor y 12 por equipo, sin `conversion_pct`, para gerencia,
+sup2 y vend1. **2.ª pasada: APROBADA, sin P0–P2** (verificó las cuatro correcciones
+archivo:línea, la ACL byte a byte con REF y que las 14/12 claves de `test-rls`
+coinciden con lo que la función emite). P3 aceptados: (a) **el gate que discrimina
+F1 es `test-rls.mjs` (bloque F1) + el postflight (a)–(e); `npm run gate:conversion`
+solo acredita que el núcleo no se movió**, porque la foto nunca llama a
+`metricas_vendedores_fn`; (b) al aplicar en prod, anotar aquí el `buildId` vivo
+que contiene el front F1 y el PASS del postflight en branch (prueba real de la
+huella candidata).
+
+**Orden de publicación:** clave que DESAPARECE de la respuesta ⇒ **front primero**
+(`lib/metricas-vendedores.ts` admite el campo como opcional) y después esta
+migración. Gate discriminante: `test-rls.mjs` (bloque F1) + postflight;
+`npm run gate:conversion` con la foto del branch antes y después debe seguir en
+VERDE y sin cambios, pero solo acredita el núcleo.
+
+Reversa: reinstalar la definición de `20260828173154` tal cual.
 
 ## 20260921153654 — Resultado de llamada: seguimiento y descarte separados
 

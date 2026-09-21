@@ -1,10 +1,11 @@
 # F4 · Etapa 2 — Detalle del analista
 
-Fecha: 21/09/2026. Estado: **implementada localmente, con conformidad visual de Miguel; no publicada**.
+Fecha: 21/09/2026. Estado: **PUBLICADA Y VERIFICADA; etapa 2 cerrada técnicamente**.
 Plan principal: [GESTION-DIARIA.md](GESTION-DIARIA.md).
 Publicación anterior: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
-Actualización: Miguel invocó `$release-crm`; publicación autorizada y en
-preparación, no desplegada. Preflight real y pendientes en
+Miguel invocó `$release-crm`, aprobó el PR #64 y se publicó la fuente
+`baa63aea`. Conformidad visual local registrada; recorrido humano productivo
+pendiente. Preflight real, artefacto y verificación HTTP en
 [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
 
 ## Alcance y decisiones
@@ -79,10 +80,10 @@ base `b0d2ff89`. Este commit remoto y la base inicial `5e538358` tienen el mismo
 árbol Git (`ebe80f2a90591dc20a7b28bcc109604b3ce8a336`); se conservó el checkpoint
 y la corrección de Pipeline sin escribir en el taller principal concurrente.
 
-La candidata no está integrada en Main ni subida. Antes de publicar se deberá
-reconciliar con el Main vigente, pasar los gates e invocar humanamente
-`$release-crm` o `/release-crm`. La autorización de la entrega anterior no se
-reutiliza para esta etapa.
+La candidata se reconcilió con Main preservando sus cierres previos y las
+ediciones ajenas. La autorización nueva `$release-crm` y la aprobación del
+PR #64 permitieron publicar `baa63aea` desde una copia limpia, con Main y
+remoto iguales. No se reutilizó la autorización de la entrega anterior.
 
 ## Verificación
 
@@ -162,9 +163,11 @@ No se implementaron cortes, avisos automáticos, configuración de gerencia ni
 TypeSafe. La vista sigue siendo «hoy», sin añadir selector histórico.
 
 Miguel revisó la vista local y expresó conformidad visual el 21/09 («ok listo si
-me gusta que sigue?»). Esta conformidad no equivale a una prueba integral de
-negocio con datos reales ni autoriza publicar. Quedan el gate real pendiente,
-la integración con Main vigente y la autorización de publicación por separado.
+me gusta que sigue?»). La publicación se autorizó después por separado y ya
+está verificada. Los permisos y la paginación se comprobaron con cinco
+identidades SQL reales, sin escrituras. Siguen NOT RUN el recorrido humano
+autenticado, VoiceOver, la matriz general Auth/HTTP y el script `gate:realidad`
+completo; sus causas y la evidencia alternativa constan en el acta de publicación.
 La siguiente implementación del plan es F4 etapa 3. Su activación conserva las
 decisiones pendientes: mínimo del sábado, analistas sin cartera y límites del
 aplazamiento. No se inventan esas decisiones ni se adelanta la activación.

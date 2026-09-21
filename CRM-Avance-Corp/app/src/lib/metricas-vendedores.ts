@@ -137,9 +137,10 @@ const FilaVendedorSchema = v.pipe(
     capital_pen: v.number(),
     capital_usd: v.number(),
     convertidos: v.number(),
-    /** Campo entero heredado: se conserva por compatibilidad, pero la UI no
-     * lo usa porque redondea y convierte NULL en 0. */
-    conversion_pct: v.number(),
+    /** Entero heredado EN RETIRADA (21/09/2026): redondeaba el núcleo y convertía
+     * NULL en 0. La UI nunca lo leyó. Se admite opcional para que este front
+     * pueda publicarse ANTES que la migración que lo quita del servidor. */
+    conversion_pct: v.optional(v.number()),
     nucleo_convertidos: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
     operaciones_cartera: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
     nucleo_divisor: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
@@ -162,8 +163,9 @@ const FilaEquipoSchema = v.pipe(
     capital_pen: v.number(),
     capital_usd: v.number(),
     convertidos: v.number(),
-    /** Entero heredado: solo compatibilidad con bundles previos. */
-    conversion_pct: v.number(),
+    /** Entero heredado EN RETIRADA (21/09/2026): opcional hasta que el servidor
+     * deje de mandarlo; después se elimina de aquí. */
+    conversion_pct: v.optional(v.number()),
     nucleo_convertidos: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
     operaciones_cartera: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
     nucleo_divisor: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),

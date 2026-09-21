@@ -313,3 +313,46 @@ describe('Avance mensual conectado a hechos de Citas', () => {
     expect(periodoAvance('2026-10', corte)).toMatchObject({ transcurridos: 0, ritmo: null })
   })
 })
+
+describe('F2 (21/09/2026): el testigo del servidor vigila el total sin filtros', () => {
+  const testigoIgual = () => ({
+    version: 1 as const, calculado_en: corte, reglas_listas: true,
+    configuracion: { mes_resultado: 'evento', analista_resultado: 'evento', base_depositos: 'entrevistas', actividad_manuales: 'incluir' },
+    entrevistas: 1, personas_entrevistadas: 1, clientes_periodo: 1, clientes_vinculados: 1, base_conversion: 1, conversion_pct: 100,
+  })
+  it('sin testigo no hay veredicto: null (servidor anterior)', () => {
+    expect(ejemplo().calcular().testigoCuadra).toBeNull()
+  })
+  it('con el testigo idéntico al total, cuadra', () => {
+    const e = ejemplo()
+    e.gestion.testigo = testigoIgual()
+    expect(e.calcular().total).toMatchObject({ entrevistas: 1, unicas: 1, clientesPeriodo: 1, clientes: 1, baseConversion: 1 })
+    expect(e.calcular().testigoCuadra).toBe(true)
+  })
+  it('MUTANTE: el servidor cuenta un cliente vinculado menos → no cuadra', () => {
+    const e = ejemplo()
+    e.gestion.testigo = { ...testigoIgual(), clientes_vinculados: 0, conversion_pct: 0 }
+    expect(e.calcular().testigoCuadra).toBe(false)
+  })
+  it('MUTANTE: el servidor dice que las reglas no están listas y el front sí → no cuadra', () => {
+    const e = ejemplo()
+    e.gestion.testigo = { ...testigoIgual(), reglas_listas: false, conversion_pct: null }
+    expect(e.calcular().testigoCuadra).toBe(false)
+  })
+  it('con un filtro puesto el testigo no aplica: null aunque discrepe', () => {
+    const e = ejemplo()
+    e.gestion.testigo = { ...testigoIgual(), clientes_vinculados: 0 }
+    e.filtros.analista = 'ana'
+    expect(e.calcular().testigoCuadra).toBeNull()
+  })
+  it('la base configurable también se contrasta: personas entrevistadas vs entrevistas', () => {
+    const e = ejemplo()
+    e.citas.push({ ...e.cita, id: 'cita-2', fecha: '2026-09-03', asistioEn: '2026-09-03T12:00:00Z' })
+    e.gestion.testigo = { ...testigoIgual(), entrevistas: 2, personas_entrevistadas: 1, base_conversion: 2, conversion_pct: 50 }
+    expect(e.calcular().testigoCuadra).toBe(true)
+    e.config.base_depositos = 'personas_entrevistadas'
+    expect(e.calcular().testigoCuadra).toBe(false) // el servidor calculó la base con 'entrevistas'
+    e.gestion.testigo = { ...testigoIgual(), entrevistas: 2, personas_entrevistadas: 1, base_conversion: 1, conversion_pct: 100 }
+    expect(e.calcular().testigoCuadra).toBe(true)
+  })
+})

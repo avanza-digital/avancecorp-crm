@@ -1,6 +1,6 @@
 ---
 tags: [crm, gestion-diaria, supervisor, plan, typesafe]
-estado: etapa 1 publicada — etapa 2 implementada localmente, sin publicar
+estado: etapas 1 y 2 publicadas — etapas 3 a 6 y piloto TypeSafe pendientes
 fecha: 2026-09-20
 ---
 
@@ -83,6 +83,12 @@ la etapa 2 y se implementó el detalle horario y el recorrido al registro/ficha
 en el taller aislado, sin nuevas SQL ni publicación. Ver
 [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]]. Las etapas
 3–6 y el piloto TypeSafe conservan su alcance y sus decisiones pendientes.
+
+Cierre posterior del 21/09: la etapa 2 se publicó desde `baa63aea`, PR #64,
+con autorización `$release-crm`, CI y 110 controles HTTP finales PASS. Fuente,
+artefacto, recuperación y límites en [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]].
+La siguiente implementación de F4 es la etapa 3; el recorrido humano productivo
+y el piloto F4.1 no se presentan como ejecutados.
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] ·
 [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]] ·
