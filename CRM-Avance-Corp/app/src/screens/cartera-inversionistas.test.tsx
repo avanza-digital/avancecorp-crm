@@ -6,7 +6,8 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {CarteraInversionistas} from './cartera-inversionistas'
 import {InversionNueva} from '@/components/app/inversion-nueva'
 import {CrmApiError} from '@/data/crm-api'
-import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, PERFIL_F5} from '@/test/fixtures/f5'
+import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, inversionF5, PERSONA_F5, PERFIL_F5} from '@/test/fixtures/f5'
+import type {InversionFuente} from '@/lib/inversionistas'
 import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
@@ -618,5 +619,54 @@ describe('Eliminación administrativa de contratos desde la ficha', () => {
     await user.type(within(dialogo).getByRole('textbox'),'2026-01-999999')
     await user.click(within(dialogo).getByRole('button',{name:'Eliminar y conservar auditoría'}))
     await waitFor(()=>expect(api.eliminar).toHaveBeenCalledExactlyOnceWith(FUENTE_F5))
+  })
+})
+
+describe('Upgrade: el contrato aparte se ofrece junto a la nueva inversión', () => {
+  // El analista leía «Registrar nueva inversión» como el único camino y creía
+  // que el upgrade MODIFICABA el contrato vivo. El upgrade abre un contrato
+  // NUEVO que solo hereda la tasa del que amplía, así que la operación vive
+  // al costado, en la cabecera de la sección, no escondida en cada tarjeta.
+  function avanceActivo(numero: string, fuente: string, capital = 4000) {
+    return {...structuredClone(inversionF5), fuente_id: fuente, empresa: 'avance' as const, numero,
+      capital, estado: 'activo', perfil_id: PERFIL_F5,
+      contrato: {fecha_inicio: '2026-09-01', tasa_anual: 15, modalidad: 'mensual' as const,
+        tipo_interes: 'simple' as const, categoria: 'nuevo'}}
+  }
+  function fichaCon(...inversiones: InversionFuente[]) {
+    const ficha = {...structuredClone(fichaF5), inversiones, inversiones_total: inversiones.length}
+    api.ficha.mockResolvedValue(ficha)
+    return ficha
+  }
+  it('con un solo contrato activo entra directo al upgrade, sin preguntar cuál amplía', async () => {
+    fichaCon(avanceActivo('2026-01-000111', FUENTE_F5))
+    const {user} = montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const seccion = (await screen.findByRole('heading',{name:'Inversiones y contratos'})).closest('section')!
+    const upgrade = within(seccion).getByRole('button',{name:'Registrar upgrade'})
+    expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeInTheDocument()
+    expect(within(seccion).getByText(/hereda la tasa del contrato que amplía/)).toBeVisible()
+    await user.click(upgrade)
+    expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog',{name:'Ficha del inversionista'})).not.toBeInTheDocument())
+  })
+  it('con dos contratos activos pregunta cuál se amplía antes de abrir el upgrade', async () => {
+    fichaCon(avanceActivo('2026-01-000111', FUENTE_F5, 4000), avanceActivo('2026-01-000222', PERFIL_F5, 9000))
+    const {user} = montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const seccion = (await screen.findByRole('heading',{name:'Inversiones y contratos'})).closest('section')!
+    await user.click(within(seccion).getByRole('button',{name:'Registrar upgrade'}))
+    const dialogo = await screen.findByRole('dialog',{name:/amplía este upgrade/})
+    expect(within(dialogo).getByRole('button',{name:/2026-01-000111/})).toBeInTheDocument()
+    expect(within(dialogo).getByRole('button',{name:/S\/ 9,000/})).toBeInTheDocument()
+    await user.click(within(dialogo).getByRole('button',{name:/2026-01-000222/}))
+    await waitFor(() => expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument())
+  })
+  it('sin contratos Avance activos no ofrece el upgrade', async () => {
+    fichaCon({...structuredClone(inversionF5)})
+    const {user} = montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryByRole('button',{name:/Registrar upgrade/})).not.toBeInTheDocument()
   })
 })

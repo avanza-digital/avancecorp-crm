@@ -48,6 +48,7 @@ import {
 } from '@/lib/cliente-form-logica'
 import { CUENTA_NUEVA, claveCuenta, prepararCuentaPago } from '@/lib/cuentas-bancarias-contrato'
 import {
+  AYUDA_UPGRADE,
   CATEGORIAS_CONTRATO_UI,
   MODALIDADES_UI,
   PLAZOS_BASE,
@@ -1102,7 +1103,7 @@ export function ContratoNuevo({
               {contratosActivos === undefined && 'Los upgrades se registran desde la ficha del cliente, eligiendo el contrato que se amplía.'}
             </p>
             <p id="ct-origen-upgrade-ayuda" className="text-xs text-muted-foreground">
-              El upgrade hereda la tasa del contrato que amplía (política de rentabilidad).
+              {AYUDA_UPGRADE} Solo le hereda la tasa (política de rentabilidad).
             </p>
           </div>
         )}

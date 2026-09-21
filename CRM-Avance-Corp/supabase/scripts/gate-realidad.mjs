@@ -269,6 +269,37 @@ const SUPUESTOS = [
     divergeSi: (n) => n > 0,
     esperado: '0 revisiones bajo el sello sin fotografiar (residuo de 20260815223000)',
   },
+  {
+    clave: 'conversion_un_solo_nucleo',
+    titulo: 'La conversión del mes es UNA por los cuatro caminos',
+    asume: 'Resumen, Conversiones y Distribución recalculan por su cuenta y se da por hecho que '
+      + 'coinciden con Ranking, Metas y HOY (la lectura mensual). Hasta el 21/09/2026 lo único '
+      + 'que se comprobaba era una sonda que compara el núcleo consigo mismo.',
+    afecta: [
+      'Hoy · gerencia → Resumen (número grande del rango)',
+      'Conversiones → héroe «Índice comercial»',
+      'Distribución → índice del núcleo',
+      'Ranking, Metas y HOY → lectura mensual (la cifra oficial)',
+    ],
+    consecuencia:
+      'Si los caminos discrepan, dos pantallas enseñan dos porcentajes distintos del mismo '
+      + 'mes y ninguna dice cuál manda. Pasa en cuanto haya un mes sellado o una deuda por '
+      + 'anulación que viaje de mes; hoy coinciden por casualidad, no por construcción.',
+    async medir() {
+      // crm.alarma_conversion_fn solo la puede ejecutar service_role: compara divisor,
+      // numerador y % por los cuatro caminos y devuelve solo agregados.
+      const { data, error } = await admin.rpc('alarma_conversion_fn');
+      if (error) throw error;
+      if (data?.cuadra == null) return `sin veredicto (${data?.motivo ?? 'sin datos'})`;
+      const d = data.detalle ?? {};
+      const resumen = Object.entries(d).map(([k, v]) => `${k} ${v.pct ?? '—'} %`).join(' · ');
+      return data.cuadra
+        ? `cuadra · ${data.caminos_leidos} caminos · ${d.nucleo_directo?.pct ?? '—'} % (${data.mes} → ${data.hasta})`
+        : `NO CUADRA · ${resumen}`;
+    },
+    divergeSi: (v) => typeof v !== 'string' || !v.startsWith('cuadra'),
+    esperado: 'los cuatro caminos con el mismo divisor, numerador y %',
+  },
 ];
 
 function pintar(resultados) {

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "tomada_en": "2026-09-21T11:36:00-05:00",
+  "nota": "Producción, solo lectura. Septiembre es un mes VIVO: dos horas antes esta misma foto daba 3.86 con numerador 45.20 y 74 convertidos. No sirve como referencia de un gate; sirve como evidencia del instante y como base del antes/después DENTRO de un branch.",
+  "mes": "2026-09-01",
+  "hasta": "2026-09-21",
+  "caminos": {
+    "nucleo_directo": { "divisor": 1170, "numerador": 45.35, "pct": 3.88 },
+    "mensual": { "divisor": 1170, "numerador": 45.35, "pct": 3.88, "cerrado": "false" },
+    "rango": { "divisor": 1170, "numerador": 45.35, "pct": 3.88, "cuadra": "true" },
+    "distribucion": { "divisor": 1170, "numerador": 45.35, "pct": 3.88 }
+  },
+  "cobertura": {
+    "medible": true,
+    "fuera_de_roster": { "cierres": 1, "divisor": 0, "analistas": 1, "numerador": 2 },
+    "suelo_historico": "2026-08-17T17:09:09.092505+00:00",
+    "motivo_no_medible": null,
+    "divisor_aproximado": 0,
+    "divisor_por_motivo": { "llegada": 1170 },
+    "cierres_sin_episodio": 0
+  },
+  "desglose": [
+    { "tipo": "cierre", "origen": "formulario", "hechos": 22, "al_divisor": 0, "al_numerador": 22 },
+    { "tipo": "cierre", "origen": "landing", "hechos": 11, "al_divisor": 0, "al_numerador": 11 },
+    { "tipo": "cierre", "origen": "oficina", "hechos": 6, "al_divisor": 0, "al_numerador": 0 },
+    { "tipo": "cierre", "origen": "otro", "hechos": 5, "al_divisor": 0, "al_numerador": 0 },
+    { "tipo": "cierre", "origen": "referido", "hechos": 6, "al_divisor": 0, "al_numerador": 0.9 },
+    { "tipo": "operacion", "origen": "—", "hechos": 14, "al_divisor": 0, "al_numerador": 11.45 },
+    { "tipo": "recibido", "origen": "formulario", "hechos": 669, "al_divisor": 633, "al_numerador": 0 },
+    { "tipo": "recibido", "origen": "landing", "hechos": 554, "al_divisor": 537, "al_numerador": 0 },
+    { "tipo": "recibido", "origen": "referido", "hechos": 9, "al_divisor": 0, "al_numerador": 0 }
+  ],
+  "analistas": [
+    { "vendedor_id": "0705094c-42f4-4f25-8f5e-0ce215213d29", "divisor": 80, "numerador": 2.15, "pct": 2.69 },
+    { "vendedor_id": "1de5eba1-e6bb-435d-9eff-74286e881d01", "divisor": 89, "numerador": 5.3, "pct": 5.96 },
+    { "vendedor_id": "1f22b1e3-9b75-4bab-bb41-433964c25e56", "divisor": 80, "numerador": 1, "pct": 1.25 },
+    { "vendedor_id": "244439ac-dbc7-4d27-91d1-941c5dbc6dd5", "divisor": 47, "numerador": 3.15, "pct": 6.7 },
+    { "vendedor_id": "2c10b18a-a15d-4952-952b-c4ab91b96153", "divisor": 80, "numerador": 3, "pct": 3.75 },
+    { "vendedor_id": "2ec5954f-0490-44f2-87cd-af6210f3426f", "divisor": 87, "numerador": 6, "pct": 6.9 },
+    { "vendedor_id": "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37", "divisor": 51, "numerador": 4, "pct": 7.84 },
+    { "vendedor_id": "76b76c37-e2c2-427c-9196-fdbf6a663986", "divisor": 59, "numerador": 1, "pct": 1.69 },
+    { "vendedor_id": "7c124080-c310-40d3-b245-794657852968", "divisor": 85, "numerador": 2.3, "pct": 2.71 },
+    { "vendedor_id": "94f6d213-2037-4df6-af06-42816326a0bd", "divisor": 0, "numerador": 0, "pct": null },
+    { "vendedor_id": "ad36b962-5175-4e4e-b644-e546897c3a85", "divisor": 82, "numerador": 1.3, "pct": 1.59 },
+    { "vendedor_id": "b1943c83-ffa1-4693-806a-eb2aaacd72a3", "divisor": 83, "numerador": 2.15, "pct": 2.59 },
+    { "vendedor_id": "bed9fc40-cb59-4264-9ce2-84c78364a332", "divisor": 80, "numerador": 2, "pct": 2.5 },
+    { "vendedor_id": "c7917328-6525-42d5-bb22-d8efa8755095", "divisor": 71, "numerador": 1, "pct": 1.41 },
+    { "vendedor_id": "d571aeed-e65d-4369-ac86-00a83bf9d389", "divisor": 81, "numerador": 6, "pct": 7.41 },
+    { "vendedor_id": "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2", "divisor": 0, "numerador": 1, "pct": null },
+    { "vendedor_id": "fa2996d6-4d51-4316-be2e-297590b5756e", "divisor": 74, "numerador": 2, "pct": 2.7 },
+    { "vendedor_id": "fc9c3b91-eabb-4411-81e9-3ae428298e46", "divisor": 41, "numerador": 0, "pct": 0 }
+  ],
+  "ledger": {
+    "leads_etapa_convertido": 75,
+    "leads_con_cierre_ledger": 75,
+    "convertidos_sin_ledger": 0,
+    "ledger_sin_etapa_convertido": 0,
+    "cierres_anulados": 1,
+    "ops_elegibles": 70,
+    "periodos_cerrados": 0
+  }
+}
