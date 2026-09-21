@@ -427,3 +427,47 @@ body {
 [data-sonner-toaster] {
   pointer-events: auto;
 }
+
+/* ============================================================================
+   FOCO EN ALTO CONTRASTE — 21/09/2026, hallazgo del revisor de a11y.
+   El foco de la casa se pinta con `ring`, que es un `box-shadow`, y casi todos
+   los controles llevan además `focus-visible:outline-none`. En modo de alto
+   contraste (Windows, y `forced-colors` en general) el navegador BORRA los
+   box-shadow y respeta el `outline: none`: el indicador de foco desaparece por
+   completo y no hay forma de saber dónde estás (WCAG 2.4.7).
+   Se arregla aquí, para los 81 controles de la app a la vez, en vez de editar
+   41 archivos: dentro de `forced-colors` el `outline` vuelve, con el color del
+   sistema (`CanvasText`), que es el único que el modo respeta. El `!important`
+   es necesario para ganarle a la utilidad `outline-none` de cada control, y
+   solo actúa dentro de este `@media`.
+   El contraste del anillo en modo normal (1,8:1) es otra deuda, aparte.
+   ========================================================================== */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 3px solid CanvasText !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* ============================================================================
+   CONTRASTE DEL FOCO — 21/09/2026, hallazgo del revisor de a11y.
+   El foco de la casa es un `ring` al 40 %: un resplandor que sobre blanco
+   compone ~1,8:1 contra el fondo, cuando WCAG 1.4.11 pide 3:1. Y 81 controles
+   apagan además el `outline` del navegador, que era el que sí llegaba.
+   Se les devuelve aquí, en vez de editar 41 archivos: el selector apunta EXACTO
+   a los controles que lo apagaron, por ATRIBUTO y no por clase escapada: al
+   escribir el selector como `.focus-visible\:outline-none:focus-visible`,
+   Tailwind lo reconocía como una de sus utilidades y la regla desaparecía del
+   build (existía en `npm run dev` y NO en `dist` — el fallo canónico del
+   parche que solo vive en un sitio). Misma especificidad que la utilidad
+   (atributo + pseudoclase) y gana por orden: esta hoja va después. Sin
+   `!important`, así que un control que necesite otra cosa puede pisarlo.
+   El resplandor se queda como refuerzo: el `outline` es el indicador que cuenta.
+   NO alcanza a los modales (`dialog.tsx`, `sheet.tsx`): usan `outline-none` a
+   secas, no `focus-visible:outline-none`, y su foco de apertura no debe pintar
+   un borde alrededor de toda la ventana.
+   ========================================================================== */
+[class*='focus-visible:outline-none']:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
