@@ -164,6 +164,11 @@ su publicación; la conformidad visual no es una orden de despliegue.
 La siguiente implementación de F4 es la etapa 3; las decisiones
 pendientes de cortes siguen siendo requisitos de su activación.
 
+**Publicación de etapa 2 autorizada:** Miguel invocó `$release-crm` el 21/09.
+Preflight productivo de solo lectura y detalle de las puertas pendientes en
+[F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
+La autorización no significa que el despliegue ya haya ocurrido.
+
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
 - **F4 posterior:** las decisiones pendientes de los cortes bloquean su activación, no la etapa 1. Ver etapas 3–6; no inventar mínimos de sábado ni límites de aplazamiento.

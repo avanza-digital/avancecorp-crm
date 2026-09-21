@@ -3,6 +3,9 @@
 Fecha: 21/09/2026. Estado: **implementada localmente, con conformidad visual de Miguel; no publicada**.
 Plan principal: [GESTION-DIARIA.md](GESTION-DIARIA.md).
 Publicación anterior: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
+Actualización: Miguel invocó `$release-crm`; publicación autorizada y en
+preparación, no desplegada. Preflight real y pendientes en
+[F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
 
 ## Alcance y decisiones
 

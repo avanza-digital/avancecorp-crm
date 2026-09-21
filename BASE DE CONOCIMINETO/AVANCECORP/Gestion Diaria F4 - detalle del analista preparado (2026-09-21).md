@@ -53,6 +53,13 @@ pendiente y la publicación autorizada antes de darla por activada.
 La siguiente implementación es F4 etapa 3; mínimos del sábado y
 otras decisiones de cortes siguen pendientes. TypeSafe continúa separado.
 
+Actualización de release: Miguel invocó `$release-crm` después de la conformidad
+visual. La publicación de esta etapa está autorizada, aún no efectuada. Preflight
+SQL de lectura PASS para cinco identidades, roster, horarios, paginación y siete
+rechazos esperados. Main se integró conservando sus cierres previos y los cambios
+pendientes de otras tareas quedaron intactos. Acta vigente de preparación:
+`CRM-Avance-Corp/docs/gestion-diaria/F4-ETAPA2-PUBLICACION-2026-09-21.md`.
+
 Relacionadas: [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] ·
 [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] ·
 [[Gestion Diaria F4 - vista del equipo validada localmente (2026-09-21)]] · [[Inicio]].
