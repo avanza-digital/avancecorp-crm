@@ -73,8 +73,9 @@ La etapa 1 está **PUBLICADA el 21/09**, con SQL `20260921040335` instalado y
 registrado. Main local y `avancecorp/main` coincidieron en `526e728e` antes de
 construir y publicar una copia limpia de ese commit. Acta de publicación,
 verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
-La etapa 2 se retomó el 21/09 y está implementada en el taller aislado, **sin publicar**;
-ver [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md) para sus verificaciones y límites.
+La etapa 2 está **PUBLICADA Y VERIFICADA el 21/09**, fuente `baa63aea`, PR #64.
+Acta vigente: [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md);
+implementación: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
 Queda el recorrido de negocio con el supervisor; las etapas 3–6 siguen pendientes.
 Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
@@ -145,7 +146,8 @@ commitear. No repetir conciliación, aprobación ni instalación de estas dos SQ
 su conformidad con la mejora visible del formulario; no se interpreta como una
 matriz completa de pruebas de negocio ni como aprobación de nuevas etapas.
 Este guardado conserva el plan, actas, ledger y memoria en Git local, sin otro
-deploy, SQL ni activación. La versión productiva sigue siendo `526e728e`.
+deploy, SQL ni activación. En ese checkpoint la versión productiva era `526e728e`;
+la entrega posterior de la etapa 2 se registra a continuación.
 
 **Retoma del 21/09 — etapa 2 implementada localmente:** se amplió el detalle de
 cada fila con llamadas por hora, reutilizando la foto F4 y el registro F1. El
@@ -154,20 +156,26 @@ ficha bajo los permisos existentes aunque no esté en la caché inicial. Incluye
 estados de carga, vacío filtrado, error y revocación. No se creó otro historial
 ni se modificaron SQL, cortes o TypeSafe.
 
-La candidata está en `codex/gestion-diaria-f4-detalle-analista`, en el taller
+La candidata se preparó en `codex/gestion-diaria-f4-detalle-analista`, en el taller
 existente `/private/tmp/avancecorp-gd-f4-vista.chvRqh`, basada en `b0d2ff89`.
-Se preservaron los trabajos concurrentes de Main; no se integra ni publica
-automáticamente esta etapa. Evidencia: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
-Miguel expresó conformidad visual tras revisar la vista local el 21/09. El siguiente
-paso es completar la verificación real pendiente y autorizar por separado
-su publicación; la conformidad visual no es una orden de despliegue.
+Se preservaron los trabajos concurrentes de Main. Evidencia:
+[F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
+Miguel expresó conformidad visual tras revisar la vista local el 21/09; después
+autorizó la publicación por separado. Esa conformidad no se presenta como una
+prueba integral de negocio ni como la autorización que permitió el despliegue.
 La siguiente implementación de F4 es la etapa 3; las decisiones
 pendientes de cortes siguen siendo requisitos de su activación.
 
-**Publicación de etapa 2 autorizada:** Miguel invocó `$release-crm` el 21/09.
-Preflight productivo de solo lectura y detalle de las puertas pendientes en
+**Etapa 2 publicada y cerrada técnicamente:** Miguel invocó `$release-crm` y
+aprobó el PR #64. Se publicó `baa63aeac71e5a074309aae92a064b67756189f1`, build
+`build-20260921T200508459Z`, a las 15:07 Lima del 21/09. Main y remoto iguales,
+fuente limpia, `npm run check`, CI del PR (4.051 pruebas y 232 E2E/26 omitidos),
+preflight SQL de cinco identidades y 110 comprobaciones HTTP finales PASS.
+Los 68 archivos JS/CSS servidos coinciden con el manifiesto. Artefacto,
+recuperación y límites en
 [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
-La autorización no significa que el despliegue ya haya ocurrido.
+Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y la
+implementación de la etapa 3; no se anuncia F4 completa.
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
@@ -199,7 +207,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapa 1 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 2; F4 no está cerrada. F4.1 TypeSafe continúa planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1.
+> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 TypeSafe continúa planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1.
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -447,11 +455,12 @@ actividades de F1, los resultados tipificados de F2 y el núcleo diario construi
 
 **Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
 `20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
-etapa 2 implementada localmente, sin publicar; etapas 3–6 pendientes. Conserva las dos columnas y desplegables del taller,
+etapa 2 publicada desde `baa63aea`, PR #64; etapas 3–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
 legibilidad de 16 px y protección de los avisos de supervisión.
 Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
-Evidencia productiva y recuperación: `PUBLICACION-2026-09-21.md`.
+Evidencia productiva y recuperación: `PUBLICACION-2026-09-21.md` (etapa 1) y
+`F4-ETAPA2-PUBLICACION-2026-09-21.md` (etapa 2 vigente).
 
 Las seis etapas siguientes organizan la entrega de F4; no son seis fases globales nuevas
 ni exigen una migración por etapa. Sus objetivos y
@@ -489,9 +498,10 @@ vigente. Su ámbito se limita al equipo autorizado y la proyección procede del 
 
 #### F4 · Etapa 2 — Detalle y registro del analista
 
-**Estado al 21/09:** candidata implementada en el taller, con conformidad visual
-de Miguel en local; no publicada. Acta y
-verificaciones: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md). No requiere una
+**Estado al 21/09:** publicada y verificada desde `baa63aea`, con conformidad
+visual de Miguel en local y cierre técnico. Acta de publicación:
+[F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
+Implementación: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md). No requiere una
 migración nueva: utiliza `marcador.por_hora` de F4 y el registro paginado de F1.
 Cada fila mantiene sus indicadores y añade conteos legibles de llamadas y
 contestadas por hora (08–20 Lima), declarando también las llamadas fuera de la
@@ -505,8 +515,10 @@ paginación, actualización real desde página 2 y retirada de páginas acumulad
 al recibir una revocación. No atribuye ausencia a un vacío filtrado ni sustituye
 por ceros un desglose horario inconsistente. Los avisos automáticos de cortes
 siguen pendientes de las etapas 3–4; el acceso actual parte de la fila y su
-motivo de atención. La revisión visual local está conforme; el cierre productivo
-conserva la verificación real pendiente y la publicación autorizada.
+motivo de atención. La revisión visual local está conforme; permisos y
+paginación real de solo lectura y comprobación HTTP/hashes productiva PASS.
+Queda el recorrido humano autenticado; no se atribuye una matriz Auth/HTTP
+ni una auditoría de paridad entre las dos lecturas del servidor.
 
 El objetivo es explicar los indicadores mediante las actividades que los originan. Cada fila
 permite desplegar llamadas por hora de Lima, abrir el registro del día y llegar a la ficha
