@@ -116,23 +116,31 @@ analista viaja mal» · «cobertura `medible`».
 - **No existe sonda M = R = V = D contra producción**: `gate-realidad.mjs` no contiene la
   palabra «conversion».
 
-## Sonda de paridad contra producción — PENDIENTE (bloqueada por permisos)
+## Sonda de paridad contra producción — ✅ EJECUTADA el 21/09 a las 11:00 Lima
 
-Queda escrita y lista, solo lectura (`begin transaction read only` … `rollback`, patrón de
-`prueba-contrato-cierre-mes-estado-prod.sql`), en
-`CRM-Avance-Corp/supabase/scripts/sonda-paridad-conversion-prod.sql`. Compara septiembre en
-las 6 RPC (núcleo directo, mensual, rango, cumplimiento, vendedores, distribución, cosecha),
-revisa la integridad del ledger (convertidos sin fila en el ledger, cierres sin fecha, meses
-distintos entre ficha y ledger, clientes con varias operaciones elegibles el mismo mes) y
-contrasta agosto mensual vs rango. El clasificador de permisos de la sesión la bloqueó como
-«Production Reads». Para correrla:
+Corrida por el MCP de Supabase (`execute_sql`, solo lecturas, impersonando un
+perfil Gerencia). Resultado íntegro en
+`CRM-Avance-Corp/docs/auditorias/conversion-2026-09-21/evidencia/sonda-paridad-resultado-prod.md`.
 
-```
-! supabase db query --linked --file CRM-Avance-Corp/supabase/scripts/sonda-paridad-conversion-prod.sql
-```
+**Septiembre: M = R = D = 3.86 %** (divisor 1170, numerador 45.200), idénticos
+al núcleo directo. **Agosto: M = R = 4.88 %** (802 · 39.100), sin sellar.
 
-Si `M_conversion_mensual_fn_sep.pct` ≠ `R_metricas_conversiones_fn_sep_1_21.pct` ≠
-`D_distribucion_v3_sep_1_21.pct` con `cuadra=true`, C1–C3 quedan demostrados con datos reales.
+Lo que cambia respecto a lo que este informe decía:
+
+- **F12 (P0) queda REFUTADA.** `inversiones_escritura` está en `true` y el
+  ledger recibió 7 cierres desde el 19/09: ninguna puerta está cerrada.
+- **C1, C2 y C4 son latentes, no activos.** `crm.periodos_cerrados` está VACÍO
+  —agosto se reabrió— y la única anulación viva pertenece a agosto, que sigue
+  abierto, así que se descuenta dentro de su propio mes en ambas lecturas. Las
+  dos verdades necesitan un mes sellado o una deuda que viaje, y hoy no hay ni
+  lo uno ni lo otro. **El día que se vuelva a sellar agosto (`02-resellar.sql`)
+  aparecen. Esa es la fecha límite del arreglo.**
+- **C3 se sostiene sin más datos**: `cuadra=true` y `paridad_nucleo=0.000` es
+  lo que la sonda devuelve siempre. No detectó nada porque no puede.
+- **C7 tiene material real**: 7 clientes con varias operaciones elegibles el
+  mismo mes.
+- **El ledger está íntegro**: 74 convertidos = 74 filas, 0 huérfanos en ambos
+  sentidos, 0 sin fecha, 0 desfases de mes entre ficha y ledger.
 
 ## Revisión secundaria (Codex, `ROLE: SECONDARY_REVIEWER`, read-only)
 

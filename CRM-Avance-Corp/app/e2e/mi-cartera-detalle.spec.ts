@@ -153,7 +153,7 @@ test('demo: directorio ve la ficha comercial sin domicilio ni números bancarios
   await expect(fila).toBeVisible()
   await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
   await expect(
-    fila.getByRole('button', { name: /Corregir|Registrar (?:primera|nueva) inversión|Aumentar inversión|Gestionar/ }),
+    fila.getByRole('button', { name: /Corregir|Registrar (?:primera|nueva) inversión|Registrar upgrade|Gestionar/ }),
   ).toHaveCount(0)
   await fila.getByRole('button', { name: 'Ver detalle' }).click()
 

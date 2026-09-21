@@ -1,0 +1,737 @@
+[
+ {
+  "titulo": "`cierres_de_arrastre` toma el «mes del período» de `p_ini`: en un rango libre eso es sólo el primer mes",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "156-160 y 174-179",
+  "evidencia": "156-160 — `), cierres as (\n  select e.analista_id, e.lead_id, e.fue_referido, e.mes_origen,\n    date_trunc('month', p_ini at time zone 'America/Lima')::date as mes_periodo\n  from ep e where e.tipo = 'cierre' and not e.anulado`\n174-179 — `count(distinct c.lead_id) filter (where c.mes_origen < c.mes_periodo)::int as cierres_de_arrastre`.",
+  "impacto_gerencia": "Hoy `private.conversion_mensual_por_vendedor` sólo se llama con un mes completo, así que la cifra es correcta. Pero la firma acepta `(p_ini, p_fin)` libres y el propio núcleo contempla rangos multi-mes (el peso por mes en 88-91 y 111-113 lo demuestra): cualquier consumidor nuevo que la llame con un rango recibiría un «arrastre» medido contra el primer mes del rango, sin aviso.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Comparar `c.mes_origen` contra el mes del PROPIO cierre (`date_trunc('month', e.fecha_numerador at time zone 'America/Lima')`) en vez de contra el mes de `p_ini`.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`cierres_por_semana` se filtra por origen y el `nucleo` no: quien combine fuentes en el cliente construye un índice falso",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2574-2600, 2546-2573, 2346-2372",
+  "evidencia": "El bloque semanal recorta por origen:\n      'cierres', (\n        select count(distinct e.lead_id)::int\n        from ep_flujo e\n        where e.tipo = 'cierre' and not e.anulado\n          and e.origen in ('landing', 'formulario', 'referido')\n          and (p_origen is null or e.origen = p_origen)\n      ),\nmientras `nucleo.divisor` / `nucleo.numerador` se calculan sobre TODO ep_flujo sin filtro (2346-2372) y `conversion_operaciones` lo declara honestamente: `'origen_filtrado', null` (2553). Es decir: con p_origen='referido', aporte_cierres es un subconjunto ponderado a 0,15 y el divisor sigue siendo el de toda la empresa (landing+formulario), porque el referido aporta 0 al divisor.",
+  "impacto_gerencia": "El selector de fuentes de la pantalla Conversiones (Landing+Formulario+Upgrade…) agrupa aportes en el navegador y divide una vez por la base publicada. Con un origen seleccionado, ese cociente no es ni el índice de empresa ni la conversión de ese origen: es un número sin definición que gerencia lee como «conversión de esta fuente».",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Servir desde el servidor el divisor correspondiente a cada combinación de fuentes (o publicar `cierres_por_semana.divisor_del_filtro`), y mientras tanto declarar dentro del bloque `nucleo` que NO está filtrado (`'origen_filtrado', null`, como ya hace conversion_operaciones) para que el cliente no pueda mezclar aguas distintas.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`cobertura.medible` todavía se mide sobre la fuente V1 (ledger de asignaciones) aunque el divisor V2 sale de `crm.leads.creado_en`",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1568-1586 y 2011-2028 (duplicado en crm.cerrar_periodo)",
+  "evidencia": "1568-1586 — `select min(la.asignado_en)\n    into v_suelo\n  from crm.lead_asignaciones la\n  where not la.aproximado;\n ... elsif v_ini < v_suelo then\n    v_medible := false;\n    v_motivo_no_medible := case\n      when p_periodo < v_suelo_mes then 'anterior_al_ledger'\n      else 'mes_parcial'\n    end;`.\nPero el divisor ya no viene de ahí: 20260904210831:60-76 — `case when l.origen in ('landing', 'formulario') and not l.alta_manual\n    then 1 else 0 end` `from crm.leads l ... where l.creado_en >= p_ini and l.creado_en < p_fin`. Y el payload lo declara así: 1795 `'fuentes', jsonb_build_object('divisor', 'crm.leads.creado_en', ...)`.\nLa misma regla está escrita DOS veces (2011-2028 dentro de `crm.cerrar_periodo`), así que una corrección en una no llega a la otra.",
+  "impacto_gerencia": "El titular de Resumen/Conversiones se apaga («—», sin barra) cuando `medible=false`. Hoy esa bandera responde a cuándo empezó a ser fiable el ledger de ASIGNACIONES, no a si el divisor (altas de leads) es completo. Un mes cuyo divisor es exacto puede declararse no medible y ocultarle a gerencia una cifra correcta; y al revés, un mes con `medible=true` puede tener llegadas anteriores al ledger que sí cuentan en el divisor. El rótulo no dice lo que mide.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Recalcular el suelo sobre la fuente del divisor (p. ej. `min(l.creado_en)` de leads landing/formulario no manuales, o un suelo declarado en configuración) y extraerlo a UN helper `private.cobertura_mensual_conversion(p_periodo)` que consuman tanto la lectura como `crm.cerrar_periodo`.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Conversiones y Metas usan poblaciones distintas para el MES VIGENTE (roster operativo vs. metas publicadas)",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1610-1622 (contraste: 20260815003742:652-659)",
+  "evidencia": "Conversión, 1610-1622 — `with roster as materialized (\n    select r.vendedor_id, r.supervisor_id\n    from private.roster_metas_vendedores() r\n    where not v_es_historico_abierto\n      and (v_global or r.vendedor_id = any(v_visibles))\n\n    union all\n\n    select mv.vendedor_id, mv.supervisor_id\n    from crm.metas_vendedor mv\n    where v_es_historico_abierto ...`.\nMetas (cuerpo vivo de `crm.cumplimiento_metas_sin_cartera_fn`, renombrada en 20260824231133:950-951), 20260815003742:652-659 — `visibles as (\n    select mv.*,p.nombre_completo,s.nombre_completo as supervisor_nombre\n    from crm.metas_vendedor mv ...\n    where mv.meta_periodo_id=v_periodo_id` — SIEMPRE las metas publicadas, también en el mes vigente.",
+  "impacto_gerencia": "Un analista que entra al equipo después de publicar las metas del mes aparece con nombre en Conversiones (roster vivo) y NO aparece en Metas; su producción cuenta en `total` de una pantalla y cae en `fuera_ranking` de la otra. Gerencia ve dos listas de analistas del mismo mes que no coinciden, y el «avance de la empresa» de Metas se calcula sobre menos gente que el % de Conversiones.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Extraer UN helper `private.poblacion_mensual_conversion(p_periodo, p_uid)` que decida la población (roster vivo / metas publicadas / foto sellada) y que lo llamen las dos funciones, en vez de repetir la decisión en cada una.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`crm.conversion_mensual_sin_cartera_fn` ya NO es «sin cartera»: su numerador incluye las operaciones, y su COMMENT ON dice lo contrario",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "180-185 y 20260902202247:827-828",
+  "evidencia": "20260904210831:180-185 — `), aportes as (\n  select e.analista_id,\n    sum(e.aporte_divisor)::int as divisor,\n    sum(e.aporte_numerador) as numerador,\n    coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'cierre' and e.fue_referido), 0) as aporte_referidos\n  from ep e group by e.analista_id` — `ep` incluye las filas `tipo = 'operacion'` (renovación×peso, upgrade×1, 106-114).\n20260902202247:827-828 — `comment on function crm.conversion_mensual_sin_cartera_fn(date) is\n  'Nucleo mensual de conversion: ... Conserva formula, ambito, ajustes, cobertura y fuentes canonicas; ...'` — el nombre y el comentario siguen prometiendo una cifra sin cartera.",
+  "impacto_gerencia": "Hoy no hay doble conteo (`crm.conversion_mensual_fn` sólo adjunta el bloque descriptivo `cartera`, y `crm.cumplimiento_metas_fn` suma `conversiones_clientes` a `convertidos`, que cuenta cierres y no operaciones). Pero el nombre invita literalmente a «sumarle la cartera» a un número que ya la lleva: la próxima pantalla que lo haga duplicará las renovaciones en el % que ve gerencia y nada lo detectará.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Renombrar a `crm.conversion_mensual_base_fn` (o dejar el nombre como alias con COMMENT ON corregido: «incluye las operaciones elegibles de cartera en el numerador») y actualizar el comentario para que diga qué contiene realmente.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`crm.cumplimiento_metas_fn` deja pasar a cualquier `rol_crm` (coordinador incluido) donde el núcleo mensual lo deniega por contrato",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260824233619_crm_cumplimiento_cartera_compatible.sql",
+  "lineas": "34-36 (contraste: 20260904210831:1354-1361)",
+  "evidencia": "20260824233619:34-36 — `if v_uid is null or (v_rol is null and not v_lector) then\n    raise exception 'No autorizado' using errcode = '42501';\n  end if;`\nEl núcleo lo señala explícitamente, 20260904210831:1354-1361 — `-- 1) GATE EXPLICITO ... ALLOWLIST, no\n  --    «rol_crm is not null»: ese idioma (el de cumplimiento_metas_fn) dejaria\n  --    pasar al COORDINADOR, que aqui esta denegado por contrato.` seguido de `if v_uid is null\n     or not coalesce(v_rol in ('vendedor', 'supervisor', 'gerencia') or v_lector, false) then`.",
+  "impacto_gerencia": "La misma fila del núcleo (conversión por analista, numerador, ajuste) sale por dos puertas con permisos distintos. Quien esté denegado en Conversiones la puede leer en Metas. Además `private.conversion_mensual_pct_para_series` (20260830140000:65-76) atrapa `insufficient_privilege` y devuelve NULL para ese mismo rol, así que la serie del gráfico se le queda con huecos que el front puede confundir con ceros.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Igualar el gate de `crm.cumplimiento_metas_fn` (y de `cumplimiento_metas_sin_cartera_fn`) al allowlist del núcleo: `v_rol in ('vendedor','supervisor','gerencia') or es_lector_global()`.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "crm.metricas_conversiones_equipo_fn no publica ningún total: cualquier % de equipo tiene que nacer de una división en el cliente",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "991-998, 1030-1048",
+  "evidencia": "El bloque `nucleo` de esta RPC sólo lleva metadatos, sin una sola cifra:\n    'nucleo', jsonb_build_object(\n      'base', 'llegada_unica',\n      'atribucion', 'primer_analista',\n      'peso_renovacion', v_factor,\n      'incluye_cartera', true,\n      'peso_referido', v_factor,\n      'mes_peso', v_mes\n    ),\nY el payload entero es: version, generado_en, alcance, revision, cierre, periodo, nucleo, sondas, responsables. No existe clave 'total' (comparar con conversion_mensual_sin_cartera_fn, que sí publica 'total' con divisor/numerador/conversion_pct en 20260904210831:1770-1784).",
+  "impacto_gerencia": "La pantalla de Rendimiento / Gestión de equipo no tiene de dónde leer el % del equipo servido por el servidor: o lo suma y divide en el navegador (prohibido por la regla de Miguel) o no lo enseña. Y si lo suma, sumará `nucleo_numerador` de los responsables visibles, que por construcción excluye lo que declara `divisor_fuera_del_roster` / `numerador_fuera_del_roster`.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Añadir un bloque `total` con divisor, numerador y conversion_pct (round 2) calculados en el servidor sobre nucleo_vendedor completo, más el ajuste si procede, igual que hace la lectura mensual; el front sólo pinta.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "crm.metricas_vendedores_fn fabrica 0 % en el campo legacy conversion_pct cuando el núcleo dice NULL",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql",
+  "lineas": "1561-1566, 1598-1603",
+  "evidencia": "Por vendedor:\n```\n            'conversion_pct',\n              case\n                when pv.nucleo_conversion_pct is not null\n                then round(pv.nucleo_conversion_pct)::int\n                else 0\n              end,\n```\ne idéntico por equipo con `ec.nucleo_conversion_pct`. `nucleo_conversion_pct` es NULL en tres casos reales: divisor 0 (`case when ... coalesce(ne.nucleo_divisor, 0) > 0 then round(...) end`, L1455-1465), `v_conversion_publicable = false` (L1088-1092), y roster sin fila mensual (`nm.analista_id is null`). En los tres el wire publica `0`.",
+  "impacto_gerencia": "El campo se emite a TODOS los consumidores del RPC. Hoy el adaptador del CRM lo ignora (app/src/lib/metricas-vendedores.ts:341 y :368 usan `nucleo_conversion_pct`), pero cualquier otro lector — un panel nuevo, el espejo demo, una prueba, el portal — leerá «0 %» donde el núcleo dice «no se sabe». Es la regla que Miguel fijó («pct NULL no es 0 %») rota en el propio contrato del servidor.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Emitir `null` en `conversion_pct` (y en `convertidos`) cuando el núcleo no publica, o retirar ambas claves legacy del payload ahora que el front ya solo lee las `nucleo_*`. El postflight de la propia migración (L1887-1891) exige hoy la cadena `then round(pv.nucleo_conversion_pct)::int`; habría que actualizarlo en el mismo cambio.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "crm.metricas_vendedores_fn no publica bloque `sondas`: el front no tiene con qué ocultar una cifra torcida",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql",
+  "lineas": "1515-1546",
+  "evidencia": "El payload completo es:\n```\n  select jsonb_build_object(\n    'version', 1,\n    'generado_en', v_ahora,\n    'ventana_convertidos_dias', 45,\n    'ventana_metrica', 'mes_calendario',\n    'mes_metrica', v_mes,\n    'peso_referido', v_factor,\n    'cobertura_conversion', v_mensual -> 'cobertura',\n    'nucleo_total', jsonb_build_object(...),\n    'vendedores', ...,\n    'equipos', ...\n  )\n```\nNo hay `sondas`. La defensa es de otro tipo: validación de contrato con `raise ... errcode='55000'` (L882-1235) y `v_conversion_publicable` (L1088-1092). Distribución sí publica `sondas` (paridad, `nucleo_sin_ficha`, `divisor_sin_analista`, `cierres_anulados`, 20260904210831:1300-1318).",
+  "impacto_gerencia": "Los dos payloads de esta capa protegen la cifra de forma distinta: Distribución declara y deja que el front oculte; Rendimiento aborta o publica. No hay señal de coherencia (p. ej. que la suma de equipos concuerde con `nucleo_total`, que es autoritativo y a propósito no se recompone) que Gerencia pueda ver declarada en el payload.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Añadir un bloque `sondas` con al menos: desvío entre `sum(equipos.nucleo_numerador/divisor)` y `nucleo_total` (declarando el hueco de fuera-de-roster), número de filas del roster sin fila mensual, y `cierres_sin_episodio` ya disponible en cobertura.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`cuadra` nunca puede valer null por desvío: la rama `sp.desvio is null` es inalcanzable",
+  "severidad": "P3",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2386-2391, 2670-2672",
+  "evidencia": "  sonda_paridad as (\n    select\n      coalesce(sum(c.delta), 0) as desvio,\n      count(*)::int as filas\n    from comparacion c\n  ),\n...\n      'cuadra', case when sp.desvio is null or sp.filas = 0 then null\n                     else sp.desvio = 0 end,\nEl coalesce garantiza que `desvio` nunca es null; sólo `filas = 0` produce el null previsto. Idéntico en equipo_fn (20260904210831:1002-1003).",
+  "impacto_gerencia": "Ninguno directo hoy; es una guarda que aparenta cubrir dos casos y cubre uno. Importa porque `cuadra` es la única llave que autoriza a pintar el héroe: conviene que su lógica diga exactamente lo que hace.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Dejar `count(*) filter (where c.delta is not null)` y quitar el coalesce, para que un delta NULL (una fila sin pareja con numerador NULL) sí deje la sonda en null en vez de pasar por cero.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Distribución recalcula en vivo un mes YA SELLADO: ignora la foto de crm.periodos_cerrados",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1128-1133",
+  "evidencia": "`metricas_distribucion_leads_v3_core` siempre golpea el ledger vivo, sin consultar `crm.periodos_cerrados`:\n```\n  -- Esta pantalla solo la ve gerencia o un lector global (el gate vive en\n  -- `..._autorizada`, aguas arriba), asi que la tabla-base va SIEMPRE global.\n  with ep as materialized (\n    select e.* from private.conversion_episodios(\n      v_ini, v_fin, v_periodo, true, '{}'::uuid[], v_factor\n    ) e\n  ),\n```\nLa cadena mensual sí respeta el sello: `crm.conversion_mensual_fn` (supabase/migrations/20260902202247_crm_ranking_foto_mensual_coherente.sql:890-893) hace `v_cerrado := coalesce((v_base #>> '{cierre,cerrado}')::boolean, false); if v_cerrado then ... from crm.periodos_cerrados pc where pc.periodo = p_periodo;`. `crm.metricas_vendedores_fn` incluso aborta si el mes vivo apareciera sellado (20260828173154:866-876). `grep` sobre v3_core no devuelve ninguna referencia a `periodos_cerrados`.",
+  "impacto_gerencia": "Para un mes histórico ya cerrado, Distribución muestra un % recalculado sobre datos que pueden haberse movido después del sello (origen de un lead editado, cierre anulado, reasignación de la cadena de upgrade), mientras Ranking y HOY muestran la foto congelada. Dos pantallas de Gerencia, el mismo mes, dos cifras — y ninguna alerta, porque la sonda no lo mira.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Cuando el rango sea un mes sellado, servir la cifra de la foto (vía `crm.conversion_mensual_fn(v_periodo)`) y declararlo en `alcances`; si no se quiere esa dependencia, al menos publicar en `sondas` que el mes está cerrado y ocultar el `nucleo_conversion_pct` recalculado.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "Distribución sirve el numerador BRUTO: no aplica private.conversion_con_ajuste, y su sonda tampoco lo ve",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1144-1160, 1276-1281 (vs. 1640-1666)",
+  "evidencia": "En `private.metricas_distribucion_leads_v3_core` el porcentaje del núcleo es el bruto del ledger:\n```\n          'nucleo_numerador',\n            nv.numerador,\n          'nucleo_conversion_pct', case when nv.divisor > 0\n            then round(100.0 * nv.numerador / nv.divisor, 2) end\n```\ny en el resumen:\n```\n        'nucleo_conversion_pct', case when v_div_total > 0\n          then round(100.0 * v_num_total / v_div_total, 2) end\n```\nLa lectura mensual canónica que alimenta HOY / Metas / Ranking / Rendimiento SÍ descuenta la deuda por anulaciones de meses sellados (`crm.conversion_mensual_sin_cartera_fn`, mismo archivo L1640-1666):\n```\n  pendientes as materialized (\n    select ap.vendedor_id, ap.numerador as pendiente, ap.origenes\n    from private.ajuste_pendiente_por_vendedor() ap\n  ),\n  ...\n      private.conversion_con_ajuste(b.numerador, pd.pendiente) as numerador,\n      case when coalesce(b.divisor, 0) > 0\n        then round(100.0 * private.conversion_con_ajuste(b.numerador, pd.pendiente)\n                   / coalesce(b.divisor, 0), 2) end as conversion_pct,\n```\n`private.conversion_con_ajuste` es `greatest(coalesce(p_numerador,0) - coalesce(p_pendiente,0), 0)` (20260815002100_crm_ajuste_mes_cerrado.sql). `metricas_distribucion_leads_v3_core` no menciona ni `conversion_con_ajuste` ni `ajuste_pendiente_por_vendedor` en ninguna línea.",
+  "impacto_gerencia": "Con una sola fila viva en `crm.ajustes_mes_cerrado` (`saldado_en is null`), el mismo mes muestra DOS porcentajes distintos: Distribución (bruto, más alto) y HOY/Metas/Ranking/Rendimiento (neto). Es exactamente el síntoma que Miguel pidió erradicar el 26/08. Además, como la sonda de paridad compara bruto contra bruto (hallazgo anterior), el payload declara `cuadra=true` mientras diverge.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Que v3_core deje de recalcular y consuma la lectura mensual ya ajustada (`crm.conversion_mensual_fn`/`conversion_mensual_sin_cartera_fn`) para el mes del rango, o que aplique el mismo `private.conversion_con_ajuste` por analista y en el total; y que la sonda contraste contra esa lectura, no contra el núcleo crudo.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "`divisor_por_motivo` quedó degenerado: el núcleo V2 emite un único motivo literal `'llegada'`",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "57-59, 161-167, 1699-1713",
+  "evidencia": "Núcleo, pierna 'recibido' (57-59) — `select 'recibido'::text, primera.analista_id, l.id, null::uuid,\n  l.origen = 'referido', coalesce(primera.aproximado, false),\n  'llegada'::text, false, l.origen, null::text,` — `motivo` es una constante.\nAgregador (161-164) — `motivos as (\n  select r.analista_id, r.motivo, count(*)::int as n\n  from recibidos r where r.aporte_divisor > 0\n  group by r.analista_id, r.motivo\n)`.\nLos fixtures del front siguen sembrando motivos que ya no existen: app/src/screens/hoy/ranking-vendedores.test.tsx:188 `divisorPorMotivo: { asignacion: 4 },` y app/src/screens/hoy/supervisor.test.tsx:273 `divisor_por_motivo: divisor > 0 ? { ingreso: divisor } : {}`.",
+  "impacto_gerencia": "La explicación de «de dónde sale el divisor» que viaja en `cobertura.divisor_por_motivo` siempre dirá `{\"llegada\": N}`: no explica nada, pero ocupa el sitio de una explicación. Y como los tests del front siguen usando motivos de la versión anterior, nadie comprobó qué pinta la pantalla con el payload real.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "O se rellena con motivos reales (landing/formulario, y por qué un lead no aportó: `alta_manual`, `referido`, `origen_fuera_del_nucleo`), o se retira la clave del contrato y se actualizan los fixtures, en vez de servir un desglose de un solo valor constante.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Dos reglas distintas para decidir el p_periodo del núcleo dentro de la misma consulta",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2192-2199, 2208-2211, 2373-2385",
+  "evidencia": "La RPC lo calcula así (exige inicio de mes y fin de mes u hoy):\n  v_periodo := case\n    when p_desde = date_trunc('month', p_desde)::date\n     and date_trunc('month', p_hasta)::date = date_trunc('month', p_desde)::date\n     and (p_hasta = (date_trunc('month', p_desde) + interval '1 month' - interval '1 day')::date\n          or p_hasta = v_hoy)\n    then p_desde\n  end;\ny lo pasa a ep_flujo; pero el otro lado de la sonda, private.conversion_mensual_por_vendedor, deriva el suyo con otra regla (basta que la ventana caiga dentro de un mes):\n    case when date_trunc('month', p_ini at time zone 'America/Lima') =\n      date_trunc('month', (p_fin - interval '1 microsecond') at time zone 'America/Lima')\n      then date_trunc('month', p_ini at time zone 'America/Lima') end\n(20260904210831:147-152). p_periodo decide si el peso es p_factor o el peso del mes de cada episodio.",
+  "impacto_gerencia": "Hoy los dos caminos dan el mismo número porque sólo existe un peso vigente (crm.conversion_pesos tiene una única semilla, 0,150 desde 2026-07-01, en 20260811154434:424-429). El día que se publique un segundo peso, la cifra y su sonda de paridad se calcularán con ponderaciones distintas para el mismo rango sub-mensual, y la sonda dejará de cuadrar sin que haya cambiado ningún dato.",
+  "es_hipotesis": true,
+  "correccion_sugerida": "Extraer la regla a una función única (p. ej. private.periodo_de_rango(p_desde,p_hasta)) y llamarla desde las tres consultas, o pasar explícitamente el v_periodo calculado a conversion_mensual_por_vendedor.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El agregado «sin analista» viaja escondido dentro de `fuera_de_roster` en el mes vivo: `analistas` y `divisor` no cuadran entre sí",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1686-1697, 1801-1808, 2145-2151",
+  "evidencia": "Mes vivo, 1686-1697 — `select\n      count(b.analista_id)::int as analistas,\n      coalesce(sum(b.divisor), 0)::int as divisor,\n ...\n    from base b\n    where not exists (select 1 from roster r where r.vendedor_id = b.analista_id)`. El grupo con `analista_id is null` (leads aún sin asignar; la pierna 'recibido' los deja con `primera.analista_id` NULL, 63-70) satisface `not exists (... r.vendedor_id = NULL)` y por tanto SUMA en `divisor`/`numerador`, pero `count(b.analista_id)` no lo cuenta.\nLa foto sellada sí lo separa: 2145-2151 — `v_cobertura := v_cobertura || coalesce((\n    select jsonb_build_object('conversion_sin_analista', to_jsonb(cm) - 'analista_id')\n    from private.conversion_mensual_por_vendedor(...) cm\n    where cm.analista_id is null\n  ), '{}'::jsonb);`",
+  "impacto_gerencia": "En el mes vigente gerencia puede leer «fuera de roster: 0 analistas, divisor 37» y no hay manera de saber si esos 37 leads son de gente que salió del equipo o simplemente leads que todavía no tienen dueño — dos problemas con arreglos opuestos. El mes cerrado sí distingue las dos cosas, así que la misma pantalla cambia de vocabulario al sellar.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Publicar en el mes vivo la misma clave `cobertura.conversion_sin_analista` que ya guarda el sello, y dejar `fuera_de_roster` sólo para personas identificables (con `analistas = count(*)` sobre filas con analista_id no nulo).",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El bloque `nucleo` no declara que ignora el filtro de origen",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2491, 2502-2522, 2553, 2582",
+  "evidencia": "El payload declara el filtro una sola vez arriba (`'origen_filtrado', p_origen`, 2491) y lo repite dentro de los bloques que SÍ lo aplican (`citas_reales` 2537, `cierres_por_semana` 2582) y del que NO lo aplica (`conversion_operaciones`: `'origen_filtrado', null`, 2553). El bloque `nucleo` (2502-2522), que tampoco lo aplica, no lleva ninguna declaración, aunque el comentario de la función dice «el payload declara el filtro en `origen_filtrado` para que nadie confunda las dos aguas» (2246-2250).",
+  "impacto_gerencia": "Con un origen seleccionado, el héroe sigue siendo el de toda la empresa mientras el resto de la pantalla habla sólo de ese origen. Un lector (persona o pantalla nueva) que mire el bloque nucleo no tiene forma de saber que no está filtrado.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Añadir `'origen_filtrado', null` dentro de `nucleo` y dentro de `sondas`, igual que hace conversion_operaciones.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El campo legacy `convertidos` no está cerrado por v_conversion_publicable y filtra el conteo mensual",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql",
+  "lineas": "1315-1322, 1442",
+  "evidencia": "```\n      (\n        coalesce(nm.cierres_no_referidos, 0)\n        + coalesce(nm.cierres_referidos, 0)\n      )::int as convertidos,\n      case\n        when v_conversion_publicable and nm.analista_id is not null\n        then (nm.cierres_no_referidos + nm.cierres_referidos)::int\n      end as nucleo_convertidos,\n```\nY en equipos: `coalesce(ne.convertidos, 0)::int as convertidos,` (L1442), frente a `case when v_conversion_publicable and cobertura.completa then coalesce(ne.convertidos, 0)::int end as nucleo_convertidos` (L1443-1445).",
+  "impacto_gerencia": "Cuando el servidor decide NO publicar la conversión (mes sin ledger, cierre sin episodio, roster de equipo incompleto), `nucleo_convertidos` se oculta correctamente pero `convertidos` sigue viajando con el conteo mensual del núcleo. Un consumidor que lea la clave antigua verá cierres que el servidor acaba de declarar no publicables.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Aplicar la misma guarda `v_conversion_publicable` (y `cobertura.completa` en equipos) al campo `convertidos`, o retirarlo.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El payload declara un solo peso (`peso_referido`, `mes_peso`) para rangos multi-mes donde el núcleo aplicó peso por mes",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2175-2178, 2506-2510",
+  "evidencia": "  v_mes := date_trunc('month', p_hasta)::date;\n  v_factor := private.peso_referido_conversion(v_mes);\n...\n      'peso_renovacion', v_factor,\n      'incluye_cartera', true,\n      'peso_referido', v_factor,\n      'mes_peso', v_mes,\nPero con v_periodo NULL (todo rango multi-mes) el núcleo pondera por el mes de CADA episodio: `case when p_periodo is not null then p_factor else private.peso_referido_conversion(date_trunc('month', coalesce(la.resultado_en, la.finalizado_en) ...)) end` (20260912151320:124-128) y lo mismo para renovaciones (20260912151320:195-197).",
+  "impacto_gerencia": "La línea de pesos que la pantalla imprime («Referido pesa 0,15») describe sólo el mes del `hasta`. En un rango de varios meses con pesos distintos, el numerador se calculó con varios pesos y el rótulo afirma uno solo. Además `peso_renovacion` y `peso_referido` son la MISMA variable: el payload sugiere dos pesos independientes que el núcleo no distingue.",
+  "es_hipotesis": true,
+  "correccion_sugerida": "Publicar `pesos_por_mes` (array mes→peso) cuando v_periodo sea NULL, y dejar `peso_referido` sólo cuando el rango es un mes; unificar o documentar que peso_renovacion == peso_referido por decisión D-ATR.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "El payload declara ventana_convertidos_dias = 45 pero ninguna cifra publicada mide 45 días",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql",
+  "lineas": "835, 1256-1262, 1518",
+  "evidencia": "El corte de 45 días solo filtra qué filas entran en `ambito`:\n```\n  v_corte := v_ahora - interval '45 days';\n```\n```\n      (l.etapa not in ('convertido', 'descartado')) as abierto\n    from crm.leads l\n    where l.activo is true\n      and (\n        l.etapa <> 'convertido'\n        or l.convertido_en >= v_corte\n      )\n```\nPero TODOS los agregados que salen de `ambito` filtran por `abierto` (`count(a.id) filter (where a.abierto)`, `sum(a.monto) filter (where a.abierto ...)`, `join ambito a ... and a.abierto`, `where a.abierto` en `agg_duenio` y `parkeados_bandeja`), y `abierto` excluye por definición a los convertidos. Ninguna salida cuenta leads convertidos. Aun así el payload publica:\n```\n    'ventana_convertidos_dias', 45,\n```\nmientras `convertidos`/`nucleo_convertidos` vienen del mes calendario (`'ventana_metrica', 'mes_calendario'`, `'mes_metrica', v_mes`).",
+  "impacto_gerencia": "Es el vacío (i) de la lista del 04–07/09, y en el servidor sigue vivo como rótulo: el contrato afirma una ventana de 45 días para «convertidos» que no describe ninguna cifra del payload. El CRM ya rotula bien («agosto de 2026», app/src/screens/equipo.tsx:689 y :882 vía `ventanaConversionEnPalabras(mesMetrica)`), pero cualquier lector que confíe en `ventana_convertidos_dias` rotulará mal. En el espejo demo la MISMA clave `convertidos` sí es de 45 días (app/src/lib/metricas-vendedores.ts:438-439), así que el nombre significa dos cosas según el entorno.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Renombrar la clave a lo que realmente acota (`ventana_operativa_dias`) o retirarla, y dejar `ventana_metrica`/`mes_metrica` como único rótulo de período de la conversión.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El rango ignora el ajuste por anulación en mes sellado que la lectura mensual sí descuenta",
+  "severidad": "P0",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2346-2372, 2518-2519 (vs 20260904210831:1643-1665)",
+  "evidencia": "Rango — numerador BRUTO del núcleo, sin ajuste:\n      coalesce(sum(e.aporte_numerador), 0)::numeric as numerador\n    from ep_flujo e\n    group by e.analista_id\nMensual (mes abierto) — numerador NETO y pct recalculado sobre el neto:\n  pendientes as materialized (\n    select ap.vendedor_id, ap.numerador as pendiente, ap.origenes\n    from private.ajuste_pendiente_por_vendedor() ap\n  ),\n...\n      private.conversion_con_ajuste(b.numerador, pd.pendiente) as numerador,\n      case when coalesce(b.divisor, 0) > 0\n        then round(100.0 * private.conversion_con_ajuste(b.numerador, pd.pendiente)\n                   / coalesce(b.divisor, 0), 2) end as conversion_pct,\n(20260904210831:1643-1665). El mecanismo está vivo: hay 4 rutas que escriben crm.ajustes_mes_cerrado (20260815002100:337, 20260815102000:629, 20260829182800:264, 20260901180000:470).",
+  "impacto_gerencia": "Con el filtro en el mes en curso (01→hoy), «Conversiones» enseña el índice BRUTO y el héroe de HOY / Ranking enseñan el NETO de lo que se debe por cierres anulados de meses ya pagados. En cuanto haya un solo ajuste pendiente, las dos pantallas dan un % distinto del mismo mes y la de rango es la optimista. El desglose por analista repite el error (`nucleo_conversion_pct` por responsable, línea 2815).",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Restar private.ajuste_pendiente_por_vendedor() con private.conversion_con_ajuste en `nucleo_vendedor` (por fila, no sobre el total, para respetar el suelo en cero) y publicar `nucleo.ajuste_pendiente` para que el número sea explicable; o, si se decide que el rango es bruto por contrato, rotularlo en el payload y que el front lo diga.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "El repo contiene una redefinición del núcleo NO aplicada a producción, y varias definiciones vivas sólo existen como parches sobre `prosrc`",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260912151320_crm_citas_consulta_nucleos.sql",
+  "lineas": "105-215 (estado en supabase/migrations/MIGRACIONES.md:10618-10620)",
+  "evidencia": "20260912151320:141 — `CREATE OR REPLACE FUNCTION private.conversion_episodios(p_ini timestamp with time zone, ...)` (reescribe el núcleo delegando la pierna de cierres en la nueva `private.conversion_cierres`, 105-139). Es la ÚLTIMA migración del repo que define `conversion_episodios`.\nMIGRACIONES.md:10618-10620 — `## 20260912151320 — Citas Gerencia conectada a núcleos\n\n**Estado:** candidata local, probada en PostgreSQL 17 desechable; no aplicada a producción.`\nAdemás, los cuerpos vivos de `crm.conversion_mensual_fn`, `crm.cumplimiento_metas_fn` y `private.produccion_mes_por_vendedor` NO están escritos completos en ninguna migración: se construyen con reemplazos de texto sobre `p.prosrc` (20260902202247:833-1262 y 118-203, p. ej. `select p.prosrc into v_src from pg_catalog.pg_proc p where p.oid = 'crm.conversion_mensual_fn(date)'::regprocedure;`).",
+  "impacto_gerencia": "Cualquiera que audite «la última migración que define X» —una persona o un agente— audita un cuerpo que no está vivo, y para tres funciones clave no puede leer el cuerpo vivo en ninguna parte del repo. Eso vuelve no verificable, desde el código, la promesa de que el % de conversión sale de un solo núcleo. (Verificado en esta auditoría: la definición viva de `conversion_episodios` es la de 20260904210831:37-131.)",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Marcar las migraciones no aplicadas con un prefijo o carpeta propia (`candidatas/`), y volcar en el repo el `pg_get_functiondef` vivo de las funciones parcheadas por `prosrc` como migración de referencia sin efecto (o como fichero `docs/nucleo-vivo/*.sql` regenerado).",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "En el embudo, «clientes» y «contratos» son literalmente la misma expresión: la última etapa siempre da 100 %",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2304-2305, 2311-2316, 2775",
+  "evidencia": "      (cb.id in (select ec.lead_id from ep_cosecha ec)) as h_cliente,\n      (cb.id in (select ec.lead_id from ep_cosecha ec)) as h_contrato\n...\n      (h_cliente or h_contrato) as cliente,\n      h_contrato as contrato\ny el embudo pinta las dos como etapas distintas:\n      jsonb_build_object('etapa','contratos','cantidad',r.contratos,'pct_anterior',case when r.clientes > 0 then round(100.0*r.contratos/r.clientes,1) end, ...)\nPor construcción r.clientes = r.contratos, luego pct_anterior de «contratos» es 100 siempre, y cohorte.conversion_clientes_pct = cohorte.conversion_contratos_pct siempre.",
+  "impacto_gerencia": "El embudo enseña un paso final perfecto (100 % de clientes → contratos) que no mide nada, y la etiqueta «contratos» ya no cuenta contratos: cuenta cierres del ledger. Gerencia puede leerlo como que todo cliente firma.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Eliminar la etapa duplicada del embudo (o devolver `contratos` al conteo real de public.contratos + cierres_externos, que ya vive en `produccion`) y quitar conversion_contratos_pct o rotularlo como el mismo número.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "En el mismo payload conviven tres conteos distintos de «clientes»; `produccion.clientes` sale de la ficha, no del ledger",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2392-2396, 2763-2766, 2334, 2346-2352",
+  "evidencia": "1) producción, desde la FICHA:\n  produccion as (\n    select\n      (select count(*)::int from crm.leads l\n        where l.convertido_en >= v_ini and l.convertido_en < v_fin) as clientes,\n2) cohorte/cosecha, desde el LEDGER y madurada hasta hoy: `count(*) filter (where cliente)::int as clientes` sobre `(cb.id in (select ec.lead_id from ep_cosecha ec))`.\n3) núcleo: `cierres_no_referidos` + `cierres_referidos` sobre ep_flujo.\nLas tres viajan sin decir que responden a preguntas distintas; sólo la 1 vs 2 tiene sonda (`cohorte_convertidos_sin_cierre_elegible`, 2743-2748).",
+  "impacto_gerencia": "Gerencia ve «Clientes» en Producción, «Clientes» en el embudo y «Cierres» en el núcleo, con tres valores que casi nunca coinciden y sin rótulo que explique por qué. `produccion.clientes` además cuenta leads marcados convertido en la ficha aunque su cierre esté anulado en el ledger (no aplica private.cierre_externo_anulado), así que puede ser el más alto de los tres justo por el motivo que invalida al cierre.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Renombrar y rotular en el payload: `produccion.leads_marcados_convertidos_ficha` (con su sonda al lado), `cosecha.cerraron` ya está bien rotulada, y dejar «clientes» sólo para una de las tres lecturas.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "La deduplicación de cartera se decide sobre el mes entero antes de recortar el rango: un rango parcial puede perder la operación que sí ocurrió dentro",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "115-129",
+  "evidencia": "115-127 — `from (\n  select o0.*, row_number() over (\n    partition by o0.cliente_id, o0.periodo\n    order by o0.fecha_operacion, o0.creado_en, o0.id\n  ) as orden_conversion\n  from crm.operaciones_cartera o0\n  where o0.elegible_conversion\n    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date\n    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date\n) o\nwhere o.orden_conversion = 1\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin`.",
+  "impacto_gerencia": "Si gerencia elige un rango libre que empieza a mitad de mes (Conversiones), un cliente cuya PRIMERA operación elegible del mes cayó antes del inicio del rango aporta cero, aunque tenga una segunda operación dentro del rango. El comportamiento es coherente con la regla «una por cliente y mes, la primera por fecha», pero el rótulo del rango no lo dice y el número sale más bajo de lo que el usuario cree estar pidiendo.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Declararlo en el payload (p. ej. `cartera.regla_dedup: 'primera del mes calendario'`) para que la pantalla pueda rotular el recorte, o deduplicar dentro del rango cuando el rango no es un mes completo, según decida Miguel.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "La deuda por cierre anulado se descuenta a la vez en TODOS los meses abiertos (y el mes nuevo «se recupera» solo al sellar el viejo)",
+  "severidad": "P1",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1640-1676 (+ /Users/usuario/.../supabase/migrations/20260815002100_crm_ajuste_mes_cerrado.sql:196-220)",
+  "evidencia": "20260904210831:1640-1646 — `pendientes as materialized (\n    -- Lo que cada vendedor arrastra de meses YA CERRADOS: cierres anulados\n    -- despues de pagar. ...\n    select ap.vendedor_id, ap.numerador as pendiente, ap.origenes\n    from private.ajuste_pendiente_por_vendedor() ap\n  ),` y 1660-1665 — `private.conversion_con_ajuste(b.numerador, pd.pendiente) as numerador,` / `case when coalesce(b.divisor, 0) > 0 then round(100.0 * private.conversion_con_ajuste(b.numerador, pd.pendiente) / coalesce(b.divisor, 0), 2) end as conversion_pct,`.\n20260815002100:210-219 — `from crm.ajustes_mes_cerrado a\n  where a.saldado_en is null\n  group by a.vendedor_id` — la función NO recibe periodo. `filas` la aplica sin condicionar por `v_es_historico_abierto` (declarada en 1349, usada en 1552/1613/1620/1864), así que se aplica tanto al mes vigente como a un mes pasado todavía abierto.",
+  "impacto_gerencia": "Entre el día 1 y el 10 (ventana de ajuste: `crm.cerrar_periodo` se niega a sellar antes, 20260904210831:1919-1930) conviven DOS meses abiertos. Gerencia abre agosto y ve su conversión rebajada por la deuda; abre septiembre y ve la MISMA deuda rebajada otra vez. Ninguna de las dos cifras es la del mes que se está mirando. Y cuando por fin se sella agosto, `saldar_ajustes` cobra la deuda allí y el porcentaje de septiembre SUBE solo, sin que haya pasado nada en septiembre — justo el «número que baja (o sube) sin explicación» que la propia migración dice haber venido a evitar.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Dar periodo a `private.ajuste_pendiente_por_vendedor(p_periodo date)` y aplicar la deuda solo al mes VIVO (`p_periodo = date_trunc('month', now() at time zone 'America/Lima')`), devolviendo bruto + una clave `ajuste.pendiente_declarado` en los meses pasados abiertos, para que la rebaja se vea una sola vez y en un solo mes.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "La foto sellada declara `cierres_sin_episodio: 0` por construcción: un mes cerrado nunca puede denunciar su propia incoherencia",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1477-1481 y 2028-2035",
+  "evidencia": "1477-1481 — `-- La sonda de cierres sin episodio se calculaba sobre datos vivos; en un\n        -- mes sellado no se recalcula (mentiria sobre el momento del sello) y se\n        -- declara en cero, que es lo que la foto puede afirmar.\n        'cierres_sin_episodio', 0,`.\nY `crm.cerrar_periodo` NO guarda el valor que tenía al sellar: 2028-2035 — `v_cobertura := jsonb_build_object(\n    'modelo_conversion', 'llegadas_v2',\n    'medible', v_medible,\n    'suelo_historico', v_suelo,\n    'motivo_no_medible', v_motivo\n  );`",
+  "impacto_gerencia": "Todo mes cerrado —que es justo el que se usa para pagar— le enseña a gerencia la sonda en verde. Si el mes se selló con cierres sin episodio en el ledger (leads marcados convertidos sin fila `resultado='convertido'` fechada), esa incoherencia queda congelada dentro del número y sin ninguna marca. La única sonda del núcleo mensual deja de existir exactamente donde más importa.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Calcular la sonda dentro de `crm.cerrar_periodo` y guardarla en `crm.periodos_cerrados.cobertura.cierres_sin_episodio_al_sellar`, y servirla desde ahí en la rama sellada en vez del literal 0.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "La «meta de la empresa» se agrega en el navegador y es una media aritmética contra un real ponderado del servidor",
+  "severidad": "P1",
+  "capa": "adaptador",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/objetivos.ts",
+  "lineas": "119-124, 713 (contraparte SQL: 20260824233619:21-59 + 20260902202247:1069-1262, payload sin clave `total`)",
+  "evidencia": "objetivos.ts:119-124 — `const conversiones = metas\n    .map((meta) => meta.conversionObjetivo)\n    .filter((valor) => valor > 0)\n  const conversionObjetivo = conversiones.length === 0\n    ? 0\n    : Math.round((conversiones.reduce((total, valor) => total + valor, 0) / conversiones.length) * 100) / 100`.\nobjetivos.ts:713 — `gerencia: agregarCumplimientos([...filas, ...fueraComoCumplimiento]),`.\nEl payload de `crm.cumplimiento_metas_fn` no tiene ninguna clave `total`: su cuerpo vivo sólo emite `version, periodo, revision, publicada_en, fuentes_reales, ponderacion_referido, cierre, vendedores[]` (20260815003742:666-703) + `cartera` y `fuera_ranking` que añaden los dos wrappers.",
+  "impacto_gerencia": "En Metas/Objetivos, el OBJETIVO de conversión de la empresa es la media simple de los objetivos individuales (y descarta a quien tenga objetivo 0, lo que la infla), mientras el REAL de la empresa que pinta Resumen/Conversiones sale de `conversion_mensual_fn.total.conversion_pct` = Σnumerador/Σdivisor (ponderado por volumen). Son dos aritméticas distintas: el «avance de la meta de la empresa» compara peras con manzanas en cuanto los analistas tienen divisores desiguales, que es siempre.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Que `crm.cumplimiento_metas_fn` publique un bloque `total` con el objetivo de empresa calculado en el servidor y ponderado por el divisor de cada analista (Σ objetivo_i·divisor_i / Σ divisor_i, o la definición que Miguel firme), y que el front lo pinte tal cual en vez de `agregarObjetivos`.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "La puntería se mide en CICLOS de asignación, no en personas, y el alcance publicado no lo dice",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260827050000_crm_f2_3a_distribucion_sin_anulados.sql",
+  "lineas": "263-274, 505-512",
+  "evidencia": "`cohorte` es `crm.lead_asignaciones` (episodios), y la puntería se arma contando filas de episodio:\n```\n    count(*) filter (where c.resultado = 'convertido'\n      and (c.analista_id, c.lead_id) in\n          (select cn.analista_id, cn.lead_id from cierres_del_nucleo cn)\n    ) as convertidos,\n    count(*) filter (where c.resultado = 'descartado') as descartados,\n    count(*) filter (where c.resultado in ('convertido', 'descartado')) as ciclos_resueltos,\n    count(distinct c.lead_id) filter (\n      where c.resultado in ('convertido', 'descartado')\n    ) as leads_unicos_resueltos\n```\nEl resumen hace lo mismo: `'descartados_pen', (select count(*) from cohorte where moneda = 'PEN' and resultado = 'descartado')`. `private.conversion_punteria(convertidos, descartados)` (20260827090000:202-221) divide esos conteos de episodios. El alcance que viaja al front es solo `'conversion_punteria', 'CERRADOS_ENTRE_RESUELTOS'` (20260904210831:1291) — no menciona episodio/ciclo, aunque el payload SÍ trae `leads_unicos_resueltos` sin usarlo.",
+  "impacto_gerencia": "Un lead que se reparte, se descarta y se rescata cuenta dos veces en el denominador (y a analistas distintos). La pantalla lo pinta como «X de Y» y «Cierres totales» (app/src/screens/hoy/distribucion-leads-gerencia.tsx:1341, :1449, :1487) sin decir que Y son asignaciones resueltas, no personas. Gerencia compara analistas con denominadores que dependen de cuántas veces se reasignó su cartera.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Declararlo en `alcances` (p. ej. `CERRADOS_ENTRE_RESUELTOS_POR_CICLO`) y/o servir también la lectura por lead único con `leads_unicos_resueltos`, rotulada aparte.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "La sonda de paridad compara el núcleo consigo mismo: `cuadra=true` no prueba nada, y es el único permiso que el front pide para pintar el héroe",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2346-2391, 2665-2673",
+  "evidencia": "Los dos lados de la comparación son la MISMA suma sobre private.conversion_episodios con la misma ventana, el mismo ámbito global y el mismo peso:\n  comparacion as (\n    select nv.analista_id as a_nuevo, cm.analista_id as a_nucleo,\n      abs(coalesce(nv.divisor, 0) - coalesce(cm.divisor, 0)) + ... as delta\n    from nucleo_vendedor nv\n    full outer join private.conversion_mensual_por_vendedor(\n      v_ini, v_fin, true, null, v_factor\n    ) cm on ...\n(private.conversion_mensual_por_vendedor no es otra fórmula: su CTE `ep` es `select e.* from private.conversion_episodios(p_ini, p_fin, ..., p_global, p_visibles, p_factor)`, 20260904210831:147-153). El front exige exactamente eso y nada más: `return sondas?.cuadra === true && sondas.paridad_nucleo === 0 && ... Number(sondas.paridad_filas) > 0` (app/src/lib/sondas-conversion.ts:22-25), y la pantalla lo usa como única llave: `const nucleoVerificado = datos?.nucleo != null && sondasNucleoVerificadas(datos.sondas)` (app/src/screens/hoy/inteligencia-comercial.tsx:697).",
+  "impacto_gerencia": "El cartel «cifra verificada» de la pantalla Conversiones se enciende siempre, incluso en los dos casos de arriba (mes sellado y ajuste pendiente), donde el número que se pinta NO es el que gerencia cobra. La sonda no puede desviarse nunca por construcción, así que nunca ocultará una cifra falsa: es un sello de goma.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Comparar contra la lectura PUBLICADA, no contra el núcleo: cuando el rango sea un mes calendario, recomputar divisor/numerador/pct llamando a crm.conversion_mensual_sin_cartera_fn(mes) y medir el desvío contra `total`; dejar `cuadra=null` (y el front oculta) cuando el rango no sea un mes. Mantener la paridad interna como sonda secundaria con otro nombre.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "La sonda de paridad de Distribución compara el núcleo consigo mismo: no puede fallar nunca",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1128-1199, 1300-1312",
+  "evidencia": "El lado izquierdo (`nv`) se construye sobre `ep`:\n```\n  with ep as materialized (\n    select e.* from private.conversion_episodios(\n      v_ini, v_fin, v_periodo, true, '{}'::uuid[], v_factor\n    ) e\n  ),\n  nv as (\n    select e.analista_id,\n      coalesce(sum(e.aporte_divisor), 0)::int as divisor,\n      ... coalesce(sum(e.aporte_numerador), 0)::numeric as numerador\n    from ep e group by e.analista_id\n  ),\n```\nEl lado derecho llama a `private.conversion_mensual_por_vendedor(v_ini, v_fin, true, '{}'::uuid[], v_factor)`, cuyo cuerpo (mismo archivo, L145-186) es `with ep as (select e.* from private.conversion_episodios(p_ini, p_fin, <periodo derivado>, p_global, p_visibles, p_factor))` y cuyo `aportes` es literalmente `sum(e.aporte_divisor)` / `sum(e.aporte_numerador)` agrupado por `analista_id`. Los `cierres_no_referidos/referidos` de ambos lados aplican el mismo filtro `tipo='cierre' and not anulado and origen in ('landing','formulario','referido')`.\nÚnica diferencia de parámetros: `p_periodo`. `v_periodo` (L1118-1125) es NULL salvo mes completo o mes-hasta-hoy; el `periodo` interno de `conversion_mensual_por_vendedor` (L147-150) es el mes cuando `p_ini` y `p_fin-1µs` caen en el mismo mes Lima. `p_periodo` solo elige entre `p_factor` y `private.peso_referido_conversion(<mes>)`, y en todos los rangos posibles ambos resuelven al peso del MISMO mes (`v_factor := private.peso_referido_conversion(v_mes)`, `v_mes := date_trunc('month', p_hasta)`). Por tanto `delta ≡ 0` y:\n```\n      'cuadra', case when v_paridad is null or v_paridad_filas = 0 then null\n                     else v_paridad = 0 end,\n```\nsolo puede dar `true` (o `null` si el rango no tiene ni un episodio). El comentario de L1170-1172 («con `v_periodo` NULL el resultado se descarta») describe una guarda que el código NO implementa.",
+  "impacto_gerencia": "El héroe «Conversión del rango» de Distribución solo se pinta cuando `sondasNucleoVerificadas` (app/src/lib/sondas-conversion.ts:20-26) da true, y eso se presenta como «verificado contra el núcleo». En realidad la verificación no comprueba nada: compara conversion_episodios contra conversion_episodios. Gerencia lee un número con un sello de garantía que nunca puede encenderse en rojo — incluido el caso del hallazgo siguiente (numerador bruto vs neto), que esta sonda es estructuralmente incapaz de detectar.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Comparar contra una fuente INDEPENDIENTE del mismo concepto: para un rango que sea mes completo, contrastar `nv` contra `crm.conversion_mensual_fn(v_periodo)` (que aplica foto sellada y `conversion_con_ajuste`) y dejar `cuadra = null` explícitamente cuando `v_periodo is null`, tal como el comentario ya promete.",
+  "fuente": "leer:rpc-distribucion-vendedores",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Las deudas de quien salió del roster no se saldan nunca ni se declaran: dinero perdonado en silencio",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1672-1676, 2193-2211, 2288-2294",
+  "evidencia": "Lectura viva: 1672-1675 — `from roster r\n    left join base b on b.analista_id = r.vendedor_id\n    left join alta_referidos a on a.analista_id = r.vendedor_id\n    left join pendientes pd on pd.vendedor_id = r.vendedor_id` (sólo filas del roster reciben el descuento; el agregado `fuera` es BRUTO a propósito, 1683-1685).\nSello: 2206-2210 — `where r.meta_vendedor_id is not null\n       or (\n         vendedor_actual.rol_crm = 'vendedor'\n         and supervisor_actual.perfil_id is not null\n       )` y 2288-2294 — `left join lateral private.saldar_ajustes(\n    pe.vendedor_id, ...)` : `saldar_ajustes` sólo se llama por cada fila de `foto`, es decir nunca por quien quedó en `fuera_ranking`.",
+  "impacto_gerencia": "Si un analista anula un cierre de un mes ya pagado y después sale del equipo (o se queda sin supervisor), su fila `crm.ajustes_mes_cerrado` queda con `saldado_en is null` para siempre: no se le descuenta en ninguna lectura, no se cobra al sellar, y no aparece en `cobertura` ni en `responsables[].ajuste`. Gerencia no tiene ni el número corregido ni el aviso de que hay una deuda viva.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "En `crm.cerrar_periodo`, llamar a `private.saldar_ajustes` también por cada persona de `fuera_ranking` (guardando su aplicado en esa entrada), y publicar en `cobertura` un agregado `ajustes_pendientes_sin_fila` con el total que no tiene dónde descontarse.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "Las etapas del embudo son banderas inferidas en cascada y el payload no lo declara",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2308-2316, 2768-2777",
+  "evidencia": "      (h_contacto or h_reunion_agendada or h_reunion_realizada or h_propuesta or h_cliente or h_contrato) as contactado,\n      (h_reunion_agendada or h_reunion_realizada or h_propuesta or h_cliente or h_contrato) as reunion_agendada,\n      (h_reunion_realizada or h_propuesta or h_cliente or h_contrato) as reunion_realizada,\n      (h_propuesta or h_cliente or h_contrato) as propuesta,\nEl bloque 'embudo' se publica sin ninguna clave que diga que son inferencias (comparar con 'citas_reales', 2531-2545, que sí declara unidad, base, fecha_cita y seguimiento_hasta).",
+  "impacto_gerencia": "«Reuniones agendadas» y «reuniones realizadas» del embudo incluyen leads que nunca tuvieron cita, sólo porque acabaron con propuesta o cierre. Gerencia mide actividad del equipo con un número que en parte es una deducción; el dato real vive al lado, en `citas_reales`, con otro valor.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Publicar `embudo_metodo: 'banderas_inferidas_monotonas'` (y por etapa, cuántas son observadas vs inferidas) para que la pantalla lo rotule, o servir el embudo sobre las señales observadas y dejar la cascada como lectura secundaria.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Los cierres de leads con origen legado ('web','whatsapp','campania') y de 'oficina'/'otro' son invisibles: ni numerador, ni conteo, ni sonda",
+  "severidad": "P2",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "87-93, 156-160, 1714-1737",
+  "evidencia": "Núcleo (87-93) — `case when private.cierre_externo_anulado(la.lead_id) then 0\n    when l.origen = 'referido' then ...\n    when l.origen in ('landing', 'formulario') then 1\n    else 0 end`.\nAgregador (156-160) — `from ep e where e.tipo = 'cierre' and not e.anulado\n    and e.origen in ('landing', 'formulario', 'referido')`.\nSonda (1714-1719) — `from crm.leads l\n    where l.etapa = 'convertido'\n      and l.origen in ('landing', 'formulario', 'referido')`.\nY el dominio sigue admitiendo los valores legados: 20260717163959:9-18 — `check (\n    origen in (\n      'referido',\n      'landing',\n      'formulario',\n      'oficina',\n      'otro',\n      'web',\n      'campania',\n      'whatsapp'\n    )\n  )`, con `origen text not null default 'otro'` (20260709000001:161).",
+  "impacto_gerencia": "Un cierre real de un lead con origen 'web'/'whatsapp'/'campania' (o 'oficina'/'otro') no suma al numerador, no aparece en `cierres_no_referidos`/`cierres_referidos`, y la única sonda del mes tampoco lo cuenta porque filtra por los mismos tres orígenes. La regla firmada por Miguel sólo dejó fuera oficina/otro; los tres orígenes legados nunca se decidieron y desaparecen sin dejar rastro.",
+  "es_hipotesis": true,
+  "correccion_sugerida": "Comprobar en la base si quedan filas de `crm.leads` con origen 'web'/'whatsapp'/'campania' y cierres asociados; si las hay, decidir con Miguel si aportan al numerador y, en cualquier caso, que la sonda los cuente aparte (`cierres_origen_fuera_del_nucleo`) para que se declaren en vez de evaporarse.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "metricas_conversiones_equipo_fn rotula el mes como CERRADO y sirve números vivos",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "852-880, 912-916, 976-984",
+  "evidencia": "Lee el sello sólo para el roster y el rótulo:\n    select pc.meta_revision, pc.cerrado_en, pc.automatico\n      into v_revision, v_cerrado_en, v_cierre_automatico\n    from crm.periodos_cerrados pc where pc.periodo = v_periodo;\n    if found then v_cerrado := true; ...\n    'cierre', case ... when v_cerrado then jsonb_build_object('cerrado', true, 'cerrado_en', v_cerrado_en, ...)\npero los números salen igualmente del núcleo en vivo:\n  ep_flujo as materialized (\n    select e.* from private.conversion_episodios(\n      v_ini, v_fin, v_periodo, v_global, v_visibles, v_factor\n    ) e\n  ),\nLa foto (private.cierre_mes_visible) sólo se usa para `roster` (880-886) y para recortar v_visibles (872-878), nunca para las cifras.",
+  "impacto_gerencia": "En un mes cerrado, Rendimiento muestra «cerrado el …, ya no cambia» junto a divisor/numerador/% recalculados hoy. Cualquier anulación o cierre posterior al sello mueve un número que la propia pantalla declara inmutable, y que no coincide con el de Ranking.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Cuando v_cerrado, servir nucleo_divisor/nucleo_numerador/nucleo_conversion_pct desde private.cierre_mes_visible(v_periodo, v_uid) en vez de ep_flujo, como ya hace conversion_mensual_sin_cartera_fn.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`private.metricas_cartera_por_vendedor` pide el núcleo con `p_factor => 0`",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql",
+  "lineas": "328-345",
+  "evidencia": "328-336 — `from private.conversion_episodios(\n      p_ini => p_periodo::timestamp at time zone 'America/Lima',\n      p_fin => (p_periodo + interval '1 month')::timestamp\n        at time zone 'America/Lima',\n      p_periodo => p_periodo,\n      p_global => true,\n      p_visibles => '{}'::uuid[],\n      p_factor => 0::numeric\n    ) e\n    where e.tipo = 'operacion'` — y el núcleo usa ese factor como peso de las renovaciones cuando `p_periodo` no es nulo (20260904210831:111-113).",
+  "impacto_gerencia": "Hoy es inocuo porque este bloque sólo cuenta filas (`count(*)`), así que ninguna cifra que vea gerencia cambia. Pero la llamada deja el peso de las renovaciones en 0: quien añada aquí una suma de `aporte_numerador` obtendrá cero renovaciones sin que nada falle ni avise.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Pasar `private.peso_referido_conversion(p_periodo)` en vez de `0`, o llamar con `p_periodo => null` para que el propio núcleo resuelva el peso del mes.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "`responsables[]` mezcla dos porcentajes distintos con nombres casi iguales y dos atribuciones distintas en el mismo objeto",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2810-2816, 2820-2847, 2453-2462",
+  "evidencia": "        'clientes', rr.contratos,\n        'conversion_pct', case when rr.leads > 0 then round(100.0*rr.contratos/rr.leads,1) end,\n        'nucleo_divisor', coalesce(nv.divisor, 0),\n        'nucleo_conversion_pct', case when coalesce(nv.divisor, 0) > 0\n          then round(100.0 * nv.numerador / nv.divisor, 2) end,\n`rr.leads` sale de cohorte (llegadas atribuidas al PRIMER analista, referidos y altas manuales incluidos) mientras `nv.divisor` sólo cuenta landing/formulario automáticos; y dentro del mismo objeto `cierres_por_semana` se filtra por `e.analista_id = rr.vendedor_id`, que es el AUTOR DEL CIERRE (2860), no el primer analista. Lo mismo en equipo_fn: `'conversion_pct', case when rr.leads > 0 then round(100.0 * rr.clientes / rr.leads, 1) end` junto a `'nucleo_conversion_pct'` (20260904210831:1036-1043).",
+  "impacto_gerencia": "En la tabla por analista conviven «conversión» (cosecha, 1 decimal, denominador con referidos) y «conversión núcleo» (índice, 2 decimales). Si una pantalla toma la clave genérica `conversion_pct` pinta la cosecha creyendo que pinta el índice, y el mismo analista aparece con dos porcentajes muy distintos según la pantalla.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Renombrar la clave de cosecha (`cosecha_pct`) en ambas RPC y publicar en cada objeto la atribución que usa cada sub-bloque (`atribucion: 'primer_analista'` para leads, `'autor_cierre'` para cierres_por_semana).",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "SOSTENIDO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`tendencia_semanal` ubica los cierres por la semana de LLEGADA y madura todas las semanas hasta hoy, sin declararlo",
+  "severidad": "P2",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2848-2869",
+  "evidencia": "              count(c.id)::int as leads,\n              count(c.id) filter (where c.contrato)::int as clientes\n            from generate_series(0, ((p_hasta - p_desde) / 7)) as gs(semana_indice)\n            left join cohorte c on c.vendedor_id = rr.vendedor_id\n              and (c.creado_en at time zone 'America/Lima')::date >= p_desde + (gs.semana_indice * 7)\n...\n            'conversion_pct', case when semanal.leads > 0\n              then round(100.0*semanal.clientes/semanal.leads,1) end\n`c.contrato` es la cosecha madurada hasta `v_cosecha_fin = greatest(v_fin, v_ahora)` (2166-2172), y el bloque no publica ni `base` ni `madura_hasta` (compárese con 'cosecha', 2523-2530, que sí los publica).",
+  "impacto_gerencia": "La serie semanal por analista siempre cae hacia la derecha: la última semana lleva días madurando y la primera, semanas. Gerencia lee una caída de rendimiento donde sólo hay falta de maduración, y nada en el payload avisa.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Publicar en `tendencia_semanal` las mismas etiquetas que en `cosecha` (base='alta', madura_hasta, dias_de_maduracion por semana) o servir la serie por fecha de cierre, coherente con `cierres_por_semana`.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`total.analistas` no incluye a los de fuera de roster ni al agregado sin analista, aunque su divisor sí está dentro",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1746-1766 (vivo) y 1401-1404 (sellado)",
+  "evidencia": "1746-1751 — `select\n      count(*)::int as analistas,\n      (coalesce(sum(f.divisor), 0)\n        + (select fr.divisor from fuera fr))::int as divisor,` — `analistas` se cuenta sólo sobre `filas` (el roster) mientras `divisor`/`numerador` suman además `fuera`. Igual en la rama sellada, 1401-1404: `select\n        count(*)::int as analistas,\n        (coalesce(sum(v.divisor), 0)\n          + coalesce((select sum((f.fila#>>'{conversion,divisor}')::int)\n                      from fuera_foto f), 0))::int as divisor,`.",
+  "impacto_gerencia": "El total dice «N analistas» con un divisor y un numerador que incluyen a gente que no está en esa N. Un divisor-por-analista calculado a ojo por gerencia da un número que no existe.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Sumar `fuera.analistas` (y declarar aparte el bloque sin analista) o renombrar la clave a `analistas_rankeables` para que el rótulo diga lo que cuenta.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "`total.referidos_aporta_pct` se calcula con conteos y sobre el bruto, mientras `total.conversion_pct` sale del numerador neto",
+  "severidad": "P3",
+  "capa": "nucleo",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql",
+  "lineas": "1816-1819 (vivo) y 1504-1507 (sellado)",
+  "evidencia": "1816-1819 — `'conversion_pct', case when r.divisor > 0\n          then round(100.0 * r.numerador / r.divisor, 2) end,\n        'referidos_aporta_pct', case when r.divisor > 0\n          then round(100.0 * v_factor * r.cierres_referidos / r.divisor, 2) end`.\nEn la fila individual sí sale del núcleo: 184 — `coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'cierre' and e.fue_referido), 0) as aporte_referidos` → 225 `case when a.divisor > 0 then round(100.0 * a.aporte_referidos / a.divisor, 2) end`.",
+  "impacto_gerencia": "En la misma tarjeta, «conversión» viene del numerador NETO del núcleo y «aporte de referidos» de peso × conteo, sin el ajuste por anulaciones. Las dos frases no cierran entre sí, y la del total usa una aritmética distinta de la de la fila de cada analista.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Sumar en `resumen` el `aporte_referidos` que ya devuelve el núcleo por analista (más la pierna `fuera`) y dividirlo, en vez de recalcular con `v_factor * cierres_referidos`.",
+  "fuente": "leer:nucleo-mensual",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ },
+ {
+  "titulo": "Un mes SELLADO se recalcula en vivo en la pantalla de rango: el % no es el de la foto pagada",
+  "severidad": "P0",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2208-2211, 2346-2372, 2518-2519 (vs 20260904210831:1383-1386)",
+  "evidencia": "El rango SIEMPRE recomputa desde el núcleo, sin mirar crm.periodos_cerrados:\n  ep_flujo as materialized (\n    select e.* from private.conversion_episodios(\n      v_ini, v_fin, v_periodo, true, null, v_factor\n    ) e\n  ),\n... 'conversion_pct', case when n.divisor > 0\n        then round(100.0 * n.numerador / n.divisor, 2) end,\nMientras la lectura mensual, para el mismo mes, NO calcula nada:\n  -- 3) ¿MES CERRADO? Entonces se sirve la foto y no se calcula nada.\n  select * into v_cierre from crm.periodos_cerrados pc where pc.periodo = p_periodo;\n  if found then ... return v_payload; end if;   (20260904210831:1383-1386, 1540-1546)\nNo hay en toda la función ninguna referencia a periodos_cerrados ni a cierre_mes_visible.",
+  "impacto_gerencia": "Poniendo el filtro de «Conversiones» en un mes ya cerrado (p. ej. 01–31/08), gerencia ve un % y un numerador recalculados con los datos de HOY (anulaciones, reaperturas, cierres tardíos posteriores al sello), distintos de los que Ranking, Metas y el héroe de HOY sirven desde la foto sellada de ese mismo mes. Dos pantallas, dos verdades para el mes que ya se pagó, y ninguna de las dos dice cuál es la que manda.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Antes de calcular, comprobar crm.periodos_cerrados para el mes del rango; si el rango es un mes calendario cerrado, servir el bloque `nucleo` desde la misma foto (private.cierre_mes_visible + cobertura.fuera_ranking) que usa crm.conversion_mensual_sin_cartera_fn, y publicar `cierre.cerrado` en el payload. Si el rango es libre y toca meses sellados, declarar `nucleo.sellado_parcial` y que el front lo rotule.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": true,
+  "_lentes": [
+   "SOSTENIDO",
+   "SOSTENIDO",
+   "SOSTENIDO"
+  ]
+ },
+ {
+  "titulo": "Ventana del rango (hasta+1) vs mes completo: la cartera con fecha futura del mes en curso la cuenta el héroe y no el rango, y la sonda que debía declararlo es código muerto",
+  "severidad": "P1",
+  "capa": "rpc",
+  "archivo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "lineas": "2183-2184, 2731-2736",
+  "evidencia": "Rango: `v_fin := (p_hasta + 1)::timestamp at time zone 'America/Lima';`  Mensual: `v_fin := (p_periodo + interval '1 month')::timestamp at time zone 'America/Lima';` (20260904210831:1574). La pierna de cartera del núcleo no excluye fechas futuras: `and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini and ... < p_fin` (20260912151320:203-205). La sonda que pretendía declarar el hueco no puede dispararse nunca, porque mide la misma condición que el núcleo ya garantizó:\n      'cartera_fuera_del_rango', (\n        select count(*)::int from ep_flujo e\n        where e.tipo = 'operacion'\n          and (e.fecha_numerador at time zone 'America/Lima')::date not between p_desde and p_hasta\n      ),\ny el comentario de arriba afirma lo contrario: «el heroe de HOY las cuenta igual y la paridad manda; se DECLARAN para que F3 avise» (2726-2730).",
+  "impacto_gerencia": "En el mes en curso con el filtro 01→hoy, una renovación o upgrade registrado con fecha_operacion posterior a hoy (dentro del mes) suma en el héroe de HOY y en Ranking, y NO suma en Conversiones. El payload jura que no hay nada fuera de rango (la sonda siempre vale 0) y la paridad da cuadra=true porque compara dos lecturas de la misma ventana recortada.",
+  "es_hipotesis": false,
+  "correccion_sugerida": "Si el rango es un mes calendario, comparar contra la ventana MENSUAL completa (p_periodo, p_periodo+1 mes) y publicar la diferencia como `nucleo.cartera_del_resto_del_mes`; y sustituir `cartera_fuera_del_rango` por la sonda que sí mide algo: operaciones del mes con fecha posterior a p_hasta.",
+  "fuente": "leer:rpc-rango-equipo",
+  "_humano_sostenido": false,
+  "_lentes": [
+   "REFUTADO",
+   "REFUTADO",
+   "REFUTADO"
+  ]
+ }
+]

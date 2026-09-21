@@ -78,7 +78,7 @@ import {
 } from '@/lib/cartera-meses'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
-import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
@@ -597,12 +597,13 @@ function FilaGrupoCliente({
                         type="button"
                         size="xs"
                         variant="outline"
+                        title={AYUDA_UPGRADE}
                         onClick={(e) => {
                           e.stopPropagation()
                           onUpgradeCliente()
                         }}
                       >
-                        <TrendingUp aria-hidden /> Aumentar inversión
+                        <TrendingUp aria-hidden /> {ETIQUETA_UPGRADE}
                       </Button>
                     )}
                     <Button
@@ -859,8 +860,8 @@ function TarjetaGrupoCliente({
                 </Button>
               )}
               {!sinContratos && (
-                <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
-                  <TrendingUp aria-hidden /> Aumentar inversión
+                <Button type="button" size="xs" variant="outline" title={AYUDA_UPGRADE} onClick={onUpgradeCliente}>
+                  <TrendingUp aria-hidden /> {ETIQUETA_UPGRADE}
                 </Button>
               )}
               <Button type="button" size="xs" onClick={onNuevoContrato}>
