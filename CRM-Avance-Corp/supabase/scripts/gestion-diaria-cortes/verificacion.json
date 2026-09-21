@@ -1,0 +1,54 @@
+{
+  "estado": "PASS_LOCAL_SIN_PUBLICACION",
+  "ensayado_en": "2026-09-21T22:19:30.115Z",
+  "base": "gestion_diaria_f4_vista_chvrqh",
+  "contenedor": "supabase_db_avancecorp-f5-bank",
+  "candidato": "20260921214018_crm_gestion_diaria_cortes.sql",
+  "sha256_migracion": "8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5",
+  "base_final": "sin_objetos_candidatos_funciones_previas_restauradas_auditoria_local_conservada",
+  "censo_intacto": true,
+  "reversa_exacta_funciones": true,
+  "reinstalacion_determinista_funciones": true,
+  "mutantes_detectados": 15,
+  "oraculos": [
+    "GESTION_DIARIA_CORTES_OK",
+    "GESTION_DIARIA_EQUIPO_OK",
+    "GESTION_DIARIA_CALENDARIO_OK",
+    "GESTION_DIARIA_JERARQUIA_OK"
+  ],
+  "paridad_roles": [
+    "supervisor",
+    "gerencia",
+    "lector_global"
+  ],
+  "politica_entre_puertas_F3_F4": "PASS",
+  "tipos_generados_locales": "PASS",
+  "app_check": {
+    "estado": "PASS",
+    "tests": 4073,
+    "archivos": 272
+  },
+  "scripts_check": "PASS",
+  "preflight_cortes_tests": 7,
+  "rendimiento_local": {
+    "analistas": 3,
+    "llamadas_por_analista_con_cartera": 6000,
+    "off_ms": 53.926,
+    "on_ms": 101.818,
+    "bloques_leidos": 0,
+    "representativo_produccion": false
+  },
+  "claude": {
+    "consultas": 2,
+    "ultimo_veredicto": "CHANGES_REQUESTED",
+    "evaluacion_primary": "Hallazgos resueltos o descartados con evidencia; riesgos de activación documentados"
+  },
+  "no_ejecutado": [
+    "HTTP PostgREST completo",
+    "advisors remotos",
+    "E2E visual nuevo",
+    "publicación",
+    "activación",
+    "concurrencia de puerta gerencial futura"
+  ]
+}

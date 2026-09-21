@@ -1,5 +1,40 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921214018 — Gestión Diaria F4: cortes de jornada, etapa 3
+
+**CANDIDATA VERIFICADA EN LOCAL, SIN PRODUCCIÓN NI ACTIVACIÓN.** Miguel autorizó
+ensayarla únicamente en `gestion_diaria_f4_vista_chvrqh`, incluida la reversión.
+Último ensayo completo: 21/09/2026 22:19:30 UTC. SHA-256
+`8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`.
+Matriz de negocio/RLS, puertas F3/F4, paridad supervisor/gerencia/global, 15 mutantes,
+regresiones, tipos generados, censo y restauración exacta de funciones **PASS**.
+Base final sin candidato instalado; auditoría de ensayo conservada.
+
+Nueva `crm.politica_gestion_diaria`, RLS y auditoría, versiones inmutables y
+lectura autenticada CRM/global **por columna de parámetros**; motivo/autor/fecha
+administrativa quedan ocultos hasta una puerta autorizada de etapa 5.
+Sin INSERT/UPDATE/DELETE/TRUNCATE para roles API;
+sin lectura ni ejecución nueva para anon/service_role. Sólo postgres instala la
+semilla histórica OFF con 45/25/5. La publicación gerencial será etapa 5.
+
+Nuevo núcleo INVOKER que compone `gestion_diaria_llamadas` sin alterarla. Clave
+aditiva `cortes` en la puerta de equipo existente; F3/F4 leen los umbrales de la
+política al inicio de la fecha consultada. Horas Lima, base fija, redondeo/piso/techo,
+sábado independiente, domingo sin cortes y exclusión de cartera abierta vacía.
+Sin escrituras de negocio ni ALTER sobre objetos de `public`: sólo FK al perfil,
+patrón existente de `crm.sla_politicas`, con su dependencia referencial habitual.
+
+Dos revisiones Claude read-only; último dictamen CHANGES_REQUESTED, resuelto o
+descartado por el PRIMARY con código y pruebas (no se atribuye PASS a Claude).
+Aplicación: 4.073 tests y check completo PASS. Scripts/preflights PASS. HTTP
+PostgREST completo y advisors remotos NOT RUN; no se confunden con el banco SQL.
+La matriz permanente `testGestionDiariaCortes` exige el contrato si detecta
+tabla instalada, y permite exigirlo explícitamente con `CRM_RLS_EXIGE_CORTES=1`.
+
+Banco y reversa local protegida: `supabase/scripts/gestion-diaria-cortes/`.
+Estado y límites: `docs/gestion-diaria/F4-CORTES-JORNADA.md`. No usar `db push`
+general ni transferir esta autorización a otras migraciones o a producción.
+
 ## 20260921183436 — Eliminación administrativa del contrato con registro inicial
 
 **INSTALADA Y VERIFICADA: versión remota 20260921185355.** Miguel pidió conservar

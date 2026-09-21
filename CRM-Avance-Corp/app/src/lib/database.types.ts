@@ -14,6 +14,80 @@ export type Database = {
   }
   crm: {
     Tables: {
+      politica_gestion_diaria: {
+        Row: {
+          atencion_min_pct: number
+          bien_min_pct: number
+          corte_1_hora: string
+          corte_1_minimo: number
+          corte_2_hora: string
+          corte_2_incremento_pct: number
+          corte_2_piso: number
+          corte_2_techo: number
+          cortes_activos: boolean
+          creado_en: string
+          creado_por: string | null
+          id: string
+          minimo_llamadas_utiles: number
+          motivo: string
+          sabado_minimo: number
+          tasa_baja_diferencia_pp: number | null
+          version: number
+          version_anterior_id: string | null
+          vigente_desde: string
+        }
+        Insert: {
+          atencion_min_pct?: number
+          bien_min_pct?: number
+          corte_1_hora?: string
+          corte_1_minimo?: number
+          corte_2_hora?: string
+          corte_2_incremento_pct?: number
+          corte_2_piso?: number
+          corte_2_techo?: number
+          cortes_activos?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          minimo_llamadas_utiles?: number
+          motivo: string
+          sabado_minimo?: number
+          tasa_baja_diferencia_pp?: number | null
+          version: number
+          version_anterior_id?: string | null
+          vigente_desde: string
+        }
+        Update: {
+          atencion_min_pct?: number
+          bien_min_pct?: number
+          corte_1_hora?: string
+          corte_1_minimo?: number
+          corte_2_hora?: string
+          corte_2_incremento_pct?: number
+          corte_2_piso?: number
+          corte_2_techo?: number
+          cortes_activos?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          minimo_llamadas_utiles?: number
+          motivo?: string
+          sabado_minimo?: number
+          tasa_baja_diferencia_pp?: number | null
+          version?: number
+          version_anterior_id?: string | null
+          vigente_desde?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politica_gestion_diaria_version_anterior_id_fkey"
+            columns: ["version_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "politica_gestion_diaria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inversionista_datos_contacto: {
         Row: {
           actualizado_en: string

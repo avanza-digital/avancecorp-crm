@@ -50,5 +50,10 @@ implementar/publicar F4 etapa 3 y compartir el banco ficticio. El plan principal
 registra esta distinción; no se presenta la solicitud como un despliegue realizado
 ni se ejecuta SQL de trabajos ajenos. Publicación/activación continúan pendientes.
 
+La aclaración posterior de Miguel fue «Implementar F4 etapa 3 y preparar su
+publicación». Se retoma ese alcance, no compartir el banco TypeSafe. La etapa 3
+prepara política versionada OFF, cálculos y contrato de lectura; pop-up y
+aplazamiento son etapa 4. Seguimiento: [[Gestion Diaria F4 - cortes de jornada (2026-09-21)]].
+
 Relacionadas: [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]] ·
 [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] · [[Inicio]].

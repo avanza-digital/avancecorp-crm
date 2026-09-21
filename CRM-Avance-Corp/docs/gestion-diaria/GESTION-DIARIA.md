@@ -31,21 +31,21 @@ los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para re
 
 ### Último punto de control — solicitud de publicación del 21/09/2026
 
-Miguel pidió «publica y ejecuta» y actualizar este plan. La revisión del checkpoint
-`8f1d009d` confirma que lo entregado desde la publicación de la etapa 2 son
-scripts locales de TypeSafe, pruebas y documentación: **no hay cambios en
-`app/src`, SQL nuevo ni Edge Functions de los cortes para instalar o publicar**.
-La solicitud no se registra como una publicación efectivamente realizada.
+Miguel aclaró «Implementar F4 etapa 3 y preparar su publicación» y autorizó
+ensayar el candidato únicamente en `gestion_diaria_f4_vista_chvrqh`, incluida
+su reversión. La solicitud no se registra como una publicación realizada.
 
 **F4 etapas 1–2:** publicadas; la última entrega funcional de este módulo sigue
 siendo `baa63aea` / PR #64. No repetir sus migraciones ya instaladas.
 
-**F4 etapas 3–6:** reglas de cortes aprobadas, implementación pendiente. El siguiente
-trabajo de producto es construir la etapa 3: cálculo de servidor con horas Lima,
-mínimos, base fija, exclusión de cartera vacía y pruebas de límites/permisos. Después
+**F4 etapa 3:** implementada y verificada en local; publicación preparada, no ejecutada.
+Candidato `20260921214018_crm_gestion_diaria_cortes.sql`: política versionada OFF,
+cálculo de servidor con horas Lima, mínimos, base fija, cartera vacía y pruebas
+de límites/permisos. Instalación, mutantes, regresiones, tipos, censo y reversión
+ensayados; la base local termina sin cortes instalados. Aplicación: 4.073 tests
+y `npm run check` PASS. [Entrega y límites](F4-CORTES-JORNADA.md). Después
 corresponden alertas y aplazamiento (etapa 4), configuración (etapa 5) y validación/
-activación (etapa 6). Primero presentar el SQL candidato concreto y su verificación;
-no ejecutar una migración ajena ni un `db push` general para atender esta solicitud.
+activación (etapa 6). No ejecutar una migración ajena ni un `db push` general.
 
 **F4.1:** banco ficticio local preparado, 38 pruebas offline y `check:scripts` PASS
 en `8f1d009d`; no es una integración productiva. Su servidor local A/B no autentica
@@ -54,9 +54,10 @@ otro alcance que debe precisarse, no una sustitución de `crm.miavance.com` por 
 banco de práctica. Faltan comprobación en navegador y sesión humana; para notas
 reales siguen pendientes clave renovada y condiciones acordadas.
 
-**Acción de esta solicitud:** aclarar si el destino es implementar/publicar los
-cortes de F4 o compartir el banco ficticio. Hasta concretarlo, se actualiza la
-documentación sin despliegue, SQL ni activación. La publicación posterior del CRM
+**Acción de esta solicitud, ya aclarada:** implementar y verificar la etapa 3,
+con Claude como reviewer, y preparar su publicación; no compartir el banco ficticio.
+El ensayo del SQL candidato recibió autorización sobre la copia local exacta.
+No se publica ni se activa todavía. La publicación posterior del CRM
 mantiene el flujo humano `$release-crm`, sus gates y la conciliación con
 `avancecorp/main`, preservando el trabajo concurrente.
 
@@ -107,7 +108,8 @@ verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md
 La etapa 2 está **PUBLICADA Y VERIFICADA el 21/09**, fuente `baa63aea`, PR #64.
 Acta vigente: [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md);
 implementación: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
-Queda el recorrido de negocio con el supervisor; las etapas 3–6 siguen pendientes.
+Queda el recorrido de negocio con el supervisor. Etapa 3 implementada y ensayada
+localmente, sin publicar; etapas 4–6 pendientes.
 Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
@@ -578,6 +580,11 @@ aprendida en F3. Cargando, vacío real, error y sin autorización son estados di
 ausencia en una caché parcial nunca se convierte en «no hizo nada».
 
 #### F4 · Etapa 3 — Cortes de la jornada
+
+**Estado:** implementada y verificada únicamente en local; publicación pendiente.
+Candidato `20260921214018_crm_gestion_diaria_cortes.sql`, política inicial OFF.
+La base de ensayo terminó restaurada; no hay instalación productiva ni cambios
+visibles de pantalla. [Detalle, checks y límites](F4-CORTES-JORNADA.md).
 
 El objetivo es detectar un ritmo de llamadas inferior al esperado durante el día con reglas
 explícitas y configurables. De lunes a viernes se evalúa a las 11:30 un mínimo inicial de tres
@@ -1152,6 +1159,8 @@ el ensayo en banco · instalar y publicar F1, F2 y F3.
 **Hechas después (21/09):** publicar F4 etapas 1–2; confirmar ambos supervisores por
 su equipo; fijar sábado en 3 llamadas; excluir cartera vacía de avisos de corte;
 aprobar un único aplazamiento por aviso/supervisor/día, sin reaviso al cierre o después.
+Autorizar también el ensayo y reversión local del candidato de F4 etapa 3;
+no es permiso de producción.
 
 **Pendientes:**
 
@@ -1184,7 +1193,11 @@ Para que nadie construya contra algo superado:
 
 # 3 · Diseño técnico — los cortes del día (F4)
 
-**Estado:** diseño revisado por Codex (SECONDARY_REVIEWER, read-only) · LEVEL 3 (permisos, RLS, política que juzga a personas) · **no se escribió ni una línea de código** · VERIFICATION: **NOT RUN** (no hay nada que verificar todavía).
+**Estado al 21/09:** etapa 3 implementada en el candidato `20260921214018` y
+verificada sólo en la copia local autorizada. Claude hizo revisión asesora;
+evidencia y límites en [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md). Los apartados
+de editor gerencial, reconocimiento, aplazamiento y activación siguen siendo
+diseño de etapas 4–6, no capacidades ya publicadas.
 
 ---
 
@@ -1201,7 +1214,8 @@ preguntar esas decisiones ni usar las propuestas anteriores que las contradigan.
 El 21/09 Miguel cerró las tres definiciones restantes: sábado mínimo tres; sin
 leads abiertos asignados, fuera de avisos de corte pero visibles en tabla; un solo
 aplazamiento por aviso/supervisor/día sin reaviso al cierre o después. El pendiente
-sigue visible. Falta implementar, verificar y activar mediante política futura.
+sigue visible. Cálculo y contrato de etapa 3 ensayados; faltan la publicación
+del candidato y la implementación/validación de etapas 4–6 para activar.
 El aviso requiere CRM abierto; no se incluye push con la aplicación cerrada.
 
 ---
@@ -1227,23 +1241,23 @@ version integer not null unique
 version_anterior_id uuid references crm.politica_gestion_diaria(id)
 vigente_desde timestamptz not null            -- SIN unique (ver §3, corrección Codex F11)
 -- lo que hoy vive en el cuerpo de la función (…041500…sql:186-197)
-bien_min_pct / atencion_min_pct / minimo_llamadas_utiles integer not null
+bien_min_pct / atencion_min_pct numeric not null
+minimo_llamadas_utiles integer not null
 -- lo nuevo
 cortes_activos boolean not null default false
 corte_1_hora time                             -- 11:30
-corte_1_minimo_llamadas integer
+corte_1_minimo integer
 corte_2_hora time                             -- 16:00
-corte_2_incremento_pct integer                -- 150
-corte_2_minimo_llamadas integer               -- piso absoluto
-corte_2_techo_llamadas integer                -- techo absoluto (ver §7)
-aplica_sabado boolean not null default true   -- la regla vigente es L–S
-corte_1_minimo_llamadas_sabado integer        -- arranque 3; obligatorio para activar el sábado
-tasa_baja_diferencia_pp integer              -- nullable: NULL desactiva esta alerta
-publicada_por uuid / publicada_en timestamptz
-check (not cortes_activos or (corte_1_hora is not null and … ))
+corte_2_incremento_pct numeric                -- 150
+corte_2_piso integer                          -- piso absoluto
+corte_2_techo integer                         -- techo absoluto
+sabado_minimo integer                        -- arranque 3, independiente
+tasa_baja_diferencia_pp numeric               -- NULL; todavía sin consumidor
+creado_por uuid / creado_en timestamptz / motivo text
+-- horas/mínimos obligatorios incluso OFF; rangos en el CHECK de la candidata
 ```
 
-Es un esquema propuesto, no una migración ya implementada. El calendario de evaluación
+Este es el modelo del candidato de etapa 3, todavía no productivo. El calendario de evaluación
 respeta L–V 09:00–18:00, sábado 09:00–13:00 con solo el primer corte y domingo sin avisos de
 jornada. Esos límites también gobiernan «parado». La política no activa el sábado sin su
 mínimo; una tasa baja nula significa desactivada, no cero ni quince puntos por defecto.
@@ -1251,17 +1265,21 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 - **Inmutable** por `private.trg_config_versionada_inmutable()` (el mismo trigger de SLA, `:299-313`), que lanza `55000` «publica una nueva revisión».
 - **Versión 1 sembrada con `vigente_desde = '-infinity'` lleva SOLO 45/25/5 y `cortes_activos = false`.** Corrección de Codex (F1): sembrar los cortes desde `-infinity` haría parecer que la obligación existía antes de inventarla. Los cortes nacen en la **versión 2**, con la jornada en que Miguel los enciende.
-- **RLS ON.** Policy de SELECT calcando `politica_abandono_select` (`20260816221500…:77-83`): `es_lector_global()` **o** `rol_crm(auth.uid()) is not null`. **Sin policy de INSERT/UPDATE/DELETE**: la única puerta de escritura es la función definer (igual que `sla_politicas`, `:447-461`).
-- **Grants:** `revoke all … from public, anon` + `grant select … to authenticated`. Nada más. Gerencia **no** escribe por PostgREST (a diferencia de `politica_abandono`, `:117-118`): una política que juzga personas necesita `expected_version` y validación de forma.
+- **RLS ON.** Requiere `puede_acceder_crm()` y rol CRM efectivo o lector global. Sin policies de INSERT/UPDATE/DELETE; todavía sin función de publicación (etapa 5).
+- **Grants:** revocación total a PUBLIC/anon/authenticated/service_role y SELECT por columna sólo de parámetros para authenticated. Motivo, autor y fecha administrativa no se leen directamente por API, ni siquiera como gerencia; el editor futuro tendrá una puerta autorizada específica.
+- **Vigencia ordenada:** versión siguiente, autor obligatorio y jornada futura no anterior a la última programada. Se admite la misma jornada para corregir una revisión pendiente: gana la versión mayor.
 - Trigger de auditoría `private.log_audit_crm()`.
 
 **Por qué versionada y no singleton (y dónde Codex me corrigió el argumento).** El motivo válido es uno solo: **la puerta F3 ya admite consultar días pasados** (`p_dia` hasta un año atrás, `…041500…sql:534-535`) y con una fila que se pisa, el martes pasado se re-juzgaría con la perilla de hoy. El argumento que yo daba de que `dias_auto_bolsa` lleva un mes sin consumidor **no prueba nada** sobre singleton vs versionado (Codex, aceptado): prueba otra cosa, que una perilla sin pantalla se muere.
 
-**Dónde vive la tabla (desacuerdo registrado con Codex, F8).** Codex propone bajarla a `private` con cero grants (precedente real: `crm.conversion_pesos`, `20260811154434:409-412`). **No lo hago**, y la evidencia es literal: estos valores **ya viajan hoy a cualquier analista autenticado** dentro de su propio día, en la clave `'umbrales'` (`…041500…sql:460`). Esconder la tabla no compra confidencialidad y en cambio obligaría a convertir `private.gestion_diaria_umbrales()` de `invoker` a `definer`, tocando una propiedad que el gate sella. Sí acepto la otra mitad de F8: **la lógica de evaluación baja al núcleo** (§4).
+**Dónde vive la tabla.** Se mantiene en `crm` con lectura RLS de parámetros porque
+los umbrales ya viajan al día del analista. La revisión de Claude añadió la
+restricción por columna para no exponer motivos ni atribución administrativa.
+El resolutor proyecta sólo parámetros; sigue INVOKER, sin SELECT `*`.
 
 ---
 
-### 3 · La puerta
+### 3 · La puerta gerencial — pendiente de etapa 5
 
 **Lectura del editor** — `crm.configuracion_gestion_diaria_fn()`, DEFINER con `search_path = ''`, calco de `crm.configuracion_sla_fn` (`20260807203757…:571-607`). Devuelve `expected_version`, `puede_editar` (= `rol_crm = 'gerencia'`, **calculado en servidor**), la política vigente con autor, la frase de ejemplo ya calculada, y —corrección de Codex F11— **`revisiones_pendientes[]`**: las versiones con `vigente_desde` futuro. Sin eso, gerencia edita a ciegas sobre valores antiguos y pisa lo que ya estaba programado.
 
@@ -1269,7 +1287,7 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 - `rol_crm(auth.uid()) = 'gerencia'` o **42501**.
 - Forma exacta del jsonb: `?&` con todas las claves **y** `p_config - array[...] <> '{}'` para rechazar claves de más.
-- Rangos: porcentajes 0–100 con `atencion_min_pct <= bien_min_pct`; `minimo_llamadas_utiles` 1–100; mínimos y piso 1–200; incremento 0–900; `corte_2_hora >= corte_1_hora + 60 min`; ambas horas dentro de 06:00–22:00 Lima.
+- Rangos base del candidato: `0 <= atencion_min_pct < bien_min_pct <= 100`; mínimos, piso y techo 1–500, techo no menor al piso; incremento 0–1000. Primer corte después de 09:00 y antes de 13:00; segundo después del primero y antes de 18:00. La antigua propuesta 06:00–22:00 no respeta el calendario aprobado y no se aplica.
 - **Vigencia**: `p_vigente_desde` debe ser el **inicio de una jornada Lima futura** (no una hora cualquiera). Ver §4.
 - `pg_advisory_xact_lock(hashtext('crm.politica_gestion_diaria'), 1)` + `p_expected_version <> v_actual` → **40001**.
 - **Sin `unique` en `vigente_desde`, y el resolutor ordena `(vigente_desde desc, version desc)`.** Es la única desviación deliberada del molde SLA y la razón es la que levantó Codex (F11): con `unique`, una revisión ya programada para mañana **no se puede corregir** sin romper la inmutabilidad. Sin `unique`, la corrección es simplemente una versión mayor para la misma jornada, y gana. `private.sla_politica_vigente` ya desempata así (`:562-569`), o sea que el patrón de lectura no se inventa.
@@ -1279,9 +1297,9 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 **Encaje con `private.gestion_diaria_umbrales()` (hoy a fuego, `…041500…sql:186-202`) — corregido por Codex (F2).** Mi plan original («le pongo un parámetro con default») **no funciona**: en Postgres una función de cero argumentos y otra de un argumento con default son firmas distintas, y `create or replace` no puede añadir un parámetro. Diseño corregido:
 
 - Se **añade** `private.gestion_diaria_umbrales(p_instante timestamptz)` — sin default — que lee la vigente.
-- La de cero argumentos **se conserva** como envoltorio (`select private.gestion_diaria_umbrales(now())`), para no hacer un `drop` en producción ni reemitir grants. Su cuerpo cambia → **hay que re-sellar el md5 `6ab633af9f5356f3fa11cf309ff4b25c` en `private.assert_gestion_diaria_analista()` (`:801`)**.
+- La de cero argumentos **se conserva** como envoltorio que resuelve a medianoche Lima del día actual. Su cuerpo y el de F3/F4 quedaron re-sellados en el candidato; no se editan migraciones anteriores ni se reemiten grants heredados.
 - **`private.gestion_diaria_analista_core` deja de llamarla sin argumento** (`:331`) y pasa `p_ini` explícito. Su cuerpo cambia → **re-medir y re-sellar su md5 (`:800`)**.
-- **Mutantes obligatorios** (`:907`, `:912`; `npm run test:mutantes`): uno por cada defensa nueva — la policy de UPDATE ausente, el 42501 de la publicación, el 40001 de `expected_version`, el rechazo de claves extra, el techo/piso del corte 2.
+- **Mutantes de etapa 3:** 15 alteraciones deliberadas de RLS, grants por tabla/columna, cuerpos, triggers, redondeo y umbrales legacy detectadas por el gate. El 42501 de publicación, `expected_version` y claves extra tendrán pruebas propias cuando exista la puerta de etapa 5.
 - La migración `20260920041500` **está en producción y registrada** (acta en `supabase/migrations/MIGRACIONES.md`, sección «20260920041500 — Gestión Diaria (F3)», 20/09 ~06:19 UTC): **no se edita**. Todo esto va en migración nueva.
 
 **Autorización, explícita y no «por calco»** (Codex F6, aceptado como vacío de diseño): por cada RPC hay que escribir quién tiene `execute`, qué comprueba dentro cada DEFINER, cómo se acota `p_supervisor_id` a la jerarquía del actor (`private.vendedor_ids_visibles`), y qué ven gerencia, directorio y lector global. Se prueba identidad por identidad en el postflight con `set_config('request.jwt.claims')`, patrón `20260916205617:240-379`.
@@ -1290,9 +1308,16 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 ### 4 · El cálculo de los cortes
 
-**Dónde vive: en el núcleo, no en la puerta y desde luego no en la pantalla.** `private.gestion_diaria_cortes(p_dia, p_ini, p_vendedor_ids, p_politica jsonb)`; la puerta `crm.gestion_diaria_equipo_fn` (ya publicada en F4 etapa 1) **solo autoriza y compone** al incorporar los cortes. Corrección de Codex (F8): yo lo tenía en la puerta, y la regla de la casa es que la puerta no lleva lógica de negocio.
+**Dónde vive:** `private.gestion_diaria_cortes(p_dia date, p_analistas uuid[], p_ahora timestamptz)`
+resuelve la política al inicio del día. El núcleo de equipo añade `cortes` usando
+su roster autorizado y su único reloj de servidor. La firma RPC no cambia ni
+admite reloj del navegador. Reconocer/posponer tampoco podrá admitirlo en etapa 4.
 
-**Cómo se mide.** Componiendo el núcleo que **ya está en producción**, `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` (`…041500…sql:206-307`), con tres ventanas: `[día, corte_1)`, `[día, corte_2)`, `[día, min(ahora, fin_día))`. Composición, no duplicación: sigue habiendo **una sola** definición de llamada. **No se usa `por_hora`**: es un array disperso de **hora entera** (`:235`, `extract(hour from … at time zone 'America/Lima')`) y no puede expresar las 11:30.
+**Cómo se mide.** Componiendo `private.gestion_diaria_llamadas` sin modificarla:
+`[día,corte_1)`, `[día,corte_2)` y `[día,min(ahora,límite_recuperación))`.
+El límite de recuperación es el segundo corte entre semana y 13:00 el sábado.
+No se usa el desglose por hora entera: no distingue las 11:30. Una llamada
+exactamente al corte no pertenece a su ventana anterior; esos límites se prueban.
 
 **Zona horaria.** Todo con `at time zone 'America/Lima'`, como `…041500…sql:578-580`; nunca `-05:00` a mano. Perú no observa horario de verano desde 1994, pero da igual: al usar el nombre de zona, el cálculo es correcto aunque cambiara. Codex no pudo confirmarlo con la evidencia pegada y lo dejó como pregunta abierta; queda anotado.
 
@@ -1304,10 +1329,10 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 Resolviendo en `v_ini` y exigiendo que `vigente_desde` sea el inicio de una jornada futura, **las reglas del día se fijan al amanecer y no se mueven**. Es una decisión ya cerrada en F4.
 
 **Las reglas.**
-- **Corte 1 (11:30):** falla si `llamadas_acumuladas < corte_1_minimo_llamadas`.
-- **Corte 2 (16:00):** objetivo = `max(ceil(base × (100 + incremento)/100), corte_2_minimo_llamadas)`, acotado por `corte_2_techo_llamadas`. **`ceil`, no `round`** (Codex F9): con base 8 e incremento 30 %, el objetivo es 10,4 y «al menos» significa **11**; `round` daría 10. Con 150 % el defecto queda oculto porque salen enteros.
+- **Corte 1 (11:30):** falla si `llamadas_acumuladas < corte_1_minimo`.
+- **Corte 2 (16:00):** objetivo = `max(ceil(base × (100 + incremento)/100), corte_2_piso)`, acotado por `corte_2_techo`. **`ceil`, no `round`**: con base 8 e incremento 30 %, se exigen **11**.
 - **Base cero:** si el acumulado del corte 1 es 0, la razón siempre pasa (0 × 2,5 = 0) y con base 1 pide 3 — por eso el **piso absoluto** manda en ese caso.
-- **Sábado:** si `aplica_sabado` (default **true**), jornada 09:00–13:00 con solo el primer corte a las 11:30 y mínimo independiente inicial de **3**. No se calcula corte de tarde ni inactividad desde las 13:00. Domingo sin avisos de jornada.
+- **Sábado:** jornada fija 09:00–13:00, sólo primer corte a las 11:30 y `sabado_minimo` independiente, inicialmente **3**. No se añade una perilla para suprimirlo; no fue solicitada. Domingo sin avisos de jornada.
 - **Feriados: no existe calendario laboral en el repo** (`grep feriado|festivo|dias_no_laborables|calendario_laboral` sobre `supabase/migrations/` y `app/src/` → **0 resultados**) y **no propongo crearlo**. Mi heurística de «día atípico» (silenciar si menos de un tercio del roster registró llamadas) **la retiro**: Codex (F3) demostró que apaga la alarma exactamente el día en que nadie llamó, que es el día que más importa. En su lugar: la alerta **se emite siempre**, y cuando la participación del equipo entero está por los suelos lleva una marca de contexto («actividad excepcionalmente baja en todo el equipo — revisa si hoy es feriado o hubo una incidencia») y se presenta como **una** alerta de equipo, no como N individuales. Silenciar un día requiere una decisión explícita, no una inferencia.
 - **Analista que entró a media mañana:** no se prorratea. La alerta incluye `primera_llamada_en` (ya lo devuelve el núcleo, `:483-484`) para que el supervisor lea el contexto. **Quien tiene cero llamadas SÍ entra en el grupo del corte** — corrección de Codex (F4): mi deduplicación original lo dejaba solo en `sin_llamadas_hoy` y fuera del aviso fuerte, o sea que el que peor está recibía el aviso más débil. `sin_llamadas_hoy` se suprime **en la presentación** para quien ya está dentro del grupo del corte, no en el cálculo.
 - **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`). Miguel aprobó excluir del aviso de corte a quien no tenga ningún lead abierto asignado, sin ocultarlo en tabla. Cero llamadas no excluye por sí solo a un analista con cartera abierta. No extrapolar esta exclusión a las demás alertas.

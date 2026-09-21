@@ -7957,6 +7957,58 @@ async function testGestionDiariaAnalista(sessions, seed) {
   }
 }
 
+async function testGestionDiariaCortes(sessions, seed) {
+  console.log('\n— Gestión Diaria: política y cortes (F4 etapa 3) —');
+  const FN = 'gestion_diaria_equipo_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  const instalada = contarFueraDeBanda('F4.3: presencia de la migración',
+    "select case when to_regclass('crm.politica_gestion_diaria') is not null then 1 else 0 end") === 1;
+  const probe = await sessions.gerencia.client.schema('crm').rpc(FN, {});
+  if (probe.error?.code === 'PGRST202' || (!probe.error && !probe.data?.cortes)) {
+    const msg = '⚠ F4.3 no instalada: cortes SALTADOS (no probado)';
+    if (instalada || process.env.CRM_RLS_EXIGE_CORTES === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  check(!probe.error && probe.data?.cortes?.version === 1, 'F4.3 responde con contrato de cortes');
+  for (const quien of ['sup1', 'sup2', 'gerencia', 'directorio']) {
+    const { data, error } = await sessions[quien].client.schema('crm').rpc(FN, {});
+    check(!error && data?.cortes?.politica_version === data?.umbrales?.politica_version,
+      `${quien}: cortes y contacto comparten política de la jornada`);
+    if (data?.cortes?.estado === 'activo') {
+      check(sameStrings(data.cortes.equipo.map((f) => f.analista_id), data.equipo.map((f) => f.analista_id)),
+        `${quien}: cortes cubren exactamente el roster autorizado`);
+    } else check(data?.cortes?.equipo?.length === 0, `${quien}: cortes no evaluados sin falsos ceros`);
+    if (quien === 'sup1') check(data?.equipo?.some((f) => f.analista_id === id('vend1'))
+      && data.equipo.every((f) => f.analista_id !== id('vend3')), 'sup1: propio analista sí, equipo ajeno no');
+  }
+  const ajeno = await sessions.sup1.client.schema('crm').rpc(FN, { p_supervisor_id: id('sup2') });
+  check(isAuthorizationError(ajeno.error), 'sup1 no consulta cortes de sup2');
+  for (const quien of ['vend1', 'coordinador', 'vendInactive']) {
+    const { error } = await sessions[quien].client.schema('crm').rpc(FN, {});
+    check(isAuthorizationError(error), `${quien}: equipo/cortes denegados`);
+  }
+  for (const quien of ['sup1', 'gerencia', 'vend1', 'coordinador', 'directorio']) {
+    const db = sessions[quien].client.schema('crm');
+    const lectura = await db.from('politica_gestion_diaria').select('version,cortes_activos').eq('version', 1);
+    check(!lectura.error && lectura.data?.length === 1 && lectura.data[0].cortes_activos === false,
+      `${quien}: lee semilla histórica OFF`);
+    const motivo = await db.from('politica_gestion_diaria').select('motivo');
+    check(isAuthorizationError(motivo.error), `${quien}: no lee motivos por tabla sin puerta autorizada`);
+    const escritura = await db.from('politica_gestion_diaria').update({ motivo: 'FORJADO TEST RLS' }).eq('version', 1);
+    check(isAuthorizationError(escritura.error), `${quien}: no escribe política directamente`);
+  }
+  const baja = await sessions.vendInactive.client.schema('crm').from('politica_gestion_diaria').select('version');
+  check(!baja.error && baja.data?.length === 0, 'Analista revocado no lee configuración');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-cortes'));
+  const anonTabla = await anon.schema('crm').from('politica_gestion_diaria').select('version');
+  check(isAuthorizationError(anonTabla.error), 'anon no lee política');
+  const anonRpc = await anon.schema('crm').rpc(FN, {});
+  check(isAuthorizationError(anonRpc.error), 'anon no ejecuta equipo/cortes');
+  // Fronteras horarias, recuperación y versiones futuras: test-cortes.sql,
+  // en la copia local autorizada y con reloj clonado, no con cambios de hora reales.
+}
+
 async function testGestionDiariaResultado(sessions, seed) {
   console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
   const FN = 'registrar_llamada_v3';
@@ -14166,6 +14218,7 @@ async function main() {
       await testGestionDiariaRegistro(sessions, verifiedSeed);
       await testGestionDiariaResultado(sessions, verifiedSeed);
       await testGestionDiariaAnalista(sessions, verifiedSeed);
+      await testGestionDiariaCortes(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }
