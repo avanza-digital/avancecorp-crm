@@ -43,5 +43,12 @@ Verificación y revisión independiente de esta entrega:
 No se toca la etapa 2 publicada (`baa63aea`) ni se instalan cortes. Su siguiente
 implementación es F4 etapa 3; TypeSafe no la bloquea.
 
+Solicitud posterior del 21/09: Miguel pidió «publica y ejecuta» y actualizar el
+plan. Se comprobó que `8f1d009d` no añade aplicación productiva ni SQL/Edge de
+cortes: contiene banco local, pruebas y documentación. Se pidió precisar entre
+implementar/publicar F4 etapa 3 y compartir el banco ficticio. El plan principal
+registra esta distinción; no se presenta la solicitud como un despliegue realizado
+ni se ejecuta SQL de trabajos ajenos. Publicación/activación continúan pendientes.
+
 Relacionadas: [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]] ·
 [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] · [[Inicio]].

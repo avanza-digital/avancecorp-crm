@@ -29,6 +29,37 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
+### Último punto de control — solicitud de publicación del 21/09/2026
+
+Miguel pidió «publica y ejecuta» y actualizar este plan. La revisión del checkpoint
+`8f1d009d` confirma que lo entregado desde la publicación de la etapa 2 son
+scripts locales de TypeSafe, pruebas y documentación: **no hay cambios en
+`app/src`, SQL nuevo ni Edge Functions de los cortes para instalar o publicar**.
+La solicitud no se registra como una publicación efectivamente realizada.
+
+**F4 etapas 1–2:** publicadas; la última entrega funcional de este módulo sigue
+siendo `baa63aea` / PR #64. No repetir sus migraciones ya instaladas.
+
+**F4 etapas 3–6:** reglas de cortes aprobadas, implementación pendiente. El siguiente
+trabajo de producto es construir la etapa 3: cálculo de servidor con horas Lima,
+mínimos, base fija, exclusión de cartera vacía y pruebas de límites/permisos. Después
+corresponden alertas y aplazamiento (etapa 4), configuración (etapa 5) y validación/
+activación (etapa 6). Primero presentar el SQL candidato concreto y su verificación;
+no ejecutar una migración ajena ni un `db push` general para atender esta solicitud.
+
+**F4.1:** banco ficticio local preparado, 38 pruebas offline y `check:scripts` PASS
+en `8f1d009d`; no es una integración productiva. Su servidor local A/B no autentica
+supervisores ni implementa permisos de equipo. Compartirlo fuera de la máquina es
+otro alcance que debe precisarse, no una sustitución de `crm.miavance.com` por el
+banco de práctica. Faltan comprobación en navegador y sesión humana; para notas
+reales siguen pendientes clave renovada y condiciones acordadas.
+
+**Acción de esta solicitud:** aclarar si el destino es implementar/publicar los
+cortes de F4 o compartir el banco ficticio. Hasta concretarlo, se actualiza la
+documentación sin despliegue, SQL ni activación. La publicación posterior del CRM
+mantiene el flujo humano `$release-crm`, sus gates y la conciliación con
+`avancecorp/main`, preservando el trabajo concurrente.
+
 ### Objetivos y estado por fase
 
 **F0 — Cimientos.** Preparar una base visual y técnica común para todo el módulo: Plus
