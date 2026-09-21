@@ -1,9 +1,11 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-20
+actualizado: 2026-09-21
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Auditoria de conversiones - capas backend a frontend (2026-09-21)]] — **AUDITORÍA CERRADA «CON LO QUE HAY» (21/09), CORRECCIONES PENDIENTES DE OK:** 10 de 11 cifras de gerencia salen del núcleo único (Citas no); pero rango/Distribución recalculan en vivo meses sellados y publican el numerador BRUTO mientras Ranking/Metas/HOY sirven foto y NETO — dos verdades para el mismo mes; la sonda de paridad compara el núcleo consigo mismo; la deuda por anulaciones se descuenta en dos meses abiertos a la vez; ningún gate protege «un solo núcleo». Sonda de producción escrita y pendiente (`supabase/scripts/sonda-paridad-conversion-prod.sql`). Cómo retomar desde otra cuenta: `CRM-Avance-Corp/docs/auditorias/conversion-2026-09-21/RETOMAR-EN-OTRA-CUENTA.md`.
 
 - [[Ficha de lead - retiro del boton Registrar actividad 2026-09-20]] — **CORRECCIÓN DE SUPERVISIÓN PUBLICADA Y VERIFICADA:** el acceso rápido fue retirado y el historial conserva su scroll. El aviso de seguimiento ya no ofrece ni puede abrir el compositor para Supervisor o Gerencia; `vendedor` conserva su gestión SLA. Release `crm-20260920T223427Z-8b3252b48455`, build `build-20260920T223425954Z`; CI, hashes de producción y protección del ZIP PASS.
 

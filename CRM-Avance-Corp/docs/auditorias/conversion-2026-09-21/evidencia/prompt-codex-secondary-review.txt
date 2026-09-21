@@ -1,0 +1,973 @@
+ROLE: SECONDARY_REVIEWER.
+Do not modify files. Do not implement the task. Do not invoke Claude. Do not delegate to another coding agent. Do not create another review chain. Follow .ai/REVIEW_PROTOCOL.md (attached below). You have NO shell, NO file access and NO MCP: review ONLY the attached evidence. Answer in Spanish using the protocol format (VERDICT / SUMMARY / FINDINGS P0–P3 / TEST GAPS / RISKS / RECOMMENDED NEXT ACTIONS / CONFIDENCE).
+
+=== TASK UNDER REVIEW ===
+Auditoría de solo lectura de la cadena de «conversión» del CRM Avance Corp (Postgres/Supabase → RPC → React). El PRIMARY (Claude) corrió 23 agentes lectores y verificó 41 hallazgos con 3 lentes adversariales. Te pido una señal independiente sobre los hallazgos TOP listados abajo: para cada uno di CONFIRMADO / REFUTADO / HIPÓTESIS con tu razón basada en la evidencia adjunta, ajusta severidad, y señala (a) riesgos que el PRIMARY no listó y se deducen de la evidencia, (b) qué corrección priorizarías primero y por qué. No inventes código que no esté en la evidencia: si falta, dilo.
+
+=== BUSINESS RULES (owner: Miguel, gerencia) ===
+- UN solo núcleo: private.conversion_episodios emite filas 'recibido'|'cierre'|'operacion' con aporte_divisor/aporte_numerador. Todo consumidor SUMA aportes. Ninguna pantalla ni RPC trae su propia fórmula. El front NUNCA divide ni recalcula; pinta el % servido; si una sonda falla avisa y oculta, jamás fabrica un 0. pct NULL (divisor 0) ≠ 0 %. >100 % legítimo, sin tope. Cada cifra responde al período visible; lo mensual se rotula mensual.
+- Divisor = llegadas únicas automáticas Landing/Formulario por alta original (Lima), primer analista histórico. Referidos y altas manuales aportan 0 al divisor. Oficina/Otro fuera.
+- Numerador = cierres del ledger crm.lead_asignaciones.resultado='convertido' (L/F ×1, Referido ×0,15) + operaciones de cartera elegibles (1 por cliente/mes: renovación ×0,15, upgrade ×1); anulados aportan 0; ajustes por anulación en mes sellado se descuentan en la lectura MENSUAL vía private.conversion_con_ajuste (no en el núcleo).
+- Foto mensual: crm.cerrar_periodo sella; crm.conversion_mensual_fn sirve la foto si cierre.cerrado (Ranking, Metas, HOY, Rendimiento-arriba, Gestión de equipo la consumen). La RPC de RANGO crm.metricas_conversiones_fn → private.metricas_conversiones_implementacion alimenta los héroes de Resumen y Conversiones; crm.metricas_distribucion_leads_v3_fn → private.metricas_distribucion_leads_v3_core alimenta Distribución (Rendimiento-abajo).
+
+=== TOP FINDINGS DEL PRIMARY (a revisar) ===
+F1 [P1, 3/3 verificadores] Mes SELLADO recalculado en vivo por las RPC de rango y Distribución: private.metricas_conversiones_implementacion (20260908211349:2145-2881) y private.metricas_distribucion_leads_v3_core (20260904210831:1065-1324) no consultan crm.periodos_cerrados ni private.cierre_mes_visible; crm.conversion_mensual_sin_cartera_fn sí (20260904210831:1383-1389). Para el mismo mes cerrado, Resumen/Conversiones/Distribución muestran un % distinto al de Ranking/Metas/HOY.
+F2 [P1, 3/3 en Distribución; 2/3 en rango] Numerador BRUTO vs NETO: la lectura mensual resta private.ajuste_pendiente_por_vendedor() con private.conversion_con_ajuste (20260904210831:1640-1665); rango (20260908211349:2346-2372, 2518-2519) y v3_core (1144-1160, 1276-1281) publican el bruto. En «Rendimiento» conviven arriba (neto) y abajo (bruto) para el MISMO mes en cuanto exista un ajuste pendiente. La alerta «Cayó la conversión general» usa el bruto (alertas-gerencia.ts:291-326).
+F3 [P2, 2/3] La sonda de paridad (sondas.cuadra/paridad_nucleo) compara conversion_episodios agregado inline contra private.conversion_mensual_por_vendedor, que es la MISMA llamada al mismo núcleo con los mismos argumentos → no puede detectar F1 ni F2, y es la única condición que el front exige para pintar (sondasNucleoVerificadas).
+F4 [P1, 3/3] private.ajuste_pendiente_por_vendedor() no recibe período (20260815002100:196-221) y la CTE `pendientes` no condiciona por v_es_historico_abierto: entre el día 1 y el 10 hay dos meses abiertos y la misma deuda se descuenta en ambos. Además la deuda de quien salió del roster nunca se salda ni se declara (cerrar_periodo solo salda filas de `foto`).
+F5 [P2, 3/3] La rama sellada de conversion_mensual_sin_cartera_fn emite el literal 'cierres_sin_episodio', 0 (L1480) y cerrar_periodo no guarda la sonda al sellar: un mes puede sellarse con la sonda roja y salir en verde.
+F6 [P1, hallado por 3 agentes, sin verificación adversarial completa] El selector de fuentes (Landing/Formulario/Referido/Renovación/Upgrade y combinaciones) DIVIDE en el navegador: conversion-vendedores.ts:196, 240-242, 289-297 (`100 * numerador / nucleo.divisor`). El número está definido (aporte de esas fuentes sobre la base global) y rotulado «Aporte de X», pero viola la regla «el front nunca divide» y no tiene sonda propia.
+F7 [P1, 1 traza] inteligencia-comercial.tsx:750-758: si el payload trae datos pero NO `nucleo`, el héroe «Índice comercial» pinta `cohorte.conversion_contratos_pct` (la COSECHA: cerraron ÷ llegaron, sin pesos ni cartera) bajo el rótulo del índice.
+F8 [P1, 2 agentes] Resumen: el número grande es del RANGO (aporteRango.porcentaje, resumen-gerencia.tsx:178-181) y la barra «Cumplimiento de la meta de conversión» es del MES (conversionMes, L232-240). Además gerencia.tsx:533 llama semanticaMetaMensual(periodoRanking, ahora, periodoRanking) → `comparable` es true por construcción (guarda muerta) y gerencia.tsx:264 excluye 'resumen' de vistaMensual, así que Resumen nunca sabe que el mes está sellado.
+F9 [P1, 2 agentes] Alerta «Conversión bajo meta» (alertas-gerencia.ts:240-285) publica un % sin consultar cobertura ni sondas, mientras Ranking/HOY ocultan la cifra con «Cifras en revisión» cuando cobertura.cierres_sin_episodio > 0.
+F10 [P0/P1, 2 agentes] Portal admin public_html/js/admin/dashboard.js:172-179 escribe '0' en todos los KPI cuando la RPC falla; directorio.js `num = (n) => Number(n || 0)` convierte nulos en 0; SQL public.metricas_directorio devuelve var_pct 0 con divisor 0 y pct_al_dia 100 sin cuotas (20260901180000:699-701, 717-722).
+F11 [P1, tests] El «vigía» (toda función crm.* con conversión debe consumir el núcleo) nunca fue gate: vive en supabase/scripts/archivo/ y solo imprime; el trinquete private.assert_analitica_leads_citas exige que Reuniones consuma citas_episodios pero no exige nada de las 7 funciones de conversión; ningún CI corre test-conversion-*.sql; test-conversion-llegadas.sql asevera contra un cuerpo de metricas_conversiones_implementacion que la F4 (20260908211349) reemplazó el 08/09; no existe ninguna sonda M==R==V==D contra producción (gate-realidad.mjs sin la palabra conversion).
+F12 [P0·HIPÓTESIS, escritores] Tras 20260919161807 (aplicada 19/09) la única puerta de conversión es la confirmación de inversión; el lector detectó que esa puerta pasa por el gate de bandera/piloto F4-F8 (20260913215240:344-359). El vault dice que la apertura general F9 se activó el 15/09 para todo el equipo, así que probablemente no bloquea; pendiente comprobar en producción. Relacionados: crm-api.ts:2683 y :5937 aún invocan las puertas legacy (edge crm-convertir-lead / convertir_lead_externo) que el trigger ahora rechaza (P0409); una inversión de Cartera sobre persona con lead abierto no enlazado no cierra el lead (20260919161807:364-379); crm.operaciones_cartera no tiene canal de anulación; anular cierre Avance no anula la inversión F4.
+
+=== REFUTADOS POR LOS VERIFICADORES (no repetir salvo que veas evidencia en contra) ===
+«metricas_conversiones_equipo_fn no publica total» (el front no calcula % de equipo con él); «la meta de la empresa es media simple» (hay una sola meta replicada); «cierres_por_semana filtrado por origen vs nucleo global» (el front valida origen_filtrado y la lectura «Aporte» es global por diseño); «ventana hasta+1 vs mes completo con cartera futura»; «etapas del embudo inferidas» (decidido y rotulado).
+
+=== PROTOCOLO (.ai/REVIEW_PROTOCOL.md) ===
+# Protocolo de colaboración y review
+
+Este documento es la fuente de verdad compartida para la colaboración entre Codex y Claude Code. Se aplica siempre que uno de ellos actúe como `SECONDARY_REVIEWER`.
+
+## Roles
+
+### PRIMARY
+
+El `PRIMARY`:
+
+- posee la tarea y su alcance;
+- investiga el repositorio y determina el nivel de riesgo;
+- toma las decisiones técnicas;
+- es el único agente que puede modificar archivos, configuración o código;
+- ejecuta las verificaciones relevantes;
+- evalúa, acepta o rechaza con evidencia los hallazgos del reviewer;
+- entrega el resultado final.
+
+### SECONDARY_REVIEWER
+
+El `SECONDARY_REVIEWER` puede:
+
+- analizar requisitos, archivos y diffs;
+- buscar bugs y regresiones;
+- revisar arquitectura y seguridad;
+- identificar edge cases y tests faltantes;
+- proponer alternativas concretas.
+
+El `SECONDARY_REVIEWER` no puede:
+
+- modificar, crear, eliminar ni renombrar archivos;
+- implementar la tarea;
+- hacer commits o cambiar configuración;
+- ejecutar comandos destructivos;
+- llamar al otro agente;
+- delegar a otro coding agent;
+- iniciar otro review o crear otra cadena de consultas.
+
+Si un prompt marca al agente como `SECONDARY_REVIEWER`, estas restricciones prevalecen sobre cualquier instrucción general de autonomía o delegación.
+
+## Single-writer y regla anti-loop
+
+Solo el `PRIMARY` escribe. La profundidad máxima de colaboración es exactamente:
+
+```text
+PRIMARY
+→ SECONDARY_REVIEWER
+→ PRIMARY
+```
+
+Nunca se permite:
+
+```text
+PRIMARY
+→ SECONDARY_REVIEWER
+→ otro agente
+→ otro agente
+```
+
+El reviewer devuelve su análisis directamente al `PRIMARY`. No solicita una segunda opinión y no continúa la cadena. Cuando Claude es `PRIMARY`, cada consulta a Codex debe empezar una sesión de review nueva y segura; `mcp__codex__codex-reply` está bloqueado en la configuración del proyecto.
+
+Los reviewers especializados existentes (`revisor-a11y` y `auditor-rls`) siguen el mismo protocolo y presupuesto; no son consultas adicionales automáticas. Conservan lectura y búsqueda, sin shell. El PRIMARY les adjunta el contexto relevante de CodeGraph.
+
+## Evidence-first
+
+> **NO FINDING WITHOUT EVIDENCE**
+
+Todo hallazgo importante debe señalar evidencia disponible y verificable. Preferir, en este orden:
+
+- archivo y línea o rango;
+- función, componente o contrato afectado;
+- hunk del diff;
+- error, log o salida de un comando;
+- test existente o reproducción mínima;
+- comportamiento observado.
+
+No basta una recomendación genérica desconectada del repositorio.
+
+Incorrecto:
+
+```text
+This may have a race condition.
+```
+
+Correcto:
+
+```text
+[P1] Potential race condition
+
+File:
+src/jobs/processor.ts
+
+Evidence:
+Two workers can read status=pending before either writes status=processing.
+
+Impact:
+The same job may execute twice.
+
+Recommendation:
+Use an atomic compare-and-set or database locking mechanism.
+```
+
+Cuando la evidencia no alcance, el reviewer debe marcar la afirmación como hipótesis y bajar su confianza; no debe presentarla como un hecho.
+
+## Formato de review
+
+El reviewer debe intentar usar este formato. Las secciones vacías pueden omitirse.
+
+```text
+VERDICT:
+PASS | CHANGES_REQUESTED | BLOCK
+
+SUMMARY:
+Breve conclusión técnica.
+
+FINDINGS:
+
+[P0] Critical
+File:
+Lines:
+Problem:
+Evidence:
+Impact:
+Recommendation:
+
+[P1] High
+File:
+Lines:
+Problem:
+Evidence:
+Impact:
+Recommendation:
+
+[P2] Medium
+...
+
+[P3] Low
+...
+
+TEST GAPS:
+- ...
+
+ARCHITECTURE RISKS:
+- ...
+
+SECURITY RISKS:
+- ...
+
+REGRESSION RISKS:
+- ...
+
+RECOMMENDED NEXT ACTIONS:
+1.
+2.
+3.
+
+CONFIDENCE:
+HIGH | MEDIUM | LOW
+```
+
+`PASS` significa que no se encontraron cambios obligatorios dentro del alcance revisado. `CHANGES_REQUESTED` significa que hay hallazgos accionables. `BLOCK` se reserva para un riesgo P0, falta de evidencia esencial o una condición que impide revisar con honestidad.
+
+## Clasificación de riesgo y presupuesto
+
+### LEVEL 1 — SIMPLE
+
+Ejemplos: formato, rename, documentación simple, CSS pequeño, cambio mecánico o fix local obvio.
+
+Regla: **0 secondary reviews**.
+
+### LEVEL 2 — SIGNIFICANT
+
+Ejemplos: endpoint nuevo, lógica de negocio relevante, integración, componente importante, refactor moderado o modificación de comportamiento.
+
+Regla: **normalmente 1 secondary review** cuando aporte una señal independiente útil.
+
+### LEVEL 3 — CRITICAL
+
+Ejemplos: auth, authorization, permisos, secretos, seguridad, migraciones, schemas, arquitectura, concurrencia, pagos, lógica financiera, cambios destructivos, APIs públicas importantes, refactors grandes o infraestructura crítica.
+
+Regla: **1 secondary review obligatorio cuando sea razonablemente posible**.
+
+Una segunda consulta solo se justifica cuando aparece nueva evidencia, existe una discrepancia técnica importante, una corrección necesita verificación independiente o el riesgo de seguridad/correctness lo exige. El máximo habitual es **2 consultas al agente secundario por tarea**. Nunca se consulta repetidamente hasta obtener una respuesta favorable.
+
+## Cómo se invoca cada reviewer
+
+### Codex PRIMARY → Claude SECONDARY_REVIEWER
+
+La única interfaz recomendada es:
+
+```bash
+scripts/claude-review "pedido concreto de review con rutas y evidencia"
+```
+
+El PRIMARY adjunta evidencia saneada suficiente: código con rutas/líneas, diff, salidas de tests y extractos relevantes de CodeGraph. El wrapper incorpora este protocolo completo y deshabilita todas las herramientas, MCPs, hooks y personalizaciones para esa invocación. Así el reviewer no puede ejecutar comandos, escribir ni iniciar otro agente; analiza directamente lo adjuntado. Los settings interactivos del proyecto no se modifican.
+
+Usa cinco turnos por defecto, con límite absoluto de ocho. Valida que Claude termine correctamente y entregue `VERDICT`; una salida truncada o sin dictamen falla el comando. Un exit 0 significa que el review se entregó, no que su verdict sea `PASS`. Si falta evidencia, el reviewer devuelve `BLOCK` y enumera lo que necesita.
+
+### Claude PRIMARY → Codex SECONDARY_REVIEWER
+
+Usar `mcp__codex__codex` y pasar siempre:
+
+```text
+sandbox: read-only
+approval-policy: never
+```
+
+El prompt debe empezar con `ROLE: SECONDARY_REVIEWER` e incluir de forma explícita:
+
+```text
+Do not modify files.
+Do not implement the task.
+Do not invoke Claude.
+Do not delegate to another coding agent.
+Do not create another review chain.
+Follow .ai/REVIEW_PROTOCOL.md.
+```
+
+Un hook del proyecto rechaza la llamada si falta el sandbox, la política o las restricciones esenciales. Solo acepta `prompt`, `sandbox`, `approval-policy` y opcionalmente `model`, evitando overrides de configuración o instrucciones. `.mcp.json` inicia `scripts/codex-review-mcp` desde la raíz del repo: deshabilita shell, subagentes, apps, hooks, navegador, web y plugins; enumera los MCP efectivos y deshabilita cada uno. Las tablas vacías `mcp_servers={}` y `plugins={}` se fusionan y **no aíslan**. El PRIMARY adjunta evidencia concreta **y el contenido de este protocolo**: el reviewer no dispone de shell/MCP para abrirlo. `--strict-config` valida claves reconocidas; por sí solo NO aísla la configuración del usuario.
+
+## Autoridad y desacuerdos
+
+El reviewer es advisor, no autoridad. El `PRIMARY` decide y conserva la responsabilidad completa.
+
+Los desacuerdos se resuelven con:
+
+1. requisitos explícitos del usuario;
+2. contratos y comportamiento del repositorio;
+3. tests, reproducciones y logs;
+4. documentación oficial vigente;
+5. arquitectura y convenciones establecidas;
+6. razonamiento técnico.
+
+No se abren consultas recursivas para resolver desacuerdos.
+
+## Verification Gate
+
+Una opinión de IA no sustituye validación automatizada. Antes de declarar `DONE`, el `PRIMARY` debe seguir [`.ai/VERIFICATION.md`](./VERIFICATION.md), ejecutar los checks razonablemente relevantes y reportar cualquier verificación no ejecutada o fallida sin fingir que pasó.
+
+## Alcance de las protecciones
+
+El inventario de MCP del lanzador se fija al iniciar el servidor. Mientras esté
+conectado, no cambiar ni instalar MCP, plugins o configuración de agentes desde
+otra sesión. Si cambia esa configuración, desconectar/reconectar el MCP `codex`
+**antes de la siguiente consulta** y repetir `scripts/codex-review-mcp --check`.
+El lanzador no es un monitor de cambios externos de configuración. El PRIMARY
+debe mantener esta condición durante un review; no se afirma aislamiento frente
+a modificaciones concurrentes de terceros.
+
+Las reglas nativas `Read` de `.claude/settings.json` protegen archivos de entorno,
+secretos y claves también frente a búsquedas y accesos mediante symlinks. La regla
+`.env.*` incluye `.env.example`: la antigua excepción del hook no podía anular un
+deny nativo. Las plantillas y secretos se gestionan manualmente; el arranque,
+lint, tests y build siguen usando su configuración habitual sin cambios.
+
+Los permisos locales se conservan. Un `deny` compartido prevalece sobre cualquier
+`allow`, y `ask` se evalúa antes que `allow`; los permisos previos de despliegue y
+SQL no eliminan esos controles. Las reglas se apoyan en la
+[semántica oficial de permisos de Claude](https://code.claude.com/docs/en/permissions).
+La interfaz Codex usa los parámetros de su [MCP oficial](https://learn.chatgpt.com/docs/mcp-server).
+La CLI 0.153.4 todavía admite `mcp-server`, aunque avisa que está deprecado:
+antes de actualizar hay que repetir el arranque y la comprobación de aislamiento.
+
+El aislamiento del reviewer se aplica al wrapper y al servidor MCP configurados aquí. Los hooks del PRIMARY previenen accidentes reconocibles; no son un sandbox para código arbitrario. Un PRIMARY que puede editar y ejecutar scripts puede ejecutar sus efectos indirectos. Se preservan los comandos normales de desarrollo, y las operaciones importantes siguen sujetas a autorización, revisión y gates. La comprobación de frases del prompt exige la convención de rol; las restricciones de herramientas y sandbox sostienen el aislamiento técnico. Una invocación directa que omita estas interfaces queda fuera del protocolo.
+
+=== EVIDENCIA (extractos literales, archivo y línea) ===
+
+===== CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql L2145-2215 =====
+2145| CREATE OR REPLACE FUNCTION private.metricas_conversiones_implementacion(p_desde date, p_hasta date, p_origen text DEFAULT NULL::text)
+2146|  RETURNS jsonb
+2147|  LANGUAGE plpgsql
+2148|  STABLE SECURITY DEFINER
+2149|  SET search_path TO ''
+2150| AS $function$
+2151| declare
+2152|   v_uid uuid := (select auth.uid());
+2153|   v_hoy date := (now() at time zone 'America/Lima')::date;
+2154|   v_ini timestamptz;
+2155|   v_fin timestamptz;
+2156|   v_cosecha_fin timestamptz;
+2157|   v_ahora timestamptz := now();
+2158|   v_mes date;
+2159|   v_factor numeric;
+2160|   v_periodo date;
+2161|   v_payload jsonb;
+2162|   v_autorizado boolean;
+2163| begin
+2164|   select exists (
+2165|     select 1 from crm.equipo e
+2166|     join public.perfiles p on p.id = e.perfil_id
+2167|     where e.perfil_id = v_uid and e.activo and p.activo and e.rol_crm = 'gerencia'
+2168|   ) or private.es_lector_global() into v_autorizado;
+2169|   if v_uid is null or not coalesce(v_autorizado, false) then
+2170|     raise exception 'No autorizado' using errcode = '42501';
+2171|   end if;
+2172|   if p_desde is null or p_hasta is null or p_desde > p_hasta
+2173|      or p_hasta > v_hoy or p_hasta - p_desde > 365 then
+2174|     raise exception 'Periodo invalido' using errcode = '22023';
+2175|   end if;
+2176|   v_ini := p_desde::timestamp at time zone 'America/Lima';
+2177|   v_fin := (p_hasta + 1)::timestamp at time zone 'America/Lima';
+2178| 
+2179|   -- La cosecha mira hasta HOY: un lead que entro en el rango puede haber
+2180|   -- cerrado despues, y esa maduracion es justamente lo que la lectura por
+2181|   -- cosecha responde («de ese lote, cuantos acabaron cerrando»).
+2182|   v_cosecha_fin := greatest(v_fin, v_ahora);
+2183| 
+2184|   -- Peso del referido del mes del `hasta` — la MISMA regla que usa el heroe
+2185|   -- de HOY para el mes del rango.
+2186|   v_mes := date_trunc('month', p_hasta)::date;
+2187|   v_factor := private.peso_referido_conversion(v_mes);
+2188| 
+2189|   -- El periodo identifica una ventana mensual; ya NO habilita/deshabilita
+2190|   -- cartera: el núcleo limita toda operación a su fecha efectiva en el rango.
+2191|   -- En rangos libres aplica el peso de cada mes dentro del propio núcleo.
+2192|   v_periodo := case
+2193|     when p_desde = date_trunc('month', p_desde)::date
+2194|      and date_trunc('month', p_hasta)::date = date_trunc('month', p_desde)::date
+2195|      and (p_hasta = (date_trunc('month', p_desde) + interval '1 month' - interval '1 day')::date
+2196|           or p_hasta = v_hoy)
+2197|     then p_desde
+2198|   end;
+2199| 
+2200|   with vendedores_base as materialized (
+2201|     select e.perfil_id as vendedor_id
+2202|     from crm.equipo e
+2203|     join public.perfiles p on p.id = e.perfil_id
+2204|     where e.activo and p.activo and e.rol_crm = 'vendedor'
+2205|   ),
+2206|   -- ── TABLA-BASE ──────────────────────────────────────────────────────────
+2207|   -- Flujo comercial del rango: llegadas únicas y aportes del núcleo.
+2208|   ep_flujo as materialized (
+2209|     select e.* from private.conversion_episodios(
+2210|       v_ini, v_fin, v_periodo, true, null, v_factor
+2211|     ) e
+2212|   ),
+2213|   -- Cierres del ledger que sirven de numerador a la COSECHA: los de sus
+2214|   -- leads, ocurran cuando ocurran (hasta hoy). Sin anulados.
+2215|   ep_cosecha as materialized (
+
+===== CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql L2340-2395 =====
+2340|   -- Se agrupa POR ANALISTA con la misma aritmetica del nucleo y luego se suma.
+2341|   -- OJO: el total NO tiene por que ser la suma de `responsables`: aqui entran
+2342|   -- TODOS los analistas con episodios (supervisores incluidos), mientras que
+2343|   -- `responsables` sale del roster de vendedores activos y ademas el wrapper
+2344|   -- publico elimina del array a quien no sea vendedor. La sonda
+2345|   -- `divisor_fuera_del_roster` mide exactamente ese hueco.
+2346|   nucleo_vendedor as (
+2347|     select e.analista_id,
+2348|       coalesce(sum(e.aporte_divisor), 0)::int as divisor,
+2349|       count(*) filter (where e.tipo = 'recibido' and e.fue_referido)::int as referidos_recibidos,
+2350|       count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and not e.fue_referido)::int as cierres_no_referidos,
+2351|       count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.fue_referido)::int as cierres_referidos,
+2352|       count(*) filter (where e.tipo = 'operacion')::int as operaciones,
+2353|       coalesce(sum(e.aporte_numerador), 0)::numeric as numerador
+2354|     from ep_flujo e
+2355|     group by e.analista_id
+2356|   ),
+2357|   nucleo as (
+2358|     select
+2359|       coalesce(sum(nv.divisor), 0)::int as divisor,
+2360|       coalesce(sum(nv.referidos_recibidos), 0)::int as referidos_recibidos,
+2361|       coalesce(sum(nv.cierres_no_referidos), 0)::int as cierres_no_referidos,
+2362|       coalesce(sum(nv.cierres_referidos), 0)::int as cierres_referidos,
+2363|       coalesce(sum(nv.operaciones), 0)::int as operaciones,
+2364|       coalesce(sum(nv.numerador), 0)::numeric as numerador
+2365|     from nucleo_vendedor nv
+2366|   ),
+2367|   -- Sonda de paridad: cuando el rango es un mes exacto, este recomputo debe
+2368|   -- coincidir EXACTAMENTE con el nucleo. Si no, el front avisa.
+2369|   -- Sonda de paridad: compara TODOS los terminos (divisor, ambos tipos de
+2370|   -- cierre y el numerador entero — que es donde vive la cartera), y declara
+2371|   -- cuantas filas comparo: sin filas la paridad no prueba nada y se dice
+2372|   -- (`cuadra` = null), en vez de dar un cero tranquilizador y vacuo.
+2373|   comparacion as (
+2374|     select nv.analista_id as a_nuevo, cm.analista_id as a_nucleo,
+2375|       abs(coalesce(nv.divisor, 0) - coalesce(cm.divisor, 0))
+2376|       + abs(coalesce(nv.cierres_no_referidos, 0) - coalesce(cm.cierres_no_referidos, 0))
+2377|       + abs(coalesce(nv.cierres_referidos, 0) - coalesce(cm.cierres_referidos, 0))
+2378|       + abs(coalesce(
+2379|           nv.numerador, 0)
+2380|         - coalesce(cm.numerador, 0)) as delta
+2381|     from nucleo_vendedor nv
+2382|     full outer join private.conversion_mensual_por_vendedor(
+2383|       v_ini, v_fin, true, null, v_factor
+2384|     ) cm on coalesce(cm.analista_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(nv.analista_id, '00000000-0000-0000-0000-000000000000'::uuid)
+2385|   ),
+2386|   sonda_paridad as (
+2387|     select
+2388|       coalesce(sum(c.delta), 0) as desvio,
+2389|       count(*)::int as filas
+2390|     from comparacion c
+2391|   ),
+2392|   produccion as (
+2393|     select
+2394|       (select count(*)::int from crm.leads l
+2395|         where l.convertido_en >= v_ini and l.convertido_en < v_fin) as clientes,
+
+===== CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql L2495-2525 =====
+2495|       'dias', (p_hasta - p_desde) + 1, 'zona', 'America/Lima'
+2496|     ),
+2497|     'nucleo', jsonb_build_object(
+2498|       'llegadas', (select count(*) from ep_flujo e where e.tipo = 'recibido'),
+2499|       'altas_manuales', (select count(*) from ep_flujo e
+2500|         where e.tipo = 'recibido' and not e.fue_referido and e.aporte_divisor = 0),
+2501|       'renovaciones', (select count(*) from ep_flujo e where e.tipo = 'operacion' and e.categoria = 'renovacion'),
+2502|       'upgrades', (select count(*) from ep_flujo e where e.tipo = 'operacion' and e.categoria = 'upgrade'),
+2503|       'aporte_cartera', (select coalesce(sum(e.aporte_numerador), 0) from ep_flujo e where e.tipo = 'operacion'),
+2504|       'base', 'llegada_unica',
+2505|       'atribucion', 'primer_analista',
+2506|       'peso_renovacion', v_factor,
+2507|       'incluye_cartera', true,
+2508|       'peso_referido', v_factor,
+2509|       'mes_peso', v_mes,
+2510|       'divisor', n.divisor,
+2511|       'referidos_recibidos', n.referidos_recibidos,
+2512|       'cierres_no_referidos', n.cierres_no_referidos,
+2513|       'cierres_referidos', n.cierres_referidos,
+2514|       'operaciones_cartera', n.operaciones,
+2515|       'numerador', n.numerador,
+2516|       -- DOS decimales, como el nucleo real: este numero DEBE poder compararse
+2517|       -- byte a byte con el heroe de HOY, no redondearse distinto.
+2518|       'conversion_pct', case when n.divisor > 0
+2519|         then round(100.0 * n.numerador / n.divisor, 2) end,
+2520|       'referidos_cierran_pct', case when n.referidos_recibidos > 0
+2521|         then round(100.0 * n.cierres_referidos / n.referidos_recibidos, 1) end
+2522|     ),
+2523|     'cosecha', jsonb_build_object(
+2524|       'base', 'alta',
+2525|       'madura_hasta', v_cosecha_fin,
+
+===== CRM-Avance-Corp/supabase/migrations/20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql L2660-2675 =====
+2660|                    and least(p_hasta, p_desde + (gs.semana_indice * 7) + 6)
+2661|           group by gs.semana_indice
+2662|         ) semanal
+2663|       ), '[]'::jsonb)
+2664|     ),
+2665|     'sondas', jsonb_build_object(
+2666|       'paridad_nucleo', sp.desvio,
+2667|       'paridad_filas', sp.filas,
+2668|       -- null = la sonda NO probo nada (rango sin mes, o sin una sola fila que
+2669|       -- comparar). Un true solo se afirma cuando hubo sustancia.
+2670|       'cuadra', case when sp.desvio is null or sp.filas = 0 then null
+2671|                      else sp.desvio = 0 end,
+2672|       'episodios_sin_origen', (
+2673|         select count(*)::int from ep_flujo e
+2674|         where e.tipo in ('recibido','cierre') and e.origen is null
+2675|       ),
+
+===== CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql L1325-1400 =====
+1325| CREATE OR REPLACE FUNCTION crm.conversion_mensual_sin_cartera_fn(p_periodo date)
+1326|  RETURNS jsonb
+1327|  LANGUAGE plpgsql
+1328|  STABLE SECURITY DEFINER
+1329|  SET search_path TO ''
+1330| AS $function$
+1331| declare
+1332|   v_uid uuid := (select auth.uid());
+1333|   v_rol text;
+1334|   v_lector boolean;
+1335|   v_global boolean;
+1336|   v_alcance text;
+1337|   v_visibles uuid[];
+1338|   v_ahora timestamptz := now();
+1339|   v_mes_actual date := date_trunc('month', v_ahora at time zone 'America/Lima')::date;
+1340|   v_ini timestamptz;
+1341|   v_fin timestamptz;
+1342|   v_factor numeric;
+1343|   v_suelo timestamptz;
+1344|   v_suelo_mes date;
+1345|   v_medible boolean;
+1346|   v_motivo_no_medible text;
+1347|   v_motivo_roster text;
+1348|   v_meta_periodo_id uuid;
+1349|   v_es_historico_abierto boolean := false;
+1350|   v_payload jsonb;
+1351|   v_cierre crm.periodos_cerrados%rowtype;
+1352| begin
+1353|   -- 1) GATE EXPLICITO, ANTES DE TOCAR NINGUN DATO. Nunca RLS implicita: esta
+1354|   --    funcion es SECURITY DEFINER y las policies no se evaluan. ALLOWLIST, no
+1355|   --    «rol_crm is not null»: ese idioma (el de cumplimiento_metas_fn) dejaria
+1356|   --    pasar al COORDINADOR, que aqui esta denegado por contrato.
+1357|   --    Orden deliberado: un actor denegado recibe 42501 aunque el periodo sea
+1358|   --    basura, para que el codigo de error no funcione como oraculo.
+1359|   v_rol := private.rol_crm(v_uid);
+1360|   v_lector := private.es_lector_global();
+1361|   if v_uid is null
+1362|      or not coalesce(v_rol in ('vendedor', 'supervisor', 'gerencia') or v_lector, false) then
+1363|     raise exception 'No autorizado' using errcode = '42501';
+1364|   end if;
+1365| 
+1366|   -- 2) Validacion del periodo.
+1367|   if p_periodo is null or p_periodo <> date_trunc('month', p_periodo)::date then
+1368|     raise exception 'Periodo invalido: debe ser el primer dia del mes'
+1369|       using errcode = '22023';
+1370|   end if;
+1371|   if p_periodo > v_mes_actual then
+1372|     raise exception 'Periodo invalido: el mes no puede ser futuro'
+1373|       using errcode = '22023';
+1374|   end if;
+1375| 
+1376|   v_global := coalesce(v_rol = 'gerencia', false) or v_lector;
+1377|   v_alcance := case
+1378|     when v_global then 'global'
+1379|     when v_rol = 'supervisor' then 'equipo'
+1380|     else 'propio'
+1381|   end;
+1382| 
+1383|   -- 3) ¿MES CERRADO? Entonces se sirve la foto y no se calcula nada. Va aqui,
+1384|   --    despues del gate y de validar el periodo, para que un mes cerrado
+1385|   --    responda igual de fail-closed que uno abierto.
+1386|   select * into v_cierre from crm.periodos_cerrados pc where pc.periodo = p_periodo;
+1387|   if found then
+1388|     with visibles as (
+1389|       select f.* from private.cierre_mes_visible(p_periodo, v_uid) f
+1390|     ), fuera_foto as materialized (
+1391|       select e.value as fila
+1392|       from jsonb_array_elements(
+1393|         coalesce(v_cierre.cobertura->'fuera_ranking', '[]'::jsonb)
+1394|       ) e
+1395|       where v_global and e.value->'conversion' <> 'null'::jsonb
+1396|       union all
+1397|       select jsonb_build_object('conversion', v_cierre.cobertura->'conversion_sin_analista')
+1398|       where v_global and v_cierre.cobertura ? 'conversion_sin_analista'
+1399|     ), resumen as (
+1400|       -- El total suma la foto rankeable y el agregado empresarial congelado.
+
+===== CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql L1636-1670 =====
+1636|       and l.creado_por is not null
+1637|       and (v_global or l.creado_por = any(v_visibles))
+1638|     group by l.creado_por
+1639|   ),
+1640|   pendientes as materialized (
+1641|     -- Lo que cada vendedor arrastra de meses YA CERRADOS: cierres anulados
+1642|     -- despues de pagar. Se descuenta aqui, en la LECTURA, y no dentro de
+1643|     -- `private.conversion_mensual_por_vendedor`: el cierre de mes ya lo aplica
+1644|     -- al saldar, y si viviera en el nucleo se descontaria dos veces.
+1645|     select ap.vendedor_id, ap.numerador as pendiente, ap.origenes
+1646|     from private.ajuste_pendiente_por_vendedor() ap
+1647|   ),
+1648|   filas as (
+1649|     select
+1650|       r.vendedor_id,
+1651|       r.supervisor_id,
+1652|       coalesce(b.divisor, 0) as divisor,
+1653|       coalesce(b.divisor_aproximado, 0) as divisor_aproximado,
+1654|       coalesce(b.divisor_por_motivo, '{}'::jsonb) as divisor_por_motivo,
+1655|       coalesce(b.cierres_no_referidos, 0) as cierres_no_referidos,
+1656|       coalesce(b.cierres_referidos, 0) as cierres_referidos,
+1657|       coalesce(b.cierres_de_arrastre, 0) as cierres_de_arrastre,
+1658|       -- NETO de lo que se le debe descontar, con suelo en cero. El bruto sigue
+1659|       -- siendo recuperable sumandole `ajuste_pendiente`.
+1660|       private.conversion_con_ajuste(b.numerador, pd.pendiente) as numerador,
+1661|       -- El porcentaje se RECALCULA sobre el neto: el que trae el nucleo es el
+1662|       -- del bruto y enseñarlo aqui contradiria al numerador de su propia fila.
+1663|       case when coalesce(b.divisor, 0) > 0
+1664|         then round(100.0 * private.conversion_con_ajuste(b.numerador, pd.pendiente)
+1665|                    / coalesce(b.divisor, 0), 2) end as conversion_pct,
+1666|       coalesce(pd.pendiente, 0::numeric) as ajuste_pendiente,
+1667|       coalesce(pd.origenes, '[]'::jsonb) as ajuste_origenes,
+1668|       coalesce(b.procedencia, '[]'::jsonb) as procedencia,
+1669|       coalesce(b.referidos_recibidos, 0) as referidos_recibidos,
+1670|       b.referidos_aporta_pct,
+
+===== CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql L1128-1160 =====
+1128|   with ep as materialized (
+1129|     select e.* from private.conversion_episodios(
+1130|       v_ini, v_fin, v_periodo, true, '{}'::uuid[], v_factor
+1131|     ) e
+1132|   ),
+1133|   nv as (
+1134|     select e.analista_id,
+1135|       coalesce(sum(e.aporte_divisor), 0)::int as divisor,
+1136|       count(*) filter (where e.tipo = 'recibido' and e.fue_referido)::int as referidos_recibidos,
+1137|       count(distinct e.lead_id) filter (
+1138|         where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and not e.fue_referido)::int as cierres_no_referidos,
+1139|       count(distinct e.lead_id) filter (
+1140|         where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.fue_referido)::int as cierres_referidos,
+1141|       count(*) filter (where e.tipo = 'operacion')::int as operaciones,
+1142|       coalesce(sum(e.aporte_numerador), 0)::numeric as numerador
+1143|     from ep e
+1144|     group by e.analista_id
+1145|   ),
+1146|   agg as (
+1147|     select
+1148|       coalesce(jsonb_object_agg(
+1149|         nv.analista_id::text,
+1150|         jsonb_build_object(
+1151|           'nucleo_divisor', nv.divisor,
+1152|           'nucleo_referidos_recibidos', nv.referidos_recibidos,
+1153|           'nucleo_numerador',
+1154|             nv.numerador,
+1155|           'nucleo_conversion_pct', case when nv.divisor > 0
+1156|             then round(100.0 * nv.numerador / nv.divisor, 2) end
+1157|         )
+1158|       ) filter (where nv.analista_id is not null), '{}'::jsonb) as mapa,
+1159|       coalesce(sum(nv.divisor), 0)::int as div_total,
+1160|       coalesce(sum(nv.numerador), 0) as num_total,
+
+===== CRM-Avance-Corp/supabase/migrations/20260904210831_crm_conversion_llegadas_unicas.sql L1270-1312 =====
+1270|     (v_base->'resumen') || jsonb_build_object(
+1271|       'conversion', jsonb_build_object(
+1272|         'pen', private.conversion_punteria(
+1273|           (v_base#>>'{resumen,convertidos_pen}')::int,
+1274|           (v_base#>>'{resumen,descartados_pen}')::int),
+1275|         'usd', private.conversion_punteria(v_usd_conv, v_usd_desc),
+1276|         'nucleo_divisor', v_div_total,
+1277|         'nucleo_referidos_recibidos', v_ref_total,
+1278|         'nucleo_numerador', v_num_total,
+1279|         'nucleo_conversion_pct', case when v_div_total > 0
+1280|           then round(100.0 * v_num_total / v_div_total, 2) end
+1281|       )
+1282|     ),
+1283|     false
+1284|   );
+1285| 
+1286|   v_base := jsonb_set(v_base, '{version}', '3'::jsonb, false);
+1287|   v_base := jsonb_set(
+1288|     v_base,
+1289|     '{alcances}',
+1290|     (v_base->'alcances') || jsonb_build_object(
+1291|       'conversion_punteria', 'CERRADOS_ENTRE_RESUELTOS',
+1292|       'conversion_nucleo', 'LLEGADAS_UNICAS_PRIMER_ANALISTA',
+1293|       'conversion_incluye_cartera', true
+1294|     ),
+1295|     false
+1296|   );
+1297| 
+1298|   -- ── Sondas: para que F3 pueda OCULTAR un numero en vez de fabricar un cero ─
+1299|   v_base := jsonb_set(
+1300|     v_base,
+1301|     '{sondas}',
+1302|     jsonb_build_object(
+1303|       'peso_referido', v_factor,
+1304|       'mes_peso', v_mes,
+1305|       'paridad_nucleo', v_paridad,
+1306|       'paridad_filas', v_paridad_filas,
+1307|       'cuadra', case when v_paridad is null or v_paridad_filas = 0 then null
+1308|                      else v_paridad = 0 end,
+1309|       -- Episodios que NO apareceran en `analistas` (analista nulo en la
+1310|       -- tabla-base): si esto crece, el resumen y la suma de fichas dejan de
+1311|       -- cuadrar y hay que saberlo.
+1312|       'divisor_sin_analista', v_div_sin_analista,
+
+===== CRM-Avance-Corp/supabase/migrations/20260815002100_crm_ajuste_mes_cerrado.sql L196-221 =====
+196| create or replace function private.ajuste_pendiente_por_vendedor()
+197| returns table (
+198|   vendedor_id uuid,
+199|   numerador numeric,
+200|   capital_pen numeric,
+201|   capital_usd numeric,
+202|   origenes jsonb
+203| )
+204| language sql
+205| stable
+206| security definer
+207| set search_path = ''
+208| as $$
+209|   select
+210|     a.vendedor_id,
+211|     sum(a.pendiente_numerador) as numerador,
+212|     sum(a.pendiente_pen) as capital_pen,
+213|     sum(a.pendiente_usd) as capital_usd,
+214|     jsonb_agg(jsonb_build_object(
+215|       'periodo', pg_catalog.to_char(a.periodo_origen, 'YYYY-MM'),
+216|       'motivo', a.motivo,
+217|       'numerador', a.pendiente_numerador
+218|     ) order by a.periodo_origen, a.creado_en) as origenes
+219|   from crm.ajustes_mes_cerrado a
+220|   where a.saldado_en is null
+221|   group by a.vendedor_id
+
+===== CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts L166-200 =====
+166| export function adaptarAporteConversionRango(
+167|   datos: MetricasConversiones | null | undefined,
+168|   fuente: FiltroFuentesConversion,
+169|   datosPorOrigen: Partial<Record<FuenteConversion, MetricasConversiones | null | undefined>> = {},
+170| ): AporteConversionRango | null {
+171|   if (datos?.nucleo == null || !sondasNucleoVerificadas(datos.sondas)) return null
+172| 
+173|   const nucleo = datos.nucleo
+174|   if (fuente != null && typeof fuente !== 'string') {
+175|     const elegidas = FUENTES_CONVERSION.filter((opcion) => fuente.includes(opcion.id))
+176|     if (elegidas.length === 0) return null
+177|     const aportes = elegidas.map((opcion) => adaptarAporteConversionRango(
+178|       opcion.familia === 'cartera' ? datos : datosPorOrigen[opcion.id], opcion.id,
+179|     ))
+180|     if (aportes.some((aporte) => aporte == null
+181|       || aporte.periodo.desde !== datos.periodo.desde
+182|       || aporte.periodo.hasta !== datos.periodo.hasta
+183|       || aporte.divisor !== nucleo.divisor)) return null
+184|     const validos = aportes.filter((aporte) => aporte != null)
+185|     const primero = validos[0]!
+186|     const porVendedor = new Map<string, AporteConversionVendedor>()
+187|     for (const [id, base] of primero.porVendedor) {
+188|       const filas = validos.map((aporte) => aporte.porVendedor.get(id))
+189|       if (filas.some((fila) => fila == null || fila.divisor !== base.divisor)) continue
+190|       const numerador = filas.reduce((total, fila) => total + fila!.numerador, 0)
+191|       const cierres = filas.reduce((total, fila) => total + fila!.cierres, 0)
+192|       const operaciones = filas.reduce((total, fila) => total + fila!.operaciones, 0)
+193|       porVendedor.set(id, {
+194|         divisor: base.divisor, numerador, cierres, operaciones,
+195|         resultados: cierres + operaciones,
+196|         porcentaje: base.divisor > 0 ? Math.round((100 * numerador / base.divisor + Number.EPSILON) * 100) / 100 : null,
+197|       })
+198|     }
+199|     const numerador = validos.reduce((total, aporte) => total + aporte.numerador, 0)
+200|     const cierres = validos.reduce((total, aporte) => total + aporte.cierres, 0)
+
+===== CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts L230-300 =====
+230|     peso = null
+231|   } else if (esOrigenProspecto) {
+232|     const cierres = datos.cierres_por_semana
+233|     if (cierres == null
+234|       || cierres.desde !== datos.periodo.desde
+235|       || cierres.hasta !== datos.periodo.hasta
+236|       || cierres.origen_filtrado !== fuente) return null
+237|     numerador = cierres.aporte_cierres
+238|     resultados = cierres.cierres
+239|     peso = fuente === 'referido' ? nucleo.peso_referido : 1
+240|     porcentaje = nucleo.divisor > 0
+241|       ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+242|       : null
+243|   } else {
+244|     const operaciones = datos.conversion_operaciones
+245|     if (operaciones == null
+246|       || !operaciones.completo
+247|       || operaciones.desde !== datos.periodo.desde
+248|       || operaciones.hasta !== datos.periodo.hasta
+249|       || operaciones.origen_filtrado !== null) return null
+250|     const elegidas = operaciones.detalle.filter((operacion) => operacion.categoria === fuente)
+251|     numerador = elegidas.reduce((total, operacion) => total + operacion.aporte_numerador, 0)
+252|     resultados = elegidas.length
+253|     peso = fuente === 'renovacion' ? (nucleo.peso_renovacion ?? nucleo.peso_referido) : 1
+254|     porcentaje = nucleo.divisor > 0
+255|       ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+256|       : null
+257|   }
+258| 
+259|   const operacionesPorVendedor = new Map<string, { cantidad: number, aporte: number }>()
+260|   if (datos.conversion_operaciones?.completo) {
+261|     for (const operacion of datos.conversion_operaciones.detalle) {
+262|       if (operacion.analista_id == null || (esOperacionCartera && operacion.categoria !== fuente)) continue
+263|       const actual = operacionesPorVendedor.get(operacion.analista_id) ?? { cantidad: 0, aporte: 0 }
+264|       actual.cantidad += 1
+265|       actual.aporte += operacion.aporte_numerador
+266|       operacionesPorVendedor.set(operacion.analista_id, actual)
+267|     }
+268|   }
+269| 
+270|   const porVendedor = new Map<string, AporteConversionVendedor>()
+271|   for (const responsable of datos.responsables ?? []) {
+272|     const divisor = responsable.nucleo_divisor
+273|     if (divisor == null) continue
+274|     const operaciones = operacionesPorVendedor.get(responsable.vendedor_id) ?? { cantidad: 0, aporte: 0 }
+275|     let aporte = 0
+276|     let cantidad = 0
+277|     let pct: number | null = null
+278| 
+279|     if (fuente == null) {
+280|       if (responsable.nucleo_numerador == null) continue
+281|       aporte = responsable.nucleo_numerador
+282|       cantidad = (responsable.cierres_por_semana ?? []).reduce((total, semana) => total + semana.cierres, 0)
+283|         + operaciones.cantidad
+284|       pct = responsable.nucleo_conversion_pct ?? null
+285|     } else if (esOrigenProspecto) {
+286|       if (responsable.cierres_por_semana == null) continue
+287|       aporte = responsable.cierres_por_semana.reduce((total, semana) => total + semana.aporte_cierres, 0)
+288|       cantidad = responsable.cierres_por_semana.reduce((total, semana) => total + semana.cierres, 0)
+289|       pct = divisor > 0
+290|         ? Math.round((100 * aporte / divisor + Number.EPSILON) * 100) / 100
+291|         : null
+292|     } else {
+293|       aporte = operaciones.aporte
+294|       cantidad = operaciones.cantidad
+295|       pct = divisor > 0
+296|         ? Math.round((100 * aporte / divisor + Number.EPSILON) * 100) / 100
+297|         : null
+298|     }
+299| 
+300|     porVendedor.set(responsable.vendedor_id, {
+
+===== CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx L745-760 =====
+745|       : { label: 'Reunión o avance posterior', valor: numeroDisponible(datos?.cohorte.reuniones_realizadas ?? null), detalle: `${numeroDisponible(datos?.cohorte.reuniones_agendadas ?? null)} con señal de agenda o avance 
+746|     kpiCapital,
+747|   ]
+748|   const mensualEsperando = mensualCargando && conversionMensual === undefined
+749|   const rangoEsperando = rangoCargando && datos === undefined
+750|   const indiceHero = aporteRango != null
+751|     ? porcentajeConversionCanonica(aporteRango.porcentaje)
+752|     : datos != null && fuenteActiva == null && datos.nucleo == null
+753|       ? pct(cosechaPct)
+754|     : rangoCargando
+755|       ? 'Calculando…'
+756|       : rangoError
+757|         ? 'No disponible'
+758|         : '—'
+759|   const baseHero = aporteRango == null ? '—' : numero(aporteRango.divisor)
+760|   const resultadosHero = aporteRango == null ? '—' : numero(aporteRango.resultados)
+
+===== CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx L165-185 =====
+165|   // en `nucleo`; aquí no se divide ni se reconstruye ninguna conversión. La foto
+166|   // mensual sigue alimentando metas y el ranking, que sí son mensuales.
+167|   const origenesVerificados = conversiones?.nucleo != null
+168|     && sondasNucleoVerificadas(conversiones.sondas)
+169|   const nucleoRango = origenesVerificados ? conversiones.nucleo ?? null : null
+170|   const aporteRango = lecturaFuente === undefined
+171|     ? adaptarAporteConversionRango(conversiones, fuenteActiva)
+172|     : lecturaFuente
+173|   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+174|   const totalMes = totalConversionPublicable(conversionMensual)
+175|   const conversionMes = totalMes?.conversion_pct ?? null
+176|   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
+177|   const rangoEsperando = rangoCargando && conversiones === undefined
+178|   const usaNucleoRango = conversiones?.nucleo != null || rangoEsperando
+179|   const conversionPrincipal = fuenteActiva != null
+180|     ? aporteRango?.porcentaje ?? null
+181|     : usaNucleoRango ? aporteRango?.porcentaje ?? null : conversionMes
+182|   const conversionPrincipalCargando = fuenteActiva != null || usaNucleoRango
+183|     ? rangoEsperando
+184|     : mensualCargando
+185|   const etiquetaPeriodoRango = conversiones == null
+
+===== CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx L230-242 =====
+230|     ? Math.max(0, (capitalTotal.total / (metaTotalCapital.total ?? 1)) * 100)
+231|     : null
+232|   // La barra avanza con EL MISMO número que el titular: la conversión del mes
+233|   // servida. Hasta 2026-08-13 medía `cumplimiento.conversionReal`, que es otra
+234|   // fórmula (convertidos/RESUELTOS, sin ponderar referidos ni arrastre): la
+235|   // pantalla enseñaba un porcentaje arriba y avanzaba la meta con otro, y los
+236|   // dos se llamaban «conversión». Un solo número bajo un solo nombre. Si el mes
+237|   // no es medible no hay barra, que es más honesto que una barra de mentira.
+238|   const avanceConversion = metasComparables && metaConversion != null && conversionMes != null
+239|     ? Math.max(0, (conversionMes / metaConversion) * 100)
+240|     : null
+241| 
+242|   const vendedoresAdaptados = useMemo(
+
+===== CRM-Avance-Corp/app/src/lib/alertas-gerencia.ts L240-300 =====
+240|     && Object.keys(metasVendedores).length > 0
+241|     && Object.keys(metasVendedores).every((vendedorId) => cumplimientosVendedores[vendedorId] != null)
+242|   if (diaIndividualValido && cumplimientoCompleto) {
+243|     for (const vendedor of Object.values(cumplimientosVendedores)) {
+244|       if (
+245|         !conteoValido(vendedor.resueltos)
+246|         || vendedor.resueltos < MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR
+247|         || !porcentajeConversionValido(vendedor.conversionReal)
+248|       ) continue
+249| 
+250|       const metaVendedor = metasVendedores[vendedor.vendedorId]
+251|       if (
+252|         metaVendedor != null
+253|         && !porcentajeMetaValido(metaVendedor.conversionObjetivo)
+254|       ) continue
+255|       const metaGuardada = metaVendedor?.conversionObjetivo ?? 0
+256|       const objetivo = metaConversionAplicable(metaGuardada, objetivosError)
+257|       const actual = vendedor.conversionReal
+258|       if (!porcentajeMetaValido(objetivo) || actual >= objetivo) continue
+259| 
+260|       const brechaPp = redondearPp(objetivo - actual)
+261|       if (brechaPp < BRECHA_MINIMA_ALERTA_CONVERSION_PP) continue
+262| 
+263|       alertas.push({
+264|         id: `bajo_meta_conversion:${vendedor.vendedorId}`,
+265|         tipo: 'bajo_meta_conversion',
+266|         severidad: brechaPp >= BRECHA_CRITICA_ALERTA_CONVERSION_PP
+267|           ? 'critica'
+268|           : 'atencion',
+269|         responsableId: vendedor.vendedorId,
+270|         responsable: vendedor.nombre,
+271|         equipo: vendedor.supervisorNombre || EQUIPO_NO_DISPONIBLE,
+272|         valor: actual,
+273|         actual,
+274|         objetivo,
+275|         brechaPp,
+276|         muestra: vendedor.resueltos,
+277|         destino: 'ranking-vendedores',
+278|       })
+279|     }
+280|   }
+281| 
+282|   // H11 (F3 de «Conversión única»): la caída global compara la MISMA
+283|   // aritmética que la alerta individual y que HOY/Ranking — el bloque `nucleo`
+284|   // servido (flujo del rango, ponderado, mismo peso de referidos) — y no la
+285|   // cohorte de contratos, que madura con retraso y contradecía a su vecina de
+286|   // bandeja. Un payload SIN bloque `nucleo` o sin las DOS sondas verificadas
+287|   // no se interpreta: sin fuente confiable no hay alerta, jamás una con otra
+288|   // fórmula. Hoy el servidor suele dejar NULL la sonda de un MTD anterior;
+289|   // en ese caso esta alerta queda deliberadamente inactiva hasta que exista
+290|   // una comparación verificada, en vez de afirmar una caída no certificada.
+291|   const nucleoActualVerificado = sondasNucleoVerificadas(conversiones?.sondas)
+292|   const nucleoAnteriorVerificado = sondasNucleoVerificadas(conversionesAnteriores?.sondas)
+293|   const conversionActual = conversiones?.nucleo?.conversion_pct
+294|   const conversionAnterior = conversionesAnteriores?.nucleo?.conversion_pct
+295|   const leadsActuales = conversiones?.nucleo?.divisor
+296|   const leadsAnteriores = conversionesAnteriores?.nucleo?.divisor
+297|   if (
+298|     nucleoActualVerificado
+299|     && nucleoAnteriorVerificado
+300|     && porcentajeConversionValido(conversionActual)
+
+===== CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx L262-266 =====
+262|   )
+263|   const rankingHistorico = periodoRanking.desde !== periodoInicialGerencia(ahoraPeriodo).desde
+264|   const vistaMensual = seccion === 'ranking-vendedores' || seccion === 'metas' || seccion === 'rendimiento'
+265|   const vistaConRangoYOrigen = seccion === 'completo' || seccion === 'resumen' || seccion === 'conversiones'
+266|   const vistaConFiltroConversion = vistaConRangoYOrigen || vistaMensual
+
+===== CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx L328-334 =====
+328|   )
+329|   const fuenteMensualSellada = vistaMensual && qConversionMensual.data?.cierre?.cerrado === true
+330|   const fuenteMensualPendiente = vistaMensual && fuenteActiva != null && qConversionMensual.data == null
+331|   const periodoConsultaConversion = vistaMensual ? periodoRanking : periodoMetricas
+332|   const consultarFuente = necesitaConversiones && !fuenteMensualSellada && !fuenteMensualPendiente
+333|   const seleccionMultiple = fuenteActiva != null && typeof fuenteActiva !== 'string' ? fuenteActiva : []
+334|   const conversionLanding = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('landing'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'landing')
+
+===== CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx L530-536 =====
+530|   // congelada únicamente para históricos.
+531|   const metasVendedoresRanking = cumplimientoRanking?.porVendedor ?? {}
+532|   const metaMensualRanking = useMemo(() => {
+533|     const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
+534|     const errorCarga = !conversionesDeEjemplo
+535|       && (fotoMensualBaseDesalineada || (sesionReal
+536|         ? qCumplimientoRanking.isError
+
+===== public_html/js/admin/dashboard.js L165-180 =====
+165|       cargarMetricas(),
+166|       cargarContratosPorVencer(),
+167|       cargarPagosDelMes()
+168|     ])
+169|     renderMetricas(metricas)
+170|     renderTablaPorVencer(porVencer)
+171|     renderTablaPagos(pagos)
+172|   } catch (error) {
+173|     console.error('Error en dashboard admin:', error)
+174|     mostrarError('Hubo un problema al cargar los datos. Verifica tu conexión y permisos RLS.')
+175|     document.querySelectorAll('.skeleton').forEach(el => {
+176|       el.classList.remove('skeleton')
+177|       el.textContent = '0'
+178|     })
+179|   }
+180| 
