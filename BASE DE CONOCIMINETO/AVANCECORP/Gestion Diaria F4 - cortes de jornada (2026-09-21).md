@@ -39,4 +39,24 @@ reconocer/posponer en servidor. Después editor gerencial y validación/activaci
 Publicación requiere SQL exacto autorizado, integración en Main sin pisar trabajo
 concurrente y `$release-crm`; no hubo push, PR, despliegue ni activación en esta entrega.
 
+## Guardado y punto de retoma
+
+Miguel pidió guardar el plan y continuar aproximadamente una hora después.
+La recomendación registrada es publicar la etapa 3 por separado **apagada**,
+después de cerrar la matriz HTTP/Auth en pruebas, preparar la recuperación
+productiva y verificar integración/artefacto desde Main = `avancecorp/main`.
+Después se necesitan autorización del SQL exacto y el flujo humano `$release-crm`.
+La reversa local no se debe ejecutar directamente en producción. El guardado
+no autoriza despliegues ni activación durante la pausa.
+
+La implementación está guardada en `19f8c180`, rama
+`codex/gestion-diaria-typesafe-piloto`, en el taller existente. Al volver,
+retomar los pendientes de publicación, no reconstruir la etapa 3 ni empezar
+automáticamente la etapa 4. Secuencia: publicar la base OFF → avisos/reconocer/
+posponer (4) → configuración (5) → validación integral y activación (6).
+Estado y lista completa en el último punto de control del plan principal:
+`CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
+Las pruebas consignadas son las de la entrega previa; este guardado sólo
+actualiza documentación. TypeSafe continúa separado y sin activar en el CRM.
+
 Relacionadas: [[Gestion Diaria F4 - objetivos y piloto TypeSafe (2026-09-20)]] · [[Inicio]].

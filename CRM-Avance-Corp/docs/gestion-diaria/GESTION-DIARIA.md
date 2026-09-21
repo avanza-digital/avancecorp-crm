@@ -29,7 +29,59 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Último punto de control — solicitud de publicación del 21/09/2026
+### Último punto de control — guardado y pausa del 21/09/2026
+
+Miguel pidió guardar el estado y la recomendación de publicación en este plan
+y continuar aproximadamente una hora después. **Pausa solicitada: no publicar,
+activar ni iniciar otra etapa durante la pausa.** Retomar desde este punto
+cuando Miguel vuelva; guardar la recomendación no autoriza ejecutar SQL en producción.
+
+**Dónde estamos:** F0–F3 y F4 etapas 1–2 publicadas. F4 etapa 3 implementada y
+verificada en local, guardada en `19f8c180`, rama
+`codex/gestion-diaria-typesafe-piloto`, taller
+`/private/tmp/avancecorp-gd-f4-vista.chvRqh`. Las etapas 4–6 y F5–F6 siguen
+pendientes. TypeSafe tiene preparación técnica y un banco ficticio; su piloto
+humano y la integración en el CRM siguen pendientes y no bloquean F4.
+
+**Recomendación registrada:** publicar la etapa 3 como una entrega técnica
+separada, **con los cortes apagados**, una vez cerrados los pendientes de abajo.
+No hace falta esperar a toda F4 para instalar su base, pero no se recomienda
+un despliegue inmediato ni activar los cortes todavía. Esta entrega no cambia
+la pantalla ni muestra nuevos avisos al supervisor: eso corresponde a la etapa 4.
+
+**Primer trabajo al retomar: cerrar la preparación de publicación de la etapa 3.**
+
+1. Completar la matriz HTTP/Auth de la API en un entorno de pruebas autorizado:
+   identidades, roles, equipos ajenos y compatibilidad de F3/F4. La copia local
+   ensayada no tiene un endpoint PostgREST propio; las pruebas SQL/RLS que sí
+   pasaron no sustituyen esta comprobación. No crear fixtures en producción.
+2. Preparar y verificar el procedimiento de recuperación productiva, sus
+   precondiciones y respaldos. La reversión probada en el banco local **no es**
+   un procedimiento para ejecutar directamente en producción.
+3. Integrar los cambios sin sobrescribir trabajo concurrente, repetir los
+   checks de integración y comprobar Main local = `avancecorp/main` antes de
+   construir. Publicar sólo un artefacto limpio de ese commit; el build local
+   de validación no es el artefacto del release.
+4. Obtener autorización del SQL candidato exacto y la invocación humana de
+   `$release-crm`. Instalar SQL primero y cliente compatible después; comprobar
+   que la política permanece OFF y que las pantallas existentes funcionan.
+
+**Secuencia siguiente:** cerrar esos pendientes → publicar etapa 3 apagada →
+construir etapa 4 (avisos, reconocer y posponer) → etapa 5 (configuración) →
+etapa 6 (validación integral y activación desde una jornada futura). La carga
+y concurrencia representativas, el recorrido humano, la edición gerencial
+concurrente y el control de emergencia de avisos siguen siendo requisitos
+previos a activar; no se dan por resueltos al publicar la base.
+
+Se conserva la evidencia de 4.073 pruebas de aplicación y ensayos locales de
+reglas, permisos, instalación y reversión; **no se volvieron a ejecutar en este
+guardado documental**. Claude ya realizó dos revisiones de la implementación;
+sus observaciones fueron evaluadas con evidencia, no equivalen a aprobación
+productiva. Los trabajos nuevos significativos mantienen la revisión mediante
+`scripts/claude-review`, sin repetir consultas para obtener un dictamen favorable.
+Detalle y límites: [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md).
+
+### Antecedente — implementación local de la etapa 3, 21/09/2026
 
 Miguel aclaró «Implementar F4 etapa 3 y preparar su publicación» y autorizó
 ensayar el candidato únicamente en `gestion_diaria_f4_vista_chvrqh`, incluida
@@ -167,7 +219,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 
 1. **Main único:** `avancecorp/main` (espejo del `main` local del taller). Integrar el remoto sin sobrescribirlo y exigir igualdad de commits antes de construir/publicar. El preflight comprueba la ancestría del despliegue anterior: `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
 2. **Taller y aislamiento:** comprobar `git status`, `git worktree list` y las notas de esta entrega. La candidata F4 se ha trabajado en `/private/tmp/avancecorp-gd-f4-vista.chvRqh`; no crear otro worktree ni reutilizar una rama antigua automáticamente. Preservar los cambios ajenos sin commitear.
-3. **Banco local F4:** `gestion_diaria_f4_vista_chvrqh` dentro de `supabase_db_avancecorp-f5-bank`. Los scripts en `supabase/scripts/gestion-diaria-equipo/` fijan ese destino; sus fixtures terminan en ROLLBACK. No ejecutar estos ensayos contra producción.
+3. **Banco local F4:** `gestion_diaria_f4_vista_chvrqh` dentro de `supabase_db_avancecorp-f5-bank`. Para etapa 3, ejecutar desde `CRM-Avance-Corp` el comando `node supabase/scripts/gestion-diaria-cortes/ensayar.mjs --ensayar-local` sólo con la autorización del destino exacto: instala, comprueba y termina revirtiendo. Sin esa opción, el script sólo hace el preflight offline. No ejecutar el instalador/reversor antiguo de `gestion-diaria-equipo/` para este ensayo; el banco nuevo reutiliza sus oráculos. No ejecutar estos ensayos contra producción.
 4. **Servidor:** `20260921040335_crm_gestion_diaria_equipo_vista.sql` y `20260921153654_crm_resultado_llamada_seguimiento.sql` ya están instaladas y registradas: no editarlas ni reinstalarlas. Miguel autorizó expresamente estas dos SQL y `$release-crm`. Esa autorización no se extiende a otras migraciones, cortes o TypeSafe.
 5. **Front y tipos:** la firma F4 ya está cotejada contra los tipos generados de la copia local; no usar el antiguo fallo de `gen:types` como permiso para inventar contratos. Repetir `npm run check` y `npm run test:e2e` tras cambios de integración. La publicación requiere invocación humana de `$release-crm` o `/release-crm`.
 6. **Revisión:** aplicar `.ai/REVIEW_PROTOCOL.md` y `.ai/VERIFICATION.md`: un solo PRIMARY escribe; Claude revisa mediante `scripts/claude-review`, con evidencia saneada, sin herramientas ni recursión. No encadenar revisiones automáticas ni confundir su dictamen con checks reales.
@@ -204,8 +256,10 @@ Se preservaron los trabajos concurrentes de Main. Evidencia:
 Miguel expresó conformidad visual tras revisar la vista local el 21/09; después
 autorizó la publicación por separado. Esa conformidad no se presenta como una
 prueba integral de negocio ni como la autorización que permitió el despliegue.
-La siguiente implementación de F4 es la etapa 3. Las tres decisiones de cortes
-se cerraron después el 21/09 (ver abajo); implementación y activación siguen separadas.
+En ese checkpoint la siguiente implementación de F4 era la etapa 3. Las tres
+decisiones de cortes se cerraron después el 21/09; la etapa ya está construida
+y ensayada localmente. Publicación y activación siguen separadas; ver el último
+punto de control para la retoma vigente.
 
 **Etapa 2 publicada y cerrada técnicamente:** Miguel invocó `$release-crm` y
 aprobó el PR #64. Se publicó `baa63aeac71e5a074309aae92a064b67756189f1`, build
@@ -215,8 +269,9 @@ preflight SQL de cinco identidades y 110 comprobaciones HTTP finales PASS.
 Los 68 archivos JS/CSS servidos coinciden con el manifiesto. Artefacto,
 recuperación y límites en
 [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
-Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y la
-implementación de la etapa 3; no se anuncia F4 completa.
+Ese release no añadió SQL, cortes ni TypeSafe. Sigue pendiente el recorrido
+humano productivo; la etapa 3 se implementó después en local y todavía no se
+publicó. No se anuncia F4 completa.
 
 **TypeSafe, avance separado posterior al release:** API verificada con `jev-1.13.0`,
 ensayo sintético reproducible y apoyo técnico comprobados localmente. No se enviaron
@@ -229,7 +284,7 @@ no designar un único responsable. Sigue preparado el ensayo, no los avisos del 
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
-- **F4 posterior:** reglas cerradas el 21/09: sábado mínimo 3, analistas sin leads abiertos fuera de los avisos de corte pero visibles en tabla, y un aplazamiento de una hora por aviso/supervisor/día sin reaviso al cierre o después. Falta implementar y verificar etapas 3–6; no se activaron cortes.
+- **F4 posterior:** reglas cerradas el 21/09: sábado mínimo 3, analistas sin leads abiertos fuera de los avisos de corte pero visibles en tabla, y un aplazamiento de una hora por aviso/supervisor/día sin reaviso al cierre o después. Etapa 3 implementada y verificada localmente, con pendientes de publicación; etapas 4–6 por implementar y verificar. No se activaron cortes.
 - **Resuelto para esta integración:** el nivel «Bajo» conserva el ámbar publicado en PR #55. Se reconciliaron las dos variantes de «Mi día»: desplegables y flujo horizontal del taller, junto con los arreglos de caché, pestañas y permisos publicados.
 
 ### Lo que F3 dejó escrito (importa para F4)
@@ -505,7 +560,8 @@ actividades de F1, los resultados tipificados de F2 y el núcleo diario construi
 
 **Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
 `20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
-etapa 2 publicada desde `baa63aea`, PR #64; etapas 3–6 pendientes. Conserva las dos columnas y desplegables del taller,
+etapa 2 publicada desde `baa63aea`, PR #64; etapa 3 implementada y verificada
+en local, sin publicar; etapas 4–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
 legibilidad de 16 px y protección de los avisos de supervisión.
 Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
