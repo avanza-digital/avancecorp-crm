@@ -7,8 +7,11 @@ fecha: 2026-09-21
 # Gestión Diaria F4.1 — TypeSafe técnico y piloto humano pendiente
 
 Miguel pidió TypeSafe en dos usos: posibles contradicciones entre notas y resultados
-en Gestión Diaria, y apoyo técnico a las revisiones de código. El 21/09 confirmó que
-**un supervisor validará el piloto y nos indicará quién**. No escogerlo automáticamente.
+en Gestión Diaria, y apoyo técnico a las revisiones de código. El 21/09 aclaró que
+**ambos supervisores validarán el piloto, cada uno únicamente las notas de su equipo**.
+La responsabilidad ya está definida por el equipo; no esperar la designación de uno solo.
+La futura consulta y confirmación/descarte de sugerencias también debe respetar ese
+ámbito en el servidor, sin acceso cruzado ni ampliación de permisos.
 
 El acceso local a la API se verificó con `jev-1.13.0`. Se creó un ensayo de 20 notas
 sintéticas, sin extracción del CRM ni etiquetas esperadas en la petición. La primera
@@ -26,8 +29,10 @@ Sin cambios de frontend, SQL, Edge o cron; sin datos reales enviados ni publicac
 La skill `typesafe-ai` orientó las tres salidas tipadas, el estado mínimo, la separación
 de incertidumbre/fallos y la obligación de medir antes de activar.
 
-Próximo paso: recibir el nombre del supervisor, acordar anonimización y criterios,
-preparar 100–200 notas con etiquetas humanas y una validación independiente del ajuste.
+Próximo paso: acordar anonimización y criterios con ambos supervisores, preparar
+100–200 notas en total que representen a ambos equipos, con etiquetas de su respectivo
+supervisor y una validación independiente del ajuste. Conservar revisor/equipo en la
+evidencia y medir los resultados por equipo además del agregado.
 Después se decide si construir/activar las sugerencias con permisos por equipo,
 caché versionada y revisión humana. Cualquier SQL requiere autorización específica.
 

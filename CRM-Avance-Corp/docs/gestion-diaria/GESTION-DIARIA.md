@@ -85,8 +85,9 @@ contradicciones entre el resultado de una llamada y su nota; incorporar las suge
 revisión del supervisor solo si el piloto demuestra utilidad. Son dos etapas: evaluación y
 posterior integración condicionada. El 21/09 se verificó el acceso a la API y se preparó un
 ensayo técnico sintético: 19/20 coincidencias con notas aisladas, una falsa alerta. El piloto
-humano y la integración visible siguen pendientes; no bloquea F4 ni F5. Miguel designará
-al supervisor que validará las notas reales anonimizadas. Estado y evidencia:
+humano y la integración visible siguen pendientes; no bloquea F4 ni F5. Miguel confirmó
+que ambos supervisores validarán las notas reales anonimizadas, cada uno únicamente
+las de su propio equipo; no queda pendiente elegir a uno solo. Estado y evidencia:
 [F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 **F5 — Gerencia «Toda la operación».** Dar una visión global del día frente a ayer y a los
@@ -117,6 +118,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 6. Número errado / no es la persona: el analista decide (2.º número hoy · descartar por datos inválidos · reintento a 7 días · solo registrar). No entran en la tasa.
 7. Tasa: el % siempre con el conteo al lado; chip y alerta solo con ≥ 5 llamadas útiles.
 8. Supervisor y gerencia ven llamadas por rango de horas (08–20 Lima) por analista (F3/F4).
+9. **TypeSafe, aclaración del 21/09:** ambos supervisores participan en la validación; cada uno responde por las notas y sugerencias de su equipo. No hay revisión cruzada entre equipos ni un único supervisor global del piloto.
 - Submotivos: sin fondos ahora → `sin_fondos` · ya invirtió con otro → `competencia` · desconfianza / no le interesa invertir / otro → `sin_interes` · préstamo / crédito / otro → `pide_credito`.
 - Umbrales de arranque: Bien ≥ 45 %, Atención 25–44 %, Bajo < 25 %, con mínimo 5 llamadas útiles para calificar. En F4 los cortes sustituyen «sin llamadas a las 11:00»; «parado» = más de 2 h sin llamar dentro de la jornada (L–V 09:00–18:00, sábado 09:00–13:00, domingo sin avisos de jornada). «Tasa muy baja» nace sin umbral y desactivada hasta que gerencia lo publique con evidencia; los 15 pp del plan inicial no se aplican por defecto.
 
@@ -187,8 +189,9 @@ implementación de la etapa 3; no se anuncia F4 completa.
 ensayo sintético reproducible y apoyo técnico comprobados localmente. No se enviaron
 notas reales ni se modificaron SQL, Edge, cron o frontend. La evaluación aislada obtuvo
 19/20, con una falsa alerta en una nota genérica; no es calibración productiva.
-Miguel confirmó que un supervisor validará el piloto humano y comunicará su identidad.
-Hasta entonces queda preparado el ensayo, no los avisos del CRM. Ver
+Miguel confirmó que ambos supervisores validarán el piloto humano, cada uno dentro
+de su equipo. Falta preparar la muestra anonimizada y los criterios de validación,
+no designar un único responsable. Sigue preparado el ensayo, no los avisos del CRM. Ver
 [F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
@@ -889,7 +892,9 @@ posibles contradicciones entre el resultado tipificado de una llamada y la nota 
 el analista. El añadido al plan fue aceptado por Miguel el 20/09/2026. **Estado al 21/09:
 arranque técnico local implementado y acceso a la API verificado; piloto humano e integración
 del CRM pendientes.** Miguel pidió también apoyo técnico de Jev a las revisiones y confirmó
-que designará un supervisor para validar las notas. No se enviaron registros reales.
+que ambos supervisores validarán las notas, cada uno las de su propio equipo.
+La responsabilidad queda definida por el equipo; no se espera elegir a uno solo.
+No se enviaron registros reales.
 
 Es una entrega posterior y separada de F4. Su activación depende de la utilidad demostrada
 por el piloto; no es requisito para cerrar F4 ni para construir F5. TypeSafe interpreta
@@ -905,9 +910,13 @@ casos compatibles, contradicciones, notas cortas, ambigüedad, negaciones y refe
 conversaciones anteriores. Primero se confirma que el volumen y la calidad de las notas
 permiten evaluar el caso; una nota como «se llamó» puede no aportar evidencia suficiente.
 
-Antes de extraer o transferir esa muestra, Miguel indica el supervisor responsable y se
-acuerdan anonimización, criterios de aceptación y resolución de desacuerdos. Se separan
-los ejemplos de ajuste de las notas reservadas para validación. El ensayo técnico del
+Antes de extraer o transferir esa muestra se acuerdan con ambos supervisores la
+anonimización, los criterios de aceptación y la resolución de desacuerdos. La muestra
+total de 100–200 notas debe representar a ambos equipos: cada supervisor recibe y
+etiqueta solo las de su equipo, respetando el ámbito autorizado del CRM. La evidencia
+de revisión conserva quién revisó y a qué equipo corresponde; se mide el resultado
+por equipo, además del agregado, sin convertir el piloto en evaluación de personas.
+Se separan los ejemplos de ajuste de las notas reservadas para validación. El ensayo técnico del
 21/09 usa exclusivamente 20 fixtures sintéticos escritos por Codex, sin etiquetas humanas:
 primera consulta por lote 20/20; control aislado v2 19/20 con una falsa alerta en «Se gestionó».
 Se conserva el desacuerdo, sin rebajar umbrales para obtener un PASS. No cierra esta etapa.
@@ -931,6 +940,12 @@ El objetivo es llevar al registro del supervisor las sugerencias que hayan demos
 la nota original, con acceso al registro y acciones para confirmar la observación o descartar
 la sugerencia. La decisión se refiere a la sugerencia; no cambia automáticamente el resultado
 de la llamada. Cualquier corrección del dato sigue los permisos y mecanismos del CRM.
+
+Cada supervisor consulta, confirma o descarta únicamente sugerencias de su propio
+equipo. La implementación debe comprobar ese ámbito en el servidor, tanto al leer
+como al guardar la revisión, y probar que el otro supervisor no puede acceder o
+resolver esas sugerencias. Se conserva la jerarquía y los permisos existentes;
+esta aclaración no amplía el acceso de ningún rol.
 
 Se considera lograda cuando las sugerencias se pueden revisar con evidencia, las respuestas
 del supervisor permiten medir su utilidad y el servicio funciona sin interrumpir el trabajo.
@@ -1080,7 +1095,7 @@ el ensayo en banco · instalar y publicar F1, F2 y F3.
 2. **El mínimo del sábado** para el primer corte: medio día no puede exigir lo de uno entero. Se fija al publicar la política.
 3. **Cerrar las otras reglas pendientes de los cortes:** analistas sin cartera abierta y límites de repetición y cierre de jornada al posponer una hora.
 4. **Instalar y publicar F4**, y después F5: SQL con `!` primero, front con `/release-crm` después. El piloto F4.1 no bloquea ninguna de esas entregas.
-5. **F4.1:** Miguel designará al supervisor; después, preparar muestra anonimizada, etiquetas y criterios de aceptación. El acceso a TypeSafe ya se verificó; la falsa alerta del ensayo aislado queda como caso de revisión. Decidir la integración visible solo tras el piloto humano.
+5. **F4.1:** responsables definidos: ambos supervisores, cada uno por su equipo. Preparar la muestra anonimizada de ambos equipos, las etiquetas y los criterios de aceptación. El acceso a TypeSafe ya se verificó; la falsa alerta del ensayo aislado queda como caso de revisión. Decidir la integración visible solo tras el piloto humano y verificar el aislamiento entre equipos.
 6. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
 
 ### Lo que este plan YA NO dice, y por qué

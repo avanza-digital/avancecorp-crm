@@ -28,11 +28,14 @@ Ninguna confianza decide la activación. Un resultado perfecto aquí no acredita
 calidad sobre notas reales, y un desacuerdo no se esconde bajando un umbral.
 
 El siguiente paso del plan F4.1 requiere 100–200 notas redactadas/anonimizadas
-y etiquetas revisadas por una persona. Hay que medir precisión, falsas alertas,
+y etiquetas revisadas por el supervisor de cada equipo. Hay que medir precisión, falsas alertas,
 omisiones, cobertura, coste y latencia antes de implementar/activar la ayuda
 visible. Después corresponden cola y caché versionadas, permisos por equipo y
 revisión humana de sugerencias; cualquier SQL se presenta antes de instalarla.
-Miguel asignará un supervisor para validar las etiquetas; todavía no indicó quién.
+Miguel confirmó que participan ambos supervisores, cada uno únicamente con las notas
+de su propio equipo. La muestra total representa a ambos equipos; no se espera elegir
+un único supervisor ni se habilita revisión cruzada. Se conserva el revisor y el equipo
+en la evidencia del piloto y se miden resultados por equipo además del agregado.
 El conjunto de validación debe ser independiente de los ejemplos usados para
 ajustar las preguntas. Antes de comenzar se acuerdan protocolo de desacuerdos,
 criterios de aceptación y tratamiento de datos. No se envían notas reales por

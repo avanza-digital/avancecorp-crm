@@ -94,7 +94,8 @@ Arranque TypeSafe posterior del 21/09: Miguel pidió ambas vías, revisión asis
 CRM y apoyo técnico al desarrollo. La API respondió con `jev-1.13.0`; se preparó un
 ensayo sintético y se probó el toolkit técnico existente. Control aislado: 19/20,
 una falsa alerta en «Se gestionó». No se enviaron datos reales ni se activó el CRM.
-Miguel indicó que un supervisor validará el piloto y comunicará quién. Estado y
+Miguel aclaró que ambos supervisores validarán el piloto, cada uno únicamente las
+notas de su propio equipo; no queda pendiente elegir a uno solo. Estado y
 continuación en [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]].
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] ·
