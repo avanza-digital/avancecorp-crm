@@ -5,7 +5,7 @@ import {probarAuditoria} from './auditoria-casos.mjs';
 // Solo bancos Docker sintéticos conocidos; no admite una URL ni proyecto remoto.
 const contenedor='supabase_db_avancecorp-f5-bank';
 const db=process.env.CONTRATOS_AUDITORIA_BANCO || 'contratos_eliminar_20260915';
-assert.ok(['contratos_eliminar_20260915','contratos_vinculados_20260916'].includes(db), 'Banco local no autorizado');
+assert.ok(['contratos_eliminar_20260915','contratos_vinculados_20260916','contratos_registro_20260921'].includes(db), 'Banco local no autorizado');
 function sql(consulta) {
   const r=spawnSync('docker',['exec','-i',contenedor,'psql','-X','-qAt','-U','postgres','-d',db,
     '-v','ON_ERROR_STOP=1','-f','-'],{input:consulta,encoding:'utf8'});

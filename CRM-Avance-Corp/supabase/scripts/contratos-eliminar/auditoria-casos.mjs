@@ -58,6 +58,8 @@ test('Deniega roles ajenos; una inversión con historial propio revierte sin aud
     select id into strict a from public.perfiles where rol='admin' and activo limit 1;
     select i.contrato_id into strict c from crm.inversiones i where i.contrato_id is not null
       and exists(select 1 from crm.inversion_eventos e where e.inversion_id=i.id) limit 1;
+    insert into crm.inversion_eventos(inversion_id,tipo,motivo,creado_por)
+      select id,'correccion','Historial posterior sintético',a from crm.inversiones where contrato_id=c;
     for p in select id from public.perfiles where rol in ('analista','directorio','cliente') loop
       begin
         perform crm.contrato_eliminar_auditado(c,p.id);
@@ -104,7 +106,7 @@ test('Una inversión multiempresa con pagos y sin historial propio se archiva y 
       raise exception 'No retiró la inversión con el contrato'; end if;
     select snapshot into strict copia from crm.contratos_eliminados_auditoria
       where contrato_id=c and id=(r->>'auditoria_id')::uuid;
-    if (copia->>'version')<>'2' or copia->'inversion' is distinct from inv_antes
+    if (copia->>'version')<>'3' or copia->'inversion' is distinct from inv_antes
       or copia->'inversion_titulares' is distinct from tit_antes
       or copia->'cronograma' is distinct from pagos_antes then
       raise exception 'La auditoría no conserva la inversión y sus titulares'; end if;

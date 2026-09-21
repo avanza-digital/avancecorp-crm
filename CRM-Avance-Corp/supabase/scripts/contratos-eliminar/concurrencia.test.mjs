@@ -4,13 +4,17 @@ import {spawn,spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import test from 'node:test';
-const args=['exec','-i','supabase_db_avancecorp-f5-bank','psql','-XqAt','-U','postgres','-d','contratos_vinculados_20260916','-v','ON_ERROR_STOP=1','--set','VERBOSITY=verbose'];
+const db=process.env.CONTRATOS_AUDITORIA_BANCO || 'contratos_vinculados_20260916';
+assert.ok(['contratos_vinculados_20260916','contratos_registro_20260921'].includes(db), 'Banco local no autorizado');
+const args=['exec','-i','supabase_db_avancecorp-f5-bank','psql','-XqAt','-U','postgres','-d',db,'-v','ON_ERROR_STOP=1','--set','VERBOSITY=verbose'];
 function sql(texto) {
   const r=spawnSync('docker',args,{input:texto,encoding:'utf8'});
   assert.equal(r.status,0,r.stderr); return r.stdout.trim();
 }
 function conexion(nombre) {
   const p=spawn('docker',args);let salida='',errores='',terminado=false;
+  // psql puede cerrar stdin al rechazar una consulta antes de que llegue COMMIT.
+  p.stdin.on('error',e=>{if(e.code!=='EPIPE')throw e;});
   p.stdout.on('data',d=>salida+=d);p.stderr.on('data',d=>errores+=d);
   const fin=new Promise((resolve,reject)=>{p.on('error',reject);p.on('close',code=>{terminado=true;resolve({code,salida,errores});});});
   p.stdin.write(`set application_name='${nombre}'; set statement_timeout='12s'; begin;\n`);

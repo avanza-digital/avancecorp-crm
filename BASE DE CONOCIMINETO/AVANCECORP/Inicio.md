@@ -5,6 +5,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Eliminar contratos - permiso permanente y registro inicial (2026-09-21)]] — **PUBLICADO Y VERIFICADO:** permiso permanente de Admin/Superadmin corregido para el alta unificada. 001457 eliminado con auditoría exacta de contrato/13 cuotas/registro/solicitud y PDF conservado; 35 pruebas SQL y 48 Edge PASS. No retirar esta capacidad en futuros cambios.
+
 - [[Pipeline - etiqueta sin asignar por nombre ausente (2026-09-21)]] — **PUBLICADO Y SESIÓN CERRADA:** Pipeline resuelve el nombre del analista por su ID y reserva «sin asignar» para leads sin responsable. Fuente `b0d2ff89`, PR #63; 4.016 pruebas, CI y 108 comprobaciones HTTP PASS. Conformidad de Miguel y checkpoint documental local; artefactos, evidencias y recuperación conservados.
 
 - [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] — **PUBLICADO Y CHECKPOINT GUARDADO:** F4 etapa 1 y ampliación F2/F3, SQL instalado/registrado y frontend `526e728e`, PR #62. Build `build-20260921T170500239Z`; 4.016 pruebas, 231 E2E y verificaciones productivas PASS, con límites documentados. Miguel confirmó que la mejora le gusta y pidió guardar el progreso; conformidad visible registrada, sin atribuir una prueba completa. Sigue recorrido de negocio y F4 etapa 2; cortes y TypeSafe no activados.
