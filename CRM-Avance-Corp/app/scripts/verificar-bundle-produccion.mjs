@@ -24,6 +24,19 @@ const obligatoriosFicha360 = [
   'Capital vigente',
 ]
 
+// Indicador de foco (21/09/2026). Las dos reglas de `index.css` que lo
+// arreglan viven FUERA de las utilidades de Tailwind, y ya se perdieron una vez
+// en el camino: un `*/` dentro del comentario cerraba el bloque antes de tiempo
+// y el parser se comía la regla. En `npm run dev` el navegador se recuperaba
+// solo y todo parecía correcto; en `dist` la regla no existía. Se comprueba
+// aquí, sobre el CSS que de verdad se publica.
+const obligatoriosFoco = [
+  // El foco vuelve en alto contraste, donde el navegador borra los box-shadow.
+  'forced-colors:active){:focus-visible',
+  // Y en modo normal el control que apaga el outline recupera uno de 2 px.
+  '[class*=focus-visible\\:outline-none]:focus-visible',
+]
+
 async function archivos(directorio) {
   const entradas = await readdir(directorio, { withFileTypes: true })
   const resultado = []
@@ -37,6 +50,7 @@ async function archivos(directorio) {
 
 const coincidencias = []
 const encontradosFicha360 = new Set()
+const encontradosFoco = new Set()
 for (const ruta of await archivos(raiz)) {
   const contenido = (await readFile(ruta)).toString('utf8')
   const contenidoNormalizado = contenido.toLowerCase()
@@ -48,6 +62,9 @@ for (const ruta of await archivos(raiz)) {
   }
   for (const obligatorio of obligatoriosFicha360) {
     if (contenido.includes(obligatorio)) encontradosFicha360.add(obligatorio)
+  }
+  for (const obligatorio of obligatoriosFoco) {
+    if (contenido.includes(obligatorio)) encontradosFoco.add(obligatorio)
   }
 }
 
@@ -64,4 +81,11 @@ if (faltantesFicha360.length > 0) {
   )
 }
 
-console.log('BUNDLE_PRODUCCION_SIN_PDFMAKE_NI_FIXTURES_DEMO_Y_CON_FICHA_360')
+const faltantesFoco = obligatoriosFoco.filter((obligatorio) => !encontradosFoco.has(obligatorio))
+if (faltantesFoco.length > 0) {
+  throw new Error(
+    `El bundle productivo se publicaria sin indicador de foco accesible: faltan ${faltantesFoco.join(', ')}`,
+  )
+}
+
+console.log('BUNDLE_PRODUCCION_SIN_PDFMAKE_NI_FIXTURES_DEMO_CON_FICHA_360_Y_CON_FOCO')
