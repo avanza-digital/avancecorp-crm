@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
 import { diaEquipoPrueba, filaEquipoPrueba } from '@/lib/gestion-diaria-equipo.fixture'
 import type { DiaEquipoHook } from '@/data/gestion-diaria-equipo-queries'
 import { CrmApiError } from '@/data/crm-api'
@@ -8,7 +9,11 @@ const dobles = vi.hoisted(() => ({ consulta: {} as DiaEquipoHook, recargar: vi.f
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 's1', rol: 'supervisor', demo: false } }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-21T15:00:00Z') }))
 vi.mock('@/data/gestion-diaria-equipo-queries', () => ({ useDiaEquipo: () => dobles.consulta }))
-vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (props: unknown) => { dobles.registro(props); return <p>Registro cargado</p> } }))
+vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (props: unknown) => {
+  dobles.registro(props)
+  const [pagina, setPagina] = useState(1)
+  return <div><p>Registro cargado</p><button onClick={() => setPagina((p) => p + 1)}>Página {pagina}</button></div>
+} }))
 const { GestionDiariaSupervisor } = await import('./supervisor')
 beforeEach(() => {
   vi.clearAllMocks()
@@ -47,8 +52,58 @@ describe('Supervisor — Mi equipo hoy', () => {
     expect(dobles.registro).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Ver registro de ANA PÉREZ' }))
     expect(screen.getByRole('heading', { name: 'Registro de ANA PÉREZ' })).toHaveFocus()
-    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-21', analistaIds: ['a1'], permitirExportar: false }))
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-21', analistaIds: ['a1'], permitirExportar: false, pestanaInicial: 'todo' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar registro' }))
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+  })
+  it('el detalle horario abre llamadas de ese analista y se oculta si sale del equipo autorizado', () => {
+    const vista = render(<GestionDiariaSupervisor />)
+    const detalle = screen.getByText('Detalle de ANA PÉREZ').closest('details')!
+    detalle.open = true
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Ver llamadas del día de ANA PÉREZ' }))
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ analistaIds: ['a1'], pestanaInicial: 'llamadas' }))
+    dobles.consulta.dia = diaEquipoPrueba([filaEquipoPrueba({ analista_id: 'b', nombre_completo: 'BRUNO' })])
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Se cerró el registro')
+  })
+  it('reabrir la misma entrada reinicia filtros/páginas y aplica otra vez la pestaña solicitada', () => {
+    render(<GestionDiariaSupervisor />)
+    const abrir = screen.getByRole('button', { name: 'Ver registro de ANA PÉREZ' })
+    fireEvent.click(abrir)
+    fireEvent.click(screen.getByRole('button', { name: 'Página 1' }))
+    expect(screen.getByRole('button', { name: 'Página 2' })).toBeVisible()
+    fireEvent.click(abrir)
+    expect(screen.getByRole('button', { name: 'Página 1' })).toBeVisible()
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ pestanaInicial: 'todo' }))
+  })
+  it('un fallo del resumen no desmonta el registro ni roba foco al recuperarse', () => {
+    const vista = render(<GestionDiariaSupervisor />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver registro de ANA PÉREZ' }))
+    const pagina = screen.getByRole('button', { name: 'Página 1' })
+    fireEvent.click(pagina)
+    pagina.focus()
+    dobles.consulta.error = new Error('Sin red')
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.getByRole('button', { name: 'Página 2' })).toBe(pagina)
+    expect(pagina).toHaveFocus()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    dobles.consulta.error = null
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(pagina).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Página 2' })).toBeVisible()
+  })
+  it('una revocación del resumen cierra el registro, devuelve foco y no lo reabre sola', () => {
+    const vista = render(<GestionDiariaSupervisor />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver registro de ANA PÉREZ' }))
+    screen.getByRole('button', { name: 'Página 1' }).focus()
+    dobles.consulta.error = new CrmApiError('Revocado', '42501')
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2 })).toHaveFocus()
+    expect(screen.getByRole('status')).toHaveTextContent('Se cerró el registro')
+    dobles.consulta.error = null
+    vista.rerender(<GestionDiariaSupervisor />)
     expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
   })
   it('un error de refresco oculta la foto anterior, nunca presenta ceros', () => {

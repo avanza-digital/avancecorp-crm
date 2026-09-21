@@ -6,11 +6,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { RegistroItem, RegistroPagina } from '@/lib/gestion-diaria'
+import { CrmApiError } from '@/data/crm-api'
 
 const ESTADO = vi.hoisted(() => ({
   pagina: null as RegistroPagina | null, cargando: false, enVuelo: false, error: null as unknown,
   recargar: vi.fn(async () => {}), llamadas: [] as { filtros: unknown; cursor: unknown }[],
   abrirLead: vi.fn(), descargar: vi.fn(() => true),
+  yo: { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' },
 }))
 const EQUIPO = [
   { perfil_id: 'sup1', nombre_completo: 'SUPERVISOR UNO', rol_crm: 'supervisor', supervisor_id: null, activo: true },
@@ -20,7 +22,7 @@ const EQUIPO = [
   { perfil_id: 'u3', nombre_completo: 'ANALISTA TRES', rol_crm: 'vendedor', supervisor_id: 'sup2', activo: true },
   { perfil_id: 'u4', nombre_completo: 'ANALISTA BAJA', rol_crm: 'vendedor', supervisor_id: 'sup1', activo: false },
 ]
-vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' } }) }))
+vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: ESTADO.yo }) }))
 // El reloj de la app, FIJO: sin esto «de hoy» dependía del día real y la suite
 // se ponía roja sola al pasar la medianoche de Lima.
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-19T18:02:00Z') }))
@@ -53,6 +55,7 @@ const montar = (props: Partial<Parameters<typeof RegistroActividad>[0]> = {}) =>
 beforeEach(() => {
   ESTADO.pagina = pagina([item(1), item(2, { tipo: 'llamada_no_contestada', detalle: null, metadata: { resultado: 'numero_errado' } })])
   ESTADO.cargando = false; ESTADO.enVuelo = false; ESTADO.error = null; ESTADO.llamadas = []
+  ESTADO.yo = { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' }
   vi.clearAllMocks()
 })
 
@@ -100,6 +103,30 @@ describe('RegistroActividad — filas', () => {
 })
 
 describe('RegistroActividad — filtros y cursor', () => {
+  it('abre Todo desde la fila fija sin sugerir que se consultan otros analistas', () => {
+    montar({ analistaIds: ['u1'], pestanaInicial: 'todo' })
+    expect(screen.getByRole('tab', { name: 'Todo' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByLabelText('Analista')).not.toBeInTheDocument()
+    expect(screen.getAllByText('· ANALISTA UNO')).toHaveLength(2)
+    expect(ultima().filtros).toMatchObject({ analistaIds: ['u1'], pestana: 'todo' })
+  })
+
+  it.each(['actor', 'rol', 'dia', 'ambito'] as const)('cambiar %s descarta páginas y filtros previos', (cambio) => {
+    ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, i) => item(i + 1)))
+    const vista = montar()
+    fireEvent.change(screen.getByLabelText('Analista'), { target: { value: 'u1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver más' }))
+    expect(ultima().cursor).not.toBeNull()
+    ESTADO.pagina = null; ESTADO.cargando = true
+    if (cambio === 'actor') ESTADO.yo = { ...ESTADO.yo, id: 'otro' }
+    if (cambio === 'rol') ESTADO.yo = { ...ESTADO.yo, rol: 'gerencia' }
+    vista.rerender(<RegistroActividad dia={cambio === 'dia' ? '2026-09-18' : '2026-09-19'}
+      analistaIds={cambio === 'ambito' ? ['u2'] : null} mostrarAnalista permitirExportar={false} />)
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(ultima().cursor).toBeNull()
+    expect(ultima().filtros).toMatchObject({ analistaIds: cambio === 'ambito' ? ['u2'] : null })
+  })
+
   it('«Ver más» pide la siguiente página desde la última visible y NO borra lo ya leído mientras carga', () => {
     ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, i) => item(i + 1)))
     const vista = montar()
@@ -166,10 +193,29 @@ describe('RegistroActividad — filtros y cursor', () => {
 })
 
 describe('RegistroActividad — estados y exportación', () => {
+  it('revocar permiso en página N oculta y borra las páginas previas, sin exportarlas ni afirmar vacío', () => {
+    ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, i) => item(i + 1)))
+    const vista = montar({ permitirExportar: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver más' }))
+    ESTADO.pagina = null; ESTADO.error = new CrmApiError('Revocado', '42501')
+    vista.rerender(<RegistroActividad dia="2026-09-19" analistaIds={null} mostrarAnalista permitirExportar />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Ya no tienes autorización')
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Exportar CSV/ })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    // Si el acceso vuelve, no reaparecen datos de antes de la revocación.
+    ESTADO.error = null; ESTADO.pagina = pagina([item(30)])
+    vista.rerender(<RegistroActividad dia="2026-09-19" analistaIds={null} mostrarAnalista permitirExportar />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText('Detalle íntegro 1')).not.toBeInTheDocument()
+  })
+
   it('vacío honesto, carga y error con reintento cuando no hay nada cargado', () => {
     ESTADO.pagina = pagina([])
     const vista = montar()
-    expect(screen.getByText(/Sin actividad ese día|Todavía no hay actividad hoy/)).toBeInTheDocument()
+    expect(screen.getByText('No hay actividad con estos filtros')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo' }))
+    expect(screen.getByText('Todavía no hay actividad hoy')).toBeInTheDocument()
     ESTADO.pagina = null; ESTADO.cargando = true
     vista.rerender(<RegistroActividad dia="2026-09-19" analistaIds={null} mostrarAnalista permitirExportar={false} />)
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull()

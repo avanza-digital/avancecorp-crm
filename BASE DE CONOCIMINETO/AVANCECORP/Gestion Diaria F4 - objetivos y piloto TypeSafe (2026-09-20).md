@@ -1,6 +1,6 @@
 ---
 tags: [crm, gestion-diaria, supervisor, plan, typesafe]
-estado: plan actualizado — F4 etapa 1 validada localmente; resto pendiente
+estado: etapa 1 publicada — etapa 2 implementada localmente, sin publicar
 fecha: 2026-09-20
 ---
 
@@ -72,10 +72,17 @@ No se adoptan mínimos ni exclusiones provisionales: las decisiones pendientes b
 activación de los cortes, no la vista del equipo. Las verificaciones de documentación pasan;
 no se acredita implementación ni resultado del piloto.
 
-Actualización de implementación del 21/09: F4 etapa 1 cuenta con una candidata validada
+Actualización de implementación inicial del 21/09: F4 etapa 1 cuenta con una candidata validada
 localmente y reconciliada con Main. La entrega productiva sigue pendiente; ver
 [[Gestion Diaria F4 - vista del equipo validada localmente (2026-09-21)]]. El piloto de
 contradicciones de F4.1 no forma parte de esta integración.
+
+Actualización posterior del 21/09: la etapa 1 ya fue publicada, como registra
+[[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]]. Miguel retomó
+la etapa 2 y se implementó el detalle horario y el recorrido al registro/ficha
+en el taller aislado, sin nuevas SQL ni publicación. Ver
+[[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]]. Las etapas
+3–6 y el piloto TypeSafe conservan su alcance y sus decisiones pendientes.
 
 Relacionadas: [[Gestion Diaria - modulo nuevo y absorcion de Seguimiento 2026-09-19]] ·
 [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]] ·

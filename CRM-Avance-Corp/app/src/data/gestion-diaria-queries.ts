@@ -50,9 +50,12 @@ export function useRegistroActividadOperativo(
   const { actividadesDelAmbito, ambito, equipo } = useCRMData()
   const sesionReal = Boolean(habilitado && yo && !yo.demo)
   const consulta = useQuery({
-    queryKey: gestionDiariaKeys.registro(yo?.id ?? null, filtros, cursor, limite),
+    queryKey: [...gestionDiariaKeys.registro(yo?.id ?? null, filtros, cursor, limite), yo?.rol ?? null, yo?.demo ?? null],
     queryFn: ({ signal }) => listarRegistroActividad(filtros, cursor, limite, signal),
     enabled: sesionReal,
+    // «Actualizar» desde una página posterior vuelve a la primera. Debe
+    // reconsultarla incluso si la caché global aún la considera fresca.
+    staleTime: 0,
     // Las páginas con cursor son estables (keyset hacia atrás): solo la primera late.
     refetchInterval: cursor === null ? INTERVALO_REGISTRO_MS : false,
     refetchOnWindowFocus: 'always',

@@ -1,9 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
-import { DiaEquipoSchema, filtrarOrdenarEquipo, tiempoSinLlamar, type OrdenEquipo } from './gestion-diaria-equipo'
+import { DiaEquipoSchema, filtrarOrdenarEquipo, horarioConfirmado, tiempoSinLlamar, type OrdenEquipo } from './gestion-diaria-equipo'
 import { diaEquipoPrueba, filaEquipoPrueba } from './gestion-diaria-equipo.fixture'
 import { diaEquipoDesdeDemo } from './gestion-diaria-equipo-demo'
 import type { Actividad, Miembro } from './tipos'
+
+describe('Confirmación del desglose horario', () => {
+  const m = { ...filaEquipoPrueba().marcador, llamadas: 2, utiles: 2, contestadas: 1, por_hora: [{ hora: 9, llamadas: 2, contestadas: 1 }] }
+  it('confirma vacío real y llamadas sólo fuera de 08–20', () => {
+    expect(horarioConfirmado(filaEquipoPrueba().marcador)).toBe(true)
+    expect(horarioConfirmado(m)).toBe(true)
+    expect(horarioConfirmado({ ...m, por_hora: [{ hora: 23, llamadas: 2, contestadas: 1 }] })).toBe(true)
+  })
+  it('admite contestadas por tipo excluidas de la tasa, sin exceder las llamadas no útiles', () => {
+    expect(horarioConfirmado({ ...m, utiles: 1, contestadas: 0 })).toBe(true)
+    expect(horarioConfirmado({ ...m, utiles: 2, contestadas: 0 })).toBe(false)
+    expect(horarioConfirmado({ ...m, utiles: 1, contestadas: 2 })).toBe(false)
+  })
+  it.each([
+    { llamadas: 3 }, { llamadas: 1 }, { contestadas: 2 }, { contestadas: 0 }, { por_hora: [] },
+    { por_hora: [{ hora: 9, llamadas: 1, contestadas: 1 }, { hora: 9, llamadas: 1, contestadas: 0 }] },
+    { por_hora: [{ hora: 9, llamadas: -1, contestadas: -1 }] },
+    { por_hora: [{ hora: 9, llamadas: 0.5, contestadas: 0.5 }] },
+    { por_hora: [{ hora: 9, llamadas: 1, contestadas: 2 }] },
+  ])('rechaza totales o filas incoherentes: %j', (cambio) => {
+    expect(horarioConfirmado({ ...m, ...cambio })).toBe(false)
+  })
+})
 
 describe('Equipo diario: contrato autosuficiente', () => {
   it('acepta un equipo sin actividad y un roster vacío', () => {

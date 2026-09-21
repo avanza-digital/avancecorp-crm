@@ -73,7 +73,9 @@ La etapa 1 está **PUBLICADA el 21/09**, con SQL `20260921040335` instalado y
 registrado. Main local y `avancecorp/main` coincidieron en `526e728e` antes de
 construir y publicar una copia limpia de ese commit. Acta de publicación,
 verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md).
-Queda el recorrido de negocio con el supervisor; las etapas 2–6 siguen pendientes.
+La etapa 2 se retomó el 21/09 y está implementada en el taller aislado, **sin publicar**;
+ver [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md) para sus verificaciones y límites.
+Queda el recorrido de negocio con el supervisor; las etapas 3–6 siguen pendientes.
 Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
@@ -145,10 +147,20 @@ matriz completa de pruebas de negocio ni como aprobación de nuevas etapas.
 Este guardado conserva el plan, actas, ledger y memoria en Git local, sin otro
 deploy, SQL ni activación. La versión productiva sigue siendo `526e728e`.
 
-**Siguiente objetivo F4:** completar el recorrido de negocio de la etapa 1 y
-retomar la **etapa 2, detalle y registro del analista**. Antes de construir más,
-contrastar lo que ya ofrecen el detalle desplegable y el registro de F1 con el
-circuito analista → actividad → ficha; no duplicarlos ni dar por cerrada la etapa 2.
+**Retoma del 21/09 — etapa 2 implementada localmente:** se amplió el detalle de
+cada fila con llamadas por hora, reutilizando la foto F4 y el registro F1. El
+recorrido analista → actividad → ficha conserva filtros y foco, e hidrata la
+ficha bajo los permisos existentes aunque no esté en la caché inicial. Incluye
+estados de carga, vacío filtrado, error y revocación. No se creó otro historial
+ni se modificaron SQL, cortes o TypeSafe.
+
+La candidata está en `codex/gestion-diaria-f4-detalle-analista`, en el taller
+existente `/private/tmp/avancecorp-gd-f4-vista.chvRqh`, basada en `b0d2ff89`.
+Se preservaron los trabajos concurrentes de Main; no se integra ni publica
+automáticamente esta etapa. Evidencia: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
+El siguiente paso es revisar la candidata con Miguel y autorizar por separado
+su publicación. La siguiente implementación de F4 es la etapa 3; las decisiones
+pendientes de cortes siguen siendo requisitos de su activación.
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
@@ -428,7 +440,7 @@ actividades de F1, los resultados tipificados de F2 y el núcleo diario construi
 
 **Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
 `20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
-etapas 2–6 pendientes. Conserva las dos columnas y desplegables del taller,
+etapa 2 implementada localmente, sin publicar; etapas 3–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
 legibilidad de 16 px y protección de los avisos de supervisión.
 Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
@@ -469,6 +481,23 @@ conteo; Bien/Atención/Bajo solo se aplica con al menos cinco llamadas útiles, 
 vigente. Su ámbito se limita al equipo autorizado y la proyección procede del servidor.
 
 #### F4 · Etapa 2 — Detalle y registro del analista
+
+**Estado al 21/09:** candidata implementada en el taller, no publicada. Acta y
+verificaciones: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md). No requiere una
+migración nueva: utiliza `marcador.por_hora` de F4 y el registro paginado de F1.
+Cada fila mantiene sus indicadores y añade conteos legibles de llamadas y
+contestadas por hora (08–20 Lima), declarando también las llamadas fuera de la
+franja. «Ver llamadas del día» abre Llamadas; «Ver registro» abre Todo, del
+analista seleccionado. La selección fija no muestra un filtro engañoso de
+«Todos los analistas». El registro conserva texto íntegro, tipos, etapas y
+acceso a ficha; su cuerpo y controles respetan 16 px.
+
+El recorrido comprobado incluye una ficha ausente del boot, retorno de foco,
+paginación, actualización real desde página 2 y retirada de páginas acumuladas
+al recibir una revocación. No atribuye ausencia a un vacío filtrado ni sustituye
+por ceros un desglose horario inconsistente. Los avisos automáticos de cortes
+siguen pendientes de las etapas 3–4; el acceso actual parte de la fila y su
+motivo de atención. El cierre productivo exige revisión humana y publicación.
 
 El objetivo es explicar los indicadores mediante las actividades que los originan. Cada fila
 permite desplegar llamadas por hora de Lima, abrir el registro del día y llegar a la ficha

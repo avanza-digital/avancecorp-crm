@@ -5,6 +5,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]] — **ETAPA 2 LOCAL, SIN PUBLICAR:** detalle de llamadas por hora de Lima, acceso al registro F1 y ficha fuera de la caché inicial, regreso con foco y filtros, legibilidad de 16 px y revocación sin conservar páginas visibles. Candidata en el taller existente, rama `codex/gestion-diaria-f4-detalle-analista`; no se tocaron SQL, cortes ni TypeSafe. Ver acta para checks, revisión y siguiente paso.
+
 - [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]] — **PUBLICADO Y CHECKPOINT GUARDADO:** F4 etapa 1 y ampliación F2/F3, SQL instalado/registrado y frontend `526e728e`, PR #62. Build `build-20260921T170500239Z`; 4.016 pruebas, 231 E2E y verificaciones productivas PASS, con límites documentados. Miguel confirmó que la mejora le gusta y pidió guardar el progreso; conformidad visible registrada, sin atribuir una prueba completa. Sigue recorrido de negocio y F4 etapa 2; cortes y TypeSafe no activados.
 
 - [[Gestion Diaria - resultado separado del descarte (2026-09-21)]] — **AMPLIACIÓN F2/F3 PUBLICADA:** las siete opciones se contraen al elegir; «No le interesa» y «Pide otro producto» permiten agendar y conservar el lead. Descarte explícito, veto respetado, v3/recibos preservados. Autorización productiva y publicación completadas; F4 conserva sus etapas 2–6 pendientes.

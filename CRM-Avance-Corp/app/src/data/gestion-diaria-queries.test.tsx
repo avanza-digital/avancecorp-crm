@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { CursorRegistro } from '@/lib/gestion-diaria'
 import type { Actividad, Lead, Miembro, Tarea, Yo } from '@/lib/tipos'
 
 const dobles = vi.hoisted(() => ({
@@ -29,7 +30,7 @@ const { useRegistroActividadOperativo, useDiaAnalista } = await import('./gestio
 
 const FILTROS = { dia: '2026-09-19', analistaIds: null, pestana: 'todo' as const, etapa: null }
 function envoltorio() {
-  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60_000 } } })
   return ({ children }: { children: ReactNode }) => <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
 }
 
@@ -45,6 +46,32 @@ beforeEach(() => {
 })
 
 describe('useRegistroActividadOperativo', () => {
+  it('volver a la primera página la reconsulta aunque la caché global siga fresca', async () => {
+    dobles.yo = { ...dobles.yo, demo: false }
+    dobles.listar.mockResolvedValue({ version: 1, items: [] })
+    const { result, rerender } = renderHook(({ cursor }: { cursor: CursorRegistro | null }) => useRegistroActividadOperativo(FILTROS, cursor, 25),
+      { wrapper: envoltorio(), initialProps: { cursor: null } as { cursor: CursorRegistro | null } })
+    await waitFor(() => expect(result.current.pagina).not.toBeNull())
+    rerender({ cursor: { antes_de: '2026-09-19T15:00:00Z', antes_id: 'a1' } })
+    await waitFor(() => expect(dobles.listar).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(result.current.enVuelo).toBe(false))
+    rerender({ cursor: null })
+    await waitFor(() => expect(dobles.listar).toHaveBeenCalledTimes(3))
+  })
+
+  it('un cambio de rol del mismo actor no muestra la página cacheada del rol anterior', async () => {
+    dobles.yo = { ...dobles.yo, demo: false, rol: 'gerencia' }
+    const pagina = { version: 1, items: [{ id: 'solo-gerencia' }] }
+    dobles.listar.mockResolvedValueOnce(pagina)
+    const { result, rerender } = renderHook(() => useRegistroActividadOperativo(FILTROS, null, 25), { wrapper: envoltorio() })
+    await waitFor(() => expect(result.current.pagina).toEqual(pagina))
+    dobles.listar.mockImplementation(() => new Promise(() => {}))
+    dobles.yo = { ...dobles.yo, rol: 'supervisor' }
+    rerender()
+    expect(result.current.pagina).toBeNull()
+    expect(result.current.cargando).toBe(true)
+  })
+
   it('en demo devuelve el espejo del ámbito sin llamar a la red', () => {
     const { result } = renderHook(() => useRegistroActividadOperativo(FILTROS, null, 25), { wrapper: envoltorio() })
     expect(dobles.listar).not.toHaveBeenCalled()
