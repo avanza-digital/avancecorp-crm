@@ -294,7 +294,7 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(screen.getByText('2026-01-000321', { exact: false })).toBeInTheDocument()
 
     for (const nombreAccion of [
-      'Aumentar inversión',
+      'Registrar upgrade',
       'Registrar nueva inversión',
       'Ver contrato 2026-01-000321',
       'Renovar inversión del contrato 2026-01-000321',
@@ -311,7 +311,7 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(screen.getByRole('button', { name: /^Cerrar$/ })).not.toHaveClass('md:min-h-9')
 
     await user.click(screen.getByRole('button', { name: 'Agendar seguimiento' }))
-    await user.click(screen.getByRole('button', { name: 'Aumentar inversión' }))
+    await user.click(screen.getByRole('button', { name: 'Registrar upgrade' }))
     await user.click(screen.getByRole('button', { name: 'Registrar nueva inversión' }))
     await user.click(screen.getByRole('button', { name: 'Ver contrato 2026-01-000321' }))
     await user.click(screen.getByRole('button', { name: 'Renovar inversión del contrato 2026-01-000321' }))

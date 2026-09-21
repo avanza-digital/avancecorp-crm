@@ -42,7 +42,7 @@ import { useActividadesCliente, useClienteFichaComercial, useCuentasBancariasCli
 import { tasaTxt } from '@/lib/rentabilidad'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, money } from '@/lib/format'
-import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
 import { tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
 import { construirVistaCliente360, type VistaCliente360 } from '@/lib/cliente-ficha-modelo'
@@ -663,11 +663,11 @@ export function ClienteFicha({
         <FichaComercialSeccion
           icono={WalletCards}
           titulo="Inversiones y contratos"
-          descripcion="Capital vigente, vencimientos y oportunidades para renovar o aumentar la inversión."
+          descripcion="Capital vigente, vencimientos y oportunidades para renovar o registrar un upgrade."
           sectionRef={inversionesRef}
           accion={
             onNuevoContrato || (onUpgrade && grupo.contratos.length > 0) ? (
-              <div className="flex flex-wrap justify-end gap-1.5">
+              <div className="flex flex-wrap justify-end gap-1.5 sm:flex-nowrap sm:shrink-0">
                 {onUpgrade && grupo.contratos.length > 0 && (
                   <Button
                     type="button"
@@ -676,9 +676,10 @@ export function ClienteFicha({
                     className="min-h-10"
                     onClick={onUpgrade}
                     disabled={!operable}
+                    title={AYUDA_UPGRADE}
                     aria-describedby={!operable ? motivoNoOperableId : undefined}
                   >
-                    <TrendingUp aria-hidden /> Aumentar inversión
+                    <TrendingUp aria-hidden /> {ETIQUETA_UPGRADE}
                   </Button>
                 )}
                 {onNuevoContrato && (
@@ -702,7 +703,11 @@ export function ClienteFicha({
               Este cliente todavía no tiene una inversión registrada.
             </p>
           ) : (
-            // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+            <>
+            {onUpgrade && (
+              <p className="pb-2 text-[11px] leading-relaxed text-muted-foreground">{AYUDA_UPGRADE}</p>
+            )}
+            {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
             <ol role="list" className="space-y-2" aria-label="Contratos del cliente">
               {vista.contratos.map(({ contrato, renovable: llegoFechaFin }) => {
                 const renovable = operable && onRenovarContrato != null && llegoFechaFin
@@ -767,6 +772,7 @@ export function ClienteFicha({
                 )
               })}
             </ol>
+            </>
           )}
           {solicitudesTasaVivas.length > 0 && (
             <p className="mt-2 text-[11px] text-muted-foreground" data-testid="solicitudes-tasa-cliente">

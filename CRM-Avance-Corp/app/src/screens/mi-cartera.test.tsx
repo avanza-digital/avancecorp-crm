@@ -624,7 +624,7 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(
@@ -643,7 +643,7 @@ describe('MiCartera (pantalla)', () => {
     const user = userEvent.setup()
     montar()
 
-    await user.click(screen.getByRole('button', { name: 'Aumentar inversión' }))
+    await user.click(screen.getByRole('button', { name: 'Registrar upgrade' }))
 
     expect(screen.getByRole('dialog', { name: 'Registrar upgrade de CLIENTE UNO' })).toBeInTheDocument()
     expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0)
@@ -1068,7 +1068,7 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Gestionar' }))
@@ -1090,7 +1090,7 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
     const encabezados = screen.getAllByRole('columnheader')
     expect(within(encabezados.at(-1)!).getByText('Acciones')).toBeInTheDocument()
@@ -1656,7 +1656,7 @@ describe('MiCartera — cliente desactivado en el portal', () => {
 
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(
@@ -1968,7 +1968,7 @@ describe('MiCartera — supervisión (filtro por analista + Sin analista)', () =
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Aumentar inversión' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar upgrade' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
     // Supervisar el roster habilita gestión y contratos, no el PATCH del
     // perfil: esa corrección sigue siendo solo del dueño (o de Gerencia).
@@ -2177,7 +2177,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
   })
 

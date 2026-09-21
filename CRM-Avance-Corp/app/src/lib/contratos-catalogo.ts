@@ -20,6 +20,15 @@ export const CATEGORIA_LABEL = Object.fromEntries(
   CATEGORIAS_CONTRATO_UI.map((c) => [c.k, c.label]),
 ) as Record<CategoriaContrato, string>
 
+// Los analistas leían «Aumentar inversión» como «modificar el contrato que el
+// cliente ya tiene». No es eso: el upgrade CREA un contrato aparte que solo
+// DECLARA el activo que amplía, para heredar su base de tasa y la atribución
+// (crm.crear_contrato / modo rentabilidad integral). Una sola frase para las
+// tres pantallas que ofrecen la operación.
+export const ETIQUETA_UPGRADE = 'Registrar upgrade'
+export const AYUDA_UPGRADE =
+  'El upgrade abre un contrato NUEVO que hereda la tasa del contrato que amplía. El contrato actual no cambia.'
+
 export const MODALIDADES_UI: { k: ModalidadContrato; label: string }[] = [
   { k: 'mensual', label: 'Mensual' },
   { k: 'trimestral', label: 'Trimestral' },
