@@ -1,0 +1,429 @@
+{
+  "fecha_utc": "2026-09-21 20:36:00 UTC",
+  "datos_CRM_enviados": false,
+  "codigo_salida": 1,
+  "alcance": "ensayo_sintetico_no_calibracion_productiva",
+  "modo": "casos_aislados",
+  "version_pregunta": "gestion-diaria-coherencia-v2-aislada-20260921",
+  "modelo": "jev-1.13.0",
+  "modelos": [
+    "jev-1.13.0"
+  ],
+  "total": 20,
+  "validas": 20,
+  "invalidas": 0,
+  "ausentes": 0,
+  "errores": 0,
+  "coincidencias": 19,
+  "falsas_alertas": 1,
+  "contradicciones_omitidas": 0,
+  "revision_humana": false,
+  "habilita_produccion": false,
+  "latencia_ms": 4601,
+  "uso": {
+    "input_tokens": 12328,
+    "output_tokens": 1102
+  },
+  "resultados": [
+    {
+      "id": "c01",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 611,
+        "output_tokens": 52
+      },
+      "latencia_ms": 693,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.96,
+      "probabilidades": {
+        "compatible": 0.97,
+        "posible_contradiccion": 0.03,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c02",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 618,
+        "output_tokens": 57
+      },
+      "latencia_ms": 680,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c03",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 620,
+        "output_tokens": 52
+      },
+      "latencia_ms": 724,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.93,
+      "probabilidades": {
+        "compatible": 0.95,
+        "posible_contradiccion": 0.04,
+        "informacion_insuficiente": 0.01
+      }
+    },
+    {
+      "id": "c04",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": false,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 608,
+        "output_tokens": 57
+      },
+      "latencia_ms": 713,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.26,
+      "probabilidades": {
+        "compatible": 0.14,
+        "posible_contradiccion": 0.51,
+        "informacion_insuficiente": 0.35
+      }
+    },
+    {
+      "id": "c05",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 619,
+        "output_tokens": 52
+      },
+      "latencia_ms": 254,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.87,
+      "probabilidades": {
+        "compatible": 0.92,
+        "posible_contradiccion": 0.08,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c06",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 617,
+        "output_tokens": 57
+      },
+      "latencia_ms": 511,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c07",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 614,
+        "output_tokens": 52
+      },
+      "latencia_ms": 721,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.82,
+      "probabilidades": {
+        "compatible": 0.88,
+        "posible_contradiccion": 0.08,
+        "informacion_insuficiente": 0.04
+      }
+    },
+    {
+      "id": "c08",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 619,
+        "output_tokens": 57
+      },
+      "latencia_ms": 951,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.91,
+      "probabilidades": {
+        "compatible": 0.06,
+        "posible_contradiccion": 0.94,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c09",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 618,
+        "output_tokens": 52
+      },
+      "latencia_ms": 960,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.99,
+        "posible_contradiccion": 0.01,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c10",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 618,
+        "output_tokens": 57
+      },
+      "latencia_ms": 931,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0,
+        "posible_contradiccion": 1,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c11",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 621,
+        "output_tokens": 52
+      },
+      "latencia_ms": 958,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.97,
+      "probabilidades": {
+        "compatible": 0.98,
+        "posible_contradiccion": 0.02,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c12",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 619,
+        "output_tokens": 57
+      },
+      "latencia_ms": 990,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c13",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 613,
+        "output_tokens": 52
+      },
+      "latencia_ms": 1031,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.99,
+        "posible_contradiccion": 0.01,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c14",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 618,
+        "output_tokens": 57
+      },
+      "latencia_ms": 1079,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.95,
+      "probabilidades": {
+        "compatible": 0.03,
+        "posible_contradiccion": 0.97,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c15",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 619,
+        "output_tokens": 52
+      },
+      "latencia_ms": 1021,
+      "estado": "valida",
+      "clase": "compatible",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.99,
+        "posible_contradiccion": 0.01,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c16",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 623,
+        "output_tokens": 57
+      },
+      "latencia_ms": 976,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c17",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 604,
+        "output_tokens": 58
+      },
+      "latencia_ms": 969,
+      "estado": "valida",
+      "clase": "informacion_insuficiente",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 1
+      }
+    },
+    {
+      "id": "c18",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 602,
+        "output_tokens": 58
+      },
+      "latencia_ms": 943,
+      "estado": "valida",
+      "clase": "informacion_insuficiente",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 1
+      }
+    },
+    {
+      "id": "c19",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 623,
+        "output_tokens": 57
+      },
+      "latencia_ms": 958,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c20",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 624,
+        "output_tokens": 57
+      },
+      "latencia_ms": 948,
+      "estado": "valida",
+      "clase": "posible_contradiccion",
+      "confianza": 0.9,
+      "probabilidades": {
+        "compatible": 0.06,
+        "posible_contradiccion": 0.9400000000000001,
+        "informacion_insuficiente": 0
+      }
+    }
+  ]
+}

@@ -29,6 +29,233 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
+### Último punto de control — PR #68 preparado y SQL aprobado, 21/09/2026
+
+Miguel indicó: «ok prepara el pr apruebo el sql y me avisas para ejecutar».
+Se abrió [PR #68](https://github.com/avanza-digital/avancecorp-crm/pull/68), desde
+`codex/gestion-diaria-typesafe-piloto` hacia `avancecorp/main`, y se solicitó
+la revisión de `miguejbs98`. No se fusionó, no se habilitó auto-merge y no se
+ejecutó SQL ni se publicó la aplicación. El Main remoto verificado sigue en
+`59dd14805b646e2adb281302b8441265e969d914`; el código ensayado está en `8ca9045c`.
+
+**SQL aprobado:** exclusivamente
+`20260921214018_crm_gestion_diaria_cortes.sql`, SHA-256
+`8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`,
+sin cambios respecto al ensayo, con una política v1 y `cortes_activos=false`.
+La aprobación queda registrada; **la ejecución sigue pendiente de indicación
+humana mediante `$release-crm` y sus comprobaciones del destino**. No autoriza
+otras migraciones, activar cortes, activar TypeSafe ni una reversión productiva.
+
+La validación HTTP/matriz general quedó cerrada en el checkpoint siguiente.
+Al subir la rama se repitieron **4.085 pruebas de aplicación / 272 archivos: PASS**.
+El PR contiene también las herramientas y documentación locales de TypeSafe ya
+preparadas; no lo conecta al CRM ni envía notas reales. Los checks vigentes del PR
+se consultan en GitHub, separados de la evidencia local conservada.
+
+**Bloqueo detectado al abrir el PR:** GitHub no inició `cambios`, `verify` ni
+`preflight` por pagos fallidos o límite de gasto de la cuenta; sus listas de
+pasos están vacías y las anotaciones lo confirman. `app-check` se omitió por la
+dependencia fallida. No es una ejecución fallida de tests: **CI no ejecutada por
+facturación**. Evidencia inicial: runs `35686655870` y `35686655821`. El responsable
+de GitHub debe revisar «Billing & plans»; después reejecutar los checks del HEAD
+vigente. No cambiar pagos, límites, reglas de Main ni omitir `verify` para avanzar.
+
+**Qué toca ahora:** obtener la aprobación del PR en GitHub y el check requerido
+`verify` en PASS después de resolver ese bloqueo externo. Después, con la
+indicación humana de release, conciliar Main
+sin sobrescribir trabajo concurrente y seguir
+[F4-PUBLICACION-RECUPERACION.md](F4-PUBLICACION-RECUPERACION.md): resguardo propio
+del destino, SQL exacto OFF primero y artefacto del commit aprobado después.
+La aprobación del SQL en conversación no sustituye la revisión del PR.
+Etapas 4–6 y activación siguen pendientes; no iniciarlas durante esta preparación.
+
+### Evidencia anterior — matriz general y ensayo HTTP cerrados, 21/09/2026
+
+La pausa terminó por indicación de Miguel. Objetivo técnico completado en
+`8ca9045c`: comprobar Gestión Diaria de extremo a extremo y dejar F4 etapa 3
+preparada para el flujo de publicación **OFF**, sin empezar la etapa 4.
+Miguel autorizó el banco local desechable
+`gestion-diaria-f4-http`, puertos 59321–59324, con servicios propios y fixtures
+ficticios. No autoriza SQL productivo, despliegue, recursos de pago ni activación.
+
+El taller sigue siendo `/private/tmp/avancecorp-gd-f4-vista.chvRqh`, rama
+`codex/gestion-diaria-typesafe-piloto`. `9a101dcd` integra el Main remoto
+`59dd1480`, confirmado por `git ls-remote`. **Corrección del checkpoint anterior:**
+`43557bc9` era trabajo local adicional de otra tarea, no el Main remoto integrado.
+No se reseteó Main ni se incluyó/eliminó ese trabajo. Esto no equivale a integrar
+la entrega en Main ni a tener un artefacto autorizado para release.
+
+Banco de ejecución: `/private/tmp/gestion-diaria-f4-http.WQNCJc`. PostgreSQL en
+59322, API/Auth en 59321, correo local en 59324; 59323 reservado a la interfaz.
+Se corrigió la apertura 0.0.0.0 de la CLI: los puertos publicados escuchan sólo
+en 127.0.0.1. Los originales del banco nuevo se conservan detenidos; no se tocó
+la copia `gestion_diaria_f4_vista_chvrqh` ni otros bancos. Se retiró la ruta por
+defecto de los seis servicios propios y se desactivó su reinicio automático;
+la sonda externa devuelve `Network unreachable`, con Auth local HTTP 200.
+
+Se obtuvo una copia **sólo de esquema** vigente de `public/crm/private` y sus
+metadatos técnicos de verificación, sin Auth, vault ni filas comerciales de
+producción. La restauración fue transaccional. Se corrigieron exclusivamente
+en el banco 147 diferencias ACL heredadas de los defaults locales; la comparación
+posterior de 14 categorías de catálogo PASS, incluidas funciones, dueños, grants
+por columna, RLS, triggers y membresía del rol puente. Los CHECK se comparan con
+la representación canónica del servidor; no se afirma igualdad de `conbin`.
+Los gates SQL preexistentes de Gestión Diaria también PASS.
+
+La semilla inicial tenía 13 cuentas Auth ficticias, 13 perfiles, 11 miembros,
+7 leads, 5 tareas y dos contratos históricos. La primera matriz general falló
+86 de 2.149 comprobaciones antes de instalar F4.3. Miguel autorizó
+**actualizar también la matriz general**, y ese pendiente quedó resuelto.
+
+`test-rls.mjs` usa ahora el flujo compartido vigente para las conversiones y
+conserva rechazos de puertas antiguas, equipos ajenos, identidad, replay y efectos
+económicos. Se corrigieron fixtures contractuales/configuración omitida por el
+schema-only y expectativas de contratos que ya habían cambiado. No se relajaron
+permisos ni se cambió el producto para hacer pasar pruebas. Auth/PostgREST/Storage
+son reales; el handler oficial de acceso Avance corre en proceso, **no** como
+Edge desplegada. Las pruebas de modo OFF de inversiones siguen ejecutándose.
+
+**PASS — matriz general:** 2.164 comprobaciones con servidor anterior y 2.196
+con el candidato instalado OFF, cero fallos en ambas. En la baseline F4.3 se
+declara ausente/no probado; en la segunda corrida su presencia es obligatoria y
+se ejecutan sus 32 comprobaciones adicionales. No hay un salto silencioso de F4.
+
+**PASS — instalación y recuperación:** SHA-256 exacto sin editar la migración;
+fallo deliberado antes del commit; instalación OFF; reversión de las seis funciones,
+ACL, dueños y comentario; datos de negocio y auditoría conservados; reinstalación
+OFF. La reversa se restringe a la fila v1 original y a ausencia de drift/versiones
+nuevas. Siete respuestas reales de equipo/analista conservan su contrato tanto
+al instalar como al revertir. Sólo se normalizan instantes de consulta y campos
+aditivos documentados, no contadores. El banco queda **instalado OFF**.
+
+**PASS — navegador real:** formulario de login, dos supervisores con equipos
+separados, tabla, búsqueda, detalle, llamadas/registro, vista del analista, móvil
+y error de transporte sin presentarlo como actividad cero. Se repitió con el
+cliente nuevo contra el servidor revertido. El navegador integrado no estaba
+disponible; se utilizó Playwright local, sin MSW ni sesión demo.
+
+También se ensayó el SLA **activo** mediante sus puertas oficiales, sin activar
+los cortes: «No le interesa» contrae las opciones y permite guardar seguimiento
+WhatsApp. Se comprobó una llamada y una tarea persistidas, con el lead conservado.
+Se restituyó el modo SLA inicial del banco sin borrar su historia. La Edge de
+tipo de cambio no está desplegada allí: se informa indisponible, no se inventa tasa.
+
+**PASS — compatibilidad e integración:** 28 parseos con los contratos reales de
+Main anterior y candidato contra ambos servidores; ausencia de cortes permanece
+desconocida, no cero. Los 22 E2E de Gestión Diaria pasaron además con el backend
+simulado del gate habitual: se distinguen de las pruebas reales anteriores.
+`npm run check` (4.085 pruebas / 272 archivos), `check:scripts`, preflights seed/RLS
+y Edge PASS. Preflight nuevo:
+17 guardas del banco y 8 pruebas del helper de conversión. Persisten advertencias
+previas de accesibilidad del coverflow/chunks; no se cambió ese componente.
+
+Se conservaron la base ficticia inicial como `gd_f4_http_historial_20260922`, los
+ensayos previos renombrados y respaldos privados. No se truncó historial ni se tocó
+la copia anterior u otro entorno. Tras reiniciar servicios es obligatorio retirar
+otra vez sus rutas por defecto. La interfaz 59323 sólo corre durante los ensayos.
+
+Claude fue consultado mediante el wrapper para el aislamiento y, con nueva evidencia,
+para la ampliación de matriz. Ninguno produjo un dictamen utilizable: **revisión
+no completada, no aprobación**. No se tocaron settings ni se insistió hasta obtener
+PASS. La evidencia de los checks es del PRIMARY; no se atribuye a Claude.
+
+**Al cerrar este ensayo faltaban:** PR/conciliar Main, aprobación del SQL exacto
+e invocación humana de `$release-crm`. PR y aprobación del SQL quedan registrados
+en el checkpoint superior; la ejecución continúa pendiente. SQL OFF primero y
+artefacto del commit verificado después.
+La validación técnica local permite avanzar a ese flujo; **no se publicó nada**.
+El [procedimiento de publicación y recuperación](F4-PUBLICACION-RECUPERACION.md)
+define resguardos, precondiciones y contingencias. Sus datos del destino y aprobación
+se completan durante el release: nunca ejecutar la reversa local en producción.
+
+Las etapas 4–6, carga/concurrencia representativas, control de emergencia y activación
+siguen pendientes. TypeSafe permanece apagado y separado. Para reproducir este
+ensayo, ver `supabase/scripts/gestion-diaria-cortes/http/README.md`.
+
+### Antecedente — guardado y pausa del 21/09/2026
+
+Miguel pidió guardar el estado y la recomendación de publicación en este plan
+y continuar aproximadamente una hora después. **Pausa solicitada: no publicar,
+activar ni iniciar otra etapa durante la pausa.** Retomar desde este punto
+cuando Miguel vuelva; guardar la recomendación no autoriza ejecutar SQL en producción.
+
+**Dónde estamos:** F0–F3 y F4 etapas 1–2 publicadas. F4 etapa 3 implementada y
+verificada en local, guardada en `19f8c180`, rama
+`codex/gestion-diaria-typesafe-piloto`, taller
+`/private/tmp/avancecorp-gd-f4-vista.chvRqh`. Las etapas 4–6 y F5–F6 siguen
+pendientes. TypeSafe tiene preparación técnica y un banco ficticio; su piloto
+humano y la integración en el CRM siguen pendientes y no bloquean F4.
+
+**Recomendación registrada:** publicar la etapa 3 como una entrega técnica
+separada, **con los cortes apagados**, una vez cerrados los pendientes de abajo.
+No hace falta esperar a toda F4 para instalar su base, pero no se recomienda
+un despliegue inmediato ni activar los cortes todavía. Esta entrega no cambia
+la pantalla ni muestra nuevos avisos al supervisor: eso corresponde a la etapa 4.
+
+**Primer trabajo al retomar: cerrar la preparación de publicación de la etapa 3.**
+
+1. Completar la matriz HTTP/Auth de la API en un entorno de pruebas autorizado:
+   identidades, roles, equipos ajenos y compatibilidad de F3/F4. La copia local
+   ensayada no tiene un endpoint PostgREST propio; las pruebas SQL/RLS que sí
+   pasaron no sustituyen esta comprobación. No crear fixtures en producción.
+2. Preparar y verificar el procedimiento de recuperación productiva, sus
+   precondiciones y respaldos. La reversión probada en el banco local **no es**
+   un procedimiento para ejecutar directamente en producción.
+3. Integrar los cambios sin sobrescribir trabajo concurrente, repetir los
+   checks de integración y comprobar Main local = `avancecorp/main` antes de
+   construir. Publicar sólo un artefacto limpio de ese commit; el build local
+   de validación no es el artefacto del release.
+4. Obtener autorización del SQL candidato exacto y la invocación humana de
+   `$release-crm`. Instalar SQL primero y cliente compatible después; comprobar
+   que la política permanece OFF y que las pantallas existentes funcionan.
+
+**Secuencia siguiente:** cerrar esos pendientes → publicar etapa 3 apagada →
+construir etapa 4 (avisos, reconocer y posponer) → etapa 5 (configuración) →
+etapa 6 (validación integral y activación desde una jornada futura). La carga
+y concurrencia representativas, el recorrido humano, la edición gerencial
+concurrente y el control de emergencia de avisos siguen siendo requisitos
+previos a activar; no se dan por resueltos al publicar la base.
+
+Se conserva la evidencia de 4.073 pruebas de aplicación y ensayos locales de
+reglas, permisos, instalación y reversión; **no se volvieron a ejecutar en este
+guardado documental**. Claude ya realizó dos revisiones de la implementación;
+sus observaciones fueron evaluadas con evidencia, no equivalen a aprobación
+productiva. Los trabajos nuevos significativos mantienen la revisión mediante
+`scripts/claude-review`, sin repetir consultas para obtener un dictamen favorable.
+Detalle y límites: [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md).
+
+### Antecedente — implementación local de la etapa 3, 21/09/2026
+
+Miguel aclaró «Implementar F4 etapa 3 y preparar su publicación» y autorizó
+ensayar el candidato únicamente en `gestion_diaria_f4_vista_chvrqh`, incluida
+su reversión. La solicitud no se registra como una publicación realizada.
+
+**F4 etapas 1–2:** publicadas; la última entrega funcional de este módulo sigue
+siendo `baa63aea` / PR #64. No repetir sus migraciones ya instaladas.
+
+**F4 etapa 3:** implementada y verificada en local; publicación preparada, no ejecutada.
+Candidato `20260921214018_crm_gestion_diaria_cortes.sql`: política versionada OFF,
+cálculo de servidor con horas Lima, mínimos, base fija, cartera vacía y pruebas
+de límites/permisos. Instalación, mutantes, regresiones, tipos, censo y reversión
+ensayados; la base local termina sin cortes instalados. Aplicación: 4.073 tests
+y `npm run check` PASS. [Entrega y límites](F4-CORTES-JORNADA.md). Después
+corresponden alertas y aplazamiento (etapa 4), configuración (etapa 5) y validación/
+activación (etapa 6). No ejecutar una migración ajena ni un `db push` general.
+
+**F4.1:** banco ficticio local preparado, 38 pruebas offline y `check:scripts` PASS
+en `8f1d009d`; no es una integración productiva. Su servidor local A/B no autentica
+supervisores ni implementa permisos de equipo. Compartirlo fuera de la máquina es
+otro alcance que debe precisarse, no una sustitución de `crm.miavance.com` por el
+banco de práctica. Faltan comprobación en navegador y sesión humana; para notas
+reales siguen pendientes clave renovada y condiciones acordadas.
+
+**Acción de esta solicitud, ya aclarada:** implementar y verificar la etapa 3,
+con Claude como reviewer, y preparar su publicación; no compartir el banco ficticio.
+El ensayo del SQL candidato recibió autorización sobre la copia local exacta.
+No se publica ni se activa todavía. La publicación posterior del CRM
+mantiene el flujo humano `$release-crm`, sus gates y la conciliación con
+`avancecorp/main`, preservando el trabajo concurrente.
+
 ### Objetivos y estado por fase
 
 **F0 — Cimientos.** Preparar una base visual y técnica común para todo el módulo: Plus
@@ -76,14 +303,20 @@ verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md
 La etapa 2 está **PUBLICADA Y VERIFICADA el 21/09**, fuente `baa63aea`, PR #64.
 Acta vigente: [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md);
 implementación: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
-Queda el recorrido de negocio con el supervisor; las etapas 3–6 siguen pendientes.
+Queda el recorrido de negocio con el supervisor. Etapa 3 implementada y ensayada
+localmente, sin publicar; etapas 4–6 pendientes.
 Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
 **F4.1 — Revisión asistida con TypeSafe.** Comprobar primero si ayuda a detectar posibles
 contradicciones entre el resultado de una llamada y su nota; incorporar las sugerencias a la
 revisión del supervisor solo si el piloto demuestra utilidad. Son dos etapas: evaluación y
-posterior integración condicionada. Está planificada, no implementada, y no bloquea F4 ni F5.
+posterior integración condicionada. El 21/09 se verificó el acceso a la API y se preparó un
+ensayo técnico sintético: 19/20 coincidencias con notas aisladas, una falsa alerta. El piloto
+humano y la integración visible siguen pendientes; no bloquea F4 ni F5. Miguel confirmó
+que ambos supervisores validarán las notas reales anonimizadas, cada uno únicamente
+las de su propio equipo; no queda pendiente elegir a uno solo. Estado y evidencia:
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 **F5 — Gerencia «Toda la operación».** Dar una visión global del día frente a ayer y a los
 últimos siete días con actividad, identificar equipos que requieren atención y profundizar
@@ -96,8 +329,10 @@ funcionalidad. Pendiente, después de al menos una semana de F3–F5 en producci
 incidencias; se aplica la secuencia cerrar → observar → derribar descrita en §F6.
 
 **Añadido acordado el 20/09/2026: F4.1 — Revisión asistida con TypeSafe.** Se documenta como
-un piloto posterior a F4 y una integración condicionada a sus resultados. No está implementado,
-no condiciona el cierre de F4 y no bloquea F5. Los objetivos y criterios de cierre están escritos
+un piloto y una integración condicionada a sus resultados. El 21/09 Miguel pidió ambos usos:
+ayuda en Gestión Diaria y apoyo técnico a las revisiones. Este último se probó con Jev;
+el arranque sintético de F4.1 no equivale a integración productiva. No condiciona el cierre
+de F4 y no bloquea F5. Los objetivos y criterios de cierre están escritos
 en texto en las secciones F4 y F4.1. La pantalla de configuración de gerencia pertenece a F4;
 el tablero global y el reporte de hábitos pertenecen a F5.
 
@@ -111,6 +346,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 6. Número errado / no es la persona: el analista decide (2.º número hoy · descartar por datos inválidos · reintento a 7 días · solo registrar). No entran en la tasa.
 7. Tasa: el % siempre con el conteo al lado; chip y alerta solo con ≥ 5 llamadas útiles.
 8. Supervisor y gerencia ven llamadas por rango de horas (08–20 Lima) por analista (F3/F4).
+9. **TypeSafe, aclaración del 21/09:** ambos supervisores participan en la validación; cada uno responde por las notas y sugerencias de su equipo. No hay revisión cruzada entre equipos ni un único supervisor global del piloto.
 - Submotivos: sin fondos ahora → `sin_fondos` · ya invirtió con otro → `competencia` · desconfianza / no le interesa invertir / otro → `sin_interes` · préstamo / crédito / otro → `pide_credito`.
 - Umbrales de arranque: Bien ≥ 45 %, Atención 25–44 %, Bajo < 25 %, con mínimo 5 llamadas útiles para calificar. En F4 los cortes sustituyen «sin llamadas a las 11:00»; «parado» = más de 2 h sin llamar dentro de la jornada (L–V 09:00–18:00, sábado 09:00–13:00, domingo sin avisos de jornada). «Tasa muy baja» nace sin umbral y desactivada hasta que gerencia lo publique con evidencia; los 15 pp del plan inicial no se aplican por defecto.
 
@@ -126,7 +362,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 
 1. **Main único:** `avancecorp/main` (espejo del `main` local del taller). Integrar el remoto sin sobrescribirlo y exigir igualdad de commits antes de construir/publicar. El preflight comprueba la ancestría del despliegue anterior: `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
 2. **Taller y aislamiento:** comprobar `git status`, `git worktree list` y las notas de esta entrega. La candidata F4 se ha trabajado en `/private/tmp/avancecorp-gd-f4-vista.chvRqh`; no crear otro worktree ni reutilizar una rama antigua automáticamente. Preservar los cambios ajenos sin commitear.
-3. **Banco local F4:** `gestion_diaria_f4_vista_chvrqh` dentro de `supabase_db_avancecorp-f5-bank`. Los scripts en `supabase/scripts/gestion-diaria-equipo/` fijan ese destino; sus fixtures terminan en ROLLBACK. No ejecutar estos ensayos contra producción.
+3. **Banco local F4:** `gestion_diaria_f4_vista_chvrqh` dentro de `supabase_db_avancecorp-f5-bank`. Para etapa 3, ejecutar desde `CRM-Avance-Corp` el comando `node supabase/scripts/gestion-diaria-cortes/ensayar.mjs --ensayar-local` sólo con la autorización del destino exacto: instala, comprueba y termina revirtiendo. Sin esa opción, el script sólo hace el preflight offline. No ejecutar el instalador/reversor antiguo de `gestion-diaria-equipo/` para este ensayo; el banco nuevo reutiliza sus oráculos. No ejecutar estos ensayos contra producción.
 4. **Servidor:** `20260921040335_crm_gestion_diaria_equipo_vista.sql` y `20260921153654_crm_resultado_llamada_seguimiento.sql` ya están instaladas y registradas: no editarlas ni reinstalarlas. Miguel autorizó expresamente estas dos SQL y `$release-crm`. Esa autorización no se extiende a otras migraciones, cortes o TypeSafe.
 5. **Front y tipos:** la firma F4 ya está cotejada contra los tipos generados de la copia local; no usar el antiguo fallo de `gen:types` como permiso para inventar contratos. Repetir `npm run check` y `npm run test:e2e` tras cambios de integración. La publicación requiere invocación humana de `$release-crm` o `/release-crm`.
 6. **Revisión:** aplicar `.ai/REVIEW_PROTOCOL.md` y `.ai/VERIFICATION.md`: un solo PRIMARY escribe; Claude revisa mediante `scripts/claude-review`, con evidencia saneada, sin herramientas ni recursión. No encadenar revisiones automáticas ni confundir su dictamen con checks reales.
@@ -163,8 +399,10 @@ Se preservaron los trabajos concurrentes de Main. Evidencia:
 Miguel expresó conformidad visual tras revisar la vista local el 21/09; después
 autorizó la publicación por separado. Esa conformidad no se presenta como una
 prueba integral de negocio ni como la autorización que permitió el despliegue.
-La siguiente implementación de F4 es la etapa 3; las decisiones
-pendientes de cortes siguen siendo requisitos de su activación.
+En ese checkpoint la siguiente implementación de F4 era la etapa 3. Las tres
+decisiones de cortes se cerraron después el 21/09; la etapa ya está construida
+y ensayada localmente. Publicación y activación siguen separadas; ver el último
+punto de control para la retoma vigente.
 
 **Etapa 2 publicada y cerrada técnicamente:** Miguel invocó `$release-crm` y
 aprobó el PR #64. Se publicó `baa63aeac71e5a074309aae92a064b67756189f1`, build
@@ -174,12 +412,22 @@ preflight SQL de cinco identidades y 110 comprobaciones HTTP finales PASS.
 Los 68 archivos JS/CSS servidos coinciden con el manifiesto. Artefacto,
 recuperación y límites en
 [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md).
-Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y la
-implementación de la etapa 3; no se anuncia F4 completa.
+Ese release no añadió SQL, cortes ni TypeSafe. Sigue pendiente el recorrido
+humano productivo; la etapa 3 se implementó después en local y todavía no se
+publicó. No se anuncia F4 completa.
+
+**TypeSafe, avance separado posterior al release:** API verificada con `jev-1.13.0`,
+ensayo sintético reproducible y apoyo técnico comprobados localmente. No se enviaron
+notas reales ni se modificaron SQL, Edge, cron o frontend. La evaluación aislada obtuvo
+19/20, con una falsa alerta en una nota genérica; no es calibración productiva.
+Miguel confirmó que ambos supervisores validarán el piloto humano, cada uno dentro
+de su equipo. Falta preparar la muestra anonimizada y los criterios de validación,
+no designar un único responsable. Sigue preparado el ensayo, no los avisos del CRM. Ver
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
-- **F4 posterior:** las decisiones pendientes de los cortes bloquean su activación, no la etapa 1. Ver etapas 3–6; no inventar mínimos de sábado ni límites de aplazamiento.
+- **F4 posterior:** reglas cerradas el 21/09: sábado mínimo 3, analistas sin leads abiertos fuera de los avisos de corte pero visibles en tabla, y un aplazamiento de una hora por aviso/supervisor/día sin reaviso al cierre o después. Etapa 3 implementada y verificada localmente, con pendientes de publicación; etapas 4–6 por implementar y verificar. No se activaron cortes.
 - **Resuelto para esta integración:** el nivel «Bajo» conserva el ámbar publicado en PR #55. Se reconciliaron las dos variantes de «Mi día»: desplegables y flujo horizontal del taller, junto con los arreglos de caché, pestañas y permisos publicados.
 
 ### Lo que F3 dejó escrito (importa para F4)
@@ -207,7 +455,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 TypeSafe continúa planificada como complemento condicionado a un piloto. Dónde estamos y cómo retomar: sección 1.
+> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 tiene API y ensayo sintético comprobados; piloto humano e integración productiva pendientes. Dónde estamos y cómo retomar: sección 1.
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -455,7 +703,8 @@ actividades de F1, los resultados tipificados de F2 y el núcleo diario construi
 
 **Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
 `20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
-etapa 2 publicada desde `baa63aea`, PR #64; etapas 3–6 pendientes. Conserva las dos columnas y desplegables del taller,
+etapa 2 publicada desde `baa63aea`, PR #64; etapa 3 implementada y verificada
+en local, sin publicar; etapas 4–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
 legibilidad de 16 px y protección de los avisos de supervisión.
 Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
@@ -531,6 +780,11 @@ ausencia en una caché parcial nunca se convierte en «no hizo nada».
 
 #### F4 · Etapa 3 — Cortes de la jornada
 
+**Estado:** implementada y verificada únicamente en local; publicación pendiente.
+Candidato `20260921214018_crm_gestion_diaria_cortes.sql`, política inicial OFF.
+La base de ensayo terminó restaurada; no hay instalación productiva ni cambios
+visibles de pantalla. [Detalle, checks y límites](F4-CORTES-JORNADA.md).
+
 El objetivo es detectar un ritmo de llamadas inferior al esperado durante el día con reglas
 explícitas y configurables. De lunes a viernes se evalúa a las 11:30 un mínimo inicial de tres
 llamadas y a las 16:00 el acumulado del primer corte multiplicado por 2,5, redondeado hacia
@@ -542,8 +796,10 @@ exigen ocho; con ocho, veinte; con
 veinte, treinta por el techo.
 
 Se considera lograda cuando los cálculos del servidor respetan `America/Lima`, cuentan toda
-llamada registrada, incluyen a quien lleva cero, aplican el sábado solo el corte de las
-11:30 con mínimo propio y no emiten avisos de jornada el domingo. El primer aviso se retira
+llamada registrada, incluyen a quien lleva cero si tiene leads abiertos asignados,
+aplican el sábado solo el corte de las 11:30 con mínimo inicial de tres y no emiten
+avisos de jornada el domingo. Sin cartera abierta, el analista permanece en la tabla
+pero queda excluido del aviso de corte. El primer aviso se retira
 si el analista alcanza el mínimo antes de las 16:00; el resultado del segundo corte permanece
 aunque llame después. La política aplicable queda fijada al inicio de la jornada consultada.
 
@@ -557,6 +813,9 @@ otro diálogo abierto o el supervisor esté escribiendo y no reaparece en cada r
 Se considera lograda cuando el reconocimiento y el aplazamiento de una hora se guardan en
 servidor, se respetan entre dispositivos y se reflejan igual en el pop-up, la campana y la
 lista. Los reavisos pedidos expresamente al posponer se distinguen de una aparición duplicada.
+Se permite un solo aplazamiento por aviso, supervisor y día Lima. No hay reaviso
+a las 18:00 o después entre semana, ni a las 13:00 o después el sábado; el pendiente
+sigue visible sin convertirse en resuelto. No se arrastra un reaviso al día siguiente.
 Los avisos de inactividad, tareas vencidas, primeros intentos fuera de plazo y leads por
 repartir se agrupan sin repetir el mismo problema. La alerta de tasa muy baja empieza
 desactivada. No se silencian feriados por inferirlos de una baja actividad.
@@ -593,18 +852,26 @@ servidor se publica el frontend; comprobado el funcionamiento, gerencia publica 
 que activa los cortes desde una jornada futura. F4 se puede cerrar y operar por completo con
 TypeSafe desactivado.
 
-#### Decisiones pendientes para activar los cortes
+#### Decisiones cerradas por Miguel el 21/09/2026
 
-Faltan el mínimo de llamadas del sábado, confirmar si se excluye de los cortes a los
-analistas sin cartera abierta y cerrar los límites del aplazamiento (repeticiones y qué
-ocurre al alcanzar el cierre de jornada). No se inventan esos valores. Lo ya acordado —horas,
-valores entre semana, definición de llamada, vigencia futura, pop-up y posibilidad de
-posponer una hora— no se vuelve a preguntar.
+El sábado, de 09:00 a 13:00, hay un único corte a las 11:30 con mínimo inicial
+de **tres llamadas**. Sigue siendo una perilla independiente de gerencia.
 
-Estas decisiones bloquean la activación de los cortes, no la construcción de la vista del
-equipo. Mostrar a un analista sin actividad o sin cartera no implica decidir que deba recibir
-un aviso de incumplimiento. Hasta cerrar las decisiones y publicar la política futura, los
-cortes permanecen desactivados; no se asigna un mínimo de sábado ni una exclusión provisional.
+Los analistas **sin ningún lead abierto asignado no reciben el aviso de ritmo
+de los cortes**, aunque permanecen visibles en la tabla. No se extiende esta
+exclusión por inferencia a tareas vencidas ni a todas las demás alertas.
+
+**«Posponer 1 hora» se permite una sola vez por aviso, supervisor y día Lima**,
+guardado en servidor y respetado entre dispositivos. No se reavisa al llegar
+el cierre o después (18:00 L–V; 13:00 sábado), ni se difiere al siguiente día.
+El pendiente permanece visible, sujeto a las reglas de resolución del primer
+y segundo corte ya acordadas. Ejemplos: sábado 11:30 → 12:30 puede reavisar si
+sigue vigente; sábado 12:15 → 13:15 no; entre semana 17:00 → 18:00 tampoco.
+
+Estas decisiones ya no son bloqueos de negocio. **No equivalen a implementación,
+instalación de SQL ni activación.** Los cortes siguen apagados hasta verificar
+etapas 3–6 y publicar una política futura. Se añaden pruebas de cartera vacía,
+aplazamiento repetido/concurrente, cambio de dispositivo y límites exactos del cierre.
 
 #### Contrato técnico de la entrega
 
@@ -680,7 +947,7 @@ excepcional, que es más que el récord absoluto del equipo en un día entero.
 | Crecimiento exigido | **150 %** | decisión de Miguel: con 20 exige 50 |
 | Piso absoluto del segundo corte | **8** | decisión de Miguel: caza al que llegó a mediodía con cero |
 | Techo absoluto del segundo corte | **30** | sin él la cuenta pediría hasta 73, más que el récord del equipo |
-| Mínimo del sábado (medio día) | **sin fijar** | Miguel lo pone al publicar |
+| Mínimo del sábado (medio día) | **3** | aprobado por Miguel el 21/09/2026 |
 | Tasa muy baja | **vacía** | no hay dato; la produce el reporte de F5 |
 
 **Todos son perillas: gerencia los sube cuando el equipo suba.** Ese es el punto de que sean
@@ -702,7 +969,7 @@ Configurables desde la pantalla de gerencia, con valores de arranque:
 - **Llamadas mínimas al primer corte** — **3** de arranque, medido (ver arriba).
 - **Hora del segundo corte** — 16:00.
 - **Crecimiento exigido en el segundo corte** — 150 %, con **piso 8** y **techo 30**.
-- **Mínimo del sábado** — independiente; pendiente de fijar antes de activar su corte.
+- **Mínimo del sábado** — independiente; **3** de arranque, aprobado el 21/09/2026.
 - **Umbrales de contacto** — 45 / 25 / 5 de arranque, dentro de la misma política versionada.
 - **Tasa muy baja** — **nace VACÍA y esa alerta NO salta hasta que se ponga.** Decisión explícita
   de Miguel: «todavía no hay esa data». El reporte de F5 (abajo) es el que la va a producir.
@@ -721,7 +988,7 @@ NO configurable: **«parado» = más de 2 horas sin llamar**, dentro de 09:00–
 **Por qué el sábado lleva un solo corte:** la jornada acaba a las 13:00, así que un corte a las
 16:00 no existe. El de las 11:30 sí encaja — cae a dos horas y media de empezar, exactamente igual
 que en un día entre semana. El sábado tiene su **propio mínimo de llamadas**, también configurable:
-medio día no puede exigir lo mismo que uno entero.
+Miguel fijó **3** el 21/09/2026; no hay segundo corte de tarde.
 
 El domingo la pantalla no calcula cortes ni pinta alertas de este tipo. Si un analista trabaja un
 domingo, sus llamadas se registran igual: lo que no se hace es juzgarlas contra un corte.
@@ -739,7 +1006,7 @@ Reglas para que sea eficaz y no odioso — todas obligatorias:
 - **Una vez por corte y por día.** Salta al llegar el corte, o la primera vez que el supervisor
   abre la pantalla después de esa hora si el problema sigue vigente. No se repite por un
   refresco o cambio de dispositivo; el reaviso solicitado expresamente al posponer se trata
-  por separado. Los límites de aplazamientos repetidos siguen pendientes.
+  por separado: una sola vez por aviso/supervisor/día Lima, sin reaviso al cierre o después.
 - **Se reconoce, y el reconocimiento se guarda EN EL SERVIDOR.** Si viviera en el navegador,
   volvería a saltar al cambiar de equipo o de máquina, y eso es lo que mata una alerta.
 - **Dice quién y cuánto**, no «hay incumplimientos»: la lista de analistas con su cifra y lo que
@@ -747,8 +1014,9 @@ Reglas para que sea eficaz y no odioso — todas obligatorias:
 - **Nunca interrumpe algo a medias:** si hay otro diálogo abierto o el supervisor está escribiendo,
   espera. Un pop-up que se come una tecla se gana el odio el primer día.
 - **No salta en domingo**, ni por un corte que no aplica a ese día.
-- **Se puede posponer** (a una hora), y quien lo pospone queda registrado: si se pospone siempre,
-  el número está mal puesto y eso hay que poder verlo.
+- **Se puede posponer una hora, una sola vez por aviso/supervisor/día**; queda registrado
+  quién lo hizo. Al cierre o después no se reavisa ni se agenda para el siguiente día:
+  el pendiente sigue visible sin marcarlo como resuelto.
 
 Va sobre el `Dialog` que ya existe en el CRM (Radix, con trampa de foco, `Escape` por capas y
 retorno de foco), no sobre uno nuevo.
@@ -857,9 +1125,9 @@ segundo corte. Con los valores iniciales, base 0 → 8, base 8 → 20 y base 20 
   contexto al supervisor. No se deduce de las llamadas el motivo de una ausencia o un permiso.
 - **Dónde se guarda el reconocimiento del pop-up.** La tabla de reconocimientos que ya existe tiene
   los tipos cerrados por CHECK: ampliarla exige una migración a propósito, que es lo correcto.
-- **Pendientes de activación:** mínimo del sábado, exclusión de analistas sin cartera abierta
-  y límites de repetición y cierre de jornada del aplazamiento de una hora. Las demás reglas
-  cerradas se detallan en «Las dos reglas que Miguel cerró» y en las etapas de F4.
+- **Decisiones de negocio cerradas el 21/09:** sábado mínimo 3, exclusión de cartera vacía
+  solo en los avisos de corte y aplazamiento único sin reaviso al cierre o después. Falta
+  implementar/verificar y activar con vigencia futura; no volver a pedir estas decisiones.
 - **Un día pasado se recalcula con el equipo y la jerarquía de HOY**, no con los de entonces. Hay
   que decirlo en pantalla. Si algún día esto se usa para evaluar desempeño, hará falta guardar la
   evaluación del día, que es un contrato distinto y más caro.
@@ -872,8 +1140,19 @@ segundo corte. Con los valores iniciales, base 0 → 8, base 8 → 20 y base 20 
 
 **Objetivo general:** reducir el esfuerzo del supervisor al revisar registros, señalando
 posibles contradicciones entre el resultado tipificado de una llamada y la nota escrita por
-el analista. El añadido al plan fue aceptado por Miguel el 20/09/2026. **Estado: planificación;
-sin piloto ejecutado, integración implementada ni acceso a la API verificado.**
+el analista. El añadido al plan fue aceptado por Miguel el 20/09/2026. **Estado al 21/09:
+arranque técnico local implementado y acceso a la API verificado; piloto humano e integración
+del CRM pendientes.** Miguel pidió también apoyo técnico de Jev a las revisiones y confirmó
+que ambos supervisores validarán las notas, cada uno las de su propio equipo.
+La responsabilidad queda definida por el equipo; no se espera elegir a uno solo.
+No se enviaron registros reales.
+
+**Preparación humana local posterior:** guía de clasificación y banco ciego de veinte
+casos ficticios para ambos supervisores, con exportación/reanudación por espacio y
+comparación de acuerdo. No autentica identidades ni admite notas reales; las revisiones
+humanas aún no se ejecutaron. Protocolo, tratamiento de datos y criterios propuestos:
+[F4.1-GUIA-REVISION-HUMANA.md](F4.1-GUIA-REVISION-HUMANA.md). Ni acuerdo sintético ni
+confianza del modelo habilitan producción.
 
 Es una entrega posterior y separada de F4. Su activación depende de la utilidad demostrada
 por el piloto; no es requisito para cerrar F4 ni para construir F5. TypeSafe interpreta
@@ -888,6 +1167,24 @@ en las notas reales del negocio. Se prepara una muestra anonimizada de aproximad
 casos compatibles, contradicciones, notas cortas, ambigüedad, negaciones y referencias a
 conversaciones anteriores. Primero se confirma que el volumen y la calidad de las notas
 permiten evaluar el caso; una nota como «se llamó» puede no aportar evidencia suficiente.
+
+Antes de extraer o transferir esa muestra se acuerdan con ambos supervisores la
+anonimización, los criterios de aceptación y la resolución de desacuerdos. Antes de la
+primera transferencia real se debe rotar la clave expuesta y confirmar/aceptar la
+retención y tratamiento aplicables a la cuenta; la política pública no acredita ZDR.
+Primero ambos supervisores practican con el mismo banco ficticio sin ver la salida de
+la IA. Las dudas sobre la guía no cuentan como acuerdos ni como notas insuficientes. La muestra
+total de 100–200 notas debe representar a ambos equipos: cada supervisor recibe y
+etiqueta solo las de su equipo, respetando el ámbito autorizado del CRM. La evidencia
+de revisión conserva quién revisó y a qué equipo corresponde; se mide el resultado
+por equipo, además del agregado, sin convertir el piloto en evaluación de personas.
+Se separan por lead los ejemplos de ajuste de las notas reservadas para validación,
+incluidos duplicados. Se mide por equipo con mínimos de casos positivos, denominadores
+e intervalos de incertidumbre; muestra insuficiente no equivale a PASS. Un cambio de
+modelo/pregunta exige nueva validación independiente. El ensayo técnico del
+21/09 usa exclusivamente 20 fixtures sintéticos escritos por Codex, sin etiquetas humanas:
+primera consulta por lote 20/20; control aislado v2 19/20 con una falsa alerta en «Se gestionó».
+Se conserva el desacuerdo, sin rebajar umbrales para obtener un PASS. No cierra esta etapa.
 
 Se usa una pregunta acotada de `Choice` con tres salidas: compatible, posible contradicción
 e información insuficiente. Ejemplo sintético: resultado «No contestó» y nota «Conversamos
@@ -908,6 +1205,12 @@ El objetivo es llevar al registro del supervisor las sugerencias que hayan demos
 la nota original, con acceso al registro y acciones para confirmar la observación o descartar
 la sugerencia. La decisión se refiere a la sugerencia; no cambia automáticamente el resultado
 de la llamada. Cualquier corrección del dato sigue los permisos y mecanismos del CRM.
+
+Cada supervisor consulta, confirma o descarta únicamente sugerencias de su propio
+equipo. La implementación debe comprobar ese ámbito en el servidor, tanto al leer
+como al guardar la revisión, y probar que el otro supervisor no puede acceder o
+resolver esas sugerencias. Se conserva la jerarquía y los permisos existentes;
+esta aclaración no amplía el acceso de ningún rol.
 
 Se considera lograda cuando las sugerencias se pueden revisar con evidencia, las respuestas
 del supervisor permiten medir su utilidad y el servicio funciona sin interrumpir el trabajo.
@@ -944,16 +1247,27 @@ Diseño orientado por la skill local `typesafe-ai`, la documentación oficial de
 [confianza](https://docs.typesafe.ai/confidence), consultadas el 20/09/2026. Antes de integrar
 se consulta el contrato vigente de la API o SDK elegido y se valida con datos del dominio.
 
-La consulta inicial a Claude sobre TypeSafe no produjo un dictamen válido; no se registra como PASS.
-El piloto y la implementación están **NOT RUN**. Esta actualización documenta objetivos y
-alcance, no acredita resultados del modelo ni autoriza transferir datos de clientes sin
-preparar el conjunto y las condiciones de uso correspondientes.
+La consulta inicial del 20/09 a Claude sobre TypeSafe no produjo un dictamen válido;
+no se registra como PASS. El 21/09 se consultaron el contrato HTTP y `Choice` vigentes y
+se implementó el ensayo aislado sin datos reales. API y 14 tests del ensayo **PASS**;
+comparación sintética aislada **FAIL (19/20, una falsa alerta)**, evidencia conservada.
+Piloto humano, servidor de sugerencias e interfaz **NOT RUN / no implementados**.
+No se autoriza transferir datos de clientes sin preparar el conjunto y las condiciones
+de uso correspondientes. Detalle de revisión con Claude, checks y resultados:
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+
+**Apoyo técnico:** Jev se probó para ordenar extractos de código como ayuda a Codex y
+Claude, no como autoridad de aprobación. Las 22 pruebas del toolkit existente pasan;
+en el ensayo de relevancia ninguno de los tres extractos superó el corte existente de
+2 puntos. Se preserva esa incertidumbre y se verifican las conclusiones con código y
+tests. No sustituye `scripts/claude-review` ni los gates del proyecto.
 
 En la revisión documental del 21/09, Claude devolvió `CHANGES_REQUESTED` sobre el resumen
 aportado, no sobre código. Se incorporaron las aclaraciones de la base fija de las 11:30 y
 de los valores iniciales configurables. La propuesta de inventar valores provisionales para
-sábado o analistas sin cartera no se acepta: son decisiones pendientes de Miguel y bloquean
-la activación, como establece F4. Los horarios de Lima, feriados y la independencia de F6
+sábado o analistas sin cartera no se aceptó entonces: estaban pendientes de Miguel.
+Posteriormente el propio Miguel cerró esas tres reglas (apartado de decisiones de F4);
+no se usaron valores inventados. Los horarios de Lima, feriados y la independencia de F6
 respecto de TypeSafe ya están definidos en el plan. Las comprobaciones documentales del
 PRIMARY pasan; esto no constituye una aprobación del piloto ni una verificación de producto.
 
@@ -1041,14 +1355,19 @@ requisitos para cerrar F4.
 **Hechas** (20/09/2026): confirmar submotivos y umbrales · reconectar el MCP de Codex · autorizar
 el ensayo en banco · instalar y publicar F1, F2 y F3.
 
+**Hechas después (21/09):** publicar F4 etapas 1–2; confirmar ambos supervisores por
+su equipo; fijar sábado en 3 llamadas; excluir cartera vacía de avisos de corte;
+aprobar un único aplazamiento por aviso/supervisor/día, sin reaviso al cierre o después.
+Autorizar también el ensayo y reversión local del candidato de F4 etapa 3;
+no es permiso de producción.
+
 **Pendientes:**
 
 1. **Prueba de negocio de F3:** como analista, que el primer ítem de «Mi día» coincida con «Ahora» de Hoy.
-2. **El mínimo del sábado** para el primer corte: medio día no puede exigir lo de uno entero. Se fija al publicar la política.
-3. **Cerrar las otras reglas pendientes de los cortes:** analistas sin cartera abierta y límites de repetición y cierre de jornada al posponer una hora.
-4. **Instalar y publicar F4**, y después F5: SQL con `!` primero, front con `/release-crm` después. El piloto F4.1 no bloquea ninguna de esas entregas.
-5. **F4.1:** preparar muestra anonimizada y revisión humana, configurar acceso a TypeSafe cuando corresponda y decidir la activación con los resultados del piloto.
-6. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
+2. **Prueba de negocio de F4 etapas 1–2:** recorrido productivo del supervisor; no sustituido por smoke HTTP ni conformidad visual local.
+3. **Autorizar la SQL candidata y publicación de F4 etapas 3–6 cuando estén verificadas**, y después F5. Las reglas de negocio ya están cerradas. El piloto F4.1 no bloquea estas entregas.
+4. **F4.1:** realizar el banco ficticio con ambos supervisores, acordar criterios/presupuesto/retención y rotar la clave antes de transferir notas reales. Después autorizar/preparar la muestra de ambos equipos y sus etiquetas independientes. La guía y el banco ya están preparados, no la evaluación humana. Decidir la integración visible solo tras el piloto y verificar aislamiento por equipo también en cola/caché.
+5. **El repositorio fusiona por SQUASH por defecto**, y eso ya costó un rescate el 20/09 (la PR #47 entró con una foto anterior a su último commit). Cambiar el ajuste en GitHub.
 
 ### Lo que este plan YA NO dice, y por qué
 
@@ -1073,7 +1392,11 @@ Para que nadie construya contra algo superado:
 
 # 3 · Diseño técnico — los cortes del día (F4)
 
-**Estado:** diseño revisado por Codex (SECONDARY_REVIEWER, read-only) · LEVEL 3 (permisos, RLS, política que juzga a personas) · **no se escribió ni una línea de código** · VERIFICATION: **NOT RUN** (no hay nada que verificar todavía).
+**Estado al 21/09:** etapa 3 implementada en el candidato `20260921214018` y
+verificada sólo en la copia local autorizada. Claude hizo revisión asesora;
+evidencia y límites en [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md). Los apartados
+de editor gerencial, reconocimiento, aplazamiento y activación siguen siendo
+diseño de etapas 4–6, no capacidades ya publicadas.
 
 ---
 
@@ -1087,9 +1410,12 @@ el domingo no tiene avisos de jornada. Se usa pop-up con reconocimiento en servi
 aplazamiento de una hora; las nuevas políticas rigen desde una jornada futura. No volver a
 preguntar esas decisiones ni usar las propuestas anteriores que las contradigan.
 
-Antes de activar, faltan tres definiciones: mínimo del sábado, exclusión o inclusión en los
-cortes de los analistas sin cartera abierta y límites de repetición y cierre de jornada del
-aplazamiento. El aviso requiere CRM abierto; no se incluye push con la aplicación cerrada.
+El 21/09 Miguel cerró las tres definiciones restantes: sábado mínimo tres; sin
+leads abiertos asignados, fuera de avisos de corte pero visibles en tabla; un solo
+aplazamiento por aviso/supervisor/día sin reaviso al cierre o después. El pendiente
+sigue visible. Cálculo y contrato de etapa 3 ensayados; faltan la publicación
+del candidato y la implementación/validación de etapas 4–6 para activar.
+El aviso requiere CRM abierto; no se incluye push con la aplicación cerrada.
 
 ---
 
@@ -1098,7 +1424,7 @@ aplazamiento. El aviso requiere CRM abierto; no se incluye push con la aplicaci�
 «150 % más» significa multiplicar por 2,5 antes del piso y el techo. Se guarda el porcentaje
 y la pantalla explica tanto la cuenta como el objetivo final acotado. La base es siempre el
 acumulado al primer corte, inicialmente 11:30, no a las 11:00. El mínimo inicial de ese
-corte entre semana es tres; el del sábado sigue pendiente y debe ser independiente.
+corte entre semana es tres; el del sábado también arranca en tres, como perilla independiente.
 
 ---
 
@@ -1114,23 +1440,23 @@ version integer not null unique
 version_anterior_id uuid references crm.politica_gestion_diaria(id)
 vigente_desde timestamptz not null            -- SIN unique (ver §3, corrección Codex F11)
 -- lo que hoy vive en el cuerpo de la función (…041500…sql:186-197)
-bien_min_pct / atencion_min_pct / minimo_llamadas_utiles integer not null
+bien_min_pct / atencion_min_pct numeric not null
+minimo_llamadas_utiles integer not null
 -- lo nuevo
 cortes_activos boolean not null default false
 corte_1_hora time                             -- 11:30
-corte_1_minimo_llamadas integer
+corte_1_minimo integer
 corte_2_hora time                             -- 16:00
-corte_2_incremento_pct integer                -- 150
-corte_2_minimo_llamadas integer               -- piso absoluto
-corte_2_techo_llamadas integer                -- techo absoluto (ver §7)
-aplica_sabado boolean not null default true   -- la regla vigente es L–S
-corte_1_minimo_llamadas_sabado integer        -- pendiente; obligatorio para activar el sábado
-tasa_baja_diferencia_pp integer              -- nullable: NULL desactiva esta alerta
-publicada_por uuid / publicada_en timestamptz
-check (not cortes_activos or (corte_1_hora is not null and … ))
+corte_2_incremento_pct numeric                -- 150
+corte_2_piso integer                          -- piso absoluto
+corte_2_techo integer                         -- techo absoluto
+sabado_minimo integer                        -- arranque 3, independiente
+tasa_baja_diferencia_pp numeric               -- NULL; todavía sin consumidor
+creado_por uuid / creado_en timestamptz / motivo text
+-- horas/mínimos obligatorios incluso OFF; rangos en el CHECK de la candidata
 ```
 
-Es un esquema propuesto, no una migración ya implementada. El calendario de evaluación
+Este es el modelo del candidato de etapa 3, todavía no productivo. El calendario de evaluación
 respeta L–V 09:00–18:00, sábado 09:00–13:00 con solo el primer corte y domingo sin avisos de
 jornada. Esos límites también gobiernan «parado». La política no activa el sábado sin su
 mínimo; una tasa baja nula significa desactivada, no cero ni quince puntos por defecto.
@@ -1138,17 +1464,21 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 - **Inmutable** por `private.trg_config_versionada_inmutable()` (el mismo trigger de SLA, `:299-313`), que lanza `55000` «publica una nueva revisión».
 - **Versión 1 sembrada con `vigente_desde = '-infinity'` lleva SOLO 45/25/5 y `cortes_activos = false`.** Corrección de Codex (F1): sembrar los cortes desde `-infinity` haría parecer que la obligación existía antes de inventarla. Los cortes nacen en la **versión 2**, con la jornada en que Miguel los enciende.
-- **RLS ON.** Policy de SELECT calcando `politica_abandono_select` (`20260816221500…:77-83`): `es_lector_global()` **o** `rol_crm(auth.uid()) is not null`. **Sin policy de INSERT/UPDATE/DELETE**: la única puerta de escritura es la función definer (igual que `sla_politicas`, `:447-461`).
-- **Grants:** `revoke all … from public, anon` + `grant select … to authenticated`. Nada más. Gerencia **no** escribe por PostgREST (a diferencia de `politica_abandono`, `:117-118`): una política que juzga personas necesita `expected_version` y validación de forma.
+- **RLS ON.** Requiere `puede_acceder_crm()` y rol CRM efectivo o lector global. Sin policies de INSERT/UPDATE/DELETE; todavía sin función de publicación (etapa 5).
+- **Grants:** revocación total a PUBLIC/anon/authenticated/service_role y SELECT por columna sólo de parámetros para authenticated. Motivo, autor y fecha administrativa no se leen directamente por API, ni siquiera como gerencia; el editor futuro tendrá una puerta autorizada específica.
+- **Vigencia ordenada:** versión siguiente, autor obligatorio y jornada futura no anterior a la última programada. Se admite la misma jornada para corregir una revisión pendiente: gana la versión mayor.
 - Trigger de auditoría `private.log_audit_crm()`.
 
 **Por qué versionada y no singleton (y dónde Codex me corrigió el argumento).** El motivo válido es uno solo: **la puerta F3 ya admite consultar días pasados** (`p_dia` hasta un año atrás, `…041500…sql:534-535`) y con una fila que se pisa, el martes pasado se re-juzgaría con la perilla de hoy. El argumento que yo daba de que `dias_auto_bolsa` lleva un mes sin consumidor **no prueba nada** sobre singleton vs versionado (Codex, aceptado): prueba otra cosa, que una perilla sin pantalla se muere.
 
-**Dónde vive la tabla (desacuerdo registrado con Codex, F8).** Codex propone bajarla a `private` con cero grants (precedente real: `crm.conversion_pesos`, `20260811154434:409-412`). **No lo hago**, y la evidencia es literal: estos valores **ya viajan hoy a cualquier analista autenticado** dentro de su propio día, en la clave `'umbrales'` (`…041500…sql:460`). Esconder la tabla no compra confidencialidad y en cambio obligaría a convertir `private.gestion_diaria_umbrales()` de `invoker` a `definer`, tocando una propiedad que el gate sella. Sí acepto la otra mitad de F8: **la lógica de evaluación baja al núcleo** (§4).
+**Dónde vive la tabla.** Se mantiene en `crm` con lectura RLS de parámetros porque
+los umbrales ya viajan al día del analista. La revisión de Claude añadió la
+restricción por columna para no exponer motivos ni atribución administrativa.
+El resolutor proyecta sólo parámetros; sigue INVOKER, sin SELECT `*`.
 
 ---
 
-### 3 · La puerta
+### 3 · La puerta gerencial — pendiente de etapa 5
 
 **Lectura del editor** — `crm.configuracion_gestion_diaria_fn()`, DEFINER con `search_path = ''`, calco de `crm.configuracion_sla_fn` (`20260807203757…:571-607`). Devuelve `expected_version`, `puede_editar` (= `rol_crm = 'gerencia'`, **calculado en servidor**), la política vigente con autor, la frase de ejemplo ya calculada, y —corrección de Codex F11— **`revisiones_pendientes[]`**: las versiones con `vigente_desde` futuro. Sin eso, gerencia edita a ciegas sobre valores antiguos y pisa lo que ya estaba programado.
 
@@ -1156,7 +1486,7 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 - `rol_crm(auth.uid()) = 'gerencia'` o **42501**.
 - Forma exacta del jsonb: `?&` con todas las claves **y** `p_config - array[...] <> '{}'` para rechazar claves de más.
-- Rangos: porcentajes 0–100 con `atencion_min_pct <= bien_min_pct`; `minimo_llamadas_utiles` 1–100; mínimos y piso 1–200; incremento 0–900; `corte_2_hora >= corte_1_hora + 60 min`; ambas horas dentro de 06:00–22:00 Lima.
+- Rangos base del candidato: `0 <= atencion_min_pct < bien_min_pct <= 100`; mínimos, piso y techo 1–500, techo no menor al piso; incremento 0–1000. Primer corte después de 09:00 y antes de 13:00; segundo después del primero y antes de 18:00. La antigua propuesta 06:00–22:00 no respeta el calendario aprobado y no se aplica.
 - **Vigencia**: `p_vigente_desde` debe ser el **inicio de una jornada Lima futura** (no una hora cualquiera). Ver §4.
 - `pg_advisory_xact_lock(hashtext('crm.politica_gestion_diaria'), 1)` + `p_expected_version <> v_actual` → **40001**.
 - **Sin `unique` en `vigente_desde`, y el resolutor ordena `(vigente_desde desc, version desc)`.** Es la única desviación deliberada del molde SLA y la razón es la que levantó Codex (F11): con `unique`, una revisión ya programada para mañana **no se puede corregir** sin romper la inmutabilidad. Sin `unique`, la corrección es simplemente una versión mayor para la misma jornada, y gana. `private.sla_politica_vigente` ya desempata así (`:562-569`), o sea que el patrón de lectura no se inventa.
@@ -1166,9 +1496,9 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 **Encaje con `private.gestion_diaria_umbrales()` (hoy a fuego, `…041500…sql:186-202`) — corregido por Codex (F2).** Mi plan original («le pongo un parámetro con default») **no funciona**: en Postgres una función de cero argumentos y otra de un argumento con default son firmas distintas, y `create or replace` no puede añadir un parámetro. Diseño corregido:
 
 - Se **añade** `private.gestion_diaria_umbrales(p_instante timestamptz)` — sin default — que lee la vigente.
-- La de cero argumentos **se conserva** como envoltorio (`select private.gestion_diaria_umbrales(now())`), para no hacer un `drop` en producción ni reemitir grants. Su cuerpo cambia → **hay que re-sellar el md5 `6ab633af9f5356f3fa11cf309ff4b25c` en `private.assert_gestion_diaria_analista()` (`:801`)**.
+- La de cero argumentos **se conserva** como envoltorio que resuelve a medianoche Lima del día actual. Su cuerpo y el de F3/F4 quedaron re-sellados en el candidato; no se editan migraciones anteriores ni se reemiten grants heredados.
 - **`private.gestion_diaria_analista_core` deja de llamarla sin argumento** (`:331`) y pasa `p_ini` explícito. Su cuerpo cambia → **re-medir y re-sellar su md5 (`:800`)**.
-- **Mutantes obligatorios** (`:907`, `:912`; `npm run test:mutantes`): uno por cada defensa nueva — la policy de UPDATE ausente, el 42501 de la publicación, el 40001 de `expected_version`, el rechazo de claves extra, el techo/piso del corte 2.
+- **Mutantes de etapa 3:** 15 alteraciones deliberadas de RLS, grants por tabla/columna, cuerpos, triggers, redondeo y umbrales legacy detectadas por el gate. El 42501 de publicación, `expected_version` y claves extra tendrán pruebas propias cuando exista la puerta de etapa 5.
 - La migración `20260920041500` **está en producción y registrada** (acta en `supabase/migrations/MIGRACIONES.md`, sección «20260920041500 — Gestión Diaria (F3)», 20/09 ~06:19 UTC): **no se edita**. Todo esto va en migración nueva.
 
 **Autorización, explícita y no «por calco»** (Codex F6, aceptado como vacío de diseño): por cada RPC hay que escribir quién tiene `execute`, qué comprueba dentro cada DEFINER, cómo se acota `p_supervisor_id` a la jerarquía del actor (`private.vendedor_ids_visibles`), y qué ven gerencia, directorio y lector global. Se prueba identidad por identidad en el postflight con `set_config('request.jwt.claims')`, patrón `20260916205617:240-379`.
@@ -1177,9 +1507,16 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 
 ### 4 · El cálculo de los cortes
 
-**Dónde vive: en el núcleo, no en la puerta y desde luego no en la pantalla.** `private.gestion_diaria_cortes(p_dia, p_ini, p_vendedor_ids, p_politica jsonb)`; `crm.gestion_diaria_equipo_fn` (Fase 4, aún sin escribir) **solo autoriza y compone**. Corrección de Codex (F8): yo lo tenía en la puerta, y la regla de la casa es que la puerta no lleva lógica de negocio.
+**Dónde vive:** `private.gestion_diaria_cortes(p_dia date, p_analistas uuid[], p_ahora timestamptz)`
+resuelve la política al inicio del día. El núcleo de equipo añade `cortes` usando
+su roster autorizado y su único reloj de servidor. La firma RPC no cambia ni
+admite reloj del navegador. Reconocer/posponer tampoco podrá admitirlo en etapa 4.
 
-**Cómo se mide.** Componiendo el núcleo que **ya está en producción**, `private.gestion_diaria_llamadas(p_ini, p_fin, p_vendedor_ids)` (`…041500…sql:206-307`), con tres ventanas: `[día, corte_1)`, `[día, corte_2)`, `[día, min(ahora, fin_día))`. Composición, no duplicación: sigue habiendo **una sola** definición de llamada. **No se usa `por_hora`**: es un array disperso de **hora entera** (`:235`, `extract(hour from … at time zone 'America/Lima')`) y no puede expresar las 11:30.
+**Cómo se mide.** Componiendo `private.gestion_diaria_llamadas` sin modificarla:
+`[día,corte_1)`, `[día,corte_2)` y `[día,min(ahora,límite_recuperación))`.
+El límite de recuperación es el segundo corte entre semana y 13:00 el sábado.
+No se usa el desglose por hora entera: no distingue las 11:30. Una llamada
+exactamente al corte no pertenece a su ventana anterior; esos límites se prueban.
 
 **Zona horaria.** Todo con `at time zone 'America/Lima'`, como `…041500…sql:578-580`; nunca `-05:00` a mano. Perú no observa horario de verano desde 1994, pero da igual: al usar el nombre de zona, el cálculo es correcto aunque cambiara. Codex no pudo confirmarlo con la evidencia pegada y lo dejó como pregunta abierta; queda anotado.
 
@@ -1191,13 +1528,13 @@ El aviso principal es el pop-up de F4; no se construye la antigua barra persiste
 Resolviendo en `v_ini` y exigiendo que `vigente_desde` sea el inicio de una jornada futura, **las reglas del día se fijan al amanecer y no se mueven**. Es una decisión ya cerrada en F4.
 
 **Las reglas.**
-- **Corte 1 (11:30):** falla si `llamadas_acumuladas < corte_1_minimo_llamadas`.
-- **Corte 2 (16:00):** objetivo = `max(ceil(base × (100 + incremento)/100), corte_2_minimo_llamadas)`, acotado por `corte_2_techo_llamadas`. **`ceil`, no `round`** (Codex F9): con base 8 e incremento 30 %, el objetivo es 10,4 y «al menos» significa **11**; `round` daría 10. Con 150 % el defecto queda oculto porque salen enteros.
+- **Corte 1 (11:30):** falla si `llamadas_acumuladas < corte_1_minimo`.
+- **Corte 2 (16:00):** objetivo = `max(ceil(base × (100 + incremento)/100), corte_2_piso)`, acotado por `corte_2_techo`. **`ceil`, no `round`**: con base 8 e incremento 30 %, se exigen **11**.
 - **Base cero:** si el acumulado del corte 1 es 0, la razón siempre pasa (0 × 2,5 = 0) y con base 1 pide 3 — por eso el **piso absoluto** manda en ese caso.
-- **Sábado:** si `aplica_sabado` (default **true**), jornada 09:00–13:00 con solo el primer corte a las 11:30 y mínimo independiente. No se calcula corte de tarde ni inactividad después de las 13:00. Domingo sin avisos de jornada.
+- **Sábado:** jornada fija 09:00–13:00, sólo primer corte a las 11:30 y `sabado_minimo` independiente, inicialmente **3**. No se añade una perilla para suprimirlo; no fue solicitada. Domingo sin avisos de jornada.
 - **Feriados: no existe calendario laboral en el repo** (`grep feriado|festivo|dias_no_laborables|calendario_laboral` sobre `supabase/migrations/` y `app/src/` → **0 resultados**) y **no propongo crearlo**. Mi heurística de «día atípico» (silenciar si menos de un tercio del roster registró llamadas) **la retiro**: Codex (F3) demostró que apaga la alarma exactamente el día en que nadie llamó, que es el día que más importa. En su lugar: la alerta **se emite siempre**, y cuando la participación del equipo entero está por los suelos lleva una marca de contexto («actividad excepcionalmente baja en todo el equipo — revisa si hoy es feriado o hubo una incidencia») y se presenta como **una** alerta de equipo, no como N individuales. Silenciar un día requiere una decisión explícita, no una inferencia.
 - **Analista que entró a media mañana:** no se prorratea. La alerta incluye `primera_llamada_en` (ya lo devuelve el núcleo, `:483-484`) para que el supervisor lea el contexto. **Quien tiene cero llamadas SÍ entra en el grupo del corte** — corrección de Codex (F4): mi deduplicación original lo dejaba solo en `sin_llamadas_hoy` y fuera del aviso fuerte, o sea que el que peor está recibía el aviso más débil. `sin_llamadas_hoy` se suprime **en la presentación** para quien ya está dentro del grupo del corte, no en el cálculo.
-- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`). La exclusión de quien no tiene cartera abierta sigue pendiente; no se implementa como una decisión ya aprobada. Cero llamadas no excluye por sí solo a un analista.
+- **A quién se evalúa:** roster activo (`crm.equipo.activo = true` y `rol_crm` = vendedor, definición fijada en `GESTION-DIARIA.md`). Miguel aprobó excluir del aviso de corte a quien no tenga ningún lead abierto asignado, sin ocultarlo en tabla. Cero llamadas no excluye por sí solo a un analista con cartera abierta. No extrapolar esta exclusión a las demás alertas.
 
 **Historia.** Todo se deriva del log de actividades; **no hay tabla de «evaluaciones de corte»**. Limitación que hay que decir en pantalla (Codex F10, aceptado): un día pasado se recalcula con **el equipo y la jerarquía de hoy**, no con los de entonces. Reproducir «lo que el supervisor vio aquel día» es un contrato distinto y más caro; si Miguel lo quiere para evaluaciones de desempeño, entonces —y solo entonces— hace falta un registro derivado, que **no** es automáticamente «otro origen de verdad». Pendiente de verificar: que ningún escritor fije `creado_en` a mano en `crm.actividades` (inserciones tardías romperían el recálculo).
 
@@ -1213,8 +1550,10 @@ interacción en curso, espera; antes de aparecer vuelve a comprobar si el proble
 El servidor conserva el reconocimiento y el aplazamiento de una hora. La identidad del corte
 debe distinguir **supervisor + jornada Lima + corte**. Así un reconocimiento de ayer nunca
 oculta el de hoy y un refresco o cambio de dispositivo no produce otra aparición del mismo
-aviso. El reaviso tras posponer es explícito; cantidad de aplazamientos y tratamiento del
-cierre de jornada se cierran antes de activarlo.
+aviso. El reaviso tras posponer es explícito: **una sola vez por aviso/supervisor/día**,
+sin reaviso al cierre o después (18:00 L–V, 13:00 sábado), ni traslado al día siguiente.
+El pendiente sigue visible. Validar el límite y la concurrencia en servidor, sin
+confundir reconocimiento o supresión del pop-up con resolución del problema.
 
 **Extensión del mecanismo existente.** `crm.alertas_reconocimientos` restringe los tipos por
 CHECK y valida el actor a partir del identificador (`20260823204930…:44-46,105-113`). Ampliar
@@ -1258,7 +1597,7 @@ Los siete archivos con `Record<Vista,…>` exhaustivo (si falta uno, el typechec
 
 ### 7 · Riesgos
 
-1. **El ruido.** Mitigaciones: **una** alerta por corte por supervisor con `miembros[]` (no N alertas — regla «una alerta por DECISIÓN», `lib/alertas.ts:405-411`); el corte 1 se retira si se resuelve; techo «1 rojo por decisión, máx. 2 ámbar» del playbook; pop-up sin repeticiones por refresco y con reconocimiento en servidor. La exclusión de analistas sin cartera sigue pendiente. Los cortes se activan con política futura tras verificar el flujo, sin convertir la antigua barra persistente en un requisito. Sin ejecución programada y sin CRM abierto no hay muestra completa de avisos; no prometer observación exhaustiva.
+1. **El ruido.** Mitigaciones: **una** alerta por corte por supervisor con `miembros[]` (no N alertas — regla «una alerta por DECISIÓN», `lib/alertas.ts:405-411`); el corte 1 se retira si se resuelve; techo «1 rojo por decisión, máx. 2 ámbar» del playbook; pop-up sin repeticiones por refresco y con reconocimiento en servidor. La exclusión de analistas sin leads abiertos de los avisos de corte ya fue aprobada el 21/09. Los cortes se activan con política futura tras verificar el flujo, sin convertir la antigua barra persistente en un requisito. Sin ejecución programada y sin CRM abierto no hay muestra completa de avisos; no prometer observación exhaustiva.
 2. **La injusticia del objetivo relativo** (la levanta Codex y es de negocio, no técnica): con ×2,5, quien llevaba 20 necesita 50 y quien llevaba 8 necesita 20. El primero puede acabar con 30 llamadas y **fallar**, mientras el segundo cumple con 20. Por eso propongo `corte_2_techo_llamadas`: quien ya superó un volumen absoluto no falla la regla relativa. El piso solo no lo arregla.
 3. **Re-sellado de md5 y mutantes** (`…041500…sql:800-801`, `:907`, `:912`): si se re-sella sin re-medir en producción, el gate deja de proteger y nadie se entera.
 4. **Deriva del duplicado del front**: `app/src/lib/gestion-diaria-analista.ts:300` repite 45/25/5 a mano para el modo demo y `analista.test.tsx:46` los fija en el fixture. Al hacer configurables los umbrales, ese duplicado se convierte en mentira. Hay que anotarlo como demo explícita.

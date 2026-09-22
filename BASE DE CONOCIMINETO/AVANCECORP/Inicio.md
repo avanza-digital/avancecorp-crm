@@ -5,6 +5,12 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria F4 - cortes de jornada (2026-09-21)]] — **PR #68 ABIERTO, SQL EXACTO APROBADO; CI BLOQUEADA POR FACTURACIÓN DE GITHUB:** ensayo HTTP/matriz general cerrado en `8ca9045c`, baseline 2.164/0 fallos y candidato OFF 2.196/0; 4.085 tests de aplicación y 22 E2E PASS, navegador real y recuperación verificados. Banco HTTP instalado OFF. GitHub no inició los trabajos: revisar «Billing & plans» y reejecutar CI. Revisión solicitada a `miguejbs98`; después gates y `$release-crm`, sin merge ni SQL productivo todavía. Etapas 4–6 y activación pendientes; TypeSafe preparado pero sin integrar al CRM.
+
+- [[Gestion Diaria F4.1 - banco humano y reglas de cortes (2026-09-21)]] — **PREPARACIÓN LOCAL:** guía y banco ciego ficticio para ambos supervisores; no hay revisión humana ni TypeSafe en CRM todavía. Reglas de cortes cerradas: sábado 3 llamadas, cartera vacía fuera de avisos de corte y aplazamiento único sin reaviso al cierre o después. Sin notas reales, SQL ni publicación.
+
+- [[Gestion Diaria F4.1 - TypeSafe tecnico y piloto humano pendiente (2026-09-21)]] — **ENSAYO TÉCNICO LOCAL, CRM SIN ACTIVAR:** API verificada y apoyo técnico usado; control de notas aisladas 19/20, una falsa alerta conservada. Ambos supervisores validarán el piloto, cada uno únicamente por su equipo; responsables definidos, muestra y validación pendientes. Sin notas reales, SQL ni publicación; no confundir con el cierre de F4 etapa 2.
+
 - [[CI del CRM sin E2E en GitHub (2026-09-21)]] — Por decisión de Miguel, GitHub Actions conserva el gate de calidad y retira el job E2E, que puede ejecutarse localmente cuando corresponde.
 
 - [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]] — **ETAPA 2 PUBLICADA Y VERIFICADA:** detalle de llamadas por hora, registro F1 y ficha con filtros/foco conservados; fuente `baa63aea`, PR #64, build `build-20260921T200508459Z`. 4.051 pruebas, 232 E2E/26 omitidos, preflight real de lectura y 110 controles HTTP finales PASS. Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y F4 etapa 3; ver acta y límites.

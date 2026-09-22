@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "fecha_lima": "2026-09-21",
+  "estado": "VALIDACION_LOCAL_PASS_PUBLICACION_PENDIENTE",
+  "banco": "gestion-diaria-f4-http",
+  "destino": "http://127.0.0.1:59321",
+  "datos": "exclusivamente ficticios",
+  "main_remoto_verificado": "59dd14805b646e2adb281302b8441265e969d914",
+  "integracion_main_en_taller": "9a101dcd",
+  "candidato": {
+    "archivo": "20260921214018_crm_gestion_diaria_cortes.sql",
+    "sha256": "8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5",
+    "editado": false,
+    "estado_final_local": "instalado",
+    "politicas": 1,
+    "version_politica": 1,
+    "cortes_activos": false
+  },
+  "paridad_catalogo": { "estado": "PASS", "categorias": 14 },
+  "matriz_general": {
+    "primera_corrida_previa": { "aserciones": 2149, "fallos": 86 },
+    "baseline_actualizada": {
+      "estado": "PASS", "aserciones": 2164, "fallos": 0,
+      "registro": "matriz-baseline-20260922033724097.log",
+      "cortes": "ausentes, explicitamente no probados"
+    },
+    "candidato_off": {
+      "estado": "PASS", "aserciones": 2196, "fallos": 0,
+      "registro": "matriz-candidato-20260922035054657.log",
+      "cortes": "presencia obligatoria y 32 comprobaciones adicionales"
+    }
+  },
+  "recuperacion": {
+    "atomicidad_antes_commit": "PASS",
+    "instalacion_exacta_off": "PASS",
+    "reversa_exacta_local": "PASS",
+    "reinstalacion_off": "PASS",
+    "funciones_acl_owner_comentarios": "conservados/restaurados exactamente",
+    "datos_negocio_y_auditoria": "conservados",
+    "contratos_http_instalacion": 7,
+    "contratos_http_reversa": 7,
+    "no_es_reversa_productiva": true
+  },
+  "compatibilidad": {
+    "estado": "PASS",
+    "cliente_anterior": "59dd14805b646e2adb281302b8441265e969d914",
+    "combinaciones_cliente_servidor": 4,
+    "parseos_de_respuestas_reales": 28,
+    "ausencia_de_cortes": "undefined, no cero"
+  },
+  "navegador_real": {
+    "estado": "PASS",
+    "herramienta": "Playwright local; navegador integrado no disponible",
+    "auth": "formulario y servidor reales",
+    "api": "PostgREST real, sin MSW ni respuestas de negocio fabricadas",
+    "actores": ["supervisor 1", "supervisor 2", "analista 1"],
+    "con_candidato": "PASS",
+    "con_servidor_revertido": "PASS",
+    "movil_y_error_sin_falsos_ceros": "PASS",
+    "sla_activo": "PASS",
+    "resultado_no_interesado_seguimiento_whatsapp": "PASS",
+    "actividad_y_tarea_persistidas": true,
+    "lead_no_descartado": true,
+    "modo_sla_original_restituido": "legado"
+  },
+  "checks": {
+    "app_check": { "estado": "PASS", "archivos_test": 272, "tests": 4085 },
+    "e2e_gestion_diaria_backend_simulado": { "estado": "PASS", "tests": 22 },
+    "check_scripts": "PASS",
+    "seed_preflight": "PASS con variables del banco; offline",
+    "rls_preflight": "PASS con variables del banco; offline",
+    "edge_preflight": "PASS",
+    "guardas_banco": { "estado": "PASS", "tests": 17 },
+    "helper_conversion": { "estado": "PASS", "tests": 8 }
+  },
+  "claude": {
+    "interfaz": "scripts/claude-review",
+    "consultas_nuevas": 2,
+    "estado": "sin dictamen utilizable; no se atribuye aprobacion",
+    "settings_modificados": false
+  },
+  "limites": [
+    "Handler Avance ejecutado en proceso, no Edge desplegada",
+    "Edge tipo de cambio ausente; indisponibilidad explicitada en la interfaz",
+    "No carga ni concurrencia representativas de produccion",
+    "Resguardos y aprobacion del destino pendientes del flujo de release",
+    "Sin push, PR, publicacion, SQL productivo, etapa 4 ni activacion de cortes/TypeSafe"
+  ]
+}

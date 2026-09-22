@@ -1,0 +1,279 @@
+{
+  "alcance": "ensayo_sintetico_no_calibracion_productiva",
+  "version_pregunta": "gestion-diaria-coherencia-v1-20260921",
+  "modelo": "jev-1.13.0",
+  "total": 20,
+  "validas": 20,
+  "coincidencias": 20,
+  "falsas_alertas": 0,
+  "contradicciones_omitidas": 0,
+  "revision_humana": false,
+  "habilita_produccion": false,
+  "latencia_ms": 820,
+  "uso": {
+    "input_tokens": 5561,
+    "output_tokens": 1026
+  },
+  "resultados": [
+    {
+      "id": "c01",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 1,
+      "probabilidades": {
+        "compatible": 1,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c02",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.96,
+      "probabilidades": {
+        "compatible": 0.03,
+        "posible_contradiccion": 0.97,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c03",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.94,
+      "probabilidades": {
+        "compatible": 0.96,
+        "posible_contradiccion": 0.04,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c04",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": true,
+      "clase": "informacion_insuficiente",
+      "confianza": 0.28,
+      "probabilidades": {
+        "compatible": 0.03,
+        "posible_contradiccion": 0.45,
+        "informacion_insuficiente": 0.52
+      }
+    },
+    {
+      "id": "c05",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.95,
+      "probabilidades": {
+        "compatible": 0.97,
+        "posible_contradiccion": 0.03,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c06",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c07",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.99,
+        "posible_contradiccion": 0.01,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c08",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c09",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 1,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c10",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.87,
+      "probabilidades": {
+        "compatible": 0.08,
+        "posible_contradiccion": 0.92,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c11",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.97,
+      "probabilidades": {
+        "compatible": 0.98,
+        "posible_contradiccion": 0.02,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c12",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c13",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 1,
+      "probabilidades": {
+        "compatible": 1,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c14",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c15",
+      "esperado": "compatible",
+      "valida": true,
+      "coincide": true,
+      "clase": "compatible",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.99,
+        "posible_contradiccion": 0.01,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c16",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.98,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0.99,
+        "informacion_insuficiente": 0
+      }
+    },
+    {
+      "id": "c17",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": true,
+      "clase": "informacion_insuficiente",
+      "confianza": 1,
+      "probabilidades": {
+        "compatible": 0,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 1
+      }
+    },
+    {
+      "id": "c18",
+      "esperado": "informacion_insuficiente",
+      "valida": true,
+      "coincide": true,
+      "clase": "informacion_insuficiente",
+      "confianza": 0.99,
+      "probabilidades": {
+        "compatible": 0.01,
+        "posible_contradiccion": 0,
+        "informacion_insuficiente": 0.99
+      }
+    },
+    {
+      "id": "c19",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.95,
+      "probabilidades": {
+        "compatible": 0.02,
+        "posible_contradiccion": 0.97,
+        "informacion_insuficiente": 0.01
+      }
+    },
+    {
+      "id": "c20",
+      "esperado": "posible_contradiccion",
+      "valida": true,
+      "coincide": true,
+      "clase": "posible_contradiccion",
+      "confianza": 0.9,
+      "probabilidades": {
+        "compatible": 0.07,
+        "posible_contradiccion": 0.93,
+        "informacion_insuficiente": 0
+      }
+    }
+  ]
+}
