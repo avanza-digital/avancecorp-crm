@@ -35,38 +35,43 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — cierre de F4 en implementación local (22/09/2026)
+### Punto de trabajo actual — F4 validada localmente; entrega pendiente (22/09/2026)
 
 Objetivo activo: terminar etapas 4–6, publicar con respaldo, activar desde una jornada
 futura y verificarla. TypeSafe/F4.1 y F5 excluidos. Producción conserva etapa 3 OFF.
 
 Se trabaja en la copia existente `/private/tmp/avancecorp-release.hvdub4/repo`, rama
-`codex/gestion-diaria-f4-cierre`. Miguel confirmó otra sesión escribiendo en el taller
-principal; se conserva su trabajo. Autorizó usar Docker con servicio identificado
-como Gestión Diaria: banco `gestion-diaria-f4-http` reanudado y aislado.
+`codex/gestion-diaria-f4-cierre`. Miguel confirmó otra sesión en el taller principal;
+se conserva su trabajo. Autorizó Docker identificado como Gestión Diaria: banco
+`gestion-diaria-f4-http` aislado y contenedor E2E `gestion-diaria-f4-e2e`, volumen propio.
 
-Tres candidatos SQL (avisos, configuración y grupos diarios) instalados **solo en el
-banco sintético propio**, después de ensayos con ROLLBACK y 21 mutantes PASS.
-Popup, reconocimiento/aplazamiento, campana/lista, contexto de primera llamada,
-registro y editor gerencial integrados. Avisos diarios consumen los grupos SLA y
-no duplican inactividad con cortes; tasa baja OFF hasta F5.
+**Construido:** popup, reconocimiento/aplazamiento persistentes, campana/lista,
+registro, contexto de llamadas y editor gerencial con versiones futuras. Cuatro
+SQL instalados solo en el banco: avisos, configuración, grupos diarios y lectura
+completa separada de escrituras. SLA ya no se calcula bajo el lock de cortes.
+La alerta de tasa baja está OFF hasta F5, por decisión expresa de Miguel.
 
-`npm run check` PASS: 4.150 pruebas, cobertura, build y duplicación 0,50 %.
-HTTP/Auth real: seis roles y dos ámbitos PASS. Tres carreras reales entre sesiones
-(publicación, presentación y aplazamiento), con las dos peticiones observadas
-esperando cada lock, PASS. El banco tiene una política sintética de la víspera
-activa hoy y otra OFF desde mañana; producción sigue con v1 OFF intacta.
+**Verificado:** 4.153 tests en 277 archivos, lint, typecheck, cobertura, build y
+bundle PASS; 232 E2E en Docker PASS, 26 SKIPPED de pantallas retiradas, cero fallos.
+Gates SQL y 25 mutantes PASS; Auth/API de seis roles, dos equipos y tres carreras
+con dos solicitudes observadas esperando el mismo lock PASS. Navegador real,
+foco, móvil, configuración y libro anterior de alertas entre sesiones PASS.
+Tipos locales oficiales cotejados. Fallo SLA inyectado no impide escribir cortes.
 
-Jev clasificó 13 pendientes en 2,2 s como apoyo, según la nueva instrucción de
-Miguel; no certifica pruebas ni cambia el alcance F4.1. Claude emitió
-CHANGES_REQUESTED recuperado; correcciones incorporadas con pruebas. Navegador
-real y capturas móvil/configuración PASS; tipos locales oficiales cotejados.
-Regresión nativa: 232 PASS y 26 SKIPPED (pantallas retiradas). Main acaba de
-incorporar E2E obligatorio en Docker: pendiente ejecutar ese gate tras integrar.
-Revisión final de Claude en curso; entrega productiva y primera jornada pendientes.
-Detalle y evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
-La reparación del ledger SQL, conciliación de Main, release autorizado y primera
-jornada operativa siguen pendientes.
+Jev clasificó 13 pendientes en 2,2 s como apoyo, sin certificar pruebas ni ampliar
+F4.1. Los dos dictámenes de Claude se recuperaron como CHANGES_REQUESTED; el
+PRIMARY resolvió con cambios y evidencia. No se atribuye PASS al reviewer.
+
+Main hasta `8ad32d2b` integrado; gates del nuevo vigilante y F4 pasan juntos.
+Un fetch posterior encontró `7d65fcdb` (Acceso Avance): integrar y verificar ese
+avance antes de publicar. Las 33 sentencias del ledger de etapa 3 coinciden con
+el archivo original. Respaldo y corrección administrativa preparados; ensayo
+reversible y tres guardas PASS. El registro productivo todavía no se modificó.
+
+**Falta:** integración final, PR/propuesta y autorizaciones específicas; ensayo en
+rama Supabase, conciliación administrativa, publicación desde Main coincidente,
+activación futura y primera jornada real. No marcar F4 completa por las pruebas
+locales. Evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
 
 ### Último punto de control — etapa 3 publicada y verificada; cortes OFF (22/09/2026)
 
@@ -135,16 +140,15 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F0–F3 y ampliación de resultado v4 | En producción | Conservar sus regresiones al ampliar F4 |
 | F4 etapas 1–2: equipo y detalle | En producción | Recorrido de negocio con el supervisor pendiente |
 | F4 etapa 3: base de cortes y cliente compatible | Publicada y verificada, OFF | No reinstalar el SQL ni activar avisos todavía |
-| F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
-| F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
-| F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
+| F4 etapa 4: pop-up y seguimiento | Implementada y validada localmente | Ensayo remoto y publicación |
+| F4 etapa 5: configuración gerencial | Implementada y validada localmente | Publicar y programar política futura con gerencia |
+| F4 etapa 6: validación y activación | Pruebas locales PASS; entrega pendiente | Ensayo remoto, activación futura y primera jornada real |
 | F4.1: TypeSafe | Preparación técnica y ensayo sintético; sin integración productiva | Piloto humano por ambos supervisores, cada uno con su equipo; no bloquea F4/F5 |
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
 
-**Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
-producto, conciliar el taller divergente preservando sus cambios ajenos; no
-reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
+**Próximo trabajo:** cerrar la propuesta concreta de publicación y sus
+autorizaciones; integrar avances de Main conservando el taller ajeno. Las reglas
 de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
 aplazamiento único de una hora sin reaviso al cierre ya están aprobadas.
 

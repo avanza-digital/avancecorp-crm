@@ -18,19 +18,24 @@ identificando el servicio como Gestión Diaria. Se reanudó solo `gestion-diaria
 con seis servicios, red propia sin egreso externo y puertos loopback propios. Auth
 responde HTTP200. No se reinició Docker completo ni se modificaron otras instancias.
 
-Tres SQL candidatos instalados solo en el banco propio: avisos, configuración y
-grupos diarios. Gates/21 mutantes/roles/horarios/SLA PASS; frontend completo
-`check` con 4.150 pruebas PASS. HTTP/Auth de seis roles y paridad de dos equipos
+Cuatro SQL candidatos instalados solo en el banco propio: avisos, configuración,
+grupos diarios y separación de lectura/escritura (SLA fuera del lock de cortes).
+Gates/25 mutantes/roles/horarios/SLA PASS; frontend completo
+`check` con 4.153 pruebas PASS. HTTP/Auth de seis roles y paridad de dos equipos
 PASS. Tres carreras con dos solicitudes observadas esperando el mismo lock PASS:
 publicación, entrega del popup y aplazamiento únicos; reconocimiento compartido.
 
 El banco conserva historia sintética (v2 activa hoy, v3 OFF desde mañana). Producción
 sigue v1 OFF y no tiene los nuevos candidatos. Navegador real, capturas móviles y
 configuración legibles, persistencia entre sesiones y cotejo de tipos oficiales
-PASS. Regresión nativa: 232 PASS, 26 SKIPPED de pantallas retiradas. Main agregó
-E2E obligatorio en Docker: pendiente integrar y correr ese gate. Revisión final de
-Claude en curso. Conciliación Main/ledger, entrega y primera jornada productiva
-siguen pendientes. Claude previo CHANGES_REQUESTED sí recuperado.
+PASS. Regresión Docker: **232 PASS, 26 SKIPPED de pantallas retiradas, cero fallos**,
+en `gestion-diaria-f4-e2e`, volumen propio, dos workers. Libro anterior de alertas
+SLA compatible por HTTP y navegador entre sesiones PASS. Ambos dictámenes de
+Claude se recuperaron CHANGES_REQUESTED; el PRIMARY resolvió con pruebas.
+Main hasta `8ad32d2b` integrado y nuevo vigilante probado junto con F4. Se detectó
+después `7d65fcdb`, pendiente integración final. Respaldo y corrección del ledger
+de etapa 3 preparados: 33 sentencias exactas, ensayo reversible y tres guardas
+PASS; producción intacta. Ensayo remoto, entrega y primera jornada pendientes.
 
 Miguel pidió apoyo de Jev para avanzar más rápido. 13 pendientes clasificados en
 2,2 s; una confianza baja se resolvió leyendo el requisito. No es integración F4.1

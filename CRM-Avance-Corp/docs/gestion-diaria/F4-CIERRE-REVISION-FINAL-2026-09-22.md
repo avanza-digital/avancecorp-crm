@@ -5,7 +5,7 @@ Se agotaron las dos consultas justificadas: la resolución continúa por evidenc
 
 Corrección de conteo del paquete enviado: la primera corrida nativa tuvo 231 PASS,
 26 SKIPPED y 1 FAIL; la siguiente 232 PASS, 26 SKIPPED y cero fallos. Nunca 257 PASS.
-E2E Docker exigido por Main aún pendiente.
+E2E Docker exigido por Main: 232 PASS, 26 SKIPPED, cero fallos (9,0 minutos).
 
 ## Dictamen literal
 
@@ -160,30 +160,38 @@ RECOMMENDED NEXT ACTIONS:
 CONFIDENCE:
 MEDIUM
 
-## Evaluación y correcciones del PRIMARY (en curso)
+## Evaluación y correcciones del PRIMARY
 
 - Aceptado error de presentación: ahora aviso no bloqueante, lista conservada y
   Actualizar lo limpia. Prueba de fallo seguido de pausa del canal PASS.
 - Precondición hosted confirmada: postgres tiene CREATEROLE y ADMIN authenticated,
   pero no GRANT OPTION de USAGE en auth. Auth/uid se heredan de authenticated;
-  se elimina el GRANT redundante sobre auth del candidato aún no versionado.
+  se eliminó el GRANT redundante antes de versionar el candidato. Herencia
+  probada revocando temporalmente el permiso directo en el banco, con ROLLBACK.
 - Legado usa ids de lead, no de tarea: `alertas.ts` grupo de tareas (miembros),
   `reconocimientos-alertas.ts` compara conjuntos y severidad; el trigger legacy
-  valida formato e identidad. No cambia el espacio de ids. Falta prueba HTTP adicional.
+  valida formato e identidad. No cambia el espacio de ids. Prueba HTTP/Auth y
+  navegador con dos supervisores y sesiones nuevas PASS: reconocer/posponer,
+  lista y campana. Evidencia `gd-f4-legado-http.json` del banco.
 - Solo llamadas no útiles: el núcleo `gestion_diaria_llamadas` cuenta TODOS los
   ids en llamadas y primera/última, excluye no útiles solo en útiles/contestadas.
   La hipótesis de cero llamadas con primera llamada no nula no corresponde al SQL.
-  Se añadirá fixture explícito para demostrar el contrato.
+  Fixture de dos llamadas por RPC (`numero_errado` y `no_es_la_persona`) PASS:
+  llamadas 2, útiles/contestadas 0, primera/última no nulas.
 - Límites horarios, orden de umbrales y medianoche Lima ya están en los CHECK
   de `politica_gestion_diaria` de etapa 3. `numeric` no tiene escala declarada.
-  No se duplican validaciones SQL; se amplían pruebas directas de rechazo.
+  Pruebas RPC directas de horas inválidas y vigencia fuera de medianoche PASS:
+  23514, sin nueva versión. No se duplicaron validaciones SQL.
 - Aceptado normalizar `motivo.trim()` ANTES de enviar, evitando diferencia con btrim.
 - Aceptado timeout de 30 s al reclamar presentación y texto de reaviso correcto.
 - Medición READ ONLY de SLA en tres equipos productivos (2.148 leads activos
   globales): 2.430,047 / 25,743 / 2.224,554 ms. No es p95. Se acepta separar
-  contexto/SLA del núcleo que usan las escrituras bajo lock: cuarto candidato.
+  contexto/SLA del núcleo que usan las escrituras bajo lock: cuarto candidato
+  instalado localmente. Inyección de fallo SLA: presentar/reconocer PASS y GET
+  completo falla, como se esperaba. Las tres muestras no acreditan p95 de carga.
 - Nuevos mutantes: owner del lector, membresía authenticated y cuerpo del sello.
-  Pendiente ejecutar junto con pruebas adicionales y gate final.
+  Añadido BYPASSRLS: 25 mutantes PASS. Gate completo posterior: 4.153 tests PASS,
+  además de lint, typecheck, build, cobertura y E2E Docker.
 - Categorías SLA actuales son seis; gates sellan el núcleo. No se adopta un
   filtro que descarte silenciosamente una categoría futura. Cambiar ese contrato
   requiere actualizar su consumidor y probarlo; error explícito conserva fail-closed.

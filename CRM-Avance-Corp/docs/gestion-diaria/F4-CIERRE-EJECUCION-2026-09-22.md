@@ -16,9 +16,10 @@ La conciliación final con Main se hará conservando ese trabajo.
 
 ## Avance comprobado (actualizado durante el cierre)
 
-- Tres candidatos SQL: avisos persistentes, configuración y grupos diarios.
+- Cuatro candidatos SQL: avisos, configuración, grupos diarios y separación de
+  lectura/escritura para no calcular SLA bajo el lock de cortes.
   Instalados solo en `gestion-diaria-f4-http`, con respaldo privado anterior.
-  Ensayo previo reversible PASS: cinco gates antes/después, 21 mutantes,
+  Ensayo previo reversible PASS: cinco gates antes/después, 25 mutantes,
   roles, reloj Lima, sábado/domingo, entrega/reintento, reconocer/posponer,
   sello del POST, cierre y siguiente día, configuración estricta y futura.
 - Grupos diarios sobre el núcleo SLA, ids y cantidades cotejados con casos
@@ -26,9 +27,9 @@ La conciliación final con Main se hará conservando ese trabajo.
   jornada y sin duplicar miembros de cortes. Tasa baja permanece OFF hasta F5.
 - Frontend integra popup/lista/campana/registro/editor. Comparte el libro anterior
   para tareas y reparto; los otros problemas se retiran al resolverse.
-- `npm run check` PASS: **4.150 pruebas, 277 archivos**, cobertura, release-config,
+- `npm run check` PASS: **4.153 pruebas, 277 archivos**, cobertura, release-config,
   service worker, build, verify:bundle y duplicación 0,50 %. Lint conserva solo
-  cuatro avisos anteriores del coverflow. Log: `/private/tmp/gd-f4-check-final-20260922.log`.
+  cuatro avisos anteriores del coverflow. Log: `/private/tmp/gd-f4-check-integrado-20260922.log`.
 - HTTP/Auth **PASS**: seis roles, contexto completo y paridad de dos equipos,
   anonimato/privados denegados, gerencia escribe y directorio lee, tasa baja no
   activable. La primera corrida detectó un parámetro mal nombrado en el arnés;
@@ -45,9 +46,9 @@ La conciliación final con Main se hará conservando ese trabajo.
 - Jev `jev-1.13.0`: 13 clasificaciones en 2.191 ms; 2.747 tokens de entrada y
   753 de salida. Se aceptó el orden de trabajo y se resolvió con el plan una
   categoría dudosa; no se tomó como veredicto técnico. [Evidencia](F4-CIERRE-JEV-2026-09-22.md).
-- Claude: primer dictamen de este objetivo recuperado, CHANGES_REQUESTED;
-  hallazgos atendidos, revisión final del alcance completo pendiente.
-  [Dictamen](F4-CIERRE-REVISION-SQL-2026-09-22.md).
+- Claude: ambos dictámenes recuperados CHANGES_REQUESTED; presupuesto 2/2.
+  Resolución del PRIMARY con cambios y evidencia, sin atribuir PASS a Claude.
+  [Segundo dictamen y resolución](F4-CIERRE-REVISION-FINAL-2026-09-22.md).
 - Docker: se reanudaron solo los seis servicios propios tras la autorización de
   Miguel. Red sin egreso externo IPv4/IPv6, puertos loopback, restart=no. No se
   tocaron servicios de la otra sesión ni el taller principal.
@@ -66,20 +67,36 @@ Regresión Playwright nativa: **232 PASS, 26 SKIPPED**, cero fallos. Las 26
 omitidas corresponden a Clientes/Contratos retirados, según sus specs. La
 corrida anterior tuvo 231 PASS, 26 SKIPPED y un fallo por mock ausente de la
 nueva RPC; corregido. No registrar 257/258 como pruebas aprobadas. Main agregó
-la obligación de E2E local en Docker durante el trabajo: ese gate sigue pendiente.
+la obligación de E2E local en Docker durante el trabajo. Gate Docker PASS: **232
+passed, 26 skipped, cero fallos, 9,0 minutos**, tras integrar `8ad32d2b`. Contenedor
+`gestion-diaria-f4-e2e`, volumen propio y dos workers.
+Log: `/private/tmp/gd-f4-e2e-docker-20260922.log`.
 
 Tipos oficiales locales generados y diez contratos de F4 cotejados PASS.
 Se preserva la versión PostgREST productiva y los tipos ajenos. Check:scripts
-PASS tras autorizar el servidor loopback que el sandbox bloqueaba. Cambio
-posterior al check: retirar popup al cierre de jornada o después de 90 s sin
-foto fresca; diez pruebas del provider, lint/typecheck y build PASS.
+PASS tras autorizar el servidor loopback que el sandbox bloqueaba, repetido después
+de integrar Main (`gd-f4-scripts-integrado-20260922.log`). El check de 4.153 incluye
+retiro del popup al cierre/90 s sin foto fresca y recuperación del error de
+presentación. Escrituras de cortes con fallo SLA inyectado PASS; GET completo
+falla explícitamente sin invalidar una escritura ya confirmada.
+
+Libro SLA, HTTP y navegador entre sesiones PASS (`gd-f4-legado-http.json`,
+`gd-f4-navegador-alertas.json`). El primer arnés perdió el buscador al abrirse un
+popup; se retuvo la lectura de avisos hasta enfocar, como en el ensayo original.
+No hubo cambios de producto para hacerlo pasar. SLA volvió a `legado`; historia
+conservada. Capturas `f44-diarias-sup1.png` y `f44-diarias-sup2.png` revisadas.
+
+Main `8ad32d2b` integrado en `09aa31ec`, conservando ambas entradas del ledger.
+Vigilante `20260922153708`, ya productivo por otra tarea, incorporado al banco:
+gates de vigilante y F4 PASS juntos (`gd-f4-integracion-main.json`). Un fetch
+posterior encontró `7d65fcdb` (Acceso Avance); integración final pendiente.
 
 ## Decisiones sobre la revisión
 
 Aceptado: conservar RLS en el cálculo mediante rol puente NOLOGIN/NOBYPASSRLS,
 propietario solo del lector; authenticated no recibe membresía del puente.
 Los índices, permisos, rol, funciones y triggers nuevos deben quedar sellados con
-asserts/mutantes (implementados y probados, 21 mutantes). Paridad del ámbito de llamadas con dos equipos por HTTP y de pendientes con el núcleo SLA por SQL PASS. Las huellas del catálogo se midieron con el mismo search_path vacío del gate; los nombres cualificados cambian respecto de psql.
+asserts/mutantes (implementados y probados, 25 mutantes). Paridad del ámbito de llamadas con dos equipos por HTTP y de pendientes con el núcleo SLA por SQL PASS. Las huellas del catálogo se midieron con el mismo search_path vacío del gate; los nombres cualificados cambian respecto de psql.
 
 Aceptado: id ISO independiente de DateStyle, boolean de permiso siempre boolean,
 conversión de cantidades 3.0 válida, distinción entre aviso ajeno y resuelto,
@@ -119,19 +136,24 @@ https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_fo
 
 Lectura remota confirmó versión `20260922164159`, nombre `crm_gestion_diaria_cortes`,
 33 sentencias, política v1 OFF. El archivo `20260921214018` ya está instalado: no
-reejecutarlo. La reparación de historial está pendiente, previa comparación/resguardo
-y siguiendo el procedimiento de publicación; no se ha mutado la base productiva.
+reejecutarlo. Las 33 sentencias coinciden exactamente con el archivo, salvo
+separadores entre sentencias. Respaldo completo privado:
+`/private/tmp/gd-f4-ledger-etapa3-respaldo-20260922.json`. MD5 de sentencias unidas
+con salto de línea: `d3d9cf9cde700b0fc44095fcbd523892`.
+
+Propuesta `supabase/scripts/gestion-diaria-seguimiento/conciliar-ledger-etapa3.sql`:
+transacción con lock; cambia solo versión y verifica el resto de la fila intacto.
+Ensayo con ROLLBACK PASS y tres derivas rechazadas: SQL ajeno, versión destino
+ocupada y nombre duplicado. **No aplicado a producción; requiere autorización.**
 
 ## Pendientes reales
 
-1. Evaluar el segundo y último dictamen de Claude (revisión completa en curso),
-   corregir con evidencia y verificar los cambios pertinentes.
-2. Integrar avancecorp/main, conservando cambios de la otra sesión. Ejecutar
-   E2E dentro de un contenedor Docker identificado como Gestión Diaria y los
-   gates del código final integrado. No repetir sobre el banco los pasos de
-   instalación/concurrencia que ya consumieron entregas inmutables.
-3. Conciliar el ledger instalado sin reinstalar etapa 3, preparar SQL exacto,
-   respaldo/recuperación y artefacto desde Main/remoto coincidentes. Publicar
-   mediante el procedimiento autorizado (rama Supabase y release CRM).
+1. Integrar el avance `7d65fcdb` de Main y verificar el código final. No repetir
+   instalación/concurrencia del banco que ya consumió entregas inmutables.
+2. Preparar PR y propuesta exacta de cuatro SQL, conciliación administrativa,
+   coste del banco remoto, recuperación y publicación. Obtener las autorizaciones
+   específicas antes de crear recursos de pago, modificar producción o publicar.
+3. Ensayo en rama Supabase, matriz RLS/advisors, conciliación sin reinstalar etapa 3
+   y publicación desde Main/remoto coincidentes, con respaldo recuperable.
 4. Programar cortes para una jornada futura y verificar su primera jornada real.
    No marcar F4 completa por haber cerrado pruebas locales.

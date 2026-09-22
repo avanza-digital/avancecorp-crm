@@ -9,7 +9,7 @@ para repetir una prueba: conserva evidencia de entregas y versiones inmutables.
 
 ## Secuencia ya ejecutada el 22/09/2026
 
-1. `ensayar.mjs --solo-banco-autorizado`: instala los tres candidatos dentro de
+1. `ensayar.mjs --solo-banco-autorizado`: actualmente instala los cuatro candidatos dentro de
    una transacción, prueba gates, 24 mutantes (más BYPASSRLS en el ensayo de correcciones), roles, horarios y grupos SLA, y
    termina en ROLLBACK. **Requiere banco anterior a etapa 4**; no repetir sobre
    la instalación actual.
@@ -60,3 +60,16 @@ Se ejecutó una vez. `verificar-correcciones.mjs --solo-banco-autorizado` prueba
 mutantes, permisos heredados de auth, reglas inválidas por RPC, llamadas no útiles
 y escrituras con SLA caído, todo dentro de ROLLBACK. Supabase_admin solo permite
 ensayar el mutante BYPASSRLS; las escrituras de negocio se prueban con authenticated.
+
+`legado-http.mjs --solo-banco-autorizado` activa temporalmente SLA mediante la API,
+comprueba reconocer/posponer con ids de lead y dos sesiones, y recorre el navegador
+(`--solo-alertas`). Restituye el modo anterior en finally; conserva los asientos
+sintéticos añadidos. No ejecutarlo como lectura pura. PASS el 22/09.
+
+`integracion-main-local.mjs --solo-banco-autorizado` incorpora al banco el vigilante
+ya publicado por otra tarea, si falta, y comprueba ambos gates. PASS; no toca producción.
+
+`ensayar-ledger-local.mjs --solo-banco-autorizado` coteja el respaldo privado de las
+33 sentencias de etapa 3 y ensaya `conciliar-ledger-etapa3.sql` con ROLLBACK y tres
+derivas. El script SQL es una propuesta administrativa separada; ejecutarlo en
+producción requiere autorización. Nunca reinstala la migración de etapa 3.

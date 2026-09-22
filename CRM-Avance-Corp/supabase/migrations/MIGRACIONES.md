@@ -16,17 +16,22 @@ authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálo
 ## Cierre F4 — candidatos locales del 22/09, sin aplicar a producción
 
 `20260922184459_crm_gestion_diaria_avisos.sql`,
-`20260922185138_crm_gestion_diaria_configuracion.sql` y
-`20260922204125_crm_gestion_diaria_alertas_equipo.sql`: ensayados e instalados
-solo en el banco sintético `gestion-diaria-f4-http`. Gates/21 mutantes, roles,
-horarios, SQL, HTTP/Auth y tres carreras entre sesiones PASS. Pendientes navegador,
-revisión final, rama autorizada y publicación. Tasa baja no activable hasta F5.
+`20260922185138_crm_gestion_diaria_configuracion.sql`,
+`20260922204125_crm_gestion_diaria_alertas_equipo.sql` y
+`20260922220800_crm_gestion_diaria_avisos_lectura.sql`: ensayados e instalados
+solo en el banco sintético `gestion-diaria-f4-http`. Gates/25 mutantes, roles,
+horarios, SQL, HTTP/Auth, tres carreras entre sesiones y navegador real PASS.
+Dos dictámenes CHANGES_REQUESTED recuperados; resolución del PRIMARY con evidencia.
+Gates de F4 y nuevo vigilante pasan juntos. Pendientes rama autorizada y
+publicación. Tasa baja no activable hasta F5.
 Acta: `docs/gestion-diaria/F4-CIERRE-EJECUCION-2026-09-22.md`.
 
 **Estado productivo de etapa 3:** el archivo `20260921214018` ya fue instalado por
 merge de rama como versión remota `20260922164159`, política v1 OFF. La entrada
 histórica siguiente describe ensayos previos; no reinstalar ese SQL. Reconciliación
-controlada del ledger pendiente. Acta productiva: `F4-ETAPA3-PUBLICACION-2026-09-22.md`.
+controlada del ledger preparada y ensayada con ROLLBACK, sin ejecutar en producción.
+33 sentencias exactas cotejadas; solo se propone cambiar la versión administrativa.
+Acta productiva: `F4-ETAPA3-PUBLICACION-2026-09-22.md`.
 
 ## ✅ `20260922153708` — El techo del vigilante, por clase — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
 

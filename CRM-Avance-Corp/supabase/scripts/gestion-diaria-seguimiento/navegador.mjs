@@ -6,7 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { carpeta, apiUrl, sql, credencialesLocales } from '../gestion-diaria-cortes/http/banco.mjs';
 import { USER_BY_KEY } from '../fixtures.mjs';
 const soloCapturas=process.argv[3]==='--solo-capturas';
-assert.deepEqual(process.argv.slice(2),['--solo-banco-autorizado',...(soloCapturas?['--solo-capturas']:[])]);
+const soloAlertas=process.argv[3]==='--solo-alertas';
+assert.deepEqual(process.argv.slice(2),['--solo-banco-autorizado',...(soloCapturas?['--solo-capturas']:soloAlertas?['--solo-alertas']:[])]);
 const c=credencialesLocales();
 const {password}=JSON.parse(readFileSync(`${carpeta}/credenciales-fixtures.json`,'utf8'));
 const app=fileURLToPath(new URL('../../../app/',import.meta.url));
@@ -63,7 +64,7 @@ async function botonesDentro(region) {
 try {
   await servidor.listen();
   browser=await chromium.launch({headless:true});
-  if(!soloCapturas) {
+  if(!soloCapturas&&!soloAlertas) {
   const {page,context,liberar}=await iniciar('sup1',{retener:true});
   await page.getByRole('button',{name:'Gestión Diaria',exact:true}).click();
   const equipo=page.getByRole('region',{name:'Mi equipo hoy',exact:true});
@@ -120,7 +121,7 @@ try {
   await segundo.page.screenshot({path:`${carpeta}/f44-lista-mobile.png`,fullPage:true});
   evidencia.push('Reconocimiento y aplazamiento confirmados por HTTP, persistentes en una segunda sesión móvil sin popup duplicado');
   await segundo.context.close();
-  } else {
+  } else if(soloCapturas) {
     const movil=await iniciar('sup1',{movil:true});
     await movil.page.goto(`${origen}/#/gestion-diaria`);
     const lista=movil.page.getByRole('region',{name:'Cortes de llamadas del equipo'});
@@ -131,6 +132,30 @@ try {
     await movil.page.screenshot({path:`${carpeta}/f44-lista-mobile.png`,animations:'disabled'});
     evidencia.push('Lista móvil: texto mínimo de 16 px, botones sin recorte y altura mínima de 44 px');
     await movil.context.close();
+  }
+  if(soloAlertas) {
+    for(const key of ['sup1','sup2']) {
+      const sesion=await iniciar(key,{movil:key==='sup2',retener:true});
+      await sesion.page.getByRole('button',{name:'Gestión Diaria',exact:true}).click();
+      await sesion.page.getByRole('region',{name:'Mi equipo hoy',exact:true}).getByRole('searchbox').focus();
+      sesion.liberar();
+      const diarias=sesion.page.getByRole('region',{name:'Otros pendientes del equipo',exact:true});
+      await expect(diarias).toBeVisible();
+      await expect(diarias.getByRole('alert')).toHaveCount(0);
+      const tarea=diarias.getByRole('listitem').filter({has:sesion.page.getByRole('heading',{name:/^Tareas vencidas ·/})});
+      if(key==='sup1') {
+        await expect(tarea.getByText('Reconocido: lo estás atendiendo. Reaparecerá si empeora.')).toBeVisible();
+        await expect(tarea.getByRole('button',{name:/^Reconocer/})).toHaveCount(0);
+      } else {
+        await expect(tarea).toHaveCount(0);
+        await expect(diarias.getByText(/avisos pospuestos/)).toBeVisible();
+      }
+      await legible(diarias);
+      await diarias.scrollIntoViewIfNeeded();
+      await sesion.page.screenshot({path:`${carpeta}/f44-diarias-${key}.png`,animations:'disabled'});
+      await sesion.context.close();
+    }
+    evidencia.push('SLA activo y libro real: tarea reconocida en sup1 y pospuesta en sup2 visibles en nuevas sesiones de navegador');
   }
   const ger=await iniciar('gerencia');
   await ger.page.goto(`${origen}/#/config-gestion-diaria`);
@@ -165,8 +190,8 @@ try {
   assert.deepEqual(errores,[],'Sin errores JavaScript');
   assert.equal(externos.size,0,'El navegador no consulta servicios externos');
   sql('select private.assert_gestion_diaria();');
-  writeFileSync(`${carpeta}/${soloCapturas?'gd-f4-capturas':'gd-f4-navegador'}.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),evidencia},null,2)+'\n',{mode:0o600});
-  console.log(soloCapturas?'PASS: capturas y comprobaciones de lectura móvil/configuración con Auth/API reales, sin publicar':
+  writeFileSync(`${carpeta}/${soloCapturas?'gd-f4-capturas':soloAlertas?'gd-f4-navegador-alertas':'gd-f4-navegador'}.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),evidencia},null,2)+'\n',{mode:0o600});
+  console.log(soloAlertas?'PASS: navegador real con reconocimientos SLA entre sesiones':soloCapturas?'PASS: capturas y comprobaciones de lectura móvil/configuración con Auth/API reales, sin publicar':
     'PASS: recorrido de F4 con navegador/Auth/HTTP reales; popup, foco, registro, lista entre sesiones, móvil y configuración');
 } finally {
   await browser?.close();
