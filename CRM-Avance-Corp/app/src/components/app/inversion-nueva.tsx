@@ -266,7 +266,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   </DialogBody></>
   else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<DialogBody className="space-y-4">
     <p className="text-sm">Para su primera inversión Avance, completa sus datos de acceso. Después podrás elegir las condiciones y revisar el contrato.</p>
-    {!intento ? <AltaAvance nombre={ficha.persona.nombre} correo={ficha.persona.correo ?? ''} telefono={ficha.persona.telefono ?? ''}
+    {!intento ? <AltaAvance correo={ficha.persona.correo ?? ''} telefono={ficha.persona.telefono ?? ''}
       ocupado={ocupado} onContinuar={alta => ejecutar(async () => preparar({...base, alta_portal: alta,
         contrato: {moneda: 'PEN'}, cronograma: [], cuenta: {}}))} />
       : <><p className="text-sm">{datos?.alta_portal?.correo}</p><Button disabled={ocupado} onClick={() => void ejecutar(async () => {
@@ -348,18 +348,20 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   </Dialog>
 }
 
-function AltaAvance({nombre, correo, telefono, ocupado, onContinuar}: {
-  nombre: string; correo: string; telefono: string; ocupado: boolean; onContinuar: (datos: AltaPortal) => Promise<void>
+function AltaAvance({correo, telefono, ocupado, onContinuar}: {
+  correo: string; telefono: string; ocupado: boolean; onContinuar: (datos: AltaPortal) => Promise<void>
 }) {
-  const [datos, setDatos] = useState<AltaPortal>({nombre_completo: nombre, correo, telefono, nombres: '', apellidos: '', domicilio: ''})
+  const [datos, setDatos] = useState<Omit<AltaPortal, 'nombre_completo'>>({correo, telefono, nombres: '', apellidos: '', domicilio: ''})
   const [error, setError] = useState('')
-  const campos = {nombre_completo: 'Nombre completo', nombres: 'Nombres', apellidos: 'Apellidos', correo: 'Correo de acceso Avance', telefono: 'Teléfono', domicilio: 'Domicilio legal'} as const
+  const campos = {apellidos: 'Apellidos', nombres: 'Nombres', correo: 'Correo de acceso Avance', telefono: 'Teléfono', domicilio: 'Domicilio legal'} as const
   return <form className="grid gap-3 sm:grid-cols-2" onSubmit={e => {
     e.preventDefault(); const domicilio = validarDomicilioLegal(datos.domicilio)
     if (!domicilio.ok) {setError(domicilio.error); return}
-    setError(''); void onContinuar(datos)
+    const nombres = datos.nombres.trim(), apellidos = datos.apellidos.trim()
+    if (!apellidos || !nombres) {setError('Completa los apellidos y nombres.'); return}
+    setError(''); void onContinuar({...datos, nombres, apellidos, nombre_completo: `${nombres} ${apellidos}`})
   }}>
-    {(Object.keys(campos) as (keyof AltaPortal)[]).map(k => <div key={k} className="min-w-0 space-y-1">
+    {(Object.keys(campos) as (keyof typeof campos)[]).map(k => <div key={k} className="min-w-0 space-y-1">
       <Label htmlFor={`f5-alta-${k}`}>{campos[k]}</Label><Input id={`f5-alta-${k}`} type={k === 'correo' ? 'email' : 'text'} required
         value={datos[k]} disabled={ocupado} maxLength={k === 'domicilio' ? 300 : 180}
         onChange={e => setDatos({...datos, [k]: e.target.value})} /></div>)}
