@@ -1,4 +1,33 @@
+## 20260922220800 — F4: lectura completa separada de escrituras de cortes
+
+**CANDIDATO; instalado solo en banco Gestión Diaria.** Después de la segunda
+revisión, se midió SLA en los tres equipos productivos por solo lectura:
+2.430,047 / 25,743 / 2.224,554 ms. El nuevo lector completo mantiene RLS del
+rol puente y solo lo usa GET. Presentar/reconocer ya no calculan SLA bajo lock;
+el cliente refresca por GET después de confirmar. Reversa transaccional y gates
+locales PASS; producción sin este cambio. No borra ni cambia políticas o historia.
+
+La preparación hosted del primer candidato omite el GRANT redundante sobre auth:
+USAGE/auth.uid se heredan de authenticated. Producción tiene CREATEROLE y ADMIN
+authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálogo.
+
 # Ledger de migraciones — esquema `crm`
+
+## Cierre F4 — candidatos locales del 22/09, sin aplicar a producción
+
+`20260922184459_crm_gestion_diaria_avisos.sql`,
+`20260922185138_crm_gestion_diaria_configuracion.sql` y
+`20260922204125_crm_gestion_diaria_alertas_equipo.sql`: ensayados e instalados
+solo en el banco sintético `gestion-diaria-f4-http`. Gates/21 mutantes, roles,
+horarios, SQL, HTTP/Auth y tres carreras entre sesiones PASS. Pendientes navegador,
+revisión final, rama autorizada y publicación. Tasa baja no activable hasta F5.
+Acta: `docs/gestion-diaria/F4-CIERRE-EJECUCION-2026-09-22.md`.
+
+**Estado productivo de etapa 3:** el archivo `20260921214018` ya fue instalado por
+merge de rama como versión remota `20260922164159`, política v1 OFF. La entrada
+histórica siguiente describe ensayos previos; no reinstalar ese SQL. Reconciliación
+controlada del ledger pendiente. Acta productiva: `F4-ETAPA3-PUBLICACION-2026-09-22.md`.
+
 
 ## 20260921214018 — Gestión Diaria F4: cortes de jornada, etapa 3
 
@@ -11628,3 +11657,20 @@ medido en producción) y no tenían ACL propia, contra la convención de la casa
   propia: 11 (eran 9).
 - ~21:33 versión registrada con `scripts/registrar-20260919211105.sql` (cuerpo
   md5 `e97fcd25…`, igual al archivo del repo; PIN de las dos ACL superado).
+
+
+## 20260922184459_crm_gestion_diaria_avisos.sql
+
+CANDIDATO F4.4, no instalado en producción. Extiende el ledger de reconocimientos
+para cortes identificados por supervisor/jornada, con reloj y fotografía de miembros
+del servidor, un aplazamiento por jornada e idempotencia. Entregas del popup separadas
+del reconocimiento, sin alterar el resultado del corte. Control del canal separado de
+la política de cálculos. RLS deny-by-default y auditoría en ambas tablas nuevas; no
+se modifican objetos de public. Ensayo transaccional y 17 mutantes PASS; dictamen Claude recuperado con cambios requeridos y correcciones verificándose. HTTP/concurrencia real, revisión final y publicación pendientes; cortes productivos OFF.
+
+## 20260922185138_crm_gestion_diaria_configuracion.sql
+
+CANDIDATO F4.5, no instalado en producción. Lectura de política vigente/programadas
+y publicación exclusivamente por gerencia con versión esperada, validación estricta
+y vigencia futura. Directorio/lector global autorizado solo lee. Control de emergencia
+versionado con motivo; no activa por sí mismo los cortes. Ensayo de roles, reglas, vigencias y versiones obsoletas PASS; HTTP, carreras reales y publicación pendientes.

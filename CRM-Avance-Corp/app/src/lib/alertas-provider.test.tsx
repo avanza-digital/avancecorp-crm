@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Rol } from './roles'
+import { GestionDiariaAvisosContext, type AvisosGestionDiaria } from './gestion-diaria-avisos-context'
+import { avisosFixture } from './gestion-diaria-avisos.fixture'
 
 const derivarVendedor = vi.fn((_input: unknown) => [{
   id: 'personal-1',
@@ -43,6 +45,7 @@ const derivarGerencia = vi.fn((_input: unknown) => [{
   destino: 'ranking-vendedores',
 }])
 
+let GD: AvisosGestionDiaria | null = null
 let YO: { id: string; rol: Rol; demo: boolean } | null = null
 // F3: un recordatorio YA VENCIDO respecto del reloj congelado del arnés
 // (2026-08-06T17:00Z) — la derivación real del provider debe hacerlo sonar.
@@ -245,15 +248,16 @@ function montar(
   const clienteConsultas = new QueryClient()
   render(
     <QueryClientProvider client={clienteConsultas}>
-      <AlertasCRMProvider>
+      <GestionDiariaAvisosContext.Provider value={GD}><AlertasCRMProvider>
         <Lector />
-      </AlertasCRMProvider>
+      </AlertasCRMProvider></GestionDiariaAvisosContext.Provider>
     </QueryClientProvider>,
   )
   return { clienteConsultas }
 }
 
 beforeEach(() => {
+  GD = null
   RESUMEN_SLA = { ...RESUMEN_SLA, modo: 'legado', total_oportunidades: 0, total_avisos: 0, criticas: 0, grupos: [] }
   RESUMEN_ERROR = null
   refrescarAvisos.mockClear()
@@ -484,5 +488,42 @@ describe('campana gobernada por el núcleo SLA activo', () => {
     expect(resultado.errores).toContain('No se pudieron confirmar los avisos de seguimiento. Pulsa Actualizar.')
     fireEvent.click(screen.getByText('reintentar'))
     expect(refrescarAvisos).toHaveBeenCalledOnce()
+  })
+})
+
+
+describe('F4: una fuente para campana y lista diaria', () => {
+  function contexto() {
+    const datos = avisosFixture()
+    datos.supervisor_id = 's1'
+    datos.alertas = []
+    datos.diarias = { modo_sla: 'activo', alertas: [
+      { id: 'grupo:tarea_vencida:s1', tipo: 'tarea_vencida', severidad: 'atencion', miembros: ['lead-2'], total: 1 },
+      { id: 'grupo:primera_atencion:s1', tipo: 'primera_atencion', severidad: 'atencion', miembros: ['lead-2'], total: 1 },
+    ] }
+    datos.contexto = { en_jornada: true, analistas: 0, con_llamadas: 0, equipo: [] }
+    GD = { datos, cargando: false, error: null, ocupada: false, recargar: vi.fn(), actuar: vi.fn(),
+      registroPedido: null, abrirRegistro: vi.fn(), consumirRegistro: vi.fn() }
+  }
+  it('sustituye el resumen duplicado y consulta el libro incluso con SLA activo', () => {
+    contexto()
+    RESUMEN_SLA = { ...RESUMEN_SLA, modo: 'activo', total_oportunidades: 1, total_avisos: 2,
+      grupos: [{ bucket: 'tarea_vencida', total: 1 }, { bucket: 'primera_atencion', total: 1 }] }
+    montar('supervisor')
+    const estado = JSON.parse(screen.getByRole('status').textContent!)
+    expect(estado.alertas.map((a: { id: string }) => a.id)).toEqual(['grupo:tarea_vencida:s1', 'grupo:primera_atencion:s1'])
+    expect(estado.pendientes).toBe(2)
+    expect(consultaReconocimientos).toHaveBeenCalledWith(true)
+    expect(consultarAvisos).toHaveBeenCalledWith(false)
+    expect(estado.alertas[0].miembros).toEqual(['lead-2'])
+    expect(estado.alertas[1].miembros).toBeUndefined()
+  })
+  it('un fallo del libro mantiene el grupo completo y comunica el error', () => {
+    contexto()
+    RECONOCIMIENTOS_ERROR = new Error('desconectado')
+    montar('supervisor')
+    const estado = JSON.parse(screen.getByRole('status').textContent!)
+    expect(estado.pendientes).toBe(2)
+    expect(estado.errores.join(' ')).toContain('No se pudieron leer tus reconocimientos')
   })
 })

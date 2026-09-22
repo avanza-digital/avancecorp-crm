@@ -14,6 +14,57 @@ export type Database = {
   }
   crm: {
     Tables: {
+      gestion_diaria_entregas: {
+        Row: {
+          alerta_id: string
+          creado_en: string
+          entrega: number
+          id: string
+          perfil_id: string
+          solicitud_id: string
+        }
+        Insert: {
+          alerta_id: string
+          creado_en?: string
+          entrega: number
+          id?: string
+          perfil_id: string
+          solicitud_id: string
+        }
+        Update: {
+          alerta_id?: string
+          creado_en?: string
+          entrega?: number
+          id?: string
+          perfil_id?: string
+          solicitud_id?: string
+        }
+        Relationships: []
+      }
+      gestion_diaria_control_avisos: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          habilitados: boolean
+          motivo: string
+          version: number
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          habilitados: boolean
+          motivo: string
+          version: number
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          habilitados?: boolean
+          motivo?: string
+          version?: number
+        }
+        Relationships: []
+      }
       politica_gestion_diaria: {
         Row: {
           atencion_min_pct: number
@@ -806,6 +857,7 @@ export type Database = {
           perfil_id: string
           secuencia: number
           severidad: string
+          solicitud_corte_id: string | null
         }
         Insert: {
           accion: string
@@ -817,6 +869,7 @@ export type Database = {
           perfil_id: string
           secuencia?: never
           severidad: string
+          solicitud_corte_id?: string | null
         }
         Update: {
           accion?: string
@@ -828,6 +881,7 @@ export type Database = {
           perfil_id?: string
           secuencia?: never
           severidad?: string
+          solicitud_corte_id?: string | null
         }
         Relationships: []
       }
@@ -4362,6 +4416,33 @@ export type Database = {
       // y descartes con su deshacer). Firma: (date,uuid), ambos con default null.
       gestion_diaria_analista_fn: { Args: { p_dia?: string | null; p_analista_id?: string | null }; Returns: Json }
       gestion_diaria_equipo_fn: { Args: { p_dia?: string | null; p_supervisor_id?: string | null }; Returns: Json }
+      gestion_diaria_avisos_fn: { Args: never; Returns: Json }
+      gestion_diaria_presentar_corte: {
+        Args: { p_alerta_id: string; p_solicitud_id: string }
+        Returns: Json
+      }
+      gestion_diaria_reconocer_corte: {
+        Args: { p_accion: string; p_alerta_id: string; p_solicitud_id: string }
+        Returns: Json
+      }
+      configuracion_gestion_diaria_fn: { Args: never; Returns: Json }
+      publicar_politica_gestion_diaria: {
+        Args: {
+          p_config: Json
+          p_expected_version: number
+          p_motivo: string
+          p_vigente_desde: string
+        }
+        Returns: Json
+      }
+      controlar_avisos_gestion_diaria: {
+        Args: {
+          p_expected_version: number
+          p_habilitados: boolean
+          p_motivo: string
+        }
+        Returns: Json
+      }
       // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F1, migración
       // 20260919211958: registro crudo de actividad por ventana Lima, analistas, tipos y
       // etapa, con cursor keyset. Firma: (date,date,uuid[],text[],text,integer,timestamptz,uuid).

@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
-import { filtrarOrdenarEquipo, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
+import { filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
 import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { useDiaEquipo } from '@/data/gestion-diaria-equipo-queries'
 import { CrmApiError } from '@/data/crm-api'
@@ -13,11 +13,14 @@ import { RegistroActividad } from '@/components/gestion-diaria/registro-activida
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
+import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
 
 export function GestionDiariaSupervisor(): JSX.Element {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
   const consulta = useDiaEquipo(hoy)
+  const avisos = useGestionDiariaAvisos()
   const [filtros, setFiltros] = useState<FiltrosEquipo>({ busqueda: '', soloProblemas: false, orden: 'atencion', ascendente: false })
   // Atar la selección al actor impide conservar un analista de otra sesión.
   const [registro, setRegistro] = useState<{ actor: string; analista: string | null; nombre: string | null; pestana: PestanaRegistro; apertura: number } | null>(null)
@@ -28,7 +31,9 @@ export function GestionDiariaSupervisor(): JSX.Element {
   const contenedorRegistro = useRef<HTMLElement>(null)
   const disparadorRegistro = useRef<HTMLElement | null>(null)
   const dia = consulta.error ? null : consulta.dia
-  const filas = dia ? filtrarOrdenarEquipo(dia.equipo, filtros) : []
+  const equipoPresentado = dia ? presentarEquipo(dia) : []
+  const atencion = equipoPresentado.filter((f) => f.requiere_atencion).length
+  const filas = filtrarOrdenarEquipo(equipoPresentado, filtros)
   const sinPermiso = consulta.error instanceof CrmApiError && consulta.error.code === '42501'
   const seleccion = registro?.actor === yo?.id ? registro : null
   const analista = dia?.equipo.find((f) => f.analista_id === seleccion?.analista)
@@ -64,6 +69,18 @@ export function GestionDiariaSupervisor(): JSX.Element {
   const ordenar = (orden: OrdenEquipo) => setFiltros((f) => ({ ...f, orden,
     ascendente: orden === f.orden ? !f.ascendente : orden === 'nombre' }))
 
+  useEffect(() => {
+    const pedido = avisos?.registroPedido
+    if (!pedido || !dia) return
+    if (pedido.actor === yo?.id && pedido.dia === hoy && dia.equipo.some((f) => f.analista_id === pedido.analista)) {
+      setAvisoCierre(null)
+      setRegistro({ actor: pedido.actor, analista: pedido.analista,
+        nombre: dia.equipo.find((f) => f.analista_id === pedido.analista)!.nombre_completo,
+        pestana: 'llamadas', apertura: ++apertura.current })
+    } else setAvisoCierre('El registro solicitado ya no corresponde a tu equipo o jornada actuales.')
+    avisos?.consumirRegistro()
+  }, [avisos, dia, hoy, yo?.id])
+
   if (yo?.rol !== 'supervisor') return <p role="alert">Esta vista está disponible para supervisores autorizados.</p>
 
   return (
@@ -93,7 +110,7 @@ export function GestionDiariaSupervisor(): JSX.Element {
         ) : (
           <>
             <div className="border-y border-border py-4">
-              <p className="leading-8"><strong>{dia.resumen.analistas} {dia.resumen.analistas === 1 ? 'analista' : 'analistas'}</strong>: {dia.resumen.con_actividad} con actividad registrada, {dia.resumen.sin_actividad} sin actividad registrada, {dia.resumen.con_pendientes} con pendientes y <strong>{dia.resumen.requieren_atencion} {dia.resumen.requieren_atencion === 1 ? 'necesita' : 'necesitan'} atención</strong>.</p>
+              <p className="leading-8"><strong>{dia.resumen.analistas} {dia.resumen.analistas === 1 ? 'analista' : 'analistas'}</strong>: {dia.resumen.con_actividad} con actividad registrada, {dia.resumen.sin_actividad} sin actividad registrada, {dia.resumen.con_pendientes} con pendientes y <strong>{atencion} {atencion === 1 ? 'necesita' : 'necesitan'} atención</strong>.</p>
               <p className="mt-1 text-[var(--muted-foreground-strong)]">Datos consultados a las {horaLimaDe(dia.generado_en)}. Actualización cada minuto.</p>
             </div>
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -103,7 +120,7 @@ export function GestionDiariaSupervisor(): JSX.Element {
                   className="min-h-11 text-base" placeholder="Nombre del analista" />
               </label>
               <Button variant={filtros.soloProblemas ? 'default' : 'outline'} className="min-h-11 text-base"
-                aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}>Con problema hoy ({dia.resumen.requieren_atencion})</Button>
+                aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}>Con problema hoy ({atencion})</Button>
             </div>
             <p aria-live="polite">{filas.length} de {dia.resumen.analistas} analistas</p>
             <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -112,13 +129,14 @@ export function GestionDiariaSupervisor(): JSX.Element {
             </div>
             <div className="max-w-3xl space-y-2 text-[var(--muted-foreground-strong)]">
               <p>La tasa usa llamadas útiles; número errado y otra persona quedan fuera. Se califica desde {dia.umbrales.minimo_llamadas_utiles} llamadas útiles.</p>
-              <p>Los pendientes reflejan su estado actual. La actividad registrada no acredita presencia ni explica una ausencia. Los cortes de jornada aún no se evalúan en esta vista.</p>
+              <p>Los pendientes reflejan su estado actual. La actividad registrada no acredita presencia ni explica una ausencia. Los cortes conservan su foto de llamadas y solo avisan durante la jornada.</p>
               {dia.modo_sla !== 'activo' && <p>Los primeros intentos fuera de plazo no se evalúan con el control actual. «No evaluado» no significa cero.</p>}
             </div>
             <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirRegistro(null, 'llamadas')}>Ver registro del equipo</Button>
           </>
         )}
       </section>
+      <AvisosEquipo />
       {avisoCierre && <p role="status" className="text-base text-[var(--warning-text)]">{avisoCierre}</p>}
       {seleccion && (
         <section ref={contenedorRegistro} aria-label="Registro seleccionado" className="space-y-4">

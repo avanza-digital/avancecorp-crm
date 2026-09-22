@@ -1,3 +1,5 @@
+- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Cierre en curso: SQL/HTTP/concurrencia y 4.147 pruebas locales PASS; producción OFF, navegador y entrega pendientes.
+
 ---
 tags: [moc, inicio]
 actualizado: 2026-09-21

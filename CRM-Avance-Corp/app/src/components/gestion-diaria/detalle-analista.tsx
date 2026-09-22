@@ -1,11 +1,11 @@
 import { useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { FRANJA_LLAMADAS, barrasPorHora, horaLimaDe } from '@/lib/gestion-diaria-analista'
-import { horarioConfirmado, tiempoSinLlamar, type FilaEquipoDiario } from '@/lib/gestion-diaria-equipo'
+import { horarioConfirmado, tiempoSinLlamar, type FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 
 /** F4.2: explica la foto del servidor; no reconstruye cifras desde el store. */
 export function DetalleAnalista({ fila: f, dia, abrirLlamadas }: {
-  fila: FilaEquipoDiario
+  fila: FilaEquipoPresentada
   dia: string
   abrirLlamadas: () => void
 }) {
