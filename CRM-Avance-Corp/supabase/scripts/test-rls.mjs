@@ -6920,8 +6920,28 @@ async function testMetricasServidor(sessions, seed) {
     check(a?.cuadra === true, 'F3: los cuatro caminos de la conversion del mes coinciden en el fixture',
       JSON.stringify(a?.detalle ?? a));
     check(a?.caminos_leidos === 4, 'F3: la alarma leyo los cuatro caminos');
-    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'cuadra', 'detalle', 'hasta', 'mes', 'motivo']),
-      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, detalle y motivo', Object.keys(a ?? {}).join(','));
+    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'conciliacion', 'cuadra', 'detalle', 'hasta', 'mes', 'motivo']),
+      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, detalle, motivo y conciliacion', Object.keys(a ?? {}).join(','));
+    // El conjunto sigue siendo CERRADO a proposito: es el candado anti-fuga de
+    // payload. `conciliacion` se anade a la lista, no se relaja la regla.
+    check(JSON.stringify(Object.keys(a?.conciliacion ?? {}).sort())
+            === JSON.stringify(['bruto_numerador', 'deuda_aplicada', 'deuda_pendiente', 'neto_numerador', 'vendedores_topados']),
+      'F3: la conciliacion trae sus cinco claves y ninguna mas', Object.keys(a?.conciliacion ?? {}).join(','));
+    {
+      const c = a?.conciliacion ?? {};
+      const n = (x) => Number(x ?? NaN);
+      check(n(c.bruto_numerador) >= n(c.neto_numerador),
+        'F3: el bruto nunca es menor que el neto', JSON.stringify(c));
+      check(Math.abs((n(c.bruto_numerador) - n(c.neto_numerador)) - n(c.deuda_aplicada)) < 1e-6,
+        'F3: bruto menos neto es exactamente la deuda aplicada', JSON.stringify(c));
+      check(n(c.deuda_aplicada) <= n(c.deuda_pendiente) + 1e-6,
+        'F3: no se aplica mas deuda de la pendiente', JSON.stringify(c));
+      check(n(c.vendedores_topados) > 0 || Math.abs(n(c.deuda_aplicada) - n(c.deuda_pendiente)) < 1e-6,
+        'F3: sin nadie topado, se aplica TODA la deuda pendiente', JSON.stringify(c));
+      check(n(c.bruto_numerador) === Number(a?.detalle?.nucleo_directo?.numerador ?? NaN),
+        'F3: el bruto conciliado es el del nucleo directo (misma poblacion)',
+        `${c.bruto_numerador} vs ${a?.detalle?.nucleo_directo?.numerador}`);
+    }
     check(a.motivo === (a.detalle?.nucleo_directo?.divisor === 0 ? 'sin_datos' : null),
       'F3: motivo distingue ausencia de datos de una discrepancia real');
     check(!JSON.stringify(a).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i),

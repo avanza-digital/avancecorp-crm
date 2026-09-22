@@ -1,5 +1,68 @@
 # Ledger de migraciones — esquema `crm`
 
+## 🧪 `20260922225649` — La alarma de la conversión CONCILIA en vez de exigir igualdad (ENSAYADA, PENDIENTE DE APLICAR)
+
+**Ola 0 del plan de las doce puertas.** El oráculo que iba a verificar ese
+trabajo era el que la propia corrección haría fallar.
+
+**El defecto.** `crm.alarma_conversion_fn` exigía que los CUATRO caminos fueran
+idénticos. Pero `nucleo_directo` es el **BRUTO** por construcción y `mensual`
+sirve el **NETO**, con la deuda por cierres anulados descontada. Sin deuda daba
+lo mismo; con deuda, esa regla pondría en rojo el trabajo bien hecho **para
+siempre**.
+
+**Medido contra producción** (22/09, deuda de 2 puntos plantada y deshecha):
+
+```
+mensual        1218 / 49,650  ->  4,08 %     <- sirve el NETO
+rango          1218 / 51,650  ->  4,24 %     <- sirve el BRUTO
+distribucion   1218 / 51,650  ->  4,24 %     <- sirve el BRUTO
+nucleo_directo 1218 / 51,650  ->  4,24 %     <- el BRUTO, por definición
+```
+
+**Dos porcentajes del mismo mes.** Ya no es teoría.
+
+### 🔴 LO QUE ESTA MIGRACIÓN **NO** HACE, y hay que decirlo
+
+**No deja la alarma verde cuando haya deuda.** Mientras `rango` y
+`distribucion` publiquen el bruto, los tres publicados no coincidirán y el
+veredicto será ROJO — con la regla vieja y con ésta.
+
+**Y ese rojo es CORRECTO.** No es ruido conocido que silenciar: es la
+discrepancia que las doce puertas existen para resolver. Si aparece, se arreglan
+las puertas.
+
+**Entonces, ¿qué gana?** Tres cosas, ninguna es «ponerse verde»:
+1. El veredicto mide algo **verdadero**: el día que las puertas estén bien, la
+   regla vieja seguiría roja para siempre; ésta se pone verde. Es la única que puede.
+2. Publica la **conciliación** (bruto, neto, deuda pendiente, aplicada, topados),
+   así un rojo se lee y se atribuye en vez de adivinarse.
+3. Ancla el reparto: el núcleo dice el bruto y bruto − neto es la deuda aplicada.
+
+**Compatible hacia atrás:** hoy la deuda es 0, neto = bruto, y el veredicto no
+cambia — `cuadra=true`, `caminos_leidos=4`, `detalle` **idéntico**.
+
+### Revisión (auditor-rls): REQUEST CHANGES — **dos P0**, ambos corregidos
+
+| | |
+|---|---|
+| **P0-1** | `test-rls.mjs:6923` exige el conjunto **cerrado** de claves; añadir `conciliacion` rompía el gate con certeza. ✅ actualizado **sin relajar el candado**, más 5 aserciones nuevas de la conciliación |
+| **P0-2** | **La cabecera se contradecía dentro del mismo archivo**: medía que rango y distribución sirven el bruto y acto seguido enunciaba «los publicados sirven el neto». ✅ reescrita entera diciendo la verdad |
+| **P1-1** | se había soltado el anclaje del **divisor** (la deuda solo toca el numerador). ✅ cláusula recuperada · ✅ **filo 2 del mutante** que lo prueba |
+| **P1-3** | el preflight hacía la migración inaplicable en un banco sin sembrar, y se bloqueaba a sí misma si la deuda aparecía antes. ✅ tolera `sin_perfil_de_gerencia_activo` y el rojo por deuda |
+| **P2-1** | `current_date` es UTC y la función razona en Lima → rango invertido en el cambio de mes. ✅ los tres sitios a Lima |
+| **P3** | `COMMENT ON` obsoleto · anclas de dueño/ACL/definer perdidas en el postflight · `::regprocedure` en vez de `to_regprocedure`. ✅ los tres |
+
+**Mutante: los DOS filos cazados** contra la alarma nueva — numerador+1 y
+**divisor+1**, el que el auditor advirtió que sobreviviría.
+
+**Queda sin probar** (lo dice el auditor y es cierto): no hay ningún caso con
+deuda > 0 en ninguna suite. El experimento del 22/09 fue manual. Y falta el caso
+**ex-roster con deuda**: `mensual` suma en bruto a quien no tiene meta publicada
+(`20260904210831:1683-1685`, a propósito) mientras la conciliación descuenta a
+todos — puede dar un rojo sin que nada esté roto.
+
+
 ## ✅ `20260922200514` — La razón del candado de perfiles vuelve a decir la verdad — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
 
 ```

@@ -93,7 +93,7 @@ declaración.
 | 6 | `metricas_conversiones_equipo_fn` | 🔴 sí | fuente + declaración | 1 |
 | 7 | `cumplimiento_metas_fn` | 🔴 **sí** (corregido) | **camino bruto + declaración** | **1** |
 | 8 | `cumplimiento_metas_sin_cartera_fn` | ✅ no | declarar | **1** |
-| 10 | `metricas_multiempresa_fn` | 🔴 sí | fuente + **tres sellos** | **1** |
+| 10 | `metricas_multiempresa_fn` | 🔴 sí | fuente + **tres sellos** | 2 ·flag OFF |
 | 11 | `resumen_cartera_fn` | 🔴 sí* | declarar y rotular | 2 |
 | 9 | `series_comerciales_fn` | ✅ no | declarar | 2 |
 | 12 | `cerrar_periodo` | — **es el escritor** | rediseño, no declaración | **0** |
