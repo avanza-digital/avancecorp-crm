@@ -136,6 +136,57 @@ export function triaje(hallazgo) {
   };
 }
 
+/** ¿Qué clase de contador es? El trinquete de analítica tiene un TECHO que solo
+ *  puede bajar, y hoy mezcla dos poblaciones muy distintas: lo que mide el
+ *  PASADO (y por tanto puede contradecir al núcleo) y lo que inventaría el
+ *  PRESENTE (cuántos hay pendientes ahora). Separarlas hace el techo más
+ *  estricto donde importa. Jev propone; una persona verifica: esto decide qué
+ *  vigila un detector. */
+export const CLASES = {
+  analitica: {
+    what: 'Responde una pregunta sobre el PASADO con un numero que alguien podria comparar con la conversion oficial: cuantos cerraron, que porcentaje, cuanto capital, cuanto tardo, en un periodo ya ocurrido',
+    not_for: 'Contar lo que hay pendiente ahora mismo, o contar para validar un lote antes de escribirlo',
+    examples: ['conversion del mes', 'tiempos de SLA por etapa', 'produccion por vendedor del periodo', 'embudo de la cohorte que entro en marzo'],
+  },
+  operativo: {
+    what: 'Inventaria el PRESENTE o valida una escritura: cuantos hay pendientes AHORA, cuantos caben en este lote, que dejaria huerfano esta baja, que se reparte hoy. Su respuesta cambia en cuanto alguien trabaja',
+    not_for: 'Cualquier cifra de un periodo cerrado que gerencia pueda comparar con otra pantalla',
+    examples: ['la cola de accion del vendedor', 'la bandeja por supervisor', 'validar el lote que se deriva', 'mantener la secuencia del ledger'],
+  },
+  mixta: {
+    what: 'Publica AMBAS cosas: una cifra del pasado que sale del nucleo Y ademas conteos crudos del presente o de otra pregunta distinta',
+    not_for: 'Las que son claramente solo una de las dos',
+    examples: ['sirve la conversion mensual del nucleo y ademas su propia vista de 45 dias'],
+  },
+};
+
+export function clasificarContador(contador) {
+  return {
+    state: {
+      contador: {
+        nombre: (contador.titulo ?? '').split('(')[0],
+        razon_declarada: contador.evidencia ?? '',
+        datos: contador.impacto_gerencia ?? '',
+      },
+    },
+    questions: {
+      clase: {
+        type: 'choice',
+        instructions: 'Un CRM vigila que nadie invente su propia cuenta de leads y citas por detras de la oficial. Para eso censa las funciones que cuentan en crudo. `contador` es una de ellas, con la razon que sus autores escribieron. ¿Que clase de contador es?',
+        criteria: CLASES,
+      },
+      contradice_al_nucleo: {
+        type: 'noul',
+        instructions: 'Si este contador diera un numero distinto del que da el nucleo oficial de conversion, ¿alguien de gerencia lo notaria como una contradiccion entre dos pantallas?',
+        criteria: {
+          true: 'Publica una cifra comparable con la conversion, el capital o los tiempos oficiales',
+          false: 'Responde otra pregunta, o su numero solo vive dentro de una operacion',
+        },
+      },
+    },
+  };
+}
+
 /** Rerank: cuánto ayuda ESTE extracto a resolver ESTA pregunta del auditor.
  *  Una pregunta por par (consulta, extracto), como manda el cookbook. */
 export function relevancia(consulta, extracto) {

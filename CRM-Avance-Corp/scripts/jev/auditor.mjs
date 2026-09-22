@@ -13,7 +13,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { preguntar, leerClave, enParalelo, codigoDeError } from './cliente.mjs';
 import {
-  triaje, relevancia, estancada, resuelto,
+  triaje, relevancia, estancada, resuelto, clasificarContador,
   decidir, veredictoResuelto, veredictoEstancada, UMBRALES,
 } from './preguntas.mjs';
 
@@ -121,7 +121,33 @@ async function cmdCalibrar() {
   await emitir({ comparados: filas.length, coinciden: acierta, filas });
 }
 
-const comandos = { triaje: cmdTriaje, contexto: cmdContexto, estancada: cmdEstancada, resuelto: cmdResuelto, calibrar: cmdCalibrar };
+async function cmdClasificar() {
+  const contadores = await leerJson(posicionales[0]);
+  const clave = await leerClave();
+  const n = Number(opcion('paralelo', 8));
+  aviso(`clasificando ${contadores.length} contadores…`);
+  const crudo = await enParalelo(contadores, n, (c) => preguntar(clasificarContador(c), { clave }));
+  const filas = contadores.map((c, i) => {
+    const r = crudo[i];
+    if (!r.ok) return { nombre: c.titulo, error: r.error };
+    const a = r.valor.respuestas;
+    const conf = a.clase?.confidence ?? 0;
+    return {
+      nombre: c.titulo,
+      // Umbral MEDIDO el 21/09 para las elecciones de Jev: por debajo de 0.80
+      // aparecieron errores. Lo dudoso va a una persona, no se adivina.
+      clase: conf >= UMBRALES.confianza ? a.clase?.choice : 'revisar',
+      confianza: Number(conf.toFixed(2)),
+      contradice_al_nucleo: a.contradice_al_nucleo?.noul ?? null,
+      razon_declarada: (c.evidencia ?? '').slice(0, 110),
+    };
+  });
+  const cuenta = filas.reduce((m, f) => { m[f.clase ?? 'error'] = (m[f.clase ?? 'error'] ?? 0) + 1; return m; }, {});
+  aviso(JSON.stringify(cuenta, null, 1));
+  await emitir({ generado: new Date().toISOString(), umbral: UMBRALES.confianza, resumen: cuenta, contadores: filas });
+}
+
+const comandos = { clasificar: cmdClasificar, triaje: cmdTriaje, contexto: cmdContexto, estancada: cmdEstancada, resuelto: cmdResuelto, calibrar: cmdCalibrar };
 
 if (!comandos[comando]) {
   aviso('uso: auditor.mjs <triaje|contexto|estancada|resuelto|calibrar> … [--salida f.json] [--paralelo 6] [--limite n]');
