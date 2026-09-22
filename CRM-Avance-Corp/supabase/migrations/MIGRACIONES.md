@@ -1,6 +1,61 @@
 # Ledger de migraciones — esquema `crm`
 
-## 🧪 `20260922200514` — La razón del candado de perfiles vuelve a decir la verdad (ENSAYADA, PENDIENTE DE APLICAR)
+## ✅ `20260922200514` — La razón del candado de perfiles vuelve a decir la verdad — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+```
+OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar
+alertas abiertas 16 · sello de cierre 2026-09-22 20:46:50.86217+00
+lo que queda: f7_piezas_cerradas (16)
+```
+
+`gate:vigias`, `gate:analitica` y el gate de vigencia, **verdes**. El candado del
+portal quedó con el **mismo md5** (`2354b43aa3eec47c6ccca035450e4d41`) y sigue
+siendo trigger + invoker: **no se tocó, y está probado.**
+
+### 🔴 REVISIÓN SECUNDARIA (Codex): `REFUTADO EN PARTE` — y encontró un defecto real
+
+Codex no conectó por MCP (el CLI 0.155.1 **eliminó el subcomando `mcp-server`**),
+así que se le pasó el encargo por `codex exec` con los cuerpos vivos transcritos.
+Encargo versionado en `docs/encargos/2026-09-22-codex-candado-perfiles.md`.
+
+**[P2] El preflight no acreditaba la identidad del cuerpo que autorizaba a
+sellar.** Comprobaba **fragmentos** con regex y luego sellaba *el cuerpo que
+encontrara*. Su contraejemplo: cambiar solo
+
+```
+v_f4_alinea boolean := false   ->   := true
+```
+
+pasa las **nueve** comprobaciones textuales y, **sin ningún GUC**, un UPDATE
+directo dejaría de congelar `asesor_perfil_id`. La migración lo habría sellado.
+✅ Corregido: ahora exige el **md5 exacto** de `pg_get_functiondef` del cuerpo
+revisado, más la línea concreta del contraejemplo. **Probado: el mutante de
+Codex ahora se rechaza** («el cuerpo vivo del candado NO es el que se revisó»).
+
+**[P3] `responsable_esperado_id` NO es una autorización previa independiente.**
+El escritor lo **escribe** en la misma llamada, justo tras insertar la revisión
+(`20260919161807:911`). Se presentaban dos permisos previos separados y no lo
+son. ✅ La razón reescrita: lo que acota el valor es que el responsable sale del
+**contexto** y no del payload, y debe coincidir con la relación canónica vigente.
+
+**Tres correcciones más suyas, todas ciertas:**
+
+- **La cronología.** Los 16 avisos **no eran del mismo problema**: los del 05–06/09
+  nombraban `public.crear_contrato`, otra función; los de 09/09 en adelante, el
+  candado. Fueron **dos rojos seguidos**; el primero se resolvió solo.
+- «Una sola columna» era impreciso: cambia **dos condiciones**, también la del
+  asiento Operaciones (`generar-migracion.mjs:71`).
+- **El razonamiento sobre F8 estaba mal.** Se dijo «el piloto está apagado, así
+  que esa vía no existe»; falso: con `inversiones_escritura=true` el cuerpo
+  devuelve `true` **antes** de mirar el piloto. La conclusión aguanta por otro
+  motivo.
+
+**Lo que Codex NO pudo tumbar:** ningún camino para que un analista active la
+excepción con un responsable arbitrario. Atacó los cuatro frentes señalados y
+los cuatro aguantaron. Su confianza en eso es **media**, no alta: sin acceso a
+la base no pudo verificar los cuerpos vivos de toda la cadena.
+
+
 
 **El rojo de `f5a` era UNO SOLO y legítimo**, no cuatro. Al diagnosticarlo se
 comparó `md5(prosrc)` **crudo** contra la huella declarada y «aparecieron»

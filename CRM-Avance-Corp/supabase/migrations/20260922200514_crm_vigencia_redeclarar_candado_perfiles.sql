@@ -5,7 +5,19 @@
 -- bloquean el stop-the-line de la demolicion de la Fase 7, que exige cero
 -- alertas abiertas DE CUALQUIER FASE.
 --
--- EL ROJO ES UNO SOLO, y es legitimo:
+-- ⚠️ PERO NO SON 16 DEL MISMO PROBLEMA, y atribuirlas todas a F4 seria falso
+-- (lo senalo el revisor secundario y se midio: los motivos, por dia, nombran
+-- funciones distintas):
+--   05-06/09 ... `public.crear_contrato(jsonb,jsonb)`  <- OTRO rojo, ya resuelto
+--                (no esta entre las 5 exenciones de hoy y su huella cuadra)
+--   09/09 -> hoy  `public.proteger_campos_inmutables()` <- el de F4
+-- Fueron DOS rojos seguidos. El primero se resolvio solo entre el 06 y el 09; el
+-- segundo empezo tras publicarse F4 el 08/09. Cerrarlos todos es correcto porque
+-- el vigia cierra por FASE y la fase queda genuinamente verde: ninguna de las
+-- cinco puertas declaradas tiene ya la huella caduca. Pero queda escrito que las
+-- dos primeras no hablaban de este candado.
+--
+-- EL ROJO DE HOY ES UNO SOLO, y es legitimo:
 --   «Puertas exentas cuyo cuerpo CAMBIO desde que se declararon (la razon ya no
 --    se puede dar por buena): funcion public.proteger_campos_inmutables()»
 --
@@ -22,7 +34,11 @@
 -- la verdad desde el principio; el ruido lo anadio el diagnostico.
 --
 -- QUE CAMBIO DE VERDAD, y por que es legitimo. Lo hizo F4 (`20260908211349`,
--- publicada el 08/09 con OK de Miguel). Abrio una excepcion de UNA sola columna:
+-- publicada el 08/09 con OK de Miguel). Abrio una excepcion sobre UNA sola
+-- columna (`asesor_perfil_id`) pero en DOS sitios: la rama general y tambien la
+-- del asiento Operaciones, donde el generador anadio `AND NOT v_f4_alinea`
+-- (`supabase/scripts/f4/generar-migracion.mjs:71`). Decir «una sola condicion»
+-- era impreciso.
 --   antes:  NEW.asesor_perfil_id := OLD.asesor_perfil_id;          (incondicional)
 --   ahora:  IF NOT v_f4_alinea THEN NEW.asesor_perfil_id := OLD.asesor_perfil_id; END IF;
 -- Todo lo demas del candado quedo byte a byte: `activo`, `rol`, `asesor_id`,
@@ -46,14 +62,17 @@
 -- que miente es deuda: la proxima persona la leera y creera otra cosa. Aqui se
 -- re-sella Y se reescribe.
 --
--- EL CABO SUELTO QUE SE MIRO, y por que no cambia el veredicto. Uno de los tres
--- candados que contienen la excepcion, `private.inversiones_escritura_bajo_candado()`,
--- se reescribio el 13/09 (F8 piloto) y gano una segunda via: ademas de la
--- bandera, ahora tambien pasa si el piloto F8 esta activo. Medido hoy: el
--- piloto esta APAGADO. Y aunque se encendiera, ese candado solo decide SI SE
--- PUEDE ESCRIBIR inversiones; lo que impide mover el asesor a cualquiera es la
--- otra condicion, que no cambio. La puerta lateral del pasillo se abrio; la
--- cerradura del cuarto sigue puesta.
+-- EL CABO SUELTO QUE SE MIRO. `private.inversiones_escritura_bajo_candado()` se
+-- reescribio el 13/09 (F8 piloto) y gano una segunda via: ademas de la bandera,
+-- tambien pasa si el piloto F8 esta activo.
+-- ⚠️ Se razono mal la primera vez y el revisor lo corrigio: se dijo «el piloto
+-- esta apagado, asi que esa via no existe». Falso. Con `inversiones_escritura`
+-- en TRUE —que es como esta hoy— el cuerpo devuelve true ANTES de consultar el
+-- piloto, asi que el estado del piloto es IRRELEVANTE en ese recorrido y no
+-- anade proteccion ninguna.
+-- La conclusion aguanta, pero por otro motivo: ese candado solo decide SI SE
+-- PUEDE ESCRIBIR inversiones. Lo que impide mover el asesor a un tercero es la
+-- contencion del helper, que no cambio.
 --
 -- QUE TOCA ESTA MIGRACION: una fila de `private.analista_vigencia_exenciones`,
 -- esquema privado del CRM, que solo `postgres` puede leer (medido: `anon` no,
@@ -110,9 +129,33 @@ begin
     raise exception 'PREFLIGHT: la huella declarada es % y se esperaba la del 30/08; alguien ya la toco', v_declarada;
   end if;
 
-  -- 3. El candado sigue PROHIBIENDO por donde prometia: la pregunta del Portal
-  --    en su posicion, y las cinco congelaciones intactas. Si esto no esta, el
-  --    cambio NO fue el de F4 y aqui no se re-sella nada.
+  -- 3. LA IDENTIDAD EXACTA DEL CUERPO QUE SE REVISO. Esto lo pidio el revisor
+  --    secundario (Codex, 22/09) y tenia razon: la version anterior de este
+  --    preflight comprobaba FRAGMENTOS con regex y luego sellaba EL CUERPO QUE
+  --    ENCONTRARA. Su contraejemplo: cambiar solo
+  --        v_f4_alinea boolean := false   ->   := true
+  --    deja pasar las nueve comprobaciones textuales y, SIN NINGUN GUC, un
+  --    UPDATE directo dejaria de congelar asesor_perfil_id. Y esta migracion lo
+  --    habria sellado tan contenta. Comprobar trozos NO es acreditar identidad.
+  --    El md5 va del cuerpo VIVO leido y revisado hoy, 22/09/2026; se mide sobre
+  --    pg_get_functiondef, que ademas incluye firma, lenguaje y search_path.
+  if not exists (select 1 from pg_proc p
+                  where p.oid = 'public.proteger_campos_inmutables()'::regprocedure
+                    and md5(pg_get_functiondef(p.oid)) = '2354b43aa3eec47c6ccca035450e4d41') then
+    raise exception 'PREFLIGHT: el cuerpo vivo del candado NO es el que se reviso (md5 esperado 2354b43aa3ee...). Releer y volver a revisar ANTES de sellar nada.';
+  end if;
+
+  -- 3 bis. Y la bandera nace apagada. Redundante con el md5 de arriba, a
+  --    proposito: es la linea concreta del contraejemplo, y un rojo que la
+  --    nombre se entiende de un vistazo.
+  if not exists (select 1 from pg_proc p
+                  where p.oid = 'public.proteger_campos_inmutables()'::regprocedure
+                    and p.prosrc ~ 'v_f4_alinea\s+boolean\s*:=\s*false') then
+    raise exception 'PREFLIGHT: v_f4_alinea ya no nace en false; la excepcion estaria abierta sin GUC. NO se re-sella.';
+  end if;
+
+  -- 4. El candado sigue PROHIBIENDO por donde prometia (defensa en profundidad
+  --    sobre el md5: si falla ESTO, el mensaje dice cual se perdio).
   if not exists (
     select 1 from pg_proc p
      where p.oid = 'public.proteger_campos_inmutables()'::regprocedure
@@ -126,7 +169,7 @@ begin
     raise exception 'PREFLIGHT: el candado perdio alguna de sus congelaciones o la pregunta del Portal; NO se re-sella';
   end if;
 
-  -- 4. Y la excepcion nueva es la de F4, con su contencion puesta.
+  -- 5. Y la excepcion nueva es la de F4, con su contencion puesta.
   if not exists (
     select 1 from pg_proc p
      where p.oid = 'public.proteger_campos_inmutables()'::regprocedure
@@ -143,7 +186,7 @@ begin
     raise exception 'PREFLIGHT: la contencion de la excepcion F4 ya no exige transaccion propia y responsable esperado; ESO SI hay que investigarlo';
   end if;
 
-  -- 5. Ni un permiso nuevo sobre la funcion del portal: sigue siendo trigger e
+  -- 6. Ni un permiso nuevo sobre la funcion del portal: sigue siendo trigger e
   --    INVOKER. (Una funcion de trigger no se puede llamar directamente, por eso
   --    su ACL abierta es el reparto por defecto y no significa nada; lo que NO
   --    puede pasar es que se haya vuelto definer.)
@@ -153,7 +196,7 @@ begin
     raise exception 'PREFLIGHT: el candado dejo de ser un trigger invoker; eso cambia todo el razonamiento';
   end if;
 
-  -- 6. El gate tiene que estar en ROJO, y por ESTA causa.
+  -- 7. El gate tiene que estar en ROJO, y por ESTA causa.
   begin
     perform private.assert_analista_vigencia();
     raise exception 'PREFLIGHT: el gate de vigencia ya esta verde; esta migracion no hace falta';
@@ -180,9 +223,13 @@ update private.analista_vigencia_exenciones e
       || 'pasa a ser condicional (IF NOT v_f4_alinea). No relaja el candado para un analista, y se comprobo: '
       || 'v_f4_alinea solo puede ser cierto si private.f4_alineacion_perfil_permitida() encuentra una revision '
       || 'de solicitud escrita en la MISMA transaccion (r.transaccion = pg_current_xact_id()), hecha por el '
-      || 'propio auth.uid(), sobre una solicitud en estado preparada, y —lo decisivo— cuyo responsable nuevo '
-      || 'coincide a la vez con s.responsable_esperado_id y con i.responsable_relacion_id. Es decir: solo puede '
-      || 'ALINEAR al asesor que ya correspondia. Blanquearlo o apuntarlo a un tercero siguen siendo imposibles. '
+      || 'propio auth.uid() y sobre una solicitud en estado preparada. '
+      || 'PRECISION del revisor secundario (22/09): `s.responsable_esperado_id` NO es una autorizacion previa '
+      || 'independiente -- el escritor lo ESCRIBE en la misma llamada, justo despues de insertar la revision '
+      || '(20260919161807:911). Lo que de verdad acota el valor es que el responsable sale del CONTEXTO y no '
+      || 'del payload, y que debe coincidir con la relacion canonica vigente (i.responsable_relacion_id), cuya '
+      || 'reasignacion explicita exige Gerencia activa. Es decir: alinea contra la relacion canonica vigente, '
+      || 'validada por las puertas de autorizacion; no contra dos permisos previos separados. '
       || 'Las demas congelaciones y la rama de contratos quedaron byte a byte. Re-sellada el 22/09/2026 tras '
       || 'leer el cuerpo vivo y su contencion; ningun permiso cambio (es una funcion de trigger, invoker).'
   from pg_proc p
