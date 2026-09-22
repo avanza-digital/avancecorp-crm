@@ -1,9 +1,10 @@
 // Gate RLS del CRM con sesiones reales y anon key.
 // Requiere el seed determinista de seed-demo.mjs y corre solo en branch/staging.
-// La service_role se usa EXCLUSIVAMENTE para validar/limpiar fixtures; todas las
-// aserciones de permisos se ejecutan con sesiones de usuario o como anon.
+// La service_role valida/limpia fixtures y abastece al handler OFICIAL de alta
+// Auth de conversiones (en proceso). Los hechos económicos y las aserciones de
+// permisos usan sesiones de usuario o anon, nunca una elevación del escritor.
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomInt } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 // La URL del banco contiene una contraseña. Usar variables PG evita que una
@@ -92,7 +93,24 @@ function ejecutarFueraDeBanda(etiqueta, sql, { tolerante = false } = {}) {
     } catch { /* candado append-only: se deja la fila, es un banco */ }
   }
 }
+
+// Los recorridos actuales necesitan ambas banderas. Las pruebas OFF siguen
+// ejecutándose dentro de su bloque; la salida restaura exactamente el banco.
+async function conInversionesVigentes(ejecutar) {
+  const anteriores = JSON.parse(textoFueraDeBanda('banderas previas al recorrido vigente',
+    "select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura')"));
+  assertSeed(Object.keys(anteriores).length === 2, 'faltan banderas de inversión');
+  try {
+    ejecutarFueraDeBanda('habilitar recorrido compartido en banco',
+      "update crm.multiempresa_flags set activo=true where nombre in ('resolver_en_puertas','inversiones_escritura');");
+    return await ejecutar();
+  } finally {
+    ejecutarFueraDeBanda('restaurar banderas tras recorrido compartido',Object.entries(anteriores)
+      .map(([nombre,activo])=>`update crm.multiempresa_flags set activo=${activo} where nombre='${nombre}';`).join('\n'));
+  }
+}
 import { createClient } from '@supabase/supabase-js';
+import { convertirCoopVigente, convertirAvanceVigente } from './rls-conversion-vigente.mjs';
 import {
   BANK_CLIENT,
   BANK_CONTRACT,
@@ -6902,8 +6920,10 @@ async function testMetricasServidor(sessions, seed) {
     check(a?.cuadra === true, 'F3: los cuatro caminos de la conversion del mes coinciden en el fixture',
       JSON.stringify(a?.detalle ?? a));
     check(a?.caminos_leidos === 4, 'F3: la alarma leyo los cuatro caminos');
-    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'cuadra', 'detalle', 'hasta', 'mes']),
-      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos y detalle', Object.keys(a ?? {}).join(','));
+    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'cuadra', 'detalle', 'hasta', 'mes', 'motivo']),
+      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, detalle y motivo', Object.keys(a ?? {}).join(','));
+    check(a.motivo === (a.detalle?.nucleo_directo?.divisor === 0 ? 'sin_datos' : null),
+      'F3: motivo distingue ausencia de datos de una discrepancia real');
     check(!JSON.stringify(a).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i),
       'F3: la alarma no arrastra ningun identificador');
   }
@@ -8074,6 +8094,58 @@ async function testGestionDiariaAnalista(sessions, seed) {
     const { error } = await anon.schema('crm').rpc(FN, {});
     check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
   }
+}
+
+async function testGestionDiariaCortes(sessions, seed) {
+  console.log('\n— Gestión Diaria: política y cortes (F4 etapa 3) —');
+  const FN = 'gestion_diaria_equipo_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  const instalada = contarFueraDeBanda('F4.3: presencia de la migración',
+    "select case when to_regclass('crm.politica_gestion_diaria') is not null then 1 else 0 end") === 1;
+  const probe = await sessions.gerencia.client.schema('crm').rpc(FN, {});
+  if (probe.error?.code === 'PGRST202' || (!probe.error && !probe.data?.cortes)) {
+    const msg = '⚠ F4.3 no instalada: cortes SALTADOS (no probado)';
+    if (instalada || process.env.CRM_RLS_EXIGE_CORTES === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  check(!probe.error && probe.data?.cortes?.version === 1, 'F4.3 responde con contrato de cortes');
+  for (const quien of ['sup1', 'sup2', 'gerencia', 'directorio']) {
+    const { data, error } = await sessions[quien].client.schema('crm').rpc(FN, {});
+    check(!error && data?.cortes?.politica_version === data?.umbrales?.politica_version,
+      `${quien}: cortes y contacto comparten política de la jornada`);
+    if (data?.cortes?.estado === 'activo') {
+      check(sameStrings(data.cortes.equipo.map((f) => f.analista_id), data.equipo.map((f) => f.analista_id)),
+        `${quien}: cortes cubren exactamente el roster autorizado`);
+    } else check(data?.cortes?.equipo?.length === 0, `${quien}: cortes no evaluados sin falsos ceros`);
+    if (quien === 'sup1') check(data?.equipo?.some((f) => f.analista_id === id('vend1'))
+      && data.equipo.every((f) => f.analista_id !== id('vend3')), 'sup1: propio analista sí, equipo ajeno no');
+  }
+  const ajeno = await sessions.sup1.client.schema('crm').rpc(FN, { p_supervisor_id: id('sup2') });
+  check(isAuthorizationError(ajeno.error), 'sup1 no consulta cortes de sup2');
+  for (const quien of ['vend1', 'coordinador', 'vendInactive']) {
+    const { error } = await sessions[quien].client.schema('crm').rpc(FN, {});
+    check(isAuthorizationError(error), `${quien}: equipo/cortes denegados`);
+  }
+  for (const quien of ['sup1', 'gerencia', 'vend1', 'coordinador', 'directorio']) {
+    const db = sessions[quien].client.schema('crm');
+    const lectura = await db.from('politica_gestion_diaria').select('version,cortes_activos').eq('version', 1);
+    check(!lectura.error && lectura.data?.length === 1 && lectura.data[0].cortes_activos === false,
+      `${quien}: lee semilla histórica OFF`);
+    const motivo = await db.from('politica_gestion_diaria').select('motivo');
+    check(isAuthorizationError(motivo.error), `${quien}: no lee motivos por tabla sin puerta autorizada`);
+    const escritura = await db.from('politica_gestion_diaria').update({ motivo: 'FORJADO TEST RLS' }).eq('version', 1);
+    check(isAuthorizationError(escritura.error), `${quien}: no escribe política directamente`);
+  }
+  const baja = await sessions.vendInactive.client.schema('crm').from('politica_gestion_diaria').select('version');
+  check(!baja.error && baja.data?.length === 0, 'Analista revocado no lee configuración');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-cortes'));
+  const anonTabla = await anon.schema('crm').from('politica_gestion_diaria').select('version');
+  check(isAuthorizationError(anonTabla.error), 'anon no lee política');
+  const anonRpc = await anon.schema('crm').rpc(FN, {});
+  check(isAuthorizationError(anonRpc.error), 'anon no ejecuta equipo/cortes');
+  // Fronteras horarias, recuperación y versiones futuras: test-cortes.sql,
+  // en la copia local autorizada y con reloj clonado, no con cambios de hora reales.
 }
 
 async function testGestionDiariaResultado(sessions, seed) {
@@ -10922,6 +10994,10 @@ async function testRentabilidadR1(sessions, seed) {
   const vend1Id = seed.profileIdByKey.vend1;
   let solicitudId = null;
   let solicitudV1 = null;
+  const politicaOriginal = JSON.parse(textoFueraDeBanda('R1 configuración anterior',
+    'select to_jsonb(private.politica_rentabilidad_vigente(statement_timestamp()))'));
+  const configOriginal = Object.fromEntries(['tasa_base_nueva','tope_tecnico','vigencia_solicitud_dias','modo']
+    .map(k => [k,politicaOriginal[k]]));
   try {
     for (const f of PUERTAS) {
       check(cuenta(`grants ${f}`, `select (has_function_privilege('authenticated', '${f}', 'EXECUTE'))::int - (has_function_privilege('anon', '${f}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${f}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::int`) === 1,
@@ -10971,6 +11047,19 @@ async function testRentabilidadR1(sessions, seed) {
     // una solicitud viva sobre la misma intención en el banco compartido.
     const capitalCorrida = 10000 + Math.floor(Math.random() * 8_999_999) / 100;
     const cuerpo = { cliente_id: clienteId, categoria: 'nuevo', capital: capitalCorrida, moneda: 'PEN', modalidad: 'mensual', tipo_interes: 'simple', fecha_inicio: '2026-11-01', fecha_vencimiento: '2027-11-01', tasa_solicitada: base + 1.5, motivo: 'Suite RLS R1 TRANSIENT: prueba de solicitud' };
+    // El servidor vigente no solicita autorización en observación. Se prueba
+    // ese rechazo y después el circuito completo en enforcement, sólo banco.
+    if (vigente.modo === 'observacion') {
+      for (const quien of ['gerencia','vend1']) await expectExpectedFailure(
+        `R1 ${quien}: observación no crea una solicitud innecesaria`,
+        sessions[quien].client.schema('crm').rpc('solicitar_tasa_fn',{p_solicitud:cuerpo}),
+        ['P0410'],/observación/i);
+    }
+    const politicaEnsayo = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn',{
+      p_expected_version:cuenta('versión antes de enforcement','select max(version) from crm.politica_rentabilidad'),
+      p_config:{...configOriginal,modo:'enforcement',tope_tecnico:50,nota:'Ensayo RLS local: circuito de autorización'},
+    });
+    if (politicaEnsayo.error) throw new Error(`R1 no pudo preparar enforcement: ${errorText(politicaEnsayo.error)}`);
     const { data: s1, error: es1 } = await sessions.gerencia.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpo });
     solicitudId = s1?.id ?? null;
     check(!es1 && s1?.estado === 'pendiente' && Number(s1?.tasa_base) === base && s1?.solicitada_por === gerenciaId,
@@ -11049,6 +11138,13 @@ async function testRentabilidadR1(sessions, seed) {
     if (ids.length) {
       ejecutarFueraDeBanda('R1 limpieza', `select set_config('crm.solicitud_tasa_por_puerta','on',true); update crm.solicitudes_tasa set solicitada_en = clock_timestamp() - interval '8 days', vence_en = clock_timestamp() - interval '1 second' where id in (${ids.map((x) => `'${x}'`).join(',')}) and estado in ('pendiente','aprobada','aprobada_con_tope','aceptada_por_analista');`);
     }
+    const restaurada = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn',{
+      p_expected_version:cuenta('versión al restaurar R1','select max(version) from crm.politica_rentabilidad'),
+      p_config:{...configOriginal,nota:'Restituir configuración anterior al ensayo RLS'},
+    });
+    if (restaurada.error) throw new Error(`R1 restauración falló: ${errorText(restaurada.error)}`);
+    check(Object.entries(configOriginal).every(([k,v])=>restaurada.data[k] === v),
+      'R1 restaura modo, base, tope y vigencia originales sin borrar la historia');
   }
 }
 
@@ -11211,18 +11307,18 @@ async function testIdentidadF2bD5(sessions, seed) {
     await expectExpectedFailure('D-5 anon abandonar → 42501 (sin EXECUTE)', anon.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['42501'], /permission denied|denegado/i);
     await expectExpectedFailure('D-5 vend1 abandonar → 42501 (solo Gerencia)', sessions.vend1.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['42501'], /Gerencia/i);
     await expectExpectedFailure('D-5 OFF gerencia abandonar → P0409 «apagada» (superficie inerte)', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['P0409'], /apagada/i);
-    // Paridad APAGADA de la reserva por lead (la firma vieja del edge de hoy): reserva y sella como siempre.
+    // La conversión unificada cerró las reservas nuevas también con el flag OFF.
+    // El sellado antiguo tampoco puede dejar efectos si no existe una reserva.
     await requireAdmin('D-5: sembrar un lead vivo de vend1', admin.schema('crm').from('leads').insert([
       { id: L_V1, nombre_completo: 'D5 RESERVA V1 TRANSIENT', telefono: TEL_F2B(193), creado_por: vend1Id, vendedor_id: vend1Id, activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 },
     ]));
-    const { data: r1, error: e1 } = await sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 });
-    check(!e1 && r1?.ok === true && cuenta('reserva por lead', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}' and inversionista_id is null`) === 1,
-      'D-5 OFF vend1 reserva por lead (1 argumento) → ok, como hoy', e1?.message ?? JSON.stringify(r1));
-    const { data: r2, error: e2 } = await sessions.vend1.client.schema('crm').rpc('marcar_efectos_conversion', { p_lead_id: L_V1 });
-    check(!e2 && r2?.ok === true && cuenta('sellada', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}' and efectos_iniciados_en is not null`) === 1,
-      'D-5 OFF vend1 sella sin persona (1 argumento) → ok, como hoy', e2?.message ?? JSON.stringify(r2));
-    ejecutarFueraDeBanda('D-5 soltar la reserva de prueba', `delete from crm.conversion_reservas where lead_id = '${L_V1}';`);
-    // Con la bandera ENCENDIDA la firma vieja se cierra sin efectos (P0409 con la firma nueva en HINT); apagada de nuevo, vuelve a servir.
+    await expectExpectedFailure('D-5 OFF la reserva legacy exige actualizar el CRM',
+      sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 }), ['P0409'], /Actualiza el CRM/i);
+    await expectExpectedFailure('D-5 OFF no se sella una reserva inexistente',
+      sessions.vend1.client.schema('crm').rpc('marcar_efectos_conversion', { p_lead_id: L_V1 }), ['P0409'], /reserva.*no esta viva/i);
+    check(cuenta('OFF sin reserva', `select count(*) from crm.conversion_reservas where lead_id='${L_V1}'`) === 0,
+      'D-5 OFF las puertas antiguas no dejan reservas ni efectos');
+    // ON conserva la prohibición histórica de la firma por lead.
     flag(true);
     await expectExpectedFailure('D-5 ON vend1 reserva por lead (1 argumento) → P0409 «va por persona»', sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 }), ['P0409'], /va por persona/i);
     await expectExpectedFailure('D-5 ON vend1 sella sin persona (1 argumento) → P0409 «va por persona»', sessions.vend1.client.schema('crm').rpc('marcar_efectos_conversion', { p_lead_id: L_V1 }), ['P0409'], /va por persona/i);
@@ -11233,8 +11329,10 @@ async function testIdentidadF2bD5(sessions, seed) {
     const { error: eDni } = await sessions.vend1.client.schema('crm').from('leads').update({ dni: null, nota: 'dni igual con ON' }).eq('id', L_V1).select('id');
     check(!eDni && cuenta('dni igual con ON', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'dni igual con ON' and dni is null`) === 1, 'D-5 ON: un UPDATE con el DNI sin cambiar (y otra columna) pasa el trigger de D-13', eDni?.message ?? '');
     flag(false);
-    const { data: r3, error: e3 } = await sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 });
-    check(!e3 && r3?.ok === true, 'D-5 OFF otra vez: la firma vieja vuelve a servir', e3?.message ?? JSON.stringify(r3));
+    await expectExpectedFailure('D-5 volver a OFF no reabre la reserva legacy',
+      sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 }), ['P0409'], /Actualiza el CRM/i);
+    check(cuenta('reserva final', `select count(*) from crm.conversion_reservas where lead_id='${L_V1}'`) === 0,
+      'D-5 la transición OFF/ON/OFF conserva cero reservas');
   } finally {
     flag(false);
     ejecutarFueraDeBanda('D-5 limpieza', `delete from crm.conversion_reservas where lead_id = '${L_V1}'; update crm.leads set activo = false where id = '${L_V1}';`, { tolerante: true });
@@ -11572,12 +11670,9 @@ async function testConversionMensual(sessions, seed) {
 
   try {
     // ── 0b · la semilla, por la VIA REAL ────────────────────────────────────
-    // Los cierres se producen con `crm.convertir_lead` y la sesion del analista:
-    // el ledger solo registra un cierre cuando el trigger lo ve pasar, y un
-    // UPDATE directo a etapa='convertido' es imposible incluso con service_role
-    // (exige crm.op_privilegiada, que solo pone esa RPC). El cliente destino es
-    // el del fixture bancario, cuyo asesor_perfil_id ES vend1 — convertir_lead
-    // exige que el cliente pertenezca a la cartera de quien cierra.
+    // Dos personas DISTINTAS: identidad única, acceso Auth y contrato por el
+    // circuito compartido vigente. No reutilizar un perfil en dos leads ni
+    // simular cierres mediante UPDATE: el ledger nace del escritor real.
     const leadComun = {
       activo: true,
       alta_manual: true,
@@ -11654,10 +11749,10 @@ async function testConversionMensual(sessions, seed) {
       ['directo', IDS_CONVERSION.leadDirecto],
     ]) {
       await positive(
-        `vend1 cierra el lead ${etiqueta} por la via real (convertir_lead)`,
-        sessions.vend1.client.schema('crm').rpc('convertir_lead', {
-          p_lead_id: leadId,
-          p_perfil_id: bankProfileId,
+        `vend1 cierra el lead ${etiqueta} por la inversión compartida real`,
+        convertirAvanceVigente(sessions.vend1.client, {
+          leadId,documento:String(randomInt(70000000,79999999)),vendedorId:ids.vend1,
+          apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,
         }),
       );
     }
@@ -12495,8 +12590,7 @@ async function testIdentidadMultiempresa(sessions, seed) {
   // F4 `inversiones_escritura`; este bloque cuenta inversiones y titulares, así que enciende las dos.
   const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas + inversiones_escritura',
     `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre in ('resolver_en_puertas','inversiones_escritura');`);
-  const coop = (clave, leadId, doc, n, monto = 1000) => sessions[clave].client.schema('crm')
-    .rpc('convertir_lead_externo', {
+  const coop = (clave, leadId, doc, n, monto = 1000) => convertirCoopVigente(sessions[clave].client, {
       p_lead_id: leadId, p_cooperativa: 'qorilazo', p_monto: monto, p_moneda: 'PEN',
       p_documento_tipo: 'DNI', p_documento: doc, p_nombre: 'IDENTIDAD TRANSIENT',
       p_numero_transaccion: trx(n),
@@ -12527,8 +12621,9 @@ async function testIdentidadMultiempresa(sessions, seed) {
     const ok = carrera.filter((r) => r.status === 'fulfilled' && !r.value?.error);
     const rechazos = carrera.filter((r) => r.status === 'fulfilled' && r.value?.error);
     assertions += 1;
-    if (ok.length === 1 && rechazos.length === 1 && /ya tiene un lead/i.test(rechazos[0].value.error.message ?? '')) {
-      console.log('  ✓ #1 carrera: UNA conversión ganó y la otra fue P0409 «ya tiene un lead»');
+    if (ok.length === 1 && rechazos.length === 1 && rechazos[0].value.error.code === 'P0409'
+        && /ya tiene otra identidad o lead/i.test(rechazos[0].value.error.message ?? '')) {
+      console.log('  ✓ #1 carrera: UNA conversión ganó y la otra fue P0409 por identidad/lead ya reconocido');
     } else {
       fail(`#1 carrera: esperaba 1 éxito + 1 P0409, obtuve ${ok.length} éxitos / ${rechazos.length} rechazos (${rechazos.map((r) => errorText(r.value.error)).join(' | ')})`);
     }
@@ -12559,30 +12654,35 @@ async function testIdentidadMultiempresa(sessions, seed) {
     await requireAdmin('sembrar lead canónico del cliente bancario', admin.schema('crm').from('leads').insert({
       ...leadBase, id: bancoCanonico, nombre_completo: 'IDENTIDAD BANCO CANONICO TRANSIENT', telefono: TEL_IDENTIDAD(55),
     }));
-    await positive('#2 preparar la primera conversión del cliente bancario',
-      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: bancoCanonico, p_perfil_id: bankProfileId }));
-    await expectExpectedFailure('#2 el cliente bancario (ya con identidad y lead) no convierte un SEGUNDO lead → P0409',
-      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceDos, p_perfil_id: bankProfileId }), ['P0409'], /ya tiene un lead/i);
-    if (cuenta('avanceDos intacto', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.avanceDos}' and etapa='nuevo' and inversionista_id is null`) !== 1) fail('#2: el segundo lead quedó tocado');
-    // PRIMERA conversión por Avance: un cliente TRANSITORIO (fuera de banda, como la siembra),
-    // con DNI fresco y asesor vend1, para que el resolver cree la identidad desde el perfil.
-    ejecutarFueraDeBanda('cliente transitorio', `
-      insert into auth.users (id) values ('${IDS_IDENTIDAD.clienteNuevo}') on conflict (id) do nothing;
-      insert into public.perfiles (id, nombre_completo, rol, tipo_documento, dni, asesor_perfil_id, activo)
-      values ('${IDS_IDENTIDAD.clienteNuevo}', 'IDENTIDAD CLIENTE NUEVO TRANSIENT', 'cliente', 'DNI', '${DOCS_IDENTIDAD.clienteNuevo}', '${vend1Id}', true)
-      on conflict (id) do nothing;`);
-    const av = await positive('#2 vend1 convierte por Avance (primera vez: el resolver crea la identidad desde el perfil)',
-      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceUno, p_perfil_id: IDS_IDENTIDAD.clienteNuevo }));
+    await expectExpectedFailure('#2 la vía Avance antigua no convierte sin inversión confirmada',
+      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: bancoCanonico, p_perfil_id: bankProfileId }),
+      ['P0409'],/Registra y confirma la inversión/i);
+    check(cuenta('legacy sin inversión',`select count(*) from crm.inversion_solicitudes where lead_origen_id='${bancoCanonico}'`) === 0,
+      '#2 el intento legacy no crea una inversión a medias');
+    // La primera conversión ahora prepara identidad ANTES del alta Auth.
+    // El handler oficial de acceso corre en proceso, con HTTP Auth/RPC real.
+    const avance = () => convertirAvanceVigente(sessions.vend1.client,{
+      leadId:IDS_IDENTIDAD.avanceUno,documento:DOCS_IDENTIDAD.clienteNuevo,vendedorId:vend1Id,
+      apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,
+    });
+    const av = await positive('#2 vend1 convierte por Avance (acceso Auth y contrato compartido)',avance());
     assertions += 1;
     if (av?.data?.inversionista_id) console.log('  ✓ #2 la conversión Avance devolvió inversionista_id');
-    else fail(`#2: convertir_lead no devolvió inversionista_id (${JSON.stringify(av?.data)})`);
-    if (cuenta('perfil enlazado', `select count(*) from crm.inversionistas where perfil_id='${IDS_IDENTIDAD.clienteNuevo}' and estado<>'fusionado'`) !== 1) fail('#2: el perfil no quedó enlazado a una identidad');
+    else fail(`#2: confirmar inversión no devolvió inversionista_id (${JSON.stringify(av?.data)})`);
+    const personaAvance = idsPorDoc(DOCS_IDENTIDAD.clienteNuevo);
+    if (cuenta('perfil enlazado', `select count(*) from crm.inversionistas where id in ${personaAvance} and perfil_id is not null and estado<>'fusionado'`) !== 1) fail('#2: el perfil no quedó enlazado a una identidad');
     if (cuenta('lead canónico', `select count(*) from crm.inversionista_leads where lead_id='${IDS_IDENTIDAD.avanceUno}' and rol='canonico'`) !== 1) fail('#2: falta el registro de lead canónico');
-    if (cuenta('responsable Avance', `select count(*) from crm.inversionista_responsables r join crm.inversionistas i on i.id=r.inversionista_id where i.perfil_id='${IDS_IDENTIDAD.clienteNuevo}' and r.hasta is null and r.responsable_id='${vend1Id}'`) !== 1) fail('#2: el asesor no quedó como responsable de relación');
+    if (cuenta('responsable Avance', `select count(*) from crm.inversionista_responsables r where r.inversionista_id in ${personaAvance} and r.hasta is null and r.responsable_id='${vend1Id}'`) !== 1) fail('#2: el asesor no quedó como responsable de relación');
     const reAv = await positive('#4 reintento idéntico de la conversión Avance',
-      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceUno, p_perfil_id: IDS_IDENTIDAD.clienteNuevo }));
+      avance());
     assertions += 1;
     if (reAv?.data?.reintento === true) console.log('  ✓ #4 reintento Avance idempotente'); else fail('#4: reintento Avance no idempotente');
+    await expectExpectedFailure('#2 una persona con conversión no admite un segundo lead',
+      sessions.vend1.client.schema('crm').rpc('preparar_persona_lead_inversion_fn',{
+        p_lead:IDS_IDENTIDAD.avanceDos,p_tipo_documento:'DNI',p_documento:DOCS_IDENTIDAD.clienteNuevo,p_nombre:'PERSONA SINTETICA RLS',
+      }), ['P0409'],/ya tiene otra identidad o lead/i);
+    check(cuenta('avanceDos intacto', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.avanceDos}' and etapa='nuevo' and inversionista_id is null`) === 1,
+      '#2 el segundo lead queda intacto tras rechazar la duplicación');
 
     // ── #3 · ninguna puerta paralela crea un lead por fuera: disponibilidad ─
     const disp = await positive('#3 disponibilidad por documento de una persona con lead (sin perfil)',
@@ -12639,7 +12739,8 @@ async function testIdentidadMultiempresa(sessions, seed) {
 
     // ── Paridad con bandera APAGADA (aterrizaje aditivo) ─────────────────
     flag(false);
-    await positive('OFF: conversión coop funciona como hoy', coop('vend1', IDS_IDENTIDAD.paridadOff, DOCS_IDENTIDAD.paridadOff, 'OFF'));
+    await expectExpectedFailure('OFF: el registro compartido se rechaza sin efectos',
+      coop('vend1', IDS_IDENTIDAD.paridadOff, DOCS_IDENTIDAD.paridadOff, 'OFF'), ['P0409'], /no está habilitado/i);
     if (cuenta('OFF sin identidad', `select count(*) from crm.inversionista_identificadores where documento_normalizado='${DOCS_IDENTIDAD.paridadOff}'`) !== 0) fail('OFF: creó identidad con la bandera apagada');
     if (cuenta('OFF lead sin puntero', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.paridadOff}' and inversionista_id is null`) !== 1) fail('OFF: tocó inversionista_id con la bandera apagada');
     await positive('OFF: UPDATE directo de no_contactar por el dueño sigue permitido (no regresión)',
@@ -12733,8 +12834,7 @@ async function testIdentidadF2b(sessions, seed) {
   const trx = (n) => `TRX-F2B-${sufijo}-${n}`;
   const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b)',
     `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
-  const coop = (clave, leadId, doc, n) => sessions[clave].client.schema('crm')
-    .rpc('convertir_lead_externo', {
+  const coop = (clave, leadId, doc, n) => convertirCoopVigente(sessions[clave].client, {
       p_lead_id: leadId, p_cooperativa: 'qorilazo', p_monto: 1000, p_moneda: 'PEN',
       p_documento_tipo: 'DNI', p_documento: doc, p_nombre: 'F2B TRANSIENT',
       p_numero_transaccion: trx(n),
@@ -12827,11 +12927,18 @@ async function testIdentidadF2b(sessions, seed) {
     check(cuenta('enlazado intacto', `select count(*) from crm.leads where id='${IDS_F2B.naceInsert}' and dni='${DOCS_F2B.sinLead}' and inversionista_id=${invDe(DOCS_F2B.sinLead)}`) === 1,
       'b1 #1 el lead enlazado conserva dni y enlace');
 
-    // ── #3 · UPDATE dni con el documento de una persona CON lead → P0481 ya_es_cliente, nada cambia ─
+    // La tabla rechaza el cambio de DNI; la puerta vigente también comprueba
+    // la identidad ocupada y devuelve su veredicto sin cambiar el lead.
     {
       const { error } = await updDni('vend1', IDS_F2B.ocupado, DOCS_F2B.conLead);
-      check(error?.code === 'P0481' && /Contacto no disponible/i.test(error?.message ?? '') && /ya_es_cliente/.test(String(error?.details ?? '')),
-        'b1 #3 vendedor: dni de una persona que ya tiene lead → P0481 con veredicto ya_es_cliente', errorText(error));
+      check(error?.code === 'P0481' && /Contacto no disponible/i.test(error?.message ?? '')
+          && /ya_es_cliente/.test(String(error?.details ?? '')),
+        'b1 #3 el UPDATE directo rechaza la identidad ocupada con veredicto ya_es_cliente', errorText(error));
+      const puerta = await sessions.vend1.client.schema('crm').rpc('fijar_dni_lead_fn',{
+        p_lead_id:IDS_F2B.ocupado,p_dni:DOCS_F2B.conLead,
+      });
+      check(puerta.error?.code === 'P0409' && /ya_es_cliente/.test(String(puerta.error?.details ?? '')),
+        'b1 #3 la puerta rechaza la identidad ocupada con veredicto ya_es_cliente',errorText(puerta.error));
     }
     await expectBlockedMutation('b1 #3 coordinador: dni de una persona que ya tiene lead → denegado',
       updDni('coordinador', IDS_F2B.ocupado, DOCS_F2B.conLead), ['P0481']);
@@ -13056,14 +13163,14 @@ async function testCierresExternos(sessions, seed) {
     timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(fecha);
   const PERIODO = `${enLima(new Date()).slice(0, 7)}-01`;
+  const VENCE_COOP = enLima(new Date(Date.now() + 365 * 86400_000));
   const ids = seed.profileIdByKey;
 
   const pedirFn = (clave) => sessions[clave].client
     .schema('crm').rpc('cierres_externos_fn', { p_periodo: PERIODO });
-  const convertir = (clave, args) => sessions[clave].client
-    .schema('crm').rpc('convertir_lead_externo', args);
+  const convertir = (clave, args) => convertirCoopVigente(sessions[clave].client, args);
   const corregir = (clave, args) => sessions[clave].client
-    .schema('crm').rpc('corregir_cierre_externo', args);
+    .schema('crm').rpc('corregir_cierre_externo', { ...args, p_vence_en: args.p_vence_en ?? VENCE_COOP });
 
   // ── 1 · La tabla es deny-by-default ABSOLUTO: nadie la toca directo ───────
   for (const clave of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio', 'clientBank']) {
@@ -13189,12 +13296,13 @@ async function testCierresExternos(sessions, seed) {
       p_nombre: 'CIERRE EXTERNO TRANSIENT',
       p_numero_transaccion: OPERACION,
       p_referencia: 'QOR-GATE-1',
+      p_vence_en: VENCE_COOP,
     };
 
     const ajeno = await convertir('vend1', {
       ...argsCoop, p_lead_id: IDS_CIERRES_EXTERNOS.leadAjeno,
     });
-    check(ajeno.error != null && /fuera de tu ambito/i.test(ajeno.error?.message ?? ''),
+    check(ajeno.error?.code === '42501' && /fuera de tu ámbito/i.test(ajeno.error?.message ?? ''),
       'vend1 no convierte a coop un lead del equipo ajeno', errorText(ajeno.error));
 
     await expectExplicitAuthorizationDenied(
@@ -13231,7 +13339,7 @@ async function testCierresExternos(sessions, seed) {
 
     const doble = await convertir('vend1', argsCoop);
     check(!doble.error && doble.data?.reintento === true
-        && doble.data?.cierre_id === cierre?.data?.cierre_id,
+        && doble.data?.fuente?.cierre_id === cierre?.data?.fuente?.cierre_id,
       'el reintento idéntico devuelve el mismo cierre sin duplicarlo', errorText(doble.error));
     await expectExpectedFailure('la misma operación con otro monto se rechaza',
       convertir('vend1', { ...argsCoop, p_monto: 2000 }), ['P0409'], /datos distintos/i);
@@ -13272,6 +13380,7 @@ async function testCierresExternos(sessions, seed) {
       p_nombre: 'CIERRE EXTERNO USD TRANSIENT',
       p_numero_transaccion: OPERACION_USD,
       p_referencia: 'PRO-GATE-USD-1',
+      p_vence_en: VENCE_COOP,
     };
 
     // (a) Qorilazo NO admite dolares. El mensaje lo dice con el nombre de la
@@ -13286,25 +13395,24 @@ async function testCierresExternos(sessions, seed) {
       convertir('vend1', argsUsd),
     );
     if (cierreUsd) {
-      const filaUsd = await requireAdmin(
-        'leer el cierre en USD (admin)',
-        admin.schema('crm').from('cierres_externos')
-          .select('moneda, monto, cooperativa')
-          .eq('id', cierreUsd.data?.cierre_id).single(),
-      );
-      check(filaUsd.data?.moneda === 'USD'
-        && Number(filaUsd.data?.monto) === 4321
-        && filaUsd.data?.cooperativa === 'prodelco',
+      // La tabla está cerrada TAMBIÉN a service_role. El oráculo administrativo
+      // va por SQL fuera de banda, no se amplían grants para observar el hecho.
+      const filaUsd = JSON.parse(textoFueraDeBanda('cierre USD persistido',
+        `select jsonb_build_object('moneda',moneda,'monto',monto,'cooperativa',cooperativa)
+         from crm.cierres_externos where id='${cierreUsd.data.fuente.cierre_id}'`));
+      check(filaUsd?.moneda === 'USD'
+        && Number(filaUsd?.monto) === 4321
+        && filaUsd?.cooperativa === 'prodelco',
         'la fila quedo en USD con su monto y su cooperativa',
-        JSON.stringify(filaUsd.data));
+        JSON.stringify(filaUsd));
     }
 
     // (c) La correccion de gerencia usa el MISMO catalogo: puede dejar un
     //     Prodelco en dolares, y no puede hacerlo en Qorilazo.
-    if (cierreUsd?.data?.cierre_id) {
+    if (cierreUsd?.data?.fuente?.cierre_id) {
       await positive('gerencia corrige el cierre de Prodelco conservando USD',
         corregir('gerencia', {
-          p_cierre_id: cierreUsd.data.cierre_id,
+          p_cierre_id: cierreUsd.data.fuente.cierre_id,
           p_cooperativa: 'prodelco',
           p_moneda: 'USD',
           p_monto: 5000.00,
@@ -13315,7 +13423,7 @@ async function testCierresExternos(sessions, seed) {
         }));
       await expectExpectedFailure('gerencia NO puede mover ese cierre a qorilazo/USD',
         corregir('gerencia', {
-          p_cierre_id: cierreUsd.data.cierre_id,
+          p_cierre_id: cierreUsd.data.fuente.cierre_id,
           p_cooperativa: 'qorilazo',
           p_moneda: 'USD',
           p_monto: 5000.00,
@@ -13542,8 +13650,8 @@ async function testCierresExternos(sessions, seed) {
     check(reservaAjena.error != null && /fuera de tu ambito/i.test(reservaAjena.error?.message ?? ''),
       'vend1 no reserva un lead del equipo ajeno', errorText(reservaAjena.error));
     const reservaCerrado = await reservar('vend1', IDS_CIERRES_EXTERNOS.leadCoop);
-    check(reservaCerrado.error != null && /ya esta cerrado/i.test(reservaCerrado.error?.message ?? ''),
-      'no se reserva un lead ya convertido (asi la edge se entera ANTES de crear nada)',
+    check(reservaCerrado.error?.code === 'P0001' && /ya esta cerrado/i.test(reservaCerrado.error?.message ?? ''),
+      'la reserva legacy no abre otra conversión ni crea accesos sobre el lead cerrado',
       errorText(reservaCerrado.error));
     // Sonda FUERTE (42501), no `expectHidden`: en una tabla sensible «0 filas»
     // no demuestra nada —lo dice el propio docstring del helper— y una reserva
@@ -13570,10 +13678,17 @@ async function testCierresExternos(sessions, seed) {
     // envenenaba la suma de la cuota del mes entera.
     // Lead aún sin conversión, con su dueño real: alcanzar la validación del
     // monto y comprobar el motivo; no confundirla con un conflicto de reintento.
-    const nan = await convertir('vend3', { ...argsCoop, p_lead_id: IDS_CIERRES_EXTERNOS.leadAjeno, p_monto: 'NaN' });
-    check(nan.error != null && /mayor que cero/i.test(nan.error?.message ?? ''),
+    const nan = await convertir('vend3', { ...argsCoop, p_lead_id: IDS_CIERRES_EXTERNOS.leadAjeno, p_documento: '99887763', p_monto: 'NaN' });
+    check(nan.error?.code === '22023' && /positivo.*dos decimales/i.test(nan.error?.message ?? ''),
       'un monto NaN por la Data API se rechaza (envenenaba la cuota del equipo)',
       errorText(nan.error));
+    await expectExpectedFailure('un actor autorizado tampoco reabre la conversión externa legacy',
+      sessions.vend3.client.schema('crm').rpc('convertir_lead_externo',{
+        ...argsCoop,p_lead_id:IDS_CIERRES_EXTERNOS.leadAjeno,p_documento:'99887763',
+      }), ['P0409'],/Actualiza el CRM.*formulario compartido/i);
+    check(contarFueraDeBanda('sin hecho económico por el intento legacy',
+      `select count(*) from crm.cierres_externos where lead_id='${IDS_CIERRES_EXTERNOS.leadAjeno}'`) === 0,
+      'la vía legacy rechazada no deja un cierre externo');
   } finally {
     // Soft-delete, nunca DELETE: la regla de la casa. El cierre externo se
     // queda (es inmutable por diseño y el DELETE esta vetado con P0409); el
@@ -14246,10 +14361,10 @@ async function main() {
       await testAnon(verifiedSeed);
       // Cierres externos ANTES de la conversion: convierte un lead de vend1 que
       // la conversion absorbe en su LINEA BASE (sus aserciones son deltas).
-      await testCierresExternos(sessions, verifiedSeed);
-      await testIdentidadMultiempresa(sessions, verifiedSeed);
+      await conInversionesVigentes(() => testCierresExternos(sessions, verifiedSeed));
+      await conInversionesVigentes(() => testIdentidadMultiempresa(sessions, verifiedSeed));
       // F2.b (b1 + b2) justo después: comparte bandera, vía fuera de banda y estilo.
-      await testIdentidadF2b(sessions, verifiedSeed);
+      await conInversionesVigentes(() => testIdentidadF2b(sessions, verifiedSeed));
       await testIdentidadF2bB5(sessions);
       await testIdentidadF2bE4(sessions, verifiedSeed);
       await testIdentidadF2bD10(sessions);
@@ -14271,7 +14386,7 @@ async function main() {
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese
       // estado. Limpia lo suyo en su propio `finally`.
-      await testConversionMensual(sessions, verifiedSeed);
+      await conInversionesVigentes(() => testConversionMensual(sessions, verifiedSeed));
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
@@ -14285,6 +14400,7 @@ async function main() {
       await testGestionDiariaRegistro(sessions, verifiedSeed);
       await testGestionDiariaResultado(sessions, verifiedSeed);
       await testGestionDiariaAnalista(sessions, verifiedSeed);
+      await testGestionDiariaCortes(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }

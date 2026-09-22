@@ -12,6 +12,8 @@ export type ItemColaSla = ColaSlaPagina['items'][number]
 
 export const UmbralesSchema = v.object({
   version: v.literal(1),
+  /** Versión de política; distinta de la versión estable del contrato JSON. */
+  politica_version: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   bien_min_pct: v.number(),
   atencion_min_pct: v.number(),
   minimo_llamadas_utiles: v.number(),

@@ -184,6 +184,14 @@ async function ensureProfile(user) {
     rol: user.portalRole,
   };
 
+  // Los escritores contractuales vigentes congelan datos legales del analista.
+  // Son documentos/teléfonos ficticios estables, nunca datos de empleados.
+  if (user.crmRole) Object.assign(profile, {
+    tipo_documento: 'DNI',
+    dni: `990010${String(USERS.indexOf(user)).padStart(2, '0')}`,
+    telefono: `999001${String(USERS.indexOf(user)).padStart(3, '0')}`,
+  });
+
   if (user.key === BANK_CLIENT.key) {
     Object.assign(profile, {
       asesor_perfil_id: ids[BANK_CLIENT.adviserKey],

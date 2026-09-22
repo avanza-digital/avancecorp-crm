@@ -1,0 +1,36 @@
+{
+  "consulta": "¿Dónde se evita enviar las etiquetas esperadas de los casos sintéticos al modelo TypeSafe?",
+  "extractos": [
+    {
+      "de": "juicio.mjs:crearSolicitud",
+      "puntos": 1.69,
+      "confianza": 0.29,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 740,
+        "output_tokens": 20
+      }
+    },
+    {
+      "de": "juicio.mjs:resumir",
+      "puntos": 1.47,
+      "confianza": 0.19,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 881,
+        "output_tokens": 20
+      }
+    },
+    {
+      "de": "juicio.mjs:respuestaValida",
+      "puntos": 0.35,
+      "confianza": 0.65,
+      "modelo": "jev-1.13.0",
+      "uso": {
+        "input_tokens": 634,
+        "output_tokens": 20
+      }
+    }
+  ],
+  "datos_CRM_enviados": false
+}

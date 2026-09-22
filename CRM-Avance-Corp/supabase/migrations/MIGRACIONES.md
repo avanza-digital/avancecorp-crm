@@ -1,5 +1,59 @@
 # Ledger de migraciones — esquema `crm`
 
+## 20260921214018 — Gestión Diaria F4: cortes de jornada, etapa 3
+
+**SQL EXACTO APROBADO, PR #68 ABIERTO; EJECUCIÓN PRODUCTIVA PENDIENTE.** Miguel
+indicó: «ok prepara el pr apruebo el sql y me avisas para ejecutar». Se registra
+la aprobación del candidato con el SHA-256 siguiente, sin modificarlo y con
+`cortes_activos=false`. No se ejecutó en producción ni se activó. La ejecución
+espera el flujo humano `$release-crm`, aprobación del PR y gates del destino.
+PR: https://github.com/avanza-digital/avancecorp-crm/pull/68.
+CI no iniciada por bloqueo de facturación/límite de GitHub; aprobación del PR
+y `verify` en PASS siguen pendientes. No ejecutar SQL para sortear ese bloqueo.
+
+Miguel autorizó inicialmente el ensayo sólo en `gestion_diaria_f4_vista_chvrqh`,
+incluida la reversión. La evidencia de ese primer banco se conserva a continuación.
+Último ensayo completo: 21/09/2026 22:19:30 UTC. SHA-256
+`8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`.
+Matriz de negocio/RLS, puertas F3/F4, paridad supervisor/gerencia/global, 15 mutantes,
+regresiones, tipos generados, censo y restauración exacta de funciones **PASS**.
+Base final sin candidato instalado; auditoría de ensayo conservada.
+
+Nueva `crm.politica_gestion_diaria`, RLS y auditoría, versiones inmutables y
+lectura autenticada CRM/global **por columna de parámetros**; motivo/autor/fecha
+administrativa quedan ocultos hasta una puerta autorizada de etapa 5.
+Sin INSERT/UPDATE/DELETE/TRUNCATE para roles API;
+sin lectura ni ejecución nueva para anon/service_role. Sólo postgres instala la
+semilla histórica OFF con 45/25/5. La publicación gerencial será etapa 5.
+
+Nuevo núcleo INVOKER que compone `gestion_diaria_llamadas` sin alterarla. Clave
+aditiva `cortes` en la puerta de equipo existente; F3/F4 leen los umbrales de la
+política al inicio de la fecha consultada. Horas Lima, base fija, redondeo/piso/techo,
+sábado independiente, domingo sin cortes y exclusión de cartera abierta vacía.
+Sin escrituras de negocio ni ALTER sobre objetos de `public`: sólo FK al perfil,
+patrón existente de `crm.sla_politicas`, con su dependencia referencial habitual.
+
+Dos revisiones Claude read-only; último dictamen CHANGES_REQUESTED, resuelto o
+descartado por el PRIMARY con código y pruebas (no se atribuye PASS a Claude).
+Aplicación: 4.073 tests y check completo PASS. Scripts/preflights PASS. HTTP
+PostgREST completo y advisors remotos NOT RUN en ese primer ensayo; no se confunden
+con el banco SQL. El ensayo HTTP posterior cerró el primero de esos pendientes.
+La matriz permanente `testGestionDiariaCortes` exige el contrato si detecta
+tabla instalada, y permite exigirlo explícitamente con `CRM_RLS_EXIGE_CORTES=1`.
+
+Banco y reversa local protegida: `supabase/scripts/gestion-diaria-cortes/`.
+Estado y límites: `docs/gestion-diaria/F4-CORTES-JORNADA.md`. No usar `db push`
+general ni extender la aprobación a otras migraciones o a activar los cortes.
+
+Complemento HTTP posterior, guardado en `8ca9045c`: banco local aislado
+`gestion-diaria-f4-http`, matriz general baseline **2.164/0 fallos** y candidato
+OFF **2.196/0**, navegador con Auth/API reales, compatibilidad de 28 parseos,
+instalación/atomicidad/reversa exacta/reinstalación OFF PASS. App **4.085 pruebas**,
+22 E2E de Gestión Diaria y preflights PASS. El banco HTTP queda instalado OFF;
+esto no altera el estado final del primer banco ni implica instalación productiva.
+Advisors remotos, resguardos y smoke del destino siguen pendientes del release.
+Recuperación: `docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md`.
+
 ## ✅ INSTALADAS EN PRODUCCIÓN el 21/09/2026 — tres de cuatro
 
 Miguel autorizó («hazlo todo») y añadió la condición permanente: **«siempre
