@@ -1,5 +1,127 @@
 # Ledger de migraciones — esquema `crm`
 
+## 🧪 `20260922200514` — La razón del candado de perfiles vuelve a decir la verdad (ENSAYADA, PENDIENTE DE APLICAR)
+
+**El rojo de `f5a` era UNO SOLO y legítimo**, no cuatro. Al diagnosticarlo se
+comparó `md5(prosrc)` **crudo** contra la huella declarada y «aparecieron»
+cuatro puertas cambiadas. Falso: el censo sella el cuerpo **sin comentarios**.
+`puede_gestionar_cuentas_cliente`, `actualizar_contrato`,
+`directorio_ranking_analistas` y `bandeja_actividad` tienen el cuerpo **intacto
+desde el 30/08** — las dos huellas eran el mismo texto medido de dos maneras.
+🔴 **Re-declararlas habría sellado tres huellas con la normalización equivocada
+y roto el trinquete.** Lo cazaron los verificadores adversarios; el assert decía
+la verdad desde el principio y el ruido lo añadió el diagnóstico.
+
+**La única real:** `public.proteger_campos_inmutables()`. La cambió F4
+(`20260908211349`, 08/09) abriendo **una excepción de una sola columna** sobre
+`asesor_perfil_id`. Está bien hecha: la migración de F4 lleva su propio
+preflight que aborta si el cuerpo previo no era el esperado, el cuerpo nuevo se
+generó **por anclas** sobre el cuerpo vivo capturado, y **no cambió ni un
+permiso** (la ACL ya era la de por defecto: es función de trigger, invoker).
+
+**Por qué no basta con re-sellar:** la razón declarada decía que el candado
+impide «blanquear el asesor», y desde F4 esa congelación es **condicional**. La
+propiedad de seguridad se sostiene —el asesor nuevo debe coincidir con
+`responsable_esperado_id` **y** con `responsable_relacion_id`, y la revisión que
+lo autoriza debe ser de la **misma transacción** (`pg_current_xact_id()`)— pero
+el texto ya no describía la función. Se re-sella **y** se reescribe la razón.
+
+**Cabo suelto mirado:** `private.inversiones_escritura_bajo_candado()` se
+reescribió el 13/09 (F8) y ganó una segunda vía. Medido: el piloto F8 está
+**apagado**, y aunque se encendiera ese candado solo decide *si se puede
+escribir inversiones* — lo que impide mover el asesor es la otra condición, que
+no cambió.
+
+**Ensayo contra producción (transacción deshecha):**
+`OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar` ·
+alertas **33 → 16**, y lo único que queda es `f7_piezas_cerradas (16)`.
+
+**No toca el portal**: solo una fila de `private.analista_vigencia_exenciones`,
+que únicamente `postgres` puede leer (medido: `anon` no, `authenticated` no,
+ninguna función de `public` ni vista la lee, `private` no está expuesto a la API).
+
+## ✅ `20260922182454` — Los vigías aprenden a tachar sus propios partes — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+Aplicada con `supabase db query --linked --file` y registrada con
+`migration repair`. Veredicto devuelto al aplicar:
+
+```
+cerradas 13 · abiertas 33 · fases sin cierre: (ninguna)
+sello de cierre: 2026-09-22 18:47:09.749044+00
+```
+
+`npm run gate:vigias` en **verde** y su mutante **cazado por los 7 filos** contra
+producción. ⚠️ Ese sello es lo único que hace falta para deshacerlo (las filas
+cerradas no se reabren solas).
+
+**Revisión (auditor-rls): CHANGES_REQUESTED, sin P0.** El P1 era serio y se
+corrigió: dos de los tres vigías tienen su assert en **rojo**, así que su rama
+nueva de cierre **no se ejecuta ni una vez** — y el detector de huérfanas
+llevaba las fases **escritas a mano**, así que era incapaz de delatar un literal
+desviado. Ahora la lista **se cosecha leyendo el cuerpo de cada vigía**, y el
+mutante ganó **dos filos estáticos** (uno rompe el literal a propósito y exige
+que el detector lo cante). Además: falso verde de `m3` corregido (medía si
+*existía* una alerta, y las 16 reales lo satisfacían solas), gate cableado en
+`package.json` y `check:scripts`, dueño y ACL pineados antes de tocar, y el
+veredicto por **fila** en vez de `raise notice`.
+
+🔑 **Y el detector se cazó a sí mismo al primer ensayo**: filtraba los vigías por
+el nombre, y sus dos funciones nuevas *leen* la tabla. Ahora filtra por lo que
+**hacen** (plpgsql, no devuelven nada, escriben en la tabla).
+
+**El defecto, medido el 22/09:**
+
+```
+filas totales en private.vigia_alertas ....... 45
+filas abiertas ............................... 45
+filas RESUELTAS en toda la historia ..........  0   <-- ninguna, nunca
+primera alerta ....................... 2026-09-05
+```
+
+Los tres vigías (cron 06:39 / 06:49 / 06:59) tienen la misma forma: corren su
+assert y, si lanza, **insertan**. No hay rama para el caso contrario. Cuando la
+causa se arregla, el del día siguiente no añade una nueva — pero **las viejas
+se quedan abiertas para siempre**. Nada en toda la base escribe `resuelta_en`
+sobre esa tabla: lo único que la menciona además de los tres es
+`private.veredicto_f7()`, y solo hace `count(*)`.
+
+**Por qué importaba.** El preflight de demolición de la Fase 7 exige **cero
+alertas abiertas de cualquier fase**. Un freno que exige «cero avisos» sobre una
+tabla que no cierra ninguno no es un freno: **es un candado sin llave.** La
+demolición de las olas 2 y 2b quedó imposible el 05/09, el día del primer aviso
+— no por falta de evidencia (el resto de su preflight está verde), sino por esto.
+De las 45, **13 describen problemas ya resueltos** y estaban frenando la obra
+sin motivo.
+
+**El arreglo, copiado de casa.** `private.vigia_auditoria()` —el cuarto vigía,
+sobre la tabla hermana `auditoria_alertas`— **ya sabe cerrar**. Nació sabiendo; a
+los otros tres se les olvidó. Se les enseña el mismo gesto: si el assert
+devuelve verde, cierran las alertas **de su fase y solo de su fase**; si lanza,
+abren una, como hasta hoy. **En rojo no se cierra nada** — lo contrario sería el
+defecto opuesto.
+
+**🔴 El hueco que NO cubre, declarado antes de que muerda.**
+`private.registrar_ajuste_si_mes_cerrado()` no es un vigía y también escribe en
+esa tabla, con la fase `f6c_ajuste_sin_episodio`. No tiene assert ni vigía: es
+una función de negocio que dispara por lead. Cero filas en toda la historia, pero
+si dispara una vez vuelve a bloquear la demolición para siempre. **No se arregla
+aquí a propósito** (tocar una función de negocio que escribe la deuda del mes
+sellado es otra decisión, y la salida buena probablemente sea reconocer que ese
+aviso es un rastro histórico por lead, no un estado que vuelva a verde). Se deja
+**medible en vez de silencioso**: `private.vigia_alertas_sin_cierre()` nombra
+cualquier fase con alertas abiertas que ningún vigía sabe cerrar.
+
+**Ensayo contra producción (transacción deshecha, nada escrito):** el postflight
+prueba los dos casos reales — el vigía de analítica, **verde**, cerró sus 13 y
+**no tocó** las 16 de f5a ni las 16 de f7; el de vigencia, en **rojo de verdad**
+(`public.proteger_campos_inmutables()`), **no cerró ninguna** y dejó constancia.
+
+**Mutante: `MUTANTE_VIGIAS_CAZADO por los 5 filos`** — en verde cierra lo suyo ·
+en verde no toca lo ajeno · en rojo no cierra y deja constancia · una fase
+huérfana aparece en `vigia_alertas_sin_cierre()` · y ningún vigía la cierra por
+error. Producción quedó intacta (45 abiertas, 0 resueltas, 0 filas del mutante).
+
+
 ## ✅ `20260922153708` — El techo del vigilante, por clase — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
 
 Aplicada con `supabase db query --linked --file` y registrada con
