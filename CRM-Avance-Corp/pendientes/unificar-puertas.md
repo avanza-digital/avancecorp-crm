@@ -68,11 +68,43 @@ declaración.
    - conciliación **bruto ↔ neto** (la diferencia debe ser exactamente el ajuste).
 2. **Mutantes que muerdan de verdad**, con diferencias numéricas reales: deuda
    mayor que el bruto, cambio de roster, mes abierto contra mes cerrado.
-3. **C6, en su objeto correcto.** Verificado hoy: `crm.cerrar_periodo` **NO
-   menciona** `cierres_sin_episodio`. El literal `'cierres_sin_episodio', 0` está
-   en la LECTURA (`20260904210831:1480`), y quienes lo publican son
-   `crm.metricas_vendedores_fn` y `crm.conversion_mensual_sin_cartera_fn`.
-   **Arreglar la #12 no quitaría ese cero.** Hay que tocar escritura **y** lectura.
+3. **C6, localizado con precisión (22/09) y con su razón leída.**
+   `crm.cerrar_periodo` **NO menciona** `cierres_sin_episodio`. El literal vive
+   en `crm.conversion_mensual_sin_cartera_fn`, y esa misma función tiene **las
+   dos** ramas:
+
+   | Rama | Qué publica |
+   |---|---|
+   | mes **SELLADO** | `'cierres_sin_episodio', 0` ← el literal |
+   | mes **ABIERTO** | `(select s.cierres_sin_episodio from sonda s)` ← la medida real |
+
+   Y el código explica por qué: *«la sonda se calculaba sobre datos vivos; en un
+   mes sellado no se recalcula (mentiría sobre el momento del sello) y se
+   declara en cero, que es lo que la foto puede afirmar»*.
+
+   🔑 **El razonamiento es medio correcto y por eso el arreglo no es obvio.** Es
+   cierto que recalcular sobre datos vivos mentiría sobre el momento del sello.
+   Pero declarar **cero** es afirmar «no hubo cierres sin episodio», y eso no se
+   sabe: la foto no puede afirmarlo, solo puede callarlo. Las tres salidas, de
+   peor a mejor:
+
+   - dejar el cero → **un mes puede sellarse con la sonda en rojo y salir en
+     verde para siempre**. Es el defecto.
+   - publicar `null` → honesto («no medido»), y no cuesta nada. Pero pierde el dato.
+   - **capturar la sonda AL SELLAR y guardarla en la foto** → es lo correcto, y
+     es lo que hace falta de verdad. Exige tocar `crm.cerrar_periodo` (el
+     escritor) **y** la rama sellada del lector.
+
+   ⚠️ Y hay un orden que resolver, que también señaló el revisor: `cerrar_periodo`
+   inserta en `periodos_cerrados` **antes** que las filas de la foto. Leer la
+   mensual entre ambos pasos observaría una foto incompleta. La sonda hay que
+   capturarla **antes** de marcar el período como cerrado, o después de escribir
+   todas las filas — pero no en medio.
+
+   Para los meses ya sellados antes de este cambio, la clave debe ser `null`, no
+   0: no se puede inventar hacia atrás lo que nunca se midió. **Hoy no hay
+   ninguno** (`crm.periodos_cerrados` está vacío), así que es la mejor ventana
+   para arreglarlo y no se repite.
 4. **Decidir cuándo se captura la sonda del sello.** La #12 inserta
    `periodos_cerrados` **antes** que las filas de la foto: leer la mensual entre
    ambos pasos observaría una foto incompleta.
