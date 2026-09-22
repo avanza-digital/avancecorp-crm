@@ -1,4 +1,4 @@
--- MUTANTE del trinquete de la analitica (P-055 F6.a). DIEZ filos; el gate
+-- MUTANTE del trinquete de la analitica (P-055 F6.a). DIECISEIS filos; el gate
 -- ENTERO (private.assert_analitica_leads_citas) tiene que ponerse rojo en todos.
 -- Termina SIEMPRE en raise exception: todo se deshace.
 do $$
@@ -98,8 +98,88 @@ begin
   exception when others then null; end;
   execute 'alter table private.analitica_leads_citas_tope enable trigger trg_analitica_lc_tope_solo_baja';
 
+  -- m11: AFLOJAR una clase (analitica -> operativo) -> el candado rebota.
+  --      Es el unico camino por el que el techo podria ceder sin migracion:
+  --      reetiquetar y re-sellar. Tiene que ser imposible.
+  begin
+    update private.analitica_leads_citas_exenciones set clase = 'operativo'
+     where objeto = 'crm.cerrar_periodo(date)';
+    v_aux := 'NO';
+  exception when others then v_aux := 'si'; end;
+  if v_aux <> 'si' then
+    f := f || ' [m11] la clase se dejo aflojar;';
+    update private.analitica_leads_citas_exenciones set clase = 'analitica'
+     where objeto = 'crm.cerrar_periodo(date)';
+  end if;
+
+  -- m12: quitar el candado de la clase -> el assert lo nota SIN que nadie
+  --      reetiquete nada (mismo patron que m10 con el candado del tope).
+  execute 'alter table private.analitica_leads_citas_exenciones disable trigger trg_analitica_lc_clase_solo_aprieta';
+  begin perform private.assert_analitica_leads_citas(); f := f || ' [m12] no noto el candado de la clase apagado;';
+  exception when others then null; end;
+  execute 'alter table private.analitica_leads_citas_exenciones enable trigger trg_analitica_lc_clase_solo_aprieta';
+
+  -- m13: APRETAR una clase (operativo -> analitica) si se permite, y entonces
+  --      la poblacion vigilada sube por encima del techo: el trinquete tiene
+  --      que saltar. Prueba que el conteo nuevo -- el que solo mira
+  --      analitica/mixta -- de verdad muerde, y no solo que existe.
+  update private.analitica_leads_citas_exenciones set clase = 'analitica'
+   where objeto = 'crm.cola_accion_fn(integer)';
+  update private.analitica_lc_sello set sello = private.huella_exenciones_analitica_lc() where id;
+  begin perform private.assert_analitica_leads_citas(); f := f || ' [m13] no noto que la analitica subio por encima del techo;';
+  exception when others then
+    if sqlerrm not like '%solo deja bajar%' then f := f || format(' [m13] rojo por OTRA razon (%s);', sqlerrm); end if;
+  end;
+  -- Restaurar: aflojar rebotaria, asi que el candado se apaga un instante.
+  execute 'alter table private.analitica_leads_citas_exenciones disable trigger trg_analitica_lc_clase_solo_aprieta';
+  update private.analitica_leads_citas_exenciones set clase = 'operativo'
+   where objeto = 'crm.cola_accion_fn(integer)';
+  execute 'alter table private.analitica_leads_citas_exenciones enable trigger trg_analitica_lc_clase_solo_aprieta';
+  update private.analitica_lc_sello set sello = private.huella_exenciones_analitica_lc() where id;
+
+  -- m14: reetiquetar SIN re-sellar -> el sello tiene que notarlo. Prueba que
+  --      la clase entra de verdad en la huella de la lista. Se elige una fila
+  --      de FUERA del censo para aislar el filo: si se tocara una del censo
+  --      saltaria antes el techo y este control no quedaria probado.
+  select clase into v_aux from private.analitica_leads_citas_exenciones
+   where objeto = 'crm.resumen_cartera_fn()';
+  update private.analitica_leads_citas_exenciones set clase = 'analitica'
+   where objeto = 'crm.resumen_cartera_fn()';
+  begin perform private.assert_analitica_leads_citas(); f := f || ' [m14] la clase no entra en el sello;';
+  exception when others then
+    if sqlerrm not like '%sin re-sellarse%' then f := f || format(' [m14] rojo por OTRA razon (%s);', sqlerrm); end if;
+  end;
+  execute 'alter table private.analitica_leads_citas_exenciones disable trigger trg_analitica_lc_clase_solo_aprieta';
+  update private.analitica_leads_citas_exenciones set clase = v_aux
+   where objeto = 'crm.resumen_cartera_fn()';
+  execute 'alter table private.analitica_leads_citas_exenciones enable trigger trg_analitica_lc_clase_solo_aprieta';
+
+  -- m15: colar un sujeto DEL CENSO como 'verificador' (la etiqueta que no
+  --      consume cupo) y re-sellar -> el assert tiene que negarse. Se parte de
+  --      un 'operativo', porque aflojar desde 'analitica' ya rebota en m11.
+  update private.analitica_leads_citas_exenciones set clase = 'verificador'
+   where objeto = 'crm.cola_accion_fn(integer)';
+  update private.analitica_lc_sello set sello = private.huella_exenciones_analitica_lc() where id;
+  begin perform private.assert_analitica_leads_citas(); f := f || ' [m15] dejo colar un verificador dentro del censo;';
+  exception when others then
+    if sqlerrm not like '%declaro verificador%' then f := f || format(' [m15] rojo por OTRA razon (%s);', sqlerrm); end if;
+  end;
+  update private.analitica_leads_citas_exenciones set clase = 'operativo'
+   where objeto = 'crm.cola_accion_fn(integer)';
+  update private.analitica_lc_sello set sello = private.huella_exenciones_analitica_lc() where id;
+
+  -- m16: quitar el NOT NULL de la clase -> el assert lo nota SIN que ninguna
+  --      fila se quede sin clase todavia (una declaracion futura podria nacer
+  --      sin clasificar, y eso ya es el agujero).
+  execute 'alter table private.analitica_leads_citas_exenciones alter column clase drop not null';
+  begin perform private.assert_analitica_leads_citas(); f := f || ' [m16] no noto que la clase dejo de ser obligatoria;';
+  exception when others then
+    if sqlerrm not like '%obligatoria%' then f := f || format(' [m16] rojo por OTRA razon (%s);', sqlerrm); end if;
+  end;
+  execute 'alter table private.analitica_leads_citas_exenciones alter column clase set not null';
+
   if f <> '' then
     raise exception 'MUTANTE_ANALITICA_SOBREVIVIO en el/los filo(s):% (todo deshecho)', f;
   end if;
-  raise exception 'MUTANTE_ANALITICA_CAZADO por los 10 filos. Punto de partida: %. TODO DESHECHO.', r;
+  raise exception 'MUTANTE_ANALITICA_CAZADO por los 16 filos. Punto de partida: %. TODO DESHECHO.', r;
 end $$;

@@ -81,7 +81,7 @@ if (args.has('--mutante')) {
   if (!m.includes('MUTANTE_ANALITICA_CAZADO')) {
     fallar('El mutante no llego a su veredicto (no dijo ni CAZADO ni SOBREVIVIO).', m);
   }
-  console.log('✅ Mutante cazado por los diez filos: cada uno ejecuta el gate REAL y lo hace reventar.');
+  console.log('✅ Mutante cazado por los dieciséis filos: cada uno ejecuta el gate REAL y lo hace reventar.');
 }
 
 console.log('\nGate de analitica de leads y citas en verde.');
