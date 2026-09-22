@@ -204,10 +204,13 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
   })
   it('el acceso Avance no convierte hasta confirmar el contrato compartido',async()=>{
     const {user,recargar,convertir}=montar();await entrar(user,'Avance')
+    expect(screen.queryByLabelText('Nombre completo')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('textbox').slice(0, 2)).toEqual([screen.getByLabelText('Apellidos'), screen.getByLabelText('Nombres')])
     expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue(fichaF5.persona.correo)
     await user.type(screen.getByLabelText('Nombres'),'PERSONA');await user.type(screen.getByLabelText('Apellidos'),'PRUEBA CONVERSIÓN')
     await user.type(screen.getByLabelText('Domicilio legal'),'AVENIDA SINTETICA 123 LIMA')
     await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(vigente!.datos!.alta_portal).toMatchObject({nombres:'PERSONA',apellidos:'PRUEBA CONVERSIÓN',nombre_completo:'PERSONA PRUEBA CONVERSIÓN'})
     await user.click(await screen.findByRole('button',{name:'Completar acceso Avance'}))
     await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
     expect(screen.getByTestId('origen-tasa')).toHaveTextContent(LEAD);expect(screen.getByTestId('analista')).toHaveTextContent(ACTOR_F5)
