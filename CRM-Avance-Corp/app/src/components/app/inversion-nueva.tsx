@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,11 +17,13 @@ import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { CrmApiError, mensajeDeError, prepararPayloadContrato, type CrearContratoInput, type CondicionesTasaLead } from '@/data/crm-api'
 import { completarAccesoInversion, confirmarSolicitudInversion, consultarSolicitudInversion, corregirSolicitudInversion,
   prepararSolicitudInversion, revisarResponsableInversion, subirComprobanteInversion, obtenerContextoConversionInversion, enviarBienvenidaInversion, cancelarSolicitudInversion } from '@/data/inversion-solicitud-api'
-import { contratoDeSolicitud, datosAvanceRevisados, guardarIntentoInversion, leerIntentoInversion,
-  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde, type ConfirmacionInversion, type DatosInversion,
-  type IntentoInversion, type SolicitudInversion } from '@/lib/inversion-solicitud'
+import { contratoDeSolicitud, datosAvanceRevisados, guardarBorradorAcceso, guardarBorradorCondiciones, guardarIntentoInversion,
+  leerBorradorAcceso, leerBorradorCondiciones, leerIntentoInversion, limpiarBorradorAcceso, limpiarBorradorCondiciones,
+  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde,
+  type ConfirmacionInversion, type DatosBorradorAcceso, type DatosInversion, type IntentoInversion, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
+import { CORREO_RE } from '@/lib/validacion'
 import { parseMonto, ERROR_MONTO } from '@/lib/numero'
 import { fmtFecha, money, type Moneda } from '@/lib/format'
 import { INFO_COOPERATIVA, monedaPorDefecto, pideMoneda, type Cooperativa } from '@/lib/cierres-externos'
@@ -60,6 +62,8 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   const [bienvenida, setBienvenida] = useState<string | null>(null)
   const [perfilCreado, setPerfilCreado] = useState<string | null>(null)
   const [referencia, setReferencia] = useState('')
+  const [borradorSinGuardar, setBorradorSinGuardar] = useState(false)
+  const [confirmarCierreSinGuardar, setConfirmarCierreSinGuardar] = useState(false)
   const cerro = useRef(false)
   const enCurso = useRef(false)
   const descargaPdf = useRef<AbortController | null>(null)
@@ -107,6 +111,10 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     setGuardado(previo => ({...previo, error: null}))
     setError(null)
     setEmpresa(s.datos.empresa)
+    if (s.datos.empresa === 'avance' && s.necesita_portal) {
+      try {setEditar(Boolean(leerBorradorAcceso(actor, persona, origenLead?.id, s.solicitud_id)))}
+      catch { /* La solicitud del servidor sigue siendo recuperable. */ }
+    }
     recibir(s)
   }
   const [recuperarId, setRecuperarId] = useState(guardado.intento?.clave ?? origenLead?.solicitudId)
@@ -146,12 +154,18 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined)
     // Si el navegador no permite guardar la recuperación, no enviamos el alta.
     guardar(i)
+    limpiarBorradorAcceso(actor, persona, origenLead?.id)
+    setBorradorSinGuardar(false)
     recibir(await prepararSolicitudInversion(i))
   }
   async function revisarDatos(datos: DatosInversion) {
     if (!intento) {await preparar(datos); return}
     if (!solicitud?.datos) throw new Error('Consulta primero la solicitud pendiente.')
-    if (mismoContenidoInversion(datos, solicitud.datos)) {setEditar(false); return}
+    if (mismoContenidoInversion(datos, solicitud.datos)) {
+      limpiarBorradorAcceso(actor, persona, origenLead?.id)
+      limpiarBorradorCondiciones(actor, persona, origenLead?.id)
+      setBorradorSinGuardar(false); setEditar(false); return
+    }
     const motivoEfectivo = solicitud.datos.empresa === 'avance' && !solicitud.datos.contrato?.capital
       ? 'Completar condiciones contractuales después de preparar el acceso Avance' : motivo.trim()
     if (motivoEfectivo.length < 10) throw new Error('Indica un motivo de al menos 10 caracteres, sin datos personales.')
@@ -159,6 +173,9 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     guardar(i)
     recibir(await corregirSolicitudInversion(i))
     const limpio: IntentoInversion = {...i}; delete limpio.correccion; guardar(limpio)
+    limpiarBorradorAcceso(actor, persona, origenLead?.id)
+    limpiarBorradorCondiciones(actor, persona, origenLead?.id)
+    setBorradorSinGuardar(false)
     setEditar(false); setMotivo('')
   }
   const datos = solicitud?.datos ?? intento?.datos
@@ -170,16 +187,27 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
       moneda: INFO_COOPERATIVA[empresa].monedas.includes(origenLead.moneda) ? origenLead.moneda : monedaPorDefecto(empresa),
     } : {})}
   const puedeOperar = ficha?.capacidades.nueva_inversion === true
+  const borradorCondiciones = useMemo(() => {
+    if (!intento || !solicitud || !datos?.alta_portal) return null
+    try {return leerBorradorCondiciones(actor, persona, origenLead?.id, intento.clave, solicitud.revision_datos)}
+    catch {return null}
+  }, [actor, persona, origenLead?.id, intento, solicitud, datos?.alta_portal])
   const cerrar = () => {
     if (enCurso.current) return
+    if (borradorSinGuardar && !confirmarCierreSinGuardar) {setConfirmarCierreSinGuardar(true); return}
     if (confirmacion) limpiarIntentosInversion(actor, persona, origenLead?.id)
     onCerrar()
+  }
+  const estadoBorrador = (sinGuardar: boolean) => {
+    setBorradorSinGuardar(sinGuardar)
+    setConfirmarCierreSinGuardar(false)
   }
   const origenReinversion = solicitud?.reinversion_origen_id ?? intento?.reinversion_origen_id ?? (operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : null)
   const cabecera = (titulo: string) => <DialogHeader><DialogTitle>{titulo}</DialogTitle>
     {ficha && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{ficha.persona.nombre}</p>}
     {origenReinversion && <p className="text-sm text-muted-foreground">Reinversión vinculada a una inversión anterior{operacion?.fuente.numero ? ` · ${operacion.fuente.numero}` : ''}. Su registro original se conserva.</p>}</DialogHeader>
   const alerta = error && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive-text [overflow-wrap:anywhere]">{error}</p>
+  const mostrarPasos = empresa === 'avance' && !confirmacion && (!perfil || Boolean(datos?.alta_portal))
   let cuerpo
   if (!ficha || recuperando) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody>
     {fichaQ.isError ? <PanelError mensaje={mensajeDeError(fichaQ.error, 'No se pudo verificar el acceso.')}
@@ -258,21 +286,41 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     <p className="text-sm">Estos son los datos que enviaste. Recupera esta actualización antes de continuar.</p>
     <ResumenRevision datos={intento.correccion.datos} />
     <Button className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
-      recibir(await corregirSolicitudInversion(intento)); const i = {...intento}; delete i.correccion; guardar(i); setEditar(false)
+      recibir(await corregirSolicitudInversion(intento)); const i = {...intento}; delete i.correccion; guardar(i)
+      limpiarBorradorAcceso(actor, persona, origenLead?.id)
+      limpiarBorradorCondiciones(actor, persona, origenLead?.id); setEditar(false)
     })}>Recuperar actualización pendiente</Button>
     <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
-      recibir(await consultarSolicitudInversion(intento.clave)); const i = {...intento}; delete i.correccion; guardar(i); setEditar(false)
+      recibir(await consultarSolicitudInversion(intento.clave)); const i = {...intento}; delete i.correccion; guardar(i)
+      limpiarBorradorAcceso(actor, persona, origenLead?.id)
+      limpiarBorradorCondiciones(actor, persona, origenLead?.id); setEditar(false)
     })}>Descartar esta corrección y revisar la versión del servidor</Button>{alerta}
   </DialogBody></>
-  else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<DialogBody className="space-y-4">
-    <p className="text-sm">Para su primera inversión Avance, completa sus datos de acceso. Después podrás elegir las condiciones y revisar el contrato.</p>
-    {!intento ? <AltaAvance correo={ficha.persona.correo ?? ''} telefono={ficha.persona.telefono ?? ''}
-      ocupado={ocupado} onContinuar={alta => ejecutar(async () => preparar({...base, alta_portal: alta,
-        contrato: {moneda: 'PEN'}, cronograma: [], cuenta: {}}))} />
-      : <><p className="text-sm">{datos?.alta_portal?.correo}</p><Button disabled={ocupado} onClick={() => void ejecutar(async () => {
-        const r = await completarAccesoInversion(intento)
-        setPerfilCreado(r.perfil_id); recibir(await consultarSolicitudInversion(intento.clave)); await fichaQ.refetch()
-      })}>{ocupado ? 'Completando acceso…' : 'Completar acceso Avance'}</Button></>}{alerta}
+  else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<PasosAcceso actual={1} /><DialogBody className="space-y-4">
+    <p className="text-sm">Completa los datos de acceso para su primera inversión Avance. Después elegirás las condiciones y revisarás el contrato.</p>
+    {!intento || editar ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} lead={origenLead?.id}
+      solicitud={intento?.clave ?? null} inicial={datos?.alta_portal} correo={ficha.persona.correo ?? ''}
+      telefono={ficha.persona.telefono ?? ''} ocupado={ocupado} onEstadoBorrador={estadoBorrador}
+      onContinuar={alta => ejecutar(async () => {
+        if (intento) await revisarDatos({...base, alta_portal: alta})
+        else await preparar({...base, alta_portal: alta, contrato: {moneda: 'PEN'}, cronograma: [], cuenta: {}})
+      })} />
+      : <div className="space-y-3">
+        <p className="text-sm font-medium">Revisa estos datos antes de crear el acceso del cliente.</p>
+        <dl className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 text-sm [overflow-wrap:anywhere] sm:grid-cols-2">
+          <div><dt className="text-muted-foreground">Apellidos y nombres</dt><dd>{datos?.alta_portal?.apellidos} {datos?.alta_portal?.nombres}</dd></div>
+          <div><dt className="text-muted-foreground">Correo de acceso Avance</dt><dd className="font-semibold">{datos?.alta_portal?.correo}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-muted-foreground">Domicilio legal para el contrato</dt><dd>{datos?.alta_portal?.domicilio}</dd></div>
+        </dl>
+        <p className="text-xs text-muted-foreground">Confirma que el cliente puede recibir mensajes en ese correo. Puedes corregirlo antes de crear el acceso.</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button variant="outline" disabled={ocupado} onClick={() => setEditar(true)}>Corregir datos de acceso</Button>
+          <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
+            const r = await completarAccesoInversion(intento)
+            setPerfilCreado(r.perfil_id); recibir(await consultarSolicitudInversion(intento.clave)); await fichaQ.refetch()
+          })}>{ocupado ? 'Completando acceso…' : 'Completar acceso Avance'}</Button>
+        </div>
+      </div>}{alerta}
   </DialogBody></>
   else if (empresa === 'avance' && perfil && (!datos?.contrato?.capital || editar || !intento)) {
     const borrador = contratoDeSolicitud(base, perfil)
@@ -282,6 +330,14 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
         <Input id="f5-motivo" value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={500} /></div>}
       {alerta && <div className="px-5 pt-3">{alerta}</div>}
       <ContratoNuevo key={`${perfil}:${solicitud?.revision_datos ?? 'nuevo'}`} clienteId={perfil} clienteNombre={ficha.persona.nombre}
+        indicadorPaso={mostrarPasos ? <PasosAcceso actual={2} /> : undefined}
+        borradorLocal={mostrarPasos ? borradorCondiciones : undefined}
+        onBorradorLocal={mostrarPasos && intento && solicitud ? condiciones => {
+          try {
+            guardarBorradorCondiciones(actor, persona, origenLead?.id, intento.clave, solicitud.revision_datos, condiciones)
+            estadoBorrador(false)
+          } catch {estadoBorrador(true)}
+        } : undefined}
         leadOrigenId={origenLead?.tipoDocumento === 'DNI' ? origenLead.id : undefined} condicionesIniciales={origenLead?.condiciones}
         {...(origenLead ? {montoSugerido: origenLead.monto, monedaSugerida: origenLead.moneda} : {})}
         categoriaFija={(operacion?.tipo !== 'reinversion' ? operacion?.tipo : undefined) ?? borrador?.categoria ?? 'nuevo'} borrador={borrador}
@@ -303,7 +359,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
         else await preparar(d, id)
       })} />{alerta}
   </DialogBody></>
-  else cuerpo = <>{cabecera('Revisar inversión')}<DialogBody className="space-y-4">
+  else cuerpo = <>{cabecera('Revisar inversión')}{mostrarPasos && <PasosAcceso actual={3} />}<DialogBody className="space-y-4">
     <ResumenRevision datos={base} />
     {solicitud?.identidad_fusionada && <p className="text-sm">La identidad fue unificada. Los antecedentes originales se conservan.</p>}
     <p className="text-sm">Responsable actual: {ficha.persona.responsable_nombre}</p>
@@ -327,11 +383,14 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     {alerta}
     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">Referencia: {intento?.clave}. Revisión {solicitud?.revision_datos}.</p>
   </DialogBody></>
-  return <Dialog open onClose={cerrar} ariaLabel="Nueva inversión" className="w-[760px]">
+  return <Dialog open onClose={cerrar} ariaLabel="Nueva inversión" className={empresa === 'avance' && !perfil ? 'w-[620px]' : 'w-[760px]'}>
     {verificacionPendiente && <div className="space-y-2 border-b border-border px-5 py-3">
       <p role="alert" className="text-sm">No pudimos actualizar los permisos. Conservamos tus datos; vuelve a verificarlos para continuar.</p>
       <Button variant="outline" disabled={fichaQ.isFetching} onClick={() => void fichaQ.refetch()}>Verificar y continuar</Button>
     </div>}
+    {borradorSinGuardar && <p role="alert" className="border-b border-border px-5 py-2 text-xs text-destructive-text">
+      No se están guardando los cambios recientes en esta pestaña. Mantén abierto el formulario o vuelve a intentar.
+    </p>}
     <fieldset disabled={verificacionPendiente} className="contents">{cuerpo}</fieldset>
     {solicitud?.estado === 'preparada' && !confirmacion && <div className="space-y-2 border-t border-border px-5 py-3">
       {cancelando ? <>
@@ -344,29 +403,108 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
         </div>
       </> : <Button variant="ghost" disabled={ocupado || verificacionPendiente} onClick={() => setCancelando(true)}>Cancelar solicitud</Button>}
     </div>}
-    <DialogFooter><Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={cerrar}>{confirmacion ? 'Volver a la ficha' : 'Cerrar y continuar después'}</Button></DialogFooter>
+    {confirmarCierreSinGuardar && <p role="alert" className="border-t border-border px-5 py-2 text-xs text-destructive-text">
+      No se pudo guardar lo último que escribiste en esta pestaña. Si cierras, perderás esos cambios.
+    </p>}
+    <DialogFooter><Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={cerrar}>
+      {confirmacion ? 'Volver a la ficha' : confirmarCierreSinGuardar ? 'Cerrar sin guardar' : 'Cerrar y continuar después'}
+    </Button></DialogFooter>
   </Dialog>
 }
 
-function AltaAvance({correo, telefono, ocupado, onContinuar}: {
-  correo: string; telefono: string; ocupado: boolean; onContinuar: (datos: AltaPortal) => Promise<void>
+function PasosAcceso({actual}: {actual: 1 | 2 | 3}) {
+  const pasos = ['Acceso', 'Condiciones', 'Revisión'] as const
+  return <nav aria-label="Progreso de primera inversión Avance" className="border-b border-border px-5 py-3">
+    <p className="mb-2 text-xs text-muted-foreground">Paso {actual} de 3</p>
+    <ol className="grid grid-cols-3 gap-2">
+      {pasos.map((nombre, indice) => {
+        const numero = (indice + 1) as 1 | 2 | 3
+        return <li key={nombre} aria-current={actual === numero ? 'step' : undefined}
+          className={`flex min-w-0 items-center gap-1.5 text-[11px] sm:text-xs ${actual === numero ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+          <span aria-hidden="true" className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] ${actual >= numero ? 'bg-primary text-primary-foreground' : 'border border-border'}`}>{numero}</span>
+          <span className="truncate">{nombre}</span>
+        </li>
+      })}
+    </ol>
+  </nav>
+}
+
+function AltaAvance({actor, persona, lead, solicitud, inicial, correo, telefono, ocupado, onEstadoBorrador, onContinuar}: {
+  actor: string; persona: string; lead?: string | undefined; solicitud: string | null; inicial?: AltaPortal | undefined
+  correo: string; telefono: string; ocupado: boolean
+  onEstadoBorrador: (sinGuardar: boolean) => void; onContinuar: (datos: AltaPortal) => Promise<void>
 }) {
-  const [datos, setDatos] = useState<Omit<AltaPortal, 'nombre_completo'>>({correo, telefono, nombres: '', apellidos: '', domicilio: ''})
-  const [error, setError] = useState('')
-  const campos = {apellidos: 'Apellidos', nombres: 'Nombres', correo: 'Correo de acceso Avance', telefono: 'Teléfono', domicilio: 'Domicilio legal'} as const
-  return <form className="grid gap-3 sm:grid-cols-2" onSubmit={e => {
-    e.preventDefault(); const domicilio = validarDomicilioLegal(datos.domicilio)
-    if (!domicilio.ok) {setError(domicilio.error); return}
+  const [inicio] = useState(() => {
+    const base: DatosBorradorAcceso = inicial
+      ? {apellidos: inicial.apellidos, nombres: inicial.nombres, correo: inicial.correo,
+          telefono: inicial.telefono, domicilio: inicial.domicilio}
+      : {apellidos: '', nombres: '', correo, telefono, domicilio: ''}
+    try {
+      const recuperado = leerBorradorAcceso(actor, persona, lead, solicitud)
+      return {datos: recuperado ?? base, estado: recuperado ? 'recuperado' : 'vacio'} as const
+    } catch {return {datos: base, estado: 'error'} as const}
+  })
+  const [datos, setDatos] = useState<DatosBorradorAcceso>(inicio.datos)
+  const [estado, setEstado] = useState<'vacio' | 'guardado' | 'recuperado' | 'error'>(inicio.estado)
+  const [errores, setErrores] = useState<Partial<Record<keyof DatosBorradorAcceso, string>>>({})
+  const cambiar = (campo: keyof DatosBorradorAcceso, valor: string) => {
+    const nuevos = {...datos, [campo]: valor}
+    setDatos(nuevos)
+    setErrores(actual => ({...actual, [campo]: undefined}))
+    try {
+      guardarBorradorAcceso(actor, persona, lead, solicitud, nuevos)
+      setEstado('guardado'); onEstadoBorrador(false)
+    } catch {
+      setEstado('error'); onEstadoBorrador(true)
+    }
+  }
+  const campo = (nombre: keyof DatosBorradorAcceso, etiqueta: string) => {
+    const ayuda = nombre === 'correo' ? 'f5-alta-correo-ayuda' : nombre === 'domicilio' ? 'f5-alta-domicilio-ayuda' : null
+    const errorId = errores[nombre] ? `f5-alta-${nombre}-error` : null
+    return <div key={nombre} className="min-w-0 space-y-1">
+      <Label htmlFor={`f5-alta-${nombre}`}>{etiqueta}</Label>
+      <Input id={`f5-alta-${nombre}`} type={nombre === 'correo' ? 'email' : nombre === 'telefono' ? 'tel' : 'text'} required
+        autoComplete={{apellidos: 'family-name', nombres: 'given-name', correo: 'email', telefono: 'tel', domicilio: 'street-address'}[nombre]}
+        inputMode={nombre === 'correo' ? 'email' : nombre === 'telefono' ? 'tel' : undefined}
+        value={datos[nombre]} disabled={ocupado} maxLength={nombre === 'domicilio' ? 300 : 180}
+        aria-invalid={Boolean(errores[nombre])} aria-describedby={[ayuda, errorId].filter(Boolean).join(' ') || undefined}
+        onChange={e => cambiar(nombre, e.target.value)} />
+      {nombre === 'correo' && <p id="f5-alta-correo-ayuda" className="text-xs text-muted-foreground">Con este correo el cliente ingresará a Avance. Confírmalo antes de crear el acceso.</p>}
+      {nombre === 'domicilio' && <p id="f5-alta-domicilio-ayuda" className="text-xs text-muted-foreground">Dirección que figurará en el contrato. Incluye calle y número, lote o manzana; distrito y ciudad. Ej.: Av. Javier Prado Este 123, San Isidro, Lima.</p>}
+      {errores[nombre] && <p id={errorId!} role="alert" className="text-xs text-destructive-text">{errores[nombre]}</p>}
+    </div>
+  }
+  return <form className="space-y-5" noValidate onSubmit={e => {
+    e.preventDefault()
     const nombres = datos.nombres.trim(), apellidos = datos.apellidos.trim()
-    if (!apellidos || !nombres) {setError('Completa los apellidos y nombres.'); return}
-    setError(''); void onContinuar({...datos, nombres, apellidos, nombre_completo: `${nombres} ${apellidos}`})
+    const correoValidado = datos.correo.trim(), telefonoValidado = datos.telefono.trim()
+    const domicilio = validarDomicilioLegal(datos.domicilio)
+    const nuevosErrores: typeof errores = {}
+    if (!apellidos) nuevosErrores.apellidos = 'Completa los apellidos del cliente.'
+    if (!nombres) nuevosErrores.nombres = 'Completa los nombres del cliente.'
+    if (!CORREO_RE.test(correoValidado)) nuevosErrores.correo = 'Escribe un correo de acceso válido.'
+    if (!telefonoValidado) nuevosErrores.telefono = 'Completa el teléfono del cliente.'
+    if (!domicilio.ok) nuevosErrores.domicilio = domicilio.error
+    setErrores(nuevosErrores)
+    const primero = Object.keys(nuevosErrores)[0]
+    if (primero) {document.getElementById(`f5-alta-${primero}`)?.focus(); return}
+    if (!domicilio.ok) return
+    void onContinuar({...datos, nombres, apellidos, correo: correoValidado, telefono: telefonoValidado,
+      domicilio: domicilio.valor, nombre_completo: `${nombres} ${apellidos}`})
   }}>
-    {(Object.keys(campos) as (keyof typeof campos)[]).map(k => <div key={k} className="min-w-0 space-y-1">
-      <Label htmlFor={`f5-alta-${k}`}>{campos[k]}</Label><Input id={`f5-alta-${k}`} type={k === 'correo' ? 'email' : 'text'} required
-        value={datos[k]} disabled={ocupado} maxLength={k === 'domicilio' ? 300 : 180}
-        onChange={e => setDatos({...datos, [k]: e.target.value})} /></div>)}
-    {error && <p role="alert" className="text-sm text-destructive-text sm:col-span-2">{error}</p>}
-    <Button type="submit" className="sm:col-span-2" disabled={ocupado}>Revisar acceso Avance</Button>
+    <fieldset className="space-y-2"><legend className="text-sm font-semibold">Identidad</legend>
+      <div className="grid gap-3 sm:grid-cols-2">{campo('apellidos', 'Apellidos')}{campo('nombres', 'Nombres')}</div>
+    </fieldset>
+    <fieldset className="space-y-2"><legend className="text-sm font-semibold">Contacto y acceso</legend>
+      <div className="grid gap-3 sm:grid-cols-2">{campo('correo', 'Correo de acceso Avance')}{campo('telefono', 'Teléfono')}</div>
+    </fieldset>
+    <fieldset className="space-y-2"><legend className="text-sm font-semibold">Domicilio para el contrato</legend>
+      {campo('domicilio', 'Domicilio legal')}
+    </fieldset>
+    {estado === 'error' && <p role="alert" className="text-xs text-destructive-text">No se pudo guardar el borrador en esta pestaña. Conserva el formulario abierto o vuelve a intentar escribir.</p>}
+    {estado === 'recuperado' && <p role="status" className="text-xs text-muted-foreground">Recuperamos lo que escribiste en esta pestaña.</p>}
+    {estado === 'guardado' && <p role="status" className="text-xs text-muted-foreground">Borrador guardado en esta pestaña. Puedes cerrar y continuar después.</p>}
+    <Button type="submit" className="w-full" disabled={ocupado}>Revisar acceso Avance</Button>
   </form>
 }
 export function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onGuardar}: {
