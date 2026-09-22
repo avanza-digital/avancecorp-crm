@@ -109,6 +109,9 @@ formato de review, riesgo y presupuesto, invocación, autoridad) y en `.ai/VERIF
   arquitectura), 1 y máximo 2 con evidencia nueva. Codex asesora; el PRIMARY decide con evidencia.
 - Sin hallazgo sin evidencia (archivo, línea, diff, test, log). Los desacuerdos se resuelven con
   evidencia, nunca repreguntando hasta coincidir.
+- **E2E del CRM: en local con Docker, NUNCA en GitHub.** `cd CRM-Avance-Corp/app && npm run test:e2e:docker`
+  (acepta `-- <spec> --workers=2`). No añadir e2e a GitHub Actions. Docker apagado → `NOT RUN`. Detalle en
+  `.ai/VERIFICATION.md` → «E2E: SIEMPRE en local con Docker».
 - Implementar ≠ verificar: correr los checks reales del proyecto y reportar PASS/FAIL/NOT RUN;
   jamás afirmar «tests passed» sin ejecutarlos. Informe final en cambios significativos:
   IMPLEMENTED · MODIFIED · REVIEW (Codex sí/no, nivel, hallazgos aceptados/rechazados) ·
