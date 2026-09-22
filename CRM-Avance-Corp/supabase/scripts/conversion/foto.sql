@@ -21,7 +21,24 @@ do $impersonar$ begin
 end $impersonar$;
 
 with parametros as (
-  select '2026-09-01'::date as mes, '2026-09-21'::date as hasta
+  -- 🔴 LA VENTANA SE CALCULA, NO SE ESCRIBE A MANO. Estuvo fijada al
+  -- '2026-09-21' y el 22/09 la foto salió ROJA: `crm.conversion_mensual_fn`
+  -- IGNORA el `hasta` y responde por el MES ENTERO, mientras el rango y la
+  -- distribución respondían del 1 al 21. La foto comparaba un rango parcial
+  -- contra un mes completo — el mismo error que este gate existe para cazar,
+  -- dentro del propio gate. Con la ventana al día los cuatro caminos coinciden.
+  --
+  -- «Mes completo», para el mes vigente, es del día 1 A HOY: es la definición
+  -- que ya usan `periodoMesCalendario` en el front y la puerta #4 en el
+  -- servidor (`or p_hasta = v_hoy`). Y no puede pasar de hoy: la puerta valida
+  -- el rango y responde «Periodo invalido».
+  --
+  -- Para fotografiar un mes PASADO, cambiar `mes` y poner `hasta` en su último
+  -- día; para el vigente, dejarlo así.
+  select date_trunc('month', (now() at time zone 'America/Lima'))::date as mes,
+         least((now() at time zone 'America/Lima')::date,
+               (date_trunc('month', (now() at time zone 'America/Lima'))
+                 + interval '1 month' - interval '1 day')::date) as hasta
 ), ventana as (
   select mes, hasta,
          (mes::text || ' 00:00')::timestamp at time zone 'America/Lima' as ini,
@@ -44,6 +61,27 @@ with parametros as (
       'al_divisor', sum(aporte_divisor),
       'al_numerador', round(sum(aporte_numerador), 4)) x
     from ep group by tipo, origen) t
+), deuda as (
+  -- La deuda por cierres anulados de meses YA SELLADOS, pendiente de saldar.
+  select ap.vendedor_id, ap.numerador as pendiente
+  from private.ajuste_pendiente_por_vendedor() ap
+), por_analista as (
+  select e.analista_id, sum(e.aporte_divisor) as divisor, sum(e.aporte_numerador) as bruto
+  from ep e where e.analista_id is not null group by e.analista_id
+), conciliacion as (
+  -- 🔑 EL TOPE SE APLICA POR VENDEDOR, no sobre los totales.
+  -- `private.conversion_con_ajuste` es `greatest(num - pend, 0)`: si la deuda de
+  -- alguien supera su bruto, su neto es 0 y la diferencia NO es la resta limpia.
+  -- Restar sobre los totales daria otro numero, y seria un falso verde.
+  select jsonb_build_object(
+    'bruto_numerador',  round(sum(pa.bruto), 4),
+    'neto_numerador',   round(sum(private.conversion_con_ajuste(pa.bruto, d.pendiente)), 4),
+    'deuda_pendiente',  round(coalesce(sum(d.pendiente), 0), 4),
+    'deuda_aplicada',   round(sum(pa.bruto)
+                              - sum(private.conversion_con_ajuste(pa.bruto, d.pendiente)), 4),
+    'vendedores_con_deuda', count(*) filter (where coalesce(d.pendiente, 0) > 0),
+    'vendedores_topados',   count(*) filter (where coalesce(d.pendiente, 0) > pa.bruto)) j
+  from por_analista pa left join deuda d on d.vendedor_id = pa.analista_id
 ), mensual as (
   select crm.conversion_mensual_fn(v.mes) j from ventana v
 ), rango as (
@@ -77,7 +115,7 @@ with parametros as (
     'periodos_cerrados', (select count(*) from crm.periodos_cerrados)) j
 )
 select jsonb_pretty(jsonb_build_object(
-  'version', 1,
+  'version', 2,
   'mes', (select mes from ventana), 'hasta', (select hasta from ventana),
   'caminos', jsonb_build_object(
     'nucleo_directo', (select j from nucleo),
@@ -95,6 +133,7 @@ select jsonb_pretty(jsonb_build_object(
       'divisor', (select (j->'resumen'->'conversion'->>'nucleo_divisor')::numeric from distrib),
       'numerador', (select (j->'resumen'->'conversion'->>'nucleo_numerador')::numeric from distrib),
       'pct', (select (j->'resumen'->'conversion'->>'nucleo_conversion_pct')::numeric from distrib))),
+  'conciliacion', (select j from conciliacion),
   'cobertura', (select j->'cobertura' from mensual),
   'desglose', (select j from desglose),
   'analistas', (select j from analistas),

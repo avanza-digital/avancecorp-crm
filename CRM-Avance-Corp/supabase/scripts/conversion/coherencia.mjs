@@ -29,19 +29,113 @@ export function comprobarCoherencia(foto) {
   const c = foto?.caminos;
   if (!c) return { ok: false, fallos: [{ regla: 'forma', detalle: 'la foto no trae `caminos`' }], comprobadas: 0 };
 
-  // 1) LOS CUATRO CAMINOS. Ésta es la regla que hoy no vigila nadie: la sonda
-  //    del servidor compara el núcleo consigo mismo y nunca puede fallar.
+  // 1) LOS CUATRO CAMINOS, CONCILIADOS — no iguales a secas.
+  //
+  //    🔴 LA VERSIÓN ANTERIOR DE ESTA REGLA ERA INCORRECTA, y lo era de la peor
+  //    manera: exigía que los tres caminos publicados fuesen IGUALES al núcleo
+  //    directo. Pero el núcleo directo es el BRUTO por construcción (suma los
+  //    episodios), y los caminos publicados sirven el NETO (con la deuda por
+  //    cierres anulados ya descontada). Mientras no hubo ninguna deuda daba lo
+  //    mismo; en cuanto la haya, ESTA REGLA PONDRÍA EN ROJO EL TRABAJO BIEN
+  //    HECHO. Lo reprodujo Codex el 22/09: núcleo bruto 3, caminos delegados al
+  //    neto 2 -> seis diferencias y gate rojo.
+  //
+  //    La regla correcta es una conciliación de tres piezas:
+  //      · el núcleo directo dice el BRUTO,
+  //      · los tres publicados coinciden ENTRE SÍ y dicen el NETO,
+  //      · y bruto − neto es EXACTAMENTE la deuda aplicada. Ni más ni menos.
   const nombres = ['nucleo_directo', 'mensual', 'rango', 'distribucion'];
+  const publicados = nombres.slice(1);
   const base = c.nucleo_directo;
-  for (const n of nombres.slice(1)) {
+  const con = foto?.conciliacion;
+
+  //    a) LA FOTO DICE SU VERSIÓN, Y EL GATE LA RESPETA. Una foto v1 se tomó
+  //       cuando la regla vieja ERA correcta —no había ninguna deuda posible—,
+  //       así que se la juzga con la regla de su tiempo. Exigirle una
+  //       conciliación que entonces no existía sería declarar rota una foto
+  //       histórica que estaba bien.
+  const version = num(foto?.version) || 1;
+  const conciliable = version >= 2;
+
+  if (!conciliable) {
+    //    Foto v1: la regla de su tiempo —los cuatro iguales— y nada más.
+    for (const n of publicados) {
+      const v = c[n];
+      comprobadas += 1;
+      if (!v) { falla('cuatro_caminos', `falta el camino \`${n}\``); continue; }
+      for (const campo of ['divisor', 'numerador', 'pct']) {
+        if (!iguales(base?.[campo], v[campo])) {
+          falla('cuatro_caminos',
+            `\`${n}.${campo}\` = ${v[campo]} pero el núcleo directo dice ${base?.[campo]}`);
+        }
+      }
+    }
+  }
+
+  //    Foto v2: la conciliación es obligatoria.
+  if (conciliable) { comprobadas += 1; }
+  if (conciliable && !con) {
+    falla('conciliacion', 'la foto se declara versión 2 pero no trae `conciliacion`');
+  } else if (conciliable) {
+    //  b) El bruto de la conciliación y el del núcleo directo son el MISMO
+    //     número. Si no, la conciliación está mirando otra población —por
+    //     ejemplo, episodios sin analista que el núcleo sí cuenta— y todo lo
+    //     que venga después sería un falso verde.
+    comprobadas += 1;
+    if (!iguales(con.bruto_numerador, base?.numerador)) {
+      falla('conciliacion',
+        `el bruto conciliado (${con.bruto_numerador}) no es el del núcleo directo (${base?.numerador}): la conciliación mira otra población`);
+    }
+    //  c) bruto − neto = deuda aplicada, exactamente.
+    comprobadas += 1;
+    const diferencia = num(con.bruto_numerador) - num(con.neto_numerador);
+    if (!iguales(diferencia, con.deuda_aplicada, 0.0001)) {
+      falla('conciliacion',
+        `bruto − neto = ${diferencia} pero la deuda aplicada declarada es ${con.deuda_aplicada}`);
+    }
+    //  d) La deuda APLICADA nunca puede pasar de la PENDIENTE. Al revés sí:
+    //     el tope por vendedor (`greatest(num − pend, 0)`) hace que parte de la
+    //     deuda no se pueda aplicar cuando supera al bruto de esa persona.
+    comprobadas += 1;
+    if (num(con.deuda_aplicada) > num(con.deuda_pendiente) + 0.0001) {
+      falla('conciliacion',
+        `se aplicó más deuda (${con.deuda_aplicada}) de la que hay pendiente (${con.deuda_pendiente})`);
+    }
+    //  e) Y si alguien quedó topado, la diferencia entre pendiente y aplicada
+    //     tiene que estar explicada. Sin nadie topado, deben coincidir.
+    comprobadas += 1;
+    if (num(con.vendedores_topados) === 0
+        && !iguales(con.deuda_aplicada, con.deuda_pendiente, 0.0001)) {
+      falla('conciliacion',
+        `sin vendedores topados, la deuda aplicada (${con.deuda_aplicada}) debería ser toda la pendiente (${con.deuda_pendiente})`);
+    }
+  }
+
+  //    f) Los tres publicados coinciden ENTRE SÍ. Ésta es la regla que de
+  //       verdad pilla dos pantallas dando números distintos, y no depende de
+  //       si hay deuda o no.
+  const referencia = c[publicados[0]];
+  for (const n of (conciliable ? publicados.slice(1) : [])) {
     const v = c[n];
     comprobadas += 1;
     if (!v) { falla('cuatro_caminos', `falta el camino \`${n}\``); continue; }
     for (const campo of ['divisor', 'numerador', 'pct']) {
-      if (!iguales(base?.[campo], v[campo])) {
+      if (!iguales(referencia?.[campo], v[campo])) {
         falla('cuatro_caminos',
-          `\`${n}.${campo}\` = ${v[campo]} pero el núcleo directo dice ${base?.[campo]}`);
+          `\`${n}.${campo}\` = ${v[campo]} pero \`${publicados[0]}\` dice ${referencia?.[campo]}`);
       }
+    }
+  }
+  if (conciliable && !referencia) falla('cuatro_caminos', `falta el camino \`${publicados[0]}\``);
+
+  //    g) Y los publicados sirven el NETO, no el bruto. Hoy, sin deuda, neto y
+  //       bruto son el mismo número y esto pasa igual; el día que haya deuda,
+  //       una pantalla que siga sirviendo el bruto se delata aquí.
+  if (conciliable && con) {
+    comprobadas += 1;
+    if (!iguales(referencia?.numerador, con.neto_numerador)) {
+      falla('cuatro_caminos',
+        `los caminos publicados dicen ${referencia?.numerador} y el neto conciliado es ${con.neto_numerador}: alguien está sirviendo el bruto`);
     }
   }
 
