@@ -2,6 +2,7 @@
 // autorizada del servidor. Aquí sólo se valida, busca, ordena y presenta.
 import * as v from 'valibot'
 import { MarcadorSchema, UmbralesSchema, type Marcador } from './gestion-diaria-analista'
+import { CortesJornadaSchema } from './gestion-diaria-cortes'
 
 const Natural = v.pipe(v.number(), v.integer(), v.minValue(0))
 export const MOTIVOS_EQUIPO = {
@@ -36,6 +37,8 @@ export const DiaEquipoSchema = v.pipe(v.object({
   zona: v.literal('America/Lima'),
   supervisor_id: v.nullable(v.string()),
   umbrales: UmbralesSchema,
+  /** Ausente en servidores anteriores: desconocido, no completar con ceros. */
+  cortes: v.optional(CortesJornadaSchema),
   pendientes_al: v.string(),
   modo_sla: v.string(),
   equipo: v.array(FilaEquipoSchema),
@@ -49,6 +52,9 @@ export const DiaEquipoSchema = v.pipe(v.object({
 }), v.check((d) => {
   const r = resumenEquipo(d.equipo)
   return new Set(d.equipo.map((f) => f.analista_id)).size === d.equipo.length
+    && (d.cortes === undefined || (d.cortes.politica_version === d.umbrales.politica_version
+      && (d.cortes.estado !== 'activo' || (d.cortes.equipo.length === d.equipo.length
+        && d.cortes.equipo.every((f) => d.equipo.some((e) => e.analista_id === f.analista_id))))))
     && Object.keys(r).every((k) => r[k as keyof typeof r] === d.resumen[k as keyof typeof r])
     && d.equipo.every((f) => f.tareas_vencidas <= f.tareas_pendientes
       && f.requiere_atencion === (f.motivos_atencion.length > 0)
