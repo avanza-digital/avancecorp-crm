@@ -1,5 +1,82 @@
 # Ledger de migraciones — esquema `crm`
 
+## 🧪 Ola 1a — Las tres puertas de gerencia DECLARAN su fuente (ENSAYADAS, PENDIENTES DE APLICAR)
+
+| Versión | Puerta | Objeto redeclarado |
+|---|---|---|
+| `20260922232553` | #4 · el número grande de Resumen/Conversiones | `private.metricas_conversiones_implementacion(date,date,text)` |
+| `20260922233257` | #6 · conversión por equipo | `crm.metricas_conversiones_equipo_fn(date,date)` |
+| `20260922233545` | #5 · distribución de leads v3 | `private.metricas_distribucion_leads_v3_core(date,date,timestamptz)` |
+
+**Ninguna cambia un número.** Cada una añade cuatro claves informativas
+(`es_mes_calendario`, `fuente`, `sellado`, `ajuste_aplicado`) al bloque que ya
+publicaba la cifra. La sustitución por `crm.conversion_mensual_fn` va en un
+paquete aparte: primero hay que poder VER qué puerta calcula en vivo.
+
+**El orden con el front NO es el mismo para las tres — medido, no supuesto.**
+El bundle vivo es `build-20260922T221442353Z`, commit `7d65fcdb484f`, y
+`git merge-base --is-ancestor c2c9274b 7d65fcdb484f` da **NO**: todavía no lleva
+el commit que vuelve opcionales las cuatro claves.
+
+| Puerta | Cómo valida el bloque el bundle VIVO | ¿Puede entrar antes que el front? |
+|---|---|---|
+| #4 | `NucleoConversionesSchema = v.object(...)` | **SÍ** — `v.object` ignora lo que no conoce |
+| #6 | `NucleoEquipoSchema = v.object(...)` | **SÍ** — íd. |
+| #5 | `resumen.conversion: v.strictObject(...)` | 🔴 **NO** — rechaza el payload ENTERO |
+
+Por eso la #5 lleva **pestillo**: su preflight se niega a entrar salvo que en la
+misma sesión se declare `set local crm.ola1_front_publicado = 'si'`, y eso solo
+se escribe tras comprobar `version.json` → manifiesto → `merge-base`. Probado en
+los dos sentidos contra producción: sin el pestillo la migración se rechaza; con
+él, ensayo verde.
+
+El front ya está en `main` (commit `c2c9274b`), con las cuatro claves
+`v.optional` en los tres módulos y 4 tests en
+`app/src/lib/contrato-unificacion.test.ts`.
+
+**Ensayo contra producción (22/09), las tres en transacción con `rollback`:**
+payload idéntico byte a byte salvo las cuatro claves nuevas; las tres publican
+`1218 / 4,24 %`; trinquete `OK: 34 candidatos declarados y con huella vigente;
+14 de analítica/mixta sujetos`; un rango de un solo día declara
+`es_mes_calendario: false`.
+
+**Reversa de la #4, completa (no truncada).** Su declaración vive en
+`private.analitica_leads_citas_exenciones` para el objeto
+`private.metricas_conversiones_implementacion(date,date,text)`, clase `analitica`.
+Huella ANTES de esta ola:
+`8ba9cef95595808d4003521e0eefcf79`. Para revertir: volver a declarar el cuerpo
+sin las cuatro claves, escribir esa huella en la exención y refrescar
+`private.analitica_lc_sello` con `private.huella_exenciones_analitica_lc()`, todo
+en la misma transacción.
+
+**Auditoría `auditor-rls` sobre la #4: APTA CON REPAROS.** Sin P0. Aceptados y ya
+corregidos en las tres migraciones:
+
+| Reparo | Qué era | Cómo quedó |
+|---|---|---|
+| P1-1 | La promesa «ni un número movido» se comprobaba sobre 6 claves de 13 bloques, y el re-sellado sella *lo que haya*: una errata en `sondas` o `responsables` habría pasado en verde | El postflight compara el **payload entero** (menos `generado_en` y las cuatro claves) y nombra el bloque que difiere |
+| P2-1 | 🔴 **El día 1 de cada mes la migración abortaba**: la sonda «parcial» era `[día 1, día 1]`, que ESE día sí es mes calendario (`p_hasta = v_hoy`) | La sonda pasa a `[día 1 del mes anterior, +1 día]`: parcial SIEMPRE |
+| P2-3 | El gate no probaba las cuatro claves, y menos por la puerta pública | Bloque `A3` nuevo en `test-rls.mjs`: mes completo, rango parcial y lector global, **a través de `crm.metricas_conversiones_fn`**, con la regla «el contrato viaja entero o no viaja» |
+| P3-1 | El postflight solo acreditaba el dueño | Acredita dueño + `prosecdef` + `provolatile` + `proconfig` |
+| P3-2 | El postflight no repetía la guarda de «no hay gerencia» | Repetida, con su diagnóstico |
+| P3-4 | `create or replace` conserva el `COMMENT ON` viejo | Las tres refrescan el comentario |
+| P3-5 | Assert + dos evaluaciones completas en un `statement_timeout` de 60 s | 180 s en las tres |
+
+P3-3 (los claims se restauran a `''`, equivalente a «sin definir») queda anotado
+sin acción: `auth.uid()` hace `nullif(..., '')` y el GUC es local a la transacción.
+
+**Huellas del trinquete — medido, no supuesto.** Solo la #4 está en el censo de
+`private.contadores_crudos_leads_citas()` (`declarada: true, huella_ok: true`),
+así que **solo la #4 re-sella** su declaración y refresca
+`private.analitica_lc_sello`, con la normalización del censo (cuerpo en `lower`,
+sin comentarios). La #6 está declarada pero **fuera** del censo (no nombra
+`crm.leads`: `crm.lead_asignaciones` no casa con `\mcrm\.\s*leads\M`) y su
+huella ya estaba caduca **antes** de esta ola: se deja como está, porque
+escribir una huella que nadie comprueba borraría el aviso del día que entre al
+censo. La #5 ni está declarada ni está en el censo. Las tres postflight exigen
+que la situación no cambie.
+
+
 ## 🧪 `20260922225649` — La alarma de la conversión CONCILIA en vez de exigir igualdad (ENSAYADA, PENDIENTE DE APLICAR)
 
 **Ola 0 del plan de las doce puertas.** El oráculo que iba a verificar ese

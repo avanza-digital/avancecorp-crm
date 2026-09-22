@@ -7434,6 +7434,82 @@ async function testMetricasConversionesGlobal(sessions) {
       'la forma del payload sobrevive al lote vacio');
   }
 
+  // ── A3 · EL CONTRATO DE LA UNIFICACION (Ola 1a de las doce puertas) ──────
+  // Cuatro claves que dicen DE DONDE salio la cifra. Se prueban AQUI, sobre la
+  // puerta PUBLICA `crm.metricas_conversiones_fn`, no sobre su implementacion:
+  // entre las dos hay un `filtrar_desglose_sujetos_crm` y el fallo silencioso
+  // de esta casa es justo ese — la clave que se emite y no llega.
+  //
+  // El test distingue las DOS generaciones del servidor y no deja hueco:
+  //   · servidor ya migrado -> las cuatro claves, con sus valores exactos.
+  //   · servidor previo     -> las cuatro AUSENTES. Un contrato a medias
+  //                            (unas si y otras no) es un fallo, no una etapa.
+  const mesLima = (() => {
+    const hoy = enLima(ahora);              // AAAA-MM-DD en Lima
+    const [a, m] = hoy.split('-').map(Number);
+    const dia1 = `${hoy.slice(0, 7)}-01`;
+    const antA = m === 1 ? a - 1 : a;
+    const antM = m === 1 ? 12 : m - 1;
+    const pm = `${antA}-${String(antM).padStart(2, '0')}`;
+    return { dia1, hoy, parcialDesde: `${pm}-01`, parcialHasta: `${pm}-02` };
+  })();
+
+  const clavesContrato = ['es_mes_calendario', 'fuente', 'sellado', 'ajuste_aplicado'];
+  const declara = (nucleo) => clavesContrato.filter((k) => Object.hasOwn(nucleo ?? {}, k));
+
+  const mesCompleto = await positive(
+    'gerencia pide el mes calendario completo (dia 1 a hoy)',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.dia1, p_hasta: mesLima.hoy,
+    }),
+  );
+  let servidorDeclara = null;
+  if (mesCompleto) {
+    const n = mesCompleto.data?.nucleo;
+    const presentes = declara(n);
+    servidorDeclara = presentes.length === 4;
+    check(presentes.length === 0 || presentes.length === 4,
+      'el contrato de la unificacion viaja ENTERO o no viaja (nunca a medias)',
+      presentes.join(','));
+    if (servidorDeclara) {
+      check(n.es_mes_calendario === true,
+        'del dia 1 a hoy, el nucleo declara es_mes_calendario: true');
+      check(n.fuente === 'rango_vivo',
+        'mientras la puerta no delegue, la fuente es rango_vivo', String(n.fuente));
+      check(n.sellado === null,
+        'sellado es null («no se delego»), no false', JSON.stringify(n.sellado));
+      check(n.ajuste_aplicado === false,
+        'ajuste_aplicado es false: esta puerta no resta la deuda de anulacion');
+    }
+  }
+
+  const rangoParcial = await positive(
+    'gerencia pide un rango PARCIAL del mes anterior',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.parcialDesde, p_hasta: mesLima.parcialHasta,
+    }),
+  );
+  if (rangoParcial && servidorDeclara) {
+    check(rangoParcial.data?.nucleo?.es_mes_calendario === false,
+      'un rango de dos dias NO se declara mes calendario',
+      String(rangoParcial.data?.nucleo?.es_mes_calendario));
+  }
+
+  // El contrato no puede depender del rol: el lector global recibe lo mismo.
+  const mesDirectorio = await positive(
+    'directorio (lector global) pide el mismo mes calendario',
+    sessions.directorio.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.dia1, p_hasta: mesLima.hoy,
+    }),
+  );
+  if (mesDirectorio && servidorDeclara) {
+    const n = mesDirectorio.data?.nucleo;
+    check(declara(n).length === 4
+      && n.es_mes_calendario === true && n.fuente === 'rango_vivo'
+      && n.sellado === null && n.ajuste_aplicado === false,
+      'el lector global recibe las cuatro claves con los mismos valores');
+  }
+
   // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ─────────────
   // A diferencia de equipo_fn, aqui TAMBIEN los supervisores quedan fuera:
   // el gate es gerencia/lector global y nada mas.
