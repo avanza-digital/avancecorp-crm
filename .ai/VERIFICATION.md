@@ -77,7 +77,25 @@ Incluye lint, typecheck, tests con cobertura, configuración de release, build, 
 npm run check:all
 ```
 
-`check:all` añade Playwright (`npm run test:e2e`). Para una corrección puntual puede ejecutarse primero el test directamente relacionado, pero el cierre debe usar el gate proporcional al riesgo.
+`check:all` añade Playwright **en Docker** (`npm run test:e2e:docker`). Para una corrección puntual puede ejecutarse primero el test directamente relacionado, pero el cierre debe usar el gate proporcional al riesgo.
+
+#### E2E: SIEMPRE en local con Docker, NUNCA en GitHub
+
+Los E2E del CRM se ejecutan en la máquina local dentro del contenedor oficial de Playwright (versión fijada por el lockfile). GitHub Actions ya no los corre (PR #65) y **ningún agente debe volver a añadirlos a un workflow** ni esperar a GitHub para saber si pasan.
+
+```bash
+cd CRM-Avance-Corp/app
+npm run test:e2e:docker                                  # suite completa
+npm run test:e2e:docker -- e2e/clientes.spec.ts          # un spec
+npm run test:e2e:docker -- --grep "Mi día" --workers=2   # filtrado
+```
+
+- Cuándo es obligatorio: cambios en pantallas, navegación, roles/permisos visibles, formularios o flujos de usuario del CRM, y antes de cualquier release del CRM.
+- Corre con 2 workers por defecto (con más, Docker se queda sin memoria y aparecen timeouts falsos). Referencia 22/09: 232 passed · 26 skipped en 8,8 min.
+- Requisito: Docker Desktop encendido. Si `docker info` falla, reportar E2E como `NOT RUN (Docker apagado)`; nunca como PASS.
+- Reportar el resultado real del resumen de Playwright (`N passed / M failed`). Los artefactos quedan en `CRM-Avance-Corp/app/test-results/` y `playwright-report/`.
+- `npm run test:e2e` (sin Docker) queda solo para depurar con navegador visible; no vale como gate de cierre.
+- La integración de conversión (`playwright.conversion.config.ts`) sigue su propio banco Docker de Supabase y no forma parte de este gate.
 
 ### CRM backend, scripts, Edge Functions y RLS (`CRM-Avance-Corp`)
 
@@ -137,7 +155,7 @@ El reviewer no declara la tarea terminada. El `PRIMARY` evalúa los hallazgos y 
 
 ## CI existente
 
-- `.github/workflows/crm-app-quality.yml`: lint, typecheck, cobertura, tests y build del CRM frontend. E2E sigue disponible para ejecución local con `npm run test:e2e`, pero no se ejecuta en GitHub Actions.
+- `.github/workflows/crm-app-quality.yml`: lint, typecheck, cobertura, tests y build del CRM frontend. E2E NO se ejecuta en GitHub Actions: se corre en local con `npm run test:e2e:docker` (ver «E2E: SIEMPRE en local con Docker»).
 - `.github/workflows/crm-rls-preflight.yml`: sintaxis de scripts, seed/RLS preflight offline y fronteras de Edge Functions.
 - `.github/workflows/ai-collaboration-config.yml`: JSON, shell, contratos de hooks e integración documental de este sistema.
 - `lefthook.yml`: lint/typecheck pre-commit y tests pre-push para el CRM.

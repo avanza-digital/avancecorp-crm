@@ -242,6 +242,8 @@ Do not continue consulting until Claude agrees with Codex.
 
 A task is not complete merely because code was written or a reviewer returned `PASS`. The PRIMARY must run the reasonably relevant static checks, tests, build and domain gates defined in `.ai/VERIFICATION.md`. Any check that could not run must be reported explicitly as `NOT RUN`; never imply that it passed.
 
+**E2E of the CRM run locally in Docker, never on GitHub.** Use `cd CRM-Avance-Corp/app && npm run test:e2e:docker` (optionally `-- <spec> --workers=2`). Do not add E2E jobs to GitHub Actions and do not wait for GitHub to validate E2E. If Docker is not running, report E2E as `NOT RUN (Docker off)`. Details: `.ai/VERIFICATION.md` → «E2E: SIEMPRE en local con Docker».
+
 ### 10. Claude Is Advisory
 
 Claude Code does not have decision authority over the task.

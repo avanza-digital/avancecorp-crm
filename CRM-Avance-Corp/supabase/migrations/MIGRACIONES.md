@@ -28,6 +28,177 @@ merge de rama como versión remota `20260922164159`, política v1 OFF. La entrad
 histórica siguiente describe ensayos previos; no reinstalar ese SQL. Reconciliación
 controlada del ledger pendiente. Acta productiva: `F4-ETAPA3-PUBLICACION-2026-09-22.md`.
 
+## ✅ `20260922153708` — El techo del vigilante, por clase — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+Aplicada con `supabase db query --linked --file` y registrada con
+`supabase migration repair --status applied 20260922153708 --linked`.
+
+**Verificado en producción, después de aplicar:**
+
+```
+OK: 34 candidatos declarados y con huella vigente; 14 de analitica/mixta
+sujetos al techo 14, 16 de inventario censados fuera del techo,
+4 auxiliares verificados, 0 sin declarar
+```
+
+`npm run gate:analitica` en **verde**. Mutante contra producción:
+**`MUTANTE_ANALITICA_CAZADO por los 16 filos`**, todo deshecho.
+
+**Ningún número se movió.** Los cuatro caminos de la conversión de septiembre,
+antes y después: `1218 / 50,5 = 4,15 %`, los cuatro, `cuadra: true`.
+
+**Advisors: ningún aviso nuevo.** El único que menciona una tabla del trinquete
+es `rls_enabled_no_policy`, preexistente y deliberado (deny-by-default: RLS
+encendida, sin policies, solo `postgres` con grants) — el mismo que ya tenían
+`analitica_lc_sello`, `analitica_leads_citas_tope` y las hermanas
+`analista_vigencia_*`. Ninguna de las funciones nuevas aparece.
+
+⚠️ **Producción se movió mientras se preparaba esto.** Al tomar la foto previa,
+el censo global de funciones había pasado de 672 a 677: otra sesión instaló
+Gestión Diaria F4 (`gestion_diaria_cortes`, `gestion_diaria_umbrales`,
+`politica_gestion_diaria_vigente`, `assert_gestion_diaria_cortes`,
+`trg_politica_gestion_diaria_insertar`). Se comprobó **antes de aplicar** que
+ninguna entra al censo del trinquete — 34 candidatos, 38 declaraciones, 0 sin
+declarar, gate verde — así que los supuestos del preflight seguían en pie. Es
+justo para esto que el preflight mide en vez de suponer.
+
+**El problema:** el techo estaba lleno al ras — `tope 30 · sujetos 30 · holgura 0`.
+Cualquier pantalla nueva que contara leads o citas ponía el vigilante en rojo,
+aunque fuera una cola de trabajo incapaz de contradecir ninguna cifra publicada.
+
+**La causa:** el techo medía la población equivocada. De los 30 sujetos, **16
+cuentan lo que hay AHORA** (inventario: colas, reparto, validación de un lote) y
+solo **14 miden el PASADO**, que es donde puede nacer una segunda verdad.
+
+**Qué cambia:** columna `clase` (`analitica` / `mixta` / `operativo` /
+`verificador`) obligatoria en las declaraciones; el techo cuenta solo
+`analitica` + `mixta` → **30 → 14** (es BAJAR: el trinquete lo permite y ningún
+candado se toca); **la clase entra dentro del sello**, así que reetiquetar sin
+re-sellar en una migración es ROJO; y un sujeto del censo no puede declararse
+`verificador`.
+
+**Qué NO cambia:** las 16 operativas siguen censadas, declaradas y con huella
+vigente — `declarada` y `huella_ok` se comprueban sobre TODOS los candidatos.
+Solo dejan de consumir cupo. Las 14 quedan a 14/14, holgura 0.
+
+**El hueco que apareció al revisar el mutante, y su candado.** Meter la clase en
+el sello impide reetiquetar *sin* re-sellar, pero un actor con escritura podía
+reetiquetar **y** re-sellar: eso habría hecho sitio bajo el techo sin tocar el
+tope — el único camino por el que el trinquete podía ceder sin una migración.
+Se cierra con `trg_analitica_lc_clase_solo_aprieta`: **la clase solo puede
+APRETAR.** `operativo → analitica` se permite; `analitica → operativo` rebota.
+El assert comprueba que el candado sigue puesto y activo (igual que hace con los
+dos del tope) y el postflight **prueba que rebota**, no se fía de que exista.
+
+**La clasificación:** Jev (TypeSafe) leyó las 30 razones declaradas y acertó 21
+con confianza ≥ 0,80, incluidas las tres que se autodeclaran «MIXTA». Las 9 bajo
+el umbral se decidieron a mano y se corrigió **una** de Jev
+(`private.contratos_afectados_por_anulacion`: puso `analitica` 0,81 y es
+`operativo` — devuelve `SETOF uuid`, una lista de ids, no una cifra).
+
+**Ensayo contra producción (22/09, transacción deshecha, nada escrito):**
+
+```
+tope 14 · sello coherente
+OK: 34 candidatos declarados y con huella vigente; 14 de analitica/mixta
+sujetos al techo 14, 16 de inventario censados fuera del techo,
+4 auxiliares verificados, 0 sin declarar
+sujetos: analitica 11 · mixta 3 · operativo 16
+fuera del censo: analitica 1 · operativo 1 · verificador 2
+```
+
+**Mutante: `MUTANTE_ANALITICA_CAZADO por los 16 filos`** — los diez de siempre
+más **seis** nuevos, corridos contra producción sobre la migración aplicada dentro
+de la misma transacción deshecha:
+`m11` aflojar una clase rebota · `m12` apagar el candado de la clase lo nota el
+assert · `m13` apretar una clase sube la población por encima del techo y el trinquete
+salta (prueba que el conteo nuevo **muerde**, no solo que existe) · `m14`
+reetiquetar sin re-sellar lo caza el sello (prueba que la clase entra en la
+huella) · `m15` colar un sujeto del censo como `verificador` se rechaza · `m16`
+quitar el `NOT NULL` de la clase lo nota el assert.
+
+Producción quedó intacta tras los dos ensayos (`tope 30 · sujetos 30 ·
+holgura 0`; el trigger nuevo, ausente en prod).
+
+**Revisión (auditor-rls, 22/09): CHANGES_REQUESTED — sin P0.** 1 P1, 4 P2, 6 P3.
+Aceptados y corregidos **todos** menos uno:
+
+| Hallazgo | Qué era | Resolución |
+|---|---|---|
+| **P1** | La migración no iba en `begin;/commit;` — una aplicación parcial dejaba `tope 14` con el assert viejo contando 30 → **rojo permanente e irreversible** | ✅ envuelta, con `lock_timeout`, `statement_timeout` y `lock table` sobre las tres tablas del trinquete |
+| **P2-A** | El techo dejó de ser red independiente: el `join` podía perder un sujeto en silencio | ✅ invariante `v_n + v_operativos = v_total − v_auxiliares` dentro del assert |
+| **P2-B** | Sin cerrojos ni bozal en el `ALTER TABLE` | ✅ cubierto por P1 |
+| **P2-C** | `operativo` es autodeclarada y el tope no sigue al re-etiquetado | ⚠️ el tramo grave ya estaba cerrado por `trg_analitica_lc_clase_solo_aprieta` (el auditor leyó la versión previa). Lo que queda **abierto por diseño** va escrito en el encabezado, sin adornos |
+| **P2-D** | Defensas nuevas sin mutante | ✅ el mutante pasa de 10 a **16 filos** |
+| **P3-A** | «Una autodeclarada MIXTA mal clasificada» | 🟡 **refutado en parte y mejorado**: la que señaló (`metricas_conversiones_implementacion`) NO se autodeclara MIXTA en su razón **viva** — el auditor leyó la de agosto. Pero acertó el número: son **cuatro**, y la cuarta es `crm.metricas_conversiones_equipo_fn`, que estaba como `analitica` → corregida a `mixta` |
+| **P3-B** | Tres `operativo` miden un periodo, contradiciendo el comentario | ✅ el comentario de la columna reescrito: inventario **y rastro de flujo**, siempre que no publique una tasa ni una cifra de cierre |
+| **P3-C** | El postflight no acreditaba dueño/ACL de las funciones recreadas | ✅ fotografiadas por la base en el preflight y comparadas en el postflight |
+| **P3-D** | `comment on table` sin mencionar la clase | ✅ reescrito |
+| **P3-E** | `\|\|` no es null-safe en el sello | ✅ `concat_ws` + `coalesce` |
+| **P3-F** | El preflight mentía tras una aplicación parcial | ✅ distingue «ya aplicada» de «aplicación PARCIAL», con el tope y el gate en el mensaje |
+
+### Banco Docker — la prueba A/B (22/09)
+
+Un ensayo en producción con rollback demuestra que la migración **aplica**; no
+demuestra que **no rompa nada**. Eso solo lo dice el banco, y solo comparando.
+
+**Fidelidad del banco, primero.** Con la prueba global de `LEEME-seed.md` (md5
+de todos los cuerpos de función de `crm` y `private`):
+
+```
+PROD:  9fb6cb7a1122ce755b26ca7fab2f9faf · 672 funciones
+BANCO: 9fb6cb7a1122ce755b26ca7fab2f9faf · 672 funciones
+```
+
+Idéntico. El banco **es** producción al byte. (Además, las 18 funciones que
+tocan `crm.periodos_cerrados` coinciden en definer y dueño, y las únicas 3 que
+no posee `postgres` — las de distribución, de `crm_metricas_bridge` — son la
+diferencia ya conocida y documentada.)
+
+**El experimento.** Como producción todavía no tiene la migración, se revirtió
+en el banco reponiendo los cuerpos **vivos** de producción, se corrió el gate
+entero de RLS, se volvió a aplicar y se corrió otra vez:
+
+| Corrida | ✓ | ✗ |
+|---|---|---|
+| **ANTES** (sin la migración) | **1252** | 65 |
+| **DESPUÉS** (con la migración) | **1252** | 65 |
+
+**Diferencia aserción por aserción: NINGUNA.** Los 65 fallos son los mismos en
+las dos corridas, todos de la familia multiempresa/identidad (fixtures que el
+banco no construye: es la limitación ya anotada en la nota del banco Docker), y
+la corrida termina en el mismo punto exacto —
+`b1 #2b … duplicate key uq_leads_dni_vivo` — con y sin el cambio.
+
+**Lo que hubo que montar para que la suite llegara a correr** (nada de esto
+existía en el banco; todo es CONFIGURACIÓN de producción, cero datos de
+personas): `crm.sla_politicas` (6), `crm.sla_politica_etapas` (24),
+`crm.empresas` (3), `crm.productos_inversion` (1), más los dos pasos fuera de
+banda que `LEEME-seed.md` documenta — el grant temporal de lectura sobre
+`crm.periodos_cerrados` (retirado al terminar) y la baja histórica de
+`vendInactive`.
+
+**Y el gate quedó guionizado**, que era la pieza que faltaba: siembra y prueba
+en UNA pasada, porque cada invocación genera su propia contraseña de usar y
+tirar y por separado los 13 logins fallan. Vive en
+`supabase/scripts/banco/gate-rls-una-pasada.sh`, con
+`limpiar-entre-corridas.sql` y `baja-historica-vendinactive.sql` al lado.
+
+**Mutante contra el banco:** `MUTANTE_ANALITICA_CAZADO por los 16 filos`, y el
+banco quedó verde y en 14/14 después.
+
+**El ensayo ya no es un acto manual:** vive en `supabase/scripts/ensayo-techo-por-clase.sh`
+(corre la migración **y** el mutante contra producción dentro de una transacción
+que se deshace).
+
+⚠️ **Aviso a las sesiones en paralelo:** desde esta migración, un
+`insert into private.analitica_leads_citas_exenciones (objeto, tipo, huella, razon)`
+**falla** — falta `clase`, que es NOT NULL. Es el efecto buscado, pero cualquier
+migración ya escrita y sin aplicar hay que retocarla.
+
+⚠️ **Bajar el techo NO se revierte:** el trinquete solo deja bajar, y la fila del
+tope no se borra y se repone (`trg_analitica_lc_tope_no_truncar`). Esto se
+piensa antes, no después.
 
 ## 20260921214018 — Gestión Diaria F4: cortes de jornada, etapa 3
 

@@ -7,6 +7,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
+
 - [[Gestion Diaria F4 - cortes de jornada (2026-09-21)]] — **PR #68 ABIERTO, SQL EXACTO APROBADO; CI BLOQUEADA POR FACTURACIÓN DE GITHUB:** ensayo HTTP/matriz general cerrado en `8ca9045c`, baseline 2.164/0 fallos y candidato OFF 2.196/0; 4.085 tests de aplicación y 22 E2E PASS, navegador real y recuperación verificados. Banco HTTP instalado OFF. GitHub no inició los trabajos: revisar «Billing & plans» y reejecutar CI. Revisión solicitada a `miguejbs98`; después gates y `$release-crm`, sin merge ni SQL productivo todavía. Etapas 4–6 y activación pendientes; TypeSafe preparado pero sin integrar al CRM.
 
 - [[Gestion Diaria F4.1 - banco humano y reglas de cortes (2026-09-21)]] — **PREPARACIÓN LOCAL:** guía y banco ciego ficticio para ambos supervisores; no hay revisión humana ni TypeSafe en CRM todavía. Reglas de cortes cerradas: sábado 3 llamadas, cartera vacía fuera de avisos de corte y aplazamiento único sin reaviso al cierre o después. Sin notas reales, SQL ni publicación.

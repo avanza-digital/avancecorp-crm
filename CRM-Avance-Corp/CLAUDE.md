@@ -18,7 +18,8 @@ espejos del CRM en `supabase/functions/` deben quedar **byte a byte iguales**.
 
 ## Comandos
 
-- En `app/`: `npm run check` (oxlint + typecheck + coverage) · `npm run test:e2e` · `npm run gen:types`
+- En `app/`: `npm run check` (oxlint + typecheck + coverage) · `npm run test:e2e:docker` (E2E: SIEMPRE
+  en local con Docker, nunca en GitHub; `test:e2e` a secas solo para depurar) · `npm run gen:types`
 - En raíz CRM: `npm run test:rls:preflight` · `npm run seed:preflight` · `npm run release:crm`
 - Gates ya montados (no duplicar): Lefthook pre-commit (lint+typecheck) y pre-push (tests);
   CI GitHub Actions `crm-app-quality` y `crm-rls-preflight`.
