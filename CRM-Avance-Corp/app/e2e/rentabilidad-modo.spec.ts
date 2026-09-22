@@ -74,6 +74,9 @@ test('el interruptor cambia un lead abierto sin cerrar sesión ni sustituir la t
   // dentro de su contrato, sin impedir por esa tasa una inversión cooperativa.
   await expect(ficha.getByRole('button', { name: 'Convertir a cliente', exact: true })).toBeEnabled()
   const acceso = await abrirConversionAvance(page, ficha)
+  await expect(acceso.getByLabel('Nombre completo', { exact: true })).toHaveCount(0)
+  await expect(acceso.getByRole('textbox').nth(0)).toHaveAccessibleName('Apellidos')
+  await expect(acceso.getByRole('textbox').nth(1)).toHaveAccessibleName('Nombres')
   await acceso.getByLabel('Correo de acceso Avance').fill('qa-interruptor@example.invalid')
   await acceso.getByLabel('Nombres', { exact: true }).fill('QA')
   await acceso.getByLabel('Apellidos', { exact: true }).fill('INTERRUPTOR')
