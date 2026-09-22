@@ -1,188 +1,213 @@
-# Unificar las 12 puertas de la conversión
+# Unificar las doce puertas de la conversión
 
-**Estado:** pendiente · **Fecha límite:** antes de sellar un mes · **Escrito:** 21/09/2026
+**Estado:** plan v3, sin ejecutar · **Fecha límite:** antes de sellar un mes
+**Escrito:** 21/09 · **Remedido:** 22/09 · **Revisado por Codex y corregido:** 22/09
+
+> ⚠️ **Historial de errores de este documento, a propósito.**
+> **v1 (21/09)** clasificó las puertas de memoria: **tres clasificaciones falsas**.
+> **v2 (22/09)** las midió contra el cuerpo vivo, pero Codex la devolvió
+> `REFUTADO EN PARTE` con **cinco P1**: el oráculo de verificación estaba mal, el
+> hallazgo C6 atribuido al objeto equivocado, el core de la #5 mal identificado,
+> a la #10 le faltaban dos anclajes y la #7 tenía un camino bruto sin ver.
+> **Esta v3 incorpora esas correcciones.** Lo que sigue sin verificar va marcado.
 
 ---
 
-## El problema, en una frase
+## El problema
 
-La tabla es una. El núcleo es uno. **Las puertas son doce**, y cada una le
-pregunta al núcleo a su manera.
+Doce puertas publican conversión sobre un núcleo único
+(`private.conversion_episodios`) y cada una le pregunta a su manera. Hoy todas
+dan el mismo número **por casualidad**: `crm.periodos_cerrados` está VACÍO.
 
-```
-TABLA      crm.lead_asignaciones + crm.leads + crm.operaciones_cartera   ✅ una
-NÚCLEO     private.conversion_episodios                                  ✅ uno
-PUERTA     ❌ DOCE, cada una con su propia aritmética encima
-PANTALLA   consume esas doce
-```
+### La formulación correcta del riesgo (corregida por Codex)
 
-Hoy todas dan el mismo número **por casualidad**: no hay ningún mes sellado ni
-deuda de anulación viajando entre meses. El día que selles, la mensual servirá la
-foto y el rango seguirá recalculando en vivo. Dos porcentajes del mismo mes, uno
-encima del otro, sin que nada diga cuál manda.
+La v2 decía «hay una discrepancia que no necesita el sello». **Impreciso.** El
+registrador de la deuda sale antes si el mes no está cerrado
+(`20260901180000:402`: `if not exists (select 1 from crm.periodos_cerrados …) then return null`).
 
-## Lo que ya funciona: el patrón a copiar
+> **Lo correcto:** un mes **abierto** puede discrepar por deuda procedente de un
+> mes **previamente sellado**. Sin ningún sello, nunca hay deuda.
 
-**Dos puertas ya lo hacen bien y están en producción:**
+Y el descuento **no vive en el núcleo**: se aplica en la LECTURA mensual
+(`20260904210831:1641` — *«se descuenta aquí, en la lectura, y no dentro de
+`conversion_mensual_por_vendedor` […] se descontaría dos veces»*). Decir «el
+núcleo entrega ya neto» describe mal la arquitectura.
 
-- `crm.metricas_vendedores_fn` → llama a `crm.conversion_mensual_fn` y **reenvía**
-- `crm.cierre_mes_estado_fn` → igual
+---
 
-No recalculan nada. Por eso la conversión de un analista sale idéntica en las dos
-pantallas que la publican. **Unificar no es inventar: es extender a las otras diez
-lo que estas dos ya hacen.**
+## 🔴 OLA 0 — arreglar el oráculo (antes de tocar ninguna puerta)
 
-## Inventario de las doce
+**Esto es nuevo y es lo primero.** El plan v2 iba a verificarse con un criterio
+que la propia corrección haría fallar.
 
-| # | Puerta | Qué sirve | Hoy | Ola |
+### El problema, reproducido por Codex
+
+`crm.alarma_conversion_fn` (`20260921182011:114`) toma el núcleo directo como
+`sum(e.aporte_numerador)` —el **bruto**— y exige **igualdad** entre los cuatro
+caminos. `coherencia.mjs:35` hace lo mismo: `const base = c.nucleo_directo`.
+
+> Reproducción: núcleo bruto 3; mensual, rango y distribución correctamente
+> delegados al neto 2 → **el gate devuelve ROJO, con seis diferencias.**
+
+**Hacer el trabajo bien pondría la alarma en rojo.** El criterio «gate en verde y
+ni un número movido» que escribió la v2 **es incorrecto**: vale para el caso sin
+deuda, no para aquel en que precisamente se corrige una discrepancia.
+
+### Y el mutante propuesto no prueba nada
+
+Codex ejecutó el mutante de la v2 —forzar `es_mes_calendario: true → false`—:
+**ambas fotos verdes y `sin_cambios: true`.** Ni el gate ni la alarma leen esa
+declaración.
+
+### Qué hay que hacer en la Ola 0
+
+1. **Rediseñar el oráculo** para distinguir tres situaciones, en vez de exigir
+   igualdad a ciegas:
+   - igualdad oficial (sin deuda pendiente),
+   - recálculo **declarado** (`fuente: 'rango_vivo'`),
+   - conciliación **bruto ↔ neto** (la diferencia debe ser exactamente el ajuste).
+2. **Mutantes que muerdan de verdad**, con diferencias numéricas reales: deuda
+   mayor que el bruto, cambio de roster, mes abierto contra mes cerrado.
+3. **C6, en su objeto correcto.** Verificado hoy: `crm.cerrar_periodo` **NO
+   menciona** `cierres_sin_episodio`. El literal `'cierres_sin_episodio', 0` está
+   en la LECTURA (`20260904210831:1480`), y quienes lo publican son
+   `crm.metricas_vendedores_fn` y `crm.conversion_mensual_sin_cartera_fn`.
+   **Arreglar la #12 no quitaría ese cero.** Hay que tocar escritura **y** lectura.
+4. **Decidir cuándo se captura la sonda del sello.** La #12 inserta
+   `periodos_cerrados` **antes** que las filas de la foto: leer la mensual entre
+   ambos pasos observaría una foto incompleta.
+
+**Sin la Ola 0, las demás olas no se pueden verificar.**
+
+---
+
+## Inventario (medido, con las correcciones de Codex)
+
+| # | Puerta | ¿Discrepará? | Qué le falta | Ola |
 |---|---|---|---|---|
-| 1 | `crm.conversion_mensual_fn` | **LA definición** (foto si sellado, neto de ajustes) | ✅ es la fuente | — |
-| 2 | `crm.metricas_vendedores_fn` | Gestión de equipo, Directorio | ✅ delega | — |
-| 3 | `crm.cierre_mes_estado_fn` | Estado del cierre | ✅ delega | — |
-| 4 | `crm.metricas_conversiones_fn` | **Resumen y Conversiones** (el número grande) | ❌ recalcula | **1** |
-| 5 | `crm.metricas_distribucion_leads_v3_fn` | Distribución / Rendimiento inferior | ❌ recalcula | **1** |
-| 6 | `crm.metricas_conversiones_equipo_fn` | Ranking · pestaña Cosecha | ❌ recalcula | **1** |
-| 7 | `crm.cumplimiento_metas_fn` | Metas | ❌ recalcula | 2 |
-| 8 | `crm.cumplimiento_metas_sin_cartera_fn` | Metas (variante) | ❌ recalcula | 2 |
-| 9 | `crm.series_comerciales_fn` | Series del histórico | ❌ recalcula | 2 |
-| 10 | `crm.metricas_multiempresa_fn` | Multiempresa | ❌ recalcula | 3 |
-| 11 | `crm.resumen_cartera_fn` | Resumen de cartera | ❌ recalcula | 3 |
-| 12 | `crm.cerrar_periodo` | El motor del sello | ❌ recalcula | 3 |
+| 1 | `conversion_mensual_fn` | — | es la fuente | — |
+| 2 | `metricas_vendedores_fn` | — | ✅ delega | — |
+| 3 | `cierre_mes_estado_fn` | — | ✅ delega | — |
+| 4 | `metricas_conversiones_fn` | 🔴 sí | fuente + declaración | 1 |
+| 5 | `metricas_distribucion_leads_v3_fn` | 🔴 sí | fuente + declaración | 1 |
+| 6 | `metricas_conversiones_equipo_fn` | 🔴 sí | fuente + declaración | 1 |
+| 7 | `cumplimiento_metas_fn` | 🔴 **sí** (corregido) | **camino bruto + declaración** | **1** |
+| 8 | `cumplimiento_metas_sin_cartera_fn` | ✅ no | declarar | **1** |
+| 10 | `metricas_multiempresa_fn` | 🔴 sí | fuente + **tres sellos** | **1** |
+| 11 | `resumen_cartera_fn` | 🔴 sí* | declarar y rotular | 2 |
+| 9 | `series_comerciales_fn` | ✅ no | declarar | 2 |
+| 12 | `cerrar_periodo` | — **es el escritor** | rediseño, no declaración | **0** |
 
-## La regla que decidió Miguel (21/09)
+\* Sirve dos cifras al mismo actor sin decir cuál manda.
 
-> **Mes completo = la cifra oficial. Rango parcial, calculado y rotulado.**
+### Las correcciones de Codex, una a una
 
-- Rango = mes calendario completo **y sin filtro de fuente** → el bloque del
-  núcleo se pide a `crm.conversion_mensual_fn`. Misma cifra que Ranking y Metas,
-  con foto sellada y el descuento por anulaciones ya aplicado.
-- Cualquier otro caso (rango parcial, varios meses, filtro de fuente activo) →
-  sigue calculando en vivo, y el paquete lo **declara**.
+**#7 sube a Ola 1.** La v2 la daba por inofensiva. En `p7.sql:103` publica
+`'numerador', coalesce(cv.numerador, 0)` en la rama `fuera_ranking`, **sin el
+descuento de la deuda**, mientras la mensual usa `roster_metas_vendedores()` y
+descuenta por fila. Contraejemplo: divisor 10, bruto 3, deuda 1 → **#7 publica 3,
+la mensual 2**. ⚠️ **Hipótesis respaldada por ambos recorridos, no medida**:
+falta el cuerpo vivo de `conversion_mensual_sin_cartera_fn`. **Probarlo antes de
+implementar.**
 
-Para el mes vigente, «mes completo» significa del día 1 a hoy — que es
-exactamente lo que ya hace `periodoMesCalendario` en el front.
+**#8 y #9 se sostienen.** Codex no logró demostrar discrepancia: la #8 sirve
+`v.conversion_pct` de la foto cerrada y aplica ajuste en abierto; en la #9,
+`conversion_mensual_pct` recibe `nm.pct` de la mensual oficial.
 
-## Contrato nuevo del paquete
+**#12 baja a Ola 0 y cambia de naturaleza.** No admite «declaración mínima». Su
+cuerpo explica por qué recalcula: *«`conversion_mensual_fn` recorta por
+`auth.uid()` y el cierre necesita la foto completa»* (`p12.sql:136`). Y **no
+olvida el descuento**: liquida con `private.saldar_ajustes` y guarda
+`numerador - sal.aplicado_numerador`. Es el **escritor**, y define la evidencia
+irreversible que consumirán las demás.
 
-Cada puerta unificada añade a su bloque de núcleo:
+**#10 necesita TRES sellos, no uno.** Verificado hoy: además de su exención, está
+anclada en `auxiliares_analitica_lc_auditados` con
+`md5(pg_get_functiondef) = 4ab8a07f4794c015c4bb7264206dafcf` —**idéntico al
+vivo**— y el assert del 22/09 fija además la definición del propio helper
+(`e43357800b6d79050c7ca7af6c6844b8`). Cadena completa: **función → helper de
+auxiliares → anclaje del assert → sello agregado de exenciones.**
 
-| Clave | Tipo | Significado |
+**#5: el core estaba mal identificado.** Verificado: existen **tres** cores
+(`_core`, `_v2_core`, `_v3_core`). El despachador manda V3 a
+`private.metricas_distribucion_leads_v3_core`, y ahí se asigna
+`'nucleo_numerador', v_num_total`. **El volcado de la v2 era el core base:
+aquella parte del análisis hay que rehacerla.** Conservar además la frontera
+`private.sanitizar_sujetos_distribucion_crm`.
+
+---
+
+## Las trampas (corregidas y ampliadas)
+
+1. **`v.strictObject` fail-closed** en el front de #5, #7 y #8 ⇒ **front primero
+   es bloqueo, no consejo.** Codex reprodujo el rechazo.
+2. 🔴 **`v.object` NO conserva las claves nuevas: las ELIMINA del resultado.** No
+   basta con que el servidor declare la fuente — el esquema y el consumidor deben
+   conservarla. Y `metricas-conversiones.ts:284` fija `version: v.literal(1)`:
+   cambiar versión rompe también a los laxos.
+3. **Tocar el cuerpo caduca la declaración** en el trinquete. Censadas: #6, #9,
+   #10, #11, #12, más **la implementación de #4**, que la v2 omitió. Ojo:
+   *declarada* no es *censada* — #6 y #11 son declaraciones históricas fuera del
+   censo.
+4. **Solo #5 es de `crm_metricas_bridge`.** El canal de publicación no puede
+   asumir ese rol (42501).
+5. **`test-rls.mjs:6969`** (no 6949) afirma `d.version === 2`, y es específica de
+   la #9. Además **`--preflight` sale antes** (`process.exit(0)` en la línea 243):
+   **el preflight no prueba esa aserción.**
+6. 🔴 **`p4i.sql:52` acepta `or p_hasta = v_hoy`** para `v_periodo`. Reutilizar ese
+   indicador tal cual como `es_mes_calendario` **clasificaría mal el mes hasta
+   hoy**. Hay que endurecerlo, no reciclarlo.
+7. **Guardar la alarma en la #12 rompería el cierre manual**: la alarma
+   (`20260921182011:76`) rechaza claims que no sean `service_role`, y la #12
+   admite Gerencia. `SECURITY DEFINER` no transforma los claims.
+
+---
+
+## Orden de ejecución
+
+| Ola | Contenido | Por qué |
 |---|---|---|
-| `es_mes_calendario` | bool | el rango coincide con un mes completo |
-| `fuente` | `'mensual'` \| `'rango_vivo'` | de dónde salió la cifra |
-| `sellado` | bool \| null | el mes está sellado (null si no se delegó) |
-| `ajuste_aplicado` | bool | se restó la deuda por anulaciones |
+| **0** | Oráculo y alarma · diseño y pruebas de **#12** · C6 en escritura **y** lectura | Define la evidencia irreversible que consumen las demás. **No sellar todavía.** |
+| **1** | #4, #5, #6, **#7**, **#8**, **#10** | Los lectores oficiales. #7 sube por su camino bruto; #10 mientras no se acredite que su flag la deja inaccesible |
+| **2** | #11, #9 | Solo declarar y rotular |
+| **Después** | El primer sellado | Solo tras verificar lectores, escritor, deuda y alarmas **juntos** |
 
-Y a sus sondas:
+**Sobre #10:** `p10.sql:19` bloquea la puerta si `metricas_multiempresa_sombra`
+está apagada. **No hay medición de ese flag.** Si está OFF, baja a Ola 2. Medirlo
+es un prerrequisito barato.
 
-| Clave | Significado |
-|---|---|
-| `mensual_comparada` | se contrastó contra la mensual |
-| `paridad_mensual` | numerador vivo − numerador mensual |
+### Por cada migración, sin excepción
 
-**Son claves NUEVAS en la respuesta** ⇒ por la regla de la casa, **el front va
-primero** (tolerando su ausencia), y el servidor después.
-
-## Dónde se interviene
-
-**En los envoltorios cortos, NO en la implementación de 38 KB.**
-
-- `crm.metricas_conversiones_fn` es de 473 bytes: valida el rol y delega en
-  `private.metricas_conversiones_implementacion`. Ahí se intercala la decisión.
-- `crm.metricas_distribucion_leads_v3_fn` es de 3 269 bytes: recorta claves de
-  SLA. Mismo sitio.
-
-Eso reduce el riesgo a una fracción: el motor no se toca.
-
-⚠️ **Las tres funciones de distribución las posee `crm_metricas_bridge`, no
-`postgres`.** Cualquier `create or replace` debe conservar ese propietario, y el
-postflight tiene que exigirlo.
-
----
-
-## Ola 1 — lo que ve gerencia (la que tiene fecha límite)
-
-**Puertas 4, 5 y 6.** Son las que publican el número grande y las únicas que hoy
-pueden discrepar de Ranking y Metas.
-
-### Paso 1 · Foto de referencia
-`supabase/scripts/conversion/foto.sql` contra producción. Guardar divisor,
-numerador, pct por los cuatro caminos y las filas de analistas.
-
-### Paso 2 · Front primero
-Tolerar las seis claves nuevas como opcionales en:
-`lib/metricas-conversiones.ts`, `lib/metricas-distribucion.ts`,
-`lib/metricas-conversiones-equipo.ts`. Tests: con las claves y sin ellas, el
-mapeo no cambia. **Publicar y comprobar el `buildId` vivo.**
-
-### Paso 3 · Servidor
-Una migración por puerta, cada una con:
-- Preflight con la huella del cuerpo vivo (`f6e43674…` para la 4,
-  `ddfc3648…` para la 5).
-- La rama de delegación + las seis claves.
+- Preflight con el **md5 exacto de `pg_get_functiondef`**. Acreditar por
+  fragmentos **no vale**.
+- Re-sellado de **todas** sus declaraciones, con su `clase`.
 - Postflight: huella candidata, propietario, ACL, y que las claves viajen.
-- Declaración en el trinquete refrescada si la función está censada.
-
-### Paso 4 · Rótulos
-El número grande dice qué es: «Índice comercial de septiembre» cuando delega,
-«Recálculo del 1 al 21 — no es la cifra del mes» cuando no.
-
-### Paso 5 · Gates
-- Banco Docker (receta en `MIGRACIONES.md`): las tres aplican en verde.
-- **`gate:conversion` antes y después: ni un número movido.**
-- **`crm.alarma_conversion_fn` sigue en `cuadra: true`.**
-- Mutante: forzar `es_mes_calendario` a false con rango = mes y comprobar que la
-  alarma lo caza.
-- `auditor-rls` sobre cada migración.
-- `npm run check` + advisors.
-
-**Riesgo:** alto (toca lo que ve gerencia). **Valor:** una sola definición del
-mes en todo el CRM, y el día del sello ya no aparecen dos verdades.
+- `auditor-rls` · banco Docker · `npm run check` · advisors.
 
 ---
 
-## Ola 2 — metas y series
+## Qué NO entra
 
-**Puertas 7, 8 y 9.** Mismo patrón. Menor riesgo: Metas ya bebe de la mensual por
-transitividad; lo que falta es que lo **declare** en su paquete.
-
-Cuidado con `series_comerciales_fn`: publica a propósito **dos** cifras —
-`conversion_mensual_pct` (del núcleo) y `conversion_cohorte_pct` (el bruto por mes
-de entrada, decisión de Miguel del 27/08). **No se unifican: se rotulan.**
-
----
-
-## Ola 3 — el resto
-
-**Puertas 10, 11 y 12.**
-
-- `metricas_multiempresa_fn` y `resumen_cartera_fn`: consumen el núcleo para otras
-  preguntas. Probablemente solo necesitan declarar su fuente.
-- **`crm.cerrar_periodo` es el caso delicado:** es quien ESCRIBE la foto. Aquí se
-  arreglan de paso dos hallazgos confirmados de la auditoría del 21/09:
-  - **C6:** la foto escribe `cierres_sin_episodio: 0` como literal en vez de la
-    medida real → un mes puede sellarse con la sonda en rojo y salir en verde
-    para siempre.
-  - **C3 (cierre):** al sellar no se guarda la sonda. Debería guardar el veredicto
-    de `crm.alarma_conversion_fn` junto a la foto.
-
-**Ojo:** hoy `crm.periodos_cerrados` está VACÍO y nunca se ha escrito una foto.
-Se puede arreglar **antes** de que exista la primera. Es la mejor ventana y no
-se repite.
-
----
-
-## Qué NO entra en este plan
-
-- **Los pesos y las reglas de negocio no se tocan.** Referido 0,15, cartera 1,
-  oficina 0, y el registro manual sumando arriba sin sumar abajo: todo decidido
-  por Miguel y **cerrado**.
-- Los rótulos y ceros fabricados del portal admin: trabajo aparte.
-- Citas: ya tiene su testigo desde el 21/09.
+- **Los pesos y las reglas cerradas no se tocan**: referido 0,15 · cartera 1 ·
+  oficina 0 · la asimetría del registro manual.
+- Las dos cifras de `series_comerciales`: se rotulan, no se unifican. Su
+  declaración necesita alcance **por medida y por mes**.
+- ⚠️ **Riesgo de doble descuento** si se trasladara el ajuste al núcleo: hoy se
+  aplica en la lectura, a propósito.
 
 ## Cómo se sabrá que está hecho
 
-1. `crm.alarma_conversion_fn` sigue en `cuadra: true` después de cada ola.
-2. Con un mes sellado, Resumen y Conversiones sirven **la foto**, no un recálculo.
+1. El oráculo nuevo distingue las tres situaciones, y **hay un mutante con
+   diferencia numérica real que lo hace saltar**.
+2. Con un mes sellado, Resumen y Conversiones sirven **la foto**.
 3. Ninguna pantalla divide.
-4. `gate:conversion` en VERDE y sin un solo número movido.
+4. `cierres_sin_episodio` publica la **medida real**, no el literal cero.
+5. Las nueve declaran `es_mes_calendario`. Hoy: **cero**.
+
+## Lo que falta antes de implementar
+
+1. Volcar en vivo: base mensual, `_v3_core` y su despachador, helper de series,
+   `conversion_mensual_sin_cartera_fn`, y los asserts afectados.
+2. **Resolver el contraejemplo de #7**: medirlo, no suponerlo.
+3. Medir el flag `metricas_multiempresa_sombra`.
+4. Rediseñar alarma y C6 **antes** de implementar ninguna ola.
