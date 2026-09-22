@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { TablaEnvoltura, Th, Td } from '@/components/common/tabla'
 import { Button } from '@/components/ui/button'
 import { COLOR_NIVEL, ETIQUETA_NIVEL, textoTasa } from '@/lib/gestion-diaria-analista'
-import { MOTIVOS_EQUIPO, type FilaEquipoDiario, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
+import { MOTIVOS_EQUIPO, type FilaEquipoPresentada, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
 import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { DetalleAnalista } from './detalle-analista'
 
@@ -14,7 +14,7 @@ const COLUMNAS: { orden: OrdenEquipo; titulo: string }[] = [
 ]
 
 export function TablaEquipoDiaria({ filas, dia, filtros, ordenar, abrirRegistro }: {
-  filas: readonly FilaEquipoDiario[]
+  filas: readonly FilaEquipoPresentada[]
   dia: string
   filtros: FiltrosEquipo
   ordenar: (orden: OrdenEquipo) => void

@@ -10,6 +10,8 @@ export const MOTIVOS_EQUIPO = {
   primer_intento_vencido: 'Primer intento fuera de plazo',
   datos_incompletos: 'Datos pendientes de revisar',
   sin_llamar_2h: 'Más de 2 h sin llamar en la jornada',
+  corte_manana: 'Primer corte de llamadas pendiente',
+  corte_tarde: 'Segundo corte de llamadas pendiente',
 } as const
 const FilaEquipoSchema = v.object({
   analista_id: v.string(),
@@ -64,6 +66,25 @@ export const DiaEquipoSchema = v.pipe(v.object({
 }, 'El resumen del equipo no corresponde a sus filas'))
 export type DiaEquipo = v.InferOutput<typeof DiaEquipoSchema>
 
+export type FilaEquipoPresentada = Omit<FilaEquipoDiario, 'motivos_atencion'> & {
+  motivos_atencion: (keyof typeof MOTIVOS_EQUIPO)[]
+}
+
+/** Une resultados ya confirmados en la misma foto; no calcula cortes ni horarios. */
+export function presentarEquipo(dia: DiaEquipo): FilaEquipoPresentada[] {
+  const cortes = new Map(dia.cortes?.estado === 'activo'
+    ? dia.cortes.equipo.map((f) => [f.analista_id, f]) : [])
+  return dia.equipo.map((fila) => {
+    const corte = cortes.get(fila.analista_id)
+    const motivos: FilaEquipoPresentada['motivos_atencion'] = [...fila.motivos_atencion]
+    if (corte?.primer_corte.aviso_pendiente) motivos.push('corte_manana')
+    if (corte?.segundo_corte?.aviso_pendiente) motivos.push('corte_tarde')
+    const confirmados = corte?.primer_corte.aviso_pendiente || corte?.segundo_corte?.aviso_pendiente
+      ? motivos.filter((m) => m !== 'sin_llamar_2h') : motivos
+    return { ...fila, motivos_atencion: confirmados, requiere_atencion: confirmados.length > 0 }
+  })
+}
+
 /** Resumen para el espejo demo y validación, nunca para completar una lista parcial. */
 export function resumenEquipo(equipo: readonly FilaEquipoDiario[]) {
   return {
@@ -79,7 +100,7 @@ export type OrdenEquipo = 'nombre' | 'llamadas' | 'contacto' | 'pendientes' | 'a
 export interface FiltrosEquipo { busqueda: string; soloProblemas: boolean; orden: OrdenEquipo; ascendente: boolean }
 const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
 
-export function filtrarOrdenarEquipo(equipo: readonly FilaEquipoDiario[], filtros: FiltrosEquipo): FilaEquipoDiario[] {
+export function filtrarOrdenarEquipo<T extends FilaEquipoPresentada>(equipo: readonly T[], filtros: FiltrosEquipo): T[] {
   const q = normalizar(filtros.busqueda)
   return equipo.filter((f) => (!filtros.soloProblemas || f.requiere_atencion) && normalizar(f.nombre_completo).includes(q))
     .sort((a, b) => {

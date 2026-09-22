@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   AlarmClock,
   BellRing,
-  CalendarClock,
   CalendarPlus,
-  Check,
   CheckCircle2,
   CircleAlert,
   Gauge,
@@ -23,7 +21,7 @@ import { toast } from 'sonner'
 import { CrmApiError, eliminarRecordatorioDisponibilidad } from '@/data/crm-api'
 import { crmQueryKeys } from '@/data/crm-queries'
 import { esFocoHuerfano } from '@/lib/foco'
-import { fechaCortaLima, telefonoLegible } from '@/lib/recordatorios-disponibilidad'
+import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
 import { textoVencimiento } from '@/lib/reconocimientos-alertas'
 import { usePanelesActions } from '@/lib/store-context'
 import { Badge } from '@/components/ui/badge'
@@ -39,11 +37,16 @@ import { SEMAFORO } from '@/lib/semaforo'
 import type { AlertaCRM, TipoAlerta } from '@/lib/alertas'
 import type { Rol } from '@/lib/roles'
 import { presentarCitas } from '@/lib/terminologia'
+import { AccionesReconocerAlerta } from '@/components/gestion-diaria/acciones-reconocer-alerta'
+import { AccionesCorte } from '@/components/gestion-diaria/acciones-corte'
 
 type FiltroPrioridad = 'todas' | AlertaCRM['severidad']
 type FiltroTipo = 'todos' | TipoAlerta
 
 const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
+  parado_2h: 'Sin llamadas recientes',
+  corte_manana: 'Primer corte',
+  corte_tarde: 'Segundo corte',
   seguimiento_comercial: 'Seguimiento',
   tarea_vencida: 'Tarea vencida',
   lead_sin_responder: 'Lead sin responder',
@@ -57,6 +60,9 @@ const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
 }
 
 const ICONO_TIPO: Record<TipoAlerta, LucideIcon> = {
+  parado_2h: PhoneOutgoing,
+  corte_manana: PhoneOutgoing,
+  corte_tarde: PhoneOutgoing,
   seguimiento_comercial: AlarmClock,
   tarea_vencida: AlarmClock,
   lead_sin_responder: UserRoundX,
@@ -253,155 +259,6 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
   )
 }
 
-/** F4: los plazos de posponer que se ofrecen (decisión de Miguel: tope 7
- *  días). El de 7 va con un colchón de 30 minutos BAJO el tope (Codex #2):
- *  el servidor mide «≤ 7 días» con SU reloj de pared, y un cliente
- *  adelantado mandaría un hasta que el trigger rechaza (22023). Si aun así
- *  el reloj local está tan roto que el servidor lo rechaza, el mensaje del
- *  trigger llega al toast tal cual — el fallo se dice, no se disimula. */
-const PLAZOS_POSPONER: ReadonlyArray<{ dias: number; etiqueta: string; margenMs: number }> = [
-  { dias: 1, etiqueta: 'Mañana', margenMs: 0 },
-  { dias: 3, etiqueta: 'En 3 días', margenMs: 0 },
-  { dias: 7, etiqueta: 'En 7 días', margenMs: 1_800_000 },
-]
-
-/** F4: reconocer («lo estoy atendiendo») atenúa la fila y descuenta la
- *  campana; posponer la oculta hasta la fecha elegida. Solo existe en las
- *  alertas AGRUPADAS del supervisor (las que traen `miembros`).
- *
- *  Foco (a11y F4, los dos bloqueantes del revisor): «Posponer» es un
- *  disclosure REAL — persiste al abrirse (aria-expanded/aria-controls
- *  verdaderos), el foco entra al primer plazo por efecto y vuelve a
- *  «Posponer» al cerrar. Tras un asiento exitoso el bloque entero desaparece
- *  (la fila se atenúa o se va) y el foco aterriza en el contador, como en
- *  F3.1; tras un FALLO, el rescate corre en un efecto cuando `ocupado`
- *  vuelve a false — en el finally el botón aún está disabled y focus()
- *  sobre un control disabled es un no-op (lección de F2). */
-function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element {
-  const { reconocer } = useAlertasCRM()
-  const [eligiendoPlazo, setEligiendoPlazo] = useState(false)
-  const [ocupado, setOcupado] = useState(false)
-  const botonReconocerRef = useRef<HTMLButtonElement | null>(null)
-  const botonPosponerRef = useRef<HTMLButtonElement | null>(null)
-  const primerPlazoRef = useRef<HTMLButtonElement | null>(null)
-  const rescatarFocoRef = useRef<'reconocer' | 'posponer' | null>(null)
-  const estuvoAbiertoRef = useRef(false)
-  const idPlazos = `plazos-${alerta.id}`
-
-  useEffect(() => {
-    if (eligiendoPlazo) {
-      estuvoAbiertoRef.current = true
-      primerPlazoRef.current?.focus()
-      return
-    }
-    // Solo al CERRAR un disclosure que estuvo abierto (no en el montaje), y
-    // solo si el foco quedó huérfano (Cancelar/plazo desmontados con el grupo).
-    if (!estuvoAbiertoRef.current) return
-    estuvoAbiertoRef.current = false
-    if (esFocoHuerfano(botonPosponerRef.current)) botonPosponerRef.current?.focus()
-  }, [eligiendoPlazo])
-
-  useEffect(() => {
-    if (ocupado || rescatarFocoRef.current == null) return
-    const destino = rescatarFocoRef.current === 'reconocer'
-      ? botonReconocerRef.current
-      : (eligiendoPlazo ? primerPlazoRef.current : botonPosponerRef.current)
-    rescatarFocoRef.current = null
-    if (esFocoHuerfano(destino)) destino?.focus()
-  }, [ocupado, eligiendoPlazo])
-
-  const asentar = async (accion: 'reconocer' | 'posponer', hasta: string | null) => {
-    if (ocupado) return
-    setOcupado(true)
-    try {
-      await reconocer(alerta, accion, hasta)
-      toast.success(accion === 'reconocer'
-        ? 'Reconocida: queda atenuada y reaparece si empeora.'
-        : `Pospuesta hasta el ${hasta ? fechaCortaLima(hasta) ?? 'día elegido' : 'día elegido'}.`)
-      setEligiendoPlazo(false)
-      // El botón que tenía el foco ya no existe: aterrizar en el contador
-      // (o el encabezado si la lista quedó vacía), como en F3.1.
-      const destino = document.getElementById('alertas-contador')
-        ?? document.getElementById('alertas-encabezado')
-      destino?.focus()
-    } catch (error: unknown) {
-      toast.error(error instanceof CrmApiError
-        ? presentarCitas(error.message)
-        : 'No se pudo asentar el reconocimiento.')
-      // Los plazos se QUEDAN abiertos: el supervisor reintenta donde estaba.
-      rescatarFocoRef.current = accion
-    } finally {
-      setOcupado(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button
-        ref={botonReconocerRef}
-        variant="outline"
-        size="sm"
-        className="min-h-9"
-        disabled={ocupado}
-        aria-busy={ocupado}
-        onClick={() => { void asentar('reconocer', null) }}
-        aria-label={`Reconocer «${presentarCitas(alerta.titulo)}»: la estoy atendiendo`}
-      >
-        <Check aria-hidden /> Lo estoy atendiendo
-      </Button>
-      <Button
-        ref={botonPosponerRef}
-        variant="ghost"
-        size="sm"
-        className="min-h-9"
-        disabled={ocupado}
-        aria-expanded={eligiendoPlazo}
-        aria-controls={eligiendoPlazo ? idPlazos : undefined}
-        onClick={() => setEligiendoPlazo((abierto) => !abierto)}
-        aria-label={`Posponer «${presentarCitas(alerta.titulo)}»`}
-      >
-        <CalendarClock aria-hidden /> Posponer
-      </Button>
-      {eligiendoPlazo && (
-        <div
-          id={idPlazos}
-          role="group"
-          aria-label={`Posponer «${presentarCitas(alerta.titulo)}» hasta`}
-          className="flex flex-wrap items-center justify-end gap-2"
-        >
-          {PLAZOS_POSPONER.map((plazo, indice) => (
-            <Button
-              key={plazo.dias}
-              ref={indice === 0 ? primerPlazoRef : undefined}
-              variant="outline"
-              size="sm"
-              className="min-h-9"
-              disabled={ocupado}
-              onClick={() => {
-                void asentar(
-                  'posponer',
-                  new Date(Date.now() + plazo.dias * 86_400_000 - plazo.margenMs).toISOString(),
-                )
-              }}
-            >
-              {plazo.etiqueta}
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="min-h-9"
-            disabled={ocupado}
-            onClick={() => setEligiendoPlazo(false)}
-            aria-label="Cancelar posposición"
-          >
-            Cancelar
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string }): JSX.Element {
   const { setPeriodo, setOrigenFiltrado } = usePeriodoGerencia()
@@ -410,7 +267,8 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
   // rojo dormido no gasta presupuesto de color) y la traza dice el contrato
   // completo — reaparece si empeora, se reactiva en fecha cierta.
   const reconocimiento = alerta.reconocimiento
-  const color = reconocimiento ? SEMAFORO.neutro : colorSeveridad(alerta.severidad)
+  const atendida = reconocimiento != null || (alerta.corte != null && alerta.corte.estado !== 'pendiente')
+  const color = atendida ? SEMAFORO.neutro : colorSeveridad(alerta.severidad)
   return (
     <li className="group relative grid gap-3 px-4 py-4 pl-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5 sm:pl-6">
       <span
@@ -432,10 +290,10 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
             {/* El outline pinta TEXTO y borde del `color`: el gris del badge
                 reconocido es el strong (7.5:1), no el neutro del semáforo. */}
             <Badge
-              color={reconocimiento ? 'var(--muted-foreground-strong)' : color}
+              color={atendida ? 'var(--muted-foreground-strong)' : color}
               variant="outline"
             >
-              {reconocimiento
+              {alerta.corte?.estado === 'pospuesto' ? 'Pospuesta' : atendida
                 ? 'Reconocida'
                 : alerta.severidad === 'critica' ? 'Crítica' : 'Atención'}
             </Badge>
@@ -475,7 +333,8 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
           >
             {alerta.destino.etiqueta}
           </a>
-          {!reconocimiento && alerta.miembros != null && (
+          {alerta.corte && <AccionesCorte aviso={alerta.corte} />}
+          {!alerta.corte && !reconocimiento && alerta.miembros != null && (
             <AccionesReconocerAlerta alerta={alerta} />
           )}
         </div>
@@ -496,11 +355,11 @@ export function Alertas(): JSX.Element {
   // pendientes activos» era la pantalla contradiciéndose; las reconocidas
   // viven en su propia sección, siempre al final y sin filtrar.
   const activas = useMemo(
-    () => alertas.filter((alerta) => alerta.reconocimiento == null),
+    () => alertas.filter((alerta) => alerta.reconocimiento == null && alerta.corte?.estado !== 'reconocido'),
     [alertas],
   )
   const reconocidas = useMemo(
-    () => alertas.filter((alerta) => alerta.reconocimiento != null),
+    () => alertas.filter((alerta) => alerta.reconocimiento != null || alerta.corte?.estado === 'reconocido'),
     [alertas],
   )
   const tipos = useMemo(

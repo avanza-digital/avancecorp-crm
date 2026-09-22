@@ -10,6 +10,7 @@ import {
 import { planPorLead } from './plan-lead'
 import type { ReconocimientoVigente } from './reconocimientos-alertas'
 import type { Vista } from './router'
+import type { AvisoCorte } from './gestion-diaria-avisos'
 import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 
@@ -17,6 +18,9 @@ export type SeveridadAlerta = 'critica' | 'atencion'
 export type AlcanceAlerta = 'personal' | 'equipo' | 'empresa'
 
 export type TipoAlerta =
+  | 'parado_2h'
+  | 'corte_manana'
+  | 'corte_tarde'
   | 'seguimiento_comercial'
   | 'tarea_vencida'
   | 'lead_sin_responder'
@@ -37,6 +41,10 @@ export interface DestinoAlerta {
 }
 
 export interface AlertaCRM {
+  /** Grupo diario confirmado por la misma fuente que Gestión Diaria. */
+  diaria?: boolean
+  /** Cortes F4: estado confirmado independiente de los plazos del ledger legacy. */
+  corte?: AvisoCorte
   id: string
   tipo: TipoAlerta
   severidad: SeveridadAlerta
@@ -90,6 +98,9 @@ const PESO_SEVERIDAD: Record<SeveridadAlerta, number> = {
 }
 
 const PESO_TIPO: Record<TipoAlerta, number> = {
+  parado_2h: 2,
+  corte_manana: 1,
+  corte_tarde: 1,
   // El recordatorio vencido va PRIMERO: es la acción más barata y con
   // ventana (otro analista puede tomar el contacto mientras tanto).
   revisar_contacto: 0,

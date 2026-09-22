@@ -36,6 +36,7 @@ export const VISTAS = [
   'config-productos',
   'config-metas',
   'config-sla',
+  'config-gestion-diaria',
   'config-rentabilidad',
   'config-citas',
 ] as const
@@ -55,6 +56,7 @@ export const VISTAS_CONFIGURACION = [
   'config-productos',
   'config-metas',
   'config-sla',
+  'config-gestion-diaria',
   'config-rentabilidad',
   'config-citas',
 ] as const satisfies readonly Vista[]

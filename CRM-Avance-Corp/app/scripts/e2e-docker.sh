@@ -20,7 +20,12 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PW_VERSION="$(node -p "require('$APP_DIR/node_modules/@playwright/test/package.json').version" 2>/dev/null \
   || node -p "require('$APP_DIR/package-lock.json').packages['node_modules/@playwright/test'].version")"
 IMAGE="mcr.microsoft.com/playwright:v${PW_VERSION}-noble"
-VOLUME="avancecorp-crm-e2e-node-modules"
+VOLUME="${CRM_E2E_VOLUME:-avancecorp-crm-e2e-node-modules}"
+# Permite a tareas simultáneas identificar su contenedor y aislar dependencias.
+CONTAINER_ARGS=()
+if [ -n "${CRM_E2E_CONTAINER:-}" ]; then
+  CONTAINER_ARGS+=(--name "$CRM_E2E_CONTAINER")
+fi
 
 if ! docker info >/dev/null 2>&1; then
   echo "Docker no responde. Abre Docker Desktop y vuelve a correr." >&2
@@ -37,6 +42,8 @@ LOCK_HASH="$(shasum -a 256 "$APP_DIR/package-lock.json" | cut -d' ' -f1)"
 
 echo "E2E en Docker · imagen ${IMAGE}"
 exec docker run --rm --init --ipc=host \
+  "${CONTAINER_ARGS[@]}" \
+  --label "avancecorp.task=${CRM_E2E_TASK:-crm-e2e}" \
   -e CI=1 \
   -e LOCK_HASH="$LOCK_HASH" \
   -v "$APP_DIR":/app \
