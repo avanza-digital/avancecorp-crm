@@ -206,9 +206,40 @@ aquella parte del análisis hay que rehacerla.** Conservar además la frontera
 5. **`test-rls.mjs:6969`** (no 6949) afirma `d.version === 2`, y es específica de
    la #9. Además **`--preflight` sale antes** (`process.exit(0)` en la línea 243):
    **el preflight no prueba esa aserción.**
-6. 🔴 **`p4i.sql:52` acepta `or p_hasta = v_hoy`** para `v_periodo`. Reutilizar ese
-   indicador tal cual como `es_mes_calendario` **clasificaría mal el mes hasta
-   hoy**. Hay que endurecerlo, no reciclarlo.
+6. ~~`p4i.sql:52` acepta `or p_hasta = v_hoy`~~ **✅ NO ES UNA TRAMPA, medido el
+   22/09 — y esto abarata toda la Ola 1.**
+
+   El revisor avisó de que reutilizar ese indicador «clasificaría mal el mes
+   hasta hoy». Se comprobó y es al revés: **ese test ES la regla de Miguel**.
+   «Mes completo», para el mes vigente, es del día 1 a hoy — y `v_hoy` está en
+   **hora de Lima** en las tres puertas (`(now() at time zone 'America/Lima')::date`),
+   no en UTC.
+
+   🔑 **Las TRES puertas de la Ola 1 ya calculan ese test, y lo hacen idéntico:**
+
+   | Puerta | Línea | Variable |
+   |---|---|---|
+   | #4 `metricas_conversiones_implementacion` | 48–54 | `v_periodo` |
+   | #5 `metricas_distribucion_leads_v3_core` | 54–60 | `v_periodo` |
+   | #6 `metricas_conversiones_equipo_fn` | 63–69 | `v_periodo` |
+
+   ```sql
+   v_periodo := case
+     when p_desde = date_trunc('month', p_desde)::date
+      and date_trunc('month', p_hasta)::date = date_trunc('month', p_desde)::date
+      and (p_hasta = (date_trunc('month', p_desde) + interval '1 month' - interval '1 day')::date
+           or p_hasta = v_hoy)
+     then p_desde
+   end;
+   ```
+
+   **Consecuencia práctica:** `es_mes_calendario` NO hay que inventarlo ni
+   endurecerlo. Es `v_periodo is not null`, una expresión, en las tres. Y la
+   rama de delegación tiene su condición ya escrita:
+   `if v_periodo is not null and p_origen is null then …`.
+
+   La Ola 1 deja de ser «escribir lógica nueva» y pasa a ser **«publicar una
+   variable que ya existe, más la rama que la usa»**.
 7. **Guardar la alarma en la #12 rompería el cierre manual**: la alarma
    (`20260921182011:76`) rechaza claims que no sean `service_role`, y la #12
    admite Gerencia. `SECURITY DEFINER` no transforma los claims.
