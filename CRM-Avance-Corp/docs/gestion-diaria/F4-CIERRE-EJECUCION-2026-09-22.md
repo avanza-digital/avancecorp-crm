@@ -160,3 +160,15 @@ ocupada y nombre duplicado. **No aplicado a producción; requiere autorización.
    y publicación desde Main/remoto coincidentes, con respaldo recuperable.
 4. Programar cortes para una jornada futura y verificar su primera jornada real.
    No marcar F4 completa por haber cerrado pruebas locales.
+
+## Punto de entrega para autorización — 17:51 Lima
+
+[PR #73](https://github.com/avanza-digital/avancecorp-crm/pull/73) abierto en
+borrador, base `main`, fuente `bc697284` (producto idéntico al ensayado en
+`7c4a8d6c`; solo actas posteriores). Rama subida y taller limpio. Sin solicitud
+de revisores, auto-merge, instalación remota ni despliegue. CI de calidad/preflight
+iniciada; E2E ya aprobados localmente en Docker.
+
+Miguel confirmó la organización Supabase; eso solo autorizó cotizar. Se le mostró
+la propuesta exacta y se solicitó autorización de cuatro SQL, conciliación, banco
+hasta US$1 y la invocación `$release-crm`. **Respuestas pendientes en este punto.**

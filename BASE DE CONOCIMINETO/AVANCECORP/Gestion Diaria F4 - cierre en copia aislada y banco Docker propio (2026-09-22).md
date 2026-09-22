@@ -49,3 +49,7 @@ con fixtures (US$0,01344/h; tope propuesto US$1) y publicación mediante
 `$release-crm`. Pendiente autorización. Hostinger conectado; ZIP actual de Acceso
 Avance `7d65fcdb` conservado y 107 archivos cotejados en origen.
 [Propuesta de publicación](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md).
+
+PR #73 abierto en borrador: https://github.com/avanza-digital/avancecorp-crm/pull/73.
+Solo actas después del código ensayado `7c4a8d6c`. Organización confirmada para
+cotizar; aprobación de SQL/banco y `$release-crm` solicitada, todavía pendiente.

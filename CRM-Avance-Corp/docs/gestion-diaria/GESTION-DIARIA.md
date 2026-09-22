@@ -68,7 +68,8 @@ vigilante PASS juntos; check y E2E Docker repetidos sobre ese código: 4.153 y
 el archivo original. Respaldo y corrección administrativa preparados; ensayo
 reversible y tres guardas PASS. El registro productivo todavía no se modificó.
 
-**Falta:** PR y autorizaciones de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md); ensayo en
+**PR [#73](https://github.com/avanza-digital/avancecorp-crm/pull/73) abierto en borrador.**
+Faltan autorizaciones de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md); ensayo en
 rama Supabase, conciliación administrativa, publicación desde Main coincidente,
 activación futura y primera jornada real. No marcar F4 completa por las pruebas
 locales. Evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
