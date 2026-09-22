@@ -39,6 +39,7 @@ vi.mock('./contrato-nuevo',async()=>{
   </>}
 })
 const LEAD='55555555-5555-4555-8555-555555555555'
+const OTRO_LEAD='66666666-6666-4666-8666-666666666666'
 const lead:Lead={id:LEAD,nombre_completo:'PERSONA PRUEBA CONVERSIÓN',telefono:'999888777',correo:'persona@pruebas.example',
   dni:'93334444',etapa:'propuesta_enviada',origen:'landing',monto_estimado:5000,moneda:'PEN',
   vendedor_id:ACTOR_F5,vendedor_nombre:'ANALISTA F5',creado_en:'2026-09-01T12:00:00Z',activo:true}
@@ -51,7 +52,7 @@ const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solici
   comprobante_bucket:datos.empresa==='avance'?null:'f4-comprobantes',comprobante_ruta:datos.evidencia?.ruta??null,resultado:null,datos})
 beforeEach(()=>{
   vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null
-  api.persona.mockImplementation(async()=>({inversionista_id:PERSONA_F5,lead_id:LEAD,solicitud_id:vigente?.solicitud_id??null}))
+  api.persona.mockImplementation(async(leadId:string)=>({inversionista_id:PERSONA_F5,lead_id:leadId,solicitud_id:vigente?.solicitud_id??null}))
   api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil}}))
   api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
   api.preparar.mockImplementation(async i=>{vigente=preparada(i.clave,i.datos);return vigente})
@@ -223,6 +224,78 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     await waitFor(()=>expect(api.bienvenida).toHaveBeenCalledExactlyOnceWith(vigente!.solicitud_id))
     expect(vigente!.datos!.contrato).not.toHaveProperty('analista_cierre_id');expect(vigente!.datos!.contrato).not.toHaveProperty('cliente_id')
     expect(api.convertirAnterior).not.toHaveBeenCalled()
+  })
+  it('guarda y recupera el acceso; señala domicilio inválido y permite corregir el correo antes de crear la cuenta',async()=>{
+    const primera=montar();await entrar(primera.user,'Avance')
+    expect(screen.getByRole('navigation',{name:'Progreso de primera inversión Avance'})).toHaveTextContent('Paso 1 de 3')
+    await primera.user.type(screen.getByLabelText('Apellidos'),'PRUEBA')
+    await primera.user.type(screen.getByLabelText('Nombres'),'PERSONA')
+    await primera.user.clear(screen.getByLabelText('Correo de acceso Avance'))
+    await primera.user.type(screen.getByLabelText('Correo de acceso Avance'),'persona-correcta@example.invalid')
+    await primera.user.type(screen.getByLabelText('Domicilio legal'),'Av. Corta 1')
+    expect(screen.getByRole('status')).toHaveTextContent('Borrador guardado')
+    await primera.user.click(screen.getByRole('button',{name:'Cerrar y continuar después'}))
+    expect(primera.onClose).toHaveBeenCalledOnce();expect(api.preparar).not.toHaveBeenCalled()
+    primera.unmount()
+
+    const segunda=montar();await entrar(segunda.user,'Avance')
+    expect(screen.getByLabelText('Apellidos')).toHaveValue('PRUEBA')
+    expect(screen.getByLabelText('Nombres')).toHaveValue('PERSONA')
+    expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue('persona-correcta@example.invalid')
+    expect(screen.getByLabelText('Domicilio legal')).toHaveValue('Av. Corta 1')
+    await segunda.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(screen.getByLabelText('Domicilio legal')).toHaveAttribute('aria-invalid','true')
+    expect(screen.getByRole('alert')).toHaveTextContent('entre 15 y 240 caracteres')
+    expect(api.preparar).not.toHaveBeenCalled()
+    await segunda.user.clear(screen.getByLabelText('Domicilio legal'))
+    await segunda.user.type(screen.getByLabelText('Domicilio legal'),'AVENIDA SINTETICA 123 LIMA')
+    await segunda.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(screen.getByText('persona-correcta@example.invalid')).toBeInTheDocument()
+    expect(screen.getByText('AVENIDA SINTETICA 123 LIMA')).toBeInTheDocument()
+    await segunda.user.click(screen.getByRole('button',{name:'Corregir datos de acceso'}))
+    await segunda.user.clear(screen.getByLabelText('Correo de acceso Avance'))
+    await segunda.user.type(screen.getByLabelText('Correo de acceso Avance'),'correo-final@example.invalid')
+    await segunda.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByText('correo-final@example.invalid')).toBeInTheDocument()
+    expect(vigente?.datos?.alta_portal?.correo).toBe('correo-final@example.invalid')
+    expect(vigente?.datos).toMatchObject({contrato:{moneda:'PEN'},cronograma:[],cuenta:{}})
+    expect(api.acceso).not.toHaveBeenCalled()
+    await segunda.user.click(screen.getByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(api.acceso).toHaveBeenCalledOnce()
+  })
+  it('no muestra el borrador de otro lead aunque comparta analista y persona',async()=>{
+    const primera=montar();await entrar(primera.user,'Avance')
+    await primera.user.type(screen.getByLabelText('Apellidos'),'PRIMER LEAD')
+    await primera.user.click(screen.getByRole('button',{name:'Cerrar y continuar después'}))
+    primera.unmount()
+    const segunda=montar({id:OTRO_LEAD,nombre_completo:'OTRO LEAD SINTÉTICO'})
+    await entrar(segunda.user,'Avance')
+    expect(screen.getByLabelText('Apellidos')).toHaveValue('')
+    await segunda.user.type(screen.getByLabelText('Apellidos'),'SEGUNDO LEAD')
+    await segunda.user.click(screen.getByRole('button',{name:'Cerrar y continuar después'}))
+    segunda.unmount()
+    const retomada=montar();await entrar(retomada.user,'Avance')
+    expect(screen.getByLabelText('Apellidos')).toHaveValue('PRIMER LEAD')
+    expect(api.preparar).not.toHaveBeenCalled()
+  })
+  it('avisa si el navegador impide guardar y exige confirmar antes de cerrar',async()=>{
+    const vista=montar();await entrar(vista.user,'Avance')
+    const original=sessionStorage
+    vi.stubGlobal('sessionStorage',{
+      getItem:original.getItem.bind(original),removeItem:original.removeItem.bind(original),
+      setItem:()=>{throw new DOMException('Sin espacio','QuotaExceededError')},
+    })
+    try {
+      await vista.user.type(screen.getByLabelText('Apellidos'),'PRUEBA')
+      expect(screen.getAllByRole('alert').some(alerta=>alerta.textContent?.includes('No se están guardando'))).toBe(true)
+      await vista.user.click(screen.getByRole('button',{name:'Cerrar y continuar después'}))
+      expect(vista.onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('button',{name:'Cerrar sin guardar'})).toBeInTheDocument()
+      await vista.user.click(screen.getByRole('button',{name:'Cerrar sin guardar'}))
+      expect(vista.onClose).toHaveBeenCalledOnce()
+    } finally {vi.unstubAllGlobals()}
   })
   it('cancelar el contrato conserva la inversión sin confirmar',async()=>{
     perfil=PERFIL_F5;const {user,onClose,recargar}=montar();await entrar(user,'Avance')

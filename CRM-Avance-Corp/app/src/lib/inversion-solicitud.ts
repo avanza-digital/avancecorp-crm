@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 import type { CrearContratoInput } from '@/data/crm-api'
 import type { Json } from '@/lib/database.types'
+import { PREFIJOS_CONTRATO } from '@/lib/contratos-catalogo'
 
 const Uuid = v.pipe(v.string(), v.uuid())
 const Revision = v.pipe(v.number(), v.integer(), v.minValue(0))
@@ -59,6 +60,96 @@ export type IntentoInversion = v.InferOutput<typeof IntentoSchema>
 const PREFIJO = 'crm:f5:solicitud:'
 const clave = (actor: string, persona: string, lead?: string) => `${PREFIJO}${actor}:${lead ? `lead-${lead}` : persona}`
 
+const PREFIJO_ACCESO = 'crm:f5:acceso:'
+const BorradorAccesoSchema = v.object({
+  version: v.literal(1), actor: Uuid, persona: Uuid, lead: v.optional(Uuid), solicitud: v.nullable(Uuid),
+  datos: v.object({
+    apellidos: v.pipe(v.string(), v.maxLength(180)), nombres: v.pipe(v.string(), v.maxLength(180)),
+    correo: v.pipe(v.string(), v.maxLength(180)), telefono: v.pipe(v.string(), v.maxLength(180)),
+    domicilio: v.pipe(v.string(), v.maxLength(300)),
+  }),
+})
+export type DatosBorradorAcceso = v.InferOutput<typeof BorradorAccesoSchema>['datos']
+const claveAcceso = (actor: string, persona: string, lead?: string, solicitud?: string | null) =>
+  `${PREFIJO_ACCESO}${actor}:${persona}:${lead ?? 'cartera'}:${solicitud ?? 'nuevo'}`
+
+/** Campos aún no enviados: solo en esta pestaña y separados por actor, persona,
+ * lead y solicitud. No se guardan contraseñas ni se envían a telemetría. */
+export function guardarBorradorAcceso(actor: string, persona: string, lead: string | undefined,
+  solicitud: string | null, datos: DatosBorradorAcceso): void {
+  const borrador = v.parse(BorradorAccesoSchema, {
+    version: 1, actor, persona, ...(lead ? {lead} : {}), solicitud, datos,
+  })
+  sessionStorage.setItem(claveAcceso(actor, persona, lead, solicitud), JSON.stringify(borrador))
+}
+export function leerBorradorAcceso(actor: string, persona: string, lead?: string,
+  solicitud: string | null = null): DatosBorradorAcceso | null {
+  const raw = sessionStorage.getItem(claveAcceso(actor, persona, lead, solicitud))
+  if (!raw) return null
+  try {
+    const r = v.safeParse(BorradorAccesoSchema, JSON.parse(raw))
+    if (r.success && r.output.actor === actor && r.output.persona === persona &&
+      r.output.lead === lead && r.output.solicitud === solicitud) return r.output.datos
+  } catch { /* Un borrador dañado nunca se muestra como datos de otra persona. */ }
+  return null
+}
+export function limpiarBorradorAcceso(actor?: string, persona?: string, lead?: string): void {
+  const prefijo = !actor ? PREFIJO_ACCESO : !persona ? `${PREFIJO_ACCESO}${actor}:`
+    : `${PREFIJO_ACCESO}${actor}:${persona}:${lead ?? 'cartera'}:`
+  try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
+  catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
+}
+
+const PREFIJO_CONDICIONES = 'crm:f5:condiciones:'
+const TextoContrato = v.pipe(v.string(), v.maxLength(500))
+const BorradorCondicionesSchema = v.object({
+  version: v.literal(1), actor: Uuid, persona: Uuid, lead: v.optional(Uuid), solicitud: Uuid,
+  revision: Revision,
+  datos: v.object({
+    analistaCierre: TextoContrato, categoria: v.picklist(['', 'nuevo', 'renovacion', 'upgrade']),
+    tipoInteres: v.picklist(['simple', 'compuesto']), modalidad: v.picklist(['mensual', 'trimestral', 'semestral', 'anual']),
+    capital: TextoContrato, capitalRenovado: TextoContrato, capitalAdicional: TextoContrato,
+    moneda: v.picklist(['PEN', 'USD']), tasa: TextoContrato, origenUpgrade: TextoContrato,
+    fechaInicio: TextoContrato, plazo: TextoContrato, vencManual: TextoContrato,
+    prefijo: v.picklist(PREFIJOS_CONTRATO), numero: TextoContrato, notas: TextoContrato,
+    cuentaSeleccionada: TextoContrato,
+    // Solo se conserva una referencia a una cuenta existente. Los datos de una
+    // cuenta nueva y de co-titulares no deben persistir antes de enviarse.
+    requiereReingresarDatosSensibles: v.boolean(),
+    domicilio: TextoContrato,
+  }),
+})
+export type DatosBorradorCondiciones = v.InferOutput<typeof BorradorCondicionesSchema>['datos']
+const claveCondiciones = (actor: string, persona: string, lead: string | undefined, solicitud: string) =>
+  `${PREFIJO_CONDICIONES}${actor}:${persona}:${lead ?? 'cartera'}:${solicitud}`
+
+/** Los campos aún no revisados del contrato se quedan en esta pestaña. La
+ * revisión y los permisos se validan de nuevo al recuperar y enviar. */
+export function guardarBorradorCondiciones(actor: string, persona: string, lead: string | undefined,
+  solicitud: string, revision: number, datos: DatosBorradorCondiciones): void {
+  const borrador = v.parse(BorradorCondicionesSchema, {
+    version: 1, actor, persona, ...(lead ? {lead} : {}), solicitud, revision, datos,
+  })
+  sessionStorage.setItem(claveCondiciones(actor, persona, lead, solicitud), JSON.stringify(borrador))
+}
+export function leerBorradorCondiciones(actor: string, persona: string, lead: string | undefined,
+  solicitud: string, revision: number): DatosBorradorCondiciones | null {
+  const raw = sessionStorage.getItem(claveCondiciones(actor, persona, lead, solicitud))
+  if (!raw) return null
+  try {
+    const r = v.safeParse(BorradorCondicionesSchema, JSON.parse(raw))
+    if (r.success && r.output.actor === actor && r.output.persona === persona && r.output.lead === lead &&
+      r.output.solicitud === solicitud && r.output.revision === revision) return r.output.datos
+  } catch { /* No usar datos corruptos para reconstruir un contrato. */ }
+  return null
+}
+export function limpiarBorradorCondiciones(actor?: string, persona?: string, lead?: string): void {
+  const prefijo = !actor ? PREFIJO_CONDICIONES : !persona ? `${PREFIJO_CONDICIONES}${actor}:`
+    : `${PREFIJO_CONDICIONES}${actor}:${persona}:${lead ?? 'cartera'}:`
+  try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
+  catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
+}
+
 /** Solo en esta sesión del navegador: sobrevive a recarga/cierre de diálogo.
  * El contenido nunca viaja a logs, y se elimina al salir o perder acceso. */
 export function guardarIntentoInversion(intento: IntentoInversion): void {
@@ -78,6 +169,8 @@ export function limpiarIntentosInversion(actor?: string, persona?: string, lead?
   const prefijo = actor ? `${PREFIJO}${actor}:${lead ? `lead-${lead}` : persona ?? ''}` : PREFIJO
   try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
   catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
+  limpiarBorradorAcceso(actor, persona, lead)
+  limpiarBorradorCondiciones(actor, persona, lead)
 }
 export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion, origen?: string | null): IntentoInversion {
   const bytes = crypto.getRandomValues(new Uint8Array(24))

@@ -1,7 +1,7 @@
 // Formulario de CONTRATO dentro del CRM (paso 2 de la conversión lead→cliente).
 // Usa el wrapper atómico de `crm` sobre la RPC del portal + el generador de
 // cronograma portado: contrato, cuenta y vínculo se confirman o revierten juntos.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
@@ -70,6 +70,7 @@ import {
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { archivarContratoPdfDemoHabilitado } from '@/lib/contrato-pdf-demo-loader'
 import type { CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
+import type { DatosBorradorCondiciones } from '@/lib/inversion-solicitud'
 
 const PLAZO_PERSONALIZADO = 'personalizado'
 const CUENTAS_VACIAS: CuentaBancariaSeleccionable[] = []
@@ -191,6 +192,11 @@ export interface ContratoNuevoProps {
   onEnviandoCambio?: (enCurso: boolean) => void
   /** F5 prepara/revisa la misma inversión antes de confirmar su fuente. */
   onRevisar?: (input: CrearContratoInput, cronograma: CuotaCronograma[]) => Promise<void>
+  /** Progreso del primer acceso Avance, si el formulario vive en ese flujo. */
+  indicadorPaso?: ReactNode
+  /** Campos todavía sin revisar de F5, recuperados de esta pestaña. */
+  borradorLocal?: DatosBorradorCondiciones | null | undefined
+  onBorradorLocal?: ((datos: DatosBorradorCondiciones) => void) | undefined
   borrador?: CrearContratoInput | undefined
   onCreado: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   onOmitir: () => void
@@ -214,6 +220,9 @@ export function ContratoNuevo({
   onCreado,
   onOmitir,
   onRevisar,
+  indicadorPaso,
+  borradorLocal,
+  onBorradorLocal,
   borrador,
   condicionesIniciales,
   leadOrigenId,
@@ -221,39 +230,39 @@ export function ContratoNuevo({
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
   // elegir — que es exactamente lo que pide la decisión 2.
-  const [analistaCierre, setAnalistaCierre] = useState<string>(() =>
-    analistaInicial && (analistas ?? []).some((a) => a.perfil_id === analistaInicial) ? analistaInicial : '',
-  )
+  const [analistaCierre, setAnalistaCierre] = useState<string>(() => borradorLocal
+    ? (analistas ?? []).some(a => a.perfil_id === borradorLocal.analistaCierre) ? borradorLocal.analistaCierre : ''
+    : analistaInicial && (analistas ?? []).some((a) => a.perfil_id === analistaInicial) ? analistaInicial : '')
   const categoriaInicial = renovacionOrigen ? 'renovacion' : (borrador?.categoria ?? condicionesIniciales?.categoria ?? categoriaFija ?? '')
-  const [categoria, setCategoria] = useState<CategoriaContrato | ''>(categoriaInicial)
-  const [tipoInteres, setTipoInteres] = useState<TipoInteres>(borrador?.tipo_interes ?? condicionesIniciales?.tipo_interes ?? 'simple')
-  const [modalidad, setModalidad] = useState<ModalidadContrato>(borrador?.modalidad ?? condicionesIniciales?.modalidad ?? 'mensual')
+  const [categoria, setCategoria] = useState<CategoriaContrato | ''>(borradorLocal?.categoria ?? categoriaInicial)
+  const [tipoInteres, setTipoInteres] = useState<TipoInteres>(borradorLocal?.tipoInteres ?? borrador?.tipo_interes ?? condicionesIniciales?.tipo_interes ?? 'simple')
+  const [modalidad, setModalidad] = useState<ModalidadContrato>(borradorLocal?.modalidad ?? borrador?.modalidad ?? condicionesIniciales?.modalidad ?? 'mensual')
   const [capital, setCapital] = useState(
-    borrador ? String(borrador.capital) : condicionesIniciales ? String(condicionesIniciales.capital) : renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
+    borradorLocal?.capital ?? (borrador ? String(borrador.capital) : condicionesIniciales ? String(condicionesIniciales.capital) : renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : ''),
   )
-  const [capitalRenovado, setCapitalRenovado] = useState(borrador?.capital_renovado != null ? String(borrador.capital_renovado) : renovacionOrigen ? String(renovacionOrigen.capital) : '')
-  const [capitalAdicional, setCapitalAdicional] = useState(borrador?.capital_adicional != null ? String(borrador.capital_adicional) : renovacionOrigen ? '0' : '')
+  const [capitalRenovado, setCapitalRenovado] = useState(borradorLocal?.capitalRenovado ?? (borrador?.capital_renovado != null ? String(borrador.capital_renovado) : renovacionOrigen ? String(renovacionOrigen.capital) : ''))
+  const [capitalAdicional, setCapitalAdicional] = useState(borradorLocal?.capitalAdicional ?? (borrador?.capital_adicional != null ? String(borrador.capital_adicional) : renovacionOrigen ? '0' : ''))
   // ATR-3: si el contrato que se renueva pertenece a una cadena de upgrade, la
   // renovación contará al analista de esa cadena — se avisa junto al selector.
   const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
   const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
-  const [moneda, setMoneda] = useState<Moneda>(borrador?.moneda ?? condicionesIniciales?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
+  const [moneda, setMoneda] = useState<Moneda>(borradorLocal?.moneda ?? borrador?.moneda ?? condicionesIniciales?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
   // Rentabilidad R3: la tasa la fija la POLÍTICA (bloque TasaPolitica); arranca en 15 solo hasta que el núcleo responde.
-  const [tasa, setTasa] = useState(borrador ? String(borrador.tasa_anual) : condicionesIniciales ? String(condicionesIniciales.tasa_anual) : '15')
+  const [tasa, setTasa] = useState(borradorLocal?.tasa ?? (borrador ? String(borrador.tasa_anual) : condicionesIniciales ? String(condicionesIniciales.tasa_anual) : '15'))
   const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
   const [origenUpgrade, setOrigenUpgrade] = useState<string>(
-    borrador?.contrato_origen_id ?? condicionesIniciales?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
+    borradorLocal?.origenUpgrade ?? borrador?.contrato_origen_id ?? condicionesIniciales?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
   )
-  const [fechaInicio, setFechaInicio] = useState(borrador?.fecha_inicio ?? condicionesIniciales?.fecha_inicio ?? hoyLocal())
-  const [plazo, setPlazo] = useState<string>(borrador || condicionesIniciales ? PLAZO_PERSONALIZADO : '12')
-  const [vencManual, setVencManual] = useState(borrador?.fecha_vencimiento ?? condicionesIniciales?.fecha_vencimiento ?? '')
+  const [fechaInicio, setFechaInicio] = useState(borradorLocal?.fechaInicio ?? borrador?.fecha_inicio ?? condicionesIniciales?.fecha_inicio ?? hoyLocal())
+  const [plazo, setPlazo] = useState<string>(borradorLocal?.plazo ?? (borrador || condicionesIniciales ? PLAZO_PERSONALIZADO : '12'))
+  const [vencManual, setVencManual] = useState(borradorLocal?.vencManual ?? borrador?.fecha_vencimiento ?? condicionesIniciales?.fecha_vencimiento ?? '')
   const numeroInicial = separarNumeroContrato(borrador?.numero_contrato)
-  const [prefijo, setPrefijo] = useState(numeroInicial?.prefijo ?? PREFIJO_CONTRATO)
-  const [numero, setNumero] = useState(numeroInicial?.numero ?? '')
-  const [notas, setNotas] = useState(borrador?.notas_internas ?? '')
+  const [prefijo, setPrefijo] = useState(borradorLocal?.prefijo ?? numeroInicial?.prefijo ?? PREFIJO_CONTRATO)
+  const [numero, setNumero] = useState(borradorLocal?.numero ?? numeroInicial?.numero ?? '')
+  const [notas, setNotas] = useState(borradorLocal?.notas ?? borrador?.notas_internas ?? '')
   // La selección se reinicia al cambiar moneda: jamás se traslada implícitamente
   // una cuenta PEN a USD (o viceversa).
-  const [cuentaSeleccionada, setCuentaSeleccionada] = useState(borrador?.cuenta_pago.tipo === 'nueva' ? CUENTA_NUEVA : '')
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState(borradorLocal?.cuentaSeleccionada ?? (borrador?.cuenta_pago.tipo === 'nueva' ? CUENTA_NUEVA : ''))
   const [cuentaNueva, setCuentaNueva] = useState<SeccionBancariaForm>({
     ...SECCION_BANCARIA_VACIA,
     ...(borrador?.cuenta_pago.tipo === 'nueva' ? {...borrador.cuenta_pago, beneficiario_nombre: borrador.cuenta_pago.beneficiario_nombre ?? '', beneficiario_dni: borrador.cuenta_pago.beneficiario_dni ?? ''} : {}),
@@ -285,13 +294,31 @@ export function ContratoNuevo({
   // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
   // alta y lo exige literalmente, así que sin él el contrato entero se revierte.
   // Se pregunta ANTES para convertir ese muro sin nombre en un campo.
-  const [domicilio, setDomicilio] = useState('')
+  const [domicilio, setDomicilio] = useState(borradorLocal?.domicilio ?? '')
   const [guardandoDomicilio, setGuardandoDomicilio] = useState(false)
   const [errorDomicilio, setErrorDomicilio] = useState<string | null>(null)
   const [avisoDomicilio, setAvisoDomicilio] = useState<string | null>(null)
   // El servidor ya confirmó el domicilio en ESTA sesión: manda sobre la
   // consulta, que puede quedarse con una foto vieja si la relectura falla.
   const [domicilioConfirmado, setDomicilioConfirmado] = useState(false)
+  const guardarBorradorRef = useRef(onBorradorLocal)
+  guardarBorradorRef.current = onBorradorLocal
+  // La política de tasas y las consultas de cuentas también cambian estado.
+  // Solo una edición humana habilita el borrador para que no se cree al abrir.
+  const formularioEditado = useRef(false)
+  useEffect(() => {
+    if (!formularioEditado.current || enviando) return
+    const cuentaNuevaConDatos = cuentaSeleccionada === CUENTA_NUEVA &&
+      Object.entries(cuentaNueva).some(([campo, valor]) => campo !== 'titular_distinto' && typeof valor === 'string' && valor.trim())
+    const titularesConDatos = titulares.some(titular => titular.documento.trim() || titular.nombre_completo.trim())
+    guardarBorradorRef.current?.({analistaCierre, categoria, tipoInteres, modalidad, capital, capitalRenovado,
+      capitalAdicional, moneda, tasa, origenUpgrade, fechaInicio, plazo, vencManual, prefijo, numero,
+      notas, cuentaSeleccionada,
+      requiereReingresarDatosSensibles: Boolean(borradorLocal?.requiereReingresarDatosSensibles || cuentaNuevaConDatos || titularesConDatos),
+      domicilio})
+  }, [analistaCierre, categoria, tipoInteres, modalidad, capital, capitalRenovado, capitalAdicional, moneda,
+    tasa, origenUpgrade, fechaInicio, plazo, vencManual, prefijo, numero, notas, cuentaSeleccionada,
+    cuentaNueva, titulares, domicilio, enviando, borradorLocal?.requiereReingresarDatosSensibles])
   const esDemo = pdfDatosDemo != null
   const bloqueoTasa = esDemo ? null : rangoTasa?.bloqueoContrato ?? (
     !rangoTasa || rangoTasa.minimo == null || rangoTasa.maximo == null || ['cargando', 'error', 'incompleta'].includes(rangoTasa.modo)
@@ -396,13 +423,14 @@ export function ContratoNuevo({
   // enviar como segunda defensa.
   useEffect(() => {
     if (!cuentaSeleccionada || cuentaSeleccionada === CUENTA_NUEVA) return
+    if (cuentasPendientes || cuentasReintentando || cuentasConError) return
     if (!cuentasDisponibles.some((cuenta) => claveCuenta(cuenta) === cuentaSeleccionada)) {
       setCuentaSeleccionada('')
       setAvisoCuenta(
         'La cuenta que habías elegido cambió o ya no está disponible. Revísala y selecciona nuevamente el destino del contrato.',
       )
     }
-  }, [cuentaSeleccionada, cuentasDisponibles])
+  }, [cuentaSeleccionada, cuentasDisponibles, cuentasPendientes, cuentasReintentando, cuentasConError])
 
   // Un error describe la fotografía del formulario en el instante del submit.
   // En cuanto cambia cualquier dato deja de ser vigente: retirarlo evita que un
@@ -948,6 +976,7 @@ export function ContratoNuevo({
     <form
       className="flex min-h-0 flex-1 flex-col"
       aria-describedby={error ? 'ct-error-resumen' : undefined}
+      onChangeCapture={() => {formularioEditado.current = true}}
       onSubmit={(evento) => {
         evento.preventDefault()
         void guardar()
@@ -963,7 +992,10 @@ export function ContratoNuevo({
               : `Crear contrato de ${clienteNombre}`}
         </DialogTitle>
       </DialogHeader>
+      {indicadorPaso}
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
+        {borradorLocal && <p role="status" className="text-xs text-muted-foreground">Recuperamos las condiciones que escribiste en esta pestaña. Revísalas antes de continuar.
+          {borradorLocal.requiereReingresarDatosSensibles && ' Por seguridad, vuelve a ingresar la cuenta nueva o los co-titulares que habías añadido.'}</p>}
         {faltaDomicilio && (
           <section
             aria-labelledby="ct-domicilio-titulo"
@@ -1336,11 +1368,12 @@ export function ContratoNuevo({
           campoNuevaInvalido={campoCuentaInvalido}
           {...(error ? { errorId: 'ct-error-resumen' } : {})}
           onSeleccion={(seleccion) => {
+            formularioEditado.current = true
             setCuentaSeleccionada(seleccion)
             setAvisoCuenta(null)
             setError(null)
           }}
-          onNueva={setCuentaNueva}
+          onNueva={nueva => {formularioEditado.current = true; setCuentaNueva(nueva)}}
           onReintentar={() => {
             if (!esDemo) void cuentasQ.refetch()
           }}
@@ -1354,7 +1387,7 @@ export function ContratoNuevo({
 
         {/* Co-titulares (cuenta mancomunada) — hasta 5, viajan en p_contrato. */}
         <div className="rounded-xl border border-border p-3">
-          <TitularesEditor value={titulares} onChange={setTitulares} disabled={enviando} idPrefix="ct-tit" />
+          <TitularesEditor value={titulares} onChange={nuevos => {formularioEditado.current = true; setTitulares(nuevos)}} disabled={enviando} idPrefix="ct-tit" />
         </div>
 
         {/* Vista previa del cronograma */}
