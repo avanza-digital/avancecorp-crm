@@ -32,8 +32,8 @@ PASS. Regresión Docker: **232 PASS, 26 SKIPPED de pantallas retiradas, cero fal
 en `gestion-diaria-f4-e2e`, volumen propio, dos workers. Libro anterior de alertas
 SLA compatible por HTTP y navegador entre sesiones PASS. Ambos dictámenes de
 Claude se recuperaron CHANGES_REQUESTED; el PRIMARY resolvió con pruebas.
-Main hasta `8ad32d2b` integrado y nuevo vigilante probado junto con F4. Se detectó
-después `7d65fcdb`, pendiente integración final. Respaldo y corrección del ledger
+Main `7d65fcdb` integrado en `7c4a8d6c`; vigilante y F4 pasan juntos. Check y
+Docker repetidos tras integrar Acceso Avance: 4.153 y 232 PASS, 26 SKIPPED. Respaldo y corrección del ledger
 de etapa 3 preparados: 33 sentencias exactas, ensayo reversible y tres guardas
 PASS; producción intacta. Ensayo remoto, entrega y primera jornada pendientes.
 
@@ -43,3 +43,9 @@ ni veredicto de pruebas. Ver [[Jev para auditar - que sabe juzgar y que no (2026
 
 Fuente operativa: [plan principal](../../CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md)
 y [acta de ejecución](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-EJECUCION-2026-09-22.md).
+
+Propuesta exacta lista: cuatro SQL más conciliación administrativa, rama remota
+con fixtures (US$0,01344/h; tope propuesto US$1) y publicación mediante
+`$release-crm`. Pendiente autorización. Hostinger conectado; ZIP actual de Acceso
+Avance `7d65fcdb` conservado y 107 archivos cotejados en origen.
+[Propuesta de publicación](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md).

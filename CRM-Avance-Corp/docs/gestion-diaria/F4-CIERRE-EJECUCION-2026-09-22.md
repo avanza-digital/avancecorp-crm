@@ -88,8 +88,10 @@ conservada. Capturas `f44-diarias-sup1.png` y `f44-diarias-sup2.png` revisadas.
 
 Main `8ad32d2b` integrado en `09aa31ec`, conservando ambas entradas del ledger.
 Vigilante `20260922153708`, ya productivo por otra tarea, incorporado al banco:
-gates de vigilante y F4 PASS juntos (`gd-f4-integracion-main.json`). Un fetch
-posterior encontró `7d65fcdb` (Acceso Avance); integración final pendiente.
+gates de vigilante y F4 PASS juntos (`gd-f4-integracion-main.json`). El avance
+`7d65fcdb` (Acceso Avance) también quedó integrado en `7c4a8d6c`. Check repetido
+PASS: 4.153/277; Docker repetido PASS: 232/26 SKIPPED, cero fallos, 9,0 minutos.
+Logs `gd-f4-check-main72-20260922.log` y `gd-f4-e2e-docker-main72-20260922.log`.
 
 ## Decisiones sobre la revisión
 
@@ -148,11 +150,12 @@ ocupada y nombre duplicado. **No aplicado a producción; requiere autorización.
 
 ## Pendientes reales
 
-1. Integrar el avance `7d65fcdb` de Main y verificar el código final. No repetir
-   instalación/concurrencia del banco que ya consumió entregas inmutables.
-2. Preparar PR y propuesta exacta de cuatro SQL, conciliación administrativa,
-   coste del banco remoto, recuperación y publicación. Obtener las autorizaciones
-   específicas antes de crear recursos de pago, modificar producción o publicar.
+1. Obtener autorización de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md).
+   Código integrado y gates locales completos PASS; reconfirmar Main antes de entregar.
+2. PR con cuatro SQL y conciliación preparados, banco remoto cotizado a
+   US$0,01344/h, tope propuesto US$1. Esperar autorización antes de crear recursos
+   de pago, modificar producción o publicar. Hostinger conectado y respaldo
+   actual `7d65fcdb` cotejado en sus 107 archivos de origen; CDN no acreditada por timeout.
 3. Ensayo en rama Supabase, matriz RLS/advisors, conciliación sin reinstalar etapa 3
    y publicación desde Main/remoto coincidentes, con respaldo recuperable.
 4. Programar cortes para una jornada futura y verificar su primera jornada real.

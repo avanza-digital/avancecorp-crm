@@ -62,13 +62,13 @@ Jev clasificó 13 pendientes en 2,2 s como apoyo, sin certificar pruebas ni ampl
 F4.1. Los dos dictámenes de Claude se recuperaron como CHANGES_REQUESTED; el
 PRIMARY resolvió con cambios y evidencia. No se atribuye PASS al reviewer.
 
-Main hasta `8ad32d2b` integrado; gates del nuevo vigilante y F4 pasan juntos.
-Un fetch posterior encontró `7d65fcdb` (Acceso Avance): integrar y verificar ese
-avance antes de publicar. Las 33 sentencias del ledger de etapa 3 coinciden con
+Main `7d65fcdb` integrado en `7c4a8d6c`, incluido Acceso Avance. Gates de F4 y
+vigilante PASS juntos; check y E2E Docker repetidos sobre ese código: 4.153 y
+232 PASS respectivamente, 26 SKIPPED y cero fallos. Las 33 sentencias del ledger de etapa 3 coinciden con
 el archivo original. Respaldo y corrección administrativa preparados; ensayo
 reversible y tres guardas PASS. El registro productivo todavía no se modificó.
 
-**Falta:** integración final, PR/propuesta y autorizaciones específicas; ensayo en
+**Falta:** PR y autorizaciones de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md); ensayo en
 rama Supabase, conciliación administrativa, publicación desde Main coincidente,
 activación futura y primera jornada real. No marcar F4 completa por las pruebas
 locales. Evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
@@ -147,8 +147,8 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
 
-**Próximo trabajo:** cerrar la propuesta concreta de publicación y sus
-autorizaciones; integrar avances de Main conservando el taller ajeno. Las reglas
+**Próximo trabajo:** revisar y autorizar la propuesta de publicación; reconfirmar
+Main antes de entregar, conservando el taller ajeno. Las reglas
 de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
 aplazamiento único de una hora sin reaviso al cierre ya están aprobadas.
 

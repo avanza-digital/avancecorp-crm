@@ -1,11 +1,11 @@
-- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Cierre en curso: SQL/HTTP/concurrencia y 4.147 pruebas locales PASS; producción OFF, navegador y entrega pendientes.
-
 ---
 tags: [moc, inicio]
 actualizado: 2026-09-21
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Etapas 4–5 implementadas localmente: 4.153 tests, 232 E2E Docker y 25 mutantes PASS. Main integrado; propuesta SQL/entrega lista, autorización y primera jornada pendientes. Cortes productivos OFF.
 
 - [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
 
