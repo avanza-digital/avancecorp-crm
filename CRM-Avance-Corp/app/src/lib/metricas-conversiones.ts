@@ -229,6 +229,19 @@ const DetalleConversionVendedorSchema = v.object({
 // comportamiento anterior cuando faltan, jamás fabrica ceros.
 
 const NucleoConversionesSchema = v.object({
+  // ── EL CONTRATO DE LA UNIFICACIÓN (Ola 1 de las doce puertas) ─────────────
+  // Cuatro claves que dicen DE DÓNDE salió la cifra, para que una pantalla
+  // nunca vuelva a publicar un porcentaje sin decir qué es.
+  //
+  // 🔴 VAN OPCIONALES A PROPÓSITO, y el front entra PRIMERO. Regla de la casa:
+  // una clave nueva en la RESPUESTA obliga a publicar el front antes que el
+  // servidor. Si entrara el servidor primero, un bundle viejo con
+  // `strictObject` rechazaría el payload entero y la pantalla se caería.
+  // Mientras el servidor no las emita, `undefined` = «servidor previo».
+  es_mes_calendario: v.optional(v.boolean()),
+  fuente: v.optional(v.picklist(['mensual', 'rango_vivo'])),
+  sellado: v.optional(v.nullable(v.boolean())),
+  ajuste_aplicado: v.optional(v.boolean()),
   base: v.string(),
   atribucion: v.optional(v.literal('primer_analista')),
   llegadas: v.optional(v.number()),
@@ -275,6 +288,11 @@ const SondasConversionesSchema = v.object({
   // cuenta a ambos) y el front lo avisa. Opcional: servidores previos y el
   // espejo demo no la emiten.
   perfiles_con_leads_de_varios_vendedores: v.optional(v.number()),
+  // Las dos sondas del contrato de unificación: si la puerta delegó, se
+  // contrastó contra la mensual y se publica la diferencia. Opcionales por
+  // servidores previos, igual que las de arriba.
+  mensual_comparada: v.optional(v.boolean()),
+  paridad_mensual: v.optional(v.nullable(v.number())),
 })
 
 export const MetricasConversionesSchema = v.pipe(v.object({
