@@ -1,7 +1,9 @@
 # F4 etapa 3 — preparación de publicación y recuperación
 
-Estado al 21/09/2026: preparación técnica local verificada; **no autorizado ni
-ejecutado en producción**. Gobernado por [GESTION-DIARIA.md](GESTION-DIARIA.md).
+Estado al 21/09/2026: preparación técnica local verificada y **SQL exacto aprobado;
+ejecución productiva pendiente**. [PR #68](https://github.com/avanza-digital/avancecorp-crm/pull/68)
+abierto para revisión, sin merge ni despliegue.
+Gobernado por [GESTION-DIARIA.md](GESTION-DIARIA.md).
 No incluye etapa 4, activación de cortes ni TypeSafe.
 
 ## Artefacto exacto y alcance
@@ -19,8 +21,16 @@ esa rama ni incorporar/eliminar esos cambios por cuenta de esta entrega.
 Main local y `avancecorp/main` deben terminar en el mismo commit aprobado.
 Construir sólo desde ese commit limpio, nunca reutilizar el build de este ensayo.
 
-Requiere aprobación del SQL exacto y la invocación humana de `$release-crm`.
-Ni este documento ni la autorización del banco local permiten desplegar.
+Miguel aprobó el SQL exacto: «ok prepara el pr apruebo el sql y me avisas para
+ejecutar». Esta aprobación no se extiende a otros archivos ni a una activación.
+La ejecución sigue esperando la invocación humana de `$release-crm`, la aprobación
+del PR y los gates del release. Ni este documento ni abrir el PR permiten desplegar.
+
+Bloqueo al abrir #68: GitHub Actions no inició los trabajos por pagos o límite
+de gasto de la cuenta (runs `35686655870` y `35686655821`, sin pasos ejecutados).
+El responsable debe resolverlo en «Billing & plans» y reejecutar CI sobre el HEAD
+vigente. No sustituir el `verify` obligatorio por las pruebas locales, omitirlo
+ni cambiar facturación/reglas del repositorio por cuenta de esta preparación.
 
 ## Preparar el resguardo del destino antes de instalar
 
@@ -46,7 +56,7 @@ y los cuatro gates SLA (`assert_sla_nucleo`, `assert_sla_operacion`,
 Si cambia algún sello o aparece otra instalación, detener y revisar; no adaptar
 a ciegas los resguardos locales a producción.
 
-## Secuencia de publicación autorizada
+## Secuencia de publicación prevista, todavía no ejecutada
 
 1. Verificar el resguardo del destino y repetir los gates sobre el commit final.
 2. Ejecutar únicamente el SQL candidato aprobado por el mecanismo del proyecto,

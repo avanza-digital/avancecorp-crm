@@ -29,11 +29,52 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Último punto de control — matriz general y ensayo HTTP cerrados, 21/09/2026
+### Último punto de control — PR #68 preparado y SQL aprobado, 21/09/2026
 
-La pausa terminó por indicación de Miguel. Objetivo activo: comprobar Gestión
-Diaria de extremo a extremo y dejar F4 etapa 3 lista para publicar **OFF**, sin
-empezar la etapa 4. Miguel autorizó el banco local desechable
+Miguel indicó: «ok prepara el pr apruebo el sql y me avisas para ejecutar».
+Se abrió [PR #68](https://github.com/avanza-digital/avancecorp-crm/pull/68), desde
+`codex/gestion-diaria-typesafe-piloto` hacia `avancecorp/main`, y se solicitó
+la revisión de `miguejbs98`. No se fusionó, no se habilitó auto-merge y no se
+ejecutó SQL ni se publicó la aplicación. El Main remoto verificado sigue en
+`59dd14805b646e2adb281302b8441265e969d914`; el código ensayado está en `8ca9045c`.
+
+**SQL aprobado:** exclusivamente
+`20260921214018_crm_gestion_diaria_cortes.sql`, SHA-256
+`8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`,
+sin cambios respecto al ensayo, con una política v1 y `cortes_activos=false`.
+La aprobación queda registrada; **la ejecución sigue pendiente de indicación
+humana mediante `$release-crm` y sus comprobaciones del destino**. No autoriza
+otras migraciones, activar cortes, activar TypeSafe ni una reversión productiva.
+
+La validación HTTP/matriz general quedó cerrada en el checkpoint siguiente.
+Al subir la rama se repitieron **4.085 pruebas de aplicación / 272 archivos: PASS**.
+El PR contiene también las herramientas y documentación locales de TypeSafe ya
+preparadas; no lo conecta al CRM ni envía notas reales. Los checks vigentes del PR
+se consultan en GitHub, separados de la evidencia local conservada.
+
+**Bloqueo detectado al abrir el PR:** GitHub no inició `cambios`, `verify` ni
+`preflight` por pagos fallidos o límite de gasto de la cuenta; sus listas de
+pasos están vacías y las anotaciones lo confirman. `app-check` se omitió por la
+dependencia fallida. No es una ejecución fallida de tests: **CI no ejecutada por
+facturación**. Evidencia inicial: runs `35686655870` y `35686655821`. El responsable
+de GitHub debe revisar «Billing & plans»; después reejecutar los checks del HEAD
+vigente. No cambiar pagos, límites, reglas de Main ni omitir `verify` para avanzar.
+
+**Qué toca ahora:** obtener la aprobación del PR en GitHub y el check requerido
+`verify` en PASS después de resolver ese bloqueo externo. Después, con la
+indicación humana de release, conciliar Main
+sin sobrescribir trabajo concurrente y seguir
+[F4-PUBLICACION-RECUPERACION.md](F4-PUBLICACION-RECUPERACION.md): resguardo propio
+del destino, SQL exacto OFF primero y artefacto del commit aprobado después.
+La aprobación del SQL en conversación no sustituye la revisión del PR.
+Etapas 4–6 y activación siguen pendientes; no iniciarlas durante esta preparación.
+
+### Evidencia anterior — matriz general y ensayo HTTP cerrados, 21/09/2026
+
+La pausa terminó por indicación de Miguel. Objetivo técnico completado en
+`8ca9045c`: comprobar Gestión Diaria de extremo a extremo y dejar F4 etapa 3
+preparada para el flujo de publicación **OFF**, sin empezar la etapa 4.
+Miguel autorizó el banco local desechable
 `gestion-diaria-f4-http`, puertos 59321–59324, con servicios propios y fixtures
 ficticios. No autoriza SQL productivo, despliegue, recursos de pago ni activación.
 
@@ -118,8 +159,10 @@ para la ampliación de matriz. Ninguno produjo un dictamen utilizable: **revisi�
 no completada, no aprobación**. No se tocaron settings ni se insistió hasta obtener
 PASS. La evidencia de los checks es del PRIMARY; no se atribuye a Claude.
 
-**Qué sigue:** preparar el PR/conciliar Main, aprobación del SQL exacto e invocación
-humana de `$release-crm`; SQL OFF primero y artefacto del commit verificado después.
+**Al cerrar este ensayo faltaban:** PR/conciliar Main, aprobación del SQL exacto
+e invocación humana de `$release-crm`. PR y aprobación del SQL quedan registrados
+en el checkpoint superior; la ejecución continúa pendiente. SQL OFF primero y
+artefacto del commit verificado después.
 La validación técnica local permite avanzar a ese flujo; **no se publicó nada**.
 El [procedimiento de publicación y recuperación](F4-PUBLICACION-RECUPERACION.md)
 define resguardos, precondiciones y contingencias. Sus datos del destino y aprobación

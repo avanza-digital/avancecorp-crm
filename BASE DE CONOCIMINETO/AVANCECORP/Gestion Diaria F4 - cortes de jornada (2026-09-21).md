@@ -1,10 +1,37 @@
 ---
 tags: [crm, gestion-diaria, f4, cortes]
-estado: implementada y verificada localmente — sin publicación ni activación
+estado: PR 68 abierto y SQL exacto aprobado — CI bloqueada por facturación de GitHub
 fecha: 2026-09-21
 ---
 
 # Gestión Diaria F4 — Cortes de jornada
+
+## Estado vigente: PR abierto y aprobación del SQL registrada
+
+Miguel indicó: «ok prepara el pr apruebo el sql y me avisas para ejecutar».
+[PR #68](https://github.com/avanza-digital/avancecorp-crm/pull/68) abierto desde
+`codex/gestion-diaria-typesafe-piloto` hacia `avancecorp/main`; revisión solicitada
+a `miguejbs98`. El código validado está en `8ca9045c`, con Main remoto `59dd1480`
+integrado. Al subir la rama se repitieron 4.085 tests / 272 archivos: PASS.
+
+SQL aprobado exclusivamente: `20260921214018_crm_gestion_diaria_cortes.sql`,
+SHA-256 `8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`,
+con la política v1 OFF. Ejecución pendiente de indicación humana `$release-crm`,
+aprobación del PR y gates del destino. No hubo merge, auto-merge, SQL productivo,
+publicación ni activación. La preparación local TypeSafe viaja documentada en
+el mismo PR, sin conectarse al CRM ni enviar notas reales.
+
+GitHub no inició los checks por pagos fallidos o límite de gasto; las anotaciones
+de los runs `35686655870`/`35686655821` y sus pasos vacíos lo confirman. No es un
+fallo de los tests. El responsable debe revisar «Billing & plans» y después
+reejecutar CI sobre el HEAD vigente; no saltar `verify` ni cambiar reglas/pagos.
+
+La matriz HTTP general y el recorrido real ya están cerrados; ver evidencia
+posterior más abajo. Próximo paso: revisión GitHub y release autorizado, no etapa 4.
+Plan único: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
+Procedimiento: `CRM-Avance-Corp/docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md`.
+
+## Antecedente: implementación y primer banco SQL
 
 Miguel aclaró: implementar la etapa 3 y preparar su publicación. La entrega
 incluye política versionada inicialmente OFF, cálculo del servidor y contrato
@@ -81,9 +108,10 @@ cierra después de los recorridos. El banco queda instalado con una sola políti
 Claude recibió dos consultas acotadas (banco y ampliación de matriz), ninguna con
 dictamen utilizable. Revisión no completada, no aprobación; settings intactos.
 
-Validación técnica local cerrada; siguiente: preparar PR/integración y publicación
-OFF mediante SQL exacto autorizado y `$release-crm`, sin iniciar etapa 4. No hubo
-push ni publicación. Runbook: `docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md`;
+Validación técnica local cerrada. Al terminar ese ensayo faltaban PR/integración
+y publicación OFF mediante SQL exacto autorizado y `$release-crm`, sin iniciar
+etapa 4. El PR y la aprobación posterior están en el estado vigente de esta nota;
+no hubo publicación. Runbook: `docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md`;
 resguardos y aprobación del destino se completan durante el release. No ejecutar
 la reversa del banco en producción. TypeSafe sigue separado y apagado.
 El plan principal conserva el checkpoint detallado y gobierna la continuación.
