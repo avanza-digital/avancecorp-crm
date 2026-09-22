@@ -7,7 +7,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --check supabase/scripts/gate-auditoria.mjs && node --check supabase/scripts/gate-analista-vigencia.mjs && node --check supabase/scripts/gate-analitica-lc.mjs && bash -n supabase/scripts/run-test-ficha-360-local.sh && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes && npm run test:f5:preflight && npm run check:multiempresa:f7 && npm run check:multiempresa:f8 && node --check supabase/scripts/rls-vigente/f8-candado.test.mjs && node --check supabase/scripts/rls-vigente/guardas.test.mjs && npm run test:gestion-diaria-typesafe && npm run test:gestion-diaria-cortes:preflight",
+    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --check supabase/scripts/gate-auditoria.mjs && node --check supabase/scripts/gate-analista-vigencia.mjs && node --check supabase/scripts/gate-analitica-lc.mjs && bash -n supabase/scripts/run-test-ficha-360-local.sh && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes && npm run test:f5:preflight && npm run check:multiempresa:f7 && npm run check:multiempresa:f8 && node --check supabase/scripts/rls-vigente/f8-candado.test.mjs && node --check supabase/scripts/rls-vigente/guardas.test.mjs && npm run test:gestion-diaria-typesafe && npm run test:gestion-diaria-cortes:preflight && node --check scripts/jev/cliente.mjs && node --check scripts/jev/auditor.mjs && node --check scripts/jev/reglas.mjs && npm run test:jev && node --check supabase/scripts/conversion/gate-conversion.mjs && npm run test:conversion:gate",
     "gate:apps-script": "node scripts/gate-apps-script.mjs",
     "seed:demo": "node supabase/scripts/seed-demo.mjs",
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
@@ -54,7 +54,10 @@
     "test:multiempresa:f8:base": "node --test supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs",
     "test:multiempresa:f8:instalacion": "node --test --test-concurrency=1 supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs supabase/scripts/multiempresa-f8/paridad-instalacion.test.mjs supabase/scripts/multiempresa-f8/paridad-revisada.test.mjs",
     "test:multiempresa:f8:activacion": "node --test --test-concurrency=1 supabase/scripts/multiempresa-f8/activacion/activar.test.mjs",
-    "test:rls:f8": "node --test --test-concurrency=1 supabase/scripts/rls-vigente/f8-candado.test.mjs supabase/scripts/rls-vigente/guardas.test.mjs"
+    "test:rls:f8": "node --test --test-concurrency=1 supabase/scripts/rls-vigente/f8-candado.test.mjs supabase/scripts/rls-vigente/guardas.test.mjs",
+    "gate:conversion": "node supabase/scripts/conversion/gate-conversion.mjs",
+    "test:conversion:gate": "node --test supabase/scripts/conversion/coherencia.test.mjs",
+    "test:jev": "node --test scripts/jev/preguntas.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"

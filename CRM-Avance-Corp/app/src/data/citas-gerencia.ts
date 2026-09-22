@@ -8,7 +8,7 @@ import type { CitaConLead } from '@/components/citas/datos'
 import type { DepositoEjemplo } from '@/components/citas/depositos'
 import type { GestionCitas } from '@/components/citas/metas'
 import { horaLima } from '@/components/citas/contexto'
-import { CamposGestionMensualSchema } from '@/lib/gestion-citas'
+import { CamposGestionMensualSchema, TestigoCitasSchema } from '@/lib/gestion-citas'
 
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
 const Id = v.pipe(v.string(), v.uuid())
@@ -47,6 +47,8 @@ const CamposConsulta = {
   citas: v.pipe(v.array(CitaSchema),v.maxLength(10000)),
   citas_clientes: v.pipe(v.number(),v.integer(),v.minValue(0)),
   gestion: v.optional(GestionCitasSchema),
+  // F2: clave nueva en la respuesta; opcional para leer también al servidor anterior.
+  testigo: v.optional(TestigoCitasSchema),
 }
 export const ConsultaCitasSchema = v.variant('version',[
   v.object({ ...CamposConsulta, version:v.literal(1), disponibilidad_depositos:v.literal('sin_registro'), depositos:v.pipe(v.array(v.unknown()),v.length(0)) }),
@@ -71,6 +73,7 @@ export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefine
     depositosPorcentaje:g.depositos_porcentaje,
     ...(g.actividad_manuales ? {actividadManuales:g.actividad_manuales} : {}),
     ...(g.version === 2 ? { avance: g, excluirManualesBase: g.control.configuracion.excluir_manuales_base } : {}),
+    ...(datos.testigo ? { testigo: datos.testigo } : {}),
     asignaciones:g.asignaciones.map(l => ({
       id:l.analista_id,nombre:l.analista_nombre,supervisor:l.supervisor_nombre,
       supervisorId:l.supervisor_id ?? 'sin_supervisor',leadId:l.lead_id,nombreLead:l.nombre,

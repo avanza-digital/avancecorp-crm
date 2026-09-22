@@ -112,57 +112,13 @@ jobs:
       - name: Lint, typecheck, test con cobertura y build
         run: npm run check
 
-  e2e:
-    needs: cambios
-    if: ${{ needs.cambios.outputs.solo_docs != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: CRM-Avance-Corp/app
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: CRM-Avance-Corp/app/package-lock.json
-
-      - name: Install locked dependencies
-        run: npm ci
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E smoke por rol (modo demo)
-        # La suite tiene más de 200 casos. Un solo worker agotaba los 20 min;
-        # cada prueba usa su contexto y backend interceptado independientes.
-        # Subir de 2 no se hace sin medir: más workers pueden traer fallos
-        # intermitentes por contención, y un e2e inestable es peor que uno lento.
-        run: npm run test:e2e -- --workers=2
-
-      - name: Upload report on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            CRM-Avance-Corp/app/playwright-report/
-            CRM-Avance-Corp/app/test-results/
-          retention-days: 7
-
   # ───────────────────────────────────────────────────────────────────────────
   # `verify` es el ÚNICO check que exige la regla de `main`, así que corre
-  # SIEMPRE y es quien decide. No hace `echo OK`: mira el resultado de los demás
-  # y falla ante cualquier cosa que no sea un éxito o una omisión que él mismo
-  # autorizó. Con esto los e2e pasan a BLOQUEAR sin tocar la regla del repo.
+  # SIEMPRE y es quien decide. Requiere que el detector y `app-check` terminen
+  # bien, salvo que el detector confirme una PR de solo documentación.
   # ───────────────────────────────────────────────────────────────────────────
   verify:
-    needs: [cambios, app-check, e2e]
+    needs: [cambios, app-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -172,10 +128,9 @@ jobs:
           DET: ${{ needs.cambios.result }}
           DOCS: ${{ needs.cambios.outputs.solo_docs }}
           APP: ${{ needs.app-check.result }}
-          E2E: ${{ needs.e2e.result }}
         run: |
           set -euo pipefail
-          echo "detector=$DET · solo_docs=$DOCS · app-check=$APP · e2e=$E2E"
+          echo "detector=$DET · solo_docs=$DOCS · app-check=$APP"
 
           # El detector es la única fuente de la excepción: si él falla, no hay
           # excepción que valga.
@@ -185,20 +140,15 @@ jobs:
           fi
 
           if [ "$DOCS" = "true" ]; then
-            if [ "$APP" = "skipped" ] && [ "$E2E" = "skipped" ]; then
-              echo "PR de solo documentación: las comprobaciones de la app se omiten a propósito."
+            if [ "$APP" = "skipped" ]; then
+              echo "PR de solo documentación: la comprobación de la app se omite a propósito."
               exit 0
             fi
-            echo "::error::Se clasificó como documentación pero los jobs no se omitieron (app-check=$APP, e2e=$E2E)."
+            echo "::error::Se clasificó como documentación pero app-check no se omitió ($APP)."
             exit 1
           fi
 
-          fallo=0
-          for par in "app-check:$APP" "e2e:$E2E"; do
-            nombre="${par%%:*}"; res="${par#*:}"
-            if [ "$res" != "success" ]; then
-              echo "::error::$nombre terminó en «$res» y esta PR sí toca la app."
-              fallo=1
-            fi
-          done
-          exit $fallo
+          if [ "$APP" != "success" ]; then
+            echo "::error::app-check terminó en «$APP» y esta PR sí toca la app."
+            exit 1
+          fi

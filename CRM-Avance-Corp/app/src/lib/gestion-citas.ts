@@ -37,4 +37,24 @@ export const CamposGestionMensualSchema = {
   })), v.maxLength(10000)),
 }
 export const GestionMensualCitasSchema = v.object(CamposGestionMensualSchema)
+
+/** Testigo del servidor (F2, 21/09/2026): el «Depósito %» del TOTAL del mes sin
+ * filtros, calculado por `private.citas_testigo_mes` con sus propias consultas.
+ * El front lo compara con su propio total; si no cuadra, no publica el número. */
+export const TestigoCitasSchema = v.object({
+  version: v.literal(1),
+  calculado_en: Instante,
+  reglas_listas: v.boolean(),
+  configuracion: v.object({
+    mes_resultado: v.nullable(v.string()), analista_resultado: v.nullable(v.string()),
+    base_depositos: v.nullable(v.string()), actividad_manuales: v.nullable(v.string()),
+  }),
+  entrevistas: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  personas_entrevistadas: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  clientes_periodo: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  clientes_vinculados: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  base_conversion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  conversion_pct: v.nullable(v.pipe(v.number(), v.finite(), v.minValue(0))),
+})
+export type TestigoCitas = v.InferOutput<typeof TestigoCitasSchema>
 export type GestionMensualCitas = v.InferOutput<typeof GestionMensualCitasSchema>

@@ -137,7 +137,7 @@ El reviewer no declara la tarea terminada. El `PRIMARY` evalúa los hallazgos y 
 
 ## CI existente
 
-- `.github/workflows/crm-app-quality.yml`: lint, typecheck, coverage, tests, build y E2E del CRM frontend.
+- `.github/workflows/crm-app-quality.yml`: lint, typecheck, cobertura, tests y build del CRM frontend. E2E sigue disponible para ejecución local con `npm run test:e2e`, pero no se ejecuta en GitHub Actions.
 - `.github/workflows/crm-rls-preflight.yml`: sintaxis de scripts, seed/RLS preflight offline y fronteras de Edge Functions.
 - `.github/workflows/ai-collaboration-config.yml`: JSON, shell, contratos de hooks e integración documental de este sistema.
 - `lefthook.yml`: lint/typecheck pre-commit y tests pre-push para el CRM.

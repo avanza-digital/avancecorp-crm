@@ -187,8 +187,22 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const calculables = filas.filter(f => f.proyeccion !== null)
   const total = { ...resultados(), proyeccion: calculables.length ? calculables.reduce((n, f) => n + f.proyeccion!, 0) : null,
     parciales: calculables.length, analistas: filas.length }
+  // TESTIGO (F2, 21/09/2026). Sin ningún filtro puesto, el total de arriba tiene
+  // que coincidir con lo que el servidor calculó por su cuenta. `null` = no
+  // aplica (hay filtros, o el servidor aún no manda testigo). `false` = las
+  // dos contabilidades discrepan: el número no se publica.
+  const sinFiltros = !normalizar(filtros.q) && !filtros.leadId && !filtros.origen && !filtros.registro
+    && !filtros.moneda && !filtros.analista && !filtros.equipo
+  const testigo = gestion.testigo
+  const testigoCuadra = !testigo || !sinFiltros ? null
+    : testigo.reglas_listas === reglasListas
+      && testigo.entrevistas === total.entrevistas
+      && testigo.personas_entrevistadas === total.unicas
+      && testigo.clientes_periodo === total.clientesPeriodo
+      && testigo.clientes_vinculados === total.clientes
+      && testigo.base_conversion === total.baseConversion
   return { filas, total, periodo, config, reglasListas, version: datos.control.version,
-    tc: total.capitalUsd > 0 ? tcAplicable(tipoCambio) : null }
+    tc: total.capitalUsd > 0 ? tcAplicable(tipoCambio) : null, testigoCuadra }
 }
 export type AvanceCitas = ReturnType<typeof calcularAvanceCitas>
 export type FilaAvanceCitas = AvanceCitas['filas'][number]

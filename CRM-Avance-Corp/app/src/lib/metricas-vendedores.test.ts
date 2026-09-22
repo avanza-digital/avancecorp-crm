@@ -876,3 +876,42 @@ describe('ventanaConversionEnPalabras (F3, H9/D1)', () => {
     expect(mapearMetricasVendedores(base, [VEND1], EQUIPO).mesMetrica).toBeNull()
   })
 })
+
+describe('F1 (21/09/2026): el entero `conversion_pct` está en retirada', () => {
+  // El servidor dejará de mandarlo (migración 20260921175538). Como es una clave
+  // que DESAPARECE de la respuesta, este front tiene que publicarse ANTES: debe
+  // aceptar el paquete con el campo y sin él, y mapear exactamente lo mismo.
+  const sinEntero = () => {
+    const { conversion_pct: _v, ...analista } = fila()
+    const { conversion_pct: _e, ...equipo } = filaEquipo()
+    return { analista, equipo }
+  }
+
+  it('acepta el paquete SIN el entero en analistas y equipos', () => {
+    const { analista, equipo } = sinEntero()
+    expect(v.safeParse(MetricasVendedoresSchema, {
+      version: 1,
+      generado_en: iso(AHORA),
+      ventana_convertidos_dias: 45,
+      peso_referido: 0.15,
+      cobertura_conversion: cobertura(),
+      nucleo_total: nucleoTotal(),
+      vendedores: [analista],
+      equipos: [equipo],
+    }).success).toBe(true)
+  })
+
+  it('con o sin el entero, la fila mapeada publica la conversión EXACTA del núcleo', () => {
+    const { analista } = sinEntero()
+    const con = mapearMetricasVendedores(payload({ vendedores: [fila({ vendedor_id: 'v-1' })] }), [VEND2, VEND1], EQUIPO)
+    const sin = mapearMetricasVendedores(payload({ vendedores: [{ ...analista, vendedor_id: 'v-1' }] }), [VEND2, VEND1], EQUIPO)
+    expect(sin.filas[0]?.conversion).toBe(25)
+    expect(sin.filas[0]).toMatchObject({ conversion: con.filas[0]?.conversion, conversionDisponible: true })
+  })
+
+  it('MUTANTE: un entero que contradice al núcleo no mueve la fila, porque nadie lo lee', () => {
+    const { filas } = mapearMetricasVendedores(
+      payload({ vendedores: [fila({ vendedor_id: 'v-1', conversion_pct: 99 })] }), [VEND2, VEND1], EQUIPO)
+    expect(filas[0]?.conversion).toBe(25)
+  })
+})
