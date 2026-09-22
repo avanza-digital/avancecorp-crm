@@ -5,6 +5,8 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
+
 - [[CI del CRM sin E2E en GitHub (2026-09-21)]] — Por decisión de Miguel, GitHub Actions conserva el gate de calidad y retira el job E2E, que puede ejecutarse localmente cuando corresponde.
 
 - [[Gestion Diaria F4 - detalle del analista preparado (2026-09-21)]] — **ETAPA 2 PUBLICADA Y VERIFICADA:** detalle de llamadas por hora, registro F1 y ficha con filtros/foco conservados; fuente `baa63aea`, PR #64, build `build-20260921T200508459Z`. 4.051 pruebas, 232 E2E/26 omitidos, preflight real de lectura y 110 controles HTTP finales PASS. Sin nuevas SQL, cortes ni TypeSafe. Sigue el recorrido humano productivo y F4 etapa 3; ver acta y límites.
