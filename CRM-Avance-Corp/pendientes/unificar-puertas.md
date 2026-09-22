@@ -1,7 +1,9 @@
 # Unificar las doce puertas de la conversión
 
-**Estado:** plan v3, sin ejecutar · **Fecha límite:** antes de sellar un mes
-**Escrito:** 21/09 · **Remedido:** 22/09 · **Revisado por Codex y corregido:** 22/09
+**Estado:** plan v4 · **Ola 0 y Ola 1a escritas y ensayadas, ninguna aplicada**
+**Fecha límite:** antes de sellar un mes
+**Escrito:** 21/09 · **Remedido:** 22/09 · **Revisado por Codex:** 22/09 ·
+**Olas remedidas con deuda plantada en producción:** 22/09 (v4)
 
 > ⚠️ **Historial de errores de este documento, a propósito.**
 > **v1 (21/09)** clasificó las puertas de memoria: **tres clasificaciones falsas**.
@@ -10,6 +12,65 @@
 > hallazgo C6 atribuido al objeto equivocado, el core de la #5 mal identificado,
 > a la #10 le faltaban dos anclajes y la #7 tenía un camino bruto sin ver.
 > **Esta v3 incorpora esas correcciones.** Lo que sigue sin verificar va marcado.
+
+---
+
+## 🧪 LA MEDICIÓN QUE DECIDE LAS OLAS (22/09, deuda de 2 puntos plantada y deshecha)
+
+Hasta la v3 las olas se repartieron leyendo los cuerpos. La v4 las reparte
+**plantando una deuda de anulación de 2 puntos en producción** (dentro de una
+transacción que termina en `raise`, sin escribir nada) y mirando quién cambia y
+quién no, para el MISMO analista y el MISMO mes.
+
+| # | Puerta | ¿publica una TASA? | De dónde sale | SIN deuda → CON deuda | ¿Discrepa? |
+|---|---|---|---|---|---|
+| 4 | `metricas_conversiones_fn` | sí, la grande | vivo | 4,24 % → 4,24 % | 🔴 **SÍ** (la oficial baja a 4,08 %) |
+| 5 | `metricas_distribucion_leads_v3_fn` | sí | vivo | 4,24 % → 4,24 % | 🔴 **SÍ** |
+| 6 | `metricas_conversiones_equipo_fn` | sí, por vendedor | vivo | numerador 6 → **6** | 🔴 **SÍ** |
+| 7 | `cumplimiento_metas_fn` | numerador | oficial, CON ajuste | numerador 6 → **4** | no |
+| 8 | `cumplimiento_metas_sin_cartera_fn` | sí | oficial, CON ajuste | numerador 6 → **4** | no |
+| 9 | `series_comerciales_fn` | sí | **delega** en `private.conversion_mensual_pct_para_series` | — | no |
+| 10 | `metricas_multiempresa_fn` | sí | vivo | **no se puede llamar** | ⚪ no llega a pantalla |
+| 11 | `resumen_cartera_fn` | **no** | vivo | cuenta cierres, no pondera | no |
+| 12 | `cerrar_periodo` | escribe la foto | bruto, correcto por diseño | — | no |
+
+Oficial, para el mismo analista: **6 → 4**. Las tres primeras no se mueven; el
+resto sí, o no publica tasa.
+
+**Dos correcciones a la v3, las dos por medición:**
+
+1. **La #7 NO tiene un camino bruto.** La v3 la dejaba en Ola 2 «solo para
+   declarar» y yo llegué a sospechar lo contrario leyendo su cuerpo (usa
+   `private.conversion_mensual_por_vendedor`, que sirve el bruto, y no se ve un
+   `conversion_con_ajuste`). **La medición lo refuta:** publica 4 con la deuda
+   puesta y una clave `ajuste: {pendiente: 2}` en cada fila, igual que la #8.
+   Leer el cuerpo no bastaba: el ajuste entra por otro camino.
+
+2. **La #10 no puede discrepar hoy: está detrás de una bandera apagada.**
+   `crm.metricas_multiempresa_fn` empieza por
+   `if not coalesce((select activo from crm.multiempresa_flags where nombre='metricas_multiempresa_sombra'), false)`
+   y responde `P0409 · El informe multiempresa está en preparación`. Ninguna
+   pantalla la ve. Sigue siendo la única que calcula por su cuenta **y** no
+   llama a la mensual, así que hay que arreglarla **antes de encender esa
+   bandera** — pero no compite con las de gerencia.
+
+**Conclusión sobre el reparto:** Ola 1 = #4, #5, #6 era correcto, y ahora está
+medido en vez de razonado. Ola 2 se reduce a **#10 (antes de encender su
+bandera)** y a las declaraciones de #7, #8, #9 y #12. La #11 no publica ninguna
+tasa: declarar `fuente` ahí sería inventar un contrato que esa puerta no tiene.
+
+### Estado real al 22/09
+
+| Paquete | Qué | Estado |
+|---|---|---|
+| Ola 0 | `20260922225649` la alarma concilia bruto y neto | ensayada · **sin aplicar** |
+| Ola 1a | `20260922232553` #4 declara | ensayada · auditada · **sin aplicar** |
+| Ola 1a | `20260922233257` #6 declara | ensayada · **sin aplicar** |
+| Ola 1a | `20260922233545` #5 declara (con pestillo de front) | ensayada · **sin aplicar** |
+| Ola 1b | las tres delegan en `crm.conversion_mensual_fn` | sin escribir |
+
+El front del contrato ya está en `main` (`c2c9274b`) pero **no publicado**: el
+bundle vivo es `build-20260922T221442353Z` = `7d65fcdb484f`.
 
 ---
 
