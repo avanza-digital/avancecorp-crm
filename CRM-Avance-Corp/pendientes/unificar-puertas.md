@@ -102,13 +102,33 @@ declaración.
 
 ### Las correcciones de Codex, una a una
 
-**#7 sube a Ola 1.** La v2 la daba por inofensiva. En `p7.sql:103` publica
-`'numerador', coalesce(cv.numerador, 0)` en la rama `fuera_ranking`, **sin el
-descuento de la deuda**, mientras la mensual usa `roster_metas_vendedores()` y
-descuenta por fila. Contraejemplo: divisor 10, bruto 3, deuda 1 → **#7 publica 3,
-la mensual 2**. ⚠️ **Hipótesis respaldada por ambos recorridos, no medida**:
-falta el cuerpo vivo de `conversion_mensual_sin_cartera_fn`. **Probarlo antes de
-implementar.**
+**#7 sube a Ola 1 — ✅ CONFIRMADO Y MEDIDO (22/09), ya no es hipótesis.**
+
+Su cuerpo ramifica explícitamente, y su propio comentario lo dice: *«Para un mes
+cerrado salen del JSON append-only del sello; para uno abierto se proyectan en
+vivo desde los mismos núcleos»*.
+
+```sql
+if v_global and v_cerrado then
+    select pc.cobertura->'fuera_ranking' ... from crm.periodos_cerrados   -- ✅ la foto
+elsif v_global then
+    with conv as materialized (
+      select cm.* from private.conversion_mensual_por_vendedor(...) cm )  -- 🔴 EL BRUTO
+```
+
+y publica `'numerador', coalesce(cv.numerador, 0)` (`p7.sql:103`).
+
+**El conteo que lo cierra:**
+
+| | `conversion_con_ajuste` | `ajuste_pendiente_por_vendedor` |
+|---|---|---|
+| la mensual (`conversion_mensual_sin_cartera_fn`) | **2** | **1** |
+| **#7** | **0** | **0** |
+
+**La #7 no descuenta la deuda en ninguna parte de su cuerpo.** Con un mes
+abierto y deuda de un mes previamente sellado: analista del roster sin meta
+publicada, divisor 10, bruto 3, deuda 1 → **#7 publica 3 y la mensual 2, en la
+misma pantalla.** Su arreglo **no es «solo declarar»: le falta el descuento.**
 
 **#8 y #9 se sostienen.** Codex no logró demostrar discrepancia: la #8 sirve
 `v.conversion_pct` de la foto cerrada y aplica ajuste en abierto; en la #9,
@@ -168,13 +188,13 @@ aquella parte del análisis hay que rehacerla.** Conservar además la frontera
 | Ola | Contenido | Por qué |
 |---|---|---|
 | **0** | Oráculo y alarma · diseño y pruebas de **#12** · C6 en escritura **y** lectura | Define la evidencia irreversible que consumen las demás. **No sellar todavía.** |
-| **1** | #4, #5, #6, **#7**, **#8**, **#10** | Los lectores oficiales. #7 sube por su camino bruto; #10 mientras no se acredite que su flag la deja inaccesible |
-| **2** | #11, #9 | Solo declarar y rotular |
+| **1** | #4, #5, #6, **#7**, #8 | Los lectores oficiales. **#7 sube: su camino bruto está MEDIDO** |
+| **2** | #10, #11, #9 | #10 baja: su flag está apagado (medido). Las otras dos, solo declarar y rotular |
 | **Después** | El primer sellado | Solo tras verificar lectores, escritor, deuda y alarmas **juntos** |
 
-**Sobre #10:** `p10.sql:19` bloquea la puerta si `metricas_multiempresa_sombra`
-está apagada. **No hay medición de ese flag.** Si está OFF, baja a Ola 2. Medirlo
-es un prerrequisito barato.
+**Sobre #10: ✅ MEDIDO (22/09) — el flag `metricas_multiempresa_sombra` está
+`false`.** La puerta está bloqueada, así que **baja a Ola 2**, como Codex
+condicionó. Sigue necesitando sus **tres sellos** cuando le toque.
 
 ### Por cada migración, sin excepción
 
@@ -208,6 +228,6 @@ es un prerrequisito barato.
 
 1. Volcar en vivo: base mensual, `_v3_core` y su despachador, helper de series,
    `conversion_mensual_sin_cartera_fn`, y los asserts afectados.
-2. **Resolver el contraejemplo de #7**: medirlo, no suponerlo.
-3. Medir el flag `metricas_multiempresa_sombra`.
-4. Rediseñar alarma y C6 **antes** de implementar ninguna ola.
+2. ~~Resolver el contraejemplo de #7~~ ✅ **HECHO 22/09: confirmado y medido.**
+3. ~~Medir el flag `metricas_multiempresa_sombra`~~ ✅ **HECHO 22/09: `false`.**
+4. Rediseñar alarma y C6 **antes** de implementar ninguna ola. ← **lo que sigue**
