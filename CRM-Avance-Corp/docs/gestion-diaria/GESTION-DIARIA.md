@@ -29,7 +29,107 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Último punto de control — guardado y pausa del 21/09/2026
+### Último punto de control — matriz general y ensayo HTTP cerrados, 21/09/2026
+
+La pausa terminó por indicación de Miguel. Objetivo activo: comprobar Gestión
+Diaria de extremo a extremo y dejar F4 etapa 3 lista para publicar **OFF**, sin
+empezar la etapa 4. Miguel autorizó el banco local desechable
+`gestion-diaria-f4-http`, puertos 59321–59324, con servicios propios y fixtures
+ficticios. No autoriza SQL productivo, despliegue, recursos de pago ni activación.
+
+El taller sigue siendo `/private/tmp/avancecorp-gd-f4-vista.chvRqh`, rama
+`codex/gestion-diaria-typesafe-piloto`. `9a101dcd` integra el Main remoto
+`59dd1480`, confirmado por `git ls-remote`. **Corrección del checkpoint anterior:**
+`43557bc9` era trabajo local adicional de otra tarea, no el Main remoto integrado.
+No se reseteó Main ni se incluyó/eliminó ese trabajo. Esto no equivale a integrar
+la entrega en Main ni a tener un artefacto autorizado para release.
+
+Banco de ejecución: `/private/tmp/gestion-diaria-f4-http.WQNCJc`. PostgreSQL en
+59322, API/Auth en 59321, correo local en 59324; 59323 reservado a la interfaz.
+Se corrigió la apertura 0.0.0.0 de la CLI: los puertos publicados escuchan sólo
+en 127.0.0.1. Los originales del banco nuevo se conservan detenidos; no se tocó
+la copia `gestion_diaria_f4_vista_chvrqh` ni otros bancos. Se retiró la ruta por
+defecto de los seis servicios propios y se desactivó su reinicio automático;
+la sonda externa devuelve `Network unreachable`, con Auth local HTTP 200.
+
+Se obtuvo una copia **sólo de esquema** vigente de `public/crm/private` y sus
+metadatos técnicos de verificación, sin Auth, vault ni filas comerciales de
+producción. La restauración fue transaccional. Se corrigieron exclusivamente
+en el banco 147 diferencias ACL heredadas de los defaults locales; la comparación
+posterior de 14 categorías de catálogo PASS, incluidas funciones, dueños, grants
+por columna, RLS, triggers y membresía del rol puente. Los CHECK se comparan con
+la representación canónica del servidor; no se afirma igualdad de `conbin`.
+Los gates SQL preexistentes de Gestión Diaria también PASS.
+
+La semilla inicial tenía 13 cuentas Auth ficticias, 13 perfiles, 11 miembros,
+7 leads, 5 tareas y dos contratos históricos. La primera matriz general falló
+86 de 2.149 comprobaciones antes de instalar F4.3. Miguel autorizó
+**actualizar también la matriz general**, y ese pendiente quedó resuelto.
+
+`test-rls.mjs` usa ahora el flujo compartido vigente para las conversiones y
+conserva rechazos de puertas antiguas, equipos ajenos, identidad, replay y efectos
+económicos. Se corrigieron fixtures contractuales/configuración omitida por el
+schema-only y expectativas de contratos que ya habían cambiado. No se relajaron
+permisos ni se cambió el producto para hacer pasar pruebas. Auth/PostgREST/Storage
+son reales; el handler oficial de acceso Avance corre en proceso, **no** como
+Edge desplegada. Las pruebas de modo OFF de inversiones siguen ejecutándose.
+
+**PASS — matriz general:** 2.164 comprobaciones con servidor anterior y 2.196
+con el candidato instalado OFF, cero fallos en ambas. En la baseline F4.3 se
+declara ausente/no probado; en la segunda corrida su presencia es obligatoria y
+se ejecutan sus 32 comprobaciones adicionales. No hay un salto silencioso de F4.
+
+**PASS — instalación y recuperación:** SHA-256 exacto sin editar la migración;
+fallo deliberado antes del commit; instalación OFF; reversión de las seis funciones,
+ACL, dueños y comentario; datos de negocio y auditoría conservados; reinstalación
+OFF. La reversa se restringe a la fila v1 original y a ausencia de drift/versiones
+nuevas. Siete respuestas reales de equipo/analista conservan su contrato tanto
+al instalar como al revertir. Sólo se normalizan instantes de consulta y campos
+aditivos documentados, no contadores. El banco queda **instalado OFF**.
+
+**PASS — navegador real:** formulario de login, dos supervisores con equipos
+separados, tabla, búsqueda, detalle, llamadas/registro, vista del analista, móvil
+y error de transporte sin presentarlo como actividad cero. Se repitió con el
+cliente nuevo contra el servidor revertido. El navegador integrado no estaba
+disponible; se utilizó Playwright local, sin MSW ni sesión demo.
+
+También se ensayó el SLA **activo** mediante sus puertas oficiales, sin activar
+los cortes: «No le interesa» contrae las opciones y permite guardar seguimiento
+WhatsApp. Se comprobó una llamada y una tarea persistidas, con el lead conservado.
+Se restituyó el modo SLA inicial del banco sin borrar su historia. La Edge de
+tipo de cambio no está desplegada allí: se informa indisponible, no se inventa tasa.
+
+**PASS — compatibilidad e integración:** 28 parseos con los contratos reales de
+Main anterior y candidato contra ambos servidores; ausencia de cortes permanece
+desconocida, no cero. Los 22 E2E de Gestión Diaria pasaron además con el backend
+simulado del gate habitual: se distinguen de las pruebas reales anteriores.
+`npm run check` (4.085 pruebas / 272 archivos), `check:scripts`, preflights seed/RLS
+y Edge PASS. Preflight nuevo:
+17 guardas del banco y 8 pruebas del helper de conversión. Persisten advertencias
+previas de accesibilidad del coverflow/chunks; no se cambió ese componente.
+
+Se conservaron la base ficticia inicial como `gd_f4_http_historial_20260922`, los
+ensayos previos renombrados y respaldos privados. No se truncó historial ni se tocó
+la copia anterior u otro entorno. Tras reiniciar servicios es obligatorio retirar
+otra vez sus rutas por defecto. La interfaz 59323 sólo corre durante los ensayos.
+
+Claude fue consultado mediante el wrapper para el aislamiento y, con nueva evidencia,
+para la ampliación de matriz. Ninguno produjo un dictamen utilizable: **revisión
+no completada, no aprobación**. No se tocaron settings ni se insistió hasta obtener
+PASS. La evidencia de los checks es del PRIMARY; no se atribuye a Claude.
+
+**Qué sigue:** preparar el PR/conciliar Main, aprobación del SQL exacto e invocación
+humana de `$release-crm`; SQL OFF primero y artefacto del commit verificado después.
+La validación técnica local permite avanzar a ese flujo; **no se publicó nada**.
+El [procedimiento de publicación y recuperación](F4-PUBLICACION-RECUPERACION.md)
+define resguardos, precondiciones y contingencias. Sus datos del destino y aprobación
+se completan durante el release: nunca ejecutar la reversa local en producción.
+
+Las etapas 4–6, carga/concurrencia representativas, control de emergencia y activación
+siguen pendientes. TypeSafe permanece apagado y separado. Para reproducir este
+ensayo, ver `supabase/scripts/gestion-diaria-cortes/http/README.md`.
+
+### Antecedente — guardado y pausa del 21/09/2026
 
 Miguel pidió guardar el estado y la recomendación de publicación en este plan
 y continuar aproximadamente una hora después. **Pausa solicitada: no publicar,

@@ -65,7 +65,40 @@ porcentuales, no una tasa absoluta; no se inventa el umbral ni se activa esa ale
 
 ## Verificación efectivamente ejecutada
 
-Último ensayo completo: **21/09/2026 22:19:30 UTC**, en Docker local por socket
+### Complemento HTTP/Auth y matriz general — 21/09/2026, hora Lima
+
+Miguel autorizó el banco separado `gestion-diaria-f4-http` y actualizar también
+la matriz general. El SHA-256 del candidato no cambió. Resultado: baseline
+**2.164 aserciones PASS** y candidato OFF **2.196 PASS**, cero fallos; las 32
+adicionales de F4.3 se ejecutan obligatoriamente al detectar la migración.
+Se actualizaron conversiones/fixtures al contrato vigente, no permisos del producto.
+
+Instalación, excepción antes del commit, reversión de funciones/ACL/owner/comentario
+con negocio y auditoría intactos, y reinstalación PASS. El nuevo banco termina
+**instalado OFF**, a diferencia del ensayo SQL anterior. Siete respuestas HTTP
+de equipo/analista mantienen el contrato en ambas transiciones. Los parsers de
+Main `59dd1480` y del candidato aceptan ambos servidores: 28 casos PASS.
+
+Playwright con login/API reales: dos supervisores aislados, detalle/registro,
+analista, móvil y fallo de transporte sin falsos ceros PASS; repetido tras revertir
+el servidor. SLA activo y seguimiento desde «No le interesa» PASS: actividad y tarea
+persistidas, lead no descartado; modo inicial restituido y cortes siempre OFF.
+22 E2E habituales (backend simulado) PASS, separados de esta evidencia real.
+`npm run check` (4.085 tests / 272 archivos), `check:scripts`, preflights seed/RLS y Edge PASS; 25 pruebas
+offline nuevas (17 guardas + 8 helper de conversiones).
+
+Límites: handler Avance en proceso, no Edge desplegada; Edge de tipo de cambio
+ausente en el banco; sin carga/concurrencia productiva ni activación. Dos consultas
+Claude nuevas mediante wrapper no entregaron dictamen utilizable; no se registra
+aprobación. El navegador integrado no estuvo disponible y se usó Playwright local.
+
+Runbook de preparación: [F4-PUBLICACION-RECUPERACION.md](F4-PUBLICACION-RECUPERACION.md).
+Scripts/evidencia: `supabase/scripts/gestion-diaria-cortes/http/README.md` y
+`supabase/scripts/gestion-diaria-cortes/http/verificacion.json`.
+
+### Ensayo SQL anterior (se conserva su alcance histórico)
+
+Ensayo completo: **21/09/2026 22:19:30 UTC**, en Docker local por socket
 Unix, base fija `gestion_diaria_f4_vista_chvrqh`. SQL SHA-256:
 `8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`.
 

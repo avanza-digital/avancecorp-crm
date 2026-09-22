@@ -41,6 +41,55 @@ concurrente y `$release-crm`; no hubo push, PR, despliegue ni activación en est
 
 ## Guardado y punto de retoma
 
+### Retoma posterior: banco HTTP autorizado
+
+Miguel retomó el objetivo y autorizó exclusivamente `gestion-diaria-f4-http`
+(59321–59324), sin producción, pagos, despliegue ni activación. `9a101dcd` integra
+el Main remoto `59dd1480`. Corrección del registro anterior: `43557bc9` era trabajo
+local adicional de otra tarea, no ese remoto. No se tocó ni reseteó Main.
+
+El banco nuevo está en `/private/tmp/gestion-diaria-f4-http.WQNCJc`, separado del
+anterior. Servicios propios, puertos sólo loopback, sin ruta de salida por
+defecto ni reinicio automático. Auth HTTP 200; salida TCP externa rechazada.
+Esquema vigente y metadatos técnicos sin usuarios/filas comerciales de origen.
+Paridad de 14 categorías del catálogo PASS después de corregir únicamente los
+defaults ACL locales. Gates SQL preexistentes de Gestión Diaria PASS.
+
+La semilla se completó, incluidos los dos contratos históricos. Primera matriz
+general real: **2.149 aserciones, 86 FAIL**, antes del candidato; Gestión Diaria
+F1–F3 PASS, F4.3 explícitamente no instalada. Miguel autorizó actualizar también
+la matriz general: flujo de inversión vigente, rechazos legacy y configuración
+técnica del banco. No cambiar negocio para hacer pasar pruebas.
+La actualización quedó verificada: **baseline 2.164/0 fallos y candidato OFF
+2.196/0 fallos**. Se mantuvieron las pruebas negativas, identidad y replay,
+usando el circuito compartido real. Handler Avance en proceso, no Edge desplegada.
+Se conservó la base ficticia inicial como `gd_f4_http_historial_20260922`, los
+ensayos renombrados y los respaldos privados; no se truncó historia.
+
+Atomicidad, instalación, reversión exacta con negocio/auditoría conservados y
+reinstalación OFF PASS. Siete respuestas reales mantienen el contrato antes/después.
+Navegador real con dos supervisores y analista PASS, también tras revertir servidor.
+Compatibilidad de parsers antiguos/nuevos: 28 casos PASS. Con SLA activo, resultado
+«No le interesa» + seguimiento WhatsApp dejó llamada/tarea reales sin descartar.
+Modo SLA restituido; cuatro reglas sintéticas e historia conservadas, cortes OFF.
+No se simularon API/Auth ni sesión demo en ese recorrido. La Edge de tipo de cambio
+no está en el banco y se presenta indisponible, límite explícito del ensayo.
+
+22 E2E existentes y `npm run check` PASS; scripts, seed/RLS preflight y Edge PASS.
+Nuevos tests offline: 17 guardas + 8 helper de conversión. La interfaz 59323 se
+cierra después de los recorridos. El banco queda instalado con una sola política OFF.
+Claude recibió dos consultas acotadas (banco y ampliación de matriz), ninguna con
+dictamen utilizable. Revisión no completada, no aprobación; settings intactos.
+
+Validación técnica local cerrada; siguiente: preparar PR/integración y publicación
+OFF mediante SQL exacto autorizado y `$release-crm`, sin iniciar etapa 4. No hubo
+push ni publicación. Runbook: `docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md`;
+resguardos y aprobación del destino se completan durante el release. No ejecutar
+la reversa del banco en producción. TypeSafe sigue separado y apagado.
+El plan principal conserva el checkpoint detallado y gobierna la continuación.
+
+### Pausa anterior (histórico, ya retomada)
+
 Miguel pidió guardar el plan y continuar aproximadamente una hora después.
 La recomendación registrada es publicar la etapa 3 por separado **apagada**,
 después de cerrar la matriz HTTP/Auth en pruebas, preparar la recuperación
