@@ -26,7 +26,12 @@ v1 OFF; este punto de control todavía no acredita la instalación remota del ca
   las API normales. Se restauró la semilla desde el respaldo verificado, se
   volvió a cotejar el catálogo y se añadió un preflight que exige el domicilio
   NULL antes de iniciar. Las otras 2.216 comprobaciones no sustituyen un PASS
-  de la matriz completa; la repetición limpia sigue en curso.
+  de la matriz completa. La repetición limpia terminó **PASS: 2.221 aserciones**
+  a las 10:42 Lima. Cada corrida completa deja tres altas `rls.*@example.test`
+  y un perfil Auth sin correo; tras dos corridas hay 25 usuarios sintéticos.
+  La restauración previa al candidato se detuvo por esperar 21 (rollback sin
+  cambios). Se cotejaron esos fixtures con el test y se corrigió ese conteo;
+  Auth se conserva completo durante la restauración.
 - Los contratos SQL finales exigen `PT409` en ambas RPC. Los cinco archivos de
   migración aprobados conservan exactamente sus SHA; se modificaron los tests,
   no los SQL autorizados.
@@ -61,7 +66,7 @@ las seis columnas productivas; al publicar hay que cotejar su conservación.
 La conciliación productiva de etapa 3 ya terminó y no se repite.
 
 Evidencia privada: `/private/tmp/gd-f4-remoto-20260923/`. La matriz completa
-baseline está en ejecución; luego se restaura su semilla, se repite la
+baseline pasó; luego se restaura su semilla, se repite la
 alineación y se prueban los cinco SQL en la rama antes del merge.
 
 ## Recuperación del frontend vigente

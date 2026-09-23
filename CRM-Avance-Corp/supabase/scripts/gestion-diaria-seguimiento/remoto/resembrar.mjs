@@ -44,7 +44,9 @@ const lote=ddl=>{const marca='$gd_'+randomUUID().replaceAll('-','')+'$';
  return `do $bloque$ begin execute ${marca}${limpio}${marca}; end $bloque$;\n`;};
 const preparar=`begin;
 do $guarda$ begin
- if (select count(*) from auth.users)<>${candidato||repetirBaseline?21:17} or exists(select 1 from cron.job where active)
+ -- Cada matriz agrega tres altas rls.*@example.test y un perfil sin correo.
+ -- El candidato sigue a dos matrices completas; Auth se conserva, no se borra.
+ if (select count(*) from auth.users)<>${candidato?25:repetirBaseline?21:17} or exists(select 1 from cron.job where active)
   or to_regclass('crm.gestion_diaria_entregas') is not null then raise exception 'Banco cambió'; end if;
 end $guarda$;
 grant crm_metricas_bridge to postgres with set true;
