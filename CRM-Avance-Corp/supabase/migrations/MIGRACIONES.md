@@ -1,5 +1,53 @@
 # Ledger de migraciones — esquema `crm`
 
+## 🔴 INCIDENTE del 23/09/2026 — 13 minutos de Metas y Ranking sin datos
+
+**Qué pasó.** `20260923010450` declaró la puerta **#8**
+(`crm.cumplimiento_metas_sin_cartera_fn`) tras comprobar que no tiene consumidor
+en el front — cierto: solo aparece en `database.types.ts`. **Lo que no se
+comprobó: la puerta #7 (`crm.cumplimiento_metas_fn`) construye su payload SOBRE
+el de la #8.** Al declarar la #8 quedó declarada también la #7, que sí tiene
+consumidor, y el bundle vivo valida `CumplimientoMetasSchema` con
+**`v.strictObject`** sin esas cuatro claves (`app/src/lib/objetivos.ts:346` en
+`7d65fcdb484f`). Valibot rechazó el payload entero.
+
+**Ventana:** 01:05 → 01:18 UTC (unos 13 minutos). **Impacto:** Metas y Ranking
+de gerencia sin datos. Ninguna escritura, ningún dato perdido.
+
+**Cómo se detectó:** haciendo el censo final de declaraciones, la #7 apareció
+declarando sin que nadie la hubiera tocado. Esa sorpresa era el síntoma.
+
+**Reversión:** `20260923011804` devuelve la #8 a su cuerpo anterior byte a byte
+(md5 `b7192138b237571c9955d021aff0920a`) y su postflight exige que la #7 vuelva a
+publicar **exactamente** las nueve claves que el bundle vivo conoce. La
+declaración de la **#9 se mantiene**: no tiene consumidor ni directo ni heredado.
+
+🔑 **La lección, ya aplicada al resto.** «No tiene consumidor en el front» se
+comprueba sobre la función que se toca **y sobre todas las que la envuelven**.
+Un `grep` en `app/src` no ve la herencia dentro de la base. La consulta que
+había que haber hecho antes, y que se hizo después sobre TODAS las funciones
+tocadas hoy:
+
+```sql
+select p.oid::regprocedure::text
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname in ('crm','private','public')
+   and p.prosrc like '%<la funcion que voy a tocar>%'
+   and p.proname <> '<la funcion que voy a tocar>';
+```
+
+Resultado de ese barrido: la herencia #8 → #7 era **la única**. Las demás o no
+tienen envoltorio (`#6`, `#9`, `#11`) o lo tienen ya verificado
+(`metricas_conversiones_implementacion` → `crm.metricas_conversiones_fn`, front
+`v.object`; `metricas_distribucion_leads_v3_core` →
+`metricas_distribucion_leads_autorizada`, que no está aplicada).
+
+Y todos los esquemas del bundle vivo que reciben claves nuevas son `v.object`,
+verificado **contra el commit publicado**, no contra el árbol:
+`NucleoConversionesSchema`, `NucleoEquipoSchema`, `SondasEquipoSchema`,
+`ResumenCarteraSchema`.
+
+
 ## ✅ Ola 1b — Las puertas DELEGAN la cifra en la oficial — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
 
 | Versión | Puerta | Qué delega | Estado |
