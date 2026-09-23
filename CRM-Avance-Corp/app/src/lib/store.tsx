@@ -3036,7 +3036,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ejecutarComandoSla(miId, 'registrar_actividad_v2', id, {
             p_lead_id: id,
             p_tipo: tipo,
-            p_detalle: act.detalle,
+            ...(act.detalle === null ? {} : { p_detalle: act.detalle }),
             p_siguiente: siguientePayload,
           }),
           { invalidarConversionRango: true, invalidarAgenda: Boolean(siguiente), invalidarReuniones: siguiente?.tipo === 'reunion' },

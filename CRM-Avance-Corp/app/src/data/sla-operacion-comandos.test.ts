@@ -104,6 +104,47 @@ describe('recibos de gestiones SLA', () => {
     expect(sessionStorage.length).toBe(0)
   })
 
+  it('recupera el recibo anterior con detalle null al omitir ahora el argumento opcional', async () => {
+    const operacion = 'e0a3c5a1-167e-4e92-9d4d-0261cfd00123'
+    const argumentos = { p_lead_id: 'lead', p_tipo: 'whatsapp_enviado', p_detalle: null, p_siguiente: null }
+    // Formato persistido por el frontend previo; no se calcula con el código nuevo.
+    sessionStorage.setItem('crm.sla.operacion.v2:actor:actividad:lead', JSON.stringify({
+      operacion, comando: 'registrar_actividad_v2', sujeto: 'lead', argumentos, incierta: true,
+      huella: '{"argumentos":{"p_detalle":null,"p_lead_id":"lead","p_siguiente":null,"p_tipo":"whatsapp_enviado"},"comando":"registrar_actividad_v2"}',
+    }))
+    const cuerpos: Record<string, unknown>[] = []
+    servidor.use(http.post(ruta, async ({ request }) => {
+      const cuerpo = await request.json() as Record<string, unknown>; cuerpos.push(cuerpo)
+      return recibo(cuerpo)
+    }))
+    const nuevos = { p_lead_id: 'lead', p_tipo: 'whatsapp_enviado', p_siguiente: null }
+    await expect(ejecutarComandoSla('actor', 'registrar_actividad_v2', 'lead', { ...nuevos, p_detalle: 'Otra gestión' }))
+      .rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    expect(cuerpos).toEqual([])
+    await ejecutarComandoSla('actor', 'registrar_actividad_v2', 'lead', nuevos)
+    expect(cuerpos).toEqual([{ ...argumentos, p_operacion_id: operacion }])
+    expect(listarPendientesSla('actor')).toEqual([])
+    await ejecutarComandoSla('actor', 'registrar_actividad_v2', 'lead', nuevos)
+    expect(cuerpos[1]).not.toHaveProperty('p_detalle')
+    expect(cuerpos[1]!.p_operacion_id).not.toBe(operacion)
+  })
+
+  it('confirma después de una respuesta perdida la actividad nueva sin detalle', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    servidor.use(http.post(ruta, async ({ request }) => {
+      const cuerpo = await request.json() as Record<string, unknown>; cuerpos.push(cuerpo)
+      return cuerpos.length === 1 ? HttpResponse.error() : recibo(cuerpo)
+    }))
+    await expect(ejecutarComandoSla('actor', 'registrar_actividad_v2', 'lead', {
+      p_lead_id: 'lead', p_tipo: 'whatsapp_enviado', p_siguiente: null,
+    })).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    await confirmarPendienteSla('actor', listarPendientesSla('actor')[0]!.operacion)
+    expect(cuerpos).toHaveLength(2)
+    expect(cuerpos[1]).toStrictEqual(cuerpos[0])
+    expect(cuerpos[1]).not.toHaveProperty('p_detalle')
+    expect(listarPendientesSla('actor')).toEqual([])
+  })
+
   it('conserva IDs de siguiente tarea al regenerarse el espejo optimista', async () => {
     const cuerpos: Record<string, unknown>[] = []
     servidor.use(http.post(ruta, async ({ request }) => {

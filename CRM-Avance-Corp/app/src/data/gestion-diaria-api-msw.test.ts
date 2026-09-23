@@ -32,23 +32,24 @@ const pagina = (extra: Record<string, unknown> = {}) => ({
 })
 
 describe('registro_actividad_fn (msw)', () => {
-  it('manda los ocho argumentos con la sonda limite+1 y devuelve la página validada', async () => {
+  it('manda los argumentos presentes con la sonda limite+1 y devuelve la página validada', async () => {
     let cuerpo: Record<string, unknown> | null = null
     server.use(http.post(RPC, async ({ request }) => { cuerpo = (await request.json()) as Record<string, unknown>; return HttpResponse.json(pagina()) }))
     const r = await listarRegistroActividad(FILTROS, { antes_de: '2026-09-19T15:00:00Z', antes_id: 'a9' }, 25)
+    // Sin etapa, `p_etapa` NO viaja: en el servidor vale NULL por defecto.
     expect(cuerpo).toEqual({
       p_desde: '2026-09-19', p_hasta: '2026-09-19', p_analista_ids: ['u1'], p_tipos: ['llamada_realizada', 'llamada_no_contestada'],
-      p_etapa: null, p_limite: 26, p_antes_de: '2026-09-19T15:00:00Z', p_antes_id: 'a9',
+      p_limite: 26, p_antes_de: '2026-09-19T15:00:00Z', p_antes_id: 'a9',
     })
     expect(r.items).toHaveLength(1)
     expect(r.items[0]?.metadata).toEqual({ resultado: 'volver_a_llamar' })
   })
 
-  it('«todo» no manda tipos y sin cursor manda nulos', async () => {
+  it('«todo» no manda tipos y sin cursor omite los opcionales (NULL por defecto en el servidor)', async () => {
     let cuerpo: Record<string, unknown> | null = null
     server.use(http.post(RPC, async ({ request }) => { cuerpo = (await request.json()) as Record<string, unknown>; return HttpResponse.json(pagina()) }))
     await listarRegistroActividad({ ...FILTROS, pestana: 'todo', analistaIds: null }, null, 25)
-    expect(cuerpo).toMatchObject({ p_tipos: null, p_analista_ids: null, p_antes_de: null, p_antes_id: null })
+    expect(cuerpo).toEqual({ p_desde: '2026-09-19', p_hasta: '2026-09-19', p_limite: 26 })
   })
 
   it.each([

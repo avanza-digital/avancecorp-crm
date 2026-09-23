@@ -5,6 +5,7 @@
 // se rechaza, nunca se pinta.
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
+import { soloPresentes } from './argumentos-rpc'
 import { CrmApiError } from './crm-api'
 import {
   RegistroPaginaSchema,
@@ -49,15 +50,19 @@ export async function listarRegistroActividad(
 ): Promise<RegistroPagina> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
   const tipos = tiposDePestana(filtros.pestana)
+  // Los opcionales se OMITEN en vez de mandarse en null: en el servidor todos
+  // valen NULL por defecto (mismo resultado) y el tipo generado los declara `x?: T`.
   let consulta = sb.schema('crm').rpc('registro_actividad_fn', {
     p_desde: filtros.dia,
     p_hasta: filtros.dia,
-    p_analista_ids: filtros.analistaIds === null ? null : [...filtros.analistaIds],
-    p_tipos: tipos === null ? null : [...tipos],
-    p_etapa: filtros.etapa,
     p_limite: limiteConSonda(limite),
-    p_antes_de: cursor?.antes_de ?? null,
-    p_antes_id: cursor?.antes_id ?? null,
+    ...soloPresentes({
+      p_analista_ids: filtros.analistaIds === null ? null : [...filtros.analistaIds],
+      p_tipos: tipos === null ? null : [...tipos],
+      p_etapa: filtros.etapa,
+      p_antes_de: cursor?.antes_de,
+      p_antes_id: cursor?.antes_id,
+    }),
   })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -83,7 +88,8 @@ export async function obtenerDiaAnalista(
   signal?: AbortSignal,
 ): Promise<DiaAnalista> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('gestion_diaria_analista_fn', { p_dia: dia, p_analista_id: analistaId })
+  let consulta = sb.schema('crm').rpc('gestion_diaria_analista_fn',
+    soloPresentes({ p_dia: dia, p_analista_id: analistaId }))
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) throw new CrmApiError(error.message, error.code)

@@ -182,6 +182,11 @@ const ConversionPorOrigenSchema = v.object({
   // el espejo demo no las emite.
   peso_en_nucleo: v.optional(v.number()),
   fuera_del_divisor_del_nucleo: v.optional(v.boolean()),
+  // La misma cifra de la fila con cada cierre pesando lo que pesa en la
+  // conversión general (el referido, a su peso). La calcula el SERVIDOR
+  // (20260923185001); la pantalla solo la muestra. Opcional: un servidor previo
+  // o el espejo demo no la emiten.
+  conversion_ponderada_pct: v.optional(PorcentajeSchema),
   leads_con_cita_real: v.optional(v.nullable(ConteoAmpliacionSchema)),
   citas_realizadas: v.optional(v.nullable(ConteoAmpliacionSchema)),
 })

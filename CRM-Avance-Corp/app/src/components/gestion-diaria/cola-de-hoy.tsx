@@ -10,7 +10,7 @@
 // un `aria-pressed`: esto es una selección única dentro de una lista, y así el
 // tabulador y el lector de pantalla la entienden sin inventar teclado propio.
 import type { JSX } from 'react'
-import { PhoneCall } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, PhoneCall } from 'lucide-react'
 import { ChipTiempo } from '@/components/gestion-diaria/chip-tiempo'
 import { PanelCargando, PanelVacio } from '@/components/common/estado-panel'
 import { Button } from '@/components/ui/button'
@@ -58,8 +58,11 @@ export function ColaDeHoy({
   const vacioTodo = pestanas.every((p) => p.total === 0)
 
   return (
-    <section aria-labelledby={`${idBase}-cola`} className="flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-6">
-      <h3 id={`${idBase}-cola`} className="text-xl font-semibold text-primary">Cola de hoy</h3>
+    <section aria-labelledby={`${idBase}-cola`} className="flex min-w-0 flex-1 flex-col gap-5 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <div className="space-y-1">
+        <h3 id={`${idBase}-cola`} className="text-xl font-semibold text-primary">Cola de hoy</h3>
+        <p className="text-base text-[var(--muted-foreground-strong)]">Elige un contacto para ver su contexto y actuar.</p>
+      </div>
 
       {cargando ? (
         <PanelCargando filas={FILAS_POR_PAGINA} />
@@ -85,7 +88,7 @@ export function ColaDeHoy({
               ? '?'
               : hayMas ? `${p.total}+` : String(p.total),
           }))}
-          className="flex min-h-0 flex-1 flex-col [&>[role=tablist]]:max-w-full [&>[role=tablist]]:flex-row [&>[role=tablist]]:overflow-x-auto [&_[role=tab]]:flex-none [&_[role=tab]]:whitespace-nowrap [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
+          className="flex min-h-0 flex-1 flex-col [&>[role=tablist]]:max-w-full [&>[role=tablist]]:flex-row [&>[role=tablist]]:overflow-x-auto [&_[role=tab]]:flex-none [&_[role=tab]]:whitespace-nowrap [&_[role=tab][aria-selected=true]]:font-semibold [&>[role=tabpanel]]:flex [&>[role=tabpanel]]:min-h-0 [&>[role=tabpanel]]:flex-1 [&>[role=tabpanel]]:flex-col [&>[role=tabpanel]]:gap-4"
         >
           <p className="text-base text-[var(--muted-foreground-strong)]">{grupo?.ayuda}</p>
 
@@ -108,19 +111,19 @@ export function ColaDeHoy({
                         {...(seleccionada ? { 'aria-current': true as const } : {})}
                         onClick={() => onElegir(fila)}
                         className={cn(
-                          'flex w-full min-h-[5.5rem] cursor-pointer items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition-colors',
+                          'flex w-full min-h-[5.5rem] cursor-pointer items-center justify-between gap-4 rounded-xl border-2 px-4 py-4 text-left transition-colors sm:px-5',
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card',
                           seleccionada
-                            ? 'border-2 border-primary bg-card'
-                            : 'border border-border-strong bg-card hover:bg-muted',
+                            ? 'border-primary bg-primary/[0.03]'
+                            : 'border-transparent bg-muted/50 hover:border-border-strong hover:bg-muted',
                         )}
                       >
                         <span className="flex min-w-0 flex-col gap-1">
-                          <span className="truncate text-lg font-medium leading-7 text-foreground">{fila.nombre_completo}</span>
+                          <span className="truncate text-lg font-semibold leading-7 text-primary">{fila.nombre_completo}</span>
                           <ChipTiempo fila={fila} ahora={ahora} className="self-start" />
                         </span>
                         {seleccionada && (
-                          <span className="shrink-0 text-base font-medium text-primary">Elegido</span>
+                          <span className="flex shrink-0 items-center gap-2 text-base font-semibold text-primary"><Check aria-hidden className="size-5" /><span className="sr-only sm:not-sr-only">Elegido</span></span>
                         )}
                       </button>
                     </li>
@@ -128,21 +131,21 @@ export function ColaDeHoy({
                 })}
               </ol>
 
-              <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                 {/* Se ANUNCIA: al pasar de página cambian las cinco filas y sin
                     esto el lector de pantalla no diría nada (WCAG 4.1.3). */}
                 <p role="status" aria-live="polite" className="text-base text-[var(--muted-foreground-strong)]">
                   {vista.rango}{hayMas && ' de los cargados · hay más en Seguimiento comercial'}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   {/* `aria-disabled` y no `disabled`, con la guarda en el handler:
                       el botón se deshabilita a sí mismo al pulsarse (última página)
                       y un `disabled` sobre el elemento enfocado manda el foco al
                       body — la misma regla de la casa que «Deshacer». */}
                   <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default"
-                    aria-disabled={sinAnterior} onClick={() => { if (!sinAnterior) onPagina(vista.pagina - 1) }}>Anterior</Button>
+                    aria-disabled={sinAnterior} onClick={() => { if (!sinAnterior) onPagina(vista.pagina - 1) }}><ChevronLeft aria-hidden />Anterior</Button>
                   <Button variant="outline" className="h-12 text-base font-normal aria-disabled:opacity-50 aria-disabled:cursor-default"
-                    aria-disabled={sinSiguiente} onClick={() => { if (!sinSiguiente) onPagina(vista.pagina + 1) }}>Siguiente</Button>
+                    aria-disabled={sinSiguiente} onClick={() => { if (!sinSiguiente) onPagina(vista.pagina + 1) }}>Siguiente<ChevronRight aria-hidden /></Button>
                 </div>
               </div>
             </>

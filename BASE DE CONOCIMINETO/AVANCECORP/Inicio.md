@@ -1,9 +1,15 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — **MEJORA VISUAL PUBLICADA:** PR #82, fuente `e8e4f35f`, build `build-20260923T204457952Z`; 4.179 pruebas, archivos y acceso de gerencia verificados. Mismo plan editable en Figma, 76 puntos. Pendientes aceptación de analista/supervisor y primera jornada real de F4 del 24/09. Fixtures integrados mediante PR #84; acta de publicación enlazada en la nota.
+
+- [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #77 fusionado y publicado, fuente `8e6f4357`, build `build-20260923T173450335Z`; 113 archivos y smoke gerencia PASS. Detalle opcional compatible con tipos regenerados; 4.175 pruebas y 32 E2E focalizados PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.
+
+- [[Gestion Diaria F4 - cinco SQL publicados OFF y PR 76 sin conflictos (2026-09-23)]] — Acta intermedia del ensayo y merge SQL; completada por la publicación y programación anteriores.
 
 - [[Acceso Avance - apellidos y nombres separados (2026-09-22)]] — **PUBLICADO Y VERIFICADO:** apellidos primero, nombres después, sin campo duplicado. PR #72 integrado; fuente `7d65fcdb`, build `build-20260922T221442353Z`, 4.085 pruebas, 6 E2E y cotejo de archivos productivos PASS.
 
@@ -35,6 +41,8 @@ actualizado: 2026-09-22
 - [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]] — **INCLUIDO EN EL RELEASE `526e728e` (21/09):** «Mi día» conserva dos paneles hermanos —«Ahora» con una sola acción primaria y la cola en pestañas—, menú accesible, foco visible y rojo reservado a lo vencido. Historial y verificaciones iniciales en la nota; publicación vigente en [[Gestion Diaria - publicacion de equipo y resultado (2026-09-21)]].
 
 - [[Conversion - una sola pieza para Metas y la oficial (2026-09-23)]] — **EN PRODUCCIÓN 23/09:** Metas dejó de calcular la conversión. La cifra por persona vive una sola vez en el núcleo, y la usan la oficial y Metas (tabla y «fuera del ranking»). En pantalla no cambia nada: 224/224 respuestas idénticas. Ensayado con mes sellado, deuda y reversa. Verificación: `metas-vs-oficial.sql` PASS.
+
+- [[Conversion - tabla por origen al peso de la general (2026-09-23)]] — **SERVIDOR EN PRODUCCIÓN 23/09 · PANTALLA AL PUBLICAR:** «Resultados por origen» pesa cada cierre como la conversión general. Referido pasa de 72,7 % a 10,9 % (×0,15); Formulario y Landing no cambian. La cifra la calcula el servidor. Huella vigente de la función: `6e4fedb3…`.
 
 - [[Auditoria de conversiones - capas backend a frontend (2026-09-21)]] — **AUDITORÍA CERRADA «CON LO QUE HAY» (21/09), CORRECCIONES PENDIENTES DE OK:** 10 de 11 cifras de gerencia salen del núcleo único (Citas no); pero rango/Distribución recalculan en vivo meses sellados y publican el numerador BRUTO mientras Ranking/Metas/HOY sirven foto y NETO — dos verdades para el mismo mes; la sonda de paridad compara el núcleo consigo mismo; la deuda por anulaciones se descuenta en dos meses abiertos a la vez; ningún gate protege «un solo núcleo». Sonda de producción escrita y pendiente (`supabase/scripts/sonda-paridad-conversion-prod.sql`). Cómo retomar desde otra cuenta: `CRM-Avance-Corp/docs/auditorias/conversion-2026-09-21/RETOMAR-EN-OTRA-CUENTA.md`.
 

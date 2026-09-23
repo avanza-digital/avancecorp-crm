@@ -14,7 +14,17 @@ test('Supervisor: roster demo, búsqueda y detalle con texto de al menos 16 px',
   const nombre = (await analistas.first().getByRole('rowheader').locator('p').first().textContent())!
   await vista.getByRole('searchbox').fill(nombre)
   await expect(analistas).toHaveCount(1)
-  await tabla.locator('summary').click()
+  // El contorno debe sobrevivir al alto contraste: el ring de box-shadow no.
+  await page.emulateMedia({ forcedColors: 'active' })
+  await page.keyboard.press('Tab')
+  for (const control of [tabla.getByRole('button', { name: `Detalle de ${nombre}` }), tabla.getByRole('button', { name: `Ver registro de ${nombre}` })]) {
+    await control.focus()
+    await expect(control).toBeFocused()
+    await expect(control).not.toHaveCSS('outline-style', 'none')
+    expect(await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).outlineWidth))).toBeGreaterThanOrEqual(2)
+  }
+  await page.emulateMedia({ forcedColors: 'none' })
+  await tabla.getByRole('button', { name: /^Detalle de / }).click()
   await expect(tabla.getByText('Llamadas por lead', { exact: true })).toBeVisible()
   const chicos = await vista.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*')).filter((el) =>
     el.getClientRects().length > 0 && Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
@@ -93,7 +103,8 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await page.route('**/rest/v1/rpc/registro_actividad_fn', async (route) => {
     const pedido = route.request().postDataJSON()
     expect(pedido).toMatchObject({ p_desde: hoy, p_hasta: hoy, p_analista_ids: ['vend-1'], p_limite: 26 })
-    if (pedido.p_tipos !== null) expect(pedido.p_tipos).toEqual(['llamada_realizada', 'llamada_no_contestada'])
+    // Main (#80) omite p_tipos en «Todo»; cuando se filtra, exige ambos tipos.
+    if (pedido.p_tipos !== undefined) expect(pedido.p_tipos).toEqual(['llamada_realizada', 'llamada_no_contestada'])
     if (revocado) return route.fulfill({ status: 403, json: { code: '42501', message: 'Acceso revocado' } })
     return route.fulfill({ json: { version: 1, generado_en: `${hoy}T18:00:00Z`, desde: hoy, hasta: hoy, zona: 'America/Lima', limite: 26,
       items: pedido.p_antes_de ? [items[25]] : items } })
@@ -102,9 +113,18 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   await vista.getByRole('searchbox').fill('Real Uno')
-  const detalle = vista.locator('details')
-  await detalle.locator('summary').focus()
+  const abrirDetalle = vista.getByRole('button', { name: 'Detalle de Analista Real Uno', exact: true })
+  const detalle = vista.getByRole('region', { name: 'Detalle de Analista Real Uno', exact: true })
+  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'false')
+  await abrirDetalle.focus()
   await page.keyboard.press('Enter')
+  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'true')
+  await expect(detalle).toBeVisible()
+  await page.keyboard.press('Space')
+  await expect(detalle).toBeHidden()
+  await expect(abrirDetalle).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(detalle).toBeVisible()
   await expect(detalle.getByText('De 10:00 a 10:59: 26 llamadas, 26 contestadas')).toBeAttached()
   const horario = detalle.getByRole('region', { name: 'Llamadas por hora de Analista Real Uno' })
   await horario.focus()
@@ -168,5 +188,5 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await registro.getByRole('button', { name: 'Cerrar registro', exact: true }).click()
   await expect(abrirRegistro).toBeFocused()
   await expect(vista.getByRole('searchbox')).toHaveValue('Real Uno')
-  await expect(detalle).toHaveAttribute('open', '')
+  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'true')
 })

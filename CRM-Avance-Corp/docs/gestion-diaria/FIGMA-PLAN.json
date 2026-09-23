@@ -1,0 +1,649 @@
+{
+  "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+  "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
+  "updatedAt": "2026-09-23",
+  "source": "GESTION-DIARIA.md",
+  "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
+  "rootNodeId": "2:2",
+  "titleId": "2:3",
+  "updatedId": "2:5",
+  "legendId": "2:6",
+  "uiProgress": {
+    "sectionId": "2:130",
+    "titleId": "2:131",
+    "statusId": "2:132",
+    "scopeId": "2:133",
+    "updatedAt": "2026-09-23",
+    "status": "Publicado; pendiente de aceptación de analista y supervisor",
+    "branch": "codex/gestion-diaria-ui",
+    "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/82",
+    "integratedMain": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
+    "evidence": "UI-ANALISTA-SUPERVISOR-2026-09-23.md",
+    "review": "UI-REVISION-CLAUDE-2026-09-23.md",
+    "publicationEvidence": "UI-PUBLICACION-2026-09-23.md",
+    "buildId": "build-20260923T204457952Z",
+    "archive": "crm-20260923T204458Z-e8e4f35f9ea1.zip",
+    "archiveSha256": "ab631a4fac25c53c3d32bd49514c99d92c6420dd2c9b92c1a823a88a46f22de6",
+    "unitTestsPassed": 4179,
+    "e2ePassed": 13,
+    "e2eScope": "Recorridos focalizados previos de analista y supervisor; no representa la suite completa del release",
+    "releaseE2E": {
+      "initialFullRun": { "passed": 228, "failed": 6, "skipped": 26 },
+      "correctedSpec": "e2e/sla-operacion.spec.ts",
+      "correctedSpecRun": { "passed": 15, "failed": 0 },
+      "fixturePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/84",
+      "scope": "Mismo código de producto; todos los fallos iniciales cubiertos por el spec corregido. No es un PASS completo en una sola ejecución."
+    },
+    "originFilesVerified": 114,
+    "cdnCodeFilesVerified": 75,
+    "cdnTransformedPngFiles": 11,
+    "productionSmoke": "PASS gerencia; NOT RUN analista y supervisor",
+    "userAcceptance": "PENDING analista y supervisor",
+    "realityGate": "NOT RUN; lectura SQL parcial registrada en el acta, sin sustituir el CLI"
+  },
+  "phaseNodes": {
+    "F0": {
+      "sectionId": "2:14",
+      "titleId": "2:15",
+      "statusId": "2:16",
+      "itemIds": [
+        "2:17",
+        "2:18",
+        "2:19",
+        "2:20"
+      ],
+      "noteId": null,
+      "height": 387
+    },
+    "F1": {
+      "sectionId": "2:21",
+      "titleId": "2:22",
+      "statusId": "2:23",
+      "itemIds": [
+        "2:24",
+        "2:25",
+        "2:26",
+        "2:27",
+        "2:28",
+        "2:29"
+      ],
+      "noteId": null,
+      "height": 531
+    },
+    "F2": {
+      "sectionId": "2:30",
+      "titleId": "2:31",
+      "statusId": "2:32",
+      "itemIds": [
+        "2:33",
+        "2:34",
+        "2:35",
+        "2:36",
+        "2:37",
+        "2:38",
+        "2:39"
+      ],
+      "noteId": null,
+      "height": 534
+    },
+    "F3": {
+      "sectionId": "2:40",
+      "titleId": "2:41",
+      "statusId": "2:42",
+      "itemIds": [
+        "2:43",
+        "2:44",
+        "2:45",
+        "2:46",
+        "2:47",
+        "2:48",
+        "2:49"
+      ],
+      "noteId": null,
+      "height": 534
+    },
+    "F4.1-etapa": {
+      "sectionId": "2:50",
+      "titleId": "2:51",
+      "statusId": "2:52",
+      "itemIds": [
+        "2:53",
+        "2:54",
+        "2:55",
+        "2:56"
+      ],
+      "noteId": null,
+      "height": 387
+    },
+    "F4.2-etapa": {
+      "sectionId": "2:57",
+      "titleId": "2:58",
+      "statusId": "2:59",
+      "itemIds": [
+        "2:60",
+        "2:61",
+        "2:62",
+        "2:63"
+      ],
+      "noteId": null,
+      "height": 352
+    },
+    "F4.3-etapa": {
+      "sectionId": "2:64",
+      "titleId": "2:65",
+      "statusId": "2:66",
+      "itemIds": [
+        "2:67",
+        "2:68",
+        "2:69",
+        "2:70",
+        "2:71",
+        "2:72"
+      ],
+      "noteId": null,
+      "height": 450
+    },
+    "F4.4-etapa": {
+      "sectionId": "2:73",
+      "titleId": "2:74",
+      "statusId": "2:75",
+      "itemIds": [
+        "2:76",
+        "2:77",
+        "2:78",
+        "2:79",
+        "2:80",
+        "2:81"
+      ],
+      "noteId": null,
+      "height": 450
+    },
+    "F4.5-etapa": {
+      "sectionId": "2:82",
+      "titleId": "2:83",
+      "statusId": "2:84",
+      "itemIds": [
+        "2:85",
+        "2:86",
+        "2:87",
+        "2:88",
+        "2:89"
+      ],
+      "noteId": null,
+      "height": 401
+    },
+    "F4.6-etapa": {
+      "sectionId": "2:90",
+      "titleId": "2:91",
+      "statusId": "2:92",
+      "itemIds": [
+        "2:93",
+        "2:94",
+        "2:95",
+        "2:96",
+        "2:97",
+        "2:98",
+        "2:99",
+        "2:100",
+        "2:101"
+      ],
+      "noteId": null,
+      "height": 632
+    },
+    "F4.1": {
+      "sectionId": "2:102",
+      "titleId": "2:103",
+      "statusId": "2:104",
+      "itemIds": [
+        "2:105",
+        "2:106",
+        "2:107",
+        "2:108",
+        "2:109",
+        "2:110"
+      ],
+      "noteId": "2:111",
+      "height": 508
+    },
+    "F5": {
+      "sectionId": "2:112",
+      "titleId": "2:113",
+      "statusId": "2:114",
+      "itemIds": [
+        "2:115",
+        "2:116",
+        "2:117",
+        "2:118",
+        "2:119",
+        "2:120",
+        "2:121"
+      ],
+      "noteId": null,
+      "height": 534
+    },
+    "F6": {
+      "sectionId": "2:122",
+      "titleId": "2:123",
+      "statusId": "2:124",
+      "itemIds": [
+        "2:125",
+        "2:126",
+        "2:127",
+        "2:128",
+        "2:129"
+      ],
+      "noteId": null,
+      "height": 401
+    }
+  },
+  "uiSectionId": "2:130",
+  "columns": {
+    "done": "2:7",
+    "current": "2:8",
+    "next": "2:9"
+  },
+  "phaseCardCount": 13,
+  "itemCount": 76,
+  "bounds": {
+    "width": 3300,
+    "height": 4139
+  },
+  "phases": [
+    {
+      "key": "F0",
+      "title": "F0 — Cimientos",
+      "status": "Terminada y publicada",
+      "items": [
+        [
+          true,
+          "Revisar los datos existentes y acordar las definiciones de llamadas, contacto y actividad."
+        ],
+        [
+          true,
+          "Confirmar resultados, submotivos y reglas iniciales."
+        ],
+        [
+          true,
+          "Incorporar la tipografía y los componentes comunes."
+        ],
+        [
+          true,
+          "Guardar el plan y las decisiones en la documentación y el vault."
+        ]
+      ]
+    },
+    {
+      "key": "F1",
+      "title": "F1 — Alta del módulo y registro de actividad compartido",
+      "status": "Terminada y publicada",
+      "items": [
+        [
+          true,
+          "Incorporar Gestión Diaria al menú."
+        ],
+        [
+          true,
+          "Mostrar llamadas, WhatsApp, notas y demás actividades."
+        ],
+        [
+          true,
+          "Permitir filtros, paginación y acceso a la ficha del lead."
+        ],
+        [
+          true,
+          "Mostrar al analista su actividad, al supervisor su equipo y a gerencia toda la operación."
+        ],
+        [
+          true,
+          "Permitir la exportación CSV para gerencia."
+        ],
+        [
+          true,
+          "Verificar los permisos entre equipos."
+        ]
+      ]
+    },
+    {
+      "key": "F2",
+      "title": "F2 — Resultado tipificado de llamada",
+      "status": "Terminada y publicada",
+      "items": [
+        [
+          true,
+          "Registrar las llamadas mediante los siete resultados acordados."
+        ],
+        [
+          true,
+          "Solicitar los datos correspondientes a cada resultado."
+        ],
+        [
+          true,
+          "Crear la próxima acción cuando corresponda."
+        ],
+        [
+          true,
+          "Separar resultado y descarte: “No le interesa” y “Pide otro producto” permiten conservar el lead y programar seguimiento."
+        ],
+        [
+          true,
+          "Mantener las reglas de “No insistir”."
+        ],
+        [
+          true,
+          "Permitir deshacer los efectos admitidos durante 24 horas."
+        ],
+        [
+          true,
+          "Conservar los guardados pendientes sin duplicar operaciones."
+        ]
+      ]
+    },
+    {
+      "key": "F3",
+      "title": "F3 — Analista: “Mi día”",
+      "status": "Terminada y publicada",
+      "items": [
+        [
+          true,
+          "Mostrar una acción principal: a quién atender ahora."
+        ],
+        [
+          true,
+          "Ofrecer la cola completa de pendientes."
+        ],
+        [
+          true,
+          "Priorizar nuevos leads sin primer intento, después vencidas y tareas de hoy."
+        ],
+        [
+          true,
+          "Mostrar actividad, compromisos y descartes del día."
+        ],
+        [
+          true,
+          "Organizar la pantalla en los dos paneles acordados."
+        ],
+        [
+          true,
+          "Corregir los problemas de carga parcial y actualización."
+        ],
+        [
+          true,
+          "Conservar “Hoy” como pantalla independiente."
+        ]
+      ]
+    },
+    {
+      "key": "F4.1-etapa",
+      "title": "Etapa 1 — Vista del equipo",
+      "status": "Publicada",
+      "items": [
+        [
+          true,
+          "Mostrar a todos los analistas activos del equipo, incluidos quienes tienen cero actividad."
+        ],
+        [
+          true,
+          "Mostrar llamadas, contactos, tasa, pendientes y motivos de atención."
+        ],
+        [
+          true,
+          "Buscar, ordenar y filtrar por “Con problema hoy”."
+        ],
+        [
+          true,
+          "Respetar el ámbito de cada supervisor."
+        ]
+      ]
+    },
+    {
+      "key": "F4.2-etapa",
+      "title": "Etapa 2 — Detalle y registro del analista",
+      "status": "Publicada",
+      "items": [
+        [
+          true,
+          "Mostrar llamadas por hora."
+        ],
+        [
+          true,
+          "Abrir las llamadas o el registro completo del analista."
+        ],
+        [
+          true,
+          "Llegar desde el registro a la ficha del lead."
+        ],
+        [
+          true,
+          "Conservar filtros, paginación y navegación de regreso."
+        ]
+      ]
+    },
+    {
+      "key": "F4.3-etapa",
+      "title": "Etapa 3 — Cortes de jornada",
+      "status": "Publicada · activación programada para el 24/09",
+      "items": [
+        [
+          true,
+          "Implementar el corte de 11:30: mínimo 3 llamadas."
+        ],
+        [
+          true,
+          "Implementar el corte de 16:00: acumulado inicial × 2,5, con mínimo 8 y máximo 30."
+        ],
+        [
+          true,
+          "Implementar el sábado con un solo corte y mínimo 3."
+        ],
+        [
+          true,
+          "Excluir de los avisos de corte a quienes no tienen cartera abierta."
+        ],
+        [
+          true,
+          "Instalar y verificar el SQL."
+        ],
+        [
+          true,
+          "Programar su activación para el 24/09."
+        ]
+      ]
+    },
+    {
+      "key": "F4.4-etapa",
+      "title": "Etapa 4 — Alertas y seguimiento",
+      "status": "Publicada",
+      "items": [
+        [
+          true,
+          "Publicar los avisos con los analistas afectados y sus cifras."
+        ],
+        [
+          true,
+          "Integrar ventana emergente, campana y lista."
+        ],
+        [
+          true,
+          "Permitir “Lo estoy atendiendo”."
+        ],
+        [
+          true,
+          "Permitir “Posponer 1 hora”, una vez por aviso, supervisor y día."
+        ],
+        [
+          true,
+          "Guardar esas acciones en el servidor."
+        ],
+        [
+          true,
+          "Implementar las reglas para evitar duplicados y reavisos al cierre."
+        ]
+      ]
+    },
+    {
+      "key": "F4.5-etapa",
+      "title": "Etapa 5 — Configuración gerencial",
+      "status": "Publicada",
+      "items": [
+        [
+          true,
+          "Publicar la pantalla de configuración."
+        ],
+        [
+          true,
+          "Permitir ajustar horarios, mínimos, crecimiento y límites."
+        ],
+        [
+          true,
+          "Guardar versiones con vigencia futura, conservando las reglas anteriores."
+        ],
+        [
+          true,
+          "Crear y comprobar la v2 para el 24/09."
+        ],
+        [
+          true,
+          "Mantener la alerta de tasa muy baja apagada hasta F5."
+        ]
+      ]
+    },
+    {
+      "key": "F4.6-etapa",
+      "title": "Etapa 6 — Validación y activación",
+      "status": "ESTAMOS AQUÍ · pendiente de validación real",
+      "items": [
+        [
+          true,
+          "Completar las pruebas técnicas y el ensayo remoto."
+        ],
+        [
+          true,
+          "Publicar el frontend y verificar sus archivos."
+        ],
+        [
+          true,
+          "Comprobar configuración y registro con gerencia."
+        ],
+        [
+          true,
+          "Publicar la corrección del detalle opcional del PR #77."
+        ],
+        [
+          false,
+          "Completar el recorrido de negocio con supervisión."
+        ],
+        [
+          false,
+          "Observar ambos cortes reales del 24/09."
+        ],
+        [
+          false,
+          "Confirmar cifras, avisos, reconocimiento y aplazamiento entre sesiones o dispositivos."
+        ],
+        [
+          false,
+          "Registrar incidencias, corregirlas si aparecen y dejar evidencia del cierre."
+        ],
+        [
+          false,
+          "Comprobar el corte único del sábado 26/09 como seguimiento operativo."
+        ]
+      ]
+    },
+    {
+      "key": "F4.1",
+      "title": "F4.1 — Revisión asistida con TypeSafe/Jev",
+      "status": "Preparación hecha",
+      "items": [
+        [
+          true,
+          "Verificar el acceso técnico y realizar un ensayo con casos ficticios."
+        ],
+        [
+          true,
+          "Preparar la guía y el banco de práctica para ambos supervisores."
+        ],
+        [
+          false,
+          "Ejecutar el piloto humano, cada supervisor con su equipo."
+        ],
+        [
+          false,
+          "Preparar y evaluar la muestra anonimizada."
+        ],
+        [
+          false,
+          "Medir aciertos, falsas alarmas, omisiones, coste y utilidad."
+        ],
+        [
+          false,
+          "Integrar las sugerencias en el CRM solo si el piloto demuestra utilidad."
+        ]
+      ],
+      "note": "Esta fase no bloquea el cierre de F4 ni el avance de F5."
+    },
+    {
+      "key": "F5",
+      "title": "F5 — Gerencia: “Toda la operación”",
+      "status": "Pendiente",
+      "items": [
+        [
+          false,
+          "Construir el tablero global del día."
+        ],
+        [
+          false,
+          "Comparar con ayer y con los últimos siete días con actividad."
+        ],
+        [
+          false,
+          "Identificar los equipos que requieren atención."
+        ],
+        [
+          false,
+          "Permitir bajar de operación → equipo → analista → registro."
+        ],
+        [
+          false,
+          "Crear el reporte de hábitos: primera llamada, pausas, tasa de contacto y cumplimiento de cortes."
+        ],
+        [
+          false,
+          "Usar esos datos para definir con gerencia la alerta de tasa muy baja."
+        ],
+        [
+          false,
+          "Probar y publicar la fase."
+        ]
+      ]
+    },
+    {
+      "key": "F6",
+      "title": "F6 — Absorber Seguimiento y cerrar",
+      "status": "Pendiente",
+      "items": [
+        [
+          false,
+          "Acumular al menos una semana de F3–F5 estables en producción."
+        ],
+        [
+          false,
+          "Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+        ],
+        [
+          false,
+          "Retirar la pantalla duplicada conservando sus capacidades."
+        ],
+        [
+          false,
+          "Verificar navegación, permisos y funcionamiento completo."
+        ],
+        [
+          false,
+          "Actualizar la documentación y cerrar el módulo."
+        ]
+      ]
+    }
+  ]
+}

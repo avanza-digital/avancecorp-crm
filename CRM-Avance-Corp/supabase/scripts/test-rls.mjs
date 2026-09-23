@@ -271,6 +271,23 @@ function fail(message) {
   console.error(`  ✗ ${message}`);
 }
 
+/**
+ * 20260923185001: si una fila de origen trae `conversion_ponderada_pct`, tiene que
+ * ser la de su propia fila, `round(100 × contratos × peso_en_nucleo ÷ leads, 1)`,
+ * y null cuando no hay leads. Tolerancia de medio decimal: aquí se recalcula en
+ * coma flotante y el servidor redondea en numeric. Un servidor previo (sin la
+ * clave) pasa: la forma exacta la vigila el control de claves.
+ */
+function origenesPonderadosCuadran(origenes) {
+  return (origenes ?? []).every((fila) => {
+    if (fila.conversion_ponderada_pct === undefined) return true;
+    const leads = Number(fila.leads);
+    if (!(leads > 0)) return fila.conversion_ponderada_pct === null;
+    const esperado = (100 * Number(fila.contratos) * Number(fila.peso_en_nucleo)) / leads;
+    return Math.abs(Number(fila.conversion_ponderada_pct) - esperado) <= 0.051;
+  });
+}
+
 function check(condition, message, detail = '') {
   if (condition) pass(message);
   else fail(`${message}${detail ? ` — ${detail}` : ''}`);
@@ -6926,7 +6943,8 @@ async function testMetricasServidor(sessions, seed) {
     check(a?.caminos_leidos === 5, 'F3: la alarma leyo los cinco caminos', String(a?.caminos_leidos));
     check(a?.detalle?.rango_recalculo != null,
       'F3: el camino del recalculo de la puerta #4 viaja en el detalle');
-    check(num(a?.detalle?.rango_recalculo?.numerador) === num(a?.conciliacion?.bruto_numerador),
+    check(Number(a?.detalle?.rango_recalculo?.numerador ?? NaN)
+        === Number(a?.conciliacion?.bruto_numerador ?? NaN),
       'F3: el recalculo de la puerta #4 sigue dando el BRUTO, no el neto',
       `recalculo ${a?.detalle?.rango_recalculo?.numerador} · bruto ${a?.conciliacion?.bruto_numerador}`);
     check(a?.declaran?.rango === 'mensual',
@@ -7362,14 +7380,22 @@ async function testMetricasConversionesGlobal(sessions) {
     // F1.3b (nota 6 del auditor): la forma de origenes[], responsables[] y
     // sondas tambien se FIJA — un campo de mas es superficie sin auditar.
     const clavesOrigen = [...new Set((global.data?.origenes ?? []).flatMap((f) => Object.keys(f)))].sort();
+    // 20260923185001 añade `conversion_ponderada_pct` (la calcula el servidor).
+    // Se aceptan las DOS generaciones, cada una EXACTA: 17 campos antes, 18 después.
+    const contratoOrigen = [
+      'capital_pen', 'capital_usd', 'citas_realizadas', 'clientes', 'contactados', 'contratos',
+      'conversion_clientes_pct', 'conversion_contratos_pct',
+      'conversion_resueltos_pct', 'descartados',
+      'fuera_del_divisor_del_nucleo', 'leads', 'leads_con_cita_real', 'origen', 'peso_en_nucleo',
+      'reuniones_agendadas', 'reuniones_realizadas',
+    ];
+    const contratoOrigenPonderado = [...contratoOrigen, 'conversion_ponderada_pct'].sort();
     check(clavesOrigen.length === 0
-      || JSON.stringify(clavesOrigen) === JSON.stringify([
-        'capital_pen', 'capital_usd', 'citas_realizadas', 'clientes', 'contactados', 'contratos',
-        'conversion_clientes_pct', 'conversion_contratos_pct',
-        'conversion_resueltos_pct', 'descartados',
-        'fuera_del_divisor_del_nucleo', 'leads', 'leads_con_cita_real', 'origen', 'peso_en_nucleo',
-        'reuniones_agendadas', 'reuniones_realizadas',
-      ]), 'cada origen trae SOLO los 17 campos del contrato vigente', clavesOrigen.join(','));
+      || JSON.stringify(clavesOrigen) === JSON.stringify(contratoOrigen)
+      || JSON.stringify(clavesOrigen) === JSON.stringify(contratoOrigenPonderado),
+      'cada origen trae SOLO los campos del contrato vigente (17, o 18 con la ponderada)', clavesOrigen.join(','));
+    check(origenesPonderadosCuadran(global.data?.origenes),
+      'la conversion ponderada de cada origen es la de su propia fila (contratos × peso ÷ leads)');
     const clavesResp = [...new Set((global.data?.responsables ?? []).flatMap((f) => Object.keys(f)))].sort();
     check(clavesResp.length === 0
       || JSON.stringify(clavesResp) === JSON.stringify([
@@ -7414,6 +7440,9 @@ async function testMetricasConversionesGlobal(sessions) {
     const origenesFiltrados = (filtrado.data?.origenes ?? []).map((o) => o.origen);
     check(origenesFiltrados.every((o) => o === 'referido'),
       'origenes[] solo trae el origen elegido', origenesFiltrados.join(','));
+    // La rama del peso del referido (v_factor), ejercida de verdad.
+    check(origenesPonderadosCuadran(filtrado.data?.origenes),
+      'con filtro Referido, su conversion ponderada lleva el peso del referido');
     check(num(filtrado.data?.cohorte?.leads) <= num(global?.data?.cohorte?.leads),
       'el lote filtrado nunca supera al total');
     // El nucleo NO se filtra (mide a la empresa; la pantalla no lo pinta con filtro).
