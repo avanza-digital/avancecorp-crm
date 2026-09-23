@@ -1,5 +1,13 @@
 # Gestión Diaria F4 — correctivo HTTP verificado
 
+**Actualización:** Miguel autorizó el quinto SQL exacto el 23/09 con «sii».
+Ensayo remoto en nuevo banco sintético `gestion-diaria-f4-correctivo-20260923`,
+ref `zviwoyvtccqhhdfqdang`, creado 14:44 UTC, tarifa US$0,01344/h bajo el tope
+total previo US$1. Banco reconstruido con 17 usuarios ficticios, siete leads,
+cron apagado y 21 Edge Functions idénticas. Main PR #75 se integra conservando
+la otra entrega; repetir checks antes del release. El texto siguiente conserva
+la evidencia y propuesta que motivaron la autorización.
+
 Relacionado: [[Inicio]], [[Gestion Diaria F4 - pausa y conflicto HTTP pendiente (2026-09-22)]],
 [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]].
 

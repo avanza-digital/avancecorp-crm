@@ -1,6 +1,6 @@
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 
-**CANDIDATO VERIFICADO LOCALMENTE el 23/09. No autorizado remotamente.**
+**CANDIDATO AUTORIZADO el 23/09. Ensayo remoto en curso; sin instalar en producción.**
 Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
 exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
 SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 local PASS:
@@ -25,6 +25,567 @@ USAGE/auth.uid se heredan de authenticated. Producción tiene CREATEROLE y ADMIN
 authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálogo.
 
 # Ledger de migraciones — esquema `crm`
+
+## ✅ 23/09/2026 — LAS DOCE PUERTAS, UNIFICADAS · release publicado
+
+**Front publicado:** `build-20260923T020403114Z`, artefacto
+`crm-20260923T020404Z-e65ef3f11b17.zip`, commit `e65ef3f1`.
+Smoke: HTTP 200 y el `index-ZHzht5gn.js` vivo coincide con el build.
+Preflight previo: `live=build-20260922T221442353Z/7d65fcdb484f candidate=e65ef3f11b17`.
+
+**Tres migraciones con pestillo, aplicadas justo después** (las tres exigían
+`set local crm.ola1_front_publicado = 'si'`):
+
+| Versión | Qué |
+|---|---|
+| `20260922233545` | la #5 declara |
+| `20260923002033` | la #5 delega en `crm.conversion_mensual_fn` |
+| `20260923012825` | la #8 declara, y la #7 lo hereda |
+
+### El censo, por la vía pública
+
+```
+#4  conversiones      mes calendario · mensual    · ajuste true
+#5  distribucion      mes calendario · mensual    · ajuste true
+#6  equipo            mes calendario · mensual    · ajuste true
+#7  metas             mes calendario · rango_vivo · ajuste true
+#8  metas sin cartera mes calendario · rango_vivo · ajuste true
+#9  series            mes calendario · mensual    · ajuste true
+#11 resumen cartera   mes calendario · rango_vivo · ajuste false   (no publica tasa)
+alarma: cuadra=true · 5 caminos · declaran={rango: mensual, distribucion: mensual}
+```
+
+La #10 declara y delega igual, detrás de su bandera apagada. La #12 declara en
+su `COMMENT ON`. Las #7 y #8 dicen `rango_vivo` **con** `ajuste_aplicado: true`
+a propósito: calculan por su cuenta pero SÍ restan la deuda, así que coinciden
+con la oficial sin habérsela pedido. Decir `mensual` ahí sería mentir sobre de
+dónde sale la cifra.
+
+### La prueba de aceptación, con todo puesto
+
+```
+AGOSTO SELLADO + 2 PUNTOS DE DEUDA · septiembre
+                 SIN deuda              CON deuda
+  #4 grande      1218/52,650=4,32      1218/50,650=4,16
+  oficial        1218/52,650=4,32      1218/50,650=4,16
+  #6 suma        50,650                 48,650
+  #7 suma        49,650                 47,650
+  #8 suma        49,650                 47,650
+  -> los cinco restan 2, y la #4 es la oficial byte a byte.
+```
+
+Y sellar, por sí solo, no mueve el número: agosto `802 / 40,100 = 5,00 %` antes
+y después. Repetible con
+`supabase/scripts/conversion/ensayo-cierre-unificacion.sql`.
+
+**El rótulo está vivo en las tres pantallas** (Resumen, Ranking y Gestión de
+equipo): callan cuando la cifra es la oficial de un mes abierto y hablan cuando
+es un recálculo en vivo o una foto ya cerrada.
+
+🔴 **Pendiente inmediato:** devolver el merge a `main` (bloqueado por
+`docs/gestion-diaria/GESTION-DIARIA.md`, modificado sin commitear y que la
+sesión `-bb` confirma que no es suyo) y **rotar el token de Hostinger**.
+
+
+## ✅ `20260923013213` — El oráculo vuelve a tener dientes — **INSTALADA 23/09/2026**
+
+**El efecto colateral que dejó la Ola 1b.** Desde que la puerta #4 delega, el
+camino `rango` de `crm.alarma_conversion_fn` es **por construcción** igual a
+`mensual`: esa comparación dejó de poder fallar. Un gate que no puede ponerse
+rojo no es un gate — y era justo el que vigilaba si el cálculo propio de esa
+puerta derivaba.
+
+**Lo que se añade:**
+1. Un quinto camino, `rango_recalculo`, leído de `nucleo.recalculo_vivo` —lo que
+   la puerta habría publicado— al que se le exige seguir dando el **bruto**,
+   igual que `nucleo_directo`.
+2. La comprobación que el objetivo pedía con esas palabras: que las puertas que
+   deben delegar lo **DECLAREN** (`fuente = 'mensual'`). Publicar la cifra buena
+   sin decir de dónde sale es un acierto por casualidad.
+3. El bloque `declaran` en el paquete, para leer un rojo sin abrir la base.
+
+La distribución se tolera sin declarar a propósito: su Ola 1a sigue parada.
+
+**Verificado tras instalar:** `cuadra: true`, **5 caminos**,
+`declaran.rango = 'mensual'`. `test-rls.mjs` actualizado a cinco caminos, con la
+paridad recálculo↔bruto y la declaración como casos nuevos.
+
+Sin riesgo para ninguna pantalla: la alarma solo la llama el rol de servicio, y
+no tiene consumidor ni directo ni heredado (comprobado con
+`supabase/scripts/conversion/quien-me-envuelve.sql`).
+
+
+## 🔴 INCIDENTE del 23/09/2026 — 13 minutos de Metas y Ranking sin datos
+
+**Qué pasó.** `20260923010450` declaró la puerta **#8**
+(`crm.cumplimiento_metas_sin_cartera_fn`) tras comprobar que no tiene consumidor
+en el front — cierto: solo aparece en `database.types.ts`. **Lo que no se
+comprobó: la puerta #7 (`crm.cumplimiento_metas_fn`) construye su payload SOBRE
+el de la #8.** Al declarar la #8 quedó declarada también la #7, que sí tiene
+consumidor, y el bundle vivo valida `CumplimientoMetasSchema` con
+**`v.strictObject`** sin esas cuatro claves (`app/src/lib/objetivos.ts:346` en
+`7d65fcdb484f`). Valibot rechazó el payload entero.
+
+**Ventana:** 01:05 → 01:18 UTC (unos 13 minutos). **Impacto:** Metas y Ranking
+de gerencia sin datos. Ninguna escritura, ningún dato perdido.
+
+**Cómo se detectó:** haciendo el censo final de declaraciones, la #7 apareció
+declarando sin que nadie la hubiera tocado. Esa sorpresa era el síntoma.
+
+**Reversión:** `20260923011804` devuelve la #8 a su cuerpo anterior byte a byte
+(md5 `b7192138b237571c9955d021aff0920a`) y su postflight exige que la #7 vuelva a
+publicar **exactamente** las nueve claves que el bundle vivo conoce. La
+declaración de la **#9 se mantiene**: no tiene consumidor ni directo ni heredado.
+
+🔑 **La lección, ya aplicada al resto.** «No tiene consumidor en el front» se
+comprueba sobre la función que se toca **y sobre todas las que la envuelven**.
+Un `grep` en `app/src` no ve la herencia dentro de la base. La consulta que
+había que haber hecho antes, y que se hizo después sobre TODAS las funciones
+tocadas hoy:
+
+```sql
+select p.oid::regprocedure::text
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname in ('crm','private','public')
+   and p.prosrc like '%<la funcion que voy a tocar>%'
+   and p.proname <> '<la funcion que voy a tocar>';
+```
+
+Resultado de ese barrido: la herencia #8 → #7 era **la única**. Las demás o no
+tienen envoltorio (`#6`, `#9`, `#11`) o lo tienen ya verificado
+(`metricas_conversiones_implementacion` → `crm.metricas_conversiones_fn`, front
+`v.object`; `metricas_distribucion_leads_v3_core` →
+`metricas_distribucion_leads_autorizada`, que no está aplicada).
+
+Y todos los esquemas del bundle vivo que reciben claves nuevas son `v.object`,
+verificado **contra el commit publicado**, no contra el árbol:
+`NucleoConversionesSchema`, `NucleoEquipoSchema`, `SondasEquipoSchema`,
+`ResumenCarteraSchema`.
+
+
+## ✅ Ola 1b — Las puertas DELEGAN la cifra en la oficial — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
+
+| Versión | Puerta | Qué delega | Estado |
+|---|---|---|---|
+| `20260923001344` | #4 · el número grande | `divisor`, `numerador`, `conversion_pct` del bloque `nucleo` | ✅ **INSTALADA 22/09** |
+| `20260923001736` | #6 · conversión por equipo | los tres `nucleo_*` de **cada fila**, emparejando por `vendedor_id` | ✅ **INSTALADA 22/09** |
+| `20260923002033` | #5 · distribución v3 | los tres `nucleo_*` del **resumen** y de **cada ficha de analista** | ⏸️ **espera release del front** |
+
+**Acta de instalación (22/09).** Aplicadas con `supabase db query --linked --file`
+y registradas con `supabase migration repair --status applied`. Verificado por la
+**puerta pública**:
+
+```
+#4  1218 / 52,650 = 4,32 %  ·  fuente mensual · sellado false · ajuste true
+oficial 1218 / 52,650 = 4,32 %              -> IDÉNTICOS
+#6  filas con cifra distinta de la oficial: 0  ·  sin_fila_en_la_oficial: 0
+mes completo CON filtro de origen -> fuente rango_vivo (es_mes_calendario true)
+rango parcial                    -> fuente rango_vivo (es_mes_calendario false)
+```
+
+Alarma: `cuadra: true`, 4 caminos. Trinquete: `OK`, 0 sin declarar.
+
+**Esto es lo que unifica.** La Ola 1a solo declaraba. Condición (regla de Miguel,
+21/09): mes calendario completo **y** sin filtro de origen. Fuera de ella, las
+tres siguen calculando en vivo y lo declaran.
+
+**Probado contra producción con deuda plantada (2 puntos, deshecha):**
+
+```
+                      SIN Ola 1b        CON Ola 1b
+#6 numerador              6                 4
+oficial                   4                 4
+#7 / #8                   4                 4
+#4 conversion_pct      4,32 %            4,16 %   (= la oficial)
+```
+
+**Dos trampas que la medición destapó, y cómo quedan resueltas:**
+
+1. 🔴 **A quien la oficial NO tiene, no se le toca la cifra.** Medido: 3 de 21
+   analistas de la #5 no tienen fila en la oficial (18 responsables), y uno
+   —**JORGE MARZANO, supervisor ACTIVO**— llevaba `numerador = 2`. Un
+   `coalesce(..., 0)` se lo habría borrado de la pantalla en silencio. Ahora su
+   fila conserva lo que calculó la función; el total sigue siendo el de la
+   oficial, que sí lo cuenta. La #6 lleva la misma defensa más la sonda
+   `sondas.sin_fila_en_la_oficial` (hoy 0), que cabe porque `SondasEquipoSchema`
+   del front es `v.object`.
+2. 🔴 **El motor de la #5 no tiene identidad garantizada.** No es
+   `security definer` y su gate vive aguas arriba, pero
+   `crm.conversion_mensual_fn` sí exige identidad. Hay scripts de gate que lo
+   llaman directo sin claims (`test-f2-distribucion-v3.sql`,
+   `test-conversion-llegadas.sql`): habrían pasado a morir con «No autorizado».
+   La delegación va guardada por `auth.uid() is not null`; sin identidad calcula
+   en vivo y **lo declara**, y el postflight recorre ese camino a propósito.
+
+**Auditoría `auditor-rls` sobre la #4: APTA CON REPAROS, sin P0.** Qué se hizo
+con cada reparo:
+
+| Reparo | Qué era | Resolución |
+|---|---|---|
+| **P1-1** | 🔴 El bloque `A3` que yo mismo había añadido a `test-rls.mjs` afirmaba `fuente === 'rango_vivo'` para el caso que ahora delega: **4 checks en rojo al aplicar** | Reescrito a la regla nueva, más los casos que faltaban: **paridad byte a byte contra `conversion_mensual_fn`** desde la puerta pública, la segunda puerta de escape (mes completo **con** `p_origen`), y que el lector global vea la misma cifra que gerencia |
+| **P2-2** | Al delegar sólo el total, el desglose deja de sumarlo; `conversion-vendedores.ts:183` compara el divisor del paquete sin filtro contra el de los paquetes con filtro (que no delegan) y devolvía `null` → **panel multi-fuente en blanco** justo el día que importa | Las puertas publican `nucleo.recalculo_vivo` (cabe: los dos esquemas del front son `v.object`), y el front compara contra ése. Corregido también el `porcentaje` de los desgloses, que dividía por el divisor oficial |
+| **P2-3** | `sondas.cuadra` se usa en el front como interruptor de confianza, pero tras delegar verifica el recálculo vivo, no lo publicado | El adaptador deja de gatear con `cuadra` **sólo** para la cifra sin filtro cuando `fuente === 'mensual'`; sigue gobernando todos los desgloses, que son los que sí verifica |
+| **P2-4** | Coste: el núcleo mensual se recorre dos veces en la ruta por defecto | **Medido, no supuesto:** `crm.metricas_conversiones_fn` día 1→hoy, 5 corridas: `{729,720,699,719,716}` ms antes · `{878,862,974,823,821}` ms después. **+≈150 ms (+21 %)** en la mediana |
+| **P3-2** | La Ola 1b no tomaba el `lock table` que sí tomaba la 1a antes de re-sellar | `lock_timeout = '5s'` + `lock table … in share row exclusive mode`, igual que la 1a |
+| **P3-3** | La reversa restauraba la huella pero no el texto de `razon`: trinquete verde con una razón que miente | Reversa completa escrita en la cabecera, con los cuatro pasos y el `regexp_replace` del `razon` |
+| **P3-1** | Divergencia de gates (`crm.equipo` frente a `private.rol_crm`) en una esquina hoy inalcanzable y fail-closed | Anotada. No se toca: la ACL de la implementación es `{postgres=X/postgres}` y el wrapper gatea con `rol_crm` |
+| **P3-4** | Sin red: si la oficial lanza, la puerta falla en vez de degradar | Decisión consciente, coherente con el fail-closed de la casa. Degradar en silencio devolvería las dos cifras que esta ola vino a eliminar |
+
+**Orden obligatorio:** la #5 fija en su preflight el md5 del cuerpo **tras su
+Ola 1a**, así que no puede entrar antes ni sobre otro cuerpo.
+
+**Lo que NO se delega, a propósito:** los recuentos descriptivos
+(`llegadas`, `altas_manuales`, `renovaciones`, `upgrades`, `aporte_cartera`,
+`referidos_recibidos`, `cierres_no_referidos`, `cierres_referidos`,
+`operaciones_cartera`, `nucleo_referidos_recibidos`) y las medidas de cohorte
+(`leads`, `clientes` y su `conversion_pct`), que son otra cosa. Queda anotada una
+diferencia **preexistente** entre la puerta y la oficial en
+`cierres_no_referidos` (38 frente a 39, por el trato de `cierres_de_arrastre`):
+no entra en esta ola.
+
+
+## ✅ Ola 1a — Las puertas de gerencia DECLARAN su fuente — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
+
+| Versión | Puerta | Objeto redeclarado | Estado |
+|---|---|---|---|
+| `20260922232553` | #4 · el número grande de Resumen/Conversiones | `private.metricas_conversiones_implementacion(date,date,text)` | ✅ **INSTALADA 22/09** |
+| `20260922233257` | #6 · conversión por equipo | `crm.metricas_conversiones_equipo_fn(date,date)` | ✅ **INSTALADA 22/09** |
+| `20260922233545` | #5 · distribución de leads v3 | `private.metricas_distribucion_leads_v3_core(date,date,timestamptz)` | ⏸️ **con pestillo, espera release del front** |
+
+**Acta de instalación (22/09).** Aplicadas con
+`supabase db query --linked --file` y registradas una a una con
+`supabase migration repair --status applied <versión> --linked`, **con su sello
+de archivo**. Orden: `20260922225649` (la alarma de la Ola 0) → `20260922232553`
+→ `20260922233257`.
+
+**Verificado en producción, por la PUERTA PÚBLICA (no por la implementación):**
+
+```
+#4 crm.metricas_conversiones_fn  → es_mes_calendario true · fuente rango_vivo
+                                   sellado null · ajuste_aplicado false
+                                   1218 / 52,650 = 4,32 %
+#6 crm.metricas_conversiones_equipo_fn → las mismas cuatro claves
+#4 con un rango parcial          → es_mes_calendario FALSE
+```
+
+**Trinquete:** `OK: 34 candidatos declarados y con huella vigente; 14 de
+analítica/mixta sujetos al techo 14, 16 de inventario censados fuera del techo,
+4 auxiliares verificados, 0 sin declarar`.
+**Alarma de la conversión:** `cuadra: true`, 4 caminos.
+**Advisors:** 5 tipos, los mismos 5 preexistentes; ninguno nuevo.
+
+**Ninguna cambia un número.** Cada una añade cuatro claves informativas
+(`es_mes_calendario`, `fuente`, `sellado`, `ajuste_aplicado`) al bloque que ya
+publicaba la cifra. La sustitución por `crm.conversion_mensual_fn` va en un
+paquete aparte: primero hay que poder VER qué puerta calcula en vivo.
+
+**El orden con el front NO es el mismo para las tres — medido, no supuesto.**
+El bundle vivo es `build-20260922T221442353Z`, commit `7d65fcdb484f`, y
+`git merge-base --is-ancestor c2c9274b 7d65fcdb484f` da **NO**: todavía no lleva
+el commit que vuelve opcionales las cuatro claves.
+
+| Puerta | Cómo valida el bloque el bundle VIVO | ¿Puede entrar antes que el front? |
+|---|---|---|
+| #4 | `NucleoConversionesSchema = v.object(...)` | **SÍ** — `v.object` ignora lo que no conoce |
+| #6 | `NucleoEquipoSchema = v.object(...)` | **SÍ** — íd. |
+| #5 | `resumen.conversion: v.strictObject(...)` | 🔴 **NO** — rechaza el payload ENTERO |
+
+Por eso la #5 lleva **pestillo**: su preflight se niega a entrar salvo que en la
+misma sesión se declare `set local crm.ola1_front_publicado = 'si'`, y eso solo
+se escribe tras comprobar `version.json` → manifiesto → `merge-base`. Probado en
+los dos sentidos contra producción: sin el pestillo la migración se rechaza; con
+él, ensayo verde.
+
+El front ya está en `main` (commit `c2c9274b`), con las cuatro claves
+`v.optional` en los tres módulos y 4 tests en
+`app/src/lib/contrato-unificacion.test.ts`.
+
+**Ensayo contra producción (22/09), las tres en transacción con `rollback`:**
+payload idéntico byte a byte salvo las cuatro claves nuevas; las tres publican
+`1218 / 4,24 %`; trinquete `OK: 34 candidatos declarados y con huella vigente;
+14 de analítica/mixta sujetos`; un rango de un solo día declara
+`es_mes_calendario: false`.
+
+**Reversa de la #4, completa (no truncada).** Su declaración vive en
+`private.analitica_leads_citas_exenciones` para el objeto
+`private.metricas_conversiones_implementacion(date,date,text)`, clase `analitica`.
+Huella ANTES de esta ola:
+`8ba9cef95595808d4003521e0eefcf79`. Para revertir: volver a declarar el cuerpo
+sin las cuatro claves, escribir esa huella en la exención y refrescar
+`private.analitica_lc_sello` con `private.huella_exenciones_analitica_lc()`, todo
+en la misma transacción.
+
+**Auditoría `auditor-rls` sobre la #4: APTA CON REPAROS.** Sin P0. Aceptados y ya
+corregidos en las tres migraciones:
+
+| Reparo | Qué era | Cómo quedó |
+|---|---|---|
+| P1-1 | La promesa «ni un número movido» se comprobaba sobre 6 claves de 13 bloques, y el re-sellado sella *lo que haya*: una errata en `sondas` o `responsables` habría pasado en verde | El postflight compara el **payload entero** (menos `generado_en` y las cuatro claves) y nombra el bloque que difiere |
+| P2-1 | 🔴 **El día 1 de cada mes la migración abortaba**: la sonda «parcial» era `[día 1, día 1]`, que ESE día sí es mes calendario (`p_hasta = v_hoy`) | La sonda pasa a `[día 1 del mes anterior, +1 día]`: parcial SIEMPRE |
+| P2-3 | El gate no probaba las cuatro claves, y menos por la puerta pública | Bloque `A3` nuevo en `test-rls.mjs`: mes completo, rango parcial y lector global, **a través de `crm.metricas_conversiones_fn`**, con la regla «el contrato viaja entero o no viaja» |
+| P3-1 | El postflight solo acreditaba el dueño | Acredita dueño + `prosecdef` + `provolatile` + `proconfig` |
+| P3-2 | El postflight no repetía la guarda de «no hay gerencia» | Repetida, con su diagnóstico |
+| P3-4 | `create or replace` conserva el `COMMENT ON` viejo | Las tres refrescan el comentario |
+| P3-5 | Assert + dos evaluaciones completas en un `statement_timeout` de 60 s | 180 s en las tres |
+
+P3-3 (los claims se restauran a `''`, equivalente a «sin definir») queda anotado
+sin acción: `auth.uid()` hace `nullif(..., '')` y el GUC es local a la transacción.
+
+**Huellas del trinquete — medido, no supuesto.** Solo la #4 está en el censo de
+`private.contadores_crudos_leads_citas()` (`declarada: true, huella_ok: true`),
+así que **solo la #4 re-sella** su declaración y refresca
+`private.analitica_lc_sello`, con la normalización del censo (cuerpo en `lower`,
+sin comentarios). La #6 está declarada pero **fuera** del censo (no nombra
+`crm.leads`: `crm.lead_asignaciones` no casa con `\mcrm\.\s*leads\M`) y su
+huella ya estaba caduca **antes** de esta ola: se deja como está, porque
+escribir una huella que nadie comprueba borraría el aviso del día que entre al
+censo. La #5 ni está declarada ni está en el censo. Las tres postflight exigen
+que la situación no cambie.
+
+
+## ✅ `20260922225649` — La alarma de la conversión CONCILIA en vez de exigir igualdad — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+**Verificado tras instalar:** `cuadra: true`, 4 caminos, bloque `conciliacion`
+presente (`bruto_numerador 52,650 · neto_numerador 52,650 · deuda_pendiente 0 ·
+deuda_aplicada 0 · vendedores_topados 0`). Registrada con
+`supabase migration repair --status applied 20260922225649 --linked`.
+
+**Ola 0 del plan de las doce puertas.** El oráculo que iba a verificar ese
+trabajo era el que la propia corrección haría fallar.
+
+**El defecto.** `crm.alarma_conversion_fn` exigía que los CUATRO caminos fueran
+idénticos. Pero `nucleo_directo` es el **BRUTO** por construcción y `mensual`
+sirve el **NETO**, con la deuda por cierres anulados descontada. Sin deuda daba
+lo mismo; con deuda, esa regla pondría en rojo el trabajo bien hecho **para
+siempre**.
+
+**Medido contra producción** (22/09, deuda de 2 puntos plantada y deshecha):
+
+```
+mensual        1218 / 49,650  ->  4,08 %     <- sirve el NETO
+rango          1218 / 51,650  ->  4,24 %     <- sirve el BRUTO
+distribucion   1218 / 51,650  ->  4,24 %     <- sirve el BRUTO
+nucleo_directo 1218 / 51,650  ->  4,24 %     <- el BRUTO, por definición
+```
+
+**Dos porcentajes del mismo mes.** Ya no es teoría.
+
+### 🔴 LO QUE ESTA MIGRACIÓN **NO** HACE, y hay que decirlo
+
+**No deja la alarma verde cuando haya deuda.** Mientras `rango` y
+`distribucion` publiquen el bruto, los tres publicados no coincidirán y el
+veredicto será ROJO — con la regla vieja y con ésta.
+
+**Y ese rojo es CORRECTO.** No es ruido conocido que silenciar: es la
+discrepancia que las doce puertas existen para resolver. Si aparece, se arreglan
+las puertas.
+
+**Entonces, ¿qué gana?** Tres cosas, ninguna es «ponerse verde»:
+1. El veredicto mide algo **verdadero**: el día que las puertas estén bien, la
+   regla vieja seguiría roja para siempre; ésta se pone verde. Es la única que puede.
+2. Publica la **conciliación** (bruto, neto, deuda pendiente, aplicada, topados),
+   así un rojo se lee y se atribuye en vez de adivinarse.
+3. Ancla el reparto: el núcleo dice el bruto y bruto − neto es la deuda aplicada.
+
+**Compatible hacia atrás:** hoy la deuda es 0, neto = bruto, y el veredicto no
+cambia — `cuadra=true`, `caminos_leidos=4`, `detalle` **idéntico**.
+
+### Revisión (auditor-rls): REQUEST CHANGES — **dos P0**, ambos corregidos
+
+| | |
+|---|---|
+| **P0-1** | `test-rls.mjs:6923` exige el conjunto **cerrado** de claves; añadir `conciliacion` rompía el gate con certeza. ✅ actualizado **sin relajar el candado**, más 5 aserciones nuevas de la conciliación |
+| **P0-2** | **La cabecera se contradecía dentro del mismo archivo**: medía que rango y distribución sirven el bruto y acto seguido enunciaba «los publicados sirven el neto». ✅ reescrita entera diciendo la verdad |
+| **P1-1** | se había soltado el anclaje del **divisor** (la deuda solo toca el numerador). ✅ cláusula recuperada · ✅ **filo 2 del mutante** que lo prueba |
+| **P1-3** | el preflight hacía la migración inaplicable en un banco sin sembrar, y se bloqueaba a sí misma si la deuda aparecía antes. ✅ tolera `sin_perfil_de_gerencia_activo` y el rojo por deuda |
+| **P2-1** | `current_date` es UTC y la función razona en Lima → rango invertido en el cambio de mes. ✅ los tres sitios a Lima |
+| **P3** | `COMMENT ON` obsoleto · anclas de dueño/ACL/definer perdidas en el postflight · `::regprocedure` en vez de `to_regprocedure`. ✅ los tres |
+
+**Mutante: los DOS filos cazados** contra la alarma nueva — numerador+1 y
+**divisor+1**, el que el auditor advirtió que sobreviviría.
+
+**Queda sin probar** (lo dice el auditor y es cierto): no hay ningún caso con
+deuda > 0 en ninguna suite. El experimento del 22/09 fue manual. Y falta el caso
+**ex-roster con deuda**: `mensual` suma en bruto a quien no tiene meta publicada
+(`20260904210831:1683-1685`, a propósito) mientras la conciliación descuenta a
+todos — puede dar un rojo sin que nada esté roto.
+
+
+## ✅ `20260922200514` — La razón del candado de perfiles vuelve a decir la verdad — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+```
+OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar
+alertas abiertas 16 · sello de cierre 2026-09-22 20:46:50.86217+00
+lo que queda: f7_piezas_cerradas (16)
+```
+
+`gate:vigias`, `gate:analitica` y el gate de vigencia, **verdes**. El candado del
+portal quedó con el **mismo md5** (`2354b43aa3eec47c6ccca035450e4d41`) y sigue
+siendo trigger + invoker: **no se tocó, y está probado.**
+
+### 🔴 REVISIÓN SECUNDARIA (Codex): `REFUTADO EN PARTE` — y encontró un defecto real
+
+Codex no conectó por MCP (el CLI 0.155.1 **eliminó el subcomando `mcp-server`**),
+así que se le pasó el encargo por `codex exec` con los cuerpos vivos transcritos.
+Encargo versionado en `docs/encargos/2026-09-22-codex-candado-perfiles.md`.
+
+**[P2] El preflight no acreditaba la identidad del cuerpo que autorizaba a
+sellar.** Comprobaba **fragmentos** con regex y luego sellaba *el cuerpo que
+encontrara*. Su contraejemplo: cambiar solo
+
+```
+v_f4_alinea boolean := false   ->   := true
+```
+
+pasa las **nueve** comprobaciones textuales y, **sin ningún GUC**, un UPDATE
+directo dejaría de congelar `asesor_perfil_id`. La migración lo habría sellado.
+✅ Corregido: ahora exige el **md5 exacto** de `pg_get_functiondef` del cuerpo
+revisado, más la línea concreta del contraejemplo. **Probado: el mutante de
+Codex ahora se rechaza** («el cuerpo vivo del candado NO es el que se revisó»).
+
+**[P3] `responsable_esperado_id` NO es una autorización previa independiente.**
+El escritor lo **escribe** en la misma llamada, justo tras insertar la revisión
+(`20260919161807:911`). Se presentaban dos permisos previos separados y no lo
+son. ✅ La razón reescrita: lo que acota el valor es que el responsable sale del
+**contexto** y no del payload, y debe coincidir con la relación canónica vigente.
+
+**Tres correcciones más suyas, todas ciertas:**
+
+- **La cronología.** Los 16 avisos **no eran del mismo problema**: los del 05–06/09
+  nombraban `public.crear_contrato`, otra función; los de 09/09 en adelante, el
+  candado. Fueron **dos rojos seguidos**; el primero se resolvió solo.
+- «Una sola columna» era impreciso: cambia **dos condiciones**, también la del
+  asiento Operaciones (`generar-migracion.mjs:71`).
+- **El razonamiento sobre F8 estaba mal.** Se dijo «el piloto está apagado, así
+  que esa vía no existe»; falso: con `inversiones_escritura=true` el cuerpo
+  devuelve `true` **antes** de mirar el piloto. La conclusión aguanta por otro
+  motivo.
+
+**Lo que Codex NO pudo tumbar:** ningún camino para que un analista active la
+excepción con un responsable arbitrario. Atacó los cuatro frentes señalados y
+los cuatro aguantaron. Su confianza en eso es **media**, no alta: sin acceso a
+la base no pudo verificar los cuerpos vivos de toda la cadena.
+
+
+
+**El rojo de `f5a` era UNO SOLO y legítimo**, no cuatro. Al diagnosticarlo se
+comparó `md5(prosrc)` **crudo** contra la huella declarada y «aparecieron»
+cuatro puertas cambiadas. Falso: el censo sella el cuerpo **sin comentarios**.
+`puede_gestionar_cuentas_cliente`, `actualizar_contrato`,
+`directorio_ranking_analistas` y `bandeja_actividad` tienen el cuerpo **intacto
+desde el 30/08** — las dos huellas eran el mismo texto medido de dos maneras.
+🔴 **Re-declararlas habría sellado tres huellas con la normalización equivocada
+y roto el trinquete.** Lo cazaron los verificadores adversarios; el assert decía
+la verdad desde el principio y el ruido lo añadió el diagnóstico.
+
+**La única real:** `public.proteger_campos_inmutables()`. La cambió F4
+(`20260908211349`, 08/09) abriendo **una excepción de una sola columna** sobre
+`asesor_perfil_id`. Está bien hecha: la migración de F4 lleva su propio
+preflight que aborta si el cuerpo previo no era el esperado, el cuerpo nuevo se
+generó **por anclas** sobre el cuerpo vivo capturado, y **no cambió ni un
+permiso** (la ACL ya era la de por defecto: es función de trigger, invoker).
+
+**Por qué no basta con re-sellar:** la razón declarada decía que el candado
+impide «blanquear el asesor», y desde F4 esa congelación es **condicional**. La
+propiedad de seguridad se sostiene —el asesor nuevo debe coincidir con
+`responsable_esperado_id` **y** con `responsable_relacion_id`, y la revisión que
+lo autoriza debe ser de la **misma transacción** (`pg_current_xact_id()`)— pero
+el texto ya no describía la función. Se re-sella **y** se reescribe la razón.
+
+**Cabo suelto mirado:** `private.inversiones_escritura_bajo_candado()` se
+reescribió el 13/09 (F8) y ganó una segunda vía. Medido: el piloto F8 está
+**apagado**, y aunque se encendiera ese candado solo decide *si se puede
+escribir inversiones* — lo que impide mover el asesor es la otra condición, que
+no cambió.
+
+**Ensayo contra producción (transacción deshecha):**
+`OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar` ·
+alertas **33 → 16**, y lo único que queda es `f7_piezas_cerradas (16)`.
+
+**No toca el portal**: solo una fila de `private.analista_vigencia_exenciones`,
+que únicamente `postgres` puede leer (medido: `anon` no, `authenticated` no,
+ninguna función de `public` ni vista la lee, `private` no está expuesto a la API).
+
+## ✅ `20260922182454` — Los vigías aprenden a tachar sus propios partes — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+Aplicada con `supabase db query --linked --file` y registrada con
+`migration repair`. Veredicto devuelto al aplicar:
+
+```
+cerradas 13 · abiertas 33 · fases sin cierre: (ninguna)
+sello de cierre: 2026-09-22 18:47:09.749044+00
+```
+
+`npm run gate:vigias` en **verde** y su mutante **cazado por los 7 filos** contra
+producción. ⚠️ Ese sello es lo único que hace falta para deshacerlo (las filas
+cerradas no se reabren solas).
+
+**Revisión (auditor-rls): CHANGES_REQUESTED, sin P0.** El P1 era serio y se
+corrigió: dos de los tres vigías tienen su assert en **rojo**, así que su rama
+nueva de cierre **no se ejecuta ni una vez** — y el detector de huérfanas
+llevaba las fases **escritas a mano**, así que era incapaz de delatar un literal
+desviado. Ahora la lista **se cosecha leyendo el cuerpo de cada vigía**, y el
+mutante ganó **dos filos estáticos** (uno rompe el literal a propósito y exige
+que el detector lo cante). Además: falso verde de `m3` corregido (medía si
+*existía* una alerta, y las 16 reales lo satisfacían solas), gate cableado en
+`package.json` y `check:scripts`, dueño y ACL pineados antes de tocar, y el
+veredicto por **fila** en vez de `raise notice`.
+
+🔑 **Y el detector se cazó a sí mismo al primer ensayo**: filtraba los vigías por
+el nombre, y sus dos funciones nuevas *leen* la tabla. Ahora filtra por lo que
+**hacen** (plpgsql, no devuelven nada, escriben en la tabla).
+
+**El defecto, medido el 22/09:**
+
+```
+filas totales en private.vigia_alertas ....... 45
+filas abiertas ............................... 45
+filas RESUELTAS en toda la historia ..........  0   <-- ninguna, nunca
+primera alerta ....................... 2026-09-05
+```
+
+Los tres vigías (cron 06:39 / 06:49 / 06:59) tienen la misma forma: corren su
+assert y, si lanza, **insertan**. No hay rama para el caso contrario. Cuando la
+causa se arregla, el del día siguiente no añade una nueva — pero **las viejas
+se quedan abiertas para siempre**. Nada en toda la base escribe `resuelta_en`
+sobre esa tabla: lo único que la menciona además de los tres es
+`private.veredicto_f7()`, y solo hace `count(*)`.
+
+**Por qué importaba.** El preflight de demolición de la Fase 7 exige **cero
+alertas abiertas de cualquier fase**. Un freno que exige «cero avisos» sobre una
+tabla que no cierra ninguno no es un freno: **es un candado sin llave.** La
+demolición de las olas 2 y 2b quedó imposible el 05/09, el día del primer aviso
+— no por falta de evidencia (el resto de su preflight está verde), sino por esto.
+De las 45, **13 describen problemas ya resueltos** y estaban frenando la obra
+sin motivo.
+
+**El arreglo, copiado de casa.** `private.vigia_auditoria()` —el cuarto vigía,
+sobre la tabla hermana `auditoria_alertas`— **ya sabe cerrar**. Nació sabiendo; a
+los otros tres se les olvidó. Se les enseña el mismo gesto: si el assert
+devuelve verde, cierran las alertas **de su fase y solo de su fase**; si lanza,
+abren una, como hasta hoy. **En rojo no se cierra nada** — lo contrario sería el
+defecto opuesto.
+
+**🔴 El hueco que NO cubre, declarado antes de que muerda.**
+`private.registrar_ajuste_si_mes_cerrado()` no es un vigía y también escribe en
+esa tabla, con la fase `f6c_ajuste_sin_episodio`. No tiene assert ni vigía: es
+una función de negocio que dispara por lead. Cero filas en toda la historia, pero
+si dispara una vez vuelve a bloquear la demolición para siempre. **No se arregla
+aquí a propósito** (tocar una función de negocio que escribe la deuda del mes
+sellado es otra decisión, y la salida buena probablemente sea reconocer que ese
+aviso es un rastro histórico por lead, no un estado que vuelva a verde). Se deja
+**medible en vez de silencioso**: `private.vigia_alertas_sin_cierre()` nombra
+cualquier fase con alertas abiertas que ningún vigía sabe cerrar.
+
+**Ensayo contra producción (transacción deshecha, nada escrito):** el postflight
+prueba los dos casos reales — el vigía de analítica, **verde**, cerró sus 13 y
+**no tocó** las 16 de f5a ni las 16 de f7; el de vigencia, en **rojo de verdad**
+(`public.proteger_campos_inmutables()`), **no cerró ninguna** y dejó constancia.
+
+**Mutante: `MUTANTE_VIGIAS_CAZADO por los 5 filos`** — en verde cierra lo suyo ·
+en verde no toca lo ajeno · en rojo no cierra y deja constancia · una fase
+huérfana aparece en `vigia_alertas_sin_cierre()` · y ningún vigía la cierra por
+error. Producción quedó intacta (45 abiertas, 0 resueltas, 0 filas del mutante).
 
 ## Cierre F4 — candidatos locales del 22/09, sin aplicar a producción
 

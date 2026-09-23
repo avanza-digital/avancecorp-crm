@@ -8,7 +8,7 @@
 export const REGLAS_DECIDIDAS = [
   'La conversion se mide sobre los leads que LLEGARON en el mes; los descartados cuentan en el divisor.',
   'Un lead referido pesa 0.15 en el divisor, no 1: se decidio ponderar, no excluir.',
-  'Las altas manuales con origen landing o formulario NO entran en el divisor.',
+  'Las altas manuales con origen landing o formulario NO entran en el divisor, pero SI cuentan entero en el numerador cuando cierran. Esa asimetria esta DECIDIDA por Miguel (21/09/2026) y no es un defecto: no se vuelve a levantar como hallazgo.',
   'Para las operaciones de cartera se cuenta UNA por cliente y mes calendario; se decidio el 04/09 que el mes manda sobre el rango.',
   'Solo la anulacion retrocede una conversion: es la unica puerta, y es una sancion al analista, no un borrado del capital.',
   'La cosecha (cerraron / llegaron) es OTRA pregunta distinta del indice comercial, y se publica con su propio rotulo.',

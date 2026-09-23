@@ -3,7 +3,7 @@
 > **REANUDADO por Miguel el 23/09/2026.** El correctivo HTTP ya pasa en
 > PostgREST 14.5 local: dos carreras reales devuelven 200 + 409, sin bucle.
 > [Propuesta concreta del quinto SQL](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md)
-> preparada; falta su autorización remota. Las aprobaciones de los cuatro SQL,
+> autorizada por Miguel el 23/09; ensayo remoto en curso. Las aprobaciones de los cuatro SQL,
 > conciliación, banco hasta US$1 y `$release-crm` siguen vigentes.
 > Main integrado; 4.158 pruebas y 234 E2E PASS. Matrices remotas 2.196/0 antes
 > y después de los cuatro SQL; el correctivo aún no tiene ensayo remoto.
@@ -46,7 +46,14 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — correctivo local probado; autorización adicional pendiente (23/09/2026)
+### Punto de trabajo actual — quinto SQL autorizado; nuevo ensayo remoto (23/09/2026)
+
+Miguel autorizó el quinto SQL exacto respondiendo «sii» a la propuesta. Nueva
+rama sintética `gestion-diaria-f4-correctivo-20260923`, ref `zviwoyvtccqhhdfqdang`,
+creada 14:44 UTC, coste US$0,01344/h dentro del tope total US$1. Reconstrucción
+verificada: 17 usuarios ficticios, siete leads, cero cron activos, 21 Edge Functions
+idénticas al padre. Main avanzó a `8097ca8c` (PR #75): integrar sus cambios y repetir
+las verificaciones de la versión combinada antes de publicar.
 
 El 23/09 a las 09:20 Lima terminaron las dos carreras HTTP del correctivo:
 en cada una se observaron dos solicitudes esperando el mismo lock; una confirmó
@@ -65,7 +72,7 @@ final. No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
 US$1); se recreará un banco sintético al continuar el ensayo autorizado.
 
-**Pasos restantes:** autorización del quinto SQL; nuevo ensayo remoto completo
+**Pasos restantes:** nuevo ensayo remoto completo
 con catálogo vigente y concurrencia; merge de los cinco SQL con cortes OFF;
 publicación del frontend desde Main igual al remoto; política futura por gerencia
 y verificación de la primera jornada real. La tasa baja seguirá NULL hasta F5.
@@ -193,6 +200,9 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F0–F3 y ampliación de resultado v4 | En producción | Conservar sus regresiones al ampliar F4 |
 | F4 etapas 1–2: equipo y detalle | En producción | Recorrido de negocio con el supervisor pendiente |
 | F4 etapa 3: base de cortes y cliente compatible | Publicada y verificada, OFF | No reinstalar el SQL ni activar avisos todavía |
+| F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
+| F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
+| F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
 | F4 etapa 4: pop-up y seguimiento | Implementada y validada localmente | Ensayo remoto y publicación |
 | F4 etapa 5: configuración gerencial | Implementada y validada localmente | Publicar y programar política futura con gerencia |
 | F4 etapa 6: validación y activación | Pruebas locales PASS; entrega pendiente | Ensayo remoto, activación futura y primera jornada real |
@@ -200,6 +210,9 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
 
+**Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
+producto, conciliar el taller divergente preservando sus cambios ajenos; no
+reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
 **Próximo trabajo:** revisar y autorizar la propuesta de publicación; reconfirmar
 Main antes de entregar, conservando el taller ajeno. Las reglas
 de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y

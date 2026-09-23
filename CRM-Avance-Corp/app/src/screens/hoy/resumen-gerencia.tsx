@@ -20,6 +20,7 @@ import {
 } from '@/components/gerencia/periodo'
 import { fmtFecha, money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { rotuloDeLaCifra } from '@/lib/conversion-rotulo'
 import {
   capitalObjetivo,
   capitalReal,
@@ -444,6 +445,17 @@ export function ResumenGerenciaPanel({
                     : `${numero(cierresMes ?? 0)} cierres este mes`
                       + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
+          {/* EL RÓTULO. Ninguna pantalla publica un porcentaje sin decir qué es.
+              Calla cuando la cifra es la oficial de un mes abierto —eso es lo
+              normal y no hay noticia— y habla cuando es un recálculo en vivo o
+              una foto ya cerrada. El texto sale de `rotuloDeLaCifra`, que tiene
+              sus propios tests. */}
+          {(() => {
+            const rotulo = rotuloDeLaCifra(nucleoRango, fuenteActiva != null)
+            return rotulo == null ? null : (
+              <p className="mt-1 text-xs text-white/65">{rotulo}</p>
+            )
+          })()}
           {fuenteActiva == null && usaNucleoRango && nucleoRango?.base === 'llegada_unica' && nucleoRango.llegadas != null && (
             <p className="mt-1 text-xs text-white/65">{numero(nucleoRango.llegadas)} prospectos recibidos: {numero(nucleoRango.divisor)} automáticos · {nucleoRango.altas_manuales == null ? 'altas manuales no disponibles' : `${numero(nucleoRango.altas_manuales)} manuales`} · {numero(nucleoRango.referidos_recibidos)} {nucleoRango.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
           )}

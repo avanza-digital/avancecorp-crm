@@ -168,9 +168,28 @@ export function adaptarAporteConversionRango(
   fuente: FiltroFuentesConversion,
   datosPorOrigen: Partial<Record<FuenteConversion, MetricasConversiones | null | undefined>> = {},
 ): AporteConversionRango | null {
-  if (datos?.nucleo == null || !sondasNucleoVerificadas(datos.sondas)) return null
+  if (datos?.nucleo == null) return null
+  // 🔴 LA SONDA YA NO VERIFICA LA CIFRA DELEGADA. `sondas.cuadra` compara el
+  // recálculo vivo contra `conversion_mensual_por_vendedor`; desde la Ola 1b,
+  // cuando `fuente === 'mensual'` lo publicado NO es ese recálculo sino la foto
+  // oficial. Seguir usándola como interruptor dejaría la pantalla en blanco por
+  // un descuadre que no afecta a lo que se está enseñando. La sonda sigue
+  // gobernando todo lo que sí verifica: los desgloses CON filtro, que se
+  // calculan en vivo.
+  if (!sondasNucleoVerificadas(datos.sondas)
+    && !(fuente == null && datos.nucleo.fuente === 'mensual')) return null
 
   const nucleo = datos.nucleo
+  // 🔴 EL DIVISOR CONTRA EL QUE SE COMPARAN LOS DESGLOSES ES EL VIVO, NO EL
+  // OFICIAL. Desde la Ola 1b, el paquete SIN filtro de fuente delega su cifra
+  // en `crm.conversion_mensual_fn`, pero los paquetes CON filtro nunca delegan
+  // (el núcleo no se filtra). Comparar el divisor de unos contra el de otros
+  // funcionaba sólo mientras ambos coincidían; el día que la foto sellada de un
+  // mes cerrado traiga otro divisor, esa igualdad se rompe y este adaptador
+  // devolvía `null` — panel multi-fuente EN BLANCO, justo el día que importa.
+  // `recalculo_vivo` es lo que esta misma puerta habría calculado; cuando no
+  // hubo delegación, no existe y el vivo ES el publicado.
+  const vivo = nucleo.recalculo_vivo ?? nucleo
   if (fuente != null && typeof fuente !== 'string') {
     const elegidas = FUENTES_CONVERSION.filter((opcion) => fuente.includes(opcion.id))
     if (elegidas.length === 0) return null
@@ -180,7 +199,7 @@ export function adaptarAporteConversionRango(
     if (aportes.some((aporte) => aporte == null
       || aporte.periodo.desde !== datos.periodo.desde
       || aporte.periodo.hasta !== datos.periodo.hasta
-      || aporte.divisor !== nucleo.divisor)) return null
+      || aporte.divisor !== vivo.divisor)) return null
     const validos = aportes.filter((aporte) => aporte != null)
     const primero = validos[0]!
     const porVendedor = new Map<string, AporteConversionVendedor>()
@@ -204,8 +223,8 @@ export function adaptarAporteConversionRango(
       etiqueta: etiquetaFuentesConversion(fuente),
       familia: elegidas.every((opcion) => opcion.familia === 'cartera') ? 'cartera'
         : elegidas.every((opcion) => opcion.familia === 'prospectos') ? 'prospectos' : 'todos',
-      divisor: nucleo.divisor, numerador, cierres, operaciones, resultados: cierres + operaciones,
-      porcentaje: nucleo.divisor > 0 ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100 : null,
+      divisor: vivo.divisor, numerador, cierres, operaciones, resultados: cierres + operaciones,
+      porcentaje: vivo.divisor > 0 ? Math.round((100 * numerador / vivo.divisor + Number.EPSILON) * 100) / 100 : null,
       peso: null, porVendedor,
     }
   }
@@ -237,8 +256,8 @@ export function adaptarAporteConversionRango(
     numerador = cierres.aporte_cierres
     resultados = cierres.cierres
     peso = fuente === 'referido' ? nucleo.peso_referido : 1
-    porcentaje = nucleo.divisor > 0
-      ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+    porcentaje = vivo.divisor > 0
+      ? Math.round((100 * numerador / vivo.divisor + Number.EPSILON) * 100) / 100
       : null
   } else {
     const operaciones = datos.conversion_operaciones
@@ -251,8 +270,8 @@ export function adaptarAporteConversionRango(
     numerador = elegidas.reduce((total, operacion) => total + operacion.aporte_numerador, 0)
     resultados = elegidas.length
     peso = fuente === 'renovacion' ? (nucleo.peso_renovacion ?? nucleo.peso_referido) : 1
-    porcentaje = nucleo.divisor > 0
-      ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+    porcentaje = vivo.divisor > 0
+      ? Math.round((100 * numerador / vivo.divisor + Number.EPSILON) * 100) / 100
       : null
   }
 

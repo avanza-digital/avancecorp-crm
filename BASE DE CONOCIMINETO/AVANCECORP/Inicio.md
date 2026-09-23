@@ -1,11 +1,18 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-21
+actualizado: 2026-09-22
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria F4 - correctivo HTTP verificado y pendiente de autorizacion (2026-09-23)]] — **REANUDADO.** Quinto SQL probado en PostgREST 14.5 local: dos carreras 200 + 409, SQL y 24 mutantes PASS. Falta autorización de ese archivo y ensayo remoto; permisos previos vigentes. 4.158 tests y 234 E2E del mismo frontend. Banco remoto anterior eliminado; Docker propio reanudado y aislado. Producción v1 OFF.
+- [[Gestion Diaria F4 - correctivo HTTP verificado y pendiente de autorizacion (2026-09-23)]] — **QUINTO SQL AUTORIZADO; ENSAYO REMOTO EN CURSO.** Dos carreras HTTP 14.5 locales 200 + 409, SQL y 24 mutantes PASS. Nuevo banco sintético `gestion-diaria-f4-correctivo-20260923`, dentro del tope US$1. Integrando Main del PR #75 para conservar los cambios de la otra tarea. Producción v1 OFF.
+
+- [[Acceso Avance - apellidos y nombres separados (2026-09-22)]] — **PUBLICADO Y VERIFICADO:** apellidos primero, nombres después, sin campo duplicado. PR #72 integrado; fuente `7d65fcdb`, build `build-20260922T221442353Z`, 4.085 pruebas, 6 E2E y cotejo de archivos productivos PASS.
+
+- [[Gestion Diaria F4 - etapa 3 publicada con cortes OFF (2026-09-22)]] — **PUBLICADA Y VERIFICADA:** SQL v1 OFF y frontend `e22c0cab`, build `build-20260922T165247339Z`. Respaldo anterior de 107 archivos cotejado byte a byte, controles SQL/HTTP y login PASS. Sigue F4 etapa 4; recorrido del supervisor, etapas 4–6 y activación pendientes. Índices INFO y conciliación del historial SQL registrados aparte.
+
+- [[Gestion Diaria F4 - release detenido por historial de ramas (2026-09-22)]] — Historial del bloqueo de ramas y acceso; superado por la instalación SQL OFF y la publicación de etapa 3. Ver el checkpoint vigente anterior.
+- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Etapas 4–5 implementadas localmente: 4.153 tests, 232 E2E Docker y 25 mutantes PASS. Main integrado; propuesta SQL/entrega lista, autorización y primera jornada pendientes. Cortes productivos OFF.
 
 - [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
 

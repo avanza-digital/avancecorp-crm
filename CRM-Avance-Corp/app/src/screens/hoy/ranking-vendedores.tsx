@@ -34,6 +34,7 @@ import type {
 } from '@/lib/objetivos'
 import type { TipoCambio } from '@/lib/tipo-cambio'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
+import { rotuloDeLaCifra } from '@/lib/conversion-rotulo'
 
 interface RankingVendedoresPanelProps {
   /**
@@ -302,16 +303,25 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
   )
 }
 
-function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierres', etiquetaPorcentaje = 'Conversión' }: {
+function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierres', etiquetaPorcentaje = 'Conversión', rotulo = null }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
   etiquetaBase: string
   etiquetaResultados?: string
   etiquetaPorcentaje?: string
+  /** De dónde salió la cifra, en castellano llano. `null` = no hay nada que añadir. */
+  rotulo?: string | null
 }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
   return (
     <div role="tabpanel" id="panel-ranking-conversion" aria-labelledby="tab-ranking-conversion">
+      {/* EL RÓTULO. Este panel lee `crm.conversion_mensual_fn` directamente,
+          así que su cifra es la oficial por construcción. Calla cuando no hay
+          nada que decir y habla cuando el mes ya está sellado —la cifra es una
+          foto— o cuando hay un filtro de fuente y el desglose va en vivo. */}
+      {rotulo != null && (
+        <p className="px-5 pt-3 text-xs text-[var(--muted-foreground-strong)]">{rotulo}</p>
+      )}
       <div className="hidden overflow-x-auto md:block">
         <table aria-label="Ranking de conversión general" className="w-full min-w-[900px] border-collapse text-left">
           <thead className="bg-[var(--gi-soft)] text-xs font-semibold text-[var(--muted-foreground-strong)]">
@@ -878,6 +888,10 @@ export function RankingVendedoresPanel({
             : conversionMensual == null ? 'Base del mes' : 'Base histórica'}
           etiquetaResultados={lecturaFuente?.familia === 'cartera' ? 'Operaciones' : 'Cierres'}
           etiquetaPorcentaje={fuenteConversion == null ? 'Conversión' : 'Aporte al índice'}
+          rotulo={rotuloDeLaCifra({
+            es_mes_calendario: true, fuente: 'mensual',
+            sellado: conversionMensual?.cierre?.cerrado ?? false, ajuste_aplicado: true,
+          }, fuenteConversion != null)}
         />
       ) : tipo === 'cosecha' ? (
         <TabpanelMarco tab="cosecha">
