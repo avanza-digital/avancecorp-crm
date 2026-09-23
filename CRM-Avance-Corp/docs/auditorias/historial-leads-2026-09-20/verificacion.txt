@@ -1,0 +1,12 @@
+AUDITORIA HISTORIAL LEADS 2026-09-20
+PASS: Produccion READ ONLY, snapshot repeatable read, rollback. 23 cuentas (18 analistas, 3 supervisores, 2 gerencia). 1983 leads activos; 1974 con actividades; 13646 actividades; maximo 39 por lead. 7915 pares lead/cuenta comparados contra baseline privilegiada: 0 diferencias. La prueba por cuenta se ejecuta como authenticated con sub real, sin exponer identidades.
+PASS: 110 lecturas RPC completas (5 por cuenta con leads) y 341 paginas de 7 filas con cursor; identificadores y orden exactos, sin omisiones ni duplicados.
+PASS: Lead inexistente devuelve 42501 en las 23 cuentas.
+PASS: private.assert_actividades_de_lead() en produccion.
+PASS: npm run test:run -- src/lib/historial-lead.test.ts src/lib/timeline-lead.test.ts src/data/use-actividades-de-lead.test.tsx src/data/crm-api-msw.test.ts src/components/app/timeline-historial.test.tsx (97 tests, 5 archivos).
+PASS: npm run test:e2e -- e2e/historial-lead.spec.ts (2 pruebas, Chromium, Supabase HTTP simulado).
+PASS CARACTERIZACION / LIMITACION REPRODUCIDA: npm run test:e2e -- e2e/historial-auditoria-temporal.spec.ts (2 pruebas: vendedor y supervisor). Tras cambiar el historial del servidor simulado, 35 s de espera sin nuevas lecturas ni nota visible; focus provoca lectura y aparece la nota. Duracion 40 s. No se escribio en produccion.
+PASS: version.json publico build-20260920T074546386Z, correspondiente a la publicacion documentada dbfa9d6b. git diff dbfa9d6b de las 7 fuentes evaluadas vacio. HEAD local f876a4ca63b8557597daa5b5abc906e06cd8b0c2.
+NOT RUN: dos sesiones reales simultaneas del CRM en navegador, altas o cambios de datos productivos.
+NOT RUN: build/lint/typecheck/suite integral, auditoria sin cambio de producto.
+REVISION SECUNDARIA: CHANGES_REQUESTED sobre clasificacion y alcance del informe. PRIMARY incorporo P3 como limitacion documentada, explicito RPC muestreada vs RLS exhaustiva y frontera real no cubierta. La frontera sintetica 101/100 y el error 42501 estan cubiertos en crm-api-msw.test.ts. Hipotesis de fila optimista no elevada a hallazgo sin reproduccion. Ver nota del vault para decision completa.

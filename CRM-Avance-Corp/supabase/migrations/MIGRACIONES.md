@@ -34,6 +34,138 @@ authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálo
 
 # Ledger de migraciones — esquema `crm`
 
+## ✅ `20260923164903` — Metas deja de calcular la conversión: una sola pieza en el núcleo — **INSTALADA 23/09/2026**
+
+**Aplicada por Miguel con `!` el 23/09** (`db query --linked --file`): trinquete
+`OK: 34 candidatos…`, 224 respuestas comparadas. **Verificación posterior en prod:**
+las seis huellas vivas = las ensayadas; `metas-vs-oficial.sql` PASS (sep 17/17,
+ago 16/16); `crm.alarma_conversion_fn` cuadra; Metas declara `fuente: mensual`;
+advisors de seguridad y rendimiento sin avisos nuevos (el de
+`crm.cumplimiento_metas_fn` DEFINER ejecutable por `authenticated` es de siempre y
+su ACL no cambió).
+
+**La decisión (Miguel, 23/09):** Metas usa la cifra de la oficial en vez de
+calcularla. No se fusionan payloads y no se añade vigilancia: se quita la causa,
+que eran dos textos que alguien tenía que mantener iguales para siempre.
+Encargo: `pendientes/FUSIONAR-METAS-CON-LA-OFICIAL.md`.
+
+**Capas.** La cifra por persona vive UNA vez en el núcleo:
+`private.conversion_neta_por_vendedor` (bruto + deuda + neto + %) y
+`private.roster_conversion_mensual` (quién sale nombrado). La oficial
+(`crm.conversion_mensual_sin_cartera_fn`), la #8 (`crm.cumplimiento_metas_sin_cartera_fn`)
+y la lista fuera del ranking de la #7 (`crm.cumplimiento_metas_fn`) dejan de
+calcular. Ninguna puerta le pide la cifra a otra: «Metas llama a la oficial»
+habría borrado a quien se va a mitad de mes y habría dejado sin Metas al
+coordinador.
+
+**Qué cambia en pantalla: nada.** Solo la declaración de Metas en el mes abierto
+(`rango_vivo` → `mensual`); el front vivo `6bf0e84a` acepta los dos valores. Dos
+efectos LATENTES, hoy sin efecto porque no hay mes sellado ni deuda: Metas
+enseña la deuda de quien no tuvo actividad (antes la perdía), y la lista fuera
+del ranking publica neto a quien la oficial nombra (cara del C2).
+
+**Ensayo en producción, 23/09, un solo DO con raise, nada escrito:**
+- migración entera en verde en 39 s; 224 respuestas (28 personas × 2 meses × 4 puertas) idénticas;
+- agosto sellado de verdad: la pieza lo rechaza (22023) y Metas = oficial 16/16;
+- 4 deudas plantadas: 17/17 iguales; analista A 7,450 → 5,450 en las dos; deuda sin actividad = 1 en las dos; perfil de pruebas 1 → 0,5 en la lista fuera del ranking; supervisor sin nombre queda en bruto (2); total 53,650 → 51,150;
+- supervisor de A: 8/8 iguales.
+
+**Revisión Codex (CHANGES_REQUESTED, sin contraejemplo aritmético a A1), aceptada entera:**
+las fotos exigen ahora la identidad EFECTIVA (`auth.uid() = v_id`, vaciando la
+claim legada `request.jwt.claim.sub`); la comparación es por TEXTO exacto (una
+escala `0` frente a `0.000` también cuenta); la anti-vacuidad es por mes y por rol;
+la reversa fija los md5 de los cuerpos NUEVOS antes de restaurar y declara que el
+sello se renueva con fecha nueva. Re-ensayado en prod con todo eso: verde, 224/224
+iguales por texto. **Ciclo migración → reversa** ensayado en prod: tras revertir,
+224/224 respuestas idénticas a las de antes, 0 distintas.
+
+**Auditor RLS (GO con condiciones, sin P0/P1):** ningún rol gana acceso y las filas
+de solo deuda se recortan bien en los tres llamadores. Sus condiciones, cumplidas:
+fila de ledger (esta), ACL de las piezas por catálogo en `test-rls.mjs`
+(`testCumplimientoMetas`, sección I), comparación por texto, reversa con md5 nuevos
+y la razón del censo restaurada LITERAL. Su oráculo de deuda por rol, corrido en
+prod dentro del ensayo (S6): con 4 deudas plantadas, las 28 identidades ven
+exactamente a las mismas personas que antes y Metas = oficial dentro de cada
+ámbito, 0 violaciones. Pendiente de su lista: que un gate enumere a los llamadores
+de la pieza (hoy tampoco lo hace el núcleo `conversion_mensual_por_vendedor`).
+Nota: `scripts/multiempresa-f9/apertura-2026-09-15/REVERTIR.sql` fija el md5 viejo
+de la oficial; F9 está activada desde el 15/09, así que solo afectaría a una
+reversión de F9, que tendría que recapturarlo.
+
+**Huellas que deja instaladas** (las fija la reversa): oficial `3f59adbd…`,
+#8 `1b6ae972…`, #7 `8da0630b…`, pieza `8edf0d91…`, roster `7a5fa2e9…`, censo `bb316b23…`.
+
+**Censo.** La oficial se re-sella (huella previa `e8308294…`, en la reversa). La
+#7, la #8 y las piezas siguen fuera. **Reversa:** `supabase/scripts/conversion/reversa-una-sola-pieza.sql`.
+**Verificación posterior:** `supabase/scripts/conversion/metas-vs-oficial.sql` (solo lectura, PASS antes de aplicar).
+**Tipos:** no cambia ninguna firma expuesta; no hace falta `gen:types`.
+
+## ✅ `20260923155859` — La RENOVACIÓN deja de compartir palanca con el REFERIDO — **INSTALADA 23/09/2026**
+
+**El problema.** La rama `'operacion'` del núcleo usaba `p_factor` —el peso del
+REFERIDO— también para la RENOVACIÓN. Un solo número servía a dos conceptos
+comerciales: cambiar el incentivo del referido movía el de la renovación sin que
+nadie se enterara. El UPGRADE nunca estuvo acoplado (peso literal 1).
+
+**Qué entró:** `crm.conversion_pesos.peso_renovacion` (`not null default 0.15`,
+con `check` 0–1), la lectora `private.peso_renovacion_conversion(date)` gemela de
+la del referido, y el núcleo usándola.
+
+🔑 **No movió ningún número:** el `default 0.15` es lo que la renovación valía por
+reutilizar el peso del referido. Verificado tras instalar: `peso_referido 0.150`,
+`peso_renovacion 0.15`, trinquete `OK`. **Separar la palanca no es moverla.**
+
+### Auditoría de Codex: REFUTADO EN PARTE, sin P0 ni P1
+
+Los cinco reparos, aceptados y corregidos antes de aplicar:
+
+| Reparo | Qué era | Cómo quedó |
+|---|---|---|
+| P2 | El preflight decía «fijado» y solo comprobaba que la tabla no estuviera vacía. Contraejemplo válido: con versiones 0.10/0.20/0.15 el `default` las aplanaría todas y el agregado seguiría cuadrando | Exige **una sola fila**, `vigente_desde 2026-07-01`, `peso_referido 0.150`; y el postflight compara el aporte **mes a mes** |
+| P2 | La prueba de independencia solo ejercía `p_periodo = null`: si la rama de mes calendario siguiera usando `p_factor`, **habría pasado igual** | Ejerce **las dos ramas**, y a la mensual le pasa un `p_factor` distinto del peso a propósito |
+| P2 | A la lectora nueva le faltaban los revokes de su gemela | Añadidos `anon`, `authenticated`, `service_role` |
+| P2 | 🔴 El front exigía `ponderacion.renovacion === ponderacion.referido` (`conversion-mensual.ts:295`). A 0,15/0,15 no rompía, pero **el día que se moviera el peso, valibot rechazaría el payload entero** | Ahora exige que venga **declarada**, no que sea igual |
+| P3 | Ledger, tipos y comentario viejo | Este ledger; tipos parcheados (ver abajo) |
+
+### Dos tests codificaban el acoplamiento, y hubo que actualizarlos
+
+No era descuido: alguien lo ató a propósito y lo protegió por los dos lados.
+
+- `supabase/scripts/test-conversion-llegadas.sql:77` — afirmaba «Renovación
+  consume el mismo parámetro de peso, no un 0.15 duplicado». **No está
+  enganchado a ningún gate**, así que habría fallado en silencio.
+- `app/src/lib/conversion-mensual.test.ts:320` — ponía el peso a 1 y exigía que
+  el paquete se rechazara. Ése sí corre en `npm run check`.
+
+El motivo original —que el peso no fuera un literal suelto— se respeta: sigue
+saliendo de `crm.conversion_pesos`, solo que de su propia columna.
+
+### 🔴 Deuda ajena que salió al regenerar los tipos
+
+`npm run gen:types` produce **1.699 líneas** de diferencia y **rompe el
+typecheck**, en un área que no es ésta:
+
+```
+src/lib/store.tsx(3036,30): error TS2345 ... registrar_actividad_v2
+  'p_detalle': 'string | null' is not assignable to 'string'
+```
+
+Producción ya pide `p_detalle` NO nulo; el front sigue mandando nullable. Para no
+dejar el árbol en rojo se restauró el fichero y se añadió **a mano solo la
+columna nueva** en `Row`/`Insert`/`Update`. **Mientras eso no se arregle, cada
+`gen:types` volverá a romper.**
+
+### Lo que NO resuelve, y tiene fecha de caducidad
+
+`crm.periodos_cerrados` guarda solo `ponderacion_referido`: el peso de renovación
+de un mes sellado se **reconstruye** desde el del referido. Hoy esa tabla está
+VACÍA, así que la ventana está abierta; **el primer mes que se selle queda mal
+para siempre**. Va en la migración siguiente.
+
+Y para **mover** el peso de renovación hará falta publicar el front primero: el
+validador corregido viaja en el bundle.
+
+
 ## ✅ 23/09/2026 — LAS DOCE PUERTAS, UNIFICADAS · release publicado
 
 **Front publicado:** `build-20260923T020403114Z`, artefacto

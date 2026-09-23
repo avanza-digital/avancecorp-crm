@@ -1,0 +1,37 @@
+import { expect, test } from '@playwright/test'
+import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
+
+for (const rolCrm of ['vendedor', 'supervisor']) {
+  test(`auditoria: ${rolCrm} no recibe una gestion externa hasta recuperar el foco`, async ({ page }) => {
+    test.setTimeout(60_000)
+    const lead = leadReal({ vendedor_id: UID })
+    await montarBackendReal(page, { rolCrm, leads: [lead] })
+    let nuevaGestion = false
+    let lecturas = 0
+    await page.route('**/rest/v1/rpc/actividades_de_lead_fn', async (route) => {
+      lecturas += 1
+      await route.fulfill({ json: {
+        version: 1,
+        items: nuevaGestion ? [{
+          id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', lead_id: lead.id,
+          tipo: 'nota', detalle: 'GESTION EXTERNA DE AUDITORIA', metadata: {},
+          autor_nombre: 'ANALISTA DE PRUEBA', creado_en: new Date().toISOString(),
+        }] : [],
+        senales: { tiene_reunion_realizada: false, tiene_contacto: false, ultima_conversacion_en: null },
+      } })
+    })
+    await loginReal(page)
+    await irAPipeline(page)
+    const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
+    await expect(ficha.getByText('Sin gestiones todavía.')).toBeVisible()
+    const iniciales = lecturas
+    nuevaGestion = true
+    // Caracterizacion: supera el staleTime de 30 s con la ficha visible.
+    await page.waitForTimeout(35_000)
+    expect(lecturas).toBe(iniciales)
+    await expect(ficha.getByText('GESTION EXTERNA DE AUDITORIA')).toHaveCount(0)
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await expect(ficha.getByText('GESTION EXTERNA DE AUDITORIA')).toBeVisible()
+    expect(lecturas).toBeGreaterThan(iniciales)
+  })
+}
