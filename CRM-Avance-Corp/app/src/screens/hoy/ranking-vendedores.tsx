@@ -363,14 +363,17 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
                       <ChipArrastre descuento={descuento} className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]" />
                     )}
                   </td>
+                  {/* `solo_arrastre` es «base 0 y cerró algo», no «cerró cartera
+                      vieja»: un alta manual del mismo mes también cae aquí. El
+                      rótulo dice solo lo que siempre es cierto. */}
                   <td
                     className="px-5 py-3"
                     aria-label={fila.estadoConversion === 'solo_arrastre'
-                      ? 'Nivel de conversión: solo cierres de arrastre'
+                      ? 'Nivel de conversión: cerró sin base del mes'
                       : `Nivel de conversión ${pct(conversion)}`}
                   >
                     {fila.estadoConversion === 'solo_arrastre'
-                      ? <span className="inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
+                      ? <span className="inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Cerró sin base del mes</span>
                       : <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: C.blue }} /></div>}
                   </td>
                 </tr>
@@ -402,7 +405,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
                 <ChipArrastre descuento={descuento} className="ml-12 mt-1 block text-[11px] font-semibold text-[var(--muted-foreground-strong)]" />
               )}
               {fila.estadoConversion === 'solo_arrastre'
-                ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
+                ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Cerró sin base del mes</span>
                 : <div className="gi-track mt-3 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: C.blue }} /></div>}
             </li>
           )

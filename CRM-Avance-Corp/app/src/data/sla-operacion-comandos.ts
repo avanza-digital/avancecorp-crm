@@ -5,7 +5,13 @@ import { CrmApiError } from './crm-api'
 
 type Comando = 'registrar_actividad_v2' | 'cerrar_tarea_v2' | 'cerrar_reunion_v2' |
   'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3' | 'registrar_llamada_v4'
-type Argumentos<C extends Comando> = Omit<Database['crm']['Functions'][C]['Args'], 'p_operacion_id'>
+// Los opcionales admiten `null` a propósito. El generador (CLI 2.114.0) los
+// declara `x?: T`, pero en estas puertas todos valen NULL por defecto, así que
+// mandar null o no mandarlo es lo mismo para el servidor. Aquí NO se omiten: la
+// huella de una intención guardada incluye esos null, y cambiarla haría que un
+// reintento pendiente de antes de un release chocara con SLA_CONFIRMACION_PENDIENTE.
+type ConNulosOpcionales<T> = { [K in keyof T]: undefined extends T[K] ? T[K] | null : T[K] }
+type Argumentos<C extends Comando> = ConNulosOpcionales<Omit<Database['crm']['Functions'][C]['Args'], 'p_operacion_id'>>
 type Peticion = { [C in Comando]: [actor: string | null, comando: C, sujeto: string, argumentos: Argumentos<C>, tarea?: Tarea] }[Comando]
 interface Intencion {
   operacion: string
