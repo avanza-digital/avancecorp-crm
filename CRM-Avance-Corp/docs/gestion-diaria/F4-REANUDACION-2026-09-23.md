@@ -5,10 +5,19 @@ Miguel reanudó y autorizó el quinto SQL exacto de la
 cuatro SQL anteriores, banco hasta US$1 y `$release-crm`. Producción permanece
 v1 OFF. **Los cinco SQL se publicaron mediante merge Supabase y quedaron
 verificados en producción.** Banco sintético eliminado; frontend publicado desde
-Main `6bf0e84a` y política v2 programada para el 24/09, 00:00 Lima. Hoy v1 OFF.
+Main `6bf0e84a` inicialmente y actualizado a `8e6f4357` con PR #77; política v2
+programada para el 24/09, 00:00 Lima. Hoy v1 OFF.
 Primera jornada real pendiente; no se declara F4 completa.
 
-## Frontend publicado y smoke de gerencia
+## Actualización posterior — PR #77 publicado
+
+El 23/09 a las 12:40 Lima quedó verificado `build-20260923T173450335Z`, fuente
+Main `8e6f4357`. Corrección del detalle opcional con recibos anteriores conservados;
+4.175 pruebas, 32 E2E focalizados y CI PASS. Los 113 archivos y el smoke de lectura
+con gerencia coinciden; política futura intacta. Artefacto, SHA y recuperación en
+[acta de la corrección](F4-DETALLE-OPCIONAL-2026-09-23.md).
+
+## Frontend inicial publicado y smoke de gerencia
 
 PR [#76](https://github.com/avanza-digital/avancecorp-crm/pull/76) ya fusionado.
 Fuente del artefacto: `6bf0e84a6ea1f9da0477569da312d06a3a2a2064`, Main limpio

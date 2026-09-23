@@ -5,7 +5,7 @@ actualizado: 2026-09-23
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #76 fusionado, fuente `6bf0e84a`, build `build-20260923T163253090Z`; 113 archivos y smoke gerencia PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.
+- [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #77 fusionado y publicado, fuente `8e6f4357`, build `build-20260923T173450335Z`; 113 archivos y smoke gerencia PASS. Detalle opcional compatible con tipos regenerados; 4.175 pruebas y 32 E2E focalizados PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.
 
 - [[Gestion Diaria F4 - cinco SQL publicados OFF y PR 76 sin conflictos (2026-09-23)]] — Acta intermedia del ensayo y merge SQL; completada por la publicación y programación anteriores.
 

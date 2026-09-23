@@ -1,15 +1,16 @@
 # Gestión Diaria F4 — publicado y cortes programados
 
 El 23/09 se cerraron el ensayo remoto, la instalación de cinco SQL y el release
-autorizado con `$release-crm`. PR #76 fusionado. Fuente productiva exacta:
-`6bf0e84a6ea1f9da0477569da312d06a3a2a2064`, Main limpio e igual al remoto al
-publicar. Build `build-20260923T163253090Z`, https://crm.miavance.com.
+autorizado con `$release-crm`. PR #76 y después PR #77 fusionados. Fuente productiva vigente:
+`8e6f4357feb18e2c9caed9e8ed135c3bad2931f0`, Main limpio e igual al remoto al
+publicar. Build `build-20260923T173450335Z`, https://crm.miavance.com.
 
-ZIP `releases/crm-20260923T163254Z-6bf0e84a6ea1.zip`.
-SHA-256 `0800772132124f9451c3ca1b9452a979e15957695f60b020014ee6a815d37945`.
+ZIP `releases/crm-20260923T173451Z-8e6f4357feb1.zip`.
+SHA-256 `a27c055d974064f9a14042c3b4a184a72c55cb3d5b4dd9b7065cafd8f2ccafc0`.
 113 archivos cotejados por HTTPS/MCP; smoke de gerencia PASS: configuración,
-registro de actividad y persistencia tras recarga. Respaldo anterior verificado
-de 114 archivos conservado fuera del web root. No republicar por añadir actas.
+registro de actividad y política futura tras recarga. El respaldo inmediato es
+el ZIP publicado de `6bf0e84a`, con 113 archivos cotejados; también se conserva
+el respaldo previo de 114 archivos fuera del web root. No republicar por añadir actas.
 
 **V2 programada mediante la sesión real de gerencia para el 24/09, 00:00 Lima.**
 Hoy v1 OFF. Cortes 11:30 y 16:00; mínimo inicial 3, crecimiento 150 %, piso 8,
@@ -34,10 +35,12 @@ ni declarar PASS por anticipado. F4.1/TypeSafe y F5 permanecen fuera.
 Dos INFO de índices y dos WARN de rendimiento de políticas internas diferidos.
 
 Tras esta publicación Miguel reportó la incompatibilidad al regenerar tipos.
-La otra sesión conserva `database.types.ts`; Codex preparó el llamador de actividad
+La otra sesión conserva `database.types.ts`; Codex publicó el llamador de actividad
 con detalle opcional y preservación de recibos. SQL productivo conserva
 `p_detalle DEFAULT NULL`; no hay cambio de obligatoriedad en la base.
-Parche posterior aún sin publicar: `docs/gestion-diaria/F4-DETALLE-OPCIONAL-2026-09-23.md`.
+PR #77 integrado y publicado; 4.175 pruebas, 32 E2E focalizados y CI PASS.
+La otra sesión debe regenerar sobre ese Main, sin reaplicar `4e51e5fb`.
+Acta: `docs/gestion-diaria/F4-DETALLE-OPCIONAL-2026-09-23.md`.
 
 Plan: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
 Acta y recuperación: `CRM-Avance-Corp/docs/gestion-diaria/F4-REANUDACION-2026-09-23.md`.

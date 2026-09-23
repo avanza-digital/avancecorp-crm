@@ -1,13 +1,15 @@
 # GESTIÓN DIARIA — el documento único
 
-> **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #76 fusionado en `6bf0e84a`.
-> Cinco SQL productivos verificados y frontend `build-20260923T163253090Z`
+> **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #77 fusionado en `8e6f4357`.
+> Cinco SQL productivos verificados y frontend `build-20260923T173450335Z`
 > publicado desde ese Main limpio e igual al remoto; 113 archivos cotejados.
 > Smoke de gerencia PASS: configuración, registro y persistencia tras recarga.
 > **Política v2 programada desde el 24/09, 00:00 Lima** por la sesión real de
 > gerencia. Cortes 11:30 y 16:00; hoy v1 OFF. Tasa baja NULL/OFF hasta F5.
 > 4.170 pruebas, 234 E2E PASS (26 SKIPPED); matrices remotas 2.221/0 cada una,
 > SQL, 24 mutantes, seis roles HTTP, concurrencia PT409 y carga PASS.
+> Corrección posterior del detalle opcional: 4.175 pruebas y 32 E2E focalizados
+> PASS, CI aprobada y smoke gerencial de la nueva versión PASS.
 > Banco temporal eliminado; coste acumulado estimado ~US$0,070, bajo el tope US$1.
 > **Falta la primera jornada real del 24/09 y el recorrido con supervisión.**
 > No declarar F4 completa hasta registrar esa evidencia; F4.1 y F5 siguen separados.
@@ -82,9 +84,9 @@ No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
 US$1); el nuevo banco también quedó eliminado. Acumulado estimado ~US$0,070.
 
-Frontend publicado desde Main `6bf0e84a6ea1f9da0477569da312d06a3a2a2064`, limpio
+Frontend vigente publicado desde Main `8e6f4357feb18e2c9caed9e8ed135c3bad2931f0`, limpio
 e igual a `avancecorp/main` al construir y publicar. Build
-`build-20260923T163253090Z`; 112 archivos HTTPS y `.htaccess` por MCP coinciden
+`build-20260923T173450335Z`; 112 archivos HTTPS y `.htaccess` por MCP coinciden
 en bytes/SHA. Gerencia comprobada en Chrome: configuración, registro de actividad
 y política futura persistente después de recargar. Se guardó una sola v2, con
 actor gerencia, motivo y cadena hacia v1; canal disponible sin cambiar su control.
@@ -99,10 +101,10 @@ La tasa baja seguirá NULL hasta F5. El acta distingue las pruebas sintéticas d
 recorrido humano pendiente: [publicación y activación](F4-REANUDACION-2026-09-23.md).
 
 **Coordinación posterior al release:** otra sesión regenera `database.types.ts`.
-La incompatibilidad del detalle opcional de `registrar_actividad_v2` tiene una
-[corrección aislada](F4-DETALLE-OPCIONAL-2026-09-23.md), con recibos anteriores
-conservados y sin SQL nuevo. Ese parche aún no está publicado; debe integrarse
-con los tipos regenerados y verificarse como una entrega posterior.
+La [corrección del detalle opcional](F4-DETALLE-OPCIONAL-2026-09-23.md) de
+`registrar_actividad_v2` ya está integrada por PR #77 y publicada, conservando
+los recibos anteriores y sin SQL nuevo. La otra sesión debe regenerar desde
+este Main y verificar la combinación; no volver a aplicar ese parche.
 
 ### Antecedente — entrega autorizada y primer ensayo remoto (22/09/2026)
 
