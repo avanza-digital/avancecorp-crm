@@ -1,5 +1,14 @@
 # GESTIÓN DIARIA — el documento único
 
+> **PAUSADO por Miguel el 22/09/2026, para seguir el 23/09.** No publicar ni
+> activar hasta reanudar. Retoma: [acta de pausa](F4-PAUSA-2026-09-22.md).
+> Main integrado; 4.158 pruebas y 234 E2E PASS. Matrices remotas 2.196/0 antes
+> y después de los cuatro SQL. Bloqueo nuevo: conflicto `40001` provoca
+> reintentos infinitos en PostgREST 14.5. Quinto SQL preparado y ensayado en SQL
+> local; HTTP correctivo pendiente. Banco remoto eliminado; Docker propio detenido.
+> Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
+> Este estado prevalece sobre los resúmenes históricos siguientes.
+
 **Decisión vigente de Miguel, 22/09:** mantener la alerta de tasa muy baja apagada
 hasta F5. No se compara aún con la tasa del equipo ni se permite activarla rellenando
 la diferencia. El campo reservado conserva NULL; la publicación de F4 rechaza un

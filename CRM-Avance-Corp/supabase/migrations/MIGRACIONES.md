@@ -1,3 +1,14 @@
+## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
+
+**CANDIDATO PAUSADO, aplicado solo en Docker propio. No autorizado remotamente.**
+Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
+exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
+SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 pendiente:
+adaptador devolvió 404; no declarar PASS. No edita los cuatro archivos aprobados,
+no inserta política y no activa cortes. SHA-256
+`428e6a19951afc12315b61c760ba679e37e0399ca4aa0d44dde7f938ce3ad18a`.
+Retoma en `docs/gestion-diaria/F4-PAUSA-2026-09-22.md`.
+
 ## 20260922220800 — F4: lectura completa separada de escrituras de cortes
 
 **CANDIDATO; instalado solo en banco Gestión Diaria.** Después de la segunda

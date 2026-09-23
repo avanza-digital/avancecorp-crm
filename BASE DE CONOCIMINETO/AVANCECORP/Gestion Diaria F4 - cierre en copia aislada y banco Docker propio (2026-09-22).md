@@ -1,5 +1,10 @@
 # Gestión Diaria F4 — cierre en curso
 
+> **PAUSADO por Miguel.** Estado posterior y retoma en
+> [[Gestion Diaria F4 - pausa y conflicto HTTP pendiente (2026-09-22)]].
+> El banco remoto se eliminó y Docker propio quedó detenido. El resto de esta
+> nota conserva el historial anterior; no implica que esté todo publicado.
+
 **Decisión vigente de Miguel, 22/09:** mantener la alerta de tasa muy baja apagada
 hasta F5. No se compara aún con la tasa del equipo ni se permite activarla rellenando
 la diferencia. El campo reservado conserva NULL; la publicación de F4 rechaza un

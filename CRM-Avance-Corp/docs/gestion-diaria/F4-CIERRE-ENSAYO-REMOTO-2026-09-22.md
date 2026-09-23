@@ -1,5 +1,8 @@
 # F4 — ensayo remoto autorizado, 22/09/2026
 
+> **PAUSA solicitada por Miguel:** banco remoto eliminado, Docker propio detenido.
+> Retoma y estado del quinto SQL en [acta de pausa](F4-PAUSA-2026-09-22.md).
+
 ## Estado actualizado: bloqueo de concurrencia remota
 
 **No publicar todavía.** El ensayo identificó un defecto real: las dos RPC de

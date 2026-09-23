@@ -66,16 +66,16 @@ const publicar=i=>rpc('publicar_politica_gestion_diaria',i,{p_expected_version:a
  p_motivo:'Ensayo remoto concurrente: próxima política OFF'});
 const politicas=await simultaneas(43,[()=>publicar(0),()=>publicar(1)]);
 assert.equal(politicas.filter(r=>r.status===200).length,1);
-assert.equal(politicas.filter(r=>r.data.code==='40001').length,1);
-evidencias.push('Publicación futura: una confirma y una rechaza la versión obsoleta con 40001');
+assert.equal(politicas.filter(r=>r.status===409&&r.data.code==='PT409').length,1);
+evidencias.push('Publicación futura: una confirma y una rechaza la versión obsoleta con HTTP 409 / PT409');
 const control=objeto('select to_jsonb(c) from crm.gestion_diaria_control_avisos c order by version desc limit 1');
 const controlar=i=>rpc('controlar_avisos_gestion_diaria',i,{p_expected_version:control.version,
  p_habilitados:!control.habilitados,p_motivo:'Ensayo remoto concurrente del control de avisos'});
 try{
  const controles=await simultaneas(44,[()=>controlar(0),()=>controlar(1)]);
  assert.equal(controles.filter(r=>r.status===200).length,1);
- assert.equal(controles.filter(r=>r.data.code==='40001').length,1);
- evidencias.push('Control del canal: una confirma y una rechaza la versión obsoleta con 40001');
+ assert.equal(controles.filter(r=>r.status===409&&r.data.code==='PT409').length,1);
+ evidencias.push('Control del canal: una confirma y una rechaza la versión obsoleta con HTTP 409 / PT409');
 }finally{
  const ultimo=objeto('select to_jsonb(c) from crm.gestion_diaria_control_avisos c order by version desc limit 1');
  if(ultimo.habilitados!==control.habilitados){
