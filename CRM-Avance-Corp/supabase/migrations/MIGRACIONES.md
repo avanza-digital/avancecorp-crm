@@ -40,6 +40,20 @@ oficial                   4                 4
    La delegación va guardada por `auth.uid() is not null`; sin identidad calcula
    en vivo y **lo declara**, y el postflight recorre ese camino a propósito.
 
+**Auditoría `auditor-rls` sobre la #4: APTA CON REPAROS, sin P0.** Qué se hizo
+con cada reparo:
+
+| Reparo | Qué era | Resolución |
+|---|---|---|
+| **P1-1** | 🔴 El bloque `A3` que yo mismo había añadido a `test-rls.mjs` afirmaba `fuente === 'rango_vivo'` para el caso que ahora delega: **4 checks en rojo al aplicar** | Reescrito a la regla nueva, más los casos que faltaban: **paridad byte a byte contra `conversion_mensual_fn`** desde la puerta pública, la segunda puerta de escape (mes completo **con** `p_origen`), y que el lector global vea la misma cifra que gerencia |
+| **P2-2** | Al delegar sólo el total, el desglose deja de sumarlo; `conversion-vendedores.ts:183` compara el divisor del paquete sin filtro contra el de los paquetes con filtro (que no delegan) y devolvía `null` → **panel multi-fuente en blanco** justo el día que importa | Las puertas publican `nucleo.recalculo_vivo` (cabe: los dos esquemas del front son `v.object`), y el front compara contra ése. Corregido también el `porcentaje` de los desgloses, que dividía por el divisor oficial |
+| **P2-3** | `sondas.cuadra` se usa en el front como interruptor de confianza, pero tras delegar verifica el recálculo vivo, no lo publicado | El adaptador deja de gatear con `cuadra` **sólo** para la cifra sin filtro cuando `fuente === 'mensual'`; sigue gobernando todos los desgloses, que son los que sí verifica |
+| **P2-4** | Coste: el núcleo mensual se recorre dos veces en la ruta por defecto | **Medido, no supuesto:** `crm.metricas_conversiones_fn` día 1→hoy, 5 corridas: `{729,720,699,719,716}` ms antes · `{878,862,974,823,821}` ms después. **+≈150 ms (+21 %)** en la mediana |
+| **P3-2** | La Ola 1b no tomaba el `lock table` que sí tomaba la 1a antes de re-sellar | `lock_timeout = '5s'` + `lock table … in share row exclusive mode`, igual que la 1a |
+| **P3-3** | La reversa restauraba la huella pero no el texto de `razon`: trinquete verde con una razón que miente | Reversa completa escrita en la cabecera, con los cuatro pasos y el `regexp_replace` del `razon` |
+| **P3-1** | Divergencia de gates (`crm.equipo` frente a `private.rol_crm`) en una esquina hoy inalcanzable y fail-closed | Anotada. No se toca: la ACL de la implementación es `{postgres=X/postgres}` y el wrapper gatea con `rol_crm` |
+| **P3-4** | Sin red: si la oficial lanza, la puerta falla en vez de degradar | Decisión consciente, coherente con el fail-closed de la casa. Degradar en silencio devolvería las dos cifras que esta ola vino a eliminar |
+
 **Orden obligatorio:** la #5 fija en su preflight el md5 del cuerpo **tras su
 Ola 1a**, así que no puede entrar antes ni sobre otro cuerpo.
 

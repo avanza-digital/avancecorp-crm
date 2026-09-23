@@ -242,6 +242,18 @@ const NucleoConversionesSchema = v.object({
   fuente: v.optional(v.picklist(['mensual', 'rango_vivo'])),
   sellado: v.optional(v.nullable(v.boolean())),
   ajuste_aplicado: v.optional(v.boolean()),
+  // Ola 1b: cuando la puerta DELEGA, lo que ella misma habría calculado viaja
+  // al lado. Sirve para dos cosas concretas:
+  //   · rotular en pantalla la distancia («4,16 % oficial · 4,32 % recalculado»)
+  //     en vez de dejar un panel en blanco;
+  //   · comparar los desgloses CON filtro de fuente —que nunca delegan— contra
+  //     el divisor que de verdad usaron, no contra el de la foto oficial.
+  // Ausente cuando no hubo delegación: lo publicado ya es el recálculo vivo.
+  recalculo_vivo: v.optional(v.object({
+    divisor: v.number(),
+    numerador: v.number(),
+    conversion_pct: PorcentajeSchema,
+  })),
   base: v.string(),
   atribucion: v.optional(v.literal('primer_analista')),
   llegadas: v.optional(v.number()),

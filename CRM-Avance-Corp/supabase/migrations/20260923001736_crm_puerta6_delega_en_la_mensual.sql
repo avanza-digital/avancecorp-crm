@@ -417,7 +417,17 @@ begin
       (v_payload -> 'nucleo') || jsonb_build_object(
         'fuente', 'mensual',
         'sellado', coalesce((v_oficial #>> '{cierre,cerrado}')::boolean, false),
-        'ajuste_aplicado', true), false);
+        'ajuste_aplicado', true,
+        -- El total del recalculo vivo, conservado al lado: sin el, la distancia
+        -- entre la cifra oficial y la que esta funcion calcularia solo se podria
+        -- deducir de una igualdad que la delegacion rompe. `NucleoEquipoSchema`
+        -- del front es `v.object`, asi que la clave no molesta a nadie.
+        'recalculo_vivo', jsonb_build_object(
+          'divisor', (select coalesce(sum((f.e ->> 'nucleo_divisor')::int), 0)
+                        from jsonb_array_elements(coalesce(v_payload -> 'responsables', '[]'::jsonb)) f(e)),
+          'numerador', (select coalesce(sum((f.e ->> 'nucleo_numerador')::numeric), 0)
+                        from jsonb_array_elements(coalesce(v_payload -> 'responsables', '[]'::jsonb)) f(e)))
+        ), false);
 
     v_payload := jsonb_set(v_payload, '{sondas}',
       (v_payload -> 'sondas') || jsonb_build_object(
@@ -552,14 +562,22 @@ begin
   -- 5) Y nada mas del payload se movio.
   v_a := (v_antes - 'generado_en' - 'responsables')
            #- '{nucleo,fuente}' #- '{nucleo,sellado}' #- '{nucleo,ajuste_aplicado}'
-           #- '{sondas,sin_fila_en_la_oficial}';
+           #- '{nucleo,recalculo_vivo}' #- '{sondas,sin_fila_en_la_oficial}';
   v_d := (v_despues - 'generado_en' - 'responsables')
            #- '{nucleo,fuente}' #- '{nucleo,sellado}' #- '{nucleo,ajuste_aplicado}'
-           #- '{sondas,sin_fila_en_la_oficial}';
+           #- '{nucleo,recalculo_vivo}' #- '{sondas,sin_fila_en_la_oficial}';
   if v_a is distinct from v_d then
     raise exception 'POSTFLIGHT: cambio algo fuera de la cifra y su declaracion. Bloques distintos: %',
       (select string_agg(k, ', ' order by k) from jsonb_object_keys(v_a) k
         where (v_a -> k) is distinct from (v_d -> k));
+  end if;
+
+  -- 5b) `recalculo_vivo` guarda la suma de lo que la puerta calculaba.
+  if (v_despues #> '{nucleo,recalculo_vivo,numerador}') is null then
+    raise exception 'POSTFLIGHT: falta recalculo_vivo';
+  end if;
+  if (v_parcial #> '{nucleo,recalculo_vivo}') is not null then
+    raise exception 'POSTFLIGHT: un rango que NO delega no debe publicar recalculo_vivo';
   end if;
 
   -- 6) Un rango parcial NO delega.

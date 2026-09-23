@@ -39,13 +39,27 @@
 --     crudos, asi que esta migracion re-sella su declaracion y refresca
 --     `private.analitica_lc_sello` en la misma transaccion.
 --
--- REVERSA: volver a declarar el cuerpo sin el bloque de sustitucion, escribir
--- la huella de arriba en la exencion y refrescar el sello.
+-- REVERSA, COMPLETA (P3-3 de la auditoria: el `update` de abajo AÑADE texto a
+-- `razon`, y una reversa que solo restaure la huella dejaria el trinquete verde
+-- con una razon que miente). Los cuatro pasos, en la misma transaccion:
+--   1. volver a declarar el cuerpo sin el bloque de sustitucion ni `v_oficial`;
+--   2. `update private.analitica_leads_citas_exenciones set huella =
+--      '346ef5043d6b751c8a1bf5d6417552d5', razon = regexp_replace(razon,
+--      ' Ola 1b \(22/09/2026\):.*$', '') where objeto =
+--      'private.metricas_conversiones_implementacion(date,date,text)';`
+--   3. `update private.analitica_lc_sello set sello =
+--      private.huella_exenciones_analitica_lc(), sellado_en = now() where id;`
+--   4. devolver el `COMMENT ON` al texto de la Ola 1a.
 -- =========================================================================
 
 begin;
 
 set local statement_timeout = '180s';
+-- P3-2 de la auditoria: la Ola 1a tomaba estas dos tablas antes de re-sellar y
+-- esta no. Con dos sesiones publicando a la vez, el sello puede carrearse.
+set local lock_timeout = '5s';
+lock table private.analitica_leads_citas_exenciones,
+           private.analitica_lc_sello in share row exclusive mode;
 
 -- ---------------------------------------------------------------------------
 -- (a) PREFLIGHT: acreditar el cuerpo por IDENTIDAD, no por fragmentos.
@@ -903,7 +917,21 @@ begin
         'ajuste_aplicado', true,
         'divisor', v_oficial #> '{total,divisor}',
         'numerador', v_oficial #> '{total,numerador}',
-        'conversion_pct', v_oficial #> '{total,conversion_pct}'
+        'conversion_pct', v_oficial #> '{total,conversion_pct}',
+        -- Lo que ESTA funcion habria publicado, conservado al lado. Sin esto,
+        -- la distancia entre la cifra oficial y el recalculo vivo solo se podria
+        -- DEDUCIR de una igualdad que la propia delegacion rompe
+        -- (`conversion-vendedores.ts:183` compara el divisor del paquete sin
+        -- filtro contra el de los paquetes CON filtro, que no delegan). Con
+        -- `recalculo_vivo` la pantalla puede decir «4,16 % oficial · 4,32 %
+        -- recalculado» en vez de quedarse en blanco.
+        -- Cabe sin romper nada: `NucleoConversionesSchema` del front es
+        -- `v.object` (`app/src/lib/metricas-conversiones.ts`), que ignora lo
+        -- que no conoce.
+        'recalculo_vivo', jsonb_build_object(
+          'divisor', v_payload #> '{nucleo,divisor}',
+          'numerador', v_payload #> '{nucleo,numerador}',
+          'conversion_pct', v_payload #> '{nucleo,conversion_pct}')
       ), false);
   end if;
   -- Fuera de esa condicion no se toca nada: el bloque sigue diciendo
@@ -1029,11 +1057,23 @@ begin
            #- '{nucleo,fuente}'  #- '{nucleo,sellado}'   #- '{nucleo,ajuste_aplicado}';
   v_d := (v_despues - 'generado_en')
            #- '{nucleo,divisor}' #- '{nucleo,numerador}' #- '{nucleo,conversion_pct}'
-           #- '{nucleo,fuente}'  #- '{nucleo,sellado}'   #- '{nucleo,ajuste_aplicado}';
+           #- '{nucleo,fuente}'  #- '{nucleo,sellado}'   #- '{nucleo,ajuste_aplicado}'
+           #- '{nucleo,recalculo_vivo}';
   if v_a is distinct from v_d then
     raise exception 'POSTFLIGHT: cambio algo fuera de la cifra y su declaracion. Bloques distintos: %',
       (select string_agg(k, ', ' order by k) from jsonb_object_keys(v_a) k
         where (v_a -> k) is distinct from (v_d -> k));
+  end if;
+
+  -- 4b) `recalculo_vivo` guarda EXACTAMENTE lo que la puerta habria publicado.
+  if (v_nucleo #> '{recalculo_vivo,divisor}')        is distinct from (v_antes #> '{nucleo,divisor}')
+     or (v_nucleo #> '{recalculo_vivo,numerador}')   is distinct from (v_antes #> '{nucleo,numerador}')
+     or (v_nucleo #> '{recalculo_vivo,conversion_pct}') is distinct from (v_antes #> '{nucleo,conversion_pct}') then
+    raise exception 'POSTFLIGHT: recalculo_vivo (%) no es lo que la puerta calculaba (%)',
+      v_nucleo -> 'recalculo_vivo', v_antes #> '{nucleo}';
+  end if;
+  if v_parcial -> 'recalculo_vivo' is not null then
+    raise exception 'POSTFLIGHT: un rango que NO delega no debe publicar recalculo_vivo';
   end if;
 
   -- 5) Las DOS puertas de escape de la regla de Miguel siguen abiertas.
