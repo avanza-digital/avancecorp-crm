@@ -1,15 +1,16 @@
 # GESTIÓN DIARIA — el documento único
 
-> **REANUDADO por Miguel el 23/09/2026.** El correctivo HTTP ya pasa en
-> PostgREST 14.5 local: dos carreras reales devuelven 200 + 409, sin bucle.
-> [Propuesta concreta del quinto SQL](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md)
-> autorizada por Miguel el 23/09; ensayo remoto en curso. Las aprobaciones de los cuatro SQL,
-> conciliación, banco hasta US$1 y `$release-crm` siguen vigentes.
-> Main `8097ca8c` integrado; conflictos del PR #76 resueltos. 4.170 pruebas y
-> 234 E2E PASS (26 SKIPPED). Control remoto actual: 2.221/0. Los cinco SQL ya
-> están en el banco; contratos SQL y 24 mutantes PASS; matriz candidata en curso.
-> Banco remoto anterior eliminado; banco actual sintético y aislado.
-> Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
+> **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #76 fusionado en `6bf0e84a`.
+> Cinco SQL productivos verificados y frontend `build-20260923T163253090Z`
+> publicado desde ese Main limpio e igual al remoto; 113 archivos cotejados.
+> Smoke de gerencia PASS: configuración, registro y persistencia tras recarga.
+> **Política v2 programada desde el 24/09, 00:00 Lima** por la sesión real de
+> gerencia. Cortes 11:30 y 16:00; hoy v1 OFF. Tasa baja NULL/OFF hasta F5.
+> 4.170 pruebas, 234 E2E PASS (26 SKIPPED); matrices remotas 2.221/0 cada una,
+> SQL, 24 mutantes, seis roles HTTP, concurrencia PT409 y carga PASS.
+> Banco temporal eliminado; coste acumulado estimado ~US$0,070, bajo el tope US$1.
+> **Falta la primera jornada real del 24/09 y el recorrido con supervisión.**
+> No declarar F4 completa hasta registrar esa evidencia; F4.1 y F5 siguen separados.
 > Este estado prevalece sobre los resúmenes históricos siguientes.
 
 Retoma del 23/09: [integración de Main, banco y respaldo actuales](F4-REANUDACION-2026-09-23.md).
@@ -49,16 +50,18 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — quinto SQL autorizado; nuevo ensayo remoto (23/09/2026)
+### Punto de trabajo actual — publicado; cortes programados para el 24/09 (23/09/2026)
 
 Miguel autorizó el quinto SQL exacto respondiendo «sii» a la propuesta. Nueva
 rama sintética `gestion-diaria-f4-correctivo-20260923`, ref `zviwoyvtccqhhdfqdang`,
 creada 14:44 UTC, coste US$0,01344/h dentro del tope total US$1. Reconstrucción
 verificada: 17 usuarios ficticios, siete leads, cero cron activos, 21 Edge Functions
 idénticas al padre. Main `8097ca8c` (PR #75) ya se integró y verificó:
-4.170 tests y 234 E2E PASS. PR #76 MERGEABLE; GitHub exige revisión para fusionarlo.
-Control remoto limpio: 2.221 aserciones PASS. Cinco SQL instalados en el banco,
-24 mutantes y contratos SQL PASS; matriz candidata y concurrencia aún pendientes.
+4.170 tests y 234 E2E PASS. PR #76 ya fusionado en `6bf0e84a`.
+Matrices remotas antes/después: 2.221 aserciones PASS cada una. Contratos SQL,
+24 mutantes, seis roles HTTP y dos carreras remotas (200 + 409/PT409) PASS.
+Carga: 2.200 leads, 15.400 actividades y 120 lecturas; p95 2,567–3,519 s.
+Merge Supabase autorizado ejecutado y verificado; banco eliminado a las 11:22 Lima.
 
 El 23/09 a las 09:20 Lima terminaron las dos carreras HTTP del correctivo:
 en cada una se observaron dos solicitudes esperando el mismo lock; una confirmó
@@ -71,18 +74,35 @@ Solo cambia los códigos de conflicto de dos RPC y sus dos huellas en el gate.
 No edita los cuatro SQL aprobados ni activa cortes. Su autorización remota es
 adicional porque ese archivo no figuraba en la propuesta aprobada.
 
-Producción sigue v1 OFF. Sus 341 entradas y 721 funciones se cotejaron contra
-el banco actualizado. El candidato añade exactamente cinco migraciones,
-16 funciones F4 y los dos cuerpos previstos; conserva las 341 entradas previas.
+Hoy producción sigue v1 OFF; v2 ON comienza el 24/09, 00:00 Lima. Sus 346 migraciones conservan íntegramente las seis
+columnas de las 341 entradas previas y añaden las 114 sentencias exactas de los
+cinco archivos. Las 737 funciones coinciden con el candidato; 21 Edge Functions,
+cron y Auth intactos. Sin datos sintéticos ni entregas productivas generadas.
 No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
-US$1); el nuevo banco ya está activo con cron apagado.
+US$1); el nuevo banco también quedó eliminado. Acumulado estimado ~US$0,070.
 
-**Pasos restantes:** terminar matriz candidata, HTTP, concurrencia y carga;
-merge de los cinco SQL con cortes OFF;
-publicación del frontend desde Main igual al remoto; política futura por gerencia
-y verificación de la primera jornada real. La tasa baja seguirá NULL hasta F5.
-Detalle y evidencia: [propuesta del correctivo](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md).
+Frontend publicado desde Main `6bf0e84a6ea1f9da0477569da312d06a3a2a2064`, limpio
+e igual a `avancecorp/main` al construir y publicar. Build
+`build-20260923T163253090Z`; 112 archivos HTTPS y `.htaccess` por MCP coinciden
+en bytes/SHA. Gerencia comprobada en Chrome: configuración, registro de actividad
+y política futura persistente después de recargar. Se guardó una sola v2, con
+actor gerencia, motivo y cadena hacia v1; canal disponible sin cambiar su control.
+
+**Pasos restantes para cerrar F4:** observar el 24/09 los cortes 11:30 y 16:00
+con supervisión, cotejar el equipo y sus llamadas, popup/campana/lista,
+reconocimiento y aplazamiento único entre sesiones/dispositivos, sin duplicados
+ni reaviso al cierre. Registrar tiempos y posibles errores del uso real. Verificar
+el sábado 26/09 el corte único y mínimo 3 como seguimiento operativo. No crear
+actividad o reconocimientos ficticios en producción para aprobar estos puntos.
+La tasa baja seguirá NULL hasta F5. El acta distingue las pruebas sintéticas del
+recorrido humano pendiente: [publicación y activación](F4-REANUDACION-2026-09-23.md).
+
+**Coordinación posterior al release:** otra sesión regenera `database.types.ts`.
+La incompatibilidad del detalle opcional de `registrar_actividad_v2` tiene una
+[corrección aislada](F4-DETALLE-OPCIONAL-2026-09-23.md), con recibos anteriores
+conservados y sin SQL nuevo. Ese parche aún no está publicado; debe integrarse
+con los tipos regenerados y verificarse como una entrega posterior.
 
 ### Antecedente — entrega autorizada y primer ensayo remoto (22/09/2026)
 
@@ -205,31 +225,24 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 |---|---|---|
 | F0–F3 y ampliación de resultado v4 | En producción | Conservar sus regresiones al ampliar F4 |
 | F4 etapas 1–2: equipo y detalle | En producción | Recorrido de negocio con el supervisor pendiente |
-| F4 etapa 3: base de cortes y cliente compatible | Publicada y verificada, OFF | No reinstalar el SQL ni activar avisos todavía |
-| F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
-| F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
-| F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
-| F4 etapa 4: pop-up y seguimiento | Implementada y validada localmente | Ensayo remoto y publicación |
-| F4 etapa 5: configuración gerencial | Implementada y validada localmente | Publicar y programar política futura con gerencia |
-| F4 etapa 6: validación y activación | Pruebas locales PASS; entrega pendiente | Ensayo remoto, activación futura y primera jornada real |
+| F4 etapa 3: base de cortes y cliente compatible | Publicada; v2 programada para 24/09 | No reinstalar SQL ni repetir conciliación |
+| F4 etapa 4: pop-up y seguimiento | Publicada y probada en banco | Observar avisos y acciones reales con supervisión |
+| F4 etapa 5: configuración gerencial | Publicada; v2 guardada por gerencia y verificada | Mantener tasa baja OFF hasta F5 |
+| F4 etapa 6: validación y activación | Gates y release PASS; activación futura guardada | Primera jornada real del 24/09 y seguimiento del sábado |
 | F4.1: TypeSafe | Preparación técnica y ensayo sintético; sin integración productiva | Piloto humano por ambos supervisores, cada uno con su equipo; no bloquea F4/F5 |
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
 
-**Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
-producto, conciliar el taller divergente preservando sus cambios ajenos; no
-reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
-**Próximo trabajo:** revisar y autorizar la propuesta de publicación; reconfirmar
-Main antes de entregar, conservando el taller ajeno. Las reglas
-de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
-aplazamiento único de una hora sin reaviso al cierre ya están aprobadas.
+**Próximo trabajo:** verificar la jornada real del 24/09 y dejar resultados
+PASS/FAIL/NOT RUN con evidencia. Conservar la exclusión de analistas sin cartera
+abierta y el aplazamiento único de una hora sin reaviso al cierre. No repetir la
+publicación ni pedir otra autorización para lo ya ejecutado.
 
-**Pendientes técnicos separados:** reconciliar la versión SQL remota
-`20260922164159` con el archivo `20260921214018` antes de otra publicación por
-CLI, sin reejecutarlo; revisar después los dos avisos INFO de índices de claves
-foráneas ya documentados. No se cambiaron índices ni políticas en esta retoma.
+**Pendientes técnicos separados:** los dos INFO de índices FK y dos WARN de
+rendimiento de políticas internas siguen documentados para revisión posterior.
+La conciliación `20260922164159` → `20260921214018` ya está terminada.
 
-> Los checkpoints del 21/09 siguientes son históricos; prevalece la publicación del 22/09 descrita arriba.
+> Los checkpoints siguientes son históricos; prevalece el estado del 23/09 descrito arriba.
 
 ### Historial — PR #68 preparado y SQL aprobado, 21/09/2026
 

@@ -1053,6 +1053,20 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(insertarTarea).not.toHaveBeenCalled()
   })
 
+  it.each([undefined, '', '   '])('actividad sin detalle usa el valor predeterminado de la RPC: %j', async (detalle) => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+    const resultado = mutar((a) => a.registrarActividad(id, 'whatsapp_enviado', detalle))
+    expect(resultado.ok).toBe(true)
+    await expect(resultado.persistido).resolves.toBe(true)
+    expect(comandoSla).toHaveBeenCalledTimes(1)
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'registrar_actividad_v2', id, {
+      p_lead_id: id, p_tipo: 'whatsapp_enviado', p_siguiente: null,
+    })
+    expect(comandoSla.mock.calls[0]![3]).not.toHaveProperty('p_detalle')
+  })
+
   it('cambiar etapa y registrar actividad caducan las dos fotos de conversión por rango', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
