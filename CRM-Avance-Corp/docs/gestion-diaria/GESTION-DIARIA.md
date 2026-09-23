@@ -16,7 +16,7 @@ Gate integral PASS (4.179 pruebas); 114 archivos del origen y los 75 JS/CSS
 públicos cotejados. Acceso autenticado y registro de gerencia PASS.
 El banco Docker completo detectó seis mocks desactualizados de Seguimiento;
 el spec corregido terminó 15/0, con idéntico código de producto. Corrección
-de fixtures y acta en [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
+de fixtures integrada mediante [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
 Se atendieron las observaciones de Claude; su dictamen original fue
 CHANGES_REQUESTED y no se registra como PASS. **Pendiente: aceptación y smoke
 productivo de analista y supervisor.** Gate de realidad CLI NOT RUN; lectura SQL

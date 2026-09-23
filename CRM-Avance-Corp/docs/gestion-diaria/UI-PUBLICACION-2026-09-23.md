@@ -69,11 +69,19 @@ productiva `crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)` confirmó ambos
 `DEFAULT NULL`. Se normalizó la respuesta ficticia con `?? null` y se actualizó
 la expectativa del request. `p_cursor: null` se conserva, como envía el cliente.
 
-La corrección `4fd744a3` está en [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
+La corrección `4fd744a3` se integró mediante [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84),
+fusionado a las 16:12 Lima en `6c05ebd0`, después de publicar el frontend.
 Antes de añadir esta acta, el diff respecto de Main afectaba únicamente
 `CRM-Avance-Corp/app/e2e/sla-operacion.spec.ts`; no modificaba `src`, SQL ni el
 bundle. Por eso el ensayo corregido valida el mismo producto publicado desde
 Main limpio. Precommit, typecheck y prepush de esa corrección pasaron.
+
+Durante el cierre Main también recibió PR #83, que registra la migración de
+conversión publicada por otra sesión. Se preservó al integrar la documentación.
+El diff entre `e8e4f35f` y Main `6c05ebd0` contiene ese SQL/documentación y el
+fixture E2E; no cambia el código fuente de la aplicación. La documentación de
+esta publicación se entrega en una rama separada después del merge de PR #84;
+no formó parte de su diff fusionado.
 
 ## Diferencia de imágenes en el CDN
 

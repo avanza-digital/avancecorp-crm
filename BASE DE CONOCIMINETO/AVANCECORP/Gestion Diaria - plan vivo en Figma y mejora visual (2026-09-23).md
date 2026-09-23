@@ -41,7 +41,7 @@ de la otra sesión.
   transforma 11 PNG; diagnóstico e integridad registrados, sin cambiar Hostinger.
 - El banco completo de release terminó 228 PASS / 6 FAIL / 26 SKIPPED; los seis
   fallos eran mocks de filtros opcionales. El spec corregido pasó 15/0, con el
-  mismo producto. Ajuste de fixtures y evidencia en [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
+  mismo producto. Ajuste de fixtures integrado mediante [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
   No afirmar que la suite completa pasó en una sola ejecución.
 - Claude devolvió **CHANGES_REQUESTED**. Codex corrigió foco de alto contraste,
   contexto accesible, separación de textos y énfasis de vencidas; también evitó
