@@ -34,6 +34,47 @@ authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálo
 
 # Ledger de migraciones — esquema `crm`
 
+## ✅ `20260923185001` — «Resultados por origen»: la conversión ponderada la calcula el servidor — **INSTALADA 23/09/2026**
+
+**Aplicada por Miguel con `!` el 23/09** (`db query --linked --file`): trinquete
+`OK: 34 candidatos…`, 112 respuestas comparadas. **Verificado después en prod:**
+cuerpo `6e4fedb3…` y huella `315549aa…` iguales a los ensayados; gerencia recibe
+Formulario 3,1→3,1, Landing 1,6→1,6, Referido 72,7→**10,9**; `metas-vs-oficial.sql`
+sigue en PASS; advisors de seguridad sin avisos nuevos (mismas dos puertas de
+siempre, mismo informe). Se ve en pantalla cuando se publique el front de la PR #81.
+
+**La decisión (Miguel, 23/09):** la tabla por origen de Resumen de Gerencia cuenta
+al referido como el número grande, a su peso, y «el servidor siempre que haga
+todo». Cada fila de `origenes` de `private.metricas_conversiones_implementacion`
+(puerta `crm.metricas_conversiones_fn`) lleva `conversion_ponderada_pct` =
+round(100 × contratos × `peso_en_nucleo` ÷ leads, 1). Con los datos del 23/09:
+Referido 72,7 % → 10,9 %; Formulario 3,1 % y Landing 1,6 % no cambian. El front
+que la muestra es la PR #81 (sin la clave muestra la cifra de siempre, así que
+el orden da igual).
+
+**Orden decidido:** va DESPUÉS de `20260923172517` y `20260923172851` (peso de
+renovación, otra sesión), que redeclaran la misma función. Se generó por anclas
+sobre el cuerpo que dejaron: preflight md5 `1af7e330…` y huella `6dc8df00…`. El
+postflight fija el resultado (`6e4fedb3…` y `315549aa…`) y la razón del censo.
+
+**Ensayado en prod (DO con raise, nada escrito):** 112 respuestas (28 personas ×
+4 casos) idénticas por texto salvo la clave nueva; las 8 autorizadas responden
+sin error y las demás reciben 42501. **Mutantes muertos en el preflight:** la
+razón del censo cambiada y el EXECUTE retirado a `authenticated`. **Ciclo
+migración → reversa** en REPEATABLE READ: 0 distintas. Un primer ciclo en READ
+COMMITTED dio 1 falsa diferencia por actividad real entre las dos fotos; la
+migración corre en REPEATABLE READ justo por eso.
+
+**Revisiones:** `auditor-rls` (GO con condiciones) y Codex (CHANGES_REQUESTED sin
+regresión del cálculo). Todas sus condiciones están aplicadas:
+- anti-vacuidad por caso, por rol y por identidad;
+- atributos absolutos con `is_grantable`;
+- permisos de la puerta pública fijados;
+- razón y resultado fijados;
+- `test-rls.mjs` acepta las dos generaciones y valida el valor.
+
+**Reversa:** `supabase/scripts/conversion/reversa-origenes-ponderada.sql`.
+
 ## ✅ `20260923164903` — Metas deja de calcular la conversión: una sola pieza en el núcleo — **INSTALADA 23/09/2026**
 
 **Aplicada por Miguel con `!` el 23/09** (`db query --linked --file`): trinquete
