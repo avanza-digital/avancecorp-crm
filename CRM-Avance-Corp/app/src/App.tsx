@@ -31,6 +31,7 @@ import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { AreaConsultaGerencia } from '@/components/gerencia/area-consulta-gerencia'
 import { AlertasCRMProvider } from '@/lib/alertas-provider'
+import { GestionDiariaAvisosProvider } from '@/lib/gestion-diaria-avisos-provider'
 import { Login } from '@/screens/login'
 import { NoEnrolado } from '@/screens/no-enrolado'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,6 +68,7 @@ const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) =
 const ConfigProductos = lazy(() => import('@/screens/config-productos').then((m) => ({ default: m.ConfigProductos })))
 const ConfigMetas = lazy(() => import('@/screens/config-metas').then((m) => ({ default: m.ConfigMetas })))
 const ConfigSla = lazy(() => import('@/screens/config-sla').then((m) => ({ default: m.ConfigSla })))
+const ConfigGestionDiaria = lazy(() => import('@/screens/config-gestion-diaria').then((m) => ({ default: m.ConfigGestionDiaria })))
 const ConfigRentabilidad = lazy(() => import('@/screens/config-rentabilidad').then((m) => ({ default: m.ConfigRentabilidad })))
 const ConfigCitas = lazy(() => import('@/screens/config-citas').then((m) => ({ default: m.ConfigCitas })))
 
@@ -97,6 +99,7 @@ const PANTALLA_POR_VISTA = {
   'config-productos': ConfigProductos,
   'config-metas': ConfigMetas,
   'config-sla': ConfigSla,
+  'config-gestion-diaria': ConfigGestionDiaria,
   'config-rentabilidad': ConfigRentabilidad,
   'config-citas': ConfigCitas,
 } satisfies Record<Vista, unknown>
@@ -444,7 +447,7 @@ function Workspace() {
   const Pantalla = PANTALLA_POR_VISTA[vista]
 
   return (
-    <AlertasCRMProvider>
+    <GestionDiariaAvisosProvider key={`${yo?.id}:${yo?.rol}`}><AlertasCRMProvider>
       <RespuestasTasaProvider>
       <div className="relative z-10 flex h-svh overflow-hidden">
         <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
@@ -483,7 +486,7 @@ function Workspace() {
           registra gestiones). Se autoapaga si no hay ninguno. */}
       <GuardadosSlaPendientesGlobal />
       </RespuestasTasaProvider>
-    </AlertasCRMProvider>
+    </AlertasCRMProvider></GestionDiariaAvisosProvider>
   )
 }
 

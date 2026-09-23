@@ -71,6 +71,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   'config-productos': { t: 'Productos de inversión', s: 'Catálogo, condiciones y vigencias' },
   'config-metas': { t: 'Metas', s: 'Objetivos mensuales versionados' },
   'config-sla': { t: 'Tiempos de atención', s: 'Políticas y cumplimiento de SLA' },
+  'config-gestion-diaria': { t: 'Gestión Diaria', s: 'Cortes, contacto y vigencias futuras' },
   'config-rentabilidad': { t: 'Política de rentabilidad', s: 'Tasa base, herencia y excepciones de Gerencia' },
   'config-citas': { t: 'Control de Citas', s: 'Metas y reglas de gestión' },
 }

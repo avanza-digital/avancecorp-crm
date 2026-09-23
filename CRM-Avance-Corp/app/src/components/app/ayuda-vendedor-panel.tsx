@@ -43,6 +43,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   'config-productos': 'Productos',
   'config-metas': 'Metas',
   'config-sla': 'Tiempos de atención',
+  'config-gestion-diaria': 'Política de Gestión Diaria',
   'config-rentabilidad': 'Política de rentabilidad',
   'config-citas': 'Control de Citas',
 }

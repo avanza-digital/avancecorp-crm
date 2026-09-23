@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { CortesJornadaSchema, type CortesJornada } from './gestion-diaria-cortes'
-import { DiaEquipoSchema } from './gestion-diaria-equipo'
+import { DiaEquipoSchema, filtrarOrdenarEquipo, presentarEquipo } from './gestion-diaria-equipo'
 import { diaEquipoPrueba } from './gestion-diaria-equipo.fixture'
 
 function cortes(): CortesJornada {
@@ -22,6 +22,28 @@ function dia(c = cortes()) {
   return { ...d, umbrales: { ...d.umbrales, politica_version: c.politica_version }, cortes: c }
 }
 describe('Contrato aditivo de cortes F4.3', () => {
+  it('incluye el corte incumplido en el filtro aunque haya actividad reciente, sin modificar la foto', () => {
+    const d = dia()
+    expect(d.equipo[0]!.requiere_atencion).toBe(false)
+    const presentadas = presentarEquipo(d)
+    expect(presentadas[0]!.motivos_atencion).toEqual(['corte_tarde'])
+    expect(filtrarOrdenarEquipo(presentadas, { busqueda: '', soloProblemas: true,
+      orden: 'atencion', ascendente: false })).toHaveLength(1)
+    expect(d.equipo[0]!.motivos_atencion).toEqual([])
+  })
+  it('conserva pendientes después del cierre y sustituye la inactividad duplicada por el corte', () => {
+    const d = dia()
+    d.equipo[0]!.motivos_atencion = ['tarea_vencida', 'sin_llamar_2h']
+    d.equipo[0]!.requiere_atencion = true
+    d.cortes.equipo[0]!.segundo_corte!.puede_avisar = false
+    expect(presentarEquipo(d)[0]!.motivos_atencion).toEqual(['tarea_vencida', 'corte_tarde'])
+    d.cortes.equipo[0]!.segundo_corte!.aviso_pendiente = false
+    expect(presentarEquipo(d)[0]!.motivos_atencion).toEqual(['tarea_vencida', 'sin_llamar_2h'])
+  })
+  it('sin cortes confirmados conserva los motivos existentes, sin inferir incumplimientos', () => {
+    const d = diaEquipoPrueba()
+    expect(presentarEquipo(d)).toEqual(d.equipo)
+  })
   it('admite servidor antiguo sin simular evaluación ni cero', () => {
     const d = v.parse(DiaEquipoSchema, diaEquipoPrueba())
     expect(d).not.toHaveProperty('cortes')

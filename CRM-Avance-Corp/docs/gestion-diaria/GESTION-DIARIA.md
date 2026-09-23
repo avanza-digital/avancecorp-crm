@@ -1,5 +1,11 @@
 # GESTIÓN DIARIA — el documento único
 
+**Decisión vigente de Miguel, 22/09:** mantener la alerta de tasa muy baja apagada
+hasta F5. No se compara aún con la tasa del equipo ni se permite activarla rellenando
+la diferencia. El campo reservado conserva NULL; la publicación de F4 rechaza un
+valor distinto. Esta decisión sustituye la opción anterior de activarla al rellenarlo.
+
+
 > **Este archivo es el ÚNICO que hay que leer para retomar el módulo.** Reúne el estado, el plan
 > por fases y el diseño técnico de los cortes, que antes vivían en tres documentos separados.
 > Unificado el 20/09/2026 a petición de Miguel.
@@ -28,6 +34,45 @@ Este archivo es el punto de entrada para seguir el módulo en otra sesión. El p
 completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
+
+### Punto de trabajo actual — F4 validada localmente; entrega pendiente (22/09/2026)
+
+Objetivo activo: terminar etapas 4–6, publicar con respaldo, activar desde una jornada
+futura y verificarla. TypeSafe/F4.1 y F5 excluidos. Producción conserva etapa 3 OFF.
+
+Se trabaja en la copia existente `/private/tmp/avancecorp-release.hvdub4/repo`, rama
+`codex/gestion-diaria-f4-cierre`. Miguel confirmó otra sesión en el taller principal;
+se conserva su trabajo. Autorizó Docker identificado como Gestión Diaria: banco
+`gestion-diaria-f4-http` aislado y contenedor E2E `gestion-diaria-f4-e2e`, volumen propio.
+
+**Construido:** popup, reconocimiento/aplazamiento persistentes, campana/lista,
+registro, contexto de llamadas y editor gerencial con versiones futuras. Cuatro
+SQL instalados solo en el banco: avisos, configuración, grupos diarios y lectura
+completa separada de escrituras. SLA ya no se calcula bajo el lock de cortes.
+La alerta de tasa baja está OFF hasta F5, por decisión expresa de Miguel.
+
+**Verificado:** 4.153 tests en 277 archivos, lint, typecheck, cobertura, build y
+bundle PASS; 232 E2E en Docker PASS, 26 SKIPPED de pantallas retiradas, cero fallos.
+Gates SQL y 25 mutantes PASS; Auth/API de seis roles, dos equipos y tres carreras
+con dos solicitudes observadas esperando el mismo lock PASS. Navegador real,
+foco, móvil, configuración y libro anterior de alertas entre sesiones PASS.
+Tipos locales oficiales cotejados. Fallo SLA inyectado no impide escribir cortes.
+
+Jev clasificó 13 pendientes en 2,2 s como apoyo, sin certificar pruebas ni ampliar
+F4.1. Los dos dictámenes de Claude se recuperaron como CHANGES_REQUESTED; el
+PRIMARY resolvió con cambios y evidencia. No se atribuye PASS al reviewer.
+
+Main `7d65fcdb` integrado en `7c4a8d6c`, incluido Acceso Avance. Gates de F4 y
+vigilante PASS juntos; check y E2E Docker repetidos sobre ese código: 4.153 y
+232 PASS respectivamente, 26 SKIPPED y cero fallos. Las 33 sentencias del ledger de etapa 3 coinciden con
+el archivo original. Respaldo y corrección administrativa preparados; ensayo
+reversible y tres guardas PASS. El registro productivo todavía no se modificó.
+
+**PR [#73](https://github.com/avanza-digital/avancecorp-crm/pull/73) abierto en borrador.**
+Faltan autorizaciones de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md); ensayo en
+rama Supabase, conciliación administrativa, publicación desde Main coincidente,
+activación futura y primera jornada real. No marcar F4 completa por las pruebas
+locales. Evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
 
 ### Último punto de control — etapa 3 publicada y verificada; cortes OFF (22/09/2026)
 
@@ -99,6 +144,9 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
 | F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
 | F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
+| F4 etapa 4: pop-up y seguimiento | Implementada y validada localmente | Ensayo remoto y publicación |
+| F4 etapa 5: configuración gerencial | Implementada y validada localmente | Publicar y programar política futura con gerencia |
+| F4 etapa 6: validación y activación | Pruebas locales PASS; entrega pendiente | Ensayo remoto, activación futura y primera jornada real |
 | F4.1: TypeSafe | Preparación técnica y ensayo sintético; sin integración productiva | Piloto humano por ambos supervisores, cada uno con su equipo; no bloquea F4/F5 |
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
@@ -106,6 +154,8 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 **Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
 producto, conciliar el taller divergente preservando sus cambios ajenos; no
 reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
+**Próximo trabajo:** revisar y autorizar la propuesta de publicación; reconfirmar
+Main antes de entregar, conservando el taller ajeno. Las reglas
 de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
 aplazamiento único de una hora sin reaviso al cierre ya están aprobadas.
 

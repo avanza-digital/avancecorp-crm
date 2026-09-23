@@ -10,6 +10,7 @@ actualizado: 2026-09-22
 - [[Gestion Diaria F4 - etapa 3 publicada con cortes OFF (2026-09-22)]] — **PUBLICADA Y VERIFICADA:** SQL v1 OFF y frontend `e22c0cab`, build `build-20260922T165247339Z`. Respaldo anterior de 107 archivos cotejado byte a byte, controles SQL/HTTP y login PASS. Sigue F4 etapa 4; recorrido del supervisor, etapas 4–6 y activación pendientes. Índices INFO y conciliación del historial SQL registrados aparte.
 
 - [[Gestion Diaria F4 - release detenido por historial de ramas (2026-09-22)]] — Historial del bloqueo de ramas y acceso; superado por la instalación SQL OFF y la publicación de etapa 3. Ver el checkpoint vigente anterior.
+- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Etapas 4–5 implementadas localmente: 4.153 tests, 232 E2E Docker y 25 mutantes PASS. Main integrado; propuesta SQL/entrega lista, autorización y primera jornada pendientes. Cortes productivos OFF.
 
 - [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
 

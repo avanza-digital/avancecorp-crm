@@ -45,6 +45,7 @@ const CAPACIDAD_POR_VISTA = {
   'config-productos': null,
   'config-metas': null,
   'config-sla': null,
+  'config-gestion-diaria': null,
   'config-rentabilidad': null,
   'config-citas': null,
 } as const satisfies Record<Vista, Accion | null>

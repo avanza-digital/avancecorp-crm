@@ -50,6 +50,9 @@ import { administraSoloRolesCrm, type Rol } from '@/lib/roles'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useResumenAvisosSla } from '@/data/sla-operacion-queries'
 import { alertaResumenSla } from '@/lib/sla-avisos-presentacion'
+import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
+import { tituloCorte, horaCorte } from '@/lib/gestion-diaria-avisos'
+import { alertaDiariaAAlertaCRM } from '@/lib/gestion-diaria-alertas'
 
 function adaptarAlertaGerencial(alerta: AlertaGerencia, periodo: { desde: string; hasta: string }): AlertaCRM {
   if (alerta.tipo === 'bajo_meta_conversion') {
@@ -107,6 +110,8 @@ function esRolOperativo(rol: Rol | null): rol is 'vendedor' | 'supervisor' {
 
 export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.Element {
   const { yo } = useAuth()
+  const cortes = useGestionDiariaAvisos()
+  const diarias = cortes?.datos?.diarias
   const {
     ambito,
     actividadesDelAmbito,
@@ -124,9 +129,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   const sesionAvisosReal = Boolean(yo && !yo.demo && !soloRoles
     && (rol === 'vendedor' || rol === 'supervisor' || rol === 'gerencia' || rol === 'directorio')
     && funcionesLeadsVisibles(yo.demo, rol))
-  const resumenSla = useResumenAvisosSla(sesionAvisosReal)
+  const consultarResumen = sesionAvisosReal && !(rol === 'supervisor' && diarias)
+  const resumenSla = useResumenAvisosSla(consultarResumen)
   // Un fallo o modo sin confirmar no reactiva los cálculos anteriores.
-  const legado = Boolean(yo?.demo || (!resumenSla.error && resumenSla.data && resumenSla.data.modo !== 'activo'))
+  const legado = Boolean(yo?.demo || (diarias ? diarias.modo_sla !== 'activo'
+    : !resumenSla.error && resumenSla.data && resumenSla.data.modo !== 'activo'))
   const estadoSla = useEstadoSlaOperativo(
     ambito.leads,
     actividadesDelAmbito,
@@ -157,7 +164,8 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     yo && !yo.demo && rol === 'supervisor' && !soloRoles
     && funcionesLeadsVisibles(yo.demo, rol),
   )
-  const reconocimientos = useReconocimientosAlertas(sesionSupervisorReal && legado)
+  const usaLibro = legado || Boolean(diarias)
+  const reconocimientos = useReconocimientosAlertas(sesionSupervisorReal && usaLibro)
   // Espejo LOCAL para la demo: mismo contrato y misma lógica pura, sin
   // servidor — el supervisor de demo prueba el circuito completo y su libro
   // muere con la sesión.
@@ -218,6 +226,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       ]
     }
     if (rol === 'supervisor') {
+      if (diarias) return diarias.alertas.map((a) => alertaDiariaAAlertaCRM(a, yo.id, cortes?.datos?.contexto))
       return legado && yo.demo ? derivarAlertasSupervisor({
         supervisorId: yo.id,
         leads: ambito.leads,
@@ -252,6 +261,8 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     resumenSla.data,
     resumenSla.error,
     sesionAvisosReal,
+    diarias,
+    cortes?.datos?.contexto,
     actividadesDelAmbito,
     ambito.leads,
     ambito.vendedores,
@@ -279,7 +290,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   // Fase 4e «sin topes»: ya no hay foto de leads del ámbito; las derivaciones
   // legado por actividad solo viven en demo (Fase 3), así que la «foto» es de
   // fiar salvo en sesión real con el modo SLA apagado (donde no se calcula).
-  const fotoConfiable = !legado || Boolean(yo?.demo)
+  const fotoConfiable = Boolean(diarias) || !legado || Boolean(yo?.demo)
 
   // F4: el libro atenúa (reconocer) u oculta (posponer) las alertas AGRUPADAS
   // del supervisor. Con el libro caído se aplica []: TODO suena — un fallo de
@@ -288,7 +299,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   // datos del último fetch bueno cuando un refetch falla, y aplicar esos
   // asientos viejos con el libro caído sería exactamente el silencio indebido.
   const { visibles, pendientes, pospuestas } = useMemo(() => {
-    if (!yo || rol !== 'supervisor' || !legado) {
+    if (!yo || rol !== 'supervisor' || !usaLibro) {
       return { visibles: alertas, pendientes: alertas.length, pospuestas: 0 }
     }
     if (!fotoConfiable) {
@@ -302,7 +313,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       ? asientosDemo
       : (reconocimientos.error ? [] : (reconocimientos.data ?? []))
     return aplicarReconocimientos(alertas, asientos, ahora)
-  }, [ahora, alertas, asientosDemo, fotoConfiable, legado, reconocimientos.data, reconocimientos.error, rol, yo])
+  }, [ahora, alertas, asientosDemo, fotoConfiable, usaLibro, reconocimientos.data, reconocimientos.error, rol, yo])
 
   // Asienta en el libro y refresca la query; el toast y el foco son de la
   // pantalla. En demo escribe el espejo local con secuencia monotónica —
@@ -366,7 +377,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       rol === 'gerencia' && cumplimientoMetasError
         ? 'No se pudo calcular el cumplimiento confirmado.'
         : null,
-      sesionAvisosReal && resumenSla.error
+      consultarResumen && resumenSla.error
         ? 'No se pudieron confirmar los avisos de seguimiento. Pulsa Actualizar.'
         : null,
       legado && esRolOperativo(rol) && estadoSla.error
@@ -387,7 +398,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       // F4: un libro ilegible tampoco es mudo — sin él las alertas suenan
       // COMPLETAS (reconocimientos incluidos) y el supervisor debe saber por
       // qué su campana volvió a llenarse.
-      sesionSupervisorReal && legado && reconocimientos.error
+      sesionSupervisorReal && usaLibro && reconocimientos.error
         ? mensajeDeError(
             reconocimientos.error,
             'No se pudieron leer tus reconocimientos; las alertas se muestran completas.',
@@ -401,8 +412,9 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     return mensajes.filter((mensaje): mensaje is string => Boolean(mensaje))
   }, [
     legado,
+    usaLibro,
+    consultarResumen,
     resumenSla.error,
-    sesionAvisosReal,
     conversionActual.error,
     conversionAnterior.error,
     objetivosError,
@@ -427,7 +439,8 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
 
   const reintentar = useCallback(() => {
     if (soloRoles) return
-    if (sesionAvisosReal) void resumenSla.refetch()
+    cortes?.recargar()
+    if (consultarResumen) void resumenSla.refetch()
     if (rol === 'gerencia' && !yo?.demo) {
       void conversionActual.refetch()
       void conversionAnterior.refetch()
@@ -449,15 +462,16 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
           : Promise.resolve(),
         // F4 (Codex #3): Actualizar refresca el libro SIEMPRE (no solo caído)
         // — es la vía manual de converger con lo asentado en otra pestaña.
-        sesionSupervisorReal && legado
+        sesionSupervisorReal && usaLibro
           ? reconocimientos.refetch()
           : Promise.resolve(),
       ]).finally(() => setActualizandoOperativo(false))
     }
   }, [
-    legado,
+    cortes,
+    usaLibro,
+    consultarResumen,
     resumenSla,
-    sesionAvisosReal,
     conversionActual,
     conversionAnterior,
     recargar,
@@ -473,25 +487,35 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
 
   const cargando = cargandoGerencia
     || actualizandoOperativo
-    || (sesionAvisosReal && (resumenSla.isPending || resumenSla.isFetching))
+    || (consultarResumen && (resumenSla.isPending || resumenSla.isFetching))
     || (legado && !soloRoles && esRolOperativo(rol) && estadoSla.cargando)
     // isPending sería true PERPETUO con la query deshabilitada — el AND con
     // sesionVendedorReal (la misma condición de enabled) lo impide.
     || (sesionVendedorReal && (recordatorios.isPending || recordatorios.isFetching))
-    || (sesionSupervisorReal && legado && (reconocimientos.isPending || reconocimientos.isFetching))
+    || (sesionSupervisorReal && usaLibro && (reconocimientos.isPending || reconocimientos.isFetching))
+  const alertasCortes = useMemo<AlertaCRM[]>(() => (cortes?.datos?.alertas ?? []).map((aviso) => ({
+    id: aviso.id, tipo: aviso.tipo, corte: aviso, severidad: 'atencion', alcance: 'equipo',
+    titulo: tituloCorte(aviso),
+    detalle: `${horaCorte(aviso.corte_en)} Lima · ${aviso.miembros.map((m) => `${m.nombre}: ${m.llamadas} de ${m.objetivo} llamadas`).join('; ')}`,
+    responsableId: yo?.id ?? null, responsable: 'Mi equipo', valor: aviso.miembros.length,
+    destino: { vista: 'gestion-diaria', etiqueta: 'Revisar equipo' },
+  })), [cortes?.datos, yo?.id])
   const valor = useMemo<EstadoAlertasCRM>(() => ({
-    alertas: visibles,
-    pendientes,
+    alertas: [...alertasCortes, ...visibles],
+    pendientes: pendientes + alertasCortes.filter((a) => a.corte?.estado === 'pendiente').length,
     pospuestas,
     rol,
-    cargando,
-    errores,
-    generadoEn: sesionAvisosReal && !legado ? (resumenSla.data?.calculado_en ?? null) : rol === 'gerencia'
+    cargando: cargando || Boolean(cortes?.cargando),
+    errores: cortes?.error ? [...errores, 'No se pudieron confirmar los avisos de Gestión Diaria. Pulsa Actualizar.'] : errores,
+    generadoEn: diarias ? cortes!.datos!.generado_en : sesionAvisosReal && !legado ? (resumenSla.data?.calculado_en ?? null) : rol === 'gerencia'
       ? (conversionGerencia?.generado_en ?? null)
       : new Date(ahora).toISOString(),
     reintentar,
     reconocer,
   }), [
+    alertasCortes,
+    diarias,
+    cortes,
     legado,
     resumenSla.data?.calculado_en,
     sesionAvisosReal,
