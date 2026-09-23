@@ -1,5 +1,53 @@
 # F4 — ensayo remoto autorizado, 22/09/2026
 
+## Estado actualizado: bloqueo de concurrencia remota
+
+**No publicar todavía.** El ensayo identificó un defecto real: las dos RPC de
+configuración devuelven `40001` ante una versión obsoleta. PostgREST hosted
+14.5 reintenta ese código y la solicitud vence sin devolver el conflicto. El
+diagnóstico inicial de transporte era incompleto: dos conexiones TLS separadas
+permitieron observar las dos esperas reales y reproducir el fallo igualmente.
+El banco local usa PostgREST 16.2; por eso su PASS anterior no cubría este defecto.
+[Supabase documenta el problema](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
+
+Corrección preparada en `20260923021512_crm_gestion_diaria_conflicto_http.sql`:
+solo `40001` → `PT409` en publicar política y controlar canal, más las dos
+huellas del verificador. Mantiene candados, mensajes, permisos y datos. Es un
+quinto archivo nuevo: **aplicación remota y publicación pendientes de autorización
+adicional sobre el SQL exacto**, después del ensayo local en PostgREST 14.5.
+Los cuatro archivos aprobados no se modifican. Producción conserva v1 OFF y
+todavía no recibió ninguno de los cuatro nuevos SQL.
+
+Avances acreditados después del resumen anterior:
+
+- Main `e5957443` integrado en `e0ab5216`. `npm run check`: **4.158 pruebas / 277
+  archivos PASS**; Docker **234 PASS / 26 SKIPPED / 0 FAIL**, 9,3 minutos.
+- Once migraciones ajenas ya productivas, hasta `20260923013213`, incorporadas
+  **solo al banco** desde un snapshot coherente: ocho cuerpos, comentarios y
+  tres declaraciones técnicas; 331 entradas anteriores intactas. Ledger remoto
+  342 = 338 productivas + cuatro F4. F4, ACL/owners y datos sintéticos preservados.
+- Carga sintética: 2.200 leads añadidos y 15.400 actividades, 120 lecturas HTTP
+  sin errores. p95 por equipo/modo entre 2,153 y 3,343 s. No son tiempos reales
+  medidos en navegadores productivos.
+- Rendimiento: los dos INFO originales de FK de política se difieren (una fila,
+  sin consultas por esas FK). F4 agrega dos WARN `auth_rls_initplan`, en las
+  policies internas de entregas/control; optimización futura, sin retirar RLS
+  ni ampliar acceso. [Criterio](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan).
+- Concurrencia HTTP remota: **FAIL**, no PASS. El último intento observó ambas
+  peticiones bloqueadas; una confirmó y la otra venció por el problema `40001`.
+  Los intentos anteriores dejaron versiones futuras OFF solo en el banco.
+- Repetición posterior de `ensayar.mjs`: **FAIL de precondición del fixture**,
+  pues el ensayo antiguo fija versión inicial 1 y el banco conserva las versiones
+  auditadas de concurrencia. La transacción se revirtió. No sustituye ni invalida
+  los PASS previos de las matrices 2.196/0; no se atribuye un PASS nuevo.
+
+Evidencia privada: `avances-sincronizados.json`, `carga.json`,
+`concurrencia-diagnostico-43.json`, `advisors-rendimiento-f4.json` en
+`/private/tmp/gd-f4-remoto-20260922`; logs frontend
+`gd-f4-check-main74-20260922.log` y `gd-f4-e2e-docker-main74-20260922.log`.
+
+Los apartados siguientes conservan la secuencia previa; este estado prevalece.
+
 ## Permisos y estado productivo
 
 Miguel confirmó la organización `fzxtxnkvslpcsscxqfbr`, autorizó «SQL,
