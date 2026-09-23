@@ -5,7 +5,7 @@ actualizado: 2026-09-23
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — Plan por fases editable en Figma, 76 puntos; mantener el mismo tablero con cada avance. Revisión visual solicitada para analista y supervisor según Fundamentos UX. Primera jornada real de F4 pendiente.
+- [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — **MEJORA VISUAL PUBLICADA:** PR #82, fuente `e8e4f35f`, build `build-20260923T204457952Z`; 4.179 pruebas, archivos y acceso de gerencia verificados. Mismo plan editable en Figma, 76 puntos. Pendientes aceptación de analista/supervisor y primera jornada real de F4 del 24/09. Fixtures integrados mediante PR #84; acta de publicación enlazada en la nota.
 
 - [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #77 fusionado y publicado, fuente `8e6f4357`, build `build-20260923T173450335Z`; 113 archivos y smoke gerencia PASS. Detalle opcional compatible con tipos regenerados; 4.175 pruebas y 32 E2E focalizados PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.
 

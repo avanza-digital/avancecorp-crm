@@ -8,21 +8,37 @@ Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
 conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
 en cada sesión ni prometer sincronización automática en segundo plano.
 
+**Sesión guardada por petición de Miguel, 23/09/2026.** Continuar desde el
+[PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85),
+abierto al pausar; comprobar su estado antes de integrar. Rama
+`codex/gestion-diaria-ui-acta`, copia `/private/tmp/avancecorp-release.hvdub4/repo`.
+El objetivo F4 queda pausado. Próxima sesión: aceptación real de analista y
+supervisor y evidencia de los cortes del 24/09 (11:30 y 16:00 Lima), con
+seguimiento del sábado 26/09. Tasa baja OFF hasta F5; no volver a instalar SQL
+ni publicar solo por estas actas. ZIP publicado, respaldo y recibos también
+conservados en `CRM-Avance-Corp/releases/` del taller principal, fuera de `/tmp`.
+
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
-de Gestión Diaria. **Implementada y verificada en local**: gate integral PASS
-(4.177 pruebas tras integrar Main / PR #80) y 13 recorridos E2E en Docker PASS.
-Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).
-Se atendieron las observaciones
-de Claude; su dictamen original fue CHANGES_REQUESTED y no se registra como PASS.
-Publicación, aceptación y smoke productivo de la mejora pendientes; gate de realidad
-NOT RUN por falta de credenciales en la copia aislada. [Entrega y evidencia](UI-ANALISTA-SUPERVISOR-2026-09-23.md).
-El mismo tablero de Figma refleja este avance. Este trabajo no convierte la
-primera jornada real de F4 en aprobada.
+de Gestión Diaria. **PUBLICADA el 23/09**: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82)
+fusionado; fuente Main `e8e4f35f`, build `build-20260923T204457952Z`.
+Gate integral PASS (4.179 pruebas); 114 archivos del origen y los 75 JS/CSS
+públicos cotejados. Acceso autenticado y registro de gerencia PASS.
+El banco Docker completo detectó seis mocks desactualizados de Seguimiento;
+el spec corregido terminó 15/0, con idéntico código de producto. Corrección
+de fixtures integrada mediante [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
+Se atendieron las observaciones de Claude; su dictamen original fue
+CHANGES_REQUESTED y no se registra como PASS. **Pendiente: aceptación y smoke
+productivo de analista y supervisor.** Gate de realidad CLI NOT RUN; lectura SQL
+parcial documentada, sin sustituirlo. [Acta de publicación y límites](UI-PUBLICACION-2026-09-23.md).
+El mismo tablero de Figma refleja la publicación; las 76 casillas por fases
+conservan su estado. La primera jornada real de F4 sigue pendiente.
 
 > **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #77 fusionado en `8e6f4357`.
-> Cinco SQL productivos verificados y frontend `build-20260923T173450335Z`
+> Cinco SQL productivos verificados y frontend original `build-20260923T173450335Z`
 > publicado desde ese Main limpio e igual al remoto; 113 archivos cotejados.
+> La mejora visual posterior ya lo sustituye: Main `e8e4f35f`, build
+> `build-20260923T204457952Z`; acta UI enlazada arriba.
 > Smoke de gerencia PASS: configuración, registro y persistencia tras recarga.
 > **Política v2 programada desde el 24/09, 00:00 Lima** por la sesión real de
 > gerencia. Cortes 11:30 y 16:00; hoy v1 OFF. Tasa baja NULL/OFF hasta F5.
@@ -104,12 +120,18 @@ No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
 US$1); el nuevo banco también quedó eliminado. Acumulado estimado ~US$0,070.
 
-Frontend vigente publicado desde Main `8e6f4357feb18e2c9caed9e8ed135c3bad2931f0`, limpio
-e igual a `avancecorp/main` al construir y publicar. Build
-`build-20260923T173450335Z`; 112 archivos HTTPS y `.htaccess` por MCP coinciden
-en bytes/SHA. Gerencia comprobada en Chrome: configuración, registro de actividad
-y política futura persistente después de recargar. Se guardó una sola v2, con
-actor gerencia, motivo y cadena hacia v1; canal disponible sin cambiar su control.
+Frontend vigente: Main `e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91`, limpio e igual
+a `avancecorp/main` al construir y publicar la mejora visual del PR #82.
+Build `build-20260923T204457952Z`; 113 archivos HTTPS del origen y `.htaccess`
+por MCP coinciden en bytes/SHA. Los 75 JS/CSS públicos también coinciden;
+el CDN transforma 11 PNG, con diagnóstico en el [acta UI](UI-PUBLICACION-2026-09-23.md).
+Acceso y registro de gerencia comprobados después de recargar.
+
+La publicación original de F4 desde `8e6f4357` / `build-20260923T173450335Z`
+se conserva como respaldo. Entonces se verificó la configuración y política
+futura persistente después de recargar. Se guardó una sola v2, con actor
+gerencia, motivo y cadena hacia v1; canal disponible sin cambiar su control.
+La publicación visual posterior no volvió a guardar ni alterar esa política.
 
 **Pasos restantes para cerrar F4:** observar el 24/09 los cortes 11:30 y 16:00
 con supervisión, cotejar el equipo y sus llamadas, popup/campana/lista,
@@ -120,11 +142,11 @@ actividad o reconocimientos ficticios en producción para aprobar estos puntos.
 La tasa baja seguirá NULL hasta F5. El acta distingue las pruebas sintéticas del
 recorrido humano pendiente: [publicación y activación](F4-REANUDACION-2026-09-23.md).
 
-**Coordinación posterior al release:** otra sesión regenera `database.types.ts`.
+**Coordinación posterior al release:** la otra sesión regeneró `database.types.ts`
+y sus ajustes se integraron mediante PR #80, conservados en el frontend vigente.
 La [corrección del detalle opcional](F4-DETALLE-OPCIONAL-2026-09-23.md) de
 `registrar_actividad_v2` ya está integrada por PR #77 y publicada, conservando
-los recibos anteriores y sin SQL nuevo. La otra sesión debe regenerar desde
-este Main y verificar la combinación; no volver a aplicar ese parche.
+los recibos anteriores y sin SQL nuevo. No volver a aplicar ese parche.
 
 ### Antecedente — entrega autorizada y primer ensayo remoto (22/09/2026)
 

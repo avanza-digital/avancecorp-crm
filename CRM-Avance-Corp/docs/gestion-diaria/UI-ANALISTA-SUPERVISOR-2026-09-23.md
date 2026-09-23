@@ -3,6 +3,13 @@
 Pedido de Miguel del 23/09/2026. Referencias: `Fundamentos UX del CRM.md` del vault,
 `UI-UX-playbook.pdf` y la decisión de dos paneles del encargo D.
 
+**Actualización: PUBLICADA el 23/09**, después de fusionarse PR #82 en Main
+`e8e4f35f`. Build `build-20260923T204457952Z`; 4.179 pruebas, integridad del
+paquete y acceso de gerencia verificados. Aceptación productiva de analista y
+supervisor pendiente. La siguiente verificación local queda como historial;
+el resultado vigente, los E2E y sus límites están en el
+[acta de publicación](UI-PUBLICACION-2026-09-23.md).
+
 ## Diagnóstico y dirección
 
 Se inspeccionaron en Chrome las dos pantallas demo, cargadas, antes de editar.
@@ -47,7 +54,7 @@ La composición se apoya en las tareas existentes: no añade paneles decorativos
 gráficos sin pregunta ni indicadores inventados. La principal expresión visual
 del analista es el contacto activo; la del supervisor es la comparación del equipo.
 
-## Verificación
+## Verificación local anterior a la publicación
 
 **Implementado y verificado en local el 23/09/2026.** Rama
 `codex/gestion-diaria-ui`, [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82),
@@ -90,6 +97,8 @@ Jev se usó únicamente como apoyo para priorizar el diagnóstico visual: clasif
 ambas pantallas como un problema de jerarquía. No recibió datos de clientes y su
 clasificación no se cuenta como prueba ni aprobación.
 
-La nueva UI todavía no está publicada. El avance de F4 y su jornada real del
-24/09 conservan los estados del plan principal. El [mismo tablero de Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L)
-registra esta mejora por separado de las 76 casillas originales.
+La UI se publicó posteriormente, según el acta enlazada al inicio. El avance
+de F4 y su jornada real del 24/09 conservan los estados del plan principal.
+El [mismo tablero de Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L)
+registra publicación cumplida y aceptación real pendiente, por separado de las
+76 casillas originales.
