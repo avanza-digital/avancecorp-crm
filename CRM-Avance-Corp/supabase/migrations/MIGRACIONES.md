@@ -1,12 +1,34 @@
 # Ledger de migraciones — esquema `crm`
 
-## 🧪 Ola 1a — Las tres puertas de gerencia DECLARAN su fuente (ENSAYADAS, PENDIENTES DE APLICAR)
+## ✅ Ola 1a — Las puertas de gerencia DECLARAN su fuente — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
 
-| Versión | Puerta | Objeto redeclarado |
-|---|---|---|
-| `20260922232553` | #4 · el número grande de Resumen/Conversiones | `private.metricas_conversiones_implementacion(date,date,text)` |
-| `20260922233257` | #6 · conversión por equipo | `crm.metricas_conversiones_equipo_fn(date,date)` |
-| `20260922233545` | #5 · distribución de leads v3 | `private.metricas_distribucion_leads_v3_core(date,date,timestamptz)` |
+| Versión | Puerta | Objeto redeclarado | Estado |
+|---|---|---|---|
+| `20260922232553` | #4 · el número grande de Resumen/Conversiones | `private.metricas_conversiones_implementacion(date,date,text)` | ✅ **INSTALADA 22/09** |
+| `20260922233257` | #6 · conversión por equipo | `crm.metricas_conversiones_equipo_fn(date,date)` | ✅ **INSTALADA 22/09** |
+| `20260922233545` | #5 · distribución de leads v3 | `private.metricas_distribucion_leads_v3_core(date,date,timestamptz)` | ⏸️ **con pestillo, espera release del front** |
+
+**Acta de instalación (22/09).** Aplicadas con
+`supabase db query --linked --file` y registradas una a una con
+`supabase migration repair --status applied <versión> --linked`, **con su sello
+de archivo**. Orden: `20260922225649` (la alarma de la Ola 0) → `20260922232553`
+→ `20260922233257`.
+
+**Verificado en producción, por la PUERTA PÚBLICA (no por la implementación):**
+
+```
+#4 crm.metricas_conversiones_fn  → es_mes_calendario true · fuente rango_vivo
+                                   sellado null · ajuste_aplicado false
+                                   1218 / 52,650 = 4,32 %
+#6 crm.metricas_conversiones_equipo_fn → las mismas cuatro claves
+#4 con un rango parcial          → es_mes_calendario FALSE
+```
+
+**Trinquete:** `OK: 34 candidatos declarados y con huella vigente; 14 de
+analítica/mixta sujetos al techo 14, 16 de inventario censados fuera del techo,
+4 auxiliares verificados, 0 sin declarar`.
+**Alarma de la conversión:** `cuadra: true`, 4 caminos.
+**Advisors:** 5 tipos, los mismos 5 preexistentes; ninguno nuevo.
 
 **Ninguna cambia un número.** Cada una añade cuatro claves informativas
 (`es_mes_calendario`, `fuente`, `sellado`, `ajuste_aplicado`) al bloque que ya
@@ -77,7 +99,12 @@ censo. La #5 ni está declarada ni está en el censo. Las tres postflight exigen
 que la situación no cambie.
 
 
-## 🧪 `20260922225649` — La alarma de la conversión CONCILIA en vez de exigir igualdad (ENSAYADA, PENDIENTE DE APLICAR)
+## ✅ `20260922225649` — La alarma de la conversión CONCILIA en vez de exigir igualdad — **INSTALADA EN PRODUCCIÓN el 22/09/2026**
+
+**Verificado tras instalar:** `cuadra: true`, 4 caminos, bloque `conciliacion`
+presente (`bruto_numerador 52,650 · neto_numerador 52,650 · deuda_pendiente 0 ·
+deuda_aplicada 0 · vendedores_topados 0`). Registrada con
+`supabase migration repair --status applied 20260922225649 --linked`.
 
 **Ola 0 del plan de las doce puertas.** El oráculo que iba a verificar ese
 trabajo era el que la propia corrección haría fallar.
