@@ -58,8 +58,13 @@ describe('Supervisor — Mi equipo hoy', () => {
   })
   it('el detalle horario abre llamadas de ese analista y se oculta si sale del equipo autorizado', () => {
     const vista = render(<GestionDiariaSupervisor />)
-    const detalle = screen.getByText('Detalle de ANA PÉREZ').closest('details')!
-    detalle.open = true
+    const abrirDetalle = screen.getByRole('button', { name: 'Detalle de ANA PÉREZ' })
+    expect(abrirDetalle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('region', { name: 'Detalle de ANA PÉREZ' })).not.toBeInTheDocument()
+    fireEvent.click(abrirDetalle)
+    const detalle = screen.getByRole('region', { name: 'Detalle de ANA PÉREZ' })
+    expect(abrirDetalle).toHaveAttribute('aria-controls', detalle.id)
+    expect(abrirDetalle).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(within(detalle).getByRole('button', { name: 'Ver llamadas del día de ANA PÉREZ' }))
     expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ analistaIds: ['a1'], pestanaInicial: 'llamadas' }))
     dobles.consulta.dia = diaEquipoPrueba([filaEquipoPrueba({ analista_id: 'b', nombre_completo: 'BRUNO' })])

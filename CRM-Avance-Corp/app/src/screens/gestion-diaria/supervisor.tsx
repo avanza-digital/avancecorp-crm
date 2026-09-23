@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { RefreshCw, Users } from 'lucide-react'
+import { ListFilter, RefreshCw, Search, Users } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
 import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
+
+const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
 export function GestionDiariaSupervisor(): JSX.Element {
   const { yo } = useAuth()
@@ -84,13 +86,13 @@ export function GestionDiariaSupervisor(): JSX.Element {
   if (yo?.rol !== 'supervisor') return <p role="alert">Esta vista está disponible para supervisores autorizados.</p>
 
   return (
-    <div className="mx-auto w-full max-w-[1640px] space-y-8">
-      <section aria-label="Mi equipo hoy" className="space-y-5 text-base">
+    <div className="mx-auto w-full max-w-[1440px] space-y-6">
+      <section aria-label="Mi equipo hoy" className="space-y-6 text-base">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <h2 ref={tituloEquipo} tabIndex={-1} className="text-2xl font-bold text-primary focus-visible:outline-2 focus-visible:outline-ring">¿Qué está pasando hoy en mi equipo?</h2>
+            <h2 ref={tituloEquipo} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight text-primary focus-visible:outline-2 focus-visible:outline-ring sm:text-[28px]">¿Qué está pasando hoy en mi equipo?</h2>
             <p className="mt-2 text-[var(--muted-foreground-strong)]">Actividad registrada, pendientes y personas que necesitan atención.</p>
-            <p className="mt-1 text-[var(--muted-foreground-strong)]">Hoy, {hoy} · Hora de Lima{yo?.demo ? ' · Demostración' : ''}</p>
+            <p className="mt-2 text-[var(--muted-foreground-strong)]"><time dateTime={hoy}>{FECHA_JORNADA.format(new Date(`${hoy}T12:00:00-05:00`))}</time> · Hora de Lima{yo?.demo ? ' · Demostración' : ''}</p>
           </div>
           <Button variant="outline" className="min-h-11 text-base" disabled={consulta.enVuelo} onClick={() => { void consulta.recargar() }}>
             <RefreshCw className="size-4" aria-hidden />{consulta.enVuelo ? 'Actualizando…' : 'Actualizar'}
@@ -109,30 +111,46 @@ export function GestionDiariaSupervisor(): JSX.Element {
           <PanelVacio icono={Users} tamano="grande" titulo="No tienes analistas activos asignados" detalle="Gerencia puede revisar la composición de tu equipo. No es un resultado de actividad cero." />
         ) : (
           <>
-            <div className="border-y border-border py-4">
-              <p className="leading-8"><strong>{dia.resumen.analistas} {dia.resumen.analistas === 1 ? 'analista' : 'analistas'}</strong>: {dia.resumen.con_actividad} con actividad registrada, {dia.resumen.sin_actividad} sin actividad registrada, {dia.resumen.con_pendientes} con pendientes y <strong>{atencion} {atencion === 1 ? 'necesita' : 'necesitan'} atención</strong>.</p>
-              <p className="mt-1 text-[var(--muted-foreground-strong)]">Datos consultados a las {horaLimaDe(dia.generado_en)}. Actualización cada minuto.</p>
+            <div role="group" aria-label="Resumen del equipo" className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+              <dl className="grid grid-cols-2 gap-px bg-border lg:grid-cols-3 xl:grid-cols-5">
+                {[
+                  { etiqueta: 'Analistas', valor: dia.resumen.analistas },
+                  { etiqueta: 'Con registro hoy', valor: dia.resumen.con_actividad },
+                  { etiqueta: 'Sin registro hoy', valor: dia.resumen.sin_actividad },
+                  { etiqueta: 'Con pendientes', valor: dia.resumen.con_pendientes },
+                  { etiqueta: 'Necesitan atención', valor: atencion },
+                ].map((metrica, indice) => (
+                  <div key={metrica.etiqueta} className="min-w-0 bg-card px-5 py-5 last:col-span-2 xl:last:col-span-1">
+                    <dt className={`text-base font-medium text-[var(--muted-foreground-strong)] ${indice < 4 ? 'min-h-12 xl:min-h-6' : ''}`}>{metrica.etiqueta}</dt>
+                    <dd className={`mt-2 text-[32px] font-extrabold leading-none tabular-nums ${indice === 4 && atencion > 0 ? 'text-[var(--warning-text)]' : 'text-primary'}`}>{metrica.valor}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="border-t border-border px-5 py-3 text-[var(--muted-foreground-strong)]">Datos consultados a las {horaLimaDe(dia.generado_en)}. Actualización cada minuto.</p>
             </div>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <label className="w-full space-y-2 sm:max-w-sm">
-                <span className="block font-medium">Buscar analista</span>
-                <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))}
-                  className="min-h-11 text-base" placeholder="Nombre del analista" />
-              </label>
-              <Button variant={filtros.soloProblemas ? 'default' : 'outline'} className="min-h-11 text-base"
-                aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}>Con problema hoy ({atencion})</Button>
-            </div>
-            <p aria-live="polite">{filas.length} de {dia.resumen.analistas} analistas</p>
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+              <div className="flex flex-wrap items-end gap-4 border-b border-border p-4 sm:p-6">
+                <label className="w-full space-y-2 sm:max-w-xs">
+                  <span className="block font-semibold text-primary">Buscar analista</span>
+                  <span className="relative block">
+                    <Search aria-hidden className="pointer-events-none absolute top-3 left-3 size-5 text-muted-foreground" />
+                    <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))}
+                      className="min-h-11 bg-card pl-10 text-base shadow-none" placeholder="Nombre del analista" />
+                  </span>
+                </label>
+                <Button variant={filtros.soloProblemas ? 'default' : 'outline'} className="min-h-11 text-base"
+                  aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}><ListFilter aria-hidden />Con problema hoy ({atencion})</Button>
+                <p aria-live="polite" className="py-3 text-[var(--muted-foreground-strong)] sm:ml-auto">{filas.length} de {dia.resumen.analistas} analistas</p>
+                <Button variant="ghost" className="min-h-11 text-base text-accent" onClick={() => abrirRegistro(null, 'llamadas')}>Ver registro del equipo</Button>
+              </div>
               <TablaEquipoDiaria key={`${yo.id}:${hoy}`} dia={dia.dia} filas={filas} filtros={filtros} ordenar={ordenar}
                 abrirRegistro={abrirRegistro} />
             </div>
-            <div className="max-w-3xl space-y-2 text-[var(--muted-foreground-strong)]">
+            <div className="max-w-4xl space-y-2 border-l-2 border-border-strong pl-4 leading-relaxed text-[var(--muted-foreground-strong)]">
               <p>La tasa usa llamadas útiles; número errado y otra persona quedan fuera. Se califica desde {dia.umbrales.minimo_llamadas_utiles} llamadas útiles.</p>
               <p>Los pendientes reflejan su estado actual. La actividad registrada no acredita presencia ni explica una ausencia. Los cortes conservan su foto de llamadas y solo avisan durante la jornada.</p>
               {dia.modo_sla !== 'activo' && <p>Los primeros intentos fuera de plazo no se evalúan con el control actual. «No evaluado» no significa cero.</p>}
             </div>
-            <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirRegistro(null, 'llamadas')}>Ver registro del equipo</Button>
           </>
         )}
       </section>

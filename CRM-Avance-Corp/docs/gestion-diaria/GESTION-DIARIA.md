@@ -1,5 +1,25 @@
 # GESTIÓN DIARIA — el documento único
 
+**Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).
+Miguel pidió el 23/09 conservar allí exactamente las fases y casillas del plan
+presentado en el chat y actualizar **el mismo tablero** con cada avance verificado.
+La correspondencia de nodos y los 76 puntos está en [FIGMA-PLAN.json](FIGMA-PLAN.json).
+Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
+conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
+en cada sesión ni prometer sincronización automática en segundo plano.
+
+**Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
+`Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
+de Gestión Diaria. **Implementada y verificada en local**: gate integral PASS
+(4.177 pruebas tras integrar Main / PR #80) y 13 recorridos E2E en Docker PASS.
+Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).
+Se atendieron las observaciones
+de Claude; su dictamen original fue CHANGES_REQUESTED y no se registra como PASS.
+Publicación, aceptación y smoke productivo de la mejora pendientes; gate de realidad
+NOT RUN por falta de credenciales en la copia aislada. [Entrega y evidencia](UI-ANALISTA-SUPERVISOR-2026-09-23.md).
+El mismo tablero de Figma refleja este avance. Este trabajo no convierte la
+primera jornada real de F4 en aprobada.
+
 > **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #77 fusionado en `8e6f4357`.
 > Cinco SQL productivos verificados y frontend `build-20260923T173450335Z`
 > publicado desde ese Main limpio e igual al remoto; 113 archivos cotejados.
