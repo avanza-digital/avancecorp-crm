@@ -4,8 +4,10 @@
 Ensayo remoto en nuevo banco sintético `gestion-diaria-f4-correctivo-20260923`,
 ref `zviwoyvtccqhhdfqdang`, creado 14:44 UTC, tarifa US$0,01344/h bajo el tope
 total previo US$1. Banco reconstruido con 17 usuarios ficticios, siete leads,
-cron apagado y 21 Edge Functions idénticas. Main PR #75 se integra conservando
-la otra entrega; repetir checks antes del release. El texto siguiente conserva
+cron apagado y 21 Edge Functions idénticas. Main PR #75 integrado, conflictos
+del PR #76 resueltos; 4.170 tests y 234 E2E PASS (26 SKIPPED). Control remoto:
+2.221 aserciones PASS. Cinco SQL instalados en banco, contratos y 24 mutantes
+PASS; matriz candidata, HTTP, concurrencia y carga pendientes. El texto siguiente conserva
 la evidencia y propuesta que motivaron la autorización.
 
 Relacionado: [[Inicio]], [[Gestion Diaria F4 - pausa y conflicto HTTP pendiente (2026-09-22)]],

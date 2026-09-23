@@ -1,6 +1,9 @@
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 
-**CANDIDATO AUTORIZADO el 23/09. Ensayo remoto en curso; sin instalar en producción.**
+**CANDIDATO AUTORIZADO el 23/09 e instalado en banco; sin instalar en producción.**
+Control remoto actual 2.221/0, contratos SQL y 24 mutantes PASS; matriz candidata,
+HTTP, concurrencia y carga en curso. Historial remoto: 341 anteriores intactas
+más los cinco archivos autorizados, bytes/SHA exactos.
 Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
 exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
 SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 local PASS:

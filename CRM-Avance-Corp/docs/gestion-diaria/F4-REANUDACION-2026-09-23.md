@@ -3,7 +3,8 @@
 Miguel reanudó y autorizó el quinto SQL exacto de la
 [propuesta](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md). Continúan vigentes los
 cuatro SQL anteriores, banco hasta US$1 y `$release-crm`. Producción permanece
-v1 OFF; este punto de control todavía no acredita la instalación remota del candidato.
+v1 OFF. Los cinco SQL ya están instalados solo en el banco sintético;
+contratos SQL y 24 mutantes PASS; matriz candidata en ejecución.
 
 ## Integración y verificaciones terminadas
 
@@ -59,15 +60,29 @@ diez cuerpos de función, catorce comentarios y tres declaraciones técnicas.
 Tablas/vistas, RLS, permisos y contratos de Auth/Storage cotejados; únicamente
 se normalizan paréntesis de los tres CHECK ya documentados en el ensayo anterior.
 
-El ledger nuevo de la rama tiene tres columnas. El padre tiene además
+El ledger inicial de la rama tenía tres columnas. El padre tiene además
 `created_by`, `idempotency_key` y `rollback`: no se copiaron esos metadatos ni
-se alteró la tabla del servicio para agregarlos. El snapshot privado conserva
+se alteró manualmente la tabla del servicio para agregarlos. Al aplicar los cinco
+SQL, el MCP añadió esas columnas de forma nativa. El snapshot privado conserva
 las seis columnas productivas; al publicar hay que cotejar su conservación.
 La conciliación productiva de etapa 3 ya terminó y no se repite.
 
 Evidencia privada: `/private/tmp/gd-f4-remoto-20260923/`. La matriz completa
-baseline pasó; luego se restaura su semilla, se repite la
-alineación y se prueban los cinco SQL en la rama antes del merge.
+baseline pasó; semilla restaurada y alineación repetida. Cinco archivos con
+bytes/SHA exactos, 341 entradas previas intactas y 346 totales. El diferencial
+añade 16 funciones F4 y cambia solo los cuerpos de
+`crm.alertas_reconocimientos_sellar()` y `private.assert_gestion_diaria()`.
+No retira funciones. Sello/exenciones y tope 14 conservados; `actualizado_en`
+del tope refleja su restauración en el banco.
+
+Advisors del candidato: cero ERROR nuevos; seis WARN de
+[RPC SECURITY DEFINER para authenticated](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable),
+esperados para las puertas con validación de rol/ámbito probada. Dos WARN
+[auth_rls_initplan](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan)
+en `lectura_interna` de control/entregas, ya documentados como mejora posterior.
+Los INFO de índices no usados varían al restaurar estadísticas; no se eliminan
+índices por un banco sintético. Los dos INFO originales de FK de política se
+mantienen diferidos. Matriz candidata, HTTP, concurrencia y carga pendientes.
 
 ## Recuperación del frontend vigente
 
@@ -82,7 +97,7 @@ SHA-256: `6cecc4a023e01aa3f52610375bc15839b934e5b60c3b6891b1a7ca39a1258d4c`.
 Manifiesto al lado: `respaldo.manifest.json`. Es una copia verificable del sitio
 servido, no el ZIP original preparado por la otra sesión. No se publica como asset.
 
-Pendientes: matriz remota baseline/candidato, SQL y concurrencia corregidos,
-advisors, diferencial exacto y merge SQL OFF; Main limpio e igual al remoto,
+Pendientes: terminar matriz candidata, HTTP, concurrencia y carga,
+reconfirmar diferencial y merge SQL OFF; Main limpio e igual al remoto,
 release y smoke; política futura por gerencia y primera jornada real. La tasa
 baja sigue NULL hasta F5; no declarar F4 terminada con pruebas sintéticas.

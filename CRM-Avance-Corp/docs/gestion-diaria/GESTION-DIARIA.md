@@ -5,9 +5,10 @@
 > [Propuesta concreta del quinto SQL](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md)
 > autorizada por Miguel el 23/09; ensayo remoto en curso. Las aprobaciones de los cuatro SQL,
 > conciliación, banco hasta US$1 y `$release-crm` siguen vigentes.
-> Main integrado; 4.158 pruebas y 234 E2E PASS. Matrices remotas 2.196/0 antes
-> y después de los cuatro SQL; el correctivo aún no tiene ensayo remoto.
-> Banco remoto anterior eliminado; Docker propio reanudado y aislado.
+> Main `8097ca8c` integrado; conflictos del PR #76 resueltos. 4.170 pruebas y
+> 234 E2E PASS (26 SKIPPED). Control remoto actual: 2.221/0. Los cinco SQL ya
+> están en el banco; contratos SQL y 24 mutantes PASS; matriz candidata en curso.
+> Banco remoto anterior eliminado; banco actual sintético y aislado.
 > Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
 > Este estado prevalece sobre los resúmenes históricos siguientes.
 
@@ -54,8 +55,10 @@ Miguel autorizó el quinto SQL exacto respondiendo «sii» a la propuesta. Nueva
 rama sintética `gestion-diaria-f4-correctivo-20260923`, ref `zviwoyvtccqhhdfqdang`,
 creada 14:44 UTC, coste US$0,01344/h dentro del tope total US$1. Reconstrucción
 verificada: 17 usuarios ficticios, siete leads, cero cron activos, 21 Edge Functions
-idénticas al padre. Main avanzó a `8097ca8c` (PR #75): integrar sus cambios y repetir
-las verificaciones de la versión combinada antes de publicar.
+idénticas al padre. Main `8097ca8c` (PR #75) ya se integró y verificó:
+4.170 tests y 234 E2E PASS. PR #76 MERGEABLE; GitHub exige revisión para fusionarlo.
+Control remoto limpio: 2.221 aserciones PASS. Cinco SQL instalados en el banco,
+24 mutantes y contratos SQL PASS; matriz candidata y concurrencia aún pendientes.
 
 El 23/09 a las 09:20 Lima terminaron las dos carreras HTTP del correctivo:
 en cada una se observaron dos solicitudes esperando el mismo lock; una confirmó
@@ -68,14 +71,15 @@ Solo cambia los códigos de conflicto de dos RPC y sus dos huellas en el gate.
 No edita los cuatro SQL aprobados ni activa cortes. Su autorización remota es
 adicional porque ese archivo no figuraba en la propuesta aprobada.
 
-Producción sigue v1 OFF. El ledger tiene 341 entradas, incluidas tres nuevas
-de la otra tarea desde la pausa; refrescar catálogo e historial antes del ensayo
-final. No repetir la conciliación de etapa 3, que ya está terminada.
+Producción sigue v1 OFF. Sus 341 entradas y 721 funciones se cotejaron contra
+el banco actualizado. El candidato añade exactamente cinco migraciones,
+16 funciones F4 y los dos cuerpos previstos; conserva las 341 entradas previas.
+No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
-US$1); se recreará un banco sintético al continuar el ensayo autorizado.
+US$1); el nuevo banco ya está activo con cron apagado.
 
-**Pasos restantes:** nuevo ensayo remoto completo
-con catálogo vigente y concurrencia; merge de los cinco SQL con cortes OFF;
+**Pasos restantes:** terminar matriz candidata, HTTP, concurrencia y carga;
+merge de los cinco SQL con cortes OFF;
 publicación del frontend desde Main igual al remoto; política futura por gerencia
 y verificación de la primera jornada real. La tasa baja seguirá NULL hasta F5.
 Detalle y evidencia: [propuesta del correctivo](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md).
