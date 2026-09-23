@@ -145,6 +145,117 @@ Y para **mover** el peso de renovación hará falta publicar el front primero: e
 validador corregido viaja en el bundle.
 
 
+## ✅ `20260923172517` + `20260923172851` — El peso de renovación SE GUARDA y SE DECLARA — **INSTALADAS 23/09/2026**
+
+**Aplicadas seguidas, en este orden.** Estado en producción tras instalar:
+
+| | |
+|---|---|
+| `crm.cerrar_periodo(date)` | `8470a76b0f8469c0f6822f670bf93d7b` |
+| `crm.conversion_mensual_sin_cartera_fn(date)` | `9850efd6117a4560c47c8d6dadade170` |
+| `crm.metricas_conversiones_equipo_fn(date,date)` | `bc66aa3ebc298d15b1bdc917a18549bf` |
+| `private.metricas_conversiones_implementacion(date,date,text)` | `1af7e330fb79341a10b088d6011b1ae0` |
+
+⚠️ **`metricas_conversiones_implementacion` ya NO es `1af7e330`.** Ese mismo día, poco
+después, `20260923185001` (conversión ponderada por origen) la regeneró POR ANCLAS sobre
+este cuerpo. Huellas vigentes desde entonces: función `6e4fedb3d6f9ba485ece9afeb322b491`,
+huella en el censo `315549aa87482ba7ecc9148d53b78f1f`. **Quien la vuelva a tocar parte de
+ahí, no de `1af7e330`.** Verificado tras ese relevo: `ponderacion_oficial` y
+`peso_renovacion` siguen publicándose igual y la conversión no se movió (4,23 %).
+| Sello del censo | `fe15d9ef7ab2e57d65b1700f600e2731` |
+
+Trinquete `OK` (34 candidatos), `crm.periodos_cerrados` con **0 filas**, columna nueva
+`YES · numeric` (nullable), pesos sin mover (`ref 0.150 / renov 0.15`). Advisors: 5 de
+seguridad y 6 de rendimiento, **ninguno nuevo** — ninguno cita los objetos creados.
+Lectura viva en prod (sin escribir): las dos puertas publican
+`ponderacion_oficial = {referido: 0.150, renovacion: 0.15, fuente: crm.conversion_pesos}`
+junto a los `peso_*` de siempre.
+
+🔓 **Se puede volver a sellar un mes.** Era el bloqueo: hasta aquí, el primer cierre
+habría guardado mal el peso de renovación para siempre.
+
+**Eran UN PAR y se aplicaron seguidas.** El preflight de la segunda
+se niega si la primera no está puesta. Por qué el par: la 2a hace que las puertas
+**deleguen la ponderación junto a la cifra**, y eso solo dice la verdad cuando la
+oficial declara el peso del cierre, que es lo que hace la 2b.
+
+**El agujero que cierran.** `20260923155859` separó la palanca pero dejó cinco
+huecos entre *calcular* con el peso nuevo y *declararlo*. Hoy
+`crm.periodos_cerrados` está VACÍA, así que la ventana sigue abierta; **el primer
+mes que se selle la cierra en falso para siempre.** 🔴 **No sellar ningún mes
+hasta que las dos estén aplicadas.**
+
+### `20260923172517` — se guarda
+
+- `crm.periodos_cerrados.ponderacion_renovacion numeric` — **NULLABLE a
+  propósito**: una foto vieja no sabe el peso que se usó, y `null` dice
+  «reconstrúyelo», que es distinto de un cero o de un valor inventado.
+- `crm.cerrar_periodo` la escribe; toma el lock de `crm.periodos_cerrados`
+  **antes** de contar (reparo de Codex).
+- `crm.metricas_conversiones_equipo_fn` y
+  `private.metricas_conversiones_implementacion` declaran
+  `private.peso_renovacion_conversion(v_mes)` en vez de `v_factor`.
+- 🔑 **La cifra sellada lleva su propio peso, en una clave NUEVA**
+  (`nucleo.ponderacion_oficial`, P2 de Codex): al delegar se sustituían los
+  números dejando el peso de la tabla viva, así que una foto sellada con 0,73 se
+  publicaba sin decir con qué se calculó.
+
+  🔴 **Aditiva, no sustitutiva — y esto lo corrigió la segunda vuelta de Codex.**
+  El primer intento movía `peso_referido`/`peso_renovacion` al peso sellado.
+  Contraejemplo de Codex: esas dos claves **rotulan el desglose**
+  (`conversion-vendedores.ts:258,272`), que se recalcula vivo, y un cliente con
+  **bundle viejo** —que no conoce la clave nueva— habría rotulado con el peso de
+  la foto un desglose calculado con el de hoy. El servidor anterior publicaba
+  ahí el vivo y acertaba: era una **regresión**. Publicándola al lado, quien no
+  la conozca ve exactamente lo de siempre, y de paso **desaparece la dependencia
+  de orden**: la 2a sola ya no puede empeorar ninguna pantalla.
+
+### `20260923172851` — se declara
+
+`crm.conversion_mensual_sin_cartera_fn` (generada POR ANCLAS sobre el cuerpo vivo,
+md5 `3f59adbd9e145b9d20cbbaf9d5238311` fijado en el preflight): la rama sellada
+declara `ponderacion.renovacion` desde `v_cierre.ponderacion_renovacion`, con
+`coalesce` a la reconstrucción de siempre para las fotos que nacieron sin ella; la
+rama abierta declara `private.peso_renovacion_conversion(p_periodo)`.
+
+### Lo que prueban, y por qué muerde
+
+Las sondas se ejercen dentro de savepoints que se deshacen (`cerrar_periodo` no
+tiene efectos fuera de las tablas, comprobado el 23/09):
+
+| Sonda | Qué exige |
+|---|---|
+| Payload entero | Ni un número movido, salvo la clave nueva `nucleo.ponderacion_oficial` |
+| Mutante | Peso a 0,42 → las dos puertas declaran 0,42. Un cuerpo que guardara `v_factor` publicaría 0,150 |
+| Delegación | `nucleo.ponderacion_oficial` = lo que declara la oficial, y no llega vacía |
+| Sello | Se sella agosto con 0,61 → la foto guarda 0,61, no 0,150 |
+| **Punta a punta** | Foto sellada con **0,58/0,73**, tabla viva movida a **0,19/0,11** → las puertas publican la foto en `ponderacion_oficial` **y los vivos en `peso_*`** (lo que protege al bundle viejo) |
+| Sin delegación | Una consulta con filtro de origen: pesos vivos y **ninguna** `ponderacion_oficial` |
+
+🔑 **Los DOS pesos se mueven en la sonda punta a punta**, no solo el de
+renovación (refuerzo de la segunda vuelta): con el referido igual a ambos lados,
+un cuerpo que lo dejara colgado de `v_factor` habría pasado sin que se notara.
+
+🔑 **Las sondas mueven la versión del peso que GOBIERNA el mes probado**
+(`vigente_desde <= mes`, con el mismo fallback al más antiguo que la lectora), no
+`max(vigente_desde)` a secas: con una versión futura en la tabla, la sonda movería
+un peso que nadie lee y pasaría sin probar nada (reparo P3 de Codex).
+
+### Front
+
+- `metricas-conversiones.ts` — declara `nucleo.ponderacion_oficial` opcional.
+- `conversion-vendedores.ts` — **sin cambios**: sigue rotulando con
+  `nucleo.peso_*`, que sigue siendo el peso vivo. Test nuevo en
+  `conversion-vendedores.test.ts` que lo **fija como contrato**: con la foto a
+  0,73 y el vivo a 0,11, el rótulo es 0,11. Mutante ejecutado — un adaptador que
+  prefiriera `ponderacion_oficial.renovacion` falla.
+- `database.types.ts` — `ponderacion_renovacion` a mano en `Row`/`Insert`/`Update`
+  (`gen:types` sigue rompiendo el typecheck por la deuda ajena de
+  `registrar_actividad_v2`).
+
+**Reversa:** la 2b es un `create or replace` sobre un cuerpo de md5 conocido; la
+2a añade una columna nullable y no borra nada. Ninguna toca `public`.
+
 ## ✅ 23/09/2026 — LAS DOCE PUERTAS, UNIFICADAS · release publicado
 
 **Front publicado:** `build-20260923T020403114Z`, artefacto

@@ -27,6 +27,29 @@
 -- se muevan los pesos esa pantalla calcularia con el peso equivocado — un
 -- numero mal, no solo una declaracion inexacta.
 --
+-- ## 🔴 UNA SEXTA GRIETA, QUE ESTA MIGRACION **NO** CIERRA (Codex, 23/09)
+--
+-- Las dos puertas declaran `private.peso_renovacion_conversion(v_mes)`, donde
+-- `v_mes` es el mes de `p_hasta`: UN escalar. Pero para un rango LIBRE el nucleo
+-- aplica el peso del mes de CADA operacion
+-- (`20260923155859:286`). Si el rango cruza meses con pesos distintos —agosto a
+-- 0,15 y septiembre a 0,42, por ejemplo— el aporte se calcula con los dos y se
+-- DECLARA uno solo: el del ultimo mes. El front lo rotula como «Peso por
+-- resultado» (`inteligencia-comercial.tsx:802`).
+--
+-- Precision que hay que decir, porque yo la exagere y Codex la corrigio: esa
+-- clave **rotula, no multiplica**. El front ya suma `aporte_numerador` fila a
+-- fila (`conversion-vendedores.ts:270`), asi que las CIFRAS siguen bien; lo que
+-- queda mal es el rotulo.
+--
+-- No se cierra aqui por dos razones: (1) `peso_referido` tiene EXACTAMENTE el
+-- mismo defecto y desde mucho antes — arreglar uno solo dejaria las dos claves
+-- con semanticas distintas, que es peor; (2) hoy `crm.conversion_pesos` tiene
+-- UNA fila, asi que no existe ningun rango con pesos distintos y el rotulo
+-- acierta siempre. **Se destapa el dia que se cree una segunda version de peso,
+-- que es justo el dia que alguien cambie uno.** Anotado en
+-- `pendientes/DEUDAS-CONVERSION.md`.
+--
 -- ## LAS DOS QUE **NO** CIERRA, Y POR QUE
 --
 -- `crm.conversion_mensual_sin_cartera_fn` tiene las otras dos (su rama sellada
@@ -71,8 +94,16 @@ begin;
 
 set local statement_timeout = '180s';
 set local lock_timeout = '5s';
+-- 🔑 `crm.periodos_cerrados` SE BLOQUEA AQUI, ANTES de contarla (reparo P2 de
+-- Codex, 23/09). Antes el conteo del preflight ocurria sin lock y el bloqueo
+-- llegaba con el `ALTER`, mucho despues: entre medias otra sesion podia sellar
+-- un mes con el `cerrar_periodo` VIEJO y confirmarlo. El postflight detectaria
+-- la fila y abortaria, pero **su rollback no deshace un cierre ya confirmado por
+-- otra sesion**: la ventana se habria perdido igual. Bloquear primero cierra esa
+-- carrera.
 lock table private.analitica_leads_citas_exenciones,
-           private.analitica_lc_sello in share row exclusive mode;
+           private.analitica_lc_sello,
+           crm.periodos_cerrados in share row exclusive mode;
 
 -- ---------------------------------------------------------------------------
 -- (a) PREFLIGHT: acreditar por IDENTIDAD los tres cuerpos, y el estado de la
@@ -1003,6 +1034,20 @@ begin
         'fuente', 'mensual',
         'sellado', coalesce((v_oficial #>> '{cierre,cerrado}')::boolean, false),
         'ajuste_aplicado', true,
+        -- 🔑 LA PONDERACION DE LA FOTO, al lado de la cifra de la foto. Cierra
+        -- el P2 de Codex (23/09): una cifra sellada no puede publicarse sin
+        -- decir con que pesos se calculo.
+        --
+        -- 🔴 ADITIVA, no sustitutiva, y eso es deliberado. La primera version
+        -- movia `peso_referido`/`peso_renovacion` al peso sellado, y Codex lo
+        -- refuto en la segunda vuelta con un contraejemplo: esas dos claves
+        -- ROTULAN EL DESGLOSE (`conversion-vendedores.ts:258,272`), que se
+        -- recalcula vivo. Un cliente con bundle viejo —que no conoce esta clave
+        -- nueva— habria rotulado con el peso de la foto un desglose calculado
+        -- con el peso de hoy. El servidor anterior publicaba ahi el vivo y
+        -- acertaba: era una REGRESION. Asi, quien no conozca
+        -- `ponderacion_oficial` ve exactamente lo de siempre.
+        'ponderacion_oficial', v_oficial #> '{ponderacion}',
         -- El total del recalculo vivo, conservado al lado: sin el, la distancia
         -- entre la cifra oficial y la que esta funcion calcularia solo se podria
         -- deducir de una igualdad que la delegacion rompe. `NucleoEquipoSchema`
@@ -1856,6 +1901,20 @@ begin
         'divisor', v_oficial #> '{total,divisor}',
         'numerador', v_oficial #> '{total,numerador}',
         'conversion_pct', v_oficial #> '{total,conversion_pct}',
+        -- 🔑 LA PONDERACION DE LA FOTO, al lado de la cifra de la foto. Cierra
+        -- el P2 de Codex (23/09): una cifra sellada no puede publicarse sin
+        -- decir con que pesos se calculo.
+        --
+        -- 🔴 ADITIVA, no sustitutiva, y eso es deliberado. La primera version
+        -- movia `peso_referido`/`peso_renovacion` al peso sellado, y Codex lo
+        -- refuto en la segunda vuelta con un contraejemplo: esas dos claves
+        -- ROTULAN EL DESGLOSE (`conversion-vendedores.ts:258,272`), que se
+        -- recalcula vivo. Un cliente con bundle viejo —que no conoce esta clave
+        -- nueva— habria rotulado con el peso de la foto un desglose calculado
+        -- con el peso de hoy. El servidor anterior publicaba ahi el vivo y
+        -- acertaba: era una REGRESION. Asi, quien no conozca
+        -- `ponderacion_oficial` ve exactamente lo de siempre.
+        'ponderacion_oficial', v_oficial #> '{ponderacion}',
         -- Lo que ESTA funcion habria publicado, conservado al lado. Sin esto,
         -- la distancia entre la cifra oficial y el recalculo vivo solo se podria
         -- DEDUCIR de una igualdad que la propia delegacion rompe
@@ -1907,7 +1966,7 @@ do $postflight$
 declare
   v_ok text; a_eq jsonb; a_im jsonb; d_eq jsonb; d_im jsonb; v_a jsonb; v_d jsonb;
   v_claims text := current_setting('request.jwt.claims', true);
-  v_gerente uuid; v_peso numeric; v_sellado numeric;
+  v_gerente uuid; v_peso numeric; v_sellado numeric; v_ofi jsonb;
   v_mes date := date_trunc('month', (now() at time zone 'America/Lima'))::date;
   v_hoy date := (now() at time zone 'America/Lima')::date;
 begin
@@ -1937,13 +1996,20 @@ begin
   perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
 
   -- 1) NI UN NUMERO MOVIDO en ninguna de las dos puertas: payload entero.
-  v_a := a_eq - 'generado_en';  v_d := d_eq - 'generado_en';
+  --    Con UNA excepcion nombrada: la clave NUEVA `nucleo.ponderacion_oficial`,
+  --    que por definicion no estaba antes. Se aparta aqui y se comprueba en
+  --    (3). Todo lo demas —numeros y los dos `peso_*` incluidos— identico.
+  v_a := a_eq - 'generado_en';
+  v_d := d_eq - 'generado_en';
+  v_d := jsonb_set(v_d, '{nucleo}', (v_d -> 'nucleo') - 'ponderacion_oficial', false);
   if v_a is distinct from v_d then
     raise exception 'POSTFLIGHT: la puerta de equipo se movio. Bloques distintos: %',
       (select string_agg(k, ', ' order by k) from jsonb_object_keys(v_a) k
         where (v_a -> k) is distinct from (v_d -> k));
   end if;
-  v_a := a_im - 'generado_en';  v_d := d_im - 'generado_en';
+  v_a := a_im - 'generado_en';
+  v_d := d_im - 'generado_en';
+  v_d := jsonb_set(v_d, '{nucleo}', (v_d -> 'nucleo') - 'ponderacion_oficial', false);
   if v_a is distinct from v_d then
     raise exception 'POSTFLIGHT: la implementacion se movio. Bloques distintos: %',
       (select string_agg(k, ', ' order by k) from jsonb_object_keys(v_a) k
@@ -1951,17 +2017,26 @@ begin
   end if;
 
   -- 2) LA PRUEBA QUE IMPORTA: con los pesos SEPARADOS, lo declarado sigue a lo
-  --    aplicado. Se mueve el de renovacion dentro de un savepoint y se exige que
-  --    las dos puertas lo declaren; antes declaraban el del referido y esto
+  --    aplicado. Se mueve el de renovacion dentro de un savepoint y se exige
+  --    que las dos puertas lo declaren; antes declaraban el del referido y esto
   --    habria fallado. Luego se deshace.
   begin
+    -- 🔑 Se mueve LA VERSION QUE GOBIERNA EL MES PROBADO, no la ultima de la
+    --    tabla (reparo P3 de Codex, 23/09): con una version futura en la tabla,
+    --    `max(vigente_desde)` apunta a una regla que este mes no usa, la sonda
+    --    mueve un peso que nadie lee y pasa sin probar nada. El `coalesce`
+    --    replica tambien el fallback de la lectora al mas antiguo.
     update crm.conversion_pesos set peso_renovacion = 0.42
-     where vigente_desde = (select max(vigente_desde) from crm.conversion_pesos);
+     where vigente_desde = coalesce(
+             (select max(vigente_desde) from crm.conversion_pesos
+               where vigente_desde <= v_mes),
+             (select min(vigente_desde) from crm.conversion_pesos));
 
     perform set_config('request.jwt.claims',
       jsonb_build_object('sub', v_gerente, 'role', 'authenticated')::text, true);
     d_eq := crm.metricas_conversiones_equipo_fn(v_mes, v_hoy);
     d_im := private.metricas_conversiones_implementacion(v_mes, v_hoy, null);
+    v_ofi := crm.conversion_mensual_fn(v_mes);
     perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
 
     if (d_eq #>> '{nucleo,peso_renovacion}')::numeric is distinct from 0.42 then
@@ -1976,6 +2051,25 @@ begin
     if (d_eq #>> '{nucleo,peso_referido}')::numeric is distinct from 0.150 then
       raise exception 'POSTFLIGHT: mover la renovacion movio el peso del referido declarado (%)',
         d_eq #>> '{nucleo,peso_referido}';
+    end if;
+
+    -- 3) LA CIFRA SELLADA LLEVA SU PROPIO PESO, en su propia clave. No sustituye
+    --    a `peso_*` —eso rompia a los bundles viejos, refutado por Codex en la
+    --    segunda vuelta—: se publica AL LADO. Aqui el mes esta abierto, asi que
+    --    los dos mundos coinciden; la 2b es quien los separa de verdad (sella
+    --    agosto con 0,73 y mueve el vivo a 0,11).
+    if (d_eq #> '{nucleo,ponderacion_oficial}') is distinct from (v_ofi #> '{ponderacion}') then
+      raise exception 'POSTFLIGHT: la puerta de equipo delega la cifra pero no la ponderacion: publica % y la oficial dice %.',
+        d_eq #> '{nucleo,ponderacion_oficial}', v_ofi #> '{ponderacion}';
+    end if;
+    if (d_im #> '{nucleo,ponderacion_oficial}') is distinct from (v_ofi #> '{ponderacion}') then
+      raise exception 'POSTFLIGHT: la implementacion delega la cifra pero no la ponderacion: publica % y la oficial dice %.',
+        d_im #> '{nucleo,ponderacion_oficial}', v_ofi #> '{ponderacion}';
+    end if;
+    -- Y no es vacia: si la clave faltara, esto tambien lo dice.
+    if (d_eq #>> '{nucleo,ponderacion_oficial,renovacion}') is null
+       or (d_im #>> '{nucleo,ponderacion_oficial,renovacion}') is null then
+      raise exception 'POSTFLIGHT: `ponderacion_oficial` no llego a alguna de las dos puertas';
     end if;
 
     raise exception 'DESHACIENDO_LA_PRUEBA';
@@ -1997,6 +2091,22 @@ begin
   --    efectos fuera de las tablas (ni pg_notify, ni net.http, ni dblink),
   --    comprobado el 23/09, asi que el rollback lo deshace entero.
   begin
+    -- 🔑 LOS DOS PESOS, DISTINTOS, ANTES DE SELLAR (reparo P2 de Codex, 23/09).
+    -- Antes esta prueba sellaba con los dos a 0,15: **un mutante que guardara
+    -- `v_factor` en la columna nueva habria pasado**. Detectaba la ausencia del
+    -- dato, no que fuera el dato equivocado. Con 0,15 y 0,61 solo pasa si se
+    -- guarda el de la RENOVACION.
+    -- 🔑 Se mueve LA VERSION QUE GOBIERNA EL MES PROBADO, no la ultima de la
+    --    tabla (reparo P3 de Codex, 23/09): con una version futura en la tabla,
+    --    `max(vigente_desde)` apunta a una regla que este mes no usa, la sonda
+    --    mueve un peso que nadie lee y pasa sin probar nada. El `coalesce`
+    --    replica tambien el fallback de la lectora al mas antiguo.
+    update crm.conversion_pesos set peso_renovacion = 0.61
+     where vigente_desde = coalesce(
+             (select max(vigente_desde) from crm.conversion_pesos
+               where vigente_desde <= '2026-08-01'::date),
+             (select min(vigente_desde) from crm.conversion_pesos));
+
     perform set_config('request.jwt.claims',
       jsonb_build_object('sub', v_gerente, 'role', 'authenticated')::text, true);
     perform crm.cerrar_periodo('2026-08-01'::date);
@@ -2007,9 +2117,11 @@ begin
     if v_sellado is null then
       raise exception 'POSTFLIGHT: se sello un mes y NO se guardo el peso de la renovacion. Esa es justo la ventana que esta migracion viene a cerrar.';
     end if;
-    if v_sellado is distinct from private.peso_renovacion_conversion('2026-08-01'::date) then
-      raise exception 'POSTFLIGHT: se guardo % y el peso vigente de renovacion es %',
-        v_sellado, private.peso_renovacion_conversion('2026-08-01'::date);
+    if v_sellado is distinct from 0.61 then
+      raise exception 'POSTFLIGHT: se guardo % y el peso de RENOVACION era 0.61. Si se guardo 0.150, se esta guardando el del REFERIDO.', v_sellado;
+    end if;
+    if v_peso is distinct from 0.150 then
+      raise exception 'POSTFLIGHT: el peso del REFERIDO guardado es % y deberia seguir siendo 0.150', v_peso;
     end if;
 
     raise exception 'DESHACIENDO_EL_SELLO';

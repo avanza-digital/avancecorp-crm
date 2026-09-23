@@ -655,7 +655,7 @@ do $postflight$
 declare
   v_ok text; v_antes jsonb; v_despues jsonb; v_a jsonb; v_d jsonb;
   v_claims text := current_setting('request.jwt.claims', true);
-  v_gerente uuid; v_decl numeric; v_guardado numeric;
+  v_gerente uuid; v_decl numeric; v_guardado numeric; d_eq jsonb; d_im jsonb; d_sf jsonb;
   v_mes date := date_trunc('month', (now() at time zone 'America/Lima'))::date;
 begin
   v_ok := private.assert_analitica_leads_citas();
@@ -692,8 +692,16 @@ begin
   -- 2) LA PRUEBA DE LA RAMA ABIERTA: con los pesos separados, lo declarado
   --    sigue a lo aplicado. Antes declaraba el del referido y esto fallaria.
   begin
+    -- 🔑 Se mueve LA VERSION QUE GOBIERNA EL MES PROBADO, no la ultima de la
+    --    tabla (reparo P3 de Codex, 23/09): con una version futura en la tabla,
+    --    `max(vigente_desde)` apunta a una regla que este mes no usa, la sonda
+    --    mueve un peso que nadie lee y pasa sin probar nada. El `coalesce`
+    --    replica tambien el fallback de la lectora al mas antiguo.
     update crm.conversion_pesos set peso_renovacion = 0.37
-     where vigente_desde = (select max(vigente_desde) from crm.conversion_pesos);
+     where vigente_desde = coalesce(
+             (select max(vigente_desde) from crm.conversion_pesos
+               where vigente_desde <= v_mes),
+             (select min(vigente_desde) from crm.conversion_pesos));
 
     perform set_config('request.jwt.claims',
       jsonb_build_object('sub', v_gerente, 'role', 'authenticated')::text, true);
@@ -717,8 +725,16 @@ begin
   --    dentro de un savepoint, se comprueba que la oficial DECLARA el peso que
   --    la foto guardo —y no el del referido— y se deshace entero.
   begin
-    update crm.conversion_pesos set peso_renovacion = 0.73
-     where vigente_desde = (select max(vigente_desde) from crm.conversion_pesos);
+    -- 🔑 Se mueve LA VERSION QUE GOBIERNA EL MES PROBADO, no la ultima de la
+    --    tabla (reparo P3 de Codex, 23/09): con una version futura en la tabla,
+    --    `max(vigente_desde)` apunta a una regla que este mes no usa, la sonda
+    --    mueve un peso que nadie lee y pasa sin probar nada. El `coalesce`
+    --    replica tambien el fallback de la lectora al mas antiguo.
+    update crm.conversion_pesos set peso_renovacion = 0.73, peso_referido = 0.58
+     where vigente_desde = coalesce(
+             (select max(vigente_desde) from crm.conversion_pesos
+               where vigente_desde <= '2026-08-01'::date),
+             (select min(vigente_desde) from crm.conversion_pesos));
 
     perform set_config('request.jwt.claims',
       jsonb_build_object('sub', v_gerente, 'role', 'authenticated')::text, true);
@@ -736,6 +752,76 @@ begin
     if v_decl is distinct from 0.73 then
       raise exception 'POSTFLIGHT (sellado): la oficial declara % y la foto guardo 0.73. Sigue reconstruyendo desde el del referido.', v_decl;
     end if;
+
+    -- 3.b) PUNTA A PUNTA, que es lo que Codex pedia (P2, 23/09): que la
+    --      ponderacion de la foto LLEGUE a las puertas, en su propia clave.
+    --      Aqui se separan los dos mundos a proposito: la foto quedo sellada
+    --      con 0,73 / 0,58 y ahora la tabla viva se mueve a 0,11 / 0,19.
+    --
+    --      🔑 Los DOS pesos se mueven, no solo el de renovacion (refuerzo que
+    --      pidio Codex en la segunda vuelta): con el referido igual a ambos
+    --      lados, un cuerpo que dejara `referido` colgado de `v_factor` habria
+    --      pasado esta sonda sin que nadie lo notara.
+    --
+    --      Y lo que NO puede moverse: `peso_referido`/`peso_renovacion` siguen
+    --      siendo los VIVOS. Son los que rotulan el desglose, que se recalcula,
+    --      y los que lee un bundle viejo. Que sigan valiendo 0,11 / 0,19 es la
+    --      prueba de que esta migracion es ADITIVA para esos clientes.
+    update crm.conversion_pesos
+       set peso_renovacion = 0.11, peso_referido = 0.19
+     where vigente_desde = coalesce(
+             (select max(vigente_desde) from crm.conversion_pesos
+               where vigente_desde <= '2026-08-01'::date),
+             (select min(vigente_desde) from crm.conversion_pesos));
+
+    perform set_config('request.jwt.claims',
+      jsonb_build_object('sub', v_gerente, 'role', 'authenticated')::text, true);
+    d_eq := crm.metricas_conversiones_equipo_fn('2026-08-01'::date, '2026-08-31'::date);
+    d_im := private.metricas_conversiones_implementacion('2026-08-01'::date, '2026-08-31'::date, null);
+    -- Una consulta que NO delega (filtro de origen): su `nucleo` es suyo, no
+    -- hay `ponderacion_oficial`, y los pesos son los vivos. Segundo refuerzo
+    -- pedido por Codex: sin esto, la rama sin delegacion no se ejercia con los
+    -- pesos separados.
+    d_sf := private.metricas_conversiones_implementacion('2026-08-01'::date, '2026-08-31'::date, 'landing');
+    perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+
+    -- (i) La ponderacion de la FOTO llega, y es la de la foto.
+    if (d_eq #>> '{nucleo,ponderacion_oficial,renovacion}')::numeric is distinct from 0.73
+       or (d_eq #>> '{nucleo,ponderacion_oficial,referido}')::numeric is distinct from 0.58 then
+      raise exception 'POSTFLIGHT (sellado): la puerta de equipo publica la ponderacion oficial % y la foto guardo 0.58/0.73.',
+        d_eq #> '{nucleo,ponderacion_oficial}';
+    end if;
+    if (d_im #>> '{nucleo,ponderacion_oficial,renovacion}')::numeric is distinct from 0.73
+       or (d_im #>> '{nucleo,ponderacion_oficial,referido}')::numeric is distinct from 0.58 then
+      raise exception 'POSTFLIGHT (sellado): la implementacion publica la ponderacion oficial % y la foto guardo 0.58/0.73.',
+        d_im #> '{nucleo,ponderacion_oficial}';
+    end if;
+
+    -- (ii) Y los pesos de siempre NO se han movido: siguen siendo los vivos.
+    --      Esto es lo que protege al bundle viejo.
+    if (d_eq #>> '{nucleo,peso_renovacion}')::numeric is distinct from 0.11
+       or (d_eq #>> '{nucleo,peso_referido}')::numeric is distinct from 0.19 then
+      raise exception 'POSTFLIGHT (sellado): la puerta de equipo movio los pesos del desglose a %/%. Tienen que seguir siendo los VIVOS (0.19/0.11).',
+        d_eq #>> '{nucleo,peso_referido}', d_eq #>> '{nucleo,peso_renovacion}';
+    end if;
+    if (d_im #>> '{nucleo,peso_renovacion}')::numeric is distinct from 0.11
+       or (d_im #>> '{nucleo,peso_referido}')::numeric is distinct from 0.19 then
+      raise exception 'POSTFLIGHT (sellado): la implementacion movio los pesos del desglose a %/%. Tienen que seguir siendo los VIVOS (0.19/0.11).',
+        d_im #>> '{nucleo,peso_referido}', d_im #>> '{nucleo,peso_renovacion}';
+    end if;
+
+    -- (iii) La rama SIN delegacion: pesos vivos y ninguna ponderacion oficial
+    --       (no hay cifra sellada que rotular).
+    if (d_sf #>> '{nucleo,peso_renovacion}')::numeric is distinct from 0.11
+       or (d_sf #>> '{nucleo,peso_referido}')::numeric is distinct from 0.19 then
+      raise exception 'POSTFLIGHT (sin delegacion): declara %/% y los pesos vivos son 0.19/0.11.',
+        d_sf #>> '{nucleo,peso_referido}', d_sf #>> '{nucleo,peso_renovacion}';
+    end if;
+    if d_sf #> '{nucleo,ponderacion_oficial}' is not null then
+      raise exception 'POSTFLIGHT (sin delegacion): publica ponderacion oficial % sin haber delegado ninguna cifra.',
+        d_sf #> '{nucleo,ponderacion_oficial}';
+    end if;
+
     raise exception 'DESHACIENDO_EL_SELLO';
   exception
     when others then
@@ -762,6 +848,14 @@ begin
   end if;
 end;
 $postflight$;
+
+comment on function crm.conversion_mensual_sin_cartera_fn(date) is
+  'La cifra OFICIAL de conversion del mes, sin la cartera. Declara en '
+  '`ponderacion` los pesos con los que se calculo: para un mes sellado, los que '
+  'guardo la foto (`crm.periodos_cerrados.ponderacion_referido` y '
+  '`.ponderacion_renovacion`); para un mes abierto, los vigentes '
+  '(`private.peso_referido_conversion` y `private.peso_renovacion_conversion`). '
+  'Ese par es el rotulo que las puertas delegan junto a la cifra.';
 
 select 'la-oficial-declara-el-peso-de-renovacion' as migracion,
        private.assert_analitica_leads_citas() as trinquete,
