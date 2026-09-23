@@ -13,8 +13,8 @@ type PedidoCola = {
   p_cursor: { inicio: number } | null
   p_limite: number
   p_senal: string
-  p_etapa: string | null
-  p_analista_id: string | null
+  p_etapa?: string
+  p_analista_id?: string
 }
 
 async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
@@ -92,7 +92,8 @@ async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
     const totales = Object.fromEntries(Object.keys(filas[0]!.senales).map((senal) => [senal,
       ambito.filter((fila) => fila.senales[senal as keyof typeof fila.senales]).length]))
     await route.fulfill({ json: { ...muestraSql.cola, calculado_en: calculado, limite: args.p_limite,
-      filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
+      // La RPC aplica DEFAULT NULL a argumentos omitidos y devuelve ambas claves.
+      filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       total_items: filtradas.length, rango: { desde: items.length ? inicio + 1 : 0, hasta: inicio + items.length },
       hay_mas: hayMas, cursor_siguiente: hayMas ? { inicio: inicio + items.length } : null,
       totales, items,
@@ -110,10 +111,10 @@ async function colaConLeadFueraDelLote(page: Page) {
     await route.fulfill({ json: { ...muestraSql.estado, filas: args.p_lead_ids.map((lead_id) => ({ ...muestraSql.estado.filas[0], lead_id })) } })
   })
   await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
-    const args = route.request().postDataJSON() as { p_limite: number; p_senal: string; p_etapa: string | null; p_analista_id: string | null }
+    const args = route.request().postDataJSON() as PedidoCola
     const original = muestraSql.cola.items[0]!
     await route.fulfill({ json: { ...muestraSql.cola, limite: args.p_limite,
-      filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
+      filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       total_items: 1, rango: { desde: 1, hasta: 1 }, hay_mas: false, cursor_siguiente: null,
       items: [{ ...original, lead_id: lead.id,
         lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' },
@@ -180,19 +181,19 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
       etapa: { limite_original_en: calculado, limite_prorrogado_en: calculado, limite_operativo_en: calculado, techo_en: calculado,
         prorrogas_usadas: 0, prorrogas_restantes: 2, revision_requerida: true, motivos_revision: ['limite_operativo_agotado'] } }
   }
-  const pedidos: { p_cursor: unknown; p_senal: string; p_etapa: string | null }[] = []
+  const pedidos: { p_cursor: unknown; p_senal: string; p_etapa?: string }[] = []
   await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
     const args = route.request().postDataJSON() as { p_lead_ids: string[] }
     await route.fulfill({ json: { version: 2, modo: 'activo', control_revision: 1, calculado_en: calculado, filas: args.p_lead_ids.map(estado) } })
   })
   await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
-    const args = route.request().postDataJSON() as typeof pedidos[number] & { p_limite: number; p_analista_id: string | null }
+    const args = route.request().postDataJSON() as typeof pedidos[number] & { p_limite: number; p_analista_id?: string }
     pedidos.push(args)
     const inicio = args.p_cursor ? 10 : 0
     const subset = leads.slice(inicio, inicio + args.p_limite)
     await route.fulfill({ json: {
       version: 2, modo: 'activo', control_revision: 1, calculado_en: calculado,
-      filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
+      filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       limite: args.p_limite, total_items: 12, rango: { desde: inicio + 1, hasta: inicio + subset.length },
       hay_mas: inicio === 0, cursor_siguiente: inicio === 0 ? { opaque: 'siguiente' } : null,
       totales: { pendientes: 12, primera_atencion: 12, tareas_vencidas: 0, seguimientos_pendientes: 12, revisiones: 12, datos_incompletos: 0, por_repartir: 0 },
@@ -293,7 +294,7 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     await analistas.selectOption('')
     await page.getByRole('combobox', { name: 'Por página', exact: true }).selectOption('25')
     await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 14 : 12)
-    expect(pedidos.at(-1)).toMatchObject({ p_senal: 'todas', p_etapa: null, p_analista_id: null, p_limite: 25, p_cursor: null })
+    expect(pedidos.at(-1)).toEqual({ p_senal: 'todas', p_limite: 25, p_cursor: null })
     await page.getByRole('combobox', { name: 'Por página', exact: true }).selectOption('10')
     await expect(lista.locator(':scope > li')).toHaveCount(10)
     await page.setViewportSize({ width: 390, height: 844 })
@@ -509,7 +510,7 @@ test('la campana abre pendientes y el aviso recupera una actividad fuera del lot
   await page.route('**/rest/v1/rpc/cola_accion_v2_fn', (route) => {
     const p = route.request().postDataJSON()
     return route.fulfill({ json: { ...muestraSql.cola, limite: p.p_limite,
-      filtros: { senal: p.p_senal, etapa: p.p_etapa, analista_id: p.p_analista_id },
+      filtros: { senal: p.p_senal, etapa: p.p_etapa ?? null, analista_id: p.p_analista_id ?? null },
       items: [{ ...muestraSql.cola.items[0], lead_id: lead.id, estado,
         lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' } }] } })
   })
