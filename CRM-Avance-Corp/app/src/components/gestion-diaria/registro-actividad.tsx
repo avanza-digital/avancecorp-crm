@@ -10,7 +10,7 @@
 // resultado tipificado (`metadata.evento = 'revision'`); el «buscador» de
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -54,6 +54,9 @@ interface Props {
   permitirExportar: boolean
   /** F4: el registro general abre Todo; el desglose horario abre Llamadas. */
   pestanaInicial?: PestanaRegistro
+  /** Refresco externo: conserva filtros y vuelve a la primera página. */
+  actualizacion?: number | undefined
+  onSinPermiso?: (() => void) | undefined
 }
 
 export function RegistroActividad(props: Props) {
@@ -63,7 +66,7 @@ export function RegistroActividad(props: Props) {
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas' }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
@@ -90,7 +93,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   // Cualquier cambio de filtro o de día vuelve a la primera página EN EL MISMO
   // render (estado derivado): así la primera consulta con filtros nuevos ya sale
   // sin cursor viejo, y el aviso de exportación no sobrevive a otra vista.
-  const claveFiltros = JSON.stringify(filtros)
+  const claveFiltros = JSON.stringify([filtros, actualizacion])
   const [claveVista, setClaveVista] = useState(claveFiltros)
   if (claveVista !== claveFiltros) {
     setClaveVista(claveFiltros)
@@ -103,6 +106,17 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
 
   const { pagina, cargando, enVuelo, error, recargar } = useRegistroActividadOperativo(filtros, cursorVigente, LIMITE_PAGINA)
   const sinPermiso = error instanceof CrmApiError && error.code === '42501'
+  const versionRecargada = useRef(actualizacion)
+  const recargarDesdeFuera = useEffectEvent(() => { void recargar() })
+  const notificarRevocacion = useEffectEvent(() => { onSinPermiso?.() })
+  useEffect(() => {
+    if (versionRecargada.current === actualizacion) return
+    versionRecargada.current = actualizacion
+    recargarDesdeFuera()
+  }, [actualizacion])
+  useEffect(() => {
+    if (sinPermiso) notificarRevocacion()
+  }, [sinPermiso])
   // Un fallo de red conserva páginas confirmadas; una revocación NO. Borrar
   // también la memoria evita que reaparezca al reintentar la página siguiente.
   if (sinPermiso && previas.length > 0) setPrevias([])

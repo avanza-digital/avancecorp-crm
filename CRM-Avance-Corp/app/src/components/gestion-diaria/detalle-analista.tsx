@@ -15,7 +15,7 @@ export function DetalleAnalista({ fila: f, dia, abrirLlamadas }: {
   const fuera = f.marcador.por_hora.filter((h) => h.hora < FRANJA_LLAMADAS.desde || h.hora > FRANJA_LLAMADAS.hasta).toSorted((a, b) => a.hora - b.hora)
   return (
     <div className="space-y-5 pb-3 text-base">
-      <dl className="grid gap-x-8 gap-y-3 py-3 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="gd-metricas-detalle">
         {[
           ['Llamadas útiles', f.marcador.utiles], ['Leads distintos', f.marcador.leads_tocados],
           ['Llamadas por lead', f.llamadas_por_lead ?? '—'], ['Citas pendientes para hoy', f.citas_hoy],
@@ -32,24 +32,22 @@ export function DetalleAnalista({ fila: f, dia, abrirLlamadas }: {
           <p>No hay llamadas registradas ese día. Esto no indica ausencia ni descarta otras gestiones.</p>
         ) : (
           <>
-            {/* El conteo es visible además de las barras; no depende de un tooltip ni del color. */}
-            {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Región desplazable: necesita foco para recorrer las horas con las flechas. */}
-            <div role="region" aria-labelledby={`${id}-horas`} tabIndex={0}
-              className="overflow-x-auto rounded focus-visible:outline-2 focus-visible:outline-ring">
-              <ol aria-labelledby={`${id}-horas`} className="grid gap-2 pb-2" style={{ gridTemplateColumns: `repeat(${barras.length}, minmax(4.5rem, 1fr))` }}>
-                {barras.map((b) => (
-                  <li key={b.hora} className="flex flex-col items-center gap-2 tabular-nums">
-                    <span className="sr-only">De {b.hora}:00 a {b.hora}:59: {b.llamadas} llamadas, {b.contestadas} contestadas</span>
-                    <div aria-hidden className="relative flex h-16 w-full max-w-10 items-end border-b border-border">
-                      <span className="w-full rounded-t bg-primary" style={{ height: `${b.llamadas / b.maximo * 100}%` }} />
-                      <span className="absolute bottom-0 left-1/4 w-1/2 rounded-t bg-accent" style={{ height: `${b.contestadas / b.maximo * 100}%` }} />
-                    </div>
-                    <span aria-hidden className="font-semibold text-primary">{b.llamadas} / {b.contestadas}</span>
-                    <span aria-hidden className="text-[var(--muted-foreground-strong)]">{String(b.hora).padStart(2, '0')} h</span>
-                  </li>
-                ))}
-              </ol>
+            <div role="img" aria-label="Llamadas y contestadas de 08 a 20 horas. Cifras completas en el desplegable siguiente.">
+              <div aria-hidden className="gd-grafico-horas">
+                {barras.map((b) => <div key={b.hora} className="relative flex h-20 items-end border-b border-border">
+                  <span className="w-full rounded-t bg-primary" style={{ height: `${b.llamadas / b.maximo * 100}%` }} />
+                  <span className="absolute bottom-0 left-1/4 w-1/2 rounded-t bg-accent" style={{ height: `${b.contestadas / b.maximo * 100}%` }} />
+                </div>)}
+              </div>
+              <div aria-hidden className="mt-2 flex justify-between tabular-nums"><span>08 h</span><span>14 h</span><span>20 h</span></div>
             </div>
+            <p>Llamadas: azul oscuro · Contestadas: azul</p>
+            <details className="gd-cifras-horas">
+              <summary>Ver cifras por hora</summary>
+              <ol aria-labelledby={`${id}-horas`}>
+                {barras.map((b) => <li key={b.hora}>De {b.hora}:00 a {b.hora}:59: {b.llamadas} llamadas, {b.contestadas} contestadas</li>)}
+              </ol>
+            </details>
             {contestadasPorHora !== f.marcador.contestadas && (
               <p className="text-[var(--muted-foreground-strong)]">Las contestadas por hora incluyen registros de «Número errado» o «No es la persona» que el total de contacto útil excluye.</p>
             )}

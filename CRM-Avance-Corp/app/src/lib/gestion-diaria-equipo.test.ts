@@ -62,6 +62,27 @@ describe('Búsqueda y orden sin modificar la foto del servidor', () => {
   it.each<OrdenEquipo>(['nombre', 'llamadas', 'contacto', 'pendientes', 'atencion'])('ordena por %s en las dos direcciones', (orden) => {
     for (const ascendente of [true, false]) expect(filtrarOrdenarEquipo(filas, { busqueda: '', soloProblemas: false, orden, ascendente })).toHaveLength(2)
   })
+  it('con pendientes coincide con personas con tareas o señal SLA, incluso tareas cero', () => {
+    const sla = filaEquipoPrueba({ analista_id: 'sla', tareas_pendientes: 0, primer_intento_vencido: 3 })
+    const f = { busqueda: '', soloProblemas: false, orden: 'nombre' as const, ascendente: true }
+    expect(filtrarOrdenarEquipo([...filas, sla], { ...f, estado: 'con_pendientes' }).map((x) => x.analista_id).sort()).toEqual(['b', 'sla'])
+    expect(filtrarOrdenarEquipo(filas, { ...f, estado: 'sin_registro' })).toHaveLength(2)
+    expect(filtrarOrdenarEquipo(filas, { ...f, estado: 'con_registro' })).toHaveLength(0)
+  })
+  it('atención cuenta motivos y conserva desempates; vencidas ordena su propio total', () => {
+    const varias = filaEquipoPrueba({ analista_id: 'c', motivos_atencion: ['tarea_vencida', 'datos_incompletos'], tareas_vencidas: 1 })
+    const f = { busqueda: '', soloProblemas: false, orden: 'atencion' as const, ascendente: false }
+    expect(filtrarOrdenarEquipo([...filas, varias], f).map((x) => x.analista_id)).toEqual(['c', 'b', 'a1'])
+    expect(filtrarOrdenarEquipo([...filas, varias], { ...f, ascendente: true }).map((x) => x.analista_id)).toEqual(['a1', 'b', 'c'])
+    expect(filtrarOrdenarEquipo([...filas, varias], { ...f, orden: 'vencidas' }).map((x) => x.analista_id)).toEqual(['b', 'c', 'a1'])
+    expect(filtrarOrdenarEquipo([...filas, varias], { ...f, orden: 'vencidas', ascendente: true }).map((x) => x.analista_id)).toEqual(['a1', 'c', 'b'])
+  })
+  it.each([true, false])('atención empata por vencidas descendentes y nombre/id con ascendente=%s', (ascendente) => {
+    const a = filaEquipoPrueba({ analista_id: 'a', nombre_completo: 'IGUAL', motivos_atencion: ['tarea_vencida'], tareas_vencidas: 1 })
+    const b = filaEquipoPrueba({ analista_id: 'b', nombre_completo: 'IGUAL', motivos_atencion: ['tarea_vencida'], tareas_vencidas: 1 })
+    const c = filaEquipoPrueba({ analista_id: 'c', nombre_completo: 'ZZZ', motivos_atencion: ['tarea_vencida'], tareas_vencidas: 2 })
+    expect(filtrarOrdenarEquipo([b, c, a], { busqueda: '', soloProblemas: false, orden: 'atencion', ascendente }).map((f) => f.analista_id)).toEqual(['c', 'a', 'b'])
+  })
   it('explica el tiempo sin convertir ausencia de llamadas en cero minutos', () => {
     expect(tiempoSinLlamar(null)).toBe('Sin llamadas hoy')
     expect(tiempoSinLlamar(0)).toBe('Menos de 1 min')

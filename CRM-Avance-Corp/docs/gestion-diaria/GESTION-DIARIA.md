@@ -8,15 +8,387 @@ Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
 conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
 en cada sesión ni prometer sincronización automática en segundo plano.
 
-**Sesión guardada por petición de Miguel, 23/09/2026.** Continuar desde el
-[PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85),
-abierto al pausar; comprobar su estado antes de integrar. Rama
-`codex/gestion-diaria-ui-acta`, copia `/private/tmp/avancecorp-release.hvdub4/repo`.
-El objetivo F4 queda pausado. Próxima sesión: aceptación real de analista y
-supervisor y evidencia de los cortes del 24/09 (11:30 y 16:00 Lima), con
-seguimiento del sábado 26/09. Tasa baja OFF hasta F5; no volver a instalar SQL
-ni publicar solo por estas actas. ZIP publicado, respaldo y recibos también
-conservados en `CRM-Avance-Corp/releases/` del taller principal, fuera de `/tmp`.
+## Supervisor horizontal — diseño aprobado y plan de desarrollo
+
+**Actualizado: 23/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
+plan de desarrollo, mantenido en el mismo archivo de Figma. Esta aprobación
+es visual; H1 y H2 ya están cerradas con evidencia. H3–H6 y la publicación siguen pendientes.
+El PR #85 ya está fusionado en `avancecorp/main`, commit
+`e0bdfe124c48ab32617c72402e320c7e9963dc3b` (23/09, 21:35 UTC).
+Es el punto de partida documental. H1 se ejecutó sobre Main verificado
+`cf87e8087bf61ea5c58669d924e801526a04c779`, posterior al PR #86.
+
+**Objetivo:** que supervisión compare el equipo y consulte a una persona en
+la misma pantalla, con menos desplazamiento vertical y sin perder legibilidad.
+
+**Referencia aprobada:** [prototipo horizontal](assets/supervisor-horizontal-aprobado-2026-09-23.png).
+**Plan en el mismo Figma:** [Supervisor horizontal — seis fases y 24 etapas](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2).
+Los nombres, cifras y estados de esa imagen son ficticios. El código conservará
+las fuentes y definiciones reales del CRM. El gráfico debe cubrir 08:00–20:00;
+las horas reducidas de la ilustración no modifican el contrato existente.
+
+### Composición y comportamiento acordados
+
+- Cabecera compacta y cinco indicadores en una franja: equipo, con registro,
+  sin registro, pendientes y atención. Etiquetas y totales se contrastarán con
+  `resumenEquipo`; distinguir personas con pendientes de cantidad de tareas.
+- Área principal de dos columnas en escritorio: equipo aproximadamente 70 %
+  y panel de persona aproximadamente 30 %, con mínimo legible para el panel.
+- Tabla compacta con analista, llamadas, contacto, pendientes, vencidas y atención.
+  Búsqueda, filtro de atención y ordenación permanecen junto a la tabla.
+- Seleccionar una persona abre su panel a la derecha: Resumen, Registro y
+  Pendientes. Al cerrar, vuelve el foco al control de apertura.
+- Resumen reutiliza las métricas y el gráfico existentes. Registro conserva
+  filtros, cursores y acceso a la ficha del lead. Pendientes muestra el resumen
+  autorizado y sus motivos, más el listado paginado por analista. H1 resolvió
+  su contrato: una RPC nueva de lectura, a implementar en H3.3.
+- Cortes y otros avisos ocupan una franja compacta con acceso a su detalle.
+  Error, estado desconocido, pausa y desactivación siguen siendo distinguibles.
+
+### Organización del desarrollo
+
+Este rediseño se organiza en **6 fases H1–H6, 24 etapas y 72 tareas**.
+Cada etapa se cierra con su entregable y evidencia; una fase se cierra al
+completar sus cuatro etapas y cumplir su criterio de aceptación. Todas las
+etapas H3–H6 siguen pendientes. **H1 y H2 están cerradas: 8 etapas y 24 tareas;
+quedan 48 tareas pendientes.** La aprobación del prototipo ya consta.
+Los identificadores H1–H6 pertenecen al rediseño horizontal y conservan
+la numeración y el avance del plan general F0–F6.
+
+La secuencia es H1 → H2 → H3 → H4 → H5 → H6. Las verificaciones puntuales
+acompañan la implementación; H5 reúne la validación completa del candidato.
+Codex es responsable de implementar, verificar y actualizar el avance; Claude
+es asesor de revisión cuando corresponde. Jev no es una dependencia de esta UI.
+
+### Fase H1 · Preparación y especificación
+
+**Objetivo específico:** Convertir el prototipo aprobado en una especificación verificable: qué se muestra, de dónde sale cada dato y cómo responde cada acción.
+
+**Estado: H1 CERRADA, 23/09/2026.** [Especificación completa](SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md) ·
+[Evidencia](SUPERVISOR-HORIZONTAL-H1-EVIDENCIA-2026-09-23.json) · [Revisión y resolución](SUPERVISOR-HORIZONTAL-H1-REVISION-2026-09-23.md).
+
+**Dependencia:** Base verificada: Main `cf87e808`, con PR #85 y #86; trabajo aislado.
+
+#### Etapa H1.1 · Confirmar la base y el alcance
+
+- [x] Comprobar Main y preparar el trabajo sin mezclar cambios de otras sesiones.
+- [x] Inventariar supervisor, tabla, detalle, registro, avisos y pruebas que se reutilizarán.
+- [x] Registrar el estado actual y limitar este desarrollo a la vista del supervisor.
+
+**Resultado de la etapa:** Main cf87e808; supervisor aislado; fila actual medida en 149 px.
+
+#### Etapa H1.2 · Definir datos e indicadores
+
+- [x] Relacionar cada indicador con su fuente actual: equipo, con/sin registro, pendientes y atención.
+- [x] Documentar qué cuenta personas, tareas o llamadas; conservar numerador, denominador y muestra mínima de contacto.
+- [x] Distinguir cero, sin datos, no evaluado, carga y error; no calcular listas desde un store parcial.
+
+**Resultado de la etapa:** Cinco KPI de personas; contacto útil; tareas y señales SLA diferenciadas.
+
+#### Etapa H1.3 · Cerrar distribución y densidad
+
+- [x] Medir cabecera, filtros, tabla y panel; distribución adaptable con panel mínimo de 380 px.
+- [x] Definir qué permanece en la fila y qué pasa al panel: motivos completos, métricas secundarias y acciones.
+- [x] Fijar 10 filas típicas a 1512 × 805, texto de 16 px y controles de 44 px; admitir mayor altura por nombres largos.
+
+**Resultado de la etapa:** Tabla 960 / espacio 16 / panel 414 px; diez filas típicas de 44 px.
+
+#### Etapa H1.4 · Cerrar navegación y contratos
+
+- [x] Definir selección por usuario, día Lima y persona; pestañas, foco y estados sin selección, vacío, error o revocación.
+- [x] Cerrar el listado autorizado de pendientes por persona y definir la consulta de lectura que se implementará en H3.3.
+- [x] Definir Registro del equipo como modo separado del individual y qué se conserva al filtrar, refrescar, abrir una ficha o salir de la vista.
+
+**Resultado de la etapa:** Contexto actor/día/persona; listado por analista con nueva RPC de lectura en H3.3.
+
+**Entregable de la fase:** Especificación de pantalla, datos, medidas y navegación.
+
+**Criterio de cierre:** Cada elemento del prototipo tiene una fuente y un comportamiento definidos; no quedan acciones con destinos supuestos.
+
+### Fase H2 · Construcción de la vista horizontal
+
+**Objetivo específico:** Permitir comparar al equipo y consultar una persona en el mismo espacio, reduciendo el desplazamiento de toda la página.
+
+**Estado: H2 CERRADA, 23/09/2026.** [Evidencia y capturas](SUPERVISOR-HORIZONTAL-H2-EVIDENCIA-2026-09-23.md) ·
+[Medidas JSON](SUPERVISOR-HORIZONTAL-H2-EVIDENCIA-2026-09-23.json) · [Revisión y resolución](SUPERVISOR-HORIZONTAL-H2-REVISION-2026-09-23.md).
+
+**Dependencia:** H1 cerrada; usa sus medidas y contratos.
+
+#### Etapa H2.1 · Compactar cabecera e indicadores
+
+- [x] Reorganizar título, contexto del día y actualización en una cabecera de poca altura.
+- [x] Colocar los cinco indicadores en una franja comparable, con etiquetas que respeten su significado.
+- [x] Integrar búsqueda y filtros junto a la tabla, reutilizando tipografía y componentes del CRM.
+
+**Resultado de la etapa:** Cabecera de 44 px y cinco KPI; filtros sin cambiar totales.
+
+#### Etapa H2.2 · Construir la tabla del equipo
+
+- [x] Mostrar analista, llamadas, contacto, pendientes, vencidas e indicador de atención; conservar personas con cero actividad.
+- [x] Sustituir la expansión bajo cada fila por selección accesible que actualiza el panel lateral.
+- [x] Conservar ordenación, búsqueda, filtro de atención y cabecera persistente; listas de más de diez personas siguen completas.
+
+**Resultado de la etapa:** Seis columnas y filas de 44 px; diez/nueve visibles según viewport.
+
+#### Etapa H2.3 · Construir el contenedor del panel
+
+- [x] Crear el panel derecho con estado inicial «Selecciona un analista» y pestañas Resumen, Registro y Pendientes.
+- [x] Mantener el panel fuera de la región de carga/error de la tabla para que un fallo del resumen no lo desmonte.
+- [x] Dar acceso a cerrar o ampliar el detalle; selección desde la tabla mantiene el foco y apertura explícita lo lleva al panel.
+
+**Resultado de la etapa:** Panel estable: pestañas, ampliar/restaurar, foco y registro.
+
+#### Etapa H2.4 · Adaptar tamaños y contenido
+
+- [x] Ajustar escritorio a 1512 × 805 y 1366 × 768 sin alturas rígidas que oculten datos.
+- [x] Reorganizar a una columna o cajón accesible en móvil y zoom 200 %, preservando controles y contexto.
+- [x] Probar nombres largos, varios motivos y cifras de tres dígitos; permitir más altura antes que reducir la legibilidad.
+
+**Resultado de la etapa:** 1512/1366/móvil/reflow al 200 %; nombres largos sin recorte.
+
+**Entregable de la fase:** Vista horizontal construida y verificada; backend de tareas en H3.3.
+
+**Criterio de cierre:** 10 filas a 1512×805; 9 a 1366×768. Texto de 16 px, controles de 44 px y contexto conservado.
+
+### Fase H3 · Conexión del panel y conservación del contexto
+
+**Objetivo específico:** Permitir investigar la actividad y los pendientes de una persona con datos correctos, sin perder filtros ni mezclar identidades.
+
+**Dependencia:** H2 disponible y contrato de Pendientes resuelto en H1.
+
+#### Etapa H3.1 · Conectar Resumen
+
+- [ ] Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.
+- [ ] Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.
+- [ ] Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.
+
+**Resultado de la etapa:** Resumen real y legible del analista.
+
+#### Etapa H3.2 · Conectar Registro y ficha
+
+- [ ] Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.
+- [ ] Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.
+- [ ] Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.
+
+**Resultado de la etapa:** Actividad consultable con navegación de ida y vuelta.
+
+#### Etapa H3.3 · Conectar Pendientes
+
+- [ ] Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.
+- [ ] Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.
+- [ ] Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.
+
+**Resultado de la etapa:** Pendientes útiles, con alcance y destino correctos.
+
+#### Etapa H3.4 · Proteger selección y actualizaciones
+
+- [ ] Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.
+- [ ] Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.
+- [ ] Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.
+
+**Resultado de la etapa:** Panel estable ante cambios, errores y revocación.
+
+**Entregable de la fase:** Panel funcional con Resumen, Registro y Pendientes.
+
+**Criterio de cierre:** Cambiar de persona, pestaña o ficha preserva el contexto correspondiente y nunca muestra datos de otra identidad.
+
+### Fase H4 · Integración de cortes y avisos
+
+**Objetivo específico:** Mantener las alertas operativas visibles y accionables dentro de la pantalla compacta.
+
+**Dependencia:** H3 conectada para abrir la persona y el registro correctos.
+
+#### Etapa H4.1 · Compactar el estado de los cortes
+
+- [ ] Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.
+- [ ] Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.
+- [ ] Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.
+
+**Resultado de la etapa:** Estado real de cortes visible en poco espacio.
+
+#### Etapa H4.2 · Mantener acciones de seguimiento
+
+- [ ] Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.
+- [ ] Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.
+- [ ] Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.
+
+**Resultado de la etapa:** Acciones existentes operativas desde el nuevo diseño.
+
+#### Etapa H4.3 · Unir avisos con el panel
+
+- [ ] Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.
+- [ ] Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.
+- [ ] Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.
+
+**Resultado de la etapa:** Aviso y detalle conectados sin pérdida de contexto.
+
+#### Etapa H4.4 · Integrar otros pendientes y navegación
+
+- [ ] Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.
+- [ ] Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.
+- [ ] Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.
+
+**Resultado de la etapa:** Avisos integrados en un recorrido coherente.
+
+**Entregable de la fase:** Pantalla completa con cortes y avisos integrados.
+
+**Criterio de cierre:** Todas las acciones anteriores siguen disponibles, muestran el estado real y abren la persona correcta sin duplicados.
+
+### Fase H5 · Verificación funcional, visual y técnica
+
+**Objetivo específico:** Demostrar con pruebas que el rediseño reduce scroll y conserva las capacidades y límites de la vista actual.
+
+**Dependencia:** H2–H4 completas; las comprobaciones puntuales acompañan también su desarrollo.
+
+#### Etapa H5.1 · Probar estados y datos
+
+- [ ] Adaptar pruebas de selección, filtro, orden, pestañas, paginación y retorno de la ficha.
+- [ ] Cubrir cero actividad, desconocidos, errores temporales, equipo vacío y persona oculta por filtros.
+- [ ] Cubrir cambio de día/usuario, revocación, retirada del equipo, respuestas tardías y un aviso recibido con otro analista abierto.
+
+**Resultado de la etapa:** Pruebas de comportamiento y límites del panel.
+
+#### Etapa H5.2 · Probar recorridos completos
+
+- [ ] Ejecutar E2E en Docker local: localizar analista, abrir registro, filtrar, paginar, abrir ficha y volver.
+- [ ] Ejercitar cortes, reconocimiento, aplazamiento y apertura del analista desde un aviso con datos de prueba.
+- [ ] Comprobar la regresión pertinente del analista y el resto del módulo; los E2E no se trasladan a GitHub.
+
+**Resultado de la etapa:** Recorridos de usuario reproducibles con resultados registrados.
+
+#### Etapa H5.3 · Validar apariencia y accesibilidad
+
+- [ ] Comparar a 1512 × 805 (diez filas típicas) y 1366 × 768 (nueve); medir sin reducir texto ni recortar nombres.
+- [ ] Revisar 390 px, zoom 200 %, teclado, foco visible, nombres accesibles, texto de 16 px y controles de 44 px.
+- [ ] Probar más de diez personas, nombres extensos, cifras grandes y múltiples motivos; documentar diferencias justificadas.
+
+**Resultado de la etapa:** Evidencia visual y de accesibilidad.
+
+#### Etapa H5.4 · Cerrar calidad y rendimiento
+
+- [ ] Ejecutar npm run check y gates de contrato, SQL/RLS y tipos para la nueva lectura; resolver fallos del cambio.
+- [ ] Comprobar consultas sin crecimiento por fila, conservación del panel durante refrescos y ausencia de cargas duplicadas.
+- [ ] Revisar el cambio con Claude cuando su alcance lo justifique, resolver con evidencia y registrar PASS/FAIL/NOT RUN.
+
+**Resultado de la etapa:** Candidato de entrega con pruebas y riesgos explícitos.
+
+**Entregable de la fase:** Informe de pruebas, capturas y candidato listo para entregar.
+
+**Criterio de cierre:** Checks aplicables superados y recorrido comprobado; una prueba no ejecutada no se registra como aprobada.
+
+### Fase H6 · Entrega, publicación y aceptación operativa
+
+**Objetivo específico:** Poner la nueva vista en uso con una versión trazable y confirmar que ayuda al supervisor en su trabajo real.
+
+**Dependencia:** H5 cerrada; publicación dentro del alcance autorizado para la ejecución.
+
+#### Etapa H6.1 · Preparar el PR
+
+- [ ] Presentar el problema, comportamiento final y capturas antes/después en el PR.
+- [ ] Adjuntar resultados, límites y decisiones como el alcance de Pendientes o adaptación a pantallas pequeñas.
+- [ ] Confirmar que el cambio corresponde al supervisor y conserva las reglas de negocio acordadas.
+
+**Resultado de la etapa:** PR concreto y revisable.
+
+#### Etapa H6.2 · Preparar una versión reproducible
+
+- [ ] Integrar los cambios remotos sin sobrescribirlos y comprobar Main local igual a avancecorp/main.
+- [ ] Construir el artefacto desde ese commit verificado y completar los checks requeridos por la integración.
+- [ ] Conservar identificador de versión, respaldo y datos de integridad según el flujo del proyecto.
+
+**Resultado de la etapa:** Artefacto y respaldo asociados a una fuente verificada.
+
+#### Etapa H6.3 · Publicar y comprobar
+
+- [ ] Publicar primero la RPC aditiva verificada y después el artefacto compatible, mediante el flujo del proyecto.
+- [ ] Comprobar archivos, acceso y versión cargada tras recarga.
+- [ ] Recorrer la vista con supervisión real y su equipo propio; registrar incidencias sin crear actividad productiva ficticia.
+
+**Resultado de la etapa:** Versión publicada y comprobada.
+
+#### Etapa H6.4 · Aceptar en uso y cerrar el avance
+
+- [ ] Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.
+- [ ] Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.
+- [ ] Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.
+
+**Resultado de la etapa:** Aceptación real y documentación actualizada.
+
+**Entregable de la fase:** Vista publicada, comprobada y aceptada por supervisión.
+
+**Criterio de cierre:** La aprobación corresponde al producto funcionando; el prototipo aprobado por sí solo no cierra esta fase.
+
+### Decisiones técnicas comunes, revisadas con Claude
+
+- El panel será hermano de la región izquierda carga/error/tabla, para que un
+  fallo transitorio del resumen no desmonte Registro. Resumen mostrará su error
+  explícito; no presentará las cifras anteriores como actuales ni como ceros.
+- Centralizar la selección en un estado con `actor`, `dia`, `analista`,
+  `pestanaPanel`, `pestanaRegistro` y `apertura`. Las dos clases de pestañas
+  son distintas. Al cambiar actor o día Lima se cierra y limpia el contexto;
+  el registro pedido por un aviso abre **Registro → Llamadas** de esa persona.
+- Seleccionar desde la tabla mantiene el foco en su botón y anuncia el cambio.
+  Las aperturas explícitas desde avisos o «Registro del equipo» enfocan el
+  encabezado. Cambiar pestaña sigue el patrón de tabs; cambiar el objeto de
+  selección por sí solo no dispara foco. Al cerrar se vuelve al control inicial
+  si existe, o al encabezado; una revocación solo reubica foco si estaba dentro.
+- Registro se monta al visitarlo por primera vez y permanece montado, oculto
+  y fuera de la navegación por teclado, al pasar a otra pestaña del mismo
+  contexto. Así conserva filtros y cursor sin una segunda consulta por persona.
+  Se reinicia al cambiar actor/día/persona o por una nueva apertura deliberada.
+- El Resumen obtiene la persona de `equipoPresentado` completo por su ID,
+  nunca de las filas filtradas. La ausencia solo revoca la selección cuando
+  procede de una respuesta válida; un fallo transitorio no equivale a retirada.
+
+| Información | Fila compacta | Panel seleccionado |
+|---|---|---|
+| Identidad y llamadas | Nombre y llamadas de hoy | Actividad total y demás métricas |
+| Contacto | Tasa con mínimo de muestra explícito | Contestadas, útiles, denominador y nivel |
+| Pendientes | Total y vencidas | Primer intento vencido, motivos y detalle autorizado |
+| Atención | Indicador con cantidad de motivos y nombre accesible | Lista completa, sin perder ningún motivo |
+| Acciones | Botón de selección de persona | Registro, llamadas, ficha y pendientes |
+
+La tabla conserva su semántica nativa: botón de selección con estado accesible
+y `aria-controls`, encabezados y `aria-sort`; no añadir `aria-selected` a una
+fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
+
+### Límites y verificación de este plan
+
+- Se conserva la política de cortes 11:30/16:00 del 24/09, con seguimiento
+  del sábado 26/09. F4 no se declara terminada por este rediseño.
+- Tasa baja sigue OFF hasta F5. H1 no instaló SQL. **H3.3 incluirá una
+  migración nueva de lectura para Pendientes por analista**, con pruebas de
+  contrato y RLS; no cambia reglas, políticas ni métricas. No se instala TypeSafe/Jev.
+- Claude participa como asesor de arquitectura del plan; Codex decide y
+  ejecutará los checks del proyecto. Jev no es necesario para reorganizar esta
+  interfaz y no se introduce como dependencia del desarrollo.
+- **Revisión de Claude: CHANGES_REQUESTED.** Sus diez observaciones sobre el
+  plan fueron aceptadas o concretadas en las decisiones anteriores; no hubo
+  una segunda revisión del plan general ni se afirma un PASS del reviewer.
+  La revisión posterior de la especificación H1 se registra por separado. Evidencia del plan:
+  [SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md](SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md).
+- **Implementación H2 y pruebas de producto: PASS.** Gate integral con 4.192 tests
+  y banco E2E final local Docker de 29/29. El acta H2 conserva la corrida completa
+  inicial (234 aprobadas, 3 fallidas y 26 omitidas) y la repetición de los casos
+  fallidos. `gate:realidad`: NOT RUN por falta de `SUPABASE_URL` en la copia aislada.
+- **Documentación y tablero: PASS.** Se comprobó la composición del bloque
+  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H2 tienen 24 completas y
+  H3–H6 conservan 48 pendientes; el prototipo está incluido.
+  Las 76 casillas originales conservaron IDs y texto. Evidencia visual:
+  [captura de H2 cerrada en Figma](assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png).
+
+**Retoma desde el PR #85, 23/09/2026.** El
+[PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85)
+está fusionado en Main `e0bdfe12`. Miguel retomó el trabajo para aprobar el
+prototipo horizontal de supervisión y preparar el plan anterior. Copia de trabajo
+`/private/tmp/avancecorp-release.hvdub4/repo`, ahora en rama
+`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`. H1–H2 cerradas;
+siguiente etapa H3.1. El ajuste backend de lectura pertenece a H3.3.
+La validación real de F4 sigue pendiente: analista/supervisor, cortes del 24/09
+(11:30 y 16:00 Lima) y seguimiento del sábado 26/09. Tasa baja OFF hasta F5;
+no volver a instalar SQL ni publicar solo por estas actas. ZIP publicado,
+respaldo y recibos conservados en `CRM-Avance-Corp/releases/` del taller
+principal, fuera de `/tmp`.
 
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook

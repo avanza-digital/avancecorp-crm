@@ -10,7 +10,17 @@ incluyendo las seis etapas de F4 y F4.1. F0–F3 están publicados; F4 sigue en
 etapa 6, con primera jornada del 24/09 y seguimiento del sábado pendientes.
 No confundir pruebas técnicas con validación humana ni activar tasa baja antes de F5.
 
-## Sesión guardada — 23/09/2026
+## Retoma — supervisor horizontal (23/09/2026)
+
+Miguel aprobó un nuevo prototipo horizontal y pidió planificar su desarrollo.
+El mismo tablero incorpora el [prototipo, seis fases y 24 etapas](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2),
+con 24 tareas H1–H2 completas, 48 de H3–H6 pendientes y las 76 casillas anteriores intactas. Cada fase tiene
+objetivo, dependencia, entregable y criterio de cierre. Plan detallado,
+revisión de Claude y referencia en
+[[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]].
+PR #85 ya fusionado en Main `e0bdfe12`; H2 está implementada en la copia aislada, sin publicación.
+
+## Historial — sesión guardada el 23/09/2026
 
 Miguel pidió guardar todo y continuar en otra sesión. Objetivo F4 pausado.
 PR #82 publicado y PR #84 integrado. El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85)
@@ -31,6 +41,15 @@ la evidencia real del 24/09, cortes 11:30 y 16:00 Lima, y del sábado 26/09.
 Mantener pendientes los puntos sin evidencia, los dos avisos INFO de índices
 y el gate de realidad CLI. Tasa baja OFF hasta F5. No reinstalar SQL ni crear
 actividad real ficticia. El mismo tablero de Figma ya muestra la publicación.
+
+## Historial — cierre de H1
+
+H1 se cerró con **4 etapas y 12 tareas** después del PR #85.
+Base actual verificada `cf87e808` (#86), copia aislada, mismo tablero.
+Al cerrar H1 quedaban H2–H6 y 60 tareas pendientes. Especificación de datos, geometría y
+navegación registrada; H3.3 añadirá una RPC de lectura de tareas por analista.
+Durante H1 no se implementó el rediseño ni se instaló SQL o publicó producto.
+Detalle en [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]].
 
 ## Continuidad del tablero
 
@@ -87,3 +106,10 @@ jerarquía clara, color por decisión, legibilidad y estados completos. Las
 reglas de cortes, permisos, cálculos y registro conservan su alcance aprobado.
 
 [[Fundamentos UX del CRM]] · [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] · [[Inicio]]
+
+## H2 cerrada
+
+El mismo tablero incorpora 24/72 tareas H1–H2 completas y 48 pendientes.
+Vista horizontal verificada: diez/nueve filas, texto de 16 px y controles de 44 px; móvil y reflow al 200 %.
+Gate: 4.192 tests PASS; E2E final 29/29. Acta H2 conserva corrida completa inicial 234/3/26.
+Detalles en [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]].
