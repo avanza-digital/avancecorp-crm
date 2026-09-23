@@ -346,7 +346,7 @@ describe('ranking general de analistas', () => {
     const filaFabio = filas[5]!
     expect(within(filaFabio).getByText('Fabio León')).toBeInTheDocument()
     expect(within(filaFabio).getByText('—')).toBeInTheDocument()
-    expect(within(filaFabio).getByText('Solo cierres de arrastre')).toBeInTheDocument()
+    expect(within(filaFabio).getByText('Cerró sin base del mes')).toBeInTheDocument()
     expect(within(tabla).queryByText('Gabriela Soto')).not.toBeInTheDocument()
     expect(within(tabla).queryByText('Sin analista asignado')).not.toBeInTheDocument()
     const fueraConversion = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })

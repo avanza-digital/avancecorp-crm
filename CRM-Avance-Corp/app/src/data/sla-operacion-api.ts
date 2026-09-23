@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
 import type { Json } from '@/lib/database.types'
+import { soloPresentes } from './argumentos-rpc'
 import { CrmApiError } from './crm-api'
 import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
 
@@ -18,7 +19,9 @@ export async function obtenerResumenAvisosSla(signal?: AbortSignal) {
 export async function listarColaSla(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
   let consulta = sb.schema('crm').rpc('cola_accion_v2_fn', {
-    p_limite: limite, p_senal: filtros.senal, p_etapa: filtros.etapa, p_analista_id: filtros.analista_id, p_cursor: cursor as Json | null,
+    p_limite: limite, p_senal: filtros.senal, p_cursor: cursor as Json | null,
+    // Opcionales omitidos en vez de null: en el servidor valen NULL por defecto.
+    ...soloPresentes({ p_etapa: filtros.etapa, p_analista_id: filtros.analista_id }),
   })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
