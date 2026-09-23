@@ -1,10 +1,75 @@
-# F4 — reanudación y ensayo del correctivo autorizado
+# F4 — ensayo, publicación y activación futura verificados
 
 Miguel reanudó y autorizó el quinto SQL exacto de la
 [propuesta](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md). Continúan vigentes los
 cuatro SQL anteriores, banco hasta US$1 y `$release-crm`. Producción permanece
 v1 OFF. **Los cinco SQL se publicaron mediante merge Supabase y quedaron
-verificados en producción.** Banco sintético eliminado; frontend y activación pendientes.
+verificados en producción.** Banco sintético eliminado; frontend publicado desde
+Main `6bf0e84a` y política v2 programada para el 24/09, 00:00 Lima. Hoy v1 OFF.
+Primera jornada real pendiente; no se declara F4 completa.
+
+## Frontend publicado y smoke de gerencia
+
+PR [#76](https://github.com/avanza-digital/avancecorp-crm/pull/76) ya fusionado.
+Fuente del artefacto: `6bf0e84a6ea1f9da0477569da312d06a3a2a2064`, Main limpio
+e igual a `avancecorp/main` antes de construir y antes de publicar. El código
+de `app/` coincide byte a byte con `ba8722a3`, que pasó 4.170 tests y 234 E2E.
+La CI de `3e631e01`, cabeza integrada del PR, terminó SUCCESS. No se atribuye
+este despliegue a commits posteriores de actas ni se republica por documentación.
+
+- URL: **https://crm.miavance.com**.
+- Build: `build-20260923T163253090Z`; JS principal `assets/index-V1spwcHJ.js`.
+- Artefacto: `releases/crm-20260923T163254Z-6bf0e84a6ea1.zip`, 2.258.827 bytes.
+- SHA-256: `0800772132124f9451c3ca1b9452a979e15957695f60b020014ee6a815d37945`.
+- `release:crm`, `release:crm:verify` y despliegue por MCP Hostinger PASS.
+  El primer build sin variables públicas se detuvo; se inyectaron únicamente URL
+  y anon key productivas al proceso y se repitió con el guard de configuración PASS.
+- **113 archivos verificados:** 112 por HTTPS, bytes/SHA y versión estable;
+  `.htaccess` por MCP, contenido íntegro y 2.977 bytes. Evidencias junto al ZIP:
+  `.https-verificado.json` y `.htaccess-verificado.json` con el mismo basename.
+- Smoke Chrome con sesión real de **gerencia PASS**: editor de configuración,
+  registro de actividad de Gestión Diaria, publicación futura y persistencia
+  tras recarga completa. Sin altas, borrados ni actividades ficticias de prueba.
+
+## Política v2 guardada por gerencia
+
+Creada el **23/09 a las 11:56:55 Lima** mediante el formulario productivo,
+con vigencia **24/09/2026, 00:00 Lima** (`2026-09-24T05:00:00Z`).
+Actor no nulo con rol gerencia y cadena hacia v1 comprobados por lectura SQL.
+Motivo: «Activar cortes F4 desde el 24/09 tras verificar SQL y frontend; tasa
+baja desactivada hasta F5.»
+
+| Parámetro | Valor de v2 |
+|---|---|
+| Cortes | Activos desde el 24/09 |
+| Primer corte / mínimo | 11:30 / 3 llamadas |
+| Segundo corte / crecimiento | 16:00 / 150 % |
+| Piso / techo | 8 / 30 |
+| Sábado | Mínimo 3, corte único |
+| Contacto Bien / Atención / muestra | 45 % / 25 % / 5 llamadas útiles |
+| Tasa muy baja | NULL, desactivada hasta F5 |
+
+Postflight: exactamente dos políticas, v1 vigente hoy y v2 mañana; un único
+control inicial, canal habilitado y `private.assert_gestion_diaria()` PASS.
+La UI muestra v2 programada y conserva v1 OFF después de recargar.
+
+Observación del smoke: inmediatamente tras Confirmar apareció un aviso transitorio
+de versión obsoleta mientras el botón decía Guardando; la siguiente lectura mostró
+éxito y v2. No se repitió el envío. SQL confirma una sola inserción y los parámetros
+exactos. Sin traza HTTP de ese instante no se atribuye una causa; comprobar si el
+aviso reaparece en una futura edición legítima, sin crear versiones para ensayarlo.
+Evidencia saneada: `/private/tmp/gd-f4-activacion-verificada-20260923.json`.
+
+## Para cerrar la validación operativa
+
+**NOT RUN: primera jornada real del 24/09.** Con supervisión, comprobar ambos
+cortes a las 11:30 y 16:00 Lima, equipo/llamadas, popup/campana/lista,
+reconocimiento/aplazamiento único persistentes entre sesiones o dispositivos,
+ausencia de duplicados y de reaviso al cierre. Registrar tiempos y errores reales;
+no cambiar relojes, identidades ni datos productivos para simular el día.
+El sábado 26/09 verificar corte único y mínimo 3 como seguimiento operativo.
+F4.1/TypeSafe y F5 quedan fuera; tasa baja OFF. Los avisos de índices conservan
+su tratamiento diferido y no impidieron los gates de esta entrega.
 
 ## Resultado final del ensayo e instalación SQL
 
@@ -119,9 +184,9 @@ Los INFO de índices no usados varían al restaurar estadísticas; no se elimina
 índices por un banco sintético. Los dos INFO originales de FK de política se
 mantienen diferidos. Matriz candidata, HTTP, concurrencia y carga terminaron PASS.
 
-## Recuperación del frontend vigente
+## Recuperación del frontend anterior
 
-Hostinger sirve `build-20260923T020403114Z`. Se respaldaron **114 archivos** y
+Antes de publicar, Hostinger servía `build-20260923T020403114Z`. Se respaldaron **114 archivos** y
 se verificaron tamaños, contenido HTTPS y estabilidad de `version.json` durante
 la captura. `.htaccess` se leyó con el MCP; su API omite el LF final, reconstruido
 solo tras cotejar el contenido completo y los 2.977 bytes con el archivo canónico.
@@ -132,8 +197,7 @@ SHA-256: `6cecc4a023e01aa3f52610375bc15839b934e5b60c3b6891b1a7ca39a1258d4c`.
 Manifiesto al lado: `respaldo.manifest.json`. Es una copia verificable del sitio
 servido, no el ZIP original preparado por la otra sesión. No se publica como asset.
 
-Pendientes: revisión/fusión del PR #76, Main limpio e igual al remoto,
-release y smoke; política futura por gerencia y primera jornada real. GitHub
-exige una aprobación y revisión de propietario de código (regla organizativa
-20216285), además de `verify`; los conflictos ya quedaron resueltos. La tasa
-baja sigue NULL hasta F5; no declarar F4 terminada con pruebas sintéticas.
+El bloqueo previo de revisión de PR #76 ya está superado por su fusión. Se
+conserva el respaldo para recuperación; no se revirtió SQL ni auditoría.
+La publicación, smoke y política futura están verificados. Resta la jornada real
+descrita arriba; la tasa baja sigue NULL hasta F5.

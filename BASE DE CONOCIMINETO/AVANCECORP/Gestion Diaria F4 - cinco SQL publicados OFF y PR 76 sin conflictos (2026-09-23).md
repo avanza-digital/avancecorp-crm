@@ -1,5 +1,7 @@
 # Gestión Diaria F4 — cinco SQL publicados OFF
 
+> Acta intermedia. Estado posterior: [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]]. PR #76 fusionado, frontend publicado y v2 programada; queda la primera jornada real.
+
 Los conflictos del PR #76 quedaron resueltos integrando Main `8097ca8c` y
 preservando el trabajo de la otra sesión. Código de aplicación verificado:
 4.170 tests y 234 E2E Docker PASS (26 SKIPPED).
@@ -19,7 +21,7 @@ estimado ~US$0,070, por debajo de US$1; la rama ajena `banco-f7` quedó intacta.
 Avisos de índices y los dos WARN de rendimiento de políticas internas registrados
 en el acta; no hubo errores de seguridad nuevos.
 
-Pendiente: revisión/fusión del PR #76, release desde Main igual al remoto,
+Pendiente en este punto intermedio: revisión/fusión del PR #76, release desde Main igual al remoto,
 smoke, política futura por gerencia y primera jornada real. GitHub exige una
 aprobación y revisión de propietario de código por regla organizativa 20216285.
 No se usó fusión administrativa. Sitio vigente respaldado:
