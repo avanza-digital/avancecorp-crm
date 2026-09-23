@@ -1,0 +1,7 @@
+97631f176536f58eaf86c65cc20b235153270c1f5390c9a6724f89c41b642824  CRM-Avance-Corp/app/src/data/crm-api.ts
+d38249e3c16297e8309fd5e298b51f35c51b6ae6db4992f414b71b2ad97a2057  CRM-Avance-Corp/app/src/data/crm-queries.ts
+cfa40e8f8faa3ac456001ce9607e12d8559b45b9d218bf331933c47d6e994ed2  CRM-Avance-Corp/app/src/data/use-actividades-de-lead.ts
+36496cf875404334527398cd5541d89c75a09c65224fa1eef6c84b92e2863eea  CRM-Avance-Corp/app/src/lib/historial-lead.ts
+14b309215007432fcdaca6955487caba2465bd07c93d4a2dedcdcabc844e6607  CRM-Avance-Corp/app/src/lib/query-client.ts
+716d57eab7b2698b2bb5dbb1812b4fe5d15877a49c39afd9f648d43142a06098  CRM-Avance-Corp/app/src/lib/store.tsx
+42fb83161bbf63b0da428980992e6839ca2efcfd36f484842ef445a6cd7847dc  CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx

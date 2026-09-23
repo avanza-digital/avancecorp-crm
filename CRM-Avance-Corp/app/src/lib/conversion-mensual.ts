@@ -290,10 +290,24 @@ export const ConversionMensualSchema = v.pipe(
     total: TotalConversionSchema,
     responsables: v.array(ResponsableConversionSchema),
   }),
+  // 23/09/2026: la RENOVACIÓN dejó de compartir palanca con el REFERIDO.
+  //
+  // Esta comprobación exigía `ponderacion.renovacion === ponderacion.referido`.
+  // Tenía sentido mientras un solo número servía a los dos: verificaba que el
+  // servidor no se inventara un peso de renovación distinto del único que
+  // existía. Ahora cada uno tiene su columna en `crm.conversion_pesos`, así que
+  // exigir que sean iguales **impediría usar la palanca que se acaba de
+  // separar**: el día que alguien mueva el peso de la renovación, valibot
+  // rechazaría el paquete entero y la pantalla se quedaría sin datos.
+  //
+  // Lo que sí sigue teniendo sentido, y es lo que se comprueba: que la
+  // renovación venga DECLARADA y sea un peso válido. De su rango ya se encarga
+  // el esquema (`minValue(0)`, `maxValue(1)`); aquí solo se exige que el núcleo
+  // no la calle cuando dice que el divisor son las llegadas.
   v.check((payload) => payload.fuentes.divisor !== 'crm.leads.creado_en'
     || (payload.fuentes.referido === 'crm.leads.origen'
-      && payload.ponderacion.renovacion === payload.ponderacion.referido),
-  'El núcleo comercial debe declarar renovación con el mismo peso que Referido'),
+      && payload.ponderacion.renovacion != null),
+  'El núcleo comercial debe DECLARAR el peso de la renovación (ya no tiene que ser igual al del referido)'),
   v.check((payload) => {
     const [anio, mes] = payload.periodo.mes.split('-').map(Number)
     return payload.periodo.anio === anio
