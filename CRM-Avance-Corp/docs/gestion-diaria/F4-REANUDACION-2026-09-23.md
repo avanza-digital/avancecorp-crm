@@ -3,8 +3,43 @@
 Miguel reanudó y autorizó el quinto SQL exacto de la
 [propuesta](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md). Continúan vigentes los
 cuatro SQL anteriores, banco hasta US$1 y `$release-crm`. Producción permanece
-v1 OFF. Los cinco SQL ya están instalados solo en el banco sintético;
-contratos SQL y 24 mutantes PASS; matriz candidata en ejecución.
+v1 OFF. **Los cinco SQL se publicaron mediante merge Supabase y quedaron
+verificados en producción.** Banco sintético eliminado; frontend y activación pendientes.
+
+## Resultado final del ensayo e instalación SQL
+
+- Matrices remotas: **2.221 PASS / 0 FAIL** antes y después del candidato.
+- Contratos SQL, 24 mutantes, Auth/HTTP de seis roles y paridad de dos equipos PASS.
+  Dos carreras remotas con dos esperas observadas: una respuesta 200 y otra
+  409/PT409 en publicación futura y control del canal; estado del canal restituido.
+- Carga: 2.200 leads y 15.400 actividades sintéticas, 120 lecturas. P95 legado
+  3.519/2.567 ms y activo 3.350/2.820 ms para los dos equipos. No es p95 de usuarios reales.
+- Merge solicitado el 23/09 a las 11:15 Lima. Se esperó la transición nativa
+  RUNNING_MIGRATIONS → FUNCTIONS_DEPLOYED; no se repitió la solicitud.
+- Producción: seis gates PASS, **346 migraciones / 737 funciones**. Las 341
+  entradas anteriores mantienen todas sus seis columnas. El merge nativo divide
+  los cinco archivos en 53/21/15/19/6 sentencias: cada byte se cotejó en orden,
+  excluyendo únicamente punto y coma y espacios entre sentencias. No se reparó
+  ni reescribió el historial después del merge.
+- Las 737 funciones coinciden con el candidato; 21 Edge Functions conservan
+  versión/JWT/SHA. Política v1 OFF idéntica, tasa baja NULL, cero entregas,
+  un control inicial. Diez cron/nueve activos y su huella intactos; 532 Auth
+  conservados y cero fixtures de carga en producción.
+- Advisors productivos sin ERROR; los seis WARN de RPC y dos de políticas
+  internas corresponden a los evaluados en el banco. Los dos INFO originales
+  de FK de política siguen registrados para después.
+- Banco propio eliminado a las 11:22 Lima y ausencia confirmada. Cargo estimado
+  de esta rama ~US$0,022; acumulado con la anterior ~US$0,070 (tope US$1).
+  `banco-f7` no se modificó. La tarifa estimada no sustituye la factura.
+
+Evidencia privada final: `gd-f4-merge-verificado-20260923.json`, snapshots
+productivos antes/después, `gd-f4-operacion-prod-{antes,despues}-20260923.json`,
+advisors y acta de eliminación en `/private/tmp`; ensayos en
+`/private/tmp/gd-f4-remoto-20260923/`.
+
+Límite explícito: carreras de presentación/aplazamiento HTTP remoto NOT RUN
+con cortes OFF; tres carreras locales reales y horarios/acciones SQL remotos PASS.
+La primera jornada real permanece pendiente y no se sustituye por estos fixtures.
 
 ## Integración y verificaciones terminadas
 
@@ -37,16 +72,16 @@ contratos SQL y 24 mutantes PASS; matriz candidata en ejecución.
   migración aprobados conservan exactamente sus SHA; se modificaron los tests,
   no los SQL autorizados.
 
-## Banco sintético actual
+## Banco sintético utilizado — ya eliminado
 
 Rama `gestion-diaria-f4-correctivo-20260923`, ID
 `1a09c7da-5f84-45cf-9c32-d08020ffb686`, ref `zviwoyvtccqhhdfqdang`, creada a
 las 14:44:42 UTC, sin datos productivos. Coste US$0,01344/h; tope total US$1
-incluyendo los ~US$0,048 estimados del banco anterior ya eliminado. Cerrar al
-terminar y antes del 24/09 14:44 UTC. La rama `banco-f7` permanece intacta.
+incluyendo los ~US$0,048 estimados del banco anterior. Se eliminó después del
+merge y sus verificaciones, dentro del plazo de 24 horas. `banco-f7` permanece intacta.
 
 Después de conciliar el historial se ejecutó el rebase nativo de la rama sin
-migraciones pendientes: Supabase confirma `FUNCTIONS_DEPLOYED / ACTIVE_HEALTHY`.
+migraciones pendientes: Supabase confirmó `FUNCTIONS_DEPLOYED / ACTIVE_HEALTHY`.
 
 El replay histórico falló de nuevo; se reconstruyó solo la rama vacía desde
 respaldos sintéticos con huella verificada. La semilla parte de siete leads,
@@ -64,7 +99,7 @@ El ledger inicial de la rama tenía tres columnas. El padre tiene además
 `created_by`, `idempotency_key` y `rollback`: no se copiaron esos metadatos ni
 se alteró manualmente la tabla del servicio para agregarlos. Al aplicar los cinco
 SQL, el MCP añadió esas columnas de forma nativa. El snapshot privado conserva
-las seis columnas productivas; al publicar hay que cotejar su conservación.
+las seis columnas productivas; su conservación se cotejó después del merge.
 La conciliación productiva de etapa 3 ya terminó y no se repite.
 
 Evidencia privada: `/private/tmp/gd-f4-remoto-20260923/`. La matriz completa
@@ -82,7 +117,7 @@ esperados para las puertas con validación de rol/ámbito probada. Dos WARN
 en `lectura_interna` de control/entregas, ya documentados como mejora posterior.
 Los INFO de índices no usados varían al restaurar estadísticas; no se eliminan
 índices por un banco sintético. Los dos INFO originales de FK de política se
-mantienen diferidos. Matriz candidata, HTTP, concurrencia y carga pendientes.
+mantienen diferidos. Matriz candidata, HTTP, concurrencia y carga terminaron PASS.
 
 ## Recuperación del frontend vigente
 
@@ -97,7 +132,8 @@ SHA-256: `6cecc4a023e01aa3f52610375bc15839b934e5b60c3b6891b1a7ca39a1258d4c`.
 Manifiesto al lado: `respaldo.manifest.json`. Es una copia verificable del sitio
 servido, no el ZIP original preparado por la otra sesión. No se publica como asset.
 
-Pendientes: terminar matriz candidata, HTTP, concurrencia y carga,
-reconfirmar diferencial y merge SQL OFF; Main limpio e igual al remoto,
-release y smoke; política futura por gerencia y primera jornada real. La tasa
+Pendientes: revisión/fusión del PR #76, Main limpio e igual al remoto,
+release y smoke; política futura por gerencia y primera jornada real. GitHub
+exige una aprobación y revisión de propietario de código (regla organizativa
+20216285), además de `verify`; los conflictos ya quedaron resueltos. La tasa
 baja sigue NULL hasta F5; no declarar F4 terminada con pruebas sintéticas.

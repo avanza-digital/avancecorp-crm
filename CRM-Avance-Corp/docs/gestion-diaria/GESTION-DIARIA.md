@@ -3,13 +3,15 @@
 > **REANUDADO por Miguel el 23/09/2026.** El correctivo HTTP ya pasa en
 > PostgREST 14.5 local: dos carreras reales devuelven 200 + 409, sin bucle.
 > [Propuesta concreta del quinto SQL](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md)
-> autorizada por Miguel el 23/09; ensayo remoto en curso. Las aprobaciones de los cuatro SQL,
+> autorizada por Miguel el 23/09; ensayo remoto completo PASS. Las aprobaciones de los cuatro SQL,
 > conciliación, banco hasta US$1 y `$release-crm` siguen vigentes.
 > Main `8097ca8c` integrado; conflictos del PR #76 resueltos. 4.170 pruebas y
-> 234 E2E PASS (26 SKIPPED). Control remoto actual: 2.221/0. Los cinco SQL ya
-> están en el banco; contratos SQL y 24 mutantes PASS; matriz candidata en curso.
-> Banco remoto anterior eliminado; banco actual sintético y aislado.
-> Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
+> 234 E2E PASS (26 SKIPPED). Matrices remotas antes/después: 2.221/0 cada una;
+> SQL, 24 mutantes, seis roles HTTP, concurrencia PT409 y carga PASS.
+> **Los cinco SQL ya están en producción, verificados, con política v1 OFF.**
+> Historial 346: 341 entradas anteriores intactas; cron, Auth y Edge conservados.
+> Banco temporal eliminado; coste acumulado estimado ~US$0,070, bajo el tope US$1.
+> Pendientes: aprobación/fusión del PR #76, frontend, política futura y primera jornada.
 > Este estado prevalece sobre los resúmenes históricos siguientes.
 
 Retoma del 23/09: [integración de Main, banco y respaldo actuales](F4-REANUDACION-2026-09-23.md).
@@ -49,7 +51,7 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — quinto SQL autorizado; nuevo ensayo remoto (23/09/2026)
+### Punto de trabajo actual — cinco SQL publicados OFF; frontend pendiente (23/09/2026)
 
 Miguel autorizó el quinto SQL exacto respondiendo «sii» a la propuesta. Nueva
 rama sintética `gestion-diaria-f4-correctivo-20260923`, ref `zviwoyvtccqhhdfqdang`,
@@ -57,8 +59,10 @@ creada 14:44 UTC, coste US$0,01344/h dentro del tope total US$1. Reconstrucción
 verificada: 17 usuarios ficticios, siete leads, cero cron activos, 21 Edge Functions
 idénticas al padre. Main `8097ca8c` (PR #75) ya se integró y verificó:
 4.170 tests y 234 E2E PASS. PR #76 MERGEABLE; GitHub exige revisión para fusionarlo.
-Control remoto limpio: 2.221 aserciones PASS. Cinco SQL instalados en el banco,
-24 mutantes y contratos SQL PASS; matriz candidata y concurrencia aún pendientes.
+Matrices remotas antes/después: 2.221 aserciones PASS cada una. Contratos SQL,
+24 mutantes, seis roles HTTP y dos carreras remotas (200 + 409/PT409) PASS.
+Carga: 2.200 leads, 15.400 actividades y 120 lecturas; p95 2,567–3,519 s.
+Merge Supabase autorizado ejecutado y verificado; banco eliminado a las 11:22 Lima.
 
 El 23/09 a las 09:20 Lima terminaron las dos carreras HTTP del correctivo:
 en cada una se observaron dos solicitudes esperando el mismo lock; una confirmó
@@ -71,16 +75,17 @@ Solo cambia los códigos de conflicto de dos RPC y sus dos huellas en el gate.
 No edita los cuatro SQL aprobados ni activa cortes. Su autorización remota es
 adicional porque ese archivo no figuraba en la propuesta aprobada.
 
-Producción sigue v1 OFF. Sus 341 entradas y 721 funciones se cotejaron contra
-el banco actualizado. El candidato añade exactamente cinco migraciones,
-16 funciones F4 y los dos cuerpos previstos; conserva las 341 entradas previas.
+Producción sigue v1 OFF. Sus 346 migraciones conservan íntegramente las seis
+columnas de las 341 entradas previas y añaden las 114 sentencias exactas de los
+cinco archivos. Las 737 funciones coinciden con el candidato; 21 Edge Functions,
+cron y Auth intactos. Sin datos sintéticos ni entregas productivas generadas.
 No repetir la conciliación de etapa 3, que ya está terminada.
 La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
-US$1); el nuevo banco ya está activo con cron apagado.
+US$1); el nuevo banco también quedó eliminado. Acumulado estimado ~US$0,070.
 
-**Pasos restantes:** terminar matriz candidata, HTTP, concurrencia y carga;
-merge de los cinco SQL con cortes OFF;
-publicación del frontend desde Main igual al remoto; política futura por gerencia
+**Pasos restantes:** revisión y fusión del PR #76 (sin conflictos; GitHub exige
+una aprobación y revisión de propietario de código), publicación del frontend
+desde Main igual al remoto; política futura por gerencia
 y verificación de la primera jornada real. La tasa baja seguirá NULL hasta F5.
 Detalle y evidencia: [propuesta del correctivo](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md).
 

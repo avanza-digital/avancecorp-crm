@@ -1,9 +1,10 @@
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 
-**CANDIDATO AUTORIZADO el 23/09 e instalado en banco; sin instalar en producción.**
-Control remoto actual 2.221/0, contratos SQL y 24 mutantes PASS; matriz candidata,
-HTTP, concurrencia y carga en curso. Historial remoto: 341 anteriores intactas
-más los cinco archivos autorizados, bytes/SHA exactos.
+**PUBLICADO Y VERIFICADO el 23/09 mediante merge Supabase, cortes OFF.**
+Matrices antes/después 2.221/0, SQL/24 mutantes, seis roles HTTP, dos carreras
+remotas 200 + 409/PT409 y carga PASS. Producción: 346 entradas, las 341 previas
+con seis columnas intactas; cinco archivos exactos, 114 sentencias nativas
+cotejadas en orden. Seis gates productivos PASS. Banco eliminado; frontend pendiente.
 Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
 exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
 SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 local PASS:
@@ -16,12 +17,12 @@ Propuesta vigente: `docs/gestion-diaria/F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.m
 
 ## 20260922220800 — F4: lectura completa separada de escrituras de cortes
 
-**CANDIDATO; instalado solo en banco Gestión Diaria.** Después de la segunda
+**PUBLICADO Y VERIFICADO el 23/09, cortes OFF; junto con avisos/configuración/grupos.** Después de la segunda
 revisión, se midió SLA en los tres equipos productivos por solo lectura:
 2.430,047 / 25,743 / 2.224,554 ms. El nuevo lector completo mantiene RLS del
 rol puente y solo lo usa GET. Presentar/reconocer ya no calculan SLA bajo lock;
 el cliente refresca por GET después de confirmar. Reversa transaccional y gates
-locales PASS; producción sin este cambio. No borra ni cambia políticas o historia.
+locales y remotos PASS. No borra ni cambia políticas o historia.
 
 La preparación hosted del primer candidato omite el GRANT redundante sobre auth:
 USAGE/auth.uid se heredan de authenticated. Producción tiene CREATEROLE y ADMIN

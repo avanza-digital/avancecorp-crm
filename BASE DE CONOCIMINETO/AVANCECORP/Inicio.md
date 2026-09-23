@@ -1,11 +1,11 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria F4 - correctivo HTTP verificado y pendiente de autorizacion (2026-09-23)]] — **QUINTO SQL AUTORIZADO; ENSAYO REMOTO EN CURSO.** Dos carreras HTTP 14.5 locales 200 + 409, SQL y 24 mutantes PASS. Nuevo banco sintético `gestion-diaria-f4-correctivo-20260923`, dentro del tope US$1. Integrando Main del PR #75 para conservar los cambios de la otra tarea. Producción v1 OFF.
+- [[Gestion Diaria F4 - cinco SQL publicados OFF y PR 76 sin conflictos (2026-09-23)]] — **SQL PUBLICADO Y VERIFICADO, CORTES OFF.** PR #76 sin conflictos; 4.170 tests, 234 E2E, matrices remotas 2.221/0, HTTP/concurrencia/carga PASS. Historial 346 con 341 previas intactas; banco eliminado (~US$0,070 acumulados). Pendientes revisión GitHub, frontend, política futura y primera jornada.
 
 - [[Acceso Avance - apellidos y nombres separados (2026-09-22)]] — **PUBLICADO Y VERIFICADO:** apellidos primero, nombres después, sin campo duplicado. PR #72 integrado; fuente `7d65fcdb`, build `build-20260922T221442353Z`, 4.085 pruebas, 6 E2E y cotejo de archivos productivos PASS.
 

@@ -1,6 +1,6 @@
-// Dos sesiones Auth y dos esperas reales observadas en PostgreSQL. La jornada
-// de popup ya terminó: esas carreras quedan cubiertas localmente, no se simulan
-// como HTTP remoto cambiando el reloj del producto.
+// Dos sesiones Auth y dos esperas reales observadas en PostgreSQL. El banco
+// conserva cortes OFF: las carreras del popup quedan cubiertas localmente,
+// sin simular HTTP remoto cambiando el reloj del producto.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {spawn} from 'node:child_process';
@@ -87,5 +87,5 @@ try{
 observador.stdin.end();assert.equal(await finObservador,0);
 sql('select private.assert_gestion_diaria();');
 writeFileSync(`${carpeta}/concurrencia.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),evidencias,
- limites:'Presentación/aplazamiento HTTP remoto NOT RUN fuera de jornada. Tres carreras locales reales PASS; horarios y acciones SQL remotos PASS.'},null,2)+'\n',{mode:0o600});
+ limites:'Carreras de presentación/aplazamiento HTTP remoto NOT RUN con cortes OFF. Tres carreras locales reales PASS; horarios y acciones SQL remotos PASS.'},null,2)+'\n',{mode:0o600});
 console.log('PASS: dos carreras remotas con dos esperas observadas; política futura y control CAS; canal restituido');
