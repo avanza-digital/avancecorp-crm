@@ -61,6 +61,12 @@ function ordenar(valor: unknown): unknown {
 
 function huella(comando: Comando, args: Record<string, Json | undefined>): string {
   const logicos = { ...args }
+  // La RPC tiene p_detalle DEFAULT NULL. Omitirlo adapta los tipos generados,
+  // pero conserva la firma de los recibos anteriores, guardados con null.
+  // Al reintentar se envían los argumentos originales de esa intención.
+  if (comando === 'registrar_actividad_v2' && logicos.p_detalle === undefined) {
+    logicos.p_detalle = null
+  }
   // Son identidades generadas por el cliente, no cambios pedidos por la
   // persona. Al repetir el mismo gesto se recuperan las del primer envío.
   delete logicos.p_nueva_id

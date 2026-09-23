@@ -33,6 +33,12 @@ Seguimiento del sábado 26/09 para corte único/mínimo 3. No simular actividad 
 ni declarar PASS por anticipado. F4.1/TypeSafe y F5 permanecen fuera.
 Dos INFO de índices y dos WARN de rendimiento de políticas internas diferidos.
 
+Tras esta publicación Miguel reportó la incompatibilidad al regenerar tipos.
+La otra sesión conserva `database.types.ts`; Codex preparó el llamador de actividad
+con detalle opcional y preservación de recibos. SQL productivo conserva
+`p_detalle DEFAULT NULL`; no hay cambio de obligatoriedad en la base.
+Parche posterior aún sin publicar: `docs/gestion-diaria/F4-DETALLE-OPCIONAL-2026-09-23.md`.
+
 Plan: `CRM-Avance-Corp/docs/gestion-diaria/GESTION-DIARIA.md`.
 Acta y recuperación: `CRM-Avance-Corp/docs/gestion-diaria/F4-REANUDACION-2026-09-23.md`.
 [[Inicio]] · [[Gestion Diaria F4 - cinco SQL publicados OFF y PR 76 sin conflictos (2026-09-23)]]

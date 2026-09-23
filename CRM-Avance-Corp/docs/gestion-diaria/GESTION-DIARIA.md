@@ -98,6 +98,12 @@ actividad o reconocimientos ficticios en producción para aprobar estos puntos.
 La tasa baja seguirá NULL hasta F5. El acta distingue las pruebas sintéticas del
 recorrido humano pendiente: [publicación y activación](F4-REANUDACION-2026-09-23.md).
 
+**Coordinación posterior al release:** otra sesión regenera `database.types.ts`.
+La incompatibilidad del detalle opcional de `registrar_actividad_v2` tiene una
+[corrección aislada](F4-DETALLE-OPCIONAL-2026-09-23.md), con recibos anteriores
+conservados y sin SQL nuevo. Ese parche aún no está publicado; debe integrarse
+con los tipos regenerados y verificarse como una entrega posterior.
+
 ### Antecedente — entrega autorizada y primer ensayo remoto (22/09/2026)
 
 Objetivo activo: terminar etapas 4–6, publicar con respaldo, activar desde una jornada
