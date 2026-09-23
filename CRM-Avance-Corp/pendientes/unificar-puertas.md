@@ -59,6 +59,46 @@ medido en vez de razonado. Ola 2 se reduce a **#10 (antes de encender su
 bandera)** y a las declaraciones de #7, #8, #9 y #12. La #11 no publica ninguna
 tasa: declarar `fuente` ahí sería inventar un contrato que esa puerta no tiene.
 
+### ✅ LA PRUEBA DE ACEPTACIÓN, EJECUTADA (23/09/2026)
+
+El «HECHO CUANDO» del objetivo dice: *«se cierra un mes y todas las pantallas
+siguen diciendo lo mismo»*. Se ejecutó, contra producción, sin escribir nada:
+`supabase/scripts/conversion/ensayo-cierre-unificacion.sql` sella agosto de
+verdad, anula un cierre suyo y compara las cinco puertas, todo dentro de una
+transacción que termina en `rollback`. (`crm.cerrar_periodo` no tiene efectos
+fuera de las tablas: ni `pg_notify`, ni `net.http`, ni `dblink` — comprobado.)
+
+**Sellar, por sí solo, no mueve el número.** Agosto: `802 / 40,100 = 5,00 %`
+antes y después del sello. La #4 declara `fuente: mensual` y pasa a
+`sellado: true`.
+
+**Y con agosto sellado más 2 puntos de deuda de anulación**, sobre septiembre:
+
+```
+                 SIN deuda              CON deuda
+  #4 grande      1218/52,650=4,32      1218/50,650=4,16
+  oficial        1218/52,650=4,32      1218/50,650=4,16
+  #6 suma        50,650                 48,650
+  #7 suma        49,650                 47,650
+  #8 suma        49,650                 47,650
+  -> los cinco restan exactamente 2, y la #4 es la oficial byte a byte.
+```
+
+Antes de la Ola 1b, la #4 y la #6 se habrían quedado en `52,650` mientras la
+oficial bajaba: los dos porcentajes del mismo mes que este trabajo vino a
+eliminar. La diferencia constante de 1,0 entre la #6 y las #7/#8 **no** es
+discrepancia: es la parte fuera del roster, idéntica antes y después.
+
+### El rótulo en pantalla
+
+`app/src/lib/conversion-rotulo.ts` (8 tests) traduce la declaración del servidor
+a una línea de apoyo en castellano llano. **Calla** cuando la cifra es la oficial
+de un mes abierto —no hay noticia— y **habla** cuando es un recálculo en vivo o
+una foto ya cerrada. Puesto en el héroe de Resumen de Gerencia.
+
+Ranking y Gestión de equipo consumen la puerta #7, cuya declaración está
+revertida a la espera del release: no hay nada que rotular ahí todavía.
+
 ### Estado real al 22/09
 
 | Paquete | Qué | Estado |
