@@ -1,5 +1,33 @@
 # Ledger de migraciones — esquema `crm`
 
+## ✅ `20260923013213` — El oráculo vuelve a tener dientes — **INSTALADA 23/09/2026**
+
+**El efecto colateral que dejó la Ola 1b.** Desde que la puerta #4 delega, el
+camino `rango` de `crm.alarma_conversion_fn` es **por construcción** igual a
+`mensual`: esa comparación dejó de poder fallar. Un gate que no puede ponerse
+rojo no es un gate — y era justo el que vigilaba si el cálculo propio de esa
+puerta derivaba.
+
+**Lo que se añade:**
+1. Un quinto camino, `rango_recalculo`, leído de `nucleo.recalculo_vivo` —lo que
+   la puerta habría publicado— al que se le exige seguir dando el **bruto**,
+   igual que `nucleo_directo`.
+2. La comprobación que el objetivo pedía con esas palabras: que las puertas que
+   deben delegar lo **DECLAREN** (`fuente = 'mensual'`). Publicar la cifra buena
+   sin decir de dónde sale es un acierto por casualidad.
+3. El bloque `declaran` en el paquete, para leer un rojo sin abrir la base.
+
+La distribución se tolera sin declarar a propósito: su Ola 1a sigue parada.
+
+**Verificado tras instalar:** `cuadra: true`, **5 caminos**,
+`declaran.rango = 'mensual'`. `test-rls.mjs` actualizado a cinco caminos, con la
+paridad recálculo↔bruto y la declaración como casos nuevos.
+
+Sin riesgo para ninguna pantalla: la alarma solo la llama el rol de servicio, y
+no tiene consumidor ni directo ni heredado (comprobado con
+`supabase/scripts/conversion/quien-me-envuelve.sql`).
+
+
 ## 🔴 INCIDENTE del 23/09/2026 — 13 minutos de Metas y Ranking sin datos
 
 **Qué pasó.** `20260923010450` declaró la puerta **#8**
