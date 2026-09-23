@@ -2943,6 +2943,7 @@ export type Database = {
           meta_revision: number
           periodo: string
           ponderacion_referido: number
+          ponderacion_renovacion: number | null
         }
         Insert: {
           automatico?: boolean
@@ -2952,6 +2953,7 @@ export type Database = {
           meta_revision: number
           periodo: string
           ponderacion_referido: number
+          ponderacion_renovacion?: number | null
         }
         Update: {
           automatico?: boolean
@@ -2961,6 +2963,7 @@ export type Database = {
           meta_revision?: number
           periodo?: string
           ponderacion_referido?: number
+          ponderacion_renovacion?: number | null
         }
         Relationships: []
       }
