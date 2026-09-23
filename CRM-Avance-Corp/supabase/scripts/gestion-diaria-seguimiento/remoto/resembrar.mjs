@@ -6,9 +6,11 @@ import {createHash,randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {carpeta,sql,objeto,env} from './banco.mjs';
 const candidato=process.argv[3]==='--antes-candidato';
-assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada',...(candidato?['--antes-candidato']:[])]);
-const sufijo=candidato?'-candidato':'';
+const repetirBaseline=process.argv[3]==='--repetir-baseline';
+assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada',...(candidato?['--antes-candidato']:repetirBaseline?['--repetir-baseline']:[])]);
+const sufijo=candidato?'-candidato':repetirBaseline?'-baseline-repetida':'';
 if(candidato)assert.equal(JSON.parse(readFileSync(`${carpeta}/matriz-baseline.json`,'utf8')).estado,'PASS');
+if(repetirBaseline)assert.equal(JSON.parse(readFileSync(`${carpeta}/matriz-baseline.json`,'utf8')).estado,'FAIL');
 assert.equal(existsSync(`${carpeta}/semilla-limpia${sufijo}.json`),false);
 assert.equal(sql("select to_regclass('crm.gestion_diaria_entregas') is null"),'t');
 const origen='/private/tmp/gestion-diaria-f4-http.WQNCJc';
@@ -42,7 +44,7 @@ const lote=ddl=>{const marca='$gd_'+randomUUID().replaceAll('-','')+'$';
  return `do $bloque$ begin execute ${marca}${limpio}${marca}; end $bloque$;\n`;};
 const preparar=`begin;
 do $guarda$ begin
- if (select count(*) from auth.users)<>${candidato?21:17} or exists(select 1 from cron.job where active)
+ if (select count(*) from auth.users)<>${candidato||repetirBaseline?21:17} or exists(select 1 from cron.job where active)
   or to_regclass('crm.gestion_diaria_entregas') is not null then raise exception 'Banco cambió'; end if;
 end $guarda$;
 grant crm_metricas_bridge to postgres with set true;

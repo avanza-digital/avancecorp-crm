@@ -20,6 +20,13 @@ v1 OFF; este punto de control todavía no acredita la instalación remota del ca
   Un intento posterior recibió HTML transitorio de la API al preparar fixtures;
   tres lecturas de diagnóstico dieron 200 antes de reiniciar la matriz completa.
   Esos intentos fallidos se conservan como FAIL, nunca como PASS.
+- La corrida completa posterior terminó con cinco fallos de 2.221 aserciones:
+  el domicilio de `clientBank` seguía escrito por el intento abortado. El propio
+  bloque `testDomicilioLegal` documenta que esa escritura no es reversible por
+  las API normales. Se restauró la semilla desde el respaldo verificado, se
+  volvió a cotejar el catálogo y se añadió un preflight que exige el domicilio
+  NULL antes de iniciar. Las otras 2.216 comprobaciones no sustituyen un PASS
+  de la matriz completa; la repetición limpia sigue en curso.
 - Los contratos SQL finales exigen `PT409` en ambas RPC. Los cinco archivos de
   migración aprobados conservan exactamente sus SHA; se modificaron los tests,
   no los SQL autorizados.
@@ -31,6 +38,9 @@ Rama `gestion-diaria-f4-correctivo-20260923`, ID
 las 14:44:42 UTC, sin datos productivos. Coste US$0,01344/h; tope total US$1
 incluyendo los ~US$0,048 estimados del banco anterior ya eliminado. Cerrar al
 terminar y antes del 24/09 14:44 UTC. La rama `banco-f7` permanece intacta.
+
+Después de conciliar el historial se ejecutó el rebase nativo de la rama sin
+migraciones pendientes: Supabase confirma `FUNCTIONS_DEPLOYED / ACTIVE_HEALTHY`.
 
 El replay histórico falló de nuevo; se reconstruyó solo la rama vacía desde
 respaldos sintéticos con huella verificada. La semilla parte de siete leads,

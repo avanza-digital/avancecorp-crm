@@ -21,7 +21,7 @@ lock table supabase_migrations.schema_migrations in access exclusive mode;
 do $guarda$ begin
  if to_regclass('crm.gestion_diaria_entregas') is not null
   or exists(select 1 from cron.job where active)
-  or (select count(*) from auth.users)<>17 then raise exception 'Banco fuera del estado aprobado'; end if;
+  or (select count(*) from auth.users) not in (17,21) then raise exception 'Banco fuera del estado aprobado'; end if;
 end $guarda$;
 truncate supabase_migrations.schema_migrations;
 insert into supabase_migrations.schema_migrations(version,name,statements)

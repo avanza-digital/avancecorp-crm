@@ -3,10 +3,15 @@ import {readFileSync,writeFileSync} from 'node:fs';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {carpeta,cfg,apiUrl,sql} from './banco.mjs';
+import {USER_BY_KEY} from '../../fixtures.mjs';
 const [modo,...resto]=process.argv.slice(2);
 assert.ok(['--baseline','--candidato'].includes(modo)&&resto.length===0);
 assert.equal(sql("select to_regclass('crm.gestion_diaria_entregas') is not null"),modo==='--candidato'?'t':'f');
 assert.equal(sql('select count(*) from crm.leads where activo'),'7','La matriz necesita la semilla limpia');
+const correo=USER_BY_KEY.clientBank.email.replaceAll("'","''");
+assert.equal(sql(`select count(*) from public.perfiles p join auth.users u on u.id=p.id
+ where u.email='${correo}' and p.domicilio is null`),'1',
+ 'Restaurar la semilla: el test de domicilio deja una escritura irreversible en el fixture');
 const {password}=JSON.parse(readFileSync('/private/tmp/gestion-diaria-f4-http.WQNCJc/credenciales-fixtures.json','utf8'));
 const secretos=[cfg.SUPABASE_ANON_KEY,cfg.SUPABASE_SERVICE_ROLE_KEY,cfg.POSTGRES_URL,password];
 const sanear=t=>secretos.reduce((s,k)=>s.replaceAll(k,'[REDACTADO]'),t)
