@@ -11,6 +11,8 @@
 > Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
 > Este estado prevalece sobre los resúmenes históricos siguientes.
 
+Retoma del 23/09: [integración de Main, banco y respaldo actuales](F4-REANUDACION-2026-09-23.md).
+
 **Decisión vigente de Miguel, 22/09:** mantener la alerta de tasa muy baja apagada
 hasta F5. No se compara aún con la tasa del equipo ni se permite activarla rellenando
 la diferencia. El campo reservado conserva NULL; la publicación de F4 rechaza un
