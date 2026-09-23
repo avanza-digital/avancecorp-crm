@@ -1,5 +1,18 @@
 # GESTIÓN DIARIA — el documento único
 
+**Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).
+Miguel pidió el 23/09 conservar allí exactamente las fases y casillas del plan
+presentado en el chat y actualizar **el mismo tablero** con cada avance verificado.
+La correspondencia de nodos y los 76 puntos está en [FIGMA-PLAN.json](FIGMA-PLAN.json).
+Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
+conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
+en cada sesión ni prometer sincronización automática en segundo plano.
+
+**Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
+`Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
+de Gestión Diaria. Revisión en curso; implementación y aceptación pendientes.
+Este trabajo no convierte la primera jornada real de F4 en aprobada.
+
 > **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #77 fusionado en `8e6f4357`.
 > Cinco SQL productivos verificados y frontend `build-20260923T173450335Z`
 > publicado desde ese Main limpio e igual al remoto; 113 archivos cotejados.
