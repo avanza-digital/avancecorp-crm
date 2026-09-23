@@ -1,6 +1,12 @@
 # F4 — quinto SQL para resolver el conflicto HTTP
 
 Estado al 23/09/2026: **prueba local PASS; autorización y ensayo remotos pendientes**.
+**Actualización posterior:** Miguel respondió «sii» a la solicitud concreta y
+autorizó el quinto SQL exacto, en banco y luego en producción solo con gates PASS.
+Se creó `gestion-diaria-f4-correctivo-20260923`, ref `zviwoyvtccqhhdfqdang`, sin
+datos productivos, a las 14:44:42 UTC. Tarifa confirmada US$0,01344/h dentro del
+tope previo US$1; eliminar al finalizar y antes del 24/09 14:44 UTC.
+El resto conserva la propuesta y evidencia que recibió esa autorización.
 Miguel reanudó el trabajo. Producción conserva política v1 con cortes OFF y todavía
 no tiene los cuatro SQL finales de F4 ni este correctivo.
 

@@ -70,7 +70,15 @@ function lote(ddl){
  assert.ok(!limpio.includes(etiqueta));
  return `do $lote$ begin execute ${etiqueta}${limpio}${etiqueta}; end $lote$;\n`;
 }
-const contenido=lote(previo)+extraer('data')+lote(extraer('post-data'));
+// La retoma usa desde el inicio los siete leads canónicos de la matriz, sin
+// los residuos de las pruebas locales que contenía el primer respaldo.
+const semilla='/private/tmp/gestion-diaria-f4-http.WQNCJc/semilla-base.dump';
+assert.equal(createHash('sha256').update(readFileSync(semilla)).digest('hex'),
+ '571b82179c858748a6b66f181b9102d01e57234da0d375e554a646af7aaaf26b');
+const datos=ejecutar(['--data-only','--schema=crm','--schema=private','--schema=public','--file','-',semilla]);
+const politica=ejecutar(['--data-only','--schema=crm','--table=politica_gestion_diaria','--file','-',dump]);
+assert.match(politica,/COPY crm\.politica_gestion_diaria /);
+const contenido=lote(previo)+auth+storage+datos+politica+lote(extraer('post-data'));
 writeFileSync(`${carpeta}/restauracion-seleccion.sql`,contenido,{mode:0o600});
 // Los checks previos fallan si dejó de ser un banco vacío. Todo se confirma
 // junto: un error conserva la rama fallida original sin media restauración.
@@ -114,6 +122,8 @@ select private.assert_gestion_diaria();
 select private.assert_analitica_leads_citas();
 do $final$ begin
  if (select count(*) from auth.users)<>17 then raise exception 'Fixture Auth inesperado'; end if;
+ if (select count(*) from crm.leads)<>7 or (select count(*) from crm.tareas)<>5 then
+   raise exception 'Semilla de matriz inesperada'; end if;
  if (select count(*) from crm.politica_gestion_diaria)<>1
    or exists(select 1 from crm.politica_gestion_diaria where version<>1 or cortes_activos) then
    raise exception 'Política no es v1 OFF'; end if;
