@@ -5,6 +5,7 @@ import { GerenciaEChart } from '@/components/gerencia/echart-lazy'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import { numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
+import { rotuloDeLaCifra } from '@/lib/conversion-rotulo'
 import {
   totalConversionPublicable,
   type ConversionMensual,
@@ -105,7 +106,18 @@ export function EquipoGerenciaPanel({
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
     { label: etiquetaBase, valor: base == null ? '—' : numero(base), icon: Inbox, color: C.navy },
     { label: soloCartera ? 'Operaciones' : 'Cierres del mes', valor: (soloCartera ? operaciones : cierres) == null ? '—' : numero((soloCartera ? operaciones : cierres)!), detalle: !soloCartera && operaciones != null && operaciones > 0 ? `+ ${numero(operaciones)} operaciones de cartera` : null, icon: UserRoundCheck, color: C.green },
-    { label: fuenteConversion == null ? 'Conversión del mes' : `Aporte de ${etiquetaFuente}`, valor: pct(conversion), icon: Target, color: C.teal },
+    // EL RÓTULO. Este panel lee `crm.conversion_mensual_fn` DIRECTAMENTE, así
+    // que su cifra es la oficial por construcción: se declara como tal, y se
+    // dice cuándo el mes ya está sellado (entonces la cifra es una foto y deja
+    // de moverse). Con un filtro de fuente activo, el desglose se calcula en
+    // vivo y eso también se dice. `detalle` ya existe en el tile: no cambia el
+    // layout.
+    { label: fuenteConversion == null ? 'Conversión del mes' : `Aporte de ${etiquetaFuente}`, valor: pct(conversion),
+      detalle: rotuloDeLaCifra({
+        es_mes_calendario: true, fuente: 'mensual',
+        sellado: conversionMensual?.cierre?.cerrado ?? false, ajuste_aplicado: true,
+      }, fuenteConversion != null),
+      icon: Target, color: C.teal },
   ]
 
   const opcion = useMemo<EChartsOption>(() => ({
