@@ -97,3 +97,101 @@ test('diff: un analista que desaparece se nombra', () => {
   const d = clon(); d.analistas.pop();
   assert.ok(compararFotos(real, d).cambios.some((c) => c.despues === 'desapareció'));
 });
+
+// ── LOS MUTANTES DE LA CONCILIACIÓN (foto v2, 22/09/2026) ───────────────────
+//
+// Los de arriba se escribieron cuando el gate exigía que los cuatro caminos
+// fuesen IGUALES. Esa regla era correcta mientras no existiera ninguna deuda
+// por cierres anulados, y DEJA DE SERLO en cuanto exista: pondría en rojo
+// justo el trabajo bien hecho. Lo reprodujo Codex el 22/09.
+//
+// 🔑 Éstos mueven NÚMEROS DE VERDAD. El mutante que proponía el plan anterior
+// —forzar `es_mes_calendario` a false— se ejecutó y salió `sin_cambios: true`:
+// ni el gate ni la alarma leían esa clave. Un mutante que no mueve nada no
+// prueba nada.
+
+/** Una foto v2 con deuda: el núcleo dice el bruto y los publicados el neto. */
+const conDeuda = ({ bruto = 50, deuda = 4, topados = 0, aplicada = null } = {}) => {
+  const f = clon();
+  const neto = bruto - (aplicada ?? deuda);
+  f.version = 2;
+  f.conciliacion = {
+    bruto_numerador: bruto,
+    neto_numerador: neto,
+    deuda_pendiente: deuda,
+    deuda_aplicada: aplicada ?? deuda,
+    vendedores_con_deuda: deuda > 0 ? 1 : 0,
+    vendedores_topados: topados,
+  };
+  const div = f.caminos.nucleo_directo.divisor;
+  const pct = (n) => Math.round((10000 * n) / div) / 100;
+  f.caminos.nucleo_directo = { divisor: div, numerador: bruto, pct: pct(bruto) };
+  for (const n of ['mensual', 'rango', 'distribucion']) {
+    f.caminos[n] = { ...f.caminos[n], divisor: div, numerador: neto, pct: pct(neto) };
+  }
+  return f;
+};
+
+test('v2 SANO: el núcleo sirve el bruto y los publicados el neto → ni conciliación ni caminos se quejan', () => {
+  // El fixture mueve los TOTALES pero no las filas del desglose, así que las
+  // reglas 3 y 4 se quejan con razón. Lo que este test afirma es lo suyo: que
+  // servir bruto arriba y neto abajo es CORRECTO y no lo delata nadie.
+  const r = comprobarCoherencia(conDeuda({ bruto: 50, deuda: 4 }));
+  const suyas = reglas(r).filter((x) => x === 'conciliacion' || x === 'cuatro_caminos');
+  assert.deepEqual(suyas, [], `no debería quejarse: ${JSON.stringify(r.fallos)}`);
+});
+
+test('MUTANTE: una pantalla sigue sirviendo el BRUTO mientras las otras el neto → cuatro_caminos', () => {
+  const f = conDeuda({ bruto: 50, deuda: 4 });
+  const div = f.caminos.nucleo_directo.divisor;
+  f.caminos.rango = { divisor: div, numerador: 50, pct: Math.round((10000 * 50) / div) / 100 };
+  const r = comprobarCoherencia(f);
+  assert.equal(r.ok, false);
+  assert.ok(reglas(r).includes('cuatro_caminos'));
+});
+
+test('MUTANTE: la deuda aplicada no cuadra con bruto − neto → conciliacion', () => {
+  const f = conDeuda({ bruto: 50, deuda: 4 });
+  f.conciliacion.deuda_aplicada = 1; // pero bruto − neto sigue siendo 4
+  const r = comprobarCoherencia(f);
+  assert.equal(r.ok, false);
+  assert.ok(reglas(r).includes('conciliacion'));
+});
+
+test('MUTANTE: se aplica MÁS deuda de la que hay pendiente → conciliacion', () => {
+  const f = conDeuda({ bruto: 50, deuda: 2, aplicada: 6 });
+  const r = comprobarCoherencia(f);
+  assert.equal(r.ok, false);
+  assert.ok(reglas(r).includes('conciliacion'));
+});
+
+test('MUTANTE: el bruto conciliado mira otra población que el núcleo → conciliacion', () => {
+  const f = conDeuda({ bruto: 50, deuda: 4 });
+  f.conciliacion.bruto_numerador = 49; // el núcleo sigue diciendo 50
+  const r = comprobarCoherencia(f);
+  assert.equal(r.ok, false);
+  assert.ok(reglas(r).includes('conciliacion'));
+  assert.match(r.fallos.find((x) => x.regla === 'conciliacion').detalle, /otra población/);
+});
+
+test('DEUDA MAYOR QUE EL BRUTO: con alguien topado, aplicada < pendiente y es VÁLIDO', () => {
+  // El tope `greatest(num − pend, 0)` impide aplicar más deuda que bruto tiene
+  // esa persona. Entonces aplicada < pendiente SIN que nada esté roto.
+  const f = conDeuda({ bruto: 50, deuda: 9, aplicada: 5, topados: 1 });
+  const r = comprobarCoherencia(f);
+  assert.ok(!reglas(r).includes('conciliacion'),
+    `la conciliación no debería quejarse con gente topada: ${JSON.stringify(r.fallos)}`);
+});
+
+test('MUTANTE: sin nadie topado, aplicada < pendiente es un agujero → conciliacion', () => {
+  const f = conDeuda({ bruto: 50, deuda: 9, aplicada: 5, topados: 0 });
+  const r = comprobarCoherencia(f);
+  assert.equal(r.ok, false);
+  assert.ok(reglas(r).includes('conciliacion'));
+});
+
+test('la foto v1 histórica se juzga con la regla de su tiempo, no con la conciliación', () => {
+  const r = comprobarCoherencia(real);
+  assert.ok(!reglas(r).includes('conciliacion'));
+  assert.deepEqual(r.fallos, []);
+});

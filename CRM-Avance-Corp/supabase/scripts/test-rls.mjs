@@ -6919,9 +6919,41 @@ async function testMetricasServidor(sessions, seed) {
     const a = alarma.data;
     check(a?.cuadra === true, 'F3: los cuatro caminos de la conversion del mes coinciden en el fixture',
       JSON.stringify(a?.detalle ?? a));
-    check(a?.caminos_leidos === 4, 'F3: la alarma leyo los cuatro caminos');
-    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'cuadra', 'detalle', 'hasta', 'mes', 'motivo']),
-      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, detalle y motivo', Object.keys(a ?? {}).join(','));
+    // CINCO desde que la alarma vigila tambien el RECALCULO de la puerta #4.
+    // Con la Ola 1b esa puerta delega, asi que comparar `rango` con `mensual`
+    // dejo de poder fallar; `rango_recalculo` —leido de nucleo.recalculo_vivo—
+    // es el que devuelve los dientes.
+    check(a?.caminos_leidos === 5, 'F3: la alarma leyo los cinco caminos', String(a?.caminos_leidos));
+    check(a?.detalle?.rango_recalculo != null,
+      'F3: el camino del recalculo de la puerta #4 viaja en el detalle');
+    check(num(a?.detalle?.rango_recalculo?.numerador) === num(a?.conciliacion?.bruto_numerador),
+      'F3: el recalculo de la puerta #4 sigue dando el BRUTO, no el neto',
+      `recalculo ${a?.detalle?.rango_recalculo?.numerador} · bruto ${a?.conciliacion?.bruto_numerador}`);
+    check(a?.declaran?.rango === 'mensual',
+      'F3: la puerta #4 DECLARA que delego; publicar la cifra buena sin decirlo es un acierto por casualidad',
+      String(a?.declaran?.rango));
+    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'conciliacion', 'cuadra', 'declaran', 'detalle', 'hasta', 'mes', 'motivo']),
+      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, declaran, detalle, motivo y conciliacion', Object.keys(a ?? {}).join(','));
+    // El conjunto sigue siendo CERRADO a proposito: es el candado anti-fuga de
+    // payload. `conciliacion` se anade a la lista, no se relaja la regla.
+    check(JSON.stringify(Object.keys(a?.conciliacion ?? {}).sort())
+            === JSON.stringify(['bruto_numerador', 'deuda_aplicada', 'deuda_pendiente', 'neto_numerador', 'vendedores_topados']),
+      'F3: la conciliacion trae sus cinco claves y ninguna mas', Object.keys(a?.conciliacion ?? {}).join(','));
+    {
+      const c = a?.conciliacion ?? {};
+      const n = (x) => Number(x ?? NaN);
+      check(n(c.bruto_numerador) >= n(c.neto_numerador),
+        'F3: el bruto nunca es menor que el neto', JSON.stringify(c));
+      check(Math.abs((n(c.bruto_numerador) - n(c.neto_numerador)) - n(c.deuda_aplicada)) < 1e-6,
+        'F3: bruto menos neto es exactamente la deuda aplicada', JSON.stringify(c));
+      check(n(c.deuda_aplicada) <= n(c.deuda_pendiente) + 1e-6,
+        'F3: no se aplica mas deuda de la pendiente', JSON.stringify(c));
+      check(n(c.vendedores_topados) > 0 || Math.abs(n(c.deuda_aplicada) - n(c.deuda_pendiente)) < 1e-6,
+        'F3: sin nadie topado, se aplica TODA la deuda pendiente', JSON.stringify(c));
+      check(n(c.bruto_numerador) === Number(a?.detalle?.nucleo_directo?.numerador ?? NaN),
+        'F3: el bruto conciliado es el del nucleo directo (misma poblacion)',
+        `${c.bruto_numerador} vs ${a?.detalle?.nucleo_directo?.numerador}`);
+    }
     check(a.motivo === (a.detalle?.nucleo_directo?.divisor === 0 ? 'sin_datos' : null),
       'F3: motivo distingue ausencia de datos de una discrepancia real');
     check(!JSON.stringify(a).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i),
@@ -6955,7 +6987,7 @@ async function testMetricasServidor(sessions, seed) {
     'F3: dos lecturas seguidas de la alarma no se deniegan entre si',
     admin.schema('crm').rpc('alarma_conversion_fn'),
   );
-  if (alarmaDoble) check(alarmaDoble.data?.caminos_leidos === 4, 'F3: la segunda lectura sigue leyendo los cuatro caminos');
+  if (alarmaDoble) check(alarmaDoble.data?.caminos_leidos === 5, 'F3: la segunda lectura sigue leyendo los cinco caminos');
 
   // series_comerciales_fn v2 (F6.c): shape de 7 arrays paralelos. La clave de
   // cohorte lleva su apellido y la conversion OFICIAL del nucleo viaja aparte
@@ -7412,6 +7444,148 @@ async function testMetricasConversionesGlobal(sessions) {
       'lote vacio: cohorte 0 y sin origenes');
     check(inventado.data?.version === 1 && Object.hasOwn(inventado.data ?? {}, 'produccion'),
       'la forma del payload sobrevive al lote vacio');
+  }
+
+  // ── A3 · EL CONTRATO DE LA UNIFICACION (Olas 1a y 1b de las doce puertas) ─
+  // Se prueba AQUI, sobre la puerta PUBLICA `crm.metricas_conversiones_fn`, no
+  // sobre su implementacion: entre las dos hay un `filtrar_desglose_sujetos_crm`
+  // y el fallo silencioso de esta casa es justo ese — la clave que se emite y
+  // no llega.
+  //
+  // REGLA (Miguel, 21/09): mes calendario completo y SIN filtro de fuente -> la
+  // cifra la sirve `crm.conversion_mensual_fn`. Cualquier otro caso -> calculo
+  // en vivo, DECLARADO.
+  //
+  // El test distingue las generaciones del servidor y no deja hueco:
+  //   · servidor previo   -> las cuatro claves AUSENTES.
+  //   · servidor migrado  -> las cuatro, con los valores que manda la regla.
+  // Un contrato a medias (unas si y otras no) es un fallo, no una etapa.
+  const mesLima = (() => {
+    const hoy = enLima(ahora)              // AAAA-MM-DD en Lima
+    const [a, m] = hoy.split('-').map(Number)
+    const dia1 = `${hoy.slice(0, 7)}-01`
+    const antA = m === 1 ? a - 1 : a
+    const antM = m === 1 ? 12 : m - 1
+    const pm = `${antA}-${String(antM).padStart(2, '0')}`
+    return { dia1, hoy, parcialDesde: `${pm}-01`, parcialHasta: `${pm}-02` }
+  })()
+
+  const clavesContrato = ['es_mes_calendario', 'fuente', 'sellado', 'ajuste_aplicado']
+  const declara = (nucleo) => clavesContrato.filter((k) => Object.hasOwn(nucleo ?? {}, k))
+
+  const mesCompleto = await positive(
+    'gerencia pide el mes calendario completo (dia 1 a hoy)',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.dia1, p_hasta: mesLima.hoy,
+    }),
+  )
+  let servidorDeclara = null
+  let delega = null
+  if (mesCompleto) {
+    const n = mesCompleto.data?.nucleo
+    const presentes = declara(n)
+    servidorDeclara = presentes.length === 4
+    check(presentes.length === 0 || presentes.length === 4,
+      'el contrato de la unificacion viaja ENTERO o no viaja (nunca a medias)',
+      presentes.join(','))
+    if (servidorDeclara) {
+      check(n.es_mes_calendario === true,
+        'del dia 1 a hoy, el nucleo declara es_mes_calendario: true')
+      // Ola 1b: ese caso DEBE delegar. Antes de la 1b decia 'rango_vivo'.
+      delega = n.fuente === 'mensual'
+      check(n.fuente === 'mensual',
+        'mes calendario y sin filtro: la cifra la sirve la mensual (fuente: mensual)',
+        String(n.fuente))
+      if (delega) {
+        check(typeof n.sellado === 'boolean',
+          'al delegar, `sellado` deja de ser null: la oficial sabe si el mes esta cerrado',
+          JSON.stringify(n.sellado))
+        check(n.ajuste_aplicado === true,
+          'al delegar, la deuda de anulacion SI esta descontada (ajuste_aplicado: true)')
+        // Y lo que la puerta habria calculado viaja al lado, para que la
+        // pantalla pueda ensenar la distancia en vez de quedarse en blanco.
+        check(n.recalculo_vivo != null && typeof n.recalculo_vivo.divisor === 'number',
+          'al delegar, el recalculo en vivo viaja al lado (recalculo_vivo)')
+      } else {
+        check(n.sellado === null,
+          'sin delegar, `sellado` es null («no se delego»), nunca false',
+          JSON.stringify(n.sellado))
+        check(n.ajuste_aplicado === false,
+          'sin delegar, la deuda de anulacion NO esta descontada')
+      }
+    }
+  }
+
+  // LA PRUEBA DE QUE LA CIFRA ES UNA: byte a byte contra la oficial.
+  if (delega) {
+    const oficial = await positive(
+      'gerencia pide la conversion mensual oficial del mismo mes',
+      sessions.gerencia.client.schema('crm').rpc('conversion_mensual_fn', { p_periodo: mesLima.dia1 }),
+    )
+    if (oficial) {
+      const n = mesCompleto.data.nucleo
+      const t = oficial.data?.total
+      check(num(n.divisor) === num(t?.divisor)
+        && num(n.numerador) === num(t?.numerador)
+        && num(n.conversion_pct) === num(t?.conversion_pct),
+        'la puerta publica EXACTAMENTE la cifra de crm.conversion_mensual_fn',
+        `puerta ${n.divisor}/${n.numerador}=${n.conversion_pct} · oficial ${t?.divisor}/${t?.numerador}=${t?.conversion_pct}`)
+      check(n.sellado === (oficial.data?.cierre?.cerrado ?? false),
+        'el `sellado` que publica la puerta es el que dice la oficial')
+    }
+  }
+
+  // PRIMERA PUERTA DE ESCAPE: un rango que no es mes calendario.
+  const rangoParcial = await positive(
+    'gerencia pide un rango PARCIAL del mes anterior',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.parcialDesde, p_hasta: mesLima.parcialHasta,
+    }),
+  )
+  if (rangoParcial && servidorDeclara) {
+    const n = rangoParcial.data?.nucleo
+    check(n?.es_mes_calendario === false,
+      'un rango de dos dias NO se declara mes calendario', String(n?.es_mes_calendario))
+    check(n?.fuente === 'rango_vivo',
+      'un rango parcial NO delega: se calcula en vivo y se dice', String(n?.fuente))
+    check(n?.sellado === null && n?.ajuste_aplicado === false,
+      'un rango parcial no finge saber si el mes esta sellado ni haber restado la deuda')
+  }
+
+  // SEGUNDA PUERTA DE ESCAPE: mes completo pero CON filtro de fuente. La regla
+  // de Miguel exige «sin filtro»; el rango sigue siendo mes calendario, lo que
+  // lo saca de la delegacion es el filtro.
+  const mesFiltrado = await positive(
+    'gerencia pide el mes completo CON filtro de origen',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.dia1, p_hasta: mesLima.hoy, p_origen: 'referido',
+    }),
+  )
+  if (mesFiltrado && servidorDeclara) {
+    const n = mesFiltrado.data?.nucleo
+    check(n?.es_mes_calendario === true,
+      'con filtro de origen el rango SIGUE siendo mes calendario', String(n?.es_mes_calendario))
+    check(n?.fuente === 'rango_vivo',
+      'con filtro de origen NO se delega, aunque el rango sea un mes completo', String(n?.fuente))
+    check(n?.ajuste_aplicado === false,
+      'con filtro de origen la deuda no esta descontada, y se dice')
+  }
+
+  // El contrato no puede depender del rol: el lector global recibe lo mismo.
+  const mesDirectorio = await positive(
+    'directorio (lector global) pide el mismo mes calendario',
+    sessions.directorio.client.schema('crm').rpc('metricas_conversiones_fn', {
+      p_desde: mesLima.dia1, p_hasta: mesLima.hoy,
+    }),
+  )
+  if (mesDirectorio && servidorDeclara) {
+    const n = mesDirectorio.data?.nucleo
+    const g = mesCompleto.data?.nucleo
+    check(declara(n).length === 4 && n.es_mes_calendario === true && n.fuente === g.fuente,
+      'el lector global recibe las cuatro claves y la MISMA fuente que gerencia')
+    check(num(n.divisor) === num(g.divisor) && num(n.numerador) === num(g.numerador)
+      && num(n.conversion_pct) === num(g.conversion_pct),
+      'el lector global ve la misma cifra que gerencia, no otra')
   }
 
   // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ─────────────

@@ -1,0 +1,2526 @@
+{
+  "cosechado_en": "2026-09-21T22:41:40.310Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "dialecto": "bigquery",
+  "retencion_dias_declarada": 7,
+  "margen_ingesta_min": 10,
+  "limite_filas_por_consulta": 1000,
+  "ventana_pedida": {
+    "desde": "2026-09-14T22:41:40.310Z",
+    "hasta": "2026-09-21T22:41:40.310Z"
+  },
+  "ventana_cubierta_por_tramos": {
+    "desde": "2026-09-14T22:41:40.310Z",
+    "hasta": "2026-09-21T22:41:40.310Z"
+  },
+  "tramos": [
+    {
+      "pedido": {
+        "desde": "2026-09-14T22:41:40.310Z",
+        "hasta": "2026-09-15T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-14T22:41:40.310Z",
+        "hasta": "2026-09-15T22:41:40.310Z"
+      },
+      "filas_edge": 72933,
+      "filas_postgres": 6833,
+      "filas": 79766,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-15T22:41:40.310Z",
+        "hasta": "2026-09-16T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-15T22:41:40.310Z",
+        "hasta": "2026-09-16T22:41:40.310Z"
+      },
+      "filas_edge": 71873,
+      "filas_postgres": 6463,
+      "filas": 78336,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-16T22:41:40.310Z",
+        "hasta": "2026-09-17T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-16T22:41:40.310Z",
+        "hasta": "2026-09-17T22:41:40.310Z"
+      },
+      "filas_edge": 65569,
+      "filas_postgres": 6894,
+      "filas": 72463,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-17T22:41:40.310Z",
+        "hasta": "2026-09-18T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-17T22:41:40.310Z",
+        "hasta": "2026-09-18T22:41:40.310Z"
+      },
+      "filas_edge": 72271,
+      "filas_postgres": 6504,
+      "filas": 78775,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-18T22:41:40.310Z",
+        "hasta": "2026-09-19T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-18T22:41:40.310Z",
+        "hasta": "2026-09-19T22:41:40.310Z"
+      },
+      "filas_edge": 44988,
+      "filas_postgres": 6880,
+      "filas": 51868,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-19T22:41:40.310Z",
+        "hasta": "2026-09-20T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-19T22:41:40.310Z",
+        "hasta": "2026-09-20T22:41:40.310Z"
+      },
+      "filas_edge": 3846,
+      "filas_postgres": 5382,
+      "filas": 9228,
+      "parcial": false,
+      "truncado": false
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-20T22:41:40.310Z",
+        "hasta": "2026-09-21T22:41:40.310Z"
+      },
+      "observado": {
+        "desde": "2026-09-20T22:41:40.310Z",
+        "hasta": "2026-09-21T22:41:40.310Z"
+      },
+      "filas_edge": 87213,
+      "filas_postgres": 5605,
+      "filas": 92818,
+      "parcial": false,
+      "truncado": false
+    }
+  ],
+  "nota_ambiguedad_esquema": true,
+  "no_ve_exitos": true,
+  "denegaciones_esquema": [
+    {
+      "ts": "2026-09-15T22:36:07.104Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T22:36:05.115Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T22:04:15.947Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T22:04:14.806Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T22:03:01.931Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T22:03:01.468Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.590Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.552Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.552Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.549Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.549Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.532Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.502Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.502Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.499Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:31.494Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:24.013Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.455Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.453Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.450Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.449Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.447Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.447Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.447Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.445Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.435Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.434Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:17:08.431Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.696Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.695Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.694Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.689Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.677Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.675Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T20:02:30.673Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T19:54:42.422Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T19:54:27.082Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:40:20.200Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:27:04.813Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:27:01.043Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:27:00.600Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:11:00.542Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:01:21.789Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T18:01:21.341Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:33:36.434Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:33:35.886Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:24:29.847Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:24:13.859Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:57.859Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:42.020Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:41.970Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:41.966Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:41.960Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T17:23:41.955Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T16:02:55.294Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T16:02:52.368Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T16:02:52.040Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:32:13.801Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:32:10.711Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:32:10.393Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:28:51.357Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:28:50.916Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:28:19.840Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T15:28:18.130Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:43.828Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:27.893Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.140Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.119Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.109Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.100Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.093Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.090Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.084Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:23:08.075Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:19:34.018Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:19:18.071Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:19:02.102Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:46.047Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:46.046Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:46.043Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:44.869Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:44.868Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:44.867Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:44.866Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T14:18:44.865Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T12:06:23.340Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T12:06:23.325Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T02:16:13.757Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T01:43:15.403Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:34:43.549Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:34:43.074Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:09:32.708Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:06:16.219Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:06:12.417Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:06:11.969Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:03:11.037Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:03:08.029Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T22:03:07.724Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:56:26.610Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:56:26.103Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:54:57.401Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:54:56.796Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:13:38.421Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:13:35.156Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:12:11.250Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:12:08.570Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T21:12:08.281Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T20:11:33.953Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T20:11:33.453Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T19:41:51.450Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T19:41:51.010Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T19:37:13.713Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T19:31:50.478Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T18:20:39.507Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T18:20:38.939Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T18:15:07.706Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T18:15:04.693Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T16:57:14.557Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T16:57:13.994Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T15:41:11.818Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T15:41:07.768Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T15:41:07.475Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T15:19:22.779Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T15:19:22.757Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T14:32:51.154Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T14:20:07.729Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T14:20:07.727Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T14:20:07.721Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T12:57:32.539Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T02:49:26.052Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T02:49:25.897Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T01:45:41.197Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T01:30:50.227Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T00:20:03.389Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T00:20:00.474Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T00:20:00.143Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T00:07:17.931Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:46:13.311Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:46:12.552Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:34:31.382Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:34:30.941Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:11:52.824Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-15T23:11:52.210Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:41:22.670Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:41:06.908Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:51.643Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.263Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.262Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.261Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.256Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.248Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.243Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.240Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.235Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.234Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.207Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.205Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:40:36.201Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:02:20.761Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:02:04.720Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:48.709Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:32.490Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:32.489Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:32.488Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:32.468Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T19:01:32.466Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.660Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.659Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.589Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.582Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.579Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.572Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.566Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.565Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:44.562Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:41.016Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:25.732Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:02:10.490Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.241Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.236Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.232Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.230Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.230Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.230Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.227Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.213Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.213Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.212Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.211Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.211Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.204Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T17:01:55.203Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.565Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.548Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.544Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.538Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.516Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.487Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.471Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T15:08:04.445Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:11:46.788Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:11:30.848Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:11:14.965Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.222Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.215Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.215Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.209Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.198Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-17T14:10:55.188Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T23:24:31.016Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T23:24:30.708Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-16T23:10:37.212Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:07:40.631Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.793Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.787Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.787Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.786Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.781Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.763Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.751Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T22:06:36.673Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:49.140Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:46.070Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:45.748Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:07.565Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:04.338Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:12:03.988Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:10:20.154Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T21:10:19.388Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:40:29.210Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:34:22.865Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:34:22.379Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:16:35.900Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:16:35.343Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:11:00.092Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T20:10:59.677Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T19:37:21.307Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T19:37:20.738Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T19:26:30.142Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T18:16:30.723Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T17:41:51.228Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T17:41:50.423Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T17:40:47.052Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T17:40:46.428Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T16:08:40.360Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:26:29.445Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:26:26.639Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:26:26.330Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:25:18.410Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:25:15.833Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:56.450Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:53.918Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:53.604Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:09.114Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:06.276Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:22:05.980Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:03:25.240Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:03:22.479Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T15:03:22.101Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:47.144Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:47.098Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:46.838Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.937Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.921Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.920Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.920Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.918Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.916Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.913Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.911Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.906Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.904Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.903Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.902Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:45:45.900Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:29:00.588Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.822Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.816Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.813Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.813Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.813Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.813Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.798Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.795Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:28:44.795Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:29.771Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:29.449Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.602Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.599Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.577Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.290Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.284Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.282Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.244Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.240Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.238Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.238Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:14.236Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:13.779Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:11:12.772Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:57.779Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:56.822Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:42.108Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:41.905Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:41.856Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:41.854Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:41.854Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:41.852Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:39.560Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:39.531Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:39.254Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T14:10:39.187Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T13:58:21.788Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T01:38:34.547Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T00:45:25.939Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T00:39:43.516Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T00:39:40.466Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T00:38:24.772Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:45:15.907Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:31:56.730Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:17:33.940Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:10:40.517Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:10:40.044Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:09:11.450Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:00:35.374Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T21:00:31.770Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:57:55.490Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:38:25.588Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:38:22.138Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:30:25.993Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:30:25.428Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T20:20:09.200Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:52:00.893Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:24:50.604Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:24:50.023Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:23:16.734Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:23:16.164Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:18:56.393Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:18:56.186Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:18:55.726Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T19:14:04.453Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:56:06.027Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:56:05.455Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:33:54.548Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:31:38.683Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:31:38.451Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:22:27.647Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:22:24.119Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:22:23.627Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:21:25.505Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:18:55.268Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:18:51.488Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:18:51.128Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:17:37.333Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:17:33.803Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:04:02.200Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:03:58.453Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T18:03:58.002Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T16:21:12.287Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T16:21:11.575Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:59:06.777Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:59:06.772Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:59:06.765Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:59:06.725Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:59:06.719Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T15:18:45.417Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:50.512Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:34.518Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:18.556Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:02.673Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:02.673Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T14:08:02.662Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T12:36:53.129Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T05:56:06.238Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T03:22:48.162Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-19T02:55:17.952Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T23:19:23.465Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T23:04:22.900Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T23:04:20.284Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-18T23:04:19.978Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T22:34:17.718Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T22:07:00.617Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T22:05:47.253Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T22:03:55.935Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T21:47:48.404Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T21:18:34.346Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:54:57.935Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:54:54.969Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:54:06.627Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:54:06.170Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:47:13.290Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:33:11.742Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:15:31.663Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:15:29.182Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T20:15:28.868Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T19:58:22.212Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T19:56:39.848Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T19:56:36.250Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T19:56:35.859Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T18:54:08.277Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T18:09:43.005Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T18:08:02.009Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T18:06:14.271Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T18:06:13.708Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T16:40:46.044Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T16:05:37.145Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T15:36:54.802Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T15:05:32.166Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T15:05:31.625Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:44:56.805Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:44:53.034Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:27:16.157Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:27:13.354Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:18:28.628Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:09:02.541Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:08:59.451Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T07:08:59.124Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:26:10.363Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:23:49.234Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:18:50.671Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:18:50.432Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:18:49.247Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:16:54.384Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:01:45.901Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T06:01:43.187Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:58:03.887Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:58:03.502Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:57:32.410Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:50:02.116Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:49:59.410Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:39:31.711Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:39:29.160Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:06:38.624Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T05:06:38.043Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T04:51:15.000Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:26:18.644Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:26:18.021Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:21:12.353Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:21:09.245Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:21:08.932Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:18:00.216Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T03:17:59.788Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T02:25:26.346Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T02:18:16.106Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-20T00:49:40.158Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:25:22.335Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:25:22.325Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:25:13.606Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:25:12.878Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:24:05.157Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:23:55.923Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T22:23:55.346Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:36:13.102Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:36:12.132Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:36:09.381Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:36:07.583Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:29:09.881Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:29:07.155Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:29:06.845Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:56.271Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:56.267Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:56.264Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:54.982Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:52.106Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:22:51.777Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:20:17.953Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T21:20:15.662Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T20:55:00.538Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T20:54:14.053Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:49.493Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:33.485Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.976Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.968Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.964Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.963Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.962Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:32:17.961Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:49.737Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:49.728Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:34.445Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:34.439Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:19.112Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:19.093Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.875Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.842Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.816Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.804Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.729Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.725Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.723Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:01:03.719Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.853Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.796Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.793Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.791Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.775Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T19:00:58.761Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T18:33:16.435Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T18:33:16.415Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T18:33:16.408Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:36:05.015Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:36:04.469Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:34:27.707Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:34:27.171Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:21:43.390Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T17:21:43.164Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T16:44:28.354Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:51:33.886Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:51:31.041Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:51:30.706Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:47:17.306Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:47:14.263Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:47:13.927Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:46:49.676Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:46:46.147Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:46:45.760Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:06:36.204Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:06:32.630Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T15:06:32.275Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:55:32.483Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:55:29.550Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:55:29.199Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:44:02.956Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:44:00.057Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:26:30.115Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:24:45.030Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:24:45.020Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:24:44.689Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:43.871Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:27.876Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.552Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.541Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.535Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.527Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.475Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.460Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:18:12.460Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:13:47.738Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:13:47.735Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:13:47.731Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T14:13:47.727Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:58:39.899Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:58:39.402Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:57:39.643Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:57:37.935Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:55:49.848Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:55:47.008Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T03:49:05.148Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T02:26:32.347Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T02:26:29.523Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:48.237Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:45.781Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:44.159Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:42.776Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:42.743Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:42.404Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:42.393Z",
+      "event_message": "permission denied for schema crm"
+    },
+    {
+      "ts": "2026-09-21T00:13:42.393Z",
+      "event_message": "permission denied for schema crm"
+    }
+  ],
+  "hallazgos": [
+    {
+      "firma": "crm.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta_producto(uuid,jsonb,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "public.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "drop_no_antes_de": "2026-09-13",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.metricas_altas_analista_fn(integer)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_altas_analista_fn",
+      "cerrada_en": "2026-08-31",
+      "drop_no_antes_de": "2026-09-14",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_fn(date,date)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_distribucion_leads_fn",
+      "cerrada_en": "2026-08-31",
+      "drop_no_antes_de": "2026-09-14",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_v2_fn(date,date)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_distribucion_leads_v2_fn",
+      "cerrada_en": "2026-08-31",
+      "drop_no_antes_de": "2026-09-14",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.cerrar_altas_legacy_productos(bigint)",
+      "ola": "F7.2",
+      "nombre_rpc": "cerrar_altas_legacy_productos",
+      "cerrada_en": "2026-09-01",
+      "drop_no_antes_de": "2026-09-15",
+      "d7": "2026-09-08",
+      "d14": "2026-09-15",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    }
+  ]
+}

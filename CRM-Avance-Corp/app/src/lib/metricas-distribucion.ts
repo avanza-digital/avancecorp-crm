@@ -274,6 +274,19 @@ const ConversionPunteriaSchema = v.strictObject({
 // Sin tope superior a propósito: el >100 % del núcleo es normal, no
 // excepcional (renovaciones y arrastre suman cierres sin sumar recibidos).
 const ConversionNucleoEntries = {
+  // ── EL CONTRATO DE LA UNIFICACIÓN (Ola 1 de las doce puertas) ─────────────
+  // Cuatro claves que dicen DE DÓNDE salió la cifra, para que una pantalla
+  // nunca vuelva a publicar un porcentaje sin decir qué es.
+  //
+  // 🔴 VAN OPCIONALES A PROPÓSITO, y el front entra PRIMERO. Regla de la casa:
+  // una clave nueva en la RESPUESTA obliga a publicar el front antes que el
+  // servidor. Si entrara el servidor primero, un bundle viejo con
+  // `strictObject` rechazaría el payload entero y la pantalla se caería.
+  // Mientras el servidor no las emita, `undefined` = «servidor previo».
+  es_mes_calendario: v.optional(v.boolean()),
+  fuente: v.optional(v.picklist(['mensual', 'rango_vivo'])),
+  sellado: v.optional(v.nullable(v.boolean())),
+  ajuste_aplicado: v.optional(v.boolean()),
   nucleo_divisor: EnteroNoNegativoSchema,
   nucleo_referidos_recibidos: EnteroNoNegativoSchema,
   nucleo_numerador: CapitalNoNegativoSchema,

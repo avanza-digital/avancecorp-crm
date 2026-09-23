@@ -344,6 +344,16 @@ const ProduccionFueraRankingSchema = v.strictObject({
 })
 
 export const CumplimientoMetasSchema = v.strictObject({
+  // ── EL CONTRATO DE LA UNIFICACIÓN (Ola 1 de las doce puertas) ─────────────
+  // Dicen DE DÓNDE salió la cifra. Opcionales a propósito: el front entra
+  // PRIMERO (regla de la casa), y mientras el servidor no las emita,
+  // `undefined` significa «servidor previo», no «no se sabe».
+  es_mes_calendario: v.optional(v.boolean()),
+  fuente: v.optional(v.picklist(['mensual', 'rango_vivo'])),
+  sellado: v.optional(v.nullable(v.boolean())),
+  ajuste_aplicado: v.optional(v.boolean()),
+  mensual_comparada: v.optional(v.boolean()),
+  paridad_mensual: v.optional(v.nullable(v.number())),
   version: v.literal(1),
   periodo: FechaSchema,
   revision: EnteroNoNegativoRpcSchema,

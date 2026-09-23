@@ -141,6 +141,9 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F0–F3 y ampliación de resultado v4 | En producción | Conservar sus regresiones al ampliar F4 |
 | F4 etapas 1–2: equipo y detalle | En producción | Recorrido de negocio con el supervisor pendiente |
 | F4 etapa 3: base de cortes y cliente compatible | Publicada y verificada, OFF | No reinstalar el SQL ni activar avisos todavía |
+| F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
+| F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
+| F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
 | F4 etapa 4: pop-up y seguimiento | Implementada y validada localmente | Ensayo remoto y publicación |
 | F4 etapa 5: configuración gerencial | Implementada y validada localmente | Publicar y programar política futura con gerencia |
 | F4 etapa 6: validación y activación | Pruebas locales PASS; entrega pendiente | Ensayo remoto, activación futura y primera jornada real |
@@ -148,6 +151,9 @@ Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACIO
 | F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
 | F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
 
+**Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
+producto, conciliar el taller divergente preservando sus cambios ajenos; no
+reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
 **Próximo trabajo:** revisar y autorizar la propuesta de publicación; reconfirmar
 Main antes de entregar, conservando el taller ajeno. Las reglas
 de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
