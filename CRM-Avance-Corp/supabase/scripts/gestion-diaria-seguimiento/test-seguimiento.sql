@@ -191,7 +191,7 @@ do $$ declare c record; variante jsonb; fecha timestamptz; begin
   ) variantes(config) loop
     perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(2,%L,%L,''Inválido'')',c.vigencia,variante),'22023');
   end loop;
-  perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(1,%L,%L,''Versión antigua'')',c.vigencia,c.config),'40001');
+  perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(1,%L,%L,''Versión antigua'')',c.vigencia,c.config),'PT409');
   perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(2,%L,%L,''Demasiado lejos'')',now()+interval '91 days',c.config),'22023');
   perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(2,%L,%L,''Retroactivo'')',now()-interval '1 day',c.config),'22023');
   perform pg_temp.error_esperado(format('select crm.publicar_politica_gestion_diaria(2,%L,%L,''Piso inválido'')',c.vigencia,c.config||'{"corte_2_piso":501}'),'23514');
@@ -199,7 +199,7 @@ do $$ declare c record; variante jsonb; fecha timestamptz; begin
     'Entero JSON equivalente')->>'expected_version')::integer=3,'Entero JSON 3.0 aceptado');
   perform pg_temp.afirmar(crm.configuracion_gestion_diaria_fn()#>>'{vigente,configuracion,cortes_activos}'='false','La versión futura no cambia hoy');
   perform pg_temp.afirmar(crm.controlar_avisos_gestion_diaria(1,false,'Pausa de ensayo')#>>'{control_avisos,habilitados}'='false','Apagado inmediato');
-  perform pg_temp.error_esperado('select crm.controlar_avisos_gestion_diaria(1,true,''Versión obsoleta'')','40001');
+  perform pg_temp.error_esperado('select crm.controlar_avisos_gestion_diaria(1,true,''Versión obsoleta'')','PT409');
   perform pg_temp.afirmar(crm.controlar_avisos_gestion_diaria(2,true,'Reanudar ensayo')#>>'{control_avisos,version}'='3','Reanudar con versión');
 end $$;
 reset role;

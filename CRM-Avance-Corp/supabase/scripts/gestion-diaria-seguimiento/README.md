@@ -14,7 +14,7 @@ para repetir una prueba: conserva evidencia de entregas y versiones inmutables.
    termina en ROLLBACK. **Requiere banco anterior a etapa 4**; no repetir sobre
    la instalación actual.
 2. `instalar-local.mjs --solo-banco-autorizado`: verifica el respaldo y aplica
-   los tres candidatos juntos. Se ejecutó una vez; rechaza reinstalación.
+   los cuatro candidatos juntos. Se ejecutó una vez; rechaza reinstalación.
 3. `contrato-http.mjs --solo-banco-autorizado`: Auth/API reales de seis roles,
    cortes OFF y contexto completo. Requiere política inicial v1 OFF. PASS antes
    de preparar los casos de concurrencia.

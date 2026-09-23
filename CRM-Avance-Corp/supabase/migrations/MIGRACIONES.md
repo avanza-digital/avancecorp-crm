@@ -1,3 +1,19 @@
+## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
+
+**CANDIDATO AUTORIZADO el 23/09 e instalado en banco; sin instalar en producción.**
+Control remoto actual 2.221/0, contratos SQL y 24 mutantes PASS; matriz candidata,
+HTTP, concurrencia y carga en curso. Historial remoto: 341 anteriores intactas
+más los cinco archivos autorizados, bytes/SHA exactos.
+Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
+exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
+SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 local PASS:
+dos carreras con dos solicitudes en el lock, una 200 y otra 409/PT409, sin bucle.
+La retoma corrige el adaptador local y mide realmente las lecturas Auth paralelas.
+No edita los cuatro archivos aprobados,
+no inserta política y no activa cortes. SHA-256
+`428e6a19951afc12315b61c760ba679e37e0399ca4aa0d44dde7f938ce3ad18a`.
+Propuesta vigente: `docs/gestion-diaria/F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md`.
+
 ## 20260922220800 — F4: lectura completa separada de escrituras de cortes
 
 **CANDIDATO; instalado solo en banco Gestión Diaria.** Después de la segunda
