@@ -29,7 +29,94 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Último punto de control — PR #68 preparado y SQL aprobado, 21/09/2026
+### Último punto de control — etapa 3 publicada y verificada; cortes OFF (22/09/2026)
+
+El SQL exacto `20260921214018_crm_gestion_diaria_cortes.sql` (SHA-256
+`8563bf8bf66e97a4e328d54582bbcf74e17f63d3d6056c6f9ae2dc4b9f940ea5`)
+se probó en la rama temporal Supabase `gd-f4-con-datos-20260922`, creada con una
+copia de los datos de producción tras la autorización de Miguel. El historial de
+esa rama y el productivo coincidían salvo esta única migración; las 21 Edge
+Functions tenían las mismas versiones. La rama pasó `assert_gestion_diaria_cortes`,
+los gates de Gestión Diaria/SLA, la consulta como supervisor autenticado con
+estado `desactivados`, los permisos/RLS y advisors. Se fusionó mediante la
+operación de ramas de Supabase; en producción consta como versión remota
+`20260922164159` (el archivo versionado conserva su nombre original). No se
+usó `db push` general ni `apply_migration` directo a producción. Antes de una
+futura publicación por CLI hay que reconciliar de forma controlada esa diferencia
+de versiones; no reejecutar el archivo sobre la política ya instalada.
+
+**Postflight productivo PASS:** 324 migraciones; una sola política histórica v1
+con `cortes_activos=false`; `private.assert_gestion_diaria_cortes()`,
+`private.assert_gestion_diaria()` y los cuatro gates SLA correctos; columnas
+sensibles no expuestas, sin escrituras API y RLS habilitada. Los advisors no
+encontraron nuevos avisos de seguridad; señalan dos INFO de claves foráneas sin
+índice en `crm.politica_gestion_diaria`, con una sola fila actualmente. La rama
+temporal con datos se eliminó y se verificó su ausencia. Antes de fusionar se
+conservó fuera del web root una instantánea privada de las seis definiciones
+de función previas, en `releases/private/gd-f4-20260922T164624Z-pre.json`.
+
+**Frontend PUBLICADO Y VERIFICADO el 22/09/2026, 12:28 Lima.** Se publicó
+`releases/crm-20260922T165248Z-e22c0cab2db3.zip`, SHA-256
+`58f81cbf903ffdcef6d892dabd38d7f75cf99d4f81d6baae7eb87e3192989098`,
+desde el commit `e22c0cab2db30c5f570adf28f998d4d773fb3ed9`.
+El sitio sirve `build-20260922T165247339Z`. Main y `avancecorp/main` de la
+copia limpia usada para construir/publicar coincidían; el remoto se reconfirmó
+justo antes de subir. El taller principal conserva sus dos commits locales y
+sus cambios ajenos sin confirmar: no se reseteó ni se publicó ese trabajo.
+
+Se resolvió el acceso mediante el conector oficial de Hostinger Hosting ya
+instalado, versión 1.59.0, con 64 herramientas y la operación
+`hosting_deployStaticWebsite`. La conexión nativa de esta sesión exponía sólo
+15 herramientas de Agency Hosting. No se cambió la configuración MCP ni se
+instaló otro proveedor. Antes de subir se capturaron los 107 archivos del sitio
+anterior desde el origen y la configuración vía MCP; todos coincidieron byte a
+byte con una recompilación de `59dd1480` usando su build ID publicado. El ZIP y
+manifiesto de recuperación quedaron fuera del web root. El manifiesto original
+no se recuperó: este respaldo es una captura verificada del sitio servido.
+
+**Comprobaciones de cierre PASS:** ZIP/manifiesto y sus 107 archivos;
+preflight de ancestría/Ficha 360; seis gates SQL de Gestión Diaria/SLA; una única
+política v1 con `cortes_activos=false`; 107 archivos cotejados en origen y 106
+recursos públicos comprobados. JS/CSS/HTML coinciden con el manifiesto; la CDN
+transforma PNG, cuyos originales se cotejaron en el servidor de origen. ZIP
+HTTP 404, `.env` y `.git/config` HTTP 403, `package.json` HTTP 404. Portada y
+pantalla de acceso HTTP 200; Playwright aislado mostró el login sin errores de
+JavaScript. No se inició sesión ni se escribió negocio para probar.
+
+La evidencia previa de `npm run check` corresponde al mismo commit y se conserva;
+no se presenta como una nueva ejecución en esta retoma. Tampoco se atribuye
+PASS a las consultas de Claude sin dictamen recuperado. La revisión utilizable,
+sus hallazgos y la decisión del PRIMARY siguen en el acta de implementación.
+Acta de esta entrega: [F4-ETAPA3-PUBLICACION-2026-09-22.md](F4-ETAPA3-PUBLICACION-2026-09-22.md).
+
+### Plan actualizado después de publicar
+
+| Entrega | Estado | Siguiente paso |
+|---|---|---|
+| F0–F3 y ampliación de resultado v4 | En producción | Conservar sus regresiones al ampliar F4 |
+| F4 etapas 1–2: equipo y detalle | En producción | Recorrido de negocio con el supervisor pendiente |
+| F4 etapa 3: base de cortes y cliente compatible | Publicada y verificada, OFF | No reinstalar el SQL ni activar avisos todavía |
+| F4 etapa 4: pop-up y seguimiento | Pendiente | Construir reconocimiento y aplazamiento en servidor, entre dispositivos |
+| F4 etapa 5: configuración gerencial | Pendiente | Editor con versiones, vigencia futura y control de concurrencia |
+| F4 etapa 6: validación y activación | Pendiente | Flujo completo, carga/concurrencia, control de emergencia y activación futura |
+| F4.1: TypeSafe | Preparación técnica y ensayo sintético; sin integración productiva | Piloto humano por ambos supervisores, cada uno con su equipo; no bloquea F4/F5 |
+| F5: gerencia y hábitos | Pendiente | Tablero global y reporte para capacitación |
+| F6: absorber Seguimiento | Pendiente | Después de al menos una semana de F3–F5 estables |
+
+**Próximo trabajo:** preparar F4 etapa 4 desde el Main vigente. Antes de editar
+producto, conciliar el taller divergente preservando sus cambios ajenos; no
+reutilizar automáticamente la rama anterior ni crear otro worktree. Las reglas
+de sábado (mínimo 3), exclusión del aviso para analistas sin cartera abierta y
+aplazamiento único de una hora sin reaviso al cierre ya están aprobadas.
+
+**Pendientes técnicos separados:** reconciliar la versión SQL remota
+`20260922164159` con el archivo `20260921214018` antes de otra publicación por
+CLI, sin reejecutarlo; revisar después los dos avisos INFO de índices de claves
+foráneas ya documentados. No se cambiaron índices ni políticas en esta retoma.
+
+> Los checkpoints del 21/09 siguientes son históricos; prevalece la publicación del 22/09 descrita arriba.
+
+### Historial — PR #68 preparado y SQL aprobado, 21/09/2026
 
 Miguel indicó: «ok prepara el pr apruebo el sql y me avisas para ejecutar».
 Se abrió [PR #68](https://github.com/avanza-digital/avancecorp-crm/pull/68), desde
@@ -64,7 +151,7 @@ vigente. No cambiar pagos, límites, reglas de Main ni omitir `verify` para avan
 `verify` en PASS después de resolver ese bloqueo externo. Después, con la
 indicación humana de release, conciliar Main
 sin sobrescribir trabajo concurrente y seguir
-[F4-PUBLICACION-RECUPERACION.md](F4-PUBLICACION-RECUPERACION.md): resguardo propio
+[F4-PUBLICACION-RECUPERACION.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md): resguardo propio
 del destino, SQL exacto OFF primero y artefacto del commit aprobado después.
 La aprobación del SQL en conversación no sustituye la revisión del PR.
 Etapas 4–6 y activación siguen pendientes; no iniciarlas durante esta preparación.
@@ -164,7 +251,7 @@ e invocación humana de `$release-crm`. PR y aprobación del SQL quedan registra
 en el checkpoint superior; la ejecución continúa pendiente. SQL OFF primero y
 artefacto del commit verificado después.
 La validación técnica local permite avanzar a ese flujo; **no se publicó nada**.
-El [procedimiento de publicación y recuperación](F4-PUBLICACION-RECUPERACION.md)
+El [procedimiento de publicación y recuperación](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-PUBLICACION-RECUPERACION.md)
 define resguardos, precondiciones y contingencias. Sus datos del destino y aprobación
 se completan durante el release: nunca ejecutar la reversa local en producción.
 
@@ -222,7 +309,7 @@ guardado documental**. Claude ya realizó dos revisiones de la implementación;
 sus observaciones fueron evaluadas con evidencia, no equivalen a aprobación
 productiva. Los trabajos nuevos significativos mantienen la revisión mediante
 `scripts/claude-review`, sin repetir consultas para obtener un dictamen favorable.
-Detalle y límites: [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md).
+Detalle y límites: [F4-CORTES-JORNADA.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-CORTES-JORNADA.md).
 
 ### Antecedente — implementación local de la etapa 3, 21/09/2026
 
@@ -238,7 +325,7 @@ Candidato `20260921214018_crm_gestion_diaria_cortes.sql`: política versionada O
 cálculo de servidor con horas Lima, mínimos, base fija, cartera vacía y pruebas
 de límites/permisos. Instalación, mutantes, regresiones, tipos, censo y reversión
 ensayados; la base local termina sin cortes instalados. Aplicación: 4.073 tests
-y `npm run check` PASS. [Entrega y límites](F4-CORTES-JORNADA.md). Después
+y `npm run check` PASS. [Entrega y límites](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-CORTES-JORNADA.md). Después
 corresponden alertas y aplazamiento (etapa 4), configuración (etapa 5) y validación/
 activación (etapa 6). No ejecutar una migración ajena ni un `db push` general.
 
@@ -303,8 +390,9 @@ verificaciones y límites: [PUBLICACION-2026-09-21.md](PUBLICACION-2026-09-21.md
 La etapa 2 está **PUBLICADA Y VERIFICADA el 21/09**, fuente `baa63aea`, PR #64.
 Acta vigente: [F4-ETAPA2-PUBLICACION-2026-09-21.md](F4-ETAPA2-PUBLICACION-2026-09-21.md);
 implementación: [F4-DETALLE-ANALISTA.md](F4-DETALLE-ANALISTA.md).
-Queda el recorrido de negocio con el supervisor. Etapa 3 implementada y ensayada
-localmente, sin publicar; etapas 4–6 pendientes.
+Queda el recorrido de negocio con el supervisor. La etapa 3 está publicada y
+verificada desde `e22c0cab`, con SQL instalado OFF y frontend compatible.
+Las etapas 4–6 siguen pendientes.
 Sus criterios de cierre se desarrollan en §F4.
 Reutiliza `private.gestion_diaria_llamadas`, que ya admite varios analistas.
 
@@ -316,7 +404,7 @@ ensayo técnico sintético: 19/20 coincidencias con notas aisladas, una falsa al
 humano y la integración visible siguen pendientes; no bloquea F4 ni F5. Miguel confirmó
 que ambos supervisores validarán las notas reales anonimizadas, cada uno únicamente
 las de su propio equipo; no queda pendiente elegir a uno solo. Estado y evidencia:
-[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 **F5 — Gerencia «Toda la operación».** Dar una visión global del día frente a ayer y a los
 últimos siete días con actividad, identificar equipos que requieren atención y profundizar
@@ -358,7 +446,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 - **Deudas para F3:** la lista blanca de `private.registro_actividad_core` (F1) no expone `deshecho_en` / `descartado` / `no_insista` → el registro muestra un resultado deshecho como vigente hasta que F3 amplíe la lista (exige re-sellar el md5 en `assert_gestion_diaria_registro`); el Centro de rescate no marca los descartes deshechos; el «Deshacer» solo vive 15 s en el toast (el servidor admite 24 h) → F3 lo ofrece en «Descartados hoy».
 - Gate paraguas `private.assert_gestion_diaria()` = `_registro()` (F1) + `_resultado()` (F2); cada fase añade el suyo. Sella por md5 lo que compone: si otra sesión reescribe `reabrir_lead_fn`, `marcar_no_contactar`, `cerrar_tarea`, `sla_ejecutar_comando` o los triggers de leads, el gate se pone en rojo y hay que re-sellar a conciencia.
 
-### Cómo retomar (receta)
+### Cómo retomar (receta histórica del 21/09; prevalece el último punto de control)
 
 1. **Main único:** `avancecorp/main` (espejo del `main` local del taller). Integrar el remoto sin sobrescribirlo y exigir igualdad de commits antes de construir/publicar. El preflight comprueba la ancestría del despliegue anterior: `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
 2. **Taller y aislamiento:** comprobar `git status`, `git worktree list` y las notas de esta entrega. La candidata F4 se ha trabajado en `/private/tmp/avancecorp-gd-f4-vista.chvRqh`; no crear otro worktree ni reutilizar una rama antigua automáticamente. Preservar los cambios ajenos sin commitear.
@@ -368,7 +456,7 @@ el tablero global y el reporte de hábitos pertenecen a F5.
 6. **Revisión:** aplicar `.ai/REVIEW_PROTOCOL.md` y `.ai/VERIFICATION.md`: un solo PRIMARY escribe; Claude revisa mediante `scripts/claude-review`, con evidencia saneada, sin herramientas ni recursión. No encadenar revisiones automáticas ni confundir su dictamen con checks reales.
 7. **Trampas conocidas:** el hook de Bash bloquea comandos con `.env` o `*_KEY=` literales; los radios del panel llevan su descripción en el nombre accesible (Playwright: regex); un `div` envoltorio dentro de `Dialog` rompe el scroll del cuerpo (`flex min-h-0 flex-1 flex-col`); con un Sheet modal abierto los toasts no reciben clic sin la regla `[data-sonner-toaster]`.
 
-### Punto de reanudación y pendiente de Miguel
+### Punto de reanudación histórico del 21/09
 
 **Publicación completada:** PR #62 aprobado e integrado por `miguejbs98`;
 release `crm-20260921T170501Z-526e728e31ff`, build `build-20260921T170500239Z`,
@@ -423,7 +511,7 @@ notas reales ni se modificaron SQL, Edge, cron o frontend. La evaluación aislad
 Miguel confirmó que ambos supervisores validarán el piloto humano, cada uno dentro
 de su equipo. Falta preparar la muestra anonimizada y los criterios de validación,
 no designar un único responsable. Sigue preparado el ensayo, no los avisos del CRM. Ver
-[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 - **Prueba de negocio pendiente:** confirmar como supervisor que aparecen todos sus analistas, incluidos quienes no registraron actividad; revisar pendientes y abrir el registro. Miguel ya expresó conformidad con la mejora visible del formulario; queda observar el seguimiento y descarte durante el uso normal. No se crearon registros reales para el smoke.
 - **Límites de la verificación:** pruebas SQL productivas de solo lectura bajo roles; no equivalen a la matriz Auth/HTTP completa. No había navegador conectado para la inspección visual productiva. El oráculo histórico F1 conserva su fallo previo de whitelist; véase el acta.
@@ -455,7 +543,7 @@ PRs: #29 (F0), #34 (F1), #38 (F2), #41 (acta F1+F2), #42 (F3). Migraciones: `202
 
 # 2 · El plan por fases
 
-> **Estado al 21/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–2 EN PRODUCCIÓN. Sigue el recorrido de negocio y F4 etapa 3; F4 no está cerrada. F4.1 tiene API y ensayo sintético comprobados; piloto humano e integración productiva pendientes. Dónde estamos y cómo retomar: sección 1.
+> **Estado al 22/09/2026:** F0–F3, ampliación de resultado v4 y F4 etapas 1–3 EN PRODUCCIÓN; cortes OFF. Sigue el recorrido de negocio y F4 etapa 4; F4 no está cerrada. F4.1 tiene API y ensayo sintético comprobados; piloto humano e integración productiva pendientes. Dónde estamos y cómo retomar: sección 1.
 
 
 Fuente: `CRM-Avance-Corp/GESTION DIARIA/gestion-diaria-handoff.zip` (PLAN.md 18–19/09/2026, 6 mockups, UI-UX-playbook.pdf). Diagnóstico del 19/09 leyendo el código real (front, 295 migraciones, vault): 67 elementos de los mockups mapeados a su fuente, y el plan sometido a tres refutadores independientes (SQL, front, fidelidad al negocio). Todo lo que sigue cita archivo y línea verificados.
@@ -701,15 +789,16 @@ vencidos; no se vuelve a presentar esta decisión como pendiente.
 investigarlos y sepa dónde intervenir desde una misma pantalla. Se reutilizan el registro de
 actividades de F1, los resultados tipificados de F2 y el núcleo diario construido en F3.
 
-**Estado al 21/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
+**Estado al 22/09:** etapa 1 publicada desde `526e728e`, PR #62. SQL
 `20260921040335_crm_gestion_diaria_equipo_vista.sql` instalado y registrado;
-etapa 2 publicada desde `baa63aea`, PR #64; etapa 3 implementada y verificada
-en local, sin publicar; etapas 4–6 pendientes. Conserva las dos columnas y desplegables del taller,
+etapa 2 publicada desde `baa63aea`, PR #64; etapa 3 publicada y verificada
+desde `e22c0cab`, con SQL y cortes OFF; etapas 4–6 pendientes. Conserva las dos columnas y desplegables del taller,
 caché parcial y tarea autoritativa, paginación y pestañas vacías, avance tras llamada,
 legibilidad de 16 px y protección de los avisos de supervisión.
 Historial de implementación: `F4-VISTA-EQUIPO-IMPLEMENTACION.md`.
 Evidencia productiva y recuperación: `PUBLICACION-2026-09-21.md` (etapa 1) y
-`F4-ETAPA2-PUBLICACION-2026-09-21.md` (etapa 2 vigente).
+`F4-ETAPA2-PUBLICACION-2026-09-21.md` (etapa 2) y
+`F4-ETAPA3-PUBLICACION-2026-09-22.md` (etapa 3 vigente).
 
 Las seis etapas siguientes organizan la entrega de F4; no son seis fases globales nuevas
 ni exigen una migración por etapa. Sus objetivos y
@@ -780,10 +869,12 @@ ausencia en una caché parcial nunca se convierte en «no hizo nada».
 
 #### F4 · Etapa 3 — Cortes de la jornada
 
-**Estado:** implementada y verificada únicamente en local; publicación pendiente.
-Candidato `20260921214018_crm_gestion_diaria_cortes.sql`, política inicial OFF.
-La base de ensayo terminó restaurada; no hay instalación productiva ni cambios
-visibles de pantalla. [Detalle, checks y límites](F4-CORTES-JORNADA.md).
+**Estado al 22/09:** publicada y verificada, con la política inicial OFF.
+SQL `20260921214018_crm_gestion_diaria_cortes.sql` instalado mediante merge de
+la rama Supabase y registrado remotamente como `20260922164159`; cliente
+compatible `e22c0cab` en producción. No añade todavía cambios visibles ni avisos.
+[Acta productiva](F4-ETAPA3-PUBLICACION-2026-09-22.md).
+[Ensayos anteriores, checks y límites](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-CORTES-JORNADA.md).
 
 El objetivo es detectar un ritmo de llamadas inferior al esperado durante el día con reglas
 explícitas y configurables. De lunes a viernes se evalúa a las 11:30 un mínimo inicial de tres
@@ -947,7 +1038,7 @@ excepcional, que es más que el récord absoluto del equipo en un día entero.
 | Crecimiento exigido | **150 %** | decisión de Miguel: con 20 exige 50 |
 | Piso absoluto del segundo corte | **8** | decisión de Miguel: caza al que llegó a mediodía con cero |
 | Techo absoluto del segundo corte | **30** | sin él la cuenta pediría hasta 73, más que el récord del equipo |
-| Mínimo del sábado (medio día) | **3** | aprobado por Miguel el 21/09/2026 |
+| Mínimo del sábado (medio día) | **3** | confirmado por Miguel; un solo corte a las 11:30 |
 | Tasa muy baja | **vacía** | no hay dato; la produce el reporte de F5 |
 
 **Todos son perillas: gerencia los sube cuando el equipo suba.** Ese es el punto de que sean
@@ -969,7 +1060,7 @@ Configurables desde la pantalla de gerencia, con valores de arranque:
 - **Llamadas mínimas al primer corte** — **3** de arranque, medido (ver arriba).
 - **Hora del segundo corte** — 16:00.
 - **Crecimiento exigido en el segundo corte** — 150 %, con **piso 8** y **techo 30**.
-- **Mínimo del sábado** — independiente; **3** de arranque, aprobado el 21/09/2026.
+- **Mínimo del sábado** — **3**, confirmado por Miguel para el corte de las 11:30.
 - **Umbrales de contacto** — 45 / 25 / 5 de arranque, dentro de la misma política versionada.
 - **Tasa muy baja** — **nace VACÍA y esa alerta NO salta hasta que se ponga.** Decisión explícita
   de Miguel: «todavía no hay esa data». El reporte de F5 (abajo) es el que la va a producir.
@@ -1125,9 +1216,11 @@ segundo corte. Con los valores iniciales, base 0 → 8, base 8 → 20 y base 20 
   contexto al supervisor. No se deduce de las llamadas el motivo de una ausencia o un permiso.
 - **Dónde se guarda el reconocimiento del pop-up.** La tabla de reconocimientos que ya existe tiene
   los tipos cerrados por CHECK: ampliarla exige una migración a propósito, que es lo correcto.
-- **Decisiones de negocio cerradas el 21/09:** sábado mínimo 3, exclusión de cartera vacía
-  solo en los avisos de corte y aplazamiento único sin reaviso al cierre o después. Falta
-  implementar/verificar y activar con vigencia futura; no volver a pedir estas decisiones.
+- **Decisiones ya cerradas:** mínimo sabatino de 3; analistas sin leads abiertos
+  asignados visibles en la tabla, pero excluidos del aviso de ritmo; «Posponer 1 hora»
+  una sola vez por aviso y supervisor al día, sin reavisos después de las 18:00
+  entre semana ni después de las 13:00 el sábado. Su implementación corresponde
+  a las etapas 4–6, no a la instalación OFF de la etapa 3.
 - **Un día pasado se recalcula con el equipo y la jerarquía de HOY**, no con los de entonces. Hay
   que decirlo en pantalla. Si algún día esto se usa para evaluar desempeño, hará falta guardar la
   evaluación del día, que es un contrato distinto y más caro.
@@ -1151,7 +1244,7 @@ No se enviaron registros reales.
 casos ficticios para ambos supervisores, con exportación/reanudación por espacio y
 comparación de acuerdo. No autentica identidades ni admite notas reales; las revisiones
 humanas aún no se ejecutaron. Protocolo, tratamiento de datos y criterios propuestos:
-[F4.1-GUIA-REVISION-HUMANA.md](F4.1-GUIA-REVISION-HUMANA.md). Ni acuerdo sintético ni
+[F4.1-GUIA-REVISION-HUMANA.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4.1-GUIA-REVISION-HUMANA.md). Ni acuerdo sintético ni
 confianza del modelo habilitan producción.
 
 Es una entrega posterior y separada de F4. Su activación depende de la utilidad demostrada
@@ -1254,7 +1347,7 @@ comparación sintética aislada **FAIL (19/20, una falsa alerta)**, evidencia co
 Piloto humano, servidor de sugerencias e interfaz **NOT RUN / no implementados**.
 No se autoriza transferir datos de clientes sin preparar el conjunto y las condiciones
 de uso correspondientes. Detalle de revisión con Claude, checks y resultados:
-[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
+[F4.1-TYPESAFE-ARRANQUE-2026-09-21.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4.1-TYPESAFE-ARRANQUE-2026-09-21.md).
 
 **Apoyo técnico:** Jev se probó para ordenar extractos de código como ayuda a Codex y
 Claude, no como autoridad de aprobación. Las 22 pruebas del toolkit existente pasan;
@@ -1394,7 +1487,7 @@ Para que nadie construya contra algo superado:
 
 **Estado al 21/09:** etapa 3 implementada en el candidato `20260921214018` y
 verificada sólo en la copia local autorizada. Claude hizo revisión asesora;
-evidencia y límites en [F4-CORTES-JORNADA.md](F4-CORTES-JORNADA.md). Los apartados
+evidencia y límites en [F4-CORTES-JORNADA.md](https://github.com/avanza-digital/avancecorp-crm/blob/e22c0cab2db30c5f570adf28f998d4d773fb3ed9/CRM-Avance-Corp/docs/gestion-diaria/F4-CORTES-JORNADA.md). Los apartados
 de editor gerencial, reconocimiento, aplazamiento y activación siguen siendo
 diseño de etapas 4–6, no capacidades ya publicadas.
 
