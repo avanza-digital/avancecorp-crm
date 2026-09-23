@@ -1,5 +1,11 @@
 # F4 — ejecución del cierre, 22/09/2026
 
+**Actualización de entrega:** Miguel autorizó los cuatro SQL, la conciliación,
+el banco hasta US$1 e invocó `$release-crm`. Conciliación productiva de etapa 3
+ejecutada y verificada, sin reinstalarla. Banco remoto en preparación/pruebas;
+cuatro SQL nuevos, frontend y activación productiva todavía NOT RUN.
+Estado exacto y vencimiento del banco: [ensayo remoto](F4-CIERRE-ENSAYO-REMOTO-2026-09-22.md).
+
 **Decisión vigente de Miguel, 22/09:** mantener la alerta de tasa muy baja apagada
 hasta F5. No se compara aún con la tasa del equipo ni se permite activarla rellenando
 la diferencia. El campo reservado conserva NULL; la publicación de F4 rechaza un

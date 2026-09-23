@@ -35,7 +35,7 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — F4 validada localmente; entrega pendiente (22/09/2026)
+### Punto de trabajo actual — entrega autorizada; ensayo remoto en curso (22/09/2026)
 
 Objetivo activo: terminar etapas 4–6, publicar con respaldo, activar desde una jornada
 futura y verificarla. TypeSafe/F4.1 y F5 excluidos. Producción conserva etapa 3 OFF.
@@ -65,14 +65,24 @@ PRIMARY resolvió con cambios y evidencia. No se atribuye PASS al reviewer.
 Main `7d65fcdb` integrado en `7c4a8d6c`, incluido Acceso Avance. Gates de F4 y
 vigilante PASS juntos; check y E2E Docker repetidos sobre ese código: 4.153 y
 232 PASS respectivamente, 26 SKIPPED y cero fallos. Las 33 sentencias del ledger de etapa 3 coinciden con
-el archivo original. Respaldo y corrección administrativa preparados; ensayo
-reversible y tres guardas PASS. El registro productivo todavía no se modificó.
+el archivo original. La conciliación administrativa productiva **ya se ejecutó**:
+`20260922164159` → `20260921214018`; se conservaron las 33 sentencias, las demás
+columnas y las 327 migraciones. No reinstalar etapa 3 ni repetir esa corrección.
 
 **PR [#73](https://github.com/avanza-digital/avancecorp-crm/pull/73) abierto en borrador.**
-Faltan autorizaciones de la [propuesta exacta](F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md); ensayo en
-rama Supabase, conciliación administrativa, publicación desde Main coincidente,
-activación futura y primera jornada real. No marcar F4 completa por las pruebas
-locales. Evidencia: [acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
+Miguel autorizó los cuatro SQL exactos, la conciliación y el banco hasta US$1;
+también invocó `$release-crm`. **No volver a solicitar esos permisos.** CI del PR
+PASS. Rama propia `gestion-diaria-f4-cierre-20260922`, sin datos productivos,
+creada a las 22:56 UTC; eliminar antes del 23/09 22:56 UTC y al terminar las pruebas.
+Se reconstruye su base sintética porque el replay histórico falló. Primer cotejo:
+721 funciones, 120 tablas/vistas, permisos y 21 Edge Functions coincidentes.
+La matriz general exige una semilla limpia: preparación en curso, con respaldos.
+
+Pendientes: pruebas remotas, cuatro SQL por merge, publicación desde Main
+coincidente, activación futura y primera jornada real. Producción sigue v1 OFF
+y sin los cuatro SQL nuevos. No marcar F4 completa por las pruebas locales.
+Evidencia y retoma: [ensayo remoto](F4-CIERRE-ENSAYO-REMOTO-2026-09-22.md) y
+[acta de ejecución](F4-CIERRE-EJECUCION-2026-09-22.md).
 
 ### Último punto de control — etapa 3 publicada y verificada; cortes OFF (22/09/2026)
 

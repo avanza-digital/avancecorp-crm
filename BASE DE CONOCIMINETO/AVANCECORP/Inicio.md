@@ -5,7 +5,7 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Etapas 4–5 implementadas localmente: 4.153 tests, 232 E2E Docker y 25 mutantes PASS. Main integrado; propuesta SQL/entrega lista, autorización y primera jornada pendientes. Cortes productivos OFF.
+- [[Gestion Diaria F4 - cierre en copia aislada y banco Docker propio (2026-09-22)]] — Entrega autorizada: SQL, conciliación, banco hasta US$1 y `$release-crm`. Ledger de etapa 3 conciliado sin reinstalarla; ensayo remoto en curso. 4.153 tests y 232 E2E Docker PASS. Cuatro SQL nuevos y frontend pendientes; cortes productivos OFF. Retoma en el plan principal y el acta de ensayo remoto.
 
 - [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
 

@@ -33,9 +33,11 @@ en `gestion-diaria-f4-e2e`, volumen propio, dos workers. Libro anterior de alert
 SLA compatible por HTTP y navegador entre sesiones PASS. Ambos dictámenes de
 Claude se recuperaron CHANGES_REQUESTED; el PRIMARY resolvió con pruebas.
 Main `7d65fcdb` integrado en `7c4a8d6c`; vigilante y F4 pasan juntos. Check y
-Docker repetidos tras integrar Acceso Avance: 4.153 y 232 PASS, 26 SKIPPED. Respaldo y corrección del ledger
-de etapa 3 preparados: 33 sentencias exactas, ensayo reversible y tres guardas
-PASS; producción intacta. Ensayo remoto, entrega y primera jornada pendientes.
+Docker repetidos tras integrar Acceso Avance: 4.153 y 232 PASS, 26 SKIPPED.
+Conciliación del ledger de etapa 3 **ejecutada y verificada**: versión remota
+`20260922164159` → `20260921214018`, 33 sentencias y restantes campos conservados,
+327 migraciones antes/después. No reinstalar etapa 3 ni repetir la corrección.
+Los cuatro nuevos SQL y frontend todavía no se instalaron en producción.
 
 Miguel pidió apoyo de Jev para avanzar más rápido. 13 pendientes clasificados en
 2,2 s; una confianza baja se resolvió leyendo el requisito. No es integración F4.1
@@ -45,11 +47,18 @@ Fuente operativa: [plan principal](../../CRM-Avance-Corp/docs/gestion-diaria/GES
 y [acta de ejecución](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-EJECUCION-2026-09-22.md).
 
 Propuesta exacta lista: cuatro SQL más conciliación administrativa, rama remota
-con fixtures (US$0,01344/h; tope propuesto US$1) y publicación mediante
-`$release-crm`. Pendiente autorización. Hostinger conectado; ZIP actual de Acceso
+con fixtures (US$0,01344/h; tope US$1) y publicación mediante
+`$release-crm`. **Miguel autorizó todo ese alcance e invocó la skill.** No volver
+a pedir esos permisos. Hostinger conectado; ZIP actual de Acceso
 Avance `7d65fcdb` conservado y 107 archivos cotejados en origen.
 [Propuesta de publicación](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-PROPUESTA-PUBLICACION-2026-09-22.md).
 
 PR #73 abierto en borrador: https://github.com/avanza-digital/avancecorp-crm/pull/73.
-Solo actas después del código ensayado `7c4a8d6c`. Organización confirmada para
-cotizar; aprobación de SQL/banco y `$release-crm` solicitada, todavía pendiente.
+CI PASS. Banco remoto propio `gestion-diaria-f4-cierre-20260922`, ref
+`vqfeicbqhrmiyihpxcsl`, creado sin datos productivos el 22/09 a las 22:56 UTC.
+Eliminar al terminar y como máximo el 23/09 a las 22:56 UTC. Replay antiguo falló;
+base sintética reconstruida. Primer cotejo PASS de 721 funciones, 120 tablas/vistas,
+permisos y 21 Edge Functions; ledger 327 idéntico. Preparación de semilla limpia
+para la matriz general en curso; repetir paridad tras ella. Cron del banco OFF.
+El gate ajeno de F7 falla igual en producción y banco; no se modifica esa tarea.
+Retoma exacta y límites: [acta del ensayo remoto](../../CRM-Avance-Corp/docs/gestion-diaria/F4-CIERRE-ENSAYO-REMOTO-2026-09-22.md).
