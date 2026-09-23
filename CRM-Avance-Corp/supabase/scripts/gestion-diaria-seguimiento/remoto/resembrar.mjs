@@ -5,14 +5,17 @@ import {readFileSync,writeFileSync,existsSync,mkdirSync,renameSync} from 'node:f
 import {createHash,randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {carpeta,sql,objeto,env} from './banco.mjs';
-assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada']);
-assert.equal(existsSync(`${carpeta}/semilla-limpia.json`),false);
+const candidato=process.argv[3]==='--antes-candidato';
+assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada',...(candidato?['--antes-candidato']:[])]);
+const sufijo=candidato?'-candidato':'';
+if(candidato)assert.equal(JSON.parse(readFileSync(`${carpeta}/matriz-baseline.json`,'utf8')).estado,'PASS');
+assert.equal(existsSync(`${carpeta}/semilla-limpia${sufijo}.json`),false);
 assert.equal(sql("select to_regclass('crm.gestion_diaria_entregas') is null"),'t');
 const origen='/private/tmp/gestion-diaria-f4-http.WQNCJc';
 const manifest=JSON.parse(readFileSync(`${origen}/semilla-base.json`,'utf8'));
 assert.equal(manifest.proyecto,'gestion-diaria-f4-http');assert.equal(manifest.candidato,false);
 assert.equal(createHash('sha256').update(readFileSync(`${origen}/semilla-base.dump`)).digest('hex'),manifest.sha256);
-const archivoRespaldo=`${carpeta}/antes-semilla-limpia.dump`;
+const archivoRespaldo=`${carpeta}/antes-semilla-limpia${sufijo}.dump`;
 if(!existsSync(archivoRespaldo)){
  const respaldo=spawnSync('/opt/homebrew/opt/postgresql@17/bin/pg_dump',
   ['-Fc','--schema=crm','--schema=private','--schema=public'],{env,maxBuffer:64*1024*1024});
@@ -39,7 +42,7 @@ const lote=ddl=>{const marca='$gd_'+randomUUID().replaceAll('-','')+'$';
  return `do $bloque$ begin execute ${marca}${limpio}${marca}; end $bloque$;\n`;};
 const preparar=`begin;
 do $guarda$ begin
- if (select count(*) from auth.users)<>17 or exists(select 1 from cron.job where active)
+ if (select count(*) from auth.users)<>${candidato?21:17} or exists(select 1 from cron.job where active)
   or to_regclass('crm.gestion_diaria_entregas') is not null then raise exception 'Banco cambió'; end if;
 end $guarda$;
 grant crm_metricas_bridge to postgres with set true;
@@ -71,11 +74,11 @@ do $final$ begin
  end if;
 end $final$;
 select private.assert_gestion_diaria(); commit;`);
-const archivo=`${carpeta}/antes-semilla-limpia`;
+const archivo=`${carpeta}/antes-semilla-limpia${sufijo}`;
 mkdirSync(archivo,{mode:0o700});
 for(const nombre of ['base-alineada','catalogo-base-alineada','permisos-alineados','estructura-paridad','ledger-alineado'])
  renameSync(`${carpeta}/${nombre}.json`,`${archivo}/${nombre}.json`);
-writeFileSync(`${carpeta}/semilla-limpia.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),
+writeFileSync(`${carpeta}/semilla-limpia${sufijo}.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),
  respaldo:archivoRespaldo,semillaSha256:manifest.sha256,
  resumen:objeto("select jsonb_build_object('leads',(select count(*) from crm.leads),'tareas',(select count(*) from crm.tareas),'cortes',(select bool_or(cortes_activos) from crm.politica_gestion_diaria))")},null,2)+'\n',{mode:0o600});
 console.log('PASS: semilla de siete leads y cinco tareas restaurada; Auth, Storage e historial SQL conservados. Repetir alineación y cotejo antes del candidato.');

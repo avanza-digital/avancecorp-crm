@@ -69,14 +69,20 @@ el archivo original. La conciliación administrativa productiva **ya se ejecutó
 `20260922164159` → `20260921214018`; se conservaron las 33 sentencias, las demás
 columnas y las 327 migraciones. No reinstalar etapa 3 ni repetir esa corrección.
 
-**PR [#73](https://github.com/avanza-digital/avancecorp-crm/pull/73) abierto en borrador.**
+**PR [#73](https://github.com/avanza-digital/avancecorp-crm/pull/73) fusionado por la otra sesión**
+en `182b098f`, a las 23:32 UTC. Main avanzó a `e5957443` con PR #74; todavía
+se sirve el frontend anterior `7d65fcdb`. No repetir el merge del PR #73.
 Miguel autorizó los cuatro SQL exactos, la conciliación y el banco hasta US$1;
 también invocó `$release-crm`. **No volver a solicitar esos permisos.** CI del PR
 PASS. Rama propia `gestion-diaria-f4-cierre-20260922`, sin datos productivos,
 creada a las 22:56 UTC; eliminar antes del 23/09 22:56 UTC y al terminar las pruebas.
 Se reconstruye su base sintética porque el replay histórico falló. Primer cotejo:
 721 funciones, 120 tablas/vistas, permisos y 21 Edge Functions coincidentes.
-La matriz general exige una semilla limpia: preparación en curso, con respaldos.
+Semilla limpia restaurada y cotejada. Matriz remota baseline **2.196/0** y
+candidato **2.196/0**, 24 mutantes, horarios y seis roles Auth/API PASS.
+Cuatro SQL exactos instalados solo en la rama. Carga y concurrencia remotas en curso.
+La otra tarea agregó nueve SQL productivos: integrar esas definiciones y el Main
+nuevo antes del preflight final, sin reinstalar cambios ya presentes.
 
 Pendientes: pruebas remotas, cuatro SQL por merge, publicación desde Main
 coincidente, activación futura y primera jornada real. Producción sigue v1 OFF

@@ -14,7 +14,10 @@ SQL de etapa 3. Respaldo privado `gd-f4-ledger-etapa3-respaldo-20260922.json`,
 preflight `gd-f4-preprod-autorizado-20260922.json` y readback
 `gd-f4-ledger-conciliado-20260922.json`, en `/private/tmp`.
 
-Los cuatro SQL nuevos, merge, frontend y activación productiva: **NOT RUN**.
+Los cuatro SQL nuevos están instalados **solo en la rama sintética**. Sus SHA-256
+coinciden también con las sentencias guardadas por Supabase. Sus cuatro versiones
+administrativas ya coinciden con los archivos canónicos; las 327 previas se
+conservaron idénticas. Merge SQL, frontend y activación productiva: **NOT RUN**.
 Los dos dictámenes recuperados de Claude siguen siendo CHANGES_REQUESTED;
 resolución del PRIMARY documentada, sin atribuir PASS al reviewer.
 
@@ -73,10 +76,32 @@ para atribuir paridad al estado nuevo.
 
 ## Retoma y gates pendientes
 
-1. Terminar semilla limpia y repetir paridad de base. Ejecutar baseline RLS.
-2. Aplicar los cuatro archivos exactos en la rama; registrar versiones canónicas
-   con contenido comprobado. Nunca un db push general ni DDL directo a producción.
-3. SQL/roles/mutantes, Auth/API, matriz completa, concurrencia, carga y advisors.
+**Pruebas remotas terminadas:** baseline 2.196/0 (12 min 51 s) y candidato
+2.196/0 (12 min 18 s), matriz canónica completa Auth/PostgREST 14.5.
+24 mutantes remotos, horarios Lima, ámbitos, reintentos, reconocimiento,
+aplazamiento, claves/tipos/rangos, publicación futura y grupos SLA PASS.
+Auth/API de seis roles y tasa baja no activable PASS. BYPASSRLS solo se ensayó
+con administrador local; no atribuir ese mutante al hosted.
+
+Advisors seguridad: cero ERROR. Se agregan seis WARN
+`authenticated_security_definer_function_executable`, correspondientes a las
+seis puertas deliberadas de F4. Cada puerta verifica actor/rol; anonimato y
+roles ajenos denegados, helper lector bajo RLS. No otorgar acceso a tablas
+para silenciar el linter. [Criterio del aviso](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+
+**Trabajo simultáneo:** la otra sesión ya fusionó PR #73 a las 23:32 UTC en
+`182b098f`; no repetirlo. Main avanzó a `e5957443` con PR #74. El sitio aún sirve
+`build-20260922T221442353Z` (comprobación por HTTPS al origen), correspondiente
+a `7d65fcdb`; un ZIP preparado de `e5957443` no acredita publicación.
+Producción incorporó nueve SQL de conversiones hasta `20260923011513`:
+336 migraciones, Gestión Diaria todavía v1 OFF, sin tabla de entregas. Antes de
+merge SQL hay que incorporar en la rama esas definiciones/historial y repetir
+los gates afectados. No usar la vieja comparación 327/331 como preflight final.
+
+1. Incorporar los avances de Main y los nueve SQL ya productivos de la otra tarea.
+2. Conservar los cuatro archivos exactos y versiones canónicas, sin reinstalarlos.
+   Nunca un db push general ni DDL directo a producción.
+3. Cerrar concurrencia, carga y advisors; repetir gates tras integrar cambios.
    Respetar el reloj real: fuera de jornada no inventar un PASS de entrega HTTP.
 4. Reconfirmar Main, catálogo productivo, ledger diferencial de solo cuatro
    migraciones y Edge intactas; merge y postflight OFF.
