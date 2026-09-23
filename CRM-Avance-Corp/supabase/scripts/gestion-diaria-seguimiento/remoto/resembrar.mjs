@@ -76,7 +76,7 @@ end $final$;
 select private.assert_gestion_diaria(); commit;`);
 const archivo=`${carpeta}/antes-semilla-limpia${sufijo}`;
 mkdirSync(archivo,{mode:0o700});
-for(const nombre of ['base-alineada','catalogo-base-alineada','permisos-alineados','estructura-paridad','ledger-alineado'])
+for(const nombre of ['base-alineada','catalogo-base-alineada','permisos-alineados','estructura-paridad','ledger-alineado','avances-sincronizados'])
  renameSync(`${carpeta}/${nombre}.json`,`${archivo}/${nombre}.json`);
 writeFileSync(`${carpeta}/semilla-limpia${sufijo}.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),
  respaldo:archivoRespaldo,semillaSha256:manifest.sha256,
