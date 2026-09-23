@@ -6926,7 +6926,8 @@ async function testMetricasServidor(sessions, seed) {
     check(a?.caminos_leidos === 5, 'F3: la alarma leyo los cinco caminos', String(a?.caminos_leidos));
     check(a?.detalle?.rango_recalculo != null,
       'F3: el camino del recalculo de la puerta #4 viaja en el detalle');
-    check(num(a?.detalle?.rango_recalculo?.numerador) === num(a?.conciliacion?.bruto_numerador),
+    check(Number(a?.detalle?.rango_recalculo?.numerador ?? NaN)
+        === Number(a?.conciliacion?.bruto_numerador ?? NaN),
       'F3: el recalculo de la puerta #4 sigue dando el BRUTO, no el neto',
       `recalculo ${a?.detalle?.rango_recalculo?.numerador} · bruto ${a?.conciliacion?.bruto_numerador}`);
     check(a?.declaran?.rango === 'mensual',

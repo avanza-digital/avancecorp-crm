@@ -1,9 +1,13 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 ---
 
 # 🏠 Inicio — Portal Avance Corp
+
+- [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #76 fusionado, fuente `6bf0e84a`, build `build-20260923T163253090Z`; 113 archivos y smoke gerencia PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.
+
+- [[Gestion Diaria F4 - cinco SQL publicados OFF y PR 76 sin conflictos (2026-09-23)]] — Acta intermedia del ensayo y merge SQL; completada por la publicación y programación anteriores.
 
 - [[Acceso Avance - apellidos y nombres separados (2026-09-22)]] — **PUBLICADO Y VERIFICADO:** apellidos primero, nombres después, sin campo duplicado. PR #72 integrado; fuente `7d65fcdb`, build `build-20260922T221442353Z`, 4.085 pruebas, 6 E2E y cotejo de archivos productivos PASS.
 

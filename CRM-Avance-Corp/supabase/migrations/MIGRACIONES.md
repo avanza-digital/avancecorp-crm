@@ -1,11 +1,32 @@
+## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
+
+**PUBLICADO Y VERIFICADO el 23/09 mediante merge Supabase, cortes OFF.**
+Matrices antes/después 2.221/0, SQL/24 mutantes, seis roles HTTP, dos carreras
+remotas 200 + 409/PT409 y carga PASS. Producción: 346 entradas, las 341 previas
+con seis columnas intactas; cinco archivos exactos, 114 sentencias nativas
+cotejadas en orden. Seis gates productivos PASS. Banco eliminado; frontend
+`build-20260923T163253090Z` publicado desde Main `6bf0e84a` y smoke gerencia PASS.
+Después de instalar OFF, gerencia guardó política v2 para el 24/09, 00:00 Lima:
+cortes 11:30/16:00, parámetros conservados y tasa baja NULL. V1 sigue vigente
+el 23/09. Dos versiones totales, actor/cadena y gate verificados; primer día real pendiente.
+Reemplaza `40001` por `PT409` en las dos RPC gerenciales, con preflight de huellas
+exactas y conservación de permisos/contratos; actualiza sus huellas en el gate.
+SQL local + 24 mutantes + rollback íntegro PASS. HTTP PostgREST 14.5 local PASS:
+dos carreras con dos solicitudes en el lock, una 200 y otra 409/PT409, sin bucle.
+La retoma corrige el adaptador local y mide realmente las lecturas Auth paralelas.
+No edita los cuatro archivos aprobados,
+no inserta política y no activa cortes. SHA-256
+`428e6a19951afc12315b61c760ba679e37e0399ca4aa0d44dde7f938ce3ad18a`.
+Propuesta vigente: `docs/gestion-diaria/F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md`.
+
 ## 20260922220800 — F4: lectura completa separada de escrituras de cortes
 
-**CANDIDATO; instalado solo en banco Gestión Diaria.** Después de la segunda
+**PUBLICADO Y VERIFICADO el 23/09, cortes OFF; junto con avisos/configuración/grupos.** Después de la segunda
 revisión, se midió SLA en los tres equipos productivos por solo lectura:
 2.430,047 / 25,743 / 2.224,554 ms. El nuevo lector completo mantiene RLS del
 rol puente y solo lo usa GET. Presentar/reconocer ya no calculan SLA bajo lock;
 el cliente refresca por GET después de confirmar. Reversa transaccional y gates
-locales PASS; producción sin este cambio. No borra ni cambia políticas o historia.
+locales y remotos PASS. No borra ni cambia políticas o historia.
 
 La preparación hosted del primer candidato omite el GRANT redundante sobre auth:
 USAGE/auth.uid se heredan de authenticated. Producción tiene CREATEROLE y ADMIN
@@ -12530,16 +12551,24 @@ medido en producción) y no tenían ACL propia, contra la convención de la casa
 
 ## 20260922184459_crm_gestion_diaria_avisos.sql
 
-CANDIDATO F4.4, no instalado en producción. Extiende el ledger de reconocimientos
+PUBLICADO Y VERIFICADO el 23/09 por merge Supabase (ensayo e instalación en el
+acta `docs/gestion-diaria/F4-REANUDACION-2026-09-23.md`). Extiende el ledger de reconocimientos
 para cortes identificados por supervisor/jornada, con reloj y fotografía de miembros
 del servidor, un aplazamiento por jornada e idempotencia. Entregas del popup separadas
 del reconocimiento, sin alterar el resultado del corte. Control del canal separado de
 la política de cálculos. RLS deny-by-default y auditoría en ambas tablas nuevas; no
-se modifican objetos de public. Ensayo transaccional y 17 mutantes PASS; dictamen Claude recuperado con cambios requeridos y correcciones verificándose. HTTP/concurrencia real, revisión final y publicación pendientes; cortes productivos OFF.
+se modifican objetos de public. Ensayo transaccional y mutantes PASS; dos
+dictámenes Claude con cambios requeridos, atendidos por PRIMARY con evidencia.
+Matriz/HTTP/carga remotas PASS. Presentación/aplazamiento concurrentes HTTP remotos
+NOT RUN con cortes OFF; carreras locales y acciones SQL remotas PASS.
+V2 programada para el 24/09; primera jornada real pendiente.
 
 ## 20260922185138_crm_gestion_diaria_configuracion.sql
 
-CANDIDATO F4.5, no instalado en producción. Lectura de política vigente/programadas
+PUBLICADO Y VERIFICADO el 23/09 por merge Supabase. Lectura de política vigente/programadas
 y publicación exclusivamente por gerencia con versión esperada, validación estricta
 y vigencia futura. Directorio/lector global autorizado solo lee. Control de emergencia
-versionado con motivo; no activa por sí mismo los cortes. Ensayo de roles, reglas, vigencias y versiones obsoletas PASS; HTTP, carreras reales y publicación pendientes.
+versionado con motivo; no activa por sí mismo los cortes. Ensayo de roles,
+reglas, vigencias, HTTP y carreras reales PASS. Gerencia publicó después una
+sola v2 con vigencia 24/09, 00:00 Lima mediante UI auténtica; tasa baja NULL,
+cadena a v1 y actor verificados. Control inicial sin modificaciones.
