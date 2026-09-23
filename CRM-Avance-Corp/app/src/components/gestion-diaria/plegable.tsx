@@ -31,16 +31,18 @@ export function Plegable({ id, titulo, resumen, abierto, onAbrir, nivel = 'h3', 
           (excepción documentada en .oxlintrc.json). El foco va por `outline`,
           que sí se pinta en alto contraste; el anillo queda de refuerzo. */}
       <summary ref={summaryRef}
-        className="cursor-pointer list-none px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40 [&::-webkit-details-marker]:hidden">
-        <Titulo className="flex items-center gap-2 text-base font-bold text-primary">
-          <ChevronRight aria-hidden className="size-4 shrink-0 transition-transform group-open:rotate-90" />
-          {titulo}
-          {resumen !== undefined && (
-            <span className="font-semibold text-[var(--muted-foreground-strong)]">· {resumen}</span>
-          )}
+        className="cursor-pointer list-none rounded-xl px-4 py-4 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:px-6 [&::-webkit-details-marker]:hidden">
+        <Titulo className="flex items-start gap-3 text-base font-semibold text-primary">
+          <ChevronRight aria-hidden className="mt-0.5 size-5 shrink-0 transition-transform group-open:rotate-90" />
+          <span className="min-w-0 flex-1 space-y-1 sm:space-y-0">
+            <span className="block sm:inline">{titulo}</span>{' '}
+            {resumen !== undefined && (
+              <span className="block font-normal text-[var(--muted-foreground-strong)] sm:ml-3 sm:inline">{resumen}</span>
+            )}
+          </span>
         </Titulo>
       </summary>
-      <div className="border-t border-border px-4 py-4">{children}</div>
+      <div className="border-t border-border p-4 sm:p-6">{children}</div>
     </details>
   )
 }

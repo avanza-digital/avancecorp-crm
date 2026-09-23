@@ -46,7 +46,7 @@ export function GestionDiaria(): JSX.Element {
       // Fase 3: el analista entra a «Mi día» (cola, marcador, compromisos y
       // descartes). Su registro crudo sigue debajo, plegado.
       return (
-        <div className="mx-auto w-full max-w-[1640px] space-y-6">
+        <div className="mx-auto w-full max-w-[1440px] space-y-6">
           <GestionDiariaAnalista />
           <Plegable titulo="¿Qué hice hoy?" resumen="tu registro del día" abierto={registroAbierto} onAbrir={setRegistroAbierto}>
             <RegistroActividad dia={hoy} analistaIds={[yo.id]} mostrarAnalista={false} permitirExportar={false} />

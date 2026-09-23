@@ -28,7 +28,7 @@
 // Integración F4 (21/09): conserva el layout local y los arreglos publicados
 // de caché parcial, tarea autoritativa, cuatro pestañas, paginación y carreras.
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type Ref } from 'react'
-import { CalendarClock, ClipboardList, MoreHorizontal, RefreshCw, RotateCcw } from 'lucide-react'
+import { CalendarClock, ChevronRight, ClipboardList, MoreHorizontal, Phone, RefreshCw, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -269,31 +269,34 @@ export function GestionDiariaAnalista(): JSX.Element {
   const filaActiva = colaCargando ? null : fila
 
   return (
-    <div className="mx-auto w-full max-w-[1640px] space-y-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h2 ref={encabezado} tabIndex={-1} className="text-2xl font-bold leading-tight text-primary">¿A quién llamo ahora?</h2>
-          <p className="mt-1 text-base text-[var(--muted-foreground-strong)]">
-            Tu cola del día completa, ordenada por urgencia. {corte ? `Corte ${corte} (Lima)` : 'Sin corte confirmado'} · se actualiza cada minuto.
+    <div className="mx-auto w-full max-w-[1440px] space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 flex-1 basis-80">
+          <h2 ref={encabezado} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight text-primary sm:text-[28px]">¿A quién llamo ahora?</h2>
+          <p className="mt-2 text-base text-[var(--muted-foreground-strong)]">
+            {corte ? `Corte ${corte} (Lima)` : 'Sin corte confirmado'} · actualización cada minuto.
           </p>
         </div>
-        <div className="flex min-w-0 flex-col items-stretch gap-2 sm:shrink-0 sm:flex-row sm:items-center">
+        <div className="flex w-full min-w-0 max-w-full items-center gap-3 sm:w-auto">
           {/* El marcador es CONTEXTO, no trabajo pendiente: una línea en la
               cabecera y el detalle a un clic. Antes era una tarjeta entera
               debajo de la cola, que es donde el analista tiene que mirar. */}
           {dia.dia !== null && (
             <button type="button" onClick={verActividad} aria-expanded={abiertos['detalle'] ?? false} aria-controls={`${id}-actividad`}
-              className="flex min-h-11 min-w-0 shrink items-center gap-2 rounded-xl border border-border bg-card px-4 text-left transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40">
-              <span className="whitespace-nowrap text-base text-[var(--muted-foreground-strong)]">Mi actividad</span>
-              <span className="text-base font-semibold tabular-nums text-foreground sm:truncate">{resumenMarcador(dia.dia)}</span>
+              className="flex min-h-11 min-w-0 max-w-full flex-1 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none">
+              <span className="min-w-0 space-y-1">
+                <span className="block text-base text-[var(--muted-foreground-strong)]">Mi actividad</span>
+                <span className="block text-base font-semibold tabular-nums text-primary">{resumenMarcador(dia.dia)}</span>
+              </span>
               {dia.dia.marcador.nivel !== null && (
                 <Badge className="shrink-0 text-base" color={COLOR_NIVEL[dia.dia.marcador.nivel]} dot>{ETIQUETA_NIVEL[dia.dia.marcador.nivel]}</Badge>
               )}
+              <ChevronRight aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground-strong)]" />
             </button>
           )}
-          <Button variant="outline" size="sm" className="h-11 text-base" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
+          <Button variant="outline" size="sm" className="h-11 w-11 shrink-0 text-base sm:w-auto" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
             onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
-            <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /> Actualizar
+            <RefreshCw aria-hidden className={dia.enVuelo ? 'motion-safe:animate-spin' : ''} /><span className="sr-only sm:not-sr-only">Actualizar</span>
           </Button>
         </div>
       </header>
@@ -318,7 +321,7 @@ export function GestionDiariaAnalista(): JSX.Element {
           )}
 
           {/* DOS PANELES HERMANOS, no una pila: el que actúa y el que elige. */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <PanelAhora fila={filaActiva} lead={filaActiva ? leadsPorId.get(filaActiva.lead_id) ?? null : null}
               sinConversacionDias={dia.dia.sin_conversacion_dias} ahora={ahora} cargando={colaCargando} colaCaida={colaCaida}
               seccionRef={panelAhora} nombreRef={nombreAhora}
@@ -380,60 +383,69 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   const tiempo = fila === null ? null : tiempoDeFila(fila, ahora)
   return (
     <section ref={seccionRef} aria-labelledby={`${id}-ahora`}
-      className="flex w-full flex-col gap-3 rounded-2xl border border-border bg-card p-4 lg:sticky lg:top-4 lg:w-[340px] lg:shrink-0">
-      <h3 id={`${id}-ahora`} className="text-base font-bold uppercase tracking-wide text-[var(--muted-foreground-strong)]">Ahora</h3>
+      className="w-full rounded-xl border border-border bg-card shadow-[var(--shadow-card)] lg:sticky lg:top-4 lg:w-[36%] lg:min-w-[320px] lg:max-w-[420px] lg:shrink-0">
+      <div className="flex items-center gap-3 rounded-t-xl bg-primary px-6 py-4 text-primary-foreground">
+        <Phone aria-hidden className="size-5" />
+        <h3 id={`${id}-ahora`} className="text-xl font-semibold">Ahora</h3>
+        {fila !== null && total > 0 && <span className="ml-auto text-base tabular-nums text-primary-foreground/80"><span className="sr-only">Contacto </span>{posicion} de {total}<span className="sr-only"> en este grupo</span></span>}
+      </div>
       {fila === null ? (
-        <p className="text-base text-[var(--muted-foreground-strong)]">
+        <p className="p-6 text-base leading-relaxed text-[var(--muted-foreground-strong)]">
           {cargando ? 'Buscando a quién llamar…'
             : colaCaida ? 'No se pudo leer tu cola: no sabemos a quién te toca llamar. Pulsa «Actualizar».'
               : 'Nada pendiente ahora. Cuando entre un lead nuevo aparecerá aquí.'}
         </p>
       ) : (
         <>
-          <p className="min-w-0">
-            <button ref={nombreRef} type="button" onClick={onAbrirFicha}
-              aria-label={`Abrir la ficha de ${fila.nombre_completo}`}
-              className="inline-flex min-h-11 items-start rounded-md text-left text-xl font-bold leading-tight text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40">
-              {fila.nombre_completo}
-            </button>
-          </p>
-          <p className="text-base text-[var(--muted-foreground-strong)]">{etapa}{total > 0 && ` · ${posicion} de ${total} en este grupo`}</p>
-          {tiempo !== null && (
-            <Badge className="self-start text-base" color={tiempo.vencido ? 'var(--destructive-text)' : 'var(--accent-press)'}>{tiempo.texto}</Badge>
-          )}
-          <p className="text-base text-[var(--muted-foreground-strong)]">
-            {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
-          </p>
-          <div className="lg:flex-1" />
-          {lead !== null && <p className="text-base font-semibold tabular-nums text-foreground">{lead.telefono}</p>}
-          <div className="flex items-start gap-2">
-            {lead !== null ? (
-              // `key={lead.id}`: UNA instancia por lead. Antes las acciones
-              // vivían dentro de cada fila y se desmontaban con ella; aquí hay
-              // una sola caja que cambia de lead, y si el refresco de cada
-              // minuto cambiaba el lead con el diálogo de resultado ABIERTO, el
-              // resultado se escribía sobre el lead equivocado. La clave fuerza
-              // el remontaje: el contacto a medias se cae a la vista, que es
-              // reparable — atribuirlo a otra persona, no (hallazgo de Codex).
-              <div className="min-w-0 flex-1" data-accion-panel="si">
-                <AccionesContacto key={lead.id} lead={lead} destacada grande onRegistrarLlamada={onRegistrar} />
-              </div>
-            ) : (
-              <p role="status" className="min-w-0 flex-1 text-base text-[var(--muted-foreground-strong)]">
-                {cargandoLead ? 'Buscando su número…' : 'No se pudo traer su número. Abre la ficha para llamar.'}
+          <div className="space-y-4 p-4 sm:p-6">
+            <div className="min-w-0 space-y-1">
+              <button ref={nombreRef} type="button" onClick={onAbrirFicha}
+                aria-label={`Abrir la ficha de ${fila.nombre_completo}`}
+                className="inline-flex min-h-11 items-start rounded-md text-left text-xl font-bold leading-7 tracking-tight text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:text-2xl sm:leading-8">
+                {fila.nombre_completo}
+              </button>
+              <p className="text-base text-[var(--muted-foreground-strong)]">{etapa}</p>
+            </div>
+            <div className="space-y-3 rounded-lg bg-muted/60 p-4">
+              {tiempo !== null && (
+                <Badge className="self-start text-base" color={tiempo.vencido ? 'var(--destructive-text)' : 'var(--accent-press)'}>{tiempo.texto}</Badge>
+              )}
+              <p className="text-base leading-relaxed text-[var(--muted-foreground-strong)]">
+                {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
               </p>
-            )}
-            <DropdownMenu
-              trigger={
-                <button type="button" data-accion-panel="si"
-                  aria-label={`Más acciones para ${fila.nombre_completo}: registrar resultado y ver la ficha`}
-                  className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-xl border border-border-strong bg-card text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40">
-                  <MoreHorizontal aria-hidden className="size-5" />
-                </button>
-              }>
-              <DropdownItem className="min-h-11 text-base" disabled={abriendoPanel} onSelect={() => { if (!abriendoPanel) onRegistrar() }}>Registrar resultado</DropdownItem>
-              <DropdownItem className="min-h-11 text-base" onSelect={onAbrirFicha}>Ver la ficha completa</DropdownItem>
-            </DropdownMenu>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-b-xl border-t border-border bg-muted/30 p-4 sm:px-6">
+            {lead !== null && <p className="text-xl font-bold tabular-nums text-primary">{lead.telefono}</p>}
+            <div className="flex items-start gap-2">
+              {lead !== null ? (
+                // `key={lead.id}`: UNA instancia por lead. Antes las acciones
+                // vivían dentro de cada fila y se desmontaban con ella; aquí hay
+                // una sola caja que cambia de lead, y si el refresco de cada
+                // minuto cambiaba el lead con el diálogo de resultado ABIERTO, el
+                // resultado se escribía sobre el lead equivocado. La clave fuerza
+                // el remontaje: el contacto a medias se cae a la vista, que es
+                // reparable — atribuirlo a otra persona, no (hallazgo de Codex).
+                <div className="min-w-0 flex-1 [&>div]:flex-col [&>div]:items-stretch [&>div>a]:justify-center [&>div>button]:justify-center" data-accion-panel="si">
+                  <AccionesContacto key={lead.id} lead={lead} destacada grande onRegistrarLlamada={onRegistrar} />
+                </div>
+              ) : (
+                <p role="status" className="min-w-0 flex-1 text-base text-[var(--muted-foreground-strong)]">
+                  {cargandoLead ? 'Buscando su número…' : 'No se pudo traer su número. Abre la ficha para llamar.'}
+                </p>
+              )}
+              <DropdownMenu
+                trigger={
+                  <button type="button" data-accion-panel="si"
+                    aria-label={`Más acciones para ${fila.nombre_completo}: registrar resultado y ver la ficha`}
+                    className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-xl border border-border-strong bg-card text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:ring-accent/40">
+                    <MoreHorizontal aria-hidden className="size-5" />
+                  </button>
+                }>
+                <DropdownItem className="min-h-11 text-base" disabled={abriendoPanel} onSelect={() => { if (!abriendoPanel) onRegistrar() }}>Registrar resultado</DropdownItem>
+                <DropdownItem className="min-h-11 text-base" onSelect={onAbrirFicha}>Ver la ficha completa</DropdownItem>
+              </DropdownMenu>
+            </div>
           </div>
         </>
       )}
