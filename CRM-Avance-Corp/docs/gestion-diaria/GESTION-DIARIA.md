@@ -10,8 +10,13 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
-de Gestión Diaria. Revisión en curso; implementación y aceptación pendientes.
-Este trabajo no convierte la primera jornada real de F4 en aprobada.
+de Gestión Diaria. **Implementada y verificada en local**: gate integral PASS
+(4.175 pruebas) y 13 recorridos E2E en Docker PASS. Se atendieron las observaciones
+de Claude; su dictamen original fue CHANGES_REQUESTED y no se registra como PASS.
+Publicación, aceptación y smoke productivo de la mejora pendientes; gate de realidad
+NOT RUN por falta de credenciales en la copia aislada. [Entrega y evidencia](UI-ANALISTA-SUPERVISOR-2026-09-23.md).
+El mismo tablero de Figma refleja este avance. Este trabajo no convierte la
+primera jornada real de F4 en aprobada.
 
 > **PUBLICADO Y PROGRAMADO el 23/09/2026.** PR #77 fusionado en `8e6f4357`.
 > Cinco SQL productivos verificados y frontend `build-20260923T173450335Z`
