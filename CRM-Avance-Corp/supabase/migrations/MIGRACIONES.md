@@ -1,5 +1,58 @@
 # Ledger de migraciones — esquema `crm`
 
+## 🧪 Ola 1b — Las tres puertas DELEGAN la cifra en la oficial (ENSAYADAS, PENDIENTES DE APLICAR)
+
+| Versión | Puerta | Qué delega |
+|---|---|---|
+| `20260923001344` | #4 · el número grande | `divisor`, `numerador`, `conversion_pct` del bloque `nucleo` |
+| `20260923001736` | #6 · conversión por equipo | los tres `nucleo_*` de **cada fila**, emparejando por `vendedor_id` |
+| `20260923002033` | #5 · distribución v3 | los tres `nucleo_*` del **resumen** y de **cada ficha de analista** |
+
+**Esto es lo que unifica.** La Ola 1a solo declaraba. Condición (regla de Miguel,
+21/09): mes calendario completo **y** sin filtro de origen. Fuera de ella, las
+tres siguen calculando en vivo y lo declaran.
+
+**Probado contra producción con deuda plantada (2 puntos, deshecha):**
+
+```
+                      SIN Ola 1b        CON Ola 1b
+#6 numerador              6                 4
+oficial                   4                 4
+#7 / #8                   4                 4
+#4 conversion_pct      4,32 %            4,16 %   (= la oficial)
+```
+
+**Dos trampas que la medición destapó, y cómo quedan resueltas:**
+
+1. 🔴 **A quien la oficial NO tiene, no se le toca la cifra.** Medido: 3 de 21
+   analistas de la #5 no tienen fila en la oficial (18 responsables), y uno
+   —**JORGE MARZANO, supervisor ACTIVO**— llevaba `numerador = 2`. Un
+   `coalesce(..., 0)` se lo habría borrado de la pantalla en silencio. Ahora su
+   fila conserva lo que calculó la función; el total sigue siendo el de la
+   oficial, que sí lo cuenta. La #6 lleva la misma defensa más la sonda
+   `sondas.sin_fila_en_la_oficial` (hoy 0), que cabe porque `SondasEquipoSchema`
+   del front es `v.object`.
+2. 🔴 **El motor de la #5 no tiene identidad garantizada.** No es
+   `security definer` y su gate vive aguas arriba, pero
+   `crm.conversion_mensual_fn` sí exige identidad. Hay scripts de gate que lo
+   llaman directo sin claims (`test-f2-distribucion-v3.sql`,
+   `test-conversion-llegadas.sql`): habrían pasado a morir con «No autorizado».
+   La delegación va guardada por `auth.uid() is not null`; sin identidad calcula
+   en vivo y **lo declara**, y el postflight recorre ese camino a propósito.
+
+**Orden obligatorio:** la #5 fija en su preflight el md5 del cuerpo **tras su
+Ola 1a**, así que no puede entrar antes ni sobre otro cuerpo.
+
+**Lo que NO se delega, a propósito:** los recuentos descriptivos
+(`llegadas`, `altas_manuales`, `renovaciones`, `upgrades`, `aporte_cartera`,
+`referidos_recibidos`, `cierres_no_referidos`, `cierres_referidos`,
+`operaciones_cartera`, `nucleo_referidos_recibidos`) y las medidas de cohorte
+(`leads`, `clientes` y su `conversion_pct`), que son otra cosa. Queda anotada una
+diferencia **preexistente** entre la puerta y la oficial en
+`cierres_no_referidos` (38 frente a 39, por el trato de `cierres_de_arrastre`):
+no entra en esta ola.
+
+
 ## ✅ Ola 1a — Las puertas de gerencia DECLARAN su fuente — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
 
 | Versión | Puerta | Objeto redeclarado | Estado |
