@@ -317,8 +317,31 @@ describe('ConversionMensualSchema — el contrato', () => {
       ponderacion: { ...anterior.ponderacion, renovacion: anterior.ponderacion.referido },
     }
     expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(true)
+
+    // 23/09/2026: la renovación tiene su propio peso en `crm.conversion_pesos`.
+    // Antes esta línea ponía `renovacion = 1` y exigía que el paquete se
+    // RECHAZARA, porque el contrato obligaba a que los dos pesos fueran
+    // iguales. Ya no: un peso de renovación distinto del referido es
+    // legítimo, y seguir rechazándolo dejaría inservible la palanca que se
+    // acaba de separar.
     nuevo.ponderacion.renovacion = 1
+    expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(true)
+    nuevo.ponderacion.renovacion = 0.4
+    expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(true)
+
+    // Lo que SÍ se sigue rechazando: un peso fuera de rango…
+    nuevo.ponderacion.renovacion = 1.5
     expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(false)
+
+    // …y que el núcleo CALLE el peso de la renovación cuando declara que el
+    // divisor son las llegadas. Declararlo es la obligación que sustituye a la
+    // de que fuera igual.
+    const sinRenovacion = {
+      ...nuevo,
+      ponderacion: { referido: anterior.ponderacion.referido, fuente: anterior.ponderacion.fuente },
+    }
+    expect(v.safeParse(ConversionMensualSchema, sinRenovacion).success).toBe(false)
+
     expect(v.safeParse(ConversionMensualSchema, {
       ...anterior, fuentes: { ...anterior.fuentes, divisor: 'crm.leads.actualizado_en' },
     }).success).toBe(false)

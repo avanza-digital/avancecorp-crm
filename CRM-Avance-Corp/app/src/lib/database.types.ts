@@ -1199,18 +1199,21 @@ export type Database = {
           creado_en: string
           nota: string | null
           peso_referido: number
+          peso_renovacion: number
           vigente_desde: string
         }
         Insert: {
           creado_en?: string
           nota?: string | null
           peso_referido: number
+          peso_renovacion?: number
           vigente_desde: string
         }
         Update: {
           creado_en?: string
           nota?: string | null
           peso_referido?: number
+          peso_renovacion?: number
           vigente_desde?: string
         }
         Relationships: []

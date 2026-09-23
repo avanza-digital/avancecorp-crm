@@ -13,6 +13,72 @@ authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálo
 
 # Ledger de migraciones — esquema `crm`
 
+## ✅ `20260923155859` — La RENOVACIÓN deja de compartir palanca con el REFERIDO — **INSTALADA 23/09/2026**
+
+**El problema.** La rama `'operacion'` del núcleo usaba `p_factor` —el peso del
+REFERIDO— también para la RENOVACIÓN. Un solo número servía a dos conceptos
+comerciales: cambiar el incentivo del referido movía el de la renovación sin que
+nadie se enterara. El UPGRADE nunca estuvo acoplado (peso literal 1).
+
+**Qué entró:** `crm.conversion_pesos.peso_renovacion` (`not null default 0.15`,
+con `check` 0–1), la lectora `private.peso_renovacion_conversion(date)` gemela de
+la del referido, y el núcleo usándola.
+
+🔑 **No movió ningún número:** el `default 0.15` es lo que la renovación valía por
+reutilizar el peso del referido. Verificado tras instalar: `peso_referido 0.150`,
+`peso_renovacion 0.15`, trinquete `OK`. **Separar la palanca no es moverla.**
+
+### Auditoría de Codex: REFUTADO EN PARTE, sin P0 ni P1
+
+Los cinco reparos, aceptados y corregidos antes de aplicar:
+
+| Reparo | Qué era | Cómo quedó |
+|---|---|---|
+| P2 | El preflight decía «fijado» y solo comprobaba que la tabla no estuviera vacía. Contraejemplo válido: con versiones 0.10/0.20/0.15 el `default` las aplanaría todas y el agregado seguiría cuadrando | Exige **una sola fila**, `vigente_desde 2026-07-01`, `peso_referido 0.150`; y el postflight compara el aporte **mes a mes** |
+| P2 | La prueba de independencia solo ejercía `p_periodo = null`: si la rama de mes calendario siguiera usando `p_factor`, **habría pasado igual** | Ejerce **las dos ramas**, y a la mensual le pasa un `p_factor` distinto del peso a propósito |
+| P2 | A la lectora nueva le faltaban los revokes de su gemela | Añadidos `anon`, `authenticated`, `service_role` |
+| P2 | 🔴 El front exigía `ponderacion.renovacion === ponderacion.referido` (`conversion-mensual.ts:295`). A 0,15/0,15 no rompía, pero **el día que se moviera el peso, valibot rechazaría el payload entero** | Ahora exige que venga **declarada**, no que sea igual |
+| P3 | Ledger, tipos y comentario viejo | Este ledger; tipos parcheados (ver abajo) |
+
+### Dos tests codificaban el acoplamiento, y hubo que actualizarlos
+
+No era descuido: alguien lo ató a propósito y lo protegió por los dos lados.
+
+- `supabase/scripts/test-conversion-llegadas.sql:77` — afirmaba «Renovación
+  consume el mismo parámetro de peso, no un 0.15 duplicado». **No está
+  enganchado a ningún gate**, así que habría fallado en silencio.
+- `app/src/lib/conversion-mensual.test.ts:320` — ponía el peso a 1 y exigía que
+  el paquete se rechazara. Ése sí corre en `npm run check`.
+
+El motivo original —que el peso no fuera un literal suelto— se respeta: sigue
+saliendo de `crm.conversion_pesos`, solo que de su propia columna.
+
+### 🔴 Deuda ajena que salió al regenerar los tipos
+
+`npm run gen:types` produce **1.699 líneas** de diferencia y **rompe el
+typecheck**, en un área que no es ésta:
+
+```
+src/lib/store.tsx(3036,30): error TS2345 ... registrar_actividad_v2
+  'p_detalle': 'string | null' is not assignable to 'string'
+```
+
+Producción ya pide `p_detalle` NO nulo; el front sigue mandando nullable. Para no
+dejar el árbol en rojo se restauró el fichero y se añadió **a mano solo la
+columna nueva** en `Row`/`Insert`/`Update`. **Mientras eso no se arregle, cada
+`gen:types` volverá a romper.**
+
+### Lo que NO resuelve, y tiene fecha de caducidad
+
+`crm.periodos_cerrados` guarda solo `ponderacion_referido`: el peso de renovación
+de un mes sellado se **reconstruye** desde el del referido. Hoy esa tabla está
+VACÍA, así que la ventana está abierta; **el primer mes que se selle queda mal
+para siempre**. Va en la migración siguiente.
+
+Y para **mover** el peso de renovación hará falta publicar el front primero: el
+validador corregido viaja en el bundle.
+
+
 ## ✅ 23/09/2026 — LAS DOCE PUERTAS, UNIFICADAS · release publicado
 
 **Front publicado:** `build-20260923T020403114Z`, artefacto
