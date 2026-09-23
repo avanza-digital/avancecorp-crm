@@ -10,6 +10,28 @@ incluyendo las seis etapas de F4 y F4.1. F0–F3 están publicados; F4 sigue en
 etapa 6, con primera jornada del 24/09 y seguimiento del sábado pendientes.
 No confundir pruebas técnicas con validación humana ni activar tasa baja antes de F5.
 
+## Sesión guardada — 23/09/2026
+
+Miguel pidió guardar todo y continuar en otra sesión. Objetivo F4 pausado.
+PR #82 publicado y PR #84 integrado. El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85)
+guarda el acta y el plan; estaba abierto al pausar, con CI en curso. Comprobar
+su estado antes de integrar, sin volver a publicar por cambios documentales.
+
+Punto de trabajo: copia aislada `/private/tmp/avancecorp-release.hvdub4/repo`,
+rama `codex/gestion-diaria-ui-acta`. El taller principal sigue reservado al
+trabajo de la otra sesión; no mezclar sus cambios.
+
+Los ZIP publicado (`crm-20260923T204458Z-e8e4f35f9ea1`) y de respaldo
+(`crm-20260923T173451Z-8e6f4357feb1`), sus manifiestos y recibos saneados están
+también en `CRM-Avance-Corp/releases/` del taller principal, fuera de `/tmp`:
+diez archivos cotejados por SHA, sin sobrescribir contenido distinto.
+
+Retomar con la validación productiva de analista y supervisor; luego registrar
+la evidencia real del 24/09, cortes 11:30 y 16:00 Lima, y del sábado 26/09.
+Mantener pendientes los puntos sin evidencia, los dos avisos INFO de índices
+y el gate de realidad CLI. Tasa baja OFF hasta F5. No reinstalar SQL ni crear
+actividad real ficticia. El mismo tablero de Figma ya muestra la publicación.
+
 ## Continuidad del tablero
 
 - Actualizar **este mismo archivo de Figma** al registrar cada avance verificado.

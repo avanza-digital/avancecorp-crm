@@ -8,6 +8,16 @@ Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
 conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
 en cada sesión ni prometer sincronización automática en segundo plano.
 
+**Sesión guardada por petición de Miguel, 23/09/2026.** Continuar desde el
+[PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85),
+abierto al pausar; comprobar su estado antes de integrar. Rama
+`codex/gestion-diaria-ui-acta`, copia `/private/tmp/avancecorp-release.hvdub4/repo`.
+El objetivo F4 queda pausado. Próxima sesión: aceptación real de analista y
+supervisor y evidencia de los cortes del 24/09 (11:30 y 16:00 Lima), con
+seguimiento del sábado 26/09. Tasa baja OFF hasta F5; no volver a instalar SQL
+ni publicar solo por estas actas. ZIP publicado, respaldo y recibos también
+conservados en `CRM-Avance-Corp/releases/` del taller principal, fuera de `/tmp`.
+
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
 de Gestión Diaria. **PUBLICADA el 23/09**: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82)

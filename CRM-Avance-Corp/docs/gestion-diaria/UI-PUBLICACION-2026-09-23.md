@@ -29,6 +29,13 @@ ni archivos de entorno. La configuración pública y la exclusión de fixtures
 demo del bundle pasaron los gates del release. No hubo SQL, Edge Functions,
 datos sintéticos productivos ni cambios de política de cortes en esta entrega.
 
+Al guardar la sesión se conservaron también los ZIP actual y anterior, sus
+manifiestos y recibos de verificación saneados (diez archivos) en
+`/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/`.
+La copia se cotejó por SHA y no sobrescribió archivos distintos; permite
+recuperar el artefacto aunque desaparezca la copia temporal. No se copiaron
+respuestas crudas del conector ni credenciales.
+
 Se preservó la integración previa de Main, incluidos PR #80 y PR #81. La
 migración de conversión de PR #81 pertenece a otra tarea y no se instaló aquí.
 Las actas posteriores no cambian el commit fuente del artefacto ni justifican
