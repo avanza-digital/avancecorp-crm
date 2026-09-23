@@ -1,12 +1,26 @@
 # Ledger de migraciones — esquema `crm`
 
-## 🧪 Ola 1b — Las tres puertas DELEGAN la cifra en la oficial (ENSAYADAS, PENDIENTES DE APLICAR)
+## ✅ Ola 1b — Las puertas DELEGAN la cifra en la oficial — **#4 y #6 INSTALADAS EN PRODUCCIÓN el 22/09/2026; #5 en espera del front**
 
-| Versión | Puerta | Qué delega |
-|---|---|---|
-| `20260923001344` | #4 · el número grande | `divisor`, `numerador`, `conversion_pct` del bloque `nucleo` |
-| `20260923001736` | #6 · conversión por equipo | los tres `nucleo_*` de **cada fila**, emparejando por `vendedor_id` |
-| `20260923002033` | #5 · distribución v3 | los tres `nucleo_*` del **resumen** y de **cada ficha de analista** |
+| Versión | Puerta | Qué delega | Estado |
+|---|---|---|---|
+| `20260923001344` | #4 · el número grande | `divisor`, `numerador`, `conversion_pct` del bloque `nucleo` | ✅ **INSTALADA 22/09** |
+| `20260923001736` | #6 · conversión por equipo | los tres `nucleo_*` de **cada fila**, emparejando por `vendedor_id` | ✅ **INSTALADA 22/09** |
+| `20260923002033` | #5 · distribución v3 | los tres `nucleo_*` del **resumen** y de **cada ficha de analista** | ⏸️ **espera release del front** |
+
+**Acta de instalación (22/09).** Aplicadas con `supabase db query --linked --file`
+y registradas con `supabase migration repair --status applied`. Verificado por la
+**puerta pública**:
+
+```
+#4  1218 / 52,650 = 4,32 %  ·  fuente mensual · sellado false · ajuste true
+oficial 1218 / 52,650 = 4,32 %              -> IDÉNTICOS
+#6  filas con cifra distinta de la oficial: 0  ·  sin_fila_en_la_oficial: 0
+mes completo CON filtro de origen -> fuente rango_vivo (es_mes_calendario true)
+rango parcial                    -> fuente rango_vivo (es_mes_calendario false)
+```
+
+Alarma: `cuadra: true`, 4 caminos. Trinquete: `OK`, 0 sin declarar.
 
 **Esto es lo que unifica.** La Ola 1a solo declaraba. Condición (regla de Miguel,
 21/09): mes calendario completo **y** sin filtro de origen. Fuera de ella, las
