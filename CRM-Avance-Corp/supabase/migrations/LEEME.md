@@ -1,5 +1,34 @@
 # supabase/migrations/ — migraciones del esquema `crm`
 
+## ⚠️ Antes de añadir una clave a un payload: ¿quién envuelve a esta función?
+
+**Pagado el 23/09/2026 con 13 minutos de Metas y Ranking caídos.** Se declaró
+`crm.cumplimiento_metas_sin_cartera_fn` tras comprobar que no tiene consumidor
+en el front — cierto. Pero `crm.cumplimiento_metas_fn` **construye su payload
+sobre el de esa**, y esa sí tiene consumidor, con `v.strictObject`. Cuatro
+claves desconocidas y valibot rechazó el paquete entero.
+
+Un `grep` en `app/src` ve quién LLAMA a la RPC; no ve quién HEREDA su forma
+dentro de la base. Antes de declarar, correr:
+
+```
+supabase db query --linked --file supabase/scripts/conversion/quien-me-envuelve.sql
+```
+
+Y para **cada** envoltorio que salga, mirar su esquema del front **en el commit
+publicado**, no en el árbol:
+
+```
+git show <commit vivo>:CRM-Avance-Corp/app/src/lib/<modulo>.ts
+```
+
+`v.object` ignora lo que no conoce; `v.strictObject` tumba el payload entero. El
+commit vivo sale de `version.json` → `buildId` → manifiesto en `releases/`.
+
+🔑 **El síntoma que delató el fallo:** en el censo final, una puerta que nadie
+había tocado apareció declarando. Una función que cambia sin que la toques es la
+señal de que hay herencia.
+
 Contiene el historial versionado del esquema `crm`; `MIGRACIONES.md` registra
 la intención, verificación y estado de producción de cada cambio.
 
