@@ -1,11 +1,13 @@
 # GESTIÓN DIARIA — el documento único
 
-> **PAUSADO por Miguel el 22/09/2026, para seguir el 23/09.** No publicar ni
-> activar hasta reanudar. Retoma: [acta de pausa](F4-PAUSA-2026-09-22.md).
+> **REANUDADO por Miguel el 23/09/2026.** El correctivo HTTP ya pasa en
+> PostgREST 14.5 local: dos carreras reales devuelven 200 + 409, sin bucle.
+> [Propuesta concreta del quinto SQL](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md)
+> preparada; falta su autorización remota. Las aprobaciones de los cuatro SQL,
+> conciliación, banco hasta US$1 y `$release-crm` siguen vigentes.
 > Main integrado; 4.158 pruebas y 234 E2E PASS. Matrices remotas 2.196/0 antes
-> y después de los cuatro SQL. Bloqueo nuevo: conflicto `40001` provoca
-> reintentos infinitos en PostgREST 14.5. Quinto SQL preparado y ensayado en SQL
-> local; HTTP correctivo pendiente. Banco remoto eliminado; Docker propio detenido.
+> y después de los cuatro SQL; el correctivo aún no tiene ensayo remoto.
+> Banco remoto anterior eliminado; Docker propio reanudado y aislado.
 > Producción verificada v1 OFF, sin los cuatro SQL nuevos ni el correctivo.
 > Este estado prevalece sobre los resúmenes históricos siguientes.
 
@@ -44,7 +46,32 @@ completo está al lado: `PLAN.md` (el encargo original del handoff,
 los 6 mockups y el playbook UI/UX en `mockups/` y `UI-UX-playbook.pdf`). Para retomar, di:
 **«retomemos gestión diaria F4»**.
 
-### Punto de trabajo actual — entrega autorizada; ensayo remoto en curso (22/09/2026)
+### Punto de trabajo actual — correctivo local probado; autorización adicional pendiente (23/09/2026)
+
+El 23/09 a las 09:20 Lima terminaron las dos carreras HTTP del correctivo:
+en cada una se observaron dos solicitudes esperando el mismo lock; una confirmó
+y otra recibió HTTP 409 / PT409. SQL, 24 mutantes y conservación de estado PASS.
+El script puede reanudar la prueba sin reinstalar la migración ya aplicada localmente.
+
+Quinto SQL exacto: `20260923021512_crm_gestion_diaria_conflicto_http.sql`, SHA-256
+`428e6a19951afc12315b61c760ba679e37e0399ca4aa0d44dde7f938ce3ad18a`.
+Solo cambia los códigos de conflicto de dos RPC y sus dos huellas en el gate.
+No edita los cuatro SQL aprobados ni activa cortes. Su autorización remota es
+adicional porque ese archivo no figuraba en la propuesta aprobada.
+
+Producción sigue v1 OFF. El ledger tiene 341 entradas, incluidas tres nuevas
+de la otra tarea desde la pausa; refrescar catálogo e historial antes del ensayo
+final. No repetir la conciliación de etapa 3, que ya está terminada.
+La rama remota anterior fue eliminada (~US$0,048 estimados consumidos del tope
+US$1); se recreará un banco sintético al continuar el ensayo autorizado.
+
+**Pasos restantes:** autorización del quinto SQL; nuevo ensayo remoto completo
+con catálogo vigente y concurrencia; merge de los cinco SQL con cortes OFF;
+publicación del frontend desde Main igual al remoto; política futura por gerencia
+y verificación de la primera jornada real. La tasa baja seguirá NULL hasta F5.
+Detalle y evidencia: [propuesta del correctivo](F4-CONFLICTO-HTTP-PROPUESTA-2026-09-23.md).
+
+### Antecedente — entrega autorizada y primer ensayo remoto (22/09/2026)
 
 Objetivo activo: terminar etapas 4–6, publicar con respaldo, activar desde una jornada
 futura y verificarla. TypeSafe/F4.1 y F5 excluidos. Producción conserva etapa 3 OFF.

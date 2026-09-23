@@ -5,7 +5,7 @@ actualizado: 2026-09-21
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria F4 - pausa y conflicto HTTP pendiente (2026-09-22)]] — **PAUSADO por Miguel hasta mañana.** 4.158 tests, 234 E2E y dos matrices remotas 2.196/0 PASS. Conflicto `40001` bloquea publicación; quinto SQL local preparado, HTTP pendiente y sin autorización remota. Banco de pago eliminado, Docker propio detenido. Producción v1 OFF.
+- [[Gestion Diaria F4 - correctivo HTTP verificado y pendiente de autorizacion (2026-09-23)]] — **REANUDADO.** Quinto SQL probado en PostgREST 14.5 local: dos carreras 200 + 409, SQL y 24 mutantes PASS. Falta autorización de ese archivo y ensayo remoto; permisos previos vigentes. 4.158 tests y 234 E2E del mismo frontend. Banco remoto anterior eliminado; Docker propio reanudado y aislado. Producción v1 OFF.
 
 - [[E2E del CRM en local con Docker (2026-09-22)]] — Los E2E se corren con `npm run test:e2e:docker`; regla escrita para Claude y Codex. Nunca en GitHub.
 
