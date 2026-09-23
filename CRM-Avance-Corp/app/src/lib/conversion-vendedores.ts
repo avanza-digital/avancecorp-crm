@@ -255,6 +255,10 @@ export function adaptarAporteConversionRango(
       || cierres.origen_filtrado !== fuente) return null
     numerador = cierres.aporte_cierres
     resultados = cierres.cierres
+    // `nucleo.peso_*` es el peso VIVO y así se queda: rotula este desglose,
+    // que se recalcula siempre —también cuando el total de arriba viene
+    // sellado—. El peso con el que se selló la foto viaja aparte, en
+    // `nucleo.ponderacion_oficial`, para no romper a los bundles antiguos.
     peso = fuente === 'referido' ? nucleo.peso_referido : 1
     porcentaje = vivo.divisor > 0
       ? Math.round((100 * numerador / vivo.divisor + Number.EPSILON) * 100) / 100

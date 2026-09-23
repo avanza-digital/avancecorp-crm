@@ -267,6 +267,16 @@ const NucleoConversionesSchema = v.object({
   upgrades: v.optional(v.number()),
   aporte_cartera: v.optional(v.number()),
   peso_renovacion: v.optional(v.number()),
+  // La ponderación con la que se calculó LA CIFRA OFICIAL de arriba: para un
+  // mes sellado, la que guardó la foto. `peso_referido`/`peso_renovacion` son
+  // otra cosa —los pesos VIVOS, que rotulan el desglose recalculado— y por eso
+  // viven aparte. Opcional: servidor previo a `20260923172517` no la emite, y
+  // tampoco aparece cuando no hubo delegación (no hay cifra sellada que rotular).
+  ponderacion_oficial: v.optional(v.object({
+    referido: v.number(),
+    renovacion: v.number(),
+    fuente: v.optional(v.string()),
+  })),
   divisor: v.number(),
   numerador: v.number(),
   conversion_pct: PorcentajeSchema,

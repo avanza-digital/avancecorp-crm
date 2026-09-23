@@ -132,6 +132,30 @@ describe('filtro por fuente del índice comercial', () => {
     })
   })
 
+  it('rotula el desglose con el peso VIVO aunque la foto se sellara con otro', () => {
+    const datos = metricasConNucleo()
+    // Mes sellado: la foto se cerró con 0,73 y el total de arriba es suyo. La
+    // tabla viva ya va por 0,11, y el desglose de renovaciones se recalcula con
+    // ella. El rótulo sigue al desglose, no a la foto: publicar 0,73 aquí sería
+    // rotular lo vivo con la foto. El peso de la foto viaja aparte.
+    datos.nucleo = {
+      ...datos.nucleo!,
+      peso_referido: 0.19,
+      peso_renovacion: 0.11,
+      ponderacion_oficial: { referido: 0.58, renovacion: 0.73, fuente: 'crm.periodos_cerrados' },
+      divisor: 200,
+      numerador: 9,
+      conversion_pct: 4.5,
+      recalculo_vivo: { divisor: 100, numerador: 4.3, conversion_pct: 4.3 },
+    }
+    expect(adaptarAporteConversionRango(datos, 'renovacion')).toMatchObject({
+      numerador: 0.15,
+      porcentaje: 0.15,
+      peso: 0.11,
+    })
+    expect(adaptarAporteConversionRango(datos, 'referido')).toBeNull()
+  })
+
   it('acepta un origen de prospecto solo cuando el servidor confirma el mismo filtro', () => {
     const datos = metricasConNucleo()
     expect(adaptarAporteConversionRango(datos, 'landing')).toBeNull()

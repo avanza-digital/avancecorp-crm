@@ -1,14 +1,15 @@
 ---
 tags: [crm, conversion, gerencia, origenes, capas, produccion]
 fecha: 2026-09-23
-estado: servidor en produccion; pantalla al publicar el front
+estado: en produccion y en pantalla
 ---
 
 # Conversión: la tabla por origen pesa como la general
 
 **✅ SERVIDOR EN PRODUCCIÓN desde el 23/09/2026.** Migración
 `20260923185001_crm_origenes_conversion_ponderada`, aplicada por Miguel con `!`.
-**Pantalla:** PR #81 fusionada (`9a2c3504`); se ve cuando se publique el front con `/release-crm`.
+**✅ EN PANTALLA desde el 23/09/2026 (15:44 Lima):** build `build-20260923T204457952Z`, commit
+`e8e4f35f` (PR #80 + #81 + #82), con postflight.
 
 ## La decisión (Miguel, 23/09)
 
