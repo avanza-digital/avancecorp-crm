@@ -1,148 +1,183 @@
-# Fusionar Metas/Ranking con la conversión oficial — encargo para otra sesión
+# Fusionar Metas/Ranking con la conversión oficial — encargo
 
-**Escrito el 23/09/2026**, el mismo día que se unificaron las doce puertas.
-Miguel quiere **fusionar las dos**. Esto es lo que hay que saber antes de empezar.
+**Escrito el 23/09/2026**, el día que se unificaron las doce puertas. Miguel
+quiere fusionar las dos. Esto es lo investigado; léelo entero antes de tocar nada.
 
 ---
 
 ## El problema, en una frase
 
-Hay **dos implementaciones de la misma fórmula de conversión**: la oficial, y otra
-dentro de Metas. Hoy dan el mismo número —medido—, pero son dos textos que alguien
-tiene que mantener iguales para siempre.
-
-## Quién es quién
+La fórmula de conversión está **escrita dos veces**: la oficial, y otra copia
+dentro de Metas. Hoy dan el mismo número, pero son dos textos que alguien tiene
+que mantener iguales para siempre.
 
 | | Función | Quién la ve |
 |---|---|---|
-| **Oficial** | `crm.conversion_mensual_fn(date)` → `crm.conversion_mensual_sin_cartera_fn` | El número grande, Ranking, Rendimiento, ficha del vendedor |
-| **#8** | `crm.cumplimiento_metas_sin_cartera_fn(date)` | Nadie directamente: es el motor de #7 |
-| **#7** | `crm.cumplimiento_metas_fn(date)` | **Metas y Ranking**, vía `objetivos.ts` |
+| **Oficial** | `crm.conversion_mensual_fn` → `crm.conversion_mensual_sin_cartera_fn` | El número grande, Ranking, Rendimiento, ficha del vendedor |
+| **#8** | `crm.cumplimiento_metas_sin_cartera_fn` | Nadie directamente: es el motor de #7 |
+| **#7** | `crm.cumplimiento_metas_fn` | **Metas y Ranking**, vía `objetivos.ts` |
 
-🔑 **#7 HEREDA el payload de #8.** No es una llamada cualquiera: construye su
-paquete sobre el de #8 y le añade `fuera_ranking`. Eso significa que **tocar #8 es
-tocar Metas y Ranking**, aunque #8 no aparezca en ningún `grep` del front. El 23/09
-eso costó **13 minutos de Metas y Ranking sin datos**. Antes de mover nada:
+🔑 **#7 HEREDA el payload de #8.** Tocar #8 es tocar Metas y Ranking, aunque #8
+no aparezca en ningún `grep` del front. El 23/09 eso costó **13 minutos de Metas
+y Ranking sin datos**. Antes de mover nada:
 `supabase/scripts/conversion/quien-me-envuelve.sql`.
 
-## Que hoy coincidan está MEDIDO, no supuesto
+## La fórmula sí es la misma, literalmente
 
-Con una deuda de anulación de 2 puntos plantada en producción (transacción que se
-deshace sola), sobre el mes abierto:
+Mismo núcleo, mismo factor, misma tabla de deuda, mismo clamp
+(`greatest(num − deuda, 0)` **por vendedor, antes de dividir**) y mismo redondeo
+a dos decimales. Que #8 llame al núcleo en modo global no cambia ningún número:
+`conversion_episodios` filtra estrictamente por `analista_id`.
 
-```
-                 SIN deuda   CON deuda
-  oficial          6            4
-  #7 metas         6            4
-  #8 sin cartera   6            4
-```
-
-Las dos aplican `private.conversion_con_ajuste`, que hace
-`greatest(num − pend, 0)` **POR VENDEDOR**, no sobre el total. Ese detalle importa
-al fusionar: el orden en que se aplica el tope cambia el resultado cuando alguien
-tiene más deuda que numerador.
+**Medido con deuda plantada** (2 puntos, transacción que se deshace): oficial, #7
+y #8 bajan las tres de 6 a 4. El camino del ajuste funciona igual en las dos.
 
 ---
 
-## 🔴 LA DIFERENCIA QUE HAY QUE RESOLVER ANTES DE FUSIONAR
+## 🔴 LO QUE HAY QUE DECIDIR ANTES DE EMPEZAR (no es técnico)
 
-**La población no es la misma: la oficial trae 18 filas y Metas 17.**
+### 1. La población no es la misma: 18 contra 17
 
-Medido el 23/09. El que falta en Metas:
+La oficial lista el **roster vivo**; Metas lista las **metas publicadas** de la
+revisión más alta. Medido el 23/09 sobre septiembre: roster 18, metas 17.
 
-```
-MIGUEL BRICEÑO · rol=vendedor, activo · divisor=0 numerador=1 · estado='solo_arrastre'
-```
+El que falta en Metas: **MIGUEL BRICEÑO**, vendedor activo, `divisor=0`,
+`numerador=1`, estado `solo_arrastre` — cerró arrastre sin recibir leads.
 
-Es alguien que **no recibió leads este mes pero cerró algo de arrastre**. La oficial
-lo incluye con `estado: 'solo_arrastre'`; Metas lo deja fuera, porque su población
-sale del roster de metas publicadas, no de quien tuvo actividad.
+**¿Un analista que cerró arrastre pero no recibió leads debe salir en Ranking?**
+Si se fusiona sin decidirlo, aparece una fila nueva en la pantalla sin que nadie
+la haya pedido.
 
-**Esto no es un detalle técnico: es una decisión de negocio.** ¿Un analista que
-cerró arrastre pero no recibió leads debe aparecer en Ranking? Si fusionas sin
-decidirlo, **aparecerá una fila nueva en la pantalla de Miguel sin que nadie lo
-haya pedido**. Pregúntaselo antes.
+### 2. El coordinador perdería el acceso
 
-## Las formas, comparadas
+**#8 deja pasar a cualquier `rol_crm`, incluido coordinador. La oficial lo
+deniega a propósito.** Hoy hay **1 coordinador** en `crm.equipo`. Si Metas
+delega, ese gate se re-evalúa dentro de la función y **no se puede esquivar**:
+el coordinador dejaría de ver Metas.
 
-Mismo nombre de clave no significa lo mismo. Medido:
+¿Se le mantiene el acceso (ensanchando el allowlist de la oficial, que es
+cambiar su contrato escrito) o se acepta que lo pierda?
+
+### 3. El vendedor cuyo supervisor se cae
+
+La oficial **borra** del payload a un vendedor cuyo supervisor deje de ser
+supervisor activo (`roster_metas_vendedores` exige `rol_crm(supervisor)='supervisor'`).
+#8 no lo borra nunca. Hoy hay **4 filas** de `crm.equipo` con `rol_crm='vendedor'`
+cuyo rol efectivo no lo es.
+
+Hoy la diferencia va en el sentido cómodo (roster ⊃ metas), así que un LEFT JOIN
+funciona. En ese escenario devolvería NULL. **Es deducción de los dos cuerpos, no
+medición** — nadie lo ha provocado.
+
+---
+
+## Las formas, comparadas (medido)
 
 **Primer nivel**
-
-- **#7**: `version, periodo, revision, publicada_en, fuentes_reales, ponderacion_referido, cierre, vendedores, fuera_ranking` + las cuatro de la declaración (`es_mes_calendario, fuente, sellado, ajuste_aplicado`)
+- **#7**: `version, periodo, revision, publicada_en, fuentes_reales, ponderacion_referido, cierre, vendedores, fuera_ranking` + `es_mes_calendario, fuente, sellado, ajuste_aplicado`
 - **#8**: lo mismo **sin** `fuera_ranking`
 - **Oficial**: `version, periodo, revision, generado_en, alcance, fuentes, ponderacion, cierre, responsables, total, cartera, cobertura`
 
-**Por fila de vendedor**
+**Por fila**
 
 | Solo en Metas | Solo en la oficial |
 |---|---|
 | `conversion_objetivo` · `conversion_real` · `convertidos` · `resueltos` · `detalles` · `nombre` · `supervisor_nombre` | `divisor` · `conversion_pct` · `cartera` · `cierres_de_arrastre` · `procedencia` · `referidos` · `estado` |
 
-Comparten: `vendedor_id`, `supervisor_id`, `numerador`, `cierres_no_referidos`,
+Comparten `vendedor_id`, `supervisor_id`, `numerador`, `cierres_no_referidos`,
 `cierres_referidos`, `ajuste`.
 
-⚠️ **`conversion_real` (Metas) y `conversion_pct` (oficial) no son la misma clave.**
-Compruébalo antes de mapear una en otra: Metas publica `convertidos`/`resueltos`,
-la oficial publica `divisor`. Si son dos definiciones distintas del denominador,
-fusionar cambia el número aunque hoy coincida.
-
-## Las dos ramas de Metas
-
-Metas tiene **dos caminos** y hay que fusionar los dos:
-
-- **Mes SELLADO**: lee la foto de `crm.periodos_cerrados`. Declara `fuente: mensual`, `sellado: true`.
-- **Mes ABIERTO**: calcula sobre `private.conversion_mensual_por_vendedor` y aplica el ajuste. Declara `fuente: rango_vivo`, `sellado: false`, `ajuste_aplicado: true`.
-
-Si pasa a delegar, esa declaración tiene que cambiar a `mensual` en ambas. El
-oráculo lo comprueba.
+**El mapeo que funciona** (7 claves): `divisor`→`resueltos`, `numerador`→igual,
+`conversion_pct`→`conversion_real`, `cierres_no_referidos`→igual,
+`cierres_referidos`→igual, `ajuste.pendiente`→igual,
+`cierres_no_referidos + cierres_referidos`→`convertidos`.
 
 ---
 
-## Trampas que ya están pagadas — no las repitas
+## 🔴 LA TRAMPA QUE TUMBA LA PANTALLA
 
-1. 🔴 **El front de Metas valida con `v.strictObject`.** `CumplimientoMetasSchema`
-   en `app/src/lib/objetivos.ts`. Una clave nueva **tumba la pantalla entera**, no
-   la degrada. Y un `strictObject` también falla por clave **que falta**: si la
-   fusión quita `convertidos` o `resueltos`, se cae igual.
-   **Regla: el front se publica ANTES que el servidor.**
-2. **El gate de la oficial es MÁS ANCHO** (vendedor/supervisor/gerencia/lector) que
-   el de Metas, así que delegar no abre ninguna puerta nueva — pero compruébalo,
-   no lo des por hecho.
-3. **Ni #7 ni #8 están en el censo** de `private.contadores_crudos_leads_citas()`,
-   así que no hay huella que re-sellar. Verifícalo igual: el postflight debe exigir
-   que sigan fuera.
-4. **Acredita el cuerpo por identidad**, no por fragmentos: fija el md5 de
-   `pg_get_functiondef` en el preflight.
+El front valida #7 con **`v.strictObject`**, que falla **por clave de más Y por
+clave de menos**.
+
+**`ajuste.origenes` NO está declarado en `AjusteVendedorSchema`.** Si el LEFT
+JOIN arrastra el objeto `ajuste` entero de la oficial, Metas y Ranking se caen
+como el 23/09.
+
+👉 **Copia clave a clave. Nunca hagas `||` del objeto.**
+
+Lo que sí cabe sin tocar el front: `mensual_comparada` y `paridad_mensual`, ya
+declaradas como opcionales (`objetivos.ts:355-356`), igual que las cuatro de la
+declaración.
+
+---
+
+## Las tres opciones
+
+### A. No delegar, y vigilar
+Un test que compare vendedor a vendedor #8 contra la oficial y falle si alguien
+que está en las dos poblaciones difiere.
+**Coste:** un fichero de prueba, nada en producción.
+**Lo que NO cubre:** la diferencia de población. Dos funciones pueden coincidir
+en cada vendedor compartido y seguir enseñando listas distintas — que es
+exactamente lo que pasa hoy.
+
+### B. Delegar solo la conversión ← **la recomendada**
+#8 llama a `crm.conversion_mensual_sin_cartera_fn` (no a la #4: esa ya hace la
+cartera que #7 vuelve a hacer) y hace LEFT JOIN de `crm.metas_vendedor` contra
+sus `responsables`, tomando las 7 claves del mapeo. Metas, objetivo, nombres,
+detalles, producción, cartera y `fuera_ranking` se quedan donde están.
+**Coste:** una migración sobre el cuerpo de #8, rama de mes abierto (la rama
+sellada ya lee la misma foto). Las dos son SECURITY DEFINER de postgres, así que
+#8 puede llamarla aunque su ACL sea solo postgres — es como la llama hoy la
+oficial.
+**Bloqueado por:** las decisiones 2 y 3 de arriba.
+
+### C. Unificar también la población
+Que Metas liste lo mismo que la oficial.
+**Coste:** el más caro, y cambia **lo que la pantalla ES**: de «los que tienen
+meta pactada» a «los que trabajan».
+**Rompe:** `CumplimientoVendedorSchema` exige `conversion_objetivo` **no
+nullable** y `nombre`/`supervisor_nombre` como texto no vacío. Una fila sin meta
+revienta la validación. Exige tocar el front primero. Y rompe el ranking de
+capital, que asume una meta por fila.
+
+---
+
+## Dos escenarios latentes que hoy no se notan
+
+1. **Al sellar el primer mes**, #8 enseñará `ajuste.pendiente = 0` a todo vendedor
+   con deuda y sin actividad, mientras la oficial enseñará su deuda real. El
+   numerador seguirá coincidiendo; el número del ajuste no. (#8 une la deuda
+   dentro del CTE de conversión, donde solo hay fila si hubo episodios; la
+   oficial la une contra la fila del roster.)
+2. **La rama sellada de #8 nunca se ha ejercido** (0 periodos cerrados). Al
+   sellar, su población deja de ser «las metas» y pasa a ser «la foto visible»,
+   que incluye supervisores con cartera propia. Es un cambio de significado de la
+   misma pantalla.
 
 ## Cómo saber que no rompiste nada
 
 1. `supabase/scripts/conversion/ensayo-cierre-unificacion.sql` — sella agosto de
-   verdad, anula un cierre suyo y compara las cinco vías, todo con `rollback`.
-   Los cinco caminos tienen que restar lo mismo.
+   verdad, anula un cierre suyo, compara las cinco vías, y lo deshace.
 2. `crm.alarma_conversion_fn()` → `cuadra: true`, 5 caminos.
-3. El postflight de cada migración debe comparar el **payload entero** y exigir que
-   ninguna cifra se mueva mientras no haya deuda.
+3. Postflight que compare el **payload entero** y exija que ninguna cifra se mueva.
 4. `npm run check` y `npm run check:scripts`.
 
-## El orden que yo seguiría
+## Orden recomendado
 
-1. **Preguntar a Miguel lo de la fila 18** (el de `solo_arrastre`). Sin eso, no
-   empieces: define si la fusión añade o no una fila a su pantalla.
-2. **Mapear `conversion_real` ↔ `conversion_pct`** y `convertidos`/`resueltos` ↔
-   `divisor`. Si no son equivalentes, eso es lo primero que hay que decidir.
-3. **Publicar el front** que tolere la forma nueva (opcionales), y solo después el
-   servidor.
-4. **Fusionar por partes**: primero que Metas delegue la conversión y conserve lo
-   suyo; fusionar del todo es el paso siguiente, no el primero.
+1. Resolver con Miguel las tres decisiones de negocio (fila 18, coordinador,
+   supervisor caído).
+2. Publicar el front que tolere la forma nueva. **Siempre antes que el servidor.**
+3. Opción B. La C, si acaso, después y por separado.
 
 ## Lo que NO se toca sin hablarlo con Miguel
 
-El peso del referido (0,15 y su porqué), cartera 1, oficina 0, la asimetría del
-registro manual y la definición del divisor.
+El peso del referido (0,15, decidido el 10/08 y con su motivo escrito), cartera 1,
+oficina 0, la asimetría del registro manual y la definición del divisor.
 
-## La regla que más caro salió hoy
+## Lo que no se pudo verificar
 
-**Medir gana a leer.** El 23/09, leer el código me dio dos conclusiones falsas.
-Plantar una deuda de 2 puntos en una transacción que se deshace las corrigió en un
-minuto.
+El investigador no pudo ejecutar `cumplimiento_metas_fn` ni `conversion_mensual_fn`
+como usuario concreto (bajo `db query --linked`, `auth.uid()` es NULL y las dos
+lanzan 42501). Las poblaciones y los insumos sí los midió de forma independiente;
+la coincidencia de las cifras la medí yo aparte, con identidad prestada.
