@@ -6919,9 +6919,21 @@ async function testMetricasServidor(sessions, seed) {
     const a = alarma.data;
     check(a?.cuadra === true, 'F3: los cuatro caminos de la conversion del mes coinciden en el fixture',
       JSON.stringify(a?.detalle ?? a));
-    check(a?.caminos_leidos === 4, 'F3: la alarma leyo los cuatro caminos');
-    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'conciliacion', 'cuadra', 'detalle', 'hasta', 'mes', 'motivo']),
-      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, detalle, motivo y conciliacion', Object.keys(a ?? {}).join(','));
+    // CINCO desde que la alarma vigila tambien el RECALCULO de la puerta #4.
+    // Con la Ola 1b esa puerta delega, asi que comparar `rango` con `mensual`
+    // dejo de poder fallar; `rango_recalculo` —leido de nucleo.recalculo_vivo—
+    // es el que devuelve los dientes.
+    check(a?.caminos_leidos === 5, 'F3: la alarma leyo los cinco caminos', String(a?.caminos_leidos));
+    check(a?.detalle?.rango_recalculo != null,
+      'F3: el camino del recalculo de la puerta #4 viaja en el detalle');
+    check(num(a?.detalle?.rango_recalculo?.numerador) === num(a?.conciliacion?.bruto_numerador),
+      'F3: el recalculo de la puerta #4 sigue dando el BRUTO, no el neto',
+      `recalculo ${a?.detalle?.rango_recalculo?.numerador} · bruto ${a?.conciliacion?.bruto_numerador}`);
+    check(a?.declaran?.rango === 'mensual',
+      'F3: la puerta #4 DECLARA que delego; publicar la cifra buena sin decirlo es un acierto por casualidad',
+      String(a?.declaran?.rango));
+    check(JSON.stringify(Object.keys(a ?? {}).sort()) === JSON.stringify(['caminos_leidos', 'conciliacion', 'cuadra', 'declaran', 'detalle', 'hasta', 'mes', 'motivo']),
+      'F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, declaran, detalle, motivo y conciliacion', Object.keys(a ?? {}).join(','));
     // El conjunto sigue siendo CERRADO a proposito: es el candado anti-fuga de
     // payload. `conciliacion` se anade a la lista, no se relaja la regla.
     check(JSON.stringify(Object.keys(a?.conciliacion ?? {}).sort())
@@ -6975,7 +6987,7 @@ async function testMetricasServidor(sessions, seed) {
     'F3: dos lecturas seguidas de la alarma no se deniegan entre si',
     admin.schema('crm').rpc('alarma_conversion_fn'),
   );
-  if (alarmaDoble) check(alarmaDoble.data?.caminos_leidos === 4, 'F3: la segunda lectura sigue leyendo los cuatro caminos');
+  if (alarmaDoble) check(alarmaDoble.data?.caminos_leidos === 5, 'F3: la segunda lectura sigue leyendo los cinco caminos');
 
   // series_comerciales_fn v2 (F6.c): shape de 7 arrays paralelos. La clave de
   // cohorte lleva su apellido y la conversion OFICIAL del nucleo viaja aparte
