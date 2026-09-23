@@ -1,5 +1,66 @@
 # Ledger de migraciones — esquema `crm`
 
+## ✅ 23/09/2026 — LAS DOCE PUERTAS, UNIFICADAS · release publicado
+
+**Front publicado:** `build-20260923T020403114Z`, artefacto
+`crm-20260923T020404Z-e65ef3f11b17.zip`, commit `e65ef3f1`.
+Smoke: HTTP 200 y el `index-ZHzht5gn.js` vivo coincide con el build.
+Preflight previo: `live=build-20260922T221442353Z/7d65fcdb484f candidate=e65ef3f11b17`.
+
+**Tres migraciones con pestillo, aplicadas justo después** (las tres exigían
+`set local crm.ola1_front_publicado = 'si'`):
+
+| Versión | Qué |
+|---|---|
+| `20260922233545` | la #5 declara |
+| `20260923002033` | la #5 delega en `crm.conversion_mensual_fn` |
+| `20260923012825` | la #8 declara, y la #7 lo hereda |
+
+### El censo, por la vía pública
+
+```
+#4  conversiones      mes calendario · mensual    · ajuste true
+#5  distribucion      mes calendario · mensual    · ajuste true
+#6  equipo            mes calendario · mensual    · ajuste true
+#7  metas             mes calendario · rango_vivo · ajuste true
+#8  metas sin cartera mes calendario · rango_vivo · ajuste true
+#9  series            mes calendario · mensual    · ajuste true
+#11 resumen cartera   mes calendario · rango_vivo · ajuste false   (no publica tasa)
+alarma: cuadra=true · 5 caminos · declaran={rango: mensual, distribucion: mensual}
+```
+
+La #10 declara y delega igual, detrás de su bandera apagada. La #12 declara en
+su `COMMENT ON`. Las #7 y #8 dicen `rango_vivo` **con** `ajuste_aplicado: true`
+a propósito: calculan por su cuenta pero SÍ restan la deuda, así que coinciden
+con la oficial sin habérsela pedido. Decir `mensual` ahí sería mentir sobre de
+dónde sale la cifra.
+
+### La prueba de aceptación, con todo puesto
+
+```
+AGOSTO SELLADO + 2 PUNTOS DE DEUDA · septiembre
+                 SIN deuda              CON deuda
+  #4 grande      1218/52,650=4,32      1218/50,650=4,16
+  oficial        1218/52,650=4,32      1218/50,650=4,16
+  #6 suma        50,650                 48,650
+  #7 suma        49,650                 47,650
+  #8 suma        49,650                 47,650
+  -> los cinco restan 2, y la #4 es la oficial byte a byte.
+```
+
+Y sellar, por sí solo, no mueve el número: agosto `802 / 40,100 = 5,00 %` antes
+y después. Repetible con
+`supabase/scripts/conversion/ensayo-cierre-unificacion.sql`.
+
+**El rótulo está vivo en las tres pantallas** (Resumen, Ranking y Gestión de
+equipo): callan cuando la cifra es la oficial de un mes abierto y hablan cuando
+es un recálculo en vivo o una foto ya cerrada.
+
+🔴 **Pendiente inmediato:** devolver el merge a `main` (bloqueado por
+`docs/gestion-diaria/GESTION-DIARIA.md`, modificado sin commitear y que la
+sesión `-bb` confirma que no es suyo) y **rotar el token de Hostinger**.
+
+
 ## ✅ `20260923013213` — El oráculo vuelve a tener dientes — **INSTALADA 23/09/2026**
 
 **El efecto colateral que dejó la Ola 1b.** Desde que la puerta #4 delega, el
