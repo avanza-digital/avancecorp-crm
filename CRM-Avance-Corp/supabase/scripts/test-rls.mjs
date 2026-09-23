@@ -12688,6 +12688,50 @@ async function testCumplimientoMetas(sessions, seed) {
     );
   }
 
+  // ── I · UNA SOLA PIEZA (20260923164903): Metas = oficial, persona a persona ─
+  // Metas dejo de calcular la conversion: la sirve la misma pieza del nucleo que
+  // la oficial (`private.conversion_neta_por_vendedor`). Se compara en el MES
+  // VIGENTE porque la oficial rechaza un mes futuro como PERIODO_METAS_GATE.
+  // Generaciones: servidor previo -> Metas dice `rango_vivo` en mes abierto y
+  // solo se exige la forma; servidor migrado -> `mensual` y cifras IGUALES.
+  const numI = (valor) => Number(valor ?? 0);
+  const mesVigenteI = `${new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit',
+  }).format(new Date())}-01`;
+  const metasMes = await positive('gerencia lee Metas del mes vigente',
+    sessions.gerencia.client.schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: mesVigenteI }));
+  const oficialMes = await positive('gerencia lee la oficial del mes vigente',
+    sessions.gerencia.client.schema('crm').rpc('conversion_mensual_fn', { p_periodo: mesVigenteI }));
+  if (metasMes && oficialMes) {
+    const m = metasMes.data;
+    const sellado = m?.cierre?.cerrado === true;
+    check(m?.fuente === 'mensual' || (!sellado && m?.fuente === 'rango_vivo'),
+      'Metas declara una fuente conocida para el mes vigente', String(m?.fuente));
+    if (m?.fuente === 'mensual') {
+      const oficialPorId = new Map((oficialMes.data?.responsables ?? []).map((r) => [r.vendedor_id, r]));
+      const distintos = filas(m).filter((v) => {
+        const r = oficialPorId.get(v.vendedor_id);
+        return r != null && (numI(v.numerador) !== numI(r.numerador)
+          || numI(v.conversion_real) !== numI(r.conversion_pct)
+          || numI(v.resueltos) !== numI(r.divisor)
+          || numI(v.ajuste?.pendiente) !== numI(r.ajuste?.pendiente));
+      });
+      check(distintos.length === 0,
+        'con la pieza unica, Metas publica para cada analista la MISMA cifra que la oficial',
+        JSON.stringify(distintos.map((v) => v.vendedor_id)));
+    }
+  }
+  const piezasAbiertas = contarFueraDeBanda('una sola pieza: EXECUTE de las piezas del nucleo',
+    `select count(*)
+       from unnest(array['anon','authenticated','service_role']) r(rol),
+            unnest(array['private.conversion_neta_por_vendedor(date,boolean,uuid[])',
+                         'private.roster_conversion_mensual(date,boolean,uuid[])']) f(firma)
+      where case when to_regprocedure(f.firma) is null then false
+                 else has_function_privilege(r.rol, f.firma, 'EXECUTE') end`);
+  check(piezasAbiertas === 0,
+    'las piezas del nucleo no las ejecuta anon, authenticated ni service_role',
+    String(piezasAbiertas));
+
   // ── H · anular un cierre de AVANCE es SOLO de gerencia ──────────────────
   // El gate de rol corre ANTES de mirar el lead, asi que estos rechazos no
   // dependen de que exista un cierre: es exactamente lo que se quiere probar.

@@ -74,9 +74,21 @@ begin
   select sum(aporte_numerador) into n from private.conversion_episodios(
     '2026-09-03 00:00-05','2026-09-04 00:00-05',null,true,null,.15) where tipo='operacion';
   assert n=1, 'Recortar el rango no vuelve elegible la segunda operación de un cliente';
+  -- 23/09/2026: la RENOVACIÓN dejó de consumir el peso del REFERIDO.
+  -- Antes esta aserción exigía n=1.25 con p_factor=.25, es decir, que la
+  -- renovación usara el parámetro del referido. Ese acoplamiento era
+  -- deliberado —evitaba un 0.15 duplicado a mano en el código— pero ataba dos
+  -- conceptos comerciales a una sola palanca: cambiar el incentivo del
+  -- referido movía el de la renovación sin que nadie se enterara.
+  -- El espíritu se conserva: el peso NO es un literal, sigue saliendo de
+  -- crm.conversion_pesos. Lo que cambia es que sale de SU columna.
   select sum(aporte_numerador) into n from private.conversion_episodios(
     '2026-09-01 00:00-05','2026-09-04 00:00-05','2026-09-01',true,null,.25) where tipo='operacion';
-  assert n=1.25, 'Renovación consume el mismo parámetro de peso, no un 0.15 duplicado';
+  assert n = 1 + private.peso_renovacion_conversion('2026-09-01'),
+    format('La renovación debe tomar SU peso (%s), no el del referido que se le pasa (.25). Llegó %s',
+           private.peso_renovacion_conversion('2026-09-01'), n);
+  assert n <> 1.25,
+    'La renovación sigue consumiendo el peso del referido: las dos palancas NO están separadas';
 
   -- Cambiar estado/dueño y agregar rescates no modifica las llegadas.
   update crm.leads set activo=false,etapa='descartado',vendedor_id=null where id='20000000-0000-4000-8000-000000000001';

@@ -1,0 +1,213 @@
+{
+  "cuentas": [
+    {
+      "rol": "gerencia",
+      "leads_visibles": 1983,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 26,
+      "actividades_visibles": 13646,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "gerencia",
+      "leads_visibles": 1983,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 26,
+      "actividades_visibles": 13646,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "supervisor",
+      "leads_visibles": 1000,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 16,
+      "actividades_visibles": 5620,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "supervisor",
+      "leads_visibles": 0,
+      "rpc_completas_ok": 0,
+      "paginas_cursor_ok": 0,
+      "actividades_visibles": 0,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "supervisor",
+      "leads_visibles": 980,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 26,
+      "actividades_visibles": 8026,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 131,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 16,
+      "actividades_visibles": 1056,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 140,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 18,
+      "actividades_visibles": 1093,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 106,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 15,
+      "actividades_visibles": 854,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 101,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 12,
+      "actividades_visibles": 651,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 154,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 10,
+      "actividades_visibles": 772,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 143,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 10,
+      "actividades_visibles": 929,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 103,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 10,
+      "actividades_visibles": 525,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 98,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 19,
+      "actividades_visibles": 710,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 146,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 12,
+      "actividades_visibles": 781,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 44,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 10,
+      "actividades_visibles": 239,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 136,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 22,
+      "actividades_visibles": 1473,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 104,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 16,
+      "actividades_visibles": 772,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 137,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 15,
+      "actividades_visibles": 916,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 118,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 9,
+      "actividades_visibles": 452,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 139,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 13,
+      "actividades_visibles": 857,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 6,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 7,
+      "actividades_visibles": 29,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 124,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 25,
+      "actividades_visibles": 1302,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    },
+    {
+      "rol": "vendedor",
+      "leads_visibles": 39,
+      "rpc_completas_ok": 5,
+      "paginas_cursor_ok": 8,
+      "actividades_visibles": 178,
+      "inexistente_denegado": true,
+      "historiales_diferentes": 0
+    }
+  ],
+  "solo_lectura": true,
+  "leads_activos": 1983
+}

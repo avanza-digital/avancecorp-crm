@@ -1,0 +1,64 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The core conclusion is supported: the per-lead keyset RPC removes the PostgREST 1000-row truncation, is SECURITY INVOKER with no author filter, and analyst/supervisor see the same event set for a shared visible lead. The evidence justifies that scope. Two report-level corrections are needed: the P2 severity/framing, and the RPC coverage claim.
+
+FINDINGS:
+
+[P2] Candidate "stale drawer" defect is mislabeled; it is documented intent, and the requirement it is attached to is different
+File:
+CRM-Avance-Corp/app/src/data/crm-queries.ts, CRM-Avance-Corp/app/src/lib/query-client.ts
+Lines:
+crm-queries.ts:628-643; query-client.ts:31-34
+Problem:
+The characterization test asserts exactly the contract the code documents: "Sin `refetchInterval`: el historial no envejece contra el reloj", with `staleTime: 30_000` + `refetchOnWindowFocus`. React Query does not refetch stale data absent a trigger; 35s with no request is correct behavior, not a regression.
+Evidence:
+crm-queries.ts:630-632 comment; the E2E passes precisely because focus is the designed trigger (`store.tsx:1391-1393`, query-client.ts:33).
+Impact:
+Reporting this as a P2 defect against the user's question ("are the histories now correct?") conflates freshness with correctness and risks a change the design deliberately rejected.
+Recommendation:
+Downgrade to P3 / "known limitation", state it separately from the truncation fix, and present auto-refresh as a product decision (with its cost: per-open polling on every drawer) rather than a fix.
+
+[P2] Production RPC verification is a sample; the report should not imply exhaustiveness
+File:
+audit evidence (SQL DO block)
+Lines:
+`order by jsonb_array_length(value) desc, key limit 5`
+Problem:
+Only 5 leads per account were read via the RPC (110 full reads); the 7915-sequence baseline match validates table-level RLS, not the function.
+Impact:
+"Histories are correct" is stated more broadly than the RPC evidence supports.
+Recommendation:
+Scope the claim: RLS parity verified across all visible leads; RPC output verified on the longest histories per account plus 341 cursor pages.
+
+[P3] UI page size never exercised against real data
+Evidence:
+max 39 events per lead; UI requests 101/displays 100; SQL test paged at 7 and 500.
+Impact:
+The production path (limit 101, `hasNextPage` from server cursor) never crossed a page boundary with live rows.
+Recommendation:
+Note it; the size-7 paging already covers the cursor tie-break `creado_en = cursor AND id > cursor_id` under `ORDER BY creado_en DESC, id ASC`.
+
+[P3] HYPOTHESIS — not demonstrated, source not attached
+File:
+CRM-Avance-Corp/app/src/data/use-actividades-de-lead.ts:56-62
+Problem:
+`fusionarHistorial(locales, servidor, leidoEn)` uses `consulta.dataUpdatedAt` as the cutoff for optimistic local rows. If a focus refetch succeeds but the just-written activity is not yet returned, `dataUpdatedAt` advances past the local row's timestamp.
+Impact:
+A freshly written activity could momentarily disappear from the drawer.
+Recommendation:
+Attach `fusionarHistorial` / `localesVivas` to confirm or dismiss. Do not report as a defect without that source.
+
+TEST GAPS:
+- No test crossing the 101-row page boundary.
+- No test for the store cooldown (`store.tsx:1385`, 20s) interacting with the query focus refetch — they are independent triggers.
+- No negative-path E2E for the 42501 denial surfacing in the drawer.
+
+RECOMMENDED NEXT ACTIONS:
+1. Rescope the report: truncation fixed (evidenced); freshness gap is documented design, P3.
+2. Qualify the RPC verification as sampled.
+3. Attach `fusionarHistorial` to close the P3 hypothesis.
+
+CONFIDENCE:
+MEDIUM — frontend contracts and SQL are directly evidenced; `fusionarHistorial` was not.
