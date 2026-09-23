@@ -7363,14 +7363,20 @@ async function testMetricasConversionesGlobal(sessions) {
     // F1.3b (nota 6 del auditor): la forma de origenes[], responsables[] y
     // sondas tambien se FIJA — un campo de mas es superficie sin auditar.
     const clavesOrigen = [...new Set((global.data?.origenes ?? []).flatMap((f) => Object.keys(f)))].sort();
+    // 20260923185001 añade `conversion_ponderada_pct` (la calcula el servidor).
+    // Se aceptan las DOS generaciones, cada una EXACTA: 17 campos antes, 18 después.
+    const contratoOrigen = [
+      'capital_pen', 'capital_usd', 'citas_realizadas', 'clientes', 'contactados', 'contratos',
+      'conversion_clientes_pct', 'conversion_contratos_pct',
+      'conversion_resueltos_pct', 'descartados',
+      'fuera_del_divisor_del_nucleo', 'leads', 'leads_con_cita_real', 'origen', 'peso_en_nucleo',
+      'reuniones_agendadas', 'reuniones_realizadas',
+    ];
+    const contratoOrigenPonderado = [...contratoOrigen, 'conversion_ponderada_pct'].sort();
     check(clavesOrigen.length === 0
-      || JSON.stringify(clavesOrigen) === JSON.stringify([
-        'capital_pen', 'capital_usd', 'citas_realizadas', 'clientes', 'contactados', 'contratos',
-        'conversion_clientes_pct', 'conversion_contratos_pct',
-        'conversion_resueltos_pct', 'descartados',
-        'fuera_del_divisor_del_nucleo', 'leads', 'leads_con_cita_real', 'origen', 'peso_en_nucleo',
-        'reuniones_agendadas', 'reuniones_realizadas',
-      ]), 'cada origen trae SOLO los 17 campos del contrato vigente', clavesOrigen.join(','));
+      || JSON.stringify(clavesOrigen) === JSON.stringify(contratoOrigen)
+      || JSON.stringify(clavesOrigen) === JSON.stringify(contratoOrigenPonderado),
+      'cada origen trae SOLO los campos del contrato vigente (17, o 18 con la ponderada)', clavesOrigen.join(','));
     const clavesResp = [...new Set((global.data?.responsables ?? []).flatMap((f) => Object.keys(f)))].sort();
     check(clavesResp.length === 0
       || JSON.stringify(clavesResp) === JSON.stringify([
