@@ -14,658 +14,6 @@ export type Database = {
   }
   crm: {
     Tables: {
-      gestion_diaria_entregas: {
-        Row: {
-          alerta_id: string
-          creado_en: string
-          entrega: number
-          id: string
-          perfil_id: string
-          solicitud_id: string
-        }
-        Insert: {
-          alerta_id: string
-          creado_en?: string
-          entrega: number
-          id?: string
-          perfil_id: string
-          solicitud_id: string
-        }
-        Update: {
-          alerta_id?: string
-          creado_en?: string
-          entrega?: number
-          id?: string
-          perfil_id?: string
-          solicitud_id?: string
-        }
-        Relationships: []
-      }
-      gestion_diaria_control_avisos: {
-        Row: {
-          creado_en: string
-          creado_por: string | null
-          habilitados: boolean
-          motivo: string
-          version: number
-        }
-        Insert: {
-          creado_en?: string
-          creado_por?: string | null
-          habilitados: boolean
-          motivo: string
-          version: number
-        }
-        Update: {
-          creado_en?: string
-          creado_por?: string | null
-          habilitados?: boolean
-          motivo?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      politica_gestion_diaria: {
-        Row: {
-          atencion_min_pct: number
-          bien_min_pct: number
-          corte_1_hora: string
-          corte_1_minimo: number
-          corte_2_hora: string
-          corte_2_incremento_pct: number
-          corte_2_piso: number
-          corte_2_techo: number
-          cortes_activos: boolean
-          creado_en: string
-          creado_por: string | null
-          id: string
-          minimo_llamadas_utiles: number
-          motivo: string
-          sabado_minimo: number
-          tasa_baja_diferencia_pp: number | null
-          version: number
-          version_anterior_id: string | null
-          vigente_desde: string
-        }
-        Insert: {
-          atencion_min_pct?: number
-          bien_min_pct?: number
-          corte_1_hora?: string
-          corte_1_minimo?: number
-          corte_2_hora?: string
-          corte_2_incremento_pct?: number
-          corte_2_piso?: number
-          corte_2_techo?: number
-          cortes_activos?: boolean
-          creado_en?: string
-          creado_por?: string | null
-          id?: string
-          minimo_llamadas_utiles?: number
-          motivo: string
-          sabado_minimo?: number
-          tasa_baja_diferencia_pp?: number | null
-          version: number
-          version_anterior_id?: string | null
-          vigente_desde: string
-        }
-        Update: {
-          atencion_min_pct?: number
-          bien_min_pct?: number
-          corte_1_hora?: string
-          corte_1_minimo?: number
-          corte_2_hora?: string
-          corte_2_incremento_pct?: number
-          corte_2_piso?: number
-          corte_2_techo?: number
-          cortes_activos?: boolean
-          creado_en?: string
-          creado_por?: string | null
-          id?: string
-          minimo_llamadas_utiles?: number
-          motivo?: string
-          sabado_minimo?: number
-          tasa_baja_diferencia_pp?: number | null
-          version?: number
-          version_anterior_id?: string | null
-          vigente_desde?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "politica_gestion_diaria_version_anterior_id_fkey"
-            columns: ["version_anterior_id"]
-            isOneToOne: false
-            referencedRelation: "politica_gestion_diaria"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      inversionista_datos_contacto: {
-        Row: {
-          actualizado_en: string
-          actualizado_por: string
-          domicilio: string | null
-          inversionista_id: string
-          nombre_completo: string
-          revision: number
-          telefono: string | null
-        }
-        Insert: {
-          actualizado_en?: string
-          actualizado_por: string
-          domicilio?: string | null
-          inversionista_id: string
-          nombre_completo: string
-          revision?: number
-          telefono?: string | null
-        }
-        Update: {
-          actualizado_en?: string
-          actualizado_por?: string
-          domicilio?: string | null
-          inversionista_id?: string
-          nombre_completo?: string
-          revision?: number
-          telefono?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inversionista_datos_contacto_inversionista_id_fkey"
-            columns: ["inversionista_id"]
-            isOneToOne: true
-            referencedRelation: "inversionistas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contratos_eliminados_auditoria: {
-        Row: {
-          archivos: Json
-          contrato_id: string
-          eliminado_en: string
-          eliminado_por: string
-          id: string
-          snapshot: Json
-        }
-        Insert: {
-          archivos: Json
-          contrato_id: string
-          eliminado_en?: string
-          eliminado_por: string
-          id?: string
-          snapshot: Json
-        }
-        Update: {
-          archivos?: Json
-          contrato_id?: string
-          eliminado_en?: string
-          eliminado_por?: string
-          id?: string
-          snapshot?: Json
-        }
-        Relationships: []
-      }
-      correcciones_correo_acceso: {
-        Row: {
-          auth_confirmado_en: string | null
-          cliente_id: string
-          correo_anterior: string
-          correo_nuevo: string
-          creado_en: string
-          id: string
-          motivo: string
-          por: string
-          transaccion_confirmada: unknown
-        }
-        Insert: {
-          auth_confirmado_en?: string | null
-          cliente_id: string
-          correo_anterior: string
-          correo_nuevo: string
-          creado_en?: string
-          id?: string
-          motivo: string
-          por: string
-          transaccion_confirmada?: unknown
-        }
-        Update: {
-          auth_confirmado_en?: string | null
-          cliente_id?: string
-          correo_anterior?: string
-          correo_nuevo?: string
-          creado_en?: string
-          id?: string
-          motivo?: string
-          por?: string
-          transaccion_confirmada?: unknown
-        }
-        Relationships: []
-      }
-      control_citas_versiones: {
-        Row: {
-          configuracion: Json
-          estado: string
-          guardado_en: string
-          guardado_por: string
-          id: string
-          nota: string | null
-          version: number
-        }
-        Insert: {
-          configuracion: Json
-          estado?: string
-          guardado_en?: string
-          guardado_por: string
-          id?: string
-          nota?: string | null
-          version: number
-        }
-        Update: {
-          configuracion?: Json
-          estado?: string
-          guardado_en?: string
-          guardado_por?: string
-          id?: string
-          nota?: string | null
-          version?: number
-        }
-        Relationships: []
-      }
-      control_citas_aplicaciones: {
-        Row: {
-          aplicado_en: string
-          aplicado_por: string
-          id: string
-          mes_inicio: string
-          version: number
-        }
-        Insert: {
-          aplicado_en?: string
-          aplicado_por: string
-          id?: string
-          mes_inicio: string
-          version: number
-        }
-        Update: {
-          aplicado_en?: string
-          aplicado_por?: string
-          id?: string
-          mes_inicio?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "control_citas_aplicaciones_version_fkey"
-            columns: ["version"]
-            isOneToOne: true
-            referencedRelation: "control_citas_versiones"
-            referencedColumns: ["version"]
-          },
-        ]
-      }
-      postventa_retiros: {
-        Row: {
-          actualizado_en: string
-          creado_en: string
-          creado_por: string
-          empresa: string
-          estado: string
-          fuente_id: string
-          id: string
-          inversionista_id: string
-          motivo: string
-          resolucion: string | null
-          revisado_por: string | null
-          revision: number
-        }
-        Insert: {
-          actualizado_en?: string
-          creado_en?: string
-          creado_por: string
-          empresa: string
-          estado?: string
-          fuente_id: string
-          id: string
-          inversionista_id: string
-          motivo: string
-          resolucion?: string | null
-          revisado_por?: string | null
-          revision?: number
-        }
-        Update: {
-          actualizado_en?: string
-          creado_en?: string
-          creado_por?: string
-          empresa?: string
-          estado?: string
-          fuente_id?: string
-          id?: string
-          inversionista_id?: string
-          motivo?: string
-          resolucion?: string | null
-          revisado_por?: string | null
-          revision?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "postventa_retiros_fuente_id_fkey"
-            columns: ["fuente_id"]
-            isOneToOne: false
-            referencedRelation: "cierres_externos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "postventa_retiros_inversionista_id_fkey"
-            columns: ["inversionista_id"]
-            isOneToOne: false
-            referencedRelation: "inversionistas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      postventa_operaciones: {
-        Row: {
-          actor_id: string
-          clave: string
-          comando: string
-          creado_en: string
-          inversionista_id: string
-          payload: Json
-          respuesta: Json | null
-        }
-        Insert: {
-          actor_id: string
-          clave: string
-          comando: string
-          creado_en?: string
-          inversionista_id: string
-          payload: Json
-          respuesta?: Json | null
-        }
-        Update: {
-          actor_id?: string
-          clave?: string
-          comando?: string
-          creado_en?: string
-          inversionista_id?: string
-          payload?: Json
-          respuesta?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "postventa_operaciones_inversionista_id_fkey"
-            columns: ["inversionista_id"]
-            isOneToOne: false
-            referencedRelation: "inversionistas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      postventa_escrituras: {
-        Row: {
-          tarea_id: string
-          transaccion: unknown
-        }
-        Insert: {
-          tarea_id: string
-          transaccion: unknown
-        }
-        Update: {
-          tarea_id?: string
-          transaccion?: unknown
-        }
-        Relationships: []
-      }
-      inversionista_gestiones: {
-        Row: {
-          creado_en: string
-          creado_por: string | null
-          detalle: string
-          empresa: string | null
-          id: string
-          inversionista_id: string
-          metadata: Json
-          tarea_id: string | null
-          tipo: string
-        }
-        Insert: {
-          creado_en?: string
-          creado_por?: string | null
-          detalle: string
-          empresa?: string | null
-          id?: string
-          inversionista_id: string
-          metadata?: Json
-          tarea_id?: string | null
-          tipo: string
-        }
-        Update: {
-          creado_en?: string
-          creado_por?: string | null
-          detalle?: string
-          empresa?: string | null
-          id?: string
-          inversionista_id?: string
-          metadata?: Json
-          tarea_id?: string | null
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inversionista_gestiones_inversionista_id_fkey"
-            columns: ["inversionista_id"]
-            isOneToOne: false
-            referencedRelation: "inversionistas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inversionista_gestiones_tarea_id_fkey"
-            columns: ["tarea_id"]
-            isOneToOne: false
-            referencedRelation: "tareas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      inversion_solicitud_origenes: {
-        Row: {
-          creado_en: string
-          creado_por: string
-          fuente_id: string
-          solicitud_id: string
-        }
-        Insert: {
-          creado_en?: string
-          creado_por: string
-          fuente_id: string
-          solicitud_id: string
-        }
-        Update: {
-          creado_en?: string
-          creado_por?: string
-          fuente_id?: string
-          solicitud_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inversion_solicitud_origenes_fuente_id_fkey"
-            columns: ["fuente_id"]
-            isOneToOne: false
-            referencedRelation: "cierres_externos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inversion_solicitud_origenes_solicitud_id_fkey"
-            columns: ["solicitud_id"]
-            isOneToOne: true
-            referencedRelation: "inversion_solicitudes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      solicitudes_tasa: {
-        Row: {
-          actualizado_en: string
-          capital: number
-          categoria: string
-          cliente_id: string | null
-          consumida_en: string | null
-          contrato_id: string | null
-          contrato_origen_id: string | null
-          contrato_origen_numero: string | null
-          contratos_previos: number
-          documento_lead: string | null
-          estado: string
-          fecha_inicio: string
-          fecha_vencimiento: string
-          huella: string
-          huella_preconversion: string | null
-          id: string
-          lead_id: string | null
-          modalidad: string
-          moneda: string
-          motivo: string
-          motivo_analista: string | null
-          motivo_resolucion: string | null
-          politica_id: string
-          prioridad_bandeja: boolean
-          producto_condicion_id: string | null
-          regla_base: string
-          respondida_por_analista_en: string | null
-          resuelta_en: string | null
-          resuelta_por: string | null
-          solicitada_en: string
-          solicitada_por: string
-          tasa_base: number
-          tasa_maxima_autorizada: number | null
-          tasa_solicitada: number
-          tipo_interes: string
-          vence_en: string
-        }
-        Insert: {
-          actualizado_en?: string
-          capital: number
-          categoria: string
-          cliente_id?: string | null
-          consumida_en?: string | null
-          contrato_id?: string | null
-          contrato_origen_id?: string | null
-          contrato_origen_numero?: string | null
-          contratos_previos?: number
-          documento_lead?: string | null
-          estado?: string
-          fecha_inicio: string
-          fecha_vencimiento: string
-          huella: string
-          huella_preconversion?: string | null
-          id?: string
-          lead_id?: string | null
-          modalidad: string
-          moneda: string
-          motivo: string
-          motivo_analista?: string | null
-          motivo_resolucion?: string | null
-          politica_id: string
-          prioridad_bandeja?: boolean
-          producto_condicion_id?: string | null
-          regla_base: string
-          respondida_por_analista_en?: string | null
-          resuelta_en?: string | null
-          resuelta_por?: string | null
-          solicitada_en?: string
-          solicitada_por: string
-          tasa_base: number
-          tasa_maxima_autorizada?: number | null
-          tasa_solicitada: number
-          tipo_interes: string
-          vence_en: string
-        }
-        Update: {
-          actualizado_en?: string
-          capital?: number
-          categoria?: string
-          cliente_id?: string | null
-          consumida_en?: string | null
-          contrato_id?: string | null
-          contrato_origen_id?: string | null
-          contrato_origen_numero?: string | null
-          contratos_previos?: number
-          documento_lead?: string | null
-          estado?: string
-          fecha_inicio?: string
-          fecha_vencimiento?: string
-          huella?: string
-          huella_preconversion?: string | null
-          id?: string
-          lead_id?: string | null
-          modalidad?: string
-          moneda?: string
-          motivo?: string
-          motivo_analista?: string | null
-          motivo_resolucion?: string | null
-          politica_id?: string
-          prioridad_bandeja?: boolean
-          producto_condicion_id?: string | null
-          regla_base?: string
-          respondida_por_analista_en?: string | null
-          resuelta_en?: string | null
-          resuelta_por?: string | null
-          solicitada_en?: string
-          solicitada_por?: string
-          tasa_base?: number
-          tasa_maxima_autorizada?: number | null
-          tasa_solicitada?: number
-          tipo_interes?: string
-          vence_en?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "solicitudes_tasa_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solicitudes_tasa_politica_id_fkey"
-            columns: ["politica_id"]
-            isOneToOne: false
-            referencedRelation: "politica_rentabilidad"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cartera_lecturas: {
-        Row: {
-          actor_id: string
-          creado_en: string
-          id: string
-          inversionista_id: string | null
-          tipo: string
-        }
-        Insert: {
-          actor_id: string
-          creado_en?: string
-          id?: string
-          inversionista_id?: string | null
-          tipo: string
-        }
-        Update: {
-          actor_id?: string
-          creado_en?: string
-          id?: string
-          inversionista_id?: string | null
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cartera_lecturas_inversionista_id_fkey"
-            columns: ["inversionista_id"]
-            isOneToOne: false
-            referencedRelation: "inversionistas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       actividades: {
         Row: {
           creado_en: string
@@ -925,6 +273,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "backfill_multiempresa_mapa_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cartera_lecturas: {
+        Row: {
+          actor_id: string
+          creado_en: string
+          id: string
+          inversionista_id: string | null
+          tipo: string
+        }
+        Insert: {
+          actor_id: string
+          creado_en?: string
+          id?: string
+          inversionista_id?: string | null
+          tipo: string
+        }
+        Update: {
+          actor_id?: string
+          creado_en?: string
+          id?: string
+          inversionista_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_lecturas_inversionista_id_fkey"
             columns: ["inversionista_id"]
             isOneToOne: false
             referencedRelation: "inversionistas"
@@ -1194,6 +574,95 @@ export type Database = {
           },
         ]
       }
+      contratos_eliminados_auditoria: {
+        Row: {
+          archivos: Json
+          contrato_id: string
+          eliminado_en: string
+          eliminado_por: string
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          archivos: Json
+          contrato_id: string
+          eliminado_en?: string
+          eliminado_por: string
+          id?: string
+          snapshot: Json
+        }
+        Update: {
+          archivos?: Json
+          contrato_id?: string
+          eliminado_en?: string
+          eliminado_por?: string
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
+      control_citas_aplicaciones: {
+        Row: {
+          aplicado_en: string
+          aplicado_por: string
+          id: string
+          mes_inicio: string
+          version: number
+        }
+        Insert: {
+          aplicado_en?: string
+          aplicado_por: string
+          id?: string
+          mes_inicio: string
+          version: number
+        }
+        Update: {
+          aplicado_en?: string
+          aplicado_por?: string
+          id?: string
+          mes_inicio?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_citas_aplicaciones_version_fkey"
+            columns: ["version"]
+            isOneToOne: true
+            referencedRelation: "control_citas_versiones"
+            referencedColumns: ["version"]
+          },
+        ]
+      }
+      control_citas_versiones: {
+        Row: {
+          configuracion: Json
+          estado: string
+          guardado_en: string
+          guardado_por: string
+          id: string
+          nota: string | null
+          version: number
+        }
+        Insert: {
+          configuracion: Json
+          estado?: string
+          guardado_en?: string
+          guardado_por: string
+          id?: string
+          nota?: string | null
+          version: number
+        }
+        Update: {
+          configuracion?: Json
+          estado?: string
+          guardado_en?: string
+          guardado_por?: string
+          id?: string
+          nota?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       conversion_pesos: {
         Row: {
           creado_en: string
@@ -1274,6 +743,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      correcciones_correo_acceso: {
+        Row: {
+          auth_confirmado_en: string | null
+          cliente_id: string
+          correo_anterior: string
+          correo_nuevo: string
+          creado_en: string
+          id: string
+          motivo: string
+          por: string
+          transaccion_confirmada: unknown
+        }
+        Insert: {
+          auth_confirmado_en?: string | null
+          cliente_id: string
+          correo_anterior: string
+          correo_nuevo: string
+          creado_en?: string
+          id?: string
+          motivo: string
+          por: string
+          transaccion_confirmada?: unknown
+        }
+        Update: {
+          auth_confirmado_en?: string | null
+          cliente_id?: string
+          correo_anterior?: string
+          correo_nuevo?: string
+          creado_en?: string
+          id?: string
+          motivo?: string
+          por?: string
+          transaccion_confirmada?: unknown
+        }
+        Relationships: []
       }
       cuentas_bancarias: {
         Row: {
@@ -1364,6 +869,59 @@ export type Database = {
           },
         ]
       }
+      dispositivos_push_tasa: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          auth: string
+          creado_en: string
+          endpoint: string
+          habilitado_en: string
+          id: string
+          p256dh: string
+          perfil_id: string
+          revision: string
+          sesion_id: string
+          ultima_prueba_en: string | null
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          auth: string
+          creado_en?: string
+          endpoint: string
+          habilitado_en?: string
+          id?: string
+          p256dh: string
+          perfil_id: string
+          revision?: string
+          sesion_id: string
+          ultima_prueba_en?: string | null
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          auth?: string
+          creado_en?: string
+          endpoint?: string
+          habilitado_en?: string
+          id?: string
+          p256dh?: string
+          perfil_id?: string
+          revision?: string
+          sesion_id?: string
+          ultima_prueba_en?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispositivos_push_tasa_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           activa: boolean
@@ -1433,6 +991,66 @@ export type Database = {
         }
         Relationships: []
       }
+      envios_push_tasa: {
+        Row: {
+          codigo_http: number | null
+          creado_en: string
+          disponible_en: string
+          dispositivo_id: string
+          enviado_en: string | null
+          estado: string
+          id: string
+          intentos: number
+          reserva: string | null
+          reservado_hasta: string | null
+          revision: string
+          solicitud_id: string
+        }
+        Insert: {
+          codigo_http?: number | null
+          creado_en?: string
+          disponible_en?: string
+          dispositivo_id: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          intentos?: number
+          reserva?: string | null
+          reservado_hasta?: string | null
+          revision: string
+          solicitud_id: string
+        }
+        Update: {
+          codigo_http?: number | null
+          creado_en?: string
+          disponible_en?: string
+          dispositivo_id?: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          intentos?: number
+          reserva?: string | null
+          reservado_hasta?: string | null
+          revision?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "envios_push_tasa_dispositivo_id_fkey"
+            columns: ["dispositivo_id"]
+            isOneToOne: false
+            referencedRelation: "dispositivos_push_tasa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "envios_push_tasa_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_tasa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipo: {
         Row: {
           activo: boolean
@@ -1473,6 +1091,57 @@ export type Database = {
             referencedColumns: ["perfil_id"]
           },
         ]
+      }
+      gestion_diaria_control_avisos: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          habilitados: boolean
+          motivo: string
+          version: number
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          habilitados: boolean
+          motivo: string
+          version: number
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          habilitados?: boolean
+          motivo?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      gestion_diaria_entregas: {
+        Row: {
+          alerta_id: string
+          creado_en: string
+          entrega: number
+          id: string
+          perfil_id: string
+          solicitud_id: string
+        }
+        Insert: {
+          alerta_id: string
+          creado_en?: string
+          entrega: number
+          id?: string
+          perfil_id: string
+          solicitud_id: string
+        }
+        Update: {
+          alerta_id?: string
+          creado_en?: string
+          entrega?: number
+          id?: string
+          perfil_id?: string
+          solicitud_id?: string
+        }
+        Relationships: []
       }
       inversion_ajustes_mes_cerrado: {
         Row: {
@@ -1696,6 +1365,42 @@ export type Database = {
             foreignKeyName: "inversion_solicitud_correcciones_solicitud_id_fkey"
             columns: ["solicitud_id"]
             isOneToOne: false
+            referencedRelation: "inversion_solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_solicitud_origenes: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          fuente_id: string
+          solicitud_id: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          fuente_id: string
+          solicitud_id: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          fuente_id?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_solicitud_origenes_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "cierres_externos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_solicitud_origenes_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: true
             referencedRelation: "inversion_solicitudes"
             referencedColumns: ["id"]
           },
@@ -1943,6 +1648,44 @@ export type Database = {
           },
         ]
       }
+      inversionista_datos_contacto: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string
+          domicilio: string | null
+          inversionista_id: string
+          nombre_completo: string
+          revision: number
+          telefono: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por: string
+          domicilio?: string | null
+          inversionista_id: string
+          nombre_completo: string
+          revision?: number
+          telefono?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string
+          domicilio?: string | null
+          inversionista_id?: string
+          nombre_completo?: string
+          revision?: number
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_datos_contacto_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: true
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inversionista_fusiones: {
         Row: {
           canonico_id: string
@@ -1984,6 +1727,57 @@ export type Database = {
             columns: ["fusionado_id"]
             isOneToOne: false
             referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_gestiones: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          detalle: string
+          empresa: string | null
+          id: string
+          inversionista_id: string
+          metadata: Json
+          tarea_id: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          detalle: string
+          empresa?: string | null
+          id?: string
+          inversionista_id: string
+          metadata?: Json
+          tarea_id?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          detalle?: string
+          empresa?: string | null
+          id?: string
+          inversionista_id?: string
+          metadata?: Json
+          tarea_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_gestiones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_gestiones_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: false
+            referencedRelation: "tareas"
             referencedColumns: ["id"]
           },
         ]
@@ -2476,6 +2270,57 @@ export type Database = {
           },
         ]
       }
+      lead_sla_etapa_ajustes: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          etapa_sla_id: string
+          id: string
+          limite_antes: string
+          limite_despues: string
+          minutos_reales: number
+          origen_actividad_id: string
+          secuencia: number
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          etapa_sla_id: string
+          id?: string
+          limite_antes: string
+          limite_despues: string
+          minutos_reales: number
+          origen_actividad_id: string
+          secuencia: number
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          etapa_sla_id?: string
+          id?: string
+          limite_antes?: string
+          limite_despues?: string
+          minutos_reales?: number
+          origen_actividad_id?: string
+          secuencia?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sla_etapa_ajustes_etapa_sla_id_fkey"
+            columns: ["etapa_sla_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sla_etapas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sla_etapa_ajustes_origen_actividad_id_fkey"
+            columns: ["origen_actividad_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sla_etapas: {
         Row: {
           aproximado: boolean
@@ -2685,6 +2530,84 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipo"
             referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
+      ledger_rentabilidad: {
+        Row: {
+          actor_id: string | null
+          categoria: string | null
+          cliente_id: string
+          contrato_id: string
+          contrato_origen_id: string | null
+          detalle: Json
+          divergente: boolean
+          id: string
+          numero_contrato: string
+          origen: string
+          politica_id: string | null
+          registrado_en: string
+          regla: string
+          secuencia: number
+          solicitud_id: string | null
+          tasa_base: number
+          tasa_final: number
+          tasa_recibida: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          categoria?: string | null
+          cliente_id: string
+          contrato_id: string
+          contrato_origen_id?: string | null
+          detalle?: Json
+          divergente?: boolean
+          id?: string
+          numero_contrato: string
+          origen: string
+          politica_id?: string | null
+          registrado_en?: string
+          regla: string
+          secuencia?: number
+          solicitud_id?: string | null
+          tasa_base: number
+          tasa_final: number
+          tasa_recibida?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          categoria?: string | null
+          cliente_id?: string
+          contrato_id?: string
+          contrato_origen_id?: string | null
+          detalle?: Json
+          divergente?: boolean
+          id?: string
+          numero_contrato?: string
+          origen?: string
+          politica_id?: string | null
+          registrado_en?: string
+          regla?: string
+          secuencia?: number
+          solicitud_id?: string | null
+          tasa_base?: number
+          tasa_final?: number
+          tasa_recibida?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_rentabilidad_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "politica_rentabilidad"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_rentabilidad_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_tasa"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3131,6 +3054,249 @@ export type Database = {
         }
         Relationships: []
       }
+      politica_gestion_diaria: {
+        Row: {
+          atencion_min_pct: number
+          bien_min_pct: number
+          corte_1_hora: string
+          corte_1_minimo: number
+          corte_2_hora: string
+          corte_2_incremento_pct: number
+          corte_2_piso: number
+          corte_2_techo: number
+          cortes_activos: boolean
+          creado_en: string
+          creado_por: string | null
+          id: string
+          minimo_llamadas_utiles: number
+          motivo: string
+          sabado_minimo: number
+          tasa_baja_diferencia_pp: number | null
+          version: number
+          version_anterior_id: string | null
+          vigente_desde: string
+        }
+        Insert: {
+          atencion_min_pct?: number
+          bien_min_pct?: number
+          corte_1_hora?: string
+          corte_1_minimo?: number
+          corte_2_hora?: string
+          corte_2_incremento_pct?: number
+          corte_2_piso?: number
+          corte_2_techo?: number
+          cortes_activos?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          minimo_llamadas_utiles?: number
+          motivo: string
+          sabado_minimo?: number
+          tasa_baja_diferencia_pp?: number | null
+          version: number
+          version_anterior_id?: string | null
+          vigente_desde: string
+        }
+        Update: {
+          atencion_min_pct?: number
+          bien_min_pct?: number
+          corte_1_hora?: string
+          corte_1_minimo?: number
+          corte_2_hora?: string
+          corte_2_incremento_pct?: number
+          corte_2_piso?: number
+          corte_2_techo?: number
+          cortes_activos?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          minimo_llamadas_utiles?: number
+          motivo?: string
+          sabado_minimo?: number
+          tasa_baja_diferencia_pp?: number | null
+          version?: number
+          version_anterior_id?: string | null
+          vigente_desde?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politica_gestion_diaria_version_anterior_id_fkey"
+            columns: ["version_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "politica_gestion_diaria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      politica_rentabilidad: {
+        Row: {
+          id: string
+          modo: string
+          nota: string | null
+          publicada_en: string
+          publicada_por: string | null
+          regla_renovacion: string
+          regla_upgrade: string
+          tasa_base_nueva: number
+          tope_tecnico: number
+          version: number
+          version_anterior_id: string | null
+          vigencia_solicitud_dias: number
+          vigente_desde: string
+        }
+        Insert: {
+          id?: string
+          modo?: string
+          nota?: string | null
+          publicada_en?: string
+          publicada_por?: string | null
+          regla_renovacion?: string
+          regla_upgrade?: string
+          tasa_base_nueva: number
+          tope_tecnico?: number
+          version: number
+          version_anterior_id?: string | null
+          vigencia_solicitud_dias?: number
+          vigente_desde: string
+        }
+        Update: {
+          id?: string
+          modo?: string
+          nota?: string | null
+          publicada_en?: string
+          publicada_por?: string | null
+          regla_renovacion?: string
+          regla_upgrade?: string
+          tasa_base_nueva?: number
+          tope_tecnico?: number
+          version?: number
+          version_anterior_id?: string | null
+          vigencia_solicitud_dias?: number
+          vigente_desde?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politica_rentabilidad_version_anterior_id_fkey"
+            columns: ["version_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "politica_rentabilidad"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postventa_escrituras: {
+        Row: {
+          tarea_id: string
+          transaccion: unknown
+        }
+        Insert: {
+          tarea_id: string
+          transaccion: unknown
+        }
+        Update: {
+          tarea_id?: string
+          transaccion?: unknown
+        }
+        Relationships: []
+      }
+      postventa_operaciones: {
+        Row: {
+          actor_id: string
+          clave: string
+          comando: string
+          creado_en: string
+          inversionista_id: string
+          payload: Json
+          respuesta: Json | null
+        }
+        Insert: {
+          actor_id: string
+          clave: string
+          comando: string
+          creado_en?: string
+          inversionista_id: string
+          payload: Json
+          respuesta?: Json | null
+        }
+        Update: {
+          actor_id?: string
+          clave?: string
+          comando?: string
+          creado_en?: string
+          inversionista_id?: string
+          payload?: Json
+          respuesta?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postventa_operaciones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postventa_retiros: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          creado_por: string
+          empresa: string
+          estado: string
+          fuente_id: string
+          id: string
+          inversionista_id: string
+          motivo: string
+          resolucion: string | null
+          revisado_por: string | null
+          revision: number
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por: string
+          empresa: string
+          estado?: string
+          fuente_id: string
+          id: string
+          inversionista_id: string
+          motivo: string
+          resolucion?: string | null
+          revisado_por?: string | null
+          revision?: number
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por?: string
+          empresa?: string
+          estado?: string
+          fuente_id?: string
+          id?: string
+          inversionista_id?: string
+          motivo?: string
+          resolucion?: string | null
+          revisado_por?: string | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postventa_retiros_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "cierres_externos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postventa_retiros_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producto_condiciones: {
         Row: {
           activa: boolean
@@ -3399,6 +3565,106 @@ export type Database = {
         }
         Relationships: []
       }
+      rentabilidad_hitos: {
+        Row: {
+          clave: string
+          registrado_en: string
+          valor: Json
+        }
+        Insert: {
+          clave: string
+          registrado_en?: string
+          valor: Json
+        }
+        Update: {
+          clave?: string
+          registrado_en?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
+      sla_operacion_control: {
+        Row: {
+          cambiado_en: string
+          cambiado_por: string | null
+          id: boolean
+          modo: string
+          politica_adopcion_id: string | null
+          primera_activacion_en: string | null
+          revision: number
+        }
+        Insert: {
+          cambiado_en?: string
+          cambiado_por?: string | null
+          id?: boolean
+          modo?: string
+          politica_adopcion_id?: string | null
+          primera_activacion_en?: string | null
+          revision?: number
+        }
+        Update: {
+          cambiado_en?: string
+          cambiado_por?: string | null
+          id?: boolean
+          modo?: string
+          politica_adopcion_id?: string | null
+          primera_activacion_en?: string | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_operacion_control_politica_adopcion_id_fkey"
+            columns: ["politica_adopcion_id"]
+            isOneToOne: false
+            referencedRelation: "sla_politicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_operacion_recibos: {
+        Row: {
+          actor_id: string
+          comando: string
+          confirmado_en: string | null
+          creado_en: string
+          lead_id: string
+          operacion_id: string
+          payload: Json
+          respuesta: Json | null
+          sujeto_id: string
+        }
+        Insert: {
+          actor_id: string
+          comando: string
+          confirmado_en?: string | null
+          creado_en?: string
+          lead_id: string
+          operacion_id: string
+          payload: Json
+          respuesta?: Json | null
+          sujeto_id: string
+        }
+        Update: {
+          actor_id?: string
+          comando?: string
+          confirmado_en?: string | null
+          creado_en?: string
+          lead_id?: string
+          operacion_id?: string
+          payload?: Json
+          respuesta?: Json | null
+          sujeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_operacion_recibos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_politica_etapas: {
         Row: {
           etapa: string
@@ -3425,6 +3691,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sla_politicas"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_politica_etapas_operacion: {
+        Row: {
+          etapa: string
+          pausa_habilitada: boolean
+          pausa_margen_minutos: number
+          politica_id: string
+          prorroga_max: number
+          prorroga_minutos: number
+          seguimiento_minutos: number
+          tope_extra_minutos: number
+        }
+        Insert: {
+          etapa: string
+          pausa_habilitada: boolean
+          pausa_margen_minutos: number
+          politica_id: string
+          prorroga_max: number
+          prorroga_minutos: number
+          seguimiento_minutos: number
+          tope_extra_minutos: number
+        }
+        Update: {
+          etapa?: string
+          pausa_habilitada?: boolean
+          pausa_margen_minutos?: number
+          politica_id?: string
+          prorroga_max?: number
+          prorroga_minutos?: number
+          seguimiento_minutos?: number
+          tope_extra_minutos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_politica_etapas_operacion_politica_id_etapa_fkey"
+            columns: ["politica_id", "etapa"]
+            isOneToOne: true
+            referencedRelation: "sla_politica_etapas"
+            referencedColumns: ["politica_id", "etapa"]
           },
         ]
       }
@@ -3471,6 +3778,177 @@ export type Database = {
             columns: ["version_anterior_id"]
             isOneToOne: false
             referencedRelation: "sla_politicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes_tasa: {
+        Row: {
+          actualizado_en: string
+          capital: number
+          categoria: string
+          cliente_id: string | null
+          consumida_en: string | null
+          contrato_id: string | null
+          contrato_origen_id: string | null
+          contrato_origen_numero: string | null
+          contratos_previos: number
+          documento_lead: string | null
+          estado: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          huella: string
+          huella_preconversion: string | null
+          id: string
+          lead_id: string | null
+          modalidad: string
+          moneda: string
+          motivo: string
+          motivo_analista: string | null
+          motivo_resolucion: string | null
+          politica_id: string
+          prioridad_bandeja: boolean
+          producto_condicion_id: string | null
+          regla_base: string
+          respondida_por_analista_en: string | null
+          resuelta_en: string | null
+          resuelta_por: string | null
+          solicitada_en: string
+          solicitada_por: string
+          tasa_base: number
+          tasa_maxima_autorizada: number | null
+          tasa_solicitada: number
+          tipo_interes: string
+          vence_en: string
+        }
+        Insert: {
+          actualizado_en?: string
+          capital: number
+          categoria: string
+          cliente_id?: string | null
+          consumida_en?: string | null
+          contrato_id?: string | null
+          contrato_origen_id?: string | null
+          contrato_origen_numero?: string | null
+          contratos_previos?: number
+          documento_lead?: string | null
+          estado?: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          huella: string
+          huella_preconversion?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad: string
+          moneda: string
+          motivo: string
+          motivo_analista?: string | null
+          motivo_resolucion?: string | null
+          politica_id: string
+          prioridad_bandeja?: boolean
+          producto_condicion_id?: string | null
+          regla_base: string
+          respondida_por_analista_en?: string | null
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          solicitada_en?: string
+          solicitada_por: string
+          tasa_base: number
+          tasa_maxima_autorizada?: number | null
+          tasa_solicitada: number
+          tipo_interes: string
+          vence_en: string
+        }
+        Update: {
+          actualizado_en?: string
+          capital?: number
+          categoria?: string
+          cliente_id?: string | null
+          consumida_en?: string | null
+          contrato_id?: string | null
+          contrato_origen_id?: string | null
+          contrato_origen_numero?: string | null
+          contratos_previos?: number
+          documento_lead?: string | null
+          estado?: string
+          fecha_inicio?: string
+          fecha_vencimiento?: string
+          huella?: string
+          huella_preconversion?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad?: string
+          moneda?: string
+          motivo?: string
+          motivo_analista?: string | null
+          motivo_resolucion?: string | null
+          politica_id?: string
+          prioridad_bandeja?: boolean
+          producto_condicion_id?: string | null
+          regla_base?: string
+          respondida_por_analista_en?: string | null
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          solicitada_en?: string
+          solicitada_por?: string
+          tasa_base?: number
+          tasa_maxima_autorizada?: number | null
+          tasa_solicitada?: number
+          tipo_interes?: string
+          vence_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_tasa_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_tasa_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "politica_rentabilidad"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarea_sla_contexto: {
+        Row: {
+          ciclo_n: number
+          fuente: string
+          lead_id: string
+          registrado_en: string
+          tarea_id: string
+        }
+        Insert: {
+          ciclo_n: number
+          fuente: string
+          lead_id: string
+          registrado_en?: string
+          tarea_id: string
+        }
+        Update: {
+          ciclo_n?: number
+          fuente?: string
+          lead_id?: string
+          registrado_en?: string
+          tarea_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarea_sla_contexto_lead_id_ciclo_n_fkey"
+            columns: ["lead_id", "ciclo_n"]
+            isOneToOne: false
+            referencedRelation: "lead_sla_ciclos"
+            referencedColumns: ["lead_id", "ciclo_n"]
+          },
+          {
+            foreignKeyName: "tarea_sla_contexto_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: true
+            referencedRelation: "tareas"
             referencedColumns: ["id"]
           },
         ]
@@ -3671,119 +4149,6 @@ export type Database = {
         }
         Relationships: []
       }
-      dispositivos_push_tasa: {
-        Row: {
-          activo: boolean
-          actualizado_en: string
-          auth: string
-          creado_en: string
-          endpoint: string
-          habilitado_en: string
-          id: string
-          p256dh: string
-          perfil_id: string
-          revision: string
-          sesion_id: string
-          ultima_prueba_en: string | null
-        }
-        Insert: {
-          activo?: boolean
-          actualizado_en?: string
-          auth: string
-          creado_en?: string
-          endpoint: string
-          habilitado_en?: string
-          id?: string
-          p256dh: string
-          perfil_id: string
-          revision?: string
-          sesion_id: string
-          ultima_prueba_en?: string | null
-        }
-        Update: {
-          activo?: boolean
-          actualizado_en?: string
-          auth?: string
-          creado_en?: string
-          endpoint?: string
-          habilitado_en?: string
-          id?: string
-          p256dh?: string
-          perfil_id?: string
-          revision?: string
-          sesion_id?: string
-          ultima_prueba_en?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dispositivos_push_tasa_perfil_id_fkey"
-            columns: ["perfil_id"]
-            isOneToOne: false
-            referencedRelation: "equipo"
-            referencedColumns: ["perfil_id"]
-          },
-        ]
-      }
-      envios_push_tasa: {
-        Row: {
-          codigo_http: number | null
-          creado_en: string
-          disponible_en: string
-          dispositivo_id: string
-          enviado_en: string | null
-          estado: string
-          id: string
-          intentos: number
-          reserva: string | null
-          reservado_hasta: string | null
-          revision: string
-          solicitud_id: string
-        }
-        Insert: {
-          codigo_http?: number | null
-          creado_en?: string
-          disponible_en?: string
-          dispositivo_id: string
-          enviado_en?: string | null
-          estado?: string
-          id?: string
-          intentos?: number
-          reserva?: string | null
-          reservado_hasta?: string | null
-          revision: string
-          solicitud_id: string
-        }
-        Update: {
-          codigo_http?: number | null
-          creado_en?: string
-          disponible_en?: string
-          dispositivo_id?: string
-          enviado_en?: string | null
-          estado?: string
-          id?: string
-          intentos?: number
-          reserva?: string | null
-          reservado_hasta?: string | null
-          revision?: string
-          solicitud_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "envios_push_tasa_dispositivo_id_fkey"
-            columns: ["dispositivo_id"]
-            isOneToOne: false
-            referencedRelation: "dispositivos_push_tasa"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "envios_push_tasa_solicitud_id_fkey"
-            columns: ["solicitud_id"]
-            isOneToOne: false
-            referencedRelation: "solicitudes_tasa"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       alertas_reconocimientos_vigentes: {
@@ -3848,196 +4213,14 @@ export type Database = {
       }
     }
     Functions: {
-      cancelar_solicitud_inversion_fn: {
-        Args: { p_revision_datos_esperada: number; p_solicitud: string }
+      abandonar_conversion_gerencia_fn: {
+        Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
       }
-      bienvenida_inversion_entrega_fn: {
-        Args: {
-          p_paso: string
-          p_proveedor_id?: string
-          p_solicitud: string
-          p_token?: string
-        }
-        Returns: Json
-      }
-      bienvenida_inversion_estado_fn: {
-        Args: { p_solicitud: string }
-        Returns: Json
-      }
-      inversionista_corregir_coopac_fn: {
-        Args: {
-          p_clave: string
-          p_datos: Json
-          p_fuente: string
-          p_inversionista: string
-          p_revision: string
-        }
-        Returns: Json
-      }
-      inversionista_corregir_contacto_fn: {
-        Args: {
-          p_clave: string
-          p_datos: Json
-          p_inversionista: string
-          p_revision: string
-        }
-        Returns: Json
-      }
-      inversionista_gestion_fn: {
-        Args: { p_fuente?: string; p_inversionista: string }
-        Returns: Json
-      }
-      contrato_eliminar_auditado: {
-        Args: { p_actor_id: string; p_contrato_id: string }
-        Returns: Json
-      }
-      preparar_correccion_correo_acceso_fn: {
-        Args: {
-          p_actor_id: string
-          p_cliente_id: string
-          p_correo: string
-          p_motivo: string
-        }
-        Returns: string
-      }
-      aplicar_control_citas_fn: {
-        Args: { p_version_esperada: number }
-        Returns: Json
-      }
-      control_citas_configuracion_fn: { Args: never; Returns: Json }
-      guardar_control_citas_fn: {
-        Args: {
-          p_version_esperada: number
-          p_configuracion: Json
-          p_nota?: string
-        }
-        Returns: Json
-      }
-      metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }
-      metricas_multiempresa_estado_fn: { Args: never; Returns: Json }
-      postventa_operacion_estado_fn: {
-        Args: { p_actor?: string; p_clave: string }
-        Returns: Json
-      }
-      preparar_reinversion_fn: {
-        Args: { p_clave: string; p_datos: Json; p_fuente: string }
-        Returns: Json
-      }
-      postventa_veto_fn: {
-        Args: {
-          p_actor?: string
-          p_clave: string
-          p_inversionista: string
-          p_motivo: string
-          p_vetar: boolean
-        }
-        Returns: Json
-      }
-      postventa_vencimientos_fn: {
-        Args: { p_empresa?: string; p_pagina?: number }
-        Returns: Json
-      }
-      postventa_tarea_fn: {
-        Args: {
-          p_accion: string
-          p_actor?: string
-          p_clave: string
-          p_datos?: Json
-          p_revision: number
-          p_tarea: string
-        }
-        Returns: Json
-      }
-      postventa_solicitar_retiro_fn: {
-        Args: {
-          p_actor?: string
-          p_clave: string
-          p_fuente: string
-          p_inversionista: string
-          p_motivo: string
-        }
-        Returns: Json
-      }
-      postventa_revisar_retiro_fn: {
-        Args: {
-          p_actor?: string
-          p_clave: string
-          p_detalle: string
-          p_estado: string
-          p_retiro: string
-          p_revision: number
-        }
-        Returns: Json
-      }
-      postventa_perfil_fn: { Args: { p_perfil: string }; Returns: Json }
-      postventa_ficha_fn: { Args: { p_inversionista: string }; Returns: Json }
-      postventa_estado_fn: { Args: never; Returns: Json }
-      postventa_agendar_fn: {
-        Args: {
-          p_actor?: string
-          p_clave: string
-          p_datos: Json
-          p_inversionista: string
-        }
-        Returns: Json
-      }
-      postventa_agenda_fn: { Args: never; Returns: Json }
-      tareas_pendientes_fn: {
-        Args: { p_despues_de?: string; p_despues_id?: string; p_limite?: number }
-        Returns: Json
-      }
-      inversionista_documento_fn: {
-        Args: { p_documento: string; p_fuente: string; p_inversionista: string }
-        Returns: Json
-      }
-      inversionista_cuentas_fn: {
-        Args: { p_inversionista: string; p_moneda: string; p_perfil: string }
-        Returns: Json
-      }
-      inversionista_ficha_fn: {
-        Args: {
-          p_inversionista: string
-          p_pagina_historial?: number
-          p_pagina_inversiones?: number
-        }
-        Returns: Json
-      }
-      cartera_inversionistas_filtrada_fn: {
-        Args: {
-          p_contacto?: string
-          p_empresa?: string
-          p_estado?: string
-          p_mes?: string
-          p_moneda?: string
-          p_pagina?: number
-          p_por_vencer?: boolean
-          p_responsable?: string
-          p_sin_responsable?: boolean
-          p_tamano?: number
-          p_texto?: string
-        }
-        Returns: Json
-      }
-      cartera_inversionistas_fn: {
-        Args: {
-          p_empresa?: string
-          p_pagina?: number
-          p_responsable?: string
-          p_sin_responsable?: boolean
-          p_tamano?: number
-          p_texto?: string
-        }
-        Returns: Json
-      }
-      cartera_inversionistas_estado_fn: { Args: never; Returns: Json }
       acceso_inversion_fn: {
         Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
         Returns: Json
       }
-      // Historial de UN lead por cursor keyset (migración 20260919185718). Devuelve
-      // jsonb `{ version, items, senales }`; los parámetros con default van como
-      // opcionales (el front omite los que no usa, igual que en cartera_pagina_fn).
       actividades_de_lead_fn: {
         Args: {
           p_antes_de?: string
@@ -4047,7 +4230,6 @@ export type Database = {
         }
         Returns: Json
       }
-      actividades_recientes_fn: { Args: { p_limite?: number }; Returns: Json }
       actividades_del_ambito_fn: {
         Args: never
         Returns: {
@@ -4059,6 +4241,7 @@ export type Database = {
           tipo: string
         }[]
       }
+      actividades_recientes_fn: { Args: { p_limite?: number }; Returns: Json }
       actualizar_borrador_producto_inversion: {
         Args: {
           p_condiciones: Json
@@ -4085,24 +4268,6 @@ export type Database = {
       actualizar_cliente_gerencia_con_domicilio: {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
-      }
-      conciliar_cotitulares_inversion_fn: {
-        Args: { p_inversion: string }
-        Returns: Json
-      }
-      confirmar_inversion_fn: { Args: { p_solicitud: string }; Returns: Json }
-      confirmar_inversion_revisada_fn: {
-        Args: { p_revision_datos_esperada: number; p_solicitud: string }
-        Returns: Json
-      }
-      corregir_documento_cliente_admin_fn: {
-        Args: {
-          p_cliente_id: string
-          p_documento: string
-          p_motivo: string
-          p_tipo: string
-        }
-        Returns: Json
       }
       actualizar_contrato_con_cuenta: {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
@@ -4170,6 +4335,7 @@ export type Database = {
         Args: { p_desde?: string; p_dias?: number }
         Returns: Json
       }
+      alarma_conversion_fn: { Args: { p_mes?: string }; Returns: Json }
       alta_cliente_identidad_fn: {
         Args: { p_paso: string; p_payload: Json }
         Returns: Json
@@ -4191,6 +4357,10 @@ export type Database = {
         Args: { p_cierre_id: string; p_motivo: string }
         Returns: Json
       }
+      aplicar_control_citas_fn: {
+        Args: { p_version_esperada: number }
+        Returns: Json
+      }
       archivar_producto_inversion: {
         Args: { p_expected_revision: number; p_producto_id: string }
         Returns: Json
@@ -4206,11 +4376,33 @@ export type Database = {
       }
       atribucion_contrato_fn: { Args: { p_contrato_id: string }; Returns: Json }
       auth_usuario_por_correo_fn: { Args: { p_correo: string }; Returns: Json }
+      avisos_sla_resumen_v2_fn: { Args: never; Returns: Json }
       ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
       bandera_activa: { Args: { p_nombre: string }; Returns: boolean }
+      bienvenida_inversion_entrega_fn: {
+        Args: {
+          p_paso: string
+          p_proveedor_id?: string
+          p_solicitud: string
+          p_token?: string
+        }
+        Returns: Json
+      }
+      bienvenida_inversion_estado_fn: {
+        Args: { p_solicitud: string }
+        Returns: Json
+      }
       buscar_candidato_por_correo_fn: {
         Args: { p_correo: string }
         Returns: string
+      }
+      cambiar_modo_sla_operacion: {
+        Args: { p_expected_revision: number; p_modo: string }
+        Returns: Json
+      }
+      cancelar_solicitud_inversion_fn: {
+        Args: { p_revision_datos_esperada: number; p_solicitud: string }
+        Returns: Json
       }
       cartera_filtrada_fn: {
         Args: {
@@ -4221,11 +4413,38 @@ export type Database = {
           p_hasta?: string
           p_limite?: number
           p_origen?: string
-          // A mano (mig 20260919170500): gen:types no compila con la CLI actual.
           p_procedencia?: string
           p_sin_asignar?: boolean
           p_texto?: string
           p_vendedor_id?: string
+        }
+        Returns: Json
+      }
+      cartera_inversionistas_estado_fn: { Args: never; Returns: Json }
+      cartera_inversionistas_filtrada_fn: {
+        Args: {
+          p_contacto?: string
+          p_empresa?: string
+          p_estado?: string
+          p_mes?: string
+          p_moneda?: string
+          p_pagina?: number
+          p_por_vencer?: boolean
+          p_responsable?: string
+          p_sin_responsable?: boolean
+          p_tamano?: number
+          p_texto?: string
+        }
+        Returns: Json
+      }
+      cartera_inversionistas_fn: {
+        Args: {
+          p_empresa?: string
+          p_pagina?: number
+          p_responsable?: string
+          p_sin_responsable?: boolean
+          p_tamano?: number
+          p_texto?: string
         }
         Returns: Json
       }
@@ -4285,6 +4504,32 @@ export type Database = {
         }
         Returns: Json
       }
+      cerrar_reunion_v2: {
+        Args: {
+          p_detalle?: string
+          p_estado: string
+          p_motivo_no_realizada?: string
+          p_operacion_id: string
+          p_resultado_reunion?: string
+          p_siguiente?: Json
+          p_tarea_id: string
+        }
+        Returns: Json
+      }
+      cerrar_reunion_v3: {
+        Args: {
+          p_capital_estimado?: number
+          p_detalle?: string
+          p_estado: string
+          p_moneda?: string
+          p_motivo_no_realizada?: string
+          p_operacion_id: string
+          p_resultado_reunion?: string
+          p_siguiente?: Json
+          p_tarea_id: string
+        }
+        Returns: Json
+      }
       cerrar_tarea: {
         Args: {
           p_estado: string
@@ -4297,10 +4542,27 @@ export type Database = {
         }
         Returns: Json
       }
+      cerrar_tarea_v2: {
+        Args: {
+          p_estado: string
+          p_motivo_no_realizada?: string
+          p_operacion_id: string
+          p_resultado_detalle?: string
+          p_resultado_reunion?: string
+          p_resultado_tipo?: string
+          p_siguiente?: Json
+          p_tarea_id: string
+        }
+        Returns: Json
+      }
       ciclo_cierre_mes: { Args: never; Returns: Json }
       cierre_mes_estado_fn: { Args: never; Returns: Json }
       cierres_estado_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       cierres_externos_fn: { Args: { p_periodo: string }; Returns: Json }
+      citas_gerencia_consulta_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       cliente_detalle_fn: {
         Args: { p_cliente_id: string }
         Returns: {
@@ -4369,98 +4631,48 @@ export type Database = {
         }[]
       }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
-      cola_accion_v2_fn: { Args: { p_limite?: number; p_senal?: string; p_etapa?: string | null; p_analista_id?: string | null; p_cursor?: Json | null }; Returns: Json }
-      avisos_sla_resumen_v2_fn: { Args: Record<PropertyKey, never>; Returns: Json }
-      configuracion_sla_v2_fn: { Args: never; Returns: Json }
-      corregir_solicitud_inversion_fn: {
+      cola_accion_v2_fn: {
         Args: {
-          p_clave: string
-          p_datos: Json
-          p_motivo: string
-          p_revision_datos_esperada: number
-          p_solicitud: string
+          p_analista_id?: string
+          p_cursor?: Json
+          p_etapa?: string
+          p_limite?: number
+          p_senal?: string
         }
         Returns: Json
       }
-      inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }
-      preparar_inversion_fn: {
-        Args: { p_clave: string; p_datos: Json }
-        Returns: Json
-      }
-      preparar_persona_lead_inversion_fn: {
-        Args: {
-          p_documento: string
-          p_lead: string
-          p_nombre: string
-          p_tipo_documento: string
-        }
-        Returns: Json
-      }
-      contexto_conversion_inversion_fn: {
-        Args: { p_lead: string; p_persona?: string }
-        Returns: Json
-      }
-      publicar_reglas_sla_aprobadas_v2: { Args: { p_expected_version: number }; Returns: Json }
-      cambiar_modo_sla_operacion: { Args: { p_expected_revision: number; p_modo: string }; Returns: Json }
-      registrar_actividad_v2: { Args: { p_operacion_id: string; p_lead_id: string; p_tipo: string; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
-      cerrar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_tipo?: string | null; p_resultado_detalle?: string | null; p_siguiente?: Json | null; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null }; Returns: Json }
-      cerrar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
-      // ESCRITO A MANO, y así se queda por ahora. La función YA existe en producción
-      // (migración 20260918213000, registro 305), pero regenerar el archivo entero con
-      // `npm run gen:types` (CLI 2.114.0) NO compila: el generador emite los argumentos
-      // opcionales como `x?: T` en vez de `x?: T | null`, y el código pasa `null`
-      // explícito en varios sitios. Medido el 18/09: rompe `sla-operacion-api.ts`,
-      // `cerrar_tarea_v2` y `registrar_actividad_v2` — TODOS ajenos a este cambio, así
-      // que la deuda es del archivo completo, no de esta línea. Regenerar exige tocar
-      // esos llamadores: tarea aparte.
-      cerrar_reunion_v3: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_capital_estimado?: number | null; p_moneda?: string | null }; Returns: Json }
-      // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F3, migración
-      // 20260920041500: el día de un analista (marcador, compromisos, señales de cartera
-      // y descartes con su deshacer). Firma: (date,uuid), ambos con default null.
-      gestion_diaria_analista_fn: { Args: { p_dia?: string | null; p_analista_id?: string | null }; Returns: Json }
-      gestion_diaria_equipo_fn: { Args: { p_dia?: string | null; p_supervisor_id?: string | null }; Returns: Json }
-      gestion_diaria_avisos_fn: { Args: never; Returns: Json }
-      gestion_diaria_presentar_corte: {
-        Args: { p_alerta_id: string; p_solicitud_id: string }
-        Returns: Json
-      }
-      gestion_diaria_reconocer_corte: {
-        Args: { p_accion: string; p_alerta_id: string; p_solicitud_id: string }
-        Returns: Json
-      }
-      configuracion_gestion_diaria_fn: { Args: never; Returns: Json }
-      publicar_politica_gestion_diaria: {
-        Args: {
-          p_config: Json
-          p_expected_version: number
-          p_motivo: string
-          p_vigente_desde: string
-        }
-        Returns: Json
-      }
-      controlar_avisos_gestion_diaria: {
-        Args: {
-          p_expected_version: number
-          p_habilitados: boolean
-          p_motivo: string
-        }
-        Returns: Json
-      }
-      // ESCRITO A MANO (gen:types sigue roto, ver arriba). Gestión Diaria F1, migración
-      // 20260919211958: registro crudo de actividad por ventana Lima, analistas, tipos y
-      // etapa, con cursor keyset. Firma: (date,date,uuid[],text[],text,integer,timestamptz,uuid).
-      registro_actividad_fn: { Args: { p_desde: string; p_hasta: string; p_analista_ids?: string[] | null; p_tipos?: string[] | null; p_etapa?: string | null; p_limite?: number; p_antes_de?: string | null; p_antes_id?: string | null }; Returns: Json }
-      reprogramar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }; Returns: Json }
-      reprogramar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }; Returns: Json }
-      estado_sla_leads_v2_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       completar_domicilio_cliente: {
         Args: { p_cliente_id: string; p_domicilio: string }
         Returns: Json
       }
+      conciliar_cotitulares_inversion_fn: {
+        Args: { p_inversion: string }
+        Returns: Json
+      }
+      configuracion_gestion_diaria_fn: { Args: never; Returns: Json }
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
+      configuracion_sla_v2_fn: { Args: never; Returns: Json }
+      confirmar_envio_push_tasa_fn: {
+        Args: {
+          p_codigo_http?: number
+          p_envio_id: string
+          p_reserva: string
+          p_resultado: string
+        }
+        Returns: boolean
+      }
+      confirmar_inversion_fn: { Args: { p_solicitud: string }; Returns: Json }
+      confirmar_inversion_revisada_fn: {
+        Args: { p_revision_datos_esperada: number; p_solicitud: string }
+        Returns: Json
+      }
       consultar_ayuda_vendedor: {
         Args: { p_consulta: string; p_vista: string }
+        Returns: Json
+      }
+      contexto_conversion_inversion_fn: {
+        Args: { p_lead: string; p_persona?: string }
         Returns: Json
       }
       contrato_eliminacion_finalizar: {
@@ -4468,6 +4680,10 @@ export type Database = {
         Returns: Json
       }
       contrato_eliminacion_preparar: {
+        Args: { p_actor_id: string; p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_eliminar_auditado: {
         Args: { p_actor_id: string; p_contrato_id: string }
         Returns: Json
       }
@@ -4578,6 +4794,15 @@ export type Database = {
         Args: { p_periodo: string }
         Returns: Json
       }
+      control_citas_configuracion_fn: { Args: never; Returns: Json }
+      controlar_avisos_gestion_diaria: {
+        Args: {
+          p_expected_version: number
+          p_habilitados: boolean
+          p_motivo: string
+        }
+        Returns: Json
+      }
       conversion_mensual_fn: { Args: { p_periodo: string }; Returns: Json }
       conversion_mensual_sin_cartera_fn: {
         Args: { p_periodo: string }
@@ -4622,6 +4847,15 @@ export type Database = {
         }
         Returns: Json
       }
+      corregir_documento_cliente_admin_fn: {
+        Args: {
+          p_cliente_id: string
+          p_documento: string
+          p_motivo: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       corregir_documento_inversionista_fn: {
         Args: {
           p_documento: string
@@ -4634,6 +4868,16 @@ export type Database = {
       }
       corregir_fecha_cierre_comercial: {
         Args: { p_contrato_id: string; p_fecha: string; p_motivo: string }
+        Returns: Json
+      }
+      corregir_solicitud_inversion_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_motivo: string
+          p_revision_datos_esperada: number
+          p_solicitud: string
+        }
         Returns: Json
       }
       crear_contrato_con_cuenta: {
@@ -4763,33 +5007,29 @@ export type Database = {
         Args: { p_asesor_ids: string[]; p_lead_ids: string[] }
         Returns: Json
       }
+      desactivar_push_tasa_fn: {
+        Args: { p_dispositivo_id: string }
+        Returns: undefined
+      }
       descartar_lead: {
         Args: { p_lead: string; p_motivo: string; p_nota?: string }
         Returns: Json
       }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
-      editar_lead_fn: { Args: { p_lead_id: string; p_cambios: Json }; Returns: Json }
-      facturacion_diaria_fn: {
-        Args: { p_mes?: string }
-        Returns: {
-          dia: string
-          tipo: string
-          moneda: string
-          analista_id: string
-          analista_nombre: string
-          supervisor_id: string
-          supervisor_nombre: string
-          operaciones: number
-          capital: number
-        }[]
+      deshacer_resultado_llamada: {
+        Args: { p_actividad_id: string }
+        Returns: Json
       }
-      fijar_dni_lead_fn: { Args: { p_lead_id: string; p_dni: string }; Returns: Json }
       destinos_importacion_por_correo_fn: {
         Args: { p_correos: string[] }
         Returns: {
           correo: string
           perfil_id: string
         }[]
+      }
+      editar_lead_fn: {
+        Args: { p_cambios: Json; p_lead_id: string }
+        Returns: Json
       }
       eliminar_cliente_fn: { Args: { p_perfil_id: string }; Returns: Json }
       enlazar_lead_inversionista_fn: {
@@ -4806,6 +5046,7 @@ export type Database = {
           supervisor_id: string
         }[]
       }
+      estado_push_tasa_fn: { Args: { p_endpoint?: string }; Returns: Json }
       estado_sla_leads_fn: {
         Args: never
         Returns: {
@@ -4833,7 +5074,26 @@ export type Database = {
           primera_gestion_limite_en: string
         }[]
       }
+      estado_sla_leads_v2_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       existe_cliente_por_dni: { Args: { p_dni: string }; Returns: boolean }
+      facturacion_diaria_fn: {
+        Args: { p_mes?: string }
+        Returns: {
+          analista_id: string
+          analista_nombre: string
+          capital: number
+          dia: string
+          moneda: string
+          operaciones: number
+          supervisor_id: string
+          supervisor_nombre: string
+          tipo: string
+        }[]
+      }
+      fijar_dni_lead_fn: {
+        Args: { p_dni: string; p_lead_id: string }
+        Returns: Json
+      }
       fijar_membresia_activa_fn: {
         Args: {
           p_activo: boolean
@@ -4857,8 +5117,44 @@ export type Database = {
         }
         Returns: Json
       }
+      gestion_diaria_analista_fn: {
+        Args: { p_analista_id?: string; p_dia?: string }
+        Returns: Json
+      }
+      gestion_diaria_avisos_fn: { Args: never; Returns: Json }
+      gestion_diaria_equipo_fn: {
+        Args: { p_dia?: string; p_supervisor_id?: string }
+        Returns: Json
+      }
+      gestion_diaria_presentar_corte: {
+        Args: { p_alerta_id: string; p_solicitud_id: string }
+        Returns: Json
+      }
+      gestion_diaria_reconocer_corte: {
+        Args: { p_accion: string; p_alerta_id: string; p_solicitud_id: string }
+        Returns: Json
+      }
       guardar_agenda_reparto_diaria: {
         Args: { p_fecha: string; p_formulario: string; p_landing: string }
+        Returns: Json
+      }
+      guardar_control_citas_fn: {
+        Args: {
+          p_configuracion: Json
+          p_nota?: string
+          p_version_esperada: number
+        }
+        Returns: Json
+      }
+      historial_decisiones_tasa_gerencia_fn: {
+        Args: {
+          p_busqueda?: string
+          p_cursor_id?: string
+          p_cursor_resuelta_en?: string
+          p_decision?: string
+          p_limite?: number
+          p_periodo_dias?: number
+        }
         Returns: Json
       }
       historial_derivaciones: {
@@ -4883,12 +5179,56 @@ export type Database = {
           responsable_nuevo: string
         }[]
       }
-      historial_tasa_cliente_fn: { Args: { p_cliente_id: string }; Returns: Json }
+      historial_tasa_cliente_fn: {
+        Args: { p_cliente_id: string }
+        Returns: Json
+      }
       impacto_desactivacion_usuario_fn: {
         Args: { p_perfil_id: string }
         Returns: Json
       }
+      importar_lead_fn: { Args: { p_fila: Json }; Returns: Json }
       ingresos_reparto_mes_fn: { Args: { p_mes: string }; Returns: Json }
+      inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }
+      inversionista_corregir_contacto_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_inversionista: string
+          p_revision: string
+        }
+        Returns: Json
+      }
+      inversionista_corregir_coopac_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_fuente: string
+          p_inversionista: string
+          p_revision: string
+        }
+        Returns: Json
+      }
+      inversionista_cuentas_fn: {
+        Args: { p_inversionista: string; p_moneda: string; p_perfil: string }
+        Returns: Json
+      }
+      inversionista_documento_fn: {
+        Args: { p_documento: string; p_fuente: string; p_inversionista: string }
+        Returns: Json
+      }
+      inversionista_ficha_fn: {
+        Args: {
+          p_inversionista: string
+          p_pagina_historial?: number
+          p_pagina_inversiones?: number
+        }
+        Returns: Json
+      }
+      inversionista_gestion_fn: {
+        Args: { p_fuente?: string; p_inversionista: string }
+        Returns: Json
+      }
       leads_descartados: {
         Args: never
         Returns: {
@@ -4925,6 +5265,10 @@ export type Database = {
           origen: string
         }[]
       }
+      leads_recibidos_analista_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       levantar_no_contactar: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
@@ -4937,6 +5281,10 @@ export type Database = {
           }
       marcar_no_contactar: {
         Args: { p_lead_id: string; p_motivo?: string }
+        Returns: Json
+      }
+      materializar_envio_push_tasa_fn: {
+        Args: { p_envio_id: string; p_reserva: string }
         Returns: Json
       }
       metricas_agenda_fn: {
@@ -4983,6 +5331,8 @@ export type Database = {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      metricas_multiempresa_estado_fn: { Args: never; Returns: Json }
+      metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }
       metricas_pagos_mes_fn: {
         Args: { p_meses?: number }
         Returns: {
@@ -4996,10 +5346,6 @@ export type Database = {
         }[]
       }
       metricas_reuniones_fn: {
-        Args: { p_desde: string; p_hasta: string }
-        Returns: Json
-      }
-      citas_gerencia_consulta_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
@@ -5035,18 +5381,100 @@ export type Database = {
         }
         Returns: Json
       }
-      historial_decisiones_tasa_gerencia_fn: {
+      politica_rentabilidad_fn: { Args: never; Returns: Json }
+      postventa_agenda_fn: { Args: never; Returns: Json }
+      postventa_agendar_fn: {
         Args: {
-          p_busqueda?: string
-          p_cursor_id?: string
-          p_cursor_resuelta_en?: string
-          p_decision?: string
-          p_limite?: number
-          p_periodo_dias?: number
+          p_actor?: string
+          p_clave: string
+          p_datos: Json
+          p_inversionista: string
         }
         Returns: Json
       }
-      politica_rentabilidad_fn: { Args: never; Returns: Json }
+      postventa_estado_fn: { Args: never; Returns: Json }
+      postventa_ficha_fn: { Args: { p_inversionista: string }; Returns: Json }
+      postventa_operacion_estado_fn: {
+        Args: { p_actor?: string; p_clave: string }
+        Returns: Json
+      }
+      postventa_perfil_fn: { Args: { p_perfil: string }; Returns: Json }
+      postventa_revisar_retiro_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_detalle: string
+          p_estado: string
+          p_retiro: string
+          p_revision: number
+        }
+        Returns: Json
+      }
+      postventa_solicitar_retiro_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_fuente: string
+          p_inversionista: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
+      postventa_tarea_fn: {
+        Args: {
+          p_accion: string
+          p_actor?: string
+          p_clave: string
+          p_datos?: Json
+          p_revision: number
+          p_tarea: string
+        }
+        Returns: Json
+      }
+      postventa_vencimientos_fn: {
+        Args: { p_empresa?: string; p_pagina?: number }
+        Returns: Json
+      }
+      postventa_veto_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_inversionista: string
+          p_motivo: string
+          p_vetar: boolean
+        }
+        Returns: Json
+      }
+      preparar_correccion_correo_acceso_fn: {
+        Args: {
+          p_actor_id: string
+          p_cliente_id: string
+          p_correo: string
+          p_motivo: string
+        }
+        Returns: string
+      }
+      preparar_inversion_fn: {
+        Args: { p_clave: string; p_datos: Json }
+        Returns: Json
+      }
+      preparar_persona_lead_inversion_fn: {
+        Args: {
+          p_documento: string
+          p_lead: string
+          p_nombre: string
+          p_tipo_documento: string
+        }
+        Returns: Json
+      }
+      preparar_prueba_push_tasa_fn: {
+        Args: { p_dispositivo_id: string }
+        Returns: Json
+      }
+      preparar_reinversion_fn: {
+        Args: { p_clave: string; p_datos: Json; p_fuente: string }
+        Returns: Json
+      }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }
       productos_inversion_seleccion_fn: {
         Args: never
@@ -5089,8 +5517,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      publicar_politica_gestion_diaria: {
+        Args: {
+          p_config: Json
+          p_expected_version: number
+          p_motivo: string
+          p_vigente_desde: string
+        }
+        Returns: Json
+      }
       publicar_politica_rentabilidad_fn: {
-        Args: { p_expected_version: number; p_config: Json }
+        Args: { p_config: Json; p_expected_version: number }
         Returns: Json
       }
       publicar_politica_sla: {
@@ -5118,6 +5555,18 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      publicar_politica_sla_v2: {
+        Args: {
+          p_config: Json
+          p_expected_version: number
+          p_vigente_desde: string
+        }
+        Returns: Json
+      }
+      publicar_reglas_sla_aprobadas_v2: {
+        Args: { p_expected_version: number }
+        Returns: Json
+      }
       publicar_version_producto_inversion: {
         Args: { p_expected_revision: number; p_version_id: string }
         Returns: Json
@@ -5126,11 +5575,22 @@ export type Database = {
         Args: { p_motivo: string; p_perfil_id: string }
         Returns: undefined
       }
+      reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
       reasignar_responsable_relacion_fn: {
         Args: {
           p_inversionista: string
           p_motivo: string
           p_nuevo_responsable: string
+        }
+        Returns: Json
+      }
+      registrar_actividad_v2: {
+        Args: {
+          p_detalle?: string
+          p_lead_id: string
+          p_operacion_id: string
+          p_siguiente?: Json
+          p_tipo: string
         }
         Returns: Json
       }
@@ -5148,10 +5608,20 @@ export type Database = {
         }
         Returns: Json
       }
-      reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
-      // ESCRITO A MANO (gen:types sigue roto). Gestión Diaria F2, migración
-      // 20260920005000: resultado tipificado de llamada (recibo idempotente por
-      // p_operacion_id) y su deshacer de 24 h.
+      registrar_llamada_v3: {
+        Args: {
+          p_descartar?: boolean
+          p_detalle?: string
+          p_lead_id: string
+          p_no_insista?: boolean
+          p_operacion_id: string
+          p_resultado: string
+          p_siguiente?: Json
+          p_submotivo?: string
+          p_tarea_id?: string
+        }
+        Returns: Json
+      }
       registrar_llamada_v4: {
         Args: {
           p_descartar?: boolean
@@ -5166,8 +5636,10 @@ export type Database = {
         }
         Returns: Json
       }
-      registrar_llamada_v3: { Args: { p_operacion_id: string; p_lead_id: string; p_resultado: string; p_submotivo?: string | null; p_detalle?: string | null; p_siguiente?: Json | null; p_tarea_id?: string | null; p_descartar?: boolean | null; p_no_insista?: boolean | null }; Returns: Json }
-      deshacer_resultado_llamada: { Args: { p_actividad_id: string }; Returns: Json }
+      registrar_push_tasa_fn: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: string
+      }
       registrar_reingreso_lead_fn: {
         Args: { p_datos?: Json; p_lead_id: string; p_origen: string }
         Returns: Json
@@ -5187,6 +5659,19 @@ export type Database = {
         }
         Returns: Json
       }
+      registro_actividad_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_antes_de?: string
+          p_antes_id?: string
+          p_desde: string
+          p_etapa?: string
+          p_hasta: string
+          p_limite?: number
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       repartir_lead: {
         Args: { p_lead: string; p_supervisor: string }
         Returns: Json
@@ -5199,12 +5684,21 @@ export type Database = {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
       }
-      leads_recibidos_analista_fn: {
-        Args: { p_desde: string; p_hasta: string }
-        Returns: Json
-      }
       reprogramar_reunion: {
         Args: { p_nueva_id?: string; p_tarea_id: string; p_vence_en: string }
+        Returns: Json
+      }
+      reprogramar_reunion_v2: {
+        Args: {
+          p_nueva_id?: string
+          p_operacion_id: string
+          p_tarea_id: string
+          p_vence_en: string
+        }
+        Returns: Json
+      }
+      reprogramar_tarea_v2: {
+        Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }
         Returns: Json
       }
       rescatar_descartes: {
@@ -5253,8 +5747,25 @@ export type Database = {
             }
             Returns: Json
           }
+      reservar_conversion_lead_tasa_fn: {
+        Args: { p_condiciones: Json; p_lead_id: string }
+        Returns: Json
+      }
       resolver_solicitud_tasa_fn: {
-        Args: { p_solicitud_id: string; p_decision: string; p_tasa_maxima?: number; p_motivo?: string }
+        Args: {
+          p_decision: string
+          p_motivo?: string
+          p_solicitud_id: string
+          p_tasa_maxima?: number
+        }
+        Returns: Json
+      }
+      resolver_tasa_fn: {
+        Args: {
+          p_categoria: string
+          p_cliente_id: string
+          p_contrato_origen_id?: string
+        }
         Returns: Json
       }
       resolver_tasa_lead_fn: {
@@ -5265,20 +5776,8 @@ export type Database = {
         }
         Returns: Json
       }
-      solicitudes_tasa_lead_fn: {
-        Args: { p_estados?: string[]; p_lead_id: string; p_limite?: number }
-        Returns: Json
-      }
-      reservar_conversion_lead_tasa_fn: {
-        Args: { p_condiciones: Json; p_lead_id: string }
-        Returns: Json
-      }
-      resolver_tasa_fn: {
-        Args: { p_cliente_id: string; p_categoria: string; p_contrato_origen_id?: string }
-        Returns: Json
-      }
       responder_tope_tasa_fn: {
-        Args: { p_solicitud_id: string; p_acepta: boolean; p_motivo?: string }
+        Args: { p_acepta: boolean; p_motivo?: string; p_solicitud_id: string }
         Returns: Json
       }
       resumen_cartera_clientes_fn: { Args: never; Returns: Json }
@@ -5318,6 +5817,10 @@ export type Database = {
         }
         Returns: Json
       }
+      solicitudes_tasa_lead_fn: {
+        Args: { p_estados?: string[]; p_lead_id: string; p_limite?: number }
+        Returns: Json
+      }
       supervisores_para_reparto: {
         Args: never
         Returns: {
@@ -5326,6 +5829,14 @@ export type Database = {
           nombre: string
           perfil_id: string
         }[]
+      }
+      tareas_pendientes_fn: {
+        Args: {
+          p_despues_de?: string
+          p_despues_id?: string
+          p_limite?: number
+        }
+        Returns: Json
       }
       titulares_contrato_fn: {
         Args: { p_contrato_id: string }
@@ -5337,6 +5848,7 @@ export type Database = {
           tipo_documento: string
         }[]
       }
+      tomar_envios_push_tasa_fn: { Args: { p_limite?: number }; Returns: Json }
       tomar_lead_libre: {
         Args: { p_dni?: string; p_telefono: string }
         Returns: Json
@@ -5363,40 +5875,13 @@ export type Database = {
           whatsapp: string
         }[]
       }
-      verificar_disponibilidad_lead: {
-        Args: { p_dni?: string; p_telefono: string }
-        Returns: Json
-      }
-      confirmar_envio_push_tasa_fn: {
-        Args: {
-          p_codigo_http?: number
-          p_envio_id: string
-          p_reserva: string
-          p_resultado: string
-        }
-        Returns: boolean
-      }
-      desactivar_push_tasa_fn: {
-        Args: { p_dispositivo_id: string }
-        Returns: undefined
-      }
-      estado_push_tasa_fn: { Args: { p_endpoint?: string }; Returns: Json }
-      materializar_envio_push_tasa_fn: {
-        Args: { p_envio_id: string; p_reserva: string }
-        Returns: Json
-      }
-      preparar_prueba_push_tasa_fn: {
-        Args: { p_dispositivo_id: string }
-        Returns: Json
-      }
-      registrar_push_tasa_fn: {
-        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
-        Returns: string
-      }
-      tomar_envios_push_tasa_fn: { Args: { p_limite?: number }; Returns: Json }
       verificar_cron_push_tasa_fn: {
         Args: { p_firma: string; p_instante: number }
         Returns: boolean
+      }
+      verificar_disponibilidad_lead: {
+        Args: { p_dni?: string; p_telefono: string }
+        Returns: Json
       }
     }
     Enums: {
