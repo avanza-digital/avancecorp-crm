@@ -22,7 +22,7 @@ No confundir pruebas técnicas con validación humana ni activar tasa baja antes
 
 Miguel considera insuficiente la calidad visual de `Mi día` y `Mi equipo hoy`.
 Prioriza **analista y supervisor**, y pide seguir el documento de fundamentos
-UX/UI. **Implementada y verificada en local el 23/09**, en la rama
+UX/UI. **Implementada y publicada el 23/09** mediante PR #82. Se trabajó en la rama
 `codex/gestion-diaria-ui` de la copia aislada existente, preservando la tarea
 de la otra sesión.
 
@@ -33,20 +33,32 @@ de la otra sesión.
 - Gate integral **PASS: 4.177 pruebas**; Docker **13 passed / 0 failed** después
   de integrar Main `88564677` (PR #80, tipos de producción). Se adaptó la
   expectativa E2E de filtros vacíos omitidos, sin modificar la API integrada.
-- Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).
+- Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82), fusionado
+  en Main `e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91`. Gate final **4.179 pruebas PASS**.
+  Build `build-20260923T204457952Z`, ZIP `crm-20260923T204458Z-e8e4f35f9ea1.zip`,
+  SHA-256 `ab631a4fac25c53c3d32bd49514c99d92c6420dd2c9b92c1a823a88a46f22de6`.
+  Los 114 archivos del origen coinciden; los 75 JS/CSS públicos también. El CDN
+  transforma 11 PNG; diagnóstico e integridad registrados, sin cambiar Hostinger.
+- El banco completo de release terminó 228 PASS / 6 FAIL / 26 SKIPPED; los seis
+  fallos eran mocks de filtros opcionales. El spec corregido pasó 15/0, con el
+  mismo producto. Ajuste de fixtures y evidencia en [PR #84](https://github.com/avanza-digital/avancecorp-crm/pull/84).
+  No afirmar que la suite completa pasó en una sola ejecución.
 - Claude devolvió **CHANGES_REQUESTED**. Codex corrigió foco de alto contraste,
   contexto accesible, separación de textos y énfasis de vencidas; también evitó
   el recorte potencial del menú. Se repitieron los gates después. No afirmar PASS
   del reviewer ni usar una consulta sin dictamen como aprobación.
-- Gate de realidad **NOT RUN**, sin credenciales en esta copia. Las demos y
-  pruebas usan datos sintéticos; no prueban la primera jornada real.
-- **Pendientes: publicación, aceptación y smoke productivo** de esta mejora.
-  Las 76 casillas del plan por fases conservan su estado.
+- Gate de realidad CLI **NOT RUN**, sin credenciales en esta copia. Se hizo una
+  lectura SQL parcial, que no lo sustituye. Las demos y pruebas usan datos
+  sintéticos; no prueban la primera jornada real.
+- **Smoke gerencia PASS**: acceso y registro real tras recarga, sin escrituras.
+  **Pendientes: aceptación y smoke productivo de analista y supervisor**.
+  La jornada del 24/09 y las 76 casillas del plan conservan su estado.
 
 Evidencia y resolución de la revisión en
 `CRM-Avance-Corp/docs/gestion-diaria/UI-ANALISTA-SUPERVISOR-2026-09-23.md`
-y `UI-REVISION-CLAUDE-2026-09-23.md`. El bloque adicional del tablero de Figma
-ya distingue implementación local y publicación pendiente.
+y `UI-REVISION-CLAUDE-2026-09-23.md`. La publicación, respaldo y límites están en
+`UI-PUBLICACION-2026-09-23.md`. El bloque adicional del mismo tablero de Figma
+ya distingue publicación cumplida y aceptación humana pendiente.
 
 Reglas: Plus Jakarta Sans, navy/azul, sin verde, una acción principal,
 jerarquía clara, color por decisión, legibilidad y estados completos. Las

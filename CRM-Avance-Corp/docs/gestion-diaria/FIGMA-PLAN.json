@@ -14,16 +14,32 @@
     "statusId": "2:132",
     "scopeId": "2:133",
     "updatedAt": "2026-09-23",
-    "status": "Implementado y probado en local; pendiente de publicación",
+    "status": "Publicado; pendiente de aceptación de analista y supervisor",
     "branch": "codex/gestion-diaria-ui",
     "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/82",
-    "integratedMain": "88564677",
+    "integratedMain": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
     "evidence": "UI-ANALISTA-SUPERVISOR-2026-09-23.md",
     "review": "UI-REVISION-CLAUDE-2026-09-23.md",
-    "unitTestsPassed": 4177,
+    "publicationEvidence": "UI-PUBLICACION-2026-09-23.md",
+    "buildId": "build-20260923T204457952Z",
+    "archive": "crm-20260923T204458Z-e8e4f35f9ea1.zip",
+    "archiveSha256": "ab631a4fac25c53c3d32bd49514c99d92c6420dd2c9b92c1a823a88a46f22de6",
+    "unitTestsPassed": 4179,
     "e2ePassed": 13,
-    "productionSmoke": "NOT RUN",
-    "realityGate": "NOT RUN"
+    "e2eScope": "Recorridos focalizados previos de analista y supervisor; no representa la suite completa del release",
+    "releaseE2E": {
+      "initialFullRun": { "passed": 228, "failed": 6, "skipped": 26 },
+      "correctedSpec": "e2e/sla-operacion.spec.ts",
+      "correctedSpecRun": { "passed": 15, "failed": 0 },
+      "fixturePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/84",
+      "scope": "Mismo código de producto; todos los fallos iniciales cubiertos por el spec corregido. No es un PASS completo en una sola ejecución."
+    },
+    "originFilesVerified": 114,
+    "cdnCodeFilesVerified": 75,
+    "cdnTransformedPngFiles": 11,
+    "productionSmoke": "PASS gerencia; NOT RUN analista y supervisor",
+    "userAcceptance": "PENDING analista y supervisor",
+    "realityGate": "NOT RUN; lectura SQL parcial registrada en el acta, sin sustituir el CLI"
   },
   "phaseNodes": {
     "F0": {
