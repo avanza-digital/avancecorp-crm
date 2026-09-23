@@ -327,10 +327,21 @@ export function ResumenGerenciaPanel({
   // y una lista de «mejores» sin número no ordena nada).
   const mejores = rankingMes.conPuesto.filter((fila) => fila.detalle.conversion_pct != null).slice(0, 5)
   const maxMejor = Math.max(1, ...mejores.map((fila) => fila.detalle.conversion_pct ?? 0))
-  const origenes = [...(conversiones?.origenes ?? [])]
-    .sort((a, b) => (b.conversion_contratos_pct ?? -1) - (a.conversion_contratos_pct ?? -1))
+  // Resultados por origen (Miguel, 23/09): cada cierre pesa lo que pesa en la
+  // conversión general. La cifra ponderada la calcula el SERVIDOR; aquí solo se
+  // elige cuál mostrar. Si el servidor aún no la publica, se muestra la de
+  // siempre y el rótulo lo dice.
+  const todosLosOrigenes = conversiones?.origenes ?? []
+  const origenPonderado = todosLosOrigenes.some((fila) => fila.conversion_ponderada_pct !== undefined)
+  const cifraOrigen = (fila: (typeof todosLosOrigenes)[number]): number | null => (
+    origenPonderado ? (fila.conversion_ponderada_pct ?? null) : fila.conversion_contratos_pct
+  )
+  const origenes = [...todosLosOrigenes]
+    .sort((a, b) => (cifraOrigen(b) ?? -1) - (cifraOrigen(a) ?? -1))
     .slice(0, 5)
-  const maxOrigen = Math.max(1, ...origenes.map((fila) => fila.conversion_contratos_pct ?? 0))
+  const maxOrigen = Math.max(1, ...origenes.map((fila) => cifraOrigen(fila) ?? 0))
+  const origenFueraDeBase = origenes.find((fila) => fila.fuera_del_divisor_del_nucleo === true)
+  const pesoFueraDeBase = origenFueraDeBase?.peso_en_nucleo
   const hayActividadConversiones = [
     conversiones?.cohorte.leads,
     conversiones?.cohorte.asignados,
@@ -539,15 +550,17 @@ export function ResumenGerenciaPanel({
       <div className="grid gap-4 lg:grid-cols-3">
         {fuenteActiva == null && <section data-gi-panel className="gi-card p-5 lg:col-span-2">
           <h2 className="gi-title">Resultados por origen</h2>
-          <p className="gi-caption mt-1">De los prospectos del período en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>
+          <p className="gi-caption mt-1">{origenPonderado
+            ? 'De los prospectos del período en cada origen, qué porcentaje cerró, con cada cierre pesando lo mismo que en la conversión general.'
+            : 'De los prospectos del período en cada origen, qué porcentaje cerró. No es la conversión ponderada.'}</p>
           {!origenesVerificados
             ? <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>
             : <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {origenes.length > 0
                   ? origenes.map((fila) => (
                       <div key={fila.origen}>
-                        <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(fila.conversion_contratos_pct)}</strong></div>
-                        <div className="gi-track"><div className="gi-fill" style={{ width: `${((fila.conversion_contratos_pct ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
+                        <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(cifraOrigen(fila))}</strong></div>
+                        <div className="gi-track"><div className="gi-fill" style={{ width: `${((cifraOrigen(fila) ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
                       </div>
                     ))
                   : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
@@ -556,7 +569,10 @@ export function ResumenGerenciaPanel({
             // D6: el origen Referido queda fuera de la base general de la
             // conversión — su barra mide cierres sobre SUS recibidos.
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">
-              {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}: de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.
+              {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}
+              {origenPonderado && pesoFueraDeBase !== undefined
+                ? `: cada cierre cuenta ×${numero(pesoFueraDeBase, 2)}, como en la conversión general, y sus recibidos quedan fuera de la base general.`
+                : ': de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.'}
             </p>
           )}
         </section>}

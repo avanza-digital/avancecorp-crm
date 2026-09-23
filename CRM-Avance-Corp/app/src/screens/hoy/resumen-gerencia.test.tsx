@@ -703,6 +703,52 @@ describe('gráfica por origen — publicación fail-closed', () => {
     expect(within(panel).queryByRole('status')).not.toBeInTheDocument()
   })
 
+  // ESTADO DE PRODUCCIÓN (23/09/2026): las tres filas tal como las sirve el
+  // servidor, con Referido 8 de 11 y su peso 0,150.
+  function filaOrigen(
+    origen: string, leads: number, contratos: number, bruto: number,
+    peso: number, ponderada: number | undefined,
+  ): MetricasConversiones['origenes'][number] {
+    return {
+      origen, leads, contactados: leads, reuniones_agendadas: 0, reuniones_realizadas: 0,
+      clientes: contratos, contratos, descartados: 0,
+      conversion_clientes_pct: bruto, conversion_contratos_pct: bruto, conversion_resueltos_pct: null,
+      capital_pen: 0, capital_usd: 0,
+      peso_en_nucleo: peso, fuera_del_divisor_del_nucleo: origen === 'referido',
+      ...(ponderada === undefined ? {} : { conversion_ponderada_pct: ponderada }),
+    }
+  }
+
+  it('muestra la cifra PONDERADA que calcula el servidor: el referido al peso que declara', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-09-01', '2026-09-23'))
+    montar({ ...datos, origenes: [
+      filaOrigen('formulario', 717, 22, 3.1, 1, 3.1),
+      filaOrigen('landing', 610, 10, 1.6, 1, 1.6),
+      filaOrigen('referido', 11, 8, 72.7, 0.15, 10.9),
+    ] })
+
+    const panel = panelOrigenes()
+    expect(within(panel).getByText('10.90%')).toBeInTheDocument()
+    expect(within(panel).queryByText('72.70%')).not.toBeInTheDocument()
+    expect(within(panel).getByText('3.10%')).toBeInTheDocument()
+    expect(within(panel).getByText(/pesando lo mismo que en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).getByText(/cada cierre cuenta ×0\.15, como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).queryByText(/No es la conversión ponderada/)).not.toBeInTheDocument()
+  })
+
+  it('con un servidor que aún no publica la ponderada, muestra la de siempre y lo dice', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-09-01', '2026-09-23'))
+    montar({ ...datos, origenes: [
+      filaOrigen('formulario', 717, 22, 3.1, 1, undefined),
+      filaOrigen('referido', 11, 8, 72.7, 0.15, undefined),
+    ] })
+
+    const panel = panelOrigenes()
+    expect(within(panel).getByText('72.70%')).toBeInTheDocument()
+    expect(within(panel).getByText(/No es la conversión ponderada/)).toBeInTheDocument()
+    expect(within(panel).getByText(/de los recibidos por ese origen, cuánto cerró/)).toBeInTheDocument()
+  })
+
   it.each([
     ['núcleo ausente', (datos: MetricasConversiones) => { delete datos.nucleo }],
     ['sondas ausentes', (datos: MetricasConversiones) => { delete datos.sondas }],
