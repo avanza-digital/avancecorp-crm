@@ -50,13 +50,15 @@ del analista es el contacto activo; la del supervisor es la comparación del equ
 ## Verificación
 
 **Implementado y verificado en local el 23/09/2026.** Rama
-`codex/gestion-diaria-ui`, en la copia aislada existente para no interferir con
-la otra sesión. Se preservan consultas, RPC, permisos, registro y reglas de F4.
+`codex/gestion-diaria-ui`, [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82),
+en la copia aislada existente para no interferir con la otra sesión. Se preservan
+consultas, RPC, permisos, registro y reglas de F4 en el cambio visual. Se integró
+Main `88564677` (PR #80: tipos de producción y argumentos opcionales) sin conflictos.
 
 | Comprobación | Resultado y alcance |
 |---|---|
-| `npm run check` después de las correcciones | **PASS**: lint, typecheck, 279 archivos / 4.175 pruebas, cobertura, configuración de release, push tests, build, bundle y duplicación. Cuatro avisos previos de accesibilidad en `coverflow-carousel.tsx`; sin errores. |
-| Docker: `gestion-diaria-analista.spec.ts` y `gestion-diaria-equipo.spec.ts` | **PASS: 13 passed / 0 failed**, 46,4 s. Contenedor `gestion-diaria-ui-e2e`, dos workers; datos sintéticos. |
+| `npm run check` después de integrar Main | **PASS**: lint, typecheck, 280 archivos / 4.177 pruebas, cobertura, configuración de release, push tests, build, bundle y duplicación. Cuatro avisos previos de accesibilidad en `coverflow-carousel.tsx`; sin errores. |
+| Docker: `gestion-diaria-analista.spec.ts` y `gestion-diaria-equipo.spec.ts` | **PASS: 13 passed / 0 failed**, 32,3 s, después de integrar Main. Contenedor `gestion-diaria-ui-e2e`, dos workers; datos sintéticos. |
 | Revisión visual en Chrome | **PASS local**: analista y supervisor, escritorio y móvil, selección, jerarquía, filtros, detalle y registro. No equivale a aceptación de los usuarios. |
 | Accesibilidad y navegación | **PASS en los recorridos cubiertos**: foco de Detalle y Ver registro con alto contraste, apertura/cierre por teclado, desplazamiento horario con flecha, retorno de foco y paginación revocada. Menú del analista con sus dos opciones dentro del viewport. |
 | Revisión independiente de Claude | **CHANGES_REQUESTED**, sin P0/P1 demostrados. Correcciones evaluadas y aplicadas por Codex; después se repitieron los gates anteriores. No se declara PASS del reviewer. Véase el [acta](UI-REVISION-CLAUDE-2026-09-23.md). |
@@ -77,7 +79,12 @@ La primera ejecución detectó que el gráfico horario ensanchaba la tabla y no
 respondía al desplazamiento por teclado. Se acotó el detalle al contenedor de
 la tabla y se comprobó de nuevo el recorrido. Los artefactos locales de
 Playwright quedan en `app/test-results/`; el gate integral final se guardó en
-`/private/tmp/gestion-diaria-ui-check-revisado.log`.
+`/private/tmp/gestion-diaria-ui-check-main-integrado.log`.
+
+Tras integrar el PR #80, un assert E2E todavía esperaba `p_tipos: null` en
+«Todo»; el contrato vigente omite los opcionales vacíos. Se actualizó únicamente
+esa expectativa, conservando la comprobación del arreglo cuando se filtra por
+llamadas. El recorrido completo volvió a pasar; no se cambió la API integrada.
 
 Jev se usó únicamente como apoyo para priorizar el diagnóstico visual: clasificó
 ambas pantallas como un problema de jerarquía. No recibió datos de clientes y su

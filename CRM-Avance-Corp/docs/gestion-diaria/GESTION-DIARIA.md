@@ -11,7 +11,9 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook
 de Gestión Diaria. **Implementada y verificada en local**: gate integral PASS
-(4.175 pruebas) y 13 recorridos E2E en Docker PASS. Se atendieron las observaciones
+(4.177 pruebas tras integrar Main / PR #80) y 13 recorridos E2E en Docker PASS.
+Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).
+Se atendieron las observaciones
 de Claude; su dictamen original fue CHANGES_REQUESTED y no se registra como PASS.
 Publicación, aceptación y smoke productivo de la mejora pendientes; gate de realidad
 NOT RUN por falta de credenciales en la copia aislada. [Entrega y evidencia](UI-ANALISTA-SUPERVISOR-2026-09-23.md).

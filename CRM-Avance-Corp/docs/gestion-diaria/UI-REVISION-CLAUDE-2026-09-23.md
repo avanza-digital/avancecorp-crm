@@ -45,3 +45,17 @@ Informe local: `/private/tmp/gestion-diaria-ui-claude-review.txt`.
 No se solicitó un segundo dictamen solo para cambiar CHANGES_REQUESTED por PASS.
 La resolución y los resultados anteriores son responsabilidad de Codex.
 La aceptación humana de la nueva UI y la jornada real de F4 siguen pendientes.
+
+## Integración posterior de Main
+
+El PR #80 entró en Main `88564677` mientras se preparaba esta entrega. Se integró
+sin conflictos; conserva sus tipos regenerados y la omisión de argumentos
+opcionales vacíos. La expectativa del mock E2E de «Todo» aún comprobaba `null`
+y falló con la omisión vigente. Se ajustó ese assert en
+`gestion-diaria-equipo.spec.ts`, manteniendo la comprobación de los tipos de
+llamada cuando el filtro está presente.
+
+Verificación de la combinación: **PASS** gate integral, **280 archivos / 4.177
+pruebas**; **PASS 13 E2E / 0 fallos** en Docker (32,3 s). No se alteró la API ni
+se pidió otra opinión para esta adaptación mecánica del fixture.
+Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).

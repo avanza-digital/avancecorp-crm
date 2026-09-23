@@ -30,7 +30,10 @@ de la otra sesión.
   cola con selección clara y detalle progresivo.
 - Supervisor: resumen comparable, búsqueda y filtros integrados en la tabla,
   acciones junto a cada analista, motivos de atención y vencidas legibles.
-- Gate integral **PASS: 4.175 pruebas**; Docker **13 passed / 0 failed**.
+- Gate integral **PASS: 4.177 pruebas**; Docker **13 passed / 0 failed** después
+  de integrar Main `88564677` (PR #80, tipos de producción). Se adaptó la
+  expectativa E2E de filtros vacíos omitidos, sin modificar la API integrada.
+- Entrega: [PR #82](https://github.com/avanza-digital/avancecorp-crm/pull/82).
 - Claude devolvió **CHANGES_REQUESTED**. Codex corrigió foco de alto contraste,
   contexto accesible, separación de textos y énfasis de vencidas; también evitó
   el recorte potencial del menú. Se repitieron los gates después. No afirmar PASS

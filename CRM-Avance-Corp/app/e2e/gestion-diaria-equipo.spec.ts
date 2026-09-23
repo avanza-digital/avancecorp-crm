@@ -103,7 +103,8 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await page.route('**/rest/v1/rpc/registro_actividad_fn', async (route) => {
     const pedido = route.request().postDataJSON()
     expect(pedido).toMatchObject({ p_desde: hoy, p_hasta: hoy, p_analista_ids: ['vend-1'], p_limite: 26 })
-    if (pedido.p_tipos !== null) expect(pedido.p_tipos).toEqual(['llamada_realizada', 'llamada_no_contestada'])
+    // Main (#80) omite p_tipos en «Todo»; cuando se filtra, exige ambos tipos.
+    if (pedido.p_tipos !== undefined) expect(pedido.p_tipos).toEqual(['llamada_realizada', 'llamada_no_contestada'])
     if (revocado) return route.fulfill({ status: 403, json: { code: '42501', message: 'Acceso revocado' } })
     return route.fulfill({ json: { version: 1, generado_en: `${hoy}T18:00:00Z`, desde: hoy, hasta: hoy, zona: 'America/Lima', limite: 26,
       items: pedido.p_antes_de ? [items[25]] : items } })
