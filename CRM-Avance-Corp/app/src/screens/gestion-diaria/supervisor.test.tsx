@@ -11,6 +11,8 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => dobles.ahora }))
 vi.mock('@/data/gestion-diaria-equipo-queries', () => ({ useDiaEquipo: () => dobles.consulta }))
 vi.mock('@/lib/gestion-diaria-avisos-context', () => ({ useGestionDiariaAvisos: () => dobles.avisos }))
+vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => <p>Últimas gestiones</p> }))
+vi.mock('@/components/gestion-diaria/pendientes-supervisor', () => ({ PendientesSupervisor: () => <p>Pendientes independientes</p> }))
 vi.mock('@/components/gestion-diaria/avisos-equipo', () => ({ AvisosEquipo: () => <p>Avisos del equipo</p> }))
 vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (props: unknown) => {
   dobles.registro(props)

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Tabs } from '@/components/ui/tabs'
 import { DetalleAnalista } from './detalle-analista'
 import { RegistroActividad } from './registro-actividad'
+import { PendientesSupervisor } from './pendientes-supervisor'
+import { UltimasGestionesSupervisor } from './ultimas-gestiones-supervisor'
 import { MOTIVOS_EQUIPO, type FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { textoTasa } from '@/lib/gestion-diaria-analista'
@@ -49,6 +51,7 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
   const equipo = seleccion.analista === null
   const [pestana, setPestana] = useState<PestanaPanel>(equipo || seleccion.enfocar ? 'registro' : 'resumen')
   const [registro, setRegistro] = useState<{ pestana: PestanaRegistro; apertura: number } | null>(equipo || seleccion.enfocar ? { pestana: seleccion.pestana, apertura: 0 } : null)
+  const [pendientes, setPendientes] = useState<{ soloVencidas: boolean; apertura: number; enfocar: boolean } | null>(null)
   const tituloRegistro = useRef<HTMLHeadingElement>(null)
   const [focoRegistro, setFocoRegistro] = useState(0)
   useLayoutEffect(() => {
@@ -60,11 +63,16 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
   const cambiar = (valor: PestanaPanel) => {
     setPestana(valor)
     if (valor === 'registro' && !registro) setRegistro({ pestana: 'todo', apertura: 0 })
+    if (valor === 'pendientes' && !pendientes) setPendientes({ soloVencidas: false, apertura: 0, enfocar: false })
   }
   const abrirRegistro = (inicial: PestanaRegistro) => {
     setRegistro((r) => ({ pestana: inicial, apertura: (r?.apertura ?? 0) + 1 }))
     setPestana('registro')
     setFocoRegistro((n) => n + 1)
+  }
+  const abrirPendientes = (soloVencidas: boolean) => {
+    setPendientes(p => ({ soloVencidas, apertura: (p?.apertura ?? 0) + 1, enfocar: true }))
+    setPestana('pendientes')
   }
   const contenido = <>
     <div className="gd-panel-cuerpo ac-scroll" hidden={pestana !== 'resumen'} inert={pestana !== 'resumen'}>
@@ -74,8 +82,14 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
         <p><strong>Contacto: {textoTasa(fila.marcador)}</strong> · {fila.marcador.contestadas} de {fila.marcador.utiles} llamadas útiles. {fila.marcador.utiles === 0 ? 'Sin llamadas útiles.' : fila.marcador.nivel === null ? 'Sin muestra suficiente.' : ''} Mínimo: {minimo ?? 'no disponible'}.</p>
         <p className="mt-2 text-[var(--muted-foreground-strong)]">Número errado y otra persona quedan fuera del contacto útil.</p>
         {fila.motivos_atencion.length > 0 && <div className="gd-atencion-detalle"><h4 className="font-semibold">Necesita atención</h4><ul className="list-disc pl-5">{fila.motivos_atencion.map((m) => <li key={m}>{MOTIVOS_EQUIPO[m]}</li>)}</ul></div>}
-        <Button variant="outline" className="my-3 min-h-11 text-base" onClick={() => cambiar('pendientes')}>{fila.tareas_pendientes} pendientes · {fila.tareas_vencidas} vencidas</Button>
+        <div className="my-3 flex flex-wrap gap-2">
+          <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirPendientes(false)}>Ver pendientes ({fila.tareas_pendientes})</Button>
+          {fila.tareas_vencidas > 0 && <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirPendientes(true)}>{fila.tareas_vencidas} tareas vencidas</Button>}
+        </div>
         <DetalleAnalista fila={fila} dia={dia} abrirLlamadas={() => abrirRegistro('llamadas')} />
+      </>}
+      {seleccion.analista !== null && <>
+        <UltimasGestionesSupervisor analista={seleccion.analista} dia={dia} visible={pestana === 'resumen'} actualizacion={actualizacion} revalidar={revalidar} />
         <Button variant="outline" className="min-h-11 text-base" onClick={() => abrirRegistro('todo')}>Ver registro</Button>
       </>}
     </div>
@@ -83,17 +97,14 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
       {registro && <section aria-label="Registro seleccionado">
         <h4 ref={tituloRegistro} tabIndex={-1} className="mb-3 font-semibold">{equipo ? 'Registro del equipo' : `Registro de ${seleccion.nombre}`}</h4>
         <RegistroActividad key={registro.apertura} dia={dia} pestanaInicial={registro.pestana}
-          analistaIds={seleccion.analista === null ? null : [seleccion.analista]} mostrarAnalista={equipo} permitirEquipo={false} permitirExportar={false} actualizacion={actualizacion} onSinPermiso={revalidar} />
+          analistaIds={seleccion.analista === null ? null : [seleccion.analista]} mostrarAnalista={equipo} permitirEquipo={false} permitirExportar={false} actualizacion={actualizacion} onSinPermiso={revalidar} compartirPrimeraPagina={!equipo} />
       </section>}
     </div>
     <div className="gd-panel-cuerpo ac-scroll" hidden={pestana !== 'pendientes'} inert={pestana !== 'pendientes'}>
-      <h4 className="font-semibold">Pendientes de {seleccion.nombre}</h4>
-      {fila ? <div className="space-y-3 mt-3">
-        <p><strong>{fila.tareas_pendientes}</strong> tareas pendientes · <strong>{fila.tareas_vencidas}</strong> vencidas. Estado actual.</p>
-        <p>Primer intento fuera de plazo: {fila.primer_intento_vencido ?? 'no evaluado'}.</p>
-        <p>Datos incompletos: {fila.datos_incompletos ?? 'no evaluado'}.</p>
-        <p className="text-[var(--muted-foreground-strong)]">{fila.tareas_pendientes === 0 ? 'Sin tareas pendientes.' : 'Detalle de tareas no disponible.'} Las señales de primer intento corresponden a leads y no se suman como tareas.</p>
-      </div> : <p role="status">Los pendientes no están confirmados. Reintenta la consulta del equipo.</p>}
+      {pendientes && seleccion.analista !== null && <PendientesSupervisor key={pendientes.apertura}
+        analista={seleccion.analista} nombre={fila?.nombre_completo ?? seleccion.nombre ?? 'Analista'} dia={dia} fila={fila}
+        visible={pestana === 'pendientes'} soloVencidasInicial={pendientes.soloVencidas} apertura={pendientes.apertura}
+        enfocar={pendientes.enfocar} actualizacion={actualizacion} revalidar={revalidar} />}
     </div>
   </>
   return <>

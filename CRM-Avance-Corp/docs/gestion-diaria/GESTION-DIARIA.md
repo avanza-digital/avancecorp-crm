@@ -12,7 +12,7 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 
 **Actualizado: 23/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
 plan de desarrollo, mantenido en el mismo archivo de Figma. Esta aprobación
-es visual; H1 y H2 ya están cerradas con evidencia. H3–H6 y la publicación siguen pendientes.
+es visual; H1–H3 ya están cerradas con evidencia. H4–H6 y la publicación siguen pendientes.
 El PR #85 ya está fusionado en `avancecorp/main`, commit
 `e0bdfe124c48ab32617c72402e320c7e9963dc3b` (23/09, 21:35 UTC).
 Es el punto de partida documental. H1 se ejecutó sobre Main verificado
@@ -41,7 +41,7 @@ las horas reducidas de la ilustración no modifican el contrato existente.
 - Resumen reutiliza las métricas y el gráfico existentes. Registro conserva
   filtros, cursores y acceso a la ficha del lead. Pendientes muestra el resumen
   autorizado y sus motivos, más el listado paginado por analista. H1 resolvió
-  su contrato: una RPC nueva de lectura, a implementar en H3.3.
+  su contrato: la RPC de lectura ya está implementada y verificada localmente en H3.3.
 - Cortes y otros avisos ocupan una franja compacta con acceso a su detalle.
   Error, estado desconocido, pausa y desactivación siguen siendo distinguibles.
 
@@ -50,8 +50,8 @@ las horas reducidas de la ilustración no modifican el contrato existente.
 Este rediseño se organiza en **6 fases H1–H6, 24 etapas y 72 tareas**.
 Cada etapa se cierra con su entregable y evidencia; una fase se cierra al
 completar sus cuatro etapas y cumplir su criterio de aceptación. Todas las
-etapas H3–H6 siguen pendientes. **H1 y H2 están cerradas: 8 etapas y 24 tareas;
-quedan 48 tareas pendientes.** La aprobación del prototipo ya consta.
+etapas H4–H6 siguen pendientes. **H1–H3 están cerradas: 12 etapas y 36 tareas;
+quedan 36 tareas pendientes.** La aprobación del prototipo ya consta.
 Los identificadores H1–H6 pertenecen al rediseño horizontal y conservan
 la numeración y el avance del plan general F0–F6.
 
@@ -154,41 +154,46 @@ es asesor de revisión cuando corresponde. Jev no es una dependencia de esta UI.
 
 **Objetivo específico:** Permitir investigar la actividad y los pendientes de una persona con datos correctos, sin perder filtros ni mezclar identidades.
 
+**Estado: H3 CERRADA, 23/09/2026.** Cuatro etapas y doce tareas verificadas.
+[Acta y pruebas](SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md) ·
+[Revisión](SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md).
+Backend instalado sólo en banco local aislado; publicación en H6.
+
 **Dependencia:** H2 disponible y contrato de Pendientes resuelto en H1.
 
 #### Etapa H3.1 · Conectar Resumen
 
-- [ ] Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.
-- [ ] Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.
-- [ ] Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.
+- [x] Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.
+- [x] Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.
+- [x] Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.
 
-**Resultado de la etapa:** Resumen real y legible del analista.
+**Resultado de la etapa:** Resumen y últimas tres gestiones con consulta compartida.
 
 #### Etapa H3.2 · Conectar Registro y ficha
 
-- [ ] Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.
-- [ ] Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.
-- [ ] Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.
+- [x] Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.
+- [x] Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.
+- [x] Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.
 
-**Resultado de la etapa:** Actividad consultable con navegación de ida y vuelta.
+**Resultado de la etapa:** Registro y ficha conservan filtros, páginas y foco.
 
 #### Etapa H3.3 · Conectar Pendientes
 
-- [ ] Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.
-- [ ] Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.
-- [ ] Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.
+- [x] Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.
+- [x] Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.
+- [x] Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.
 
-**Resultado de la etapa:** Pendientes útiles, con alcance y destino correctos.
+**Resultado de la etapa:** RPC verificada: 1.008 tareas, 11 páginas, tres referencias.
 
 #### Etapa H3.4 · Proteger selección y actualizaciones
 
-- [ ] Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.
-- [ ] Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.
-- [ ] Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.
+- [x] Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.
+- [x] Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.
+- [x] Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.
 
-**Resultado de la etapa:** Panel estable ante cambios, errores y revocación.
+**Resultado de la etapa:** Caché aislada y retirada de datos ante revocación.
 
-**Entregable de la fase:** Panel funcional con Resumen, Registro y Pendientes.
+**Entregable de la fase:** Panel conectado y backend verificado en banco local.
 
 **Criterio de cierre:** Cambiar de persona, pestaña o ficha preserva el contexto correspondiente y nunca muestra datos de otra identidad.
 
@@ -356,9 +361,9 @@ fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
 
 - Se conserva la política de cortes 11:30/16:00 del 24/09, con seguimiento
   del sábado 26/09. F4 no se declara terminada por este rediseño.
-- Tasa baja sigue OFF hasta F5. H1 no instaló SQL. **H3.3 incluirá una
-  migración nueva de lectura para Pendientes por analista**, con pruebas de
-  contrato y RLS; no cambia reglas, políticas ni métricas. No se instala TypeSafe/Jev.
+- Tasa baja sigue OFF hasta F5. H1 no instaló SQL. **H3.3 incorpora una
+  migración nueva de lectura para Pendientes por analista**, instalada y probada
+  sólo en banco local; no cambia reglas, políticas ni métricas. No se instala TypeSafe/Jev.
 - Claude participa como asesor de arquitectura del plan; Codex decide y
   ejecutará los checks del proyecto. Jev no es necesario para reorganizar esta
   interfaz y no se introduce como dependencia del desarrollo.
@@ -371,19 +376,24 @@ fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
   y banco E2E final local Docker de 29/29. El acta H2 conserva la corrida completa
   inicial (234 aprobadas, 3 fallidas y 26 omitidas) y la repetición de los casos
   fallidos. `gate:realidad`: NOT RUN por falta de `SUPABASE_URL` en la copia aislada.
+- **Implementación H3: PASS.** 4.244 pruebas en 284 archivos; E2E completo local
+  Docker: 241 aprobadas, 0 fallos y 26 omitidas. SQL/RLS y HTTP real recorren
+  1.008 tareas en 11 páginas. Reversa, paridad de equipo, tipos y permisos PASS.
+  Claude PASS (MEDIUM), observaciones menores resueltas y decisiones documentadas.
+  [Evidencia H3 y límites](SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md).
 - **Documentación y tablero: PASS.** Se comprobó la composición del bloque
-  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H2 tienen 24 completas y
-  H3–H6 conservan 48 pendientes; el prototipo está incluido.
+  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H3 tienen 36 completas y
+  H4–H6 conservan 36 pendientes; el prototipo está incluido.
   Las 76 casillas originales conservaron IDs y texto. Evidencia visual:
-  [captura de H2 cerrada en Figma](assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png).
+  [captura de H3 cerrada en Figma](assets/supervisor-horizontal-h3-cerrada-figma-2026-09-23.png).
 
 **Retoma desde el PR #85, 23/09/2026.** El
 [PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85)
 está fusionado en Main `e0bdfe12`. Miguel retomó el trabajo para aprobar el
 prototipo horizontal de supervisión y preparar el plan anterior. Copia de trabajo
 `/private/tmp/avancecorp-release.hvdub4/repo`, ahora en rama
-`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`. H1–H2 cerradas;
-siguiente etapa H3.1. El ajuste backend de lectura pertenece a H3.3.
+`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`. H1–H3 cerradas;
+siguiente etapa H4.1. El backend H3 está verificado sólo en el banco local.
 La validación real de F4 sigue pendiente: analista/supervisor, cortes del 24/09
 (11:30 y 16:00 Lima) y seguimiento del sábado 26/09. Tasa baja OFF hasta F5;
 no volver a instalar SQL ni publicar solo por estas actas. ZIP publicado,

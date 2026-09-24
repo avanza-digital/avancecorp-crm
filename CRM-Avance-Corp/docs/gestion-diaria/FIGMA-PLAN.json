@@ -10,7 +10,7 @@
   "legendId": "2:6",
   "supervisorHorizontal": {
     "updatedAt": "2026-09-23",
-    "status": "H1 y H2 cerradas; H3–H6 pendientes",
+    "status": "H1–H3 cerradas; H4–H6 pendientes",
     "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
     "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
     "resumeMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
@@ -19,8 +19,8 @@
     "prototype": "assets/supervisor-horizontal-aprobado-2026-09-23.png",
     "prototypeSha256": "1314891a779085bae9b7a3d5d56374cd24a0e32de6b527d22f33bcbfe073bc51",
     "designApproval": "USER_APPROVED",
-    "implementation": "H2_COMPLETE_H3_H4_PENDING",
-    "productTests": "PASS_H2; ver h2 para alcance y corrida inicial",
+    "implementation": "H3_COMPLETE_H4_H5_H6_PENDING",
+    "productTests": "PASS_H3; ver h3 para resultados y límites",
     "publication": "PENDING",
     "review": "SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md",
     "reviewVerdict": "CHANGES_REQUESTED",
@@ -322,35 +322,35 @@
         "title": "Conexión del panel y conservación del contexto",
         "objective": "Permitir investigar la actividad y los pendientes de una persona con datos correctos, sin perder filtros ni mezclar identidades.",
         "dependency": "H2 disponible y contrato de Pendientes resuelto en H1.",
-        "deliverable": "Panel funcional con Resumen, Registro y Pendientes.",
+        "deliverable": "Panel conectado y backend verificado en banco local.",
         "acceptance": "Cambiar de persona, pestaña o ficha preserva el contexto correspondiente y nunca muestra datos de otra identidad.",
-        "status": "pending",
+        "status": "complete",
         "items": [
           {
             "id": "18:30",
-            "text": "☐ Etapa H3.1 · Conectar Resumen",
-            "status": "pending",
+            "text": "☑ Etapa H3.1 · Conectar Resumen",
+            "status": "complete",
             "stageKey": "H3.1",
             "stageTitle": "Conectar Resumen",
             "bodyId": "19:26",
             "resultId": "19:27",
-            "result": "Resumen real y legible del analista.",
+            "result": "Resumen y últimas tres gestiones con consulta compartida.",
             "tasks": [
               {
                 "text": "Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:26",
                 "index": 0
               },
               {
                 "text": "Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:26",
                 "index": 1
               },
               {
                 "text": "Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:26",
                 "index": 2
               }
@@ -358,29 +358,29 @@
           },
           {
             "id": "18:31",
-            "text": "☐ Etapa H3.2 · Conectar Registro y ficha",
-            "status": "pending",
+            "text": "☑ Etapa H3.2 · Conectar Registro y ficha",
+            "status": "complete",
             "stageKey": "H3.2",
             "stageTitle": "Conectar Registro y ficha",
             "bodyId": "19:28",
             "resultId": "19:29",
-            "result": "Actividad consultable con navegación de ida y vuelta.",
+            "result": "Registro y ficha conservan filtros, páginas y foco.",
             "tasks": [
               {
                 "text": "Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:28",
                 "index": 0
               },
               {
                 "text": "Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:28",
                 "index": 1
               },
               {
                 "text": "Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:28",
                 "index": 2
               }
@@ -388,29 +388,29 @@
           },
           {
             "id": "18:32",
-            "text": "☐ Etapa H3.3 · Conectar Pendientes",
-            "status": "pending",
+            "text": "☑ Etapa H3.3 · Conectar Pendientes",
+            "status": "complete",
             "stageKey": "H3.3",
             "stageTitle": "Conectar Pendientes",
             "bodyId": "19:30",
             "resultId": "19:31",
-            "result": "Pendientes útiles, con alcance y destino correctos.",
+            "result": "RPC verificada: 1.008 tareas, 11 páginas, tres referencias.",
             "tasks": [
               {
                 "text": "Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:30",
                 "index": 0
               },
               {
                 "text": "Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:30",
                 "index": 1
               },
               {
                 "text": "Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:30",
                 "index": 2
               }
@@ -418,29 +418,29 @@
           },
           {
             "id": "18:33",
-            "text": "☐ Etapa H3.4 · Proteger selección y actualizaciones",
-            "status": "pending",
+            "text": "☑ Etapa H3.4 · Proteger selección y actualizaciones",
+            "status": "complete",
             "stageKey": "H3.4",
             "stageTitle": "Proteger selección y actualizaciones",
             "bodyId": "19:32",
             "resultId": "19:33",
-            "result": "Panel estable ante cambios, errores y revocación.",
+            "result": "Caché aislada y retirada de datos ante revocación.",
             "tasks": [
               {
                 "text": "Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:32",
                 "index": 0
               },
               {
                 "text": "Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:32",
                 "index": 1
               },
               {
                 "text": "Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:32",
                 "index": 2
               }
@@ -869,20 +869,20 @@
       "overflow": [],
       "overlap": [],
       "textMismatches": [],
-      "visualQA": "PASS: capturas final y detalle inspeccionadas; H1–H2 completas, H3–H6 pendientes, sin solapamientos ni recortes",
-      "screenshot": "assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png",
-      "detailScreenshot": "assets/supervisor-horizontal-h2-detalle-figma-2026-09-23.png",
+      "visualQA": "PASS: capturas general y H3 inspeccionadas, sin solapamientos ni recortes; H1–H3 completas, H4–H6 pendientes",
+      "screenshot": "assets/supervisor-horizontal-h3-cerrada-figma-2026-09-23.png",
+      "detailScreenshot": "assets/supervisor-horizontal-h3-detalle-figma-2026-09-23.png",
       "taskCountReadback": {
-        "complete": 24,
-        "pending": 48
+        "complete": 36,
+        "pending": 36
       }
     },
-    "detailVersion": 3,
+    "detailVersion": 4,
     "phaseCount": 6,
     "stageCount": 24,
     "taskCount": 72,
-    "completedTaskCount": 24,
-    "pendingTaskCount": 48,
+    "completedTaskCount": 36,
+    "pendingTaskCount": 36,
     "h1": {
       "status": "COMPLETE",
       "completedAt": "2026-09-23",
@@ -948,7 +948,65 @@
       "publication": "PENDING_H6",
       "figmaReadback": "PASS",
       "visualQA": "PASS",
-      "documentationChecks": "PASS"
+      "documentationChecks": "PASS",
+      "verificationAtClose": {
+        "originalPhaseCount": 76,
+        "originalPhasesUnchanged": true,
+        "overflow": [],
+        "overlap": [],
+        "textMismatches": [],
+        "visualQA": "PASS: capturas final y detalle inspeccionadas; H1–H2 completas, H3–H6 pendientes, sin solapamientos ni recortes",
+        "screenshot": "assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png",
+        "detailScreenshot": "assets/supervisor-horizontal-h2-detalle-figma-2026-09-23.png",
+        "taskCountReadback": {
+          "complete": 24,
+          "pending": 48
+        }
+      }
+    },
+    "h3": {
+      "status": "complete",
+      "closedAt": "2026-09-23",
+      "evidence": "SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md",
+      "jsonEvidence": "SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md",
+      "reviewVerdict": "PASS",
+      "reviewConfidence": "MEDIUM",
+      "unitPassed": 4244,
+      "unitFiles": 284,
+      "e2eFull": {
+        "passed": 241,
+        "failed": 0,
+        "skipped": 26
+      },
+      "backend": {
+        "implemented": true,
+        "installed": "LOCAL_SYNTHETIC_BANK",
+        "productionInstalled": false,
+        "rpc": "crm.gestion_diaria_pendientes_fn",
+        "migration": "20260923234404_crm_gestion_diaria_pendientes_supervisor.sql",
+        "sqlRls": "PASS",
+        "http": "PASS",
+        "types": "PASS",
+        "tasksRead": 1008,
+        "pagesRead": 11
+      },
+      "realityGate": "NOT RUN: Falta SUPABASE_URL",
+      "remoteGeneralRls": "NOT RUN: banco H3 local con matriz pertinente SQL/HTTP",
+      "hostedAdvisors": "NOT RUN: sin candidato hosted",
+      "publication": "PENDING_H6",
+      "figmaReadback": "PASS",
+      "visualQA": "PASS",
+      "e2eFinal": {
+        "passed": 14,
+        "failed": 0
+      },
+      "e2eCaptureRefresh": {
+        "passed": 4,
+        "failed": 0
+      },
+      "documentationChecks": "PASS",
+      "productVisualQA": "PASS: escritorio y móvil; capturas de datos ficticios"
     }
   },
   "uiProgress": {

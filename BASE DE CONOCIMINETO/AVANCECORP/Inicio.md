@@ -5,7 +5,7 @@ actualizado: 2026-09-23
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]] — **H1–H2 CERRADAS; H3–H6 PENDIENTES:** vista horizontal implementada en la copia aislada sobre Main `cf87e808`. Diez filas típicas a 1512 × 805 y nueve a 1366 × 768; texto de 16 px, controles de 44 px, móvil y reflow al 200 %. Gate: 4.192 tests y E2E dirigido: 29/29 PASS. Mismo Figma: 24/72 tareas completas. Lectura paginada de tareas en H3.3; sin SQL nuevo ni publicación. Las 76 casillas originales y F4 conservan su estado.
+- [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]] — **H1–H3 CERRADAS; H4–H6 PENDIENTES:** panel conectado con Resumen, Registro y Pendientes; filtros, páginas y ficha conservados. Nueva lectura invoker verificada en banco local: 1.008 tareas / 11 páginas / tres referencias. Gate: 4.244 tests; E2E completo 241/0/26 y dirigido final 14/14. Claude PASS (MEDIUM). Mismo Figma: 36/72 completas y 76 casillas históricas intactas. Sin publicación; sigue H4.1.
 
 - [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — **MEJORA VISUAL PUBLICADA:** PR #82, fuente `e8e4f35f`, build `build-20260923T204457952Z`; 4.179 pruebas, archivos y acceso de gerencia verificados. Mismo plan editable en Figma, 76 puntos. Pendientes aceptación de analista/supervisor y primera jornada real de F4 del 24/09. Fixtures integrados mediante PR #84; acta de publicación enlazada en la nota.
 

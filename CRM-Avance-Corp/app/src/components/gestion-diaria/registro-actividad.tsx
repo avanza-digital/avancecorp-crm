@@ -57,6 +57,8 @@ interface Props {
   /** Refresco externo: conserva filtros y vuelve a la primera página. */
   actualizacion?: number | undefined
   onSinPermiso?: (() => void) | undefined
+  /** H3: comparte la primera página sin filtro con Últimas gestiones. */
+  compartirPrimeraPagina?: boolean
 }
 
 export function RegistroActividad(props: Props) {
@@ -66,7 +68,7 @@ export function RegistroActividad(props: Props) {
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
@@ -81,6 +83,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   const [previas, setPrevias] = useState<RegistroItem[]>([])
   const [cursor, setCursor] = useState<CursorRegistro | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [reinicio, setReinicio] = useState(0)
   const encabezado = useRef<HTMLHeadingElement>(null)
 
   const idsEquipo = useMemo(() => (equipoSel ? analistasDelEquipo(equipo, equipoSel) : null), [equipo, equipoSel])
@@ -104,16 +107,17 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   const cursorVigente = claveVista === claveFiltros ? cursor : null
   const previasVigentes = claveVista === claveFiltros ? previas : []
 
-  const { pagina, cargando, enVuelo, error, recargar } = useRegistroActividadOperativo(filtros, cursorVigente, LIMITE_PAGINA)
+  const { pagina, cargando, enVuelo, error, recargar } = useRegistroActividadOperativo(filtros, cursorVigente, LIMITE_PAGINA, true, compartirPrimeraPagina)
   const sinPermiso = error instanceof CrmApiError && error.code === '42501'
-  const versionRecargada = useRef(actualizacion)
+  const versionRecarga = `${actualizacion}:${reinicio}`
+  const versionRecargada = useRef(versionRecarga)
   const recargarDesdeFuera = useEffectEvent(() => { void recargar() })
   const notificarRevocacion = useEffectEvent(() => { onSinPermiso?.() })
   useEffect(() => {
-    if (versionRecargada.current === actualizacion) return
-    versionRecargada.current = actualizacion
+    if (versionRecargada.current === versionRecarga) return
+    versionRecargada.current = versionRecarga
     recargarDesdeFuera()
-  }, [actualizacion])
+  }, [versionRecarga])
   useEffect(() => {
     if (sinPermiso) notificarRevocacion()
   }, [sinPermiso])
@@ -142,7 +146,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   }
   function reiniciar() {
     setPrevias([]); setCursor(null); setAviso(null)
-    if (cursorVigente === null) void recargar()
+    if (compartirPrimeraPagina || cursorVigente === null) setReinicio(n => n + 1)
     encabezado.current?.focus()
   }
   function exportar() {

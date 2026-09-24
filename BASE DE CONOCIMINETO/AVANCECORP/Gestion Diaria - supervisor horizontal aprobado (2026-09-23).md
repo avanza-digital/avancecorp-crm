@@ -5,7 +5,7 @@ vertical. Aprobó el nuevo prototipo horizontal («perfecto perfecto») y pidió
 un plan para desarrollarlo, con apoyo de Claude/Jev si hacía falta, recordando
 que debe actualizarse **el mismo archivo de Figma**.
 
-**Estado: H1–H2 CERRADAS; H3–H6 pendientes; sin publicación.**
+**Estado: H1–H3 CERRADAS; H4–H6 pendientes; sin publicación.**
 
 El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85) está fusionado
 desde el 23/09 a las 21:35 UTC, Main `e0bdfe124c48ab32617c72402e320c7e9963dc3b`.
@@ -25,7 +25,7 @@ Por petición posterior de Miguel, el tablero desarrolla la imagen aprobada en
 dependencia, entregable y criterio de cierre. Las etapas tienen tareas y
 resultado propio. Las fases son preparación/especificación; vista horizontal;
 panel conectado; cortes/avisos; verificación; entrega/aceptación.
-H1–H2 completan ocho etapas y 24 tareas; quedan 48 tareas de H3–H6 pendientes. El plan general conserva su revisión histórica; H1 tiene revisión
+H1–H3 completan doce etapas y 36 tareas; quedan 36 tareas de H4–H6 pendientes. El plan general conserva su revisión histórica; H1 tiene revisión
 independiente y resolución registradas en su propia acta.
 Composición inspeccionada y 76 casillas originales conservadas, sin alterar F4–F6.
 
@@ -47,10 +47,10 @@ externas/internas y conservar filtros y cursor. Selección ligada a actor, día
 Lima y persona. Comparar personas desde la tabla no debe robar el foco.
 Resumen usa el equipo presentado completo, no las filas filtradas. «Ver
 pendientes» abre el listado de la persona: H1 decidió una RPC nueva de lectura
-paginada en H3.3, sin cambios de reglas ni RLS; todavía no está implementada.
+paginada en H3.3, ya implementada y comprobada en banco local, sin cambios de reglas ni RLS.
 Registro del equipo muestra solo Registro, con espacio ampliable.
 
-Próximo paso: **H3**, panel conectado y nueva lectura paginada de tareas. H1 se ejecutó en
+Próximo paso: **H4.1**, estado compacto de cortes e integración de avisos. H1 se ejecutó en
 la copia aislada `/private/tmp/avancecorp-release.hvdub4/repo`, rama
 `codex/gestion-diaria-supervisor-horizontal`, Main verificado `cf87e808` (#86).
 El taller principal permanece intacto. H2 modifica producto solamente en la copia aislada.
@@ -93,3 +93,34 @@ son 10 filas a 1512 × 805 y 9 a 1366 × 768; móvil 390 y reflow al 200 % verif
 
 H3.3 sigue pendiente: el listado de tareas no existe todavía en el panel. H2
 muestra agregados y señales con disponibilidad explícita. H4–H6 conservan su alcance.
+
+## H3 cerrada: panel conectado
+
+Cuatro etapas y doce tareas verificadas en la misma copia aislada. H2 quedó
+conservada en el checkpoint local `e6cc6c5b` antes de iniciar H3.
+
+Últimas tres gestiones comparten Registro → Todo; no descargan otra fuente.
+Registro, filtros, páginas y retorno desde ficha conservan contexto. Pendientes
+se carga al visitarlo: Todas/Vencidas y 25 elementos por página. Desde la segunda
+página se pausa toda la actualización automática; Actualizar reinicia y conserva
+el filtro. Una denegación 42501 elimina las páginas y variantes de caché del
+analista. Error, vacío y RPC no instalada se distinguen.
+
+La nueva RPC invoker comparte roster con equipo; no cambia políticas ni reglas.
+SQL/RLS y HTTP real recorrieron 1.008 tareas en 11 páginas, incluidas referencias
+lead/perfil/postventa, tareas con lead ya oculto, revocación y núcleo directo.
+Paridad completa de equipo antes/después, puente inactivo/ciclo, errores,
+reversa/replay y tipos PASS. Banco local propio; producción no instalada.
+
+Gate integral: **4.244 pruebas PASS**. E2E Docker completo: **241 PASS / 0 fallos /
+26 omitidas**; dirigido final: **14/14 PASS**. Claude **PASS, MEDIUM**, con P3
+resueltos o documentados. Reality gate y matriz remota general/advisors hosted
+NOT RUN; ver acta para límites. Sin lectores humanos NVDA/VoiceOver.
+
+Figma actualizado y capturas inspeccionadas: **36/72 completas**, otras 36
+pendientes, 76 casillas históricas intactas. Acta:
+`CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md`.
+H4–H6, publicación y aceptación productiva permanecen pendientes; no cierran
+la jornada real de F4 ni activan tasa baja o Jev.
+
+[[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] · [[Inicio]]

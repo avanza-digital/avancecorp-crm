@@ -1,3 +1,22 @@
+## 20260923234404 — H3: pendientes paginados del supervisor
+
+**INSTALADA Y COMPROBADA EN BANCO LOCAL AISLADO; NO PUBLICADA.**
+Nueva puerta `crm.gestion_diaria_pendientes_fn`, núcleo invoker y helper privado
+compartido con equipo. EXECUTE sólo authenticated; se conserva el guard en el
+núcleo. Roles ajenos, actor/miembro inactivo y destino ajeno se deniegan.
+No cambia tablas, políticas, grants de columnas, reglas de tareas ni objetos de
+public. Revoca EXECUTE de service_role en las funciones nuevas; no cambia sus
+permisos existentes. El gate administrativo es definer, sólo postgres.
+Resumen y página usan la misma sentencia/RLS; responsable de tarea, tres anclas,
+referencias mínimas y cursor vence_en/id, sin un tope global de mil.
+La extracción del roster conserva el JSON completo anterior: supervisor,
+gerencia/global, puente inactivo y ciclo. SQL: 1.008 tareas/11 páginas, errores,
+revocación, referencias ocultas, concurrencia, siete mutantes y replay PASS.
+Tipos generados desde la copia instalada y cotejados; no se reemplaza el schema
+restante del cliente con una copia local antigua. Publicación aditiva antes del
+cliente en H6. Reversa y banco: `supabase/scripts/gestion-diaria-horizontal/`.
+Ver el acta H3 para HTTP, interfaz y revisión final.
+
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 
 **PUBLICADO Y VERIFICADO el 23/09 mediante merge Supabase, cortes OFF.**
