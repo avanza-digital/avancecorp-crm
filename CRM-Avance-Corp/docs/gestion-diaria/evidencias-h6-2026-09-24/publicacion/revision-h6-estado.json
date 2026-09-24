@@ -1,0 +1,10 @@
+{
+  "estado": "INCOMPLETE",
+  "motivo": "El wrapper devolvió resultado incompleto o sin VERDICT válido (exit 1); no hay dictamen verificable.",
+  "intentos": 1,
+  "wrapper": "scripts/claude-review",
+  "log": "revision-h6-respuesta.log",
+  "anterior": "La misma migración H3 ya tiene revisión independiente PASS documentada en SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md. H5 tiene su propia revisión. No se repite para buscar aprobación.",
+  "ejecucion": "FAIL: wrapper exit 1",
+  "dictamen": "NOT AVAILABLE"
+}

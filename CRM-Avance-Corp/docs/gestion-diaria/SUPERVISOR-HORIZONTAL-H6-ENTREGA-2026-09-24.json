@@ -1,15 +1,15 @@
 {
   "date": "2026-09-24",
   "phase": "H6",
-  "status": "DELIVERY_PREPARED_NOT_PUBLISHED",
+  "status": "PUBLISHED_VERIFIED_H6_3_ACCEPTANCE_PENDING",
   "stages": {
     "H6.1": "COMPLETE",
     "H6.2": "COMPLETE",
-    "H6.3": "PENDING",
-    "H6.4": "PARTIAL_DOCUMENTATION_ONLY"
+    "H6.3": "COMPLETE",
+    "H6.4": "PENDING_HUMAN_ACCEPTANCE"
   },
-  "completedTasks": 67,
-  "pendingTasks": 5,
+  "completedTasks": 70,
+  "pendingTasks": 2,
   "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/87",
   "sourceMain": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
   "productTested": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
@@ -23,16 +23,26 @@
     "rollbackHTTPS": {
       "passed": 114,
       "failed": 0
-    }
-  },
-  "initialArtifact": {
-    "file": "crm-20260924T054601Z-bbe341f6752b.zip",
-    "bytes": 2300351,
-    "sha256": "80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2",
-    "files": 116,
-    "source": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
-    "clean": true,
-    "target": "crm.miavance.com"
+    },
+    "hostedBaseline": {
+      "passed": 2226,
+      "failed": 0
+    },
+    "hostedCandidate": {
+      "passed": 2226,
+      "failed": 0
+    },
+    "hostedSql": "PASS",
+    "hostedAuthHttp": "PASS; 1008 tareas/11 páginas/3 anclas, permisos y revocación",
+    "generatedTypes": "PASS",
+    "newAdvisorFindings": 0,
+    "productionCatalogAndGates": "PASS",
+    "https": {
+      "passed": 116,
+      "failed": 0
+    },
+    "realSupervisorWalk": "PASS_TECHNICAL",
+    "figmaVisualQA": "PASS"
   },
   "rollback": {
     "file": "crm-20260923T204458Z-e8e4f35f9ea1.zip",
@@ -42,14 +52,28 @@
   "sql": {
     "migration": "20260923234404",
     "sha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
-    "productionInstalled": false,
-    "hostedCandidate": "NOT RUN",
-    "authorization": "PENDING"
+    "productionInstalled": true,
+    "hostedCandidate": "PASS",
+    "authorization": "GRANTED_BY_USER",
+    "nativeMerge": "PASS",
+    "historyEntries": 348,
+    "previousHistoryPreserved": 347,
+    "functions": 744,
+    "nativeStatements": 22,
+    "statementFormat": "Merge nativo divide el fichero; fragmentos literales exactos, sólo separadores/espacios entre sentencias.",
+    "sourceShaUnchanged": true
   },
-  "publication": "NOT RUN; human release invocation required",
-  "realAcceptance": "NOT RUN",
+  "publication": {
+    "status": "PASS",
+    "url": "https://crm.miavance.com",
+    "deployedAt": "2026-09-24T07:13:31.476Z",
+    "httpsVerifiedAt": "2026-09-24T07:13:50.431Z",
+    "supervisorWalkAt": "2026-09-24T07:17:22.164Z",
+    "sourceCommit": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1"
+  },
+  "realAcceptance": "PENDING_H6.4",
   "durableDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/",
-  "exactFinalDelivery": "entrega-final.json in durable directory (source rebuilt after integrating these actas)",
+  "exactFinalDelivery": "entrega-final.json in durable directory; source remains bbe341f6, no rebuild for documentation",
   "files": [
     {
       "path": "evidencias-h6-2026-09-24/advisors-security-antes.json",
@@ -80,6 +104,206 @@
       "path": "evidencias-h6-2026-09-24/pr-87.json",
       "bytes": 1472,
       "sha256": "e726e8e5acfe54bbe3c60270c7905b3d9b2f178117b91071bf470b46719f9788"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/advisor-indice-existente.json",
+      "bytes": 781,
+      "sha256": "674bac2fba94e9346c58c6c3960a29e68cf4f4c3fdca911f95676c21ba58566b"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/advisors-delta-final.json",
+      "bytes": 17207,
+      "sha256": "f9e3cbbd6a982bcffb13c8ba0779abf450c736cec55423065b4fa106f0e208b0"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/advisors-delta-inicial.json",
+      "bytes": 512,
+      "sha256": "54fdd63a0d236e79615ce18aaa72e3fc35fd083231949c6553c7062777dc564a"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/advisors-resumen.json",
+      "bytes": 3611,
+      "sha256": "73b07d30ea1b5ffa7529aabf48c12526cc72ed170a6f6b9981921728411eefe2"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/banco-eliminacion-recibo.json",
+      "bytes": 269,
+      "sha256": "0fb21877c6c4205c2ee84fc1dd74f1c2be0688842e4fa75b67ea1370fb7159f2"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/banco-eliminado.json",
+      "bytes": 478,
+      "sha256": "e5dbc98dc6ea4ee49a44cd199ac2c6c651c477da523811f6200a1575d6584882"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/banco-local-eliminado.json",
+      "bytes": 188,
+      "sha256": "e3f8e744d39367229fb0cfc6cac705a0554eca493dc6592f2305c6718d4d0459"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/baseline-historial-completo.json",
+      "bytes": 336,
+      "sha256": "4d6a4a271858ae7282c06be2b943854bcdc5664f6fd6b14e64bf59adf39456e5"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/contrato-http-h3-primer-intento.log",
+      "bytes": 476,
+      "sha256": "d5a072910012d2762dfd9afb9ca00be25de42d75d3de20f7a996c36c31aa7e27"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/contrato-http-h3.log",
+      "bytes": 323,
+      "sha256": "b7f66c6d017b59ac81963c60b8c040c605868e1336332a387e016221f2d1e99b"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/delta-h3.json",
+      "bytes": 862,
+      "sha256": "18ddae1f87aded3221b981b25502a6ee79d3f0f2f0ec3463743b218ff078bb20"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/edge-postmerge.json",
+      "bytes": 175,
+      "sha256": "9260fa929d5759cdc37fa6473f7341cced926a0fd2eb1f38e8a52467dfb9b028"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/edge-premerge.json",
+      "bytes": 3907,
+      "sha256": "c9549beb5ba112f7f99951f885d86267e99109fdbf02e53671a95b6a897d8772"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/ensayo-h3-alojado.json",
+      "bytes": 655,
+      "sha256": "c21107977a1323f7c6add74dd376c41d696e8e3015e34c6fc4a10e925512191f"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/ensayo-h3-alojado.log",
+      "bytes": 1716,
+      "sha256": "15dc8c0da41610d8236ae80b2906b31460457d1a40ddcab51c49cc9684de2340"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/figma-cierre-readback.json",
+      "bytes": 15634,
+      "sha256": "33f9eb9cdd5849f4a4939c819c9c1c8f066e5339cb1c259c395a54683ee5052a"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/figma-h6-publicada.png",
+      "bytes": 247623,
+      "sha256": "b7393a8e60a03f74d20d9dbd78bdac5d72b60626ea7c939642d1811796ec4963"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/figma-supervisor-publicado.png",
+      "bytes": 1127938,
+      "sha256": "e3aedd381a601bf0565d8f6cf71f57d83ead73ee47bde21c98f281c6512727cc"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/gates-productivos.json",
+      "bytes": 531,
+      "sha256": "7c801088ef29e5f9a3b868b93d1bc2109bda533e00d0b8061a8ebca060d19dda"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/hostinger-publicacion.json",
+      "bytes": 686,
+      "sha256": "b7f8ae213b0497c759ec4a05b2a07cba129d7285bd50a1162b7b877a20ce35b6"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/http-h3-diagnostico.json",
+      "bytes": 537,
+      "sha256": "61493e9e6908579b5569890a1dcf5d1e61958f983cdb067e10b2cba7cb7481b5"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/http-h3.json",
+      "bytes": 779,
+      "sha256": "2ab093c32fe1451442ea676743f49fd990f374c823b42a208c5d76f68b5dd95c"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/matriz-baseline-20260924063939165.log",
+      "bytes": 170883,
+      "sha256": "276675c2559404e53b12d9f1db2001859ed680b2045e34ceb3976fd686797c98"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/matriz-baseline.json",
+      "bytes": 216,
+      "sha256": "5e907d4b73bb75ac6d5b0e57c4f2b64d399be04ce4cc85b387e07b20af06610c"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/matriz-candidato-20260924065658721.log",
+      "bytes": 170883,
+      "sha256": "276675c2559404e53b12d9f1db2001859ed680b2045e34ceb3976fd686797c98"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/matriz-candidato.json",
+      "bytes": 217,
+      "sha256": "b80daadf32a62172d7dc08c964b1150a2c1f08a63dff37bd05442fb8f5662ead"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/merge-h3-recibo.json",
+      "bytes": 236,
+      "sha256": "25a0b5a9656b44682832979091ea56de1d34614415b303d0addcd6eaffed24fd"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/merge-primera-lectura.json",
+      "bytes": 218,
+      "sha256": "c76e253e306584b74b42239003cc31376eae931cccc01bc4443029bd77a97782"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/padre-cotejo-antes.json",
+      "bytes": 199,
+      "sha256": "01cd1a998d1c0675ba28c86f8625107ce60897b767395af9977f911a1ecbe35f"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/padre-cotejo-despues.json",
+      "bytes": 943,
+      "sha256": "141d7e18603c067b9a8e06dfae4cacf8229fbcccf0fafead04d7082cecf2b130"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/paridad-actual.json",
+      "bytes": 543,
+      "sha256": "3c264b8ebe1ab2ed9190883aa439526d727e1f109bfe7cfe8049b2342a523f6a"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/premerge-final.json",
+      "bytes": 346,
+      "sha256": "8f5260dd44bf333a6246bb464e91bcd436d8149bbe4978fcd16e110ab2f0ba05"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/prepublicar-final.json",
+      "bytes": 312,
+      "sha256": "58a7b38a8404b0b7aa35a741cf507b364d8baffadc84a73c2051615fc6c8b3c6"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/publicacion-https.json",
+      "bytes": 47196,
+      "sha256": "ab818608e90da1697921f2557b1014a6b771744c949ddc003b9c8a6190090623"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/recorrido-supervisor-publicado.json",
+      "bytes": 2260,
+      "sha256": "3b7a48e97d699193e4caf2e0ef8d1fb3925e616108246636961fa5abea62e6da"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/revision-h6-estado.json",
+      "bytes": 520,
+      "sha256": "f0830efb605edb35f611e7ed4c9763473cf5b855456eb745fa1b1d7015a86f0a"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/revision-h6-respuesta.log",
+      "bytes": 71,
+      "sha256": "996c0082cb4af1684c9392b4e3834cf77a875b9a963b9ae2dc55b2ee23dc5b0b"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/tipos-h3.json",
+      "bytes": 485,
+      "sha256": "e9105e8480ff4729f4e8a567e5d97df0fb7f2f431f861751a81ed4f54f0c8932"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/version-antes-publicar.json",
+      "bytes": 142,
+      "sha256": "8a3144edd5de02c7f8319dd5b65a3147845412d992aeb372a3faa5f8b881c5c9"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/publicacion/zip-no-expuesto.json",
+      "bytes": 266,
+      "sha256": "489be1249e755f73aa025274a8d4e0c8615c1a78e7675e7c93247c32d1f6f7a6"
     },
     {
       "path": "evidencias-h6-2026-09-24/release-bbe341f6-final.log",
@@ -126,5 +350,45 @@
       "bytes": 371,
       "sha256": "037d79176460e463f39935dba3f93655e4ec384c7b9775866a33ab0d0d805c27"
     }
-  ]
+  ],
+  "publishedArtifact": {
+    "file": "crm-20260924T054601Z-bbe341f6752b.zip",
+    "bytes": 2300351,
+    "sha256": "80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2",
+    "files": 116,
+    "source": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+    "clean": true,
+    "target": "crm.miavance.com",
+    "buildId": "build-20260924T054600240Z"
+  },
+  "authorization": {
+    "release": "$release-crm: autorizar H6.3 y banco hasta US$1",
+    "continue": "si lo puedes hacer solo hazlo",
+    "scope": "Banco temporal propio, SQL exacta H3 y frontend crm.miavance.com"
+  },
+  "bank": {
+    "estado": "PASS",
+    "eliminadoYAusenciaVerificada": true,
+    "fecha": "2026-09-24T07:13:47.953Z",
+    "creadoEn": "2026-09-24T05:55:58.370232Z",
+    "rama": "c543898c-423b-4c53-b5d4-458a14f82c16",
+    "ref": "lqongqxaviavfusnzojv",
+    "otroBancoIntacto": true,
+    "tarifaCotizadaUSDHora": 0.01344,
+    "horasHastaVerificacion": 1.297106388888889,
+    "costeEstimadoUSD": 0.017433109866666668,
+    "topeAutorizadoUSD": 1,
+    "notaCoste": "Estimación por tiempo transcurrido, no factura."
+  },
+  "secondaryOperationalReview": {
+    "estado": "INCOMPLETE",
+    "motivo": "El wrapper devolvió resultado incompleto o sin VERDICT válido (exit 1); no hay dictamen verificable.",
+    "intentos": 1,
+    "wrapper": "scripts/claude-review",
+    "log": "revision-h6-respuesta.log",
+    "anterior": "La misma migración H3 ya tiene revisión independiente PASS documentada en SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md. H5 tiene su propia revisión. No se repite para buscar aprobación.",
+    "ejecucion": "FAIL: wrapper exit 1",
+    "dictamen": "NOT AVAILABLE"
+  },
+  "documentationPullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/88"
 }

@@ -12,7 +12,7 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 
 **Actualizado: 24/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
 plan de desarrollo, mantenido en el mismo archivo de Figma. Esta aprobación
-es visual; H1–H5 están cerradas con evidencia. H6.1/H6.2 cerradas; publicación y aceptación real pendientes.
+es visual; H1–H5 están cerradas con evidencia. H6.1–H6.3 cerradas; SQL y frontend publicados. H6.4 pendiente de aceptación humana.
 El PR #85 ya está fusionado en `avancecorp/main`, commit
 `e0bdfe124c48ab32617c72402e320c7e9963dc3b` (23/09, 21:35 UTC).
 Es el punto de partida documental. H1 se ejecutó sobre Main verificado
@@ -49,8 +49,8 @@ las horas reducidas de la ilustración no modifican el contrato existente.
 
 Este rediseño se organiza en **6 fases H1–H6, 24 etapas y 72 tareas**.
 Cada etapa se cierra con su entregable y evidencia; una fase se cierra al
-completar sus cuatro etapas y cumplir su criterio de aceptación. **H1–H5 y H6.1/H6.2
-están cerradas: 22 etapas, 67 tareas completas y 5 pendientes.** H6.4 ya conserva
+completar sus cuatro etapas y cumplir su criterio de aceptación. **H1–H5 y H6.1–H6.3
+están cerradas: 23 etapas, 70 tareas completas y 2 pendientes.** H6.4 ya conserva
 la documentación, pero no la aceptación real. La aprobación del prototipo ya consta.
 Los identificadores H1–H6 pertenecen al rediseño horizontal y conservan
 la numeración y el avance del plan general F0–F6.
@@ -157,7 +157,7 @@ es asesor de revisión cuando corresponde. Jev no es una dependencia de esta UI.
 **Estado: H3 CERRADA, 23/09/2026.** Cuatro etapas y doce tareas verificadas.
 [Acta y pruebas](SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md) ·
 [Revisión](SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md).
-Backend instalado sólo en banco local aislado; publicación en H6.
+En el cierre original H3 se instaló en banco local aislado. H6.3 completó el ensayo alojado, el merge SQL y la publicación el 24/09; ver el acta H6.
 
 **Dependencia:** H2 disponible y contrato de Pendientes resuelto en H1.
 
@@ -311,11 +311,11 @@ Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
 
 #### Etapa H6.3 · Publicar y comprobar
 
-- [ ] Publicar primero la RPC aditiva verificada y después el artefacto compatible, mediante el flujo del proyecto.
-- [ ] Comprobar archivos, acceso y versión cargada tras recarga.
-- [ ] Recorrer la vista con supervisión real y su equipo propio; registrar incidencias sin crear actividad productiva ficticia.
+- [x] Publicar primero la RPC aditiva verificada y después el artefacto compatible, mediante el flujo del proyecto.
+- [x] Comprobar archivos, acceso y versión cargada tras recarga.
+- [x] Recorrer la vista con supervisión real y su equipo propio; registrar incidencias sin crear actividad productiva ficticia.
 
-**Resultado de la etapa:** Versión publicada y comprobada.
+**Resultado de la etapa:** H3 instalada por merge nativo; frontend `bbe341f6`, 116 archivos HTTPS y recorrido con supervisor real PASS.
 
 #### Etapa H6.4 · Aceptar en uso y cerrar el avance
 
@@ -393,26 +393,28 @@ fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
   [Evidencia H4 y límites](SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md).
 - **H5: PASS.** 4.274 pruebas, 249 E2E Docker aprobadas / 0 fallos / 26 omitidas; SQL/RLS, tipos, consultas 1/32, visual y teclado verificados.
   [Acta y límites H5](SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md).
-- **H6: EN CURSO.** PR #87 integrado; Main `bbe341f6`, ZIP de 116 archivos y respaldo verificados.
-  Publicación y aceptación real pendientes. [Entrega H6](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md).
+- **H6: EN CURSO, H6.3 CERRADA.** H3 y frontend `bbe341f6` publicados; 116 archivos HTTPS y recorrido de supervisor PASS. Banco eliminado (~US$0,018).
+  H6.4 pendiente de aceptación humana. [Entrega H6](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md).
 - **Documentación y tablero: PASS.** Se comprobó la composición del bloque
-  `18:2`, sus seis fases, 24 etapas y 72 tareas: 67 completas y 5 pendientes;
-  H1–H5 cerradas, H6.1/H6.2 cerradas y prototipo conservado.
+  `18:2`, sus seis fases, 24 etapas y 72 tareas: 70 completas y 2 pendientes;
+  H1–H5 cerradas, H6.1–H6.3 cerradas y prototipo conservado.
   Las 76 casillas originales conservaron IDs y texto. Evidencia visual:
-  [H5 cerrada y H6 en curso](evidencias-h6-2026-09-24/figma-h5-h6-final.png).
+  [H6.3 publicada, aceptación pendiente](evidencias-h6-2026-09-24/publicacion/figma-supervisor-publicado.png).
 
 **Retoma desde el PR #85, 23/09/2026.** El
 [PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85)
 está fusionado en Main `e0bdfe12`. Miguel retomó el trabajo para aprobar el
 prototipo horizontal de supervisión y preparar el plan anterior. Copia de trabajo
 `/private/tmp/avancecorp-release.hvdub4/repo`, ahora en rama
-`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`, H3 `fa23ab5e`, H4 `186e00f1` y H5 `788834cc`. H1–H5 cerradas;
-sigue H6.3 tras integrar el [PR #87](https://github.com/avanza-digital/avancecorp-crm/pull/87). El backend H3 está verificado sólo en el banco local.
+`codex/gestion-diaria-horizontal-h5-h6-acta`, base de producto H5 `788834cc`.
+El [PR #87](https://github.com/avanza-digital/avancecorp-crm/pull/87) quedó integrado
+y H6.3 publicó Main `bbe341f6` y la SQL H3. **Sigue H6.4: aceptación humana**.
+Las actas están en el [PR #88](https://github.com/avanza-digital/avancecorp-crm/pull/88).
 La validación real de F4 sigue pendiente: analista/supervisor, cortes del 24/09
 (11:30 y 16:00 Lima) y seguimiento del sábado 26/09. Tasa baja OFF hasta F5;
 no volver a instalar SQL ni publicar solo por estas actas. ZIP publicado,
-respaldo y recibos conservados en `CRM-Avance-Corp/releases/` del taller
-principal, fuera de `/tmp`.
+respaldo, evidencias y bundle conservados en
+`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/`, fuera de `/tmp`.
 
 **Mejora visual solicitada el 23/09:** revisar y mejorar `Mi día` del analista y
 `Mi equipo hoy` del supervisor siguiendo `Fundamentos UX del CRM` y el playbook

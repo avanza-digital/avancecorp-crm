@@ -1,0 +1,19 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1007 !== 1008
+
+    at file:///private/tmp/avancecorp-h6-remoto-20260924/contrato-http-h3.mjs:35:147
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1007,
+  expected: 1008,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.4.0

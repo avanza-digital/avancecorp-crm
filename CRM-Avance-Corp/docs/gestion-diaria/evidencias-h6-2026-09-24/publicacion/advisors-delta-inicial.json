@@ -1,0 +1,21 @@
+{
+  "security": {
+    "antes": 289,
+    "despues": 289,
+    "nuevos": [],
+    "retirados": []
+  },
+  "performance": {
+    "antes": 277,
+    "despues": 278,
+    "nuevos": [
+      {
+        "clase": "unused_index",
+        "nivel": "INFO",
+        "detalle": "Index \\`operaciones_cartera_periodo_vendedor_idx\\` on table \\`crm.operaciones_cartera\\` has not been used",
+        "enlace": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      }
+    ],
+    "retirados": []
+  }
+}

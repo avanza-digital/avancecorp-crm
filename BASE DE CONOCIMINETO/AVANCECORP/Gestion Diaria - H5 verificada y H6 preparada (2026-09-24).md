@@ -1,5 +1,7 @@
 # Gestión Diaria — H5 verificada y H6 preparada
 
+> Acta histórica de preparación, completada después por [[Gestion Diaria - H6.3 publicada y aceptacion pendiente (2026-09-24)]].
+
 **H1–H5 cerradas. H6.1/H6.2 cerradas; sin publicación ni aceptación real.**
 
 El producto horizontal reúne tabla compacta, panel conectado y franja de avisos.

@@ -1,6 +1,6 @@
 ## 20260923234404 — H3: pendientes paginados del supervisor
 
-**INSTALADA Y COMPROBADA EN BANCO LOCAL AISLADO; NO PUBLICADA.**
+**PUBLICADA Y VERIFICADA el 24/09/2026 mediante merge nativo de Supabase.**
 Nueva puerta `crm.gestion_diaria_pendientes_fn`, núcleo invoker y helper privado
 compartido con equipo. EXECUTE sólo authenticated; se conserva el guard en el
 núcleo. Roles ajenos, actor/miembro inactivo y destino ajeno se deniegan.
@@ -14,11 +14,19 @@ gerencia/global, puente inactivo y ciclo. SQL: 1.008 tareas/11 páginas, errores
 revocación, referencias ocultas, concurrencia, siete mutantes y replay PASS.
 Tipos generados desde la copia instalada y cotejados; no se reemplaza el schema
 restante del cliente con una copia local antigua. Publicación aditiva antes del
-cliente en H6. Reversa y banco: `supabase/scripts/gestion-diaria-horizontal/`.
+frontend en H6.3. Reversa y banco: `supabase/scripts/gestion-diaria-horizontal/`.
 Ver el acta H3 para HTTP, interfaz y revisión final.
 Repetición H5 del 24/09: SQL/RLS, HTTP y tipos PASS en el banco local;
 [acta H5](../../docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md).
-El preflight productivo confirma que H3 sigue ausente; ensayo hosted y publicación pendientes.
+H6.3: banco propio alojado con paridad completa del esquema/historial; matrices
+baseline y candidata **2.226/0** cada una; SQL, Auth/HTTP, tipos y advisors sin
+hallazgos nuevos PASS. Producción **348 entradas / 744 funciones**; las 347
+entradas previas y sus seis columnas intactas. Las 22 sentencias nativas conservan
+el contenido literal autorizado. Cuatro funciones nuevas y tres modificadas;
+DDL/RLS/ACL/roles/Storage/Auth y 21 Edge Functions ajenos intactos. Gates productivos
+PASS. Frontend `bbe341f6` publicado después, 116 controles HTTPS y supervisor real
+PASS. Banco eliminado (~US$0,01743); aceptación humana H6.4 pendiente.
+[Acta de publicación H6](../../docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md).
 
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 

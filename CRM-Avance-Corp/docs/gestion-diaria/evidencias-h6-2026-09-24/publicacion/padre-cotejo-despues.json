@@ -1,0 +1,24 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:12:22.978Z",
+  "modo": "despues",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "migracionesPrevias": 347,
+  "funcionesPrevias": 740,
+  "derivaAntes": false,
+  "funcionesDespues": 744,
+  "deltaFunciones": [
+    "crm.gestion_diaria_pendientes_fn(uuid,boolean,integer,timestamp with time zone,uuid)",
+    "private.assert_gestion_diaria_equipo()",
+    "private.assert_gestion_diaria_pendientes()",
+    "private.assert_gestion_diaria()",
+    "private.gestion_diaria_equipo_ambito(uuid)",
+    "private.gestion_diaria_equipo_core(date,uuid)",
+    "private.gestion_diaria_pendientes_core(uuid,boolean,integer,timestamp with time zone,uuid)"
+  ],
+  "historialAnteriorCompletoPreservado": true,
+  "sqlCanonicoExacto": true,
+  "formatoHistorial": "Sentencias divididas por merge nativo; contenido literal exacto, salvo separadores y espacios entre sentencias",
+  "sentencias": 22,
+  "migracionesDespues": 348
+}

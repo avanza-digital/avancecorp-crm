@@ -1,0 +1,11 @@
+{
+  "estado": "FIXTURE_PRECONDITION_FAILED",
+  "fecha": "2026-09-24T07:09:44.308Z",
+  "asercion": "1007 !== 1008",
+  "causa": "La matriz RLS deja resolver_en_puertas=false. postventa_visible_actor retorna false con esa bandera y RLS excluye la tarea de postventa.",
+  "tareasAlmacenadas": 1008,
+  "tareasVisibles": 1007,
+  "postventaVisible": false,
+  "correccion": "Preparar resolver_en_puertas=true sólo en el banco sintético para el contrato de tres anclas; restaurar su valor anterior al terminar.",
+  "sinCambiosProducto": true
+}

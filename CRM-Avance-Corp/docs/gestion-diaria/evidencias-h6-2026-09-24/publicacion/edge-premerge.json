@@ -1,0 +1,135 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:04:45.831Z",
+  "origen": "supabase_list_edge_functions padre/rama",
+  "cantidad": 21,
+  "funciones": [
+    {
+      "slug": "crear-cliente",
+      "version": 37,
+      "verify_jwt": true,
+      "sha256": "8816cd8a72355e93b5a9895573aab82dcf1871c64c3af882f4a554c757cb4bb5"
+    },
+    {
+      "slug": "crear-admin",
+      "version": 19,
+      "verify_jwt": true,
+      "sha256": "310632d58f8624101daac984b364bff224a125a897997e18a4d3ca3e8042f388"
+    },
+    {
+      "slug": "enviar-comunicado",
+      "version": 16,
+      "verify_jwt": true,
+      "sha256": "3b541a93a67b44961e8b6d10b2f5d4ed791a63f2589b28d6becc9a31ea271082"
+    },
+    {
+      "slug": "enviar-push",
+      "version": 8,
+      "verify_jwt": true,
+      "sha256": "e47f091ad613cccec28d0e0922b493aa7fadbcd970abef61047d21dc58016660"
+    },
+    {
+      "slug": "diagnostico-push",
+      "version": 8,
+      "verify_jwt": true,
+      "sha256": "3d2074af20d07236964c44f4c3283815539682c181fd4be7a4d67313fb4715d1"
+    },
+    {
+      "slug": "resetear-password",
+      "version": 8,
+      "verify_jwt": true,
+      "sha256": "adb6b834236d172523d3f68465808c0c01d404de0c813ef7408b460407303681"
+    },
+    {
+      "slug": "eliminar-cliente",
+      "version": 10,
+      "verify_jwt": true,
+      "sha256": "c37b2d1ae7cca488b52ee988f6dae0e30df9821f75e2d9bafd161bfa512bdb87"
+    },
+    {
+      "slug": "notificar-pagos",
+      "version": 10,
+      "verify_jwt": false,
+      "sha256": "12a225e5cb40af2c32dcd6d4be2c3d2f04bb520b8df24b3641861b49aa96b6f7"
+    },
+    {
+      "slug": "importar-clientes",
+      "version": 17,
+      "verify_jwt": true,
+      "sha256": "6fab5cc0ce364659d34cd25fd7c9523ceabcb74db124c610445cefa291d56bf1"
+    },
+    {
+      "slug": "ciclo-contratos",
+      "version": 7,
+      "verify_jwt": false,
+      "sha256": "5f7d755c38273a8d6648f47d1dc64284d5b6478945fafeb96b3aac8df84a389d"
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "version": 19,
+      "verify_jwt": true,
+      "sha256": "ba405e96e55c0f74c8072e248ae2a7640f59b8785d7b06a19b6a4a1acecc0c48"
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "version": 12,
+      "verify_jwt": true,
+      "sha256": "2ff317234d81cf4cbf43060ec8e6fdff0f739145bab20e763708e04225b690b6"
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "version": 8,
+      "verify_jwt": false,
+      "sha256": "80c8fc49a4021fab93aad0de2d1741b8e895d36d6b69560583447592be514fdb"
+    },
+    {
+      "slug": "crm-importar-leads",
+      "version": 22,
+      "verify_jwt": true,
+      "sha256": "642792caab026d4006855d90e125cf9c1b0826744be71cb6492662e0d80ce457"
+    },
+    {
+      "slug": "crm-usuarios",
+      "version": 8,
+      "verify_jwt": true,
+      "sha256": "efe6488a1b327bea8dc8047346acd90dc12bd077e1cc410ce1a981e590a6d15a"
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "version": 21,
+      "verify_jwt": true,
+      "sha256": "45a1751e66a6bc7a3504c458aff48d0eaf0d8290f2cc4edcbab7b044ddf29337"
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "version": 5,
+      "verify_jwt": true,
+      "sha256": "263d07d838dfa5ac84c4945f18649f7d0766a113af4e360289ae39cabdd9a7fc"
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "version": 2,
+      "verify_jwt": true,
+      "sha256": "0ed4c12ef7249755e4b3e26ba1d1fc70b9b50118d079e635f62feecbb27c0855"
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "version": 2,
+      "verify_jwt": false,
+      "sha256": "6bb0fef217d78ab2bedc4cc2b48b637a53d98688cc4daf48c05fdafe05409510"
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "version": 2,
+      "verify_jwt": true,
+      "sha256": "283ef28a6a56ac9527f4b78aa8a77f3fd0ce588cc833e3466e409fd31fef040f"
+    },
+    {
+      "slug": "crm-inversion-bienvenida",
+      "version": 3,
+      "verify_jwt": false,
+      "sha256": "df03d587c9a1c533f84b508328eb9b5087d81c2500ab0f3adc3c6978eb6ecf0a"
+    }
+  ],
+  "iguales": true
+}

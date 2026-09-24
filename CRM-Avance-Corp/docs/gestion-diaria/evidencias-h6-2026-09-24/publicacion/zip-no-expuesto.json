@@ -1,0 +1,14 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:14:15.989Z",
+  "rutas": [
+    {
+      "ruta": "/crm-20260924T054601Z-bbe341f6752b.zip",
+      "status": 404
+    },
+    {
+      "ruta": "/releases/crm-20260924T054601Z-bbe341f6752b.zip",
+      "status": 404
+    }
+  ]
+}

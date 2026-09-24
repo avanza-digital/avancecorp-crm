@@ -1,0 +1,1 @@
+PASS HTTP alojado: 1008 tareas/11 páginas, sin repeticiones, tres anclas, total íntegro, responsable y referencia mínima; Vendedor, coordinador, gerencia y lector global denegados por HTTP 403/42501; Analista ajeno denegado; Parámetro inválido 400/22023; Anónimo denegado: 401; Revocación inmediata con el mismo JWT

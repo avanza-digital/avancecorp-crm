@@ -1,0 +1,13 @@
+{
+  "fecha": "2026-09-24T07:10:49.701Z",
+  "rama": "c543898c-423b-4c53-b5d4-458a14f82c16",
+  "respuesta": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true}"
+      }
+    ],
+    "isError": false
+  }
+}

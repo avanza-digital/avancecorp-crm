@@ -1,0 +1,14 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:10:37.157Z",
+  "rama": "c543898c-423b-4c53-b5d4-458a14f82c16",
+  "sqlCanonicoExacto": true,
+  "historialPrevioExacto": 347,
+  "cronBancoActivo": 0,
+  "resolverRestaurado": true,
+  "rlsBaseline": 2226,
+  "rlsCandidato": 2226,
+  "httpH3": "PASS",
+  "advisorsNuevos": 0,
+  "derivaProductiva": false
+}
