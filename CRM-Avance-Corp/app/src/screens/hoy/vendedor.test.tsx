@@ -75,6 +75,7 @@ let OBJETIVOS_ERROR = false
 let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
 let CUMPLIMIENTO_ERROR = false
 const crearTarea = vi.fn()
+const asegurarLead = vi.fn<(id: string) => Promise<boolean>>()
 const recargar = vi.fn()
 const abrirLead = vi.fn()
 let COLA_CARGANDO = false
@@ -84,7 +85,7 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     // Fase 4e: el store conoce lo que la pantalla muestra (aquí, sin efecto).
-    conocerLeads: () => {}, asegurarLead: async () => true,
+    conocerLeads: () => {}, asegurarLead,
     ambito: { leads: LEADS, vendedores: [], esGlobal: false },
     actividades: ACTIVIDADES,
     tareas: TAREAS,
@@ -446,6 +447,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   recargar.mockResolvedValue(true)
   crearTarea.mockReturnValue({ ok: true, id: 't-nueva' })
+  asegurarLead.mockResolvedValue(true)
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   OBJETIVOS_ERROR = false
@@ -1124,6 +1126,45 @@ describe('Hoy · analista — viernes de higiene', () => {
     // Fase 4e: antes de agendar, el store asegura conocer el lead (asíncrono): se vacían las microtareas.
     await act(async () => { await Promise.resolve() })
     expect(crearTarea).toHaveBeenCalledWith(expect.objectContaining({ lead_id: 'l-1', tipo: 'llamada' }))
+  })
+
+  it('doble clic en Agendar crea UNA sola tarea (el await de red no abre la puerta al segundo)', async () => {
+    montar({
+      ahora: VIERNES_2PM,
+      leads: [lead({ id: 'l-1', nombre_completo: 'ANA TORRES' })],
+      actividades: [contacto('l-1', '2026-07-17T18:00:00Z')],
+      tareas: [],
+    })
+
+    const boton = screen.getByRole('button', {
+      name: 'Agendar el siguiente paso con ANA TORRES',
+    })
+    fireEvent.click(boton)
+    fireEvent.click(boton)
+    await act(async () => { await Promise.resolve() })
+    expect(crearTarea).toHaveBeenCalledTimes(1)
+  })
+
+  it('tras un fallo de red, Agendar vuelve a quedar disponible (la guarda se libera)', async () => {
+    asegurarLead.mockRejectedValueOnce(new Error('sin red'))
+    montar({
+      ahora: VIERNES_2PM,
+      leads: [lead({ id: 'l-1', nombre_completo: 'ANA TORRES' })],
+      actividades: [contacto('l-1', '2026-07-17T18:00:00Z')],
+      tareas: [],
+    })
+
+    const boton = screen.getByRole('button', {
+      name: 'Agendar el siguiente paso con ANA TORRES',
+    })
+    fireEvent.click(boton)
+    await act(async () => { await Promise.resolve() })
+    expect(crearTarea).not.toHaveBeenCalled()
+    expect(boton).not.toBeDisabled()
+
+    fireEvent.click(boton)
+    await act(async () => { await Promise.resolve() })
+    expect(crearTarea).toHaveBeenCalledTimes(1)
   })
 
   it('la vencida que la agenda YA lista no se repite como fila de higiene', () => {
