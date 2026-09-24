@@ -1,5 +1,9 @@
 # Supervisor horizontal — entrega H6
 
+> Actualización posterior del 24/09: Miguel aceptó el recorrido de negocio;
+> H6.4 cerrada, 72/72 tareas. Ver [conformidad y seguimiento de F4](F4-RECORRIDO-SUPERVISION-2026-09-24.md).
+> El resto de esta acta conserva el estado y artefacto de la publicación H6.3.
+
 **H6.1–H6.3 CERRADAS. SQL y frontend publicados y comprobados. H6.4 pendiente de aceptación humana.**
 
 [CRM publicado](https://crm.miavance.com/#/gestion-diaria) · [Evidencia y huellas](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.json).

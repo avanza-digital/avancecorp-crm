@@ -1,37 +1,49 @@
-# Gestión Diaria — retoma del supervisor horizontal
+# Gestión Diaria: retoma tras la conformidad de supervisión
 
-**H6.3 PUBLICADA Y VERIFICADA. Sigue H6.4: aceptación humana. 70/72 tareas.**
+> **Actualización posterior:** conformidad manual cerrada y auditoría dirigida
+> documentada. Reaviso registrado a las 13:39. Seguir el
+> [plan F4.1–F6](EJECUCION-F4-1-F6-2026-09-24.md) y el
+> [acta de auditoría](F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md).
+> El estado de las 13:34 descrito abajo queda como historial.
 
-- [CRM publicado](https://crm.miavance.com/#/gestion-diaria), fuente `bbe341f6752b29e5e3e9305db3e0076d3cc11ce1`.
-- Build `build-20260924T054600240Z`; ZIP `crm-20260924T054601Z-bbe341f6752b.zip`, 116 archivos HTTPS PASS.
-- SHA-256 `80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2`.
-- SQL H3 `20260923234404` instalada por merge nativo: 348 entradas y 744 funciones;
-  347 entradas previas intactas. No volver a aplicar la migración ni publicar por las actas.
-- Banco alojado propio eliminado (~US$0,01743); `banco-f7` ajeno intacto.
-  Clon local exclusivo H6 y su archivo de credenciales retirados; banco local H3 preservado.
-- [H5](SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md): 4.274 pruebas y E2E Docker 249/0/26 PASS.
-- [H6](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md): matrices alojadas 2.226/0 antes y después,
-  1.008 tareas/11 páginas por Auth/API real, tipos, catálogo/advisors y publicación PASS.
-  Recorrido técnico en Chrome con sesión real de supervisor; aceptación humana aún pendiente.
-- [PR #87](https://github.com/avanza-digital/avancecorp-crm/pull/87) integrado.
-  [PR #88 de actas](https://github.com/avanza-digital/avancecorp-crm/pull/88) requiere revisión humana.
-- Copia aislada: `/private/tmp/avancecorp-release.hvdub4/repo`, rama
-  `codex/gestion-diaria-horizontal-h5-h6-acta`. Taller principal con trabajo ajeno intacto.
 
-**Próximo paso:** el supervisor valida comparar el equipo, detectar atención y
-consultar Resumen/Registro/Pendientes con menos desplazamiento. Registrar su
-conformidad y cualquier corrección; repetir sólo las verificaciones afectadas.
-El recorrido técnico o el prototipo aprobado no sustituyen H6.4.
+**H1–H6 CERRADAS. Miguel aceptó H6.4 el 24/09: 72/72 tareas.**
+El recorrido de negocio de F4.6 también está conforme. Los controles operativos
+de F4 siguen abiertos, con su evidencia separada.
 
-Respaldo `e8e4f35f`, ambos ZIP/manifiestos, evidencias saneadas, bundle y
-`entrega-final.json` están fuera de `/tmp`:
-`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/`.
-El manifiesto del ZIP conserva la fuente publicada aunque estas actas avancen.
+- [CRM publicado](https://crm.miavance.com/#/gestion-diaria): fuente actual
+  `929fbbcccb5710e1031f734a034e8ce90a79b0b2`, build `build-20260924T161347948Z`.
+- [Acta del recorrido y conformidad](F4-RECORRIDO-SUPERVISION-2026-09-24.md).
+- [PR de evidencia #91](https://github.com/avanza-digital/avancecorp-crm/pull/91):
+  documentación pendiente de revisión en GitHub; no requiere otra publicación.
+- [Mismo Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=2-90),
+  [plan canónico](GESTION-DIARIA.md) y [mapa](FIGMA-PLAN.json) actualizados.
+- Equipo contrastado a las 12:30 Lima: 10 personas, 43 llamadas; primer corte
+  con 4 cumplidos, 1 recuperado y 5 pendientes. Registro y 46 tareas vencidas
+  comprobados. Miguel confirmó que la vista sirve para su gestión comercial.
+- Aplazamiento real pedido por Miguel: **12:34:21 → 13:34:21 Lima**. Una acción,
+  3.600 segundos. Recarga y nueva pestaña del mismo navegador PASS; sin segundo
+  botón de aplazar, pendiente aún visible. No se ejecutó reconocimiento.
 
-CLI `gate:realidad`, VoiceOver/NVDA y Safari siguen NOT RUN según H5.
-[Mismo Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2),
-[plan](GESTION-DIARIA.md) y [mapa](FIGMA-PLAN.json): 70/72, dos tareas H6.4 pendientes,
-76 casillas históricas intactas. F4 del 24/09 (11:30 y 16:00 Lima) y sábado 26/09
-permanece separado; tasa baja OFF y TypeSafe/Jev sin cambios.
+**Siguiente:** desde las 13:34, observar reaviso si sigue correspondiendo;
+reconocimiento con la decisión operativa del supervisor y contraste en otra
+sesión/dispositivo. Después, segundo corte de las 16:00 y cierre de las 18:00.
+El sábado 26/09, corte único a las 11:30, mínimo 3 y fin de jornada a las 13:00.
+No se simulan actividad, relojes ni identidades productivas.
 
-Frase de retoma: **«Revisemos H6.4: la vista horizontal ya está publicada».**
+Otra sesión/dispositivo independiente sigue NOT RUN: una pestaña comparte sesión.
+También siguen los límites de analista, CLI gate:realidad, Safari y lectores
+humanos de las actas previas. Tasa baja OFF, TypeSafe/Jev sin cambios.
+
+La publicación inicial y su banco conservan el historial en
+[entrega H6.3](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md). H3 ya está
+instalada; no repetir SQL ni publicar por estas actas. Los manifiestos conservan
+el commit de cada artefacto, no el de documentación posterior.
+
+Copia de trabajo: `/private/tmp/avancecorp-fecha-publicacion-vfzj775x/repo`, rama
+`codex/gestion-diaria-recorrido-20260924`. Taller principal ajeno preservado.
+Evidencia durable: `/Users/usuario/.local/share/avancecorp-checkpoints/gestion-diaria-recorrido-2026-09-24/`.
+Artefacto vigente y respaldo: checkpoint `supervisor-fecha-2026-09-24`.
+
+Frase de retoma: **«Continuemos F4 operativo: el recorrido ya está conforme y
+el primer aviso quedó pospuesto hasta las 13:34».** No hay monitor automático.

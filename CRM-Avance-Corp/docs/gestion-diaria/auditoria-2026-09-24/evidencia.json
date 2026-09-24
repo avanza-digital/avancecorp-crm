@@ -1,0 +1,95 @@
+{
+  "date": "2026-09-24",
+  "productionReadAt": "2026-09-24T19:38:54.343192+00:00",
+  "productionGate": "PASS",
+  "matchingBankFunctionBodies": [
+    {
+      "name": "gestion_diaria_avisos_fn",
+      "schema": "crm",
+      "arguments": "",
+      "source_md5": "b127baa4eea8b60ede38ea8b53ec51ca",
+      "security_definer": true
+    },
+    {
+      "name": "gestion_diaria_presentar_corte",
+      "schema": "crm",
+      "arguments": "p_alerta_id text, p_solicitud_id uuid",
+      "source_md5": "4779126c16a1008b695b9d1a3574a8ea",
+      "security_definer": true
+    },
+    {
+      "name": "gestion_diaria_reconocer_corte",
+      "schema": "crm",
+      "arguments": "p_alerta_id text, p_accion text, p_solicitud_id uuid",
+      "source_md5": "25d0eacd86a252fca11ab9a84eeb98fc",
+      "security_definer": true
+    },
+    {
+      "name": "gestion_diaria_avisos",
+      "schema": "private",
+      "arguments": "p_ahora timestamp with time zone",
+      "source_md5": "7009218260658cfbf6ed096715d2a8d5",
+      "security_definer": true
+    },
+    {
+      "name": "gestion_diaria_avisos_con_contexto",
+      "schema": "private",
+      "arguments": "p_ahora timestamp with time zone",
+      "source_md5": "9e668921b73ae1b3d023bb66bcd924b0",
+      "security_definer": true
+    },
+    {
+      "name": "gestion_diaria_cortes",
+      "schema": "private",
+      "arguments": "p_dia date, p_analistas uuid[], p_ahora timestamp with time zone",
+      "source_md5": "9dac719158c8934ea1954bc5077a660c",
+      "security_definer": false
+    },
+    {
+      "name": "gestion_diaria_llamadas",
+      "schema": "private",
+      "arguments": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_vendedor_ids uuid[]",
+      "source_md5": "f0d31b1a847aac1c7884eaceee00603c",
+      "security_definer": false
+    }
+  ],
+  "scope": "Cotejo de cuerpos prosrc de siete funciones; no equivalencia completa del banco con producción.",
+  "postponement": {
+    "createdLima": "12:34:21.131818",
+    "expiresLima": "13:34:21.131818",
+    "count": 1,
+    "seconds": 3600
+  },
+  "productionDeliveries": [
+    {
+      "delivery": 0,
+      "createdLima": "11:50:16.982069"
+    },
+    {
+      "delivery": 1,
+      "createdLima": "13:39:00.31872"
+    }
+  ],
+  "productionAcknowledgements": 0,
+  "productionBusinessMutationsDuringAudit": 0,
+  "unitTests": {
+    "passed": 57,
+    "failed": 0,
+    "files": 4
+  },
+  "dockerE2E": {
+    "passed": 6,
+    "failed": 0,
+    "backend": "interceptado; no producción"
+  },
+  "independentSessions": {
+    "environment": "banco sintético local",
+    "actors": 2,
+    "sessionsPerActor": 2,
+    "result": "PASS",
+    "source": "sesiones-locales.json"
+  },
+  "productionIndependentDevices": "NOT RUN",
+  "manualParticipation": "CLOSED_BY_USER_INSTRUCTION",
+  "futureControls": "PENDING"
+}

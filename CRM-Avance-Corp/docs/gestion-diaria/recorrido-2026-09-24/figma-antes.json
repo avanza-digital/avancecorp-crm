@@ -1,0 +1,520 @@
+{
+  "page": "0:1",
+  "availableInterFonts": [
+    {
+      "family": "Inter",
+      "style": "Black"
+    },
+    {
+      "family": "Inter",
+      "style": "Black Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Bold"
+    },
+    {
+      "family": "Inter",
+      "style": "Bold Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Extra Bold"
+    },
+    {
+      "family": "Inter",
+      "style": "Extra Bold Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Extra Light"
+    },
+    {
+      "family": "Inter",
+      "style": "Extra Light Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Light"
+    },
+    {
+      "family": "Inter",
+      "style": "Light Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Medium"
+    },
+    {
+      "family": "Inter",
+      "style": "Medium Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Regular"
+    },
+    {
+      "family": "Inter",
+      "style": "Semi Bold"
+    },
+    {
+      "family": "Inter",
+      "style": "Semi Bold Italic"
+    },
+    {
+      "family": "Inter",
+      "style": "Thin"
+    },
+    {
+      "family": "Inter",
+      "style": "Thin Italic"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "2:5",
+      "name": "plan/updated",
+      "text": "24/09/2026 · Supervisor horizontal: H6.3 publicada; aceptación H6.4 pendiente · F4: jornada real pendiente",
+      "x": 72,
+      "y": 264,
+      "width": 3100,
+      "height": 41,
+      "fontSize": 28,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:12",
+      "name": "F4/status",
+      "text": "Publicada; falta cerrar la validación real",
+      "x": 40,
+      "y": 152,
+      "width": 1016,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:92",
+      "name": "F4.6-etapa/status",
+      "text": "ESTAMOS AQUÍ · pendiente de validación real",
+      "x": 28,
+      "y": 82,
+      "width": 976,
+      "height": 32,
+      "fontSize": 22,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:97",
+      "name": "F4.6-etapa/item-05",
+      "text": "☐ Completar el recorrido de negocio con supervisión.",
+      "x": 28,
+      "y": 334,
+      "width": 976,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:98",
+      "name": "F4.6-etapa/item-06",
+      "text": "☐ Observar ambos cortes reales del 24/09.",
+      "x": 28,
+      "y": 383,
+      "width": 976,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:99",
+      "name": "F4.6-etapa/item-07",
+      "text": "☐ Confirmar cifras, avisos, reconocimiento y aplazamiento entre sesiones o dispositivos.",
+      "x": 28,
+      "y": 432,
+      "width": 976,
+      "height": 70,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:100",
+      "name": "F4.6-etapa/item-08",
+      "text": "☐ Registrar incidencias, corregirlas si aparecen y dejar evidencia del cierre.",
+      "x": 28,
+      "y": 516,
+      "width": 976,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:101",
+      "name": "F4.6-etapa/item-09",
+      "text": "☐ Comprobar el corte único del sábado 26/09 como seguimiento operativo.",
+      "x": 28,
+      "y": 565,
+      "width": 976,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:4",
+      "name": "☑ H1–H5 completas ☑ H6.3 publicada ◐ H6.4: aceptación pendiente",
+      "text": "☑ H1–H5 completas ☑ H6.3 publicada ◐ H6.4: aceptación pendiente",
+      "x": 36,
+      "y": 108,
+      "width": 3072,
+      "height": 41,
+      "fontSize": 30,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:5",
+      "name": "24/09/2026 · 70/72 tareas completas · Fuente publicada: bbe341f6 · GESTION-DIARIA.md",
+      "text": "24/09/2026 · 70/72 tareas completas · Fuente publicada: bbe341f6 · GESTION-DIARIA.md",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 36,
+      "fontSize": 26,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:8",
+      "name": "H6.3 publicada y comprobada",
+      "text": "H6.3 publicada y comprobada",
+      "x": 1972,
+      "y": 423,
+      "width": 1136,
+      "height": 44,
+      "fontSize": 32,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:9",
+      "name": "H5: 4.274 pruebas y gate de código PASS. Docker local: 249 aprobadas, cero fallos y 26 omitidas. H6.3 publicada desde Main limpio bbe341f6. H3: matriz hosted 2.226/0 antes y después; API 1.008 tareas en 11 páginas. 116 archivos HTTPS y recorrido con supervisor real PASS. Banco eliminado: ~US$0,018. H6.4: aceptación humana pendiente. F4 sigue separado; tasa baja OFF.",
+      "text": "H5: 4.274 pruebas y gate de código PASS.\nDocker local: 249 aprobadas, cero fallos y 26 omitidas.\nH6.3 publicada desde Main limpio bbe341f6.\nH3: matriz hosted 2.226/0 antes y después; API 1.008 tareas en 11 páginas.\n116 archivos HTTPS y recorrido con supervisor real PASS.\nBanco eliminado: ~US$0,018.\nH6.4: aceptación humana pendiente.\nF4 sigue separado; tasa baja OFF.",
+      "x": 1972,
+      "y": 487,
+      "width": 1136,
+      "height": 303,
+      "fontSize": 28,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:53",
+      "name": "EN CURSO · 10/12 tareas completas",
+      "text": "EN CURSO · 10/12 tareas completas",
+      "x": 28,
+      "y": 87,
+      "width": 946.6666870117188,
+      "height": 33,
+      "fontSize": 24,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:57",
+      "name": "◐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+      "text": "◐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+      "x": 28,
+      "y": 1245,
+      "width": 946.6666870117188,
+      "height": 38,
+      "fontSize": 28,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "19:65",
+      "name": "H6.4/tasks",
+      "text": "☐ Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.\n☐ Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.\n☑ Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.",
+      "x": 28,
+      "y": 1297,
+      "width": 946.6666870117188,
+      "height": 195,
+      "fontSize": 24,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "19:66",
+      "name": "H6.4/result",
+      "text": "Documentación al día; aceptación humana pendiente.",
+      "x": 28,
+      "y": 1506,
+      "width": 946.6666870117188,
+      "height": 33,
+      "fontSize": 24,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "19:67",
+      "name": "H6/deliverable",
+      "text": "Entregable: Vista publicada, comprobada y aceptada por supervisión.",
+      "x": 28,
+      "y": 1571,
+      "width": 946.6666870117188,
+      "height": 36,
+      "fontSize": 26,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:59",
+      "name": "H5: 4.274 pruebas y E2E 249/0/26. H6.3: RLS hosted 2.226/0 por matriz, HTTP y recorrido real PASS. Revisión operativa incompleta.",
+      "text": "H5: 4.274 pruebas y E2E 249/0/26. H6.3: RLS hosted 2.226/0 por matriz, HTTP y recorrido real PASS. Revisión operativa incompleta.",
+      "x": 36,
+      "y": 5063.34375,
+      "width": 3072,
+      "height": 38,
+      "fontSize": 28,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "18:60",
+      "name": "70 tareas completas / 2 pendientes. 76 casillas históricas intactas. Falta aceptación H6.4; F4 separado y tasa baja OFF.",
+      "text": "70 tareas completas / 2 pendientes. 76 casillas históricas intactas. Falta aceptación H6.4; F4 separado y tasa baja OFF.",
+      "x": 36,
+      "y": 5125.34375,
+      "width": 3072,
+      "height": 38,
+      "fontSize": 28,
+      "textAutoResize": "HEIGHT",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:132",
+      "name": "ui/status",
+      "text": "PR #82 publicado · Aceptación de uso pendiente; nuevo diseño horizontal de supervisor, abajo",
+      "x": 36,
+      "y": 104,
+      "width": 3072,
+      "height": 35,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Bold",
+          "variationSettings": {
+            "wght": 700,
+            "slnt": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2:133",
+      "name": "ui/scope",
+      "text": "☑ Revisar Fundamentos UX/UI y las pantallas actuales.\n☑ Mejorar «Mi día» y «Mi equipo hoy»: 4.179 pruebas PASS; observaciones de Claude atendidas.\n☑ Publicar PR #82 desde Main e8e4f35f: archivos y acceso de gerencia verificados.\n☐ Validar la mejora con analista y supervisor en producción. Primera jornada F4: 24/09.",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 140,
+      "fontSize": 24,
+      "textAutoResize": "NONE",
+      "fonts": [
+        {
+          "family": "Inter",
+          "style": "Regular",
+          "variationSettings": {
+            "wght": 400,
+            "slnt": 0
+          }
+        }
+      ]
+    }
+  ]
+}
