@@ -1,0 +1,363 @@
+{
+  "phase": "H3",
+  "status": "COMPLETE",
+  "date": "2026-09-23",
+  "branch": "codex/gestion-diaria-supervisor-horizontal",
+  "baseMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
+  "h2Checkpoint": "e6cc6c5b",
+  "stagesCompleted": 4,
+  "tasksCompleted": 12,
+  "checks": {
+    "npmCheck": {
+      "status": "PASS",
+      "tests": 4244,
+      "files": 284,
+      "lintWarningsExisting": 5
+    },
+    "e2eFull": {
+      "status": "PASS",
+      "passed": 241,
+      "failed": 0,
+      "skipped": 26,
+      "duration": "9.8m",
+      "environment": "Docker Playwright 1.61.1, local"
+    },
+    "e2eFinal": {
+      "status": "PASS",
+      "passed": 14,
+      "failed": 0,
+      "duration": "32.3s"
+    },
+    "sqlRls": {
+      "status": "PASS",
+      "tasks": 1008,
+      "pages": 11,
+      "anchors": [
+        "lead",
+        "perfil",
+        "postventa"
+      ],
+      "newMutants": 7,
+      "legacyMutants": 9,
+      "coreDirect": "PASS",
+      "rosterParity": "PASS",
+      "errorPrecedence": "PASS",
+      "inactiveBridge": "PASS",
+      "empty": "PASS",
+      "revocation": "PASS",
+      "replay": "PASS"
+    },
+    "http": {
+      "status": "PASS",
+      "engine": "PostgREST14.5",
+      "tasks": 1008,
+      "pages": 11,
+      "rolesDenied": [
+        "vendedor",
+        "coordinador",
+        "gerencia",
+        "directorio"
+      ],
+      "anonymousDenied": true
+    },
+    "types": "PASS",
+    "backendScripts": "PASS",
+    "seedPreflight": "PASS: variables sintéticas; sin conexión",
+    "rlsPreflight": "PASS: variables sintéticas; sin conexión",
+    "edgePreflight": "PASS",
+    "sqlLint": {
+      "scopeH3": "PASS: sin avisos",
+      "inheritedFunctionsWithIssues": 32,
+      "inheritedLocalMissingSchemas": [
+        "vault.decrypted_secrets",
+        "cron.job"
+      ],
+      "notAProductionAdvisor": true
+    },
+    "realityGate": "NOT RUN: Falta SUPABASE_URL",
+    "generalRemoteRls": "NOT RUN: no candidato hosted; matriz pertinente local SQL/HTTP sí ejecutada",
+    "hostedAdvisors": "NOT RUN: no candidato hosted",
+    "humanScreenReader": "NOT RUN: sin sesión NVDA/VoiceOver",
+    "e2eCaptureRefresh": {
+      "status": "PASS",
+      "passed": 4,
+      "failed": 0,
+      "duration": "11.3s",
+      "scope": "Espera del menú colapsado para capturas; producto sin cambios"
+    },
+    "documentationChecks": "PASS: conteos, enlaces, JSON y sumas SHA-256 cotejados",
+    "productVisualQA": "PASS: capturas de escritorio y móvil inspeccionadas; menú colapsado, panel y contenido legibles"
+  },
+  "performance": {
+    "scope": "Banco sintético local, 1008 tareas, límite 25, authenticated",
+    "milliseconds": [
+      19.386,
+      11.132,
+      12.148,
+      11.588,
+      11.015
+    ],
+    "productionBenchmark": false
+  },
+  "migration": {
+    "path": "supabase/migrations/20260923234404_crm_gestion_diaria_pendientes_supervisor.sql",
+    "sha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
+    "localInstalled": true,
+    "productionInstalled": false
+  },
+  "review": {
+    "agent": "Claude",
+    "verdict": "PASS",
+    "confidence": "MEDIUM",
+    "consultations": 1,
+    "resolution": "P3 corregidos o aceptados con evidencia; ver acta"
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-27",
+    "originalCount": 76,
+    "originalUnchanged": true,
+    "completed": 36,
+    "pending": 36,
+    "overflow": [],
+    "overlap": [],
+    "visualQA": "PASS",
+    "readback": {
+      "mutatedNodeIds": [
+        "18:4",
+        "18:5",
+        "18:8",
+        "18:9",
+        "18:29",
+        "19:27",
+        "19:29",
+        "19:31",
+        "19:33",
+        "19:34",
+        "18:59",
+        "18:60",
+        "18:30",
+        "18:31",
+        "18:32",
+        "18:33",
+        "19:26",
+        "19:28",
+        "19:30",
+        "19:32",
+        "18:28",
+        "19:24",
+        "19:25",
+        "18:34",
+        "18:27",
+        "18:11",
+        "18:19",
+        "18:35",
+        "18:43",
+        "18:51",
+        "18:2",
+        "2:2"
+      ],
+      "originalCount": 76,
+      "originalUnchanged": true,
+      "completed": 36,
+      "pending": 36,
+      "overflow": [],
+      "bounds": {
+        "width": 3144,
+        "height": 5199.34375
+      },
+      "rootBounds": {
+        "width": 3300,
+        "height": 9406.34375
+      },
+      "texts": [
+        {
+          "id": "18:4",
+          "text": "☑ Prototipo aprobado     ☑ H1: especificación     ☑ H2: vista horizontal     ☑ H3: panel conectado     ☐ H4–H6",
+          "x": 36,
+          "y": 108,
+          "width": 3072,
+          "height": 41
+        },
+        {
+          "id": "18:5",
+          "text": "23/09/2026 · 36/72 tareas completas · H3 conectada y verificada · Fuente: GESTION-DIARIA.md",
+          "x": 36,
+          "y": 160,
+          "width": 3072,
+          "height": 36
+        },
+        {
+          "id": "18:8",
+          "text": "H3: panel conectado y verificado",
+          "x": 1972,
+          "y": 423,
+          "width": 1136,
+          "height": 44
+        },
+        {
+          "id": "18:9",
+          "text": "1512 × 805: diez filas típicas completas.\n1366 × 768: nueve filas típicas completas.\n\nTexto mínimo de 16 px y controles de 44 px. Tabla y panel con scroll propio.\n\nResumen con últimas tres gestiones, compartidas con Registro. Filtros, páginas y retorno desde ficha conservados.\n\nPendientes: Todas/Vencidas, páginas de 25, referencias autorizadas. Más de una página pausa el refresco; Actualizar reinicia la consulta.\n\nRPC instalada y probada en banco local: 1.008 tareas, 11 páginas y tres clases de referencia. Sin cambios de reglas ni RLS.\n\nH1–H3 cerradas. H4–H6 y publicación pendientes.",
+          "x": 1972,
+          "y": 487,
+          "width": 1136,
+          "height": 567
+        },
+        {
+          "id": "18:29",
+          "text": "COMPLETA · 4 etapas / 12 tareas · SQL local",
+          "x": 28,
+          "y": 136,
+          "width": 946.6666870117188,
+          "height": 33
+        },
+        {
+          "id": "19:27",
+          "text": "Resultado: Resumen y últimas tres gestiones con consulta compartida.",
+          "x": 28,
+          "y": 649,
+          "width": 946.6666870117188,
+          "height": 33
+        },
+        {
+          "id": "19:29",
+          "text": "Resultado: Registro y ficha conservan filtros, páginas y foco.",
+          "x": 28,
+          "y": 975,
+          "width": 946.6666870117188,
+          "height": 33
+        },
+        {
+          "id": "19:31",
+          "text": "Resultado: RPC verificada: 1.008 tareas, 11 páginas, tres referencias.",
+          "x": 28,
+          "y": 1301,
+          "width": 946.6666870117188,
+          "height": 33
+        },
+        {
+          "id": "19:33",
+          "text": "Resultado: Caché aislada y retirada de datos ante revocación.",
+          "x": 28,
+          "y": 1627,
+          "width": 946.6666870117188,
+          "height": 33
+        },
+        {
+          "id": "19:34",
+          "text": "Entregable: Panel conectado y backend verificado en banco local.",
+          "x": 28,
+          "y": 1692,
+          "width": 946.6666870117188,
+          "height": 36
+        },
+        {
+          "id": "18:59",
+          "text": "H3: Claude PASS (MEDIUM), observaciones resueltas. npm check: 4.244 PASS. SQL/RLS y HTTP real: PASS. Evidencia y límites en acta H3.",
+          "x": 36,
+          "y": 5063.34375,
+          "width": 3072,
+          "height": 38
+        },
+        {
+          "id": "18:60",
+          "text": "H1–H3: 12 etapas / 36 tareas cerradas. H4–H6: 36 pendientes. 76 casillas F0–F6 conservadas; F4 real pendiente y tasa baja OFF. Sin publicación.",
+          "x": 36,
+          "y": 5125.34375,
+          "width": 3072,
+          "height": 38
+        },
+        {
+          "id": "18:30",
+          "text": "☑ Etapa H3.1 · Conectar Resumen",
+          "x": 28,
+          "y": 388,
+          "width": 946.6666870117188,
+          "height": 38
+        },
+        {
+          "id": "18:31",
+          "text": "☑ Etapa H3.2 · Conectar Registro y ficha",
+          "x": 28,
+          "y": 714,
+          "width": 946.6666870117188,
+          "height": 38
+        },
+        {
+          "id": "18:32",
+          "text": "☑ Etapa H3.3 · Conectar Pendientes",
+          "x": 28,
+          "y": 1040,
+          "width": 946.6666870117188,
+          "height": 38
+        },
+        {
+          "id": "18:33",
+          "text": "☑ Etapa H3.4 · Proteger selección y actualizaciones",
+          "x": 28,
+          "y": 1366,
+          "width": 946.6666870117188,
+          "height": 38
+        },
+        {
+          "id": "19:26",
+          "text": "☑ Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.\n☑ Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.\n☑ Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.",
+          "x": 28,
+          "y": 440,
+          "width": 946.6666870117188,
+          "height": 195
+        },
+        {
+          "id": "19:28",
+          "text": "☑ Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.\n☑ Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.\n☑ Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.",
+          "x": 28,
+          "y": 766,
+          "width": 946.6666870117188,
+          "height": 195
+        },
+        {
+          "id": "19:30",
+          "text": "☑ Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.\n☑ Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.\n☑ Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.",
+          "x": 28,
+          "y": 1092,
+          "width": 946.6666870117188,
+          "height": 195
+        },
+        {
+          "id": "19:32",
+          "text": "☑ Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.\n☑ Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.\n☑ Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.",
+          "x": 28,
+          "y": 1418,
+          "width": 946.6666870117188,
+          "height": 195
+        }
+      ],
+      "phaseBounds": {
+        "x": 2105.33349609375,
+        "y": 1336.34375,
+        "width": 1002.6666870117188,
+        "height": 1855
+      }
+    }
+  },
+  "publication": "PENDING_H6",
+  "next": "H4.1",
+  "artifacts": {
+    "evidencias-h3-2026-09-23/check-resumen.txt": "4f22a8fca5051900cd53f211b529a571fc543a331415ba15f63940c39071a1ec",
+    "evidencias-h3-2026-09-23/db-lint-final.log": "c5e8d33a6b0d960e4818ad6c0f2b0f55bc52df00e2c0fa89c9e87aaa1bcf83bc",
+    "evidencias-h3-2026-09-23/e2e-completo.log": "4e9a7017d63dd24a54984dfb6f6875edc3bf19b9ba5c775b098f4d6ec1821e8e",
+    "evidencias-h3-2026-09-23/e2e-final.log": "c3185722eb1a7ad00937c87dcf36c27a5ec5abe84b62aa247cace122dc232040",
+    "evidencias-h3-2026-09-23/edge-preflight.log": "6e4e42c8a480e5ece433c4e5a2f2e0f4302c05526b164314e98d64594568c783",
+    "evidencias-h3-2026-09-23/figma-readback.json": "c40961e55c88331baf15383a99f0b736695bf31361c4a6e306b2ee543cd423aa",
+    "evidencias-h3-2026-09-23/http-final.log": "33cec410e137869f09bd826fb94b00c4a91cfc109acec584dc5ceeea6d3d3f8c",
+    "evidencias-h3-2026-09-23/rendimiento.log": "5803f5720158a8324ff4eb84b9e49bd871b51212b342ec149534d62dd9e73829",
+    "evidencias-h3-2026-09-23/rls-preflight.log": "482ded09b473b3dda8eb41ae3b4a6e9b75ea44b1372cfd052406abccb63eb114",
+    "evidencias-h3-2026-09-23/seed-preflight.log": "c8dd51af6a0d099138116cb50db6e81df75aa74b6d626f9cf052c831f580ce8e",
+    "evidencias-h3-2026-09-23/sql-final.log": "9dac7f19ab050072c2ca7e8671b5506bff8a6e479947d165f23f90c5b1101081",
+    "evidencias-h3-2026-09-23/tipos.log": "4b0baf1971025658d33e6bf9776e7ea021443fd54183f4d1fb28738d91bf80d3",
+    "evidencias-h3-2026-09-23/e2e-capturas.log": "44c84cc10bfd45900af6f41859e9da28d09ce4ee36b84374daf05ac1584cba4e",
+    "assets/supervisor-horizontal-h3-cerrada-figma-2026-09-23.png": "7679c714bcc59d42105335f10037ee3c1e7b5bf2dfa24d9e3c028a442d621337",
+    "assets/supervisor-horizontal-h3-detalle-figma-2026-09-23.png": "f2f01be7ae0b7bdb585e3de39bfe06c8b5b7a286236d9546b49153dbd27a531e",
+    "assets/supervisor-horizontal-h3-escritorio-2026-09-23.png": "b9f22aca458059641ed1efec83c440e4cb32f9a59d104b77732d709414f02821",
+    "assets/supervisor-horizontal-h3-movil-2026-09-23.png": "6a0eb5de579d990b6de8028f9cc8de0381c4cd643925328e90a994683d004a28"
+  }
+}

@@ -1,0 +1,12 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-pendientes.spec.ts --workers=2 --retries=0 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 4 tests using 2 workers
+
+  ✓  2 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:97:51 › H3: PGRST202 no se presenta como lista vacía (4.3s)
+  ✓  1 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:50:1 › H3: últimas tres comparten Registro; pendientes conservan páginas, ficha, filtro y refresco (5.3s)
+  ✓  3 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:97:51 › H3: XX000 no se presenta como lista vacía (4.0s)
+  ✓  4 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:97:51 › H3: 42501 no se presenta como lista vacía (4.0s)
+
+  4 passed (11.3s)

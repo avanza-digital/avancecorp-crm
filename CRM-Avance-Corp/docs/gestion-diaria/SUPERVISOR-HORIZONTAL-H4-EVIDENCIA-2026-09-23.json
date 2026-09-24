@@ -1,0 +1,186 @@
+{
+  "phase": "H4",
+  "status": "COMPLETE",
+  "date": "2026-09-23",
+  "branch": "codex/gestion-diaria-supervisor-horizontal",
+  "baseMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
+  "productCommit": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
+  "previousCheckpoint": "8130e7459dca232306afe64c705ee6e1cb620b6d",
+  "stagesCompleted": 4,
+  "tasksCompleted": 12,
+  "checks": {
+    "finalCodeGate": {
+      "status": "PASS",
+      "equivalentTo": "npm run check",
+      "coverageArguments": [
+        "--maxWorkers=2"
+      ],
+      "tests": 4272,
+      "files": 287,
+      "lintWarningsExisting": 5,
+      "steps": [
+        "lint",
+        "typecheck",
+        "test:coverage",
+        "test:release-config",
+        "test:push-tasa",
+        "build",
+        "verify:bundle",
+        "dup"
+      ],
+      "log": "evidencias-h4-2026-09-23/check-final.log"
+    },
+    "firstCodeGate": {
+      "status": "PASS",
+      "tests": 4268,
+      "files": 287
+    },
+    "intermediateCodeGate": {
+      "status": "FAIL",
+      "cause": "ERANGE lstat node_modules/css-tree al iniciar worker de boton-guardar.test.tsx",
+      "passedFiles": 286,
+      "passedTests": 4268,
+      "unhandledErrors": 1
+    },
+    "e2eInitial": {
+      "status": "FAIL",
+      "passed": 245,
+      "failed": 1,
+      "skipped": 26,
+      "failure": "f6-postventa.spec.ts:83; contexto retenido durante error de ficha",
+      "cause": "No demostrada; pasó el archivo completo y la suite final sin modificar postventa"
+    },
+    "e2eFull": {
+      "status": "PASS",
+      "passed": 247,
+      "failed": 0,
+      "skipped": 26,
+      "duration": "9.6m",
+      "environment": "Docker Playwright 1.61.1 local",
+      "workers": 2,
+      "retries": 0
+    },
+    "e2eFinalDirected": {
+      "status": "PASS",
+      "passed": 14,
+      "failed": 0,
+      "duration": "45.1s",
+      "scopes": [
+        "H4 (6)",
+        "postventa (8)"
+      ]
+    },
+    "reviewRegressions": {
+      "before": {
+        "failed": 4,
+        "passed": 28
+      },
+      "after": {
+        "passed": 60,
+        "files": 4
+      }
+    },
+    "preCommit": "PASS: lint y typecheck",
+    "realityGate": "NOT RUN: Falta SUPABASE_URL",
+    "humanScreenReader": "NOT RUN",
+    "safari": "NOT RUN",
+    "productionAcceptance": "NOT RUN",
+    "remoteSqlRlsAndHostedAdvisors": "NOT RUN: sin cambios backend ni candidato hosted H4",
+    "productVisualQA": "PASS: escritorio, detalle y móvil; 16px, 44px, sin overflow horizontal",
+    "documentationChecks": "PASS: conteos, enlaces locales, JSON y huellas"
+  },
+  "backend": {
+    "newRpc": false,
+    "newMigration": false,
+    "rlsChanged": false,
+    "h3MigrationUnchangedSha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
+    "h3ProductionInstalled": false
+  },
+  "review": {
+    "agent": "Claude",
+    "verdict": "CHANGES_REQUESTED",
+    "confidence": "MEDIUM",
+    "consultations": 1,
+    "resolution": "Cuatro P2 y tres P3 resueltos con evidencia; ver acta"
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-35",
+    "originalCount": 76,
+    "originalUnchanged": true,
+    "completed": 48,
+    "pending": 24,
+    "overflow": [],
+    "overlap": [],
+    "visualQA": "PASS",
+    "readback": "evidencias-h4-2026-09-23/figma-readback.json",
+    "mutatedNodeIds": [
+      "2:5",
+      "18:4",
+      "18:5",
+      "18:8",
+      "18:9",
+      "18:37",
+      "19:38",
+      "19:40",
+      "19:42",
+      "19:44",
+      "19:45",
+      "18:59",
+      "18:60",
+      "18:38",
+      "18:39",
+      "18:40",
+      "18:41",
+      "19:37",
+      "19:39",
+      "19:41",
+      "19:43",
+      "18:36",
+      "19:35",
+      "19:36",
+      "18:42",
+      "18:35",
+      "18:43",
+      "18:51",
+      "18:2",
+      "2:2"
+    ]
+  },
+  "publication": "PENDING_H6",
+  "next": "H5.1",
+  "measures": {
+    "franja": {
+      "x": 88,
+      "y": 737,
+      "width": 1400,
+      "height": 44,
+      "top": 737,
+      "right": 1488,
+      "bottom": 781,
+      "left": 88
+    },
+    "scroll": 0
+  },
+  "artifacts": {
+    "SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md": "8a81b563caa008b04860530bfb8b694c22ee86e0fd4ab3014612f0ef9b3fe4a3",
+    "SUPERVISOR-HORIZONTAL-H4-REVISION-2026-09-23.md": "bdc5396fadba6818d04bf1e7af11ac8958372fabff42759fca7e4bdaf34766d2",
+    "assets/supervisor-h4-cortes-detalle-2026-09-23.png": "2e4a3e4cb0bdd89d95896fc05e70ba22c3d0cf305c09f8dcd49a4555c18bbaf6",
+    "assets/supervisor-h4-cortes-movil-2026-09-23.png": "625be0fcd838213868993c7396286e84a17e5f52b8c40cd28e93a82455a59418",
+    "assets/supervisor-h4-franja-escritorio-2026-09-23.png": "254dac3fc8eab72c8de530dec21103eb7b376c777d59508e26d18176f8c44018",
+    "assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png": "0afcb5c7e2ef8b95a8899cd51d6f2064015df19d03b5887aa0ac5f804f914d6a",
+    "assets/supervisor-horizontal-h4-detalle-figma-2026-09-23.png": "85c4d3cd846ebb29c3d8c3506af44fb4e1a6c7f39a27eb4b258ebe07c7bb054d",
+    "evidencias-h4-2026-09-23/check-error-entorno.log": "466d1862dbcf0e1ec1de2d085a68ccfcf3c71c9c1a3283dc811702b2fec00880",
+    "evidencias-h4-2026-09-23/check-final.log": "365d1c3bfa01ef8741d18a6fd3fffe9ca277909682f849df272434d9e338b256",
+    "evidencias-h4-2026-09-23/check-inicial.log": "d513462a263f575e07bbe4423de99365f81dd66301c701efdcb22ea86e9bd25a",
+    "evidencias-h4-2026-09-23/e2e-completo-final.log": "e81f92c95589f13a8cf25207be973326aeeecfb25052385829eb9fbd02c5e916",
+    "evidencias-h4-2026-09-23/e2e-completo-inicial.log": "f1aff40b3865ff6108a436da3f88757a17f4f11c64e3794377c3f486c76c4e12",
+    "evidencias-h4-2026-09-23/e2e-dirigido.log": "c632a399ab2dc2e5f13a1a72fdaae45e047fe467105e774edc9618e209f6cef5",
+    "evidencias-h4-2026-09-23/e2e-final-dirigido.log": "6a19c4bdfcdec936b71e3cb82054fd1fbc77ac8a7348346a8fe3f69f4a58e640",
+    "evidencias-h4-2026-09-23/figma-before.json": "c3bc822d8af852a9b16942f6587f087b664308f9fa1ac072807bedcc5de2066b",
+    "evidencias-h4-2026-09-23/figma-readback.json": "46a9522b86eab6690b68f28edcff2ee2bb43b696aa50bd1362956a493049fbf2",
+    "evidencias-h4-2026-09-23/medidas-h4.json": "c8ea1fd2fd1a16fa38ac8bcfc31acb1225666eee227fc4830a33677b1b3aac2d",
+    "evidencias-h4-2026-09-23/postventa-error-inicial.md": "8b96433d7e62972390d8f1c190ea1287d737d8afb461b9a631093aab58722288",
+    "evidencias-h4-2026-09-23/review-regresiones-antes.log": "a7952f1185e8e9ab162b000d3134dbc329cb86c4d1d89e48e7dbc925fdfc8885",
+    "evidencias-h4-2026-09-23/review-regresiones-despues.log": "245ed17d884e5ddfc01814b3895e7272813d33b9c98768bfaf5cf614b5f57c25"
+  }
+}

@@ -8,6 +8,1052 @@
   "titleId": "2:3",
   "updatedId": "2:5",
   "legendId": "2:6",
+  "supervisorHorizontal": {
+    "updatedAt": "2026-09-23",
+    "status": "H1–H4 cerradas; H5–H6 pendientes",
+    "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
+    "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
+    "resumeMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
+    "source": "GESTION-DIARIA.md",
+    "sourceHeading": "Supervisor horizontal — diseño aprobado y plan de desarrollo",
+    "prototype": "assets/supervisor-horizontal-aprobado-2026-09-23.png",
+    "prototypeSha256": "1314891a779085bae9b7a3d5d56374cd24a0e32de6b527d22f33bcbfe073bc51",
+    "designApproval": "USER_APPROVED",
+    "implementation": "H4_COMPLETE_H5_H6_PENDING",
+    "productTests": "PASS_H4; ver h4 para resultados y límites",
+    "publication": "PENDING",
+    "review": "SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md",
+    "reviewVerdict": "CHANGES_REQUESTED",
+    "reviewResolution": "Observaciones incorporadas por Codex; sin segunda revisión",
+    "sectionId": "18:2",
+    "titleId": "18:3",
+    "statusId": "18:4",
+    "sourceId": "18:5",
+    "imageId": "15:2",
+    "captionId": "18:10",
+    "reviewId": "18:59",
+    "limitsId": "18:60",
+    "phaseNodes": [
+      {
+        "key": "H1",
+        "nodeId": "18:11",
+        "titleId": "18:12",
+        "statusId": "18:13",
+        "objectiveId": "19:2",
+        "dependencyId": "19:3",
+        "deliverableId": "19:12",
+        "acceptanceId": "18:18",
+        "title": "Preparación y especificación",
+        "objective": "Convertir el prototipo aprobado en una especificación verificable: qué se muestra, de dónde sale cada dato y cómo responde cada acción.",
+        "dependency": "Base verificada: Main cf87e808, con PR #85 y #86; trabajo aislado.",
+        "deliverable": "Especificación H1 cerrada: datos, medidas, interacciones y contrato de Pendientes.",
+        "acceptance": "Cada elemento del prototipo tiene una fuente y un comportamiento definidos; no quedan acciones con destinos supuestos.",
+        "status": "complete",
+        "items": [
+          {
+            "id": "18:14",
+            "text": "☑ Etapa H1.1 · Confirmar la base y el alcance",
+            "status": "complete",
+            "stageKey": "H1.1",
+            "stageTitle": "Confirmar la base y el alcance",
+            "bodyId": "19:4",
+            "resultId": "19:5",
+            "result": "Main cf87e808; supervisor aislado; fila actual medida en 149 px.",
+            "tasks": [
+              {
+                "text": "Comprobar Main y preparar el trabajo sin mezclar cambios de otras sesiones.",
+                "status": "complete",
+                "bodyId": "19:4",
+                "index": 0
+              },
+              {
+                "text": "Inventariar supervisor, tabla, detalle, registro, avisos y pruebas que se reutilizarán.",
+                "status": "complete",
+                "bodyId": "19:4",
+                "index": 1
+              },
+              {
+                "text": "Registrar el estado actual y limitar este desarrollo a la vista del supervisor.",
+                "status": "complete",
+                "bodyId": "19:4",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:15",
+            "text": "☑ Etapa H1.2 · Definir datos e indicadores",
+            "status": "complete",
+            "stageKey": "H1.2",
+            "stageTitle": "Definir datos e indicadores",
+            "bodyId": "19:6",
+            "resultId": "19:7",
+            "result": "Cinco KPI de personas; contacto útil; tareas y señales SLA diferenciadas.",
+            "tasks": [
+              {
+                "text": "Relacionar cada indicador con su fuente actual: equipo, con/sin registro, pendientes y atención.",
+                "status": "complete",
+                "bodyId": "19:6",
+                "index": 0
+              },
+              {
+                "text": "Documentar qué cuenta personas, tareas o llamadas; conservar numerador, denominador y muestra mínima de contacto.",
+                "status": "complete",
+                "bodyId": "19:6",
+                "index": 1
+              },
+              {
+                "text": "Distinguir cero, sin datos, no evaluado, carga y error; no calcular listas desde un store parcial.",
+                "status": "complete",
+                "bodyId": "19:6",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:16",
+            "text": "☑ Etapa H1.3 · Cerrar distribución y densidad",
+            "status": "complete",
+            "stageKey": "H1.3",
+            "stageTitle": "Cerrar distribución y densidad",
+            "bodyId": "19:8",
+            "resultId": "19:9",
+            "result": "Tabla 960 / espacio 16 / panel 414 px; diez filas típicas de 44 px.",
+            "tasks": [
+              {
+                "text": "Medir cabecera, filtros, tabla y panel; distribución adaptable con panel mínimo de 380 px.",
+                "status": "complete",
+                "bodyId": "19:8",
+                "index": 0
+              },
+              {
+                "text": "Definir qué permanece en la fila y qué pasa al panel: motivos completos, métricas secundarias y acciones.",
+                "status": "complete",
+                "bodyId": "19:8",
+                "index": 1
+              },
+              {
+                "text": "Fijar 10 filas típicas a 1512 × 805, texto de 16 px y controles de 44 px; admitir mayor altura por nombres largos.",
+                "status": "complete",
+                "bodyId": "19:8",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:17",
+            "text": "☑ Etapa H1.4 · Cerrar navegación y contratos",
+            "status": "complete",
+            "stageKey": "H1.4",
+            "stageTitle": "Cerrar navegación y contratos",
+            "bodyId": "19:10",
+            "resultId": "19:11",
+            "result": "Contexto actor/día/persona; listado por analista con nueva RPC de lectura en H3.3.",
+            "tasks": [
+              {
+                "text": "Definir selección por usuario, día Lima y persona; pestañas, foco y estados sin selección, vacío, error o revocación.",
+                "status": "complete",
+                "bodyId": "19:10",
+                "index": 0
+              },
+              {
+                "text": "Cerrar el listado autorizado de pendientes por persona y definir la consulta de lectura que se implementará en H3.3.",
+                "status": "complete",
+                "bodyId": "19:10",
+                "index": 1
+              },
+              {
+                "text": "Definir Registro del equipo como modo separado del individual y qué se conserva al filtrar, refrescar, abrir una ficha o salir de la vista.",
+                "status": "complete",
+                "bodyId": "19:10",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "H2",
+        "nodeId": "18:19",
+        "titleId": "18:20",
+        "statusId": "18:21",
+        "objectiveId": "19:13",
+        "dependencyId": "19:14",
+        "deliverableId": "19:23",
+        "acceptanceId": "18:26",
+        "title": "Construcción de la vista horizontal",
+        "objective": "Permitir comparar al equipo y consultar una persona en el mismo espacio, reduciendo el desplazamiento de toda la página.",
+        "dependency": "H1 cerrada; usa sus medidas y contratos.",
+        "deliverable": "Vista horizontal construida y verificada; backend de tareas en H3.3.",
+        "acceptance": "10 filas a 1512×805; 9 a 1366×768. Texto de 16 px, controles de 44 px y contexto conservado.",
+        "status": "complete",
+        "items": [
+          {
+            "id": "18:22",
+            "text": "☑ Etapa H2.1 · Compactar cabecera e indicadores",
+            "status": "complete",
+            "stageKey": "H2.1",
+            "stageTitle": "Compactar cabecera e indicadores",
+            "bodyId": "19:15",
+            "resultId": "19:16",
+            "result": "Cabecera de 44 px y cinco KPI; filtros sin cambiar totales.",
+            "tasks": [
+              {
+                "text": "Reorganizar título, contexto del día y actualización en una cabecera de poca altura.",
+                "status": "complete",
+                "bodyId": "19:15",
+                "index": 0
+              },
+              {
+                "text": "Colocar los cinco indicadores en una franja comparable, con etiquetas que respeten su significado.",
+                "status": "complete",
+                "bodyId": "19:15",
+                "index": 1
+              },
+              {
+                "text": "Integrar búsqueda y filtros junto a la tabla, reutilizando tipografía y componentes del CRM.",
+                "status": "complete",
+                "bodyId": "19:15",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:23",
+            "text": "☑ Etapa H2.2 · Construir la tabla del equipo",
+            "status": "complete",
+            "stageKey": "H2.2",
+            "stageTitle": "Construir la tabla del equipo",
+            "bodyId": "19:17",
+            "resultId": "19:18",
+            "result": "Seis columnas y filas de 44 px; diez/nueve visibles según viewport.",
+            "tasks": [
+              {
+                "text": "Mostrar analista, llamadas, contacto, pendientes, vencidas e indicador de atención; conservar personas con cero actividad.",
+                "status": "complete",
+                "bodyId": "19:17",
+                "index": 0
+              },
+              {
+                "text": "Sustituir la expansión bajo cada fila por selección accesible que actualiza el panel lateral.",
+                "status": "complete",
+                "bodyId": "19:17",
+                "index": 1
+              },
+              {
+                "text": "Conservar ordenación, búsqueda, filtro de atención y cabecera persistente; listas de más de diez personas siguen completas.",
+                "status": "complete",
+                "bodyId": "19:17",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:24",
+            "text": "☑ Etapa H2.3 · Construir el contenedor del panel",
+            "status": "complete",
+            "stageKey": "H2.3",
+            "stageTitle": "Construir el contenedor del panel",
+            "bodyId": "19:19",
+            "resultId": "19:20",
+            "result": "Panel estable: pestañas, ampliar/restaurar, foco y registro.",
+            "tasks": [
+              {
+                "text": "Crear el panel derecho con estado inicial «Selecciona un analista» y pestañas Resumen, Registro y Pendientes.",
+                "status": "complete",
+                "bodyId": "19:19",
+                "index": 0
+              },
+              {
+                "text": "Mantener el panel fuera de la región de carga/error de la tabla para que un fallo del resumen no lo desmonte.",
+                "status": "complete",
+                "bodyId": "19:19",
+                "index": 1
+              },
+              {
+                "text": "Dar acceso a cerrar o ampliar el detalle; selección desde la tabla mantiene el foco y apertura explícita lo lleva al panel.",
+                "status": "complete",
+                "bodyId": "19:19",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:25",
+            "text": "☑ Etapa H2.4 · Adaptar tamaños y contenido",
+            "status": "complete",
+            "stageKey": "H2.4",
+            "stageTitle": "Adaptar tamaños y contenido",
+            "bodyId": "19:21",
+            "resultId": "19:22",
+            "result": "1512/1366/móvil/reflow al 200 %; nombres largos sin recorte.",
+            "tasks": [
+              {
+                "text": "Ajustar escritorio a 1512 × 805 y 1366 × 768 sin alturas rígidas que oculten datos.",
+                "status": "complete",
+                "bodyId": "19:21",
+                "index": 0
+              },
+              {
+                "text": "Reorganizar a una columna o cajón accesible en móvil y zoom 200 %, preservando controles y contexto.",
+                "status": "complete",
+                "bodyId": "19:21",
+                "index": 1
+              },
+              {
+                "text": "Probar nombres largos, varios motivos y cifras de tres dígitos; permitir más altura antes que reducir la legibilidad.",
+                "status": "complete",
+                "bodyId": "19:21",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "H3",
+        "nodeId": "18:27",
+        "titleId": "18:28",
+        "statusId": "18:29",
+        "objectiveId": "19:24",
+        "dependencyId": "19:25",
+        "deliverableId": "19:34",
+        "acceptanceId": "18:34",
+        "title": "Conexión del panel y conservación del contexto",
+        "objective": "Permitir investigar la actividad y los pendientes de una persona con datos correctos, sin perder filtros ni mezclar identidades.",
+        "dependency": "H2 disponible y contrato de Pendientes resuelto en H1.",
+        "deliverable": "Panel conectado y backend verificado en banco local.",
+        "acceptance": "Cambiar de persona, pestaña o ficha preserva el contexto correspondiente y nunca muestra datos de otra identidad.",
+        "status": "complete",
+        "items": [
+          {
+            "id": "18:30",
+            "text": "☑ Etapa H3.1 · Conectar Resumen",
+            "status": "complete",
+            "stageKey": "H3.1",
+            "stageTitle": "Conectar Resumen",
+            "bodyId": "19:26",
+            "resultId": "19:27",
+            "result": "Resumen y últimas tres gestiones con consulta compartida.",
+            "tasks": [
+              {
+                "text": "Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.",
+                "status": "complete",
+                "bodyId": "19:26",
+                "index": 0
+              },
+              {
+                "text": "Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.",
+                "status": "complete",
+                "bodyId": "19:26",
+                "index": 1
+              },
+              {
+                "text": "Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.",
+                "status": "complete",
+                "bodyId": "19:26",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:31",
+            "text": "☑ Etapa H3.2 · Conectar Registro y ficha",
+            "status": "complete",
+            "stageKey": "H3.2",
+            "stageTitle": "Conectar Registro y ficha",
+            "bodyId": "19:28",
+            "resultId": "19:29",
+            "result": "Registro y ficha conservan filtros, páginas y foco.",
+            "tasks": [
+              {
+                "text": "Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.",
+                "status": "complete",
+                "bodyId": "19:28",
+                "index": 0
+              },
+              {
+                "text": "Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.",
+                "status": "complete",
+                "bodyId": "19:28",
+                "index": 1
+              },
+              {
+                "text": "Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.",
+                "status": "complete",
+                "bodyId": "19:28",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:32",
+            "text": "☑ Etapa H3.3 · Conectar Pendientes",
+            "status": "complete",
+            "stageKey": "H3.3",
+            "stageTitle": "Conectar Pendientes",
+            "bodyId": "19:30",
+            "resultId": "19:31",
+            "result": "RPC verificada: 1.008 tareas, 11 páginas, tres referencias.",
+            "tasks": [
+              {
+                "text": "Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.",
+                "status": "complete",
+                "bodyId": "19:30",
+                "index": 0
+              },
+              {
+                "text": "Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.",
+                "status": "complete",
+                "bodyId": "19:30",
+                "index": 1
+              },
+              {
+                "text": "Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.",
+                "status": "complete",
+                "bodyId": "19:30",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:33",
+            "text": "☑ Etapa H3.4 · Proteger selección y actualizaciones",
+            "status": "complete",
+            "stageKey": "H3.4",
+            "stageTitle": "Proteger selección y actualizaciones",
+            "bodyId": "19:32",
+            "resultId": "19:33",
+            "result": "Caché aislada y retirada de datos ante revocación.",
+            "tasks": [
+              {
+                "text": "Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.",
+                "status": "complete",
+                "bodyId": "19:32",
+                "index": 0
+              },
+              {
+                "text": "Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.",
+                "status": "complete",
+                "bodyId": "19:32",
+                "index": 1
+              },
+              {
+                "text": "Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.",
+                "status": "complete",
+                "bodyId": "19:32",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "H4",
+        "nodeId": "18:35",
+        "titleId": "18:36",
+        "statusId": "18:37",
+        "objectiveId": "19:35",
+        "dependencyId": "19:36",
+        "deliverableId": "19:45",
+        "acceptanceId": "18:42",
+        "title": "Integración de cortes y avisos",
+        "objective": "Mantener las alertas operativas visibles y accionables dentro de la pantalla compacta.",
+        "dependency": "H3 conectada para abrir la persona y el registro correctos.",
+        "deliverable": "Cortes y avisos integrados y verificados en navegador.",
+        "acceptance": "Todas las acciones anteriores siguen disponibles, muestran el estado real y abren la persona correcta sin duplicados.",
+        "status": "complete",
+        "items": [
+          {
+            "id": "18:38",
+            "text": "☑ Etapa H4.1 · Compactar el estado de los cortes",
+            "status": "complete",
+            "stageKey": "H4.1",
+            "stageTitle": "Compactar el estado de los cortes",
+            "bodyId": "19:37",
+            "resultId": "19:38",
+            "result": "Franja de 44 px; estados y cifras del servidor bajo demanda.",
+            "tasks": [
+              {
+                "text": "Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.",
+                "status": "complete",
+                "bodyId": "19:37",
+                "index": 0
+              },
+              {
+                "text": "Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.",
+                "status": "complete",
+                "bodyId": "19:37",
+                "index": 1
+              },
+              {
+                "text": "Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.",
+                "status": "complete",
+                "bodyId": "19:37",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:39",
+            "text": "☑ Etapa H4.2 · Mantener acciones de seguimiento",
+            "status": "complete",
+            "stageKey": "H4.2",
+            "stageTitle": "Mantener acciones de seguimiento",
+            "bodyId": "19:39",
+            "resultId": "19:40",
+            "result": "Reconocer/aplazar confirmados; espera, error y reintento sin duplicar.",
+            "tasks": [
+              {
+                "text": "Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.",
+                "status": "complete",
+                "bodyId": "19:39",
+                "index": 0
+              },
+              {
+                "text": "Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.",
+                "status": "complete",
+                "bodyId": "19:39",
+                "index": 1
+              },
+              {
+                "text": "Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.",
+                "status": "complete",
+                "bodyId": "19:39",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:40",
+            "text": "☑ Etapa H4.3 · Unir avisos con el panel",
+            "status": "complete",
+            "stageKey": "H4.3",
+            "stageTitle": "Unir avisos con el panel",
+            "bodyId": "19:41",
+            "resultId": "19:42",
+            "result": "Lista, campana y popup abren Registro → Llamadas de la persona.",
+            "tasks": [
+              {
+                "text": "Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.",
+                "status": "complete",
+                "bodyId": "19:41",
+                "index": 0
+              },
+              {
+                "text": "Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.",
+                "status": "complete",
+                "bodyId": "19:41",
+                "index": 1
+              },
+              {
+                "text": "Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.",
+                "status": "complete",
+                "bodyId": "19:41",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:41",
+            "text": "☑ Etapa H4.4 · Integrar otros pendientes y navegación",
+            "status": "complete",
+            "stageKey": "H4.4",
+            "stageTitle": "Integrar otros pendientes y navegación",
+            "bodyId": "19:43",
+            "resultId": "19:44",
+            "result": "Avisos compartidos; ficha conserva contexto, salida limpia selección.",
+            "tasks": [
+              {
+                "text": "Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.",
+                "status": "complete",
+                "bodyId": "19:43",
+                "index": 0
+              },
+              {
+                "text": "Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.",
+                "status": "complete",
+                "bodyId": "19:43",
+                "index": 1
+              },
+              {
+                "text": "Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.",
+                "status": "complete",
+                "bodyId": "19:43",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "H5",
+        "nodeId": "18:43",
+        "titleId": "18:44",
+        "statusId": "18:45",
+        "objectiveId": "19:46",
+        "dependencyId": "19:47",
+        "deliverableId": "19:56",
+        "acceptanceId": "18:50",
+        "title": "Verificación funcional, visual y técnica",
+        "objective": "Demostrar con pruebas que el rediseño reduce scroll y conserva las capacidades y límites de la vista actual.",
+        "dependency": "H2–H4 completas; las comprobaciones puntuales acompañan también su desarrollo.",
+        "deliverable": "Informe de pruebas, capturas y candidato listo para entregar.",
+        "acceptance": "Checks aplicables superados y recorrido comprobado; una prueba no ejecutada no se registra como aprobada.",
+        "status": "pending",
+        "items": [
+          {
+            "id": "18:46",
+            "text": "☐ Etapa H5.1 · Probar estados y datos",
+            "status": "pending",
+            "stageKey": "H5.1",
+            "stageTitle": "Probar estados y datos",
+            "bodyId": "19:48",
+            "resultId": "19:49",
+            "result": "Pruebas de comportamiento y límites del panel.",
+            "tasks": [
+              {
+                "text": "Adaptar pruebas de selección, filtro, orden, pestañas, paginación y retorno de la ficha.",
+                "status": "pending",
+                "bodyId": "19:48",
+                "index": 0
+              },
+              {
+                "text": "Cubrir cero actividad, desconocidos, errores temporales, equipo vacío y persona oculta por filtros.",
+                "status": "pending",
+                "bodyId": "19:48",
+                "index": 1
+              },
+              {
+                "text": "Cubrir cambio de día/usuario, revocación, retirada del equipo, respuestas tardías y un aviso recibido con otro analista abierto.",
+                "status": "pending",
+                "bodyId": "19:48",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:47",
+            "text": "☐ Etapa H5.2 · Probar recorridos completos",
+            "status": "pending",
+            "stageKey": "H5.2",
+            "stageTitle": "Probar recorridos completos",
+            "bodyId": "19:50",
+            "resultId": "19:51",
+            "result": "Recorridos de usuario reproducibles con resultados registrados.",
+            "tasks": [
+              {
+                "text": "Ejecutar E2E en Docker local: localizar analista, abrir registro, filtrar, paginar, abrir ficha y volver.",
+                "status": "pending",
+                "bodyId": "19:50",
+                "index": 0
+              },
+              {
+                "text": "Ejercitar cortes, reconocimiento, aplazamiento y apertura del analista desde un aviso con datos de prueba.",
+                "status": "pending",
+                "bodyId": "19:50",
+                "index": 1
+              },
+              {
+                "text": "Comprobar la regresión pertinente del analista y el resto del módulo; los E2E no se trasladan a GitHub.",
+                "status": "pending",
+                "bodyId": "19:50",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:48",
+            "text": "☐ Etapa H5.3 · Validar apariencia y accesibilidad",
+            "status": "pending",
+            "stageKey": "H5.3",
+            "stageTitle": "Validar apariencia y accesibilidad",
+            "bodyId": "19:52",
+            "resultId": "19:53",
+            "result": "Evidencia visual y de accesibilidad.",
+            "tasks": [
+              {
+                "text": "Comparar a 1512 × 805 (diez filas típicas) y 1366 × 768 (nueve); medir sin reducir texto ni recortar nombres.",
+                "status": "pending",
+                "bodyId": "19:52",
+                "index": 0
+              },
+              {
+                "text": "Revisar 390 px, zoom 200 %, teclado, foco visible, nombres accesibles, texto de 16 px y controles de 44 px.",
+                "status": "pending",
+                "bodyId": "19:52",
+                "index": 1
+              },
+              {
+                "text": "Probar más de diez personas, nombres extensos, cifras grandes y múltiples motivos; documentar diferencias justificadas.",
+                "status": "pending",
+                "bodyId": "19:52",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:49",
+            "text": "☐ Etapa H5.4 · Cerrar calidad y rendimiento",
+            "status": "pending",
+            "stageKey": "H5.4",
+            "stageTitle": "Cerrar calidad y rendimiento",
+            "bodyId": "19:54",
+            "resultId": "19:55",
+            "result": "Candidato de entrega con pruebas y riesgos explícitos.",
+            "tasks": [
+              {
+                "text": "Ejecutar npm run check y gates de contrato, SQL/RLS y tipos para la nueva lectura; resolver fallos del cambio.",
+                "status": "pending",
+                "bodyId": "19:54",
+                "index": 0
+              },
+              {
+                "text": "Comprobar consultas sin crecimiento por fila, conservación del panel durante refrescos y ausencia de cargas duplicadas.",
+                "status": "pending",
+                "bodyId": "19:54",
+                "index": 1
+              },
+              {
+                "text": "Revisar el cambio con Claude cuando su alcance lo justifique, resolver con evidencia y registrar PASS/FAIL/NOT RUN.",
+                "status": "pending",
+                "bodyId": "19:54",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "H6",
+        "nodeId": "18:51",
+        "titleId": "18:52",
+        "statusId": "18:53",
+        "objectiveId": "19:57",
+        "dependencyId": "19:58",
+        "deliverableId": "19:67",
+        "acceptanceId": "18:58",
+        "title": "Entrega, publicación y aceptación operativa",
+        "objective": "Poner la nueva vista en uso con una versión trazable y confirmar que ayuda al supervisor en su trabajo real.",
+        "dependency": "H5 cerrada; publicación dentro del alcance autorizado para la ejecución.",
+        "deliverable": "Vista publicada, comprobada y aceptada por supervisión.",
+        "acceptance": "La aprobación corresponde al producto funcionando; el prototipo aprobado por sí solo no cierra esta fase.",
+        "status": "pending",
+        "items": [
+          {
+            "id": "18:54",
+            "text": "☐ Etapa H6.1 · Preparar el PR",
+            "status": "pending",
+            "stageKey": "H6.1",
+            "stageTitle": "Preparar el PR",
+            "bodyId": "19:59",
+            "resultId": "19:60",
+            "result": "PR concreto y revisable.",
+            "tasks": [
+              {
+                "text": "Presentar el problema, comportamiento final y capturas antes/después en el PR.",
+                "status": "pending",
+                "bodyId": "19:59",
+                "index": 0
+              },
+              {
+                "text": "Adjuntar resultados, límites y decisiones como el alcance de Pendientes o adaptación a pantallas pequeñas.",
+                "status": "pending",
+                "bodyId": "19:59",
+                "index": 1
+              },
+              {
+                "text": "Confirmar que el cambio corresponde al supervisor y conserva las reglas de negocio acordadas.",
+                "status": "pending",
+                "bodyId": "19:59",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:55",
+            "text": "☐ Etapa H6.2 · Preparar una versión reproducible",
+            "status": "pending",
+            "stageKey": "H6.2",
+            "stageTitle": "Preparar una versión reproducible",
+            "bodyId": "19:61",
+            "resultId": "19:62",
+            "result": "Artefacto y respaldo asociados a una fuente verificada.",
+            "tasks": [
+              {
+                "text": "Integrar los cambios remotos sin sobrescribirlos y comprobar Main local igual a avancecorp/main.",
+                "status": "pending",
+                "bodyId": "19:61",
+                "index": 0
+              },
+              {
+                "text": "Construir el artefacto desde ese commit verificado y completar los checks requeridos por la integración.",
+                "status": "pending",
+                "bodyId": "19:61",
+                "index": 1
+              },
+              {
+                "text": "Conservar identificador de versión, respaldo y datos de integridad según el flujo del proyecto.",
+                "status": "pending",
+                "bodyId": "19:61",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:56",
+            "text": "☐ Etapa H6.3 · Publicar y comprobar",
+            "status": "pending",
+            "stageKey": "H6.3",
+            "stageTitle": "Publicar y comprobar",
+            "bodyId": "19:63",
+            "resultId": "19:64",
+            "result": "Versión publicada y comprobada.",
+            "tasks": [
+              {
+                "text": "Publicar primero la RPC aditiva verificada y después el artefacto compatible, mediante el flujo del proyecto.",
+                "status": "pending",
+                "bodyId": "19:63",
+                "index": 0
+              },
+              {
+                "text": "Comprobar archivos, acceso y versión cargada tras recarga.",
+                "status": "pending",
+                "bodyId": "19:63",
+                "index": 1
+              },
+              {
+                "text": "Recorrer la vista con supervisión real y su equipo propio; registrar incidencias sin crear actividad productiva ficticia.",
+                "status": "pending",
+                "bodyId": "19:63",
+                "index": 2
+              }
+            ]
+          },
+          {
+            "id": "18:57",
+            "text": "☐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+            "status": "pending",
+            "stageKey": "H6.4",
+            "stageTitle": "Aceptar en uso y cerrar el avance",
+            "bodyId": "19:65",
+            "resultId": "19:66",
+            "result": "Aceptación real y documentación actualizada.",
+            "tasks": [
+              {
+                "text": "Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.",
+                "status": "pending",
+                "bodyId": "19:65",
+                "index": 0
+              },
+              {
+                "text": "Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.",
+                "status": "pending",
+                "bodyId": "19:65",
+                "index": 1
+              },
+              {
+                "text": "Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.",
+                "status": "pending",
+                "bodyId": "19:65",
+                "index": 2
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "verification": {
+      "originalPhaseCount": 76,
+      "originalPhasesUnchanged": true,
+      "overflow": [],
+      "overlap": [],
+      "textMismatches": [],
+      "visualQA": "PASS: capturas general y H4 inspeccionadas, sin solapamientos ni recortes; H1–H4 completas, H5–H6 pendientes",
+      "screenshot": "assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png",
+      "detailScreenshot": "assets/supervisor-horizontal-h4-detalle-figma-2026-09-23.png",
+      "taskCountReadback": {
+        "complete": 48,
+        "pending": 24
+      }
+    },
+    "detailVersion": 5,
+    "phaseCount": 6,
+    "stageCount": 24,
+    "taskCount": 72,
+    "completedTaskCount": 48,
+    "pendingTaskCount": 24,
+    "h1": {
+      "status": "COMPLETE",
+      "completedAt": "2026-09-23",
+      "specification": "SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md",
+      "evidence": "SUPERVISOR-HORIZONTAL-H1-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H1-REVISION-2026-09-23.md",
+      "baseCommit": "cf87e8087bf61ea5c58669d924e801526a04c779",
+      "branch": "codex/gestion-diaria-supervisor-horizontal",
+      "backend": {
+        "required": true,
+        "phase": "H3.3",
+        "rpc": "crm.gestion_diaria_pendientes_fn",
+        "scope": "Lectura paginada de tareas del analista autorizado; sin modificar reglas ni RLS",
+        "implemented": false
+      },
+      "density": {
+        "measuredCurrentRowPx": 149,
+        "targetTypicalRowPx": 44,
+        "targetViewport": "1512x805",
+        "targetRows": 10,
+        "tableGapPanelPx": [
+          960,
+          16,
+          414
+        ],
+        "minimumPanelPx": 380,
+        "status": "SPECIFIED_NOT_IMPLEMENTED"
+      },
+      "figmaReadback": "PASS",
+      "documentationChecks": "PASS",
+      "reviewVerdict": "CHANGES_REQUESTED",
+      "reviewResolution": "Puntos resueltos por Codex; sin segunda revisión",
+      "verificationAtClose": {
+        "originalPhaseCount": 76,
+        "originalPhasesUnchanged": true,
+        "overflow": [],
+        "visualQA": "PASS: captura final inspeccionada; H1 completa, H2–H6 pendientes, sin solapamientos ni recortes",
+        "screenshot": "assets/supervisor-horizontal-h1-cerrada-figma-2026-09-23.png",
+        "taskCountReadback": {
+          "complete": 12,
+          "pending": 60
+        }
+      }
+    },
+    "h2": {
+      "status": "complete",
+      "closedAt": "2026-09-23",
+      "evidence": "SUPERVISOR-HORIZONTAL-H2-EVIDENCIA-2026-09-23.md",
+      "jsonEvidence": "SUPERVISOR-HORIZONTAL-H2-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H2-REVISION-2026-09-23.md",
+      "unitPassed": 4192,
+      "unitFiles": 280,
+      "e2eFinalPassed": 29,
+      "e2eFinalFailed": 0,
+      "e2eFullInitial": {
+        "passed": 234,
+        "failed": 3,
+        "skipped": 26,
+        "retestedInFinal": true
+      },
+      "realityGate": "NOT RUN: Falta SUPABASE_URL",
+      "sql": "NOT RUN: no cambios H2",
+      "publication": "PENDING_H6",
+      "figmaReadback": "PASS",
+      "visualQA": "PASS",
+      "documentationChecks": "PASS",
+      "verificationAtClose": {
+        "originalPhaseCount": 76,
+        "originalPhasesUnchanged": true,
+        "overflow": [],
+        "overlap": [],
+        "textMismatches": [],
+        "visualQA": "PASS: capturas final y detalle inspeccionadas; H1–H2 completas, H3–H6 pendientes, sin solapamientos ni recortes",
+        "screenshot": "assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png",
+        "detailScreenshot": "assets/supervisor-horizontal-h2-detalle-figma-2026-09-23.png",
+        "taskCountReadback": {
+          "complete": 24,
+          "pending": 48
+        }
+      }
+    },
+    "h3": {
+      "status": "complete",
+      "closedAt": "2026-09-23",
+      "evidence": "SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md",
+      "jsonEvidence": "SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H3-REVISION-2026-09-23.md",
+      "reviewVerdict": "PASS",
+      "reviewConfidence": "MEDIUM",
+      "unitPassed": 4244,
+      "unitFiles": 284,
+      "e2eFull": {
+        "passed": 241,
+        "failed": 0,
+        "skipped": 26
+      },
+      "backend": {
+        "implemented": true,
+        "installed": "LOCAL_SYNTHETIC_BANK",
+        "productionInstalled": false,
+        "rpc": "crm.gestion_diaria_pendientes_fn",
+        "migration": "20260923234404_crm_gestion_diaria_pendientes_supervisor.sql",
+        "sqlRls": "PASS",
+        "http": "PASS",
+        "types": "PASS",
+        "tasksRead": 1008,
+        "pagesRead": 11
+      },
+      "realityGate": "NOT RUN: Falta SUPABASE_URL",
+      "remoteGeneralRls": "NOT RUN: banco H3 local con matriz pertinente SQL/HTTP",
+      "hostedAdvisors": "NOT RUN: sin candidato hosted",
+      "publication": "PENDING_H6",
+      "figmaReadback": "PASS",
+      "visualQA": "PASS",
+      "e2eFinal": {
+        "passed": 14,
+        "failed": 0
+      },
+      "e2eCaptureRefresh": {
+        "passed": 4,
+        "failed": 0
+      },
+      "documentationChecks": "PASS",
+      "productVisualQA": "PASS: escritorio y móvil; capturas de datos ficticios"
+    },
+    "resumeCheckpoint": {
+      "date": "2026-09-23",
+      "sessionStatus": "READY_FOR_H5",
+      "h4PlanApproval": "USER_APPROVED",
+      "h4Implementation": "COMPLETE",
+      "nextStage": "H5.1",
+      "source": "SUPERVISOR-HORIZONTAL-RETOMA.md",
+      "productCheckpoint": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
+      "branch": "codex/gestion-diaria-supervisor-horizontal",
+      "workingCopy": "/private/tmp/avancecorp-release.hvdub4/repo",
+      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h4-2026-09-23.bundle"
+    },
+    "h4": {
+      "status": "COMPLETE",
+      "closedAt": "2026-09-23",
+      "productCommit": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
+      "evidence": "SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md",
+      "jsonEvidence": "SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H4-REVISION-2026-09-23.md",
+      "reviewVerdict": "CHANGES_REQUESTED",
+      "reviewConfidence": "MEDIUM",
+      "reviewResolution": "Cuatro P2 y tres P3 resueltos por Codex con evidencia; una consulta",
+      "unitPassed": 4272,
+      "unitFiles": 287,
+      "gate": "PASS: mismo gate que npm run check, cobertura con maxWorkers=2 tras ERANGE del entorno",
+      "e2eFull": {
+        "passed": 247,
+        "failed": 0,
+        "skipped": 26,
+        "duration": "9.6m",
+        "retries": 0
+      },
+      "e2eFinal": {
+        "passed": 14,
+        "failed": 0
+      },
+      "backend": "UNCHANGED",
+      "realityGate": "NOT RUN: Falta SUPABASE_URL",
+      "humanScreenReader": "NOT RUN",
+      "publication": "PENDING_H6",
+      "figmaReadback": "evidencias-h4-2026-09-23/figma-readback.json",
+      "visualQA": "PASS",
+      "productVisualQA": "PASS",
+      "documentationChecks": "PASS: conteos, enlaces, JSON y huellas cotejados"
+    }
+  },
   "uiProgress": {
     "sectionId": "2:130",
     "titleId": "2:131",
@@ -28,9 +1074,16 @@
     "e2ePassed": 13,
     "e2eScope": "Recorridos focalizados previos de analista y supervisor; no representa la suite completa del release",
     "releaseE2E": {
-      "initialFullRun": { "passed": 228, "failed": 6, "skipped": 26 },
+      "initialFullRun": {
+        "passed": 228,
+        "failed": 6,
+        "skipped": 26
+      },
       "correctedSpec": "e2e/sla-operacion.spec.ts",
-      "correctedSpecRun": { "passed": 15, "failed": 0 },
+      "correctedSpecRun": {
+        "passed": 15,
+        "failed": 0
+      },
       "fixturePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/84",
       "scope": "Mismo código de producto; todos los fallos iniciales cubiertos por el spec corregido. No es un PASS completo en una sola ejecución."
     },
@@ -246,7 +1299,7 @@
   "itemCount": 76,
   "bounds": {
     "width": 3300,
-    "height": 4139
+    "height": 9406.34375
   },
   "phases": [
     {

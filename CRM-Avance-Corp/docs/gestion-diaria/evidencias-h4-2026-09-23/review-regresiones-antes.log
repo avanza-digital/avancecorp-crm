@@ -1,0 +1,207 @@
+npm notice run app@0.0.0 test:run
+npm notice run vitest run src/components/gestion-diaria/avisos-equipo.test.tsx src/lib/alertas-provider.test.tsx
+
+ RUN  v4.1.11 /private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app
+
+(node:40514) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40515) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/lib/alertas-provider.test.tsx (18 tests | 1 failed) 106ms
+     × refresca cortes y libro del supervisor sin recargar todo el store 3ms
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx (14 tests | 3 failed) 229ms
+     × franja muestra primer corte evaluado y segundo programado; cifras/personas bajo demanda 63ms
+     × sin detalle diario opcional conserva los pendientes compartidos con campana 5ms
+     × mantiene el contador confirmado durante refresco; un error lo retira 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/gestion-diaria/avisos-equipo.test.tsx > H4: cortes y otros avisos conectados > franja muestra primer corte evaluado y segundo programado; cifras/personas bajo demanda
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Cortes y avisos"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Cortes de llamadas y otros avisos":
+  [36m<button[39m
+    [33maria-haspopup[39m=[32m"dialog"[39m
+    [33maria-label[39m=[32m"Cortes de llamadas y otros avisos"[39m
+    [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer hover:bg-muted h-9 px-4 py-2 min-h-11 shrink-0 text-base"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+  [36m/>[39m
+
+  --------------------------------------------------time:
+
+  Name "":
+  [36m<time[39m
+    [33mdatetime[39m=[32m"2026-09-24T11:30:00-05:00"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<time[39m
+    [33mdatetime[39m=[32m"2026-09-24T16:00:00-05:00"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong />[39m
+
+  --------------------------------------------------paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"gd-cortes-consulta"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<section[39m
+  [33maria-label[39m=[32m"Estado de cortes y avisos"[39m
+  [33mclass[39m=[32m"gd-cortes"[39m
+[36m>[39m
+  [36m<button[39m
+    [33maria-haspopup[39m=[32m"dialog"[39m
+    [33maria-label[39m=[32m"Cortes de llamadas y otros avisos"[39m
+    [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer hover:bg-muted h-9 px-4 py-2 min-h-11 shrink-0 text-base"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+  [36m>[39m
+    [36m<svg[39m
+      [33maria-hidden[39m=[32m"true"[39m
+      [33mclass[39m=[32m"lucide lucide-bell"[39m
+      [33mfill[39m=[32m"none"[39m
+      [33mheight[39m=[32m"24"[39m
+      [33mstroke[39m=[32m"currentColor"[39m
+      [33mstroke-linecap[39m=[32m"round"[39m
+      [33mstroke-linejoin[39m=[32m"round"[39m
+      [33mstroke-width[39m=[32m"2"[39m
+      [33mviewBox[39m=[32m"0 0 24 24"[39m
+      [33mwidth[39m=[32m"24"[39m
+      [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+    [36m>[39m
+      [36m<path[39m
+        [33md[39m=[32m"M10.268 21a2 2 0 0 0 3.464 0"[39m
+      [36m/>[39m
+      [36m<path[39m
+        [33md[39m=[32m"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"[39m
+      [36m/>[39m
+    [36m</svg>[39m
+    [0mCortes y avisos[0m
+  [36m</button>[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"gd-cortes-resumen"[39m
+  [36m>[39m
+    [36m<span>[39m
+      [36m<time[39m
+        [33mdatetime[39m=[32m"2026-09-24T11:30:00-05:00"[39m
+      [36m>[39m
+        [0m11:30[0m
+      [36m</time>[39m
+      [0m [0m
+      [0mEvaluado[0m
+      [36m<strong>[39m
+        [0m · [0m
+        [0m1[0m
+        [0m bajo el mínimo[0m
+      [36m</strong>[39m
+    [36m</span>[39m
+    [36m<span>[39m
+      [36m<time[39m
+        [33mdatetime[39m=[32m"2026-09-24T16:00:00-05:00"[39m
+      [36m>[39m
+        [0m16:00[0m
+      [36m</time>[39m
+      [0m [0m
+      [0mProgramado[0m
+    [36m</span>[39m
+    [36m<span>[39m
+      [0mOtros avisos: 1[0m
+    [36m</span>[39m
+  [36m</div>[39m
+  [36m<p[39m
+    [33mclass[39m=[32m"gd-cortes-consulta"[39m
+  [36m>[39m
+    [0mConsulta 12:00 · Lima[0m
+  [36m</p>[39m
+[36m</section>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx:41:36
+     39|     expect(franja).toHaveTextContent('16:00 Programado')
+     40|     expect(franja).toHaveTextContent('Otros avisos: 1')
+     41|     fireEvent.click(within(franja).getByRole('button', { name: 'Cortes…
+       |                                    ^
+     42|     const resultados = screen.getByRole('region', { name: 'Resultados …
+     43|     const primer = resultados.querySelector('details')!
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/components/gestion-diaria/avisos-equipo.test.tsx > H4: cortes y otros avisos conectados > sin detalle diario opcional conserva los pendientes compartidos con campana
+Error: expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  Otros avisos: 1
+Received:
+  Cortes y avisos11:30 Evaluado · 1 bajo el mínimo16:00 ProgramadoConsulta 12:00 · Lima
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx:141:79
+    139|     delete otros.alertas[0]!.diaria
+    140|     render(<Vista />)
+    141|     expect(screen.getByRole('region', { name: 'Estado de cortes y avis…
+       |                                                                               ^
+    142|     fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes'…
+    143|     expect(screen.getByText('Tareas vencidas · 1')).toBeVisible()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/components/gestion-diaria/avisos-equipo.test.tsx > H4: cortes y otros avisos conectados > mantiene el contador confirmado durante refresco; un error lo retira
+Error: expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  Otros avisos: 1
+Received:
+  Cortes y avisos11:30 Evaluado · 1 bajo el mínimo16:00 ProgramadoActualizando otros avisos…Consulta 12:00 · Lima
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx:152:20
+    150|     vista.rerender(<Vista />)
+    151|     const franja = screen.getByRole('region', { name: 'Estado de corte…
+    152|     expect(franja).toHaveTextContent('Otros avisos: 1')
+       |                    ^
+    153|     expect(franja).not.toHaveTextContent('Actualizando otros avisos')
+    154|     otros = { ...otros, cargando: false, errores: ['Libro sin confirma…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/alertas-provider.test.tsx > F4: una fuente para campana y lista diaria > refresca cortes y libro del supervisor sin recargar todo el store
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ src/lib/alertas-provider.test.tsx:536:26
+    534|     expect(GD!.recargar).toHaveBeenCalledOnce()
+    535|     expect(refetchReconocimientos).toHaveBeenCalledOnce()
+    536|     expect(recargar).not.toHaveBeenCalled()
+       |                          ^
+    537|     expect(refrescarAvisos).not.toHaveBeenCalled()
+    538|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 28 passed (32)
+   Start at  23:16:13
+   Duration  1.26s (transform 306ms, setup 190ms, import 476ms, tests 335ms, environment 947ms)
+

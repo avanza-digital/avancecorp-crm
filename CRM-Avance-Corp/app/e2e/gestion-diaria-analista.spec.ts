@@ -175,7 +175,7 @@ for (const rol of ['Supervisor', 'Gerencia'] as const) {
     await entrarDemo(page, rol)
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveCount(0)
-    if (rol === 'Supervisor') await page.getByRole('button', { name: 'Ver registro del equipo', exact: true }).click()
+    if (rol === 'Supervisor') await page.getByRole('button', { name: 'Registro del equipo', exact: true }).click()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
   })
 }

@@ -1,0 +1,121 @@
+npm notice run app@0.0.0 check
+npm notice run npm run lint && npm run typecheck && npm run test:coverage && npm run test:release-config && npm run test:push-tasa && npm run build && npm run verify:bundle && npm run dup
+npm notice run app@0.0.0 lint
+npm notice run oxlint
+src/components/ui/coverflow-carousel.tsx:299:11: warning jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements. help: The `tabIndex` attribute should be removed.
+src/components/ui/coverflow-carousel.tsx:297:10: warning jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role. help: Add a role attribute to this element, or use a semantic HTML element instead.
+src/components/ui/coverflow-carousel.tsx:327:15: warning jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener. help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.
+src/components/ui/coverflow-carousel.tsx:327:16: warning jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners. help: Move the handler to an interactive element, or use an appropriate interactive role.
+src/components/gestion-diaria/tabla-equipo-diaria.tsx:48:17: warning jsx-a11y(control-has-associated-label): A control must be associated with a text label. help: Add a text label to the control element. This can be done by adding text content, an `aria-label` attribute, or an `aria-labelledby` attribute.
+npm notice run app@0.0.0 typecheck
+npm notice run tsc -b --pretty false
+npm notice run app@0.0.0 test:coverage
+npm notice run vitest run --coverage
+ Test Files  284 passed (284)
+      Tests  4244 passed (4244)
+npm notice run app@0.0.0 test:release-config
+npm notice run node --test scripts/verificar-config-release.test.mjs
+npm notice run app@0.0.0 test:push-tasa
+npm notice run node --test scripts/sw-crm.test.mjs
+npm notice run app@0.0.0 build
+npm notice run tsc -b && vite build
+dist/version.json                                                0.05 kB │ gzip:   0.06 kB
+dist/index.html                                                  2.17 kB │ gzip:   0.69 kB
+dist/assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2   11.81 kB
+dist/assets/plus-jakarta-sans-latin-800-normal-CusIZhrK.woff2   11.89 kB
+dist/assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2   12.18 kB
+dist/assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2   12.24 kB
+dist/assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2   12.31 kB
+dist/assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff    15.72 kB
+dist/assets/plus-jakarta-sans-latin-800-normal-BRNHt2w0.woff    15.78 kB
+dist/assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff    16.08 kB
+dist/assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff    16.12 kB
+dist/assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff    16.13 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff        22.10 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff        22.28 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2       22.58 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2       22.83 kB
+dist/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff        23.87 kB
+dist/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff        23.91 kB
+dist/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2       24.18 kB
+dist/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2       24.25 kB
+dist/.vite/license.md                                           81.37 kB
+dist/assets/gestion-diaria-6biGOuKd.css                          8.16 kB │ gzip:   2.23 kB
+dist/assets/gerencia-BaLUQF8y.css                               17.29 kB │ gzip:   3.73 kB
+dist/assets/index-BJ0v2sec.css                                 157.30 kB │ gzip:  25.68 kB
+dist/assets/argumentos-rpc-CZnLpNy5.js                           0.09 kB │ gzip:   0.10 kB
+dist/assets/rescate-carpeta--DBGxAyl.js                          0.20 kB │ gzip:   0.17 kB
+dist/assets/use-periodo-gerencia-JR-d_udF.js                     0.29 kB │ gzip:   0.21 kB
+dist/assets/use-valor-diferido-C5pSPdfy.js                       0.29 kB │ gzip:   0.22 kB
+dist/assets/progress-784Lqrrm.js                                 0.42 kB │ gzip:   0.30 kB
+dist/assets/section-head-CpbYtuG_.js                             0.43 kB │ gzip:   0.29 kB
+dist/assets/use-resumen-cartera-operativo-L-oGU2Tr.js            0.49 kB │ gzip:   0.34 kB
+dist/assets/ahora-CyLTFCpv.js                                    0.51 kB │ gzip:   0.30 kB
+dist/assets/store-context-8oahbTda.js                            0.67 kB │ gzip:   0.31 kB
+dist/assets/rolldown-runtime-QTnfLwEv.js                         0.69 kB │ gzip:   0.42 kB
+dist/assets/desglose-monedas-3uoaIQiM.js                         0.70 kB │ gzip:   0.42 kB
+dist/assets/tabla-BnYgVgYp.js                                    0.70 kB │ gzip:   0.36 kB
+dist/assets/card-TuroX6HR.js                                     0.73 kB │ gzip:   0.33 kB
+dist/assets/seguimiento-DWmcnKNt.js                              0.81 kB │ gzip:   0.45 kB
+dist/assets/select-B3VU5IjL.js                                   0.86 kB │ gzip:   0.52 kB
+dist/assets/animated-value-CxWwuyas.js                           0.94 kB │ gzip:   0.55 kB
+dist/assets/paginacion-obAhw9sU.js                               0.99 kB │ gzip:   0.55 kB
+dist/assets/input-Cb6Fp43O.js                                    1.01 kB │ gzip:   0.53 kB
+dist/assets/kpi-card-DZN8eJi-.js                                 1.14 kB │ gzip:   0.63 kB
+dist/assets/aviso-degradacion--F6j3SNh.js                        1.19 kB │ gzip:   0.63 kB
+dist/assets/use-metricas-vendedores-operativas-C1iKiBMY.js       1.59 kB │ gzip:   0.83 kB
+dist/assets/use-cartera-paginada-CLCX2OgS.js                     1.60 kB │ gzip:   0.81 kB
+dist/assets/button-CcjL0mMd.js                                   1.96 kB │ gzip:   0.98 kB
+dist/assets/configuracion-shell-BJ-o9s9j.js                      1.97 kB │ gzip:   0.92 kB
+dist/assets/stat-strip-CHL-vFQJ.js                               2.19 kB │ gzip:   0.93 kB
+dist/assets/controles-periodo-derivaciones-1FFxpwW-.js           2.52 kB │ gzip:   0.92 kB
+dist/assets/acciones-reconocer-alerta-BVu38u7C.js                2.58 kB │ gzip:   1.17 kB
+dist/assets/dropdown-menu-lewrahU-.js                            3.13 kB │ gzip:   1.54 kB
+dist/assets/notificaciones-tasa-Dgn169wO.js                      4.17 kB │ gzip:   1.78 kB
+dist/assets/control-citas-KZpLDMjQ.js                            4.18 kB │ gzip:   1.73 kB
+dist/assets/sla-operacion-bUv5V-3S.js                            5.64 kB │ gzip:   2.24 kB
+dist/assets/distribucion-lecturas-C1yrxXCa.js                    7.52 kB │ gzip:   2.61 kB
+dist/assets/config-BA-TGD8Z.js                                  12.02 kB │ gzip:   4.21 kB
+dist/assets/config-gestion-diaria-BQbx6MJV.js                   12.13 kB │ gzip:   3.95 kB
+dist/assets/dist-DAse8jiX.js                                    12.57 kB │ gzip:   4.48 kB
+dist/assets/alertas-BHCoTHto.js                                 13.56 kB │ gzip:   4.73 kB
+dist/assets/derivaciones-DRy7jybm.js                            13.73 kB │ gzip:   4.67 kB
+dist/assets/historial-decisiones-tasa-gerencia-B2if5tKQ.js      14.20 kB │ gzip:   3.95 kB
+dist/assets/config-rentabilidad-D93yYRx-.js                     14.71 kB │ gzip:   4.85 kB
+dist/assets/cartera-DcDvpVBb.js                                 14.76 kB │ gzip:   5.09 kB
+dist/assets/pipeline-D8XL2BJc.js                                14.89 kB │ gzip:   5.23 kB
+dist/assets/cierres-externos-seccion-CMqVYNBu.js                15.26 kB │ gzip:   4.67 kB
+dist/assets/crm-queries-CJliCn6O.js                             15.73 kB │ gzip:   4.30 kB
+dist/assets/config-metas-CnIdhdgr.js                            16.11 kB │ gzip:   5.57 kB
+dist/assets/config-citas-nZaUVKbu.js                            17.02 kB │ gzip:   5.71 kB
+dist/assets/config-sla-BYRsPk2I.js                              17.24 kB │ gzip:   5.47 kB
+dist/assets/metricas-multiempresa-Dxbi1StA.js                   19.95 kB │ gzip:   5.72 kB
+dist/assets/escape-dialogo-BhefE2FP.js                          20.29 kB │ gzip:   7.42 kB
+dist/assets/echart-bar-CCrXnjdM.js                              21.98 kB │ gzip:   8.34 kB
+dist/assets/gestion-diaria-api-9aiSXE2I.js                      23.52 kB │ gzip:   7.35 kB
+dist/assets/config-usuarios-osXt4nP2.js                         23.93 kB │ gzip:   6.50 kB
+dist/assets/equipo-B6WQMIwD.js                                  26.78 kB │ gzip:   7.87 kB
+dist/assets/utils-C_jjd2h8.js                                   26.93 kB │ gzip:   8.59 kB
+dist/assets/config-productos-DQgcWJ0m.js                        27.09 kB │ gzip:   7.35 kB
+dist/assets/rescate-descartados-CiAgU_Lg.js                     30.84 kB │ gzip:   7.93 kB
+dist/assets/facturacion-Dr8A23F8.js                             31.06 kB │ gzip:  10.17 kB
+dist/assets/agenda-Bm_HA3s5.js                                  31.08 kB │ gzip:   8.83 kB
+dist/assets/lead-hover-card-DGaMuGN7.js                         33.88 kB │ gzip:  12.65 kB
+dist/assets/ranking-vendedores-Ch6mcHSM.js                      37.29 kB │ gzip:   8.95 kB
+dist/assets/echart-line-D2c-cuAX.js                             45.31 kB │ gzip:  16.14 kB
+dist/assets/repartir-DQYxHCQd.js                                50.78 kB │ gzip:  13.23 kB
+dist/assets/gestion-diaria-BKFKmClA.js                          81.57 kB │ gzip:  23.73 kB
+dist/assets/hoy-CJiJpw7G.js                                     92.98 kB │ gzip:  25.59 kB
+dist/assets/ui-vendor-CnUuygdz.js                               93.82 kB │ gzip:  20.57 kB
+dist/assets/gerencia-BvQHu08J.js                               101.38 kB │ gzip:  28.17 kB
+dist/assets/react-vendor-BXy-oECh.js                           190.81 kB │ gzip:  60.00 kB
+dist/assets/gerencia-y2hvBm8H.js                               190.90 kB │ gzip:  47.00 kB
+dist/assets/mi-cartera-DTG-Z9Ft.js                             213.00 kB │ gzip:  53.30 kB
+dist/assets/crm-api-CsKtNYEA.js                                224.06 kB │ gzip:  62.34 kB
+dist/assets/data-vendor-DTp_zWmI.js                            244.55 kB │ gzip:  63.66 kB
+dist/assets/echart-Bb36jJ6d.js                                 487.20 kB │ gzip: 165.23 kB
+dist/assets/index-DOTfkFGP.js                                  706.69 kB │ gzip: 210.64 kB
+npm notice run app@0.0.0 verify:bundle
+npm notice run node scripts/verificar-bundle-produccion.mjs
+npm notice run app@0.0.0 dup
+npm notice run jscpd src --min-tokens 70 --ignore "**/*.test.*" --threshold 0.8 --reporters consoleFull

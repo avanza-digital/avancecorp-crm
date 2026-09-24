@@ -38,6 +38,7 @@ import type { AlertaCRM, TipoAlerta } from '@/lib/alertas'
 import type { Rol } from '@/lib/roles'
 import { presentarCitas } from '@/lib/terminologia'
 import { AccionesReconocerAlerta } from '@/components/gestion-diaria/acciones-reconocer-alerta'
+import { MiembrosAvisoCorte } from '@/components/gestion-diaria/miembros-aviso-corte'
 import { AccionesCorte } from '@/components/gestion-diaria/acciones-corte'
 
 type FiltroPrioridad = 'todas' | AlertaCRM['severidad']
@@ -333,7 +334,7 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
           >
             {alerta.destino.etiqueta}
           </a>
-          {alerta.corte && <AccionesCorte aviso={alerta.corte} />}
+          {alerta.corte && <><MiembrosAvisoCorte aviso={alerta.corte} /><AccionesCorte aviso={alerta.corte} /></>}
           {!alerta.corte && !reconocimiento && alerta.miembros != null && (
             <AccionesReconocerAlerta alerta={alerta} />
           )}

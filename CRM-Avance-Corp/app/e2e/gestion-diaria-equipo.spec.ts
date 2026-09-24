@@ -1,47 +1,49 @@
 import { expect, test } from '@playwright/test'
+import { writeFile } from 'node:fs/promises'
 import { entrarDemo, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
 import { fechaLima } from '../src/lib/agenda-derivada'
 
 test('Supervisor: roster demo, búsqueda y detalle con texto de al menos 16 px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1512, height: 805 })
   await entrarDemo(page, 'Supervisor')
+  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   const tabla = vista.getByRole('table')
   await expect(tabla).toBeVisible()
   const analistas = tabla.locator('tr[data-analista]')
   expect(await analistas.count()).toBeGreaterThan(0)
-  const nombre = (await analistas.first().getByRole('rowheader').locator('p').first().textContent())!
+  const nombre = (await analistas.first().getByRole('rowheader').getByRole('button').first().textContent())!
   await vista.getByRole('searchbox').fill(nombre)
   await expect(analistas).toHaveCount(1)
   // El contorno debe sobrevivir al alto contraste: el ring de box-shadow no.
   await page.emulateMedia({ forcedColors: 'active' })
   await page.keyboard.press('Tab')
-  for (const control of [tabla.getByRole('button', { name: `Detalle de ${nombre}` }), tabla.getByRole('button', { name: `Ver registro de ${nombre}` })]) {
+  for (const control of [tabla.getByRole('button', { name: `Seleccionar a ${nombre}` })]) {
     await control.focus()
     await expect(control).toBeFocused()
     await expect(control).not.toHaveCSS('outline-style', 'none')
     expect(await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).outlineWidth))).toBeGreaterThanOrEqual(2)
   }
   await page.emulateMedia({ forcedColors: 'none' })
-  await tabla.getByRole('button', { name: /^Detalle de / }).click()
-  await expect(tabla.getByText('Llamadas por lead', { exact: true })).toBeVisible()
+  await tabla.getByRole('button', { name: /^Seleccionar a / }).click()
+  await expect(vista.getByText('Llamadas por lead', { exact: true })).toBeVisible()
   const chicos = await vista.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*')).filter((el) =>
     el.getClientRects().length > 0 && Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
       && Number.parseFloat(getComputedStyle(el).fontSize) < 16).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
   expect(chicos).toEqual([])
   await page.evaluate(() => document.fonts.ready)
   expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('Jakarta') && f.status === 'loaded'))).toBe(true)
-  const abrir = tabla.getByRole('button', { name: `Ver registro de ${nombre}` })
+  const abrir = vista.getByRole('button', { name: `Ir al detalle de ${nombre}` })
   await abrir.focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('heading', { name: `Registro de ${nombre}`, exact: true })).toBeFocused()
-  await page.getByRole('button', { name: 'Cerrar registro', exact: true }).click()
-  await expect(abrir).toBeFocused()
+  await expect(page.getByRole('heading', { name: `Detalle de ${nombre}`, exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  await expect(tabla.getByRole('button', { name: `Seleccionar a ${nombre}` })).toBeFocused()
   await vista.getByRole('heading', { level: 2 }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('equipo-escritorio.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await vista.getByRole('heading', { level: 2 }).scrollIntoViewIfNeeded()
   await expect(vista.getByRole('searchbox')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -65,8 +67,8 @@ test('Ruta real con store vacío: cero actividad, 270 pendientes, error y revoca
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toBeVisible()
-  await expect(vista.getByText('270 tareas pendientes', { exact: true })).toBeVisible()
-  await vista.getByRole('button', { name: /Con problema hoy/ }).click()
+  await expect(vista.getByRole('cell', { name: '270', exact: true }).first()).toBeVisible()
+  await vista.getByRole('button', { name: /Con atención/ }).click()
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toHaveCount(0)
   await expect(vista.getByText('BRUNO', { exact: true })).toBeVisible()
   await page.screenshot({ path: info.outputPath('equipo-ruta-real.png'), fullPage: true })
@@ -84,6 +86,7 @@ test('Ruta real con store vacío: cero actividad, 270 pendientes, error y revoca
 })
 
 test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginación revocada', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1512, height: 805 })
   const hoy = fechaLima(Date.now())
   const lead = leadReal({ nombre_completo: 'LEAD FUERA DE LA CACHÉ', fueraDelBoot: true, asignado_supervisor_id: UID })
   const backend = await montarBackendReal(page, { rolCrm: 'supervisor', leads: [lead], tareas: [] })
@@ -113,24 +116,17 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   await vista.getByRole('searchbox').fill('Real Uno')
-  const abrirDetalle = vista.getByRole('button', { name: 'Detalle de Analista Real Uno', exact: true })
-  const detalle = vista.getByRole('region', { name: 'Detalle de Analista Real Uno', exact: true })
-  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'false')
+  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await expect(vista).toHaveAttribute('data-estrecho', 'false')
+  const abrirDetalle = vista.getByRole('button', { name: 'Seleccionar a Analista Real Uno', exact: true })
+  const detalle = page.getByRole('region', { name: 'Detalle de Analista Real Uno', exact: true })
   await abrirDetalle.focus()
   await page.keyboard.press('Enter')
-  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'true')
-  await expect(detalle).toBeVisible()
-  await page.keyboard.press('Space')
-  await expect(detalle).toBeHidden()
+  await expect(abrirDetalle).toHaveAttribute('aria-current', 'true')
   await expect(abrirDetalle).toBeFocused()
-  await page.keyboard.press('Enter')
   await expect(detalle).toBeVisible()
-  await expect(detalle.getByText('De 10:00 a 10:59: 26 llamadas, 26 contestadas')).toBeAttached()
-  const horario = detalle.getByRole('region', { name: 'Llamadas por hora de Analista Real Uno' })
-  await horario.focus()
-  await expect(horario).toBeFocused()
-  await page.keyboard.press('ArrowRight')
-  await expect.poll(() => horario.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0)
+  await detalle.getByText('Ver cifras por hora').click()
+  await expect(detalle.getByText('De 10:00 a 10:59: 26 llamadas, 26 contestadas')).toBeVisible()
   await detalle.screenshot({ path: info.outputPath('detalle-horario.png') })
   const abrirRegistro = detalle.getByRole('button', { name: 'Ver llamadas del día de Analista Real Uno' })
   await abrirRegistro.focus()
@@ -140,8 +136,11 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(registro.getByRole('tab', { name: 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(registro.getByRole('combobox', { name: 'Analista', exact: true })).toHaveCount(0)
   await registro.getByRole('tab', { name: 'Todo', exact: true }).click()
+  await detalle.getByRole('tab', { name: 'Resumen', exact: true }).click()
   await abrirRegistro.click()
   await expect(registro.getByRole('tab', { name: 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await detalle.getByRole('button', { name: 'Ampliar panel' }).click()
+  await expect(page.getByRole('dialog', { name: 'Detalle de Analista Real Uno' })).toBeVisible()
   const enlace = registro.getByRole('button', { name: lead.nombre_completo }).first()
   const cargasAntes = backend.llamadas.getLeads
   await enlace.focus()
@@ -150,6 +149,10 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   expect(backend.llamadas.getLeads).toBeGreaterThan(cargasAntes)
   await page.keyboard.press('Escape')
   await expect(enlace).toBeFocused()
+  await expect(page.getByRole('dialog', { name: 'Detalle de Analista Real Uno' })).toBeVisible()
+  await detalle.getByRole('button', { name: 'Restaurar panel' }).click()
+  await expect(detalle.getByRole('button', { name: 'Ampliar panel' })).toBeFocused()
+  await expect(registro.getByRole('listitem')).toHaveCount(25)
   await expect(registro.getByText('Conversación completa 0: solicita revisar el seguimiento.')).toBeVisible()
   // La ficha vuelve a consultar RLS aun si el lead ya fue hidratado.
   backend.leads = []
@@ -158,10 +161,16 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(page.getByRole('dialog', { name: lead.nombre_completo })).toHaveCount(0)
   await registro.getByRole('button', { name: 'Ver más' }).click()
   await expect(registro.getByRole('listitem')).toHaveCount(26)
+  await registro.getByRole('combobox', { name: 'Etapa actual del lead' }).focus()
+  await page.setViewportSize({ width: 1512, height: 805 })
+  await expect(page.getByRole('dialog', { name: 'Detalle de Analista Real Uno' })).toHaveCount(0)
+  await expect(registro.getByRole('combobox', { name: 'Etapa actual del lead' })).toBeFocused()
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
+  await page.setViewportSize({ width: 390, height: 844 })
   await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('registro-detalle.png') })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
   await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('registro-detalle-movil.png') })
@@ -185,8 +194,118 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
   await expect(registro.getByRole('alert')).toContainText('Ya no tienes autorización')
   await expect(registro.getByRole('listitem')).toHaveCount(0)
-  await registro.getByRole('button', { name: 'Cerrar registro', exact: true }).click()
-  await expect(abrirRegistro).toBeFocused()
+  await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  await expect(abrirDetalle).toBeFocused()
   await expect(vista.getByRole('searchbox')).toHaveValue('Real Uno')
-  await expect(abrirDetalle).toHaveAttribute('aria-expanded', 'true')
+  await expect(abrirDetalle).not.toHaveAttribute('aria-current')
+})
+
+for (const medida of [{ width: 1512, height: 805, filas: 10 }, { width: 1366, height: 768, filas: 9 }]) {
+  test(`H2 densidad ${medida.width}: ${medida.filas} filas, seis columnas y texto completo`, async ({ page }, info) => {
+    await page.setViewportSize(medida)
+    await montarBackendReal(page, { rolCrm: 'supervisor', leads: [], tareas: [] })
+    const nombres = ['ANA PÉREZ', 'BRUNO DÍAZ', 'CARLA LEÓN', 'DAVID ROJAS', 'ELENA PAZ', 'FABIO VEGA', 'GINA SOTO', 'HUGO RUIZ', 'INES TORRES', 'JOSÉ LUNA', 'KARLA SOL']
+    const d = diaEquipoPrueba(nombres.map((nombre, i) => filaEquipoPrueba({ analista_id: `a-${i}`, nombre_completo: nombre,
+      tareas_pendientes: 270, tareas_vencidas: 108, requiere_atencion: true, motivos_atencion: ['tarea_vencida'],
+      gestiones_hoy: 2, marcador: { ...filaEquipoPrueba().marcador, llamadas: 2, utiles: 2, contestadas: 1, tasa_contacto_pct: 50, por_hora: [{ hora: 10, llamadas: 2, contestadas: 1 }] },
+    })))
+    d.dia = fechaLima(Date.now()); d.supervisor_id = UID
+    await page.route('**/rest/v1/rpc/gestion_diaria_equipo_fn', (route) => route.fulfill({ json: d }))
+    await loginReal(page)
+    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
+    await page.mouse.move(900, 90)
+    const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
+    await expect(vista).toHaveAttribute('data-estrecho', 'false')
+    await page.evaluate(() => document.fonts.ready)
+    const primera = vista.getByRole('button', { name: 'Seleccionar a ANA PÉREZ' })
+    await primera.click()
+    await expect(primera).toBeFocused()
+    const geometria = await vista.evaluate((nodo) => {
+      const tabla = nodo.querySelector('.gd-tabla-scroll')!
+      const caja = tabla.getBoundingClientRect()
+      const filas = [...tabla.querySelectorAll<HTMLElement>('tr[data-analista]')].map((f) => f.getBoundingClientRect().toJSON())
+      const fuentesPequenas = [...nodo.querySelectorAll<HTMLElement>('*')].filter((e) => e.getClientRects().length && !e.closest('[hidden],.sr-only')
+        && [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) && parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => e.textContent)
+      const controlesBajos = [...nodo.querySelectorAll<HTMLElement>('button,input,select')].filter((e) => e.getClientRects().length && e.getBoundingClientRect().height < 43.9).map((e) => e.textContent)
+      const contenedor = nodo.closest<HTMLElement>('[data-vista-scroll]')!
+      return { viewport: [innerWidth, innerHeight], ancho: nodo.clientWidth, tabla: caja.toJSON(), filas,
+        completas: filas.filter((f) => f.bottom <= caja.bottom + .5).length, fuentesPequenas, controlesBajos,
+        scrollPagina: contenedor.scrollHeight - contenedor.clientHeight, overflowTabla: tabla.scrollWidth - tabla.clientWidth }
+    })
+    expect(geometria.completas).toBeGreaterThanOrEqual(medida.filas)
+    expect(geometria.filas.slice(0, medida.filas).every((f) => Math.abs(f.height - 44) < .5)).toBe(true)
+    expect(geometria.fuentesPequenas).toEqual([])
+    expect(geometria.controlesBajos).toEqual([])
+    expect(geometria.scrollPagina).toBeLessThanOrEqual(1)
+    expect(geometria.overflowTabla).toBe(0)
+    await writeFile(info.outputPath('medidas-h2.json'), JSON.stringify(geometria, null, 2))
+    await info.attach('medidas-h2.json', { body: JSON.stringify(geometria, null, 2), contentType: 'application/json' })
+    await page.screenshot({ path: info.outputPath(`horizontal-${medida.width}.png`) })
+    // Las filas restantes siguen alcanzables en su región, sin mover la página.
+    await vista.getByRole('button', { name: 'Seleccionar a KARLA SOL' }).focus()
+    await expect(vista.getByRole('button', { name: 'Seleccionar a KARLA SOL' })).toBeInViewport()
+    if (medida.width === 1512) {
+      const indicadores = await vista.getByRole('group', { name: 'Resumen del equipo' }).textContent()
+      await vista.getByRole('searchbox').fill('KARLA')
+      await expect(vista.getByRole('group', { name: 'Resumen del equipo' })).toHaveText(indicadores!)
+      await expect(page.getByText('La selección está fuera de los filtros.')).toBeVisible()
+      await page.getByRole('button', { name: 'Limpiar filtros' }).click()
+      await page.setViewportSize({ width: 756, height: 402 }) // espacio CSS de 1512×805 al 200 %
+      const dialogo = page.getByRole('dialog', { name: 'Detalle de ANA PÉREZ' })
+      await expect(dialogo).toBeVisible()
+      await expect(dialogo.getByRole('heading', { name: 'Detalle de ANA PÉREZ', exact: true }).last()).toBeFocused()
+      await page.screenshot({ path: info.outputPath('horizontal-200-por-ciento.png') })
+      await page.keyboard.press('Escape')
+      await expect(dialogo).toHaveCount(0)
+      await page.setViewportSize({ width: 390, height: 844 })
+      await vista.getByRole('button', { name: 'Seleccionar a ANA PÉREZ' }).click()
+      await expect(dialogo).toBeVisible()
+      await dialogo.getByRole('tab', { name: 'Pendientes', exact: true }).click()
+      await expect(dialogo.getByText('270', { exact: true })).toBeVisible()
+      expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true)
+      await page.screenshot({ path: info.outputPath('horizontal-movil.png') })
+      await page.keyboard.press('Escape')
+      await expect(dialogo).toHaveCount(0)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    }
+  })
+}
+
+test('H2 nombre largo, varios motivos, control de foco y cambio de ruta', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1512, height: 805 })
+  await montarBackendReal(page, { rolCrm: 'supervisor', leads: [], tareas: [] })
+  const nombre = 'MARÍA ALEJANDRA DE LOS ÁNGELES FERNÁNDEZ DEL CASTILLO'
+  const d = diaEquipoPrueba([filaEquipoPrueba({ analista_id: 'larga', nombre_completo: nombre,
+    tareas_pendientes: 999, tareas_vencidas: 321, primer_intento_vencido: 8, datos_incompletos: 2,
+    requiere_atencion: true, motivos_atencion: ['tarea_vencida', 'primer_intento_vencido', 'datos_incompletos'] })])
+  d.dia = fechaLima(Date.now()); d.supervisor_id = UID
+  await page.route('**/rest/v1/rpc/gestion_diaria_equipo_fn', (route) => route.fulfill({ json: d }))
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
+  await page.mouse.move(900, 90)
+  const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
+  await expect(vista).toHaveAttribute('data-estrecho', 'false')
+  const seleccion = vista.getByRole('button', { name: `Seleccionar a ${nombre}` })
+  await seleccion.click()
+  await expect(seleccion).toHaveText(nombre)
+  const panel = page.getByRole('region', { name: `Detalle de ${nombre}` })
+  for (const motivo of ['Tareas vencidas', 'Primer intento fuera de plazo', 'Datos pendientes de revisar']) await expect(panel.getByText(motivo, { exact: true })).toBeVisible()
+  expect(await seleccion.evaluate((e) => e.scrollHeight <= e.clientHeight && e.scrollWidth <= e.clientWidth)).toBe(true)
+  await panel.getByRole('button', { name: 'Ampliar panel' }).click()
+  const dialogo = page.getByRole('dialog', { name: `Detalle de ${nombre}` })
+  await expect(dialogo).toBeVisible()
+  await panel.getByRole('button', { name: 'Cerrar detalle' }).focus()
+  for (let n = 0; n < 18; n++) {
+    await page.keyboard.press('Tab')
+    expect(await dialogo.evaluate((e) => e.contains(document.activeElement))).toBe(true)
+  }
+  await page.screenshot({ path: info.outputPath('horizontal-nombre-largo.png') })
+  await page.keyboard.press('Escape')
+  await expect(dialogo).toHaveCount(0)
+  await expect(seleccion).toBeFocused()
+  await page.getByRole('button', { name: 'Agenda', exact: true }).click()
+  await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
+  await expect(page.getByText('Selecciona un analista de la tabla para consultar su día.')).toBeVisible()
 })

@@ -8,6 +8,7 @@ import { tituloCorte, horaCorte, type AvisoCorte } from './gestion-diaria-avisos
 import { hashDe } from './router'
 import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { MiembrosAvisoCorte } from '@/components/gestion-diaria/miembros-aviso-corte'
 import { AccionesCorte } from '@/components/gestion-diaria/acciones-corte'
 
 export function GestionDiariaAvisosProvider({ children }: { children: ReactNode }) {
@@ -43,7 +44,7 @@ export function GestionDiariaAvisosProvider({ children }: { children: ReactNode 
     } finally { ocupado.current = false }
   }, [accion, solicitud])
   const abrirRegistro = useCallback((aviso: AvisoCorte, analista: string) => {
-    if (!datos || !aviso.miembros.some((m) => m.analista_id === analista)) return
+    if (!datos?.alertas.some((a) => a.id === aviso.id && a.miembros.some((m) => m.analista_id === analista))) return
     setPopup(null)
     setRegistroPedido({ actor: datos.supervisor_id, dia: datos.dia, analista, secuencia: performance.now() })
     window.location.hash = hashDe('gestion-diaria')
@@ -136,14 +137,7 @@ export function GestionDiariaAvisosProvider({ children }: { children: ReactNode 
       <DialogBody className="space-y-4 text-base">
         <p>Estas personas quedaron por debajo del mínimo. Reconocer o posponer el aviso conserva el resultado del corte.</p>
         {datos?.contexto && <p>Han registrado llamadas {datos.contexto.con_llamadas} de {datos.contexto.analistas} analistas hoy. No se infiere asistencia ni feriados.</p>}
-        <ul className="divide-y divide-border">{visible.miembros.map((m) => <li key={m.analista_id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <div><strong>{m.nombre}</strong><p>{m.llamadas} llamadas al corte · mínimo {m.objetivo}</p>
-            {datos?.contexto && <p>{(() => {
-              const primera = datos.contexto.equipo.find((e) => e.analista_id === m.analista_id)?.primera_llamada_en
-              return primera ? `Primera llamada de hoy: ${horaCorte(primera)} Lima.` : 'Sin llamadas registradas hoy.'
-            })()}</p>}</div>
-          <Button variant="outline" className="h-auto min-h-11 max-w-full whitespace-normal text-base" onClick={() => abrirRegistro(visible, m.analista_id)}>Ver registro de {m.nombre}</Button>
-        </li>)}</ul>
+        <MiembrosAvisoCorte aviso={visible} mostrarContexto />
         <AccionesCorte aviso={visible} alConfirmar={() => setPopup(null)} />
         <p className="text-[var(--muted-foreground-strong)]">{visible.puede_posponer ? 'Puedes posponer una sola vez por una hora.' : 'Este aviso ya no admite aplazamiento.'} No habrá reaviso al terminar la jornada ni al día siguiente. La lista conserva el pendiente.</p>
       </DialogBody>

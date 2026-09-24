@@ -1,0 +1,205 @@
+{
+  "phase": "H1",
+  "date": "2026-09-23",
+  "baseCommit": "cf87e8087bf61ea5c58669d924e801526a04c779",
+  "branch": "codex/gestion-diaria-supervisor-horizontal",
+  "baseCheck": {
+    "status": "PASS",
+    "headEqualsAvancecorpMain": true,
+    "planningFilesPreservedByteForByte": 8,
+    "vaultInicioPreservesMainLines": true,
+    "productDiffEmpty": true
+  },
+  "baseline": {
+    "status": "OBSERVED",
+    "source": "Chrome: rendered UI/DOM, supervisor, detail and registro closed, rail collapsed",
+    "url": "https://crm.miavance.com/#/gestion-diaria",
+    "viewport": {
+      "width": 1512,
+      "height": 805
+    },
+    "globalHeader": {
+      "x": 64,
+      "y": 0,
+      "width": 1448,
+      "height": 64
+    },
+    "content": {
+      "x": 88,
+      "width": 1390
+    },
+    "localHeader": {
+      "y": 88,
+      "height": 99
+    },
+    "table": {
+      "y": 516,
+      "width": 1388,
+      "height": 1550
+    },
+    "tableHeaderHeight": 60.5,
+    "typicalRowHeight": 149,
+    "expandedDetailHeight": 423.5,
+    "piiIncluded": false
+  },
+  "target": {
+    "status": "SPECIFIED_NOT_IMPLEMENTED",
+    "viewport": {
+      "width": 1512,
+      "height": 805
+    },
+    "tableWidth": 960,
+    "gap": 16,
+    "panelWidth": 414,
+    "minPanelWidth": 380,
+    "twoColumnMinContainerWidth": 1236,
+    "minTableWidth": 840,
+    "rowHeight": 44,
+    "fontMin": 16,
+    "controlMin": 44,
+    "typicalVisibleRows": 10,
+    "tableRegionHeight": 536,
+    "targetBottomY": 780,
+    "geometryBudgetPass": true,
+    "narrowerDesktop": {
+      "viewport": "1366x768",
+      "typicalFullRows": 9
+    },
+    "minColumnWidths": [
+      204,
+      104,
+      132,
+      120,
+      104,
+      160
+    ],
+    "scrollbarReservedPx": 16,
+    "fontMeasurement": {
+      "source": "Read-only DOM Range on existing visible label",
+      "fontFamily": "Plus Jakarta Sans",
+      "fontSizePx": 16,
+      "fontWeight": 400,
+      "label": "Sin muestra",
+      "widthPx": 88.34375,
+      "columnPx": 132,
+      "horizontalPaddingPx": 16,
+      "fits": true
+    }
+  },
+  "sourceHashes": [
+    {
+      "path": "CRM-Avance-Corp/app/src/screens/gestion-diaria/supervisor.tsx",
+      "sha256": "be2974ab3e9b14314d7e26833a2d4753402405b50b5e14bf1d44b50301e3156b"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/components/gestion-diaria/tabla-equipo-diaria.tsx",
+      "sha256": "9fd60408ccb7846f723f7e7f4d5a19922ec5bdb1fb99c41aff00cb6ee1b8e804"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/components/gestion-diaria/detalle-analista.tsx",
+      "sha256": "191b6b14d0f3ad71259d5bcb8dccda6622691baeb03c218b613fc8f2e0c0a4a6"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/components/gestion-diaria/registro-actividad.tsx",
+      "sha256": "ea4961debe9193d061a1fedcb894297932daecc62f9457e3f9558343a661e84e"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/lib/gestion-diaria-equipo.ts",
+      "sha256": "d90d55ea3a564d7a993e5312f91c4ddea4e343e2e1c6f704caae61fb0a0e75c1"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/data/gestion-diaria-equipo-queries.ts",
+      "sha256": "6d2543323c44b652f17bae87ab717095b17365ff6a8938f9ec9c69d2068f5d80"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+      "sha256": "97631f176536f58eaf86c65cc20b235153270c1f5390c9a6724f89c41b642824"
+    },
+    {
+      "path": "CRM-Avance-Corp/supabase/migrations/20260921040335_crm_gestion_diaria_equipo_vista.sql",
+      "sha256": "f9a9aad16a683e1b87118fe03976cb206d752f0f375c93b4dc375e044c49af02"
+    },
+    {
+      "path": "CRM-Avance-Corp/supabase/migrations/20260920045202_crm_tareas_pendientes_lead_embebido.sql",
+      "sha256": "c903eadfc1c073bdcbb37ee000f9edca38aef8b6c51e6fb3bdb3131ef4fb5a61"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/lib/tarea-schema.ts",
+      "sha256": "786e8a652bb6c54e959bc925c6e66384757e759649250efb9be4cfb5944be75e"
+    },
+    {
+      "path": "CRM-Avance-Corp/app/src/lib/database.types.ts",
+      "sha256": "fdaf2a343a796911c78ed06616455d9f5a21b8e96c25902e4a8cb9ac070ea9c1"
+    }
+  ],
+  "backendDecision": {
+    "newReadRpcPlanned": "crm.gestion_diaria_pendientes_fn",
+    "implementationPhase": "H3.3",
+    "status": "SPECIFIED_NOT_IMPLEMENTED",
+    "tablesOrRlsChanged": false,
+    "sharedRosterExtractionPlanned": true,
+    "rosterParityGateRequired": true
+  },
+  "productTests": {
+    "status": "NOT RUN",
+    "reason": "H1 is documentation/specification only; no runtime changes"
+  },
+  "deployment": {
+    "status": "NOT RUN",
+    "reason": "H1 does not publish product or install SQL"
+  },
+  "review": {
+    "verdict": "CHANGES_REQUESTED",
+    "confidence": "MEDIUM",
+    "resolvedByPrimary": true,
+    "secondReviewOfCorrections": false,
+    "report": "SUPERVISOR-HORIZONTAL-H1-REVISION-2026-09-23.md"
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
+    "readback": "PASS",
+    "phaseCount": 6,
+    "stageCount": 24,
+    "completedTasks": 12,
+    "pendingTasks": 60,
+    "originalItemsPreserved": 76,
+    "overflow": [],
+    "visualQA": "PASS: captura final inspeccionada; H1 completa, H2–H6 pendientes, sin solapamientos ni recortes",
+    "screenshot": "assets/supervisor-horizontal-h1-cerrada-figma-2026-09-23.png",
+    "screenshotSha256": "53a4168b80eeb3e6561999b7488d2a1fab55adb75e1e82e131d627ffabe187da"
+  },
+  "documentationChecks": {
+    "status": "PASS",
+    "jsonValid": true,
+    "localLinksValid": true,
+    "planCheckboxCountsMatch": true,
+    "gitDiffCheck": "PASS",
+    "runtimeUnchanged": true
+  },
+  "completionAudit": [
+    {
+      "stage": "H1.1",
+      "status": "PASS",
+      "evidence": "SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md",
+      "section": "H1.1 — Base, alcance y situación inicial"
+    },
+    {
+      "stage": "H1.2",
+      "status": "PASS",
+      "evidence": "SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md",
+      "section": "H1.2 — Datos, unidades y estados"
+    },
+    {
+      "stage": "H1.3",
+      "status": "PASS",
+      "evidence": "SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md",
+      "section": "H1.3 — Medidas y distribución"
+    },
+    {
+      "stage": "H1.4",
+      "status": "PASS",
+      "evidence": "SUPERVISOR-HORIZONTAL-H1-ESPECIFICACION-2026-09-23.md",
+      "section": "H1.4 — Navegación y contratos"
+    }
+  ]
+}

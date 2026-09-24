@@ -3,7 +3,7 @@
 // TanStack conserva una foto vieja) y las páginas con cursor no laten solas.
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CursorRegistro } from '@/lib/gestion-diaria'
 import type { Actividad, Lead, Miembro, Tarea, Yo } from '@/lib/tipos'
@@ -46,6 +46,31 @@ beforeEach(() => {
 })
 
 describe('useRegistroActividadOperativo', () => {
+  it('Resumen y Registro comparten la primera página y un refresco simultáneo', async () => {
+    dobles.yo = { ...dobles.yo, demo: false, rol: 'supervisor' }
+    dobles.listar.mockResolvedValue({ version: 1, items: [] })
+    const { result, rerender } = renderHook(({ registro }) => ({
+      resumen: useRegistroActividadOperativo(FILTROS, null, 25, !registro, true),
+      registro: useRegistroActividadOperativo(FILTROS, null, 25, registro, true),
+    }), { wrapper: envoltorio(), initialProps: { registro: false } })
+    await waitFor(() => expect(result.current.resumen.pagina).not.toBeNull())
+    expect(dobles.listar).toHaveBeenCalledOnce()
+    rerender({ registro: true })
+    await waitFor(() => expect(result.current.registro.pagina).not.toBeNull())
+    expect(dobles.listar).toHaveBeenCalledOnce()
+    let resolver!: (v: unknown) => void
+    dobles.listar.mockImplementation(() => new Promise(r => { resolver=r }))
+    let peticiones!: Promise<void>[]
+    act(() => { peticiones=[result.current.resumen.recargar(),result.current.registro.recargar()] })
+    expect(dobles.listar).toHaveBeenCalledTimes(2)
+    await act(async () => { resolver({ version: 1, items: [] }); await Promise.all(peticiones) })
+  })
+  it('refrescar el resumen demo no llama a la RPC real', async () => {
+    const { result } = renderHook(() => useRegistroActividadOperativo(FILTROS, null, 25, true, true), { wrapper: envoltorio() })
+    await act(async () => { await result.current.recargar() })
+    expect(dobles.listar).not.toHaveBeenCalled()
+  })
+
   it('volver a la primera página la reconsulta aunque la caché global siga fresca', async () => {
     dobles.yo = { ...dobles.yo, demo: false }
     dobles.listar.mockResolvedValue({ version: 1, items: [] })

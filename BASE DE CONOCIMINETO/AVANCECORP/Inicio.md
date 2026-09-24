@@ -5,6 +5,8 @@ actualizado: 2026-09-23
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]] — **H1–H4 CERRADAS; H5–H6 PENDIENTES:** franja de cortes de 44 px, avisos y registro correcto integrados; acciones y contexto conservados. Producto `186e00f1`. Gate 4.272 pruebas; E2E completo 247/0/26 y dirigido 14/14. Claude CHANGES_REQUESTED (MEDIUM), hallazgos resueltos. Mismo Figma: 48/72 completas, 76 casillas históricas intactas. Sin publicación; retomar H5.1 desde la copia aislada y el respaldo H4 documentados.
+
 - [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — **MEJORA VISUAL PUBLICADA:** PR #82, fuente `e8e4f35f`, build `build-20260923T204457952Z`; 4.179 pruebas, archivos y acceso de gerencia verificados. Mismo plan editable en Figma, 76 puntos. Pendientes aceptación de analista/supervisor y primera jornada real de F4 del 24/09. Fixtures integrados mediante PR #84; acta de publicación enlazada en la nota.
 
 - [[Gestion Diaria F4 - publicado y cortes programados para el 24-09 (2026-09-23)]] — **SQL Y FRONTEND PUBLICADOS; V2 PROGRAMADA.** PR #77 fusionado y publicado, fuente `8e6f4357`, build `build-20260923T173450335Z`; 113 archivos y smoke gerencia PASS. Detalle opcional compatible con tipos regenerados; 4.175 pruebas y 32 E2E focalizados PASS. Cortes desde 24/09, 11:30 y 16:00 Lima; tasa baja OFF hasta F5. Banco eliminado (~US$0,070 acumulados). Pendiente primera jornada real y recorrido con supervisión.

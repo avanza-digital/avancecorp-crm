@@ -1,0 +1,454 @@
+{
+  "originales": [
+    {
+      "id": "2:17",
+      "text": "☑ Revisar los datos existentes y acordar las definiciones de llamadas, contacto y actividad."
+    },
+    {
+      "id": "2:18",
+      "text": "☑ Confirmar resultados, submotivos y reglas iniciales."
+    },
+    {
+      "id": "2:19",
+      "text": "☑ Incorporar la tipografía y los componentes comunes."
+    },
+    {
+      "id": "2:20",
+      "text": "☑ Guardar el plan y las decisiones en la documentación y el vault."
+    },
+    {
+      "id": "2:24",
+      "text": "☑ Incorporar Gestión Diaria al menú."
+    },
+    {
+      "id": "2:25",
+      "text": "☑ Mostrar llamadas, WhatsApp, notas y demás actividades."
+    },
+    {
+      "id": "2:26",
+      "text": "☑ Permitir filtros, paginación y acceso a la ficha del lead."
+    },
+    {
+      "id": "2:27",
+      "text": "☑ Mostrar al analista su actividad, al supervisor su equipo y a gerencia toda la operación."
+    },
+    {
+      "id": "2:28",
+      "text": "☑ Permitir la exportación CSV para gerencia."
+    },
+    {
+      "id": "2:29",
+      "text": "☑ Verificar los permisos entre equipos."
+    },
+    {
+      "id": "2:33",
+      "text": "☑ Registrar las llamadas mediante los siete resultados acordados."
+    },
+    {
+      "id": "2:34",
+      "text": "☑ Solicitar los datos correspondientes a cada resultado."
+    },
+    {
+      "id": "2:35",
+      "text": "☑ Crear la próxima acción cuando corresponda."
+    },
+    {
+      "id": "2:36",
+      "text": "☑ Separar resultado y descarte: “No le interesa” y “Pide otro producto” permiten conservar el lead y programar seguimiento."
+    },
+    {
+      "id": "2:37",
+      "text": "☑ Mantener las reglas de “No insistir”."
+    },
+    {
+      "id": "2:38",
+      "text": "☑ Permitir deshacer los efectos admitidos durante 24 horas."
+    },
+    {
+      "id": "2:39",
+      "text": "☑ Conservar los guardados pendientes sin duplicar operaciones."
+    },
+    {
+      "id": "2:43",
+      "text": "☑ Mostrar una acción principal: a quién atender ahora."
+    },
+    {
+      "id": "2:44",
+      "text": "☑ Ofrecer la cola completa de pendientes."
+    },
+    {
+      "id": "2:45",
+      "text": "☑ Priorizar nuevos leads sin primer intento, después vencidas y tareas de hoy."
+    },
+    {
+      "id": "2:46",
+      "text": "☑ Mostrar actividad, compromisos y descartes del día."
+    },
+    {
+      "id": "2:47",
+      "text": "☑ Organizar la pantalla en los dos paneles acordados."
+    },
+    {
+      "id": "2:48",
+      "text": "☑ Corregir los problemas de carga parcial y actualización."
+    },
+    {
+      "id": "2:49",
+      "text": "☑ Conservar “Hoy” como pantalla independiente."
+    },
+    {
+      "id": "2:53",
+      "text": "☑ Mostrar a todos los analistas activos del equipo, incluidos quienes tienen cero actividad."
+    },
+    {
+      "id": "2:54",
+      "text": "☑ Mostrar llamadas, contactos, tasa, pendientes y motivos de atención."
+    },
+    {
+      "id": "2:55",
+      "text": "☑ Buscar, ordenar y filtrar por “Con problema hoy”."
+    },
+    {
+      "id": "2:56",
+      "text": "☑ Respetar el ámbito de cada supervisor."
+    },
+    {
+      "id": "2:60",
+      "text": "☑ Mostrar llamadas por hora."
+    },
+    {
+      "id": "2:61",
+      "text": "☑ Abrir las llamadas o el registro completo del analista."
+    },
+    {
+      "id": "2:62",
+      "text": "☑ Llegar desde el registro a la ficha del lead."
+    },
+    {
+      "id": "2:63",
+      "text": "☑ Conservar filtros, paginación y navegación de regreso."
+    },
+    {
+      "id": "2:67",
+      "text": "☑ Implementar el corte de 11:30: mínimo 3 llamadas."
+    },
+    {
+      "id": "2:68",
+      "text": "☑ Implementar el corte de 16:00: acumulado inicial × 2,5, con mínimo 8 y máximo 30."
+    },
+    {
+      "id": "2:69",
+      "text": "☑ Implementar el sábado con un solo corte y mínimo 3."
+    },
+    {
+      "id": "2:70",
+      "text": "☑ Excluir de los avisos de corte a quienes no tienen cartera abierta."
+    },
+    {
+      "id": "2:71",
+      "text": "☑ Instalar y verificar el SQL."
+    },
+    {
+      "id": "2:72",
+      "text": "☑ Programar su activación para el 24/09."
+    },
+    {
+      "id": "2:76",
+      "text": "☑ Publicar los avisos con los analistas afectados y sus cifras."
+    },
+    {
+      "id": "2:77",
+      "text": "☑ Integrar ventana emergente, campana y lista."
+    },
+    {
+      "id": "2:78",
+      "text": "☑ Permitir “Lo estoy atendiendo”."
+    },
+    {
+      "id": "2:79",
+      "text": "☑ Permitir “Posponer 1 hora”, una vez por aviso, supervisor y día."
+    },
+    {
+      "id": "2:80",
+      "text": "☑ Guardar esas acciones en el servidor."
+    },
+    {
+      "id": "2:81",
+      "text": "☑ Implementar las reglas para evitar duplicados y reavisos al cierre."
+    },
+    {
+      "id": "2:85",
+      "text": "☑ Publicar la pantalla de configuración."
+    },
+    {
+      "id": "2:86",
+      "text": "☑ Permitir ajustar horarios, mínimos, crecimiento y límites."
+    },
+    {
+      "id": "2:87",
+      "text": "☑ Guardar versiones con vigencia futura, conservando las reglas anteriores."
+    },
+    {
+      "id": "2:88",
+      "text": "☑ Crear y comprobar la v2 para el 24/09."
+    },
+    {
+      "id": "2:89",
+      "text": "☑ Mantener la alerta de tasa muy baja apagada hasta F5."
+    },
+    {
+      "id": "2:93",
+      "text": "☑ Completar las pruebas técnicas y el ensayo remoto."
+    },
+    {
+      "id": "2:94",
+      "text": "☑ Publicar el frontend y verificar sus archivos."
+    },
+    {
+      "id": "2:95",
+      "text": "☑ Comprobar configuración y registro con gerencia."
+    },
+    {
+      "id": "2:96",
+      "text": "☑ Publicar la corrección del detalle opcional del PR #77."
+    },
+    {
+      "id": "2:97",
+      "text": "☐ Completar el recorrido de negocio con supervisión."
+    },
+    {
+      "id": "2:98",
+      "text": "☐ Observar ambos cortes reales del 24/09."
+    },
+    {
+      "id": "2:99",
+      "text": "☐ Confirmar cifras, avisos, reconocimiento y aplazamiento entre sesiones o dispositivos."
+    },
+    {
+      "id": "2:100",
+      "text": "☐ Registrar incidencias, corregirlas si aparecen y dejar evidencia del cierre."
+    },
+    {
+      "id": "2:101",
+      "text": "☐ Comprobar el corte único del sábado 26/09 como seguimiento operativo."
+    },
+    {
+      "id": "2:105",
+      "text": "☑ Verificar el acceso técnico y realizar un ensayo con casos ficticios."
+    },
+    {
+      "id": "2:106",
+      "text": "☑ Preparar la guía y el banco de práctica para ambos supervisores."
+    },
+    {
+      "id": "2:107",
+      "text": "☐ Ejecutar el piloto humano, cada supervisor con su equipo."
+    },
+    {
+      "id": "2:108",
+      "text": "☐ Preparar y evaluar la muestra anonimizada."
+    },
+    {
+      "id": "2:109",
+      "text": "☐ Medir aciertos, falsas alarmas, omisiones, coste y utilidad."
+    },
+    {
+      "id": "2:110",
+      "text": "☐ Integrar las sugerencias en el CRM solo si el piloto demuestra utilidad."
+    },
+    {
+      "id": "2:115",
+      "text": "☐ Construir el tablero global del día."
+    },
+    {
+      "id": "2:116",
+      "text": "☐ Comparar con ayer y con los últimos siete días con actividad."
+    },
+    {
+      "id": "2:117",
+      "text": "☐ Identificar los equipos que requieren atención."
+    },
+    {
+      "id": "2:118",
+      "text": "☐ Permitir bajar de operación → equipo → analista → registro."
+    },
+    {
+      "id": "2:119",
+      "text": "☐ Crear el reporte de hábitos: primera llamada, pausas, tasa de contacto y cumplimiento de cortes."
+    },
+    {
+      "id": "2:120",
+      "text": "☐ Usar esos datos para definir con gerencia la alerta de tasa muy baja."
+    },
+    {
+      "id": "2:121",
+      "text": "☐ Probar y publicar la fase."
+    },
+    {
+      "id": "2:125",
+      "text": "☐ Acumular al menos una semana de F3–F5 estables en producción."
+    },
+    {
+      "id": "2:126",
+      "text": "☐ Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+    },
+    {
+      "id": "2:127",
+      "text": "☐ Retirar la pantalla duplicada conservando sus capacidades."
+    },
+    {
+      "id": "2:128",
+      "text": "☐ Verificar navegación, permisos y funcionamiento completo."
+    },
+    {
+      "id": "2:129",
+      "text": "☐ Actualizar la documentación y cerrar el módulo."
+    }
+  ],
+  "h4": [
+    {
+      "id": "18:36",
+      "x": 28,
+      "y": 24,
+      "width": 946.6666870117188,
+      "height": 49,
+      "text": "Fase H4 · Integración de cortes y avisos"
+    },
+    {
+      "id": "18:37",
+      "x": 28,
+      "y": 87,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "PENDIENTE · 4 etapas"
+    },
+    {
+      "id": "18:38",
+      "x": 28,
+      "y": 301,
+      "width": 946.6666870117188,
+      "height": 38,
+      "text": "☐ Etapa H4.1 · Compactar el estado de los cortes"
+    },
+    {
+      "id": "18:39",
+      "x": 28,
+      "y": 627,
+      "width": 946.6666870117188,
+      "height": 38,
+      "text": "☐ Etapa H4.2 · Mantener acciones de seguimiento"
+    },
+    {
+      "id": "18:40",
+      "x": 28,
+      "y": 953,
+      "width": 946.6666870117188,
+      "height": 38,
+      "text": "☐ Etapa H4.3 · Unir avisos con el panel"
+    },
+    {
+      "id": "18:41",
+      "x": 28,
+      "y": 1279,
+      "width": 946.6666870117188,
+      "height": 38,
+      "text": "☐ Etapa H4.4 · Integrar otros pendientes y navegación"
+    },
+    {
+      "id": "18:42",
+      "x": 28,
+      "y": 1661,
+      "width": 946.6666870117188,
+      "height": 71,
+      "text": "Cierre: Todas las acciones anteriores siguen disponibles, muestran el estado real y abren la persona correcta sin duplicados."
+    },
+    {
+      "id": "19:35",
+      "x": 28,
+      "y": 144,
+      "width": 946.6666870117188,
+      "height": 76,
+      "text": "Objetivo específico: Mantener las alertas operativas visibles y accionables dentro de la pantalla compacta."
+    },
+    {
+      "id": "19:36",
+      "x": 28,
+      "y": 238,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "Dependencia: H3 conectada para abrir la persona y el registro correctos."
+    },
+    {
+      "id": "19:37",
+      "x": 28,
+      "y": 353,
+      "width": 946.6666870117188,
+      "height": 195,
+      "text": "☐ Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.\n☐ Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.\n☐ Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija."
+    },
+    {
+      "id": "19:38",
+      "x": 28,
+      "y": 562,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "Resultado: Estado real de cortes visible en poco espacio."
+    },
+    {
+      "id": "19:39",
+      "x": 28,
+      "y": 679,
+      "width": 946.6666870117188,
+      "height": 195,
+      "text": "☐ Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.\n☐ Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.\n☐ Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos."
+    },
+    {
+      "id": "19:40",
+      "x": 28,
+      "y": 888,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "Resultado: Acciones existentes operativas desde el nuevo diseño."
+    },
+    {
+      "id": "19:41",
+      "x": 28,
+      "y": 1005,
+      "width": 946.6666870117188,
+      "height": 195,
+      "text": "☐ Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.\n☐ Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.\n☐ Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados."
+    },
+    {
+      "id": "19:42",
+      "x": 28,
+      "y": 1214,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "Resultado: Aviso y detalle conectados sin pérdida de contexto."
+    },
+    {
+      "id": "19:43",
+      "x": 28,
+      "y": 1331,
+      "width": 946.6666870117188,
+      "height": 195,
+      "text": "☐ Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.\n☐ Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.\n☐ Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes."
+    },
+    {
+      "id": "19:44",
+      "x": 28,
+      "y": 1540,
+      "width": 946.6666870117188,
+      "height": 33,
+      "text": "Resultado: Avisos integrados en un recorrido coherente."
+    },
+    {
+      "id": "19:45",
+      "x": 28,
+      "y": 1605,
+      "width": 946.6666870117188,
+      "height": 36,
+      "text": "Entregable: Pantalla completa con cortes y avisos integrados."
+    }
+  ]
+}
