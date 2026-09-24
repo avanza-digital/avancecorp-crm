@@ -274,6 +274,12 @@ export function AccionesContacto({
 function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: string | undefined }): JSX.Element | null {
   const { crearTarea, tareasDe, asegurarLead } = useCRMData()
   const ahora = useAhora()
+  // ANTI-DOBLE-CLIC: entre el clic y la tarea media un `await` de red
+  // (asegurarLead) y el botón recién se oculta al re-render; dos clics rápidos
+  // creaban dos tareas, porque cada una lleva su propio id. El ref corta el
+  // segundo clic en el acto; el estado solo pinta el botón deshabilitado.
+  const enCurso = useRef(false)
+  const [enviando, setEnviando] = useState(false)
   // ANTI-DUPLICADO: si ya tiene plan VIVO no se le encima otro. Ojo con la
   // palabra: una tarea VENCIDA no es un plan (lib/plan-lead.ts). Mirar
   // `tareasDe().length` a secas escondía este botón justo en los leads que la
@@ -281,40 +287,50 @@ function BotonAgendar({ lead, labelCls }: { lead: LeadContactable; labelCls: str
   if (tareasDe(lead.id).some((t) => esPlanVivo(t, ahora))) return null
 
   const agendar = async () => {
-    let conocido = false
+    if (enCurso.current) return
+    enCurso.current = true
+    setEnviando(true)
     try {
-      conocido = await asegurarLead(lead.id)
-    } catch {
-      toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.')
-      return
+      let conocido = false
+      try {
+        conocido = await asegurarLead(lead.id)
+      } catch {
+        toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.')
+        return
+      }
+      if (!conocido) {
+        toast.error('Este lead ya no está disponible en tu ámbito.')
+        return
+      }
+      const vence = proximoSlotSugerido(ahora)
+      const res = crearTarea({
+        lead_id: lead.id,
+        tipo: 'llamada',
+        titulo: `Llamar a ${primerNombre(lead.nombre_completo)}`,
+        vence_en: vence,
+      })
+      if (!res.ok) {
+        toast.error(res.error ?? 'No se pudo agendar')
+        return
+      }
+      const cuando = tareaAEvento(
+        { ...PLANTILLA_TAREA, tipo: 'llamada', titulo: 'x', vence_en: vence },
+        ahora,
+      ).cuando
+      toast.success(`Agendado: llamar a ${primerNombre(lead.nombre_completo)} — ${cuando}`)
+    } finally {
+      enCurso.current = false
+      setEnviando(false)
     }
-    if (!conocido) {
-      toast.error('Este lead ya no está disponible en tu ámbito.')
-      return
-    }
-    const vence = proximoSlotSugerido(ahora)
-    const res = crearTarea({
-      lead_id: lead.id,
-      tipo: 'llamada',
-      titulo: `Llamar a ${primerNombre(lead.nombre_completo)}`,
-      vence_en: vence,
-    })
-    if (!res.ok) {
-      toast.error(res.error ?? 'No se pudo agendar')
-      return
-    }
-    const cuando = tareaAEvento(
-      { ...PLANTILLA_TAREA, tipo: 'llamada', titulo: 'x', vence_en: vence },
-      ahora,
-    ).cuando
-    toast.success(`Agendado: llamar a ${primerNombre(lead.nombre_completo)} — ${cuando}`)
   }
 
   return (
     <button
       type="button"
-      className={CLASE_ACCION}
+      className={cn(CLASE_ACCION, 'disabled:opacity-60')}
       aria-label={`Agendar el siguiente paso con ${lead.nombre_completo}`}
+      disabled={enviando}
+      aria-busy={enviando || undefined}
       onClick={() => void agendar()}
     >
       <CalendarPlus /> <span className={labelCls}>Agendar</span>
