@@ -1,0 +1,328 @@
+{
+  "fase": "H2",
+  "fecha": "2026-09-23",
+  "estado": "complete",
+  "base": "cf87e8087bf61ea5c58669d924e801526a04c779",
+  "rama": "codex/gestion-diaria-supervisor-horizontal",
+  "mediciones": [
+    {
+      "viewport": [
+        1512,
+        805
+      ],
+      "ancho": 1400,
+      "tabla": {
+        "x": 88,
+        "y": 244,
+        "width": 970,
+        "height": 485,
+        "top": 244,
+        "right": 1058,
+        "bottom": 729,
+        "left": 88
+      },
+      "filas": [
+        {
+          "x": 88,
+          "y": 288,
+          "width": 960,
+          "height": 44,
+          "top": 288,
+          "right": 1048,
+          "bottom": 332,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 332,
+          "width": 960,
+          "height": 44,
+          "top": 332,
+          "right": 1048,
+          "bottom": 376,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 376,
+          "width": 960,
+          "height": 44,
+          "top": 376,
+          "right": 1048,
+          "bottom": 420,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 420,
+          "width": 960,
+          "height": 44,
+          "top": 420,
+          "right": 1048,
+          "bottom": 464,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 464,
+          "width": 960,
+          "height": 44,
+          "top": 464,
+          "right": 1048,
+          "bottom": 508,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 508,
+          "width": 960,
+          "height": 44,
+          "top": 508,
+          "right": 1048,
+          "bottom": 552,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 552,
+          "width": 960,
+          "height": 44,
+          "top": 552,
+          "right": 1048,
+          "bottom": 596,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 596,
+          "width": 960,
+          "height": 44,
+          "top": 596,
+          "right": 1048,
+          "bottom": 640,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 640,
+          "width": 960,
+          "height": 44,
+          "top": 640,
+          "right": 1048,
+          "bottom": 684,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 684,
+          "width": 960,
+          "height": 44,
+          "top": 684,
+          "right": 1048,
+          "bottom": 728,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 728,
+          "width": 960,
+          "height": 44,
+          "top": 728,
+          "right": 1048,
+          "bottom": 772,
+          "left": 88
+        }
+      ],
+      "completas": 10,
+      "fuentesPequenas": [],
+      "controlesBajos": [],
+      "scrollPagina": 0,
+      "overflowTabla": 0
+    },
+    {
+      "viewport": [
+        1366,
+        768
+      ],
+      "ancho": 1254,
+      "tabla": {
+        "x": 88,
+        "y": 244,
+        "width": 858,
+        "height": 448,
+        "top": 244,
+        "right": 946,
+        "bottom": 692,
+        "left": 88
+      },
+      "filas": [
+        {
+          "x": 88,
+          "y": 288,
+          "width": 848,
+          "height": 44,
+          "top": 288,
+          "right": 936,
+          "bottom": 332,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 332,
+          "width": 848,
+          "height": 44,
+          "top": 332,
+          "right": 936,
+          "bottom": 376,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 376,
+          "width": 848,
+          "height": 44,
+          "top": 376,
+          "right": 936,
+          "bottom": 420,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 420,
+          "width": 848,
+          "height": 44,
+          "top": 420,
+          "right": 936,
+          "bottom": 464,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 464,
+          "width": 848,
+          "height": 44,
+          "top": 464,
+          "right": 936,
+          "bottom": 508,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 508,
+          "width": 848,
+          "height": 44,
+          "top": 508,
+          "right": 936,
+          "bottom": 552,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 552,
+          "width": 848,
+          "height": 44,
+          "top": 552,
+          "right": 936,
+          "bottom": 596,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 596,
+          "width": 848,
+          "height": 44,
+          "top": 596,
+          "right": 936,
+          "bottom": 640,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 640,
+          "width": 848,
+          "height": 44,
+          "top": 640,
+          "right": 936,
+          "bottom": 684,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 684,
+          "width": 848,
+          "height": 44,
+          "top": 684,
+          "right": 936,
+          "bottom": 728,
+          "left": 88
+        },
+        {
+          "x": 88,
+          "y": 728,
+          "width": 848,
+          "height": 44,
+          "top": 728,
+          "right": 936,
+          "bottom": 772,
+          "left": 88
+        }
+      ],
+      "completas": 9,
+      "fuentesPequenas": [],
+      "controlesBajos": [],
+      "scrollPagina": 0,
+      "overflowTabla": 0
+    }
+  ],
+  "tests": {
+    "check": "PASS",
+    "unitFiles": 280,
+    "unitPassed": 4192,
+    "e2eFinal": {
+      "command": "npm run test:e2e:docker -- e2e/gestion-diaria-equipo.spec.ts e2e/gestion-diaria.spec.ts e2e/gestion-diaria-analista.spec.ts e2e/demo-roles.spec.ts --workers=2 --retries=0 --reporter=list",
+      "passed": 29,
+      "failed": 0
+    },
+    "e2eFullInitial": {
+      "passed": 234,
+      "failed": 3,
+      "skipped": 26,
+      "resolution": "Los archivos completos de los tres fallos se repitieron dentro del banco final 29/29 con código estable; se conserva la primera corrida."
+    },
+    "realityGate": "NOT RUN: Falta SUPABASE_URL",
+    "sql": "NOT RUN: fuera de H2",
+    "publication": "NOT RUN: H6"
+  },
+  "review": {
+    "verdict": "CHANGES_REQUESTED",
+    "confidence": "MEDIUM",
+    "resolution": "Codex corrigió hallazgos y verificó con tests; sin segunda consulta"
+  },
+  "figma": {
+    "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+    "phaseNodeId": "18:19",
+    "status": "PASS",
+    "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-19",
+    "taskCountReadback": {
+      "complete": 24,
+      "pending": 48
+    },
+    "originalPhaseCount": 76,
+    "originalPhasesUnchanged": true,
+    "textMismatches": [],
+    "overflow": [],
+    "overlap": [],
+    "visualQA": "PASS: composición y detalle inspeccionados",
+    "screenshot": "assets/supervisor-horizontal-h2-cerrada-figma-2026-09-23.png",
+    "detailScreenshot": "assets/supervisor-horizontal-h2-detalle-figma-2026-09-23.png"
+  },
+  "assets": {
+    "supervisor-h2-200-por-ciento-2026-09-23.png": "8ad22707b508c6ae49105de10939ab6c226a00cab065a0c1e9f89c5a2eb68ff1",
+    "supervisor-h2-1366-2026-09-23.png": "713a006279a0bc8523f4e42405a0e2e8232d23ac7931a656bbfcf94336bfb306",
+    "supervisor-h2-movil-2026-09-23.png": "0b35dce88b1b2a504f0e854fef1b13489ad5170683cffacb3d085d8b40c8857b",
+    "supervisor-h2-nombre-largo-2026-09-23.png": "1718a4895b3629146f5542094b413db3ffc402744419540f96fd945561c0d7ff",
+    "supervisor-h2-1512-2026-09-23.png": "eb6ac0e675bd4a52a0f0d1e0c3d628037065f26dd5e14dea8957bef5ae3deb09",
+    "supervisor-horizontal-h2-cerrada-figma-2026-09-23.png": "1d1540def4416d331e07045ce0226ba56abf7e7f70c6415eb6e41aaf74b636d4",
+    "supervisor-horizontal-h2-detalle-figma-2026-09-23.png": "2b91cc2868ebf3c20f8fce5fdcc6ab03be8da614d585e7fac3f5636e287f5e13"
+  }
+}

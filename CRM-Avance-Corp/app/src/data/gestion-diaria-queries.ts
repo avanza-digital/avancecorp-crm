@@ -45,6 +45,7 @@ export function useRegistroActividadOperativo(
   cursor: CursorRegistro | null,
   limite: number,
   habilitado = true,
+  compartirPrimeraPagina = false,
 ): RegistroActividadHook {
   const { yo } = useAuth()
   const { actividadesDelAmbito, ambito, equipo } = useCRMData()
@@ -55,7 +56,9 @@ export function useRegistroActividadOperativo(
     enabled: sesionReal,
     // «Actualizar» desde una página posterior vuelve a la primera. Debe
     // reconsultarla incluso si la caché global aún la considera fresca.
-    staleTime: 0,
+    // Resumen y Registro del supervisor comparten la primera página durante
+    // un minuto; los demás consumidores conservan la política anterior.
+    staleTime: compartirPrimeraPagina && cursor === null ? INTERVALO_REGISTRO_MS : 0,
     // Las páginas con cursor son estables (keyset hacia atrás): solo la primera late.
     refetchInterval: cursor === null ? INTERVALO_REGISTRO_MS : false,
     refetchOnWindowFocus: 'always',
@@ -77,7 +80,7 @@ export function useRegistroActividadOperativo(
     cargando: sesionReal && consulta.isPending,
     enVuelo: sesionReal && consulta.isFetching,
     error: sesionReal ? consulta.error : null,
-    recargar: async () => { await consulta.refetch() },
+    recargar: async () => { if (yo && !yo.demo) await consulta.refetch({ cancelRefetch: !compartirPrimeraPagina }) },
   }
 }
 

@@ -96,21 +96,30 @@ export function resumenEquipo(equipo: readonly FilaEquipoDiario[]) {
   }
 }
 
-export type OrdenEquipo = 'nombre' | 'llamadas' | 'contacto' | 'pendientes' | 'atencion'
-export interface FiltrosEquipo { busqueda: string; soloProblemas: boolean; orden: OrdenEquipo; ascendente: boolean }
+export type OrdenEquipo = 'nombre' | 'llamadas' | 'contacto' | 'pendientes' | 'vencidas' | 'atencion'
+export type EstadoEquipo = 'todos' | 'con_registro' | 'sin_registro' | 'con_pendientes'
+export interface FiltrosEquipo { busqueda: string; soloProblemas: boolean; estado?: EstadoEquipo; orden: OrdenEquipo; ascendente: boolean }
 const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
 
 export function filtrarOrdenarEquipo<T extends FilaEquipoPresentada>(equipo: readonly T[], filtros: FiltrosEquipo): T[] {
   const q = normalizar(filtros.busqueda)
-  return equipo.filter((f) => (!filtros.soloProblemas || f.requiere_atencion) && normalizar(f.nombre_completo).includes(q))
+  return equipo.filter((f) => (!filtros.soloProblemas || f.requiere_atencion) && normalizar(f.nombre_completo).includes(q)
+    && (filtros.estado === 'con_registro' ? f.gestiones_hoy > 0
+      : filtros.estado === 'sin_registro' ? f.gestiones_hoy === 0
+        : filtros.estado === 'con_pendientes' ? f.tareas_pendientes > 0 || (f.primer_intento_vencido ?? 0) > 0 : true))
     .sort((a, b) => {
       let diferencia = 0
       switch (filtros.orden) {
         case 'nombre': diferencia = a.nombre_completo.localeCompare(b.nombre_completo, 'es'); break
         case 'llamadas': diferencia = a.marcador.llamadas - b.marcador.llamadas; break
         case 'pendientes': diferencia = a.tareas_pendientes - b.tareas_pendientes; break
-        case 'atencion': diferencia = Number(a.requiere_atencion) - Number(b.requiere_atencion)
-          || a.tareas_vencidas - b.tareas_vencidas || a.marcador.llamadas - b.marcador.llamadas; break
+        case 'vencidas': diferencia = a.tareas_vencidas - b.tareas_vencidas; break
+        case 'atencion': {
+          diferencia = a.motivos_atencion.length - b.motivos_atencion.length
+          if (!diferencia) return b.tareas_vencidas - a.tareas_vencidas
+            || a.nombre_completo.localeCompare(b.nombre_completo, 'es') || a.analista_id.localeCompare(b.analista_id)
+          break
+        }
         case 'contacto': {
           // Muestra insuficiente (no sólo denominador cero) al final en ambos
           // sentidos. El servidor aplica el mínimo vigente al producir nivel.

@@ -1,0 +1,216 @@
+npm notice run app@0.0.0 test:run
+npm notice run vitest run src/components/gestion-diaria/avisos-equipo.test.tsx
+
+ RUN  v4.1.11 /private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app
+
+(node:68849) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx (16 tests | 2 failed) 341ms
+     × H5: sesión sin avisos disponibles no presenta un fallo ni un reintento inútil 77ms
+     × H5: la carga inicial de otros pendientes no ofrece un reintento 29ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/gestion-diaria/avisos-equipo.test.tsx > H4: cortes y otros avisos conectados > H5: sesión sin avisos disponibles no presenta un fallo ni un reintento inútil
+TestingLibraryElementError: Unable to find an element with the text: Los otros pendientes no están disponibles en esta sesión.. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Estado de cortes y avisos"[39m
+      [33mclass[39m=[32m"gd-cortes"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer hover:bg-muted h-9 px-4 py-2 min-h-11 shrink-0 text-base"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-bell"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"24"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"24"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M10.268 21a2 2 0 0 0 3.464 0"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+        [0mCortes y avisos[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"gd-cortes-resumen"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [36m<time[39m
+            [33mdatetime[39m=[32m"2026-09-24T11:30:00-05:00"[39m
+          [36m>[39m
+            [0m11:30[0m
+          [36m</time>[39m
+          [0m [0m
+          [0mEvaluado[0m
+          [36m<strong>[39m
+            [0m · [0m
+            [0m1[0m
+            [0m bajo el mínimo[0m
+          [36m</strong>[39m
+        [36m</span>[39m
+        [36m<span>[39m
+          [36m<time[39m
+            [33mdatetime[39m=[32m"2026-09-24T16:00:00-05:00"[39m
+          [36m>[39m
+            [0m16:00[0m
+          [36m</time>[39m
+          [0m [0m
+          [0mProgramado[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"gd-cortes-consulta"[39m
+      [36m>[39m
+        [0mConsulta 12:00 · Lima[0m
+      [36m</p>[39m
+    [36m</section>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Tipo de aviso"[39m
+        [33mclass[39m=[32m"flex w-full flex-col rounded-xl bg-muted p-1 min-[380px]:flex-row sm:w-fit"[39m
+        [33mrole[39m=[32m"tablist"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"tabs_r_0_-panel-cortes"[39m
+          [33maria-selected[39m=[32m"false"[39m
+          [33mclass[39m=[32m"inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none min-h-12 px-4 py-2 text-base font-normal text-[var(--muted-foreground-strong)] hover:text-primary"[39m
+          [33mid[39m=[32m"tabs_r_0_-tab-cortes"[39m
+          [33mrole[39m=[32m"tab"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mCortes[0m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"tabs_r_0_-panel-otros"[39m
+          [33maria-selected[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none min-h-12 px-4 py-2 text-base font-normal bg-white text-primary shadow-sm"[39m
+          [33mid[39m=[32m"tabs_r_0_-tab-otros"[39m
+          [33mrole[39m=[32m"tab"[39m
+          [33mtabindex[39m=[32m"0"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mOtros pendientes[0m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m"tabs_r_0_-tab-otros"[39m
+        [33mclass[39m=[32m"focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40"[39m
+        [33mid[39m=[32m"tabs_r_0_-panel-otros"[39m
+        [33mrole[39m=[32m"tabpanel"[39m
+        [33mtabindex[39m=[32m"0"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4 text-base"[39m
+          [33mhidden[39m=[32m""[39m
+        [36m>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Resultados de los cortes"[39m
+            [33mclass[39m=[32m"space-y-3"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0m2026-09-24[0m
+              [0m · Lima. Consulta [0m
+              [0m12:00[0m
+              [0m.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mJornada de [0m
+              [0m09:00[0m
+              [0m a [0m
+              [0m18:00[0m
+              [0m. [0m
+              [0mDos cortes previstos.[0m
+            [36m</p>[39m
+            [36m<details[39m
+              [33mclass[39m=[32m"gd-resultado-corte"[39m
+            [36m>[39m
+              [36m<summary>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-chevron-right gd-corte-indicador"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m9 18 6-6-6-6"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [36m<span>[39m
+                  [0mPrimer corte[0m
+                  [0m · [0m
+                  [0m11:30[0m
+                [36m</span>[39m
+                [36m<strong>[39m
+                  [0mEvaluado[0m
+                [36m</strong>[39m
+                [36m<span>[39m
+                  [0m1[0m
+   ...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx:39:19
+     37|     render(<Vista />)
+     38|     fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes'…
+     39|     expect(screen.getByText('Los otros pendientes no están disponibles…
+       |                   ^
+     40|     expect(screen.queryByText(/No pudimos confirmar/)).not.toBeInTheDo…
+     41|     expect(screen.queryByRole('button', { name: 'Actualizar otros pend…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/gestion-diaria/avisos-equipo.test.tsx > H4: cortes y otros avisos conectados > H5: la carga inicial de otros pendientes no ofrece un reintento
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <button
+  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer border border-input bg-card hover:bg-muted hover:border-border-strong h-9 px-4 py-2 min-h-11 text-base"
+  data-slot="button"
+  data-variant="outline"
+>
+  Actualizar otros pendientes
+</button> instead
+ ❯ src/components/gestion-diaria/avisos-equipo.test.tsx:48:87
+     46|     fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes'…
+     47|     expect(screen.getByText('Consultando otros pendientes del equipo…'…
+     48|     expect(screen.queryByRole('button', { name: 'Actualizar otros pend…
+       |                                                                                       ^
+     49|   })
+     50|   it('franja muestra primer corte evaluado y segundo programado; cifra…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 passed (16)
+   Start at  00:17:25
+   Duration  1.59s (transform 346ms, setup 102ms, import 523ms, tests 341ms, environment 516ms)
+

@@ -1,0 +1,217 @@
+{
+  "mutatedNodeIds": [
+    "18:4",
+    "18:5",
+    "18:8",
+    "18:9",
+    "18:29",
+    "19:27",
+    "19:29",
+    "19:31",
+    "19:33",
+    "19:34",
+    "18:59",
+    "18:60",
+    "18:30",
+    "18:31",
+    "18:32",
+    "18:33",
+    "19:26",
+    "19:28",
+    "19:30",
+    "19:32",
+    "18:28",
+    "19:24",
+    "19:25",
+    "18:34",
+    "18:27",
+    "18:11",
+    "18:19",
+    "18:35",
+    "18:43",
+    "18:51",
+    "18:2",
+    "2:2"
+  ],
+  "originalCount": 76,
+  "originalUnchanged": true,
+  "completed": 36,
+  "pending": 36,
+  "overflow": [],
+  "bounds": {
+    "width": 3144,
+    "height": 5199.34375
+  },
+  "rootBounds": {
+    "width": 3300,
+    "height": 9406.34375
+  },
+  "texts": [
+    {
+      "id": "18:4",
+      "text": "☑ Prototipo aprobado     ☑ H1: especificación     ☑ H2: vista horizontal     ☑ H3: panel conectado     ☐ H4–H6",
+      "x": 36,
+      "y": 108,
+      "width": 3072,
+      "height": 41
+    },
+    {
+      "id": "18:5",
+      "text": "23/09/2026 · 36/72 tareas completas · H3 conectada y verificada · Fuente: GESTION-DIARIA.md",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 36
+    },
+    {
+      "id": "18:8",
+      "text": "H3: panel conectado y verificado",
+      "x": 1972,
+      "y": 423,
+      "width": 1136,
+      "height": 44
+    },
+    {
+      "id": "18:9",
+      "text": "1512 × 805: diez filas típicas completas.\n1366 × 768: nueve filas típicas completas.\n\nTexto mínimo de 16 px y controles de 44 px. Tabla y panel con scroll propio.\n\nResumen con últimas tres gestiones, compartidas con Registro. Filtros, páginas y retorno desde ficha conservados.\n\nPendientes: Todas/Vencidas, páginas de 25, referencias autorizadas. Más de una página pausa el refresco; Actualizar reinicia la consulta.\n\nRPC instalada y probada en banco local: 1.008 tareas, 11 páginas y tres clases de referencia. Sin cambios de reglas ni RLS.\n\nH1–H3 cerradas. H4–H6 y publicación pendientes.",
+      "x": 1972,
+      "y": 487,
+      "width": 1136,
+      "height": 567
+    },
+    {
+      "id": "18:29",
+      "text": "COMPLETA · 4 etapas / 12 tareas · SQL local",
+      "x": 28,
+      "y": 136,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:27",
+      "text": "Resultado: Resumen y últimas tres gestiones con consulta compartida.",
+      "x": 28,
+      "y": 649,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:29",
+      "text": "Resultado: Registro y ficha conservan filtros, páginas y foco.",
+      "x": 28,
+      "y": 975,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:31",
+      "text": "Resultado: RPC verificada: 1.008 tareas, 11 páginas, tres referencias.",
+      "x": 28,
+      "y": 1301,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:33",
+      "text": "Resultado: Caché aislada y retirada de datos ante revocación.",
+      "x": 28,
+      "y": 1627,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:34",
+      "text": "Entregable: Panel conectado y backend verificado en banco local.",
+      "x": 28,
+      "y": 1692,
+      "width": 946.6666870117188,
+      "height": 36
+    },
+    {
+      "id": "18:59",
+      "text": "H3: Claude PASS (MEDIUM), observaciones resueltas. npm check: 4.244 PASS. SQL/RLS y HTTP real: PASS. Evidencia y límites en acta H3.",
+      "x": 36,
+      "y": 5063.34375,
+      "width": 3072,
+      "height": 38
+    },
+    {
+      "id": "18:60",
+      "text": "H1–H3: 12 etapas / 36 tareas cerradas. H4–H6: 36 pendientes. 76 casillas F0–F6 conservadas; F4 real pendiente y tasa baja OFF. Sin publicación.",
+      "x": 36,
+      "y": 5125.34375,
+      "width": 3072,
+      "height": 38
+    },
+    {
+      "id": "18:30",
+      "text": "☑ Etapa H3.1 · Conectar Resumen",
+      "x": 28,
+      "y": 388,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:31",
+      "text": "☑ Etapa H3.2 · Conectar Registro y ficha",
+      "x": 28,
+      "y": 714,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:32",
+      "text": "☑ Etapa H3.3 · Conectar Pendientes",
+      "x": 28,
+      "y": 1040,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:33",
+      "text": "☑ Etapa H3.4 · Proteger selección y actualizaciones",
+      "x": 28,
+      "y": 1366,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "19:26",
+      "text": "☑ Reutilizar métricas y última gestión de la persona seleccionada desde el equipo completo, aunque la búsqueda oculte su fila.\n☑ Adaptar métricas al ancho del panel y conservar las 13 horas de 08–20, explicación de contacto y actividad fuera de franja.\n☑ Mostrar error o dato desconocido correctamente; cualquier vista de últimas actividades reutiliza la fuente paginada, sin consulta duplicada.",
+      "x": 28,
+      "y": 440,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:28",
+      "text": "☑ Reutilizar el registro paginado, sus filtros y las cuatro pestañas internas: Llamadas, WhatsApp, Notas y Todo.\n☑ Cargar el registro al necesitarlo y conservar filtros y página al pasar a Resumen y volver durante el mismo contexto.\n☑ Abrir la ficha del lead sobre el registro y regresar al mismo punto; Registro del equipo mantiene su ámbito y espacio ampliable.",
+      "x": 28,
+      "y": 766,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:30",
+      "text": "☑ Mostrar total, vencidas y motivos con las definiciones reales, incluidos los estados no evaluados.\n☑ Implementar y conectar la RPC paginada de lectura por analista definida en H1; conservar RLS y reglas actuales.\n☑ Comprobar carga, lista vacía, error y permisos; no confundir resumen agregado con una lista completa de tareas.",
+      "x": 28,
+      "y": 1092,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:32",
+      "text": "☑ Mantener selección y foco al refrescar u ordenar; si un filtro oculta la persona, avisar y permitir limpiar el filtro.\n☑ Cerrar y limpiar al cambiar usuario o día Lima, perder permiso o salir la persona del equipo; descartar respuestas tardías ajenas al contexto.\n☑ Conservar un Registro autorizado ante error temporal del resumen y evitar una consulta por fila o estados compartidos entre identidades.",
+      "x": 28,
+      "y": 1418,
+      "width": 946.6666870117188,
+      "height": 195
+    }
+  ],
+  "phaseBounds": {
+    "x": 2105.33349609375,
+    "y": 1336.34375,
+    "width": 1002.6666870117188,
+    "height": 1855
+  }
+}

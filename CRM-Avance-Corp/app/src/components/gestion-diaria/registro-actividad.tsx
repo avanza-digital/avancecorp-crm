@@ -10,7 +10,7 @@
 // resultado tipificado (`metadata.evento = 'revision'`); el «buscador» de
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -54,6 +54,11 @@ interface Props {
   permitirExportar: boolean
   /** F4: el registro general abre Todo; el desglose horario abre Llamadas. */
   pestanaInicial?: PestanaRegistro
+  /** Refresco externo: conserva filtros y vuelve a la primera página. */
+  actualizacion?: number | undefined
+  onSinPermiso?: (() => void) | undefined
+  /** H3: comparte la primera página sin filtro con Últimas gestiones. */
+  compartirPrimeraPagina?: boolean
 }
 
 export function RegistroActividad(props: Props) {
@@ -63,7 +68,7 @@ export function RegistroActividad(props: Props) {
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas' }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
@@ -78,6 +83,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   const [previas, setPrevias] = useState<RegistroItem[]>([])
   const [cursor, setCursor] = useState<CursorRegistro | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [reinicio, setReinicio] = useState(0)
   const encabezado = useRef<HTMLHeadingElement>(null)
 
   const idsEquipo = useMemo(() => (equipoSel ? analistasDelEquipo(equipo, equipoSel) : null), [equipo, equipoSel])
@@ -90,7 +96,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   // Cualquier cambio de filtro o de día vuelve a la primera página EN EL MISMO
   // render (estado derivado): así la primera consulta con filtros nuevos ya sale
   // sin cursor viejo, y el aviso de exportación no sobrevive a otra vista.
-  const claveFiltros = JSON.stringify(filtros)
+  const claveFiltros = JSON.stringify([filtros, actualizacion])
   const [claveVista, setClaveVista] = useState(claveFiltros)
   if (claveVista !== claveFiltros) {
     setClaveVista(claveFiltros)
@@ -101,8 +107,20 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   const cursorVigente = claveVista === claveFiltros ? cursor : null
   const previasVigentes = claveVista === claveFiltros ? previas : []
 
-  const { pagina, cargando, enVuelo, error, recargar } = useRegistroActividadOperativo(filtros, cursorVigente, LIMITE_PAGINA)
+  const { pagina, cargando, enVuelo, error, recargar } = useRegistroActividadOperativo(filtros, cursorVigente, LIMITE_PAGINA, true, compartirPrimeraPagina)
   const sinPermiso = error instanceof CrmApiError && error.code === '42501'
+  const versionRecarga = `${actualizacion}:${reinicio}`
+  const versionRecargada = useRef(versionRecarga)
+  const recargarDesdeFuera = useEffectEvent(() => { void recargar() })
+  const notificarRevocacion = useEffectEvent(() => { onSinPermiso?.() })
+  useEffect(() => {
+    if (versionRecargada.current === versionRecarga) return
+    versionRecargada.current = versionRecarga
+    recargarDesdeFuera()
+  }, [versionRecarga])
+  useEffect(() => {
+    if (sinPermiso) notificarRevocacion()
+  }, [sinPermiso])
   // Un fallo de red conserva páginas confirmadas; una revocación NO. Borrar
   // también la memoria evita que reaparezca al reintentar la página siguiente.
   if (sinPermiso && previas.length > 0) setPrevias([])
@@ -128,7 +146,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   }
   function reiniciar() {
     setPrevias([]); setCursor(null); setAviso(null)
-    if (cursorVigente === null) void recargar()
+    if (compartirPrimeraPagina || cursorVigente === null) setReinicio(n => n + 1)
     encabezado.current?.focus()
   }
   function exportar() {

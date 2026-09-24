@@ -2,7 +2,7 @@
 // fondo inerte, scroll lock, Esc por capas — con modales apilados cierra SOLO
 // el de más arriba — y retorno de foco al cerrar). El aspecto es el mismo de
 // siempre: mismas clases, mismos keyframes. API sin cambios: open/onClose.
-import { useRef, type HTMLAttributes, type ReactNode } from 'react'
+import { useRef, type HTMLAttributes, type ReactNode, type RefObject } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
 import { cerrarEscapeAnidado, protegerEscapeAnidado } from './escape-dialogo'
@@ -20,11 +20,13 @@ interface DialogProps {
   onClose: () => void
   children: ReactNode
   ariaLabel?: string
+  /** Una acción puede transferir explícitamente el foco a otra vista/panel. */
+  focoAlCerrar?: RefObject<HTMLElement | null> | undefined
   /** Clases extra para el panel (p. ej. ancho distinto). */
   className?: string
 }
 
-export function Dialog({ open, onClose, children, ariaLabel, className }: DialogProps) {
+export function Dialog({ open, onClose, children, ariaLabel, className, focoAlCerrar }: DialogProps) {
   // Estos modales se controlan desde acciones externas, sin Radix.Trigger.
   // Una resolución puede retirar la acción: conservamos también su ficha.
   const origenFoco = useRef<HTMLElement | null>(null)
@@ -51,6 +53,11 @@ export function Dialog({ open, onClose, children, ariaLabel, className }: Dialog
               ambitoFoco.current = origen?.closest<HTMLElement>('[role="dialog"]') ?? null
             }}
             onCloseAutoFocus={(evento) => {
+              if (focoAlCerrar) {
+                evento.preventDefault()
+                requestAnimationFrame(() => focoAlCerrar.current?.focus({ preventScroll: true }))
+                return
+              }
               const origen = origenFoco.current
               const ambito = ambitoFoco.current
               origenFoco.current = null

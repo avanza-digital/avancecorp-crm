@@ -1,0 +1,226 @@
+{
+  "mutatedNodeIds": [
+    "2:5",
+    "18:4",
+    "18:5",
+    "18:8",
+    "18:9",
+    "18:37",
+    "19:38",
+    "19:40",
+    "19:42",
+    "19:44",
+    "19:45",
+    "18:59",
+    "18:60",
+    "18:38",
+    "18:39",
+    "18:40",
+    "18:41",
+    "19:37",
+    "19:39",
+    "19:41",
+    "19:43",
+    "18:36",
+    "19:35",
+    "19:36",
+    "18:42",
+    "18:35",
+    "18:43",
+    "18:51",
+    "18:2",
+    "2:2"
+  ],
+  "originalCount": 76,
+  "originalUnchanged": true,
+  "originalChanges": [],
+  "completed": 48,
+  "pending": 24,
+  "overflow": [],
+  "overlap": [],
+  "textMismatches": [],
+  "phaseBounds": {
+    "x": 36,
+    "y": 3223.34375,
+    "width": 1002.6666870117188,
+    "height": 1800
+  },
+  "bounds": {
+    "width": 3144,
+    "height": 5199.34375
+  },
+  "rootBounds": {
+    "width": 3300,
+    "height": 9406.34375
+  },
+  "texts": [
+    {
+      "id": "2:5",
+      "text": "23/09/2026 · Supervisor horizontal: H1–H4 cerradas; H5–H6 pendientes · F4: jornada real pendiente",
+      "x": 72,
+      "y": 264,
+      "width": 3100,
+      "height": 41
+    },
+    {
+      "id": "18:4",
+      "text": "☑ Prototipo aprobado     ☑ H1–H4 completas     ☐ H5–H6 pendientes",
+      "x": 36,
+      "y": 108,
+      "width": 3072,
+      "height": 41
+    },
+    {
+      "id": "18:5",
+      "text": "23/09/2026 · 48/72 tareas completas · H4 integrada y verificada · Fuente: GESTION-DIARIA.md",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 36
+    },
+    {
+      "id": "18:8",
+      "text": "H4: cortes y avisos integrados",
+      "x": 1972,
+      "y": 423,
+      "width": 1136,
+      "height": 44
+    },
+    {
+      "id": "18:9",
+      "text": "Franja de cortes: 44 px a 1512 × 805, sin scroll adicional de página.\n\nHorarios, mínimos y recuperación desde la foto del servidor. Cifras y personas bajo demanda.\n\nReconocer y posponer conservan sus reglas. Espera, error y reintento con la misma solicitud.\n\nLista, campana y popup abren Registro → Llamadas de la persona correcta. Ficha y filtros conservan contexto.\n\nTexto de 16 px y controles de 44 px; móvil y teclado verificados. Sin nueva SQL en H4.\n\nH1–H4 cerradas. H5–H6 y publicación pendientes.",
+      "x": 1972,
+      "y": 487,
+      "width": 1136,
+      "height": 567
+    },
+    {
+      "id": "18:37",
+      "text": "COMPLETA · 4 etapas / 12 tareas · verificada",
+      "x": 28,
+      "y": 87,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:38",
+      "text": "Resultado: Franja de 44 px; estados y cifras del servidor bajo demanda.",
+      "x": 28,
+      "y": 562,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:40",
+      "text": "Resultado: Reconocer/aplazar confirmados; espera, error y reintento sin duplicar.",
+      "x": 28,
+      "y": 888,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:42",
+      "text": "Resultado: Lista, campana y popup abren Registro → Llamadas de la persona.",
+      "x": 28,
+      "y": 1214,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:44",
+      "text": "Resultado: Avisos compartidos; ficha conserva contexto, salida limpia selección.",
+      "x": 28,
+      "y": 1540,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:45",
+      "text": "Entregable: Cortes y avisos integrados y verificados en navegador.",
+      "x": 28,
+      "y": 1605,
+      "width": 946.6666870117188,
+      "height": 36
+    },
+    {
+      "id": "18:59",
+      "text": "H4: 4.272 pruebas y gate de código PASS; E2E focalizado 14/14. Claude CHANGES_REQUESTED (MEDIUM), hallazgos resueltos. Ver acta H4 y límites.",
+      "x": 36,
+      "y": 5063.34375,
+      "width": 3072,
+      "height": 38
+    },
+    {
+      "id": "18:60",
+      "text": "H1–H4: 16 etapas / 48 tareas cerradas. H5–H6: 24 pendientes. 76 casillas F0–F6 conservadas; F4 real pendiente y tasa baja OFF. Sin publicación.",
+      "x": 36,
+      "y": 5125.34375,
+      "width": 3072,
+      "height": 38
+    },
+    {
+      "id": "18:38",
+      "text": "☑ Etapa H4.1 · Compactar el estado de los cortes",
+      "x": 28,
+      "y": 301,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:39",
+      "text": "☑ Etapa H4.2 · Mantener acciones de seguimiento",
+      "x": 28,
+      "y": 627,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:40",
+      "text": "☑ Etapa H4.3 · Unir avisos con el panel",
+      "x": 28,
+      "y": 953,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "18:41",
+      "text": "☑ Etapa H4.4 · Integrar otros pendientes y navegación",
+      "x": 28,
+      "y": 1279,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "19:37",
+      "text": "☑ Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.\n☑ Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.\n☑ Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.",
+      "x": 28,
+      "y": 353,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:39",
+      "text": "☑ Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.\n☑ Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.\n☑ Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.",
+      "x": 28,
+      "y": 679,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:41",
+      "text": "☑ Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.\n☑ Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.\n☑ Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.",
+      "x": 28,
+      "y": 1005,
+      "width": 946.6666870117188,
+      "height": 195
+    },
+    {
+      "id": "19:43",
+      "text": "☑ Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.\n☑ Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.\n☑ Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.",
+      "x": 28,
+      "y": 1331,
+      "width": 946.6666870117188,
+      "height": 195
+    }
+  ]
+}

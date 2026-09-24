@@ -1,0 +1,3 @@
+npm notice run avancecorp-crm-tools@0.0.0 release:crm:verify
+npm notice run node scripts/crear-artefacto-release.mjs verify releases/crm-20260924T054601Z-bbe341f6752b.manifest.json
+ARTEFACTO_OK crm-20260924T054601Z-bbe341f6752b 80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2

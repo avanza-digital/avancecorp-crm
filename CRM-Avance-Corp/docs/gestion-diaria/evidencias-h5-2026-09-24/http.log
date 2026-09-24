@@ -1,0 +1,1 @@
+PASS HTTP real PostgREST 14.5: 1008 tareas/11 páginas, cuatro roles denegados, ajeno, anon, 22023 y revocación con el mismo JWT

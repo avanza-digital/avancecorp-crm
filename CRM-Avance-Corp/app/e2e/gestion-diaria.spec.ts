@@ -10,7 +10,7 @@ import { entrarDemo } from './_helpers'
 // llamo ahora?» y «Cola de hoy»—, y un locator por «hoy» ya casa con varios.
 const PREGUNTA_DEL_ROL = {
   Analista: '¿Qué hice hoy?',
-  Supervisor: '¿Qué está pasando hoy en mi equipo?',
+  Supervisor: 'Mi equipo hoy',
   Gerencia: '¿Qué está pasando hoy?',
 } as const
 
@@ -25,9 +25,9 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     } else {
       await expect(page.getByRole('heading', { level: 2, name: PREGUNTA_DEL_ROL[rol], exact: true })).toBeVisible()
     }
-    if (rol === 'Supervisor') await page.getByRole('button', { name: 'Ver registro del equipo', exact: true }).click()
+    if (rol === 'Supervisor') await page.getByRole('button', { name: 'Registro del equipo', exact: true }).click()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Llamadas/ })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: rol === 'Supervisor' ? 'Todo' : 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('tab', { name: 'Todo' }).click()
     await expect(page.getByRole('tab', { name: 'Todo' })).toHaveAttribute('aria-selected', 'true')
     // El demo tiene gestiones de HOY: la lista tiene filas con hora, chip y detalle.

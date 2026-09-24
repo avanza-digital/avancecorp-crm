@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "main": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+  "remoteMain": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+  "upstream": "avancecorp/main",
+  "tree": "8e71ad9a2dc642eb63ac03ea674cd98ae39ef145",
+  "testedProductCommit": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+  "identicalTestedTree": true,
+  "releaseId": "crm-20260924T054601Z-bbe341f6752b",
+  "artifact": {
+    "nombre": "crm-20260924T054601Z-bbe341f6752b.zip",
+    "bytes": 2300351,
+    "sha256": "80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2"
+  },
+  "files": 116,
+  "target": "crm.miavance.com",
+  "clean": true,
+  "publicConfig": "Existing production URL + public anon key + optional Sentry DSN; VITE_ENABLE_DEMO=false in release process only",
+  "published": false
+}

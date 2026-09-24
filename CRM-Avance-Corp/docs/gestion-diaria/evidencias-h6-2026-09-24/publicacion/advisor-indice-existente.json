@@ -1,0 +1,16 @@
+{
+  "estado": "PASS_EXISTING_INFORMATIONAL",
+  "fecha": "2026-09-24T06:57:52.934Z",
+  "indice": "crm.operaciones_cartera_periodo_vendedor_idx",
+  "antes": [
+    "CREATE INDEX operaciones_cartera_periodo_vendedor_idx ON crm.operaciones_cartera USING btree (periodo, vendedor_id)",
+    true,
+    true
+  ],
+  "despues": [
+    "CREATE INDEX operaciones_cartera_periodo_vendedor_idx ON crm.operaciones_cartera USING btree (periodo, vendedor_id)",
+    true,
+    true
+  ],
+  "evaluacion": "Único INFO adicional: índice existente marcado sin uso tras restaurar la semilla, que recrea objetos y reinicia sus estadísticas. DDL/validez idénticos al padre y baseline. H3 no agrega ni modifica índices. No se fuerza una consulta para silenciarlo; repetir advisors tras la matriz final."
+}

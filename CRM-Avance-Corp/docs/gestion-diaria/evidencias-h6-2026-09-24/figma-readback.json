@@ -1,0 +1,85 @@
+{
+  "changed": [
+    {
+      "id": "18:4",
+      "width": 3072,
+      "height": 41,
+      "oldHeight": 41,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:5",
+      "width": 3072,
+      "height": 36,
+      "oldHeight": 36,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:8",
+      "width": 1136,
+      "height": 44,
+      "oldHeight": 44,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:9",
+      "width": 1136,
+      "height": 530,
+      "oldHeight": 454,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:53",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:60",
+      "width": 3072,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:55",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:61",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:62",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    }
+  ],
+  "historicalUnchanged": true,
+  "h5h6": {
+    "complete": 19,
+    "pending": 5
+  },
+  "total": {
+    "complete": 67,
+    "pending": 5
+  }
+}

@@ -1,0 +1,55 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-horizontal-h5.spec.ts --reporter=list --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 2 tests using 2 workers
+
+  ✘  1 [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 1, carga bajo demanda y panel estable al refrescar (3.9s)
+  ✘  2 [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 32, carga bajo demanda y panel estable al refrescar (3.9s)
+
+
+  1) [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 1, carga bajo demanda y panel estable al refrescar 
+
+    Error: locator.click: Error: strict mode violation: getByRole('region', { name: 'Mi equipo hoy', exact: true }).getByRole('button', { name: 'Actualizar', exact: true }) resolved to 2 elements:
+        1) <button data-slot="button" data-variant="outline" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer border border-input bg-card hover:bg-muted hover:border-border-strong h-9 px-4 py-2 min-h-11 text-base">…</button> aka locator('button').filter({ hasText: /^Actualizar$/ })
+        2) <button data-slot="button" data-variant="outline" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer border border-input bg-card hover:bg-muted hover:border-border-strong h-9 px-4 py-2 min-h-11 text-base">…</button> aka getByLabel('Registro seleccionado').getByRole('button', { name: 'Actualizar' })
+
+    Call log:
+      - waiting for getByRole('region', { name: 'Mi equipo hoy', exact: true }).getByRole('button', { name: 'Actualizar', exact: true })
+
+
+      59 |     expect(lecturas.registro).toBe(1)
+      60 |     falloEquipo = true
+    > 61 |     await vista.getByRole('button', { name: 'Actualizar', exact: true }).click()
+         |                                                                          ^
+      62 |     await expect(vista.getByRole('alert')).toContainText('No pudimos consultar la actividad')
+      63 |     await expect(panel.getByRole('tab', { name: 'Registro', exact: true })).toHaveAttribute('aria-selected', 'true')
+      64 |     await expect(panel.getByRole('region', { name: 'Registro seleccionado' })).toBeVisible()
+        at /app/e2e/gestion-diaria-horizontal-h5.spec.ts:61:74
+
+    Error Context: test-results/gestion-diaria-horizontal--d4299--panel-estable-al-refrescar-chromium/error-context.md
+
+  2) [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 32, carga bajo demanda y panel estable al refrescar 
+
+    Error: locator.click: Error: strict mode violation: getByRole('region', { name: 'Mi equipo hoy', exact: true }).getByRole('button', { name: 'Actualizar', exact: true }) resolved to 2 elements:
+        1) <button data-slot="button" data-variant="outline" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer border border-input bg-card hover:bg-muted hover:border-border-strong h-9 px-4 py-2 min-h-11 text-base">…</button> aka locator('button').filter({ hasText: /^Actualizar$/ })
+        2) <button data-slot="button" data-variant="outline" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer border border-input bg-card hover:bg-muted hover:border-border-strong h-9 px-4 py-2 min-h-11 text-base">…</button> aka getByLabel('Registro seleccionado').getByRole('button', { name: 'Actualizar' })
+
+    Call log:
+      - waiting for getByRole('region', { name: 'Mi equipo hoy', exact: true }).getByRole('button', { name: 'Actualizar', exact: true })
+
+
+      59 |     expect(lecturas.registro).toBe(1)
+      60 |     falloEquipo = true
+    > 61 |     await vista.getByRole('button', { name: 'Actualizar', exact: true }).click()
+         |                                                                          ^
+      62 |     await expect(vista.getByRole('alert')).toContainText('No pudimos consultar la actividad')
+      63 |     await expect(panel.getByRole('tab', { name: 'Registro', exact: true })).toHaveAttribute('aria-selected', 'true')
+      64 |     await expect(panel.getByRole('region', { name: 'Registro seleccionado' })).toBeVisible()
+        at /app/e2e/gestion-diaria-horizontal-h5.spec.ts:61:74
+
+    Error Context: test-results/gestion-diaria-horizontal--08bbb--panel-estable-al-refrescar-chromium/error-context.md
+
+  2 failed
+    [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 1, carga bajo demanda y panel estable al refrescar 
+    [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:10:3 › H5: equipo de 32, carga bajo demanda y panel estable al refrescar 

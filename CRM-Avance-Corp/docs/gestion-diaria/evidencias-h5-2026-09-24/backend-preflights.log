@@ -1,0 +1,562 @@
+npm notice run avancecorp-crm-tools@0.0.0 check:scripts
+npm notice run node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --check supabase/scripts/gate-auditoria.mjs && node --check supabase/scripts/gate-analista-vigencia.mjs && node --check supabase/scripts/gate-analitica-lc.mjs && node --check supabase/scripts/gate-vigias.mjs && bash -n supabase/scripts/run-test-ficha-360-local.sh && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes && npm run test:f5:preflight && npm run check:multiempresa:f7 && npm run check:multiempresa:f8 && node --check supabase/scripts/rls-vigente/f8-candado.test.mjs && node --check supabase/scripts/rls-vigente/guardas.test.mjs && npm run test:gestion-diaria-typesafe && npm run test:gestion-diaria-cortes:preflight && node --check scripts/jev/cliente.mjs && node --check scripts/jev/auditor.mjs && node --check scripts/jev/reglas.mjs && npm run test:jev && node --check supabase/scripts/conversion/gate-conversion.mjs && npm run test:conversion:gate
+npm notice run avancecorp-crm-tools@0.0.0 test:reconcile:crm-passwords
+npm notice run node --test supabase/scripts/reconciliar-claves-crm.test.mjs
+✔ normaliza sin perder ceros ni rellenar pasaportes (0.541916ms)
+✔ selecciona solo comercial con marca CRM y excluye identidad Portal compartida (0.398875ms)
+✔ user_metadata legacy nunca autoriza por si sola una mutacion (0.074125ms)
+✔ help y preflight no abren conexion (89.17825ms)
+✔ apply exige doble confirmacion y conteo exacto (84.715792ms)
+✔ rechaza modos ambiguos y opciones desconocidas (110.661042ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 321.001791
+npm notice run avancecorp-crm-tools@0.0.0 test:importar-leads-edge
+npm notice run deno test supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts supabase/functions/crm-importar-leads/destinos.test.ts supabase/functions/crm-importar-leads/resultado-importacion.test.ts supabase/functions/crm-importar-leads/catalogo.test.ts
+Check supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts
+Check supabase/functions/crm-importar-leads/destinos.test.ts
+Check supabase/functions/crm-importar-leads/resultado-importacion.test.ts
+Check supabase/functions/crm-importar-leads/catalogo.test.ts
+running 4 tests from ./supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts
+SI registra consentimiento sin bloquear el lead ... ok (275µs)
+NO deja el lead visible y repartible sin registrar consentimiento ... ok (32µs)
+vacío importa sin registrar consentimiento ... ok (14µs)
+un valor desconocido sigue rechazando la fila ... ok (38µs)
+running 3 tests from ./supabase/functions/crm-importar-leads/destinos.test.ts
+normaliza los destinos entregados por el RPC canónico ... ok (171µs)
+no reconstruye destinos ausentes desde filas crudas ... ok (17µs)
+falla cerrada ante una respuesta ambigua ... ok (354µs)
+running 28 tests from ./supabase/functions/crm-importar-leads/resultado-importacion.test.ts
+una carrera del índice único queda como DUPLICADO ... ok (158µs)
+fallos de conexión, concurrencia y capacidad son temporales ... ok (47µs)
+HTTP 0, 429 y 5xx son temporales aunque no traigan código SQL ... ok (41µs)
+una restricción de datos queda RECHAZADA para corrección humana ... ok (62µs)
+el detalle de rechazo se normaliza y limita antes de escribirlo en Sheets ... ok (36µs)
+F2.b: P0481 ya_es_cliente vía identidad es un REINGRESO con lead_id ... ok (64µs)
+F2.b: P0481 por otro motivo sigue siendo un rechazo definitivo ... ok (27µs)
+F2.b: P0429 (persona con No insistir) es rechazo definitivo ... ok (19µs)
+veredictoDeError tolera DETAIL vacío o no JSON ... ok (120µs)
+D-4: importado por la puerta ... ok (60µs)
+D-4: duplicado por la puerta = el DUPLICADO de siempre ... ok (15µs)
+D-4: ya_cliente con reingreso registrado (antes: dos pasos en el edge) ... ok (16µs)
+D-4: ya_cliente cuyo reingreso no se pudo anotar conserva el aviso ... ok (14µs)
+D-4: ya_cliente sin lead ni reingreso queda como YA ES CLIENTE a secas ... ok (25µs)
+D-4: rechazado por la persona «No insistir» (P0429 de hoy) conserva su texto ... ok (20µs)
+D-4: rechazado por otro veredicto conserva el texto de P0481 ... ok (20µs)
+D-4: una respuesta inesperada de la puerta es temporal (se reintenta), nunca un rechazo ... ok (411µs)
+D-4 v3: la RPC de la puerta no existe (PGRST202 + 404: reversa o caché rancia) → TEMPORAL, se reintenta ... ok (22µs)
+D-4 v3: 42883 (función inexistente) y 42501 (EXECUTE perdido) → TEMPORAL, nunca RECHAZADO ... ok (21µs)
+D-4 v3: los demás errores de la puerta conservan la clasificación de siempre ... ok (20µs)
+D-4 v4: una categoría que este edge no conoce es TEMPORAL, nunca un rechazo ... ok (13µs)
+D-4 v5: la misma fila reenviada → reingreso ya anotado (idempotente), sigue siendo YA ES CLIENTE ... ok (14µs)
+D-20: solicitud anotada y tarea para su analista ... ok (21µs)
+D-20: reenvío de la misma fila dice que ya estaba anotada ... ok (4ms)
+D-20: sin analista para la tarea, la hoja lo dice ... ok (54µs)
+D-20: sin nadie a cargo, la hoja avisa de que NO se pudo anotar ... ok (15µs)
+D-20: persona con «No insistir» — se dice, no se inventa seguimiento ... ok (12µs)
+D-20: el reingreso en su lead vivo sigue mandando sobre la solicitud ... ok (12µs)
+running 2 tests from ./supabase/functions/crm-importar-leads/catalogo.test.ts
+catálogo: una etiqueta propia se resuelve ... ok (195µs)
+catálogo: «constructor» y «__proto__» NO se resuelven por el prototipo ... ok (71µs)
+
+ok | 37 passed | 0 failed (77ms)
+
+npm notice run avancecorp-crm-tools@0.0.0 gate:apps-script
+npm notice run node scripts/gate-apps-script.mjs
+✔ hoja-leads-apps-script.gs — todas las llamadas resuelven en el proyecto
+✔ puente-drive-origen.gs — todas las llamadas resuelven en el proyecto
+  (187 nombres definidos entre los 2 archivos)
+✔ sin choques de nombres entre los 2 archivos del proyecto
+
+Gate de Apps Script en verde.
+
+npm notice run avancecorp-crm-tools@0.0.0 test:puente
+npm notice run node --test scripts/puente-drive-origen.test.mjs
+✔ mapeo landing: cada campo cae en su columna (0.926958ms)
+✔ mapeo fb: la 2ª columna 'celular' queda sin asignar (por eso existe el rescate) (0.05275ms)
+✔ sin fecha legible → ENTRA igual, marcado y con aviso en la Nota (1.062958ms)
+✔ dos celulares distintos conservan principal y alternativo (0.148209ms)
+✔ la segunda columna celular no mapeada también se conserva como alternativo (0.121541ms)
+✔ la VÍSPERA del corte → descartada como backlog (no a REVISAR) (0.071709ms)
+✔ el DÍA del corte → entra (el corte es 'desde', no 'después de') (0.090208ms)
+✔ el día DESPUÉS del corte → entra con su fecha, sin marca de sinFecha (0.057459ms)
+✔ el caso existe: escrita al revés, la fecha es AMBIGUA y cruza el corte (0.077709ms)
+✔ la fila escrita AL REVÉS (MM/DD) ya no muere en el corte: entra por posición (0.108084ms)
+✔ la misma fila AL DERECHO (DD/MM) entra igual: el puente no elige formato (0.076375ms)
+✔ lo que Sheets GUARDA manda sobre lo que dibuja: fecha nativa → sin ambigüedad (0.061167ms)
+✔ la puerta de atrás sigue cerrada: una fila AMBIGUA que ya estaba es backlog (0.041459ms)
+✔ una fila NUEVA con fecha vieja ENTRA: la posición no puede mentir, la fecha sí (0.103667ms)
+✔ y esa misma fecha, en una fila que ya estaba, se sigue descartando en silencio (0.06425ms)
+✔ una fila rota no arrastra a la de al lado (el lote sigue) (0.125333ms)
+✔ fechaDeCelda: un día > 12 desambigua solo, venga como venga (0.0395ms)
+✔ fechaDeCelda: el mismo número dos veces no es ambiguo (0.025375ms)
+✔ fechaDeCelda: la basura sigue sin ser un salvoconducto (0.034083ms)
+✔ fechaDeCelda: una fecha nativa ilegible no tapa al texto (0.021584ms)
+✔ rescate: celular trae un monto, el número real está en otra columna con 'p:' (1.009208ms)
+✔ rescate: celular con 10 dígitos inválidos, número real en otra columna (0.104458ms)
+✔ el rescate NO toma un número de la columna de monto ni una fecha (0.0385ms)
+✔ sin ningún teléfono en toda la fila → REVISAR con motivo claro (0.039084ms)
+✔ pide préstamo → REVISAR, con nombre y teléfono visibles para quien revisa (0.0355ms)
+✔ variantes de préstamo/crédito que deben ir a REVISAR (0.038417ms)
+✔ preguntas de ahorro NO se confunden con préstamo (0.030375ms)
+✔ orden de REVISAR: lo accionable arriba, los duplicados al final (0.061334ms)
+✔ filaLegible: cada dato con su encabezado, una línea por dato (0.022333ms)
+✔ legible: limpia los guiones bajos de Facebook pero no rompe fechas ISO (0.020208ms)
+✔ lead ANTIGUO sin fecha (por encima de la marca) → backlog, no entra (0.030709ms)
+✔ lead NUEVO sin fecha (por debajo de la marca) → entra, como pidió Miguel (0.038334ms)
+✔ la fila JUSTO en la marca es historia; la siguiente ya es nueva (0.034708ms)
+✔ sin marca (0 o ausente) el guardia no actúa — no inventa una frontera (0.043208ms)
+✔ pestaña sin inicializar → se detiene y lo dice (0.065625ms)
+✔ el origen PERDIÓ filas → se detiene (los números de fila ya no significan lo mismo) (0.03925ms)
+✔ cambiaron los encabezados → se detiene (el mapeo pudo moverse) (0.348833ms)
+✔ las filas ancladas cambiaron → se detiene (se ordenó o se insertó en medio) (0.042583ms)
+✔ todo en su sitio → sigue adelante (0.029916ms)
+✔ la huella NUNCA empieza por dígito (si no, Sheets la lee como número y falla siempre) (0.077375ms)
+✔ huella de encabezados: tolera espacios y mayúsculas, cambia con un renombre real (0.092083ms)
+✔ ancla: mira SOLO el final, y distingue dónde cae el corte entre celdas (0.055167ms)
+✔ una fecha IMPOSIBLE no es un salvoconducto (0.070167ms)
+✔ esDescartePorDiseno: solo corte y backlog; lo accionable NO (0.024834ms)
+✔ fusionar: lo nuevo pisa, lo que no se tocó sobrevive (0.052583ms)
+✔ momentoDe: parte la hora de Lima y acierta el día de la semana (0.040875ms)
+✔ momentoDe: una hora ilegible LANZA, no devuelve un día plausible (0.159333ms)
+✔ dentroDeVentana: domingo NUNCA, y la ventana es de 7 a 22 h (0.068625ms)
+✔ diasEntre: cuenta días de calendario y se niega con basura (0.035209ms)
+✔ pre-chequeo: si nada cambió y hoy ya se leyó entero, NO se lee nada (0.067042ms)
+✔ pre-chequeo: el origen CRECIÓ → hay que leer (0.024459ms)
+✔ pre-chequeo: filas que DESAPARECEN no se ignoran, se van a mirar (0.022ms)
+✔ pre-chequeo: una pestaña SIN marca manda leer (para que la pasada la detenga) (0.020916ms)
+✔ pre-chequeo: si el TOPE dejó trabajo a medias, se sigue aunque no crezca (0.023458ms)
+✔ pre-chequeo: el SUELO DIARIO obliga a una lectura completa al día (0.022333ms)
+✔ pre-chequeo: sin diario de estado, se lee (equivocarse hacia MIRAR) (0.037458ms)
+✔ el panel dice lo que hay que saber en cinco segundos (0.10075ms)
+✔ los AVISOS van arriba del todo, con desde cuándo duran (0.047209ms)
+✔ el panel canta lo APAGADO y lo que está sin frontera (0.0605ms)
+✔ el panel avisa si hay MÁS de un disparador del puente (0.022209ms)
+✔ la pestaña de leads se resuelve por NOMBRE, nunca por posición (0.166333ms)
+✔ la capacidad de la hoja se calcula, no se fija en un número (0.047167ms)
+✔ escribirLeads asegura capacidad ANTES de escribir (0.0335ms)
+✔ preparar la hoja NO enciende nada (0.033917ms)
+✔ el secreto se lee DENTRO de la función, no al cargar el proyecto (0.160792ms)
+✔ los scripts NO piden permisos nuevos: nada de correo (0.08875ms)
+✔ el origen del Drive sigue siendo SOLO LECTURA (0.274166ms)
+✔ la regla del teléfono del puente es la MISMA que la del CRM (0.074041ms)
+✔ un lead con SOLO un fijo ya no se pierde: entra con el fijo de principal (0.047791ms)
+✔ un celular en la fila gana la identidad aunque el fijo venga primero (0.04725ms)
+✔ lo ilegible viaja CRUDO en vez de morir en el origen (0.036916ms)
+✔ un correo en la columna de WhatsApp NO se muestra como teléfono (0.029083ms)
+✔ el crudo NO se pesca de columnas que no son de teléfono (0.029708ms)
+✔ si hay un segundo número BUENO, no se guarda crudo (excluyentes) (0.085792ms)
+✔ un lead extranjero entra y conserva sus dos números (0.02975ms)
+✔ diagnóstico: dos celulares distintos → cuenta como el que YA llega (0.14775ms)
+✔ diagnóstico: WhatsApp que repite el celular NO se cuenta como pérdida (0.031125ms)
+✔ diagnóstico: un FIJO como segundo número se cuenta como pérdida (0.036833ms)
+✔ diagnóstico: un celular gana a un fijo cuando la fila trae los dos (0.037416ms)
+✔ diagnóstico: un correo en la columna de teléfono no infla lo perdido (0.039084ms)
+✔ diagnóstico: una fila sin ningún teléfono no cuenta como fila medida (0.037417ms)
+✔ celdasTelefonicas encuentra la 2ª columna 'celular' que el mapeo no asigna (0.056042ms)
+✔ el informe dice el TECHO REAL, que es lo que decide la Fase 2 (0.058167ms)
+✔ retroceder recalcula el ancla EN LA FILA NUEVA (si no, la pestaña se detendría) (0.117708ms)
+✔ retroceder NO adelanta: la frontera solo se mueve hacia atrás (0.066375ms)
+✔ retroceder NO puede reprocesar el origen entero (0.076208ms)
+✔ retroceder rechaza lo que no es una fila (0.115209ms)
+ℹ tests 87
+ℹ suites 0
+ℹ pass 87
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64.754834
+npm notice run avancecorp-crm-tools@0.0.0 test:puente:e2e
+npm notice run node --test scripts/puente-extremo-a-extremo.test.mjs
+✔ inicializarMarcas importa CERO leads y deja la frontera donde toca (4.695209ms)
+✔ inicializarMarcas NO mueve una frontera ya puesta (correrla dos veces es inocuo) (1.813375ms)
+✔ una pestaña NUEVA se inicializa sin tocar las fronteras existentes (1.369ms)
+✔ sin marcas, el puente SE DETIENE y no escribe nada (0.381958ms)
+✔ un lead NUEVO sin fecha entra entero: hoja, huella y marca (3.312625ms)
+✔ el backlog sin fecha NO entra y tampoco ensucia REVISAR (1.953709ms)
+✔ pestaña RENOMBRADA: la memoria va por sheetId, así que sigue funcionando (1.835084ms)
+✔ pestaña NUEVA sin inicializar: se detiene ella, las demás siguen (1.793459ms)
+✔ ENCABEZADOS cambiados: se detiene y su marca queda intacta (1.777584ms)
+✔ el origen PIERDE filas: se detiene (2.155417ms)
+✔ el origen se REORDENA: el ancla lo caza y se detiene (1.734625ms)
+✔ dos corridas a la vez: la segunda se niega y NO escribe (0.172792ms)
+✔ el candado se toma ANTES de escribir y se suelta siempre (2.605916ms)
+✔ la vista previa NO escribe ni toma el candado de escritura (1.077458ms)
+✔ si la escritura de leads falla, la MARCA NO AVANZA (se repite, no se pierde) (0.831625ms)
+✔ si fallan las HUELLAS, la marca tampoco avanza (es lo último que se mueve) (1.208875ms)
+✔ con el tope alcanzado, la marca avanza solo hasta lo mirado (126.728334ms)
+✔ la hoja CRECE sola cuando los leads pasan de su última fila (9.90825ms)
+✔ sin crecer, escribir fuera de la rejilla revienta (el simulador es fiel) (0.125583ms)
+✔ prepararHoja deja la hoja lista y NO enciende nada (3.18175ms)
+✔ activarConector enciende UNO solo y apagarConector lo quita (2.546792ms)
+✔ activarConector se niega si falta el secreto (falla ahí, no en el primer ciclo) (4.875417ms)
+✔ configurar() ya no existe: avisa en vez de importar por sorpresa (0.14175ms)
+✔ importarLeads manda solo lo pendiente y escribe el estado que responde el edge (0.35525ms)
+✔ cada corrida identifica IMPORTADO, DUPLICADO, RECHAZADO y ERROR temporal por fila (0.21675ms)
+✔ una respuesta parcial del CRM deja cada fila ausente como ERROR temporal (0.159708ms)
+✔ una categoría contradictoria o sin estado reconocible se reintenta, no se adivina (0.104542ms)
+✔ un error HTTP del lote identifica TODAS las filas como temporales (0.072917ms)
+✔ si UrlFetch falla antes de responder, ninguna fila queda en limbo (0.142292ms)
+✔ importarLeads sin secreto falla con un mensaje que dice qué hacer (0.09ms)
+✔ fuera de la ventana (domingo) la corrida no toca NI UNA celda del origen (0.941792ms)
+✔ de madrugada tampoco corre (0.599125ms)
+✔ sin novedad en el origen: se decide sin descargar ni una celda (1.815125ms)
+✔ el origen crece: la misma corrida SÍ paga la lectura y trae el lead (2.406666ms)
+✔ el SUELO DIARIO: al día siguiente se lee entero aunque nada haya crecido (2.604959ms)
+✔ una pestaña detenida queda anotada como aviso, con la fecha en que empezó (2.744417ms)
+✔ el aviso SE APAGA solo cuando el problema se arregla (3.289708ms)
+✔ al ABRIR la hoja, los avisos salen a la cara (el sustituto del correo) (1.742209ms)
+✔ una pestaña detenida NO se re-descubre cada cuarto de hora (2.798583ms)
+✔ recordar lo detenido no puede tapar el trabajo pendiente de una pestaña SANA (125.305417ms)
+✔ sin marca de agua la corrida automática NO revienta: lo anota y sigue viva (0.282458ms)
+✔ una pestaña VACÍA en el origen no obliga a leerlo entero cada cuarto de hora (1.627541ms)
+✔ si la pasada falla, la corrida lo anota — y la marca NO avanza (1.752792ms)
+✔ dos corridas solapadas NO son un error: ni aviso ni escándalo (0.769709ms)
+✔ el ORIGEN SECO es un dato del panel, NO una avería que ponga el puente en rojo (2.671375ms)
+✔ instalarHorario deja UN disparador de 15 min y se lleva los seis viejos (0.210042ms)
+✔ el panel de estado se puede pedir en cualquier momento y solo LEE (1.839084ms)
+✔ renombrar las columnas de TELÉFONO detiene la pestaña — no la salta en silencio (1.836334ms)
+✔ una pestaña que NUNCA tuvo teléfonos se salta sin dar guerra (1.41525ms)
+✔ si falla la escritura de REVISAR, la marca NO avanza (el lead no se evapora) (1.098ms)
+✔ si falla la escritura de la marca, las fronteras anteriores SIGUEN ahí (1.719541ms)
+✔ un nombre que empieza por = llega como texto, no como fórmula (2.560625ms)
+✔ la fecha de la frontera vuelve tal como se escribió, no como objeto de fecha (0.750042ms)
+✔ el panel enseña la fecha de la frontera en castellano y en hora de Lima (0.710167ms)
+✔ EL BLINDAJE: lo que se guarda en las marcas es TEXTO, no una fecha (0.64575ms)
+✔ LA CURA: una marca vieja, ya guardada como fecha, se lee en hora de Lima (0.162ms)
+✔ una pestaña con identificador CERO no se toma por nueva (1.619375ms)
+✔ la fecha de una frontera que NO se tocó no se rejuvenece (1.698709ms)
+✔ onEdit CONSERVA el estado IMPORTADO al editar otra columna de la fila (0.432541ms)
+✔ F2.b D-4: «YA ES CLIENTE» es una categoría propia (ya_cliente), no un error a reintentar (0.210458ms)
+✔ F2.b D-4: el contador del panel cuenta «YA ES CLIENTE» aparte, no como «otros» (0.208916ms)
+✔ F2.b D-4: el contador cuenta una fila SIN teléfono principal (solo alternativo) que ya es cliente (0.138875ms)
+✔ onEdit CONSERVA «YA ES CLIENTE»: reenviar esa fila anotaría OTRO reingreso en la ficha (0.1455ms)
+✔ onEdit SIGUE limpiando DUPLICADO/RECHAZADO/ERROR — esas sí hay que reintentarlas (0.225083ms)
+✔ onEdit trata cada fila por su PROPIO estado, no por el de la primera (0.134666ms)
+✔ onEdit sigue sin tocar nada si SOLO se edita la propia columna de estado (0.1165ms)
+✔ el conector NO se lleva por delante la pestaña equivocada (2.93925ms)
+✔ el origen empieza a escribir MM/DD a media mañana y los leads siguen entrando (1.932834ms)
+✔ la fecha imposible levanta un aviso en el panel, y se apaga cuando deja de pasar (2.263792ms)
+✔ rescatar filas ya miradas: la marca desanda y los leads vuelven a entrar (2.734833ms)
+✔ el rescate se echa atrás si quien mira cancela (0.635458ms)
+ℹ tests 71
+ℹ suites 0
+ℹ pass 71
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 429.810791
+npm notice run avancecorp-crm-tools@0.0.0 test:mutantes
+npm notice run node scripts/mutantes-puente.mjs
+Mutantes del puente: 46
+
+✔ muere:     el pre-chequeo no ve que el origen CRECIÓ
+✔ muere:     el pre-chequeo se traga que el origen PERDIÓ filas
+✔ muere:     el pre-chequeo ignora una pestaña SIN marca
+✔ muere:     no hay suelo diario (nunca se fuerza la lectura completa)
+✔ muere:     el trabajo que dejó el tope a medias se olvida
+✔ muere:     el pre-chequeo se calcula pero se ignora: siempre lectura completa
+✔ muere:     el pre-chequeo mide con otra vara que la pasada completa (sin Math.max)
+✔ muere:     no se recuerda lo ya detenido (96 lecturas al día por la misma avería)
+✔ muere:     se recuerdan como detenidas TODAS las pestañas, no solo las averiadas
+✔ muere:     la ventana horaria no filtra nada (corre 24/7, domingos incluidos)
+✔ muere:     corre también de madrugada
+✔ muere:     instalarHorario suma el nuevo disparador a los viejos
+✔ muere:     la corrida automática vuelve a LANZAR (96 correos de Google al día)
+✔ muere:     una corrida solapada se reporta como ERROR (alerta por lo que funciona)
+✔ muere:     sin marcas, la corrida automática se lo calla (ni avisa ni anota)
+✔ muere:     el diario da hoy por leído aunque la pasada no llegara a hacerse
+✔ muere:     el aviso reescribe su fecha de inicio en cada corrida
+✔ muere:     el aviso de pestaña detenida no se apaga al arreglarse
+✔ muere:     el aviso de error no se apaga cuando la corrida vuelve a salir bien
+✔ muere:     abrir la hoja no dice nada de los avisos pendientes
+✔ muere:     el aviso salta al abrir la hoja aunque no haya nada que decir
+✔ muere:     el panel afirma que el origen recibió HOY sin haberlo visto crecer nunca
+✔ muere:     el chequeo de teléfono vuelve a ir ANTES de comprobar la pestaña
+✔ muere:     REVISAR vuelve a escribirse DESPUÉS de mover la frontera
+✔ muere:     guardar la frontera vuelve a ser borrar-y-luego-escribir
+✔ muere:     la fecha de la celda se lee con String(Date) (zona del PROYECTO, en inglés)
+✔ muere:     la rejilla de marcas deja de forzarse a TEXTO (Sheets vuelve a interpretar)
+✔ muere:     todas las fronteras se sellan con la hora de hoy, tocadas o no
+✔ muere:     el sheetId se lee como NÚMERO (la pestaña con id 0 desaparece)
+✔ muere:     una fecha imposible (99/99/2026) vuelve a ser salvoconducto
+✔ muere:     el corte vuelve a condenar una fecha AMBIGUA (el fallo del 2026-09-01)
+✔ muere:     el texto de la celda vuelve a pisar a la fecha que Sheets GUARDA
+✔ muere:     solo se prueba la lectura DD/MM (la otra mitad del formato desaparece)
+✔ muere:     el corte vuelve a condenar una fila NUEVA por una fecha imposible
+✔ muere:     la fecha falsa se cuela en el desglose por mes y en la huella
+✔ muere:     el origen corrompe fechas y el panel se queda mudo
+✔ muere:     el nombre del lead se escribe sin quitarle el = inicial (fórmula)
+✔ muere:     el rescate NO recalcula el ancla (la pestaña se detendría en la siguiente pasada)
+✔ muere:     el rescate acepta ADELANTAR la frontera (leads que desaparecen sin rastro)
+✔ muere:     el rescate deja desandar el origen entero
+✔ muere:     el rescate mueve la frontera aunque quien mira CANCELE
+✔ muere:     la hoja no reconoce «YA ES CLIENTE» (lo reintentaría y anotaría reingresos repetidos)
+✔ muere:     el panel cuenta «YA ES CLIENTE» como «otros» (invisible)
+✔ muere:     el contador del panel vuelve a ignorar las filas sin teléfono principal
+✔ muere:     onEdit limpia «YA ES CLIENTE» como si fuera un rechazo
+✔ muere:     activarConector deja de exigir el secreto antes de encender
+
+46/46 mutantes muertos.
+npm notice run avancecorp-crm-tools@0.0.0 test:f5:preflight
+npm notice run node --test supabase/scripts/f5/preflight-merge.test.mjs supabase/scripts/f5/documento.test.mjs
+✔ G5 documento: JSON/UUID/campos/origen/tamaño inválidos no llegan a Auth ni Storage (12.357166ms)
+✔ G5 documento: bucket o ruta inseguros nunca usan la credencial de servicio (1.63025ms)
+✔ G5 documento: integridad, archivo vacío y límite de streaming fallan sin devolver bytes (6.414417ms)
+✔ G5 documento: sesión vigente y descriptor se revalidan; solo Storage usa service role (0.666333ms)
+✔ G5 documento: Storage admite clave opaca y JWT sin elevar Auth ni las RPC (2.146292ms)
+✔ G5 documento: cambio de descriptor con acceso válido descarta los bytes (1.107333ms)
+✔ G5 documento: fallo Storage registra solo estado y bucket, sin ruta ni credenciales (0.7515ms)
+✔ premerge: mismo historial, esquema, permisos y archivos pasa (6.471209ms)
+✔ premerge: cambio de historial o función aunque conserve el recuento bloquea (1.038833ms)
+✔ premerge: otro permiso, código Edge, JWT o entrada bloquea (1.127ms)
+✔ premerge: captura vieja, destino, commit o banderas distintos bloquean (0.44875ms)
+✔ premerge: captura incompleta no se acepta por igualdad vacía (0.1275ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62.764
+npm notice run avancecorp-crm-tools@0.0.0 check:multiempresa:f7
+npm notice run node --check supabase/scripts/multiempresa-f7/banco-local.mjs && node --check supabase/scripts/multiempresa-f7/metricas.test.mjs && node --check supabase/scripts/multiempresa-f7/http.test.mjs && node --check supabase/scripts/multiempresa-f7/contrato-cliente.mjs
+npm notice run avancecorp-crm-tools@0.0.0 check:multiempresa:f8
+npm notice run node --check supabase/scripts/multiempresa-f8/banco-local.mjs && node --check supabase/scripts/multiempresa-f8/piloto.test.mjs && node --check supabase/scripts/multiempresa-f8/demos.test.mjs && node --check supabase/scripts/multiempresa-f8/verificar-base-instalacion.mjs && node --check supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs && node --check supabase/scripts/multiempresa-f8/paridad-instalacion.test.mjs && npm run test:multiempresa:f8:base && node --check supabase/scripts/multiempresa-f8/paridad-revisada.mjs && node --test supabase/scripts/multiempresa-f8/paridad-revisada.test.mjs && node --check supabase/scripts/multiempresa-f8/activacion/crear-sql.mjs && node --check supabase/scripts/multiempresa-f8/activacion/activar.test.mjs
+npm notice run avancecorp-crm-tools@0.0.0 test:multiempresa:f8:base
+npm notice run node --test supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs
+✔ acepta la base observada y cambios normales de volumen; no autoriza merge (6.953958ms)
+✔ rechaza captura vencida (0.42075ms)
+✔ rechaza captura futura (0.1085ms)
+✔ rechaza otro proyecto (0.242667ms)
+✔ rechaza nueva brecha real (0.124708ms)
+✔ rechaza marca NULL incluso con identidad coherente (0.101708ms)
+✔ rechaza falta universo real (0.084ms)
+✔ rechaza falta función (0.2425ms)
+✔ rechaza firma duplicada (0.159416ms)
+✔ rechaza cuerpo cambiado (0.137333ms)
+✔ rechaza ACL sin comprobar (0.096292ms)
+✔ rechaza dueño cambiado (0.081875ms)
+✔ rechaza F7 encendida (0.170167ms)
+✔ rechaza F6 encendida (0.108833ms)
+✔ rechaza instalación parcial (0.094791ms)
+✔ rechaza historial cambió (0.114916ms)
+✔ rechaza otra función ajena cambió (0.114417ms)
+✔ rechaza permisos por defecto distintos (0.174292ms)
+✔ rechaza inventario incompleto (0.093708ms)
+✔ rechaza protección demo ausente (0.089292ms)
+✔ rechaza reutilizar como actual la misma base fresca (0.338083ms)
+✔ paridad registra ambos proyectos y liga los archivos por SHA (0.204584ms)
+✔ paridad rechaza ref ajeno, comparación consigo misma y captura de otra ventana (0.21025ms)
+✔ paridad rechaza categorías ausentes y cambios de default ACL en la rama (0.22025ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 56.512541
+✔ solo acepta exactamente las diferencias documentadas y no autoriza merge (2.332417ms)
+✔ rechaza diferencia adicional en la misma categoría (5.393ms)
+✔ rechaza diferencia adicional externa (0.236208ms)
+✔ rechaza hash de la excepción cambió (0.163416ms)
+✔ rechaza hash del padre cambió (0.146959ms)
+✔ rechaza objeto desaparecido (0.165875ms)
+✔ rechaza excepción ya inexistente (0.1385ms)
+✔ rechaza claves duplicadas por truncamiento (0.104ms)
+✔ rechaza excepción duplicada (0.185292ms)
+✔ rechaza categoría duplicada (0.151583ms)
+✔ rechaza resumen alterado sin detalle (0.161375ms)
+✔ rechaza conteo incoherente (0.130833ms)
+✔ rechaza rama incorrecta (0.116833ms)
+✔ rechaza producción como rama (0.075375ms)
+✔ rechaza captura antigua (0.067291ms)
+✔ rechaza captura futura (0.070667ms)
+✔ rechaza revisión pendiente (0.059667ms)
+✔ rechaza dictamen sin huella (0.076625ms)
+✔ distingue dos sobrecargas con prefijo mayor de 63 caracteres (0.368292ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 52.08925
+npm notice run avancecorp-crm-tools@0.0.0 test:gestion-diaria-typesafe
+npm notice run node --check scripts/jev/cliente.mjs && node --check scripts/gestion-diaria-typesafe/piloto.mjs && node --check scripts/gestion-diaria-typesafe/banco/app.mjs && node --check scripts/gestion-diaria-typesafe/comparar.mjs && node --test scripts/gestion-diaria-typesafe/*.test.mjs
+✔ el banco público contiene solo los veinte casos ficticios, nunca la solución (0.741959ms)
+✔ un borrador no preselecciona respuestas y tiene fecha y espacio explícitos (0.887542ms)
+✔ valida borrador/completo sin depender del orden del archivo (0.109959ms)
+✔ rechaza otro equipo, versión, huella o fecha inválida (0.175959ms)
+✔ rechaza soluciones, notas, nombres y claves extra en cualquier nivel (0.554ms)
+✔ rechaza IDs ajenos, duplicados, respuestas omitidas y clases inválidas (0.170833ms)
+✔ rechaza JSON roto, primitivas y entradas excesivas sin reproducir el contenido (0.172375ms)
+✔ JSON textual con __proto__ se rechaza sin alterar prototipos (0.099958ms)
+✔ el límite de 16 KiB se aplica a bytes incluidos espacios y caracteres multibyte (0.1145ms)
+✔ no compara dos archivos del mismo espacio ni dos corpus distintos (0.188917ms)
+✔ duda no es información insuficiente ni acuerdo, aunque ambos duden (0.125459ms)
+✔ una coincidencia parcial no se anuncia como 100 % de acuerdo del banco (0.088208ms)
+✔ sin pares comparables el porcentaje es desconocido, no 0 ni 100 (0.062458ms)
+✔ el acuerdo perfecto nunca autentica identidades ni habilita datos reales/producto (0.108834ms)
+✔ servidor HTTP de solo lectura: rutas cerradas, CSP, sin notas importadas ni clave (16.768958ms)
+✔ CLI compara archivos ficticios y rechaza invalidaciones sin imprimir su contenido (188.567541ms)
+✔ el controlador inicia sin respuesta preseleccionada ni peticiones externas (1.779792ms)
+✔ elección, avance, vuelta y duda conservan decisiones y piden foco sin autoavanzar (0.668041ms)
+✔ 20 respuestas → exportar → contexto nuevo → importar recupera las veinte sin notas (1.95125ms)
+✔ importar borrador retoma el primer caso pendiente aunque el JSON esté desordenado (0.741792ms)
+✔ cancelar la sustitución conserva el avance; aceptarla lo reemplaza (0.70825ms)
+✔ rechazar otro equipo o campos extra no sustituye la respuesta actual (0.431875ms)
+✔ salir avisa después de modificar, incluso tras solicitar descarga no confirmada (0.36075ms)
+✔ inicio sin espacio muestra la elección y un fallo local muestra error legible (0.43625ms)
+✔ el piloto contiene veinte casos únicos y los tres resultados esperados (0.73125ms)
+✔ no se mandan las respuestas esperadas ni identidad personal al modelo (0.375708ms)
+✔ las notas con instrucciones siguen siendo datos y el seguimiento no implica contradicción (0.095875ms)
+✔ acepta solo Choice completo, finito y coherente con su distribución (0.163041ms)
+✔ un resultado perfecto sintético no acredita piloto humano ni activa producción (0.476209ms)
+✔ errores, respuestas inválidas y ausencias no se contabilizan como errores del modelo (0.109125ms)
+✔ una omisión real del modelo requiere una respuesta válida (0.050208ms)
+✔ no asume que todos los casos usaron la misma versión del modelo (0.066958ms)
+✔ metadatos incompletos o textos arbitrarios nunca se imprimen como evidencia válida (0.510166ms)
+✔ ruta viva envía veinte estados aislados, con como máximo cuatro peticiones simultáneas (2.963166ms)
+✔ ruta viva marca FAIL sin abrir red si no se puede leer la clave (0.146792ms)
+✔ ruta viva devuelve salida 1 si el modelo discrepa o falta una respuesta (0.25825ms)
+✔ fallos por petición se aíslan y jamás imprimen el error original ni la clave (0.212125ms)
+✔ CLI por defecto usa modo sin red con ruta de clave inexistente y rechaza archivos externos (80.907958ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.264833
+npm notice run avancecorp-crm-tools@0.0.0 test:gestion-diaria-cortes:preflight
+npm notice run node --check supabase/scripts/gestion-diaria-cortes/banco.mjs && node --check supabase/scripts/gestion-diaria-cortes/ensayar.mjs && node --check supabase/scripts/gestion-diaria-cortes/verificar-tipos.mjs && node --test supabase/scripts/gestion-diaria-cortes/preflight.test.mjs && npm run test:gestion-diaria-cortes:http:preflight
+✔ sin opciones sólo muestra candidato y huella, sin SQL (33.633334ms)
+✔ rechaza destino o modo no autorizado antes de conectarse (89.968084ms)
+✔ candidato sellado, transaccional y sin DDL sobre public (0.262833ms)
+✔ sin contadores nuevos ni copia de la definición canónica (0.157667ms)
+✔ RLS y mínimos privilegios están presentes en el candidato (0.148917ms)
+✔ oráculos se ejecutan sólo en copia exacta y terminan en rollback (2.532333ms)
+✔ reversa rechaza versiones publicadas y se limita a objetos nuevos (1.5085ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.256125
+npm notice run avancecorp-crm-tools@0.0.0 test:gestion-diaria-cortes:http:preflight
+npm notice run node supabase/scripts/gestion-diaria-cortes/http/preflight.mjs
+✔ acepta sólo los seis servicios propios con puertos loopback y DB común (0.931875ms)
+✔ rechaza otro proyecto (0.52175ms)
+✔ rechaza otro directorio (0.118334ms)
+✔ rechaza otra red (0.215875ms)
+✔ rechaza dos redes (0.109166ms)
+✔ rechaza puerto público (0.158333ms)
+✔ rechaza puerto compartido (0.112833ms)
+✔ rechaza volumen ajeno (0.36625ms)
+✔ rechaza Auth apunta a otra base (0.102459ms)
+✔ rechaza REST apunta a otro database (0.115041ms)
+✔ rechaza servicio detenido (0.0805ms)
+✔ rechaza servicio enfermo (0.092375ms)
+✔ rechaza reinicio automático (0.063375ms)
+✔ rechaza salida IPv6 (0.039917ms)
+✔ rechaza falta un servicio (0.057125ms)
+✔ permite fetch únicamente al origen numérico del banco (8.764375ms)
+✔ rutas: sólo red local y loopback; rechaza una salida por defecto (0.358125ms)
+✔ la clave conserva replay de la operación, sin esconder cambios de payload (0.628125ms)
+✔ propaga preparar_persona_lead_inversion_fn sin reinterpretar el rechazo ni ejecutar pasos posteriores (0.137958ms)
+✔ propaga preparar_inversion_fn sin reinterpretar el rechazo ni ejecutar pasos posteriores (0.094958ms)
+✔ propaga upload sin reinterpretar el rechazo ni ejecutar pasos posteriores (0.100375ms)
+✔ propaga confirmar_inversion_revisada_fn sin reinterpretar el rechazo ni ejecutar pasos posteriores (0.056084ms)
+✔ confirmación nueva pasa por comprobante privado sin sobrescribir y devuelve el servidor (0.385875ms)
+✔ el replay confirmado no sobrescribe Storage y consulta de nuevo la confirmación real (0.069667ms)
+✔ el payload cambiado llega a la misma clave: sólo el servidor decide su conflicto (0.103916ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.014583
+npm notice run avancecorp-crm-tools@0.0.0 test:jev
+npm notice run node --test scripts/jev/preguntas.test.mjs
+✔ el hallazgo viaja en campos con nombre, nunca como instrucción (0.505125ms)
+✔ del archivo solo viaja el nombre, no la ruta del disco de nadie (0.060292ms)
+✔ las cinco preguntas del triaje van en UNA sola consulta (0.32775ms)
+✔ el grupo ofrece los ocho confirmados y una salida (0.049666ms)
+✔ una evidencia baja NO descarta nada: se reporta y decide una persona (0.111875ms)
+✔ ninguna acción del triaje puede ser «descartar» (0.089375ms)
+✔ un duplicado sostenido se adjunta a su grupo y NO se vuelve a verificar (0.042ms)
+✔ un defecto nuevo se manda a la lente que le toca (0.038666ms)
+✔ con la evidencia bastando por sí sola no se gasta una verificación (0.054416ms)
+✔ una elección repartida no decide: va a una persona (0.069583ms)
+✔ el umbral de agrupación es el MEDIDO (0.80), no el del manual (0.063833ms)
+✔ un arreglo que solo cambia el rótulo NO cierra el hallazgo (0.061083ms)
+✔ un arreglo que toca la causa cierra, y avisa si deja un cabo suelto (0.325041ms)
+✔ una revisión que repite y ya es decidible se cierra (0.071458ms)
+✔ los dos hilos REALES medidos el 21/09 caen de distinto lado (0.033667ms)
+✔ repetir sin poder decidir no se cierra: se pide la comprobación que falta (0.050292ms)
+✔ una ronda que aporta algo nuevo nunca se declara estancada (0.0285ms)
+✔ el rerank pregunta por el par consulta-extracto, uno a uno (0.041209ms)
+✔ el hilo de revisión viaja con quién dijo qué (0.050459ms)
+✔ una respuesta que falta no se inventa: queda en null (0.031291ms)
+✔ los umbrales llevan la fecha de su medición (0.0365ms)
+✔ el cambio también acepta un diff literal (0.053334ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45.037083
+npm notice run avancecorp-crm-tools@0.0.0 test:conversion:gate
+npm notice run node --test supabase/scripts/conversion/coherencia.test.mjs
+✔ la foto real de producción del 21/09 está en VERDE (0.926334ms)
+✔ MUTANTE: el rango publica otro porcentaje que el núcleo → cuatro_caminos (0.188ms)
+✔ MUTANTE: la distribución ignora la foto y da otro divisor → cuatro_caminos (0.085458ms)
+✔ MUTANTE: falta un camino entero → cuatro_caminos (0.08125ms)
+✔ MUTANTE: el servidor publica un pct que no es su división → pct_es_su_division (0.094375ms)
+✔ MUTANTE: una fila del desglose desaparece → desglose_suma_el_total (0.081334ms)
+✔ MUTANTE: un analista pesa en el total sin fila ni declaración → las_filas_dan_el_total (0.106292ms)
+✔ lo declarado fuera del roster SÍ cuadra: la foto real tiene 2 puntos fuera y pasa (0.04675ms)
+✔ MUTANTE: la cobertura deja de declarar lo de fuera → las_filas_dan_el_total (0.070375ms)
+✔ MUTANTE: un convertido sin fila en el libro → ledger_sin_huerfanos (0.094958ms)
+✔ MUTANTE: un analista con divisor 0 publica 0 % → sin_divisor_no_hay_pct (0.07325ms)
+✔ una foto sin caminos no pasa en silencio (0.033ms)
+✔ diff: la misma foto dos veces no tiene cambios (0.144875ms)
+✔ diff: un cierre nuevo se ve como movimiento del numerador y de UNA fila (0.122042ms)
+✔ diff: un analista que desaparece se nombra (0.065375ms)
+✔ v2 SANO: el núcleo sirve el bruto y los publicados el neto → ni conciliación ni caminos se quejan (0.116ms)
+✔ MUTANTE: una pantalla sigue sirviendo el BRUTO mientras las otras el neto → cuatro_caminos (0.064333ms)
+✔ MUTANTE: la deuda aplicada no cuadra con bruto − neto → conciliacion (0.046083ms)
+✔ MUTANTE: se aplica MÁS deuda de la que hay pendiente → conciliacion (0.044042ms)
+✔ MUTANTE: el bruto conciliado mira otra población que el núcleo → conciliacion (0.06175ms)
+✔ DEUDA MAYOR QUE EL BRUTO: con alguien topado, aplicada < pendiente y es VÁLIDO (0.054625ms)
+✔ MUTANTE: sin nadie topado, aplicada < pendiente es un agujero → conciliacion (0.043584ms)
+✔ la foto v1 histórica se juzga con la regla de su tiempo, no con la conciliación (0.031ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45.302083
+npm notice run avancecorp-crm-tools@0.0.0 seed:preflight
+npm notice run node supabase/scripts/seed-demo.mjs --preflight
+✗ Falta SUPABASE_URL.

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { avisosFixture } from './gestion-diaria-avisos.fixture'
+import { useGestionDiariaAvisos } from './gestion-diaria-avisos-context'
 
 const dobles = vi.hoisted(() => ({ datos: null as unknown, presentar: vi.fn(), actuar: vi.fn(), refetch: vi.fn(), error: null as unknown }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: '00000000-0000-4000-8000-000000000001', rol: 'supervisor' } }) }))
@@ -27,12 +28,34 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 describe('popup de cortes del supervisor', () => {
+  it('rechaza un aviso antiguo cuando el analista ya no está en sus miembros vigentes', () => {
+    const avisoAnterior = avisosFixture().alertas[0]!
+    const analista = avisoAnterior.miembros[0]!.analista_id
+    const Probe = () => {
+      const contexto = useGestionDiariaAvisos()!
+      return <><button onClick={() => contexto.abrirRegistro(avisoAnterior, analista)}>Abrir anterior</button>
+        <button onClick={contexto.consumirRegistro}>Consumir</button>
+        <output>{contexto.registroPedido?.analista ?? 'Sin pedido'}</output></>
+    }
+    const vista = render(<GestionDiariaAvisosProvider><Probe /></GestionDiariaAvisosProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir anterior' }))
+    expect(screen.getByRole('status')).toHaveTextContent(analista)
+    fireEvent.click(screen.getByRole('button', { name: 'Consumir' }))
+    const fresco = avisosFixture()
+    fresco.alertas[0]!.miembros = [{ ...avisoAnterior.miembros[0]!, analista_id: '00000000-0000-4000-8000-000000000099' }]
+    dobles.datos = fresco
+    vista.rerender(<GestionDiariaAvisosProvider><Probe /></GestionDiariaAvisosProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir anterior' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Sin pedido')
+  })
   it('un error de presentación no oculta pendientes y Actualizar recupera aunque el canal se pause', async () => {
     dobles.presentar.mockRejectedValueOnce(new Error('Respuesta perdida'))
     const vista = render(<GestionDiariaAvisosProvider><AvisosEquipo /></GestionDiariaAvisosProvider>)
     await avanzar()
     expect(screen.getByText(/No se pudo abrir el aviso emergente/)).toBeVisible()
+    fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes' }))
     expect(screen.getByText('Otros pendientes confirmados')).toBeVisible()
+    fireEvent.click(screen.getByRole('tab', { name: 'Cortes' }))
     const foto = avisosFixture()
     foto.avisos_habilitados = false
     foto.alertas[0]!.puede_presentar = false
@@ -41,7 +64,9 @@ describe('popup de cortes del supervisor', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Actualizar avisos' })) })
     expect(screen.queryByText(/No se pudo abrir el aviso emergente/)).not.toBeInTheDocument()
     expect(screen.getByText(/Gerencia ha pausado/)).toBeVisible()
+    fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes' }))
     expect(screen.getByText('Otros pendientes confirmados')).toBeVisible()
+    fireEvent.click(screen.getByRole('tab', { name: 'Cortes' }))
   })
   it('retira el popup al cerrar la jornada aunque el siguiente refresco aún no llegue', async () => {
     const foto = avisosFixture()

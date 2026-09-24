@@ -1,0 +1,22 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-pendientes.spec.ts e2e/gestion-diaria-equipo.spec.ts e2e/gestion-diaria.spec.ts --workers=2 --retries=0 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 14 tests using 2 workers
+
+  ✓   2 [chromium] › e2e/gestion-diaria-equipo.spec.ts:53:1 › Ruta real con store vacío: cero actividad, 270 pendientes, error y revocación (4.2s)
+  ✓   1 [chromium] › e2e/gestion-diaria-equipo.spec.ts:7:1 › Supervisor: roster demo, búsqueda y detalle con texto de al menos 16 px (4.3s)
+  ✓   4 [chromium] › e2e/gestion-diaria-equipo.spec.ts:204:3 › H2 densidad 1512: 10 filas, seis columnas y texto completo (4.4s)
+  ✓   5 [chromium] › e2e/gestion-diaria-equipo.spec.ts:204:3 › H2 densidad 1366: 9 filas, seis columnas y texto completo (3.4s)
+  ✓   3 [chromium] › e2e/gestion-diaria-equipo.spec.ts:88:1 › F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginación revocada (9.3s)
+  ✓   6 [chromium] › e2e/gestion-diaria-equipo.spec.ts:275:1 › H2 nombre largo, varios motivos, control de foco y cambio de ruta (4.2s)
+  ✓   7 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:48:1 › H3: últimas tres comparten Registro; pendientes conservan páginas, ficha, filtro y refresco (4.9s)
+  ✓   8 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:95:51 › H3: PGRST202 no se presenta como lista vacía (3.9s)
+  ✓   9 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:95:51 › H3: XX000 no se presenta como lista vacía (3.9s)
+  ✓  10 [chromium] › e2e/gestion-diaria-pendientes.spec.ts:95:51 › H3: 42501 no se presenta como lista vacía (3.8s)
+  ✓  11 [chromium] › e2e/gestion-diaria.spec.ts:18:3 › Analista abre Gestión Diaria y ve su registro del día (3.2s)
+  ✓  12 [chromium] › e2e/gestion-diaria.spec.ts:18:3 › Supervisor abre Gestión Diaria y ve su registro del día (3.8s)
+  ✓  13 [chromium] › e2e/gestion-diaria.spec.ts:18:3 › Gerencia abre Gestión Diaria y ve su registro del día (3.7s)
+  ✓  14 [chromium] › e2e/gestion-diaria.spec.ts:55:1 › Directorio no tiene Gestión Diaria en el menú (2.8s)
+
+  14 passed (32.3s)

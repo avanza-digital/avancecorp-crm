@@ -1,0 +1,15 @@
+{
+  "metodo": "Supabase MCP execute_sql, solo SELECT de agregados",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "comprobado_en": "2026-09-24 05:22:37.160461+00",
+  "leads_activos": 2237,
+  "actividades": 15422,
+  "tareas_pendientes": 1304,
+  "supervisores_activos": 3,
+  "analistas_activos": 18,
+  "analistas_sin_supervisor_activo": 0,
+  "alcance": "Medición complementaria de los supuestos pertinentes de Gestión Diaria; no sustituye todas las sondas de gate-realidad.mjs",
+  "gate_realidad_cli": "NOT RUN: faltan variables SUPABASE_URL y credencial de lectura en este proceso",
+  "datos_personales_exportados": false,
+  "mutaciones": false
+}

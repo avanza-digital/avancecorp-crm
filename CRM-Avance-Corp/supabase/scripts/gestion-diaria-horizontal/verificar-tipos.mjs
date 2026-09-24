@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { db, sql } from './banco.mjs';
+sql('select private.assert_gestion_diaria_pendientes();');
+const r=spawnSync('supabase',['gen','types','typescript','--db-url',`postgresql://postgres:postgres@127.0.0.1:58322/${db}`,'--schema','crm'],{encoding:'utf8',maxBuffer:16*1024*1024});
+assert.equal(r.status,0,r.stderr);
+const firma=t=>t.match(/gestion_diaria_pendientes_fn: \{[\s\S]*?Returns: Json\s*\}/)?.[0].replace(/\s+/g,' ');
+const local=readFileSync(new URL('../../../app/src/lib/database.types.ts',import.meta.url),'utf8');
+assert.ok(firma(r.stdout)); assert.equal(firma(local),firma(r.stdout));
+console.log('PASS: tipos de la RPC H3 idénticos a Supabase gen types sobre el banco instalado');
