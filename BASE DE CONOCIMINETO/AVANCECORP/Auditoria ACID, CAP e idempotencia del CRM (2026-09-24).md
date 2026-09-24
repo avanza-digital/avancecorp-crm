@@ -109,3 +109,16 @@ Todo lo que toque tablas, RLS o la `api` va con plan corto y OK de Miguel,
 banco Docker con el gate RLS antes y después, y review de Codex. Relacionado:
 [[PLAN MAESTRO del servidor (P-055) - de la deuda a la capa semantica]] ·
 [[Analisis de propuesta SLA por etapas - 2026-09-06]] · [[Inicio]].
+
+## ⏸️ En curso (pausa del 24/09 por la tarde)
+
+Miguel autorizó los P1 #1 y #2 («Arranca sii»). Se midió todo; **no hay nada escrito ni
+aplicado todavía**.
+
+- **#1 SLA:** en la cartera global (2302 leads) la función tarda 6,6 s, y **5,7 s** son la
+  consulta del veto de contacto lead por lead. La misma consulta en lote tarda **57 ms**. Tras el
+  arreglo se espera ~1 s. Las 4 RPC con tiempo agotado pasan por esa función.
+- **#2 `audit_log`:** hay que dejar pasar la cascada que anonimiza al actor cuando se borra un
+  usuario (`usuario_id → NULL`). Si no, borrar un usuario fallaría.
+
+Detalle técnico para retomar: memoria `auditoria-acid-cap-idempotencia` del proyecto.
