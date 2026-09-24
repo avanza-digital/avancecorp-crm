@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-24",
+  "updatedAt": "2026-09-24T17:49:02.290065+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -9,17 +9,17 @@
   "updatedId": "2:5",
   "legendId": "2:6",
   "supervisorHorizontal": {
-    "updatedAt": "2026-09-24",
-    "status": "H1–H5 y H6.1–H6.3 cerradas; publicado, aceptación H6.4 pendiente",
+    "updatedAt": "2026-09-24T17:49:02.290065+00:00",
+    "status": "H1–H6 cerradas; recorrido real aceptado por Miguel. F4 operativo pendiente.",
     "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
     "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
-    "resumeMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
+    "resumeMain": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
     "source": "GESTION-DIARIA.md",
     "sourceHeading": "Supervisor horizontal — diseño aprobado y plan de desarrollo",
     "prototype": "assets/supervisor-horizontal-aprobado-2026-09-23.png",
     "prototypeSha256": "1314891a779085bae9b7a3d5d56374cd24a0e32de6b527d22f33bcbfe073bc51",
     "designApproval": "USER_APPROVED",
-    "implementation": "H6_3_PUBLISHED_VERIFIED_ACCEPTANCE_PENDING",
+    "implementation": "COMPLETE_H6_4_ACCEPTED",
     "productTests": "PASS_H5; 4274 pruebas y 249 E2E, 0 fallos, 26 omitidas; ver h5",
     "publication": "PUBLISHED_VERIFIED_H6.3",
     "review": "SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md",
@@ -738,7 +738,7 @@
         "dependency": "H5 cerrada; publicación dentro del alcance autorizado para la ejecución.",
         "deliverable": "Vista publicada, comprobada y aceptada por supervisión.",
         "acceptance": "La aprobación corresponde al producto funcionando; el prototipo aprobado por sí solo no cierra esta fase.",
-        "status": "in_progress",
+        "status": "complete",
         "items": [
           {
             "id": "18:54",
@@ -832,23 +832,23 @@
           },
           {
             "id": "18:57",
-            "text": "◐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
-            "status": "in_progress",
+            "text": "☑ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+            "status": "complete",
             "stageKey": "H6.4",
             "stageTitle": "Aceptar en uso y cerrar el avance",
             "bodyId": "19:65",
             "resultId": "19:66",
-            "result": "Documentación al día; aceptación humana pendiente.",
+            "result": "Aceptado por Miguel el 24/09; sin ajustes nuevos.",
             "tasks": [
               {
                 "text": "Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:65",
                 "index": 0
               },
               {
                 "text": "Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:65",
                 "index": 1
               },
@@ -865,26 +865,28 @@
     ],
     "verification": {
       "originalPhaseCount": 76,
-      "originalPhasesUnchanged": true,
+      "originalPhasesUnchanged": false,
+      "originalPhaseChanges": [
+        "F4.6-etapa/item-05: recorrido conforme; restantes casillas preservadas"
+      ],
       "overflow": [],
       "overlap": [],
       "textMismatches": [],
-      "visualQA": "PASS: readback 70 completas/2 pendientes; capturas general y H6 inspeccionadas, sin recortes ni solapamientos; 76 casillas históricas con ID/texto intactos",
-      "screenshot": "evidencias-h6-2026-09-24/publicacion/figma-supervisor-publicado.png",
-      "detailScreenshot": "evidencias-h5-2026-09-24/figma-h5-detalle.png",
+      "visualQA": "PASS: 72/72 tareas del supervisor, F4.6 con recorrido conforme; capturas H6 y F4 inspeccionadas, sin recortes ni solapamientos",
+      "screenshot": "recorrido-2026-09-24/figma-f4-recorrido.png",
+      "h6Screenshot": "recorrido-2026-09-24/figma-h6-aceptada.png",
+      "readback": "recorrido-2026-09-24/figma-despues.json",
       "taskCountReadback": {
-        "complete": 70,
-        "pending": 2
-      },
-      "originalPhasesSha256": "3b47cf6fcef6f238196fa72f9eeb00f657756dbc231251825238501e94e7f8c3",
-      "h6Screenshot": "evidencias-h6-2026-09-24/publicacion/figma-h6-publicada.png"
+        "complete": 72,
+        "pending": 0
+      }
     },
     "detailVersion": 6,
     "phaseCount": 6,
     "stageCount": 24,
     "taskCount": 72,
-    "completedTaskCount": 70,
-    "pendingTaskCount": 2,
+    "completedTaskCount": 72,
+    "pendingTaskCount": 0,
     "h1": {
       "status": "COMPLETE",
       "completedAt": "2026-09-23",
@@ -1018,15 +1020,16 @@
     },
     "resumeCheckpoint": {
       "date": "2026-09-24",
-      "sessionStatus": "H6_3_PUBLISHED_VERIFIED",
+      "sessionStatus": "H6_4_ACCEPTED_F4_OPERATIONS_PENDING",
       "h4PlanApproval": "USER_APPROVED",
       "h4Implementation": "COMPLETE",
-      "nextStage": "H6.4",
-      "source": "SUPERVISOR-HORIZONTAL-RETOMA.md",
+      "nextStage": "F4.6: reaviso, reconocimiento, otra sesión, segundo corte y sábado",
+      "source": "F4-RECORRIDO-SUPERVISION-2026-09-24.md",
       "productCheckpoint": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
-      "branch": "codex/gestion-diaria-horizontal-h5-h6-acta",
-      "workingCopy": "/private/tmp/avancecorp-release.hvdub4/repo",
-      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/supervisor-horizontal-h5-h6.bundle"
+      "branch": "codex/gestion-diaria-recorrido-20260924",
+      "workingCopy": "/private/tmp/avancecorp-fecha-publicacion-vfzj775x/repo",
+      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/supervisor-horizontal-h5-h6.bundle",
+      "durableEvidence": "/Users/usuario/.local/share/avancecorp-checkpoints/gestion-diaria-recorrido-2026-09-24"
     },
     "h4": {
       "status": "COMPLETE",
@@ -1087,13 +1090,13 @@
       ]
     },
     "h6": {
-      "status": "in_progress",
+      "status": "complete",
       "evidence": "SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md",
       "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/87",
       "integration": "PASS",
       "artifact": "PASS_PUBLISHED",
       "publication": "PASS",
-      "realAcceptance": "PENDING_H6.4",
+      "realAcceptance": "ACCEPTED_BY_MIGUEL_2026_09_24",
       "rollbackSource": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
       "rollbackChecks": 114,
       "durableDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/",
@@ -1116,7 +1119,26 @@
       "bankDeleted": true,
       "estimatedBankUSD": 0.017433109866666668,
       "buildId": "build-20260924T054600240Z",
-      "documentationPullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/88"
+      "documentationPullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/88",
+      "acceptanceEvidence": "F4-RECORRIDO-SUPERVISION-2026-09-24.md",
+      "acceptanceSourceCommit": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
+      "acceptanceBuildId": "build-20260924T161347948Z"
+    },
+    "publicationVerificationH6_3": {
+      "originalPhaseCount": 76,
+      "originalPhasesUnchanged": true,
+      "overflow": [],
+      "overlap": [],
+      "textMismatches": [],
+      "visualQA": "PASS: readback 70 completas/2 pendientes; capturas general y H6 inspeccionadas, sin recortes ni solapamientos; 76 casillas históricas con ID/texto intactos",
+      "screenshot": "evidencias-h6-2026-09-24/publicacion/figma-supervisor-publicado.png",
+      "detailScreenshot": "evidencias-h5-2026-09-24/figma-h5-detalle.png",
+      "taskCountReadback": {
+        "complete": 70,
+        "pending": 2
+      },
+      "originalPhasesSha256": "3b47cf6fcef6f238196fa72f9eeb00f657756dbc231251825238501e94e7f8c3",
+      "h6Screenshot": "evidencias-h6-2026-09-24/publicacion/figma-h6-publicada.png"
     }
   },
   "uiProgress": {
@@ -1124,8 +1146,8 @@
     "titleId": "2:131",
     "statusId": "2:132",
     "scopeId": "2:133",
-    "updatedAt": "2026-09-23",
-    "status": "Publicado; pendiente de aceptación de analista y supervisor",
+    "updatedAt": "2026-09-24T17:49:02.290065+00:00",
+    "status": "Publicado; supervisión conforme el 24/09, analista pendiente",
     "branch": "codex/gestion-diaria-ui",
     "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/82",
     "integratedMain": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
@@ -1155,8 +1177,8 @@
     "originFilesVerified": 114,
     "cdnCodeFilesVerified": 75,
     "cdnTransformedPngFiles": 11,
-    "productionSmoke": "PASS gerencia; NOT RUN analista y supervisor",
-    "userAcceptance": "PENDING analista y supervisor",
+    "productionSmoke": "PASS gerencia y supervisor; NOT RUN analista",
+    "userAcceptance": "PASS supervisor (Miguel); PENDING analista",
     "realityGate": "NOT RUN; lectura SQL parcial registrada en el acta, sin sustituir el CLI"
   },
   "phaseNodes": {
@@ -1629,7 +1651,7 @@
     {
       "key": "F4.6-etapa",
       "title": "Etapa 6 — Validación y activación",
-      "status": "ESTAMOS AQUÍ · pendiente de validación real",
+      "status": "ESTAMOS AQUÍ · recorrido conforme; seguimiento operativo en curso",
       "items": [
         [
           true,
@@ -1648,7 +1670,7 @@
           "Publicar la corrección del detalle opcional del PR #77."
         ],
         [
-          false,
+          true,
           "Completar el recorrido de negocio con supervisión."
         ],
         [

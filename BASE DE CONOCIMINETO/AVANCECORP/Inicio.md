@@ -5,6 +5,8 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - recorrido de supervision conforme (2026-09-24)]] — **RECORRIDO ACEPTADO POR MIGUEL:** H6.4 cerrada, 72/72 tareas. Primer corte contrastado: 4 cumplieron, 1 recuperó y 5 pendientes. Aplazamiento real hasta 13:34 Lima conservado tras recarga y nueva pestaña. F4 sigue abierto para reconocimiento, otra sesión/dispositivo, corte 16:00 y sábado 26/09.
+
 - [[Gestion Diaria - supervisor con consulta por fecha (2026-09-24)]] — **PREPARADA Y VERIFICADA EN COPIA SEPARADA:** selector de día y regreso a hoy; actividad y registro por fecha, equipo y pendientes actuales. Gate de 4.281 pruebas y 20 E2E Docker PASS. Sin publicar.
 
 - [[Gestion Diaria - H6.3 publicada y aceptacion pendiente (2026-09-24)]] — **PUBLICADA Y VERIFICADA:** H3 por merge nativo, frontend `bbe341f6`, 116 archivos HTTPS y recorrido técnico de supervisor PASS. Matrices alojadas 2.226/0 antes y después; banco eliminado (~US$0,018). 70/72 tareas: H6.4 pendiente de aceptación humana. Actas en PR #88; no volver a publicar por documentación.

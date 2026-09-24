@@ -1,0 +1,170 @@
+{
+  "mutatedNodeIds": [
+    "2:5",
+    "2:12",
+    "2:92",
+    "2:97",
+    "18:4",
+    "18:5",
+    "18:8",
+    "18:9",
+    "18:53",
+    "18:57",
+    "19:65",
+    "19:66",
+    "18:59",
+    "18:60",
+    "2:132",
+    "2:133"
+  ],
+  "bounds": [
+    {
+      "id": "2:5",
+      "text": "24/09/2026 · Supervisor horizontal aceptado (72/72) · F4: recorrido conforme; seguimiento operativo pendiente",
+      "x": 72,
+      "y": 264,
+      "width": 3100,
+      "height": 41,
+      "fitsParent": true
+    },
+    {
+      "id": "2:12",
+      "text": "Recorrido conforme; validación de cortes y acciones en curso",
+      "x": 40,
+      "y": 152,
+      "width": 1016,
+      "height": 35,
+      "fitsParent": true
+    },
+    {
+      "id": "2:92",
+      "text": "ESTAMOS AQUÍ · recorrido conforme; seguimiento operativo en curso",
+      "x": 28,
+      "y": 82,
+      "width": 976,
+      "height": 32,
+      "fitsParent": true
+    },
+    {
+      "id": "2:97",
+      "text": "☑ Completar el recorrido de negocio con supervisión.",
+      "x": 28,
+      "y": 334,
+      "width": 976,
+      "height": 35,
+      "fitsParent": true
+    },
+    {
+      "id": "18:4",
+      "text": "☑ H1–H6 completas · Vista publicada y aceptada por supervisión",
+      "x": 36,
+      "y": 108,
+      "width": 3072,
+      "height": 41,
+      "fitsParent": true
+    },
+    {
+      "id": "18:5",
+      "text": "24/09/2026 · 72/72 tareas completas · Fuente actual: 929fbbcc · GESTION-DIARIA.md",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 36,
+      "fitsParent": true
+    },
+    {
+      "id": "18:8",
+      "text": "H6.4 aceptada en producción",
+      "x": 1972,
+      "y": 423,
+      "width": 1136,
+      "height": 44,
+      "fitsParent": true
+    },
+    {
+      "id": "18:9",
+      "text": "H5: 4.274 pruebas y E2E Docker 249/0/26.\nH3: matriz hosted 2.226/0 antes y después.\nH6.3 publicada desde bbe341f6; 116 archivos verificados.\nVersión actual 929fbbcc: selector de fecha publicado.\nMiguel dio conformidad al recorrido real del 24/09.\n10 analistas: 4 cumplieron, 1 recuperó y 5 pendientes.\nF4: aplazamiento guardado hasta 13:34 Lima.\nSiguen reconocimiento, otra sesión, corte 16:00 y sábado.\nTasa baja OFF; sin TypeSafe ni cambios de reglas.",
+      "x": 1972,
+      "y": 487,
+      "width": 1136,
+      "height": 341,
+      "fitsParent": true
+    },
+    {
+      "id": "18:53",
+      "text": "COMPLETA · 4 etapas · 12 tareas",
+      "x": 28,
+      "y": 87,
+      "width": 946.6666870117188,
+      "height": 33,
+      "fitsParent": true
+    },
+    {
+      "id": "18:57",
+      "text": "☑ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+      "x": 28,
+      "y": 1245,
+      "width": 946.6666870117188,
+      "height": 38,
+      "fitsParent": true
+    },
+    {
+      "id": "19:65",
+      "text": "☑ Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.\n☑ Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.\n☑ Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.",
+      "x": 28,
+      "y": 1297,
+      "width": 946.6666870117188,
+      "height": 195,
+      "fitsParent": true
+    },
+    {
+      "id": "19:66",
+      "text": "Aceptado por Miguel el 24/09; sin ajustes nuevos.",
+      "x": 28,
+      "y": 1506,
+      "width": 946.6666870117188,
+      "height": 33,
+      "fitsParent": true
+    },
+    {
+      "id": "18:59",
+      "text": "H5 y H6.3: gates técnicos y publicación verificados. H6.4: recorrido de negocio aceptado por Miguel el 24/09.",
+      "x": 36,
+      "y": 5063.34375,
+      "width": 3072,
+      "height": 38,
+      "fitsParent": true
+    },
+    {
+      "id": "18:60",
+      "text": "72 tareas completas del supervisor horizontal. F4 operativo sigue abierto: acciones, corte 16:00 y sábado 26/09.",
+      "x": 36,
+      "y": 5125.34375,
+      "width": 3072,
+      "height": 38,
+      "fitsParent": true
+    },
+    {
+      "id": "2:132",
+      "text": "Supervisión conforme el 24/09 · Validación de analista pendiente",
+      "x": 36,
+      "y": 104,
+      "width": 3072,
+      "height": 35,
+      "fitsParent": true
+    },
+    {
+      "id": "2:133",
+      "text": "☑ Revisar Fundamentos UX/UI y las pantallas actuales.\n☑ Mejorar «Mi día» y «Mi equipo hoy»: 4.179 pruebas PASS; observaciones de Claude atendidas.\n☑ Publicar PR #82 desde Main e8e4f35f: archivos y acceso de gerencia verificados.\n☐ Validar con ambos roles: supervisión conforme el 24/09; analista pendiente.",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 140,
+      "fitsParent": true
+    }
+  ],
+  "overlaps": [],
+  "horizontalComplete": 72,
+  "horizontalPending": 0,
+  "f4StillOpen": true
+}
