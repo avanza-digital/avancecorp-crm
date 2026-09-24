@@ -1,0 +1,16 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-equipo.spec.ts --grep H2 densidad|H2 nombre largo --reporter=list --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+Instalando dependencias (package-lock.json cambió o volumen nuevo)…
+npm warn deprecated jpeg-exif@1.1.4: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated crypto-js@4.2.0: Active development of CryptoJS has been discontinued. This library is no longer maintained.
+
+added 360 packages in 5s
+
+Running 3 tests using 2 workers
+
+  ✓  1 [chromium] › e2e/gestion-diaria-equipo.spec.ts:204:3 › H2 densidad 1366: 9 filas, seis columnas y texto completo (4.3s)
+  ✓  2 [chromium] › e2e/gestion-diaria-equipo.spec.ts:204:3 › H2 densidad 1512: 10 filas, seis columnas y texto completo (4.6s)
+  ✓  3 [chromium] › e2e/gestion-diaria-equipo.spec.ts:275:1 › H2 nombre largo, varios motivos, control de foco y cambio de ruta (3.7s)
+
+  3 passed (9.6s)

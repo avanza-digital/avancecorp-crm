@@ -1,0 +1,310 @@
+{
+  "date": "2026-09-24",
+  "phase": "H5",
+  "status": "COMPLETE",
+  "productCommit": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+  "sourceBranch": "codex/gestion-diaria-supervisor-horizontal",
+  "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/87",
+  "check": {
+    "status": "PASS",
+    "command": "npm run lint && npm run typecheck && npm run test:coverage -- --maxWorkers=2 && npm run test:release-config && npm run test:push-tasa && npm run build && npm run verify:bundle && npm run dup",
+    "tests": 4274,
+    "files": 287,
+    "lintWarnings": 5,
+    "coveragePercent": {
+      "statements": 77.13,
+      "branches": 74.17,
+      "functions": 74.21,
+      "lines": 80.19
+    },
+    "duplicationPercent": 0.5
+  },
+  "e2e": {
+    "status": "PASS",
+    "environment": "Docker local",
+    "passed": 249,
+    "failed": 0,
+    "skipped": 26,
+    "workers": 2,
+    "retries": 0,
+    "durationMinutes": 10.0,
+    "focusedPassed": 14
+  },
+  "sql": {
+    "status": "PASS_LOCAL",
+    "migration": "20260923234404",
+    "sha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
+    "tasks": 1008,
+    "pages": 11,
+    "mutantsKilled": 7,
+    "http": "PASS",
+    "types": "PASS",
+    "hostedCandidate": "NOT RUN",
+    "productionInstalled": false
+  },
+  "queries": {
+    "status": "PASS",
+    "teamSizes": [
+      1,
+      32
+    ],
+    "scope": "all /rest/v1/ endpoints by method and pathname at stable checkpoints",
+    "registroReadsBeforeSelection": 0,
+    "registroReadsAfterSummaryAndTabs": 1,
+    "registroReadsAfterRefresh": 2,
+    "pendingReadsWithoutVisiting": 0
+  },
+  "visual": {
+    "status": "PASS_CHROMIUM",
+    "rows1512x805": 10,
+    "rows1366x768": 9,
+    "minFontPx": 16,
+    "minControlPx": 44,
+    "mobileWidthPx": 390,
+    "nativeChromeZoomPercent": 200,
+    "keyboardAndFocus": "PASS"
+  },
+  "review": {
+    "reviewer": "Claude SECONDARY_REVIEWER",
+    "verdict": "CHANGES_REQUESTED",
+    "confidence": "MEDIUM",
+    "consultations": 1,
+    "primaryResolution": "FIXED_OR_DISPOSITION_WITH_EVIDENCE",
+    "acta": "SUPERVISOR-HORIZONTAL-H5-REVISION-2026-09-24.md"
+  },
+  "notRun": [
+    "gate:realidad CLI: missing variables/credential; separate read-only aggregate SQL does not replace it",
+    "human VoiceOver/NVDA",
+    "Safari",
+    "hosted H6 candidate",
+    "real operational acceptance"
+  ],
+  "publication": "PENDING",
+  "files": [
+    {
+      "path": "SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md",
+      "bytes": 7236,
+      "sha256": "382ac49376375d03bde5d58e38cd3580cf5b019d1fb9c8ff7c959753611256e3"
+    },
+    {
+      "path": "SUPERVISOR-HORIZONTAL-H5-REVISION-2026-09-24.md",
+      "bytes": 4206,
+      "sha256": "1ff35517014dff53f3be266648add8fff71b3c217c41f8feee4fdc436ead462c"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/backend-preflights-final.log",
+      "bytes": 13793,
+      "sha256": "30354c6d6f1608917699433cd2e60abf0d452cbbf661c3eae134cb0448fe62c7"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/backend-preflights.log",
+      "bytes": 40483,
+      "sha256": "34169d5be3ae2433c1b8b9433fa89dad842672770b3c301d24c589d0eb3edc50"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/check-final.log",
+      "bytes": 73492,
+      "sha256": "55e6b6b71c9181f7d19473ea3c0dc62ca7320ca72e06c0e7510016b19ea1758a"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/check-intermedio-typecheck.log",
+      "bytes": 1585,
+      "sha256": "9272d0ce47bcaaff72448bc29a47642940df263a372163b7a12a3e17e3a764a9"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/check.log",
+      "bytes": 73487,
+      "sha256": "2b205371275b40324ac01bc3f23352b23241f47311626a2d13026b594a0b3bf1"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-1.json",
+      "bytes": 97,
+      "sha256": "864146578876b6207f00bb269506cf68b6a93e2f5dc564d674f93f2ea4b0939c"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-2.json",
+      "bytes": 96,
+      "sha256": "b0ccbf82d3f22fca0046edd264e629985328c1233fd56e3a3d387efe05957b1b"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-final.log",
+      "bytes": 565,
+      "sha256": "086c0135debf5f5678b92be1654bbd33c3d03262c40bc90eadd04e395670c39f"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-h5.json",
+      "bytes": 15337,
+      "sha256": "0bf5f52d139b1ed6e1635fcc16bf47a68624f21ce2dcc1ad43a14f88c506a5c6"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-inicial.log",
+      "bytes": 5523,
+      "sha256": "65aff6178f05708a679f17b71ba0e8561971d789962a1bf8c0d3fc68128fc9f6"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/consultas-todas-inicial.json",
+      "bytes": 15337,
+      "sha256": "92d77145074dc17a4092741f8ef2e7c925e7beb7926842c8c73285da25bfeb84"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/e2e-completo.log",
+      "bytes": 41155,
+      "sha256": "3fb1dd328710aabb1ef83a9ef1b69135f3673c30030cccf6f18bcc4a433951fb"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/e2e-final.log",
+      "bytes": 39833,
+      "sha256": "838b783cdf20864bf03b8f83f323612d561668b7ac71d30077920a6410b6486d"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/e2e-inicial-gestion-diaria-cortes-H4-p-70469-y-abre-el-registro-correcto-chromium.md",
+      "bytes": 10671,
+      "sha256": "3c51fb76c0d5f0535ad136aaed122e00a1be830b632905f73231813fc851d8cc"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/e2e-interrumpido-typecheck.log",
+      "bytes": 9946,
+      "sha256": "4c68076c24ad1162694aa42e11aae6ea3ce6af5886f3c93a0c1bb388c4b27a53"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/figma-h5-detalle.png",
+      "bytes": 265675,
+      "sha256": "210e4917b52e1fdfd7c8cdf75557260a6e58c4d2e8ab6135e23e3885fa12c1ce"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/figma-h5-h6.png",
+      "bytes": 1129034,
+      "sha256": "dcda067f946ec19b6e2f908862fd832c81993657373871a43370e32140d9ed37"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/figma-h6-preparacion.png",
+      "bytes": 239313,
+      "sha256": "02c10dba5a0bd5c4b4cb1590119ce4b702189aa3bafa50f53a20e4f56ea88369"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/figma-historico-sha256.txt",
+      "bytes": 65,
+      "sha256": "97b88870f332b9856c55b31a1bad69bf79883cde50ba75240b526db5196f800e"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/figma-readback.json",
+      "bytes": 5151,
+      "sha256": "3a28421dec87ec308e8beff53d7a62b1b9d52147bf5211579b9a7ef71076e991"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/horizontal-1366.png",
+      "bytes": 161771,
+      "sha256": "9f29af39d0b25e56a0376aa4c52eca08e8dd8003848c3d87065c28620bf021b4"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/horizontal-1512.png",
+      "bytes": 171826,
+      "sha256": "93435b3f1af84d0b13aa955b693ba4141025cd14500ff6c970237148d6da506b"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/horizontal-200-por-ciento.png",
+      "bytes": 40268,
+      "sha256": "148815a81d2105855da7ee0ee752402bbc12e09f520ec94fad62b37918be377c"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/horizontal-movil.png",
+      "bytes": 44965,
+      "sha256": "c5543683ba09a9d6c72dd7ee9f1c9cacf7850cd1796cc6fdb3c2f4eaea652e22"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/horizontal-nombre-largo.png",
+      "bytes": 134171,
+      "sha256": "5451a0b804f300bfbb26653cf1a566b7593f54d390b0f5b6173b204ba882bd22"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/http.log",
+      "bytes": 130,
+      "sha256": "33cec410e137869f09bd826fb94b00c4a91cfc109acec584dc5ceeea6d3d3f8c"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/medidas-1366.json",
+      "bytes": 2095,
+      "sha256": "cb7a8997d93aa89c235cd590bb3164cb7414a4550b5ede3cb6c423ef59560aa5"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/medidas-1512.json",
+      "bytes": 2108,
+      "sha256": "d45cf6cbd046b70356ffec69b752e728cccf60d58578f51da401890ad4021752"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/realidad-complementaria.json",
+      "bytes": 642,
+      "sha256": "f0276d15793d8ec7cd1e28ae30e7636473e4e9f0b5ed1721cba8bb20a98fbefd"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/realidad.log",
+      "bytes": 135,
+      "sha256": "583f7dff3a29fc777e6c9542c055fe03132295dd94affe7ea206341f181ebb4f"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/rendimiento.log",
+      "bytes": 119,
+      "sha256": "9e3d10b02e85fe1f49eb34a43c461ae058792465afe910c5bf928b041c464a9d"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-claude.md",
+      "bytes": 9837,
+      "sha256": "71b5a89c08a824c7878deb8e2a99f4bd7c1f76ae3d16757d83b9acc7f9b66e9e"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-e2e-antes.log",
+      "bytes": 2232,
+      "sha256": "e3e34b3bcbfb571e1dd9e9ac3e8f8ca1dc770813a6523c46ca31670814f27715"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-e2e-despues.log",
+      "bytes": 2474,
+      "sha256": "aafe12f6650c657055c6ba50eacb90686998f50081e54b14ce78cf9f133a8884"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-ejecucion.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-pedido.txt",
+      "bytes": 222324,
+      "sha256": "1c1b56fcb291d3f211a2f8a3548d659e4df82c8390281d32d47701b710b93a95"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-regresion-antes.log",
+      "bytes": 10578,
+      "sha256": "05d4f2c966de3561842637294ab07b4e8f82fc364ff1ac3fd1c79c4759dd2b37"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/review-regresion-despues.log",
+      "bytes": 1018,
+      "sha256": "8344199c54aeec0ccde0e9189d978b54d3667d51fde81f090d20dc5a926dc751"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/sql-contrato.log",
+      "bytes": 1686,
+      "sha256": "9dac7f19ab050072c2ca7e8671b5506bff8a6e479947d165f23f90c5b1101081"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/tipos.log",
+      "bytes": 82,
+      "sha256": "4b0baf1971025658d33e6bf9776e7ea021443fd54183f4d1fb28738d91bf80d3"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/typecheck-correccion.log",
+      "bytes": 72,
+      "sha256": "ba2b43a004e23d146df99c7b208872a3b253e0fd282931c06fae7710f77bf944"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/visual-inicial.log",
+      "bytes": 1064,
+      "sha256": "a7873b07ab02ccab92450825bef079d9a092994a503c962acdd146fa8fc40621"
+    },
+    {
+      "path": "evidencias-h5-2026-09-24/zoom-nativo.md",
+      "bytes": 1302,
+      "sha256": "5a33f3aefd6e3c1a0e0366ce9d60813426a23d2b38c82d681b3d20deea9c5d4d"
+    }
+  ]
+}

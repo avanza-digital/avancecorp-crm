@@ -1,0 +1,130 @@
+{
+  "date": "2026-09-24",
+  "phase": "H6",
+  "status": "DELIVERY_PREPARED_NOT_PUBLISHED",
+  "stages": {
+    "H6.1": "COMPLETE",
+    "H6.2": "COMPLETE",
+    "H6.3": "PENDING",
+    "H6.4": "PARTIAL_DOCUMENTATION_ONLY"
+  },
+  "completedTasks": 67,
+  "pendingTasks": 5,
+  "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/87",
+  "sourceMain": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+  "productTested": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+  "sourceTreeEqualsTestedTree": true,
+  "checks": {
+    "ci": "PASS",
+    "release": "PASS",
+    "releaseVerify": "PASS",
+    "figmaReadback": "PASS",
+    "historicalFigmaPreserved": true,
+    "rollbackHTTPS": {
+      "passed": 114,
+      "failed": 0
+    }
+  },
+  "initialArtifact": {
+    "file": "crm-20260924T054601Z-bbe341f6752b.zip",
+    "bytes": 2300351,
+    "sha256": "80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2",
+    "files": 116,
+    "source": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+    "clean": true,
+    "target": "crm.miavance.com"
+  },
+  "rollback": {
+    "file": "crm-20260923T204458Z-e8e4f35f9ea1.zip",
+    "source": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
+    "sha256": "ab631a4fac25c53c3d32bd49514c99d92c6420dd2c9b92c1a823a88a46f22de6"
+  },
+  "sql": {
+    "migration": "20260923234404",
+    "sha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
+    "productionInstalled": false,
+    "hostedCandidate": "NOT RUN",
+    "authorization": "PENDING"
+  },
+  "publication": "NOT RUN; human release invocation required",
+  "realAcceptance": "NOT RUN",
+  "durableDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/",
+  "exactFinalDelivery": "entrega-final.json in durable directory (source rebuilt after integrating these actas)",
+  "files": [
+    {
+      "path": "evidencias-h6-2026-09-24/advisors-security-antes.json",
+      "bytes": 5374,
+      "sha256": "f1bc5b8258a8e041c2596fcdc70c2512937f4c8c61d17d92fc76b89f41676a34"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/figma-h5-h6-final.png",
+      "bytes": 1128842,
+      "sha256": "23ac10878851daa6fee7853063d799c8357281620161eed2ff2d95c7c26c016a"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/figma-h6-entrega.png",
+      "bytes": 244359,
+      "sha256": "149df724eeed3e2461433bbe0dc3b9aedaf4462a3723aa7e4bd9bc16056524a7"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/figma-readback.json",
+      "bytes": 1537,
+      "sha256": "1728a63b53ed7a1d5f038f5d529e45df53672d7c5af3f05e6c5b2d9f83950bcf"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/integracion-artefacto-bbe341f6.json",
+      "bytes": 775,
+      "sha256": "40e9bfca4ae8dceff336f77a2296d0033808c77fc87ba94718ab0c8cb461b8f9"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/pr-87.json",
+      "bytes": 1472,
+      "sha256": "e726e8e5acfe54bbe3c60270c7905b3d9b2f178117b91071bf470b46719f9788"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/release-bbe341f6-final.log",
+      "bytes": 11064,
+      "sha256": "cded04fff83e9fffcdda0fab329b8d00efec2745f9821b6e1876e5b787ddabd4"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/release-bbe341f6.log",
+      "bytes": 11086,
+      "sha256": "bd8d51e67676a528d3fff30ab1ea2bd219bbba51775d3bdfe577cb8ec8244c9e"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/release-config-origen.log",
+      "bytes": 770,
+      "sha256": "1d444a326f8b12f055cc5d73d794dd82e944b971f761e2421426d154eebddd76"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/respaldo-vivo-verificado.json",
+      "bytes": 19268,
+      "sha256": "e01db7a7547ef6425dc8af48e8a8b23e1bff5a8b4eb3a9299913b438be869185"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/sql-preflight.json",
+      "bytes": 588,
+      "sha256": "fed7cefaf179112861dfb138e41e0c7721ff3093fd40ed55a619ff5febea9b27"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/verify-bbe341f6.log",
+      "bytes": 293,
+      "sha256": "289dbf509503066c824a0cd6a0befb84f61693ee408a9be95792f264840e601e"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/vivo-antes-index.html",
+      "bytes": 2178,
+      "sha256": "d89426f4cd70b57037357789c263a0f512e6b55fe70904453519ab2473e5f7fe"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/vivo-antes-version.json",
+      "bytes": 51,
+      "sha256": "e8ee4c41c4e2bdd68e490491f4db289803d7eaa12d58265ac464be94bd847d63"
+    },
+    {
+      "path": "evidencias-h6-2026-09-24/vivo-antes.json",
+      "bytes": 371,
+      "sha256": "037d79176460e463f39935dba3f93655e4ec384c7b9775866a33ab0d0d805c27"
+    }
+  ]
+}

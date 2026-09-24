@@ -5,15 +5,9 @@ vertical. Aprobó el nuevo prototipo horizontal («perfecto perfecto») y pidió
 un plan para desarrollarlo, con apoyo de Claude/Jev si hacía falta, recordando
 que debe actualizarse **el mismo archivo de Figma**.
 
-**Estado: H1–H4 CERRADAS; H5–H6 pendientes; sin publicación.**
+**Estado vigente: H1–H5 CERRADAS; H6.1/H6.2 cerradas, H6.3 pendiente.**
 
-**Retoma vigente:** H4 implementada y verificada en `186e00f1`. Continuar desde
-**H5.1** en la copia aislada; la pausa anterior quedó superada al iniciar el
-objetivo H4. Plan, evidencia y ubicación:
-`CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-RETOMA.md`.
-Respaldo incremental de la rama:
-`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h4-2026-09-23.bundle`.
-Figma conserva **48/72 completas**, H5–H6 pendientes y las 76 casillas históricas.
+Retoma y resultados del 24/09: [[Gestion Diaria - H5 verificada y H6 preparada (2026-09-24)]]. Las secciones siguientes conservan el historial de H1–H4.
 
 El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85) está fusionado
 desde el 23/09 a las 21:35 UTC, Main `e0bdfe124c48ab32617c72402e320c7e9963dc3b`.
@@ -58,7 +52,7 @@ pendientes» abre el listado de la persona: H1 decidió una RPC nueva de lectura
 paginada en H3.3, ya implementada y comprobada en banco local, sin cambios de reglas ni RLS.
 Registro del equipo muestra solo Registro, con espacio ampliable.
 
-Próximo paso: **H5.1**, verificación integral del rediseño horizontal. H1 se ejecutó en
+Punto de partida histórico de H5: verificación integral del rediseño horizontal. H1 se ejecutó en
 la copia aislada `/private/tmp/avancecorp-release.hvdub4/repo`, rama
 `codex/gestion-diaria-supervisor-horizontal`, Main verificado `cf87e808` (#86).
 El taller principal permanece intacto. H2 modifica producto solamente en la copia aislada.

@@ -10,9 +10,9 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 
 ## Supervisor horizontal — diseño aprobado y plan de desarrollo
 
-**Actualizado: 23/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
+**Actualizado: 24/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
 plan de desarrollo, mantenido en el mismo archivo de Figma. Esta aprobación
-es visual; H1–H4 ya están cerradas con evidencia. H5–H6 y la publicación siguen pendientes.
+es visual; H1–H5 están cerradas con evidencia. H6.1/H6.2 cerradas; publicación y aceptación real pendientes.
 El PR #85 ya está fusionado en `avancecorp/main`, commit
 `e0bdfe124c48ab32617c72402e320c7e9963dc3b` (23/09, 21:35 UTC).
 Es el punto de partida documental. H1 se ejecutó sobre Main verificado
@@ -49,9 +49,9 @@ las horas reducidas de la ilustración no modifican el contrato existente.
 
 Este rediseño se organiza en **6 fases H1–H6, 24 etapas y 72 tareas**.
 Cada etapa se cierra con su entregable y evidencia; una fase se cierra al
-completar sus cuatro etapas y cumplir su criterio de aceptación. Todas las
-etapas H5–H6 siguen pendientes. **H1–H4 están cerradas: 16 etapas y 48 tareas;
-quedan 24 tareas pendientes.** La aprobación del prototipo ya consta.
+completar sus cuatro etapas y cumplir su criterio de aceptación. **H1–H5 y H6.1/H6.2
+están cerradas: 22 etapas, 67 tareas completas y 5 pendientes.** H6.4 ya conserva
+la documentación, pero no la aceptación real. La aprobación del prototipo ya consta.
 Los identificadores H1–H6 pertenecen al rediseño horizontal y conservan
 la numeración y el avance del plan general F0–F6.
 
@@ -207,7 +207,7 @@ Backend instalado sólo en banco local aislado; publicación en H6.
 Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
 [Evidencia y límites](SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md) ·
 [Revisión y resolución](SUPERVISOR-HORIZONTAL-H4-REVISION-2026-09-23.md) ·
-[Punto de retoma H5.1](SUPERVISOR-HORIZONTAL-RETOMA.md).
+[Punto de retoma H6](SUPERVISOR-HORIZONTAL-RETOMA.md).
 
 #### Etapa H4.1 · Compactar el estado de los cortes
 
@@ -253,33 +253,33 @@ Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
 
 #### Etapa H5.1 · Probar estados y datos
 
-- [ ] Adaptar pruebas de selección, filtro, orden, pestañas, paginación y retorno de la ficha.
-- [ ] Cubrir cero actividad, desconocidos, errores temporales, equipo vacío y persona oculta por filtros.
-- [ ] Cubrir cambio de día/usuario, revocación, retirada del equipo, respuestas tardías y un aviso recibido con otro analista abierto.
+- [x] Adaptar pruebas de selección, filtro, orden, pestañas, paginación y retorno de la ficha.
+- [x] Cubrir cero actividad, desconocidos, errores temporales, equipo vacío y persona oculta por filtros.
+- [x] Cubrir cambio de día/usuario, revocación, retirada del equipo, respuestas tardías y un aviso recibido con otro analista abierto.
 
 **Resultado de la etapa:** Pruebas de comportamiento y límites del panel.
 
 #### Etapa H5.2 · Probar recorridos completos
 
-- [ ] Ejecutar E2E en Docker local: localizar analista, abrir registro, filtrar, paginar, abrir ficha y volver.
-- [ ] Ejercitar cortes, reconocimiento, aplazamiento y apertura del analista desde un aviso con datos de prueba.
-- [ ] Comprobar la regresión pertinente del analista y el resto del módulo; los E2E no se trasladan a GitHub.
+- [x] Ejecutar E2E en Docker local: localizar analista, abrir registro, filtrar, paginar, abrir ficha y volver.
+- [x] Ejercitar cortes, reconocimiento, aplazamiento y apertura del analista desde un aviso con datos de prueba.
+- [x] Comprobar la regresión pertinente del analista y el resto del módulo; los E2E no se trasladan a GitHub.
 
 **Resultado de la etapa:** Recorridos de usuario reproducibles con resultados registrados.
 
 #### Etapa H5.3 · Validar apariencia y accesibilidad
 
-- [ ] Comparar a 1512 × 805 (diez filas típicas) y 1366 × 768 (nueve); medir sin reducir texto ni recortar nombres.
-- [ ] Revisar 390 px, zoom 200 %, teclado, foco visible, nombres accesibles, texto de 16 px y controles de 44 px.
-- [ ] Probar más de diez personas, nombres extensos, cifras grandes y múltiples motivos; documentar diferencias justificadas.
+- [x] Comparar a 1512 × 805 (diez filas típicas) y 1366 × 768 (nueve); medir sin reducir texto ni recortar nombres.
+- [x] Revisar 390 px, zoom 200 %, teclado, foco visible, nombres accesibles, texto de 16 px y controles de 44 px.
+- [x] Probar más de diez personas, nombres extensos, cifras grandes y múltiples motivos; documentar diferencias justificadas.
 
 **Resultado de la etapa:** Evidencia visual y de accesibilidad.
 
 #### Etapa H5.4 · Cerrar calidad y rendimiento
 
-- [ ] Ejecutar npm run check y gates de contrato, SQL/RLS y tipos para la nueva lectura; resolver fallos del cambio.
-- [ ] Comprobar consultas sin crecimiento por fila, conservación del panel durante refrescos y ausencia de cargas duplicadas.
-- [ ] Revisar el cambio con Claude cuando su alcance lo justifique, resolver con evidencia y registrar PASS/FAIL/NOT RUN.
+- [x] Ejecutar npm run check y gates de contrato, SQL/RLS y tipos para la nueva lectura; resolver fallos del cambio.
+- [x] Comprobar consultas sin crecimiento por fila, conservación del panel durante refrescos y ausencia de cargas duplicadas.
+- [x] Revisar el cambio con Claude cuando su alcance lo justifique, resolver con evidencia y registrar PASS/FAIL/NOT RUN.
 
 **Resultado de la etapa:** Candidato de entrega con pruebas y riesgos explícitos.
 
@@ -295,17 +295,17 @@ Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
 
 #### Etapa H6.1 · Preparar el PR
 
-- [ ] Presentar el problema, comportamiento final y capturas antes/después en el PR.
-- [ ] Adjuntar resultados, límites y decisiones como el alcance de Pendientes o adaptación a pantallas pequeñas.
-- [ ] Confirmar que el cambio corresponde al supervisor y conserva las reglas de negocio acordadas.
+- [x] Presentar el problema, comportamiento final y capturas antes/después en el PR.
+- [x] Adjuntar resultados, límites y decisiones como el alcance de Pendientes o adaptación a pantallas pequeñas.
+- [x] Confirmar que el cambio corresponde al supervisor y conserva las reglas de negocio acordadas.
 
 **Resultado de la etapa:** PR concreto y revisable.
 
 #### Etapa H6.2 · Preparar una versión reproducible
 
-- [ ] Integrar los cambios remotos sin sobrescribirlos y comprobar Main local igual a avancecorp/main.
-- [ ] Construir el artefacto desde ese commit verificado y completar los checks requeridos por la integración.
-- [ ] Conservar identificador de versión, respaldo y datos de integridad según el flujo del proyecto.
+- [x] Integrar los cambios remotos sin sobrescribirlos y comprobar Main local igual a avancecorp/main.
+- [x] Construir el artefacto desde ese commit verificado y completar los checks requeridos por la integración.
+- [x] Conservar identificador de versión, respaldo y datos de integridad según el flujo del proyecto.
 
 **Resultado de la etapa:** Artefacto y respaldo asociados a una fuente verificada.
 
@@ -321,7 +321,7 @@ Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
 
 - [ ] Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.
 - [ ] Registrar correcciones necesarias y repetir solo las verificaciones afectadas hasta cerrar el recorrido.
-- [ ] Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.
+- [x] Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.
 
 **Resultado de la etapa:** Aceptación real y documentación actualizada.
 
@@ -391,19 +391,23 @@ fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
   247 aprobadas / 0 fallos / 26 omitidas. Franja de 44 px, seguimiento y apertura
   del analista correcto. Claude CHANGES_REQUESTED (MEDIUM), hallazgos resueltos.
   [Evidencia H4 y límites](SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md).
+- **H5: PASS.** 4.274 pruebas, 249 E2E Docker aprobadas / 0 fallos / 26 omitidas; SQL/RLS, tipos, consultas 1/32, visual y teclado verificados.
+  [Acta y límites H5](SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md).
+- **H6: EN CURSO.** PR #87 integrado; Main `bbe341f6`, ZIP de 116 archivos y respaldo verificados.
+  Publicación y aceptación real pendientes. [Entrega H6](SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md).
 - **Documentación y tablero: PASS.** Se comprobó la composición del bloque
-  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H4 tienen 48 completas y
-  H5–H6 conservan 24 pendientes; el prototipo está incluido.
+  `18:2`, sus seis fases, 24 etapas y 72 tareas: 67 completas y 5 pendientes;
+  H1–H5 cerradas, H6.1/H6.2 cerradas y prototipo conservado.
   Las 76 casillas originales conservaron IDs y texto. Evidencia visual:
-  [captura de H4 cerrada en Figma](assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png).
+  [H5 cerrada y H6 en curso](evidencias-h6-2026-09-24/figma-h5-h6-final.png).
 
 **Retoma desde el PR #85, 23/09/2026.** El
 [PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85)
 está fusionado en Main `e0bdfe12`. Miguel retomó el trabajo para aprobar el
 prototipo horizontal de supervisión y preparar el plan anterior. Copia de trabajo
 `/private/tmp/avancecorp-release.hvdub4/repo`, ahora en rama
-`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`, H3 `fa23ab5e` y H4 `186e00f1`. H1–H4 cerradas;
-siguiente etapa H5.1. El backend H3 está verificado sólo en el banco local.
+`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`, H3 `fa23ab5e`, H4 `186e00f1` y H5 `788834cc`. H1–H5 cerradas;
+sigue H6.3 tras integrar el [PR #87](https://github.com/avanza-digital/avancecorp-crm/pull/87). El backend H3 está verificado sólo en el banco local.
 La validación real de F4 sigue pendiente: analista/supervisor, cortes del 24/09
 (11:30 y 16:00 Lima) y seguimiento del sábado 26/09. Tasa baja OFF hasta F5;
 no volver a instalar SQL ni publicar solo por estas actas. ZIP publicado,

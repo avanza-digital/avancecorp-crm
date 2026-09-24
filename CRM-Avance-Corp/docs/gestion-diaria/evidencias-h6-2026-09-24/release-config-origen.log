@@ -1,0 +1,13 @@
+file:///private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app/[eval1]:8
+if (publicEnv.VITE_ENABLE_DEMO !== 'false') throw new Error('La configuración origen no desactiva demo')
+                                                  ^
+
+Error: La configuración origen no desactiva demo
+    at file:///private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app/[eval1]:8:51
+    at ModuleJob.run (node:internal/modules/esm/module_job:447:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async node:internal/modules/esm/loader:227:26
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:224:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.4.0

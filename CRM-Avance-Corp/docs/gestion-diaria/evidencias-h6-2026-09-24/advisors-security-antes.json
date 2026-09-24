@@ -1,0 +1,109 @@
+{
+  "observadoEn": "2026-09-24T05:18:29.875Z",
+  "tipo": "security",
+  "alcance": "Producción antes de H3; lectura, sin cambios",
+  "lints": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "count": 66,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "gestionDiaria": []
+    },
+    {
+      "name": "extension_in_public",
+      "level": "WARN",
+      "count": 1,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public",
+      "gestionDiaria": []
+    },
+    {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "count": 2,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "gestionDiaria": []
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "count": 220,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "gestionDiaria": [
+        {
+          "detail": "Function `crm.configuracion_gestion_diaria_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/configuracion_gestion_diaria_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "configuracion_gestion_diaria_fn",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        },
+        {
+          "detail": "Function `crm.controlar_avisos_gestion_diaria(p_expected_version integer, p_habilitados boolean, p_motivo text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/controlar_avisos_gestion_diaria`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "controlar_avisos_gestion_diaria",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_expected_version integer, p_habilitados boolean, p_motivo text",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        },
+        {
+          "detail": "Function `crm.gestion_diaria_avisos_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/gestion_diaria_avisos_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "gestion_diaria_avisos_fn",
+            "schema": "crm",
+            "language": "sql",
+            "arguments": "",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        },
+        {
+          "detail": "Function `crm.gestion_diaria_presentar_corte(p_alerta_id text, p_solicitud_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/gestion_diaria_presentar_corte`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "gestion_diaria_presentar_corte",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_alerta_id text, p_solicitud_id uuid",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        },
+        {
+          "detail": "Function `crm.gestion_diaria_reconocer_corte(p_alerta_id text, p_accion text, p_solicitud_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/gestion_diaria_reconocer_corte`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "gestion_diaria_reconocer_corte",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_alerta_id text, p_accion text, p_solicitud_id uuid",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        },
+        {
+          "detail": "Function `crm.publicar_politica_gestion_diaria(p_expected_version integer, p_vigente_desde timestamp with time zone, p_config jsonb, p_motivo text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/publicar_politica_gestion_diaria`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "publicar_politica_gestion_diaria",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_expected_version integer, p_vigente_desde timestamp with time zone, p_config jsonb, p_motivo text",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-24T05:18:29.588Z"
+        }
+      ]
+    },
+    {
+      "name": "auth_leaked_password_protection",
+      "level": "WARN",
+      "count": 1,
+      "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+      "gestionDiaria": []
+    }
+  ]
+}

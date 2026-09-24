@@ -16,6 +16,9 @@ Tipos generados desde la copia instalada y cotejados; no se reemplaza el schema
 restante del cliente con una copia local antigua. Publicación aditiva antes del
 cliente en H6. Reversa y banco: `supabase/scripts/gestion-diaria-horizontal/`.
 Ver el acta H3 para HTTP, interfaz y revisión final.
+Repetición H5 del 24/09: SQL/RLS, HTTP y tipos PASS en el banco local;
+[acta H5](../../docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md).
+El preflight productivo confirma que H3 sigue ausente; ensayo hosted y publicación pendientes.
 
 ## 20260923021512 — F4: conflicto HTTP sin reintento de serialización
 

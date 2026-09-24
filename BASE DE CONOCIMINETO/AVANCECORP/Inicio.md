@@ -1,11 +1,11 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-23
+actualizado: 2026-09-24
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]] — **H1–H4 CERRADAS; H5–H6 PENDIENTES:** franja de cortes de 44 px, avisos y registro correcto integrados; acciones y contexto conservados. Producto `186e00f1`. Gate 4.272 pruebas; E2E completo 247/0/26 y dirigido 14/14. Claude CHANGES_REQUESTED (MEDIUM), hallazgos resueltos. Mismo Figma: 48/72 completas, 76 casillas históricas intactas. Sin publicación; retomar H5.1 desde la copia aislada y el respaldo H4 documentados.
+- [[Gestion Diaria - H5 verificada y H6 preparada (2026-09-24)]] — **H1–H5 Y H6.1/H6.2 CERRADAS:** 4.274 pruebas y E2E completo 249/0/26, SQL/RLS y visual PASS. Producto `788834cc`, PR #87 integrado en Main `bbe341f6`; ZIP de 116 archivos y respaldo verificados. Mismo Figma 67/72, histórico intacto. Respaldo vivo verificado; publicación SQL/frontend y aceptación real pendientes.
 
 - [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] — **MEJORA VISUAL PUBLICADA:** PR #82, fuente `e8e4f35f`, build `build-20260923T204457952Z`; 4.179 pruebas, archivos y acceso de gerencia verificados. Mismo plan editable en Figma, 76 puntos. Pendientes aceptación de analista/supervisor y primera jornada real de F4 del 24/09. Fixtures integrados mediante PR #84; acta de publicación enlazada en la nota.
 

@@ -1,0 +1,10 @@
+npm notice run app@0.0.0 lint
+npm notice run oxlint
+src/components/ui/coverflow-carousel.tsx:299:11: warning jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements. help: The `tabIndex` attribute should be removed.
+src/components/ui/coverflow-carousel.tsx:297:10: warning jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role. help: Add a role attribute to this element, or use a semantic HTML element instead.
+src/components/ui/coverflow-carousel.tsx:327:15: warning jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener. help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.
+src/components/ui/coverflow-carousel.tsx:327:16: warning jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners. help: Move the handler to an interactive element, or use an appropriate interactive role.
+src/components/gestion-diaria/tabla-equipo-diaria.tsx:48:17: warning jsx-a11y(control-has-associated-label): A control must be associated with a text label. help: Add a text label to the control element. This can be done by adding text content, an `aria-label` attribute, or an `aria-labelledby` attribute.
+npm notice run app@0.0.0 typecheck
+npm notice run tsc -b --pretty false
+src/components/gestion-diaria/alertas-del-dia.tsx(14,5): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.

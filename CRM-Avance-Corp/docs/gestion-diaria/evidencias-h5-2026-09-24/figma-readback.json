@@ -1,0 +1,263 @@
+{
+  "changed": [
+    {
+      "id": "18:4",
+      "width": 3072,
+      "height": 41,
+      "oldHeight": 41,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:5",
+      "width": 3072,
+      "height": 36,
+      "oldHeight": 36,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:8",
+      "width": 1136,
+      "height": 44,
+      "oldHeight": 44,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:9",
+      "width": 1136,
+      "height": 454,
+      "oldHeight": 567,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:45",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:53",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:59",
+      "width": 3072,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:60",
+      "width": 3072,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:46",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:48",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:49",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:47",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:50",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:51",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:48",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:52",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:53",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:49",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:54",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:55",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:54",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:59",
+      "width": 946.6666870117188,
+      "height": 162,
+      "oldHeight": 162,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:60",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:55",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:61",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:62",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:56",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:63",
+      "width": 946.6666870117188,
+      "height": 162,
+      "oldHeight": 162,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:64",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "18:57",
+      "width": 946.6666870117188,
+      "height": 38,
+      "oldHeight": 38,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:65",
+      "width": 946.6666870117188,
+      "height": 195,
+      "oldHeight": 195,
+      "textMatch": true,
+      "overflow": false
+    },
+    {
+      "id": "19:66",
+      "width": 946.6666870117188,
+      "height": 33,
+      "oldHeight": 33,
+      "textMatch": true,
+      "overflow": false
+    }
+  ],
+  "historicalUnchanged": true,
+  "bodyComplete": 16,
+  "bodyPending": 8
+}

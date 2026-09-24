@@ -1,0 +1,807 @@
+{
+  "comprobado_en": "2026-09-24T05:27:14.363470+00:00",
+  "fuente": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
+  "release_id": "crm-20260923T204458Z-e8e4f35f9ea1",
+  "zip_sha256": "ab631a4fac25c53c3d32bd49514c99d92c6420dd2c9b92c1a823a88a46f22de6",
+  "publicacion_nueva": false,
+  "resultados": [
+    {
+      "ruta": ".htaccess",
+      "http": 403,
+      "modo": "acceso_bloqueado",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "404.html",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/acciones-reconocer-alerta-BgjZ2tZq.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/agenda-D6_gnJ48.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ahora-CyLTFCpv.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/alertas-IqpuOLeJ.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-CArNPyie.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/button-C_yIIcP4.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/card-DG2AeECs.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/cartera-iJI-uoL7.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-dH2h2CVV.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-citas-DhYy-Odm.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-CZyHHPhc.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-C3elJeq8.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-metas-C2uocZxs.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-productos-ylWO2_V0.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-CyQ5jGQ6.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-sla-Ch2ua_kT.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/config-usuarios-DpHH2BcI.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/configuracion-shell-t_wpDlnL.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/control-citas-CVi8OWut.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-DqOQP6Bc.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/crm-api-B3tOYHqH.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/crm-queries-ituOc6qP.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/derivaciones-BeQEXOuy.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/desglose-monedas-DvTzRhPy.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-Cg3X2f1h.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/dropdown-menu-BE1XHfU3.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/echart-bar-BdORyEzJ.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/echart-C0E8MNf8.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/echart-line-BaV6230w.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/equipo-BFrfLRbg.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/escape-dialogo-BhefE2FP.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/facturacion-BgE5b7uB.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/gerencia-BnuUYl9g.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/gerencia-BOyIiejG.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-BszdKbh3.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/gestion-diaria-DL6W1URm.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-C_i8Jc14.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/hoy-BAjtSbPR.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/index-BQsQUw42.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/index-DPXusWJW.css",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/input-GjD1jm-j.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/kpi-card-BiQinjHY.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/lead-hover-card-SxTLNP4L.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-BliQL71z.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/mi-cartera-iojZ2pDQ.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-CP084o8Q.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/paginacion-BTSH8dSP.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/pipeline-Rb8o_PCu.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-800-normal-BRNHt2w0.woff",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-800-normal-CusIZhrK.woff2",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/progress-BuHKzkDr.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-Bo2WQYMY.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/repartir-B8IDWT0s.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-nRterv_D.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/rescate-descartados-WPUBZXVP.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/section-head-4QBE6iO9.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/seguimiento-Ca_ZZ-ON.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/select-IZxnZqIP.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/sla-operacion-CFIac9l4.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/stat-strip-Z1U7CPqX.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/tabla-D7Coybkr.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/ui-vendor-DTptLPCJ.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-CiLppNNi.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-DUYpe9MG.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-CtZb7kcw.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-CcDh774Z.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "assets/utils-Ca6cWTNB.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "http": 200,
+      "modo": "imagen_servida_cdn",
+      "coincide_hash": false,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "favicon.svg",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "icons.svg",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "index.html",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "robots.txt",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "sw-crm.js",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    },
+    {
+      "ruta": "version.json",
+      "http": 200,
+      "modo": "sha256_exacto",
+      "coincide_hash": true,
+      "estado": "PASS"
+    }
+  ]
+}

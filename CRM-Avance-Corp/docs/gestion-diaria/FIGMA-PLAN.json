@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-23",
+  "updatedAt": "2026-09-24",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -9,8 +9,8 @@
   "updatedId": "2:5",
   "legendId": "2:6",
   "supervisorHorizontal": {
-    "updatedAt": "2026-09-23",
-    "status": "H1–H4 cerradas; H5–H6 pendientes",
+    "updatedAt": "2026-09-24",
+    "status": "H1–H5 y H6.1/H6.2 cerradas; publicación y aceptación pendientes",
     "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
     "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
     "resumeMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
@@ -19,8 +19,8 @@
     "prototype": "assets/supervisor-horizontal-aprobado-2026-09-23.png",
     "prototypeSha256": "1314891a779085bae9b7a3d5d56374cd24a0e32de6b527d22f33bcbfe073bc51",
     "designApproval": "USER_APPROVED",
-    "implementation": "H4_COMPLETE_H5_H6_PENDING",
-    "productTests": "PASS_H4; ver h4 para resultados y límites",
+    "implementation": "H5_COMPLETE_H6_DELIVERY_PREPARED",
+    "productTests": "PASS_H5; 4274 pruebas y 249 E2E, 0 fallos, 26 omitidas; ver h5",
     "publication": "PENDING",
     "review": "SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md",
     "reviewVerdict": "CHANGES_REQUESTED",
@@ -600,33 +600,33 @@
         "dependency": "H2–H4 completas; las comprobaciones puntuales acompañan también su desarrollo.",
         "deliverable": "Informe de pruebas, capturas y candidato listo para entregar.",
         "acceptance": "Checks aplicables superados y recorrido comprobado; una prueba no ejecutada no se registra como aprobada.",
-        "status": "pending",
+        "status": "complete",
         "items": [
           {
             "id": "18:46",
-            "text": "☐ Etapa H5.1 · Probar estados y datos",
-            "status": "pending",
+            "text": "☑ Etapa H5.1 · Probar estados y datos",
+            "status": "complete",
             "stageKey": "H5.1",
             "stageTitle": "Probar estados y datos",
             "bodyId": "19:48",
             "resultId": "19:49",
-            "result": "Pruebas de comportamiento y límites del panel.",
+            "result": "Estados, permisos y contexto verificados; 4.274 pruebas PASS.",
             "tasks": [
               {
                 "text": "Adaptar pruebas de selección, filtro, orden, pestañas, paginación y retorno de la ficha.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:48",
                 "index": 0
               },
               {
                 "text": "Cubrir cero actividad, desconocidos, errores temporales, equipo vacío y persona oculta por filtros.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:48",
                 "index": 1
               },
               {
                 "text": "Cubrir cambio de día/usuario, revocación, retirada del equipo, respuestas tardías y un aviso recibido con otro analista abierto.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:48",
                 "index": 2
               }
@@ -634,29 +634,29 @@
           },
           {
             "id": "18:47",
-            "text": "☐ Etapa H5.2 · Probar recorridos completos",
-            "status": "pending",
+            "text": "☑ Etapa H5.2 · Probar recorridos completos",
+            "status": "complete",
             "stageKey": "H5.2",
             "stageTitle": "Probar recorridos completos",
             "bodyId": "19:50",
             "resultId": "19:51",
-            "result": "Recorridos de usuario reproducibles con resultados registrados.",
+            "result": "Docker local: 249 PASS, 0 fallos y 26 omitidas.",
             "tasks": [
               {
                 "text": "Ejecutar E2E en Docker local: localizar analista, abrir registro, filtrar, paginar, abrir ficha y volver.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:50",
                 "index": 0
               },
               {
                 "text": "Ejercitar cortes, reconocimiento, aplazamiento y apertura del analista desde un aviso con datos de prueba.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:50",
                 "index": 1
               },
               {
                 "text": "Comprobar la regresión pertinente del analista y el resto del módulo; los E2E no se trasladan a GitHub.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:50",
                 "index": 2
               }
@@ -664,29 +664,29 @@
           },
           {
             "id": "18:48",
-            "text": "☐ Etapa H5.3 · Validar apariencia y accesibilidad",
-            "status": "pending",
+            "text": "☑ Etapa H5.3 · Validar apariencia y accesibilidad",
+            "status": "complete",
             "stageKey": "H5.3",
             "stageTitle": "Validar apariencia y accesibilidad",
             "bodyId": "19:52",
             "resultId": "19:53",
-            "result": "Evidencia visual y de accesibilidad.",
+            "result": "Diez/nueve filas; móvil, zoom 200 % y teclado PASS.",
             "tasks": [
               {
                 "text": "Comparar a 1512 × 805 (diez filas típicas) y 1366 × 768 (nueve); medir sin reducir texto ni recortar nombres.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:52",
                 "index": 0
               },
               {
                 "text": "Revisar 390 px, zoom 200 %, teclado, foco visible, nombres accesibles, texto de 16 px y controles de 44 px.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:52",
                 "index": 1
               },
               {
                 "text": "Probar más de diez personas, nombres extensos, cifras grandes y múltiples motivos; documentar diferencias justificadas.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:52",
                 "index": 2
               }
@@ -694,29 +694,29 @@
           },
           {
             "id": "18:49",
-            "text": "☐ Etapa H5.4 · Cerrar calidad y rendimiento",
-            "status": "pending",
+            "text": "☑ Etapa H5.4 · Cerrar calidad y rendimiento",
+            "status": "complete",
             "stageKey": "H5.4",
             "stageTitle": "Cerrar calidad y rendimiento",
             "bodyId": "19:54",
             "resultId": "19:55",
-            "result": "Candidato de entrega con pruebas y riesgos explícitos.",
+            "result": "SQL/RLS, tipos y REST 1/32 PASS; revisión resuelta.",
             "tasks": [
               {
                 "text": "Ejecutar npm run check y gates de contrato, SQL/RLS y tipos para la nueva lectura; resolver fallos del cambio.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:54",
                 "index": 0
               },
               {
                 "text": "Comprobar consultas sin crecimiento por fila, conservación del panel durante refrescos y ausencia de cargas duplicadas.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:54",
                 "index": 1
               },
               {
                 "text": "Revisar el cambio con Claude cuando su alcance lo justifique, resolver con evidencia y registrar PASS/FAIL/NOT RUN.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:54",
                 "index": 2
               }
@@ -738,33 +738,33 @@
         "dependency": "H5 cerrada; publicación dentro del alcance autorizado para la ejecución.",
         "deliverable": "Vista publicada, comprobada y aceptada por supervisión.",
         "acceptance": "La aprobación corresponde al producto funcionando; el prototipo aprobado por sí solo no cierra esta fase.",
-        "status": "pending",
+        "status": "in_progress",
         "items": [
           {
             "id": "18:54",
-            "text": "☐ Etapa H6.1 · Preparar el PR",
-            "status": "pending",
+            "text": "☑ Etapa H6.1 · Preparar el PR",
+            "status": "complete",
             "stageKey": "H6.1",
             "stageTitle": "Preparar el PR",
             "bodyId": "19:59",
             "resultId": "19:60",
-            "result": "PR concreto y revisable.",
+            "result": "PR #87 con comportamiento, capturas, evidencia y límites.",
             "tasks": [
               {
                 "text": "Presentar el problema, comportamiento final y capturas antes/después en el PR.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:59",
                 "index": 0
               },
               {
                 "text": "Adjuntar resultados, límites y decisiones como el alcance de Pendientes o adaptación a pantallas pequeñas.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:59",
                 "index": 1
               },
               {
                 "text": "Confirmar que el cambio corresponde al supervisor y conserva las reglas de negocio acordadas.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:59",
                 "index": 2
               }
@@ -772,29 +772,29 @@
           },
           {
             "id": "18:55",
-            "text": "☐ Etapa H6.2 · Preparar una versión reproducible",
-            "status": "pending",
+            "text": "☑ Etapa H6.2 · Preparar una versión reproducible",
+            "status": "complete",
             "stageKey": "H6.2",
             "stageTitle": "Preparar una versión reproducible",
             "bodyId": "19:61",
             "resultId": "19:62",
-            "result": "Artefacto y respaldo asociados a una fuente verificada.",
+            "result": "Main verificado; ZIP de 116 archivos y respaldo preservados.",
             "tasks": [
               {
                 "text": "Integrar los cambios remotos sin sobrescribirlos y comprobar Main local igual a avancecorp/main.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:61",
                 "index": 0
               },
               {
                 "text": "Construir el artefacto desde ese commit verificado y completar los checks requeridos por la integración.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:61",
                 "index": 1
               },
               {
                 "text": "Conservar identificador de versión, respaldo y datos de integridad según el flujo del proyecto.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:61",
                 "index": 2
               }
@@ -832,13 +832,13 @@
           },
           {
             "id": "18:57",
-            "text": "☐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
-            "status": "pending",
+            "text": "◐ Etapa H6.4 · Aceptar en uso y cerrar el avance",
+            "status": "in_progress",
             "stageKey": "H6.4",
             "stageTitle": "Aceptar en uso y cerrar el avance",
             "bodyId": "19:65",
             "resultId": "19:66",
-            "result": "Aceptación real y documentación actualizada.",
+            "result": "Documentación actualizada; aceptación real pendiente.",
             "tasks": [
               {
                 "text": "Validar con el supervisor que compara personas, detecta atención y consulta actividad con menos desplazamiento.",
@@ -854,7 +854,7 @@
               },
               {
                 "text": "Actualizar Figma, plan canónico y vault con evidencia por etapa; conservar separado el seguimiento operativo de F4.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:65",
                 "index": 2
               }
@@ -869,20 +869,22 @@
       "overflow": [],
       "overlap": [],
       "textMismatches": [],
-      "visualQA": "PASS: capturas general y H4 inspeccionadas, sin solapamientos ni recortes; H1–H4 completas, H5–H6 pendientes",
-      "screenshot": "assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png",
-      "detailScreenshot": "assets/supervisor-horizontal-h4-detalle-figma-2026-09-23.png",
+      "visualQA": "PASS: readback y capturas finales H5/H6 inspeccionadas, 67 completas/5 pendientes, sin recortes ni solapamientos; histórico intacto",
+      "screenshot": "evidencias-h6-2026-09-24/figma-h5-h6-final.png",
+      "detailScreenshot": "evidencias-h5-2026-09-24/figma-h5-detalle.png",
       "taskCountReadback": {
-        "complete": 48,
-        "pending": 24
-      }
+        "complete": 67,
+        "pending": 5
+      },
+      "originalPhasesSha256": "3b47cf6fcef6f238196fa72f9eeb00f657756dbc231251825238501e94e7f8c3",
+      "h6Screenshot": "evidencias-h6-2026-09-24/figma-h6-entrega.png"
     },
-    "detailVersion": 5,
+    "detailVersion": 6,
     "phaseCount": 6,
     "stageCount": 24,
     "taskCount": 72,
-    "completedTaskCount": 48,
-    "pendingTaskCount": 24,
+    "completedTaskCount": 67,
+    "pendingTaskCount": 5,
     "h1": {
       "status": "COMPLETE",
       "completedAt": "2026-09-23",
@@ -1009,16 +1011,16 @@
       "productVisualQA": "PASS: escritorio y móvil; capturas de datos ficticios"
     },
     "resumeCheckpoint": {
-      "date": "2026-09-23",
-      "sessionStatus": "READY_FOR_H5",
+      "date": "2026-09-24",
+      "sessionStatus": "H6_DELIVERY_PREPARED_PENDING_PUBLICATION",
       "h4PlanApproval": "USER_APPROVED",
       "h4Implementation": "COMPLETE",
-      "nextStage": "H5.1",
+      "nextStage": "H6.3",
       "source": "SUPERVISOR-HORIZONTAL-RETOMA.md",
-      "productCheckpoint": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
-      "branch": "codex/gestion-diaria-supervisor-horizontal",
+      "productCheckpoint": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+      "branch": "codex/gestion-diaria-horizontal-h5-h6-acta",
       "workingCopy": "/private/tmp/avancecorp-release.hvdub4/repo",
-      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h4-2026-09-23.bundle"
+      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/supervisor-horizontal-h5-h6.bundle"
     },
     "h4": {
       "status": "COMPLETE",
@@ -1052,6 +1054,48 @@
       "visualQA": "PASS",
       "productVisualQA": "PASS",
       "documentationChecks": "PASS: conteos, enlaces, JSON y huellas cotejados"
+    },
+    "h5": {
+      "status": "complete",
+      "evidence": "SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.md",
+      "machineEvidence": "SUPERVISOR-HORIZONTAL-H5-EVIDENCIA-2026-09-24.json",
+      "review": "SUPERVISOR-HORIZONTAL-H5-REVISION-2026-09-24.md",
+      "productCommit": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+      "check": "PASS",
+      "unitTests": 4274,
+      "unitFiles": 287,
+      "e2e": {
+        "passed": 249,
+        "failed": 0,
+        "skipped": 26,
+        "environment": "local Docker",
+        "workers": 2,
+        "retries": 0
+      },
+      "notRun": [
+        "gate:realidad CLI (sin variables/credencial)",
+        "VoiceOver/NVDA humano",
+        "Safari",
+        "ensayo hosted H6",
+        "aceptación operativa real"
+      ]
+    },
+    "h6": {
+      "status": "in_progress",
+      "evidence": "SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.md",
+      "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/87",
+      "integration": "PASS",
+      "artifact": "PASS_PREPARED_NOT_PUBLISHED",
+      "publication": "PENDING_HUMAN_RELEASE_AND_SQL_AUTHORIZATION",
+      "realAcceptance": "PENDING",
+      "rollbackSource": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
+      "rollbackChecks": 114,
+      "durableDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/",
+      "sourceMain": "bbe341f6752b29e5e3e9305db3e0076d3cc11ce1",
+      "releaseId": "crm-20260924T054601Z-bbe341f6752b",
+      "sha256": "80ec656216a7404f033f7696b943aaba8a9d93524a17c3d622ef4c1d58bde8d2",
+      "fileCount": 116,
+      "machineEvidence": "SUPERVISOR-HORIZONTAL-H6-ENTREGA-2026-09-24.json"
     }
   },
   "uiProgress": {
