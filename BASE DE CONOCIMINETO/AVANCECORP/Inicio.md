@@ -5,6 +5,8 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Venta cruzada - servidor probado en banco y P1 del PDF (2026-09-24)]] — **SERVIDOR EN PRODUCCIÓN (24/09), FRENTE POR PUBLICAR:** la venta cruzada (B vende a un cliente de A sin tocar al responsable). Ensayo deshecho contra producción, aplicación y registro verificados, advisors sin errores. Falta `/release-crm`.
+
 - [[Gestion Diaria - H6.3 publicada y aceptacion pendiente (2026-09-24)]] — **PUBLICADA Y VERIFICADA:** H3 por merge nativo, frontend `bbe341f6`, 116 archivos HTTPS y recorrido técnico de supervisor PASS. Matrices alojadas 2.226/0 antes y después; banco eliminado (~US$0,018). 70/72 tareas: H6.4 pendiente de aceptación humana. Actas en PR #88; no volver a publicar por documentación.
 
 - [[Gestion Diaria - H5 verificada y H6 preparada (2026-09-24)]] — **H1–H5 Y H6.1/H6.2 CERRADAS:** 4.274 pruebas y E2E completo 249/0/26, SQL/RLS y visual PASS. Producto `788834cc`, PR #87 integrado en Main `bbe341f6`; ZIP de 116 archivos y respaldo verificados. Mismo Figma 67/72, histórico intacto. Respaldo vivo verificado; publicación SQL/frontend y aceptación real pendientes.

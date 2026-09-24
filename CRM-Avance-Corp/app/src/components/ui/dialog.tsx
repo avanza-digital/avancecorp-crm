@@ -22,11 +22,17 @@ interface DialogProps {
   ariaLabel?: string
   /** Una acción puede transferir explícitamente el foco a otra vista/panel. */
   focoAlCerrar?: RefObject<HTMLElement | null> | undefined
+  /**
+   * Dónde empieza el foco al abrir (si existe), en vez del primer control. Un `autoFocus`
+   * no basta en un modal apilado sobre otro: la trampa del de abajo lo roba antes de que
+   * la del nuevo se registre, y Radix acaba enfocando el primer control.
+   */
+  focoInicial?: RefObject<HTMLElement | null> | undefined
   /** Clases extra para el panel (p. ej. ancho distinto). */
   className?: string
 }
 
-export function Dialog({ open, onClose, children, ariaLabel, className, focoAlCerrar }: DialogProps) {
+export function Dialog({ open, onClose, children, ariaLabel, className, focoAlCerrar, focoInicial }: DialogProps) {
   // Estos modales se controlan desde acciones externas, sin Radix.Trigger.
   // Una resolución puede retirar la acción: conservamos también su ficha.
   const origenFoco = useRef<HTMLElement | null>(null)
@@ -46,11 +52,15 @@ export function Dialog({ open, onClose, children, ariaLabel, className, focoAlCe
             ref={contenido}
             onEscapeKeyDown={(evento) => protegerEscapeAnidado(evento, contenido.current)}
             onKeyDown={(evento) => cerrarEscapeAnidado(evento, onClose)}
-            onOpenAutoFocus={() => {
+            onOpenAutoFocus={(evento) => {
               const activo = document.activeElement
               const origen = activo instanceof HTMLElement && activo !== document.body ? activo : null
               origenFoco.current = origen
               ambitoFoco.current = origen?.closest<HTMLElement>('[role="dialog"]') ?? null
+              if (focoInicial?.current) {
+                evento.preventDefault()
+                focoInicial.current.focus({ preventScroll: true })
+              }
             }}
             onCloseAutoFocus={(evento) => {
               if (focoAlCerrar) {
