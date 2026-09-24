@@ -20,8 +20,10 @@ import { completarAccesoInversion, confirmarSolicitudInversion, consultarSolicit
 import { contratoDeSolicitud, datosAvanceRevisados, guardarBorradorAcceso, guardarBorradorCondiciones, guardarIntentoInversion,
   leerBorradorAcceso, leerBorradorCondiciones, leerIntentoInversion, limpiarBorradorAcceso, limpiarBorradorCondiciones,
   limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde,
-  type ConfirmacionInversion, type DatosBorradorAcceso, type DatosInversion, type IntentoInversion, type SolicitudInversion } from '@/lib/inversion-solicitud'
+  type ConfirmacionInversion, type DatosBorradorAcceso, type DatosInversion, type IntentoInversion, type OrigenIntento, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
+import { obtenerContextoClienteExistente, type LlaveVentaCruzada } from '@/data/cliente-existente-api'
+import { useContratosUpgradeVentaCruzada } from '@/data/cliente-existente-queries'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
 import { CORREO_RE } from '@/lib/validacion'
 import { parseMonto, ERROR_MONTO } from '@/lib/numero'
@@ -36,16 +38,26 @@ export interface OrigenLeadInversion {
   id: string; solicitudId: string | null; condiciones?: CondicionesTasaLead | undefined
   monto: number | null; moneda: Moneda; tipoDocumento: TipoDocumento
 }
+/** Venta cruzada: un cliente de OTRA cartera, hallado por su documento (la búsqueda es la
+ * llave hasta preparar; después, la propia solicitud). La venta es de quien la registra. */
+export interface OrigenClienteExistente {busquedaId: string}
+const MOTIVO_VENTA_MINIMO = 10
 type AltaPortal = NonNullable<DatosInversion['alta_portal']>
 const mensajeRecuperacion = 'La solicitud sigue guardada en esta sesión. Consulta su estado antes de volver a enviarla.'
 
-export function InversionNueva({actor, persona, operacion, origenLead, onCerrar, onRevocado, onConfirmada}: {
+export function InversionNueva({actor, persona, operacion, origenLead, origenClienteExistente, onCerrar, onRevocado, onConfirmada}: {
   actor: string; persona: string; operacion?: OperacionInversion | undefined
   origenLead?: OrigenLeadInversion | undefined
+  origenClienteExistente?: OrigenClienteExistente | undefined
   onCerrar: () => void; onRevocado: () => void; onConfirmada: () => void
 }) {
+  // Dónde vive el intento en esta pestaña: la cartera propia, un lead o la venta cruzada.
+  // Estable entre renders: es llave de borradores y dependencia de memos.
+  const esVentaCruzada = Boolean(origenClienteExistente)
+  const origenIntento: OrigenIntento = useMemo(() => origenLead?.id ?? (esVentaCruzada ? {ventaCruzada: true} : undefined),
+    [origenLead?.id, esVentaCruzada])
   const [guardado, setGuardado] = useState(() => {
-    try {return {intento: leerIntentoInversion(actor, persona, origenLead?.id), error: null}}
+    try {return {intento: leerIntentoInversion(actor, persona, origenIntento), error: null}}
     catch (e) {return {intento: null, error: mensajeDeError(e, 'No se pudo recuperar la solicitud.')}}
   })
   const [intento, setIntento] = useState<IntentoInversion | null>(guardado.intento)
@@ -62,6 +74,9 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   const [bienvenida, setBienvenida] = useState<string | null>(null)
   const [perfilCreado, setPerfilCreado] = useState<string | null>(null)
   const [referencia, setReferencia] = useState('')
+  const [motivoVenta, setMotivoVenta] = useState(guardado.intento?.venta_cruzada?.motivo ?? '')
+  // Sin motivo no se elige empresa; los botones siguen enfocables y lo explican (aria-disabled).
+  const faltaMotivo = Boolean(origenClienteExistente) && motivoVenta.trim().length < MOTIVO_VENTA_MINIMO
   const [borradorSinGuardar, setBorradorSinGuardar] = useState(false)
   const [confirmarCierreSinGuardar, setConfirmarCierreSinGuardar] = useState(false)
   const cerro = useRef(false)
@@ -71,14 +86,27 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   callbacks.current = {onRevocado, onConfirmada}
   const qc = useQueryClient()
   const notificadas = useRef(new Set<string>())
-  const carteraQ = useFichaInversionista(actor, origenLead ? '' : persona, 1, 1)
+  const carteraQ = useFichaInversionista(actor, origenLead || origenClienteExistente ? '' : persona, 1, 1)
   const conversionQ = useQuery({
     queryKey: [...inversionistasKeys.actor(actor), 'conversion', origenLead?.id, persona],
     queryFn: ({signal}) => obtenerContextoConversionInversion(origenLead!.id, persona, signal),
     enabled: Boolean(origenLead), staleTime: 0, gcTime: 0, retry: false,
     refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchOnReconnect: 'always', refetchInterval: 15_000,
   })
-  const fichaQ = origenLead ? conversionQ : carteraQ
+  // Venta cruzada: la llave es la búsqueda hasta que el servidor devuelve la solicitud, y la
+  // solicitud solo mientras está PREPARADA (cerrada ya no abre datos vivos). Cancelada, se
+  // vuelve a la búsqueda: si venció, el servidor responde 42501 y se vuelve a buscar. Al
+  // recuperar un intento se espera a la solicitud y, confirmada, se deja de consultar.
+  const llaveVenta: LlaveVentaCruzada | undefined = !origenClienteExistente ? undefined
+    : solicitud?.estado === 'preparada' ? {solicitudId: solicitud.solicitud_id} : {busquedaId: origenClienteExistente.busquedaId}
+  const ventaCruzadaQ = useQuery({
+    queryKey: [...inversionistasKeys.actor(actor), 'venta-cruzada', persona, llaveVenta?.solicitudId ?? llaveVenta?.busquedaId],
+    queryFn: ({signal}) => obtenerContextoClienteExistente(llaveVenta!, signal),
+    enabled: Boolean(llaveVenta) && !recuperando && !confirmacion, staleTime: 0, gcTime: 0, retry: false,
+    refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchOnReconnect: 'always', refetchInterval: 15_000,
+  })
+  const upgradeQ = useContratosUpgradeVentaCruzada(llaveVenta, Boolean(llaveVenta) && !recuperando && !confirmacion)
+  const fichaQ = origenClienteExistente ? ventaCruzadaQ : origenLead ? conversionQ : carteraQ
   const revocada = fichaQ.error instanceof CrmApiError && ['42501','PT409'].includes(fichaQ.error.code)
   const ficha = fichaQ.isFetchedAfterMount && !revocada ? fichaQ.data : null
   const verificacionPendiente = fichaQ.isError && Boolean(ficha)
@@ -104,7 +132,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     if (s.estado === 'confirmada' && s.resultado) {setConfirmacion(s.resultado); notificar(s.resultado)}
   }
   const recibirRecuperacion = (s: SolicitudInversion) => {
-    if (!solicitudCorresponde(s, persona, origenLead?.id) || !s.datos) {
+    if (!solicitudCorresponde(s, persona, origenIntento) || !s.datos) {
       throw new Error('La solicitud no corresponde a este origen. Vuelve a abrir la ficha.')
     }
     if (!intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id))
@@ -112,7 +140,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     setError(null)
     setEmpresa(s.datos.empresa)
     if (s.datos.empresa === 'avance' && s.necesita_portal) {
-      try {setEditar(Boolean(leerBorradorAcceso(actor, persona, origenLead?.id, s.solicitud_id)))}
+      try {setEditar(Boolean(leerBorradorAcceso(actor, persona, origenIntento, s.solicitud_id)))}
       catch { /* La solicitud del servidor sigue siendo recuperable. */ }
     }
     recibir(s)
@@ -151,10 +179,11 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     } finally {enCurso.current = false; if (!cerro.current) setOcupado(false)}
   }
   async function preparar(datos: DatosInversion, claveSolicitud: string = crypto.randomUUID()) {
-    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined)
+    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined,
+      origenClienteExistente ? {busqueda_id: origenClienteExistente.busquedaId, motivo: motivoVenta.trim()} : undefined)
     // Si el navegador no permite guardar la recuperación, no enviamos el alta.
     guardar(i)
-    limpiarBorradorAcceso(actor, persona, origenLead?.id)
+    limpiarBorradorAcceso(actor, persona, origenIntento)
     setBorradorSinGuardar(false)
     recibir(await prepararSolicitudInversion(i))
   }
@@ -162,8 +191,8 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     if (!intento) {await preparar(datos); return}
     if (!solicitud?.datos) throw new Error('Consulta primero la solicitud pendiente.')
     if (mismoContenidoInversion(datos, solicitud.datos)) {
-      limpiarBorradorAcceso(actor, persona, origenLead?.id)
-      limpiarBorradorCondiciones(actor, persona, origenLead?.id)
+      limpiarBorradorAcceso(actor, persona, origenIntento)
+      limpiarBorradorCondiciones(actor, persona, origenIntento)
       setBorradorSinGuardar(false); setEditar(false); return
     }
     const motivoEfectivo = solicitud.datos.empresa === 'avance' && !solicitud.datos.contrato?.capital
@@ -173,8 +202,8 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     guardar(i)
     recibir(await corregirSolicitudInversion(i))
     const limpio: IntentoInversion = {...i}; delete limpio.correccion; guardar(limpio)
-    limpiarBorradorAcceso(actor, persona, origenLead?.id)
-    limpiarBorradorCondiciones(actor, persona, origenLead?.id)
+    limpiarBorradorAcceso(actor, persona, origenIntento)
+    limpiarBorradorCondiciones(actor, persona, origenIntento)
     setBorradorSinGuardar(false)
     setEditar(false); setMotivo('')
   }
@@ -189,13 +218,13 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   const puedeOperar = ficha?.capacidades.nueva_inversion === true
   const borradorCondiciones = useMemo(() => {
     if (!intento || !solicitud || !datos?.alta_portal) return null
-    try {return leerBorradorCondiciones(actor, persona, origenLead?.id, intento.clave, solicitud.revision_datos)}
+    try {return leerBorradorCondiciones(actor, persona, origenIntento, intento.clave, solicitud.revision_datos)}
     catch {return null}
-  }, [actor, persona, origenLead?.id, intento, solicitud, datos?.alta_portal])
+  }, [actor, persona, origenIntento, intento, solicitud, datos?.alta_portal])
   const cerrar = () => {
     if (enCurso.current) return
     if (borradorSinGuardar && !confirmarCierreSinGuardar) {setConfirmarCierreSinGuardar(true); return}
-    if (confirmacion) limpiarIntentosInversion(actor, persona, origenLead?.id)
+    if (confirmacion) limpiarIntentosInversion(actor, persona, origenIntento)
     onCerrar()
   }
   const estadoBorrador = (sinGuardar: boolean) => {
@@ -216,7 +245,9 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   else if (confirmacion) cuerpo = <>{cabecera('Inversión confirmada')}<DialogBody className="space-y-4">
     <p role="status" className="flex items-center gap-2 font-medium"><CheckCircle2 aria-hidden />La inversión quedó registrada en {EMPRESA_NOMBRE[confirmacion.empresa]}.</p>
     {confirmacion.fuente.numero_contrato && <p>Contrato {confirmacion.fuente.numero_contrato}</p>}
-    <p className="text-sm text-muted-foreground">La ficha consultará el saldo y los antecedentes actualizados.</p>
+    <p className="text-sm text-muted-foreground">{origenClienteExistente
+      ? 'Su responsable la verá en la ficha del cliente, junto con sus otras inversiones.'
+      : 'La ficha consultará el saldo y los antecedentes actualizados.'}</p>
     {bienvenida === 'enviada' && <p role="status" className="text-sm">La bienvenida al portal fue enviada.</p>}
     {bienvenida === 'verificar_entrega' && <p role="status" className="text-sm">La inversión está guardada. Gerencia debe verificar si el correo de bienvenida fue entregado antes de volver a enviarlo.</p>}
     {bienvenidaId && (bienvenida === 'pendiente' || bienvenida === 'en_proceso') && <div className="space-y-2">
@@ -238,7 +269,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
   </DialogBody></>
   else if (solicitud?.estado === 'cancelada') cuerpo = <>{cabecera('Solicitud cancelada')}<DialogBody className="space-y-3"><p>Esta solicitud está cancelada. No se registró ninguna inversión.</p>
     <Button variant="outline" disabled={!puedeOperar} onClick={() => {
-      limpiarIntentosInversion(actor, persona, origenLead?.id); setIntento(null); setSolicitud(null); setEmpresa(null)
+      limpiarIntentosInversion(actor, persona, origenIntento); setIntento(null); setSolicitud(null); setEmpresa(null)
       setGuardado({intento: null, error: null}); setError(null); setArchivo(null); setEditar(false); setMotivo(''); setRecuperarId(null)
     }}>Iniciar otra inversión</Button></DialogBody></>
   else if (!puedeOperar) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody><p role="status">{ficha.capacidades.motivo_no_operable ?? 'La persona ya no permite nuevas inversiones.'}</p></DialogBody></>
@@ -246,15 +277,26 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     {guardado.error ? <div className="space-y-3">
       <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
       <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" onClick={() => {
-        limpiarIntentosInversion(actor, persona, origenLead?.id); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
+        limpiarIntentosInversion(actor, persona, origenIntento); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
       }}>Descartar el borrador local ilegible</Button>
       <p className="text-xs text-muted-foreground">Descartarlo no cancela una solicitud que ya esté registrada en el servidor.</p>
-    </div> : <><p className="text-sm">Elige la empresa en la que invertirá.</p>
-      <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col" onClick={() => setEmpresa(e)}><Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div></>}
+    </div> : <>{origenClienteExistente && <div className="space-y-1">
+        <p id="f5-venta-aviso" className="text-sm">Registras una inversión de un cliente de otra cartera: quedará a tu nombre y su responsable, {ficha.persona.responsable_nombre ?? 'sin responsable'}, lo verá en su ficha.</p>
+        <Label htmlFor="f5-motivo-venta">Motivo de la venta, sin datos personales</Label>
+        <Input id="f5-motivo-venta" value={motivoVenta} onChange={e => setMotivoVenta(e.target.value)} minLength={MOTIVO_VENTA_MINIMO} maxLength={500}
+          aria-required="true" aria-describedby="f5-venta-aviso f5-motivo-venta-ayuda" />
+        <p id="f5-motivo-venta-ayuda" className="text-sm text-muted-foreground">Entre {MOTIVO_VENTA_MINIMO} y 500 caracteres
+          {faltaMotivo ? ` (faltan ${MOTIVO_VENTA_MINIMO - motivoVenta.trim().length})` : ''}. Por ejemplo: «El cliente me pidió invertir en la feria».</p>
+      </div>}
+      <p id="f5-empresa-ayuda" className="text-sm">{faltaMotivo ? 'Escribe primero el motivo de la venta para elegir la empresa.' : 'Elige la empresa en la que invertirá.'}</p>
+      <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col aria-disabled:opacity-50"
+        aria-disabled={faltaMotivo || undefined} aria-describedby={origenClienteExistente ? 'f5-empresa-ayuda' : undefined}
+        onClick={() => {if (faltaMotivo) document.getElementById('f5-motivo-venta')?.focus(); else setEmpresa(e)}}>
+        <Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div></>}
     <form onSubmit={e => {e.preventDefault(); void ejecutar(async () => {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
       const s = await consultarSolicitudInversion(referencia)
-      if (!solicitudCorresponde(s, ficha.persona.inversionista_id, origenLead?.id) || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
+      if (!solicitudCorresponde(s, ficha.persona.inversionista_id, origenIntento) || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
       const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id)
       guardar(i); setGuardado({intento: null, error: null}); setEmpresa(s.datos.empresa); recibir(s)
     })}} className="space-y-2 border-t border-border pt-4">
@@ -287,18 +329,18 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
     <ResumenRevision datos={intento.correccion.datos} />
     <Button className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
       recibir(await corregirSolicitudInversion(intento)); const i = {...intento}; delete i.correccion; guardar(i)
-      limpiarBorradorAcceso(actor, persona, origenLead?.id)
-      limpiarBorradorCondiciones(actor, persona, origenLead?.id); setEditar(false)
+      limpiarBorradorAcceso(actor, persona, origenIntento)
+      limpiarBorradorCondiciones(actor, persona, origenIntento); setEditar(false)
     })}>Recuperar actualización pendiente</Button>
     <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
       recibir(await consultarSolicitudInversion(intento.clave)); const i = {...intento}; delete i.correccion; guardar(i)
-      limpiarBorradorAcceso(actor, persona, origenLead?.id)
-      limpiarBorradorCondiciones(actor, persona, origenLead?.id); setEditar(false)
+      limpiarBorradorAcceso(actor, persona, origenIntento)
+      limpiarBorradorCondiciones(actor, persona, origenIntento); setEditar(false)
     })}>Descartar esta corrección y revisar la versión del servidor</Button>{alerta}
   </DialogBody></>
   else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<PasosAcceso actual={1} /><DialogBody className="space-y-4">
     <p className="text-sm">Completa los datos de acceso para su primera inversión Avance. Después elegirás las condiciones y revisarás el contrato.</p>
-    {!intento || editar ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} lead={origenLead?.id}
+    {!intento || editar ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} origen={origenIntento}
       solicitud={intento?.clave ?? null} inicial={datos?.alta_portal} correo={ficha.persona.correo ?? ''}
       telefono={ficha.persona.telefono ?? ''} ocupado={ocupado} onEstadoBorrador={estadoBorrador}
       onContinuar={alta => ejecutar(async () => {
@@ -322,6 +364,12 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
         </div>
       </div>}{alerta}
   </DialogBody></>
+  else if (empresa === 'avance' && perfil && (!datos?.contrato?.capital || editar || !intento) && origenClienteExistente
+    && !upgradeQ.isSuccess) cuerpo = <>{cabecera('Condiciones del contrato')}<DialogBody>
+    {/* Sin la lista real de contratos, un upgrade parecería imposible: no se muestra el formulario a medias. */}
+    {upgradeQ.isError ? <PanelError mensaje={mensajeDeError(upgradeQ.error, 'No pudimos cargar los contratos del cliente que un upgrade puede ampliar.')}
+      onReintentar={() => void upgradeQ.refetch()} reintentando={upgradeQ.isFetching} /> : <PanelCargando />}
+  </DialogBody></>
   else if (empresa === 'avance' && perfil && (!datos?.contrato?.capital || editar || !intento)) {
     const borrador = contratoDeSolicitud(base, perfil)
     const origen = operacion?.fuente
@@ -329,12 +377,13 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
       {solicitud && borrador && <div className="px-5 pt-4"><Label htmlFor="f5-motivo">Motivo de la actualización, sin datos personales</Label>
         <Input id="f5-motivo" value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={500} /></div>}
       {alerta && <div className="px-5 pt-3">{alerta}</div>}
-      <ContratoNuevo key={`${perfil}:${solicitud?.revision_datos ?? 'nuevo'}`} clienteId={perfil} clienteNombre={ficha.persona.nombre}
+      <ContratoNuevo key={`${perfil}:${solicitud?.revision_datos ?? 'nuevo'}`} clienteId={perfil} clienteNombre={ficha.persona.nombre ?? ''}
+        ventaCruzada={llaveVenta}
         indicadorPaso={mostrarPasos ? <PasosAcceso actual={2} /> : undefined}
         borradorLocal={mostrarPasos ? borradorCondiciones : undefined}
         onBorradorLocal={mostrarPasos && intento && solicitud ? condiciones => {
           try {
-            guardarBorradorCondiciones(actor, persona, origenLead?.id, intento.clave, solicitud.revision_datos, condiciones)
+            guardarBorradorCondiciones(actor, persona, origenIntento, intento.clave, solicitud.revision_datos, condiciones)
             estadoBorrador(false)
           } catch {estadoBorrador(true)}
         } : undefined}
@@ -345,8 +394,11 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
           capital: origen.capital, moneda: origen.moneda, fechaVencimiento: origen.vence_en ?? ''}} : {})}
         {...(origen?.contrato && operacion?.tipo === 'upgrade' ? {contratosActivos: [{id: origen.fuente_id, numero_contrato: origen.numero ?? '',
           capital: origen.capital, moneda: origen.moneda, tasa_anual: origen.contrato.tasa_anual, fecha_vencimiento: origen.vence_en ?? ''}]} : {})}
-        analistas={ficha.persona.responsable_id ? [{perfil_id: ficha.persona.responsable_id, nombre_completo: ficha.persona.responsable_nombre ?? 'Responsable actual'}] : []}
-        analistaInicial={ficha.persona.responsable_id} onCreado={() => {}} onOmitir={cerrar}
+        {...(origenClienteExistente ? {contratosActivos: (upgradeQ.data ?? []).map(c => ({id: c.contrato_id, numero_contrato: c.numero_contrato,
+          capital: c.capital, moneda: c.moneda, tasa_anual: c.tasa_anual, fecha_vencimiento: c.fecha_vencimiento}))} : {})}
+        analistas={origenClienteExistente ? [{perfil_id: actor, nombre_completo: 'Tú, quien registra la venta'}]
+          : ficha.persona.responsable_id ? [{perfil_id: ficha.persona.responsable_id, nombre_completo: ficha.persona.responsable_nombre ?? 'Responsable actual'}] : []}
+        analistaInicial={origenClienteExistente ? actor : ficha.persona.responsable_id} onCreado={() => {}} onOmitir={cerrar}
         onRevisar={async (input: CrearContratoInput, cuotas: CuotaCronograma[]) => {
           await ejecutar(async () => {await revisarDatos(datosAvanceRevisados(base, prepararPayloadContrato(input), cuotas, input.cuenta_pago))})
         }} />
@@ -407,7 +459,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, onCerrar,
       No se pudo guardar lo último que escribiste en esta pestaña. Si cierras, perderás esos cambios.
     </p>}
     <DialogFooter><Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={cerrar}>
-      {confirmacion ? 'Volver a la ficha' : confirmarCierreSinGuardar ? 'Cerrar sin guardar' : 'Cerrar y continuar después'}
+      {confirmacion ? (origenClienteExistente ? 'Cerrar' : 'Volver a la ficha') : confirmarCierreSinGuardar ? 'Cerrar sin guardar' : 'Cerrar y continuar después'}
     </Button></DialogFooter>
   </Dialog>
 }
@@ -429,8 +481,8 @@ function PasosAcceso({actual}: {actual: 1 | 2 | 3}) {
   </nav>
 }
 
-function AltaAvance({actor, persona, lead, solicitud, inicial, correo, telefono, ocupado, onEstadoBorrador, onContinuar}: {
-  actor: string; persona: string; lead?: string | undefined; solicitud: string | null; inicial?: AltaPortal | undefined
+function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefono, ocupado, onEstadoBorrador, onContinuar}: {
+  actor: string; persona: string; origen?: OrigenIntento; solicitud: string | null; inicial?: AltaPortal | undefined
   correo: string; telefono: string; ocupado: boolean
   onEstadoBorrador: (sinGuardar: boolean) => void; onContinuar: (datos: AltaPortal) => Promise<void>
 }) {
@@ -440,7 +492,7 @@ function AltaAvance({actor, persona, lead, solicitud, inicial, correo, telefono,
           telefono: inicial.telefono, domicilio: inicial.domicilio}
       : {apellidos: '', nombres: '', correo, telefono, domicilio: ''}
     try {
-      const recuperado = leerBorradorAcceso(actor, persona, lead, solicitud)
+      const recuperado = leerBorradorAcceso(actor, persona, origen, solicitud)
       return {datos: recuperado ?? base, estado: recuperado ? 'recuperado' : 'vacio'} as const
     } catch {return {datos: base, estado: 'error'} as const}
   })
@@ -452,7 +504,7 @@ function AltaAvance({actor, persona, lead, solicitud, inicial, correo, telefono,
     setDatos(nuevos)
     setErrores(actual => ({...actual, [campo]: undefined}))
     try {
-      guardarBorradorAcceso(actor, persona, lead, solicitud, nuevos)
+      guardarBorradorAcceso(actor, persona, origen, solicitud, nuevos)
       setEstado('guardado'); onEstadoBorrador(false)
     } catch {
       setEstado('error'); onEstadoBorrador(true)

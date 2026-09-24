@@ -51,6 +51,12 @@ vi.mock('@/lib/alertas-context', () => ({
   }),
 }))
 
+// Venta cruzada: su diálogo se prueba aparte; aquí importa con qué criterio se abre.
+vi.mock('./venta-cruzada', () => ({
+  VentaCruzada: (p: { inicial?: unknown; puedeRegistrar: boolean }) =>
+    <p data-testid="venta-cruzada">{JSON.stringify(p.inicial)}|{String(p.puedeRegistrar)}</p>,
+}))
+
 const { Topbar } = await import('./topbar')
 
 function lead(over: Partial<Lead> = {}): Lead {
@@ -402,5 +408,50 @@ describe('Topbar — buscador en sesión REAL (Fase 4a «sin topes»)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo buscar en tus leads.')
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(BUSQUEDA.refetch).toHaveBeenCalled()
+  })
+})
+
+// ── Venta cruzada (2026-09-24): sin leads propios, un documento o un teléfono puede ser un
+// cliente de otra cartera. El botón del vacío es solo-ratón; Enter es su camino de teclado. ──
+describe('Topbar — cliente de otra cartera', () => {
+  beforeEach(() => {
+    BUSQUEDA = { data: [], isFetching: false, error: null, refetch: vi.fn() }
+    useBusquedaGlobal.mockClear()
+  })
+  async function buscarSinResultados(texto: string, opciones: Parameters<typeof montar>[0] = {}) {
+    const user = userEvent.setup()
+    montar({ demo: false, leads: [], ...opciones })
+    await user.type(campoBusqueda(), texto)
+    await screen.findByText(/Sin resultados en tus leads para/)
+    return user
+  }
+
+  it('Enter en el vacío busca el DNI en las otras carteras, y lo anuncia', async () => {
+    const user = await buscarSinResultados('70000021')
+    expect(screen.getByText(/Pulsa Enter para buscarlo entre los clientes de otras carteras/, { selector: '.sr-only' })).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(screen.getByTestId('venta-cruzada'))
+      .toHaveTextContent(`${JSON.stringify({ tipo: 'documento', tipoDocumento: 'DNI', numero: '70000021' })}|true`)
+  })
+
+  it('el botón visible hace lo mismo con el ratón; Gerencia consulta sin registrar', async () => {
+    const user = await buscarSinResultados('987 654 321', { rol: 'gerencia' })
+    await user.click(screen.getByRole('button', { name: /Buscarlo entre los clientes de otras carteras/ }))
+    expect(screen.getByTestId('venta-cruzada'))
+      .toHaveTextContent(`${JSON.stringify({ tipo: 'telefono', telefono: '987654321' })}|false`)
+  })
+
+  it('un nombre no se ofrece, y Enter no abre nada', async () => {
+    const user = await buscarSinResultados('juan perez')
+    expect(screen.queryByRole('button', { name: /otras carteras/ })).not.toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByTestId('venta-cruzada')).not.toBeInTheDocument()
+  })
+
+  it('el directorio mira pero no busca en otras carteras', async () => {
+    const user = await buscarSinResultados('70000021', { rol: 'directorio' })
+    expect(screen.queryByRole('button', { name: /otras carteras/ })).not.toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByTestId('venta-cruzada')).not.toBeInTheDocument()
   })
 })

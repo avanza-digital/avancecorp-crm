@@ -280,6 +280,57 @@ export type Database = {
           },
         ]
       }
+      busquedas_cliente_existente: {
+        Row: {
+          consultado_por: string
+          creado_en: string
+          criterio: string
+          id: string
+          inversionista_id: string | null
+          lead_id: string | null
+          tipo_documento: string | null
+          valor_consultado: string
+          veredicto: string
+        }
+        Insert: {
+          consultado_por: string
+          creado_en?: string
+          criterio: string
+          id?: string
+          inversionista_id?: string | null
+          lead_id?: string | null
+          tipo_documento?: string | null
+          valor_consultado: string
+          veredicto: string
+        }
+        Update: {
+          consultado_por?: string
+          creado_en?: string
+          criterio?: string
+          id?: string
+          inversionista_id?: string | null
+          lead_id?: string | null
+          tipo_documento?: string | null
+          valor_consultado?: string
+          veredicto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "busquedas_cliente_existente_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "busquedas_cliente_existente_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartera_lecturas: {
         Row: {
           actor_id: string
@@ -1453,9 +1504,11 @@ export type Database = {
       inversion_solicitudes: {
         Row: {
           actualizado_en: string
+          analista_cierre_id: string | null
           auth_claim_id: string | null
           auth_contexto: Json | null
           bienvenida: Json | null
+          busqueda_id: string | null
           confirmado_por: string | null
           creado_en: string
           creado_por: string
@@ -1467,15 +1520,19 @@ export type Database = {
           inversion_id: string | null
           inversionista_id: string
           lead_origen_id: string | null
+          motivo_atribucion: string | null
+          puerta: string
           responsable_esperado_id: string
           resultado: Json | null
           revision_datos: number
         }
         Insert: {
           actualizado_en?: string
+          analista_cierre_id?: string | null
           auth_claim_id?: string | null
           auth_contexto?: Json | null
           bienvenida?: Json | null
+          busqueda_id?: string | null
           confirmado_por?: string | null
           creado_en?: string
           creado_por: string
@@ -1487,15 +1544,19 @@ export type Database = {
           inversion_id?: string | null
           inversionista_id: string
           lead_origen_id?: string | null
+          motivo_atribucion?: string | null
+          puerta?: string
           responsable_esperado_id: string
           resultado?: Json | null
           revision_datos?: number
         }
         Update: {
           actualizado_en?: string
+          analista_cierre_id?: string | null
           auth_claim_id?: string | null
           auth_contexto?: Json | null
           bienvenida?: Json | null
+          busqueda_id?: string | null
           confirmado_por?: string | null
           creado_en?: string
           creado_por?: string
@@ -1507,11 +1568,20 @@ export type Database = {
           inversion_id?: string | null
           inversionista_id?: string
           lead_origen_id?: string | null
+          motivo_atribucion?: string | null
+          puerta?: string
           responsable_esperado_id?: string
           resultado?: Json | null
           revision_datos?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "inversion_solicitudes_busqueda_id_fkey"
+            columns: ["busqueda_id"]
+            isOneToOne: false
+            referencedRelation: "busquedas_cliente_existente"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inversion_solicitudes_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -4399,6 +4469,15 @@ export type Database = {
         Args: { p_correo: string }
         Returns: string
       }
+      buscar_cliente_existente_fn: {
+        Args: {
+          p_documento?: string
+          p_lead?: string
+          p_telefono?: string
+          p_tipo_documento?: string
+        }
+        Returns: Json
+      }
       cambiar_modo_sla_operacion: {
         Args: { p_expected_revision: number; p_modo: string }
         Returns: Json
@@ -4674,6 +4753,10 @@ export type Database = {
         Args: { p_consulta: string; p_vista: string }
         Returns: Json
       }
+      contexto_cliente_existente_fn: {
+        Args: { p_busqueda?: string; p_solicitud?: string }
+        Returns: Json
+      }
       contexto_conversion_inversion_fn: {
         Args: { p_lead: string; p_persona?: string }
         Returns: Json
@@ -4796,6 +4879,17 @@ export type Database = {
       contratos_por_periodo_comercial_fn: {
         Args: { p_periodo: string }
         Returns: Json
+      }
+      contratos_upgrade_cliente_existente_fn: {
+        Args: { p_busqueda?: string; p_solicitud?: string }
+        Returns: {
+          capital: number
+          contrato_id: string
+          fecha_vencimiento: string
+          moneda: string
+          numero_contrato: string
+          tasa_anual: number
+        }[]
       }
       control_citas_configuracion_fn: { Args: never; Returns: Json }
       controlar_avisos_gestion_diaria: {
@@ -4982,6 +5076,19 @@ export type Database = {
           titular_distinto: boolean
         }[]
       }
+      cuentas_cliente_existente_fn: {
+        Args: { p_busqueda?: string; p_moneda?: string; p_solicitud?: string }
+        Returns: {
+          banco: string
+          cci_enmascarado: string
+          creada_en: string
+          cuenta_id: string
+          moneda: string
+          numero_enmascarado: string
+          tipo_cuenta: string
+          titular_distinto: boolean
+        }[]
+      }
       cuentas_pago_contratos_fn: {
         Args: { p_contrato_ids: string[] }
         Returns: {
@@ -5000,6 +5107,10 @@ export type Database = {
       cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       cumplimiento_metas_sin_cartera_fn: {
         Args: { p_periodo: string }
+        Returns: Json
+      }
+      datos_legales_cliente_existente_fn: {
+        Args: { p_busqueda?: string; p_solicitud?: string }
         Returns: Json
       }
       datos_legales_contrato_fn: {
@@ -5466,6 +5577,15 @@ export type Database = {
           p_motivo: string
         }
         Returns: string
+      }
+      preparar_inversion_cliente_existente_fn: {
+        Args: {
+          p_busqueda: string
+          p_clave: string
+          p_datos: Json
+          p_motivo: string
+        }
+        Returns: Json
       }
       preparar_inversion_fn: {
         Args: { p_clave: string; p_datos: Json }

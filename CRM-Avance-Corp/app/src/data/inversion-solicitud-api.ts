@@ -35,9 +35,14 @@ export async function consultarSolicitudInversion(id: string, signal?: AbortSign
 }
 export async function prepararSolicitudInversion(intento: IntentoInversion) {
   const args = {p_clave: intento.clave, p_datos: jsonInversion(intento.datos)}
-  const preparada = intento.reinversion_origen_id
-    ? await cliente().schema('crm').rpc('preparar_reinversion_fn', {...args, p_fuente: intento.reinversion_origen_id})
-    : await cliente().schema('crm').rpc('preparar_inversion_fn', args)
+  // Venta cruzada: su puerta exige la búsqueda y el motivo en cada envío (el servidor los
+  // compara en un reintento con la misma clave).
+  const preparada = intento.venta_cruzada
+    ? await cliente().schema('crm').rpc('preparar_inversion_cliente_existente_fn', {...args,
+      p_busqueda: intento.venta_cruzada.busqueda_id, p_motivo: intento.venta_cruzada.motivo})
+    : intento.reinversion_origen_id
+      ? await cliente().schema('crm').rpc('preparar_reinversion_fn', {...args, p_fuente: intento.reinversion_origen_id})
+      : await cliente().schema('crm').rpc('preparar_inversion_fn', args)
   respuestaInversionistas(SolicitudInversionSchema, preparada)
   return consultarSolicitudInversion(intento.clave)
 }

@@ -40,6 +40,8 @@ import { NumeroContratoCampo } from '@/components/app/numero-contrato-campo'
 import { TasaPolitica, type RangoTasaPolitica } from '@/components/app/tasa-politica'
 import { rangoEfectivo } from '@/lib/rentabilidad'
 import { useAtribucionContrato, useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
+import { useCuentasVentaCruzada, useDatosLegalesVentaCruzada } from '@/data/cliente-existente-queries'
+import type { LlaveVentaCruzada } from '@/data/cliente-existente-api'
 import {
   SECCION_BANCARIA_VACIA,
   validarDomicilioLegal,
@@ -198,6 +200,12 @@ export interface ContratoNuevoProps {
   borradorLocal?: DatosBorradorCondiciones | null | undefined
   onBorradorLocal?: ((datos: DatosBorradorCondiciones) => void) | undefined
   borrador?: CrearContratoInput | undefined
+  /**
+   * Venta cruzada (cliente de otra cartera): las cuentas (enmascaradas) y los datos
+   * legales se leen con la llave de la venta —búsqueda o solicitud— en vez del perfil del
+   * cliente, y el domicilio no se completa aquí: lo gestiona la cartera del cliente.
+   */
+  ventaCruzada?: LlaveVentaCruzada | undefined
   onCreado: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   onOmitir: () => void
 }
@@ -226,6 +234,7 @@ export function ContratoNuevo({
   borrador,
   condicionesIniciales,
   leadOrigenId,
+  ventaCruzada,
 }: ContratoNuevoProps) {
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
@@ -330,8 +339,12 @@ export function ContratoNuevo({
   // y exigirlo los rompía. No hace falta: la ficha del cliente se refresca sola
   // porque useClienteDetalle tiene staleTime: 0 y vuelve a pedir el dato al
   // abrirse, y el pre-vuelo se recarga con su propio refetch.
-  const legalesQ = useDatosLegalesContrato(clienteId, !esDemo)
-  const cuentasQ = useCuentasBancariasCliente(clienteId, moneda, !esDemo)
+  const legalesQ = useDatosLegalesContrato(clienteId, !esDemo && !ventaCruzada)
+  const cuentasPropiasQ = useCuentasBancariasCliente(clienteId, moneda, !esDemo && !ventaCruzada)
+  // Venta cruzada: las mismas lecturas con la llave de la venta, sin el perfil del cliente.
+  const legalesVentaCruzadaQ = useDatosLegalesVentaCruzada(esDemo ? undefined : ventaCruzada)
+  const cuentasVentaCruzadaQ = useCuentasVentaCruzada(esDemo ? undefined : ventaCruzada, moneda)
+  const cuentasQ = ventaCruzada ? cuentasVentaCruzadaQ : cuentasPropiasQ
   const cuentasDisponibles = esDemo ? (cuentasDemo?.[moneda] ?? CUENTAS_VACIAS) : (cuentasQ.data ?? CUENTAS_VACIAS)
   const cuentasPendientes = esDemo ? false : cuentasQ.isPending
   const cuentasReintentando = esDemo ? false : cuentasQ.isFetching
@@ -341,7 +354,7 @@ export function ContratoNuevo({
   // aviso, no la puerta. El servidor sigue siendo el único que decide, y
   // convertir un fallo de red en un contrato imposible sería inventar un muro
   // donde no lo hay. Solo se bloquea cuando el servidor DIJO que falta algo.
-  const legales = esDemo ? undefined : legalesQ.data
+  const legales = esDemo ? undefined : ventaCruzada ? legalesVentaCruzadaQ.data : legalesQ.data
   // Los nueve datos legales existen para UNA cosa: la fotografía contractual del
   // documento que emite el sistema. Un contrato firmado antes del 19/08 no lleva
   // ese documento —el cliente ya tiene el suyo, del formato anterior—, así que
@@ -549,7 +562,9 @@ export function ContratoNuevo({
     // Segunda defensa del pre-vuelo legal: el disabled del botón es la primera,
     // pero un submit por Enter con el foco en otro campo no lo atraviesa.
     if (faltaDomicilio) {
-      reportarError('Falta el domicilio legal del cliente. Complétalo arriba: va escrito en el contrato.')
+      reportarError(ventaCruzada
+        ? 'Falta el domicilio legal del cliente, que va escrito en el contrato. Pide a su responsable que lo complete en la ficha del cliente.'
+        : 'Falta el domicilio legal del cliente. Complétalo arriba: va escrito en el contrato.')
       return
     }
     if (bloqueoLegalAjeno) {
@@ -996,7 +1011,13 @@ export function ContratoNuevo({
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
         {borradorLocal && <p role="status" className="text-xs text-muted-foreground">Recuperamos las condiciones que escribiste en esta pestaña. Revísalas antes de continuar.
           {borradorLocal.requiereReingresarDatosSensibles && ' Por seguridad, vuelve a ingresar la cuenta nueva o los co-titulares que habías añadido.'}</p>}
-        {faltaDomicilio && (
+        {faltaDomicilio && ventaCruzada && (
+          <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-semibold">
+            Falta el domicilio legal de {clienteNombre}, que va escrito en el contrato. Pide a su responsable que lo
+            complete en la ficha del cliente y vuelve a intentarlo.
+          </p>
+        )}
+        {faltaDomicilio && !ventaCruzada && (
           <section
             aria-labelledby="ct-domicilio-titulo"
             className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"

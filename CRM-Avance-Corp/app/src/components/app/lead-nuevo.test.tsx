@@ -34,6 +34,13 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
+// Venta cruzada: el buscador de clientes de otra cartera se prueba en su propio archivo;
+// aquí solo importa CON QUÉ criterio se abre y si ofrece registrar.
+vi.mock('./venta-cruzada', () => ({
+  VentaCruzada: (p: { inicial?: unknown; puedeRegistrar: boolean }) =>
+    <p data-testid="venta-cruzada">{JSON.stringify(p.inicial)}|{String(p.puedeRegistrar)}</p>,
+}))
+
 const verificarDisponibilidad = vi.mocked(verificarDisponibilidadLead)
 const tomarLead = vi.mocked(tomarLeadLibre)
 const guardarRecordatorio = vi.mocked(guardarRecordatorioDisponibilidad)
@@ -1337,5 +1344,57 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
       queryKey: ['crm', 'recordatorios-disponibilidad'],
     })
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('987 654 321'))
+  })
+})
+
+// ── Venta cruzada (2026-09-24): el contacto ya es cliente → en vez de un lead nuevo,
+// se busca al cliente. Con el DNI escrito, esa búsqueda ya es la llave de su inversión. ──
+describe('LeadNuevo — ya es cliente: buscarlo', () => {
+  async function precheckCliente(opciones: Parameters<typeof montar>[0] = {}, dni?: string) {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({ estado: 'ya_es_cliente', asesor: 'VC ANALISTA A' })
+    montar({ demo: false, ...opciones })
+    if (dni) fireEvent.change(screen.getByLabelText('DNI'), { target: { value: dni } })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+  }
+
+  it('sin DNI busca por el teléfono y ofrece registrar a quien vende', async () => {
+    await precheckCliente()
+    expect(screen.getByText('Esta persona ya es cliente y está a cargo de VC ANALISTA A.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a este cliente' }))
+    expect(screen.getByTestId('venta-cruzada'))
+      .toHaveTextContent(`${JSON.stringify({ tipo: 'telefono', telefono: '987654321' })}|true`)
+  })
+
+  it('con el DNI escrito busca por documento', async () => {
+    await precheckCliente({}, '70000021')
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a este cliente' }))
+    expect(screen.getByTestId('venta-cruzada')).toHaveTextContent(
+      JSON.stringify({ tipo: 'documento', tipoDocumento: 'DNI', numero: '70000021' }))
+  })
+
+  it('Gerencia lo ve, pero no registra la venta', async () => {
+    await precheckCliente({ rol: 'gerencia' })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a este cliente' }))
+    expect(screen.getByTestId('venta-cruzada')).toHaveTextContent(/\|false$/)
+  })
+
+  // En demo el precheck ni corre (el `!demo` del botón es cinturón, como el de «Tomar»).
+  it('la sesión de demostración no busca clientes reales', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({ estado: 'ya_es_cliente', asesor: 'VC ANALISTA A' })
+    montar({ demo: true })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Buscar a este cliente' })).not.toBeInTheDocument()
   })
 })
