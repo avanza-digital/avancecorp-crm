@@ -1,0 +1,16 @@
+{
+  "version.json": {
+    "http": 200,
+    "sha256": "e8ee4c41c4e2bdd68e490491f4db289803d7eaa12d58265ac464be94bd847d63",
+    "bytes": 51,
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260923T204457952Z"
+    }
+  },
+  "index.html": {
+    "http": 200,
+    "sha256": "d89426f4cd70b57037357789c263a0f512e6b55fe70904453519ab2473e5f7fe",
+    "bytes": 2178
+  }
+}

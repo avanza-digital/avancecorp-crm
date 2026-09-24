@@ -1,0 +1,142 @@
+npm notice run avancecorp-crm-tools@0.0.0 release:crm
+npm notice run npm --prefix app run test:release-config && npm --prefix app run build && npm --prefix app run verify:release && node scripts/crear-artefacto-release.mjs create
+npm notice run app@0.0.0 test:release-config
+npm notice run node --test scripts/verificar-config-release.test.mjs
+✔ acepta solo la configuración pública productiva presente en el bundle (121.272333ms)
+✔ rechaza un release sin variables de Supabase (82.897917ms)
+✔ rechaza una llave privilegiada (81.990666ms)
+✔ rechaza un build que no incorporó la configuración (82.494625ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 407.96775
+npm notice run app@0.0.0 build
+npm notice run tsc -b && vite build
+vite v8.1.4 building client environment for production...
+[2Ktransforming...✓ 2929 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/version.json                                                0.05 kB │ gzip:   0.06 kB
+dist/index.html                                                  2.17 kB │ gzip:   0.69 kB
+dist/assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2   11.81 kB
+dist/assets/plus-jakarta-sans-latin-800-normal-CusIZhrK.woff2   11.89 kB
+dist/assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2   12.18 kB
+dist/assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2   12.24 kB
+dist/assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2   12.31 kB
+dist/assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff    15.72 kB
+dist/assets/plus-jakarta-sans-latin-800-normal-BRNHt2w0.woff    15.78 kB
+dist/assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff    16.08 kB
+dist/assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff    16.12 kB
+dist/assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff    16.13 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff        22.10 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff        22.28 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2       22.58 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2       22.83 kB
+dist/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff        23.87 kB
+dist/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff        23.91 kB
+dist/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2       24.18 kB
+dist/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2       24.25 kB
+dist/.vite/license.md                                           81.37 kB
+dist/assets/gestion-diaria-5o2GrfU4.css                          9.21 kB │ gzip:   2.45 kB
+dist/assets/gerencia-BaLUQF8y.css                               17.29 kB │ gzip:   3.73 kB
+dist/assets/index-BJ0v2sec.css                                 157.30 kB │ gzip:  25.68 kB
+dist/assets/argumentos-rpc-CZnLpNy5.js                           0.09 kB │ gzip:   0.10 kB
+dist/assets/rescate-carpeta-CB0aQVm7.js                          0.20 kB │ gzip:   0.16 kB
+dist/assets/use-periodo-gerencia-BnTB4vQA.js                     0.29 kB │ gzip:   0.21 kB
+dist/assets/use-valor-diferido-C5pSPdfy.js                       0.29 kB │ gzip:   0.22 kB
+dist/assets/progress-784Lqrrm.js                                 0.42 kB │ gzip:   0.30 kB
+dist/assets/section-head-CpbYtuG_.js                             0.43 kB │ gzip:   0.29 kB
+dist/assets/use-resumen-cartera-operativo-DnydkM2D.js            0.49 kB │ gzip:   0.34 kB
+dist/assets/ahora-CyLTFCpv.js                                    0.51 kB │ gzip:   0.30 kB
+dist/assets/store-context-8oahbTda.js                            0.67 kB │ gzip:   0.31 kB
+dist/assets/rolldown-runtime-QTnfLwEv.js                         0.69 kB │ gzip:   0.42 kB
+dist/assets/desglose-monedas-2VNiPA5b.js                         0.70 kB │ gzip:   0.43 kB
+dist/assets/tabla-BnYgVgYp.js                                    0.70 kB │ gzip:   0.36 kB
+dist/assets/card-TuroX6HR.js                                     0.73 kB │ gzip:   0.33 kB
+dist/assets/seguimiento-C_aTxuJy.js                              0.81 kB │ gzip:   0.45 kB
+dist/assets/select-B3VU5IjL.js                                   0.86 kB │ gzip:   0.52 kB
+dist/assets/animated-value-CxWwuyas.js                           0.94 kB │ gzip:   0.55 kB
+dist/assets/paginacion-obAhw9sU.js                               0.99 kB │ gzip:   0.55 kB
+dist/assets/input-Cb6Fp43O.js                                    1.01 kB │ gzip:   0.53 kB
+dist/assets/kpi-card-DZN8eJi-.js                                 1.14 kB │ gzip:   0.63 kB
+dist/assets/aviso-degradacion--F6j3SNh.js                        1.19 kB │ gzip:   0.63 kB
+dist/assets/use-metricas-vendedores-operativas-BWExl3MX.js       1.59 kB │ gzip:   0.83 kB
+dist/assets/use-cartera-paginada-XhkdxeJl.js                     1.60 kB │ gzip:   0.81 kB
+dist/assets/button-CcjL0mMd.js                                   1.96 kB │ gzip:   0.98 kB
+dist/assets/configuracion-shell-CkLeH8XH.js                      1.97 kB │ gzip:   0.92 kB
+dist/assets/stat-strip-CHL-vFQJ.js                               2.19 kB │ gzip:   0.93 kB
+dist/assets/controles-periodo-derivaciones-1FFxpwW-.js           2.52 kB │ gzip:   0.92 kB
+dist/assets/acciones-reconocer-alerta-4Cy3RL-S.js                2.58 kB │ gzip:   1.17 kB
+dist/assets/dropdown-menu-lewrahU-.js                            3.13 kB │ gzip:   1.54 kB
+dist/assets/notificaciones-tasa-C4t6HC2P.js                      4.17 kB │ gzip:   1.78 kB
+dist/assets/control-citas-CszpPPA8.js                            4.18 kB │ gzip:   1.73 kB
+dist/assets/sla-operacion-h5zN5NNC.js                            5.64 kB │ gzip:   2.24 kB
+dist/assets/distribucion-lecturas-B1O5k0d1.js                    7.52 kB │ gzip:   2.61 kB
+dist/assets/config-Dn22V2rf.js                                  12.02 kB │ gzip:   4.21 kB
+dist/assets/config-gestion-diaria-CRp1pjnp.js                   12.13 kB │ gzip:   3.95 kB
+dist/assets/dist-DAse8jiX.js                                    12.57 kB │ gzip:   4.48 kB
+dist/assets/alertas-C3FRUDKa.js                                 13.63 kB │ gzip:   4.74 kB
+dist/assets/derivaciones-CzYQXgCa.js                            13.73 kB │ gzip:   4.68 kB
+dist/assets/historial-decisiones-tasa-gerencia-CfDbx5Zf.js      14.20 kB │ gzip:   3.95 kB
+dist/assets/config-rentabilidad-C1Xxlld7.js                     14.71 kB │ gzip:   4.85 kB
+dist/assets/cartera-CCd0gIMt.js                                 14.76 kB │ gzip:   5.09 kB
+dist/assets/pipeline-2w_6vmUy.js                                14.89 kB │ gzip:   5.23 kB
+dist/assets/cierres-externos-seccion-BdN3rlKe.js                15.26 kB │ gzip:   4.67 kB
+dist/assets/crm-queries-B2NQlAmz.js                             15.73 kB │ gzip:   4.30 kB
+dist/assets/config-metas-Ca9G3v31.js                            16.11 kB │ gzip:   5.57 kB
+dist/assets/config-citas-COgBJUyn.js                            17.02 kB │ gzip:   5.71 kB
+dist/assets/config-sla-Dqq0mhIE.js                              17.24 kB │ gzip:   5.47 kB
+dist/assets/metricas-multiempresa-jxgJ856D.js                   19.95 kB │ gzip:   5.72 kB
+dist/assets/escape-dialogo-BhefE2FP.js                          20.29 kB │ gzip:   7.42 kB
+dist/assets/echart-bar-CCrXnjdM.js                              21.98 kB │ gzip:   8.34 kB
+dist/assets/gestion-diaria-api-BznaLAAn.js                      23.52 kB │ gzip:   7.35 kB
+dist/assets/config-usuarios-CGFo-3l_.js                         23.93 kB │ gzip:   6.50 kB
+dist/assets/equipo-DBDWUTCd.js                                  26.78 kB │ gzip:   7.87 kB
+dist/assets/utils-C_jjd2h8.js                                   26.93 kB │ gzip:   8.59 kB
+dist/assets/config-productos-DpP3iPWi.js                        27.09 kB │ gzip:   7.35 kB
+dist/assets/rescate-descartados-BmhGjxs4.js                     30.84 kB │ gzip:   7.92 kB
+dist/assets/facturacion-DOd_Yeka.js                             31.06 kB │ gzip:  10.18 kB
+dist/assets/agenda-BSai4938.js                                  31.08 kB │ gzip:   8.83 kB
+dist/assets/lead-hover-card-C-NMlckI.js                         33.88 kB │ gzip:  12.65 kB
+dist/assets/ranking-vendedores-By1uqY3b.js                      37.29 kB │ gzip:   8.95 kB
+dist/assets/echart-line-D2c-cuAX.js                             45.31 kB │ gzip:  16.14 kB
+dist/assets/repartir-ozHkaHLn.js                                50.78 kB │ gzip:  13.23 kB
+dist/assets/gestion-diaria-DyabTTm9.js                          87.81 kB │ gzip:  25.23 kB
+dist/assets/hoy-DD94EtMe.js                                     92.98 kB │ gzip:  25.59 kB
+dist/assets/ui-vendor-CnUuygdz.js                               93.82 kB │ gzip:  20.57 kB
+dist/assets/gerencia-oqnL8za0.js                               101.38 kB │ gzip:  28.17 kB
+dist/assets/react-vendor-BXy-oECh.js                           190.81 kB │ gzip:  60.00 kB
+dist/assets/gerencia-BM8rLRYx.js                               190.91 kB │ gzip:  47.00 kB
+dist/assets/mi-cartera-BZXiinVl.js                             213.00 kB │ gzip:  53.29 kB
+dist/assets/crm-api-D3SGyM9B.js                                224.06 kB │ gzip:  62.34 kB
+dist/assets/data-vendor-DTp_zWmI.js                            244.55 kB │ gzip:  63.66 kB
+dist/assets/echart-Bb36jJ6d.js                                 487.20 kB │ gzip: 165.23 kB
+dist/assets/index-C3_MPlfo.js                                  707.64 kB │ gzip: 210.92 kB
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/lib/demo-config.ts is dynamically imported by src/data/crm-config-queries.ts but also statically imported by src/lib/demo-sla.ts, dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 402ms
+npm notice run app@0.0.0 verify:release
+npm notice run node scripts/verificar-config-release.mjs && npm run verify:bundle
+file:///private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app/scripts/verificar-config-release.mjs:32
+  if (!urlOriginal) throw new Error('Falta VITE_SUPABASE_URL para el release productivo')
+                          ^
+
+Error: Falta VITE_SUPABASE_URL para el release productivo
+    at validarConfiguracion (file:///private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app/scripts/verificar-config-release.mjs:32:27)
+    at file:///private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app/scripts/verificar-config-release.mjs:88:23
+    at ModuleJob.run (node:internal/modules/esm/module_job:447:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async node:internal/modules/esm/loader:646:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.4.0

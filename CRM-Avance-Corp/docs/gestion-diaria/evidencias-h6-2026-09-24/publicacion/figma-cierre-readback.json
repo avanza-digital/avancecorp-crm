@@ -1,0 +1,592 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:18:45.824Z",
+  "historicalIntact": true,
+  "mutatedNodeIds": [
+    "2:5",
+    "18:4",
+    "18:5",
+    "18:8",
+    "18:9",
+    "18:29",
+    "18:53",
+    "18:56",
+    "19:63",
+    "19:64",
+    "19:66",
+    "18:59",
+    "18:60"
+  ],
+  "targets": [
+    {
+      "id": "2:5",
+      "text": "24/09/2026 · Supervisor horizontal: H6.3 publicada; aceptación H6.4 pendiente · F4: jornada real pendiente",
+      "x": 72,
+      "y": 264,
+      "width": 3100,
+      "height": 41
+    },
+    {
+      "id": "18:4",
+      "text": "☑ H1–H5 completas ☑ H6.3 publicada ◐ H6.4: aceptación pendiente",
+      "x": 36,
+      "y": 108,
+      "width": 3072,
+      "height": 41
+    },
+    {
+      "id": "18:5",
+      "text": "24/09/2026 · 70/72 tareas completas · Fuente publicada: bbe341f6 · GESTION-DIARIA.md",
+      "x": 36,
+      "y": 160,
+      "width": 3072,
+      "height": 36
+    },
+    {
+      "id": "18:8",
+      "text": "H6.3 publicada y comprobada",
+      "x": 1972,
+      "y": 423,
+      "width": 1136,
+      "height": 44
+    },
+    {
+      "id": "18:9",
+      "text": "H5: 4.274 pruebas y gate de código PASS.\nDocker local: 249 aprobadas, cero fallos y 26 omitidas.\nH6.3 publicada desde Main limpio bbe341f6.\nH3: matriz hosted 2.226/0 antes y después; API 1.008 tareas en 11 páginas.\n116 archivos HTTPS y recorrido con supervisor real PASS.\nBanco eliminado: ~US$0,018.\nH6.4: aceptación humana pendiente.\nF4 sigue separado; tasa baja OFF.",
+      "x": 1972,
+      "y": 487,
+      "width": 1136,
+      "height": 303
+    },
+    {
+      "id": "18:29",
+      "text": "COMPLETA · 4 etapas / 12 tareas · SQL publicada",
+      "x": 28,
+      "y": 136,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "18:53",
+      "text": "EN CURSO · 10/12 tareas completas",
+      "x": 28,
+      "y": 87,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "18:56",
+      "text": "☑ Etapa H6.3 · Publicar y comprobar",
+      "x": 28,
+      "y": 952,
+      "width": 946.6666870117188,
+      "height": 38
+    },
+    {
+      "id": "19:63",
+      "text": "☑ Publicar primero la RPC aditiva verificada y después el artefacto compatible, mediante el flujo del proyecto.\n☑ Comprobar archivos, acceso y versión cargada tras recarga.\n☑ Recorrer la vista con supervisión real y su equipo propio; registrar incidencias sin crear actividad productiva ficticia.",
+      "x": 28,
+      "y": 1004,
+      "width": 946.6666870117188,
+      "height": 162
+    },
+    {
+      "id": "19:64",
+      "text": "SQL, 116 archivos HTTPS y supervisor real PASS.",
+      "x": 28,
+      "y": 1180,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "19:66",
+      "text": "Documentación al día; aceptación humana pendiente.",
+      "x": 28,
+      "y": 1506,
+      "width": 946.6666870117188,
+      "height": 33
+    },
+    {
+      "id": "18:59",
+      "text": "H5: 4.274 pruebas y E2E 249/0/26. H6.3: RLS hosted 2.226/0 por matriz, HTTP y recorrido real PASS. Revisión operativa incompleta.",
+      "x": 36,
+      "y": 5063.34375,
+      "width": 3072,
+      "height": 38
+    },
+    {
+      "id": "18:60",
+      "text": "70 tareas completas / 2 pendientes. 76 casillas históricas intactas. Falta aceptación H6.4; F4 separado y tasa baja OFF.",
+      "x": 36,
+      "y": 5125.34375,
+      "width": 3072,
+      "height": 38
+    }
+  ],
+  "tasks": {
+    "complete": 70,
+    "pending": 2
+  },
+  "historical": [
+    {
+      "id": "2:3",
+      "text": "Gestión Diaria"
+    },
+    {
+      "id": "2:4",
+      "text": "Plan por fases y avance"
+    },
+    {
+      "id": "2:5",
+      "text": "24/09/2026 · Supervisor horizontal: H6.3 publicada; aceptación H6.4 pendiente · F4: jornada real pendiente"
+    },
+    {
+      "id": "2:6",
+      "text": "☑ Hecho    ☐ Pendiente    ◉ En curso"
+    },
+    {
+      "id": "2:10",
+      "text": "F0–F3 · En producción"
+    },
+    {
+      "id": "2:15",
+      "text": "F0 — Cimientos"
+    },
+    {
+      "id": "2:16",
+      "text": "Terminada y publicada"
+    },
+    {
+      "id": "2:17",
+      "text": "☑ Revisar los datos existentes y acordar las definiciones de llamadas, contacto y actividad."
+    },
+    {
+      "id": "2:18",
+      "text": "☑ Confirmar resultados, submotivos y reglas iniciales."
+    },
+    {
+      "id": "2:19",
+      "text": "☑ Incorporar la tipografía y los componentes comunes."
+    },
+    {
+      "id": "2:20",
+      "text": "☑ Guardar el plan y las decisiones en la documentación y el vault."
+    },
+    {
+      "id": "2:22",
+      "text": "F1 — Alta del módulo y registro de actividad compartido"
+    },
+    {
+      "id": "2:23",
+      "text": "Terminada y publicada"
+    },
+    {
+      "id": "2:24",
+      "text": "☑ Incorporar Gestión Diaria al menú."
+    },
+    {
+      "id": "2:25",
+      "text": "☑ Mostrar llamadas, WhatsApp, notas y demás actividades."
+    },
+    {
+      "id": "2:26",
+      "text": "☑ Permitir filtros, paginación y acceso a la ficha del lead."
+    },
+    {
+      "id": "2:27",
+      "text": "☑ Mostrar al analista su actividad, al supervisor su equipo y a gerencia toda la operación."
+    },
+    {
+      "id": "2:28",
+      "text": "☑ Permitir la exportación CSV para gerencia."
+    },
+    {
+      "id": "2:29",
+      "text": "☑ Verificar los permisos entre equipos."
+    },
+    {
+      "id": "2:31",
+      "text": "F2 — Resultado tipificado de llamada"
+    },
+    {
+      "id": "2:32",
+      "text": "Terminada y publicada"
+    },
+    {
+      "id": "2:33",
+      "text": "☑ Registrar las llamadas mediante los siete resultados acordados."
+    },
+    {
+      "id": "2:34",
+      "text": "☑ Solicitar los datos correspondientes a cada resultado."
+    },
+    {
+      "id": "2:35",
+      "text": "☑ Crear la próxima acción cuando corresponda."
+    },
+    {
+      "id": "2:36",
+      "text": "☑ Separar resultado y descarte: “No le interesa” y “Pide otro producto” permiten conservar el lead y programar seguimiento."
+    },
+    {
+      "id": "2:37",
+      "text": "☑ Mantener las reglas de “No insistir”."
+    },
+    {
+      "id": "2:38",
+      "text": "☑ Permitir deshacer los efectos admitidos durante 24 horas."
+    },
+    {
+      "id": "2:39",
+      "text": "☑ Conservar los guardados pendientes sin duplicar operaciones."
+    },
+    {
+      "id": "2:41",
+      "text": "F3 — Analista: “Mi día”"
+    },
+    {
+      "id": "2:42",
+      "text": "Terminada y publicada"
+    },
+    {
+      "id": "2:43",
+      "text": "☑ Mostrar una acción principal: a quién atender ahora."
+    },
+    {
+      "id": "2:44",
+      "text": "☑ Ofrecer la cola completa de pendientes."
+    },
+    {
+      "id": "2:45",
+      "text": "☑ Priorizar nuevos leads sin primer intento, después vencidas y tareas de hoy."
+    },
+    {
+      "id": "2:46",
+      "text": "☑ Mostrar actividad, compromisos y descartes del día."
+    },
+    {
+      "id": "2:47",
+      "text": "☑ Organizar la pantalla en los dos paneles acordados."
+    },
+    {
+      "id": "2:48",
+      "text": "☑ Corregir los problemas de carga parcial y actualización."
+    },
+    {
+      "id": "2:49",
+      "text": "☑ Conservar “Hoy” como pantalla independiente."
+    },
+    {
+      "id": "2:11",
+      "text": "F4 — Supervisor: “Mi equipo hoy”"
+    },
+    {
+      "id": "2:12",
+      "text": "Publicada; falta cerrar la validación real"
+    },
+    {
+      "id": "2:51",
+      "text": "Etapa 1 — Vista del equipo"
+    },
+    {
+      "id": "2:52",
+      "text": "Publicada"
+    },
+    {
+      "id": "2:53",
+      "text": "☑ Mostrar a todos los analistas activos del equipo, incluidos quienes tienen cero actividad."
+    },
+    {
+      "id": "2:54",
+      "text": "☑ Mostrar llamadas, contactos, tasa, pendientes y motivos de atención."
+    },
+    {
+      "id": "2:55",
+      "text": "☑ Buscar, ordenar y filtrar por “Con problema hoy”."
+    },
+    {
+      "id": "2:56",
+      "text": "☑ Respetar el ámbito de cada supervisor."
+    },
+    {
+      "id": "2:58",
+      "text": "Etapa 2 — Detalle y registro del analista"
+    },
+    {
+      "id": "2:59",
+      "text": "Publicada"
+    },
+    {
+      "id": "2:60",
+      "text": "☑ Mostrar llamadas por hora."
+    },
+    {
+      "id": "2:61",
+      "text": "☑ Abrir las llamadas o el registro completo del analista."
+    },
+    {
+      "id": "2:62",
+      "text": "☑ Llegar desde el registro a la ficha del lead."
+    },
+    {
+      "id": "2:63",
+      "text": "☑ Conservar filtros, paginación y navegación de regreso."
+    },
+    {
+      "id": "2:65",
+      "text": "Etapa 3 — Cortes de jornada"
+    },
+    {
+      "id": "2:66",
+      "text": "Publicada · activación programada para el 24/09"
+    },
+    {
+      "id": "2:67",
+      "text": "☑ Implementar el corte de 11:30: mínimo 3 llamadas."
+    },
+    {
+      "id": "2:68",
+      "text": "☑ Implementar el corte de 16:00: acumulado inicial × 2,5, con mínimo 8 y máximo 30."
+    },
+    {
+      "id": "2:69",
+      "text": "☑ Implementar el sábado con un solo corte y mínimo 3."
+    },
+    {
+      "id": "2:70",
+      "text": "☑ Excluir de los avisos de corte a quienes no tienen cartera abierta."
+    },
+    {
+      "id": "2:71",
+      "text": "☑ Instalar y verificar el SQL."
+    },
+    {
+      "id": "2:72",
+      "text": "☑ Programar su activación para el 24/09."
+    },
+    {
+      "id": "2:74",
+      "text": "Etapa 4 — Alertas y seguimiento"
+    },
+    {
+      "id": "2:75",
+      "text": "Publicada"
+    },
+    {
+      "id": "2:76",
+      "text": "☑ Publicar los avisos con los analistas afectados y sus cifras."
+    },
+    {
+      "id": "2:77",
+      "text": "☑ Integrar ventana emergente, campana y lista."
+    },
+    {
+      "id": "2:78",
+      "text": "☑ Permitir “Lo estoy atendiendo”."
+    },
+    {
+      "id": "2:79",
+      "text": "☑ Permitir “Posponer 1 hora”, una vez por aviso, supervisor y día."
+    },
+    {
+      "id": "2:80",
+      "text": "☑ Guardar esas acciones en el servidor."
+    },
+    {
+      "id": "2:81",
+      "text": "☑ Implementar las reglas para evitar duplicados y reavisos al cierre."
+    },
+    {
+      "id": "2:83",
+      "text": "Etapa 5 — Configuración gerencial"
+    },
+    {
+      "id": "2:84",
+      "text": "Publicada"
+    },
+    {
+      "id": "2:85",
+      "text": "☑ Publicar la pantalla de configuración."
+    },
+    {
+      "id": "2:86",
+      "text": "☑ Permitir ajustar horarios, mínimos, crecimiento y límites."
+    },
+    {
+      "id": "2:87",
+      "text": "☑ Guardar versiones con vigencia futura, conservando las reglas anteriores."
+    },
+    {
+      "id": "2:88",
+      "text": "☑ Crear y comprobar la v2 para el 24/09."
+    },
+    {
+      "id": "2:89",
+      "text": "☑ Mantener la alerta de tasa muy baja apagada hasta F5."
+    },
+    {
+      "id": "2:91",
+      "text": "Etapa 6 — Validación y activación"
+    },
+    {
+      "id": "2:92",
+      "text": "ESTAMOS AQUÍ · pendiente de validación real"
+    },
+    {
+      "id": "2:93",
+      "text": "☑ Completar las pruebas técnicas y el ensayo remoto."
+    },
+    {
+      "id": "2:94",
+      "text": "☑ Publicar el frontend y verificar sus archivos."
+    },
+    {
+      "id": "2:95",
+      "text": "☑ Comprobar configuración y registro con gerencia."
+    },
+    {
+      "id": "2:96",
+      "text": "☑ Publicar la corrección del detalle opcional del PR #77."
+    },
+    {
+      "id": "2:97",
+      "text": "☐ Completar el recorrido de negocio con supervisión."
+    },
+    {
+      "id": "2:98",
+      "text": "☐ Observar ambos cortes reales del 24/09."
+    },
+    {
+      "id": "2:99",
+      "text": "☐ Confirmar cifras, avisos, reconocimiento y aplazamiento entre sesiones o dispositivos."
+    },
+    {
+      "id": "2:100",
+      "text": "☐ Registrar incidencias, corregirlas si aparecen y dejar evidencia del cierre."
+    },
+    {
+      "id": "2:101",
+      "text": "☐ Comprobar el corte único del sábado 26/09 como seguimiento operativo."
+    },
+    {
+      "id": "2:13",
+      "text": "F4.1–F6 · Lo que sigue"
+    },
+    {
+      "id": "2:103",
+      "text": "F4.1 — Revisión asistida con TypeSafe/Jev"
+    },
+    {
+      "id": "2:104",
+      "text": "Preparación hecha"
+    },
+    {
+      "id": "2:105",
+      "text": "☑ Verificar el acceso técnico y realizar un ensayo con casos ficticios."
+    },
+    {
+      "id": "2:106",
+      "text": "☑ Preparar la guía y el banco de práctica para ambos supervisores."
+    },
+    {
+      "id": "2:107",
+      "text": "☐ Ejecutar el piloto humano, cada supervisor con su equipo."
+    },
+    {
+      "id": "2:108",
+      "text": "☐ Preparar y evaluar la muestra anonimizada."
+    },
+    {
+      "id": "2:109",
+      "text": "☐ Medir aciertos, falsas alarmas, omisiones, coste y utilidad."
+    },
+    {
+      "id": "2:110",
+      "text": "☐ Integrar las sugerencias en el CRM solo si el piloto demuestra utilidad."
+    },
+    {
+      "id": "2:111",
+      "text": "Esta fase no bloquea el cierre de F4 ni el avance de F5."
+    },
+    {
+      "id": "2:113",
+      "text": "F5 — Gerencia: “Toda la operación”"
+    },
+    {
+      "id": "2:114",
+      "text": "Pendiente"
+    },
+    {
+      "id": "2:115",
+      "text": "☐ Construir el tablero global del día."
+    },
+    {
+      "id": "2:116",
+      "text": "☐ Comparar con ayer y con los últimos siete días con actividad."
+    },
+    {
+      "id": "2:117",
+      "text": "☐ Identificar los equipos que requieren atención."
+    },
+    {
+      "id": "2:118",
+      "text": "☐ Permitir bajar de operación → equipo → analista → registro."
+    },
+    {
+      "id": "2:119",
+      "text": "☐ Crear el reporte de hábitos: primera llamada, pausas, tasa de contacto y cumplimiento de cortes."
+    },
+    {
+      "id": "2:120",
+      "text": "☐ Usar esos datos para definir con gerencia la alerta de tasa muy baja."
+    },
+    {
+      "id": "2:121",
+      "text": "☐ Probar y publicar la fase."
+    },
+    {
+      "id": "2:123",
+      "text": "F6 — Absorber Seguimiento y cerrar"
+    },
+    {
+      "id": "2:124",
+      "text": "Pendiente"
+    },
+    {
+      "id": "2:125",
+      "text": "☐ Acumular al menos una semana de F3–F5 estables en producción."
+    },
+    {
+      "id": "2:126",
+      "text": "☐ Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+    },
+    {
+      "id": "2:127",
+      "text": "☐ Retirar la pantalla duplicada conservando sus capacidades."
+    },
+    {
+      "id": "2:128",
+      "text": "☐ Verificar navegación, permisos y funcionamiento completo."
+    },
+    {
+      "id": "2:129",
+      "text": "☐ Actualizar la documentación y cerrar el módulo."
+    },
+    {
+      "id": "2:131",
+      "text": "Mejora visual solicitada · Analista y supervisor"
+    },
+    {
+      "id": "2:132",
+      "text": "PR #82 publicado · Aceptación de uso pendiente; nuevo diseño horizontal de supervisor, abajo"
+    },
+    {
+      "id": "2:133",
+      "text": "☑ Revisar Fundamentos UX/UI y las pantallas actuales.\n☑ Mejorar «Mi día» y «Mi equipo hoy»: 4.179 pruebas PASS; observaciones de Claude atendidas.\n☑ Publicar PR #82 desde Main e8e4f35f: archivos y acceso de gerencia verificados.\n☐ Validar la mejora con analista y supervisor en producción. Primera jornada F4: 24/09."
+    },
+    {
+      "id": "2:134",
+      "text": "Este mismo tablero se actualizará con cada avance verificado. Diseño aprobado no significa implementación ni pruebas terminadas."
+    }
+  ]
+}

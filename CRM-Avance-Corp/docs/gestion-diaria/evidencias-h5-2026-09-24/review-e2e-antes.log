@@ -1,0 +1,45 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-horizontal-h5.spec.ts --reporter=list --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 2 tests using 2 workers
+
+  ✓  2 [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:108:1 › H5: Actualizar conserva el filtro del registro del equipo y consulta una sola primera página (4.9s)
+  ✘  1 [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:9:1 › H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable (8.9s)
+
+
+  1) [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:9:1 › H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+    @@ -99,11 +99,11 @@
+          "POST /rest/v1/rpc/gestion_diaria_avisos_fn": 2,
+          "POST /rest/v1/rpc/gestion_diaria_equipo_fn": 2,
+          "POST /rest/v1/rpc/metricas_agenda_fn": 1,
+          "POST /rest/v1/rpc/metricas_vendedores_fn": 1,
+          "POST /rest/v1/rpc/mi_acceso_fn": 1,
+    -     "POST /rest/v1/rpc/postventa_agenda_fn": 2,
+    +     "POST /rest/v1/rpc/postventa_agenda_fn": 1,
+          "POST /rest/v1/rpc/registro_actividad_fn": 2,
+          "POST /rest/v1/rpc/resumen_cartera_fn": 1,
+          "POST /rest/v1/rpc/solicitudes_tasa_fn": 2,
+          "POST /rest/v1/rpc/tareas_pendientes_fn": 2,
+        },
+
+      103 |   }
+      104 |   await writeFile(info.outputPath('consultas-h5.json'), JSON.stringify(resultados, null, 2))
+    > 105 |   expect(resultados[1]!.etapas).toEqual(resultados[0]!.etapas)
+          |                                 ^
+      106 | })
+      107 |
+      108 | test('H5: Actualizar conserva el filtro del registro del equipo y consulta una sola primera página', async ({ page }) => {
+        at /app/e2e/gestion-diaria-horizontal-h5.spec.ts:105:33
+
+    Error Context: test-results/gestion-diaria-horizontal--f181a-ajo-demanda-y-panel-estable-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/gestion-diaria-horizontal-h5.spec.ts:9:1 › H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable 
+  1 passed (11.5s)

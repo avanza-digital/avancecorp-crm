@@ -1,0 +1,8 @@
+PASS: H3 instalada por MCP; candidato alojado verificado
+PASS: paridad antes/después completa; supervisor, gerencia, global, puente inactivo y ciclo
+PASS: regresión test-equipo.sql
+PASS: regresión test-calendario.sql
+OK: pendientes H3 paginados, ámbito canónico compartido, invoker/RLS y referencias mínimas
+H3_PENDIENTES_OK: 1008 tareas, 11 páginas, 3 anclas, permisos, errores, concurrencia y 7 mutantes
+OK: Gestion Diaria [OK: registro de Gestion Diaria bajo la RLS (puerta y nucleo INVOKER), EXECUTE solo authenticated, indice presente, policies selladas por la base del historial por lead] [OK: resultado de llamada — puertas DEFINER selladas (EXECUTE solo authenticated), nucleo y trigger solo postgres, CHECK de forma validado, trigger anti-falsificacion habilitado, cuerpos propios y compuestos con su md5, historial por lead con metadata] [OK: dia del analista — puerta y nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y politica_abandono en su forma, cadena invoker con sus permisos, tareas_select sellada por la base de las tareas por cursor] [OK: equipo completo, agregado canónico y acceso por identidad] [OK: cortes Lima, política versionada OFF, RLS sin escrituras API] [OK: avisos persistentes sellados, RLS del lector y entregas únicas] [OK: configuración gerencial estricta, versionada y futura; control de avisos auditado] [OK: pendientes SLA agrupados y contexto de llamadas bajo RLS; tasa baja OFF] [OK: lectura completa bajo RLS; escrituras de cortes sin cómputo SLA] [OK: pendientes H3 paginados, ámbito canónico compartido, invoker/RLS y referencias mínimas]
+PASS: catálogo de seguridad y gates SLA preservados en Supabase alojado

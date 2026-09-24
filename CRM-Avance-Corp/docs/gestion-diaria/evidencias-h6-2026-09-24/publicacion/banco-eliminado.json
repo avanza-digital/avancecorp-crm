@@ -1,0 +1,14 @@
+{
+  "estado": "PASS",
+  "eliminadoYAusenciaVerificada": true,
+  "fecha": "2026-09-24T07:13:47.953Z",
+  "creadoEn": "2026-09-24T05:55:58.370232Z",
+  "rama": "c543898c-423b-4c53-b5d4-458a14f82c16",
+  "ref": "lqongqxaviavfusnzojv",
+  "otroBancoIntacto": true,
+  "tarifaCotizadaUSDHora": 0.01344,
+  "horasHastaVerificacion": 1.297106388888889,
+  "costeEstimadoUSD": 0.017433109866666668,
+  "topeAutorizadoUSD": 1,
+  "notaCoste": "Estimación por tiempo transcurrido, no factura."
+}

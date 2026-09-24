@@ -1,0 +1,30 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:10:07.957Z",
+  "ref": "lqongqxaviavfusnzojv",
+  "checks": [
+    "1008 tareas/11 páginas, sin repeticiones, tres anclas, total íntegro, responsable y referencia mínima",
+    "Vendedor, coordinador, gerencia y lector global denegados por HTTP 403/42501",
+    "Analista ajeno denegado",
+    "Parámetro inválido 400/22023",
+    "Anónimo denegado: 401",
+    "Revocación inmediata con el mismo JWT"
+  ],
+  "paginas": 11,
+  "total": 1008,
+  "latenciasMs": [
+    231,
+    177,
+    183,
+    176,
+    176,
+    180,
+    172,
+    166,
+    172,
+    167,
+    164
+  ],
+  "auth": "Login GoTrue real de los cinco actores sintéticos. Tokens sólo en memoria.",
+  "datos": "Fixture sintético sólo en rama propia; no se integra al padre."
+}

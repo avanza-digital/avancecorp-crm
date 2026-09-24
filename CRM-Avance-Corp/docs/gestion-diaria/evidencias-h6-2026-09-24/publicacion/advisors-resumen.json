@@ -1,0 +1,91 @@
+{
+  "estado": "PASS_NO_NEW_FINDINGS",
+  "fecha": "2026-09-24T07:22:06.960861+00:00",
+  "bancoAntes": [
+    {
+      "clase": "rls_enabled_no_policy",
+      "nivel": "INFO",
+      "cantidad": 66,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "clase": "anon_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 2,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+    },
+    {
+      "clase": "authenticated_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 220,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "clase": "auth_leaked_password_protection",
+      "nivel": "WARN",
+      "cantidad": 1,
+      "remediacion": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    }
+  ],
+  "bancoDespues": [
+    {
+      "clase": "rls_enabled_no_policy",
+      "nivel": "INFO",
+      "cantidad": 66,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "clase": "anon_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 2,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+    },
+    {
+      "clase": "authenticated_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 220,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "clase": "auth_leaked_password_protection",
+      "nivel": "WARN",
+      "cantidad": 1,
+      "remediacion": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    }
+  ],
+  "produccionDespues": [
+    {
+      "clase": "rls_enabled_no_policy",
+      "nivel": "INFO",
+      "cantidad": 66,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "clase": "extension_in_public",
+      "nivel": "WARN",
+      "cantidad": 1,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+    },
+    {
+      "clase": "anon_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 2,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+    },
+    {
+      "clase": "authenticated_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 220,
+      "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "clase": "auth_leaked_password_protection",
+      "nivel": "WARN",
+      "cantidad": 1,
+      "remediacion": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    }
+  ],
+  "nuevosSeguridadBanco": 0,
+  "nuevosRendimientoBanco": 0,
+  "nota": "No significa cero avisos existentes. Seguridad: banco 66 INFO/223 WARN; producción 66 INFO/224 WARN, cero ERROR. La diferencia de Auth entre entornos ya existía. Los INFO unused_index varían con estadísticas de uso; no se eliminaron índices ni se relajaron controles."
+}

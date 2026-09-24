@@ -1,0 +1,31 @@
+{
+  "domain": "crm.miavance.com",
+  "archive": "crm-20260924T054601Z-bbe341f6752b.zip",
+  "archiveBytes": 2300351,
+  "completedAt": "2026-09-24T07:13:31.476Z",
+  "stderrBytes": 773,
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": {
+          "upload": {
+            "status": "success",
+            "data": {
+              "filename": "crm-20260924T054601Z-bbe341f6752b.zip"
+            }
+          },
+          "deploy": {
+            "status": "success",
+            "data": {
+              "message": "Request accepted"
+            }
+          },
+          "removeArchive": {
+            "status": "skipped"
+          }
+        }
+      }
+    ]
+  }
+}

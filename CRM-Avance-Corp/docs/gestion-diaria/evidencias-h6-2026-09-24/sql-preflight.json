@@ -1,0 +1,13 @@
+{
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "comprobado_en": "2026-09-24 04:58:11.25803+00",
+  "metodo": "Supabase MCP execute_sql, solo SELECT de catálogo",
+  "equipo_core_md5": "17b39a376af0f940f029937a6fa98186",
+  "precondicion_h3_coincide": true,
+  "rpc_h3_instalada": false,
+  "h3_en_historial": 0,
+  "migracion": "20260923234404_crm_gestion_diaria_pendientes_supervisor.sql",
+  "sha256": "a61d0b30be5781f9f04b6486b2eaa1599c9bcada5d2e5ce35ddab2bc7acdba73",
+  "publicacion": "PENDING",
+  "nota": "La precondición debe reconfirmarse antes de instalar. No se aplicó SQL productivo."
+}

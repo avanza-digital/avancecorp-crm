@@ -1,0 +1,134 @@
+{
+  "viewport": [
+    1366,
+    768
+  ],
+  "ancho": 1254,
+  "tabla": {
+    "x": 88,
+    "y": 244,
+    "width": 858,
+    "height": 448,
+    "top": 244,
+    "right": 946,
+    "bottom": 692,
+    "left": 88
+  },
+  "filas": [
+    {
+      "x": 88,
+      "y": 288,
+      "width": 848,
+      "height": 44,
+      "top": 288,
+      "right": 936,
+      "bottom": 332,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 332,
+      "width": 848,
+      "height": 44,
+      "top": 332,
+      "right": 936,
+      "bottom": 376,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 376,
+      "width": 848,
+      "height": 44,
+      "top": 376,
+      "right": 936,
+      "bottom": 420,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 420,
+      "width": 848,
+      "height": 44,
+      "top": 420,
+      "right": 936,
+      "bottom": 464,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 464,
+      "width": 848,
+      "height": 44,
+      "top": 464,
+      "right": 936,
+      "bottom": 508,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 508,
+      "width": 848,
+      "height": 44,
+      "top": 508,
+      "right": 936,
+      "bottom": 552,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 552,
+      "width": 848,
+      "height": 44,
+      "top": 552,
+      "right": 936,
+      "bottom": 596,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 596,
+      "width": 848,
+      "height": 44,
+      "top": 596,
+      "right": 936,
+      "bottom": 640,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 640,
+      "width": 848,
+      "height": 44,
+      "top": 640,
+      "right": 936,
+      "bottom": 684,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 684,
+      "width": 848,
+      "height": 44,
+      "top": 684,
+      "right": 936,
+      "bottom": 728,
+      "left": 88
+    },
+    {
+      "x": 88,
+      "y": 728,
+      "width": 848,
+      "height": 44,
+      "top": 728,
+      "right": 936,
+      "bottom": 772,
+      "left": 88
+    }
+  ],
+  "completas": 9,
+  "fuentesPequenas": [],
+  "controlesBajos": [],
+  "scrollPagina": 0,
+  "overflowTabla": 0
+}

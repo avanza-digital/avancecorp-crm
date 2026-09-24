@@ -1,0 +1,63 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T07:17:22.164Z",
+  "url": "https://crm.miavance.com/#/gestion-diaria",
+  "buildId": "build-20260924T054600240Z",
+  "navegador": "Chrome real, perfil Avance Corp",
+  "sesion": "Supervisor autenticado preexistente; equipo propio de 10 analistas",
+  "checks": [
+    {
+      "nombre": "Compatibilidad del frontend anterior tras H3",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Recarga y acceso a Mi equipo hoy después de publicar",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Tabla de 10 filas a 1512×805; 44 px de alto, ancho 960 px; sin desborde horizontal",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Resumen muestra atención y diferencia cero de ausencia de llamadas útiles",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Pendientes consulta RPC real y amplía 25 → 50 tareas",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Ficha desde Pendientes y vuelta conservan persona, pestaña y las 50 tareas",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Registro carga el vacío real de hoy; no se sembró actividad",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Orden por analista, búsqueda 10 → 1 → 10 y pestaña conservada",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "A 1200 px abre detalle adaptado y Escape lo cierra",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Tamaño normal restaurado y pestaña publicada abierta",
+      "estado": "PASS"
+    }
+  ],
+  "datosRealesModificados": false,
+  "datosPersonalesExportados": false,
+  "capturas": "Inspección privada por CUA; no se adjuntan imágenes con nombres o datos reales a Git ni Figma.",
+  "aceptacionHumana": "PENDING_H6.4",
+  "limites": [
+    "No acredita VoiceOver/Safari ni conformidad humana.",
+    "No ejecuta reconocimientos, posposiciones, llamadas ni tareas reales.",
+    "Registro hoy vacío: paginación de Registro cubierta por E2E local, no por esta sesión productiva."
+  ],
+  "incidenciasHerramienta": [
+    "fill vacío no limpió el filtro; se restableció con Seleccionar todo y Retroceso y se verificó 10 de 10.",
+    "waitFor informó plazo vencido aunque su diagnóstico vio el encabezado; lectura AX posterior confirmó tabla cargada sin errores."
+  ]
+}

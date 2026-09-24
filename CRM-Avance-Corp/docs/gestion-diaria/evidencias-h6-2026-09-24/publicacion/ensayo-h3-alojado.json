@@ -1,0 +1,23 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T06:56:55.251Z",
+  "ref": "lqongqxaviavfusnzojv",
+  "log": "ensayo-h3-alojado.log",
+  "paridad": [
+    "supervisor",
+    "gerencia",
+    "global",
+    "puente inactivo",
+    "ciclo"
+  ],
+  "regresiones": [
+    "equipo",
+    "calendario"
+  ],
+  "tareas": 1008,
+  "paginas": 11,
+  "anclas": 3,
+  "mutantes": 7,
+  "permisos": "authenticated/anon, ajeno/inactivo, direct core, errores, revocación",
+  "nota": "Guardia local adaptada exclusivamente al ref autorizado y marca de sesión propia; todas las aserciones conservadas. Fixture y mutantes transaccionales con rollback; candidato aplicado por MCP exacto."
+}

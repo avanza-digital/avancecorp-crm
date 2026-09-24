@@ -1,0 +1,8 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T06:55:18.094Z",
+  "ref": "lqongqxaviavfusnzojv",
+  "comando": "supabase gen types typescript --project-id lqongqxaviavfusnzojv --schema crm",
+  "contrato": "gestion_diaria_pendientes_fn: { Args: { p_analista_id: string p_despues_de?: string p_despues_id?: string p_limite?: number p_solo_vencidas?: boolean } Returns: Json }",
+  "limite": "Generación real del banco instalado. Se coteja H3 sin sobrescribir contratos ajenos al release."
+}

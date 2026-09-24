@@ -1,0 +1,76 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh --reporter=list --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 275 tests using 2 workers
+
+  ✓    1 [chromium] › e2e/acceso-avance-ux.spec.ts:17:3 › primer acceso Avance se retoma y muestra tres pasos sin desbordar (390px) (5.2s)
+  ✓    2 [chromium] › e2e/acceso-avance-ux.spec.ts:17:3 › primer acceso Avance se retoma y muestra tres pasos sin desbordar (1440px) (7.3s)
+  ✓    3 [chromium] › e2e/acciones-demo.spec.ts:7:1 › crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead (3.2s)
+  ✓    4 [chromium] › e2e/acciones-demo.spec.ts:32:1 › supervisor: crea un lead propio y lo convierte sin asignarlo a un analista (3.5s)
+  ✓    5 [chromium] › e2e/acciones-demo.spec.ts:66:1 › editar lead: cambia el monto y confirma con toast "(demo)" (4.0s)
+  ✓    6 [chromium] › e2e/acciones-demo.spec.ts:81:1 › editar lead: capital y moneda conservan espacio en un drawer estrecho (3.5s)
+  ✓    7 [chromium] › e2e/acciones-demo.spec.ts:106:1 › mover etapa: el stepper avanza a Contactado (aria-current) (4.0s)
+  ✓    8 [chromium] › e2e/acciones-demo.spec.ts:115:1 › descartar con nota: toast "(demo)" y banner de lead descartado (4.1s)
+  ✓    9 [chromium] › e2e/acciones-demo.spec.ts:132:1 › reabrir: un lead descartado vuelve a Nuevo con toast "(demo)" (4.2s)
+  ✓   10 [chromium] › e2e/acciones-demo.spec.ts:148:1 › actividad: no muestra el acceso rápido y conserva el historial con scroll (3.4s)
+  ✓   11 [chromium] › e2e/acciones-demo.spec.ts:161:1 › reasignar (gerencia): cambia el analista con toast "(demo)" (3.7s)
+  ✓   12 [chromium] › e2e/acciones-demo.spec.ts:172:1 › convertir (demo): cancelar el contrato compartido conserva el lead abierto (4.2s)
+  ✓   13 [chromium] › e2e/acciones-demo.spec.ts:191:1 › anular la tarea que sobra tras agendar la reunión (demo) (4.3s)
+  ✓   14 [chromium] › e2e/acciones-demo.spec.ts:224:1 › anular la reunión devuelve el lead a su etapa anterior (demo) (4.2s)
+  ✓   15 [chromium] › e2e/acciones-demo.spec.ts:255:1 › crear lead mueve el tile "Leads abiertos con analista" al instante (espejo demo VIVO, F1) (3.6s)
+  ✓   16 [chromium] › e2e/acciones-real.spec.ts:22:1 › sesión real: entra al workspace y la UI NO muestra ninguna marca "(demo)" (3.5s)
+  ✓   17 [chromium] › e2e/acciones-real.spec.ts:37:1 › gate abierto: crear lead persiste por RPC atómica y el toast NO dice "(demo)" (4.1s)
+  ✓   18 [chromium] › e2e/acciones-real.spec.ts:63:1 › P-048: un contacto en bolsa queda explicado y no llega al INSERT (4.7s)
+  ✓   19 [chromium] › e2e/acciones-real.spec.ts:81:1 › creación rechazada: rollback honesto y la RPC sí se intentó (3.5s)
+  ✓   20 [chromium] › e2e/acciones-real.spec.ts:102:1 › rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor y no miente (3.6s)
+  ✓   21 [chromium] › e2e/acciones-real.spec.ts:124:1 › descartar real: persiste la nota como actividad aparte, toast sin "(demo)" (4.1s)
+  ✓   22 [chromium] › e2e/acciones-real.spec.ts:144:1 › descartar real con nota fallida: avisa el fallo parcial SIN mentir "se restauró" (3.6s)
+  ✓   23 [chromium] › e2e/acciones-real.spec.ts:161:1 › convertir en real: pide los datos de la cuenta y valida antes de tocar el servidor (4.2s)
+  ✓   24 [chromium] › e2e/acciones-real.spec.ts:180:1 › gerencia puede convertir un lead asignado (4.2s)
+  ✓   25 [chromium] › e2e/acciones-real.spec.ts:194:1 › supervisor sobre el lead de SU analista: puede abrir la conversión (4.1s)
+  ✓   26 [chromium] › e2e/acciones-real.spec.ts:210:1 › supervisor sobre un lead de su bandeja: debe asignarlo antes de convertir (3.8s)
+  ✓   27 [chromium] › e2e/acciones-real.spec.ts:225:1 › carga inicial caída: pantalla de error con Reintentar (no pinta el CRM vacío) (3.0s)
+  ✓   28 [chromium] › e2e/cartera-keyset.spec.ts:25:1 › la primera página trae 50 filas y «Cargar más» concatena sin repetir (4.0s)
+  ✓   29 [chromium] › e2e/cartera-keyset.spec.ts:47:1 › filtrar por etapa vuelve a preguntar al servidor (3.8s)
+  ✓   30 [chromium] › e2e/cartera-keyset.spec.ts:61:1 › buscar por nombre viaja al servidor y no recorta lo ya cargado (4.2s)
+  ✓   31 [chromium] › e2e/cartera-keyset.spec.ts:73:1 › RPC caída: la tabla degrada con aviso y NO ofrece más páginas (3.6s)
+  ✓   32 [chromium] › e2e/citas-avance-mensual.spec.ts:6:1 › avance mensual: fuentes, filtros, recorrido, monedas y detalle (4.7s)
+  ✓   33 [chromium] › e2e/citas-avance-mensual.spec.ts:62:1 › sin tipo de cambio conserva totales y actividad, explica la exportación y permite reintentar (3.9s)
+  ✓   34 [chromium] › e2e/citas-avance-mensual.spec.ts:105:1 › cambiar de mes retira el TC anterior y recalcula el ticket con la cotización del cierre histórico (4.0s)
+  ✓   35 [chromium] › e2e/citas-gerencia.spec.ts:5:1 › la meta interna usa la base asignada y muestra analistas sin citas (4.0s)
+  ✓   37 [chromium] › e2e/citas-gerencia.spec.ts:45:1 › una consulta no habilitada muestra el error y se recupera sin recurrir a cifras de ejemplo (4.7s)
+  ✓   36 [chromium] › e2e/citas-gerencia.spec.ts:23:1 › Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vistas (5.8s)
+  ✓   38 [chromium] › e2e/citas-gerencia.spec.ts:61:1 › Citas incorpora cambios de otro usuario al minuto y conserva la semana consultada (4.0s)
+  ✓   39 [chromium] › e2e/cliente-form.spec.ts:60:1 › alta feliz: UNA llamada y el cliente nace CON su cuenta bancaria (4.0s)
+  ✓   40 [chromium] › e2e/cliente-form.spec.ts:80:1 › sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente (7.3s)
+  ✓   41 [chromium] › e2e/cliente-form.spec.ts:107:1 › alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PATCH (7.0s)
+  ✓   42 [chromium] › e2e/cliente-form.spec.ts:119:1 › el analista ya no tiene «Nuevo cliente»: su cliente nuevo nace convirtiendo un lead (3.6s)
+  ✓   43 [chromium] › e2e/cliente-form.spec.ts:129:1 › corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servidor (4.5s)
+  ✓   44 [chromium] › e2e/cliente-form.spec.ts:154:1 › Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada (4.6s)
+  -   46 [chromium] › e2e/clientes.spec.ts:65:1 › lista: pinta la cartera con columnas del portal y el contador
+  -   47 [chromium] › e2e/clientes.spec.ts:86:1 › reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el vencido
+  -   48 [chromium] › e2e/clientes.spec.ts:99:1 › corregir: deshabilitado con la ventana vencida, habilitado con la ventana viva
+  -   49 [chromium] › e2e/clientes.spec.ts:119:1 › "+ Contrato" abre el formulario de contrato del cliente (sin ventana: siempre activo)
+  -   50 [chromium] › e2e/clientes.spec.ts:135:1 › búsqueda: filtra por texto normalizado y muestra el contador "X de N"
+  -   51 [chromium] › e2e/clientes.spec.ts:154:1 › supervisor: acciones SOLO en filas de su cartera personal (regla de cartera por fila)
+  -   52 [chromium] › e2e/clientes.spec.ts:181:1 › supervisor: filtro por analista con el roster (incluye la herencia por creado_por)
+  -   53 [chromium] › e2e/clientes.spec.ts:199:1 › paginación: 60 clientes → 2 páginas de 50 con Anterior/Siguiente
+  -   54 [chromium] › e2e/clientes.spec.ts:234:1 › gerencia: cartera completa con columna Analista y acciones globales
+  -   55 [chromium] › e2e/clientes.spec.ts:261:1 › cartera vacía: estado vacío con el copy del portal
+  -   56 [chromium] › e2e/clientes.spec.ts:272:1 › demo analista: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase
+  -   57 [chromium] › e2e/clientes.spec.ts:307:1 › demo supervisor: su cartera + equipo, acciones SOLO en la fila propia
+  -   58 [chromium] › e2e/clientes.spec.ts:333:1 › demo gerencia: los 6 clientes, acciones globales, búsqueda y filtro
+  ✓   45 [chromium] › e2e/cliente-form.spec.ts:187:1 › corregir con la ventana vencida: 0 filas sin error → mensaje de NO guardado (4.3s)
+  ✓   59 [chromium] › e2e/config-demo.spec.ts:35:3 › demo gerencia: recorre las cuatro configuraciones sin red (7.5s)
+  ✓   60 [chromium] › e2e/config-demo.spec.ts:35:3 › demo directorio: recorre las cuatro configuraciones sin red (8.0s)
+  ✓   61 [chromium] › e2e/contrato-crear.spec.ts:71:3 › Registrar inversión por-cliente envía y muestra el prefijo 2024-01- (4.5s)
+  ✓   62 [chromium] › e2e/contrato-crear.spec.ts:71:3 › Registrar inversión por-cliente envía y muestra el prefijo 2025-01- (4.3s)
+  ✓   63 [chromium] › e2e/contrato-crear.spec.ts:71:3 › Registrar inversión por-cliente envía y muestra el prefijo 2026-01- (4.4s)
+  ✓   64 [chromium] › e2e/contrato-crear.spec.ts:142:1 › puede fijar una cuenta guardada distinta a la cuenta vigente del perfil (4.1s)
+  ✓   65 [chromium] › e2e/contrato-crear.spec.ts:168:1 › puede registrar una cuenta nueva inline y la envía normalizada en la misma alta (4.5s)
+  ✓   66 [chromium] › e2e/contrato-crear.spec.ts:203:1 › cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la nueva moneda (4.3s)
+  ✓   67 [chromium] › e2e/contrato-crear.spec.ts:254:1 › sin los 6 dígitos obligatorios NO se llama al servidor (4.5s)
+  ✓   68 [chromium] › e2e/contrato-crear.spec.ts:269:1 › los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados (4.5s)
+  ✓   69 [chromium] › e2e/contrato-crear.spec.ts:296:1 › co-titular a medio llenar o duplicado corta el guardado ANTES del servidor (4.7s)
+  ✓   70 [chromium] › e2e/contrato-crear.spec.ts:330:1 › cliente SIN domicilio: el alta se frena, se rellena en el momento y entonces sí se crea (4.5s)

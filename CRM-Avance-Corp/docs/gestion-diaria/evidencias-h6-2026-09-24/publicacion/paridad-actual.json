@@ -1,0 +1,23 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T06:53:55.098Z",
+  "ref": "lqongqxaviavfusnzojv",
+  "funciones": 740,
+  "tablas": 122,
+  "migraciones": 347,
+  "comparados": [
+    "DDL/cuerpos",
+    "owner",
+    "definer",
+    "search_path",
+    "ACL",
+    "columnas",
+    "RLS/policies",
+    "constraints/indices/triggers",
+    "roles/membresías",
+    "Storage/Auth",
+    "controles técnicos",
+    "cada sentencia del ledger"
+  ],
+  "normalizacion": "Sólo asociación de paréntesis de tres CHECK documentados; metadatos consultados en UTC."
+}
