@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
+import { useAhora } from '@/lib/ahora'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { administraSoloRolesCrm } from '@/lib/roles'
 import { CrmApiError } from './crm-api'
@@ -9,17 +11,22 @@ import { controlarAvisosGestionDiaria, obtenerAvisosCortes, obtenerConfiguracion
 
 export const seguimientoKeys = {
   raiz: ['crm', 'gestion-diaria-seguimiento'] as const,
-  avisos: (id: string | null) => [...seguimientoKeys.raiz, 'avisos', id] as const,
+  avisos: (id: string | null, dia?: string) => [...seguimientoKeys.raiz, 'avisos', id, ...(dia ? [dia] : [])] as const,
   configuracion: (id: string | null, rol: string | null) => [...seguimientoKeys.raiz, 'configuracion', id, rol] as const,
 }
 
 export function useAvisosCortes() {
   const { yo } = useAuth()
+  const hoy = fechaLima(useAhora())
   const habilitada = Boolean(yo && !yo.demo && yo.rol === 'supervisor' && !administraSoloRolesCrm(yo)
     && funcionesLeadsVisibles(yo.demo, yo.rol))
   const cliente = useQueryClient()
-  const clave = seguimientoKeys.avisos(yo?.id ?? null)
-  const consulta = useQuery({ queryKey: clave, queryFn: ({ signal }) => obtenerAvisosCortes(yo!.id, signal),
+  const clave = seguimientoKeys.avisos(yo?.id ?? null, hoy)
+  const consulta = useQuery({ queryKey: clave, queryFn: async ({ signal }) => {
+    const datos = await obtenerAvisosCortes(yo!.id, signal)
+    if (datos.dia !== hoy) throw new CrmApiError('Los avisos recibidos no corresponden a la jornada actual. Actualiza la consulta.', 'GESTION_DIARIA_JORNADA')
+    return datos
+  },
     enabled: habilitada, refetchInterval: 60_000, refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' })
   const accion = useMutation({
     mutationFn: async (p: { alertaId: string; accion: 'reconocer' | 'posponer'; solicitudId: string }) => {

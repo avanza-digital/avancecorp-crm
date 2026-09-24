@@ -441,6 +441,12 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     if (soloRoles) return
     cortes?.recargar()
     if (consultarResumen) void resumenSla.refetch()
+    // La fuente diaria ya incluye los pendientes completos. Actualizar esta
+    // superficie solo necesita cortes y libro, no descargar el store del CRM.
+    if (sesionSupervisorReal && diarias) {
+      void reconocimientos.refetch()
+      return
+    }
     if (rol === 'gerencia' && !yo?.demo) {
       void conversionActual.refetch()
       void conversionAnterior.refetch()
@@ -470,6 +476,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   }, [
     cortes,
     usaLibro,
+    diarias,
     consultarResumen,
     resumenSla,
     conversionActual,

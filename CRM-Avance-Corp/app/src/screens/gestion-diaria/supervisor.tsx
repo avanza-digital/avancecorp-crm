@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { Info, ListFilter, RefreshCw, Search, Users, X, Bell } from 'lucide-react'
+import { Info, ListFilter, RefreshCw, Search, Users, X } from 'lucide-react'
+import { useAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FranjaCortesSupervisor } from '@/components/gestion-diaria/franja-cortes-supervisor'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
 import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
 import './supervisor.css'
@@ -34,6 +36,7 @@ export function GestionDiariaSupervisor(): JSX.Element {
 function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; demo: boolean }) {
   const consulta = useDiaEquipo(hoy)
   const avisos = useGestionDiariaAvisos()
+  const alertas = useAlertasCRM()
   const panelId = useId()
   const [filtros, setFiltros] = useState(FILTROS_INICIALES)
   const [seleccion, setSeleccion] = useState<SeleccionSupervisor | null>(null)
@@ -128,8 +131,8 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
             origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
             setSeleccion({ analista: null, nombre: null, pestana: 'todo', apertura: ++apertura.current, enfocar: true })
           }}>Registro del equipo</Button>
-          <Button variant="outline" className="min-h-11 text-base" disabled={consulta.enVuelo} onClick={() => { void consulta.recargar(); avisos?.recargar(); setActualizacion((n) => n + 1) }}>
-            <RefreshCw className="size-4" aria-hidden />{consulta.enVuelo ? 'Actualizando…' : 'Actualizar'}
+          <Button variant="outline" className="min-h-11 text-base" disabled={consulta.enVuelo || alertas.cargando} onClick={() => { void consulta.recargar(); alertas.reintentar(); setActualizacion((n) => n + 1) }}>
+            <RefreshCw className="size-4" aria-hidden />{consulta.enVuelo || alertas.cargando ? 'Actualizando…' : 'Actualizar'}
           </Button>
           <Button variant="ghost" size="icon" className="size-11" aria-label="Información de esta vista" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('info') }}><Info aria-hidden /></Button>
         </div>
@@ -169,8 +172,7 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
             limpiar={() => setFiltros(FILTROS_INICIALES)} actualizacion={actualizacion} revalidar={() => { void consulta.recargar() }} />
         </PanelSupervisorAdaptable>
       </div>
-      <footer className="gd-cortes"><Button variant="ghost" className="min-h-11 text-base" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }}><Bell aria-hidden />Cortes de llamadas y otros avisos</Button>
-        <p>{dia ? `Consulta ${horaLimaDe(dia.generado_en)} · cada minuto` : 'Sin consulta confirmada'}</p></footer>
+      <FranjaCortesSupervisor consulta={consulta} abrir={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }} />
       <p className="sr-only" role="status">{anuncio}</p>
       <Dialog focoAlCerrar={devolverFocoAuxiliar ? undefined : tituloPanel} open={auxiliar !== null} onClose={() => setAuxiliar(null)} className={auxiliar === 'info' ? 'gd-dialogo-info' : 'gd-dialogo-avisos'}>
         <DialogHeader className="flex-row items-center justify-between"><DialogTitle className="text-base">{auxiliar === 'info' ? 'Información de esta vista' : 'Cortes de llamadas y otros avisos'}</DialogTitle>
@@ -181,7 +183,14 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
           <p>La tasa usa llamadas útiles; número errado y otra persona quedan fuera. Se califica desde {dia?.umbrales.minimo_llamadas_utiles ?? 'el mínimo vigente de'} llamadas útiles.</p>
           <p>Los pendientes reflejan su estado actual. La actividad registrada no acredita presencia ni explica una ausencia. Los cortes conservan su foto de llamadas y solo avisan durante la jornada.</p>
           {dia?.modo_sla !== 'activo' && <p>Los primeros intentos fuera de plazo no se evalúan con el control actual. «No evaluado» no significa cero.</p>}
-        </> : auxiliar === 'avisos' ? <AvisosEquipo /> : null}</DialogBody>
+        </> : auxiliar === 'avisos' ? <AvisosEquipo consulta={consulta} abrirAnalista={(id) => {
+          const persona = dia?.equipo.find((f) => f.analista_id === id)
+          if (!persona || sinPermiso) return
+          origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+          setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
+          setDevolverFocoAuxiliar(false); setAuxiliar(null)
+          setAnuncio('Abierto el registro de llamadas solicitado.')
+        }} alNavegar={() => { setAuxiliar(null); setSeleccion(null); setAmpliado(false) }} /> : null}</DialogBody>
       </Dialog>
     </section>
   )

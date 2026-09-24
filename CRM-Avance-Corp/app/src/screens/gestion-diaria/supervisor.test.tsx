@@ -172,7 +172,7 @@ describe('Pedido de registro desde avisos', () => {
   it('transfiere foco desde el diálogo de avisos al registro solicitado', async () => {
     preparar()
     const vista = render(<GestionDiariaSupervisor />)
-    const origen = screen.getByRole('button', { name: 'Cortes de llamadas y otros avisos' })
+    const origen = screen.getByRole('button', { name: 'Cortes y avisos' })
     origen.focus(); fireEvent.click(origen)
     expect(screen.getByRole('dialog')).toBeVisible()
     dobles.avisos = { ...dobles.avisos!, registroPedido: { actor: 's1', dia: '2026-09-21', analista: 'a1', secuencia: 1 } }

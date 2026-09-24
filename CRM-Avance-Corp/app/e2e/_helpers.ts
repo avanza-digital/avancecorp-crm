@@ -2994,8 +2994,8 @@ export async function montarBackendReal(
     // Las suites históricas conservan el modo legado. El spec SLA activo
     // sobrescribe estas rutas con una política y una cola v2 completas.
     if (p === '/rest/v1/rpc/gestion_diaria_avisos_fn' && method === 'POST') {
-      return json(route, { version: 1, supervisor_id: UID, dia: '2026-09-02',
-        generado_en: '2026-09-02T15:00:00.000Z', control_version: 1,
+      const reloj = await page.evaluate(() => ({ dia: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date()), generado_en: new Date().toISOString() }))
+      return json(route, { version: 1, supervisor_id: UID, ...reloj, control_version: 1,
         avisos_habilitados: true, estado_cortes: 'desactivados', alertas: [] })
     }
     if (p === '/rest/v1/rpc/avisos_sla_resumen_v2_fn') {
