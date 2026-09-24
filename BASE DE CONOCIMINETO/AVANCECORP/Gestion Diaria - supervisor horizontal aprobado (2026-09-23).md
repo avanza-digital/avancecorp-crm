@@ -5,15 +5,15 @@ vertical. Aprobó el nuevo prototipo horizontal («perfecto perfecto») y pidió
 un plan para desarrollarlo, con apoyo de Claude/Jev si hacía falta, recordando
 que debe actualizarse **el mismo archivo de Figma**.
 
-**Estado: H1–H3 CERRADAS; H4–H6 pendientes; sin publicación.**
+**Estado: H1–H4 CERRADAS; H5–H6 pendientes; sin publicación.**
 
-**Retoma guardada:** Miguel aprobó el plan de H4 y pidió detenerse para seguir
-en unas horas. H4 sigue sin implementar; retomar desde **H4.1**. H3 está en
-`fa23ab5e`, después del checkpoint H2 `e6cc6c5b`. Ubicación y objetivo completos:
+**Retoma vigente:** H4 implementada y verificada en `186e00f1`. Continuar desde
+**H5.1** en la copia aislada; la pausa anterior quedó superada al iniciar el
+objetivo H4. Plan, evidencia y ubicación:
 `CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-RETOMA.md`.
-Respaldo incremental de la rama en
-`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-2026-09-23.bundle`.
-Figma conserva 36/72 completas y el plan H4 pendiente en el mismo tablero.
+Respaldo incremental de la rama:
+`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h4-2026-09-23.bundle`.
+Figma conserva **48/72 completas**, H5–H6 pendientes y las 76 casillas históricas.
 
 El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85) está fusionado
 desde el 23/09 a las 21:35 UTC, Main `e0bdfe124c48ab32617c72402e320c7e9963dc3b`.
@@ -33,7 +33,7 @@ Por petición posterior de Miguel, el tablero desarrolla la imagen aprobada en
 dependencia, entregable y criterio de cierre. Las etapas tienen tareas y
 resultado propio. Las fases son preparación/especificación; vista horizontal;
 panel conectado; cortes/avisos; verificación; entrega/aceptación.
-H1–H3 completan doce etapas y 36 tareas; quedan 36 tareas de H4–H6 pendientes. El plan general conserva su revisión histórica; H1 tiene revisión
+H1–H4 completan dieciséis etapas y 48 tareas; quedan 24 tareas de H5–H6 pendientes. El plan general conserva su revisión histórica; H1 tiene revisión
 independiente y resolución registradas en su propia acta.
 Composición inspeccionada y 76 casillas originales conservadas, sin alterar F4–F6.
 
@@ -58,7 +58,7 @@ pendientes» abre el listado de la persona: H1 decidió una RPC nueva de lectura
 paginada en H3.3, ya implementada y comprobada en banco local, sin cambios de reglas ni RLS.
 Registro del equipo muestra solo Registro, con espacio ampliable.
 
-Próximo paso: **H4.1**, estado compacto de cortes e integración de avisos. H1 se ejecutó en
+Próximo paso: **H5.1**, verificación integral del rediseño horizontal. H1 se ejecutó en
 la copia aislada `/private/tmp/avancecorp-release.hvdub4/repo`, rama
 `codex/gestion-diaria-supervisor-horizontal`, Main verificado `cf87e808` (#86).
 El taller principal permanece intacto. H2 modifica producto solamente en la copia aislada.
@@ -130,5 +130,29 @@ pendientes, 76 casillas históricas intactas. Acta:
 `CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md`.
 H4–H6, publicación y aceptación productiva permanecen pendientes; no cierran
 la jornada real de F4 ni activan tasa baja o Jev.
+
+[[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] · [[Inicio]]
+
+## H4 cerrada: cortes y avisos integrados
+
+Producto `186e00f1`, cuatro etapas y doce tareas. Franja de 44 px, cortes reales
+bajo demanda, reconocer/aplazar con confirmación y reintento idempotente. Lista,
+campana y popup abren Registro → Llamadas de la persona vigente. Ficha conserva
+contexto; otro destino limpia la selección. Otros pendientes comparten fuente
+y libro con campana, incluido contrato anterior sin detalle diario. Actualizar
+con fuente diaria consulta cortes/libro sin descargar todo el store.
+
+Gate final **4.272 pruebas / 287 archivos PASS**; E2E Docker completo **247 PASS /
+0 fallos / 26 omitidas**, dirigido **14/14**. Primer completo 245/1/26, fallo
+intermitente de postventa superado sin modificar su código ni prueba; causa
+no demostrada. Un worker del gate falló por ERANGE; gate equivalente con dos
+workers PASS. No ocultar estos resultados iniciales. Claude CHANGES_REQUESTED,
+MEDIUM; cuatro P2 y tres P3 resueltos con evidencia, sin segunda consulta.
+
+Mismo Figma: **48 completas / 24 pendientes**, 76 casillas históricas intactas;
+lectura y capturas general/H4 PASS. Sin nueva SQL, RLS, publicación o activación.
+Gate de realidad NOT RUN por falta de SUPABASE_URL; lectores humanos y validación
+productiva NOT RUN. H5/H6 siguen pendientes; F4 real y tasa baja conservan su estado.
+Acta: `CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md`.
 
 [[Gestion Diaria - plan vivo en Figma y mejora visual (2026-09-23)]] · [[Inicio]]

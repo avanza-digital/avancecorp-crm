@@ -10,7 +10,7 @@
   "legendId": "2:6",
   "supervisorHorizontal": {
     "updatedAt": "2026-09-23",
-    "status": "H1–H3 cerradas; H4–H6 pendientes",
+    "status": "H1–H4 cerradas; H5–H6 pendientes",
     "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
     "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
     "resumeMain": "cf87e8087bf61ea5c58669d924e801526a04c779",
@@ -19,8 +19,8 @@
     "prototype": "assets/supervisor-horizontal-aprobado-2026-09-23.png",
     "prototypeSha256": "1314891a779085bae9b7a3d5d56374cd24a0e32de6b527d22f33bcbfe073bc51",
     "designApproval": "USER_APPROVED",
-    "implementation": "H3_COMPLETE_H4_H5_H6_PENDING",
-    "productTests": "PASS_H3; ver h3 para resultados y límites",
+    "implementation": "H4_COMPLETE_H5_H6_PENDING",
+    "productTests": "PASS_H4; ver h4 para resultados y límites",
     "publication": "PENDING",
     "review": "SUPERVISOR-HORIZONTAL-REVISION-2026-09-23.md",
     "reviewVerdict": "CHANGES_REQUESTED",
@@ -460,35 +460,35 @@
         "title": "Integración de cortes y avisos",
         "objective": "Mantener las alertas operativas visibles y accionables dentro de la pantalla compacta.",
         "dependency": "H3 conectada para abrir la persona y el registro correctos.",
-        "deliverable": "Pantalla completa con cortes y avisos integrados.",
+        "deliverable": "Cortes y avisos integrados y verificados en navegador.",
         "acceptance": "Todas las acciones anteriores siguen disponibles, muestran el estado real y abren la persona correcta sin duplicados.",
-        "status": "pending",
+        "status": "complete",
         "items": [
           {
             "id": "18:38",
-            "text": "☐ Etapa H4.1 · Compactar el estado de los cortes",
-            "status": "pending",
+            "text": "☑ Etapa H4.1 · Compactar el estado de los cortes",
+            "status": "complete",
             "stageKey": "H4.1",
             "stageTitle": "Compactar el estado de los cortes",
             "bodyId": "19:37",
             "resultId": "19:38",
-            "result": "Estado real de cortes visible en poco espacio.",
+            "result": "Franja de 44 px; estados y cifras del servidor bajo demanda.",
             "tasks": [
               {
                 "text": "Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:37",
                 "index": 0
               },
               {
                 "text": "Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:37",
                 "index": 1
               },
               {
                 "text": "Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:37",
                 "index": 2
               }
@@ -496,29 +496,29 @@
           },
           {
             "id": "18:39",
-            "text": "☐ Etapa H4.2 · Mantener acciones de seguimiento",
-            "status": "pending",
+            "text": "☑ Etapa H4.2 · Mantener acciones de seguimiento",
+            "status": "complete",
             "stageKey": "H4.2",
             "stageTitle": "Mantener acciones de seguimiento",
             "bodyId": "19:39",
             "resultId": "19:40",
-            "result": "Acciones existentes operativas desde el nuevo diseño.",
+            "result": "Reconocer/aplazar confirmados; espera, error y reintento sin duplicar.",
             "tasks": [
               {
                 "text": "Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:39",
                 "index": 0
               },
               {
                 "text": "Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:39",
                 "index": 1
               },
               {
                 "text": "Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:39",
                 "index": 2
               }
@@ -526,29 +526,29 @@
           },
           {
             "id": "18:40",
-            "text": "☐ Etapa H4.3 · Unir avisos con el panel",
-            "status": "pending",
+            "text": "☑ Etapa H4.3 · Unir avisos con el panel",
+            "status": "complete",
             "stageKey": "H4.3",
             "stageTitle": "Unir avisos con el panel",
             "bodyId": "19:41",
             "resultId": "19:42",
-            "result": "Aviso y detalle conectados sin pérdida de contexto.",
+            "result": "Lista, campana y popup abren Registro → Llamadas de la persona.",
             "tasks": [
               {
                 "text": "Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:41",
                 "index": 0
               },
               {
                 "text": "Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:41",
                 "index": 1
               },
               {
                 "text": "Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:41",
                 "index": 2
               }
@@ -556,29 +556,29 @@
           },
           {
             "id": "18:41",
-            "text": "☐ Etapa H4.4 · Integrar otros pendientes y navegación",
-            "status": "pending",
+            "text": "☑ Etapa H4.4 · Integrar otros pendientes y navegación",
+            "status": "complete",
             "stageKey": "H4.4",
             "stageTitle": "Integrar otros pendientes y navegación",
             "bodyId": "19:43",
             "resultId": "19:44",
-            "result": "Avisos integrados en un recorrido coherente.",
+            "result": "Avisos compartidos; ficha conserva contexto, salida limpia selección.",
             "tasks": [
               {
                 "text": "Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:43",
                 "index": 0
               },
               {
                 "text": "Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:43",
                 "index": 1
               },
               {
                 "text": "Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.",
-                "status": "pending",
+                "status": "complete",
                 "bodyId": "19:43",
                 "index": 2
               }
@@ -869,20 +869,20 @@
       "overflow": [],
       "overlap": [],
       "textMismatches": [],
-      "visualQA": "PASS: capturas general y H3 inspeccionadas, sin solapamientos ni recortes; H1–H3 completas, H4–H6 pendientes",
-      "screenshot": "assets/supervisor-horizontal-h3-cerrada-figma-2026-09-23.png",
-      "detailScreenshot": "assets/supervisor-horizontal-h3-detalle-figma-2026-09-23.png",
+      "visualQA": "PASS: capturas general y H4 inspeccionadas, sin solapamientos ni recortes; H1–H4 completas, H5–H6 pendientes",
+      "screenshot": "assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png",
+      "detailScreenshot": "assets/supervisor-horizontal-h4-detalle-figma-2026-09-23.png",
       "taskCountReadback": {
-        "complete": 36,
-        "pending": 36
+        "complete": 48,
+        "pending": 24
       }
     },
-    "detailVersion": 4,
+    "detailVersion": 5,
     "phaseCount": 6,
     "stageCount": 24,
     "taskCount": 72,
-    "completedTaskCount": 36,
-    "pendingTaskCount": 36,
+    "completedTaskCount": 48,
+    "pendingTaskCount": 24,
     "h1": {
       "status": "COMPLETE",
       "completedAt": "2026-09-23",
@@ -1010,15 +1010,48 @@
     },
     "resumeCheckpoint": {
       "date": "2026-09-23",
-      "sessionStatus": "STOPPED_AT_USER_REQUEST",
+      "sessionStatus": "READY_FOR_H5",
       "h4PlanApproval": "USER_APPROVED",
-      "h4Implementation": "NOT_STARTED",
-      "nextStage": "H4.1",
+      "h4Implementation": "COMPLETE",
+      "nextStage": "H5.1",
       "source": "SUPERVISOR-HORIZONTAL-RETOMA.md",
-      "productCheckpoint": "fa23ab5e",
+      "productCheckpoint": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
       "branch": "codex/gestion-diaria-supervisor-horizontal",
       "workingCopy": "/private/tmp/avancecorp-release.hvdub4/repo",
-      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-2026-09-23.bundle"
+      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h4-2026-09-23.bundle"
+    },
+    "h4": {
+      "status": "COMPLETE",
+      "closedAt": "2026-09-23",
+      "productCommit": "186e00f160f2e52ecfa89427a32d3227f30a0e1f",
+      "evidence": "SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md",
+      "jsonEvidence": "SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.json",
+      "review": "SUPERVISOR-HORIZONTAL-H4-REVISION-2026-09-23.md",
+      "reviewVerdict": "CHANGES_REQUESTED",
+      "reviewConfidence": "MEDIUM",
+      "reviewResolution": "Cuatro P2 y tres P3 resueltos por Codex con evidencia; una consulta",
+      "unitPassed": 4272,
+      "unitFiles": 287,
+      "gate": "PASS: mismo gate que npm run check, cobertura con maxWorkers=2 tras ERANGE del entorno",
+      "e2eFull": {
+        "passed": 247,
+        "failed": 0,
+        "skipped": 26,
+        "duration": "9.6m",
+        "retries": 0
+      },
+      "e2eFinal": {
+        "passed": 14,
+        "failed": 0
+      },
+      "backend": "UNCHANGED",
+      "realityGate": "NOT RUN: Falta SUPABASE_URL",
+      "humanScreenReader": "NOT RUN",
+      "publication": "PENDING_H6",
+      "figmaReadback": "evidencias-h4-2026-09-23/figma-readback.json",
+      "visualQA": "PASS",
+      "productVisualQA": "PASS",
+      "documentationChecks": "PASS: conteos, enlaces, JSON y huellas cotejados"
     }
   },
   "uiProgress": {

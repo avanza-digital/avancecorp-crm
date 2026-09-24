@@ -12,7 +12,7 @@ en cada sesión ni prometer sincronización automática en segundo plano.
 
 **Actualizado: 23/09/2026.** Miguel aprobó el prototipo horizontal y pidió un
 plan de desarrollo, mantenido en el mismo archivo de Figma. Esta aprobación
-es visual; H1–H3 ya están cerradas con evidencia. H4–H6 y la publicación siguen pendientes.
+es visual; H1–H4 ya están cerradas con evidencia. H5–H6 y la publicación siguen pendientes.
 El PR #85 ya está fusionado en `avancecorp/main`, commit
 `e0bdfe124c48ab32617c72402e320c7e9963dc3b` (23/09, 21:35 UTC).
 Es el punto de partida documental. H1 se ejecutó sobre Main verificado
@@ -50,8 +50,8 @@ las horas reducidas de la ilustración no modifican el contrato existente.
 Este rediseño se organiza en **6 fases H1–H6, 24 etapas y 72 tareas**.
 Cada etapa se cierra con su entregable y evidencia; una fase se cierra al
 completar sus cuatro etapas y cumplir su criterio de aceptación. Todas las
-etapas H4–H6 siguen pendientes. **H1–H3 están cerradas: 12 etapas y 36 tareas;
-quedan 36 tareas pendientes.** La aprobación del prototipo ya consta.
+etapas H5–H6 siguen pendientes. **H1–H4 están cerradas: 16 etapas y 48 tareas;
+quedan 24 tareas pendientes.** La aprobación del prototipo ya consta.
 Los identificadores H1–H6 pertenecen al rediseño horizontal y conservan
 la numeración y el avance del plan general F0–F6.
 
@@ -203,44 +203,45 @@ Backend instalado sólo en banco local aislado; publicación en H6.
 
 **Dependencia:** H3 conectada para abrir la persona y el registro correctos.
 
-**Plan H4 aprobado por Miguel el 23/09/2026; ejecución pendiente.** La sesión
-queda detenida a petición del usuario para retomarla en unas horas desde H4.1.
-[Punto de retoma guardado](SUPERVISOR-HORIZONTAL-RETOMA.md), con objetivo,
-ubicación, commits y evidencia. La aprobación no completa tareas de H4.
+**Estado: H4 CERRADA, 23/09/2026.** Cuatro etapas y doce tareas verificadas.
+Producto `186e00f1`; gate final 4.272 pruebas y E2E Docker 247/0/26.
+[Evidencia y límites](SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md) ·
+[Revisión y resolución](SUPERVISOR-HORIZONTAL-H4-REVISION-2026-09-23.md) ·
+[Punto de retoma H5.1](SUPERVISOR-HORIZONTAL-RETOMA.md).
 
 #### Etapa H4.1 · Compactar el estado de los cortes
 
-- [ ] Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.
-- [ ] Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.
-- [ ] Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.
+- [x] Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.
+- [x] Leer la política y el día Lima reales; distinguir programado, evaluado, desactivado, no laborable y error.
+- [x] Conservar horarios, objetivos y recuperación actuales; la frase ilustrativa «desactivados hoy» no queda fija.
 
-**Resultado de la etapa:** Estado real de cortes visible en poco espacio.
+**Resultado de la etapa:** Franja de 44 px; estados y cifras del servidor bajo demanda.
 
 #### Etapa H4.2 · Mantener acciones de seguimiento
 
-- [ ] Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.
-- [ ] Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.
-- [ ] Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.
+- [x] Conservar «Lo estoy atendiendo» y «Posponer 1 hora» con las restricciones actuales.
+- [x] Mostrar resultado, espera o fallo de las acciones y la actualización desde el servidor.
+- [x] Verificar que compactar la presentación no reinicia reconocimiento, aplazamiento ni provoca reavisos.
 
-**Resultado de la etapa:** Acciones existentes operativas desde el nuevo diseño.
+**Resultado de la etapa:** Reconocer/aplazar confirmados; espera, error y reintento sin duplicar.
 
 #### Etapa H4.3 · Unir avisos con el panel
 
-- [ ] Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.
-- [ ] Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.
-- [ ] Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.
+- [x] Hacer que un aviso abra Registro → Llamadas del analista correspondiente, incluso si había otro seleccionado.
+- [x] Reutilizar el proveedor de campana y popup; abrir o cerrar paneles no crea otro proveedor.
+- [x] Mantener acceso por lista cuando falle la presentación del popup y respetar las reglas contra duplicados.
 
-**Resultado de la etapa:** Aviso y detalle conectados sin pérdida de contexto.
+**Resultado de la etapa:** Lista, campana y popup abren Registro → Llamadas de la persona.
 
 #### Etapa H4.4 · Integrar otros pendientes y navegación
 
-- [ ] Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.
-- [ ] Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.
-- [ ] Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.
+- [x] Compactar las demás alertas con acceso a su detalle y estados claros cuando no pueden consultarse.
+- [x] Distinguir ficha superpuesta, que conserva contexto, de enlaces a otra vista, que cierran la selección local.
+- [x] Comprobar sincronización entre lista, campana y sesiones según los recorridos y permisos existentes.
 
-**Resultado de la etapa:** Avisos integrados en un recorrido coherente.
+**Resultado de la etapa:** Avisos compartidos; ficha conserva contexto, salida limpia selección.
 
-**Entregable de la fase:** Pantalla completa con cortes y avisos integrados.
+**Entregable de la fase:** Cortes y avisos integrados y verificados en navegador.
 
 **Criterio de cierre:** Todas las acciones anteriores siguen disponibles, muestran el estado real y abren la persona correcta sin duplicados.
 
@@ -386,19 +387,23 @@ fila que no implementa un grid. La meta de densidad no obliga a truncar nombres.
   1.008 tareas en 11 páginas. Reversa, paridad de equipo, tipos y permisos PASS.
   Claude PASS (MEDIUM), observaciones menores resueltas y decisiones documentadas.
   [Evidencia H3 y límites](SUPERVISOR-HORIZONTAL-H3-EVIDENCIA-2026-09-23.md).
+- **Implementación H4: PASS.** 4.272 pruebas, gate final y E2E Docker completo
+  247 aprobadas / 0 fallos / 26 omitidas. Franja de 44 px, seguimiento y apertura
+  del analista correcto. Claude CHANGES_REQUESTED (MEDIUM), hallazgos resueltos.
+  [Evidencia H4 y límites](SUPERVISOR-HORIZONTAL-H4-EVIDENCIA-2026-09-23.md).
 - **Documentación y tablero: PASS.** Se comprobó la composición del bloque
-  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H3 tienen 36 completas y
-  H4–H6 conservan 36 pendientes; el prototipo está incluido.
+  `18:2`, sus seis fases, 24 etapas y 72 tareas: H1–H4 tienen 48 completas y
+  H5–H6 conservan 24 pendientes; el prototipo está incluido.
   Las 76 casillas originales conservaron IDs y texto. Evidencia visual:
-  [captura de H3 cerrada en Figma](assets/supervisor-horizontal-h3-cerrada-figma-2026-09-23.png).
+  [captura de H4 cerrada en Figma](assets/supervisor-horizontal-h4-cerrada-figma-2026-09-23.png).
 
 **Retoma desde el PR #85, 23/09/2026.** El
 [PR #85 de documentación](https://github.com/avanza-digital/avancecorp-crm/pull/85)
 está fusionado en Main `e0bdfe12`. Miguel retomó el trabajo para aprobar el
 prototipo horizontal de supervisión y preparar el plan anterior. Copia de trabajo
 `/private/tmp/avancecorp-release.hvdub4/repo`, ahora en rama
-`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`. H1–H3 cerradas;
-siguiente etapa H4.1. El backend H3 está verificado sólo en el banco local.
+`codex/gestion-diaria-supervisor-horizontal`, base `cf87e808`, checkpoint H2 `e6cc6c5b`, H3 `fa23ab5e` y H4 `186e00f1`. H1–H4 cerradas;
+siguiente etapa H5.1. El backend H3 está verificado sólo en el banco local.
 La validación real de F4 sigue pendiente: analista/supervisor, cortes del 24/09
 (11:30 y 16:00 Lima) y seguimiento del sábado 26/09. Tasa baja OFF hasta F5;
 no volver a instalar SQL ni publicar solo por estas actas. ZIP publicado,

@@ -1,0 +1,19 @@
+npm notice run app@0.0.0 test:run
+npm notice run vitest run src/components/gestion-diaria/avisos-equipo.test.tsx src/lib/alertas-provider.test.tsx src/lib/gestion-diaria-avisos-provider.test.tsx src/screens/gestion-diaria/supervisor.test.tsx
+
+ RUN  v4.1.11 /private/tmp/avancecorp-release.hvdub4/repo/CRM-Avance-Corp/app
+
+(node:41021) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41020) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41019) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41018) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  4 passed (4)
+      Tests  60 passed (60)
+   Start at  23:18:59
+   Duration  1.69s (transform 862ms, setup 433ms, import 1.28s, tests 1.12s, environment 2.13s)
+
