@@ -1,0 +1,231 @@
+{
+  "date": "2026-09-24",
+  "timezone": "America/Lima",
+  "url": "https://crm.miavance.com/#/gestion-diaria",
+  "sourceCommit": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
+  "build": "build-20260924T161347948Z",
+  "humanAcceptance": {
+    "status": "ACCEPTED",
+    "validator": "Miguel, con la cuenta de supervisor abierta",
+    "accountChoice": "Lo valido yo con esta cuenta",
+    "confirmation": "Sí, doy por conforme este recorrido",
+    "scope": "Comparar al equipo, detectar atención y abrir el registro para gestión comercial; H6.4 y recorrido de negocio F4.6",
+    "productAdjustmentsRequired": []
+  },
+  "policy": {
+    "version": 2,
+    "corte_1_hora": "11:30:00",
+    "corte_2_hora": "16:00:00",
+    "corte_2_piso": 8,
+    "corte_2_techo": 30,
+    "sabado_minimo": 3,
+    "vigente_desde": "2026-09-24T05:00:00+00:00",
+    "corte_1_minimo": 3,
+    "cortes_activos": true,
+    "corte_2_incremento_pct": 150,
+    "tasa_baja_diferencia_pp": null,
+    "canal": {
+      "version": 1,
+      "habilitados": true
+    }
+  },
+  "readOnlyDatabaseReconciliation": {
+    "casos": [
+      {
+        "caso": 1,
+        "estado": "cumplido",
+        "utiles": 13,
+        "base_1130": 13,
+        "contestadas": 4,
+        "llamadas_hoy": 14,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 2,
+        "estado": "bajo_minimo",
+        "utiles": 2,
+        "base_1130": 0,
+        "contestadas": 2,
+        "llamadas_hoy": 2,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 3,
+        "estado": "recuperado",
+        "utiles": 3,
+        "base_1130": 1,
+        "contestadas": 0,
+        "llamadas_hoy": 3,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 4,
+        "estado": "bajo_minimo",
+        "utiles": 0,
+        "base_1130": 0,
+        "contestadas": 0,
+        "llamadas_hoy": 0,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 5,
+        "estado": "cumplido",
+        "utiles": 5,
+        "base_1130": 5,
+        "contestadas": 3,
+        "llamadas_hoy": 5,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 6,
+        "estado": "bajo_minimo",
+        "utiles": 0,
+        "base_1130": 0,
+        "contestadas": 0,
+        "llamadas_hoy": 0,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 7,
+        "estado": "bajo_minimo",
+        "utiles": 0,
+        "base_1130": 0,
+        "contestadas": 0,
+        "llamadas_hoy": 0,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 8,
+        "estado": "cumplido",
+        "utiles": 14,
+        "base_1130": 12,
+        "contestadas": 4,
+        "llamadas_hoy": 14,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 9,
+        "estado": "bajo_minimo",
+        "utiles": 0,
+        "base_1130": 0,
+        "contestadas": 0,
+        "llamadas_hoy": 0,
+        "cartera_abierta": true
+      },
+      {
+        "caso": 10,
+        "estado": "cumplido",
+        "utiles": 5,
+        "base_1130": 4,
+        "contestadas": 2,
+        "llamadas_hoy": 5,
+        "cartera_abierta": true
+      }
+    ],
+    "analistas": 10,
+    "hora_lima": "2026-09-24T12:30:33.111202",
+    "bajo_minimo": 5,
+    "recuperados": 1,
+    "sin_cartera": 0,
+    "con_llamadas": 6,
+    "sin_llamadas": 4,
+    "llamadas_totales": 43,
+    "cumplidos_al_corte": 4,
+    "method": "SELECT directo de actividades existentes y roster actual, en transacción READ ONLY; sin suplantar identidad ni ejecutar RPC de negocio"
+  },
+  "ui": {
+    "status": "PASS",
+    "team": {
+      "analysts": 10,
+      "withCalls": 6,
+      "withoutCalls": 4,
+      "withPendingTasks": 10,
+      "needingAttention": 10
+    },
+    "firstCut": {
+      "complied": 4,
+      "recovered": 1,
+      "pending": 5,
+      "noOpenPortfolio": 0
+    },
+    "recoveryCase": {
+      "label": "Caso 3 anonimizado",
+      "callsAtCut": 1,
+      "callsNow": 3,
+      "callTimesLima": [
+        "11:25",
+        "11:40",
+        "12:10"
+      ],
+      "result": "No contestó",
+      "cutAlertRemoved": true,
+      "pendingTasks": 104,
+      "overdueTasks": 46,
+      "overduePagination": [
+        25,
+        46
+      ]
+    },
+    "bellBefore": 5,
+    "bellAfterPostponement": 4,
+    "otherPendingGroups": 4,
+    "cutGroupRemainsVisible": true
+  },
+  "postponement": {
+    "authorization": "Posponer 1 hora y comprobarlo",
+    "acciones": [
+      {
+        "accion": "posponer",
+        "miembros": 5,
+        "secuencia": 3,
+        "hasta_lima": "2026-09-24T13:34:21.131818",
+        "creado_lima": "2026-09-24T12:34:21.131818",
+        "tiene_solicitud": true,
+        "duracion_segundos": 3600
+      }
+    ],
+    "entregas": [
+      {
+        "entrega": 0,
+        "cantidad": 1,
+        "primera_lima": "2026-09-24T11:50:16.982069"
+      }
+    ],
+    "consultado_lima": "2026-09-24T12:34:44.283053",
+    "uiText": "Pospuesto hasta las 13:34; el pendiente sigue visible.",
+    "browserReload": "PASS",
+    "newTabSameBrowser": "PASS",
+    "secondPostponeButtonAbsent": true,
+    "independentAuthSessionOrDevice": "NOT RUN",
+    "recognition": "NOT RUN: no autorizado en este recorrido; se eligió posponer",
+    "finalReadback": {"entregas":1,"hasta_lima":"2026-09-24T13:34:21.131818","aplazamientos":1,"consultado_lima":"2026-09-24T12:50:10.978343","reconocimientos":0}
+  },
+  "incidents": [],
+  "pending": [
+    {
+      "check": "Reaviso tras vencer el aplazamiento si siguen pendientes",
+      "atLima": "2026-09-24T13:34:21.131818",
+      "status": "PENDING_TIME"
+    },
+    {
+      "check": "Reconocimiento y persistencia en otra sesión o dispositivo",
+      "status": "PENDING"
+    },
+    {
+      "check": "Segundo corte real y ausencia de reaviso al cierre",
+      "atLima": "2026-09-24T16:00:00",
+      "status": "PENDING_TIME"
+    },
+    {
+      "check": "Corte único del sábado; mínimo 3, cierre 13:00",
+      "atLima": "2026-09-26T11:30:00",
+      "status": "PENDING_TIME"
+    }
+  ],
+  "limits": [
+    "No se inventó actividad ni se cambiaron relojes, identidades, políticas o permisos.",
+    "La nueva pestaña usa la misma sesión; no acredita otro dispositivo.",
+    "No hubo cambios de producto ni una nueva publicación.",
+    "La validación humana de analista, Safari/lectores y gate:realidad conservan sus límites anteriores."
+  ]
+}

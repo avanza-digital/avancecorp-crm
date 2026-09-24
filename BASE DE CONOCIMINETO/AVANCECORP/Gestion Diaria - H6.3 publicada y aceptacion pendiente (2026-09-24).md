@@ -1,5 +1,9 @@
 # Gestión Diaria — H6.3 publicada; aceptación pendiente
 
+> Actualización posterior: [[Gestion Diaria - recorrido de supervision conforme (2026-09-24)]].
+> Miguel aceptó H6.4; 72/72 tareas. Esta nota conserva el historial de H6.3;
+> el seguimiento operativo de F4 sigue abierto.
+
 **SQL y frontend publicados y verificados el 24/09/2026. 70/72 tareas completas.**
 
 [CRM](https://crm.miavance.com/#/gestion-diaria): tabla horizontal, panel lateral
