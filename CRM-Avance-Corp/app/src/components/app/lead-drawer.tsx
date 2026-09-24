@@ -1,6 +1,8 @@
 import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 import { InversionDesdeLead } from './inversion-desde-lead'
 import { InversionDesdeLeadDemo } from './inversion-desde-lead-demo'
+import { VentaCruzada } from './venta-cruzada'
+import { buscarClienteExistente, type BusquedaCliente } from '@/data/cliente-existente-api'
 import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
@@ -196,6 +198,10 @@ function Ficha({ l }: { l: Lead }) {
     escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista) || operaEquipo)
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
+  // Reabrir el descarte de alguien que ya es cliente no reabre nada: se muestra quién es y se
+  // ofrece su venta cruzada. Vive aquí y no en el banner: el reabrir optimista pasa el lead a
+  // «Nuevo» (y desmonta el banner) antes de que el servidor responda.
+  const [clienteDelLead, setClienteDelLead] = useState<BusquedaCliente | null>(null)
   const [condicionesLead, setCondicionesLead] = useState<EstadoCondicionesLead | null>(null)
   const bloqueoTasa = condicionesLead?.bloqueo ?? (condicionesLead ? null : 'Verifica las condiciones de inversión antes de convertir.')
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
@@ -280,7 +286,7 @@ function Ficha({ l }: { l: Lead }) {
       </SheetHeader>
 
       <SheetBody className="space-y-5">
-        <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}</div>
+        <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} />}</div>
         {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
@@ -334,6 +340,17 @@ function Ficha({ l }: { l: Lead }) {
       </SheetFooter>}
       {dialogo === 'convertir' && <DialogConvertir l={l} condicionesTasa={condicionesLead?.condiciones} bloqueoTasa={bloqueoTasa} onClose={() => setDialogo(null)} />}
       {dialogo === 'descartar' && <DialogDescartar l={l} onClose={() => setDialogo(null)} />}
+      {clienteDelLead && yo && (
+        <VentaCruzada
+          actor={yo.id}
+          resultadoInicial={clienteDelLead}
+          documentoSugerido={l.dni ? { tipo: 'DNI', numero: l.dni } : undefined}
+          puedeRegistrar={!yo.demo && (yo.rol === 'vendedor' || yo.rol === 'supervisor')}
+          // El botón «Reabrir» ya no existe cuando llega la respuesta: el foco vuelve a la etapa.
+          focoAlCerrar={refEtapa}
+          onCerrar={() => setClienteDelLead(null)}
+        />
+      )}
     </>
   )
 }
@@ -398,7 +415,11 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
 
 // ── Banner de estado terminal ─────────────────────────────────────────────────
 
-function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
+function BannerTerminal({ l, escribe, onClienteDelLead }: {
+  l: Lead; escribe: boolean
+  /** «Ya es cliente»: la ficha muestra la tarjeta (el banner puede estar desmontado). */
+  onClienteDelLead: (busqueda: BusquedaCliente) => void
+}) {
   const { reabrir, cierresEstado } = useCRMData()
   const { yo } = useAuth()
   const demo = Boolean(yo?.demo)
@@ -425,7 +446,30 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
       if (res.error) toast.error(res.error)
       return
     }
-    toast.success(`Lead reabierto${yo?.demo ? ' (demo)' : ''} — vuelve a Nuevo`)
+    const exito = `Lead reabierto${yo?.demo ? ' (demo)' : ''} — vuelve a Nuevo`
+    if (!res.persistido) {
+      toast.success(exito)
+      return
+    }
+    // El aviso espera al servidor: un «reabierto» que luego se deshace confunde.
+    void res.persistido.then(async (r) => {
+      if (r.ok) {
+        toast.success(exito)
+        return
+      }
+      if (r.codigo === 'P0409' && r.error?.includes('ya es cliente')) {
+        try {
+          const b = await buscarClienteExistente({ tipo: 'lead', leadId: l.id })
+          if (b.estado === 'encontrado' || b.estado === 'no_operable') {
+            onClienteDelLead(b)
+            return
+          }
+        } catch {
+          /* Sin la tarjeta queda el mensaje del servidor. */
+        }
+      }
+      toast.error(r.error ?? 'No se pudo reabrir el lead')
+    })
   }
 
   const cerrarAnulacion = () => {

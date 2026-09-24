@@ -1,0 +1,80 @@
+[
+ {
+  "nombre": "P1: el PDF nuevo solo pregunta a la lectura (D2)",
+  "firma": "private.crear_job_contrato_pdf_base(uuid,uuid)",
+  "desde": "if not private.puede_crear_contrato_pdf_como(p_contrato_id, p_actor_id) then",
+  "hacia": "if not private.puede_leer_contrato_pdf_como(p_contrato_id, p_actor_id) then"
+ },
+ {
+  "nombre": "la compuerta ignora la confirmación en curso",
+  "firma": "private.puede_crear_contrato_pdf_como(uuid,uuid)",
+  "desde": "            or private.venta_cruzada_confirma_contrato(c.id)));",
+  "hacia": "            or false));"
+ },
+ {
+  "nombre": "D2 sin cliente activo",
+  "firma": "private.puede_leer_contrato_pdf(uuid)",
+  "desde": "where cli.id = c.cliente_id and cli.rol = 'cliente' and cli.activo)))",
+  "hacia": "where cli.id = c.cliente_id)))"
+ },
+ {
+  "nombre": "D2 desaparece (quien cerró no lee)",
+  "firma": "private.puede_leer_contrato_pdf(uuid)",
+  "desde": "and c.analista_cierre_id in (select private.vendedor_ids_visibles((select auth.uid())))",
+  "hacia": "and false"
+ },
+ {
+  "nombre": "la venta cruzada vuelve a pedir revisar el responsable",
+  "firma": "private.inversion_solicitud_resultado(uuid,jsonb)",
+  "desde": "      and (s.puerta<>'cliente_existente' or (e.requiere_portal and p_contexto->>'perfil_id' is null)),",
+  "hacia": ","
+ },
+ {
+  "nombre": "confirmar no publica la venta cruzada en curso",
+  "firma": "crm.confirmar_inversion_revisada_fn(uuid,integer)",
+  "desde": "perform pg_catalog.set_config('crm.venta_cruzada_solicitud',case when v_s.puerta='cliente_existente' then v_s.id::text else '' end,true);",
+  "hacia": "perform pg_catalog.set_config('crm.venta_cruzada_solicitud','',true);"
+ },
+ {
+  "nombre": "el alta Avance no exige la compuerta (régimen «anterior»)",
+  "firma": "crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)",
+  "desde": "  if not private.puede_crear_contrato_pdf_como(v_contrato_id, v_actor_id) then\n    raise insufficient_privilege using\n      message = 'Cliente no encontrado o fuera de tu cartera';\n  end if;\n",
+  "hacia": ""
+ },
+ {
+  "nombre": "la cuenta nueva pisa un CCI activo del cliente",
+  "firma": "private.inversion_validar_datos(uuid,jsonb,jsonb)",
+  "desde": "      if p_datos#>>'{cuenta,tipo}'='nueva' and exists (select 1 from crm.cuentas_bancarias cb",
+  "hacia": "      if false and exists (select 1 from crm.cuentas_bancarias cb"
+ },
+ {
+  "nombre": "el responsable opera la venta de B",
+  "firma": "private.venta_cruzada_opera(uuid)",
+  "desde": "  select not exists (select 1 from crm.inversion_solicitudes s where s.id = p_solicitud and s.puerta = 'cliente_existente')",
+  "hacia": "  select true"
+ },
+ {
+  "nombre": "confirmar sin la regla de operador",
+  "firma": "crm.confirmar_inversion_revisada_fn(uuid,integer)",
+  "desde": "\n  perform private.venta_cruzada_exigir_operador(p_solicitud);",
+  "hacia": ""
+ },
+ {
+  "nombre": "el alta de Portal sin la llave",
+  "firma": "crm.acceso_inversion_fn(uuid,text,jsonb)",
+  "desde": "v_ctx:=private.inversion_persona_autorizada_para(v_persona,p_solicitud,null::uuid);",
+  "hacia": "v_ctx:=private.inversion_persona_autorizada(v_persona);"
+ },
+ {
+  "nombre": "revisar sin la llave",
+  "firma": "crm.revisar_solicitud_inversion_fn(uuid,uuid,integer,text)",
+  "desde": ",p_solicitud,null::uuid);\n  perform private.venta_cruzada_exigir_operador(p_solicitud);",
+  "hacia": ");"
+ },
+ {
+  "nombre": "el responsable sube el comprobante de B",
+  "firma": "private.f4_comprobante_autorizado(text)",
+  "desde": "\n    and private.venta_cruzada_opera(v_solicitud)",
+  "hacia": ""
+ }
+]

@@ -16,7 +16,10 @@ const sesion = vi.hoisted(() => ({rolPortal: 'directorio', rol:'gerencia', demo:
 vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: sesion.rol, rol_portal: sesion.rolPortal, demo: sesion.demo, puede_contratar:sesion.puedeContratar}})}))
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
-  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn()}))
+  corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn(),
+  buscarCliente:vi.fn()}))
+vi.mock('@/data/cliente-existente-api', () => ({buscarClienteExistente:api.buscarCliente, obtenerContextoClienteExistente:vi.fn(),
+  cuentasClienteExistente:vi.fn(), datosLegalesClienteExistente:vi.fn(), contratosUpgradeClienteExistente:vi.fn()}))
 vi.mock('@/lib/contrato-pdf-archivo', async (original) => ({...await original<typeof import('@/lib/contrato-pdf-archivo')>(), eliminarContratoConPdf:api.eliminar}))
 vi.mock('@/data/inversionistas-api', () => ({listarInversionistas:api.lista, obtenerFichaInversionista:api.ficha,
   obtenerCuentasInversionista:api.bancos, descargarDocumentoInversionista:api.documento}))
@@ -668,5 +671,37 @@ describe('Upgrade: el contrato aparte se ofrece junto a la nueva inversión', ()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
     expect(screen.queryByRole('button',{name:/Registrar upgrade/})).not.toBeInTheDocument()
+  })
+})
+
+describe('Venta cruzada desde la Cartera', () => {
+  it('ofrece buscar a un cliente de otra cartera', async () => {
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    api.buscarCliente.mockResolvedValue({estado:'no_encontrado',busqueda_id:FUENTE_F5,criterio:'documento'})
+    await user.click(screen.getByRole('button',{name:'Cliente de otra cartera'}))
+    expect(screen.getByRole('dialog',{name:'Cliente de otra cartera'})).toBeInTheDocument()
+  })
+
+  it('un documento se busca en todos los meses, y si no está en la cartera se ofrece buscarlo en otras', async () => {
+    api.lista.mockImplementation(async (f:{texto:string}) => f.texto
+      ? {...structuredClone(carteraF5),total:0,filas:[],totales:[],sin_inversiones_total:0} : structuredClone(carteraF5))
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    expect(api.lista.mock.calls[0]![0].mes).toMatch(/^\d{4}-\d{2}$/)
+    await user.type(screen.getByLabelText('Buscar persona'),'70000021')
+    await waitFor(() => expect(api.lista.mock.calls.at(-1)![0]).toMatchObject({texto:'70000021',mes:''}))
+    expect(screen.getByText('Buscas un documento, un teléfono o un número de contrato: se muestran todos los meses.')).toBeInTheDocument()
+    api.buscarCliente.mockResolvedValue({estado:'no_encontrado',busqueda_id:FUENTE_F5,criterio:'documento'})
+    await user.click(await screen.findByRole('button',{name:'Buscar en otras carteras'}))
+    await waitFor(() => expect(api.buscarCliente).toHaveBeenCalledWith({tipo:'documento',tipoDocumento:'DNI',numero:'70000021'}))
+  })
+
+  it('un nombre sigue filtrando por el mes elegido', async () => {
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    const mes=api.lista.mock.calls[0]![0].mes
+    await user.type(screen.getByLabelText('Buscar persona'),'Ana')
+    await waitFor(() => expect(api.lista.mock.calls.at(-1)![0]).toMatchObject({texto:'Ana',mes}))
   })
 })

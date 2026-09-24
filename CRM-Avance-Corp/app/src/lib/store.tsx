@@ -481,7 +481,9 @@ export interface StoreDataApi {
    *  están: si el demo tuviera forma propia, cada pantalla tendría dos caminos y
    *  uno de los dos envejecería sin que nadie lo notara. */
   cierresEstado: CierreEstado[]
-  reabrir(id: string): ResultadoMut
+  /** `persistido`: la respuesta del servidor (sesión real). Quien reabre avisa del éxito
+   *  solo al confirmarse, y ante «ya es cliente» ofrece la venta cruzada en vez de reabrir. */
+  reabrir(id: string): ResultadoMut & { persistido?: Promise<ResultadoPersistencia> }
   /** `avance` = etapa a la que subió SOLO el lead por este contacto (ver
    *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
    *  cambio de etapa silencioso asusta más que ayuda. */
@@ -2972,8 +2974,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // F2.b [D-15]: por su puerta SQL, no por UPDATE. Apagada la identidad es el
         // mismo UPDATE; encendida, el servidor juzga a la persona y enlaza el lead
         // (y el UPDATE directo está cerrado por D-13).
-        persistir(() => reabrirLead(id), { invalidarConversionRango: true })
-        return { ok: true }
+        // El aviso (éxito o rechazo) lo da quien reabre, con la respuesta del servidor.
+        const persistido = persistirConDetalle(() => reabrirLead(id), { invalidarConversionRango: true, notificarError: false })
+        return { ok: true, persistido }
       },
 
       registrarActividad: (id, tipo, detalle, siguiente) => {

@@ -14529,6 +14529,158 @@ async function testCierreDeMes(sessions, seed) {
 
 let verifiedSeed = null;
 
+// ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
+// Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
+// rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
+// positivos se prueban sin escribir (con dos criterios la puerta ya pasó rol y compuertas y
+// muere en el argumento). La PROPIEDAD de la llave (la búsqueda de B no le sirve a C) y el
+// negocio de punta a punta los prueban supabase/scripts/venta-cruzada/test-fase2.sql y
+// test-fase4.sql, que sí escriben, en una transacción que se deshace, sobre el mundo sintético.
+async function testVentaCruzada(sessions, seed) {
+  console.log('\n— Venta cruzada: puertas del cliente existente (catálogo y rechazos, sin escribir) —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`venta cruzada: ${etiqueta}`, sql);
+  if (cuenta('aplicada', `select (to_regprocedure('crm.buscar_cliente_existente_fn(text,text,text,uuid)') is not null)::int`) !== 1) {
+    console.log('  (saltado: la venta cruzada (20260924045245) no está en esta base)');
+    return;
+  }
+  const lista = (arr) => `'${arr.join("','")}'`;
+  const PUERTAS = ['crm.buscar_cliente_existente_fn(text,text,text,uuid)', 'crm.contexto_cliente_existente_fn(uuid,uuid)',
+    'crm.preparar_inversion_cliente_existente_fn(uuid,uuid,jsonb,text)', 'crm.cuentas_cliente_existente_fn(uuid,uuid,text)',
+    'crm.datos_legales_cliente_existente_fn(uuid,uuid)', 'crm.contratos_upgrade_cliente_existente_fn(uuid,uuid)'];
+  const NUCLEOS = ['private.inversion_preparar_nucleo(uuid,jsonb,text,uuid,text)', 'private.datos_legales_contrato_nucleo(uuid)',
+    'private.inversionista_es_cliente(uuid)', 'private.busquedas_cliente_ultima_hora(uuid)', 'private.venta_cruzada_motivo(text)',
+    'private.venta_cruzada_lectura(uuid,uuid,boolean)', 'private.venta_cruzada_confirma_contrato(uuid)',
+    'private.venta_cruzada_opera(uuid)', 'private.venta_cruzada_exigir_operador(uuid)', 'private.puede_crear_contrato_pdf_como(uuid,uuid)',
+    'private.busqueda_cliente_es_llave(uuid,uuid,uuid)', 'private.busqueda_cliente_inmutable()', 'private.inversion_venta_cruzada_llave()',
+    'private.inversion_atribucion_inmutable()', 'private.inversion_analista_por_llave(uuid,uuid,uuid,uuid)',
+    'private.inversion_persona_autorizada_para(uuid,uuid,uuid)', 'private.inversion_persona_lectura_para(uuid,uuid,uuid)',
+    'private.inversion_persona_contexto_para(uuid,uuid,uuid,uuid)', 'private.inversion_contexto_lectura_para(uuid,uuid,uuid,uuid)'];
+  const ejecutables = (firmas, roles) => cuenta('EXECUTE residual',
+    `select count(*) from unnest(array[${lista(firmas)}]) f(firma), unnest(array[${lista(roles)}]) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`);
+  const publicas = (firmas) => cuenta('PUBLIC residual',
+    `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${firmas.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`);
+
+  // ── Catálogo ──
+  check(cuenta('puertas solo authenticated', `select count(*) from unnest(array[${lista(PUERTAS)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE')`) === PUERTAS.length
+    && ejecutables(PUERTAS, ['anon', 'service_role']) === 0 && publicas(PUERTAS) === 0,
+    'venta cruzada: las 6 puertas se ejecutan solo como authenticated (ni anon, ni service_role, ni PUBLIC)');
+  check(ejecutables(NUCLEOS, ['anon', 'authenticated', 'service_role']) === 0 && publicas(NUCLEOS) === 0,
+    `venta cruzada: los ${NUCLEOS.length} núcleos y ayudantes privados sin EXECUTE para nadie de la API`);
+  check(cuenta('bitácora con RLS', `select relrowsecurity::int from pg_class where oid = 'crm.busquedas_cliente_existente'::regclass`) === 1
+    && cuenta('bitácora sin policies', `select count(*) from pg_policies where schemaname = 'crm' and tablename = 'busquedas_cliente_existente'`) === 0
+    && cuenta('bitácora sin grants', `select count(*) from information_schema.role_table_grants where table_schema = 'crm' and table_name = 'busquedas_cliente_existente' and grantee in ('PUBLIC','anon','authenticated','service_role')`) === 0,
+    'venta cruzada: la bitácora de búsquedas con RLS, sin policies y sin grants (nadie la lee directo)');
+  // Inmutable de verdad: los TRES disparadores exactos (evento, función y argumento), habilitados
+  // para sesiones normales ('O'; uno en REPLICA o ALWAYS ya no es el diseño) y, además, probados:
+  // UPDATE y DELETE rechazados dentro de una subtransacción que se deshace.
+  const disparadores = textoFueraDeBanda('venta cruzada: disparadores de la bitácora',
+    `select string_agg(pg_get_triggerdef(oid) || ' [' || tgenabled::text || ']', ' | ' order by tgname) from pg_trigger
+      where tgrelid = 'crm.busquedas_cliente_existente'::regclass and not tgisinternal`);
+  const DISPARADORES = [
+    'CREATE TRIGGER busqueda_cliente_inmutable BEFORE DELETE OR UPDATE ON crm.busquedas_cliente_existente FOR EACH ROW EXECUTE FUNCTION private.busqueda_cliente_inmutable() [O]',
+    'CREATE TRIGGER busqueda_cliente_no_truncate BEFORE TRUNCATE ON crm.busquedas_cliente_existente FOR EACH STATEMENT EXECUTE FUNCTION private.busqueda_cliente_inmutable() [O]',
+    "CREATE TRIGGER trg_audit_busquedas_cliente_existente AFTER INSERT OR DELETE OR UPDATE ON crm.busquedas_cliente_existente FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos('valor_consultado') [O]",
+  ].join(' | ');
+  check(disparadores === DISPARADORES, 'venta cruzada: la bitácora conserva sus 3 disparadores exactos, activos para sesiones normales',
+    disparadores ?? '(ninguno)');
+  let bloqueos = -1;
+  try {
+    bloqueos = cuenta('bitácora inmutable (prueba)', `
+      create function pg_temp.vc_bitacora_inmutable() returns int language plpgsql as $f$
+      declare v uuid; n int := 0;
+      begin
+        begin
+          insert into crm.busquedas_cliente_existente (consultado_por, criterio, tipo_documento, valor_consultado, veredicto)
+          values ((select id from public.perfiles order by id limit 1), 'documento', 'DNI', '00000000', 'no_encontrado') returning id into v;
+          begin update crm.busquedas_cliente_existente set veredicto = 'invalido' where id = v;
+          exception when sqlstate 'P0409' then if sqlerrm like '%no se modifica%' then n := n + 1; end if; end;
+          begin delete from crm.busquedas_cliente_existente where id = v;
+          exception when sqlstate 'P0409' then if sqlerrm like '%no se modifica%' then n := n + 1; end if; end;
+          raise exception 'deshacer la fila de prueba' using errcode = 'P0001';
+        exception when sqlstate 'P0001' then return n;
+        end;
+      end $f$;
+      select pg_temp.vc_bitacora_inmutable();`);
+  } catch (error) {
+    fail(`venta cruzada: la prueba de inmutabilidad no corrió — ${error?.message ?? String(error)}`);
+  }
+  if (bloqueos >= 0) check(bloqueos === 2, 'venta cruzada: UPDATE y DELETE sobre la bitácora se rechazan (probado y deshecho)', `bloqueados: ${bloqueos} de 2`);
+
+  // ── Rechazos por la API ──
+  const Z = '00000000-0000-4000-8000-0000000000c1';
+  const ARGS = {
+    buscar_cliente_existente_fn: { p_tipo_documento: 'DNI', p_documento: '79999999', p_telefono: '987000099' },
+    contexto_cliente_existente_fn: { p_busqueda: Z },
+    preparar_inversion_cliente_existente_fn: { p_clave: Z, p_busqueda: Z, p_datos: {}, p_motivo: 'suite de RLS de venta cruzada' },
+    cuentas_cliente_existente_fn: { p_busqueda: Z, p_moneda: 'PEN' },
+    datos_legales_cliente_existente_fn: { p_busqueda: Z },
+    contratos_upgrade_cliente_existente_fn: { p_busqueda: Z },
+  };
+  const llamar = (cliente, fn, args = ARGS[fn]) => cliente.schema('crm').rpc(fn, args);
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-venta-cruzada'));
+  for (const fn of Object.keys(ARGS)) {
+    await expectExpectedFailure(`venta cruzada anon ${fn} → 42501 (sin EXECUTE)`, llamar(anon, fn), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure(`venta cruzada service_role ${fn} → 42501 (sin EXECUTE)`, llamar(admin, fn), ['42501'], /permission denied|denegado/i);
+  }
+  for (const [clave, cliente] of [['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['anon', anon]]) {
+    await expectExpectedFailure(`venta cruzada ${clave} no lee la bitácora de búsquedas (sin grants)`,
+      cliente.schema('crm').from('busquedas_cliente_existente').select('id').limit(1), ['42501'], /permission denied|denegado/i);
+  }
+
+  // Las compuertas multiempresa se fijan ENCENDIDAS (como en producción) y se reponen, cada
+  // una por su lado: si reponer una falla, la otra se repone igual y el fallo se informa.
+  const leerBandera = (nombre) => textoFueraDeBanda(`bandera ${nombre} (venta cruzada)`,
+    `select activo::text from crm.multiempresa_flags where nombre = '${nombre}'`);
+  const fijarBandera = (nombre, valor) => ejecutarFueraDeBanda(`bandera ${nombre} (venta cruzada)`,
+    `update crm.multiempresa_flags set activo = ${valor ? 'true' : 'false'}, actualizado_en = now() where nombre = '${nombre}';`);
+  const previas = { resolver_en_puertas: leerBandera('resolver_en_puertas'), inversiones_escritura: leerBandera('inversiones_escritura') };
+  try {
+    fijarBandera('resolver_en_puertas', true);
+    fijarBandera('inversiones_escritura', true);
+    // Quien vende y Gerencia pasan rol y compuertas: mueren en el argumento, sin escribir nada.
+    for (const clave of ['vend1', 'sup1', 'gerencia']) {
+      await expectExpectedFailure(`venta cruzada ${clave} busca con dos criterios → 22023 (pasó rol y compuertas)`,
+        llamar(sessions[clave].client, 'buscar_cliente_existente_fn'), ['22023'], /uno solo/i);
+    }
+    for (const clave of ['coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+      await expectExpectedFailure(`venta cruzada ${clave} no busca clientes → 42501`,
+        llamar(sessions[clave].client, 'buscar_cliente_existente_fn'), ['42501'], /No autorizado|permission denied|denegado/i);
+    }
+    // Buscar «desde un lead» exige un lead del propio ámbito: el de otra cartera no sirve de criterio.
+    const ana = seed.leadByName.get(LEAD_BY_KEY.ana.name);
+    const juan = seed.leadByName.get(LEAD_BY_KEY.juan.name);
+    for (const [clave, lead, nombre] of [['vend1', ana, 'ana'], ['vend3', juan, 'juan']]) {
+      await expectExpectedFailure(`venta cruzada ${clave} no busca desde el lead de ${nombre} (fuera de su ámbito) → 42501`,
+        llamar(sessions[clave].client, 'buscar_cliente_existente_fn', { p_lead: lead.id }), ['42501'], /fuera de tu ámbito/i);
+    }
+    await expectExpectedFailure('venta cruzada gerencia no registra la venta (D1: vendedor o supervisor) → 42501',
+      llamar(sessions.gerencia.client, 'preparar_inversion_cliente_existente_fn'), ['42501'], /vendedor o un supervisor/i);
+    await expectExpectedFailure('venta cruzada vend1 sin búsqueda → 22023',
+      llamar(sessions.vend1.client, 'preparar_inversion_cliente_existente_fn', { ...ARGS.preparar_inversion_cliente_existente_fn, p_busqueda: null }),
+      ['22023'], /Falta la clave/i);
+    await expectExpectedFailure('venta cruzada vend1 con una búsqueda INEXISTENTE → P0409',
+      llamar(sessions.vend1.client, 'preparar_inversion_cliente_existente_fn'), ['P0409'], /Vuelve a buscar/i);
+    for (const fn of ['contexto_cliente_existente_fn', 'cuentas_cliente_existente_fn', 'datos_legales_cliente_existente_fn', 'contratos_upgrade_cliente_existente_fn']) {
+      // Inexistente: el mismo 42501 que una llave ajena (la ajena la prueban los .sql de arriba).
+      await expectExpectedFailure(`venta cruzada vend1 ${fn} con una llave INEXISTENTE → 42501`,
+        llamar(sessions.vend1.client, fn), ['42501'], /fuera de tu ámbito/i);
+      await expectExpectedFailure(`venta cruzada vend1 ${fn} con las dos llaves → 22023`,
+        llamar(sessions.vend1.client, fn, { ...ARGS[fn], p_solicitud: Z }), ['22023'], /búsqueda o la solicitud/i);
+    }
+  } finally {
+    for (const [nombre, valor] of Object.entries(previas)) {
+      if (valor !== 'true' && valor !== 'false') continue;
+      try {
+        fijarBandera(nombre, valor === 'true');
+      } catch (error) {
+        fail(`venta cruzada: no se pudo reponer la bandera ${nombre} — ${error?.message ?? String(error)}`);
+      }
+    }
+  }
+  check(cuenta('sin rastro', `select count(*) from crm.busquedas_cliente_existente`) === 0,
+    'venta cruzada: la matriz no dejó ninguna búsqueda en la bitácora');
+}
+
 async function main() {
   let primaryError = null;
   const recoveryErrors = [];
@@ -14650,6 +14802,7 @@ async function main() {
       await testGestionDiariaCortes(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
+      await testVentaCruzada(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

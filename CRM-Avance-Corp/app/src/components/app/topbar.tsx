@@ -37,6 +37,9 @@ import { CampanaRespuestasTasa } from './respuestas-tasa'
 import { normalizarTelefono } from '@/lib/validacion'
 import { useBusquedaGlobal } from '@/data/crm-queries'
 import { MIN_DIGITOS_BUSQUEDA, MIN_TEXTO_BUSQUEDA, textoBuscable } from '@/lib/cartera-keyset'
+import { criterioDesdeTexto } from '@/lib/venta-cruzada'
+import type { CriterioBusqueda } from '@/data/cliente-existente-api'
+import { VentaCruzada } from './venta-cruzada'
 
 /** ¿Lo tecleado parece un TELÉFONO? (dígitos y separadores, ≥6 dígitos).
  *  Habilita el atajo «Verificar disponibilidad» del vacío del buscador. */
@@ -161,6 +164,8 @@ export function Topbar({
   const qDiferida = useDeferredValue(q)
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(0)
+  // Venta cruzada: un documento o teléfono sin leads propios puede ser un cliente de otra cartera.
+  const [clienteOtraCartera, setClienteOtraCartera] = useState<CriterioBusqueda | null>(null)
 
   // Fase 4a «sin topes»: en sesión real la búsqueda la responde el SERVIDOR
   // (`cartera_pagina_fn` por texto, bajo RLS) y no la foto inicial de leads;
@@ -193,6 +198,8 @@ export function Topbar({
   // El error solo se muestra cuando NO se está reintentando: así el reintento
   // enseña «Buscando…» y un segundo fallo vuelve a anunciarse (revisor a11y).
   const errorBusqueda = sesionReal && !busqueda.isFetching && busqueda.error instanceof Error ? busqueda.error : null
+  // Venta cruzada: un documento o teléfono sin leads propios puede ser un cliente de otra cartera.
+  const criterioOtraCartera = yo && !yo.demo && puedeEscribir(yo.rol) ? criterioDesdeTexto(q) : undefined
   // Región viva PERSISTENTE (existe desde el montaje): los lectores de pantalla
   // anuncian con fiabilidad lo que CAMBIA en una región que ya existía, no un
   // nodo que nace con texto. El error va aparte, en su propio role="alert".
@@ -203,7 +210,7 @@ export function Topbar({
       : buscando && resultados.length === 0
         ? 'Buscando en tus leads…'
         : resultados.length === 0
-          ? 'Sin resultados en tus leads.'
+          ? `Sin resultados en tus leads.${criterioOtraCartera ? ' Pulsa Enter para buscarlo entre los clientes de otras carteras.' : ''}`
           : `${resultados.length} ${resultados.length === 1 ? 'resultado' : 'resultados'}. Usa las flechas para recorrerlos.`
   // Índice resaltado, siempre dentro de rango aunque cambien los resultados.
   const iActivo = resultados.length > 0 ? Math.min(activo, resultados.length - 1) : 0
@@ -252,6 +259,14 @@ export function Topbar({
     if (e.key === 'Enter' && abierto && errorBusqueda) {
       e.preventDefault()
       void busqueda.refetch()
+      return
+    }
+    // Sin resultados propios, Enter busca el documento o el teléfono en las otras carteras:
+    // el botón del vacío es solo-ratón (tabIndex -1, como «Reintentar»).
+    if (e.key === 'Enter' && abierto && !buscando && !bajoMinimo && resultados.length === 0 && criterioOtraCartera) {
+      e.preventDefault()
+      setClienteOtraCartera(criterioOtraCartera)
+      setAbierto(false)
       return
     }
     if (resultados.length === 0) return
@@ -356,6 +371,20 @@ export function Topbar({
                     <p className="mt-1 text-[11px] text-muted-foreground/80">
                       ¿Ya es cliente? Búscalo en «{rotuloCartera(yo?.rol)}», en el menú lateral.
                     </p>
+                  )}
+                  {criterioOtraCartera && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onMouseDown={(e) => e.preventDefault() /* no robar el foco al input */}
+                      onClick={() => {
+                        setClienteOtraCartera(criterioOtraCartera)
+                        setAbierto(false)
+                      }}
+                      className="mt-1.5 min-h-6 cursor-pointer text-left text-sm font-semibold text-primary hover:underline"
+                    >
+                      Buscarlo entre los clientes de otras carteras (Enter)
+                    </button>
                   )}
                   {/* Puerta de la verificación por contacto (plan «lead libre»,
                       F1): si lo tecleado parece un teléfono, se ofrece verificar
@@ -486,6 +515,14 @@ export function Topbar({
           </Button>
         )}
       </div>
+      {clienteOtraCartera && yo && (
+        <VentaCruzada
+          actor={yo.id}
+          inicial={clienteOtraCartera}
+          puedeRegistrar={yo.rol === 'vendedor' || yo.rol === 'supervisor'}
+          onCerrar={() => setClienteOtraCartera(null)}
+        />
+      )}
     </header>
   )
 }

@@ -3,7 +3,7 @@ import { VencimientosPostventa } from '@/components/app/postventa-vencimientos'
 import { postventaKeys } from '@/data/postventa-queries'
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Users2, RefreshCw, ChevronDown } from 'lucide-react'
+import { Users2, RefreshCw, ChevronDown, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -18,6 +18,9 @@ import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estad
 import { Paginacion } from '@/components/common/paginacion'
 import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversionista-ficha'
 import { InversionNueva, type OperacionInversion } from '@/components/app/inversion-nueva'
+import { VentaCruzada } from '@/components/app/venta-cruzada'
+import type { CriterioBusqueda } from '@/data/cliente-existente-api'
+import { criterioDesdeTexto, esBusquedaExacta } from '@/lib/venta-cruzada'
 import { FiltrosCarteraInversionistas } from '@/components/app/cartera-inversionistas-filtros'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { fmtFecha, money } from '@/lib/format'
@@ -57,12 +60,21 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     else escribirHash('mi-cartera')
   }
   const [nueva, setNueva] = useState<{persona: string; operacion?: OperacionInversion} | null>(null)
+  // Venta cruzada: buscar a un cliente de otra cartera y registrar su inversión (vendedor o
+  // supervisor). Gerencia también busca, para abrir la ficha.
+  const [ventaCruzada, setVentaCruzada] = useState<{inicial?: CriterioBusqueda | undefined} | null>(null)
+  const puedeVentaCruzada = yo?.id === actor && !yo.demo && permiteInversion
+  const registraVentaCruzada = puedeVentaCruzada && (yo?.rol === 'vendedor' || yo?.rol === 'supervisor')
   const [aviso, setAviso] = useState('')
   const [descargando, setDescargando] = useState(false)
   const documento = useRef<AbortController | null>(null)
   const titulo = useRef<HTMLHeadingElement>(null)
-  const q = useInversionistas(actor, filtros)
-  const claveLista = JSON.stringify([actor, filtros])
+  // Un documento, un teléfono o un número de contrato se buscan en todos los meses: encontrar
+  // a la persona importa más que el mes en que cerró (el filtro de mes arranca en el actual).
+  const busquedaExacta = esBusquedaExacta(filtros.texto)
+  const filtrosConsulta = busquedaExacta && filtros.mes ? {...filtros, mes: ''} : filtros
+  const q = useInversionistas(actor, filtrosConsulta)
+  const claveLista = JSON.stringify([actor, filtrosConsulta])
   const [listaConfirmada, setListaConfirmada] = useState<{actor: string; clave: string; datos: DatosCartera} | null>(null)
   useEffect(() => {
     if (q.isFetchedAfterMount && q.isSuccess) setListaConfirmada({actor, clave: claveLista, datos: q.data})
@@ -141,10 +153,15 @@ export function CarteraInversionistas({actor, permiteInversion}: {
         <p className="mt-1 text-sm text-muted-foreground">{catalogo?.solo_avance ? 'Una ficha por persona, con sus inversiones Avance.' : 'Una ficha por persona, con sus inversiones en cada empresa.'}</p></div>
       <div className="flex items-center gap-2"><Button variant="ghost" size="sm" aria-label="Actualizar cartera"
         disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>
+        {puedeVentaCruzada && <Button size="sm" variant="outline" onClick={() => setVentaCruzada({})}><Search aria-hidden />Cliente de otra cartera</Button>}
         {puedeAlta && <Button size="sm" onClick={()=>setAlta(true)}>Nuevo cliente</Button>}
         </div>
     </div>
     {aviso && <p role="status" className="rounded-lg bg-muted p-3 text-sm">{aviso}</p>}
+    {/* Región viva desde el montaje (se anuncia al cambiar, no al nacer con texto) y con el
+        gris fuerte: va sobre el fondo de la página, fuera de la tarjeta blanca. */}
+    <p role="status" className={busquedaExacta && filtros.mes ? 'text-sm text-muted-foreground-strong' : 'sr-only'}>
+      {busquedaExacta && filtros.mes ? 'Buscas un documento, un teléfono o un número de contrato: se muestran todos los meses.' : ''}</p>
     <Card className="overflow-hidden">
       <FiltrosCarteraInversionistas filtros={filtros} busqueda={busqueda} catalogo={catalogo}
         verResponsable={yo?.rol !== 'vendedor'} onBusqueda={setBusqueda} onCambio={filtro} onLimpiar={limpiar} />
@@ -167,6 +184,9 @@ export function CarteraInversionistas({actor, permiteInversion}: {
           {datos.filas.length === 0 ? <PanelVacio icono={Users2}
             titulo={datos.total === 0 ? 'No hay personas que coincidan con estos filtros.' : 'Esta página ya no tiene resultados.'}>
             <Button variant="outline" size="sm" className="mt-2 min-h-10" onClick={limpiar}>Ver toda la cartera</Button>
+            {datos.total === 0 && puedeVentaCruzada && criterioDesdeTexto(filtros.texto) &&
+              <Button size="sm" className="mt-2 min-h-10" onClick={() => setVentaCruzada({inicial: criterioDesdeTexto(filtros.texto)})}>
+                <Search aria-hidden />Buscar en otras carteras</Button>}
           </PanelVacio> : <>
             <div aria-hidden className="hidden grid-cols-[2fr_1.5fr_1fr_1fr] gap-4 border-t border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground-strong @4xl/cartera:grid">
               <span>Cliente · todas sus empresas</span><span>Capital registrado · filtros</span><span>Último cierre · filtros</span><span>Responsable actual</span>
@@ -205,6 +225,9 @@ export function CarteraInversionistas({actor, permiteInversion}: {
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
     </Sheet>}
+    {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}
+      onCerrar={() => setVentaCruzada(null)}
+      onConfirmada={() => {void qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)})}} />}
     {nueva && <InversionNueva key={nueva.persona} actor={actor} persona={nueva.persona} operacion={nueva.operacion}
       onCerrar={() => {setVolverAInversiones(true); setNueva(null); setSeleccion(nueva.persona)}} onRevocado={revocar}
       onConfirmada={() => {void qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)})}} />}

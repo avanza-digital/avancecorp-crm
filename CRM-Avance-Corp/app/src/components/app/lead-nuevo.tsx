@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BellPlus, Handshake, UserRoundPlus } from 'lucide-react'
+import { BellPlus, Handshake, Search, UserRoundPlus } from 'lucide-react'
+import { VentaCruzada } from './venta-cruzada'
 import {
   CrmApiError,
   guardarRecordatorioDisponibilidad,
@@ -94,6 +95,9 @@ interface EstadoDisponibilidadFormulario {
    *  del veredicto (regla real solo en enfriamiento). */
   recordable: boolean
   fechaSugerida: string | null
+  /** El contacto ya es cliente: en vez de un lead nuevo, se ofrece buscarlo (y, si es de
+   *  otra cartera, registrar su inversión: venta cruzada). */
+  yaEsCliente?: boolean
 }
 
 const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
@@ -281,6 +285,7 @@ function FormularioNuevoLead({
   const [recordando, setRecordando] = useState(false)
   const [recordadoPara, setRecordadoPara] = useState<string | null>(null)
   const [errorRecordatorio, setErrorRecordatorio] = useState<string | null>(null)
+  const [buscandoCliente, setBuscandoCliente] = useState(false)
   const recordandoRef = useRef(false)
   // F3.1: el teléfono (normalizado) del guardado en vuelo de ESTE montaje —
   // el «Guardando…» del botón se ancla a él para no disfrazar al contacto B
@@ -415,6 +420,7 @@ function FormularioNuevoLead({
         fechaSugerida: contactoRecordable(resultado)
           ? sugerirFechaRevision(resultado, Date.now())
           : null,
+        yaEsCliente: resultado.estado === 'ya_es_cliente',
       }
       // F3.1: el veredicto recordable ancla el estado del recordatorio a SU
       // teléfono; deja de serlo (u otro contacto) → el ancla cae.
@@ -886,6 +892,11 @@ function FormularioNuevoLead({
               {disponibilidad.mensaje}
             </div>
           )}
+          {disponibilidad.yaEsCliente && yo && !yo.demo && (
+            <Button type="button" variant="outline" className="w-full" onClick={() => setBuscandoCliente(true)}>
+              <Search /> Buscar a este cliente
+            </Button>
+          )}
           {disponibilidad.tarjeta && (
             // Tarjeta §5.2 (solo lectura): lo mínimo para decidir — estado,
             // analista responsable y fechas. Sin notas ni montos ajenos (privacidad §8).
@@ -1232,6 +1243,19 @@ function FormularioNuevoLead({
           </DialogFooter>
         </fieldset>
       </form>
+      {/* FUERA del formulario del lead: sus envíos (buscar, registrar la inversión) viven en
+          un portal, pero React los propagaría por su árbol hasta el `onSubmit` del alta. */}
+      {buscandoCliente && yo && (
+        <VentaCruzada
+          actor={yo.id}
+          // Con el DNI escrito, la búsqueda ya es la llave para registrar su inversión.
+          inicial={/^\d{8}$/.test(dni.trim())
+            ? { tipo: 'documento', tipoDocumento: 'DNI', numero: dni.trim() }
+            : { tipo: 'telefono', telefono: telefono.trim() }}
+          puedeRegistrar={yo.rol === 'vendedor' || yo.rol === 'supervisor'}
+          onCerrar={() => setBuscandoCliente(false)}
+        />
+      )}
     </>
   )
 }

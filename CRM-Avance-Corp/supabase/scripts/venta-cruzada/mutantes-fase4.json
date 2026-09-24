@@ -1,0 +1,152 @@
+[
+ {
+  "nombre": "cualquiera es «cliente»",
+  "firma": "private.inversionista_es_cliente(uuid)",
+  "desde": "select p_persona is not null and (",
+  "hacia": "select p_persona is not null or ("
+ },
+ {
+  "nombre": "el teléfono muestra el nombre completo",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "'nombre', case when v_criterio <> 'telefono' or v_mia then v_nombre",
+  "hacia": "'nombre', case when true then v_nombre"
+ },
+ {
+  "nombre": "sin tope por hora",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "  if private.busquedas_cliente_ultima_hora(v_uid) >= 30 then",
+  "hacia": "  if private.busquedas_cliente_ultima_hora(v_uid) >= 3000 then"
+ },
+ {
+  "nombre": "el lead de otro se puede consultar",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "     where l.id = p_lead and l.activo\n       and (v_rol = 'gerencia'",
+  "hacia": "     where l.id = p_lead and l.activo\n       and (true"
+ },
+ {
+  "nombre": "la búsqueda no pregunta si hoy es operable",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "        v_ctx := private.inversion_contexto_lectura_para(v_persona, null, null, v_b);",
+  "hacia": "        null;"
+ },
+ {
+  "nombre": "el teléfono ambiguo elige a uno",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "        if coalesce(cardinality(v_candidatos), 0) > 1 then\n          v_veredicto := 'ambiguo';",
+  "hacia": "        if false then\n          v_veredicto := 'ambiguo';"
+ },
+ {
+  "nombre": "preparar acepta al cliente de la propia cartera",
+  "firma": "crm.preparar_inversion_cliente_existente_fn(uuid,uuid,jsonb,text)",
+  "desde": "     in (select private.vendedor_ids_visibles(v_uid)) then",
+  "hacia": "     in (select null::uuid) then"
+ },
+ {
+  "nombre": "preparar no revalida el documento",
+  "firma": "private.inversion_preparar_nucleo(uuid,jsonb,text,uuid,text)",
+  "desde": "  if p_puerta='cliente_existente' and not exists (select 1 from crm.busquedas_cliente_existente b\n       where b.id=p_busqueda",
+  "hacia": "  if false and not exists (select 1 from crm.busquedas_cliente_existente b\n       where b.id=p_busqueda"
+ },
+ {
+  "nombre": "el motivo puede llevar el documento",
+  "firma": "crm.preparar_inversion_cliente_existente_fn(uuid,uuid,jsonb,text)",
+  "desde": "  perform private.motivo_sin_documento(v_motivo,\n    (select array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = v_persona));",
+  "hacia": "  perform private.motivo_sin_documento(v_motivo, null::text[]);"
+ },
+ {
+  "nombre": "Gerencia hace venta cruzada",
+  "firma": "crm.preparar_inversion_cliente_existente_fn(uuid,uuid,jsonb,text)",
+  "desde": "v_rol not in ('vendedor','supervisor') then",
+  "hacia": "v_rol not in ('vendedor','supervisor','gerencia') then"
+ },
+ {
+  "nombre": "la llave no se exige",
+  "firma": "crm.preparar_inversion_cliente_existente_fn(uuid,uuid,jsonb,text)",
+  "desde": "  if not found or not private.busqueda_cliente_es_llave(p_busqueda, v_uid, v_b.inversionista_id) then",
+  "hacia": "  if not found then"
+ },
+ {
+  "nombre": "D6 en un solo sentido",
+  "firma": "private.inversion_preparar_nucleo(uuid,jsonb,text,uuid,text)",
+  "desde": "               and (s.puerta='cliente_existente' or p_puerta='cliente_existente')",
+  "hacia": "               and s.puerta='cliente_existente'"
+ },
+ {
+  "nombre": "sin D6",
+  "firma": "private.inversion_preparar_nucleo(uuid,jsonb,text,uuid,text)",
+  "desde": "               and (s.puerta='cliente_existente' or p_puerta='cliente_existente')",
+  "hacia": "               and false"
+ },
+ {
+  "nombre": "el reintento no compara el motivo",
+  "firma": "private.inversion_preparar_nucleo(uuid,jsonb,text,uuid,text)",
+  "desde": " or v_s.motivo_atribucion is distinct from p_motivo",
+  "hacia": ""
+ },
+ {
+  "nombre": "cuentas sin enmascarar",
+  "firma": "crm.cuentas_cliente_existente_fn(uuid,uuid,text)",
+  "desde": "'••••' || right(cb.numero_cuenta, 4)",
+  "hacia": "cb.numero_cuenta"
+ },
+ {
+  "nombre": "la lectura de cuentas no deja rastro",
+  "firma": "crm.cuentas_cliente_existente_fn(uuid,uuid,text)",
+  "desde": "  perform private.cartera_f5_registrar('cuentas', (v_ctx->>'inversionista_id')::uuid);",
+  "hacia": ""
+ },
+ {
+  "nombre": "el contexto devuelve el correo",
+  "firma": "crm.contexto_cliente_existente_fn(uuid,uuid)",
+  "desde": "'nombre', v_ctx->>'nombre', 'correo', null,",
+  "hacia": "'nombre', v_ctx->>'nombre', 'correo', (select p.correo from public.perfiles p where p.id = (v_ctx->>'perfil_id')::uuid),"
+ },
+ {
+  "nombre": "la ventana cuenta también los rechazos del tope",
+  "firma": "private.busquedas_cliente_ultima_hora(uuid)",
+  "desde": "where b.consultado_por = p_actor and b.veredicto <> 'limite'",
+  "hacia": "where b.consultado_por = p_actor"
+ },
+ {
+  "nombre": "una solicitud cerrada abre lecturas vivas",
+  "firma": "private.venta_cruzada_lectura(uuid,uuid,boolean)",
+  "desde": "  if p_solo_preparada and p_solicitud is not null",
+  "hacia": "  if false and p_solicitud is not null"
+ },
+ {
+  "nombre": "el contexto de una solicitud cerrada da datos vivos",
+  "firma": "crm.contexto_cliente_existente_fn(uuid,uuid)",
+  "desde": "  if p_solicitud is not null and v_estado is distinct from 'preparada' then",
+  "hacia": "  if false then"
+ },
+ {
+  "nombre": "un motivo reservado muestra a la persona",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "  if v_veredicto = 'no_operable' and not v_mia and (v_catalogo->>'reservado')::boolean then",
+  "hacia": "  if false then"
+ },
+ {
+  "nombre": "el motivo llega crudo",
+  "firma": "private.venta_cruzada_motivo(text)",
+  "desde": "      'texto', 'El cliente no tiene un responsable activo: pide a Gerencia que se lo asigne.')",
+  "hacia": "      'texto', p_mensaje)"
+ },
+ {
+  "nombre": "el tope escribe una fila por intento",
+  "firma": "crm.buscar_cliente_existente_fn(text,text,text,uuid)",
+  "desde": "       and b.creado_en > statement_timestamp() - interval '1 minute'",
+  "hacia": "       and false"
+ },
+ {
+  "nombre": "el upgrade no deja rastro de lectura",
+  "firma": "crm.contratos_upgrade_cliente_existente_fn(uuid,uuid)",
+  "desde": "  perform private.cartera_f5_registrar('ficha', (v_ctx->>'inversionista_id')::uuid);",
+  "hacia": ""
+ },
+ {
+  "nombre": "el upgrade se lee con una solicitud cerrada",
+  "firma": "crm.contratos_upgrade_cliente_existente_fn(uuid,uuid)",
+  "desde": "  v_ctx := private.venta_cruzada_lectura(p_busqueda, p_solicitud, true);",
+  "hacia": "  v_ctx := private.venta_cruzada_lectura(p_busqueda, p_solicitud, false);"
+ }
+]
