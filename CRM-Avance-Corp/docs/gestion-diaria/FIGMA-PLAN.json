@@ -12,7 +12,7 @@
     "updatedAt": "2026-09-24T17:49:02.290065+00:00",
     "status": "H1–H6 cerradas; recorrido real aceptado por Miguel. F4 operativo pendiente.",
     "fileUrl": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=18-2",
-    "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/85",
+    "resumePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/91",
     "resumeMain": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
     "source": "GESTION-DIARIA.md",
     "sourceHeading": "Supervisor horizontal — diseño aprobado y plan de desarrollo",
@@ -1025,7 +1025,7 @@
       "h4Implementation": "COMPLETE",
       "nextStage": "F4.6: reaviso, reconocimiento, otra sesión, segundo corte y sábado",
       "source": "F4-RECORRIDO-SUPERVISION-2026-09-24.md",
-      "productCheckpoint": "788834cc3c35191fa749ff5239aea7b2ebe032d8",
+      "productCheckpoint": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
       "branch": "codex/gestion-diaria-recorrido-20260924",
       "workingCopy": "/private/tmp/avancecorp-fecha-publicacion-vfzj775x/repo",
       "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-h6-2026-09-24/supervisor-horizontal-h5-h6.bundle",
@@ -1122,7 +1122,8 @@
       "documentationPullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/88",
       "acceptanceEvidence": "F4-RECORRIDO-SUPERVISION-2026-09-24.md",
       "acceptanceSourceCommit": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
-      "acceptanceBuildId": "build-20260924T161347948Z"
+      "acceptanceBuildId": "build-20260924T161347948Z",
+      "acceptancePullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/91"
     },
     "publicationVerificationH6_3": {
       "originalPhaseCount": 76,

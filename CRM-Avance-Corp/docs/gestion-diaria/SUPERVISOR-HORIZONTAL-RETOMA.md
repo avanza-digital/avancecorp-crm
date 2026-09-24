@@ -7,6 +7,8 @@ de F4 siguen abiertos, con su evidencia separada.
 - [CRM publicado](https://crm.miavance.com/#/gestion-diaria): fuente actual
   `929fbbcccb5710e1031f734a034e8ce90a79b0b2`, build `build-20260924T161347948Z`.
 - [Acta del recorrido y conformidad](F4-RECORRIDO-SUPERVISION-2026-09-24.md).
+- [PR de evidencia #91](https://github.com/avanza-digital/avancecorp-crm/pull/91):
+  documentación pendiente de revisión en GitHub; no requiere otra publicación.
 - [Mismo Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=2-90),
   [plan canónico](GESTION-DIARIA.md) y [mapa](FIGMA-PLAN.json) actualizados.
 - Equipo contrastado a las 12:30 Lima: 10 personas, 43 llamadas; primer corte
