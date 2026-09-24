@@ -20,6 +20,23 @@ beforeEach(() => {
   dobles.obtener.mockResolvedValue(diaEquipoPrueba())
 })
 describe('Consulta operativa completa y fail-closed', () => {
+  it('al cambiar fecha oculta la jornada anterior y una respuesta tardía no sustituye la elegida', async () => {
+    let resolverAnterior!: (valor: ReturnType<typeof diaEquipoPrueba>) => void
+    dobles.obtener.mockImplementation((fecha: string) => fecha === '2026-09-10'
+      ? new Promise(resolve => { resolverAnterior = resolve })
+      : Promise.resolve({ ...diaEquipoPrueba(), dia: fecha }))
+    const { result, rerender } = renderHook(({ fecha }) => useDiaEquipo(fecha), {
+      wrapper: envolver, initialProps: { fecha: '2026-09-21' },
+    })
+    await waitFor(() => expect(result.current.dia?.dia).toBe('2026-09-21'))
+    rerender({ fecha: '2026-09-10' })
+    expect(result.current.dia).toBeNull()
+    expect(result.current.cargando).toBe(true)
+    rerender({ fecha: '2026-08-31' })
+    await waitFor(() => expect(result.current.dia?.dia).toBe('2026-08-31'))
+    await act(async () => { resolverAnterior({ ...diaEquipoPrueba(), dia: '2026-09-10' }) })
+    expect(result.current.dia?.dia).toBe('2026-08-31')
+  })
   it('con store vacío usa el servidor, no inventa un roster vacío', async () => {
     const { result } = renderHook(() => useDiaEquipo('2026-09-21'), { wrapper: envolver })
     expect(result.current.cargando).toBe(true)

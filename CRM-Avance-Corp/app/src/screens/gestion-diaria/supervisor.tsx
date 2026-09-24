@@ -18,10 +18,11 @@ import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FranjaCortesSupervisor } from '@/components/gestion-diaria/franja-cortes-supervisor'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
+import { EstadoCortesEquipo } from '@/components/gestion-diaria/estado-cortes-equipo'
 import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
 import './supervisor.css'
 
-const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false }
 
 export function GestionDiariaSupervisor(): JSX.Element {
@@ -34,7 +35,12 @@ export function GestionDiariaSupervisor(): JSX.Element {
 }
 
 function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; demo: boolean }) {
-  const consulta = useDiaEquipo(hoy)
+  const [fecha, setFecha] = useState(hoy)
+  const entradaFecha = useRef<HTMLInputElement>(null)
+  const consulta = useDiaEquipo(fecha)
+  const esHoy = fecha === hoy
+  // Mismo intervalo inclusivo que gestion_diaria_equipo_fn: 365 días Lima.
+  const primeraFecha = fechaLima(Date.parse(`${hoy}T12:00:00-05:00`) - 365 * 86_400_000)
   const avisos = useGestionDiariaAvisos()
   const alertas = useAlertasCRM()
   const panelId = useId()
@@ -90,13 +96,22 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
   useEffect(() => {
     const pedido = avisos?.registroPedido
     if (!pedido) return
+    // Un aviso vigente abre su jornada; nunca usa las cifras del día consultado.
+    if (pedido.actor === actor && pedido.dia === hoy && !esHoy) {
+      setFecha(hoy)
+      if (entradaFecha.current) entradaFecha.current.value = hoy
+      setSeleccion(null)
+      setAmpliado(false)
+      setAuxiliar(null)
+      return
+    }
     if (sinPermiso) {
       setAnuncio('El registro solicitado ya no está autorizado.')
       avisos?.consumirRegistro()
       return
     }
     if (!dia) return
-    if (pedido.actor === actor && pedido.dia === hoy && dia.equipo.some((f) => f.analista_id === pedido.analista)) {
+    if (pedido.actor === actor && pedido.dia === hoy && esHoy && dia.equipo.some((f) => f.analista_id === pedido.analista)) {
       origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setSeleccion({ analista: pedido.analista, nombre: dia.equipo.find((f) => f.analista_id === pedido.analista)!.nombre_completo,
         pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
@@ -105,7 +120,25 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
       setAnuncio('Abierto el registro de llamadas solicitado.')
     } else setAnuncio('El registro solicitado ya no corresponde a tu equipo o jornada actuales.')
     avisos?.consumirRegistro()
-  }, [avisos, dia, hoy, actor, sinPermiso])
+  }, [avisos, dia, hoy, fecha, esHoy, actor, sinPermiso])
+  const cambiarFecha = (valor: string) => {
+    if (!valor || valor < primeraFecha || valor > hoy) return
+    if (entradaFecha.current && entradaFecha.current.value !== valor) entradaFecha.current.value = valor
+    if (valor === fecha) return
+    setFecha(valor)
+    setSeleccion(null)
+    setAmpliado(false)
+    setAuxiliar(null)
+    setAnuncio(`Fecha seleccionada: ${FECHA_JORNADA.format(new Date(`${valor}T12:00:00-05:00`))}.`)
+  }
+  const abrirLlamadas = (id: string) => {
+    const persona = dia?.equipo.find((f) => f.analista_id === id)
+    if (!persona || sinPermiso) return
+    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
+    setDevolverFocoAuxiliar(false); setAuxiliar(null)
+    setAnuncio('Abierto el registro de llamadas solicitado.')
+  }
   const seleccionar = (persona: FilaEquipoPresentada) => {
     origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     if (seleccion?.analista === persona.analista_id) return
@@ -122,10 +155,21 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
   const ordenar = (orden: OrdenEquipo) => setFiltros((f) => ({ ...f, orden, ascendente: f.orden === orden ? !f.ascendente : orden === 'nombre' }))
   const modal = seleccion !== null && !fueraDeAmbito && (estrecho || ampliado)
   return (
-    <section ref={pantalla} aria-label="Mi equipo hoy" className="gd-supervisor" data-estrecho={estrecho}>
+    <section ref={pantalla} aria-label={esHoy ? 'Mi equipo hoy' : 'Mi equipo por fecha'} className="gd-supervisor" data-estrecho={estrecho}>
       <header className="gd-cabecera">
-        <h2 ref={tituloEquipo} tabIndex={-1}>Mi equipo hoy</h2>
-        <p className="gd-fecha"><time dateTime={hoy}>{FECHA_JORNADA.format(new Date(`${hoy}T12:00:00-05:00`))}</time> · Lima{demo ? ' · Demo' : ''}</p>
+        <h2 ref={tituloEquipo} tabIndex={-1}>{esHoy ? 'Mi equipo hoy' : 'Mi equipo'}</h2>
+        <div className="gd-selector-fecha">
+          <label><span className="sr-only">Fecha de gestión</span>
+            <Input ref={entradaFecha} type="date" defaultValue={hoy} min={primeraFecha} max={hoy} className="min-h-11 text-base"
+              onChange={(e) => {
+                // El campo nativo conserva la escritura por segmentos. Volver a
+                // asignar value en cada tecla reinicia el año en Chromium.
+                if (e.currentTarget.validity.valid) cambiarFecha(e.currentTarget.value)
+              }} onBlur={(e) => { e.currentTarget.value = fecha }} />
+          </label>
+          <Button variant="outline" className="min-h-11 text-base" disabled={esHoy} onClick={() => cambiarFecha(hoy)}>Hoy</Button>
+          <span className="gd-fecha">Lima{demo ? ' · Demo' : ''}</span>
+        </div>
         <div className="gd-acciones-cabecera">
           <Button variant="ghost" className="min-h-11 text-base" disabled={!dia || sinPermiso} onClick={() => {
             origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -167,30 +211,30 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
               </>}
         </div>
         <PanelSupervisorAdaptable modal={modal} cerrar={cerrar} tituloRef={tituloPanel}>
-          <PanelAnalistaSupervisor id={panelId} seleccion={fueraDeAmbito ? null : seleccion} fila={fila} dia={hoy} minimo={dia?.umbrales.minimo_llamadas_utiles} tituloRef={tituloPanel}
+          <PanelAnalistaSupervisor key={fecha} id={panelId} seleccion={fueraDeAmbito ? null : seleccion} fila={fila} dia={fecha} minimo={dia?.umbrales.minimo_llamadas_utiles} tituloRef={tituloPanel}
             ampliado={ampliado} puedeAmpliar={!estrecho} ampliar={() => setAmpliado((v) => !v)} cerrar={cerrar} oculta={Boolean(dia && seleccion?.analista && !filas.some((f) => f.analista_id === seleccion.analista))}
             limpiar={() => setFiltros(FILTROS_INICIALES)} actualizacion={actualizacion} revalidar={() => { void consulta.recargar() }} />
         </PanelSupervisorAdaptable>
       </div>
-      <FranjaCortesSupervisor consulta={consulta} abrir={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }} />
+      {esHoy ? <FranjaCortesSupervisor consulta={consulta} abrir={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }} />
+        : <section className="gd-cortes" aria-label="Consulta de otra fecha">
+          <Button variant="ghost" className="min-h-11 shrink-0 text-base" aria-haspopup="dialog" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }}>Cortes del día</Button>
+          <p className="gd-cortes-resumen">Actividad del día elegido. El equipo y los pendientes reflejan su estado actual.</p>
+        </section>}
       <p className="sr-only" role="status">{anuncio}</p>
       <Dialog focoAlCerrar={devolverFocoAuxiliar ? undefined : tituloPanel} open={auxiliar !== null} onClose={() => setAuxiliar(null)} className={auxiliar === 'info' ? 'gd-dialogo-info' : 'gd-dialogo-avisos'}>
-        <DialogHeader className="flex-row items-center justify-between"><DialogTitle className="text-base">{auxiliar === 'info' ? 'Información de esta vista' : 'Cortes de llamadas y otros avisos'}</DialogTitle>
+        <DialogHeader className="flex-row items-center justify-between"><DialogTitle className="text-base">{auxiliar === 'info' ? 'Información de esta vista' : esHoy ? 'Cortes de llamadas y otros avisos' : 'Cortes del día seleccionado'}</DialogTitle>
           <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label={auxiliar === 'info' ? 'Cerrar información' : 'Cerrar avisos'} onClick={() => setAuxiliar(null)}><X aria-hidden /></Button></DialogHeader>
         <DialogBody className="space-y-3 text-base">{auxiliar === 'info' ? <>
-          <p>{hoy} · Hora de Lima. {dia ? `Datos consultados a las ${horaLimaDe(dia.generado_en)}.` : 'Sin datos confirmados.'} Actualización cada minuto.</p>
+          <p>{fecha} · Hora de Lima. {dia ? `Datos consultados a las ${horaLimaDe(dia.generado_en)}.` : 'Sin datos confirmados.'} Actualización cada minuto.</p>
+          <p>Puedes consultar desde hoy hasta 365 días atrás. Las llamadas y el registro corresponden a la fecha elegida; el equipo y los pendientes reflejan su estado actual.</p>
           <p>Los indicadores cuentan personas del equipo completo, incluso cuando filtras la tabla.</p>
           <p>La tasa usa llamadas útiles; número errado y otra persona quedan fuera. Se califica desde {dia?.umbrales.minimo_llamadas_utiles ?? 'el mínimo vigente de'} llamadas útiles.</p>
           <p>Los pendientes reflejan su estado actual. La actividad registrada no acredita presencia ni explica una ausencia. Los cortes conservan su foto de llamadas y solo avisan durante la jornada.</p>
           {dia?.modo_sla !== 'activo' && <p>Los primeros intentos fuera de plazo no se evalúan con el control actual. «No evaluado» no significa cero.</p>}
-        </> : auxiliar === 'avisos' ? <AvisosEquipo consulta={consulta} abrirAnalista={(id) => {
-          const persona = dia?.equipo.find((f) => f.analista_id === id)
-          if (!persona || sinPermiso) return
-          origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-          setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
-          setDevolverFocoAuxiliar(false); setAuxiliar(null)
-          setAnuncio('Abierto el registro de llamadas solicitado.')
-        }} alNavegar={() => { setAuxiliar(null); setSeleccion(null); setAmpliado(false) }} /> : null}</DialogBody>
+        </> : auxiliar === 'avisos' ? esHoy
+          ? <AvisosEquipo consulta={consulta} abrirAnalista={abrirLlamadas} alNavegar={() => { setAuxiliar(null); setSeleccion(null); setAmpliado(false) }} />
+          : <EstadoCortesEquipo consulta={consulta} abrirAnalista={abrirLlamadas} /> : null}</DialogBody>
       </Dialog>
     </section>
   )
