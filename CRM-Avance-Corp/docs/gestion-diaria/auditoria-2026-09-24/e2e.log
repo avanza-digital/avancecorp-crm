@@ -1,0 +1,14 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-cortes.spec.ts --workers=2 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 6 tests using 2 workers
+
+  ✓  2 [chromium] › e2e/gestion-diaria-cortes.spec.ts:60:1 › H4: franja compacta, otro analista seleccionado, llamadas y ficha conservan contexto (4.9s)
+  ✓  1 [chromium] › e2e/gestion-diaria-cortes.spec.ts:103:1 › H4: aplazar una vez, reintento con mismo UUID y reconocimiento reflejado en campana (5.4s)
+  ✓  3 [chromium] › e2e/gestion-diaria-cortes.spec.ts:128:1 › H4: popup único, cierre conserva pendiente y abre el registro correcto (3.4s)
+  ✓  4 [chromium] › e2e/gestion-diaria-cortes.spec.ts:144:1 › H4: error de popup deja lista disponible; refresco refleja otra sesión y revocación (4.1s)
+  ✓  5 [chromium] › e2e/gestion-diaria-cortes.spec.ts:167:1 › H4: teclado, móvil y reflow de cortes; cerrar devuelve el foco (3.9s)
+  ✓  6 [chromium] › e2e/gestion-diaria-cortes.spec.ts:188:1 › H4: contrato anterior sin detalle diario conserva la jornada con reloj simulado (3.9s)
+
+  6 passed (15.2s)

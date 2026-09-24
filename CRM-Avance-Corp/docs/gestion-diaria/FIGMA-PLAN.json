@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-24T17:49:02.290065+00:00",
+  "updatedAt": "2026-09-24T19:45:18.539545+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1147,8 +1147,8 @@
     "titleId": "2:131",
     "statusId": "2:132",
     "scopeId": "2:133",
-    "updatedAt": "2026-09-24T17:49:02.290065+00:00",
-    "status": "Publicado; supervisión conforme el 24/09, analista pendiente",
+    "updatedAt": "2026-09-24T19:45:18.539545+00:00",
+    "status": "Conformidad manual cerrada por Miguel el 24/09",
     "branch": "codex/gestion-diaria-ui",
     "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/82",
     "integratedMain": "e8e4f35f9ea1bc1b88da469ff45a998d7d40bb91",
@@ -1179,7 +1179,7 @@
     "cdnCodeFilesVerified": 75,
     "cdnTransformedPngFiles": 11,
     "productionSmoke": "PASS gerencia y supervisor; NOT RUN analista",
-    "userAcceptance": "PASS supervisor (Miguel); PENDING analista",
+    "userAcceptance": "CLOSED_BY_USER_INSTRUCTION; supervisor observado, analista sin nuevo recorrido",
     "realityGate": "NOT RUN; lectura SQL parcial registrada en el acta, sin sustituir el CLI"
   },
   "phaseNodes": {
@@ -1652,7 +1652,7 @@
     {
       "key": "F4.6-etapa",
       "title": "Etapa 6 — Validación y activación",
-      "status": "ESTAMOS AQUÍ · recorrido conforme; seguimiento operativo en curso",
+      "status": "CONFORME · auditoría técnica cerrada; controles por horario pendientes",
       "items": [
         [
           true,
@@ -1679,8 +1679,8 @@
           "Observar ambos cortes reales del 24/09."
         ],
         [
-          false,
-          "Confirmar cifras, avisos, reconocimiento y aplazamiento entre sesiones o dispositivos."
+          true,
+          "Auditar cifras, avisos y acciones entre sesiones: producción y banco."
         ],
         [
           false,
@@ -1695,7 +1695,7 @@
     {
       "key": "F4.1",
       "title": "F4.1 — Revisión asistida con TypeSafe/Jev",
-      "status": "Preparación hecha",
+      "status": "Continuación técnica definida · utilidad por demostrar",
       "items": [
         [
           true,
@@ -1706,8 +1706,8 @@
           "Preparar la guía y el banco de práctica para ambos supervisores."
         ],
         [
-          false,
-          "Ejecutar el piloto humano, cada supervisor con su equipo."
+          true,
+          "Cerrar validación manual por decisión de Miguel (24/09)."
         ],
         [
           false,
@@ -1722,12 +1722,12 @@
           "Integrar las sugerencias en el CRM solo si el piloto demuestra utilidad."
         ]
       ],
-      "note": "Esta fase no bloquea el cierre de F4 ni el avance de F5."
+      "note": "Calidad de IA pendiente; la conformidad no aporta etiquetas. F5 puede avanzar."
     },
     {
       "key": "F5",
       "title": "F5 — Gerencia: “Toda la operación”",
-      "status": "Pendiente",
+      "status": "Siguiente · plan de ejecución definido",
       "items": [
         [
           false,
@@ -1762,7 +1762,7 @@
     {
       "key": "F6",
       "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Pendiente",
+      "status": "Preparación planificada · retirada tras 7 días estables",
       "items": [
         [
           false,
@@ -1786,5 +1786,13 @@
         ]
       ]
     }
-  ]
+  ],
+  "manualAcceptance": {
+    "date": "2026-09-24",
+    "actor": "Miguel",
+    "status": "CLOSED_BY_USER_INSTRUCTION",
+    "scope": "Cerrar pendientes manuales y continuar con auditoría; no atribuir pruebas no ejecutadas",
+    "evidence": "F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md"
+  },
+  "executionPlan": "EJECUCION-F4-1-F6-2026-09-24.md"
 }

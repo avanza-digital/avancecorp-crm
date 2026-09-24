@@ -1,5 +1,15 @@
 # GESTIÓN DIARIA — el documento único
 
+> **Decisión vigente del 24/09:** Miguel cierra sus pendientes de validación manual,
+> pide auditoría y continuar F4.1–F6. Auditoría dirigida: 57 pruebas, 6 E2E Docker y
+> lectura en cuatro sesiones Auth nuevas del banco PASS; reaviso productivo único
+> registrado a las 13:39. No se atribuyen pruebas humanas omitidas ni controles
+> futuros. [Acta y límites](F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md).
+> **Plan a ejecutar:** [F4.1–F6 por entregas](EJECUCION-F4-1-F6-2026-09-24.md).
+> F5 puede avanzar mientras se evalúa la IA; retirada de Seguimiento después de
+> siete días estables desde la publicación verificada de F5.
+
+
 **Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).
 Miguel pidió el 23/09 conservar allí exactamente las fases y casillas del plan
 presentado en el chat y actualizar **el mismo tablero** con cada avance verificado.
@@ -2026,6 +2036,13 @@ requisitos para cerrar F4.
 **Prueba de negocio (Miguel, tras cada fase):** F1: como supervisor, leer el texto de una llamada de su equipo y comprobar que NO ve otro equipo; como gerencia, exportar CSV. F2: elegir un resultado y ver contraídas las demás opciones; «No le interesa» + motivo + próxima acción conserva el lead y crea la tarea; solo al marcar descarte aparece en el Centro de rescate; «Deshacer» dentro de 24 h revierte los efectos admitidos, nunca el veto de contacto. F3: como analista, comprobar que el primer ítem coincide con «Ahora» de Hoy. F4: tabla y detalle del equipo, cortes, pop-up, reconocimiento/aplazamiento entre dispositivos y publicación gerencial de reglas futuras; conservar el reconocimiento de vencidas y por repartir. F4.1: piloto contra etiquetas humanas y sugerencias confirmables/descartables sin alterar registros ni bloquear F4. F5: pulso y cuadre remedidos, drill-down hasta el registro.
 
 ### Acciones manuales de Miguel
+
+**Actualización 24/09:** los pendientes de conformidad y ejercicios manuales
+asignados a Miguel quedan cerrados por su instrucción y sustituidos por auditoría
+técnica. La lista siguiente conserva el historial de solicitudes, no tareas que
+volver a pedirle. Las etiquetas humanas, condiciones de datos y futuras
+publicaciones conservan su estado real; no se infieren de una conformidad general.
+Ver el [plan vigente](EJECUCION-F4-1-F6-2026-09-24.md).
 
 **Hechas** (20/09/2026): confirmar submotivos y umbrales · reconectar el MCP de Codex · autorizar
 el ensayo en banco · instalar y publicar F1, F2 y F3.

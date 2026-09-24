@@ -1,5 +1,12 @@
 # Gestión Diaria: retoma tras la conformidad de supervisión
 
+> **Actualización posterior:** conformidad manual cerrada y auditoría dirigida
+> documentada. Reaviso registrado a las 13:39. Seguir el
+> [plan F4.1–F6](EJECUCION-F4-1-F6-2026-09-24.md) y el
+> [acta de auditoría](F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md).
+> El estado de las 13:34 descrito abajo queda como historial.
+
+
 **H1–H6 CERRADAS. Miguel aceptó H6.4 el 24/09: 72/72 tareas.**
 El recorrido de negocio de F4.6 también está conforme. Los controles operativos
 de F4 siguen abiertos, con su evidencia separada.
