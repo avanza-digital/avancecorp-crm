@@ -35,7 +35,7 @@ Miguel pidió *"que les recomiende mensajes según la etapa del prospecto"*. Hoy
 ╔═══════════ OFFLINE — una vez por versión del corpus, sin usuarios, sin producción ═══════════╗
 ║                                                                                              ║
 ║  Material de ventas de Miguel          scripts/guion/destilar.mjs           Miguel (dueño)   ║
-║  (PDF/DOCX/video → .md)          ────► Batch API · claude-opus-4-8    ────► APRUEBA pieza    ║
+║  (PDF/DOCX/video → .md)          ────► Batch API · el Opus vigente    ────► APRUEBA pieza    ║
 ║  docs/capacitacion/*.md                 ├ entrada: SOLO FichaAnonima        por pieza        ║
 ║   frontmatter:                          │  (whitelist, cero UUID)                │           ║
 ║   estado: vigente|corregido|retirado    ├ + pasaje 'vigente' del curso           │           ║

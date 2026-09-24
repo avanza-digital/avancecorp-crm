@@ -57,7 +57,7 @@ PRIMARY
 → otro agente
 ```
 
-El reviewer devuelve su análisis directamente al `PRIMARY`. No solicita una segunda opinión y no continúa la cadena. Cuando Claude es `PRIMARY`, cada consulta a Codex debe empezar una sesión de review nueva y segura; `mcp__codex__codex-reply` está bloqueado en la configuración del proyecto.
+El reviewer devuelve su análisis directamente al `PRIMARY`. No solicita una segunda opinión y no continúa la cadena. Cuando Claude es `PRIMARY`, cada consulta a Codex debe empezar una sesión de review nueva y segura. `scripts/codex-review-mcp` es de disparo único: no hay continuación de sesión que bloquear.
 
 Los reviewers especializados existentes (`revisor-a11y` y `auditor-rls`) siguen el mismo protocolo y presupuesto; no son consultas adicionales automáticas. Conservan lectura y búsqueda, sin shell. El PRIMARY les adjunta el contexto relevante de CodeGraph.
 
@@ -198,12 +198,21 @@ Usa cinco turnos por defecto, con límite absoluto de ocho. Valida que Claude te
 
 ### Claude PRIMARY → Codex SECONDARY_REVIEWER
 
-Usar `mcp__codex__codex` y pasar siempre:
+Usar `scripts/codex-review-mcp`, con el encargo por **stdin**:
 
-```text
-sandbox: read-only
-approval-policy: never
+```bash
+scripts/codex-review-mcp < CRM-Avance-Corp/docs/encargos/<fecha>-codex-<tema>.md
 ```
+
+El envoltorio aplica `sandbox_mode="read-only"`, `approval_policy="never"` y apaga shell,
+agentes, apps, hooks, navegador, web y plugins, además de cada MCP heredado. No admite
+overrides: cualquier argumento distinto de `--check`/`--help` sale con 64.
+
+🔴 **Ya no hay MCP de Codex.** `codex mcp-server` fue retirado de la CLI (ausente en
+0.155.1; en 0.153.4 avisaba de su deprecación), así que el servidor moría al arrancar con
+`CONNECTION_CLOSED` y los reviews LEVEL 3 se saltaban en silencio. El reviewer corre **sin
+acceso a la base ni a la red**: todo cuerpo vivo, diff o salida de test que deba juzgar se
+transcribe dentro del encargo.
 
 El prompt debe empezar con `ROLE: SECONDARY_REVIEWER` e incluir de forma explícita:
 
@@ -216,7 +225,7 @@ Do not create another review chain.
 Follow .ai/REVIEW_PROTOCOL.md.
 ```
 
-Un hook del proyecto rechaza la llamada si falta el sandbox, la política o las restricciones esenciales. Solo acepta `prompt`, `sandbox`, `approval-policy` y opcionalmente `model`, evitando overrides de configuración o instrucciones. `.mcp.json` inicia `scripts/codex-review-mcp` desde la raíz del repo: deshabilita shell, subagentes, apps, hooks, navegador, web y plugins; enumera los MCP efectivos y deshabilita cada uno. Las tablas vacías `mcp_servers={}` y `plugins={}` se fusionan y **no aíslan**. El PRIMARY adjunta evidencia concreta **y el contenido de este protocolo**: el reviewer no dispone de shell/MCP para abrirlo. `--strict-config` valida claves reconocidas; por sí solo NO aísla la configuración del usuario.
+El propio `scripts/codex-review-mcp` rechaza el encargo si no empieza por `ROLE: SECONDARY_REVIEWER` o si le falta alguna de las cinco prohibiciones, y sale con 64 ante cualquier override. Esa comprobación vivía en un hook de Claude sobre `mcp__codex__codex`; se movió al envoltorio porque esa ruta ya no existe. ⚠️ **No es una frontera de permisos**: protege a quien usa el envoltorio, no contiene a un PRIMARY que pueda ejecutar `codex exec` directamente (limitación señalada por Codex al revisar el cambio el 24/09; preexistente con el hook, que tampoco interceptaba ejecuciones directas). Contener a un PRIMARY comprometido exige control fuera de su alcance. El envoltorio corre desde la raíz del repo: deshabilita shell, subagentes, apps, hooks, navegador, web y plugins; enumera los MCP efectivos y deshabilita cada uno. Las tablas vacías `mcp_servers={}` y `plugins={}` se fusionan y **no aíslan**. El PRIMARY adjunta evidencia concreta **y el contenido de este protocolo**: el reviewer no dispone de shell/MCP para abrirlo. `--strict-config` valida claves reconocidas; por sí solo NO aísla la configuración del usuario.
 
 ## Autoridad y desacuerdos
 
@@ -257,8 +266,10 @@ Los permisos locales se conservan. Un `deny` compartido prevalece sobre cualquie
 `allow`, y `ask` se evalúa antes que `allow`; los permisos previos de despliegue y
 SQL no eliminan esos controles. Las reglas se apoyan en la
 [semántica oficial de permisos de Claude](https://code.claude.com/docs/en/permissions).
-La interfaz Codex usa los parámetros de su [MCP oficial](https://learn.chatgpt.com/docs/mcp-server).
-La CLI 0.153.4 todavía admite `mcp-server`, aunque avisa que está deprecado:
-antes de actualizar hay que repetir el arranque y la comprobación de aislamiento.
+El subcomando `codex mcp-server` fue **RETIRADO** de la CLI: ausente en 0.155.1, y en
+0.153.4 ya avisaba de su deprecación. Ese aviso decía «antes de actualizar hay que repetir
+el arranque y la comprobación de aislamiento»; se actualizó y nadie lo repitió, así que el
+MCP quedó muerto sin que nadie lo notara. La interfaz viva es `codex exec`, que acepta las
+mismas `-c` y `--strict-config`. Al actualizar la CLI: repetir `--check` y un review real.
 
 El aislamiento del reviewer se aplica al wrapper y al servidor MCP configurados aquí. Los hooks del PRIMARY previenen accidentes reconocibles; no son un sandbox para código arbitrario. Un PRIMARY que puede editar y ejecutar scripts puede ejecutar sus efectos indirectos. Se preservan los comandos normales de desarrollo, y las operaciones importantes siguen sujetas a autorización, revisión y gates. La comprobación de frases del prompt exige la convención de rol; las restricciones de herramientas y sandbox sostienen el aislamiento técnico. Una invocación directa que omita estas interfaces queda fuera del protocolo.
