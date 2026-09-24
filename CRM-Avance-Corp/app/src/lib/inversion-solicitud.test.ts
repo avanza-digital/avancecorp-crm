@@ -1,7 +1,8 @@
 import {describe,it,expect} from 'vitest'
 import {datosAvanceRevisados,mismoContenidoInversion,guardarBorradorAcceso,guardarBorradorCondiciones,guardarIntentoInversion,
   leerBorradorAcceso,leerBorradorCondiciones,leerIntentoInversion,limpiarIntentosInversion,nuevoIntentoInversion,
-  solicitudCorresponde,type DatosBorradorCondiciones,type SolicitudInversion,type DatosInversion} from './inversion-solicitud'
+  solicitudCorresponde,SolicitudInversionSchema,type DatosBorradorCondiciones,type SolicitudInversion,type DatosInversion} from './inversion-solicitud'
+import * as v from 'valibot'
 const base: DatosInversion={inversionista_id:'11111111-1111-4111-8111-111111111111',empresa:'avance'}
 describe('Contenido de una solicitud F5',()=>{
   it('releer JSONB con otro orden no exige corregir; cambiar importe u orden de cuotas sí',()=>{
@@ -28,6 +29,33 @@ describe('Contenido de una solicitud F5',()=>{
     expect(leerIntentoInversion(actor,base.inversionista_id,lead)).toBeNull()
     expect(leerIntentoInversion(actor,base.inversionista_id)?.clave).toBe(cartera.clave)
     limpiarIntentosInversion(actor)
+  })
+  it('la venta cruzada guarda su intento aparte, con su búsqueda y su motivo, y se limpia sola',()=>{
+    sessionStorage.clear()
+    const actor='22222222-2222-4222-8222-222222222222',busqueda='44444444-4444-4444-8444-444444444444'
+    const cartera=nuevoIntentoInversion(actor,base.inversionista_id,crypto.randomUUID(),base)
+    const cruzada=nuevoIntentoInversion(actor,base.inversionista_id,crypto.randomUUID(),base,undefined,
+      {busqueda_id:busqueda,motivo:'El cliente pidió invertir conmigo'})
+    guardarIntentoInversion(cartera);guardarIntentoInversion(cruzada)
+    expect(leerIntentoInversion(actor,base.inversionista_id)?.clave).toBe(cartera.clave)
+    expect(leerIntentoInversion(actor,base.inversionista_id,{ventaCruzada:true})).toMatchObject({clave:cruzada.clave,
+      venta_cruzada:{busqueda_id:busqueda,motivo:'El cliente pidió invertir conmigo'}})
+    limpiarIntentosInversion(actor,base.inversionista_id,{ventaCruzada:true})
+    expect(leerIntentoInversion(actor,base.inversionista_id,{ventaCruzada:true})).toBeNull()
+    expect(leerIntentoInversion(actor,base.inversionista_id)?.clave).toBe(cartera.clave)
+    // Un intento de cartera no se lee como venta cruzada aunque alguien lo copie a su clave.
+    sessionStorage.setItem(`crm:f5:solicitud:${actor}:ce-${base.inversionista_id}`,JSON.stringify(cartera))
+    expect(()=>leerIntentoInversion(actor,base.inversionista_id,{ventaCruzada:true})).toThrow()
+    limpiarIntentosInversion(actor)
+    expect(leerIntentoInversion(actor,base.inversionista_id)).toBeNull()
+  })
+  it('la solicitud de una venta cruzada declara su puerta y su analista',()=>{
+    const s=v.parse(SolicitudInversionSchema,{solicitud_id:base.inversionista_id,estado:'preparada',inversion_id:null,
+      inversionista_id:base.inversionista_id,inversionista_origen_id:base.inversionista_id,identidad_fusionada:false,
+      responsable_esperado_id:null,responsable_actual_id:null,requiere_revision_responsable:false,revision_datos:0,
+      revision_responsable:0,hash_datos:'h',necesita_portal:false,comprobante_bucket:null,comprobante_ruta:null,resultado:null,
+      puerta:'cliente_existente',analista_cierre_id:'22222222-2222-4222-8222-222222222222'})
+    expect(s).toMatchObject({puerta:'cliente_existente',analista_cierre_id:'22222222-2222-4222-8222-222222222222'})
   })
   it('aísla los datos de acceso por actor, persona, lead y solicitud; los borra al perder acceso',()=>{
     sessionStorage.clear()
@@ -87,5 +115,55 @@ describe('Contenido de una solicitud F5',()=>{
     expect(solicitudCorresponde(s,lead)).toBe(false)
     expect(solicitudCorresponde(s,origen,lead)).toBe(false)
     expect(solicitudCorresponde({...s,datos:{...base,lead_id:lead}},origen,lead)).toBe(true)
+  })
+  it('la venta cruzada no comparte borradores con la cartera propia, ni al leerlos ni al limpiarlos',()=>{
+    sessionStorage.clear()
+    const actor='22222222-2222-4222-8222-222222222222'
+    const persona=base.inversionista_id
+    const solPropia='55555555-5555-4555-8555-555555555555'
+    const solCruzada='66666666-6666-4666-8666-666666666666'
+    const acceso={apellidos:'PRUEBA',nombres:'PERSONA',correo:'cartera@example.invalid',telefono:'999999999',domicilio:'Av. Prueba 123, Lima'}
+    const condiciones:DatosBorradorCondiciones={analistaCierre:actor,categoria:'nuevo',tipoInteres:'simple',modalidad:'mensual',
+      capital:'1000',capitalRenovado:'',capitalAdicional:'',moneda:'PEN',tasa:'15',origenUpgrade:'',fechaInicio:'2026-09-24',plazo:'12',
+      vencManual:'',prefijo:'2026-01-',numero:'000720',notas:'',cuentaSeleccionada:'',requiereReingresarDatosSensibles:false,domicilio:''}
+    const sembrar=()=>{
+      guardarBorradorAcceso(actor,persona,undefined,null,acceso)
+      guardarBorradorAcceso(actor,persona,{ventaCruzada:true},null,{...acceso,correo:'cruzada@example.invalid'})
+      guardarBorradorCondiciones(actor,persona,undefined,solPropia,0,condiciones)
+      guardarBorradorCondiciones(actor,persona,{ventaCruzada:true},solCruzada,0,{...condiciones,capital:'2000'})
+    }
+    sembrar()
+    expect(leerBorradorAcceso(actor,persona)?.correo).toBe('cartera@example.invalid')
+    expect(leerBorradorAcceso(actor,persona,{ventaCruzada:true})?.correo).toBe('cruzada@example.invalid')
+    // Cerrar la venta cruzada no toca los borradores de la cartera propia…
+    limpiarIntentosInversion(actor,persona,{ventaCruzada:true})
+    expect(leerBorradorAcceso(actor,persona,{ventaCruzada:true})).toBeNull()
+    expect(leerBorradorCondiciones(actor,persona,{ventaCruzada:true},solCruzada,0)).toBeNull()
+    expect(leerBorradorAcceso(actor,persona)?.correo).toBe('cartera@example.invalid')
+    expect(leerBorradorCondiciones(actor,persona,undefined,solPropia,0)?.capital).toBe('1000')
+    // …ni la cartera propia los de la venta cruzada.
+    sembrar()
+    limpiarIntentosInversion(actor,persona)
+    expect(leerBorradorAcceso(actor,persona)).toBeNull()
+    expect(leerBorradorCondiciones(actor,persona,undefined,solPropia,0)).toBeNull()
+    expect(leerBorradorAcceso(actor,persona,{ventaCruzada:true})?.correo).toBe('cruzada@example.invalid')
+    expect(leerBorradorCondiciones(actor,persona,{ventaCruzada:true},solCruzada,0)?.capital).toBe('2000')
+    // Un borrador de cartera copiado a la clave de la venta cruzada no se lee como suyo.
+    sessionStorage.setItem(`crm:f5:acceso:${actor}:${persona}:ce:nuevo`,sessionStorage.getItem(`crm:f5:acceso:${actor}:${persona}:cartera:nuevo`) ??
+      JSON.stringify({version:1,actor,persona,solicitud:null,datos:acceso}))
+    expect(leerBorradorAcceso(actor,persona,{ventaCruzada:true})).toBeNull()
+    limpiarIntentosInversion(actor)
+  })
+  it('un flujo no adopta la solicitud del otro: la de venta cruzada solo corresponde a la venta cruzada',()=>{
+    const s=v.parse(SolicitudInversionSchema,{solicitud_id:base.inversionista_id,estado:'preparada',inversion_id:null,
+      inversionista_id:base.inversionista_id,inversionista_origen_id:base.inversionista_id,identidad_fusionada:false,
+      responsable_esperado_id:null,responsable_actual_id:null,requiere_revision_responsable:false,revision_datos:0,
+      revision_responsable:0,hash_datos:'h',necesita_portal:false,comprobante_bucket:null,comprobante_ruta:null,resultado:null,
+      datos:base,puerta:'cliente_existente',analista_cierre_id:'22222222-2222-4222-8222-222222222222'})
+    expect(solicitudCorresponde(s,base.inversionista_id,{ventaCruzada:true})).toBe(true)
+    expect(solicitudCorresponde(s,base.inversionista_id)).toBe(false)
+    const {puerta:_puerta,...propia}=s
+    expect(solicitudCorresponde(propia as SolicitudInversion,base.inversionista_id)).toBe(true)
+    expect(solicitudCorresponde(propia as SolicitudInversion,base.inversionista_id,{ventaCruzada:true})).toBe(false)
   })
 })

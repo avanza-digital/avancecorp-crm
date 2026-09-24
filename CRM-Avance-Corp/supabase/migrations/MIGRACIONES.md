@@ -64,6 +64,336 @@ authenticated; no concede GRANT OPTION auth. Comprobado por consultas de catálo
 
 # Ledger de migraciones — esquema `crm`
 
+## ✅ Venta cruzada · PUBLICACIÓN de las fases 1–4 — **EN PRODUCCIÓN desde el 24/09/2026**
+
+OK de Miguel: «si hazlo» (24/09). Lo lanzó Miguel con `!`, porque el clasificador de permisos de
+la sesión bloquea escribir en producción:
+1. **Ensayo que no escribe** (`scripts/venta-cruzada/ensayo-prod.py`: las 5 migraciones en UN `DO`
+   que termina siempre en `raise`, con los guardianes `private.assert_*()` antes y después):
+   `ENSAYO_VC_OK aplicadas=5 rojas_antes=4 rojas_despues=4`. Los preflights (anclas md5 de los
+   cuerpos vivos) y postflights pasaron sobre la producción real; ningún guardián empeoró. Se
+   validó antes en el banco, también el caso negativo (con las fases ya puestas aborta en el primer
+   preflight).
+2. **Aplicadas una a una** con `supabase db query --linked --file` y **registradas** en
+   `supabase_migrations.schema_migrations` con el fichero entero en `statements`: `20260924005126`,
+   `20260924005127`, `20260924032042`, `20260924042729`, `20260924045245`.
+3. **Verificación en vivo:** 5 versiones registradas · 6 puertas · bitácora con 0 filas.
+4. **Advisors:** seguridad 0 ERROR (lo nuevo: el INFO deliberado de la bitácora sin policies y el
+   WARN de las 6 puertas SECURITY DEFINER para `authenticated`, la misma clase que las 220
+   existentes; ningún anon nuevo); rendimiento 0 ERROR (solo índices recién creados sin uso).
+
+Vuelta atrás: `scripts/venta-cruzada/reversa-fase4..1.sql`, en ese orden (fallan cerradas si ya
+hay datos de venta cruzada). El frente sale aparte con `/release-crm`.
+
+## 🧪 Venta cruzada · Fases 5 y 6 (frente y pruebas de punta a punta) — **SIN MIGRACIÓN NUEVA · FRENTE SIN PUBLICAR**
+
+**Qué hay.** El frente de la venta cruzada y la evidencia de que las fases 1–4 no rompen nada:
+- **Frente** (`app/src`): módulo único `data/cliente-existente-api.ts` (+ `cliente-existente-queries.ts`),
+  diálogo `components/app/venta-cruzada.tsx` y cuatro entradas: Cartera («Cliente de otra
+  cartera» y el vacío de una búsqueda exacta), buscador del topbar (vacío + Enter), «Nuevo lead»
+  (precheck `ya_es_cliente`) y el «Reabrir» de un descarte que ya es cliente (P0409 → búsqueda por
+  el lead → tarjeta). La venta reutiliza `InversionNueva`/`ContratoNuevo` (tercer origen,
+  `origenClienteExistente`); `reabrir` del store devuelve `persistido` y el aviso espera al servidor.
+- **Gate de RLS** (`supabase/scripts/test-rls.mjs`, `testVentaCruzada`): catálogo exacto (puertas
+  solo `authenticated`, 19 núcleos sin EXECUTE, bitácora sin grants ni policies, sus TRES
+  disparadores exactos y activos para sesiones normales, UPDATE/DELETE rechazados en una
+  subtransacción que se deshace) y rechazos por la API sin escribir (anon/service_role sin
+  EXECUTE; roles; lead de otro ámbito; llaves inexistentes y dobles). La PROPIEDAD de la llave la
+  prueban `scripts/venta-cruzada/test-fase2.sql`/`test-fase4.sql` y la prueba HTTP.
+
+**Evidencia (24/09, banco Docker propio `avancecorp-venta-cruzada`, esquema de producción):**
+- Gate completo A/B desde la MISMA base (foto del volumen de Postgres, restaurada antes de cada
+  pasada): ANTES (fases 4→1 revertidas) **2231/2231**; DESPUÉS **2269/2269**; diff aserción por
+  aserción: **0 regresiones**, +38 del bloque nuevo. El banco necesitó la paridad de Storage
+  (buckets `f4-comprobantes` y `contratos-generados` + las 6 políticas F4, copiadas de las
+  migraciones APLICADAS): el volcado de esquema no trae el esquema `storage`.
+- Forma real: el módulo de datos del frente contra el PostgREST del banco con JWT por actor
+  (buscar por DNI/teléfono/inexistente, contexto, cuentas, legales, upgrade, preparar + reintento
+  idempotente, D6 → P0409, cancelar, llave cerrada → 42501): todas las respuestas pasan los
+  esquemas valibot. Filas de prueba retiradas después.
+- `npm run check` en un worktree aislado (solo HEAD + estos cambios): 293 archivos / 4343 tests,
+  lint, typecheck, cobertura, build, bundle y duplicados → PASS.
+- e2e en Docker, contenedor dedicado con 1 worker y sin otras corridas a la vez: **249 ✓, 0 ✗,
+  0 inestables** (26 omitidas). Con otra corrida en paralelo, la página ni cargaba («Page crashed»):
+  Docker Desktop tiene ~6 GB para todos los bancos y navegadores.
+
+**Revisiones.** Accesibilidad (`revisor-a11y`): 2 P1 funcionales corregidos con test que falla
+contra el código previo (la tarjeta del reabrir vivía en el banner que el reabrir optimista
+desmonta; la búsqueda iba dentro del `<form>` del alta y el submit del portal se propagaba) y 4 P2
+(apilado de diálogos + `focoInicial` en `ui/dialog.tsx`, Enter en el topbar, empresa con
+`aria-disabled` explicado, región viva persistente). Codex (`codex exec`, solo lectura),
+CHANGES_REQUESTED con 5 P2, todos aceptados con evidencia y test que falla antes del arreglo:
+borradores de acceso/condiciones separados por origen (la venta cruzada compartía clave y limpieza
+con la cartera propia); la solicitud es llave solo mientras está `preparada`; la carga o el error
+de los contratos del upgrade se muestran en vez de «sin contratos»; el gate rotula «inexistente»
+lo que no prueba propiedad y comprueba los disparadores exactos; las banderas se reponen cada una
+por su lado. Una afirmación de Codex no se sostuvo (el contexto de una solicitud cerrada no
+responde 42501: devuelve solo su estado), pero el arreglo propuesto sí aplicaba.
+
+## ✅ `20260924045245` — Venta cruzada · Fase 4: las puertas de la venta cruzada — **PUBLICADA 24/09/2026** · probada en banco y corregida tras la segunda auditoría
+
+**Qué hace.** Seis puertas nuevas para `authenticated` y seis piezas privadas:
+- `crm.buscar_cliente_existente_fn` (documento, teléfono normalizado o lead del propio ámbito):
+  - solo reconoce CLIENTES (`private.inversionista_es_cliente`: perfil o alguna inversión);
+  - devuelve lo mínimo: por teléfono, nombre con iniciales y sin id;
+  - registra cada intento en la bitácora de la Fase 1, también los fallidos;
+  - tope de 30 por hora (`private.busquedas_cliente_ultima_hora`), con una sola fila de tope
+    por minuto;
+  - «no operable» con un catálogo cerrado de motivos (`private.venta_cruzada_motivo`): los
+    motivos reservados (No insistir, perfil en revisión, otros) no muestran a la persona a
+    quien no es de su cartera;
+  - solo la búsqueda por documento encontrada es llave.
+- `crm.contexto_cliente_existente_fn`: misma forma que el contexto de conversión, sin correo ni
+  teléfono (añade `tiene_acceso_avance`). Con una solicitud ya cerrada solo devuelve su estado.
+  **Devuelve `perfil_id`** (se había ocultado por el P3 de la segunda auditoría y se revirtió con
+  evidencia nueva): el formulario lo necesita para la política de tasas, porque
+  `crm.resolver_tasa_fn` y las solicitudes de tasa lo exigen y ya lo aceptan de cualquier
+  analista con un cliente activo. El hueco real, `public.crear_contrato`, se cierra en la tarea
+  aparte que decidió Miguel.
+- `crm.preparar_inversion_cliente_existente_fn`: solo vendedor o supervisor, con llave vigente y
+  motivo sin documento. Manda a la ficha al cliente de la propia cartera.
+- Lecturas con UNA llave, vía `private.venta_cruzada_lectura`; con la solicitud como llave, solo
+  mientras está preparada:
+  - `crm.cuentas_cliente_existente_fn` (D3): cuentas registradas enmascaradas, lectura registrada
+    en `cartera_lecturas`;
+  - `crm.datos_legales_cliente_existente_fn`: misma forma que la de siempre;
+  - `crm.contratos_upgrade_cliente_existente_fn` (D5): contratos Avance activos que un upgrade
+    puede ampliar, lectura registrada como `ficha`.
+- Sin duplicar lógica. `crm.preparar_inversion_fn` y `crm.datos_legales_contrato_fn` pasan a ser
+  envoltorios de dos núcleos extraídos por programa de sus cuerpos vivos:
+  `private.inversion_preparar_nucleo` y `private.datos_legales_contrato_nucleo`.
+- En el núcleo:
+  - la venta cruzada revalida el documento buscado bajo los candados de la autorización, en el
+    orden global bandera → jerarquía → documento → persona;
+  - D6 es simétrico: una venta cruzada no convive con otra inversión de la misma persona y
+    empresa en preparación, en ningún sentido. Cartera, renovación y reinversión solo cambian
+    en ese caso.
+
+**Segunda auditoría (24/09):** CHANGES_REQUESTED, sin P0/P1 propios de la Fase 4.
+- **Atendido:**
+  - P2 llave «solicitud» sin caducidad;
+  - P3 orden de candados;
+  - P3 filas de tope sin techo;
+  - P3 motivos crudos y datos de personas de baja;
+  - hueco del upgrade (D5).
+- **Decidido por Miguel (24/09):**
+  - la venta pendiente de B la operan B, su cadena y Gerencia (ajuste en la Fase 3);
+  - la bitácora se conserva sin plazo (Ley 29733: decisión expresa, sin purga);
+  - la «Opción B» de `public.crear_contrato` se cierra en una tarea aparte;
+  - B también crea el acceso Avance del cliente (ajuste en la Fase 3).
+- **Documentado:** `cartera_lecturas` no distingue la lectura enmascarada.
+- **Hipótesis `Prefer: tx=rollback`:** en el banco PostgREST no la aplica (las filas de la
+  bitácora quedan). En producción se comprueba en la Fase 6.
+
+**Verificación (banco `avancecorp-venta-cruzada`):**
+- `test-fase4.sql` → `VENTA_CRUZADA_FASE4_OK`. Casos pedidos:
+  - mismo analista, otro analista, supervisor y Gerencia;
+  - teléfono normalizado en 4 formatos, ambiguo, documento normalizado;
+  - desde lead descartado («ya es cliente», sin reabrir);
+  - no operables con su código y datos mínimos (responsable inactivo, No insistir, perfil
+    inactivo, lead canónico abierto: D4);
+  - no clientes;
+  - llave ajena, de teléfono, vencida y con el documento cambiado (también con el perfil
+    corregido);
+  - motivo corto o con DNI; renovación (D5); sin alta de Portal;
+  - cuenta del perfil o una nueva que pisa un CCI (D3);
+  - reintento idempotente, también con la llave vencida;
+  - D6 en los dos sentidos y frente a la reinversión;
+  - confirmación atribuida a B, con el responsable, el asesor y los tramos intactos, sin
+    perfil, persona ni lead nuevos;
+  - lecturas cerradas con la solicitud confirmada;
+  - un cliente con varias inversiones;
+  - upgrade de punta a punta (contrato aparte de B; la operación de cartera queda a nombre de A);
+  - transferencia de Gerencia A→A2 sin tocar las históricas;
+  - cliente con lead canónico convertido (el caso normal en prod);
+  - bitácora inmutable;
+  - tope, rechazos que no cuentan y una fila por minuto;
+  - permisos del catálogo.
+- `concurrencia-fase4.sh` (dos sesiones reales) → `VENTA_CRUZADA_CONCURRENCIA_OK`:
+  - doble clic = una solicitud;
+  - B y C a la vez = gana una y la otra recibe D6.
+- **25 mutantes** (`mutantes.py test-fase4.sql mutantes-fase4.json`): todos muertos.
+- **Controles de commit:** `test-fase3.sql` y `test-fase4.sql` terminan con
+  `set constraints all immediate` antes del rollback. Así se disparan los triggers diferidos de
+  `public.contratos` (rentabilidad y operación de cartera), que una prueba con rollback nunca
+  ejercía. Pasan con todas las ventas cruzadas, incluido el upgrade.
+- Paridad de permisos (1.090 casos) idéntica. Fases 1–3 y `test-conversion.sql` en verde.
+- Reversa `reversa-fase4.sql` → `REVERSA_FASE4_OK`: 14 huellas fijadas y los dos envoltorios al
+  byte (md5 de prod).
+- Guardianes: sin rojo nuevo. `assert_analitica_leads_citas` marcaba la búsqueda como contador
+  de leads; se resolvió sacando el conteo del tope a su propia función, sin exención.
+- NOT RUN: `test-rls.mjs` por HTTP (Fase 6) y advisors (tras publicar).
+
+**Pendiente:** publicar SOLO con visto bueno de Miguel, junto con las Fases 1–3.
+
+## ✅ `20260924042729` — Venta cruzada · Fase 3: la venta queda a nombre de quien la cierra — **PUBLICADA 24/09/2026** · probada en banco y corregida tras dos auditorías
+
+**Qué hace.** 14 funciones generadas por programa desde los cuerpos vivos de prod del 23/09
+(anclados por md5, cada sustitución exigida el número exacto de veces) y cuatro nuevas:
+- Las que operan UNA solicitud (`solicitud_inversion_fn`, `corregir_…`, `cancelar_…`,
+  `acceso_inversion_fn`, `confirmar_inversion_revisada_fn`, `revisar_solicitud_inversion_fn`,
+  `bienvenida_inversion_estado_fn`, `private.f4_comprobante_autorizado`) autorizan con la llave
+  `p_solicitud` de la Fase 2.
+- **Quién opera una venta cruzada** (Miguel, 24/09): corregir, cancelar, confirmar, el alta de
+  Portal, revisar el responsable y subir el comprobante son de su analista, su cadena y
+  Gerencia (`private.venta_cruzada_opera` / `private.venta_cruzada_exigir_operador`). El
+  responsable del cliente la consulta y ve su comprobante, pero no la toca; una venta
+  abandonada la cancela Gerencia.
+- **Alta de Portal** (Miguel, 24/09: «también B»): `acceso_inversion_fn` acepta la llave.
+  Conserva su chequeo de responsable, que es la excepción de D7; si el responsable cambió con
+  el acceso pendiente, quien opera la venta lo resuelve con `revisar_solicitud_inversion_fn`,
+  que también recibe la llave.
+- Confirmar, en venta cruzada:
+  - contrato Avance con `analista_cierre_id` = analista congelado;
+  - cierre cooperativo con `vendedor_id` = analista congelado;
+  - el responsable ni se toca ni se exige que coincida (D7);
+  - el analista sigue activo;
+  - solo nueva o upgrade (D5);
+  - publica ESA solicitud en el GUC transaccional `crm.venta_cruzada_solicitud` mientras
+    crea el contrato.
+- Corregir, en venta cruzada: no exige responsable (D7).
+- `inversion_validar_datos`, en venta cruzada:
+  - analista congelado;
+  - sin renovación (D5);
+  - cuenta registrada del cliente o nueva (vacía mientras se completa el acceso Avance), y la
+    nueva no pisa un CCI activo del cliente (D3).
+- `inversion_solicitud_resultado`:
+  - añade `puerta` y `analista_cierre_id`;
+  - solo pide revisar el responsable si falta el acceso Avance.
+- `f4_comprobante_visible`: el analista y su cadena ven ESE comprobante.
+- `puede_leer_contrato_pdf` (D2): quien cerró, y su cadena, LEE el PDF de todos sus contratos,
+  también los antiguos, mientras el cliente siga activo; con guarda de rol.
+- **Compuerta del alta y del PDF nuevo** (P1 de las dos auditorías):
+  - `private.puede_crear_contrato_pdf_como` = P04 como antes de D2, o
+    `private.venta_cruzada_confirma_contrato` (GUC contrastado con la tabla);
+  - la exigen `crm.crear_contrato_con_cuenta_pdf_v2`, sea cual sea el régimen documental del
+    contrato, y `crear_job_contrato_pdf_base`, antes de crear un trabajo NUEVO;
+  - sin ella, D2 volvía auto-satisfacible el alta directa. La primera auditoría lo halló con un
+    contrato nuevo; la segunda, con uno de régimen «anterior» (fecha de inicio antes del 19/08),
+    que sale antes de la compuerta del PDF.
+  - Resultado en el banco: antes de la fase, B→pdf_v2 para X daba 42501; con la v1, contrato
+    creado; con la v2, contrato creado si era de régimen «anterior»; con la v3, 42501 en ambos
+    regímenes. Tampoco la Edge genera el PDF de un contrato ajeno sin trabajo.
+- No cambia `preparar_reinversion_fn` (pasa por el núcleo de la Fase 4 y recibe D6).
+- Postflight con la huella exacta de los 18 cuerpos. `COMMENT ON` en todas; se conserva el de
+  prod de `crear_contrato_con_cuenta_pdf_v2`.
+- D2 NO se ata a «era su responsable al cerrar»: en prod, `inversionista_responsables` empieza
+  el 03/09 y cubre 124 de 629 contratos.
+- Riesgo preexistente, fuera de alcance (requiere OK de Miguel por ser `public`):
+  `public.crear_contrato` tiene EXECUTE para `authenticated` y solo pide
+  `puede_registrar_ventas()` (Opción B de F5.c). Mientras siga así, la venta cruzada no es
+  frontera de seguridad para la atribución.
+
+**Verificación (banco `avancecorp-venta-cruzada`):**
+- `test-fase3.sql` → `VENTA_CRUZADA_FASE3_OK`. Además de lo anterior (cooperativa y Avance de B
+  sobre X, flujo de A, renovación, transferencia a mitad, analista dado de baja):
+  - B y S2 no dan de alta un contrato directo para X en ninguno de los dos regímenes, aunque se
+    pongan de analista, y ningún rechazo deja una cuenta del cliente;
+  - la reserva de la Edge no genera el PDF de un contrato ajeno sin trabajo;
+  - S2 confirma la venta de B: queda de B y la registra S2;
+  - B completa el alta de Portal y la venta cruzada admite el alta del acceso Avance; el
+    responsable y C no la hacen;
+  - el responsable (A2, tras la transferencia) ve la venta de B, pero no la corrige, cancela,
+    confirma ni revisa, ni sube su comprobante; B revisa su venta y acepta al nuevo
+    responsable (excepción de D7); Gerencia cancela una venta abandonada;
+  - reglas de cuenta (D3);
+  - tras la transferencia no se pide revisar el responsable;
+  - C no consulta, corrige, cancela ni ve la bienvenida;
+  - D2 se apaga con el cliente dado de baja.
+- **13 mutantes** (`mutantes.py test-fase3.sql mutantes-fase3.json`): todos muertos.
+- `conversion-inversion/test-conversion.sql` PASS. Foto de permisos igual. Fases 1, 2 y 4 en
+  verde.
+- Reversa `reversa-fase3.sql` → `REVERSA_FASE3_OK`:
+  - 14 cuerpos de antes al byte;
+  - comentarios de vuelta a nulo (salvo el de pdf_v2, que no se tocó);
+  - compuerta y regla de operador retiradas;
+  - se niega si hay ventas cruzadas, dependencias o cambios posteriores.
+- Guardianes: sin rojo nuevo.
+- NOT RUN: `test-rls.mjs` (Fase 6) y advisors (tras publicar).
+
+**Pendiente:** publicar SOLO con visto bueno de Miguel, junto con las Fases 1, 2 y 4.
+
+## ✅ `20260924032042` — Venta cruzada · Fase 2: la regla de permisos separada por dentro, con UNA llave — **PUBLICADA 24/09/2026**
+
+**Qué hace.** Las cuatro reglas de autorización por persona de F4
+(`inversion_persona_autorizada`, `inversion_persona_lectura`,
+`inversion_persona_contexto(uuid,uuid)`, `inversion_contexto_lectura`) pasan a núcleos
+`_para` con dos LLAVES, `p_solicitud` y `p_busqueda`. Las funciones de siempre quedan como
+envoltorios sin llaves (`null::uuid`), y sin llaves la rama nueva es siempre falsa. La llave
+la resuelve `private.inversion_analista_por_llave`, siempre atada a la persona canónica:
+una solicitud `cliente_existente` de ESA persona abre a su analista congelado (y a su
+cadena de supervisión); una búsqueda abre solo a quien la hizo, si es la llave vigente
+(`private.busqueda_cliente_es_llave`, la misma regla que usa la base en la Fase 1). El
+ámbito del LEAD de los contextos no se amplía, a propósito. Cuerpos GENERADOS por programa
+desde los cuerpos vivos de prod del 23/09 (anclados por md5), con cada sustitución
+exigida una sola vez. Nadie llama todavía a los núcleos con llaves (Fases 3 y 4).
+
+**Auditoría RLS (23/09): PASS**, con un P2 de diseño que se ADOPTÓ: la primera versión
+recibía un `p_analista` suelto, que habría abierto el ámbito sobre cualquier persona; ahora
+son llaves atadas a la persona. P3 atendidos: `null::uuid` en los envoltorios; la reversa
+exige las 9 huellas de la Fase 2 antes de restaurar y detecta dependencias con un regex
+más amplio; se documenta que el ámbito del lead no se amplía. P3 decidido: el supervisor de
+un analista que dejó el equipo sigue pudiendo operar esa solicitud (por ejemplo, para
+cancelarla); confirmar exigirá un analista activo (Fase 3).
+
+**Verificación (banco `avancecorp-venta-cruzada`, mundo `scripts/venta-cruzada/mundo.sql`):**
+- **Paridad:** `paridad-permisos.sql`: 1.089 casos (72 OK y 1.017 errores por TODAS las
+  ramas). Foto idéntica antes, después, tras la reversa y tras la reaplicación.
+- **Llaves:** `test-fase2.sql` → `VENTA_CRUZADA_FASE2_OK`: búsqueda propia, de la
+  fusionada, ajena, vieja, por teléfono y de otra persona; solicitud de venta cruzada,
+  de cartera, usada sobre otra persona y con las dos llaves; Directorio, D inactivo y sin
+  sesión; reglas del contexto (No insistir, sin responsable, lead abierto D4 y lead ajeno).
+  **Mutante** (llave que ignora de quién y de qué persona es la búsqueda): la prueba lo caza.
+- **Reversa:** `reversa-fase2.sql` → `REVERSA_FASE2_OK`, huellas de antes al byte. La Fase 2
+  se niega sin la Fase 1, y la reversa de la Fase 1 se niega con la Fase 2 puesta.
+- `conversion-inversion/test-conversion.sql` sigue en PASS (2 escenarios) con las Fases 1
+  y 2 aplicadas.
+- NOT RUN: `test-rls.mjs` (necesita sus fixtures en el banco; entra en la Fase 6 con sondas
+  de catálogo para los núcleos) y advisors (son de la nube: tras publicar).
+
+**Publicación:** SOLO con visto bueno de Miguel, después de la Fase 1 y junto con las
+Fases 3 y 4, en ese orden.
+
+## ✅ `20260924005126` + `20260924005127` — Venta cruzada · Fase 1: guardar quién vende cada inversión — **PUBLICADA 24/09/2026**
+
+**Qué es.** Primera fase de «venta cruzada»: un vendedor o supervisor registra la
+nueva inversión de un cliente cuyo responsable es otro, sin cambiar el responsable
+(decisiones D1–D7 de Miguel del 23/09; plan y avance en el tablero FigJam «Venta
+cruzada»). Esta fase solo prepara el terreno: **ninguna conducta cambia**.
+
+- `20260924005126_crm_busquedas_cliente_existente` — tabla nueva
+  `crm.busquedas_cliente_existente`: bitácora inmutable de cada búsqueda exacta de un
+  cliente (documento, teléfono o lead). RLS sin grants ni policies (advisor esperado
+  `rls_enabled_no_policy`, INFO), auditoría enmascarando `valor_consultado`, sin UPDATE,
+  DELETE ni TRUNCATE, índices para sus llaves ajenas y `private.busqueda_cliente_es_llave`:
+  la ÚNICA definición de «esta búsqueda abre la venta cruzada» (propia, por documento,
+  encontrado, misma persona canónica, últimas 2 horas).
+- `20260924005127_crm_inversion_solicitud_atribucion` — columnas `puerta`,
+  `analista_cierre_id`, `motivo_atribucion` y `busqueda_id` en `crm.inversion_solicitudes`.
+  Venta cruzada: todo o nada, analista = quien la registra, nunca desde un lead, atada en la
+  base a su llave (trigger), inmutable (también su persona) y una sola en preparación por
+  persona y empresa (D6). El auditor de la tabla se recrea igual pero enmascarando además el
+  motivo. Las filas actuales quedan en `cartera` con NULL.
+
+**Auditoría RLS (23/09): cambios pedidos, sin P0/P1, todos atendidos:** P2 motivo en claro en
+`public.audit_log` → enmascarado, con prueba · P3 TRUNCATE → cerrado · P3 la venta no estaba
+atada a su búsqueda en la base → trigger con la regla única · P3 llaves ajenas sin índice → 4
+índices · P3 reversa ante aplicación a medias y dependencias → reescrita y probada en sus tres
+caminos · P3 security definer innecesario → las funciones trigger pasan a invoker · P3
+precisiones (comentarios, espacios del motivo, comentario de `id`). Resuelto en la Fase 4: el
+motivo pasa por `private.motivo_sin_documento` y `valor_consultado` se trunca a 64. Retención
+de la bitácora (Ley 29733): **decisión expresa de Miguel (24/09), conservar sin plazo**, sin
+purga. No se añadió el CHECK «sin confirmadas hasta la Fase 3»: las Fases 1–4 se publican
+juntas y en orden.
+
+**Verificación (banco aislado `avancecorp-venta-cruzada`, puertos 5332x, esquema de prod del
+23/09):** 13 de 14 huellas de identidad iguales a prod (la 14.ª, permisos de 41 funciones de
+`public`, idéntica como conjunto) · `scripts/venta-cruzada/test-fase1.sql` →
+`VENTA_CRUZADA_FASE1_OK` · reversa `scripts/venta-cruzada/reversa-fase1.sql` →
+`REVERSA_FASE1_OK` en sus tres caminos (completa, parcial y sin Fase 1) · segunda aplicación
+se niega · guardianes sin rojo nuevo (siguen solo `assert_auditoria`, 11 tablas ajenas, igual
+en prod, y `assert_f7_piezas_cerradas`) · `test-rls.mjs` NOT RUN (Fase 6).
+
 ## ✅ `20260923185001` — «Resultados por origen»: la conversión ponderada la calcula el servidor — **INSTALADA 23/09/2026**
 
 **Aplicada por Miguel con `!` el 23/09** (`db query --linked --file`): trinquete

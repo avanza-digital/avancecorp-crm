@@ -114,6 +114,27 @@ vi.mock('@/data/crm-queries', () => ({
   })),
 }))
 
+// Venta cruzada: las mismas lecturas con la llave de la venta (cuentas ENMASCARADAS).
+// Sin llave el componente no las usa; con llave, las propias quedan apagadas.
+const ventaCruzadaEstado = vi.hoisted(() => ({ faltaDomicilio: false }))
+vi.mock('@/data/cliente-existente-queries', () => ({
+  useDatosLegalesVentaCruzada: vi.fn((llave: unknown) => ({
+    data: llave
+      ? { clienteId: 'cli-1', faltaDomicilio: ventaCruzadaEstado.faltaDomicilio,
+          faltanCliente: ventaCruzadaEstado.faltaDomicilio ? ['domicilio'] : [], faltanAnalista: [] }
+      : undefined,
+    isPending: !llave, isError: false, isFetching: false, refetch: vi.fn(),
+  })),
+  useCuentasVentaCruzada: vi.fn((llave: unknown, moneda: 'PEN' | 'USD') => ({
+    data: llave && moneda === 'PEN'
+      ? [{ cuenta_id: 'cb-vc-1', moneda: 'PEN', banco: 'INTERBANK', tipo_cuenta: 'ahorros', numero_cuenta: '••••4321',
+          cci: '••••8765', titular_distinto: false, beneficiario_nombre: null, beneficiario_dni: null, origen: 'contrato',
+          es_cuenta_perfil: false, creada_en: '2026-09-24T10:00:00+00:00' }]
+      : [],
+    isPending: !llave, isError: false, isFetching: false, refetch: vi.fn(),
+  })),
+}))
+
 const { ContratoNuevo } = await import('./contrato-nuevo')
 const crmQueries = await import('@/data/crm-queries')
 const crearContrato = vi.mocked(crmApi.crearContrato)
@@ -121,7 +142,7 @@ const completarDomicilio = vi.mocked(crmApi.completarDomicilioCliente)
 
 function montar(
   pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
-  opciones: Pick<ContratoNuevoProps, 'validarNumero' | 'borrador' | 'onRevisar'> = {},
+  opciones: Pick<ContratoNuevoProps, 'validarNumero' | 'borrador' | 'onRevisar' | 'ventaCruzada'> = {},
 ) {
   const onCreado = vi.fn()
   const onOmitir = vi.fn()
@@ -1009,5 +1030,46 @@ describe('ContratoNuevo — idempotencia del alta', () => {
     await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
     expect(screen.getByText(/sigue siendo el del formato anterior/)).toBeInTheDocument()
     expect(archivoPdf.archivar).not.toHaveBeenCalled()
+  })
+})
+
+describe('ContratoNuevo — venta cruzada (cliente de otra cartera)', () => {
+  beforeEach(() => {
+    ventaCruzadaEstado.faltaDomicilio = false
+    legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []
+    legalesEstado.error = false
+    cuentasEstado.error = false
+    cuentasEstado.pending = false
+    cuentasEstado.fetching = false
+    cuentasEstado.ocultarPen = false
+    crearContrato.mockReset()
+  })
+
+  it('lee cuentas y datos legales con la llave de la venta: solo cuentas enmascaradas, nada del perfil', async () => {
+    montar(undefined, { ventaCruzada: { busquedaId: 'busqueda-1' } })
+    expect(screen.getByRole('radio', { name: /INTERBANK/ })).toBeInTheDocument()
+    // El número llega ya enmascarado del servidor y se pinta igual que cualquier cuenta.
+    expect(screen.getByRole('radio', { name: /•••• 4321/ })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /BCP/ })).not.toBeInTheDocument()
+    // Las lecturas por perfil quedan apagadas (su `enabled` va en false).
+    expect(vi.mocked(crmQueries.useCuentasBancariasCliente)).toHaveBeenLastCalledWith('cli-1', 'PEN', false)
+    expect(vi.mocked(crmQueries.useDatosLegalesContrato)).toHaveBeenLastCalledWith('cli-1', false)
+  })
+
+  it('el domicilio que falta no se completa aquí: se pide a su responsable y el alta queda frenada', async () => {
+    const user = userEvent.setup()
+    ventaCruzadaEstado.faltaDomicilio = true
+    montar(undefined, { ventaCruzada: { solicitudId: 'solicitud-1' } })
+    await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
+    await user.type(screen.getByLabelText('Capital'), '10000')
+    await user.type(screen.getByLabelText('N° de contrato'), '000777')
+    await user.click(screen.getByRole('radio', { name: /INTERBANK/ }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/Pide a su responsable que lo complete en la ficha del cliente/)
+    expect(screen.queryByRole('region', { name: /domicilio/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Guardar domicilio/i })).not.toBeInTheDocument()
+    expect(boton()).toBeDisabled()
+    await user.click(boton())
+    expect(crearContrato).not.toHaveBeenCalled()
   })
 })
