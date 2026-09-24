@@ -9,8 +9,9 @@ export function AlertasDelDia({ alNavegar }: { alNavegar?: (() => void) | undefi
   const cortes = useGestionDiariaAvisos()
   const estado = useAlertasCRM()
   if (cortes?.error || !cortes?.datos) return <section aria-label="Otros pendientes del equipo" className="space-y-3 text-base">
-    <p>{cortes?.cargando ? 'Consultando otros pendientes del equipo…' : 'No pudimos confirmar los otros pendientes del equipo. Esto no significa que no haya avisos.'}</p>
-    {cortes && <Button variant="outline" className="min-h-11 text-base" onClick={estado.reintentar}>Actualizar otros pendientes</Button>}
+    <p>{cortes?.error ? 'No pudimos confirmar los otros pendientes del equipo. Esto no significa que no haya avisos.'
+      : cortes?.cargando ? 'Consultando otros pendientes del equipo…' : 'Los otros pendientes no están disponibles en esta sesión.'}</p>
+    {!!cortes?.error && <Button variant="outline" className="min-h-11 text-base" onClick={estado.reintentar}>Actualizar otros pendientes</Button>}
   </section>
   const alertas = estado.alertas.filter((a) => !a.corte)
   const contexto = cortes.datos.contexto

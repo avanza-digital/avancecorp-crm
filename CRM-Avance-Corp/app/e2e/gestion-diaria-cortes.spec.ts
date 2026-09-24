@@ -43,7 +43,9 @@ async function preparar(page: Page, popup = false) {
         lead_etapa: 'nuevo', etapa_en_ese_momento: 'nuevo', tipo: 'llamada_realizada', detalle: 'Llamada desde corte H4', metadata: {},
         creado_por: idH4(2), autor_nombre: 'ANA H4', creado_en: `${dia}T11:00:00-05:00` }] } })
   })
-  await loginReal(page)
+  // El popup puede abrirse antes de que el helper encuentre el menú; Radix
+  // oculta correctamente ese fondo del árbol accesible mientras está abierto.
+  await loginReal(page, { esperarWorkspace: !popup })
   if (popup) return { estado, lead }
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()

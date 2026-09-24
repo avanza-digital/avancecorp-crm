@@ -32,12 +32,27 @@ beforeEach(() => {
   consulta = { dia: f.equipo, cargando: false, enVuelo: false, error: null, recargar: vi.fn() }
 })
 describe('H4: cortes y otros avisos conectados', () => {
+  it('H5: sesión sin avisos disponibles no presenta un fallo ni un reintento inútil', () => {
+    contexto = { ...contexto, datos: null, error: null, cargando: false }
+    render(<Vista />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes' }))
+    expect(screen.getByText('Los otros pendientes no están disponibles en esta sesión.')).toBeVisible()
+    expect(screen.queryByText(/No pudimos confirmar/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Actualizar otros pendientes' })).not.toBeInTheDocument()
+  })
+  it('H5: la carga inicial de otros pendientes no ofrece un reintento', () => {
+    contexto = { ...contexto, datos: null, error: null, cargando: true }
+    render(<Vista />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes' }))
+    expect(screen.getByText('Consultando otros pendientes del equipo…')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Actualizar otros pendientes' })).not.toBeInTheDocument()
+  })
   it('franja muestra primer corte evaluado y segundo programado; cifras/personas bajo demanda', () => {
     render(<Vista />)
     const franja = screen.getByRole('region', { name: 'Estado de cortes y avisos' })
     expect(franja).toHaveTextContent('11:30 Evaluado · 1 bajo el mínimo')
     expect(franja).toHaveTextContent('16:00 Programado')
-    expect(franja).toHaveTextContent('Otros avisos: 1')
+    expect(franja).toHaveTextContent('Otros sin reconocer: 1')
     fireEvent.click(within(franja).getByRole('button', { name: 'Cortes y avisos' })); expect(abrir).toHaveBeenCalledOnce()
     const resultados = screen.getByRole('region', { name: 'Resultados de los cortes' })
     const primer = resultados.querySelector('details')!
@@ -138,7 +153,7 @@ describe('H4: cortes y otros avisos conectados', () => {
     delete contexto.datos!.diarias; delete contexto.datos!.contexto
     delete otros.alertas[0]!.diaria
     render(<Vista />)
-    expect(screen.getByRole('region', { name: 'Estado de cortes y avisos' })).toHaveTextContent('Otros avisos: 1')
+    expect(screen.getByRole('region', { name: 'Estado de cortes y avisos' })).toHaveTextContent('Otros sin reconocer: 1')
     fireEvent.click(screen.getByRole('tab', { name: 'Otros pendientes' }))
     expect(screen.getByText('Tareas vencidas · 1')).toBeVisible()
     expect(screen.queryByText(/No pudimos confirmar los otros pendientes/)).not.toBeInTheDocument()
@@ -149,11 +164,11 @@ describe('H4: cortes y otros avisos conectados', () => {
     otros = { ...otros, cargando: true }
     vista.rerender(<Vista />)
     const franja = screen.getByRole('region', { name: 'Estado de cortes y avisos' })
-    expect(franja).toHaveTextContent('Otros avisos: 1')
+    expect(franja).toHaveTextContent('Otros sin reconocer: 1')
     expect(franja).not.toHaveTextContent('Actualizando otros avisos')
     otros = { ...otros, cargando: false, errores: ['Libro sin confirmar'] }
     vista.rerender(<Vista />)
     expect(franja).toHaveTextContent('Otros avisos sin confirmar')
-    expect(franja).not.toHaveTextContent('Otros avisos: 1')
+    expect(franja).not.toHaveTextContent('Otros sin reconocer: 1')
   })
 })

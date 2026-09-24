@@ -30,7 +30,7 @@ export function FranjaCortesSupervisor({ consulta, abrir }: { consulta: DiaEquip
       {avisos?.error ? <span>Avisos no disponibles</span> : avisos?.cargando ? <span>Consultando avisos…</span>
         : avisos?.datos && <>
           {!avisos.datos.avisos_habilitados && <span>Avisos pausados</span>}
-          <span>{otros.errores.length ? 'Otros avisos sin confirmar' : ultimoConteo.current === null ? 'Consultando otros avisos…' : `Otros avisos: ${ultimoConteo.current}`}</span>
+          <span>{otros.errores.length ? 'Otros avisos sin confirmar' : ultimoConteo.current === null ? 'Consultando otros avisos…' : `Otros sin reconocer: ${ultimoConteo.current}`}</span>
         </>}
     </div>
     <p className="gd-cortes-consulta">{dia ? `Consulta ${horaCorte(dia.generado_en)} · Lima` : 'Sin consulta confirmada'}</p>
