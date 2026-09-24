@@ -203,6 +203,11 @@ Backend instalado sólo en banco local aislado; publicación en H6.
 
 **Dependencia:** H3 conectada para abrir la persona y el registro correctos.
 
+**Plan H4 aprobado por Miguel el 23/09/2026; ejecución pendiente.** La sesión
+queda detenida a petición del usuario para retomarla en unas horas desde H4.1.
+[Punto de retoma guardado](SUPERVISOR-HORIZONTAL-RETOMA.md), con objetivo,
+ubicación, commits y evidencia. La aprobación no completa tareas de H4.
+
 #### Etapa H4.1 · Compactar el estado de los cortes
 
 - [ ] Crear una franja de cortes con acceso a sus cifras y personas afectadas bajo demanda.

@@ -7,6 +7,14 @@ que debe actualizarse **el mismo archivo de Figma**.
 
 **Estado: H1–H3 CERRADAS; H4–H6 pendientes; sin publicación.**
 
+**Retoma guardada:** Miguel aprobó el plan de H4 y pidió detenerse para seguir
+en unas horas. H4 sigue sin implementar; retomar desde **H4.1**. H3 está en
+`fa23ab5e`, después del checkpoint H2 `e6cc6c5b`. Ubicación y objetivo completos:
+`CRM-Avance-Corp/docs/gestion-diaria/SUPERVISOR-HORIZONTAL-RETOMA.md`.
+Respaldo incremental de la rama en
+`/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-2026-09-23.bundle`.
+Figma conserva 36/72 completas y el plan H4 pendiente en el mismo tablero.
+
 El [PR #85](https://github.com/avanza-digital/avancecorp-crm/pull/85) está fusionado
 desde el 23/09 a las 21:35 UTC, Main `e0bdfe124c48ab32617c72402e320c7e9963dc3b`.
 Se retomó desde ese cierre; no se publicó producto por esta planificación.

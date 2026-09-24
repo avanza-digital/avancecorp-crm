@@ -1007,6 +1007,18 @@
       },
       "documentationChecks": "PASS",
       "productVisualQA": "PASS: escritorio y móvil; capturas de datos ficticios"
+    },
+    "resumeCheckpoint": {
+      "date": "2026-09-23",
+      "sessionStatus": "STOPPED_AT_USER_REQUEST",
+      "h4PlanApproval": "USER_APPROVED",
+      "h4Implementation": "NOT_STARTED",
+      "nextStage": "H4.1",
+      "source": "SUPERVISOR-HORIZONTAL-RETOMA.md",
+      "productCheckpoint": "fa23ab5e",
+      "branch": "codex/gestion-diaria-supervisor-horizontal",
+      "workingCopy": "/private/tmp/avancecorp-release.hvdub4/repo",
+      "localBundle": "/Users/usuario/.local/share/avancecorp-checkpoints/supervisor-horizontal-2026-09-23.bundle"
     }
   },
   "uiProgress": {
