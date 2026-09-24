@@ -18,7 +18,7 @@ export function DetalleAnalista({ fila: f, dia, abrirLlamadas }: {
       <dl className="gd-metricas-detalle">
         {[
           ['Llamadas útiles', f.marcador.utiles], ['Leads distintos', f.marcador.leads_tocados],
-          ['Llamadas por lead', f.llamadas_por_lead ?? '—'], ['Citas pendientes para hoy', f.citas_hoy],
+          ['Llamadas por lead', f.llamadas_por_lead ?? '—'], ['Citas pendientes del día', f.citas_hoy],
           ['Primera llamada', horaLimaDe(f.marcador.primera_llamada_en)], ['Última llamada', horaLimaDe(f.marcador.ultima_llamada_en)],
           ['Tiempo sin llamar', tiempoSinLlamar(f.minutos_sin_llamar)], ['Última gestión', horaLimaDe(f.ultima_gestion_en)],
         ].map(([titulo, valor]) => <div key={titulo}><dt className="text-[var(--muted-foreground-strong)]">{titulo}</dt><dd className="mt-1 font-semibold tabular-nums">{valor}</dd></div>)}

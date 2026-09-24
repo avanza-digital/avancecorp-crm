@@ -2,14 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { diaEquipoPrueba, filaEquipoPrueba } from '@/lib/gestion-diaria-equipo.fixture'
+import { idH4, jornadaH4 } from '@/lib/gestion-diaria-h4.fixture'
 import type { DiaEquipoHook } from '@/data/gestion-diaria-equipo-queries'
 import type { AvisosGestionDiaria } from '@/lib/gestion-diaria-avisos-context'
 import { CrmApiError } from '@/data/crm-api'
 
-const dobles = vi.hoisted(() => ({ consulta: {} as DiaEquipoHook, recargar: vi.fn(), registro: vi.fn(), yo: { id: 's1', rol: 'supervisor', demo: false }, avisos: null as AvisosGestionDiaria | null, ahora: Date.parse('2026-09-21T15:00:00Z') }))
+const dobles = vi.hoisted(() => ({ consulta: {} as DiaEquipoHook, consultar: vi.fn(), recargar: vi.fn(), registro: vi.fn(), yo: { id: 's1', rol: 'supervisor', demo: false }, avisos: null as AvisosGestionDiaria | null, ahora: Date.parse('2026-09-21T15:00:00Z') }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => dobles.ahora }))
-vi.mock('@/data/gestion-diaria-equipo-queries', () => ({ useDiaEquipo: () => dobles.consulta }))
+vi.mock('@/data/gestion-diaria-equipo-queries', () => ({ useDiaEquipo: (dia: string) => { dobles.consultar(dia); return dobles.consulta } }))
 vi.mock('@/lib/gestion-diaria-avisos-context', () => ({ useGestionDiariaAvisos: () => dobles.avisos }))
 vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => <p>Últimas gestiones</p> }))
 vi.mock('@/components/gestion-diaria/pendientes-supervisor', () => ({ PendientesSupervisor: () => <p>Pendientes independientes</p> }))
@@ -34,6 +35,74 @@ beforeEach(() => {
 })
 
 describe('Supervisor horizontal', () => {
+  it('elige otra fecha, limpia el detalle anterior y consulta el registro del día elegido', () => {
+    render(<GestionDiariaSupervisor />)
+    const fecha = screen.getByLabelText('Fecha de gestión')
+    expect(fecha).toHaveValue('2026-09-21')
+    expect(fecha).toHaveAttribute('min', '2025-09-21')
+    expect(fecha).toHaveAttribute('max', '2026-09-21')
+    expect(screen.getByRole('button', { name: 'Hoy' })).toBeDisabled()
+    abrirRegistro()
+    fireEvent.click(screen.getByRole('button', { name: 'Página 1' }))
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ana' } })
+    fecha.focus()
+    fireEvent.change(fecha, { target: { value: '2026-09-10' } })
+    expect(fecha).toHaveFocus()
+    expect(dobles.consultar).toHaveBeenLastCalledWith('2026-09-10')
+    expect(screen.getByRole('searchbox')).toHaveValue('ana')
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Mi equipo por fecha' })).toBeVisible()
+    expect(screen.getByText(/El equipo y los pendientes reflejan su estado actual/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Cortes y avisos' })).not.toBeInTheDocument()
+    abrirRegistro()
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-10', analistaIds: ['a1'] }))
+    expect(screen.getByRole('button', { name: 'Página 1' })).toBeVisible()
+    fireEvent.change(fecha, { target: { value: '2026-08-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Registro del equipo' }))
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-08-31', analistaIds: null }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
+    expect(fecha).toHaveValue('2026-09-21')
+    expect(dobles.consultar).toHaveBeenLastCalledWith('2026-09-21')
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cortes y avisos' })).toBeVisible()
+  })
+  it('usa hoy en Lima e impide consultar fechas vacías, futuras o fuera de los 365 días', () => {
+    dobles.ahora = Date.parse('2026-09-22T03:00:00Z')
+    render(<GestionDiariaSupervisor />)
+    const fecha = screen.getByLabelText('Fecha de gestión')
+    for (const valor of ['', '2026-09-22', '2025-09-20']) {
+      fireEvent.change(fecha, { target: { value: valor } })
+      fireEvent.blur(fecha)
+      expect(fecha).toHaveValue('2026-09-21')
+      expect(dobles.consultar).toHaveBeenLastCalledWith('2026-09-21')
+    }
+    fireEvent.change(fecha, { target: { value: '2025-09-21' } })
+    expect(dobles.consultar).toHaveBeenLastCalledWith('2025-09-21')
+  })
+  it('permite cambiar fecha con el equipo vacío y en error sin presentarlo como actividad cero', () => {
+    dobles.consulta.dia = diaEquipoPrueba([])
+    const vista = render(<GestionDiariaSupervisor />)
+    fireEvent.change(screen.getByLabelText('Fecha de gestión'), { target: { value: '2026-09-10' } })
+    expect(screen.getByText('No tienes analistas activos asignados')).toBeVisible()
+    dobles.consulta.error = new Error('Sin red')
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.getByRole('alert')).toHaveTextContent('no significa que el equipo no tenga actividad')
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
+    expect(dobles.consultar).toHaveBeenLastCalledWith('2026-09-21')
+  })
+  it('desde un corte histórico abre las llamadas de esa fecha y devuelve el foco al panel', async () => {
+    dobles.consulta.dia = jornadaH4('2026-09-18', 's1').equipo
+    render(<GestionDiariaSupervisor />)
+    fireEvent.change(screen.getByLabelText('Fecha de gestión'), { target: { value: '2026-09-18' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cortes del día' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Cortes del día seleccionado' })
+    const primerCorte = within(dialogo).getByText('Primer corte · 11:30')
+    fireEvent.click(primerCorte)
+    fireEvent.click(within(primerCorte.closest('details')!).getByRole('button', { name: 'Ver llamadas de ANA H4' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Detalle de ANA H4' })).toHaveFocus())
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-18', analistaIds: [idH4(2)], pestanaInicial: 'llamadas' }))
+  })
   it('seis columnas, ceros, cifras completas y panel inicial sin consultas', () => {
     render(<GestionDiariaSupervisor />)
     const tabla = screen.getByRole('table')
@@ -169,6 +238,35 @@ describe('Pedido de registro desde avisos', () => {
     dobles.avisos = { datos: null, cargando: false, error: null, ocupada: false, recargar: vi.fn(), actuar: vi.fn(),
       registroPedido: null, abrirRegistro: vi.fn(), consumirRegistro: vi.fn(() => { dobles.avisos!.registroPedido = null }) }
   }
+  it('vuelve a hoy antes de abrir un aviso mientras se consulta otra fecha', () => {
+    preparar()
+    const vista = render(<GestionDiariaSupervisor />)
+    fireEvent.change(screen.getByLabelText('Fecha de gestión'), { target: { value: '2026-09-10' } })
+    dobles.avisos = { ...dobles.avisos!, registroPedido: { actor: 's1', dia: '2026-09-21', analista: 'a1', secuencia: 1 } }
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.getByLabelText('Fecha de gestión')).toHaveValue('2026-09-21')
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-21', analistaIds: ['a1'], pestanaInicial: 'llamadas' }))
+    expect(dobles.avisos!.consumirRegistro).toHaveBeenCalledOnce()
+  })
+  it('espera la consulta de hoy antes de abrir su aviso y rechaza pedidos de otra jornada', () => {
+    preparar()
+    const vista = render(<GestionDiariaSupervisor />)
+    fireEvent.change(screen.getByLabelText('Fecha de gestión'), { target: { value: '2026-09-10' } })
+    dobles.avisos = { ...dobles.avisos!, registroPedido: { actor: 's1', dia: '2026-09-10', analista: 'a1', secuencia: 1 } }
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.queryByText('Registro cargado')).not.toBeInTheDocument()
+    expect(dobles.avisos!.consumirRegistro).toHaveBeenCalledOnce()
+    vi.mocked(dobles.avisos!.consumirRegistro).mockClear()
+    dobles.consulta = { ...dobles.consulta, dia: null, cargando: true }
+    dobles.avisos = { ...dobles.avisos!, registroPedido: { actor: 's1', dia: '2026-09-21', analista: 'a1', secuencia: 2 } }
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(screen.getByLabelText('Fecha de gestión')).toHaveValue('2026-09-21')
+    expect(dobles.avisos!.consumirRegistro).not.toHaveBeenCalled()
+    dobles.consulta = { ...dobles.consulta, dia: diaEquipoPrueba(), cargando: false }
+    vista.rerender(<GestionDiariaSupervisor />)
+    expect(dobles.registro).toHaveBeenLastCalledWith(expect.objectContaining({ dia: '2026-09-21', analistaIds: ['a1'] }))
+    expect(dobles.avisos!.consumirRegistro).toHaveBeenCalledOnce()
+  })
   it('transfiere foco desde el diálogo de avisos al registro solicitado', async () => {
     preparar()
     const vista = render(<GestionDiariaSupervisor />)
