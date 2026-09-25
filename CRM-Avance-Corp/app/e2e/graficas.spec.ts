@@ -54,7 +54,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByText(/asignaciones contabilizadas/)).toHaveCount(0)
     // El capital confirmado viene de Cumplimiento/Metas, no se recompone desde
     // la RPC histórica de conversiones. Sin esa fuente, el vacío es explícito.
-    const capital = page.locator('[data-gi-kpi]').filter({ hasText: 'Capital confirmado del mes' })
+    const capital = page.locator('[data-gi-kpi]').filter({ hasText: 'Capital confirmado' })
     await expect(capital).toContainText('—')
     await expect(capital).toContainText('Cumplimiento confirmado no disponible')
     await expect(page.getByText('8 pactadas')).toBeVisible()

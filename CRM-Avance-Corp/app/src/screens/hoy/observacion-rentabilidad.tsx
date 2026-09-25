@@ -23,7 +23,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
-import { money, numero } from '@/lib/format'
+import { fmtFecha, money, numero } from '@/lib/format'
 import { useObservacionRentabilidad } from '@/data/crm-queries'
 import type { ObservacionRentabilidad } from '@/data/crm-api'
 import { motivoSinRegla, etiquetaModoPolitica } from '@/lib/rentabilidad'
@@ -155,16 +155,32 @@ function Cuerpo({ datos, horizonte }: { datos: ObservacionRentabilidad; horizont
       )}
 
       <p className="mt-3 text-[11px] text-muted-foreground">
-        Observación de los últimos {horizonte} días{datos.politica ? ` · política v${datos.politica.version}: base ${tasaTxt(datos.politica.tasa_base_nueva)}, ${etiquetaModoPolitica(datos.politica.modo)}` : ''}.
+        {ventanaObservada(datos, horizonte)}{datos.politica ? ` · política v${datos.politica.version}: base ${tasaTxt(datos.politica.tasa_base_nueva)}, ${etiquetaModoPolitica(datos.politica.modo)}` : ''}.
         Cedido = capital × puntos sobre la base × plazo/365, por contrato.{' '}
         {datos.politica == null
           ? 'No se pudo leer el modo de la política: no se puede afirmar si el servidor bloquea.'
           : datos.politica.modo === 'enforcement'
             ? 'Con el candado activo, lo que aparece aquí ya solo puede venir de una autorización de Gerencia.'
-            : 'Nada se bloquea todavía.'}
+            // El modo es el de HOY: la ventana puede incluir días en que el
+            // candado estuvo activo, y esos contratos llevan una autorización
+            // de Gerencia. Afirmar «nada se bloquea» los cargaba al analista.
+            : 'Hoy la política no bloquea; lo registrado mientras el candado estuvo activo puede venir de autorizaciones de Gerencia.'}
       </p>
     </>
   )
+}
+
+/**
+ * La ventana REAL de la observación. El servidor avisa con
+ * `cobertura.periodo_sin_cobertura` cuando el horizonte empieza antes de que
+ * existiera el registro: decir «últimos 90 días» con 18 días de datos hacía
+ * que los dos horizontes parecieran medir cosas distintas y no.
+ */
+function ventanaObservada(datos: ObservacionRentabilidad, horizonte: Horizonte): string {
+  const cobertura = datos.cobertura
+  return cobertura?.periodo_sin_cobertura === true && cobertura.cobertura_desde != null
+    ? `Observación desde el ${fmtFecha(cobertura.cobertura_desde)}, cuando empezó el registro (el horizonte de ${horizonte} días empieza antes)`
+    : `Observación de los últimos ${horizonte} días`
 }
 
 export function ObservacionRentabilidadPanel(): JSX.Element {
@@ -203,7 +219,7 @@ export function ObservacionRentabilidadPanel(): JSX.Element {
           {estado === 'error' && 'No se pudo cargar la observación de rentabilidad.'}
           {estado === 'vacio' && (esDemo ? 'En demo no hay observación de rentabilidad.' : 'Sin contratos observados en el horizonte elegido.')}
           {estado === 'ok' && datos && !datos.coherente && 'Cifras en revisión: la observación no cuadra en el servidor; no las uses para decidir.'}
-          {estado === 'ok' && datos && datos.coherente && `${numero(datos.totales.divergentes)} de ${numero(datos.totales.observados)} contratos fuera de la base en los últimos ${horizonte} días; margen cedido ${money(datos.totales.cedido.PEN, 'PEN')}.`}
+          {estado === 'ok' && datos && datos.coherente && `${numero(datos.totales.divergentes)} de ${numero(datos.totales.observados)} contratos fuera de la base · ${ventanaObservada(datos, horizonte)}; margen cedido ${money(datos.totales.cedido.PEN, 'PEN')}.`}
         </p>
         {estado === 'cargando' && <Skeleton className="h-[180px] w-full" aria-busy />}
         {estado === 'error' && (

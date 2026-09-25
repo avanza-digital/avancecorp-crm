@@ -108,6 +108,21 @@ export function semanticaMetaMensual(
   }
 }
 
+/**
+ * El pie de Gerencia fecha lo que se ve. En el Resumen conviven el rango
+ * elegido y piezas MENSUALES (capital, metas, mejores analistas, del mes de la
+ * fecha final): si no coinciden, el pie nombra las dos ventanas.
+ */
+export function rotuloPeriodoPie(
+  periodo: PeriodoGerencia,
+  periodoMensual: PeriodoGerencia | null,
+): string {
+  const rango = `${periodo.desde} al ${periodo.hasta}`
+  if (periodoMensual == null
+    || (periodoMensual.desde === periodo.desde && periodoMensual.hasta === periodo.hasta)) return rango
+  return `${rango} · Capital, metas y mejores analistas: ${periodoMensual.desde} al ${periodoMensual.hasta}`
+}
+
 export function mensajeMetaNoComparable(meta: MetaMensualGerencia): string {
   if (meta.errorCarga) return `No pudimos cargar las metas mensuales de ${meta.etiqueta}.`
   return `La meta mensual de ${meta.etiqueta} no es comparable con el rango aplicado.`

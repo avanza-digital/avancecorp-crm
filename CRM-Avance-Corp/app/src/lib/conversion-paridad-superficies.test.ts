@@ -303,7 +303,7 @@ function montarDirectorio(metricas: MetricasVendedoresOperativas): ReturnType<ty
 function valorPrincipalHoy(container: HTMLElement): HTMLElement {
   const hero = container.querySelector('[data-gi-hero]')
   if (!(hero instanceof HTMLElement)) throw new Error('HOY no renderizó su héroe')
-  const rotulo = within(hero).getByText('Índice comercial del mes')
+  const rotulo = within(hero).getByText('Índice comercial · agosto 2026')
   const valor = rotulo.nextElementSibling
   if (!(valor instanceof HTMLElement)) throw new Error('HOY no renderizó el valor del héroe')
   return valor
