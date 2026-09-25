@@ -1,6 +1,7 @@
 ## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
 
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
+**APLICADA EN PRODUCCIÓN EL 25/09/2026**, registro `20260925211308`, tras
+autorización excepcional de Miguel. Portal publicado y lectura visual confirmada.
 `private.cuentas_cliente_propias_autorizado()` exige que `auth.uid()` sea un
 cliente activo y delega en `private.cuentas_cliente_vigentes`; la RPC de pantalla
 `public.mis_cuentas_bancarias_fn()` no acepta un ID externo y solo devuelve
@@ -14,7 +15,8 @@ ve 0 filas, un miembro CRM no puede usar la RPC, grants de tabla/función
 interna cerrados (`S4_PORTAL_CLIENTE_OK`). El oráculo transaccional de banca en
 perfiles devuelve `CUENTAS_TX_OK`; el seed y gate RLS históricos dejaron de
 esperar escrituras bancarias válidas en perfiles. Preflights de seed y RLS
-pasaron; gate RLS completo requiere credenciales y banco limpio. Portal 116/116
+pasaron; la verificación posterior de contratos/cuentas completó 287 aserciones
+HTTP/RLS en rama. Ensayo inicial Portal 116/116
 tests. El advisor agrega un WARN conocido por la nueva RPC `SECURITY DEFINER`
 concedida a `authenticated`; la prueba de alcance propio documenta por qué se
 mantiene. La reversa S1 ahora toma bloqueos de cuenta, cronograma y vínculo
@@ -23,14 +25,15 @@ antes de comprobar pagos y borrar; el ensayo con `ROLLBACK` dejó 3 cuentas y
 
 ## 20260925194026 — P-0XX: pagos con cuenta contractual, S3
 
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
+**APLICADA EN PRODUCCIÓN EL 25/09/2026**, registro `20260925211253`, tras
+autorización excepcional de Miguel. Las pantallas de pagos del portal se publicaron.
 `private.exigir_cuenta_pago_cronograma()` impide registrar una cuota pagada si
 su contrato no tiene una cuenta vinculada y coherente. Dos triggers cubren
 INSERT pagado y UPDATE pendiente → pagado, después del trigger documental 00.
 La cuenta vinculada puede estar inactiva por versionado: conserva su valor como
 instrucción histórica. No se cambian montos, intereses ni cronogramas.
 
-`miavance.com/public_html/admin/pagos.html` consulta exclusivamente
+`miavance.com/admin/pagos.html` consulta exclusivamente
 `crm.cuentas_pago_contratos_fn` para agenda y resumen; bloquea pago manual,
 importación y exportación si falta vínculo. Los formularios de contrato Admin y
 Analista eligen expresamente una cuenta activa de la moneda y crean contrato,
@@ -47,9 +50,11 @@ persiste el WARN de S2 por su RPC autorizada. Véase
 
 ## 20260925153226 + 20260925210000 — P-0XX: cuentas de cliente en el ledger, S1 y S2
 
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925` (`hhpjiygytwoayxymziqo`),
-25/09/2026. No se aplicaron a producción ni se publicaron las pantallas. Número P
-definitivo pendiente de Miguel.
+**APLICADAS EN PRODUCCIÓN EL 25/09/2026**, registros `20260925211205` (S1) y
+`20260925211353` (S2), tras ensayo en `hhpjiygytwoayxymziqo` y autorización
+excepcional de Miguel. Portal y tres Edge Functions publicados; el frontend CRM
+compatible todavía requiere publicación mediante `$release-crm`. Número P
+definitivo pendiente de Miguel. Acta: `../scripts/p0xx/ACTA-PUBLICACION.md`.
 
 S1 copia cuentas válidas de `perfiles` a `crm.cuentas_bancarias` y vincula contratos
 antiguos únicamente con una candidata activa inequívoca del mismo cliente y moneda.
@@ -57,9 +62,11 @@ antiguos únicamente con una candidata activa inequívoca del mismo cliente y mo
 ficticios: 3 cuentas, 2 vínculos, 3 contratos activos pendientes; replay: 0 altas.
 `supabase/scripts/p0xx/reporte-conciliacion-activos.sql` lista los pendientes con
 cliente, DNI, moneda y analista, sin números bancarios.
-`crm.cliente_detalle_fn` conserva su firma y muestra el ledger. Producción se consultó
-solo con `SELECT`: proyección 241 cuentas migrables, 3 conflictos de mismo CCI y 257
-contratos vinculables; quedarían 23 activos pendientes (incluye 2 demo).
+`crm.cliente_detalle_fn` conserva su firma y muestra el ledger. Resultado productivo:
+241 cuentas y 257 vínculos insertados; 23 contratos activos pendientes de conciliación
+(16 sin cuenta y 7 ambiguos) y 3 perfiles con mismo CCI y otros datos. Esos tres no se
+sobrescribieron; la comprobación literal de cero perfiles válidos sin equivalente
+sigue abierta. Las cifras coincidieron con la proyección previa al despliegue.
 
 S2 introduce el validador común `private.validar_cuenta_bancaria`, registro versionado
 `crm.registrar_cuenta_cliente`, alta atómica de perfil y cuentas para las Edge y un
