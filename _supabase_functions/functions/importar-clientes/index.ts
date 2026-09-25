@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clasificarAltaPerfilConCuentas, compensarAuthAltaRechazada } from "../_shared/alta-perfil-cuentas.mjs";
 import {
   authTieneMarca,
   correoYaRegistrado,
@@ -23,9 +24,8 @@ import {
 //
 // Modelada sobre `crear-cliente` (misma auth, misma clave temporal = documento,
 // mismo rollback), pero recibe un LOTE y lo procesa fila por fila. NO envía correos
-// (decisión de negocio: las credenciales se comunican aparte). Inserta TODOS los
-// campos del perfil en un solo insert (incluye bancarios + asesor), evitando el
-// segundo UPDATE que hace el alta unitaria.
+// (decisión de negocio: las credenciales se comunican aparte). Perfil y cuenta
+// se registran en una transacción de la RPC; cada fila conserva su resultado.
 //
 // Body: { clientes: [{ fila?, apellidos?, nombres?, nombre_completo?, tipo_documento?, dni,
 //                       telefono?, correo, banco, numero_cuenta, tipo_cuenta, cci,
@@ -93,6 +93,11 @@ Deno.serve(async (req: Request) => {
     if (!perfil || !perfil.activo || !["admin", "superadmin"].includes(perfil.rol)) {
       return json(cors, { error: "No autorizado" }, 403);
     }
+    const { data: revocacion, error: revocacionError } = await adminClient
+      .schema("crm").from("equipo").select("perfil_id")
+      .eq("perfil_id", userRes.user.id).eq("activo", false).maybeSingle();
+    if (revocacionError) return json(cors, { error: "No se pudo verificar la autorización" }, 503);
+    if (revocacion) return json(cors, { error: "No autorizado" }, 403);
 
     const body = await req.json();
     const dryRun = body?.dry_run === true;
@@ -106,7 +111,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // 1) Normalizar + validar formato fila por fila.
-    const filas = clientesRaw.map((c: unknown, i: number) => normalizarFila(c, i));
+    const filas: Fila[] = clientesRaw.map((c: unknown, i: number) => normalizarFila(c, i));
 
     // 2) Duplicados DENTRO del mismo lote (DNI / correo).
     marcarDuplicadosIntraLote(filas);
@@ -155,6 +160,25 @@ Deno.serve(async (req: Request) => {
 
     const rpcAlta = (paso: string, payload: Record<string, unknown>) =>
       adminClient.schema("crm").rpc("alta_cliente_identidad_fn", { p_paso: paso, p_payload: payload });
+    const crearPerfilConCuentas = (f: Fila, id: string) => adminClient.schema("crm")
+      .rpc("crear_perfil_cliente_con_cuentas", {
+        p_perfil: {
+          id, nombre_completo: f.nombre_completo,
+          apellidos: f.apellidos, nombres: f.nombres,
+          tipo_documento: f.tipo_documento, dni: f.dni,
+          telefono: f.telefono, correo: f.correo,
+          debe_cambiar_password: true,
+          asesor_perfil_id: f.asesor_perfil_id,
+        },
+        p_cuentas: [{
+          moneda: "PEN", banco: f.banco, tipo_cuenta: f.tipo_cuenta,
+          numero_cuenta: f.numero_cuenta, cci: f.cci,
+          titular_distinto: f.titular_distinto,
+          beneficiario_nombre: f.beneficiario_nombre,
+          beneficiario_dni: f.beneficiario_dni,
+        }],
+        p_actor_id: userRes.user.id,
+      });
 
     // 4) Procesar (secuencial: rollback limpio por fila, sin condiciones de carrera).
     const resultados: Array<{ fila: number; ok: boolean; error?: string; user_id?: string; revision_responsable?: boolean }> = [];
@@ -194,33 +218,25 @@ Deno.serve(async (req: Request) => {
 
         const newUserId = created.user.id;
 
-        const { error: perfilErr } = await adminClient.from("perfiles").insert({
-          id: newUserId,
-          nombre_completo: f.nombre_completo,
-          apellidos: f.apellidos,
-          nombres: f.nombres,
-          tipo_documento: f.tipo_documento,
-          dni: f.dni,
-          telefono: f.telefono,
-          correo: f.correo,
-          rol: "cliente",
-          activo: true,
-          banco: f.banco,
-          numero_cuenta: f.numero_cuenta,
-          tipo_cuenta: f.tipo_cuenta,
-          cci: f.cci,
-          titular_distinto: f.titular_distinto,
-          beneficiario_nombre: f.beneficiario_nombre,
-          beneficiario_dni: f.beneficiario_dni,
-          asesor_perfil_id: f.asesor_perfil_id,
-          creado_por: userRes.user.id,
-          debe_cambiar_password: true,
-        });
+        const altaPerfil = await crearPerfilConCuentas(f, newUserId);
+        const estadoPerfil = await clasificarAltaPerfilConCuentas(
+          adminClient, newUserId, altaPerfil, () => crearPerfilConCuentas(f, newUserId),
+        );
 
-        if (perfilErr) {
-          // Rollback: borrar el auth.user para no dejar huérfanos.
-          await adminClient.auth.admin.deleteUser(newUserId);
-          resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) });
+        if (estadoPerfil === "incierta") {
+          resultados.push({ fila: f.fila, ok: false, error: "Alta sin confirmación; el usuario quedó reservado para revisión de Gerencia." });
+          errores++;
+          continue;
+        }
+        if (estadoPerfil === "rechazada") {
+          const compensada = await compensarAuthAltaRechazada(adminClient, newUserId);
+          resultados.push({
+            fila: f.fila,
+            ok: false,
+            error: compensada
+              ? traducirErrorAlta(altaPerfil.error?.code)
+              : "Alta sin reversión confirmada; requiere revisión de Gerencia.",
+          });
           errores++;
           continue;
         }
@@ -291,38 +307,27 @@ Deno.serve(async (req: Request) => {
         newUserId = saga.authUserId;
       }
       if (saga.paso !== "enlazar") {
-        const { error: perfilErr } = await adminClient.from("perfiles").insert({
-          id: newUserId,
-        nombre_completo: f.nombre_completo,
-        apellidos: f.apellidos,
-        nombres: f.nombres,
-        tipo_documento: f.tipo_documento,
-        dni: f.dni,
-        telefono: f.telefono,
-        correo: f.correo,
-        rol: "cliente",
-        activo: true,
-        banco: f.banco,
-        numero_cuenta: f.numero_cuenta,
-        tipo_cuenta: f.tipo_cuenta,
-        cci: f.cci,
-        titular_distinto: f.titular_distinto,
-        beneficiario_nombre: f.beneficiario_nombre,
-        beneficiario_dni: f.beneficiario_dni,
-        asesor_perfil_id: f.asesor_perfil_id,
-        creado_por: userRes.user.id,
-        debe_cambiar_password: true,
-        });
-        if (perfilErr) {
-          const decision = decidirTrasFalloPerfil(perfilErr);
+        const altaPerfil = await crearPerfilConCuentas(f, newUserId);
+        const estadoPerfil = await clasificarAltaPerfilConCuentas(
+          adminClient, newUserId, altaPerfil, () => crearPerfilConCuentas(f, newUserId),
+        );
+        if (estadoPerfil === "incierta") {
+          resultados.push({ fila: f.fila, ok: false, error: "Alta sin confirmación; reintenta el lote para reanudarla." }); errores++; continue;
+        }
+        if (estadoPerfil === "rechazada") {
+          const decision = decidirTrasFalloPerfil(altaPerfil.error ?? {});
           if (decision === "compensar") {
-            const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-            if (!delErr) { const rc = await avanzar("compensar_auth", {}); if (rc.error) console.warn("importar-clientes: compensar_auth pendiente:", rc.error.message); }
-            resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) }); errores++; continue;
+            if (!await compensarAuthAltaRechazada(adminClient, newUserId)) {
+              resultados.push({ fila: f.fila, ok: false, error: "No se pudo revertir el alta; requiere revisión de Gerencia." }); errores++; continue;
+            }
+            const rc = await avanzar("compensar_auth", {});
+            resultados.push({ fila: f.fila, ok: false, error: rc.error
+              ? "El usuario se revirtió, pero la saga requiere revisión de Gerencia."
+              : traducirErrorAlta(altaPerfil.error?.code) }); errores++; continue;
           }
-          if (decision !== "perfil_ya_existia") {
-            resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) }); errores++; continue;
-          }
+          resultados.push({ fila: f.fila, ok: false, error: decision === "revision" || decision === "perfil_ya_existia"
+            ? "El documento ya está registrado; requiere revisión de Gerencia."
+            : traducirErrorAlta(altaPerfil.error?.code) }); errores++; continue;
         }
         const r = await avanzar("perfil_creado", { perfil_id: newUserId });
         if (r.error) { resultados.push({ fila: f.fila, ok: false, error: traducirError(r.error.message) }); errores++; continue; }
@@ -335,8 +340,8 @@ Deno.serve(async (req: Request) => {
     }
 
     return json(cors, { dry_run: dryRun, creados, errores, resultados }, 200);
-  } catch (e) {
-    return json(corsHeaders(req), { error: (e as Error)?.message || "Error inesperado" }, 500);
+  } catch {
+    return json(corsHeaders(req), { error: "No se pudo completar la importación. Reintenta o contacta a soporte." }, 500);
   }
 });
 
@@ -444,11 +449,15 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   if (!f.correo) return falla("Falta el correo");
   if (!RE_CORREO.test(f.correo)) return falla("El correo no tiene un formato válido");
   if (!f.banco) return falla("Falta el banco");
+  if (f.banco.length > 100) return falla("El banco no puede superar 100 caracteres");
   if (!f.tipo_cuenta) return falla("Falta el tipo de cuenta");
   if (!["ahorros", "corriente"].includes(f.tipo_cuenta)) {
     return falla('El tipo de cuenta debe ser "ahorros" o "corriente"');
   }
   if (!f.numero_cuenta) return falla("Falta el número de cuenta");
+  if (!/^[A-Za-z0-9-]{1,30}$/.test(f.numero_cuenta)) {
+    return falla("El número de cuenta solo admite letras, números y guiones (máximo 30)");
+  }
   if (!f.cci) return falla("Falta el CCI");
   if (!RE_CCI.test(f.cci)) return falla("El CCI debe tener exactamente 20 dígitos");
 
@@ -457,6 +466,7 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   // regla genérica histórica 8–12 dígitos (NO la del tipo del titular).
   if (f.titular_distinto) {
     if (!f.beneficiario_nombre) return falla("Falta el nombre del beneficiario (escribiste su DNI)");
+    if (f.beneficiario_nombre.length > 200) return falla("El nombre del beneficiario no puede superar 200 caracteres");
     if (!f.beneficiario_dni) return falla("Falta el DNI del beneficiario (escribiste su nombre)");
     if (!RE_DOC_GENERICO.test(f.beneficiario_dni)) return falla("El DNI del beneficiario debe tener entre 8 y 12 dígitos");
   }
@@ -496,6 +506,15 @@ function traducirError(msg: string): string {
   // Violación de CHECK (formato/tipo): mensaje limpio, sin filtrar el valor (PII).
   if (/violates check constraint/i.test(m)) return "El tipo o número de documento no es válido";
   return m;
+}
+
+// La RPC transaccional puede incluir información del banco en detalles SQL.
+// Las respuestas del lote solo usan el código, nunca el texto bruto.
+function traducirErrorAlta(codigo: string | undefined): string {
+  if (codigo === "23505") return "El documento o correo ya está registrado";
+  if (codigo === "23514" || codigo === "22023") return "Datos del cliente o cuenta inválidos";
+  if (codigo === "P0409") return "El cliente ya tiene una cuenta diferente; requiere conciliación";
+  return "No se pudo registrar el cliente y su cuenta; reintenta o solicita revisión";
 }
 
 function json(cors: Record<string, string>, payload: unknown, status: number) {

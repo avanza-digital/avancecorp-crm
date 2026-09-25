@@ -116,7 +116,7 @@ export interface DatosCuentaPagoContrato {
 export interface CuentaBancariaSeleccionable extends DatosCuentaPagoContrato {
   cuenta_id: string | null
   moneda: Moneda
-  origen: 'perfil' | 'contrato'
+  origen: 'perfil' | 'contrato' | 'portal'
   es_cuenta_perfil: boolean
   creada_en: string | null
 }

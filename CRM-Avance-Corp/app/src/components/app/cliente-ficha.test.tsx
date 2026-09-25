@@ -548,8 +548,9 @@ describe('ClienteFicha — frescura y presentación', () => {
 
     const pen = await screen.findByRole('region', { name: 'Cuenta para recibir pagos en soles' })
     expect(within(pen).getByText('BCP')).toBeInTheDocument()
-    expect(within(pen).getByText('19112345678901')).toBeInTheDocument()
-    expect(within(pen).getByText('00219112345678901234')).toBeInTheDocument()
+    expect(within(pen).getByText('••••8901')).toBeInTheDocument()
+    expect(within(pen).getByText('••••1234')).toBeInTheDocument()
+    expect(within(pen).queryByText('19112345678901')).not.toBeInTheDocument()
 
     const usd = screen.getByRole('region', { name: 'Cuenta para recibir pagos en dólares' })
     expect(within(usd).getByText('Interbank')).toBeInTheDocument()
@@ -560,7 +561,7 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(escribirPortapapeles).toHaveBeenCalledWith('cliente1@correo.pe')
     await user.click(within(pen).getByRole('button', { name: 'Copiar n° de cuenta' }))
     expect(escribirPortapapeles).toHaveBeenCalledWith('19112345678901')
-    expect(within(pen).getByText('00219112345678901234')).toHaveClass('whitespace-nowrap')
+    expect(within(pen).getByText('••••1234')).toHaveClass('whitespace-nowrap')
   })
 
   it('ESTADO DE PRODUCCIÓN: cliente legacy sin nombres separados y cuenta USD registrada al crear un contrato', async () => {
@@ -596,7 +597,7 @@ describe('ClienteFicha — frescura y presentación', () => {
 
     const usd = await screen.findByRole('region', { name: 'Cuenta para recibir pagos en dólares' })
     expect(within(usd).getByText('BBVA')).toBeInTheDocument()
-    expect(within(usd).getByText('72728282828282')).toBeInTheDocument()
+    expect(within(usd).getByText('••••8282')).toBeInTheDocument()
     expect(within(usd).getByText('Registrada el')).toBeInTheDocument()
     expect(within(usd).queryByText('No registró una cuenta en esta moneda.')).not.toBeInTheDocument()
 
@@ -723,7 +724,7 @@ describe('ClienteFicha — frescura y presentación', () => {
     cuentasPorMoneda([cuentaRpc()], [])
     const { queryClient } = montar()
     await abrirCuentas(user)
-    expect(await screen.findByText('00219112345678901234')).toBeInTheDocument()
+    expect(await screen.findByText('••••1234')).toBeInTheDocument()
 
     listarCuentas.mockRejectedValue(
       new crmApi.CrmApiError('No se pudieron cargar las cuentas bancarias del cliente.', 'SIN_RED'),
@@ -735,7 +736,7 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No se pudieron cargar las cuentas bancarias del cliente.',
     )
-    expect(screen.queryByText('00219112345678901234')).not.toBeInTheDocument()
+    expect(screen.queryByText('••••1234')).not.toBeInTheDocument()
     // La identidad, confirmada por su propia consulta, sigue a la vista.
     expect(screen.getByText('CLIENTE PORTAL UNO')).toBeInTheDocument()
   })

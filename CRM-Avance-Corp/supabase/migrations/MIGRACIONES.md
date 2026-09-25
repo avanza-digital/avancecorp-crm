@@ -1,3 +1,86 @@
+## 20260925223000 — P-0XX: cuentas visibles para el propio cliente, S4
+
+**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
+`private.cuentas_cliente_propias_autorizado()` exige que `auth.uid()` sea un
+cliente activo y delega en `private.cuentas_cliente_vigentes`; la RPC de pantalla
+`public.mis_cuentas_bancarias_fn()` no acepta un ID externo y solo devuelve
+cuenta/CCI enmascarados. No se concedió SELECT de `crm.cuentas_bancarias` a
+`authenticated`. `miavance.com/perfil.html` muestra las cuentas activas del
+cliente, con estado vacío y error explícitos, sin prometer que sustituyan la
+instrucción de pago histórica vinculada al contrato.
+
+Ensayos de rama: cliente ficticio ve BCP PEN `…6087` y USD `…9168`, otro cliente
+ve 0 filas, un miembro CRM no puede usar la RPC, grants de tabla/función
+interna cerrados (`S4_PORTAL_CLIENTE_OK`). El oráculo transaccional de banca en
+perfiles devuelve `CUENTAS_TX_OK`; el seed y gate RLS históricos dejaron de
+esperar escrituras bancarias válidas en perfiles. Preflights de seed y RLS
+pasaron; gate RLS completo requiere credenciales y banco limpio. Portal 116/116
+tests. El advisor agrega un WARN conocido por la nueva RPC `SECURITY DEFINER`
+concedida a `authenticated`; la prueba de alcance propio documenta por qué se
+mantiene. La reversa S1 ahora toma bloqueos de cuenta, cronograma y vínculo
+antes de comprobar pagos y borrar; el ensayo con `ROLLBACK` dejó 3 cuentas y
+2 vínculos intactos.
+
+## 20260925194026 — P-0XX: pagos con cuenta contractual, S3
+
+**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
+`private.exigir_cuenta_pago_cronograma()` impide registrar una cuota pagada si
+su contrato no tiene una cuenta vinculada y coherente. Dos triggers cubren
+INSERT pagado y UPDATE pendiente → pagado, después del trigger documental 00.
+La cuenta vinculada puede estar inactiva por versionado: conserva su valor como
+instrucción histórica. No se cambian montos, intereses ni cronogramas.
+
+`miavance.com/public_html/admin/pagos.html` consulta exclusivamente
+`crm.cuentas_pago_contratos_fn` para agenda y resumen; bloquea pago manual,
+importación y exportación si falta vínculo. Los formularios de contrato Admin y
+Analista eligen expresamente una cuenta activa de la moneda y crean contrato,
+cronograma, vínculo y reserva PDF con `crm.crear_contrato_con_cuenta_pdf_v2`.
+La RPC legacy `public.crear_contrato` sigue autorizada por el contrato F5.c;
+si otro consumidor crea un contrato sin vínculo, la nueva guarda bloquea su pago.
+
+Ensayos en la rama: cuota sin vínculo rechazada en INSERT/UPDATE y vinculada
+pagada (todo revertido); alta contractual como rol `authenticated` con vínculo
+y cronograma (transacción revertida); 116/116 tests Portal y 4.433/4.433 CRM,
+lint, typecheck y build verdes. Los advisors no agregaron hallazgos por S3;
+persiste el WARN de S2 por su RPC autorizada. Véase
+[[P-0XX - cuentas compartidas CRM portal - S3 en rama (2026-09-25)]].
+
+## 20260925153226 + 20260925210000 — P-0XX: cuentas de cliente en el ledger, S1 y S2
+
+**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925` (`hhpjiygytwoayxymziqo`),
+25/09/2026. No se aplicaron a producción ni se publicaron las pantallas. Número P
+definitivo pendiente de Miguel.
+
+S1 copia cuentas válidas de `perfiles` a `crm.cuentas_bancarias` y vincula contratos
+antiguos únicamente con una candidata activa inequívoca del mismo cliente y moneda.
+`private.backfill_cuentas_p0xx` registra los IDs creados para reversa. Ensayo con datos
+ficticios: 3 cuentas, 2 vínculos, 3 contratos activos pendientes; replay: 0 altas.
+`supabase/scripts/p0xx/reporte-conciliacion-activos.sql` lista los pendientes con
+cliente, DNI, moneda y analista, sin números bancarios.
+`crm.cliente_detalle_fn` conserva su firma y muestra el ledger. Producción se consultó
+solo con `SELECT`: proyección 241 cuentas migrables, 3 conflictos de mismo CCI y 257
+contratos vinculables; quedarían 23 activos pendientes (incluye 2 demo).
+
+S2 introduce el validador común `private.validar_cuenta_bancaria`, registro versionado
+`crm.registrar_cuenta_cliente`, alta atómica de perfil y cuentas para las Edge y un
+trigger que impide nuevas escrituras bancarias en `perfiles`. La corrección requiere
+analista o Gerencia/operaciones; un vendedor conserva solo lectura de su cartera.
+`crm.actualizar_cliente_gerencia` rechaza las 14 claves bancarias. La firma, ACL y
+semántica de `crm.crear_contrato_con_cuenta` se conservaron en sus tres modos, salvo
+la llamada al validador compartido. Su huella F7 se redeclara en la misma transacción
+con preflight, postflight y candado restaurado; `private.assert_f7_piezas_cerradas()`
+devuelve `OK: 15 piezas vigiladas` en la rama.
+
+Ensayos S2 en la rama: escritura, autorización, auditoría, reintento e idempotencia
+de la migración, más los modos `existente`, `nueva` y `perfil`, pasaron. El nuevo RPC
+`authenticated` con `SECURITY DEFINER` produce una advertencia WARN adicional
+del advisor de seguridad; su autorización está dentro del wrapper y se probó fuera
+de cartera. El cierre de Pagos y contratos nuevos del portal se registra en S3.
+
+Detalle y decisiones: [[P-0XX - cuentas compartidas CRM portal - S1 en rama (2026-09-25)]]
+en el vault. Para revertir S1, usar exclusivamente los IDs de
+`private.backfill_cuentas_p0xx`; no borrar filas por heurística.
+
 ## 20260925201350 — conservar un solo índice de la reserva de acceso
 
 **PROBADA EN RAMA TEMPORAL; NO APLICADA EN PRODUCCIÓN.** El advisor del

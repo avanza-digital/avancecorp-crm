@@ -158,8 +158,8 @@ describe('ClienteDetalle — frescura y presentación', () => {
 
     const pen = await screen.findByRole('region', { name: 'Cuenta para depósitos en soles' })
     expect(within(pen).getByText('BCP')).toBeInTheDocument()
-    expect(within(pen).getByText('19112345678901')).toBeInTheDocument()
-    expect(within(pen).getByText('00219112345678901234')).toBeInTheDocument()
+    expect(within(pen).getByText('••••8901')).toBeInTheDocument()
+    expect(within(pen).getByText('••••1234')).toBeInTheDocument()
 
     const usd = screen.getByRole('region', { name: 'Cuenta para depósitos en dólares' })
     expect(within(usd).getByText('Interbank')).toBeInTheDocument()
@@ -212,29 +212,6 @@ describe('ClienteDetalle — frescura y presentación', () => {
     expect(etiqueta.parentElement).toHaveTextContent('—')
   })
 
-  it('acceso crudo histórico muestra solo la banca embebida sin sondear el ledger de un cliente inactivo', async () => {
-    obtenerDetalle.mockResolvedValue(detalleBase({
-      banca_visible: true,
-      cuentas_bancarias_visibles: false,
-      numero_cuenta: 'PERFIL-HISTORICO-123',
-      cci: 'PERFIL-HISTORICO-CCI',
-      banco_usd: null,
-      tipo_cuenta_usd: null,
-      numero_cuenta_usd: null,
-      cci_usd: null,
-      titular_distinto_usd: false,
-      beneficiario_nombre_usd: null,
-      beneficiario_dni_usd: null,
-    }))
-
-    montar()
-
-    const pen = await screen.findByRole('region', { name: 'Cuenta para depósitos en soles' })
-    expect(within(pen).getByText('PERFIL-HISTORICO-123')).toBeInTheDocument()
-    expect(within(pen).getByText('PERFIL-HISTORICO-CCI')).toBeInTheDocument()
-    expect(listarCuentas).not.toHaveBeenCalled()
-  })
-
   it('ESTADO DE PRODUCCIÓN: cliente legacy sin nombres separados y cuenta USD registrada al crear un contrato', async () => {
     // Réplica exacta del caso ORMESINDA JULCA (2026-08-11): nombres/apellidos
     // NULL, casillas USD del perfil vacías, y la cuenta USD SOLO en el ledger
@@ -268,7 +245,7 @@ describe('ClienteDetalle — frescura y presentación', () => {
 
     const usd = await screen.findByRole('region', { name: 'Cuenta para depósitos en dólares' })
     expect(within(usd).getByText('BBVA')).toBeInTheDocument()
-    expect(within(usd).getByText('72728282828282')).toBeInTheDocument()
+    expect(within(usd).getByText('••••8282')).toBeInTheDocument()
     expect(within(usd).getByText('Registrada el')).toBeInTheDocument()
     expect(within(usd).queryByText('No registró una cuenta en esta moneda.')).not.toBeInTheDocument()
 
@@ -373,7 +350,7 @@ describe('ClienteDetalle — frescura y presentación', () => {
     obtenerDetalle.mockResolvedValue(detalleBase())
     cuentasPorMoneda([cuentaRpc()], [])
     const { queryClient } = montar()
-    expect(await screen.findByText('00219112345678901234')).toBeInTheDocument()
+    expect(await screen.findByText('••••1234')).toBeInTheDocument()
 
     listarCuentas.mockRejectedValue(
       new crmApi.CrmApiError('No se pudieron cargar las cuentas bancarias del cliente.', 'SIN_RED'),
@@ -383,7 +360,7 @@ describe('ClienteDetalle — frescura y presentación', () => {
     })
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron cargar las cuentas bancarias del cliente.')
-    expect(screen.queryByText('00219112345678901234')).not.toBeInTheDocument()
+    expect(screen.queryByText('••••1234')).not.toBeInTheDocument()
     // La identidad, confirmada por su propia consulta, sigue a la vista.
     expect(screen.getByText('CLIENTE PORTAL UNO')).toBeInTheDocument()
   })

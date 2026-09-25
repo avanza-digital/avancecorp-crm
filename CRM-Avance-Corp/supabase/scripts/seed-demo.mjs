@@ -195,23 +195,9 @@ async function ensureProfile(user) {
   if (user.key === BANK_CLIENT.key) {
     Object.assign(profile, {
       asesor_perfil_id: ids[BANK_CLIENT.adviserKey],
-      banco: BANK_CLIENT.bank,
-      banco_usd: BANK_CLIENT.bankUsd,
-      beneficiario_dni: null,
-      beneficiario_dni_usd: null,
-      beneficiario_nombre: null,
-      beneficiario_nombre_usd: null,
-      cci: BANK_CLIENT.cci,
-      cci_usd: BANK_CLIENT.cciUsd,
       creado_por: ids[BANK_CLIENT.adviserKey],
       dni: BANK_CLIENT.dni,
-      numero_cuenta: BANK_CLIENT.accountNumber,
-      numero_cuenta_usd: BANK_CLIENT.accountNumberUsd,
       telefono: BANK_CLIENT.phone,
-      tipo_cuenta: BANK_CLIENT.accountType,
-      tipo_cuenta_usd: BANK_CLIENT.accountTypeUsd,
-      titular_distinto: false,
-      titular_distinto_usd: false,
     });
   }
 
@@ -426,7 +412,7 @@ async function ensureBankContractAccount(contractId) {
     cliente_id: ids[BANK_CLIENT.key],
     moneda: BANK_CONTRACT.currency,
     numero_cuenta: BANK_CLIENT.accountNumber,
-    origen: 'perfil',
+    origen: 'contrato',
     tipo_cuenta: BANK_CLIENT.accountType,
     titular_distinto: false,
   };
@@ -465,6 +451,9 @@ async function ensureBankContractAccount(contractId) {
   }
 
   for (const [field, value] of Object.entries(expected)) {
+    // Un seed anterior creaba esta misma cuenta desde el perfil. Su origen
+    // historico permanece; las ejecuciones nuevas ya nacen en el ledger.
+    if (field === 'origen' && account.origen === 'perfil') continue;
     if (account[field] !== value) {
       throw new Error(`Cuenta bancaria fixture incoherente en ${field}.`);
     }

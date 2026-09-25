@@ -26,18 +26,20 @@ export interface SeccionesBancariasProps {
   onPen: (v: SeccionBancariaForm) => void
   onUsd: (v: SeccionBancariaForm) => void
   deshabilitado: boolean
+  /** Corrección: campos vacíos conservan las cuentas vigentes. */
+  registroOpcional?: boolean
 }
 
 /** Encabezado + una sección por moneda, con la regla del negocio a la vista. */
-export function SeccionesBancarias({ idBase, pen, usd, onPen, onUsd, deshabilitado }: SeccionesBancariasProps) {
+export function SeccionesBancarias({ idBase, pen, usd, onPen, onUsd, deshabilitado, registroOpcional = false }: SeccionesBancariasProps) {
   return (
     <div className="space-y-2.5 border-t border-border pt-3">
       <div>
         <p className="text-xs font-bold text-foreground">Datos bancarios</p>
         <p className="text-[11px] text-muted-foreground">
-          Cuenta(s) que podrán elegirse para los pagos de cada contrato: intereses y devolución
-          de capital. Si el cliente invierte en soles registra la cuenta en soles; si invierte
-          en dólares, la cuenta en dólares. Puedes registrar ambas. Debes registrar al menos una.
+          {registroOpcional
+            ? 'Registrar otra cuenta (opcional). Dejar una sección vacía conserva las cuentas vigentes y los vínculos de cada contrato.'
+            : 'Registra al menos una cuenta para que el cliente pueda recibir pagos. Puedes registrar cuentas en soles y dólares.'}
         </p>
       </div>
       <SeccionBancariaCampos
