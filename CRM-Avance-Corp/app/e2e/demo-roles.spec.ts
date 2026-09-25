@@ -50,6 +50,9 @@ test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', 
 })
 
 test('Analista: Hoy prioriza tres movimientos y abre la ficha sin cambiar de superficie', async ({ page }) => {
+  // La tercera tarea demo vence en +7 h: después de las 17:00 de Lima ya
+  // pertenece a mañana. Este recorrido necesita tres acciones de HOY.
+  await page.clock.setFixedTime(new Date('2026-09-25T12:00:00-05:00'))
   await entrarDemo(page, 'Analista')
 
   const ahora = page.getByRole('region', { name: 'Tu siguiente movimiento' })
