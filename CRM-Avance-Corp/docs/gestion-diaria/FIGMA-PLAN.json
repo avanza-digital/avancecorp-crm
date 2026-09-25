@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T13:59:14.795109+00:00",
+  "updatedAt": "2026-09-25T14:13:44.719562+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1763,11 +1763,11 @@
     {
       "key": "F6",
       "title": "F6 — UX/UI gerencial y Seguimiento",
-      "status": "Corrección horizontal en validación · retirada tras observación",
+      "status": "Corrección horizontal validada · pendiente revisión y publicación",
       "items": [
         [
           false,
-          "Corregir paridad visual gerencia: horizontal con menú abierto"
+          "Publicar corrección UI gerencia: horizontal con menú abierto"
         ],
         [
           false,
@@ -1820,7 +1820,7 @@
     "f6Main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
     "f6Publication": "PASS: cola y UX gerencial PR101 servidas desde f9196dba; 81/81 archivos y recorrido productivo PASS",
     "f6UxGerencia": {
-      "status": "CORRECCION_VISUAL_EN_VALIDACION",
+      "status": "CORRECCION_VISUAL_VALIDADA_PENDIENTE_PUBLICACION",
       "requestedAt": "2026-09-25T04:12:43.783039+00:00",
       "goalRequirement": "Integrar en gerencia la UX/UI horizontal aprobada para supervisión, adaptada al alcance, cifras y acciones de gerencia.",
       "figmaNodeId": "94:2",
@@ -1850,9 +1850,13 @@
         "branch": "codex/gestion-diaria-f6-paridad-ui-20260925",
         "baseCommit": "2a83a5ef40cc27ac020fc039c3c56022e6022ad0",
         "acta": "f6-paridad-ui-2026-09-25/ACTA.md",
-        "status": "EN_VALIDACION",
+        "status": "VALIDADA_PENDIENTE_REVISION_GITHUB",
         "publication": "NOT PUBLISHED",
-        "reason": "Paridad UI y composición horizontal con menú abierto; incidencia reportada por Miguel"
+        "reason": "Paridad UI y composición horizontal con menú abierto; incidencia reportada por Miguel",
+        "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/103",
+        "gate": "PASS 4423/298",
+        "e2e": "Completo inicial 271/0/26; finales Chromium11/0 yWebKit11/0; cero reintentos",
+        "review": "CHANGES_REQUESTED; observaciones resueltas y verificadas por PRIMARY"
       }
     }
   }

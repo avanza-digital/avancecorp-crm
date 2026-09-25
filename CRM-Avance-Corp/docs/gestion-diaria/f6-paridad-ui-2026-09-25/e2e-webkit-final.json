@@ -1,0 +1,467 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/app/node_modules/.bin/playwright",
+      "test",
+      "--config=playwright.gestion-diaria.webkit.config.ts",
+      "e2e/gestion-diaria-pulso.spec.ts",
+      "--workers=1",
+      "--retries=0",
+      "--reporter=json"
+    ],
+    "configFile": "/app/playwright.gestion-diaria.webkit.config.ts",
+    "rootDir": "/app/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/app/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "gestion-diaria-pulso.spec.ts",
+          "gestion-diaria-cola.spec.ts"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev -- --port 5199 --host 127.0.0.1",
+      "url": "http://127.0.0.1:5199",
+      "reuseExistingServer": false,
+      "env": {
+        "VITE_ENABLE_DEMO": "true",
+        "VITE_SUPABASE_URL": "http://127.0.0.1:59999",
+        "VITE_SUPABASE_ANON_KEY": "e2e-anon-key-not-a-real-secret-000000"
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "gestion-diaria-pulso.spec.ts",
+      "file": "gestion-diaria-pulso.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 21606,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:10:22.347Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-78e7faf14c9c1a8e9ca9",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 67,
+          "column": 1
+        },
+        {
+          "title": "F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10616,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:10:44.592Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-a3796e02bd0e1f613403",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 140,
+          "column": 1
+        },
+        {
+          "title": "F5 móvil: fecha, recarga y enlace directo sin desbordamiento",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11901,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:10:55.223Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-dd39f228880047092017",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 179,
+          "column": 1
+        },
+        {
+          "title": "F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8642,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:07.135Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-2269c87144ec3c2d56da",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 219,
+          "column": 1
+        },
+        {
+          "title": "F5 error y revocación ocultan datos; recuperación vuelve a consultar",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4980,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:15.785Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-7f1746a2af04b23fcdd8",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 243,
+          "column": 1
+        },
+        {
+          "title": "F5 conserva la fila fuera de equipos y exportación del registro cargado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4971,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:20.771Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-66666193284e36c3025d",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 260,
+          "column": 1
+        },
+        {
+          "title": "F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensionar y volver",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12399,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:25.754Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-3169b76bff2e3f8a76af",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 274,
+          "column": 1
+        },
+        {
+          "title": "F6 hábitos: búsqueda, selección por teclado y móvil conservan el día abierto",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7296,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:38.159Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-16617d3b603056901810",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 332,
+          "column": 1
+        },
+        {
+          "title": "F6 una revocación del registro general oculta Pulso y Hábitos hasta verificar la sesión",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7509,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:45.465Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-e43ea535016c858d0945",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 363,
+          "column": 47
+        },
+        {
+          "title": "F6 una revocación del registro analista oculta Pulso y Hábitos hasta verificar la sesión",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7633,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:11:52.982Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-05b45c513161887fd6e7",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 363,
+          "column": 47
+        },
+        {
+          "title": "F6 al ampliar desde móvil aparece el equipo seleccionado y su detalle",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit",
+              "projectName": "webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5457,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:12:00.620Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-bbede7519dac2b19c5ca",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 387,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-25T14:10:21.436Z",
+    "duration": 104806.495,
+    "expected": 11,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

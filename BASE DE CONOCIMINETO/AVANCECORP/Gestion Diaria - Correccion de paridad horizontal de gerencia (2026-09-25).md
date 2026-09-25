@@ -12,7 +12,7 @@ comparaciones en «Comparar días» y mantiene tabla y detalle juntos desde 960 
 La implementación de [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]]
 se conserva como antecedente, no como evidencia suficiente del arreglo nuevo.
 
-Estado: corrección en validación local, pendiente de revisión GitHub y publicación.
+Estado: corrección validada; [PR #103](https://github.com/avanza-digital/avancecorp-crm/pull/103) pendiente de aprobación y publicación.
 La conformidad de negocio anterior no se solicita otra vez. No cambia la condición
 de siete días estables para retirar Seguimiento.
 

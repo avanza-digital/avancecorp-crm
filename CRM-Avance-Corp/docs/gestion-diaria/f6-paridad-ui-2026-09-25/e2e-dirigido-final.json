@@ -1,0 +1,465 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/app/node_modules/.bin/playwright",
+      "test",
+      "e2e/gestion-diaria-pulso.spec.ts",
+      "--workers=2",
+      "--retries=0",
+      "--reporter=json"
+    ],
+    "configFile": "/app/playwright.config.ts",
+    "rootDir": "/app/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/app/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 2,
+    "webServer": {
+      "command": "npm run dev -- --port 5199 --host 127.0.0.1",
+      "url": "http://127.0.0.1:5199",
+      "reuseExistingServer": false,
+      "env": {
+        "VITE_ENABLE_DEMO": "true",
+        "VITE_SUPABASE_URL": "http://127.0.0.1:59999",
+        "VITE_SUPABASE_ANON_KEY": "e2e-anon-key-not-a-real-secret-000000"
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "gestion-diaria-pulso.spec.ts",
+      "file": "gestion-diaria-pulso.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8658,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:21.752Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-86f8a4abe9436d8264f3",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 67,
+          "column": 1
+        },
+        {
+          "title": "F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 4463,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:21.751Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-ab2166011fbe1d73bc10",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 140,
+          "column": 1
+        },
+        {
+          "title": "F5 móvil: fecha, recarga y enlace directo sin desbordamiento",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 7669,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:26.432Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-4c3063557d7d899efc88",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 179,
+          "column": 1
+        },
+        {
+          "title": "F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4667,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:30.628Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-64b47e516a5d5ca813ff",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 219,
+          "column": 1
+        },
+        {
+          "title": "F5 error y revocación ocultan datos; recuperación vuelve a consultar",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 4763,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:34.114Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-70466aedf654e5c401f8",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 243,
+          "column": 1
+        },
+        {
+          "title": "F5 conserva la fila fuera de equipos y exportación del registro cargado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4848,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:35.311Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-cff7066db172b9fc7878",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 260,
+          "column": 1
+        },
+        {
+          "title": "F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensionar y volver",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 7413,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:38.895Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-eb48ce0600639e100d16",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 274,
+          "column": 1
+        },
+        {
+          "title": "F6 hábitos: búsqueda, selección por teclado y móvil conservan el día abierto",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5078,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:40.185Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-e9506f18159d0ee5013f",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 332,
+          "column": 1
+        },
+        {
+          "title": "F6 una revocación del registro general oculta Pulso y Hábitos hasta verificar la sesión",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7756,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:45.280Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-d8fa2bfb79a2a4fa709c",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 363,
+          "column": 47
+        },
+        {
+          "title": "F6 una revocación del registro analista oculta Pulso y Hábitos hasta verificar la sesión",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 8076,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:46.377Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-456652911e3bd930a9f6",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 363,
+          "column": 47
+        },
+        {
+          "title": "F6 al ampliar desde móvil aparece el equipo seleccionado y su detalle",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4093,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T14:09:53.047Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "875ed6962abffceaea78-1ed9794e30d3c5657c03",
+          "file": "gestion-diaria-pulso.spec.ts",
+          "line": 387,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-25T14:09:20.535Z",
+    "duration": 36854.864,
+    "expected": 11,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -46,7 +46,7 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('La tasa de referencia reúne contestadas y útiles')
   })
   it('cero actividad conserva los pendientes y presenta las tasas sin denominador como no disponibles', () => {
-    pulso.datos!.actual = { ...pulso.datos!.ayer.metricas }
+    pulso = { ...pulso, datos: { ...pulso.datos!, actual: { ...pulso.datos!.ayer.metricas } } }
     render(<GestionDiariaGerencia />)
     const indicadores = screen.getByRole('region', { name: 'Indicadores de la operación' })
     expect(within(indicadores).getAllByRole('definition').map((n) => n.textContent)).toEqual(['0', '0', '0', '—', '5', '0', '—', '0'])

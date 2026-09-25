@@ -36,14 +36,41 @@ No se modifica la pantalla de supervisión ni SQL, RPC, RLS o permisos.
 - **PASS**: 11 E2E dirigidos Chromium en Docker, cero fallos y cero reintentos.
 - **PASS**: `npm run check`, 4423 pruebas / 298 archivos, lint, tipos, cobertura,
   configuración de publicación, build, bundle y duplicación.
-- **En curso**: suite completa Docker y revisión independiente.
+- **PASS**: suite completa Chromium en Docker, 271 aprobadas / 0 fallos /
+  26 omitidas / 0 reintentos (`e2e-completo.json`, implementación `e3aff5cf`).
+- **PASS tras la revisión**: 11 E2E Chromium y 11 WebKit en Docker, sin fallos,
+  omitidas ni reintentos; `e2e-dirigido-final.json` y `e2e-webkit-final.json`.
+  Incluyen desplazamiento en ambos ejes y transición exacta 960/959 px útiles.
+  `npm run check` repetido tras los ajustes: 4423/298 PASS (`check-final.log`).
+- **Revisión independiente realizada**: [CHANGES_REQUESTED](REVISION-CLAUDE.md).
+  [Resolución del PRIMARY](RESOLUCION-REVISION.md): hipótesis del solapamiento
+  reproducida y corregida; especificidad, foco y cierre reforzados. No se
+  atribuye una segunda aprobación del reviewer.
 - **NOT RUN**: CLI `gate:realidad`, falta `SUPABASE_URL` en este entorno. La
   corrección no altera datos; se inspeccionó la vista productiva sin actividad
   y se probó el caso de cero actividad con tasas nulas y pendientes existentes.
   Esto no se atribuye como ejecución del CLI.
-- **Pendiente**: revisión normal de GitHub y publicación de esta corrección.
+- **Pendiente**: revisión normal de [PR #103](https://github.com/avanza-digital/avancecorp-crm/pull/103) y publicación de esta corrección.
+  La descripción del PR registra el cierre de los controles remotos y las
+  verificaciones posteriores sobre el mismo código.
 
 Las capturas locales son evidencia de presentación y comportamiento con
 transporte interceptado; no constituyen una nueva conciliación SQL ni RLS.
 La observación de F3–F5 y el corte del sábado conservan su estado. La retirada
 de Seguimiento sigue condicionada a siete días reales estables.
+
+## Evidencia visual final
+
+- [Gerencia a 1366 × 900](despues/gerencia-1366x900-menu-abierto.png): mismo
+  viewport que las capturas anteriores, menú abierto.
+- [Portátil a 1366 × 768](despues/gerencia-1366x768-menu-abierto.png) y
+  [1280 × 800](despues/gerencia-1280x800-menu-abierto.png).
+- [Analista y detalle lateral](despues/gerencia-analista-horizontal.png),
+  [Hábitos](despues/gerencia-habitos-horizontal.png) y
+  [comparación completa](despues/gerencia-comparacion.png).
+- [Desplazamiento con cabecera preservada](despues/gerencia-tabla-desplazada.png).
+
+Evidencia sintética inspeccionada por Codex PRIMARY. El CSS conserva el texto
+operativo de 16 px y controles de 44 px; se reutilizan los componentes y tokens
+de supervisión. La tabla añade scroll interno cuando las columnas no caben,
+para que el panel siga a la derecha sin desbordar toda la página.

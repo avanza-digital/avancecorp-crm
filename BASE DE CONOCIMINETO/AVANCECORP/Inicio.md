@@ -1,6 +1,6 @@
 ---
 
-- [[Gestion Diaria - Correccion de paridad horizontal de gerencia (2026-09-25)]] — incidencia visual reabierta; corrección en validación.
+- [[Gestion Diaria - Correccion de paridad horizontal de gerencia (2026-09-25)]] — incidencia visual reabierta; corrección validada, PR #103 pendiente de aprobación y publicación.
 tags: [moc, inicio]
 actualizado: 2026-09-25
 ---

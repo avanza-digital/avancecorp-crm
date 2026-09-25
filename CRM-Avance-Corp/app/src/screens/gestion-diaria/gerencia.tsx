@@ -122,16 +122,18 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
 }
 
 function ResumenPulso({ datos: d }: { datos: PulsoGerencia }) {
-  const [abierto, setAbierto] = useState<'comparacion' | 'definiciones' | null>(null)
+  const [abierto, setAbierto] = useState(false)
+  const [contenido, setContenido] = useState<'comparacion' | 'definiciones'>('comparacion')
+  const abrir = (tipo: typeof contenido) => { setContenido(tipo); setAbierto(true) }
   return <section className="gp-resumen" aria-label="Indicadores de la operación">
     <div className="gd-indicadores gp-indicadores"><dl>{METRICAS.map((m) => <div key={m.campo}><dt>{m.titulo}</dt><dd>{cifraPulso(d.actual[m.campo], m.porcentaje)}</dd></div>)}</dl></div>
     <div className="gp-referencia"><p>Anterior: {d.ayer.dia} completo · Promedio: {d.referencia.cantidad} de 7 días con actividad.</p>
-      <div><Button variant="ghost" className="min-h-11 text-base" aria-haspopup="dialog" onClick={() => setAbierto('comparacion')}><Columns3 aria-hidden />Comparar días</Button>
-        <Button variant="ghost" size="icon" className="size-11" aria-label="Definiciones" onClick={() => setAbierto('definiciones')}><Info aria-hidden /></Button></div></div>
-    <Dialog open={abierto !== null} onClose={() => setAbierto(null)} className="gp-definiciones">
-      <DialogHeader><DialogTitle>{abierto === 'comparacion' ? 'Comparación de la operación' : 'Fechas y definiciones del pulso'}</DialogTitle></DialogHeader>
+      <div><Button variant="ghost" className="min-h-11 text-base" aria-haspopup="dialog" onClick={() => abrir('comparacion')}><Columns3 aria-hidden />Comparar días</Button>
+        <Button variant="ghost" size="icon" className="size-11" aria-label="Definiciones" onClick={() => abrir('definiciones')}><Info aria-hidden /></Button></div></div>
+    <Dialog open={abierto} onClose={() => setAbierto(false)} className="gp-definiciones">
+      <DialogHeader><DialogTitle>{contenido === 'comparacion' ? 'Comparación de la operación' : 'Fechas y definiciones del pulso'}</DialogTitle></DialogHeader>
       <DialogBody><div className="space-y-4 text-base">
-        {abierto === 'comparacion' ? <>
+        {contenido === 'comparacion' ? <>
           <p>Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 días con actividad.</p>
           {d.dia === fechaLima(Date.parse(d.generado_en)) && <p>Hoy en curso; referencias de jornadas completas.</p>}
           <div className="gp-tabla-scroll" tabIndex={0} role="region" aria-label="Desplazar comparación de días"><table className="gp-comparacion-dias" aria-label="Cifras del día, anterior y referencia">
@@ -148,7 +150,7 @@ function ResumenPulso({ datos: d }: { datos: PulsoGerencia }) {
         <p>Dispersión: mínimo y máximo individual con al menos {d.minimo_llamadas_utiles} llamadas útiles. Al ordenar, se compara la amplitud entre esos extremos.</p>
         <p>Los leads distintos se deduplican en toda la operación; no se suman entre equipos.</p>
         <p>Las tareas y el primer intento vencido se consultan en el momento actual, incluso al elegir un día pasado.</p>
-        <Button variant="outline" className="min-h-11 text-base" onClick={() => setAbierto(null)}>{abierto === 'comparacion' ? 'Cerrar comparación' : 'Cerrar definiciones'}</Button>
+        <Button variant="outline" className="min-h-11 text-base" onClick={() => setAbierto(false)}>{contenido === 'comparacion' ? 'Cerrar comparación' : 'Cerrar definiciones'}</Button>
       </div></DialogBody>
     </Dialog>
   </section>

@@ -100,6 +100,13 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
   const columnas = page.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true })
   await columnas.focus(); await columnas.press('ArrowRight')
   await expect.poll(() => columnas.evaluate(n => n.scrollLeft)).toBeGreaterThan(0)
+  await columnas.evaluate(n => { n.scrollTop = n.scrollHeight; n.scrollLeft = n.scrollWidth })
+  const encabezado = columnas.getByRole('columnheader').first()
+  await page.screenshot({ path: info.outputPath('gerencia-tabla-desplazada.png'), fullPage: true })
+  await expect.poll(() => encabezado.evaluate(n => {
+    const r = n.getBoundingClientRect()
+    return Boolean(document.elementFromPoint(r.x + 16, r.bottom - 8)?.closest('thead'))
+  })).toBe(true)
   await page.getByRole('button', { name: 'Ordenar equipos por dispersión de contacto', exact: true }).focus()
   await expect(page.getByRole('link', { name: grupo.nombre, exact: true })).toBeInViewport()
   await page.getByRole('button', { name: 'Comparar días', exact: true }).click()
@@ -120,6 +127,14 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
   const detalleHabitos = await page.getByRole('region', { name: 'Detalle de hábitos', exact: true }).boundingBox()
   expect(detalleHabitos!.x).toBeGreaterThanOrEqual(habitos!.x + habitos!.width)
   await page.screenshot({ path: info.outputPath('gerencia-habitos-horizontal.png'), fullPage: true })
+  await page.setViewportSize({ width: 1248, height: 700 })
+  const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
+  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(960)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Detalle de hábitos', exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 1247, height: 700 })
+  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(959)
+  await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
 })
 
 test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto', async ({ page }, info) => {
