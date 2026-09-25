@@ -65,6 +65,14 @@ paginación conservadas. [Acta](f6-ux-gerencia-2026-09-24/PUBLICACION-2026-09-25
 T0 no cambia; todavía no se ha cumplido el primer día completo. El corte único
 del sábado 26/09 a las 11:30 sigue pendiente.
 
+Actualización del 25/09, 10:13 Lima: corregida y publicada la incidencia visual
+reportada por Miguel, fuente `65e96df9` (PR #103). Archivos HTTPS 81/81 y
+recorrido de lectura 9/9 PASS: composición horizontal con menú abierto,
+fecha histórica, comparación, equipo/analista/registro/ficha y móvil.
+[Acta y límites](f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md).
+Se cierra esta incidencia UI; no se acredita un día adicional ni se cambia T0.
+El primer día completo y el corte real del sábado siguen pendientes.
+
 Una incidencia relevante impide cerrar por el mero paso del calendario:
 corregir, verificar y acreditar el período estable antes de retirar Seguimiento.
 La equivalencia de cola, permisos, acciones y enlaces debe probarse también,

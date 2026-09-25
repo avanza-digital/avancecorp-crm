@@ -1,5 +1,9 @@
 # F6 — Corrección de paridad visual y orientación horizontal
 
+**PUBLICADA Y VERIFICADA** el 25/09, 10:13 Lima, fuente `65e96df9`.
+81/81 archivos HTTPS y nueve comprobaciones reales PASS.
+[Acta de publicación](PUBLICACION-2026-09-25.md).
+
 Miguel reportó el 25/09 que gerencia seguía siendo visualmente distinta de
 supervisión y reiteró que la orientación debía ser horizontal. La publicación
 anterior `f9196dba` está acreditada; su validación no cubrió adecuadamente la
@@ -49,9 +53,10 @@ No se modifica la pantalla de supervisión ni SQL, RPC, RLS o permisos.
   corrección no altera datos; se inspeccionó la vista productiva sin actividad
   y se probó el caso de cero actividad con tasas nulas y pendientes existentes.
   Esto no se atribuye como ejecución del CLI.
-- **Pendiente**: revisión normal de [PR #103](https://github.com/avanza-digital/avancecorp-crm/pull/103) y publicación de esta corrección.
-  La descripción del PR registra el cierre de los controles remotos y las
-  verificaciones posteriores sobre el mismo código.
+- **PASS, publicación**: PR #103 integrado manualmente; Miguel autorizó
+  expresamente publicar tomando esa integración como aprobación. Main CI 3/3,
+  81/81 archivos HTTPS y recorrido real 9/9 PASS. GitHub no registra una
+  revisión APPROVED; no se atribuye una excepción general para otros PR.
 
 Las capturas locales son evidencia de presentación y comportamiento con
 transporte interceptado; no constituyen una nueva conciliación SQL ni RLS.

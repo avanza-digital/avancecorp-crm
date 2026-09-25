@@ -12,8 +12,13 @@ comparaciones en «Comparar días» y mantiene tabla y detalle juntos desde 960 
 La implementación de [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]]
 se conserva como antecedente, no como evidencia suficiente del arreglo nuevo.
 
-Estado: corrección validada; [PR #103](https://github.com/avanza-digital/avancecorp-crm/pull/103) pendiente de aprobación y publicación.
+**Estado: publicada y verificada el 25/09, 10:13 Lima.**
+Fuente `65e96df9`, build `build-20260925T150218036Z`; 81/81 archivos HTTPS
+y nueve comprobaciones reales PASS. Miguel autorizó expresamente publicar
+la integración manual del [PR #103](https://github.com/avanza-digital/avancecorp-crm/pull/103).
+Main y PR tenían tres controles PASS; no hay revisión APPROVED registrada.
+La autorización se limita a este PR.
 La conformidad de negocio anterior no se solicita otra vez. No cambia la condición
 de siete días estables para retirar Seguimiento.
 
-Acta: `CRM-Avance-Corp/docs/gestion-diaria/f6-paridad-ui-2026-09-25/ACTA.md`.
+Acta: `CRM-Avance-Corp/docs/gestion-diaria/f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md`.
