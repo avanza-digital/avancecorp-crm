@@ -33,6 +33,20 @@ describe('router por hash', () => {
     }
   })
 
+  it('mantiene la cola completa al abrir/cerrar una ficha y conserva el acceso antiguo', () => {
+    const detalleGestion = { tipo: 'cola' as const }
+    escribirHash('gestion-diaria', 'lead/á 1', true, undefined, undefined, detalleGestion)
+    expect(window.location.hash).toBe('#/gestion-diaria/cola/lead/lead%2F%C3%A1%201')
+    expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: 'lead/á 1', detalleGestion })
+    escribirHash('gestion-diaria', null, true, undefined, undefined, leerHash().detalleGestion)
+    expect(window.location.hash).toBe('#/gestion-diaria/cola')
+    expect(hashDe('seguimiento', 'l1', undefined, undefined, detalleGestion)).toBe('#/seguimiento/lead/l1')
+    window.history.replaceState(null, '', '#/seguimiento/lead/l1')
+    expect(leerHash()).toEqual({ vista: 'seguimiento', leadId: 'l1' })
+    window.history.replaceState(null, '', '#/gestion-diaria/cola/lead/%')
+    expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: null, detalleGestion })
+  })
+
   it('permite la fila fuera de equipos y descarta detalles inválidos o de otra vista', () => {
     escribirHash('gestion-diaria', null, true, undefined, undefined, { tipo: 'equipo', id: 'fuera' })
     expect(leerHash().detalleGestion).toEqual({ tipo: 'equipo', id: 'fuera' })

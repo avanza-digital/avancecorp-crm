@@ -403,7 +403,7 @@ function Workspace() {
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
       escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined,
         destino === 'hoy' && (ctx.rol === 'gerencia' || recibeRespuestasTasa(ctx.rol)) ? leido.solicitudTasaId : undefined,
-        destino === 'gestion-diaria' && ctx.rol === 'gerencia' ? leido.detalleGestion : undefined)
+        destino === 'gestion-diaria' && (ctx.rol === 'gerencia' || leido.detalleGestion?.tipo === 'cola') ? leido.detalleGestion : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -435,7 +435,7 @@ function Workspace() {
     const ruta = leerHash()
     escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined,
       ruta.vista === vista && (rol === 'gerencia' || recibeRespuestasTasa(rol)) ? ruta.solicitudTasaId : undefined,
-      ruta.vista === vista && rol === 'gerencia' ? ruta.detalleGestion : undefined) // compara antes de escribir → sin bucles
+      ruta.vista === vista && (rol === 'gerencia' || ruta.detalleGestion?.tipo === 'cola') ? ruta.detalleGestion : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble

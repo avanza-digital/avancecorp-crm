@@ -1,0 +1,83 @@
+{
+  "rows": [
+    {
+      "evidencia": {
+        "fecha": "2026-09-24T21:52:04.90551-05:00",
+        "estado": "PASS",
+        "limite": "No revalida en esta sonda la asignación jerárquica ni todas las reglas históricas de cortes; cubiertas por matrices y auditoría F4.",
+        "alcance": "7/14/30 días. RPC frente a actividades originales por persona/día y total; primera/última llamada, tasa y mayor intervalo dentro de jornada, una sentencia READ ONLY.",
+        "periodos": [
+          {
+            "desde": "2026-09-18",
+            "hasta": "2026-09-24",
+            "checks": {
+              "periodo": true,
+              "operacion": true,
+              "solo_lectura": true,
+              "tasas_diarias": true,
+              "umbral_apagado": true,
+              "ultimas_llamadas": true,
+              "primeras_llamadas": true,
+              "recuentos_diarios": true,
+              "huecos_entre_llamadas": true
+            },
+            "periodo": 7,
+            "personas": 19,
+            "originales": {
+              "utiles": 1192,
+              "llamadas": 1200,
+              "contestadas": 471
+            },
+            "personas_dias": 133
+          },
+          {
+            "desde": "2026-09-11",
+            "hasta": "2026-09-24",
+            "checks": {
+              "periodo": true,
+              "operacion": true,
+              "solo_lectura": true,
+              "tasas_diarias": true,
+              "umbral_apagado": true,
+              "ultimas_llamadas": true,
+              "primeras_llamadas": true,
+              "recuentos_diarios": true,
+              "huecos_entre_llamadas": true
+            },
+            "periodo": 14,
+            "personas": 19,
+            "originales": {
+              "utiles": 2421,
+              "llamadas": 2429,
+              "contestadas": 1035
+            },
+            "personas_dias": 266
+          },
+          {
+            "desde": "2026-08-26",
+            "hasta": "2026-09-24",
+            "checks": {
+              "periodo": true,
+              "operacion": true,
+              "solo_lectura": true,
+              "tasas_diarias": true,
+              "umbral_apagado": true,
+              "ultimas_llamadas": true,
+              "primeras_llamadas": true,
+              "recuentos_diarios": true,
+              "huecos_entre_llamadas": true
+            },
+            "periodo": 30,
+            "personas": 19,
+            "originales": {
+              "utiles": 5170,
+              "llamadas": 5178,
+              "contestadas": 2208
+            },
+            "personas_dias": 570
+          }
+        ]
+      }
+    }
+  ]
+}

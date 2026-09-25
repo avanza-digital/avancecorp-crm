@@ -1,0 +1,15 @@
+{
+  "inicio": {
+    "current_time": "2026-09-25 02:43:40 UTC"
+  },
+  "branchId": "f981e6c9-8b65-465f-a82f-047c79215f21",
+  "resultado": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true}"
+      }
+    ],
+    "isError": false
+  }
+}

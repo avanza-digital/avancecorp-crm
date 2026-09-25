@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "release_id": "crm-20260925T023617Z-b402a7f1b5c9",
+  "creado_en": "2026-09-25T02:36:17.511Z",
+  "destino": "crm.miavance.com",
+  "fuente": {
+    "commit": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "archivo": {
+    "nombre": "crm-20260925T023617Z-b402a7f1b5c9.zip",
+    "bytes": 2314082,
+    "sha256": "70b94da52e9002e92a4729579e7726a13f7539f0c9b16c0eb7a9de479eb41fe0"
+  },
+  "manifestSha256": "a9e46acc09d7cdad69f0b3346d57f1d687a3b3ca0c60939e62f5524818d2830b",
+  "archivosEnZip": 116
+}

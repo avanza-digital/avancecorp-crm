@@ -1,0 +1,60 @@
+{
+  "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+  "nodeIds": [
+    "2:114",
+    "2:124"
+  ],
+  "result": {
+    "mutatedNodeIds": [
+      "2:114",
+      "2:124"
+    ],
+    "states": [
+      {
+        "id": "2:114",
+        "previous": "VALIDADA · Pendiente de aprobación y publicación.",
+        "text": "PR integrado · falta revisión registrada para publicar.",
+        "x": 28,
+        "y": 82,
+        "width": 840,
+        "height": 32
+      },
+      {
+        "id": "2:124",
+        "previous": "Inventario preparado · semana estable todavía sin iniciar.",
+        "text": "Cola completa preparada · semana estable sin iniciar.",
+        "x": 28,
+        "y": 82,
+        "width": 840,
+        "height": 32
+      }
+    ],
+    "items": [
+      {
+        "id": "2:125",
+        "text": "☐ Acumular al menos una semana de F3–F5 estables en producción."
+      },
+      {
+        "id": "2:126",
+        "text": "☐ Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+      },
+      {
+        "id": "2:127",
+        "text": "☐ Retirar la pantalla duplicada conservando sus capacidades."
+      },
+      {
+        "id": "2:128",
+        "text": "☐ Verificar navegación, permisos y funcionamiento completo."
+      },
+      {
+        "id": "2:129",
+        "text": "☐ Actualizar la documentación y cerrar el módulo."
+      }
+    ],
+    "section": {
+      "id": "2:122",
+      "width": 896,
+      "height": 401
+    }
+  }
+}

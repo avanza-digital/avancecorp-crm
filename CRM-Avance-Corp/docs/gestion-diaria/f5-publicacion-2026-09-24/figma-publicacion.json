@@ -1,0 +1,8 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"mutatedNodeIds\":[\"2:114\",\"2:121\",\"2:124\",\"2:5\"],\"updates\":[{\"id\":\"2:114\",\"before\":\"PR integrado · falta revisión registrada para publicar.\",\"after\":\"PUBLICADA · SQL y frontend verificados.\",\"x\":28,\"y\":82,\"width\":840,\"height\":32},{\"id\":\"2:121\",\"before\":\"☐ Publicar F5: pruebas y ensayo remoto terminados.\",\"after\":\"☑ Publicar F5 y conciliar sus cifras en producción.\",\"x\":28,\"y\":467,\"width\":840,\"height\":35},{\"id\":\"2:124\",\"before\":\"Cola completa preparada · semana estable sin iniciar.\",\"after\":\"Observación desde 24/09, 21:57 · cola en PR #97.\",\"x\":28,\"y\":82,\"width\":840,\"height\":32},{\"id\":\"2:5\",\"before\":\"24/09/2026 · Conformidad de Miguel cerrada · Auditoría F4 documentada · Continuación F4.1–F6 definida\",\"after\":\"Actualizado 24/09/2026, 21:57 Lima · F5 publicada y verificada · F6 en observación · sábado 26/09 pendiente.\",\"x\":72,\"y\":264,\"width\":3100,\"height\":41}],\"pending\":\"Siete días reales y retirada F6 siguen sin marcar; mínimo 01/10/2026 21:57:11 Lima\"}"
+    }
+  ]
+}

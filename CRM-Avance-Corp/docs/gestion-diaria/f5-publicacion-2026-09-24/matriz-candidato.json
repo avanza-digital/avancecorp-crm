@@ -1,0 +1,11 @@
+{
+  "inicio": "2026-09-25T02:22:08.217Z",
+  "fin": "2026-09-25T02:33:44.880Z",
+  "estado": "PASS",
+  "exit": 0,
+  "log": "matriz-candidato-20260925022208217.log",
+  "api": "https://pofsqqtkguisvfejzkaj.supabase.co",
+  "aserciones": 2267,
+  "fallos": 0,
+  "logSha256": "d755f1d45b33288c3d8ec66e276c353239aa3bf7998d48b9dd861aab55c0028b"
+}

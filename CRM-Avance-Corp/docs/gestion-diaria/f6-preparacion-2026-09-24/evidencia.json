@@ -1,0 +1,149 @@
+{
+  "fecha_utc": "2026-09-25T01:56:00.098803+00:00",
+  "base_main": "8da4bcf31039d0b0953e556c6eab5080ac1346c8",
+  "caracter": "Preparacion aditiva, sin retirada ni publicacion",
+  "gate_frontend": {
+    "estado": "PASS",
+    "pruebas": 4393,
+    "archivos": 297,
+    "incluye": [
+      "lint",
+      "typecheck",
+      "cobertura",
+      "release-config",
+      "build",
+      "bundle",
+      "duplicacion"
+    ]
+  },
+  "chromium_completo": {
+    "estado": "PASS",
+    "aprobadas": 265,
+    "fallos": 0,
+    "omitidas_previstas": 26,
+    "duracion": "19.8m",
+    "workers": 1,
+    "reintentos": 0
+  },
+  "focal_correccion": {
+    "estado": "PASS",
+    "aprobadas": 19,
+    "fallos": 0
+  },
+  "focal_navegacion": {
+    "estado": "PASS",
+    "aprobadas": 9,
+    "fallos": 0
+  },
+  "webkit": {
+    "estado": "PASS",
+    "aprobadas": 14,
+    "fallos": 0,
+    "duracion": "1.8m",
+    "workers": 1,
+    "reintentos": 0,
+    "configuracion_versionada": "app/playwright.gestion-diaria.webkit.config.ts"
+  },
+  "revision": {
+    "consultas": 2,
+    "dictamenes": [
+      "PASS",
+      "PASS"
+    ],
+    "p2_hipotetico": "Descartado: gd-pulso tiene altura natural; gerencia.css:1"
+  },
+  "primer_intento_completo": {
+    "estado": "FAIL, detenido",
+    "causa": "68 px de desbordamiento al añadir la navegacion al supervisor",
+    "casos": [
+      "H4 franja compacta",
+      "H2 densidad 1512",
+      "H2 densidad 1366"
+    ],
+    "tolerancias_modificadas": false
+  },
+  "visual": {
+    "estado": "PASS",
+    "capturas": [
+      "f6-cola-105-escritorio.png",
+      "f6-cola-analista-movil.png"
+    ]
+  },
+  "limites": [
+    "Transporte E2E interceptado; no es nueva prueba de RLS real",
+    "Siete días reales iniciados el 24/09 21:57:11 Lima, todavía no cumplidos",
+    "Alias futuros y retirada NOT RUN",
+    "Medicion especifica 1280px con menu abierto NOT RUN",
+    "Auditoria completa con lector de pantalla NOT RUN"
+  ],
+  "archivos_runtime": [
+    {
+      "ruta": "CRM-Avance-Corp/app/e2e/sla-operacion.spec.ts",
+      "sha256": "c562f8faf91d823ca5071a843abd84c344bfc777dc276a8db71f4dc06e473906"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/playwright.gestion-diaria.webkit.config.ts",
+      "sha256": "492d79d8347bcd92517e24687bde723b32f7c3e025e24e27f1db1e0fe076a2e5"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/App.tsx",
+      "sha256": "8f2e310108698ba36b1332837910361ffb83a17b06adc3debd5c4e9cdd17fde8"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/components/gestion-diaria/cola-de-hoy.tsx",
+      "sha256": "7f00512247b537f84ef2f79611054be324b1c1a16889a8f570bb1604caeab2f9"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/lib/router.test.ts",
+      "sha256": "be27dc444382c0110efa823a05d8479a021bea5fdeb10f9cb0dc64e341cf833a"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/lib/router.ts",
+      "sha256": "1a882daafd58c187f8ccd110c0e279a94619c658ea3fe4734ff263daadbf9885"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/screens/gestion-diaria.test.tsx",
+      "sha256": "a4116a8fd28dd74b471af8d01ccdd06a7744864e2dfbc71f89ddfbbd192d9d08"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/screens/gestion-diaria.tsx",
+      "sha256": "6cc1b491d6fa9a759f7277b1532abcc4a8c034292b1df570bbe2e4db3a3358a2"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/screens/gestion-diaria/gerencia.tsx",
+      "sha256": "91858b351b7e0ddaaffb57a2793c7693151fa9de4eb4fb904aa893676a82d255"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/screens/gestion-diaria/supervisor.tsx",
+      "sha256": "4a03616a73a8aa92925e9cb874aac131f11dbf72ccb708549977d6f46d7d4bef"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/screens/seguimiento.tsx",
+      "sha256": "e5190702a4ce936f6264fa6089dc61a442f1cbb190d448f20f19017665a7fa4e"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/e2e/_sla-cola.ts",
+      "sha256": "a988bb69770a536605e9a256b4d4bd6d2b65a5cfe1df64a517ebc768a2adf2e9"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/e2e/gestion-diaria-cola.spec.ts",
+      "sha256": "2eb097d2a0079eb8a3ef1b620b6019d13490b8fda1ba01723fd4900978c802eb"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/components/app/cola-seguimiento.tsx",
+      "sha256": "134ffae66edd745ee9bfc8c0604fb74aedcdcfd62fa3e9df1861e20721621595"
+    }
+  ],
+  "estaticos_despues_ampliar_config_webkit": {
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "runtime_producto_sin_cambios": true
+  },
+  "actualizacion_publicacion_f5": {
+    "fecha_utc": "2026-09-25T02:57:11Z",
+    "commit_servido": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+    "acta": "../f5-publicacion-2026-09-24/ACTA.md",
+    "f6_publicacion": "NOT RUN",
+    "retirada": "NOT RUN"
+  }
+}

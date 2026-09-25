@@ -13239,7 +13239,7 @@ cadena a v1 y actor verificados. Control inicial sin modificaciones.
 
 ## 20260924201358_crm_gestion_diaria_pulso_habitos.sql
 
-**CANDIDATA F5 VALIDADA LOCAL Y REMOTAMENTE; NO PUBLICADA.** Pulso de operación
+**F5 PUBLICADA Y VERIFICADA 24/09/2026, 21:57:11 LIMA.** Pulso de operación
 y hábitos para gerencia y lector global activo, INVOKER con RLS. Comparación por
 fecha, siete días con actividad, partición disjunta del organigrama actual y
 fila fuera de equipos. Reutiliza la fuente de llamadas; conserva los resultados
@@ -13258,7 +13258,14 @@ Frontend integrado con Main #93: 4.386 pruebas/297 archivos, Chromium final
 256/0/26 y WebKit final 5/0, un worker y cero reintentos. Revisión independiente
 CHANGES_REQUESTED con correcciones verificadas por Codex. Bancos remotos
 eliminados; estimación acumulada US$0,019374 dentro del máximo US$5.
-SQL F5 y `$release-crm` autorizados por Miguel, condicionados a aprobación
-y controles pasados en GitHub. Publicación pendiente. Contrato:
+Miguel autorizó después publicar SQL F5 y `$release-crm` tomando la integración
+manual del PR #94 como aprobación; no existe revisión APPROVED registrada.
+Nuevo ensayo actualizado: 2.267/0 y HTTP 21/21 PASS. Merge nativo: 358 migraciones,
+357 antecedentes intactos, 12 funciones nuevas y dos cuerpos F5; permisos y
+21 Edge conservados. SQL canónico cotejado con las 42 sentencias del ledger.
+Conciliación productiva hoy/ayer y hábitos 7/14/30 PASS. Frontend servido desde
+Main `b402a7f1`, 78/78 HTML/JS/CSS coincidentes y recorrido de gerencia PASS.
+Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
+`docs/gestion-diaria/f5-publicacion-2026-09-24/ACTA.md`. Contrato:
 `docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
 `docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.
