@@ -1,0 +1,28 @@
+{
+  "state": "PASS",
+  "at": "2026-09-24T19:40:01.683Z",
+  "environment": "gestion-diaria-f4-http, banco sintético local",
+  "rows": [
+    {
+      "actor": "sup1",
+      "independentAuthSessions": 2,
+      "sameActor": true,
+      "ledgerEqual": true,
+      "persistedCutPostponements": 1,
+      "persistedCutAcknowledgements": 1,
+      "postponementSeconds": 3600,
+      "currentViewEqual": true
+    },
+    {
+      "actor": "sup2",
+      "independentAuthSessions": 2,
+      "sameActor": true,
+      "ledgerEqual": true,
+      "persistedCutPostponements": 1,
+      "persistedCutAcknowledgements": 1,
+      "postponementSeconds": 3600,
+      "currentViewEqual": true
+    }
+  ],
+  "limits": "Lecturas de registros históricos del banco desde cuatro sesiones Auth nuevas; no se repitieron acciones de negocio ni se probaron dos sesiones de producción."
+}

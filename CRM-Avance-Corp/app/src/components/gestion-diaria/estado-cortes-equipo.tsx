@@ -18,7 +18,7 @@ export function EstadoCortesEquipo({ consulta, abrirAnalista }: {
   return <section aria-label="Resultados de los cortes" className="space-y-3">
     <p>{dia.dia} · Lima. Consulta {horaCorte(dia.generado_en)}.</p>
     {cortes.estado === 'desactivados' ? <p>Los cortes están desactivados para esta jornada.</p>
-      : cortes.estado === 'no_laborable' ? <p>Hoy no es jornada de cortes.</p>
+      : cortes.estado === 'no_laborable' ? <p>El día seleccionado no es jornada de cortes.</p>
         : <>
           <p>Jornada de {horaCorte(cortes.inicio_jornada!)} a {horaCorte(cortes.fin_jornada!)}. {cortes.segundo_corte_en ? 'Dos cortes previstos.' : 'Un corte previsto.'}</p>
           {presentarCortesJornada(dia).map((c) => <details key={c.clave} className="gd-resultado-corte">

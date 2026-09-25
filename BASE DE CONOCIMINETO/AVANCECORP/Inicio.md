@@ -5,7 +5,13 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - auditoria y plan F4.1-F6 (2026-09-24)]] — Conformidad manual cerrada por Miguel; auditoría dirigida PASS, reaviso 13:39 comprobado. Plan F4.1–F6 definido; controles futuros conservados.
+
+- [[Gestion Diaria - recorrido de supervision conforme (2026-09-24)]] — **RECORRIDO ACEPTADO POR MIGUEL:** H6.4 cerrada, 72/72 tareas. Primer corte contrastado: 4 cumplieron, 1 recuperó y 5 pendientes. Aplazamiento real hasta 13:34 Lima conservado tras recarga y nueva pestaña. F4 sigue abierto para reconocimiento, otra sesión/dispositivo, corte 16:00 y sábado 26/09.
+
 - [[Venta cruzada - servidor probado en banco y P1 del PDF (2026-09-24)]] — **SERVIDOR EN PRODUCCIÓN (24/09), FRENTE POR PUBLICAR:** la venta cruzada (B vende a un cliente de A sin tocar al responsable). Ensayo deshecho contra producción, aplicación y registro verificados, advisors sin errores. Falta `/release-crm`.
+
+- [[Gestion Diaria - supervisor con consulta por fecha (2026-09-24)]] — **PUBLICADA Y VERIFICADA:** selector de día y regreso a hoy; actividad y registro por fecha, equipo y pendientes actuales. PR #89 integrado, fuente `929fbbcc`, 4.281 pruebas y 251 E2E Docker aprobados en varios tramos (26 omisiones previstas). Archivos publicados y recorrido real del supervisor PASS; acta posterior sin nueva publicación.
 
 - [[Gestion Diaria - H6.3 publicada y aceptacion pendiente (2026-09-24)]] — **PUBLICADA Y VERIFICADA:** H3 por merge nativo, frontend `bbe341f6`, 116 archivos HTTPS y recorrido técnico de supervisor PASS. Matrices alojadas 2.226/0 antes y después; banco eliminado (~US$0,018). 70/72 tareas: H6.4 pendiente de aceptación humana. Actas en PR #88; no volver a publicar por documentación.
 
