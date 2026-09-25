@@ -1,0 +1,24 @@
+
+> avancecorp-crm-tools@0.0.0 test:rls:preflight
+> node supabase/scripts/test-rls.mjs --preflight
+
+✓ runtime, dependencia y variables validos
+✓ destino permitido: xyrdxcraoqdgctzkvpsj.supabase.co
+✓ matriz: 13 sesiones
+  - gerencia: 7 leads, 5 tareas
+  - sup1: 4 leads, 3 tareas
+  - sup2: 3 leads, 2 tareas
+  - sup1Nested: 1 leads, 1 tareas
+  - vend1: 2 leads, 1 tareas
+  - vend2: 0 leads, 0 tareas
+  - vend3: 1 leads, 1 tareas
+  - vend4: 0 leads, 0 tareas
+  - vendNested: 1 leads, 1 tareas
+  - vendInactive: 0 leads, 0 tareas
+  - coordinador: 0 leads, 0 tareas
+  - directorio: 7 leads, 5 tareas
+  - clientBank: 0 leads, 0 tareas
+✓ fixtures: 7 leads, 7 actividades, 5 tareas
+✓ offboarding: true/true, false/true, true/false, false/false y fallback global
+✓ fixtures: 1 cliente bancario + 1 contrato enlazado + 1 contrato legacy + 1 cuenta contractual
+Preflight terminado; no se abrio ninguna conexion.

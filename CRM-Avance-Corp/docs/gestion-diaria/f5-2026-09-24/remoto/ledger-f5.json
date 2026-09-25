@@ -1,0 +1,12 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:39:52.952Z",
+  "ref": "xyrdxcraoqdgctzkvpsj",
+  "version": "20260924201358",
+  "versionMcp": "20260924223910",
+  "name": "crm_gestion_diaria_pulso_habitos",
+  "sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+  "previasIntactas": 355,
+  "total": 356,
+  "prueba": "Archivo MCP exacto al byte antes de fijar su versión canónica, sólo en rama propia; historial del padre sin cambios."
+}

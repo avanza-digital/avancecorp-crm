@@ -1,0 +1,4 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh --workers=2 --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+scripts/e2e-docker.sh: line 44: CONTAINER_ARGS[@]: unbound variable

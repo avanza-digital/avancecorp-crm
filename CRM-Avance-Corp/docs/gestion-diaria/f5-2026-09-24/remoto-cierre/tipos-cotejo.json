@@ -1,0 +1,12 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T00:24:13.134522+00:00",
+  "proyecto": "ozmxjmjopdnyhxsecmvf",
+  "funciones": [
+    "gestion_diaria_pulso_fn",
+    "gestion_diaria_habitos_fn"
+  ],
+  "generacion_sha256": "a0d947d631a8e7fe169d52ec4e7b68ce4965b20d514f59c696b71033078b6fef",
+  "cliente_sha256": "4de1927e103b595566fa684b9d8735926dc2dee7240755d5b01dd8c4823fca51",
+  "alcance": "Tipos regenerados desde rama; contratos de las dos RPC F5 idénticos al cliente integrado con Main #93."
+}

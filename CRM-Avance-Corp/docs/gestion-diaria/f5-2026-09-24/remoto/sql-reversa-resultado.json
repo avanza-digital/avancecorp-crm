@@ -1,0 +1,8 @@
+{
+  "fecha": "2026-09-24T22:42:01.811150+00:00",
+  "estado": "PASS",
+  "sql_especifico": "Conciliacion, paridad F3, fechas, habitos, permisos y tres mutantes; ROLLBACK de datos",
+  "reversa": "Dos cuerpos originales restituidos y doce funciones nuevas retiradas en transaccion; ROLLBACK conserva F5; guarda posterior PASS",
+  "comando_reversa": "node /private/tmp/gestion-diaria-f5-remoto-20260924/ensayar-reversa.mjs",
+  "project_id": "xyrdxcraoqdgctzkvpsj"
+}

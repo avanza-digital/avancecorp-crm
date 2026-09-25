@@ -1,0 +1,10 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T00:01:26.222Z",
+  "ref": "ozmxjmjopdnyhxsecmvf",
+  "funciones": 761,
+  "tablas": 123,
+  "migraciones": 355,
+  "normalizacion": "Sólo paréntesis equivalentes de tres CHECK históricos, como H6; metadatos en UTC.",
+  "limite": "No se copiaron datos reales; cron OFF y semilla sintética"
+}

@@ -1,0 +1,13 @@
+{
+  "estado": "ELIMINADA_VERIFICADA",
+  "rama": "83def1af-e12e-4579-852f-4f3fd2cf25c7",
+  "proyecto": "xyrdxcraoqdgctzkvpsj",
+  "organizacion": "fzxtxnkvslpcsscxqfbr",
+  "creada": "2026-09-24T22:09:10.284618Z",
+  "eliminacionSolicitada": "2026-09-24T22:58:23.222Z",
+  "ausenciaVerificada": "2026-09-24 22:59:19 UTC",
+  "tarifaUsdHora": 0.01344,
+  "topeAutorizadoTotalUsd": 5,
+  "costeEstimadoUsd": 0.011024,
+  "limite": "Estimación por duración a tarifa comunicada; no es factura. Ensayo pausado incompleto: HTTP remoto pendiente. La rama banco-f7 ajena se conservó."
+}
