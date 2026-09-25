@@ -197,5 +197,9 @@ describe('avisoDelCiclo — el texto del banner desde el estado que nombra el se
     expect(aviso?.tono).toBe('alarma')
     expect(aviso?.titulo).toBe('El cierre de June está atascado')
     expect(aviso?.detalle).toContain('Debió sellarse el 10 jul. 2026')
+    // No afirma la causa: un mes reabierto a propósito o con el ciclo en pausa
+    // también sigue abierto (agosto, 17/09/2026).
+    expect(aviso?.detalle).toMatch(/se reabrió a propósito/)
+    expect(aviso?.detalle).not.toMatch(/no lo consiguió/)
   })
 })

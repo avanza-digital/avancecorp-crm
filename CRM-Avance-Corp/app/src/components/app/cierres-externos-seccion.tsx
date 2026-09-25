@@ -586,8 +586,12 @@ export function DesglosePorEmpresa({
   demo: boolean
   /** Mismo mes que la foto de cumplimiento recibida, no el reloj del montaje. */
   periodo?: string
-  /** `porVendedor` del cumplimiento de metas (store); null = aún sin foto. */
-  porVendedor: Record<string, CumplimientoVendedor> | null
+  /**
+   * Producción por persona del cumplimiento de metas; null = aún sin foto.
+   * Gerencia suma también `fuera_ranking` (supervisores o analistas sin meta
+   * con cierres), para no decir «falta su foto» de quien sí la tiene.
+   */
+  porVendedor: Record<string, Pick<CumplimientoVendedor, 'nombre' | 'detalles'>> | null
 }) {
   const { cierresExternos: cierresDemo = [] } = useCRMData()
   const consulta = useCierresExternos(!demo, periodo)

@@ -148,6 +148,12 @@
   mask-image: linear-gradient(90deg, transparent, #000 55%);
 }
 
+/* El rótulo del héroe va sobre navy: `.gi-label` (gris) ganaba a la utilidad
+   `text-white/65` (capa utilities) y dejaba el texto a 1,5–3:1. */
+.gerencia-inteligencia .gi-summary-hero .gi-label {
+  color: rgb(255 255 255 / 80%);
+}
+
 .gerencia-inteligencia .gi-hero-metric {
   display: flex;
   min-width: 0;
