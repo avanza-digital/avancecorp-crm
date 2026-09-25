@@ -7,7 +7,7 @@ actualizado: 2026-09-24
 
 - [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]] — **F5 PUBLICADA Y VERIFICADA:** SQL por merge nativo, frontend `b402a7f1`, 2.267 aserciones y HTTP 21/21, cifras y 78 archivos servidos PASS. T0 24/09 21:57:11 Lima; retirada F6 no antes del 01/10 a esa hora y con estabilidad acreditada. Banco eliminado; sábado pendiente.
 
-- [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **PREPARACIÓN SIN RETIRADA:** PR #97 en borrador, gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. Cola todavía sin publicar. La observación real comienza con F5; no hay siete días cumplidos.
+- [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **PREPARACIÓN SIN RETIRADA:** PR #97 integrado en Main `3b792867`, controles GitHub PASS, gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. Cola todavía sin publicar. La observación real comienza con F5; no hay siete días cumplidos.
 
 - [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]] — Historial de preparación y validación F5; publicación vigente en la nota anterior. F4.1 OFF; cierre F4 auditado, sábado pendiente.
 

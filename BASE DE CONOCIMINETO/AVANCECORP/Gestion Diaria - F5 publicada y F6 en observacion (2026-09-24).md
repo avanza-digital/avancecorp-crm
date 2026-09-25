@@ -38,8 +38,10 @@ Banco temporal eliminado y credenciales de rama retiradas. Coste acumulado
 estimado US$0,029838 dentro de US$5; no es factura. `banco-f7` ajeno intacto.
 F4.1 y tasa muy baja siguen apagadas.
 
-**F6:** la cola completa está preparada y probada en el PR #97, en borrador,
-todavía sin publicar. T0 real = 24/09/2026 21:57:11 Lima. No retirar Seguimiento
+**F6:** la cola completa está preparada y probada. El PR #97 fue integrado
+externamente en Main `3b792867` a las 22:22:44 Lima, con sus tres controles PASS
+y sin revisión APPROVED; todavía sin publicar. La producción conserva F5
+`b402a7f1`, cotejada después de la integración. T0 real = 24/09/2026 21:57:11 Lima. No retirar Seguimiento
 antes del **01/10/2026 21:57:11 Lima**, y solo con siete días estables acreditados
 y sin incidencias relevantes. No hay vigilancia automática garantizada.
 El corte único del sábado 26/09, 11:30 Lima, sigue pendiente de comprobación real.

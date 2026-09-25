@@ -7,7 +7,7 @@ Referencia: [plan de ejecución](EJECUCION-F4-1-F6-2026-09-24.md).
 El [registro de observación](OBSERVACION-F3-F5.md) acredita T0 y conserva
 pendientes los controles diarios y la retirada, no antes del 01/10 a esa hora.
 La cola completa está en el [PR #97](https://github.com/avanza-digital/avancecorp-crm/pull/97),
-en borrador; no forma parte de la publicación F5.
+integrado en Main `3b792867`, todavía sin publicar. [Estado y evidencia](observacion-2026-09-24/PR97-INTEGRADO.md).
 
 ## Capacidades que deben conservarse
 
