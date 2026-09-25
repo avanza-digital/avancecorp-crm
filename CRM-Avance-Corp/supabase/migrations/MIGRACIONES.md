@@ -63,6 +63,83 @@ encendida, un lead recién vetado sale con `restriccion_contacto`.
 Reversa: `supabase/scripts/rollback-sla-veto-en-lote.sql`. 🔴 Orden: esta reversa va ANTES
 que `rollback-sla-accion-rol.sql`, que se ancla a 6151f055.
 
+## 20260913130000 + 20260914130000 — F7 OLAS 2 y 2b: las 8 piezas, DEMOLIDAS
+
+**PUBLICADAS Y VERIFICADAS el 24/09/2026 con el `!` de Miguel**, en este orden:
+ola 2 → `registrar-f7-ola2-version.sql` (**349** versiones, 7 piezas) → ola 2b →
+`registrar-f7-ola2b-version.sql` (**350** versiones, 8 piezas).
+Desbloqueadas por `20260924161110`: el preflight de ambas exige CERO alertas abiertas de
+CUALQUIER fase y el contador llevaba en rojo desde el 05/09.
+Ensayo previo contra prod VERDE y deshecho (mutante de ventana cazado en las dos olas por
+el preflight REAL con el CHECK puesto; marchas atrás recrearon las 8 con definición y
+comentario al byte).
+**Ola 2:** las 7 gemelas del catálogo viejo (`crear/actualizar_contrato*_producto` en
+`crm` y `public`). **Ola 2b:** `crm.metricas_altas_analista_fn(integer)`, con su sustituto
+`crm.altas_nuevas_por_analista_fn` vivo y con pantalla en producción (condición de Miguel).
+**NO se tocaron** las 2 del bridge (`metricas_distribucion_leads_fn` y su v2): siguen con
+dueño `crm_metricas_bridge` y en observación — no se derriba lo que no se sabe reconstruir.
+Verificado después: 0 gemelas vivas · puertas PDF v2/v3 en pie ·
+`trg_contratos_producto_snapshot` armado · libro 8 demolidas / 4 permanentes / 3 en
+observación · `gate:f7` VERDE · `gate:analitica` VERDE · advisors 5 (1 INFO + 4 WARN
+preexistentes, 0 ERROR, 0 que nombre una pieza demolida) · **0 alertas abiertas**.
+🔴 El gate de EVIDENCIA de accesos sigue ROJO y seguirá: el hueco 10→14/09 de los
+registros no se recupera (retención 7 días). Miguel decidió demoler sobre la **pata
+fuerte** —el censo estructural de la migración, que Codex corrió entero dos veces dando
+vacío— tras que se le dijera medido que las 8 ya estaban cerradas y que derribar era
+higiene, no seguridad.
+Reversa: `supabase/scripts/rollback-f7-ola2-gemelas.sql` y `rollback-f7-ola2b-tableros.sql`.
+⚠️ Recrear una función en `public` la REABRE (default privileges).
+
+## 20260924161110 — F7: re-declarar la huella de `crm.crear_contrato_con_cuenta`
+
+**PUBLICADA Y VERIFICADA el 24/09/2026 con el `!` de Miguel.** Tras aplicarla, el
+vigilante devolvió `OK: 15 piezas vigiladas`, huella del libro = huella viva, estado/ACL
+intactos y candado re-activado. `private.vigia_f7_piezas()` cerró **las 18 alertas**:
+contador a **0** en todas las fases por primera vez desde el 05/09.
+Actualiza UN campo de UNA fila de `private.f7_piezas_en_observacion`: la
+`huella_md5` de `crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)`,
+`0de7a130…` → `802c0318…`. No toca estado, ACL, ventana, patrón de censo ni
+ninguna otra fila; no reabre, no demuele, no toca objetos de `public`.
+El cuerpo cambió estando cerrada por tres migraciones ya aplicadas y legítimas
+(`20260905140000` F2.b E4, `20260906200000` F2.b D19, `20260908211349` F4
+rentabilidad), medido en `supabase_migrations.schema_migrations`; nadie actualizó
+el retrato, así que `assert_f7_piezas_cerradas()` lanza desde el 05/09 y el vigía
+acumula una alerta al día (18 al 24/09, causa única comprobada POR DÍA).
+Se gana una alarma compartida otra vez fiable: desde `20260922182454` los vigías
+cierran las alertas de su fase al volver a verde, así que `private.vigia_f7_piezas()`
+cierra las 18 solas. Efecto lateral: destraba el stop-the-line de las olas 2 y 2b,
+cuyo preflight exige CERO alertas abiertas de cualquier fase.
+🔑 La huella va en CRUDO: el assert compara `md5(prosrc)` tal cual; la
+normalización de ese mismo cuerpo es sólo del `patron_censo` (el trinquete de la
+F5.a sí normaliza — cada uno sella a su manera).
+Baja el candado NOMBRADO `trg_f7_obs_00_solo_crece` y lo re-activa en la misma
+transacción, como manda el comentario del propio trigger.
+Preflight: fila, estado/ola, huella vieja, cuerpo vivo por DOS anclas
+(`prosrc` + `pg_get_functiondef`), ACL, dueño, que ninguna OTRA pieza esté
+derivada y que el vigilante esté rojo por ESTA causa y no por otra.
+Postflight: assert en verde, **el candado MORDIENDO** (un UPDATE que debe rebotar
+42501 — «puesto» no es «funciona»), la fila exacta y la analítica en verde.
+**Review de Codex LEVEL 3: PASS**, con 3 P2 + 1 P3 ACEPTADOS y aplicados:
+① el rebote 42501 no identificaba su origen → ahora exige además el mensaje del candado
+(`no se reescribe`) y que el trigger quede HABILITADO; ② `strpos(sqlerrm, firma)` era
+laxo → se exige el mensaje COMPLETO del assert para esta causa exacta; ③ `not like 'OK%'`
+con veredicto NULL da NULL y **no entra en el if** → guarda `is null or` en los dos
+asserts; ④ el postflight afirmaba «nada más se movió» sin compararlo → foto temporal
+previa y cotejo de estado, ola, cerrada_en, ventana, ACL, patrón, llamadores y ok_miguel.
+Añadido por el RIESGO que señaló: las anclas del cuerpo vivo se re-comprueban al FINAL
+(un `ALTER FUNCTION` concurrente que cambiara `search_path` conservaría `prosrc`).
+Ensayo contra prod **VERDE** y deshecho; **4 mutantes muertos**: sin re-activar el candado
+→ postflight lo caza; huella esperada falsa → preflight aborta; tocar un campo ajeno
+(`ok_miguel`) con el candado bajado → lo caza el cotejo nuevo; veredicto NULL con la
+guarda nueva → muere. **1 mutante SOBREVIVIÓ a propósito y es la prueba del arreglo**:
+veredicto NULL con la guarda VIEJA pasa por verde — el P2 de Codex era un bug real, no
+teórico. (Un sexto mutante, `acl_esperada = acl_esperada`, sobrevivió por ser un no-op:
+mal mutante, descartado, no acredita nada.)
+Reversa: migración nueva con la huella al revés (dejaría al vigilante en rojo;
+sólo tiene sentido si el cuerpo vivo resultara ilegítimo).
+Después de aplicar: `select private.vigia_f7_piezas();` y comprobar
+`select count(*) from private.vigia_alertas where resuelta_en is null;` → 0.
+
 ## 20260923234404 — H3: pendientes paginados del supervisor
 
 **PUBLICADA Y VERIFICADA el 24/09/2026 mediante merge nativo de Supabase.**

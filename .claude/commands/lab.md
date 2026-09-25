@@ -9,7 +9,7 @@ Arranca el laboratorio de animaciones (`/Users/usuario/Desktop/DESARROLLO/DESARR
    - Galería: `cd /Users/usuario/Desktop/DESARROLLO/DESARROLLO/ui-playground/galeria && npm run dev`
    - Remotion: `cd /Users/usuario/Desktop/DESARROLLO/DESARROLLO/ui-playground/remotion && npx remotion studio --no-open`
 3. Confirma con curl que ambos respondan 200.
-4. **SIEMPRE cierra mostrando la GUÍA DE USO** (pedido expreso de Miguel — no la omitas nunca), con este contenido adaptado al estado actual:
+4. **Cierra mostrando la GUÍA DE USO** (Miguel la quiere en cada arranque), con este contenido adaptado al estado actual:
 
 ---
 

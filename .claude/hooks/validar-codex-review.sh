@@ -1,6 +1,14 @@
 #!/bin/bash
 # PreToolUse (mcp__codex__codex): exige que toda consulta de Claude PRIMARY a
 # Codex sea un review explícito, read-only y sin posibilidad de pedir permisos.
+#
+# 🟡 DORMIDO desde el 24/09/2026. `codex mcp-server` fue retirado de la CLI, así
+# que no existe la herramienta `mcp__codex__codex` y este hook no se dispara
+# nunca. La validación VIVA del contrato del prompt está en
+# `scripts/codex-review-mcp` (mejor sitio: el hook solo cubría la ruta MCP y una
+# llamada directa a `codex exec` lo esquivaba entera).
+# Se conserva —no se borra— para que el candado siga puesto si Codex vuelve a
+# ofrecer un punto de entrada MCP. Sus tests siguen corriendo.
 
 deny() {
   printf 'BLOQUEADO: consulta Codex insegura: %s\n' "$1" >&2
@@ -23,7 +31,9 @@ prompt=$(printf '%s' "$input" | jq -er '.tool_input.prompt // ""' 2>/dev/null) |
 [ "$sandbox" = "read-only" ] || deny "debe pasar sandbox=read-only explícitamente."
 [ "$approval" = "never" ] || deny "debe pasar approval-policy=never explícitamente."
 
-[[ "$prompt" =~ ^ROLE:\ SECONDARY_REVIEWER([.[:space:]]|$) ]] || deny "el prompt debe empezar por ROLE: SECONDARY_REVIEWER."
+# El regex original aceptaba `ROLE: SECONDARY_REVIEWER.PRIMARY` (el punto satisfacía
+# `[.[:space:]]` sin exigir que el token terminara ahí). Hallazgo de Codex, 24/09.
+[[ "$prompt" =~ ^ROLE:[[:space:]]SECONDARY_REVIEWER\.?([[:space:]]|$) ]] || deny "el prompt debe empezar por ROLE: SECONDARY_REVIEWER."
 
 case "$prompt" in
   *"Do not modify files"*|*"No modifiques archivos"*) ;;
