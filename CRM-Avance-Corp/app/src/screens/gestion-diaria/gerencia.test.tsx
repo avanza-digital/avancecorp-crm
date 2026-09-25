@@ -34,6 +34,26 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     expect(screen.getByRole('region', { name: 'Toda la operación' })).toHaveTextContent('1008 tareas vencidas')
     expect(screen.getByRole('link', { name: 'Fuera de equipos comerciales' })).toBeInTheDocument()
   })
+  it('conserva las ocho comparaciones del servidor al abrirlas desde el resumen compacto', () => {
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
+    const tabla = screen.getByRole('table', { name: 'Cifras del día, anterior y referencia' })
+    expect(within(tabla).getAllByRole('row')).toHaveLength(9)
+    const llamadas = within(tabla).getByRole('row', { name: /^Llamadas 9/ })
+    expect(within(llamadas).getAllByRole('cell').map((n) => n.textContent)).toEqual(['9', '0', '4'])
+    const contacto = within(tabla).getByRole('row', { name: /^Tasa de contacto/ })
+    expect(within(contacto).getAllByRole('cell').map((n) => n.textContent)).toEqual(['62.5 %', '—', '0 %'])
+    expect(screen.getByRole('dialog')).toHaveTextContent('La tasa de referencia reúne contestadas y útiles')
+  })
+  it('cero actividad conserva los pendientes y presenta las tasas sin denominador como no disponibles', () => {
+    pulso.datos!.actual = { ...pulso.datos!.ayer.metricas }
+    render(<GestionDiariaGerencia />)
+    const indicadores = screen.getByRole('region', { name: 'Indicadores de la operación' })
+    expect(within(indicadores).getAllByRole('definition').map((n) => n.textContent)).toEqual(['0', '0', '0', '—', '5', '0', '—', '0'])
+    expect(screen.getByRole('region', { name: 'Toda la operación' })).toHaveTextContent('1008 tareas vencidas')
+    fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
+    expect(screen.getByRole('table', { name: 'Cifras del día, anterior y referencia' })).toHaveTextContent('Tasa de contacto——0 %')
+  })
   it('recuerda la fecha por actor y conserva la última válida al introducir otra imposible', () => {
     const { rerender } = render(<GestionDiariaGerencia />)
     const input = screen.getByLabelText('Día de la operación')

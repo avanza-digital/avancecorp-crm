@@ -1,5 +1,6 @@
+/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar la comparación con el teclado. */
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { FileText, Info, RefreshCw } from 'lucide-react'
+import { Columns3, Info, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -86,20 +87,21 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
     try { if (nuevo === hoy) sessionStorage.removeItem(memoria(actor)); else sessionStorage.setItem(memoria(actor), nuevo) } catch { /* Sesión sin almacenamiento: selección en memoria. */ }
   }
   const actualizar = async () => { await consulta.recargar(); if (ruta && !sinPermiso) await detalle.recargar(); setActualizacion((n) => n + 1) }
-  return <section ref={pantalla} className="gd-pulso" data-estrecho={estrecho} aria-label="Toda la operación">
-    <header className="gp-cabecera">
-      <div><h2>Toda la operación</h2><p>{dia === hoy ? 'Hoy' : 'Día consultado'} · Hora de Lima</p></div>
-      <div className="gp-controles">
-        <label htmlFor={`${id}-dia`}>Día</label><Input ref={entrada} id={`${id}-dia`} aria-label="Día de la operación" type="date" defaultValue={dia} min={desplazarDia(hoy, -365)} max={hoy} className="min-h-11 w-auto text-base" aria-describedby={avisoFecha ? `${id}-aviso` : undefined}
+  return <section ref={pantalla} className="gd-supervisor gd-pulso" data-estrecho={estrecho} aria-label="Toda la operación">
+    <header className="gd-cabecera gp-cabecera">
+      <h2>Toda la operación</h2>
+      <div className="gd-selector-fecha gp-controles">
+        <label className="sr-only" htmlFor={`${id}-dia`}>Día de la operación</label><Input ref={entrada} id={`${id}-dia`} aria-label="Día de la operación" type="date" defaultValue={dia} min={desplazarDia(hoy, -365)} max={hoy} className="min-h-11 w-auto text-base" aria-describedby={avisoFecha ? `${id}-aviso` : undefined}
           onChange={() => setAvisoFecha('')}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); cambiarDia(e.currentTarget.value) } }} />
         <Button variant="outline" className="min-h-11 text-base" onClick={() => cambiarDia(entrada.current?.value ?? dia)}>Consultar</Button>
         <Button variant="outline" className="min-h-11 text-base" onClick={() => cambiarDia(hoy)} disabled={dia === hoy}>Hoy</Button>
-        <Button variant="outline" size="icon" className="size-11" aria-label="Actualizar operación" onClick={() => void actualizar()} disabled={consulta.enVuelo || sinPermiso}><RefreshCw aria-hidden /></Button>
+        <span className="gd-fecha">Lima</span>
       </div>
-      <div className="gp-acciones">
-        <Button ref={botonRegistro} variant="outline" className="min-h-11 text-base" onClick={() => { setPestana('pulso'); setGeneral(true) }} aria-pressed={general} disabled={Boolean(pulso.error || sinPermiso || !pulso.datos)}><FileText aria-hidden />Registro general</Button>
+      <div className="gd-acciones-cabecera gp-acciones">
         {accesoSeguimiento}
+        <Button ref={botonRegistro} variant="ghost" className="min-h-11 text-base" onClick={() => { setPestana('pulso'); setGeneral(true) }} aria-pressed={general} disabled={Boolean(pulso.error || sinPermiso || !pulso.datos)}>Registro general</Button>
+        <Button variant="outline" size="icon" className="size-11" aria-label="Actualizar operación" onClick={() => void actualizar()} disabled={consulta.enVuelo || sinPermiso}><RefreshCw aria-hidden /></Button>
       </div>
     </header>
     {avisoFecha && <p role="alert" id={`${id}-aviso`}>{avisoFecha}</p>}
@@ -113,23 +115,32 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             <ResumenPulso datos={pulso.datos} />
             <EspacioPulsoGerencia key={dia} datos={pulso.datos} ruta={ruta} consulta={detalle} actualizacion={actualizacion} estrecho={estrecho}
               general={general} abrirGeneral={() => setGeneral(true)} cerrarGeneral={() => setGeneral(false)} rutaEnfocada={rutaEnfocada} oculto={panelOculto} setOculto={setPanelOculto} origenGeneral={botonRegistro} sinPermiso={revocar} />
-            <p className="gp-pendientes">Organigrama actual · Pendientes al {fechaLima(Date.parse(pulso.datos.pendientes_al))}, {horaLimaDe(pulso.datos.pendientes_al)} · <strong>{pulso.datos.vencidas_global} tareas vencidas</strong> en total.</p>
+            <p className="gd-cortes gp-pendientes">Organigrama actual · Pendientes al {fechaLima(Date.parse(pulso.datos.pendientes_al))}, {horaLimaDe(pulso.datos.pendientes_al)} · <strong>{pulso.datos.vencidas_global} tareas vencidas</strong> en total.</p>
           </>}
     </Tabs>
   </section>
 }
 
 function ResumenPulso({ datos: d }: { datos: PulsoGerencia }) {
-  const [info, setInfo] = useState(false)
+  const [abierto, setAbierto] = useState<'comparacion' | 'definiciones' | null>(null)
   return <section className="gp-resumen" aria-label="Indicadores de la operación">
-    <dl className="gp-indicadores">{METRICAS.map((m) => <div key={m.campo}><dt>{m.titulo}</dt><dd>{cifraPulso(d.actual[m.campo], m.porcentaje)}</dd>
-      <p>Anterior: <span>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</span></p><p>{m.campo === 'tasa_contacto' || m.campo === 'llamadas_por_lead' ? 'Referencia' : 'Promedio'}: <span>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</span></p>
-    </div>)}</dl>
-    <div className="gp-referencia"><p>Anterior: {d.ayer.dia} completo · Promedio: {d.referencia.cantidad} de 7 días con actividad.{d.dia === fechaLima(Date.parse(d.generado_en)) && ' Hoy en curso; referencias de jornadas completas.'}</p>
-      <Button variant="ghost" className="min-h-11 text-base" onClick={() => setInfo(true)}><Info aria-hidden />Definiciones</Button></div>
-    <Dialog open={info} onClose={() => setInfo(false)} className="gp-definiciones">
-      <DialogHeader><DialogTitle>Fechas y definiciones del pulso</DialogTitle></DialogHeader>
+    <div className="gd-indicadores gp-indicadores"><dl>{METRICAS.map((m) => <div key={m.campo}><dt>{m.titulo}</dt><dd>{cifraPulso(d.actual[m.campo], m.porcentaje)}</dd></div>)}</dl></div>
+    <div className="gp-referencia"><p>Anterior: {d.ayer.dia} completo · Promedio: {d.referencia.cantidad} de 7 días con actividad.</p>
+      <div><Button variant="ghost" className="min-h-11 text-base" aria-haspopup="dialog" onClick={() => setAbierto('comparacion')}><Columns3 aria-hidden />Comparar días</Button>
+        <Button variant="ghost" size="icon" className="size-11" aria-label="Definiciones" onClick={() => setAbierto('definiciones')}><Info aria-hidden /></Button></div></div>
+    <Dialog open={abierto !== null} onClose={() => setAbierto(null)} className="gp-definiciones">
+      <DialogHeader><DialogTitle>{abierto === 'comparacion' ? 'Comparación de la operación' : 'Fechas y definiciones del pulso'}</DialogTitle></DialogHeader>
       <DialogBody><div className="space-y-4 text-base">
+        {abierto === 'comparacion' ? <>
+          <p>Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 días con actividad.</p>
+          {d.dia === fechaLima(Date.parse(d.generado_en)) && <p>Hoy en curso; referencias de jornadas completas.</p>}
+          <div className="gp-tabla-scroll" tabIndex={0} role="region" aria-label="Desplazar comparación de días"><table className="gp-comparacion-dias" aria-label="Cifras del día, anterior y referencia">
+            <thead><tr><th scope="col">Indicador</th><th scope="col">Día elegido</th><th scope="col">Anterior</th><th scope="col">Promedio / referencia</th></tr></thead>
+            <tbody>{METRICAS.map((m) => <tr key={m.campo}><th scope="row">{m.titulo}</th>
+              <td>{cifraPulso(d.actual[m.campo], m.porcentaje)}</td><td>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</td>
+              <td>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</td></tr>)}</tbody>
+          </table></div>
+        </> : null}
         <p>Personas y equipos corresponden al organigrama actual.</p>
         <p>Referencia: {d.referencia.dias.length ? d.referencia.dias.join(' · ') : `Sin jornadas con actividad desde ${d.referencia.busqueda_desde}.`}</p>
         <p>Los recuentos muestran el promedio diario. La tasa de referencia reúne contestadas y útiles de {d.referencia.dias_con_tasa} días; llamadas por lead divide las llamadas por los leads distintos de cada día sumados.</p>
@@ -137,7 +148,7 @@ function ResumenPulso({ datos: d }: { datos: PulsoGerencia }) {
         <p>Dispersión: mínimo y máximo individual con al menos {d.minimo_llamadas_utiles} llamadas útiles. Al ordenar, se compara la amplitud entre esos extremos.</p>
         <p>Los leads distintos se deduplican en toda la operación; no se suman entre equipos.</p>
         <p>Las tareas y el primer intento vencido se consultan en el momento actual, incluso al elegir un día pasado.</p>
-        <Button variant="outline" className="min-h-11 text-base" onClick={() => setInfo(false)}>Cerrar definiciones</Button>
+        <Button variant="outline" className="min-h-11 text-base" onClick={() => setAbierto(null)}>{abierto === 'comparacion' ? 'Cerrar comparación' : 'Cerrar definiciones'}</Button>
       </div></DialogBody>
     </Dialog>
   </section>

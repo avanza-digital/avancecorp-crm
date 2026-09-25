@@ -1,0 +1,19 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-pulso.spec.ts --workers=2 --retries=0 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 11 tests using 2 workers
+
+  ✓   1 [chromium] › e2e/gestion-diaria-pulso.spec.ts:125:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto (4.6s)
+  ✓   2 [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil (8.6s)
+  ✓   3 [chromium] › e2e/gestion-diaria-pulso.spec.ts:164:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento (8.5s)
+  ✓   4 [chromium] › e2e/gestion-diaria-pulso.spec.ts:204:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral (4.7s)
+  ✓   5 [chromium] › e2e/gestion-diaria-pulso.spec.ts:228:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar (5.3s)
+  ✓   6 [chromium] › e2e/gestion-diaria-pulso.spec.ts:245:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado (5.3s)
+  ✓   8 [chromium] › e2e/gestion-diaria-pulso.spec.ts:317:1 › F6 hábitos: búsqueda, selección por teclado y móvil conservan el día abierto (5.1s)
+  ✓   7 [chromium] › e2e/gestion-diaria-pulso.spec.ts:259:1 › F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensionar y volver (7.8s)
+  ✓   9 [chromium] › e2e/gestion-diaria-pulso.spec.ts:348:47 › F6 una revocación del registro general oculta Pulso y Hábitos hasta verificar la sesión (8.2s)
+  ✓  10 [chromium] › e2e/gestion-diaria-pulso.spec.ts:348:47 › F6 una revocación del registro analista oculta Pulso y Hábitos hasta verificar la sesión (8.1s)
+  ✓  11 [chromium] › e2e/gestion-diaria-pulso.spec.ts:372:1 › F6 al ampliar desde móvil aparece el equipo seleccionado y su detalle (4.3s)
+
+  11 passed (37.8s)
