@@ -100,7 +100,10 @@ export interface RutaHash {
   leadId: string | null
   inversionistaId?: string
   solicitudTasaId?: string
+  detalleGestion?: DetalleGestion
 }
+
+export interface DetalleGestion { tipo: 'equipo' | 'analista'; id: string }
 
 function esVista(v: string | undefined): v is Vista {
   return v != null && (VISTAS as readonly string[]).includes(v)
@@ -134,7 +137,15 @@ function resolverVista(seg: string | undefined): Vista | null {
 const UUID_PERSONA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** Hash canónico de una vista y su ficha opcional. */
-export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string): string {
+function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is DetalleGestion {
+  return !!detalle && (detalle.tipo === 'equipo' || detalle.tipo === 'analista')
+    && (UUID_PERSONA.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))
+}
+
+export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): string {
+  if (vista === 'gestion-diaria' && detalleGestionValido(detalleGestion)) {
+    return `#/gestion-diaria/${detalleGestion.tipo}/${detalleGestion.id}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
+  }
   if (vista === 'hoy' && !leadId && solicitudTasaId && UUID_PERSONA.test(solicitudTasaId)) return `#/hoy/solicitud-tasa/${solicitudTasaId}`
   if (vista === 'mi-cartera' && !leadId && inversionistaId && UUID_PERSONA.test(inversionistaId)) return `#/mi-cartera/inversionista/${inversionistaId}`
   return leadId ? `#/${vista}/lead/${encodeURIComponent(leadId)}` : `#/${vista}`
@@ -147,16 +158,19 @@ export function leerHash(): RutaHash {
   const partes = crudo.split('/').filter(Boolean)
   const vista = resolverVista(partes[0])
   let leadId: string | null = null
-  if (vista && partes[1] === 'lead' && partes[2]) {
+  const candidato = { tipo: partes[1], id: partes[2] } as DetalleGestion
+  const detalleGestion = vista === 'gestion-diaria' && detalleGestionValido(candidato) ? candidato : undefined
+  const indiceLead = detalleGestion ? 3 : 1
+  if (vista && partes[indiceLead] === 'lead' && partes[indiceLead + 1]) {
     try {
-      leadId = decodeURIComponent(partes[2])
+      leadId = decodeURIComponent(partes[indiceLead + 1]!)
     } catch {
       leadId = null // %-escape malformado en la URL → se ignora el lead
     }
   }
   const inversionistaId = vista === 'mi-cartera' && partes[1] === 'inversionista' && partes[2] && UUID_PERSONA.test(partes[2]) ? partes[2] : undefined
   const solicitudTasaId = vista === 'hoy' && partes[1] === 'solicitud-tasa' && partes[2] && UUID_PERSONA.test(partes[2]) ? partes[2] : undefined
-  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}) }
+  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}), ...(detalleGestion ? { detalleGestion } : {}) }
 }
 
 /**
@@ -166,8 +180,8 @@ export function leerHash(): RutaHash {
  * historial (rutas desconocidas, leads fuera de ámbito). OJO: replaceState
  * NO dispara `hashchange` — el caller ya debe tener el estado correcto.
  */
-export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string): void {
-  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId)
+export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): void {
+  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId, detalleGestion)
   if (window.location.hash === destino) return
   if (reemplazar) {
     history.replaceState(null, '', destino)

@@ -1,0 +1,12 @@
+file:///private/tmp/gestion-diaria-f5-remoto-20260924/banco.mjs:23
+ if(r.status!==0){writeFileSync(`${carpeta}/error-sql-privado.txt`,r.stderr||String(r.error),{mode:0o600});throw new Error((r.stderr||'').split('\n').filter(l=>/ERROR:|FATAL:/.test(l)).join('\n')||'Fallo SQL en banco propio');}
+                                                                                                                 ^
+
+Error: psql:<stdin>:79: ERROR:  function row_to_json(uuid) does not exist
+    at sql (file:///private/tmp/gestion-diaria-f5-remoto-20260924/banco.mjs:23:114)
+    at file:///private/tmp/gestion-diaria-f5-remoto-20260924/contrato-http.mjs:11:13
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.7.0

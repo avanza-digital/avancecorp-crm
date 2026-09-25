@@ -1,0 +1,1 @@
+PASS HTTP PostgREST 14.5: 21 solicitudes reales, dos lectores autorizados, cuatro roles denegados, anon, fechas/entrada inválidas y revocación con el mismo JWT.

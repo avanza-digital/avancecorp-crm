@@ -1,0 +1,15 @@
+{
+  "estado": "ELIMINADA_VERIFICADA",
+  "rama": "a4451cca-48a6-4630-81c7-8356b5d635a9",
+  "proyecto": "ozmxjmjopdnyhxsecmvf",
+  "organizacion": "fzxtxnkvslpcsscxqfbr",
+  "creada": "2026-09-24T23:54:05.336984Z",
+  "eliminacionSolicitada": "2026-09-25 00:30:48 UTC",
+  "ausenciaVerificada": "2026-09-25 00:31:22 UTC",
+  "tarifaUsdHora": 0.01344,
+  "topeAutorizadoTotalUsd": 5,
+  "costeEstimadoRamaUsd": 0.00835,
+  "costeEstimadoAnteriorUsd": 0.011024,
+  "costeEstimadoAcumuladoUsd": 0.019374,
+  "limite": "Estimación por duración, no factura. Ensayo remoto concluido; publicación NOT RUN. La rama ajena banco-f7 permanece. Recrear rama autorizada y revalidar delta vigente antes de promoción nativa; no aplicar SQL directamente a producción."
+}

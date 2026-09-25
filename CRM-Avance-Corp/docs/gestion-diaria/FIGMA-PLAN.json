@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-24T19:45:18.539545+00:00",
+  "updatedAt": "2026-09-25T00:07:13.316492+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1652,7 +1652,7 @@
     {
       "key": "F4.6-etapa",
       "title": "Etapa 6 — Validación y activación",
-      "status": "CONFORME · auditoría técnica cerrada; controles por horario pendientes",
+      "status": "CONFORME · Cierre auditado; sábado 26/09 pendiente.",
       "items": [
         [
           true,
@@ -1675,16 +1675,16 @@
           "Completar el recorrido de negocio con supervisión."
         ],
         [
-          false,
-          "Observar ambos cortes reales del 24/09."
+          true,
+          "Contrastar ambos cortes reales del 24/09; actas conservadas."
         ],
         [
           true,
           "Auditar cifras, avisos y acciones entre sesiones: producción y banco."
         ],
         [
-          false,
-          "Registrar incidencias, corregirlas si aparecen y dejar evidencia del cierre."
+          true,
+          "Auditar el cierre de las 18:00 y conservar su evidencia."
         ],
         [
           false,
@@ -1695,7 +1695,7 @@
     {
       "key": "F4.1",
       "title": "F4.1 — Revisión asistida con TypeSafe/Jev",
-      "status": "Continuación técnica definida · utilidad por demostrar",
+      "status": "EVALUADA · IA apagada; evidencia insuficiente",
       "items": [
         [
           true,
@@ -1711,58 +1711,58 @@
         ],
         [
           false,
-          "Preparar y evaluar la muestra anonimizada."
+          "Acreditar referencia real independiente y resolver datos y credenciales antes de activar."
         ],
         [
-          false,
-          "Medir aciertos, falsas alarmas, omisiones, coste y utilidad."
+          true,
+          "Medir calidad, falsas alarmas, coste y latencia del ensayo disponible."
         ],
         [
-          false,
-          "Integrar las sugerencias en el CRM solo si el piloto demuestra utilidad."
+          true,
+          "Registrar la no activación y avanzar F5."
         ]
       ],
-      "note": "Calidad de IA pendiente; la conformidad no aporta etiquetas. F5 puede avanzar."
+      "note": "19/20 casos sintéticos; una falsa alarma. No hay referencia real independiente acreditada."
     },
     {
       "key": "F5",
       "title": "F5 — Gerencia: “Toda la operación”",
-      "status": "Siguiente · plan de ejecución definido",
+      "status": "VALIDADA · Pendiente de aprobación y publicación.",
       "items": [
         [
-          false,
-          "Construir el tablero global del día."
+          true,
+          "Construir el tablero global con selector de fecha."
+        ],
+        [
+          true,
+          "Comparar con ayer y siete días con actividad."
+        ],
+        [
+          true,
+          "Identificar equipos y pendientes actuales."
+        ],
+        [
+          true,
+          "Navegar operación → equipo → analista → registro."
+        ],
+        [
+          true,
+          "Construir hábitos de 7/14/30 días, contacto y cortes."
         ],
         [
           false,
-          "Comparar con ayer y con los últimos siete días con actividad."
+          "Validar un umbral real; tasa muy baja continúa apagada."
         ],
         [
           false,
-          "Identificar los equipos que requieren atención."
-        ],
-        [
-          false,
-          "Permitir bajar de operación → equipo → analista → registro."
-        ],
-        [
-          false,
-          "Crear el reporte de hábitos: primera llamada, pausas, tasa de contacto y cumplimiento de cortes."
-        ],
-        [
-          false,
-          "Usar esos datos para definir con gerencia la alerta de tasa muy baja."
-        ],
-        [
-          false,
-          "Probar y publicar la fase."
+          "Publicar F5: pruebas y ensayo remoto terminados."
         ]
       ]
     },
     {
       "key": "F6",
       "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Preparación planificada · retirada tras 7 días estables",
+      "status": "Inventario preparado · semana estable todavía sin iniciar.",
       "items": [
         [
           false,
@@ -1794,5 +1794,16 @@
     "scope": "Cerrar pendientes manuales y continuar con auditoría; no atribuir pruebas no ejecutadas",
     "evidence": "F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md"
   },
-  "executionPlan": "EJECUCION-F4-1-F6-2026-09-24.md"
+  "executionPlan": "EJECUCION-F4-1-F6-2026-09-24.md",
+  "executionEvidence": {
+    "f41": "typesafe/EVALUACION-F41-2026-09-24.md",
+    "f5": "CONTRATO-F5-2026-09-24.md",
+    "f6": "PREPARACION-F6-2026-09-24.md",
+    "corte1600": "auditoria-2026-09-24/CORTE-1600.md",
+    "publication": "NOT RUN",
+    "cierre1800": "auditoria-2026-09-24/CIERRE-1800.md",
+    "f5Remote": "f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md",
+    "f5FinalVisual": "f5-2026-09-24/figma-f5-validada.png",
+    "observation": "OBSERVACION-F3-F5.md"
+  }
 }

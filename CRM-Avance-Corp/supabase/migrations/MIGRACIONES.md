@@ -13093,3 +13093,30 @@ versionado con motivo; no activa por sí mismo los cortes. Ensayo de roles,
 reglas, vigencias, HTTP y carreras reales PASS. Gerencia publicó después una
 sola v2 con vigencia 24/09, 00:00 Lima mediante UI auténtica; tasa baja NULL,
 cadena a v1 y actor verificados. Control inicial sin modificaciones.
+
+
+## 20260924201358_crm_gestion_diaria_pulso_habitos.sql
+
+**CANDIDATA F5 VALIDADA LOCAL Y REMOTAMENTE; NO PUBLICADA.** Pulso de operación
+y hábitos para gerencia y lector global activo, INVOKER con RLS. Comparación por
+fecha, siete días con actividad, partición disjunta del organigrama actual y
+fila fuera de equipos. Reutiliza la fuente de llamadas; conserva los resultados
+con IDs válidos y añade NULL explícito como autor ausente para F5.
+Hábitos y cortes históricos sin activar tasa baja. Guardas F3/F4/cortes/censo
+conservadas; sello F5 y fuente común explícitos.
+
+SQL/oráculo, 21 solicitudes HTTP locales y remotas, siete actores Auth reales,
+365.000 llamadas de volumen anual, once controles adicionales de conciliación
+y reversa transaccional PASS. Baseline remoto anterior 2.226/0; candidata con
+script actualizado de Main #93, 2.267/0. Tipos, permisos, catálogo y advisors
+sin avisos nuevos. Doce funciones nuevas y dos cuerpos cambiados, sin tablas,
+políticas ni datos productivos alterados.
+
+Frontend integrado con Main #93: 4.386 pruebas/297 archivos, Chromium final
+256/0/26 y WebKit final 5/0, un worker y cero reintentos. Revisión independiente
+CHANGES_REQUESTED con correcciones verificadas por Codex. Bancos remotos
+eliminados; estimación acumulada US$0,019374 dentro del máximo US$5.
+SQL F5 y `$release-crm` autorizados por Miguel, condicionados a aprobación
+y controles pasados en GitHub. Publicación pendiente. Contrato:
+`docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
+`docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.

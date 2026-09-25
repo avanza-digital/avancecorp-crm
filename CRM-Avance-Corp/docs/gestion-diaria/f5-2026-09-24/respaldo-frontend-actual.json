@@ -1,0 +1,818 @@
+{
+  "fecha": "2026-09-25T00:44:06.704843+00:00",
+  "estado": "FAIL",
+  "release": "crm-20260924T161348Z-929fbbcccb57",
+  "commit": "929fbbcccb5710e1031f734a034e8ce90a79b0b2",
+  "zip_sha256": "36892449306963561b85f5ed39ecc4fff6c48335aa72c6f7f140af5b59736991",
+  "zip_verificado": true,
+  "archivos_zip": 116,
+  "archivos_http": 115,
+  "checks": [
+    {
+      "ruta": "404.html",
+      "status": 200,
+      "bytes": 1910,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "coincide": true
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "status": 200,
+      "bytes": 258420,
+      "sha256": "61f594fd5e373092c15fd4c715f5d218691f482ab5691d96ed99eb8b4fa737cb",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "status": 200,
+      "bytes": 21120,
+      "sha256": "3675cf4e5bde40f544ac2b9d0e3a0bfcc21db9dc632d58a92d68c48b75161282",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "status": 200,
+      "bytes": 145044,
+      "sha256": "e9e8b4337d5b5519a9747c78ddac7839b80a38a32cb56f3dddb79e865cc66f5c",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "status": 200,
+      "bytes": 101069,
+      "sha256": "a126f2bd63727ff0573d3474bf1d8db4e4c6ef2652cda402014a45319739b8c9",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "status": 200,
+      "bytes": 248796,
+      "sha256": "3567651689adf05c76f6183e136860a195bfbd47a4ea1c9efb57e519b28c959b",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "status": 200,
+      "bytes": 38710,
+      "sha256": "34a38f8c144cae9b5b4b747eb9d3e9777f99fe1cf86d965aab0a061c41b477f9",
+      "coincide": false
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "status": 200,
+      "bytes": 219874,
+      "sha256": "e596e831377952c3255b03a10148e761bff142d40dad9021789f01efebf01528",
+      "coincide": false
+    },
+    {
+      "ruta": "assets/acciones-reconocer-alerta-C8V0Qgv6.js",
+      "status": 200,
+      "bytes": 2581,
+      "sha256": "8133120083be01ee628ba56ae98712d914e5eba2cb7dda7a06a0bb62a1349e71",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/agenda-Cr4TPaWq.js",
+      "status": 200,
+      "bytes": 31081,
+      "sha256": "86f33fe60b25cebdf9f02c8ad04202b03ccb97d99ff8103b6782ed561bdb30e8",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ahora-CyLTFCpv.js",
+      "status": 200,
+      "bytes": 516,
+      "sha256": "6b397163f4bc1f1a68eef0400de06b4966796ae46e0ab69740117284cef41a51",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/alertas-DdiDW_em.js",
+      "status": 200,
+      "bytes": 13637,
+      "sha256": "a0d5d5387a78a4390ac7a83c490246333d7d70da959b5c85f6f2ff331d01aa43",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "bytes": 947,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "status": 200,
+      "bytes": 98,
+      "sha256": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion--F6j3SNh.js",
+      "status": 200,
+      "bytes": 1198,
+      "sha256": "e945773245e619c29beb66dadddf4e4ae774d53c04bf8ccc224ee51208ee99fb",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/button-CcjL0mMd.js",
+      "status": 200,
+      "bytes": 1964,
+      "sha256": "40f3ce99777cfb212c14d67e2aaa86bae8ebb12c4f27e999edf03b3b5ea592f7",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/card-TuroX6HR.js",
+      "status": 200,
+      "bytes": 737,
+      "sha256": "18c6496069db7b1911585764777931d0c7fcf412bbcca962ec094a33e9446bfe",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/cartera-D6xY6dMP.js",
+      "status": 200,
+      "bytes": 14763,
+      "sha256": "8d9f3bd4d35d00450f5fec88c14c8f7d3e976f24fe8bb6a7aaf0c5b5a52553b3",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-TKDSdSUS.js",
+      "status": 200,
+      "bytes": 15269,
+      "sha256": "ecb87a595763685e06b7925fc03e70bb23c5ded91bc03c87755aa50b400fa118",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-citas-Bel1vVCr.js",
+      "status": 200,
+      "bytes": 17029,
+      "sha256": "8fcc90cc7475f157a0988a0978f82cecf1a4289c7c76bc7e1c08dd5022308ffa",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-DgI8ztrc.js",
+      "status": 200,
+      "bytes": 12028,
+      "sha256": "85389a914f70f1aa683eb77a2bc6ddecec4ac1b35dfb1580d47559ee9da6f4ef",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-CVpjlzVm.js",
+      "status": 200,
+      "bytes": 12134,
+      "sha256": "ce3da7db4c859816ec4ea01347bfc7cfecbf854552fba02927dee6da4ca3e060",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-metas-C-1y-XFW.js",
+      "status": 200,
+      "bytes": 16115,
+      "sha256": "4b7a2182f478da01e4600a24fa12b256a92888088862f057c046970e20a86f96",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-productos-B_i9iq9G.js",
+      "status": 200,
+      "bytes": 27097,
+      "sha256": "9059917340f622740bdf59a822ef6d2d99b29874aaced775a6d89fbe7a7c2ecc",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-rentabilidad-y3F5mFq7.js",
+      "status": 200,
+      "bytes": 14716,
+      "sha256": "ccc1d84dc677ba88aa79df72ab69fec39d62e365580ba5f35a5a7d1ae1ffec30",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-sla-YDIBwrfE.js",
+      "status": 200,
+      "bytes": 17240,
+      "sha256": "8487e9db02ed67041dff3e0b3044b3c23d6f694d3b6f53ec8c5f1c9a66fefeee",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/config-usuarios-DWXhm7EF.js",
+      "status": 200,
+      "bytes": 23935,
+      "sha256": "2c1be3c14b1dfe3b7e595e57bf90bb2e6657d6c0a8875fc8a1d2fbc12b8f3e29",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-cmLnpDnz.js",
+      "status": 200,
+      "bytes": 1972,
+      "sha256": "a00ffdae94f0db122b7470bc58659cdd6a1b654a986761109e5ea469e8a6c2f5",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/control-citas-Cr_xE3hc.js",
+      "status": 200,
+      "bytes": 4187,
+      "sha256": "015ec4967d822c6b643d64d7d28051f9c5bc6def1dfc51071eef84fa2019105f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-1FFxpwW-.js",
+      "status": 200,
+      "bytes": 2528,
+      "sha256": "cded6ceb6144bbbaedc15a96dfc67a71b16f537e6587e27463e97cc6fce3e1d3",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/crm-api-Bd_jw24Q.js",
+      "status": 200,
+      "bytes": 224550,
+      "sha256": "759b17400dab7224eb85b2023aa15ab7f586a805eb43fdfd61acae8ac10e9c93",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/crm-queries-BCmbOhvX.js",
+      "status": 200,
+      "bytes": 15734,
+      "sha256": "fa1877fdc7ff4a6afcf6ddfc5ecc4247655d47748a5a5fb847706baba302f175",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "bytes": 244552,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/derivaciones-BITKTFx9.js",
+      "status": 200,
+      "bytes": 13734,
+      "sha256": "73f4d05494cf32b0b4da80697923caa135fb174f3b1dccfefd207df1311aa289",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-CTeKXFGo.js",
+      "status": 200,
+      "bytes": 701,
+      "sha256": "d9a7cc4c36475025ac32c647e2608134529303b32aceca98f12d9eb890c60c1e",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "bytes": 12574,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-fZa2bXJD.js",
+      "status": 200,
+      "bytes": 7528,
+      "sha256": "2190cf50f08bd2563f76ca61b5f0d79ff6a3bebea71399a6c153ea105a612f5d",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/dropdown-menu-lewrahU-.js",
+      "status": 200,
+      "bytes": 3134,
+      "sha256": "743deb285ac0b9163dfaf3463e66b8b063fcb50983dad25ac7ff807cc20e47dc",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/echart-bar-CCrXnjdM.js",
+      "status": 200,
+      "bytes": 21988,
+      "sha256": "f121fcb53e7f280b456c10277fe18422c5832e3fb7fe61fa5f72209272b3b09f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/echart-Bb36jJ6d.js",
+      "status": 200,
+      "bytes": 487201,
+      "sha256": "8b0ed448101703a79763879ab282737fa6a19eb9b581a2f4fd877fafdc2dd7d3",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/echart-line-D2c-cuAX.js",
+      "status": 200,
+      "bytes": 45314,
+      "sha256": "39f5236e8ef806d4b083f41f7378fd8942cbf74a36e49df1ec4384cd8878aad2",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/equipo-Bh2KSgSw.js",
+      "status": 200,
+      "bytes": 26783,
+      "sha256": "42b4f2e59e529a7e5eb1cc606d8aa525193672812b934931c4953085d369326a",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/escape-dialogo-BhefE2FP.js",
+      "status": 200,
+      "bytes": 20295,
+      "sha256": "95349a4ea4d5cafec06cadbfcbce87417bc1f4c65319332edf9bbeccd63d6d69",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "bytes": 84559,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/facturacion-DBGtINIr.js",
+      "status": 200,
+      "bytes": 31062,
+      "sha256": "12eaa0d6e1d7d15298ae42f550d3ece93ed92ea3b8d6f6d55c39373f3b5a942e",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "status": 200,
+      "bytes": 17293,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gerencia-Benvmjwf.js",
+      "status": 200,
+      "bytes": 190929,
+      "sha256": "fc9008edf0b832d365df9f929a7710934b99dde4c364d234de7ed15f66d2a9a8",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gerencia-CdDUEJVK.js",
+      "status": 200,
+      "bytes": 101384,
+      "sha256": "c6af5e23e8375e2966f1b392773fc7c525fc8bb8bf77d42b4febfbf6b3390119",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-Cno1kM30.js",
+      "status": 200,
+      "bytes": 23521,
+      "sha256": "4f53da41ef3ad06756c9f44529815aad724cc3a35bf211f796c6695201057ed3",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-BbhhX0ND.js",
+      "status": 200,
+      "bytes": 89328,
+      "sha256": "f046a0a58110a31e0aab4d821227ca8276af1920abf7c096b3a10f1513e1434d",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-CIQVjh2W.css",
+      "status": 200,
+      "bytes": 9308,
+      "sha256": "b7796bb1337c7d85eee380479313579d13ae3d56ff108ba83244ac8eb4c25ce4",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-ByqjTdpw.js",
+      "status": 200,
+      "bytes": 14201,
+      "sha256": "50fa35c7a925292a83d15acadd250960bedc3721a9e071aaf179d7539375afd4",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/hoy-BZfTDwTo.js",
+      "status": 200,
+      "bytes": 92981,
+      "sha256": "f200f3cc30567b3a194901700eb464433ceee5070a709c0806d54e42cd33de71",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "status": 200,
+      "bytes": 22588,
+      "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "status": 200,
+      "bytes": 22104,
+      "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "status": 200,
+      "bytes": 24184,
+      "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "status": 200,
+      "bytes": 23916,
+      "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "status": 200,
+      "bytes": 23876,
+      "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "status": 200,
+      "bytes": 24252,
+      "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "status": 200,
+      "bytes": 22280,
+      "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "status": 200,
+      "bytes": 22832,
+      "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/index-BJ0v2sec.css",
+      "status": 200,
+      "bytes": 157300,
+      "sha256": "0689ee14ea87bd766077e95e936a34b0a2b085f18b99345daf1f60497392c807",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/index-BkGhTVkL.js",
+      "status": 200,
+      "bytes": 708688,
+      "sha256": "4728eee2bc47fea5630affcfadd1e95a3dd32a1773eba5b8d1f7d85f8f173719",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/input-Cb6Fp43O.js",
+      "status": 200,
+      "bytes": 1011,
+      "sha256": "b8056be8881f0e2ef4d72f59ada1eba776beafa16633919f2d08863484520eb6",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/kpi-card-DZN8eJi-.js",
+      "status": 200,
+      "bytes": 1141,
+      "sha256": "b3276270b30646d30ce1d561ee537746fabb22876a5f214dabc4c8e8ec39e4d7",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-BfboA7Vf.js",
+      "status": 200,
+      "bytes": 33882,
+      "sha256": "cf3723fdadddb3e4e9f63c7c4cb195b7e80c84a03d87ee9a4d18d97a154e76b4",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-C7c7ILoM.js",
+      "status": 200,
+      "bytes": 19957,
+      "sha256": "73fa8a89dd0337566ecc5237ef857199d9b901574d996bd05efde7176434f7e1",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/mi-cartera-CxN7dwix.js",
+      "status": 200,
+      "bytes": 213018,
+      "sha256": "4396ee9c88e329a0b3cc07e80f49f3741f28050a460ac54ccb5c940274a41237",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-Bnj4VnNb.js",
+      "status": 200,
+      "bytes": 4175,
+      "sha256": "8667e8e4371394438778bfd25008c59e929a0a1854163d218dbce598e9933235",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/paginacion-obAhw9sU.js",
+      "status": 200,
+      "bytes": 990,
+      "sha256": "be35c42f6cba1718892ee614a7227a0a714383a67d8f34c3c4d9595dba3e4e13",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/pipeline-C2WY4j8Y.js",
+      "status": 200,
+      "bytes": 14896,
+      "sha256": "63889dd36ba96e143d218d5179b62a29c80537a269e3d2b9cd6152b9ad02fc25",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
+      "status": 200,
+      "bytes": 15728,
+      "sha256": "9709167175cee7dcd331a7ed95be1182a5d5f00715b67a02107ecc80a55f490d",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2",
+      "status": 200,
+      "bytes": 11816,
+      "sha256": "221a4135d06a4b33abbd535e9a0da4e565d19545ddd9267c4e678a916d54d9b6",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2",
+      "status": 200,
+      "bytes": 12312,
+      "sha256": "bad081c8dbc15aed6c5e4cde5461914f7b3bdc295b7a7aed177e4beddb79bffa",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff",
+      "status": 200,
+      "bytes": 16124,
+      "sha256": "a1b54d9fda75d8de13e283ef09668395160e23cbb7dd9ae1aec91d6199da85bb",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff",
+      "status": 200,
+      "bytes": 16084,
+      "sha256": "d9569c0aacc16c33c52e57e1e48c1b94f3b0a6be99e75479edc6438cc44c48e0",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2",
+      "status": 200,
+      "bytes": 12188,
+      "sha256": "8872bb5c9111df9bd3162c2394aee6354d782b13408a4dd5bbf65c48207206e6",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2",
+      "status": 200,
+      "bytes": 12244,
+      "sha256": "2050755bf475817c96ac7d914c7f07cc3c2d11ff4b3fb4747b8d41de584aad17",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff",
+      "status": 200,
+      "bytes": 16136,
+      "sha256": "6188f593f250aa25137865e8d07373fd0f585f5920a496c73ede84dbbdff7a92",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-800-normal-BRNHt2w0.woff",
+      "status": 200,
+      "bytes": 15784,
+      "sha256": "ba83c17d4fbe400449af7b6d7cc6fe5ea25e97bf64c9e77010101520ca83f0a5",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/plus-jakarta-sans-latin-800-normal-CusIZhrK.woff2",
+      "status": 200,
+      "bytes": 11896,
+      "sha256": "5f301a8ef9c266c8b596e6793d3cc826daeff9849c5af035f5386439137955ad",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/progress-784Lqrrm.js",
+      "status": 200,
+      "bytes": 426,
+      "sha256": "d8afe9bffde18b8c208a6ae3ff0b95972a5ca4a6d4acb44d6583f988631db862",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-BqnWq-Tc.js",
+      "status": 200,
+      "bytes": 37297,
+      "sha256": "c0064a29040146f57ac8c5c0f589e59a0e1ef21f127ffcc64dde95c096053405",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "bytes": 190815,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/repartir-Cs-c--EX.js",
+      "status": 200,
+      "bytes": 50787,
+      "sha256": "bd6a1bebe53870404ff1f7ee4f30b85f381cb54bb82c3510390432bb04a2ffba",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-sdXge89q.js",
+      "status": 200,
+      "bytes": 205,
+      "sha256": "1bf9ca4f5c630ae70a3ea576ea84a94f9fc53160b24044d37d6bb8d2e9fab13f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-BYHlp4eR.js",
+      "status": 200,
+      "bytes": 30843,
+      "sha256": "5f10c73ba9ea617092770d5e319a672bb3307b20b2d05cc03d221a03e7ec0929",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "bytes": 694,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/section-head-CpbYtuG_.js",
+      "status": 200,
+      "bytes": 432,
+      "sha256": "15c81d5de791c4abe090fc2aa00d709fb541b6f42e1a0151dcc8a3f7d56232b2",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/seguimiento-CofTouVB.js",
+      "status": 200,
+      "bytes": 815,
+      "sha256": "6565f78e552a8c773cfbbfe03e00a520c9e3b861594fbec5036e8d1283bf0e98",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/select-B3VU5IjL.js",
+      "status": 200,
+      "bytes": 868,
+      "sha256": "acc44a58147f441b087c0966d99b08b5e22820c4fde5c51e1fdfc9a66c0eb7e9",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/sla-operacion-Ft5qZhyR.js",
+      "status": 200,
+      "bytes": 5648,
+      "sha256": "74ccbca889431ce68678a5cf9bd61f38680a9f27f8612d352995da0608e1ee3f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/stat-strip-CHL-vFQJ.js",
+      "status": 200,
+      "bytes": 2196,
+      "sha256": "b708fbab0fc90476b7bd291e38a56068c01d1b7c9cdd7fae4445c5cbf440c199",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "status": 200,
+      "bytes": 675,
+      "sha256": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/tabla-BnYgVgYp.js",
+      "status": 200,
+      "bytes": 701,
+      "sha256": "b1b96c717707b44cf8a017d834ab06a064187f650fe9c3f75e2380a308d2e1b3",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/ui-vendor-CnUuygdz.js",
+      "status": 200,
+      "bytes": 93822,
+      "sha256": "f3c506a2c1cb5417699079997e752cf94c19290025be203c42acfc536504212f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-CNpBzh9X.js",
+      "status": 200,
+      "bytes": 1608,
+      "sha256": "86c71598edf4638f47414847c49c9cf5e455ecb366b130073ada73cc85437803",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-BW9I-J5P.js",
+      "status": 200,
+      "bytes": 1596,
+      "sha256": "b26e44f798a4e84738533c924bf22be1a26539adb2734ed5990587a4b6cd52ec",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DV9xkn7e.js",
+      "status": 200,
+      "bytes": 290,
+      "sha256": "4b082ae3f9675e28ecb547393a5e86785fc724dab225f020952a8e242f9bc428",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-BqoJ8b2j.js",
+      "status": 200,
+      "bytes": 493,
+      "sha256": "da7bcb0e61364f5f0f43ad7fb5758fb43144236a45a047d123999f03e18bd358",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "bytes": 298,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "coincide": true
+    },
+    {
+      "ruta": "assets/utils-C_jjd2h8.js",
+      "status": 200,
+      "bytes": 26939,
+      "sha256": "02a38d31174ad66c1f80c28d78fa6d72888b7e35d4c83a4eb4bfd892ab12e315",
+      "coincide": true
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "status": 200,
+      "bytes": 8471,
+      "sha256": "d8f58269f11078f1ef5d1162663f267c374d038ef2184b4afa3dba2ce9b1de67",
+      "coincide": false
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "status": 200,
+      "bytes": 23167,
+      "sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11",
+      "coincide": false
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "status": 200,
+      "bytes": 23167,
+      "sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11",
+      "coincide": false
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "status": 200,
+      "bytes": 33094,
+      "sha256": "6045f5a7829d94198c6cc4c6c6916eea6256906ad41a1f93aad60ea7a9ddb8cc",
+      "coincide": false
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "status": 200,
+      "bytes": 2097,
+      "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "coincide": true
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "status": 200,
+      "bytes": 109007,
+      "sha256": "e5689c571b5af5db3de1a973cf5c82fc64df91633619a26b85fb0621f987894b",
+      "coincide": false
+    },
+    {
+      "ruta": "favicon.svg",
+      "status": 200,
+      "bytes": 9522,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "coincide": true
+    },
+    {
+      "ruta": "icons.svg",
+      "status": 200,
+      "bytes": 5031,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "coincide": true
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "bytes": 2178,
+      "sha256": "eb0120d64822273a79e39c3b65c2e993009230a06743b5b0e63656d3b19577cb",
+      "coincide": true
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "status": 200,
+      "bytes": 483,
+      "sha256": "c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73",
+      "coincide": true
+    },
+    {
+      "ruta": "robots.txt",
+      "status": 200,
+      "bytes": 26,
+      "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "coincide": true
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "bytes": 3742,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "coincide": true
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "bytes": 51,
+      "sha256": "bdb2159b61664a4707a7790c446c3acee2367cfbd9284413f644ef9fa7bb9c4c",
+      "coincide": true
+    }
+  ],
+  "limite": ".htaccess verificado dentro del ZIP; no se solicita por HTTP. Revalidar inmediatamente antes de cualquier publicación por posibles cambios de otras tareas."
+}

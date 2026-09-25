@@ -1,0 +1,330 @@
+{
+  "estado": "VALIDADA_NO_PUBLICADA",
+  "fecha": "2026-09-25T00:36:30.925505+00:00",
+  "rama": "codex/gestion-diaria-f5-20260924",
+  "base": "a1bbe24d46a607ef472671b985931af059ccc1e4",
+  "sql_sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+  "checks": {
+    "app_check": {
+      "estado": "PASS",
+      "archivos": 297,
+      "tests": 4386,
+      "log": "frontend-check-main93.log"
+    },
+    "sql": {
+      "estado": "PASS"
+    },
+    "http": {
+      "estado": "PASS",
+      "solicitudes": 21
+    },
+    "reversa": {
+      "estado": "PASS",
+      "ambito": "transaccion local revertida"
+    },
+    "volumen_anual": {
+      "estado": "PASS",
+      "llamadas": 365000,
+      "dias": 365,
+      "analistas": 5,
+      "muestras_por_rpc": 5
+    },
+    "e2e_chromium_previo": {
+      "estado": "PASS",
+      "pasaron": 256,
+      "omitidas": 26
+    },
+    "e2e_chromium_final": {
+      "estado": "PASS",
+      "pasaron": 256,
+      "fallaron": 0,
+      "omitidas": 26,
+      "workers": 1,
+      "reintentos": 0,
+      "duracion_minutos": 19.1,
+      "log": "frontend-e2e-main93-w1.log"
+    },
+    "e2e_webkit": {
+      "estado": "PASS",
+      "pasaron": 5,
+      "fallaron": 0,
+      "workers": 1,
+      "reintentos": 0,
+      "duracion_segundos": 39.3,
+      "oom_kill_final": 0,
+      "log": "frontend-webkit-main93-final.log",
+      "antecedentes": "Dos intentos fallidos; segundo confirma OOM. Se detuvieron bancos F4/F5 inactivos propios, sin cambiar producto o tests."
+    },
+    "check_scripts": {
+      "estado": "PASS",
+      "log": "check-scripts-main93.log"
+    },
+    "edge_preflight": {
+      "estado": "PASS",
+      "log": "edge-preflight-main93.log"
+    },
+    "seed_rls_preflight": {
+      "estado": "PASS",
+      "ambito": "offline con variables de rama autorizada; no se abrieron conexiones",
+      "logs": [
+        "seed-preflight-main93.log",
+        "test-rls-preflight-main93.log"
+      ]
+    },
+    "gate_realidad": {
+      "estado": "NOT RUN",
+      "causa": "CLI sin configuración productiva en copia aislada y consulta crm.perfiles inexistente; nueve supuestos auditados mediante SQL de solo lectura en realidad_sql."
+    },
+    "review": {
+      "estado": "CHANGES_REQUESTED",
+      "resolucion": "Evaluada y corregida por PRIMARY; ver REVISION-F5-2026-09-24.md"
+    },
+    "publicacion": {
+      "estado": "NOT RUN"
+    },
+    "realidad_sql": {
+      "estado": "PASS_CON_DIVERGENCIA_PREEXISTENTE",
+      "ambito": "nueve supuestos equivalentes consultados en transaccion read only de produccion",
+      "conversion_caminos": 5,
+      "conversion_cuadra": true,
+      "clientes_sin_domicilio": 290,
+      "nota": "El CLI gate:realidad sigue NOT RUN; su consulta usa crm.perfiles inexistente. Auditoria usa public.perfiles. No se modificaron datos ni el gate ajeno al alcance F5."
+    },
+    "app_check_integrado": {
+      "estado": "PASS",
+      "archivos": 291,
+      "tests": 4317,
+      "log": "frontend-check-integrado.log"
+    },
+    "e2e_chromium_integrado": {
+      "estado": "NOT RUN",
+      "causa": "El lanzador falló antes de iniciar Docker: Bash del sistema trata CONTAINER_ARGS vacío como variable no definida. Usar CRM_E2E_CONTAINER y CRM_E2E_VOLUME propios al reanudar.",
+      "log": "frontend-e2e-integrado.log"
+    },
+    "app_check_anterior": {
+      "estado": "PASS",
+      "archivos": 291,
+      "tests": 4315
+    },
+    "e2e_chromium_anterior": {
+      "estado": "PASS",
+      "pasaron": 256,
+      "fallaron": 0,
+      "omitidas": 26,
+      "workers": 2,
+      "reintentos": 0,
+      "duracion_minutos": 9.8,
+      "log": "frontend-e2e-final.log"
+    },
+    "ensayo_remoto_antes_pausa": {
+      "estado": "INCOMPLETO_PAUSA_USUARIO",
+      "rama": "83def1af-e12e-4579-852f-4f3fd2cf25c7",
+      "proyecto": "xyrdxcraoqdgctzkvpsj",
+      "tope_usd": 5,
+      "tarifa_usd_hora": 0.01344,
+      "baseline_rls": {
+        "estado": "PASS",
+        "aserciones": 2226,
+        "fallos": 0
+      },
+      "candidato_rls": {
+        "estado": "PASS",
+        "aserciones": 2226,
+        "fallos": 0
+      },
+      "sql": "PASS",
+      "reversa": "PASS",
+      "tipos": "PASS",
+      "delta_catalogo": "PASS",
+      "advisors_sin_nuevos": "PASS",
+      "http": {
+        "estado": "NOT RUN",
+        "preparacion": "FAIL: row_to_json(uuid) por alias a igual al nombre de una columna de f5_actores; transacción revertida al cerrar conexión; ninguna solicitud HTTP llegó a ejecutarse."
+      },
+      "rama_eliminada": true,
+      "cierre": {
+        "estado": "ELIMINADA_VERIFICADA",
+        "rama": "83def1af-e12e-4579-852f-4f3fd2cf25c7",
+        "proyecto": "xyrdxcraoqdgctzkvpsj",
+        "organizacion": "fzxtxnkvslpcsscxqfbr",
+        "creada": "2026-09-24T22:09:10.284618Z",
+        "eliminacionSolicitada": "2026-09-24T22:58:23.222Z",
+        "ausenciaVerificada": "2026-09-24 22:59:19 UTC",
+        "tarifaUsdHora": 0.01344,
+        "topeAutorizadoTotalUsd": 5,
+        "costeEstimadoUsd": 0.011024,
+        "limite": "Estimación por duración a tarifa comunicada; no es factura. Ensayo pausado incompleto: HTTP remoto pendiente. La rama banco-f7 ajena se conservó."
+      }
+    },
+    "ensayo_remoto": {
+      "estado": "PASS",
+      "rama": "a4451cca-48a6-4630-81c7-8356b5d635a9",
+      "proyecto": "ozmxjmjopdnyhxsecmvf",
+      "tope_total_usd": 5,
+      "baseline_rls_anterior": {
+        "estado": "PASS",
+        "aserciones": 2226
+      },
+      "candidato_rls_actual": {
+        "estado": "PASS",
+        "aserciones": 2267,
+        "fallos": 0,
+        "script": "Main #93 añade 41 casos"
+      },
+      "sql": "PASS",
+      "reversa_misma_candidata_banco_anterior": "PASS",
+      "tipos": "PASS",
+      "delta_catalogo": "PASS",
+      "advisors_sin_nuevos": "PASS",
+      "http": {
+        "estado": "PASS",
+        "fecha": "2026-09-25T00:20:23.470Z",
+        "ref": "ozmxjmjopdnyhxsecmvf",
+        "solicitudes": 21,
+        "actoresAuth": 7,
+        "latenciasMs": [
+          602,
+          724,
+          1355,
+          1462,
+          163,
+          141,
+          163,
+          140,
+          168,
+          208,
+          163,
+          140,
+          230,
+          328,
+          137,
+          145,
+          130,
+          137,
+          141,
+          160,
+          146
+        ],
+        "checks": [
+          "dos lectores autorizados",
+          "cuatro roles denegados",
+          "anon",
+          "fechas y periodo invalidos",
+          "revocacion con el mismo JWT",
+          "drilldown gerencial global",
+          "supervisor NULL limitado al equipo propio",
+          "supervisor ajeno denegado",
+          "9 llamadas/8 utiles/5 contestadas/2 leads/1008 vencidas",
+          "hueco de 165 minutos"
+        ],
+        "auth": "GoTrue real con siete actores sinteticos; tokens solo en memoria"
+      },
+      "conciliacion_adicional": {
+        "estado": "PASS",
+        "checks": 11
+      },
+      "cierre": {
+        "estado": "ELIMINADA_VERIFICADA",
+        "rama": "a4451cca-48a6-4630-81c7-8356b5d635a9",
+        "proyecto": "ozmxjmjopdnyhxsecmvf",
+        "organizacion": "fzxtxnkvslpcsscxqfbr",
+        "creada": "2026-09-24T23:54:05.336984Z",
+        "eliminacionSolicitada": "2026-09-25 00:30:48 UTC",
+        "ausenciaVerificada": "2026-09-25 00:31:22 UTC",
+        "tarifaUsdHora": 0.01344,
+        "topeAutorizadoTotalUsd": 5,
+        "costeEstimadoRamaUsd": 0.00835,
+        "costeEstimadoAnteriorUsd": 0.011024,
+        "costeEstimadoAcumuladoUsd": 0.019374,
+        "limite": "Estimación por duración, no factura. Ensayo remoto concluido; publicación NOT RUN. La rama ajena banco-f7 permanece. Recrear rama autorizada y revalidar delta vigente antes de promoción nativa; no aplicar SQL directamente a producción."
+      }
+    },
+    "respaldo_frontend": {
+      "zip_integridad": "PASS",
+      "portada_js_css": "PASS",
+      "archivos_http_identicos": 103,
+      "archivos_http_consultados": 115,
+      "png_bytes_diferentes": 12,
+      "png_pixeles_identicos": 7,
+      "png_redimensionados": 5,
+      "limite": "No acredita 115 hashes idénticos; configuración CDN no leída."
+    }
+  },
+  "archivos_sha256": {
+    "CRM-Avance-Corp/app/e2e/gestion-diaria-pulso.spec.ts": "9b48ce79368abe28e932a559c79ab775864c4286e64a30792839086526655e0f",
+    "CRM-Avance-Corp/app/playwright.gestion-diaria.webkit.config.ts": "e09eb7006e9061f567511f2e94c88e68bd165a271509d6c7bc4975b16174f845",
+    "CRM-Avance-Corp/app/src/App.tsx": "de4fabd76a184a9f1a4d029b3aab56e1b67e8b56726a31b4dec6ae99147846dc",
+    "CRM-Avance-Corp/app/src/components/gestion-diaria/reporte-habitos.tsx": "8097ac1e33173fd404a7d770c27023163ed0a725275123b466cfa1dc89b6a7d5",
+    "CRM-Avance-Corp/app/src/data/gestion-diaria-api.ts": "a5e5b7cb8c7745b05b3e4b78109a465f761b83990ae753461b46ff933e22bbde",
+    "CRM-Avance-Corp/app/src/data/gestion-diaria-pulso-api.test.ts": "c8271fc36b03d549fbe0fcda089f12ee64b5495b73b6c0be39e7c9db3490d48b",
+    "CRM-Avance-Corp/app/src/data/gestion-diaria-pulso-api.ts": "032d098584c6789889f2dc7b478305164b7f27048fe18559e0d3d81ed80a046a",
+    "CRM-Avance-Corp/app/src/data/gestion-diaria-pulso-queries.test.tsx": "7d896a9087de2039344ed866bc2d2be6ab60375b35d5a1f757b4cf998da9ec04",
+    "CRM-Avance-Corp/app/src/data/gestion-diaria-pulso-queries.ts": "1788463e50dbfba59a3c04caf592b11ae9d290f0f852a623a327eb1ef48a0452",
+    "CRM-Avance-Corp/app/src/lib/database.types.ts": "4de1927e103b595566fa684b9d8735926dc2dee7240755d5b01dd8c4823fca51",
+    "CRM-Avance-Corp/app/src/lib/gestion-diaria-cortes.ts": "71de317a7eb2cfb2c3e6fed8ce8464b5cfcc5aa51bf2fd752a26dc73009db73c",
+    "CRM-Avance-Corp/app/src/lib/gestion-diaria-f5.test.fixture.json": "385140fbbff847629c12752248c4e9609dc682d08b8c05eeddac055e0433bddc",
+    "CRM-Avance-Corp/app/src/lib/gestion-diaria-habitos.ts": "d506a27cd705cb0d74331dceb7b4b61982dbbca1cdecff517025cf0dc4e3fb84",
+    "CRM-Avance-Corp/app/src/lib/gestion-diaria-pulso.test.ts": "0e285337df293af462cb79365c602fdfc83e52ea3d547f032e5e321fdbab5999",
+    "CRM-Avance-Corp/app/src/lib/gestion-diaria-pulso.ts": "babd18c601aa6f8b0d0a4c62999c321e7ddfd737affc3183f8eaea6c7c9f6a42",
+    "CRM-Avance-Corp/app/src/lib/router.test.ts": "bc664c727664e00536c8745897878058261abb1dec372af8fff1c178a2a01a9e",
+    "CRM-Avance-Corp/app/src/lib/router.ts": "0bf588096d64c3596ca81a123d573d9b2fecf1f273e31aa64fffbbb5c5936b0d",
+    "CRM-Avance-Corp/app/src/screens/gestion-diaria.test.tsx": "c2a6fd562af055a208b66200bd74b7e95a916aebdfcdbd6fbd8c299c2603cf31",
+    "CRM-Avance-Corp/app/src/screens/gestion-diaria.tsx": "11e3907b1a5bc21f7505a076fc386de92779064a6575179bf1c39f4324821486",
+    "CRM-Avance-Corp/app/src/screens/gestion-diaria/gerencia.css": "ba3d2b6f9a400bfa23751d8d0526585b53b977447068b24874a2b50c780ffe6b",
+    "CRM-Avance-Corp/app/src/screens/gestion-diaria/gerencia.test.tsx": "66e63800f094f636cb8b8767001950477de38e4c6cfef0f113047e29c8da4fc9",
+    "CRM-Avance-Corp/app/src/screens/gestion-diaria/gerencia.tsx": "c8c880f4c480a016f081d5a4eeaa5f3c38bf643f8854c0f3c76d510c97e2dea7",
+    "CRM-Avance-Corp/supabase/migrations/20260924201358_crm_gestion_diaria_pulso_habitos.sql": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/banco.mjs": "ad45b937db5bc79b78b394f1e1a2c4b2dd1a6970b05b25891fdc86423b899d5b",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/contrato-http.mjs": "7fb2108e2ad94635c012870e05714b5fb4cff72218c0b42c5e3d3aaa62fc54f0",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/ensayar-reversa.mjs": "2b8ea0b274ed23d1107482cc518123a789af63b2cc6fc25f4fccb4fa82a0aad6",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/ensayar.mjs": "251019e34119072c1c8a7a536be332a2ed463e26a3d597d344e082cc606a7db3",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/exportar-fixture.mjs": "42ac85b68ed74ec59c8a151c0462bdf4ddd1f718b5db751bdd8e162afd28c2b9",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/medir-volumen.mjs": "1c6440f20ab4b19e16f48e54ad9ec0156eb98aa5a5c30b95bb0289a4460f9022",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/reversa-propuesta.sql": "5d81bfa846610a65a40f1faaa93883089303b083c14c00bd796c72e4d663b4d3",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/test-pulso-habitos.sql": "eb8fdc9158d9f12286dea61216c6cacbad91965bbe3cf098a3d9955bdf21ac6c",
+    "CRM-Avance-Corp/app/src/components/app/contacto.tsx": "dc62b7eab4cb0d25f55c822c8491a593bcfefcb9c8be29df95a1db4d4f41f48d",
+    "CRM-Avance-Corp/app/src/screens/hoy/vendedor.test.tsx": "2c6532c8ca915804f05bbf706f5e12ee954e165db87abd489e6316a11d5db67e",
+    "CRM-Avance-Corp/supabase/scripts/gestion-diaria-f5/sonda-conciliacion.sql": "b87c792e6f37c38c34d630e328ba34008ac1cd9b2b0b32067c3ec1e65f95f2db"
+  },
+  "base_pr91_original": "2e3445aa68e9896acfd22effbfeba9ad3acc55bf",
+  "integracion_main": {
+    "commit": "dbba54aa0a2ee762ea166d170cdeac35ac64686a",
+    "pr91": "MERGED",
+    "producto_sin_cambios": true,
+    "archivos_cotejados": 31
+  },
+  "integracion_main_92": {
+    "commit": "00936227b0bc8ff710502ba2660a09b5132d6ad9",
+    "pr92": "MERGED",
+    "archivos": [
+      "CRM-Avance-Corp/app/src/components/app/contacto.tsx",
+      "CRM-Avance-Corp/app/src/screens/hoy/vendedor.test.tsx"
+    ]
+  },
+  "integracion_main_93": {
+    "commit": "e523085ec3e985d1f8c2a5b36c96b0551ef0d2e8",
+    "pr93": "MERGED",
+    "producto_f5_sin_cambios": true,
+    "tipos_integrados_y_regenerados": "PASS"
+  },
+  "pull_request": {
+    "number": 94,
+    "url": "https://github.com/avanza-digital/avancecorp-crm/pull/94",
+    "estado": "OPEN",
+    "review": "REVIEW_REQUIRED",
+    "producto_commit": "e2c73d5b032d30269232443bcd2f8c5ebe69312a",
+    "publicacion": "NOT RUN"
+  },
+  "autorizacion_publicacion": {
+    "fecha": "2026-09-24",
+    "usuario": "Miguel",
+    "texto": "Autorizar SQL F5 y $release-crm tras aprobación en GitHub",
+    "sql_sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+    "condiciones": [
+      "revisión aprobada en GitHub",
+      "controles pasados"
+    ],
+    "no_repetir_solicitud": true
+  },
+  "prepublicacion": "PREPUBLICACION-F5.md"
+}
