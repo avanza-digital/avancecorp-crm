@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  digitosDeMonto, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
+  digitosDeMonto, etiquetaBloqueSemanal, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
   montoEditable, numero, porcentajeConversionCanonica, porcentajeDesdeTexto,
   porcentajeEditable, primerNombre,
 } from './format'
@@ -165,5 +165,16 @@ describe('porcentajes que se escriben', () => {
   it('come los ceros a la izquierda sin tocar el «0,algo»', () => {
     expect(porcentajeEditable('007')).toBe('7')
     expect(porcentajeEditable('0.5')).toBe('0.5')
+  })
+})
+
+describe('etiquetaBloqueSemanal', () => {
+  it('una semana completa se rotula con sus dos fechas', () => {
+    expect(etiquetaBloqueSemanal('2026-09-01', '2026-09-07')).toMatch(/^01 set\.? – 07 set\.?$/)
+  })
+  it('el bloque más corto que una semana declara sus días', () => {
+    expect(etiquetaBloqueSemanal('2026-09-22', '2026-09-24')).toMatch(/^22 set\.? – 24 set\.? \(3 días\)$/)
+    expect(etiquetaBloqueSemanal('2026-09-29', '2026-10-02')).toMatch(/\(4 días\)$/)
+    expect(etiquetaBloqueSemanal('2026-09-24', '2026-09-24')).toMatch(/\(1 día\)$/)
   })
 })

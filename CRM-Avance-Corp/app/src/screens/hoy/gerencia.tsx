@@ -9,6 +9,7 @@ import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import {
   periodoInicialGerencia,
   periodoMesCalendario,
+  rotuloPeriodoPie,
   semanticaMetaMensual,
   validarPeriodoGerencia,
   type PeriodoGerencia,
@@ -23,6 +24,7 @@ import {
   metaVigente,
   capitalReal,
   objetivosCero,
+  produccionPorPersona,
 } from '@/lib/objetivos'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import {
@@ -529,6 +531,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // La identidad/población se decide aparte en el panel: roster vivo hoy y foto
   // congelada únicamente para históricos.
   const metasVendedoresRanking = cumplimientoRanking?.porVendedor ?? {}
+  const produccionDelMes = useMemo(() => produccionPorPersona(cumplimientoRanking), [cumplimientoRanking])
   const metaMensualRanking = useMemo(() => {
     const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
     const errorCarga = !conversionesDeEjemplo
@@ -634,7 +637,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
       {esResumen && (
-        <DesglosePorEmpresa demo={modoDemo} periodo={periodoRanking.desde} porVendedor={errorFotoMensualRanking ? null : cumplimientoRanking?.porVendedor ?? null} />
+        <DesglosePorEmpresa demo={modoDemo} periodo={periodoRanking.desde} porVendedor={errorFotoMensualRanking ? null : produccionDelMes} />
       )}
 
       {/* F4.4: la trazabilidad de los reconocimientos — qué alertas atenuaron
@@ -949,7 +952,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           // En el ranking el capital SÍ se unifica (US$ convertido al TC rotulado);
           // repetir aquí «por separado» contradiría el total (hallazgo Codex).
           : seccion === 'ranking-vendedores' || seccion === 'metas' || esResumen
-            ? `${periodoPie.desde} al ${periodoPie.hasta} · Capital total: US$ convertido a S/ al TC rotulado; desglose por moneda en cada fila.`
+            ? `${rotuloPeriodoPie(periodoPie, esResumen ? periodoRanking : null)} · Capital total: US$ convertido a S/ al TC rotulado; desglose por moneda en cada fila.`
             : `${periodoPie.desde} al ${periodoPie.hasta} · PEN y USD se muestran por separado.`}
       </p>
     </GerenciaMotion>

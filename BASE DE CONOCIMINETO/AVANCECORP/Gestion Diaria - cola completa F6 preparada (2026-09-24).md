@@ -32,7 +32,10 @@ Miguel autorizó después usar esa integración para publicar F5. SQL y frontend
 quedaron verificados desde `b402a7f1` el 24/09 a las 21:57:11 Lima. Véase
 [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]].
 
-La preparación F6 está en el PR #97, en borrador, sin publicar. Los siete días
+El PR #97 fue integrado externamente en Main `3b792867` el 24/09 a las
+22:22:44 Lima, con sus tres controles PASS y sin revisión APPROVED. El árbol
+coincide con el candidato. La preparación F6 continúa sin publicar; el cotejo
+HTTPS posterior confirma F5 `b402a7f1`. Los siete días
 reales empiezan en ese T0 y no se cumplen antes del 01/10 a las 21:57:11 Lima.
 La retirada exige estabilidad acreditada y ausencia de incidencias relevantes;
 el corte del sábado 26/09 sigue pendiente. No solicitar otra conformidad manual.

@@ -153,6 +153,21 @@ export function fmtFecha(iso: string | null | undefined): string {
 }
 
 /**
+ * Rótulo de un bloque semanal servido: «08 set. – 14 set.». El bloque más
+ * corto que una semana (el último de un rango que termina hoy) lo declara
+ * —«22 set. – 24 set. (3 días)»—, porque 3 días junto a 7 se leen como una
+ * caída del flujo. Es aritmética de calendario sobre dos fechas servidas; no
+ * toca ninguna métrica.
+ */
+export function etiquetaBloqueSemanal(desde: string, hasta: string): string {
+  const diaYMes = (iso: string) => fmtFecha(iso).replace(/\s\d{4}$/, '')
+  if (desde === hasta) return `${diaYMes(desde)} (1 día)`
+  const dias = Math.round((Date.parse(`${hasta}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1
+  const rango = `${diaYMes(desde)} – ${diaYMes(hasta)}`
+  return Number.isFinite(dias) && dias > 0 && dias < 7 ? `${rango} (${dias} días)` : rango
+}
+
+/**
  * Fecha + hora local de un registro (espejo de fechaHora de analista.js): para
  * un timestamp completo toLocaleString SÍ respeta hora/minuto en todos los
  * motores (toLocaleDateString las ignora en iOS/WebKit). Aquí `new Date(ts)` es

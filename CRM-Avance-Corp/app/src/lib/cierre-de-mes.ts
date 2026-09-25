@@ -104,7 +104,10 @@ export function avisoDelCiclo(estado: CierreMesEstadoRpc): AvisoCierreMes | null
       return {
         tono: 'alarma',
         titulo: `El cierre de ${pendiente.mes_nombre} está atascado`,
-        detalle: `Debió sellarse el ${fmtFecha(pendiente.cierra_el)} y sigue abierto: el ciclo automático no lo consiguió. Hay que revisar el motivo — el candado impide sellar meses posteriores mientras tanto.`,
+        // No se afirma la causa: el mes también sigue abierto si se reabrió a
+        // propósito o si el ciclo está en pausa (agosto, 17/09). El estado del
+        // servidor todavía no distingue esos casos de un fallo del ciclo.
+        detalle: `Debió sellarse el ${fmtFecha(pendiente.cierra_el)} y sigue abierto. Hay que revisar si se reabrió a propósito, si el ciclo automático está en pausa o si falló — el candado impide sellar meses posteriores mientras tanto.`,
       }
   }
 }

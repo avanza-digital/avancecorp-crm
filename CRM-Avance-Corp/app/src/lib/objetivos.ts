@@ -652,6 +652,22 @@ export function metaVigente(
   return cumplimiento ?? objetivo
 }
 
+/**
+ * Producción de TODA persona con cierres en el mes: `porVendedor` (quien tiene
+ * meta) más `fueraRanking` (supervisores o analistas sin meta). «Por empresa»
+ * la necesita completa: sin la segunda parte decía «falta su foto de
+ * cumplimiento» de quien sí la tiene. Si un id está en las dos, gana la fila
+ * con meta.
+ */
+export function produccionPorPersona(
+  cumplimiento: Pick<CumplimientoMetasJerarquico, 'porVendedor'> & { fueraRanking?: readonly ProduccionFueraRanking[] } | null | undefined,
+): Record<string, Pick<CumplimientoVendedor, 'nombre' | 'detalles'>> | null {
+  if (cumplimiento == null) return null
+  const fuera = Object.fromEntries((cumplimiento.fueraRanking ?? [])
+    .map((fila) => [fila.personaId, { nombre: fila.nombre, detalles: fila.detalles }]))
+  return { ...fuera, ...cumplimiento.porVendedor }
+}
+
 export function cumplimientoDesdeRpc(
   respuesta: CumplimientoMetasRpc,
   actorId?: string | null,

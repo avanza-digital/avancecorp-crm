@@ -1,0 +1,33 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T03:24:55.496244+00:00",
+  "url": "https://github.com/avanza-digital/avancecorp-crm/pull/97",
+  "state": "MERGED",
+  "headRefOid": "461c430ba1342e70be9c27d4b162acd5f1082d0f",
+  "main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
+  "mergedAt": "2026-09-25T03:22:44Z",
+  "mergedBy": "miguejbs98",
+  "reviews": [],
+  "checks": [
+    {
+      "name": "cambios",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-25T03:09:56Z",
+      "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36089223856/job/107927780544"
+    },
+    {
+      "name": "app-check",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-25T03:22:00Z",
+      "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36089223856/job/107927822496"
+    },
+    {
+      "name": "verify",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-25T03:22:07Z",
+      "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36089223856/job/107930403543"
+    }
+  ],
+  "arbolIntegradoIdenticoAlCandidato": true,
+  "publicacionF6": "NOT RUN"
+}

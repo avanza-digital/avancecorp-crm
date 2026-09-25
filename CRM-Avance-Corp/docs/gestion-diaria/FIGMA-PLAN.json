@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T02:57:11Z",
+  "updatedAt": "2026-09-25T03:24:55.496244+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1762,7 +1762,7 @@
     {
       "key": "F6",
       "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Observación desde 24/09, 21:57 · cola en PR #97.",
+      "status": "Observación desde 24/09, 21:57 · cola integrada.",
       "items": [
         [
           false,
@@ -1805,11 +1805,14 @@
     "f5Remote": "f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md",
     "f5FinalVisual": "f5-publicacion-2026-09-24/figma-f5-publicada.png",
     "observation": "OBSERVACION-F3-F5.md",
-    "f6FinalVisual": "f5-publicacion-2026-09-24/figma-f6-observacion.png",
+    "f6FinalVisual": "observacion-2026-09-24/figma-f6-integrada.png",
     "f6PullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/97",
     "observationStartedAt": "2026-09-25T02:57:11Z",
     "earliestRetirementAt": "2026-10-02T02:57:11Z",
     "stableSevenDays": "NOT RUN",
-    "saturdayCut": "NOT RUN"
+    "saturdayCut": "NOT RUN",
+    "f6Integration": "observacion-2026-09-24/PR97-INTEGRADO.md",
+    "f6Main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
+    "f6Publication": "NOT RUN"
   }
 }

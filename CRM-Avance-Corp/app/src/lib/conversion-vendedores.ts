@@ -335,7 +335,11 @@ export function adaptarAporteConversionRango(
     periodo: { desde: datos.periodo.desde, hasta: datos.periodo.hasta },
     etiqueta: definicion?.etiqueta ?? 'Todos los aportes',
     familia: definicion?.familia ?? 'todos',
-    divisor: nucleo.divisor,
+    // La base publicada es la MISMA con la que se dividió: sin filtro, el % es
+    // el oficial (`nucleo`); con fuente, se calculó sobre el recálculo vivo.
+    // Devolver la oficial con un % vivo mezclaba bases el día que difieren
+    // (mes sellado) y tumbaba la multiselección con cartera en la l.202.
+    divisor: fuente == null ? nucleo.divisor : vivo.divisor,
     numerador,
     porcentaje,
     resultados,
