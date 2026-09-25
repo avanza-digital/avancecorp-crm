@@ -1,11 +1,13 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-24
+actualizado: 2026-09-25
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]] — **CANDIDATO VALIDADO, SIN PUBLICAR:** UX de supervisión adaptada a gerencia, con cifras y permisos de F5. Gate 4.421/298, Chromium 270/0/26, WebKit 10/0 y revisión independiente PASS. Revisión GitHub pendiente; siete días reales siguen condicionando la retirada.
+- [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]] — **PAQUETE F6 VERIFICADO, SIN PUBLICAR:** PR #101 integrado en `f9196dba`, CI Main PASS. Producción ya sirve `3027028d` con la cola F6. Pendientes autorización F6 y restablecer Hostinger (401); siete días reales conservados.
+
+- [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]] — **CANDIDATO VALIDADO, SIN PUBLICAR:** UX de supervisión adaptada a gerencia, con cifras y permisos de F5. Gate 4.421/298, Chromium 270/0/26, WebKit 10/0 y revisión independiente PASS. Integrada en Main sin revisión APPROVED; publicación pendiente según la nota vigente. Siete días reales siguen condicionando la retirada.
 
 - [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]] — **F5 PUBLICADA Y VERIFICADA:** SQL por merge nativo, frontend `b402a7f1`, 2.267 aserciones y HTTP 21/21, cifras y 78 archivos servidos PASS. T0 24/09 21:57:11 Lima; retirada F6 no antes del 01/10 a esa hora y con estabilidad acreditada. Banco eliminado; sábado pendiente.
 

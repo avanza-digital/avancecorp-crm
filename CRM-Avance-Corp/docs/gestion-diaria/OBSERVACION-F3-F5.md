@@ -52,6 +52,12 @@ Actualización del 24/09, 22:24 Lima: [PR #97 integrado y CI PASS](observacion-2
 La preparación F6 está en Main; el frontend productivo sigue siendo F5 `b402a7f1`.
 Este control adicional de T0 no cuenta como otro día de observación.
 
+Actualización del 25/09, 00:46–00:49 Lima: la versión externa `3027028d`
+ya sirve la cola del PR #97 y Resumen #100. Se cotejaron 79 HTML/JS/CSS y la
+sonda de Gestión Diaria dio 11/11 PASS. [Evidencia y límites](f6-ux-gerencia-2026-09-24/PUBLICACION-PENDIENTE.md).
+Es otro control puntual de T0, no un día adicional ni una nueva publicación
+de esta tarea. La UX de gerencia del PR #101 todavía no está servida.
+
 Una incidencia relevante impide cerrar por el mero paso del calendario:
 corregir, verificar y acreditar el período estable antes de retirar Seguimiento.
 La equivalencia de cola, permisos, acciones y enlaces debe probarse también,

@@ -1,12 +1,13 @@
 ---
 tags: [crm, gestion-diaria, f6, preparacion]
-actualizado: 2026-09-24
+actualizado: 2026-09-25
 ---
 
 # Cola completa preparada para Gestión Diaria
 
 Continúa [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]].
-**Preparación aditiva verificada, sin publicar ni retirar Seguimiento.**
+**Cola publicada por otra tarea en `3027028d`; Seguimiento no retirado.**
+Estado vigente: [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]].
 
 **Ampliación de F6 solicitada por Miguel el 24/09:** integrar para gerencia la
 UX/UI horizontal ya aprobada e implementada para supervisores. Reutilizar
@@ -17,7 +18,7 @@ analista, registro y ficha. Conservar las cifras y permisos de F5.
 
 Esta integración gerencial está **implementada y validada localmente**.
 Véase [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]];
-revisión normal de GitHub y publicación pendientes.
+PR #101 integrado manualmente; autorización F6 y publicación pendientes.
 Es una entrega obligatoria añadida al goal y puede prepararse durante la
 observación. Requiere evidencia visual, legibilidad/densidad, móvil/teclado y
 regresión de los recorridos; los PASS anteriores de la cola no acreditan el

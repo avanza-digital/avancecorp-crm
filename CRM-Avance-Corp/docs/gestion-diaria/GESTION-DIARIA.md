@@ -7,14 +7,15 @@
 > futuros. [Acta y límites](F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md).
 > **Plan a ejecutar:** [F4.1–F6 por entregas](EJECUCION-F4-1-F6-2026-09-24.md).
 > **F5 publicada y verificada:** 24/09/2026, 21:57:11 Lima, fuente `b402a7f1`.
-> [Acta](f5-publicacion-2026-09-24/ACTA.md). F6 tiene la cola completa preparada
-> en PR #97; su retirada requiere siete días estables desde ese T0, no antes
+> [Acta](f5-publicacion-2026-09-24/ACTA.md). La cola F6 del PR #97 ya está
+> publicada en `3027028d`; su retirada requiere siete días estables desde ese T0, no antes
 > del 01/10 a las 21:57:11 Lima. [Observación](OBSERVACION-F3-F5.md).
 > **Ampliación F6 solicitada el 24/09:** integrar la UX/UI horizontal de
 > supervisión en gerencia, adaptando información, acciones y alcance a su rol.
 > Implementada y validada localmente: 4.421 pruebas, Chromium 270/0/26 y
-> WebKit 10/0 PASS. Revisión GitHub y publicación pendientes.
-> [Acta UX gerencial](f6-ux-gerencia-2026-09-24/ACTA.md).
+> WebKit 10/0 PASS. PR #101 integrado en `f9196dba`; paquete y CI Main PASS.
+> Publicación pendiente de autorización F6 y acceso Hostinger (401).
+> [Estado, evidencias y recuperación](f6-ux-gerencia-2026-09-24/PUBLICACION-PENDIENTE.md).
 
 
 **Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).
@@ -2014,7 +2015,7 @@ esa integración UX/UI verificada, los accesos antiguos dirigidos a Gestión Dia
 la vista duplicada retirada y las funciones y permisos conservados. La retirada
 comienza solo después del período estable de F3–F5; TypeSafe no condiciona el cierre.
 
-**Entrega añadida por Miguel el 24/09 — candidata validada, sin publicar:** cabecera y resumen compactos,
+**Entrega añadida por Miguel el 24/09 — integrada en Main y validada, sin publicar:** cabecera y resumen compactos,
 tabla comparativa y detalle lateral, filtros y navegación con contexto y foco
 conservados. Para gerencia, aplicar estos patrones a toda la operación, equipos
 y supervisores, pulso y hábitos, manteniendo operación → equipo → analista →

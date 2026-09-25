@@ -1,0 +1,61 @@
+{
+  "updatedAt": "2026-09-25T05:54:49.626909+00:00",
+  "status": "PREPARADO_PENDIENTE_AUTORIZACION_F6_Y_ACCESO_HOSTINGER",
+  "source": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "mainRemoteMatches": true,
+  "workingTreeClean": true,
+  "pr101": {
+    "headRefOid": "81930a594411a28794c4a91ce53f92e03b93c3f0",
+    "mergeCommit": {
+      "oid": "f9196dba908fab4a28048e43ceab2c1284156cee"
+    },
+    "mergedAt": "2026-09-25T05:39:45Z",
+    "mergedBy": {
+      "id": "U_kgDOEfgBVA",
+      "is_bot": false,
+      "login": "miguejbs98",
+      "name": ""
+    },
+    "reviewDecision": "REVIEW_REQUIRED",
+    "reviews": [],
+    "state": "MERGED",
+    "url": "https://github.com/avanza-digital/avancecorp-crm/pull/101"
+  },
+  "ciMain": "PASS 3/3",
+  "testedCode": "4a4cb1ecb8f38df77b30f0edae9853a2c39edfb5",
+  "testedPrHead": "81930a594411a28794c4a91ce53f92e03b93c3f0",
+  "wholeTreeMatchesPrHead": true,
+  "appMatchesTestedCode": true,
+  "checks": {
+    "check": "4421 PASS / 298 archivos",
+    "chromium": "270 PASS / 0 FAIL / 26 omisiones previstas",
+    "webkit": "10 PASS / 0 FAIL",
+    "reviews": "CHANGES_REQUESTED corregido + PASS; dos consultas usadas"
+  },
+  "artifact": {
+    "nombre": "crm-20260925T054322Z-f9196dba908f.zip",
+    "bytes": 2320539,
+    "sha256": "e6c17b3b8084c154137160aef01c0f0ed49c93d1984261f3e2986e90f3f4ffeb"
+  },
+  "manifest": "crm-20260925T054322Z-f9196dba908f.manifest.json",
+  "manifestSha256": "353460dac8a118557cc31224eadd8e48c7bfeed776c9c9cfbf477eeb10400af6",
+  "rollback": {
+    "commit": "3027028d7c97e9623f26e1d4af45c65014374d1c",
+    "zipSha256": "b07b1379ea590face22d905517c4493c3a949d107722a0744c332b0f804a0421",
+    "manifest": "crm-20260925T041520Z-3027028d7c97.manifest.json",
+    "status": "PASS",
+    "checked": 79
+  },
+  "productionBeforeRelease": "3027028d; publicación externa verificada 79/79 HTML/JS/CSS, incluye PR97 y PR100",
+  "sqlEdgeDelta": false,
+  "liveSonda": "PASS 11/11 sobre 25/09; cero llamadas hoy, 19 analistas y 756 tareas vencidas en su snapshot",
+  "realityGate": "CLI NOT RUN (variables privilegiadas ausentes); medición SQL de nueve supuestos: 8 coinciden, 290 clientes sin domicilio. Corrección de relación crm.perfiles inexistente a public.perfiles solo en la sonda; sin modificar producto.",
+  "hostingerReadinessFile": "hostinger-acceso.json",
+  "deployment": "NOT RUN",
+  "approvalNeeded": "Autorizar $release-crm F6 desde f9196dba tomando la integración manual PR101 como aprobación. La excepción previa era solo F5.",
+  "retirementEarliestLima": "2026-10-01T21:57:11-05:00",
+  "hostinger": "FAIL HTTP401; credencial requiere renovación",
+  "questionsAsked": "2026-09-25T05:59:30.599582+00:00",
+  "gateSchemaFix": "Corregida la referencia a public.perfiles; check:scripts PASS. Es un control del operador, fuera del bundle frontend. CLI productivo sigue NOT RUN por variables ausentes; SQL READ ONLY medido.",
+  "gateSchemaFixValidation": "VALIDACION-CONTROL-REALIDAD.json"
+}

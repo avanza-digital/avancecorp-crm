@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-09-25T05:59:30.599582+00:00",
+  "status": "FAIL_HTTP_401",
+  "method": "hosting_listWebsitesV1",
+  "server": "@hostinger/mcp@1.63.3",
+  "domain": "crm.miavance.com",
+  "credentialValueIncluded": false,
+  "deployment": "NOT RUN",
+  "limit": "El cliente arranca y expone el despliegue estático; la credencial actual no autentica."
+}

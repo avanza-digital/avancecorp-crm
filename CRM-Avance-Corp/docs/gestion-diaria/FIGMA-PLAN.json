@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T05:20:02.812269+00:00",
+  "updatedAt": "2026-09-25T06:08:27.952328+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1763,7 +1763,7 @@
     {
       "key": "F6",
       "title": "F6 — UX/UI gerencial y Seguimiento",
-      "status": "UX validada · revisión y publicación pendientes.",
+      "status": "UX integrada · autorización y publicación pendientes.",
       "items": [
         [
           false,
@@ -1818,9 +1818,9 @@
     "saturdayCut": "NOT RUN",
     "f6Integration": "observacion-2026-09-24/PR97-INTEGRADO.md",
     "f6Main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
-    "f6Publication": "NOT RUN",
+    "f6Publication": "PASS: cola PR97 servida en 3027028d; UX PR101 NOT RUN",
     "f6UxGerencia": {
-      "status": "VALIDADA_LOCALMENTE_PENDIENTE_REVISION_Y_PUBLICACION",
+      "status": "INTEGRADA_MAIN_PAQUETE_VERIFICADO_PUBLICACION_PENDIENTE",
       "requestedAt": "2026-09-25T04:12:43.783039+00:00",
       "goalRequirement": "Integrar en gerencia la UX/UI horizontal aprobada para supervisión, adaptada al alcance, cifras y acciones de gerencia.",
       "figmaNodeId": "94:2",
@@ -1833,12 +1833,16 @@
       "branch": "codex/gestion-diaria-f6-ux-gerencia-20260924",
       "acta": "f6-ux-gerencia-2026-09-24/ACTA.md",
       "validation": "f6-ux-gerencia-2026-09-24/VALIDACION.json",
-      "review": "PASS independiente; revisión normal de GitHub pendiente",
-      "publication": "NOT RUN",
-      "figmaEvidence": "f6-ux-gerencia-2026-09-24/figma-validacion-local.json",
-      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-validacion-local.png",
+      "review": "PASS independiente; merge manual sin revisión GitHub, excepción F6 pendiente",
+      "publication": "NOT RUN: autorización F6 y acceso Hostinger pendientes",
+      "figmaEvidence": "f6-ux-gerencia-2026-09-24/figma-integracion-pendiente.json",
+      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-integracion-pendiente.png",
       "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/101",
-      "githubReviewDecision": "REVIEW_REQUIRED"
+      "githubReviewDecision": "REVIEW_REQUIRED; sin reviews APPROVED",
+      "mainCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+      "githubState": "MERGED",
+      "githubMainChecks": "PASS 3/3",
+      "currentEvidence": "f6-ux-gerencia-2026-09-24/PUBLICACION-PENDIENTE.md"
     }
   }
 }
