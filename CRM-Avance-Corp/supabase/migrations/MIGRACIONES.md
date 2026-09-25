@@ -1,3 +1,12 @@
+## 20260925201350 — conservar un solo índice de la reserva de acceso
+
+**PROBADA EN RAMA TEMPORAL; NO APLICADA EN PRODUCCIÓN.** El advisor del
+despliegue detectó que `inversion_solicitudes_auth_claim_idx` duplicaba el índice
+vigente `inversion_solicitudes_auth_idx`. Esta migración comprueba que ambos son
+equivalentes y que el original está listo y válido, y elimina únicamente el nuevo.
+Sin cambios de funciones, permisos, datos ni comportamiento. Forma parte del
+mismo despliegue de correo; no se reescribe la migración ya versionada.
+
 ## 20260925170437 — correo del primer acceso sincronizado con la ficha
 
 **PREPARADA; NO APLICADA EN PRODUCCIÓN.** Fix de la conversión del 25/09.
