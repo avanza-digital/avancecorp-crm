@@ -5,6 +5,8 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **PREPARACIÓN SIN RETIRADA:** cola completa reutilizada, gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. F5 integrada sin revisión registrada, aún no publicada; Hostinger recuperado. Semana estable sin iniciar.
+
 - [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]] — **F5 VALIDADA, NO PUBLICADA:** gate 4.386/297, Chromium 256/0/26, WebKit 5/0, matriz remota 2.267/0 y Auth/HTTP 21/21 PASS. Bancos retirados (~US$0,019 acumulados). F4.1 OFF; cierre F4 auditado, sábado pendiente. F6 preparada, semana sin iniciar.
 
 - [[Gestion Diaria - auditoria y plan F4.1-F6 (2026-09-24)]] — Conformidad manual cerrada por Miguel; auditoría dirigida PASS, reaviso 13:39 comprobado. Plan F4.1–F6 definido; controles futuros conservados.

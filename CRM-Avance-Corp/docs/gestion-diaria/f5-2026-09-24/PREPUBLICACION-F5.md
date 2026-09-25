@@ -46,7 +46,7 @@ coinciden; no se convirtió en PASS ni se modificaron imágenes o la configuraci
 del sitio para ocultarlo. Revalidar versión, manifiesto y respaldo justo antes
 de publicar, porque otra tarea puede publicar mientras se espera la revisión.
 
-## Acceso de publicación
+## Acceso de publicación — registro inicial
 
 La habilidad [release-crm](../../../../.agents/skills/release-crm/SKILL.md) exige
 el conector Hostinger y construir desde Main limpio, idéntico al remoto. En esta
@@ -78,3 +78,38 @@ del conector. No se cambió proveedor, DNS, MCP ni se intentó una publicación.
    sigue siendo una verificación futura; no se marca cumplido por anticipado.
 
 No se reconstruye ni publica otro frontend únicamente por añadir esta acta.
+
+## Actualización: integración externa y acceso recuperado
+
+Todos los controles de `9bde971f` terminaron PASS. GitHub registra que
+`miguejbs98` integró el PR #94 el 24/09 a las 20:22:12 Lima en
+`8da4bcf31039d0b0953e556c6eab5080ac1346c8`. Su árbol es idéntico al de
+`9bde971f`; Main local de la copia autorizada y `avancecorp/main` coinciden.
+La API de revisiones devuelve una lista vacía. Codex no ejecutó esa integración
+ni una excepción de administrador. La condición explícita de revisión aprobada
+sigue pendiente de resolución: el merge no se registra como revisión APPROVED.
+
+Miguel autorizó recuperar Hostinger mediante token. Se guardó en el Llavero de
+macOS y se comprobó con el servidor oficial `@hostinger/mcp@1.63.3`, instalado
+fuera del repositorio con scripts de instalación deshabilitados. El proceso
+recibe la credencial en memoria. No se incluyó su valor en archivos, actas,
+configuración o commits; tampoco se modificaron MCP global, DNS ni el sitio.
+
+**PASS:** initialize, inventario de 74 herramientas de hosting y disponibilidad
+de `hosting_deployStaticWebsite` con su esquema real: `domain`, `archivePath`
+y `removeArchive`. La consulta autenticada encontró exactamente
+`crm.miavance.com`, habilitado, y pudo leer su index.html de 2.178 bytes,
+que referencia `assets/index-D_95DKmo.js`. El bloqueo de acceso está resuelto;
+el despliegue sigue NOT RUN. La consulta manual anterior al MCP remoto que
+respondió 403 no utilizó OAuth almacenado: no acreditaba un fallo de la cuenta.
+
+La revisión Endor del paquete quedó UNKNOWN: sin herramienta expuesta ni
+`endorctl` instalado; no se atribuye una aprobación de seguridad. Fuente
+oficial y versión comprobadas contra GitHub/npm. La evidencia sin secretos y
+el cliente de lectura están en el checkpoint privado,
+`hostinger-token-validacion.json` y `hostinger-local/`.
+
+La lectura productiva posterior mantiene 355 migraciones y cero entradas
+para `20260924201358`. Antes de SQL y frontend debe resolverse la condición
+GitHub, preparar el artefacto exacto y ejecutar los controles de promoción
+indicados arriba. No se atribuye el inicio de los siete días reales.

@@ -1727,7 +1727,7 @@
     {
       "key": "F5",
       "title": "F5 — Gerencia: “Toda la operación”",
-      "status": "VALIDADA · Pendiente de aprobación y publicación.",
+      "status": "PR integrado · falta revisión registrada para publicar.",
       "items": [
         [
           true,
@@ -1762,7 +1762,7 @@
     {
       "key": "F6",
       "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Inventario preparado · semana estable todavía sin iniciar.",
+      "status": "Cola completa preparada · semana estable sin iniciar.",
       "items": [
         [
           false,

@@ -20,8 +20,11 @@ equipos, analista, registro y hábitos de 7/14/30 días. Consultar/Enter confirm
 el día y conserva foco/contexto. Pendientes y organigrama actuales explícitos.
 Tasa muy baja continúa apagada. **SQL y frontend F5 NO publicados.**
 
-[PR #94](https://github.com/avanza-digital/avancecorp-crm/pull/94) abierto, revisión normal
-pendiente. Fuente del producto: `e2c73d5b`. No hay excepción de administrador.
+[PR #94](https://github.com/avanza-digital/avancecorp-crm/pull/94) integrado por
+`miguejbs98` el 24/09 a las 20:22:12 Lima en Main `8da4bcf3`, con árbol idéntico
+al candidato `9bde971f`. Controles PASS; no hay revisión APPROVED registrada.
+Codex no ejecutó ese merge ni una excepción. Debe resolverse la condición
+expresa de revisión aprobada antes de publicar. Fuente inicial: `e2c73d5b`.
 
 ## Evidencia final
 
@@ -59,9 +62,11 @@ en GitHub. No repetir la solicitud. Antes de promover, recrear
 rama dentro del presupuesto restante, cotejar el padre vigente y ejecutar el
 merge nativo con solo F5 pendiente. Nunca aplicar directamente a producción.
 La preparación y el acceso del conector se documentan en
-`docs/gestion-diaria/f5-2026-09-24/PREPUBLICACION-F5.md`: la sesión actual no
-expone el despliegue estático de Hostinger; revalidar su disponibilidad antes de
-publicar. ZIP anterior íntegro, portada/JS/CSS coincidentes; doce PNG servidos
+`docs/gestion-diaria/f5-2026-09-24/PREPUBLICACION-F5.md`: Hostinger ya se
+recuperó con el token autorizado en el Llavero y el servidor oficial local.
+Sitio exacto, lectura y herramienta de despliegue estático verificados. No se
+publicó ni se modificó MCP global. La consulta 403 anterior no llevaba OAuth
+y no acreditaba un fallo de la cuenta. ZIP anterior íntegro, portada/JS/CSS coincidentes; doce PNG servidos
 difieren, siete solo en codificación y cinco en dimensiones.
 El frontend sigue el flujo humano de release, desde Main limpio e idéntico
 al remoto, servidor compatible primero. No eludir la revisión normal de GitHub.
@@ -96,3 +101,5 @@ F5 esté publicada y verificada: **T0 todavía pendiente**. Seguimiento permanec
 - Respaldo privado durable: `~/.local/share/avancecorp-checkpoints/gestion-diaria-f5-2026-09-24/`.
 
 Véase [[Inicio]] y [[Gestion Diaria - supervisor con consulta por fecha (2026-09-24)]].
+
+Preparación aditiva F6 verificada: [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]].

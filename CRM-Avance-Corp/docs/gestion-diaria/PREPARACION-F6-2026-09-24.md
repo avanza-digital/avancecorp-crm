@@ -1,6 +1,6 @@
 # F6 — Preparación para absorber Seguimiento
 
-24/09/2026. **Inventario y secuencia preparados; retirada NOT RUN.**
+24/09/2026. **Cola completa implementada y verificada; retirada NOT RUN.**
 F5 todavía no está publicada y verificada. El período obligatorio de siete días
 estables no ha comenzado. Referencia: [plan de ejecución](EJECUCION-F4-1-F6-2026-09-24.md).
 El [registro de observación](OBSERVACION-F3-F5.md) deja preparados el inicio,
@@ -73,3 +73,19 @@ restaurar. No eliminar los alias ni el código compartido durante la observació
 **Criterio de cierre:** cola equivalente demostrada, siete días acreditados,
 retirada y publicación verificadas. Este documento prepara ese trabajo; no lo
 declara ejecutado.
+
+## Preparación implementada después del inventario
+
+La rama `codex/gestion-diaria-f6-preparacion-20260924`, sobre el árbol F5
+integrado en Main `8da4bcf3`, añade `#/gestion-diaria/cola[/lead/<id>]` y
+reutiliza exactamente `ColaSlaPanel` y su frontera mediante `ColaSeguimiento`.
+El resumen parcial ofrece «Ver todas las oportunidades». El supervisor usa
+su cabecera existente para conservar la densidad. Ambos accesos y enlaces
+antiguos siguen disponibles; no se implementó todavía su redirección final.
+
+La matriz anterior enumera los gates de la retirada futura. La evidencia de
+preparación queda separada en [ACTA.md](f6-preparacion-2026-09-24/ACTA.md):
+permisos de UI, cambios de cuenta, cursor vencido, revocación, páginas 10/25/50
+hasta 105 oportunidades, ficha fuera del lote, teclado/móvil, estados vacíos,
+SLA apagado, demo y enlaces actuales. Las pruebas de alias futuros, publicación
+y período real continúan NOT RUN. No hay SQL ni cambios de política de permisos.

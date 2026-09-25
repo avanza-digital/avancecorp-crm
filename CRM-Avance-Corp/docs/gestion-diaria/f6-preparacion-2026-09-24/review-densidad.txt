@@ -1,0 +1,47 @@
+VERDICT:
+PASS
+
+SUMMARY:
+The evidence supports the fix and does not support the wrapping hypothesis. The 68 px excess equals the new `<nav>` height (`min-h-11` + `py-2` ≈ 48 px) plus the `space-y-5` gap (20 px). Removing that block for the supervisor summary removes the full delta without touching `supervisor.css:3`. Header wrapping inside `.gd-supervisor` cannot create page scroll, because the section has a fixed height and `.gd-espacio` absorbs any extra header height (`flex:1; min-height:0`, `supervisor.css:17`). The routing change in `App.tsx` stays narrow and has tests. I found nothing mandatory in scope. One unverified risk (gerencia real) and one density trade-off are below. The overall gate is not closed: the full Docker Chromium run is still pending.
+
+FINDINGS:
+
+[P2] Hypothesis: the same 68 px regression may affect gerencia real (needs evidence)
+File: `CRM-Avance-Corp/app/src/screens/gestion-diaria.tsx`
+Lines: 38, 42–45, 89
+Problem: The fix only covers `yo.rol === 'supervisor'`. Gerencia real still renders the 48 px `<nav>` plus a 20 px gap above `<GestionDiariaGerencia />`.
+Evidence: `supervisor.css:1` says the 112 px budget is the "Shell vigente … (AreaConsultaGerencia)". That suggests the gerencia screen may also use a fixed `calc(100svh - 112px)` height. I did not receive `gerencia.tsx` or its CSS, even though `gerencia.tsx` is in the modified files.
+Impact: If gerencia uses a fixed height, it gains the same 68 px page scroll. If it scrolls naturally, there is no impact. I cannot confirm either way.
+Recommendation: Check whether gerencia real has a fixed height and whether any e2e measures its page scroll (`scrollHeight - clientHeight`). If it has a fixed height and no measurement exists, add one. The pending full run may cover this only if such a test exists.
+
+[P3] New link makes the supervisor header wrap at intermediate widths, costing table rows
+File: `supervisor.tsx:173–183`, `supervisor.css:79–81`
+Problem: The actions row gains about 180–190 px. Below a 1236 px container (`@container max-width:1235px`), `.gd-cabecera` and `.gd-acciones-cabecera` wrap. Widths that used to fit on one line (for example 1280–1366 with the sidebar open, where `data-estrecho=true`) can now take two rows.
+Evidence: This is estimated from the markup, not measured. Because the height is fixed, the impact is about 52 px less table body (roughly one 44 px row), not page scroll. H2 and H4 only measure with the sidebar hidden and `data-estrecho=false`.
+Impact: Minor loss of visible rows in narrow desktop layouts. It does not break the "no page scroll" invariant.
+Recommendation: No change required. If density matters at those widths, add a measurement at 1280×720 with the sidebar open, recording header height and complete rows.
+
+[P3] Supervisor's single-link nav landmark is inconsistent with other roles
+File: `gestion-diaria.tsx:49`
+Problem: On the summary, the supervisor gets `<nav aria-label="Secciones de Gestión Diaria">` with only "Seguimiento completo". The "Resumen del día" link with `aria-current="page"`, which other roles see, is missing.
+Impact: Screen reader users hear a "Secciones" landmark with a single section and no current-page indicator. This is small but inconsistent. The supervisor still gets the full two-link nav in the queue view.
+Recommendation: Either drop the `<nav>` wrapper and keep just the link, or accept and document the asymmetry. Adding "Resumen del día" to the header would bring back part of the width cost.
+
+TEST GAPS:
+- No page-scroll measurement for the gerencia real summary with the new nav (see P2).
+- No header-height or row-count measurement for the supervisor in `data-estrecho=true` desktop layouts.
+- The supervisor summary link is exercised in the normalization test (`gestion-diaria-cola.spec.ts:162`). Nothing asserts that the supervisor header stays at 44 px when not narrow (`.gd-cabecera` height ≤ 45). That would pin the root cause more directly than overall scroll.
+
+REGRESSION RISKS:
+- Switching between summary and queue unmounts `ResumenGestionDiaria` and the `VistaSupervisor` state, so the chosen date and selection reset. This matches the stated accepted behavior ("leaving or reload resets default").
+- `App.tsx:406/438` allows `detalleGestion` for non-gerencia roles only when `tipo === 'cola'`. The tests at lines 151–167 (normalization) and 169–179 (directorio/coordinador) cover this.
+
+RECOMMENDED NEXT ACTIONS:
+1. Wait for the full Docker Chromium run and report its actual result. Keep the earlier FAIL record, as you already do.
+2. Settle the gerencia real P2 with evidence: review its CSS or add a scroll measurement.
+3. Optionally add the header-height assertion to H2 as a direct guard.
+
+CONFIDENCE:
+MEDIUM. The supervisor fix analysis is high confidence. The gerencia risk cannot be confirmed without its source.
+
+Note: I was operating under the reviewer's no-tools and no-writes restriction, so I did not create a plan file or call any tools.

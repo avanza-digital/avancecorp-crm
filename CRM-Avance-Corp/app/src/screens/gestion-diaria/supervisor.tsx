@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { Info, ListFilter, RefreshCw, Search, Users, X } from 'lucide-react'
 import { useAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
@@ -25,16 +25,16 @@ import './supervisor.css'
 const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false }
 
-export function GestionDiariaSupervisor(): JSX.Element {
+export function GestionDiariaSupervisor({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
   if (yo?.rol !== 'supervisor') return <p role="alert">Esta vista está disponible para supervisores autorizados.</p>
   // Desmontar el propietario entero limpia selección y listas antes de pintar
   // cualquier cambio de actor, rol, demo o jornada, incluidas respuestas tardías.
-  return <VistaSupervisor key={JSON.stringify([yo.id, yo.rol, yo.demo, hoy])} hoy={hoy} actor={yo.id} demo={yo.demo} />
+  return <VistaSupervisor key={JSON.stringify([yo.id, yo.rol, yo.demo, hoy])} hoy={hoy} actor={yo.id} demo={yo.demo} accesoSeguimiento={accesoSeguimiento} />
 }
 
-function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; demo: boolean }) {
+function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string; actor: string; demo: boolean; accesoSeguimiento?: ReactNode }) {
   const [fecha, setFecha] = useState(hoy)
   const entradaFecha = useRef<HTMLInputElement>(null)
   const consulta = useDiaEquipo(fecha)
@@ -171,6 +171,7 @@ function VistaSupervisor({ hoy, actor, demo }: { hoy: string; actor: string; dem
           <span className="gd-fecha">Lima{demo ? ' · Demo' : ''}</span>
         </div>
         <div className="gd-acciones-cabecera">
+          {accesoSeguimiento}
           <Button variant="ghost" className="min-h-11 text-base" disabled={!dia || sinPermiso} onClick={() => {
             origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
             setSeleccion({ analista: null, nombre: null, pestana: 'todo', apertura: ++apertura.current, enfocar: true })
