@@ -45,19 +45,20 @@ const lead:Lead={id:LEAD,nombre_completo:'PERSONA PRUEBA CONVERSIÓN',telefono:'
   vendedor_id:ACTOR_F5,vendedor_nombre:'ANALISTA F5',creado_en:'2026-09-01T12:00:00Z',activo:true}
 let vigente:SolicitudInversion|null
 let perfil:string|null
+let correoFicha:string|null
 const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solicitud_id:clave,lead_id:LEAD,estado:'preparada',
   inversion_id:null,inversionista_id:PERSONA_F5,inversionista_origen_id:PERSONA_F5,identidad_fusionada:false,
   responsable_esperado_id:ACTOR_F5,responsable_actual_id:ACTOR_F5,requiere_revision_responsable:false,
   revision_datos:0,revision_responsable:0,hash_datos:'huella',necesita_portal:datos.empresa==='avance'&&!perfil,
   comprobante_bucket:datos.empresa==='avance'?null:'f4-comprobantes',comprobante_ruta:datos.evidencia?.ruta??null,resultado:null,datos})
 beforeEach(()=>{
-  vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null
+  vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null;correoFicha=fichaF5.persona.correo
   api.persona.mockImplementation(async(leadId:string)=>({inversionista_id:PERSONA_F5,lead_id:leadId,solicitud_id:vigente?.solicitud_id??null}))
-  api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil}}))
+  api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil,correo:correoFicha}}))
   api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
-  api.preparar.mockImplementation(async i=>{vigente=preparada(i.clave,i.datos);return vigente})
+  api.preparar.mockImplementation(async i=>{vigente=preparada(i.clave,i.datos);if(i.datos.alta_portal)correoFicha=i.datos.alta_portal.correo;return vigente})
   api.consultar.mockImplementation(async()=>{if(!vigente)throw new CrmApiError('Solicitud no encontrada','P0002');return vigente})
-  api.corregir.mockImplementation(async i=>{vigente={...vigente!,datos:i.correccion.datos,revision_datos:vigente!.revision_datos+1,necesita_portal:!perfil};return vigente})
+  api.corregir.mockImplementation(async i=>{vigente={...vigente!,datos:i.correccion.datos,revision_datos:vigente!.revision_datos+1,necesita_portal:!perfil};if(i.correccion.datos.alta_portal)correoFicha=i.correccion.datos.alta_portal.correo;return vigente})
   api.acceso.mockImplementation(async()=>{perfil=PERFIL_F5;vigente={...vigente!,necesita_portal:false};return {ok:true,solicitud_id:vigente.solicitud_id,perfil_id:perfil}})
   api.confirmar.mockImplementation(async()=>{
     const resultado={ok:true as const,solicitud_id:vigente!.solicitud_id,inversion_id:FUENTE_F5,inversionista_id:PERSONA_F5,
@@ -264,6 +265,93 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     await segunda.user.click(screen.getByRole('button',{name:'Completar acceso Avance'}))
     await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
     expect(api.acceso).toHaveBeenCalledOnce()
+  })
+  function prepararAccesoPendiente(correo='anterior@example.invalid') {
+    vigente=preparada(FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,empresa:'avance',
+      contrato:{moneda:'PEN'},cronograma:[],cuenta:{},alta_portal:{correo,nombre_completo:'PERSONA PRUEBA',
+      nombres:'PERSONA',apellidos:'PRUEBA',telefono:'999123456',domicilio:'AVENIDA SINTETICA 123 LIMA'}})
+    correoFicha=correo
+  }
+  it('una ficha corregida exige revisar el correo actualizado antes de crear acceso',async()=>{
+    prepararAccesoPendiente()
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    vigente={...vigente!,revision_datos:1,datos:{...vigente!.datos!,alta_portal:{...vigente!.datos!.alta_portal!,correo:'actualizado@example.invalid'}}}
+    correoFicha='actualizado@example.invalid'
+    await user.click(screen.getByRole('button',{name:'Completar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Revisa el correo actualizado')
+    expect(api.acceso).not.toHaveBeenCalled()
+    expect(screen.getByText('actualizado@example.invalid')).toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(api.acceso).toHaveBeenCalledOnce()
+  })
+  it('Auth ya creado sin perfil permite recuperar aunque cambió el correo de contacto',async()=>{
+    prepararAccesoPendiente()
+    vigente={...vigente!,acceso_creado:true}
+    correoFicha='contacto-nuevo@example.invalid'
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByRole('button',{name:'Completar acceso Avance'})).toBeEnabled()
+    expect(screen.getByText(/El acceso ya fue creado con este correo/)).toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Corregir datos de acceso'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Usar correo de la ficha'})).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(api.acceso).toHaveBeenCalledOnce();expect(api.corregir).not.toHaveBeenCalled()
+  })
+  it.each(['Usar correo de la ficha','Conservar correo de la solicitud'])('solicitud antigua con correos distintos permite decidir: %s',async(boton)=>{
+    prepararAccesoPendiente();correoFicha='ficha-nueva@example.invalid'
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByRole('button',{name:'Completar acceso Avance'})).toBeDisabled()
+    await user.click(screen.getByRole('button',{name:boton}))
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Completar acceso Avance'})).not.toBeDisabled())
+    const esperado=boton==='Usar correo de la ficha'?'ficha-nueva@example.invalid':'anterior@example.invalid'
+    expect(vigente!.datos!.alta_portal!.correo).toBe(esperado);expect(correoFicha).toBe(esperado)
+    expect(api.corregir).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('un borrador anterior muestra el correo actual de la ficha y permite usarlo',async()=>{
+    prepararAccesoPendiente()
+    const primera=montar();await primera.user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await primera.user.click(await screen.findByRole('button',{name:'Corregir datos de acceso'}))
+    await primera.user.type(screen.getByLabelText('Nombres',{exact:true}),' EXTRA')
+    primera.unmount()
+    correoFicha='ficha-actual@example.invalid'
+    vigente={...vigente!,revision_datos:1,datos:{...vigente!.datos!,alta_portal:{...vigente!.datos!.alta_portal!,correo:correoFicha}}}
+    const segunda=montar();await segunda.user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByLabelText('Correo de acceso Avance')).toHaveValue('anterior@example.invalid')
+    expect(screen.getByText('ficha-actual@example.invalid')).toBeInTheDocument()
+    await segunda.user.click(screen.getByRole('button',{name:'Usar correo de la ficha'}))
+    expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue('ficha-actual@example.invalid')
+    expect(screen.getByLabelText('Nombres',{exact:true})).toHaveValue('PERSONA EXTRA')
+    await segunda.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(vigente!.datos!.alta_portal!.correo).toBe(correoFicha)
+  })
+  it.each(['P0409','PT409','22023','P0429','55P03'])('rechazo definitivo %s conserva lo escrito y permite volver a corregir',async(codigo)=>{
+    prepararAccesoPendiente()
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await user.click(await screen.findByRole('button',{name:'Corregir datos de acceso'}))
+    await user.clear(screen.getByLabelText('Correo de acceso Avance'))
+    await user.type(screen.getByLabelText('Correo de acceso Avance'),'corregido@example.invalid')
+    api.corregir.mockRejectedValueOnce(new CrmApiError('Revisa el acceso pendiente',codigo))
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Revisa el acceso pendiente')
+    expect(screen.queryByRole('heading',{name:'Actualización pendiente'})).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue('corregido@example.invalid')
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.correccion).toBeUndefined()
+    expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('una respuesta incierta conserva la corrección pendiente para recuperarla',async()=>{
+    prepararAccesoPendiente()
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    await user.click(await screen.findByRole('button',{name:'Corregir datos de acceso'}))
+    await user.clear(screen.getByLabelText('Correo de acceso Avance'))
+    await user.type(screen.getByLabelText('Correo de acceso Avance'),'corregido@example.invalid')
+    api.corregir.mockRejectedValueOnce(new Error('Conexión interrumpida'))
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Actualización pendiente'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.correccion?.datos.alta_portal?.correo).toBe('corregido@example.invalid')
+    expect(api.acceso).not.toHaveBeenCalled()
   })
   it('no muestra el borrador de otro lead aunque comparta analista y persona',async()=>{
     const primera=montar();await entrar(primera.user,'Avance')

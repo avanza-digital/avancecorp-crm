@@ -103,3 +103,32 @@ for (const ancho of [1440, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })
 }
+
+test('corregir el correo permite continuar y un conflicto conocido conserva el formulario', async ({page}) => {
+  const ficha = await abrirLeadDePrueba(page, 1440)
+  const acceso = await abrirConversionAvance(page, ficha)
+  await acceso.getByLabel('Apellidos', {exact: true}).fill('PRUEBA')
+  await acceso.getByLabel('Nombres', {exact: true}).fill('PERSONA')
+  await acceso.getByLabel('Correo de acceso Avance').fill('primero@example.invalid')
+  await acceso.getByLabel('Domicilio legal').fill('Av. Javier Prado Este 123, San Isidro, Lima')
+  await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+  await acceso.getByRole('button', {name: 'Corregir datos de acceso'}).click()
+  await acceso.getByLabel('Correo de acceso Avance').fill('corregido@example.invalid')
+  let rechazar = true
+  await page.route('**/rest/v1/rpc/corregir_solicitud_inversion_fn', async route => {
+    if (rechazar) {
+      rechazar = false
+      return route.fulfill({status: 409, json: {code: 'PT409', message: 'Los datos cambiaron; vuelve a revisar la solicitud'}})
+    }
+    return route.fallback()
+  })
+  await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+  await expect(acceso.getByRole('alert')).toContainText('Los datos cambiaron')
+  await expect(acceso.getByLabel('Correo de acceso Avance')).toHaveValue('corregido@example.invalid')
+  await expect(page.getByRole('dialog', {name: 'Actualización pendiente'})).toHaveCount(0)
+  await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+  await expect(acceso.getByText('corregido@example.invalid', {exact: true})).toBeVisible()
+  await expect(acceso.getByRole('button', {name: 'Completar acceso Avance'})).toBeEnabled()
+  await acceso.getByRole('button', {name: 'Completar acceso Avance'}).click()
+  await expect(page.getByRole('dialog', {name: /Crear contrato de/})).toBeVisible()
+})
