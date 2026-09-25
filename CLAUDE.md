@@ -67,7 +67,7 @@ Reglas:
 
 ## Vault de Obsidian (memoria del proyecto)
 
-Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Léelo al **inicio de cada sesión** para tener contexto del proyecto antes de actuar.
+Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Al **inicio de cada sesión**, lee su punto de entrada para tener contexto antes de actuar.
 
 - **Ubicación del vault:** `BASE DE CONOCIMINETO/AVANCECORP/`
   (ojo: la carpeta está escrita sin la "E" — `CONOCIMINETO`; usa la ruta tal cual.)
@@ -75,7 +75,8 @@ Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento cura
 - **Config de Obsidian:** `BASE DE CONOCIMINETO/AVANCECORP/.obsidian/` (no es contenido; no la edites como nota).
 
 Reglas:
-- Al iniciar sesión, lee las notas `.md` del vault para cargar el conocimiento del proyecto (no solo el grafo de código).
+- Al iniciar sesión, lee `Inicio.md`. Antes de tocar un tema, busca y lee SOLO las notas de ese tema (por nombre o
+  con `grep` dentro del vault). **No leas el vault entero:** son 400+ notas (4,6 MB) y cuesta tokens sin aportar.
 - El MCP **CODEgraph** cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
 - Cuando captures conocimiento nuevo y duradero del proyecto, escríbelo como una nota `.md` en el vault, enlazando con `[[wikilinks]]` a notas relacionadas.
 
