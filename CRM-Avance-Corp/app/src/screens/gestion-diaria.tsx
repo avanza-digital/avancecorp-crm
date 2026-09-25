@@ -35,18 +35,18 @@ export function GestionDiaria(): JSX.Element {
     return <PanelVacio icono={CalendarCheck2} titulo="Gestión Diaria no está disponible para tu rol" detalle="Este módulo es para analistas, supervisores y gerencia." />
   }
   const cola = leerHash().detalleGestion?.tipo === 'cola'
-  const cabeceraSupervisor = yo.rol === 'supervisor' && !cola
+  const cabeceraIntegrada = (yo.rol === 'supervisor' || (yo.rol === 'gerencia' && !yo.demo)) && !cola
   const enlace = 'inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
   const accesoCola = <a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })} aria-current={cola ? 'page' : undefined} className={`${enlace} ${cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Seguimiento completo</a>
   return <div key={`${yo.id}:${yo.rol}:${yo.demo}`} className="mx-auto w-full max-w-[1640px] space-y-5">
-    {!cabeceraSupervisor && <nav aria-label="Secciones de Gestión Diaria" className="flex flex-wrap gap-3">
+    {!cabeceraIntegrada && <nav aria-label="Secciones de Gestión Diaria" className="flex flex-wrap gap-3">
       <a href={hashDe('gestion-diaria')} aria-current={!cola ? 'page' : undefined} className={`${enlace} ${!cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Resumen del día</a>
       {accesoCola}
     </nav>}
     {cola ? <>
       <p className="text-base text-[var(--muted-foreground-strong)]">Pendientes actuales de tu ámbito. La fecha del resumen no cambia esta cola.</p>
       <ColaSeguimiento />
-    </> : <ResumenGestionDiaria accesoSeguimiento={cabeceraSupervisor ? <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav> : undefined} />}
+    </> : <ResumenGestionDiaria accesoSeguimiento={cabeceraIntegrada ? <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav> : undefined} />}
   </div>
 }
 
@@ -86,7 +86,7 @@ function ResumenGestionDiaria({ accesoSeguimiento }: { accesoSeguimiento?: React
     case 'supervisor':
       return <GestionDiariaSupervisor accesoSeguimiento={accesoSeguimiento} />
     case 'gerencia':
-      if (!yo.demo) return <GestionDiariaGerencia />
+      if (!yo.demo) return <GestionDiariaGerencia accesoSeguimiento={accesoSeguimiento} />
       return (
         <div className="mx-auto w-full max-w-[1640px] space-y-6">
           <Cabecera pregunta="¿Qué está pasando hoy?" detalle="Registro con datos ficticios del modo demo. El tablero completo y los hábitos consultan la operación desde una sesión real de gerencia.">
