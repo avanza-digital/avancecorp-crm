@@ -54,9 +54,15 @@ La rama ajena banco-f7 se conservó. Estimación acumulada de ambas ramas:
 organización. El aprovisionamiento automático parcial se reconstruyó sobre
 semilla sintética y cotejo de catálogo; no se atribuye un replay íntegro exitoso.
 
-La aprobación SQL productiva de F5 sigue pendiente. Antes de promover, recrear
+Miguel autorizó el SQL F5 y `$release-crm` tras aprobación y controles pasados
+en GitHub. No repetir la solicitud. Antes de promover, recrear
 rama dentro del presupuesto restante, cotejar el padre vigente y ejecutar el
 merge nativo con solo F5 pendiente. Nunca aplicar directamente a producción.
+La preparación y el acceso del conector se documentan en
+`docs/gestion-diaria/f5-2026-09-24/PREPUBLICACION-F5.md`: la sesión actual no
+expone el despliegue estático de Hostinger; revalidar su disponibilidad antes de
+publicar. ZIP anterior íntegro, portada/JS/CSS coincidentes; doce PNG servidos
+difieren, siete solo en codificación y cinco en dimensiones.
 El frontend sigue el flujo humano de release, desde Main limpio e idéntico
 al remoto, servidor compatible primero. No eludir la revisión normal de GitHub.
 

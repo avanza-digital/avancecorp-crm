@@ -2,7 +2,9 @@
 
 24/09/2026, 19:31 Lima. Reanudación después de la pausa solicitada por Miguel.
 La autorización conservada cubre la misma organización y **US$5 como máximo
-total** para el banco temporal. No autoriza la promoción SQL productiva de F5.
+total** para el banco temporal. Después del ensayo, Miguel autorizó el SQL
+F5 concreto y `$release-crm`, una vez aprobada la revisión y pasados los controles
+de GitHub. Esa autorización persiste; todavía no se ejecutó la promoción.
 
 ## Resultado y alcance
 
@@ -108,8 +110,9 @@ no una factura ni un comprobante de cargos efectivos.
 
 ## Siguiente puerta
 
-Revisión normal de GitHub, aprobación del SQL concreto y publicación del
-frontend según el flujo humano de release. Para promover, recrear una rama
+Revisión normal de GitHub pendiente. SQL concreto y flujo `$release-crm`
+autorizados por Miguel después del cierre, condicionados a esa aprobación
+y a los controles pasados. Para promover, recrear una rama
 dentro del mismo tope restante, volver a cotejar el padre vigente y garantizar
 que el único delta de migraciones sea F5. Usar merge nativo de rama; nunca
 `apply_migration` directo a producción ni un `db push` general. Si cambia el

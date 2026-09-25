@@ -13107,6 +13107,7 @@ Frontend integrado con Main #93: 4.386 pruebas/297 archivos, Chromium final
 256/0/26 y WebKit final 5/0, un worker y cero reintentos. Revisión independiente
 CHANGES_REQUESTED con correcciones verificadas por Codex. Bancos remotos
 eliminados; estimación acumulada US$0,019374 dentro del máximo US$5.
-Autorización SQL concreta, revisión GitHub y publicación pendientes. Contrato:
+SQL F5 y `$release-crm` autorizados por Miguel, condicionados a aprobación
+y controles pasados en GitHub. Publicación pendiente. Contrato:
 `docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
 `docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.

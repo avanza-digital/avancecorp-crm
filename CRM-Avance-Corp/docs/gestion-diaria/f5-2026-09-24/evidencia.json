@@ -238,6 +238,16 @@
         "costeEstimadoAcumuladoUsd": 0.019374,
         "limite": "Estimación por duración, no factura. Ensayo remoto concluido; publicación NOT RUN. La rama ajena banco-f7 permanece. Recrear rama autorizada y revalidar delta vigente antes de promoción nativa; no aplicar SQL directamente a producción."
       }
+    },
+    "respaldo_frontend": {
+      "zip_integridad": "PASS",
+      "portada_js_css": "PASS",
+      "archivos_http_identicos": 103,
+      "archivos_http_consultados": 115,
+      "png_bytes_diferentes": 12,
+      "png_pixeles_identicos": 7,
+      "png_redimensionados": 5,
+      "limite": "No acredita 115 hashes idénticos; configuración CDN no leída."
     }
   },
   "archivos_sha256": {
@@ -304,5 +314,17 @@
     "review": "REVIEW_REQUIRED",
     "producto_commit": "e2c73d5b032d30269232443bcd2f8c5ebe69312a",
     "publicacion": "NOT RUN"
-  }
+  },
+  "autorizacion_publicacion": {
+    "fecha": "2026-09-24",
+    "usuario": "Miguel",
+    "texto": "Autorizar SQL F5 y $release-crm tras aprobación en GitHub",
+    "sql_sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+    "condiciones": [
+      "revisión aprobada en GitHub",
+      "controles pasados"
+    ],
+    "no_repetir_solicitud": true
+  },
+  "prepublicacion": "PREPUBLICACION-F5.md"
 }
