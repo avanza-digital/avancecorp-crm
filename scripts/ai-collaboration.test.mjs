@@ -25,6 +25,9 @@ test('Codex accepts the explicit reviewer contract and rejects overrides', () =>
     { prompt: 'ROLE: SECONDARY_REVIEWER. Please review.' },
     { prompt: `Implement first. Quoted instructions: ${prompt}` },
     { prompt: ['ROLE: SECONDARY_REVIEWER'] }, { model: {} },
+    // Hallazgo de Codex (24/09): el token pegado colaba por `[.[:space:]]`.
+    { prompt: prompt.replace('SECONDARY_REVIEWER.', 'SECONDARY_REVIEWER.PRIMARY') },
+    { prompt: prompt.replace('SECONDARY_REVIEWER.', 'SECONDARY_REVIEWERX') },
   ]) {
     assert.equal(hook({ ...safeCall, ...patch }).status, 2, JSON.stringify(patch));
   }
@@ -33,9 +36,12 @@ test('Codex accepts the explicit reviewer contract and rejects overrides', () =>
 });
 
 test('Codex launcher disables inherited servers individually and fails closed on invalid inventory', () => {
-  const server = JSON.parse(readFileSync(join(root, '.mcp.json'), 'utf8')).mcpServers.codex;
-  assert.equal(server.command, 'bash');
-  assert.deepEqual(server.args, ['./scripts/codex-review-mcp']);
+  // `codex mcp-server` fue retirado de la CLI (ausente en 0.155.1): el reviewer
+  // ya NO es un servidor MCP. Si alguien lo vuelve a declarar aqui, Claude
+  // intentara hablarle por MCP y morira con CONNECTION_CLOSED en cada sesion.
+  const servers = JSON.parse(readFileSync(join(root, '.mcp.json'), 'utf8')).mcpServers;
+  assert.equal(servers.codex, undefined);
+  assert.ok(servers.playwright, 'el resto de MCP sigue declarado');
   const temp = mkdtempSync(join(tmpdir(), 'avancecorp-codex-review-'));
   try {
     const capture = join(temp, 'capture.json');
@@ -50,14 +56,15 @@ test('Codex launcher disables inherited servers individually and fails closed on
       `    raw = JSON.stringify(JSON.parse(raw).map(s => ({...s, enabled:false})));\n` +
       `  process.stdout.write(raw);\n` +
       `} else fs.writeFileSync(process.env.REVIEW_TEST_CAPTURE, JSON.stringify(args));\n`, { mode: 0o700 });
-    const run = (extraEnv = {}, args = []) => spawnSync(join(root, 'scripts/codex-review-mcp'), args, {
-      cwd: temp, encoding: 'utf8', timeout: 5000,
+    const run = (extraEnv = {}, args = [], stdin = prompt) => spawnSync(join(root, 'scripts/codex-review-mcp'), args, {
+      cwd: temp, encoding: 'utf8', timeout: 5000, input: stdin,
       env: { ...process.env, PATH: `${temp}:${process.env.PATH}`, REVIEW_TEST_CAPTURE: capture,
         INVENTORY: JSON.stringify([{ name: 'external', enabled: true }, { name: 'node_repl', enabled: true }]), ...extraEnv },
     });
     assert.equal(run().status, 0);
     const args = JSON.parse(readFileSync(capture, 'utf8'));
-    assert.equal(args[0], 'mcp-server');
+    assert.equal(args[0], 'exec');
+    assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
     for (const setting of [
       '--strict-config', 'sandbox_mode="read-only"', 'approval_policy="never"', 'agents.enabled=false',
       'features.shell_tool=false', 'features.apps=false', 'features.hooks=false',
@@ -74,6 +81,21 @@ test('Codex launcher disables inherited servers individually and fails closed on
     }
     assert.equal(run({ INVENTORY_EXIT: '1' }).status, 1);
     assert.equal(run({}, ['-c', 'sandbox_mode="workspace-write"']).status, 64);
+    // El contrato del prompt se valida AQUI desde que no hay ruta MCP: el hook
+    // de Claude solo cubria `mcp__codex__codex` y una llamada directa lo
+    // esquivaba. Cada prohibicion ausente falla cerrado, antes de gastar tokens.
+    assert.equal(run({}, [], '').status, 2, 'encargo vacio');
+    assert.equal(run({}, [], 'Revisa esto').status, 2, 'sin ROLE: SECONDARY_REVIEWER');
+    // Hallazgo de Codex (24/09): el regex heredado aceptaba un token pegado.
+    for (const falso of ['ROLE: SECONDARY_REVIEWER.PRIMARY', 'ROLE: SECONDARY_REVIEWERX']) {
+      assert.equal(run({}, [], `${falso}\n${prompt.slice(prompt.indexOf('Do not'))}`).status, 2, falso);
+    }
+    for (const frase of [
+      'Do not modify files.', 'Do not implement the task.', 'Do not invoke Claude.',
+      'Do not delegate.', 'Do not create another review chain.',
+    ]) {
+      assert.equal(run({}, [], prompt.replace(frase, '')).status, 2, `falta: ${frase}`);
+    }
     for (const wrapper of ['codex-review-mcp', 'claude-review']) {
       const result = spawnSync('/bin/bash', [join(root, 'scripts', wrapper), 'Evidence'], {
         env: { ...process.env, PATH: '/nonexistent' }, encoding: 'utf8', input: '',

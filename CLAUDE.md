@@ -101,8 +101,13 @@ formato de review, riesgo y presupuesto, invocación, autoridad) y en `.ai/VERIF
 (checks obligatorios). Lo innegociable, siempre en contexto:
 
 - Un solo PRIMARY por tarea y un solo escritor. El SECONDARY_REVIEWER (Codex vía
-  `mcp__codex__codex`, `sandbox: read-only`, `approval-policy: never`, prompt que empieza por
+  `scripts/codex-review-mcp`, con el encargo por **stdin** y empezando por
   `ROLE: SECONDARY_REVIEWER.`) no edita, no implementa, no commitea ni invoca a otro agente.
+  El envoltorio impone el aislamiento y verifica el contrato del prompt; rechaza sin gastar
+  tokens si falta alguna prohibición. 🔴 **NO hay MCP de Codex**: `codex mcp-server` fue
+  retirado de la CLI (24/09/2026). El reviewer NO ve la base ni la red: todo cuerpo vivo,
+  diff o log que deba juzgar se **transcribe** en el encargo. Ejemplos versionados en
+  `CRM-Avance-Corp/docs/encargos/`.
 - Sin recursión: PRIMARY → SECONDARY_REVIEWER → PRIMARY, profundidad máxima 1. Si Claude recibe
   `ROLE: SECONDARY_REVIEWER`, solo revisa y nunca invoca a Codex.
 - Riesgo: LEVEL 1 sin review; LEVEL 2, 0–1; LEVEL 3 (auth, permisos, migraciones, datos, pagos,

@@ -46,7 +46,9 @@ Además, simular inputs permitidos y bloqueados de cada hook modificado. Si camb
 
 Los tests de los wrappers usan sustitutos locales para comprobar argumentos, stdin y errores sin consumir API. No prueban el servicio real. Tras modificar flags o actualizar la CLI, comprobar `claude --help` y ejecutar una revisión real con evidencia saneada, registrar su dictamen y evaluar sus hallazgos.
 
-Con Codex instalado, ejecutar `scripts/codex-review-mcp --check`. El lanzador enumera y deshabilita los MCP efectivos y apaga plugins mediante feature flags; **`mcp_servers={}` y `plugins={}` no aíslan**, porque esas tablas se fusionan con la configuración heredada. La prueba MCP debe usar el comando exacto de `.mcp.json`, desde la raíz del repositorio. `Connected` solo comprueba el arranque, no la política efectiva. No imprimir inventarios MCP completos: pueden contener credenciales en los transportes.
+Con Codex instalado, ejecutar `scripts/codex-review-mcp --check`. El lanzador enumera y deshabilita los MCP efectivos y apaga plugins mediante feature flags; **`mcp_servers={}` y `plugins={}` no aíslan**, porque esas tablas se fusionan con la configuración heredada. No imprimir inventarios MCP completos: pueden contener secretos en los transportes.
+
+🔴 **Ya no hay MCP de Codex que conectar** (`codex mcp-server` retirado de la CLI, 24/09/2026): `.mcp.json` no lo declara y `Connected` ya no significa nada aquí. El equivalente es ejecutar un review real por stdin y comprobar que devuelve `VERDICT`. Un `--check` en verde acredita el aislamiento, no que el review funcione: son dos comprobaciones distintas y hacen falta las dos.
 
 Después de modificar MCP/plugins/settings, reconectar `codex` en Claude antes de
 otro review para renovar el inventario de aislamiento. No modificar esas

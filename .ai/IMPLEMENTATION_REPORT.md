@@ -94,3 +94,90 @@ Se usaron dos opiniones independientes como máximo. Se corrigieron los hallazgo
 El usuario asigna una tarea. El PRIMARY inspecciona y clasifica su riesgo, implementa y ejecuta checks. Si corresponde, adjunta evidencia saneada al otro agente mediante la interfaz protegida. El reviewer analiza y devuelve hallazgos; no escribe ni delega. El PRIMARY acepta/rechaza con evidencia, corrige, ejecuta el gate final y entrega el resultado. Para dos tareas simultáneas con dos PRIMARY se requieren working trees separados; un reviewer read-only no necesita otro.
 
 Los hooks del PRIMARY previenen accidentes reconocibles; no interpretan el contenido de scripts arbitrarios ni sustituyen un sandbox. El aislamiento del reviewer se verifica al iniciar la interfaz configurada y requiere mantener estable la configuración durante su uso. Esta limitación se documenta en el protocolo y no se presenta como protección frente a cambios concurrentes de terceros.
+
+---
+
+## Addendum 2026-09-24 — el transporte MCP murió; el review pasa a `codex exec`
+
+Este informe es un acta de su día y no se reescribe. Lo que cambió después:
+
+**Lo que se rompió.** La última línea de «Pendientes» decía: *«`mcp-server` sigue
+funcionando en 0.153.4, pero la CLI avisa que está deprecado: repetir estas
+verificaciones antes de actualizar»*. La CLI se actualizó a **0.155.1**, que ya **no
+tiene** el subcomando `mcp-server`, y nadie repitió las verificaciones. Resultado: el
+servidor moría al arrancar con `CONNECTION_CLOSED`, y **todo review LEVEL 3 quedó sin
+hacer en silencio** — sin error visible, porque un MCP que no conecta no falla la tarea.
+Detectado el 24/09/2026 durante una auditoría de prompts.
+
+**Lo que se hizo.**
+
+- `scripts/codex-review-mcp` conserva **todas** sus restricciones de aislamiento y su
+  `--check`; solo cambia el transporte: de `codex mcp-server --strict-config` a
+  `codex exec --strict-config … --sandbox read-only`, con el encargo por **stdin**.
+- La validación del contrato del prompt (`ROLE: SECONDARY_REVIEWER` + las cinco
+  prohibiciones) **se movió del hook al envoltorio**, porque la ruta
+  `mcp__codex__codex` que el hook vigilaba ya no existe. ⚠️ **No cierra el bypass**:
+  quien pueda ejecutar binarios sigue pudiendo llamar `codex exec` a pelo. Ese
+  agujero es preexistente —el hook tampoco interceptaba ejecuciones directas— y
+  contenerlo exige control fuera del alcance del PRIMARY. Ver el review de Codex
+  más abajo, que corrigió esta misma frase.
+- `.mcp.json` ya **no declara** el servidor `codex`: declararlo reintroduce el
+  `CONNECTION_CLOSED` en cada sesión. El test lo fija.
+- `.claude/hooks/validar-codex-review.sh` queda **dormido, no borrado**, por si Codex
+  vuelve a ofrecer un punto de entrada MCP. Sus pruebas siguen corriendo.
+
+**Verificación de este cambio (24/09/2026).**
+
+| Comprobación | Resultado |
+|---|---|
+| `bash -n scripts/codex-review-mcp` | PASS |
+| `scripts/codex-review-mcp --help` | PASS |
+| `scripts/codex-review-mcp --check` | PASS: ningún MCP heredado habilitado; flags de ejecución apagados |
+| Rechazo con stdin vacío / sin `ROLE:` / sin cada una de las 5 prohibiciones | PASS (exit 2, sin gastar tokens) |
+| Rechazo de overrides (`-c sandbox_mode="workspace-write"`) | PASS (exit 64) |
+| `node --test scripts/ai-collaboration.test.mjs` | PASS 8/8 |
+| Review real de extremo a extremo por stdin | ver más abajo |
+
+**Lección para el ledger:** un aviso de deprecación con fecha abierta *es* una deuda con
+vencimiento. Este informe la anotó correctamente y aun así se cobró, porque nada
+re-ejecutaba la comprobación. Un gate que dependa de una herramienta externa necesita
+una prueba que falle **ruidosamente** cuando esa herramienta desaparece — no un MCP que
+se cae en silencio.
+
+### El review de Codex de este mismo cambio (24/09) — y qué se aceptó
+
+El cambio se revisó **con la vía nueva**, que es su propia prueba de extremo a extremo:
+`scripts/codex-review-mcp < CRM-Avance-Corp/docs/encargos/2026-09-24-codex-transporte-reviewer.md`.
+Se le pidió REFUTAR, no confirmar. Devolvió dictamen con 5 hallazgos. Tres se aceptaron:
+
+| Hallazgo | Veredicto del PRIMARY | Qué se hizo |
+|---|---|---|
+| **P2 — el regex del ROLE acepta un token pegado.** `ROLE: SECONDARY_REVIEWER.PRIMARY` pasaba: el punto satisfacía `[.[:space:]]` sin exigir que el token terminara ahí. | **ACEPTADO — reproducido.** Defecto heredado del hook, presente desde el día uno. | Punto opcional + espacio-o-fin: `^ROLE:[[:space:]]SECONDARY_REVIEWER\.?([[:space:]]\|$)`. Corregido en el envoltorio **y** en el hook dormido para que no diverjan. Dos casos nuevos en cada suite (`SECONDARY_REVIEWER.PRIMARY`, `SECONDARY_REVIEWERX`). |
+| **P2 — `cat` espera EOF: un cliente MCP residual colgaría el envoltorio.** Abriría stdin, mandaría `initialize` y no lo cerraría. | **ACEPTADO.** Fallo silencioso, justo el que acabamos de pagar. | Lectura con plazo de 30 s; si stdin no cierra, sale con 2 y lo dice. |
+| **P1 — el envoltorio no contiene a un PRIMARY comprometido.** Protege a quien lo usa; quien ejecute binarios puede llamar `codex exec` a pelo. | **ACEPTADO como corrección de la REDACCIÓN.** Codex mismo precisa que el bypass es preexistente (el hook tampoco interceptaba ejecuciones directas), no una regresión. | Se retiró la afirmación «cierra ese agujero» del script, del protocolo y de este informe. Ahora se declara el límite explícitamente. |
+
+Los otros dos se resolvieron **midiendo**, que es lo que el propio Codex pedía:
+
+- **P2 — «tu prueba de la retirada no prueba nada».** Tenía razón en el método: se había
+  ejecutado `codex mcp --help`, que solo lista los subcomandos de `codex mcp`. La evidencia
+  correcta es de nivel superior, y es peor de lo que parecía: `codex mcp-server --help`
+  **sale 0 e imprime la ayuda genérica de la CLI** — es decir, la CLI trata `mcp-server`
+  como un *prompt*, no como un subcomando. Por eso el handshake MCP moría al instante.
+- **P1 — «no está demostrado que `exec` no amplíe la superficie de lectura/escritura».**
+  Se midió con canarios, no con autoinforme:
+
+  | Prueba | Resultado |
+  |---|---|
+  | Leer un canario DENTRO del repo | `NO_PUEDO` |
+  | Leer un canario FUERA del repo | `NO_PUEDO` |
+  | Escribir `./canario-escritura.tmp` | **BLOQUEADO por el runtime**, no por el modelo: `ERROR codex_core::tools::router: error=patch rejected: writing is blocked by read-only sandbox; rejected by user approval settings`. El archivo no existe. |
+
+  La escritura es evidencia dura (la rechaza el sandbox y queda en el log del runtime). La
+  lectura es autoinforme del modelo y vale menos: queda como **NOT RUN** una comprobación
+  independiente de lectura efectiva.
+
+**Lo que sigue en NOT RUN:** equivalencia formal de política entre `mcp-server` y `exec`
+(se midió el efecto observable, no la configuración efectiva de ambos); barrido de
+consumidores de la ruta MCP antigua fuera de `.mcp.json` (sesiones abiertas, config de
+usuario, automatizaciones); y prueba del flujo obligatorio con fallos inducidos —que el
+PRIMARY registre `NOT RUN` en vez de seguir como si el review hubiera ocurrido.
