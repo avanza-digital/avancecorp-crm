@@ -1,0 +1,27 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T03:24:21.114688+00:00",
+  "release_id": "crm-20260925T023617Z-b402a7f1b5c9",
+  "commit": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+  "zip_sha256": "70b94da52e9002e92a4729579e7726a13f7539f0c9b16c0eb7a9de479eb41fe0",
+  "total": 78,
+  "passed": 78,
+  "root": {
+    "ruta": "",
+    "estado": "PASS",
+    "http": 200,
+    "bytes": 2178,
+    "sha256": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+    "esperado": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "Age": null,
+      "ETag": "W/\"882-6ab597d2-920700581e7bf8a8;gz\"",
+      "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+    }
+  },
+  "alcance": "HTML y todos los JS/CSS servidos por HTTPS comparados byte a byte con el manifiesto. No incluye PNG ni .htaccess.",
+  "pr97Integrado": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
+  "publicacionF6": "NOT RUN"
+}
