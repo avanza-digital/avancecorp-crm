@@ -7,13 +7,15 @@ Referencia: [plan de ejecución](EJECUCION-F4-1-F6-2026-09-24.md).
 El [registro de observación](OBSERVACION-F3-F5.md) acredita T0 y conserva
 pendientes los controles diarios y la retirada, no antes del 01/10 a esa hora.
 La cola completa está en el [PR #97](https://github.com/avanza-digital/avancecorp-crm/pull/97),
-integrado en Main `3b792867`, todavía sin publicar. [Estado y evidencia](observacion-2026-09-24/PR97-INTEGRADO.md).
+integrado en Main `3b792867` y ya servido por la publicación externa
+`3027028d`; 79/79 archivos cotejados el 25/09.
+[Estado y evidencia vigentes](f6-ux-gerencia-2026-09-24/PUBLICACION-2026-09-25.md).
 
 ## Ampliación de alcance: UX/UI horizontal para gerencia
 
 Miguel solicita el 24/09 integrar en gerencia la experiencia ya aprobada e
 implementada para supervisores, con la información y las acciones propias de
-gerencia. **Estado: IMPLEMENTADA Y VALIDADA LOCALMENTE; revisión GitHub y publicación pendientes.**
+gerencia. **Estado: UX PUBLICADA Y VERIFICADA el 25/09; retirada pendiente de observación estable.**
 [Acta y evidencia nueva](f6-ux-gerencia-2026-09-24/ACTA.md).
 Los resultados de la cola completa siguen acreditando aquella preparación.
 
@@ -75,7 +77,7 @@ Las rutas siguientes son relativas a `CRM-Avance-Corp/app`.
 
 | Caso | Resultado requerido | Estado F6 |
 | --- | --- | --- |
-| UX/UI horizontal de gerencia adaptada desde supervisión | Resumen, tabla y detalle coherentes; alcance global, cifras, acciones y recorrido gerenciales conservados; evidencia visual y Docker E2E | PASS local (gate 4.421/298, Chromium 270/0/26, WebKit 10/0); integración/publicación pendientes |
+| UX/UI horizontal de gerencia adaptada desde supervisión | Resumen, tabla y detalle coherentes; alcance global, cifras, acciones y recorrido gerenciales conservados; evidencia visual y Docker E2E | PASS local (gate 4.421/298, Chromium 270/0/26, WebKit 10/0) y producción desde `f9196dba`: 81/81 archivos y recorrido gerencial PASS |
 | Matriz de roles, sesión revocada y cambio de cuenta | Mismos permisos, sin datos anteriores visibles ni nuevas capacidades | NOT RUN |
 | 101 o más oportunidades, filtros y páginas 10/25/50 | Poder llegar a todas; conteos completos del servidor y cursor válido | NOT RUN |
 | Caducidad del cursor, nueva gestión y actualización | Reiniciar posición sin omisiones ni duplicados; error recuperable | NOT RUN |

@@ -1,0 +1,71 @@
+{
+  "recordedAt": "2026-09-25T10:20:45.563Z",
+  "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+  "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
+  "mutatedNodeIds": [
+    "2:124",
+    "2:5",
+    "94:2"
+  ],
+  "before": [
+    {
+      "id": "2:124",
+      "text": "UX integrada · autorización y publicación pendientes."
+    },
+    {
+      "id": "2:5",
+      "text": "25/09/2026 · F6: cola publicada; UX gerencial integrada, pendiente de publicación."
+    },
+    {
+      "id": "94:2",
+      "text": "☐ Integrar UX/UI de supervisión en gerencia, adaptada a su rol."
+    }
+  ],
+  "after": [
+    {
+      "id": "2:124",
+      "text": "UX publicada · retirada tras observación estable.",
+      "width": 840,
+      "height": 32
+    },
+    {
+      "id": "2:5",
+      "text": "25/09/2026 · F6: UX gerencial publicada; observación para la retirada en curso.",
+      "width": 3100,
+      "height": 41
+    },
+    {
+      "id": "94:2",
+      "text": "☑ Integrar UX/UI de supervisión en gerencia, adaptada a su rol.",
+      "width": 840,
+      "height": 35
+    }
+  ],
+  "remaining": [
+    {
+      "id": "2:125",
+      "text": "☐ Acumular al menos una semana de F3–F5 estables en producción."
+    },
+    {
+      "id": "2:126",
+      "text": "☐ Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+    },
+    {
+      "id": "2:127",
+      "text": "☐ Retirar la pantalla duplicada conservando sus capacidades."
+    },
+    {
+      "id": "2:128",
+      "text": "☐ Verificar navegación, permisos y funcionamiento completo."
+    },
+    {
+      "id": "2:129",
+      "text": "☐ Actualizar la documentación y cerrar el módulo."
+    }
+  ],
+  "itemCount": 77,
+  "uxPublication": "PASS",
+  "retirement": "NOT RUN",
+  "sourceCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "screenshot": "figma-publicada.png"
+}

@@ -1,7 +1,8 @@
 # F6 — UX/UI horizontal de gerencia
 
-Entrega añadida por Miguel el 24/09. Candidato implementado y validado
-localmente el 25/09; revisión GitHub y publicación pendientes. [Acta de resultados](ACTA.md).
+Entrega añadida por Miguel el 24/09. Implementada, validada y publicada
+el 25/09 desde Main `f9196dba`, con autorización específica de Miguel.
+[Publicación verificada](PUBLICACION-2026-09-25.md). [Acta técnica](ACTA.md).
 Referencia: composición horizontal de supervisión, H1–H6 aprobadas, adaptada
 al alcance gerencial de F5. La cola ya preparada y la observación conservan
 su evidencia; no acreditan esta ampliación.

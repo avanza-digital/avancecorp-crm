@@ -5,8 +5,13 @@ actualizado: 2026-09-25
 
 # UX horizontal de gerencia preparada y validada
 
-**Candidato validado; revisión normal de GitHub y publicación pendientes.**
-[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101) abierto y sin conflictos; GitHub exige aprobación.
+> **Estado vigente:** [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]].
+> Esta nota conserva la preparación y el estado anterior a la publicación.
+
+**Integrada en Main; publicación pendiente.**
+Estado vigente en [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]].
+[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101) integrado
+manual sin revisión APPROVED; autorización F6 pendiente.
 Miguel añadió esta entrega al goal F4.1–F6: trasladar la experiencia horizontal
 aprobada para supervisores a gerencia, conservando sus matices y permisos.
 Continúa [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] y
@@ -39,7 +44,8 @@ y `VALIDACION.json`. Mismo Figma actualizado; la casilla de integración sigue
 pendiente hasta incorporar/publicar. Rama
 `codex/gestion-diaria-f6-ux-gerencia-20260924`, en la copia separada autorizada.
 
-La publicación F5 vigente sigue siendo `b402a7f1`. Esta preparación no retira
+T0 F5 fue `b402a7f1`; producción ya sirve `3027028d`, cotejada en la nota
+vigente. Esta preparación no retira
 Seguimiento ni acredita siete días reales: no puede retirarse antes del
 01/10/2026 a las 21:57:11 Lima, y requiere estabilidad documentada. El corte
 único del sábado 26/09 permanece pendiente. No pedir otra conformidad manual.

@@ -1,12 +1,14 @@
 # F6 — Integración horizontal de gerencia
 
-**Candidato implementado y validado localmente el 25/09. Revisión GitHub y publicación pendientes.**
+**Publicada y verificada el 25/09/2026.** [Acta productiva](PUBLICACION-2026-09-25.md).
 Fuente propia `0aab1d50`, integrada sin conflictos con Main `3027028d`
 (PR #100 ajeno a esta tarea) en `60ae8015`. Mejoras finales de foco y pruebas
-en `4a4cb1ec`, candidato actual.
+en `4a4cb1ec`, código probado y conservado en la publicación.
 Rama `codex/gestion-diaria-f6-ux-gerencia-20260924`, en la copia separada
 autorizada. [Contrato](CONTRATO.md) y [plan F6](../PREPARACION-F6-2026-09-24.md).
-[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101): abierto, sin conflictos; requiere aprobación normal en GitHub.
+[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101): integrado
+en `f9196dba` sin revisión APPROVED; Miguel autorizó expresamente su publicación
+tomando esa integración manual como aprobación. [Estado productivo y evidencia](PUBLICACION-2026-09-25.md).
 
 ## Comportamiento
 
@@ -94,12 +96,13 @@ cambio no modifica. Los E2E comprueban también densidad sin scroll de página e
 teclado/foco, filtros, 26 registros paginados, Escape de ficha anidada, fechas,
 exportación, error y revocación. No sustituyen las pruebas reales de RLS de F5.
 
-## Pendiente de cierre
+## Publicación y cierre pendiente de F6
 
 La validación y la revisión independiente están cerradas. El [mismo Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L),
-el plan y el vault reflejan el candidato validado, con la integración/publicación
-todavía pendientes. Evidencia reproducible y hashes: [VALIDACION.json](VALIDACION.json).
-Presentar la rama a la revisión normal de GitHub y publicar únicamente desde
-Main verificado con las autorizaciones aplicables. La retirada de Seguimiento
-requiere además siete días reales estables desde el T0 de F5: **no antes del
-01/10/2026 a las 21:57:11 Lima**. Este candidato no acredita esa observación.
+el plan y el vault reflejan la UX publicada desde `f9196dba`: 81/81 archivos
+servidos y ocho comprobaciones productivas PASS. La autorización específica
+para F6 y el acceso Hostinger quedaron resueltos. [Acta productiva](PUBLICACION-2026-09-25.md)
+y [validación técnica](VALIDACION.json).
+La retirada de Seguimiento requiere siete días reales estables desde el T0
+de F5: **no antes del 01/10/2026 a las 21:57:11 Lima**. La publicación no
+acredita por sí sola esa observación.

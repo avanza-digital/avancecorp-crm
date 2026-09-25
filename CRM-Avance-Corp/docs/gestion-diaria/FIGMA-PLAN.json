@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T05:20:02.812269+00:00",
+  "updatedAt": "2026-09-25T10:27:37.807520+00:00",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1763,10 +1763,10 @@
     {
       "key": "F6",
       "title": "F6 — UX/UI gerencial y Seguimiento",
-      "status": "UX validada · revisión y publicación pendientes.",
+      "status": "UX publicada · retirada tras observación estable.",
       "items": [
         [
-          false,
+          true,
           "Integrar UX/UI de supervisión en gerencia, adaptada a su rol."
         ],
         [
@@ -1818,9 +1818,9 @@
     "saturdayCut": "NOT RUN",
     "f6Integration": "observacion-2026-09-24/PR97-INTEGRADO.md",
     "f6Main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
-    "f6Publication": "NOT RUN",
+    "f6Publication": "PASS: cola y UX gerencial PR101 servidas desde f9196dba; 81/81 archivos y recorrido productivo PASS",
     "f6UxGerencia": {
-      "status": "VALIDADA_LOCALMENTE_PENDIENTE_REVISION_Y_PUBLICACION",
+      "status": "PUBLICADA_VERIFICADA",
       "requestedAt": "2026-09-25T04:12:43.783039+00:00",
       "goalRequirement": "Integrar en gerencia la UX/UI horizontal aprobada para supervisión, adaptada al alcance, cifras y acciones de gerencia.",
       "figmaNodeId": "94:2",
@@ -1833,12 +1833,18 @@
       "branch": "codex/gestion-diaria-f6-ux-gerencia-20260924",
       "acta": "f6-ux-gerencia-2026-09-24/ACTA.md",
       "validation": "f6-ux-gerencia-2026-09-24/VALIDACION.json",
-      "review": "PASS independiente; revisión normal de GitHub pendiente",
-      "publication": "NOT RUN",
-      "figmaEvidence": "f6-ux-gerencia-2026-09-24/figma-validacion-local.json",
-      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-validacion-local.png",
+      "review": "PASS independiente; publicación del merge manual PR101 autorizada expresamente por Miguel",
+      "publication": "PASS: 25/09 05:14 Lima; 81/81 archivos y recorrido gerencial 8/8",
+      "figmaEvidence": "f6-ux-gerencia-2026-09-24/figma-publicada.json",
+      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-publicada.png",
       "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/101",
-      "githubReviewDecision": "REVIEW_REQUIRED"
+      "githubReviewDecision": "REVIEW_REQUIRED; sin reviews APPROVED",
+      "mainCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+      "githubState": "MERGED",
+      "githubMainChecks": "PASS 3/3",
+      "currentEvidence": "f6-ux-gerencia-2026-09-24/PUBLICACION-2026-09-25.md",
+      "publishedCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+      "publicationAuthorization": "autorizacion-f6.json; específica para PR101, no constituye revisión APPROVED"
     }
   }
 }

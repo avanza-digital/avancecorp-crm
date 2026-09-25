@@ -221,7 +221,7 @@ const SUPUESTOS = [
       + 'clientes activos sin domicilio (98%) y CERO contratos creados en todo el día. '
       + 'Ningún fixture reproduce ese mundo: todos nacen con domicilio.',
     async medir() {
-      const { count, error } = await admin.from('perfiles')
+      const { count, error } = await admin.schema('public').from('perfiles')
         .select('id', { count: 'exact', head: true })
         .eq('rol', 'cliente')
         .eq('activo', true)
