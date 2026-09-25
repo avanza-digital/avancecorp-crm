@@ -6,6 +6,7 @@ Fuente propia `0aab1d50`, integrada sin conflictos con Main `3027028d`
 en `4a4cb1ec`, candidato actual.
 Rama `codex/gestion-diaria-f6-ux-gerencia-20260924`, en la copia separada
 autorizada. [Contrato](CONTRATO.md) y [plan F6](../PREPARACION-F6-2026-09-24.md).
+[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101): abierto, sin conflictos; requiere aprobación normal en GitHub.
 
 ## Comportamiento
 

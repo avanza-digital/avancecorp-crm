@@ -6,6 +6,7 @@ actualizado: 2026-09-25
 # UX horizontal de gerencia preparada y validada
 
 **Candidato validado; revisión normal de GitHub y publicación pendientes.**
+[PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101) abierto y sin conflictos; GitHub exige aprobación.
 Miguel añadió esta entrega al goal F4.1–F6: trasladar la experiencia horizontal
 aprobada para supervisores a gerencia, conservando sus matices y permisos.
 Continúa [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] y

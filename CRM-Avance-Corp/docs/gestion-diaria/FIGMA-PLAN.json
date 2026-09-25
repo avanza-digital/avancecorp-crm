@@ -1836,7 +1836,9 @@
       "review": "PASS independiente; revisión normal de GitHub pendiente",
       "publication": "NOT RUN",
       "figmaEvidence": "f6-ux-gerencia-2026-09-24/figma-validacion-local.json",
-      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-validacion-local.png"
+      "figmaScreenshot": "f6-ux-gerencia-2026-09-24/figma-validacion-local.png",
+      "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/101",
+      "githubReviewDecision": "REVIEW_REQUIRED"
     }
   }
 }
