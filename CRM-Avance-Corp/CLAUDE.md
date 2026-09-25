@@ -36,7 +36,8 @@ otro mundo. El bug no estaba en el código: estaba en el mundo que el código as
 
 `supabase/scripts/gate-realidad.mjs` mide esa distancia y dice, por cada supuesto
 incumplido, **qué pantallas se están probando hoy contra un mundo que no existe**.
-Al 2026-08-10 fallan 4 de 5: sin metas publicadas, 1 lead, 0 actividades, 0 tareas.
+Córrelo: la cuenta de supuestos incumplidos cambia con los datos de prod, así que la
+única cifra válida es la que devuelva hoy — no la que alguien anotó hace semanas.
 
 **Regla:** antes de dar por bueno un arreglo de UI, escribe el test **en el estado
 que hay en producción** (el vacío/degradado), no solo con el fixture lleno. Si el

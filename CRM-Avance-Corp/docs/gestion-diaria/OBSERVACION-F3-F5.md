@@ -48,6 +48,10 @@ Las horas anteriores son hitos temporales, no tareas programadas. No existe
 vigilancia automática garantizada; cada control debe tener una ejecución y
 evidencia reales. Miguel conserva cerrada su conformidad y reportará incidencias.
 
+Actualización del 24/09, 22:24 Lima: [PR #97 integrado y CI PASS](observacion-2026-09-24/PR97-INTEGRADO.md).
+La preparación F6 está en Main; el frontend productivo sigue siendo F5 `b402a7f1`.
+Este control adicional de T0 no cuenta como otro día de observación.
+
 Una incidencia relevante impide cerrar por el mero paso del calendario:
 corregir, verificar y acreditar el período estable antes de retirar Seguimiento.
 La equivalencia de cola, permisos, acciones y enlaces debe probarse también,

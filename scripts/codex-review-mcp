@@ -1,12 +1,30 @@
 #!/usr/bin/env bash
-# Reviewer-only MCP entry point. Empty TOML tables MERGE with user settings;
+# Reviewer-only entry point. Empty TOML tables MERGE with user settings;
 # enumerate effective MCP names and disable each one without changing settings.
+#
+# TRANSPORTE (cambiado 2026-09-24): antes exponia `codex mcp-server` y Claude lo
+# llamaba como MCP. Ese subcomando fue RETIRADO de la CLI (ausente en 0.155.1; en
+# 0.153.4 ya avisaba de su deprecacion), asi que el MCP moria al arrancar con
+# CONNECTION_CLOSED y TODO review LEVEL 3 quedaba sin hacer en silencio. Ahora es
+# un disparo unico: el encargo entra por stdin y sale por `codex exec`. Las
+# restricciones de aislamiento son EXACTAMENTE las mismas.
+#
+# El contrato del prompt (ROLE: SECONDARY_REVIEWER y sus cinco prohibiciones) se
+# valida AQUI, no en un hook de Claude: el hook solo cubria la ruta MCP, que ya
+# no existe. Validarlo aqui no cuesta un token cuando falla.
+#
+# 🔴 LIMITE, dicho por Codex al revisar este cambio (24/09): esto NO contiene a un
+# PRIMARY comprometido. Protege a quien USA el envoltorio; quien pueda ejecutar
+# binarios puede llamar `codex exec` a pelo y saltarse todo — igual que antes
+# podia saltarse el hook. No es una regresion, pero tampoco es una frontera de
+# permisos: contener a un PRIMARY exige control FUERA de su alcance.
 set -euo pipefail
 
 case "${1:-}" in
   -h|--help)
-    echo 'Uso: scripts/codex-review-mcp [--check]'
-    echo 'Inicia Codex MCP read-only, sin shell, agentes, plugins ni MCP heredados.'
+    echo 'Uso: scripts/codex-review-mcp [--check] < encargo.md'
+    echo 'Review Codex read-only, sin shell, agentes, plugins ni MCP heredados.'
+    echo 'El encargo va por stdin y debe empezar por ROLE: SECONDARY_REVIEWER.'
     exit 0 ;;
   ''|--check) ;;
   *) echo 'ERROR: no se admiten overrides del reviewer.' >&2; exit 64 ;;
@@ -14,7 +32,7 @@ esac
 [ "$#" -le 1 ] || { echo 'ERROR: demasiados argumentos.' >&2; exit 64; }
 for dependency in codex jq; do
   command -v "$dependency" >/dev/null 2>&1 || {
-    echo "ERROR: falta $dependency en PATH; no se instala automáticamente." >&2
+    echo "ERROR: falta $dependency en PATH; no se instala automaticamente." >&2
     exit 127
   }
 done
@@ -32,9 +50,7 @@ restrictions=(
   -c 'web_search="disabled"'
 )
 
-# Never print this JSON: transports may contain credentials from user settings.
-# Codex 0.153.4 rejects --strict-config on `mcp list`; it is enforced on the
-# actual mcp-server launch below, whose handshake is a separate verification.
+# Never print this JSON: transports may carry secrets from user settings.
 servers=$(codex "${restrictions[@]}" mcp list --json 2>/dev/null) || {
   echo 'ERROR: no se pudo inventariar MCP; no se inicia el reviewer.' >&2; exit 1;
 }
@@ -44,7 +60,7 @@ names=$(printf '%s' "$servers" | jq -er '
   if type == "array" and all(.[];
     (.name | type == "string" and test("^[A-Za-z0-9_-]+$")))
   then map(.name) | join("\n") else error("invalid MCP inventory") end
-') || { echo 'ERROR: inventario MCP inválido; reviewer bloqueado.' >&2; exit 1; }
+') || { echo 'ERROR: inventario MCP invalido; reviewer bloqueado.' >&2; exit 1; }
 unset servers
 while IFS= read -r name; do
   [ -n "$name" ] || continue
@@ -54,18 +70,70 @@ done <<< "$names"
 if [ "${1:-}" = '--check' ]; then
   codex "${restrictions[@]}" mcp list --json 2>/dev/null | jq -e '
     type == "array" and all(.[]; .enabled == false)
-  ' >/dev/null || { echo 'ERROR: aún hay MCP habilitados.' >&2; exit 1; }
+  ' >/dev/null || { echo 'ERROR: aun hay MCP habilitados.' >&2; exit 1; }
   feature_state=$(codex "${restrictions[@]}" features list 2>/dev/null) || {
     echo 'ERROR: no se pudieron verificar las herramientas del reviewer.' >&2; exit 1;
   }
   for feature in shell_tool apps hooks plugins remote_plugin browser_use computer_use in_app_browser in_app_local_automation code_mode skill_mcp_dependency_install; do
     # Each CLI row is FEATURE, maturity label, boolean; accept only false.
     if ! printf '%s\n' "$feature_state" | awk -v feature="$feature" '$1 == feature && $NF == "false" { found=1 } END { exit !found }'; then
-      echo "ERROR: la herramienta $feature no está deshabilitada." >&2; exit 1
+      echo "ERROR: la herramienta $feature no esta deshabilitada." >&2; exit 1
     fi
   done
-  echo 'PASS: MCP heredados, plugins y herramientas de ejecución deshabilitados.'
+  echo 'PASS: MCP heredados, plugins y herramientas de ejecucion deshabilitados.'
   exit 0
 fi
 
-exec codex mcp-server --strict-config "${restrictions[@]}"
+# ---------------------------------------------------------------------------
+# El contrato del prompt, antes de gastar un solo token.
+# ---------------------------------------------------------------------------
+rechazar() { printf 'BLOQUEADO: consulta Codex insegura: %s\n' "$1" >&2; exit 2; }
+
+# Hallazgo Codex P2 (24/09): `cat` espera EOF. Un cliente MCP residual abriria
+# stdin, mandaria `initialize` y NO lo cerraria: el envoltorio se colgaria hasta
+# el timeout del llamador, en silencio. Se lee con plazo para fallar RUIDOSAMENTE.
+prompt=''
+linea=''
+while true; do
+  if IFS= read -r -t 30 linea; then
+    prompt+="$linea"$'\n'
+  else
+    estado=$?
+    [ -n "$linea" ] && prompt+="$linea"
+    [ "$estado" -le 128 ] || rechazar "stdin no se cerro en 30 s; este envoltorio ya NO habla MCP: el encargo entra por stdin y termina."
+    break
+  fi
+done
+[ -n "$prompt" ] || rechazar "el encargo llega vacio por stdin."
+
+# Hallazgo Codex P2 (24/09): el regex heredado del hook aceptaba
+# `ROLE: SECONDARY_REVIEWER.PRIMARY` — el punto satisfacia `[.[:space:]]` y nada
+# exigia que terminara ahi el token. Ahora el punto es OPCIONAL y lo que sigue
+# debe ser espacio o fin: `.PRIMARY` y `SECONDARY_REVIEWERX` quedan fuera, y un
+# `ROLE: SECONDARY_REVIEWER. Do not...` en una sola linea sigue valiendo (no se
+# impone un formato nuevo ni se diverge del hook).
+[[ "$prompt" =~ ^ROLE:[[:space:]]SECONDARY_REVIEWER\.?([[:space:]]|$) ]] ||
+  rechazar "el prompt debe empezar por ROLE: SECONDARY_REVIEWER."
+
+case "$prompt" in
+  *"Do not modify files"*|*"No modifiques archivos"*) ;;
+  *) rechazar "el prompt debe prohibir modificar archivos." ;;
+esac
+case "$prompt" in
+  *"Do not implement"*|*"No implementes"*) ;;
+  *) rechazar "el prompt debe prohibir implementar la tarea." ;;
+esac
+case "$prompt" in
+  *"Do not invoke Claude"*|*"No invoques Claude"*) ;;
+  *) rechazar "el prompt debe prohibir que Codex invoque Claude." ;;
+esac
+case "$prompt" in
+  *"Do not delegate"*|*"No delegues"*) ;;
+  *) rechazar "el prompt debe prohibir delegar a otro agente." ;;
+esac
+case "$prompt" in
+  *"Do not create another review chain"*|*"No crees otra cadena de review"*|*"No inicies otro review"*) ;;
+  *) rechazar "el prompt debe prohibir iniciar otra cadena de review." ;;
+esac
+
+exec codex exec --strict-config "${restrictions[@]}" --sandbox read-only <<< "$prompt"

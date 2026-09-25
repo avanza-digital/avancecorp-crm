@@ -91,4 +91,4 @@ jobs:
           test -f .ai/REVIEW_PROTOCOL.md
           test -f .ai/VERIFICATION.md
           grep -q 'scripts/claude-review' AGENTS.md
-          grep -q 'mcp__codex__codex' CLAUDE.md
+          grep -q 'scripts/codex-review-mcp' CLAUDE.md

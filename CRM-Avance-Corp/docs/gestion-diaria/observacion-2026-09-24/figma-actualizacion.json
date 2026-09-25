@@ -1,0 +1,8 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"mutatedNodeIds\":[\"2:124\",\"2:5\"],\"updates\":[{\"id\":\"2:124\",\"before\":\"Observación desde 24/09, 21:57 · cola en PR #97.\",\"after\":\"Observación desde 24/09, 21:57 · cola integrada.\",\"width\":840,\"height\":32},{\"id\":\"2:5\",\"before\":\"Actualizado 24/09/2026, 21:57 Lima · F5 publicada y verificada · F6 en observación · sábado 26/09 pendiente.\",\"after\":\"24/09/2026 · F5 publicada · F6 preparada en Main, aún sin publicar · Observación desde 21:57 Lima.\",\"width\":3100,\"height\":41}],\"pending\":\"Retirada y siete días siguen sin marcar; PR97 integrado no equivale a publicación F6.\"}"
+    }
+  ]
+}

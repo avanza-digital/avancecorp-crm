@@ -12,7 +12,7 @@ modifiques archivos, no ejecutes agentes ni delegues o inicies otro review.
 El PRIMARY adjunta contexto de CodeGraph y decide si esta consulta corresponde
 al nivel de riesgo y al presupuesto compartido de 0–2 reviews de la tarea.
 
-Contexto: `app/.oxlintrc.json` apaga 4 reglas de jsx-a11y por FALSOS POSITIVOS de patrón,
+Contexto: `app/.oxlintrc.json` apaga 5 reglas de jsx-a11y por FALSOS POSITIVOS de patrón,
 no por comodidad. Eso significa que el linter YA NO vigila esos casos: tú eres el gate.
 Las excepciones documentadas y lo que exigen a cambio:
 
@@ -20,11 +20,18 @@ Las excepciones documentadas y lo que exigen a cambio:
    `tabIndex={0}` y `onKeyDown` que maneje Enter/Espacio; svg decorativo `aria-hidden`,
    svg informativo `role="img"` + título; el combobox del buscador debe implementar el
    patrón WAI-ARIA completo (aria-expanded, aria-activedescendant, flechas/Escape).
+   También cubre los card-stack de móvil con `role="list"`/`role="listitem"` sobre `<div>`:
+   ahí el rol explícito es MÁS robusto que un `<ul>` real (el preflight de Tailwind pone
+   `list-style:none` y Safari+VoiceOver borra la semántica de lista). Verifica que cada
+   `role="listitem"` viva dentro de un `role="list"`.
 2. `heading-has-content` / `label-has-associated-control` apagadas → los wrappers
    (DialogTitle, Label) reciben children vía props: verifica en CADA punto de uso que el
    contenido real existe y que cada input tiene su label asociado.
 3. `autoFocus` solo se acepta DENTRO de diálogos modales (el foco debe entrar al modal).
    `autoFocus` fuera de un modal es hallazgo.
+4. `no-noninteractive-element-to-interactive-role` apagada → el buscador del topbar usa
+   `ul[role="listbox"]` / `li[role="option"]`. Exige el patrón combobox completo; cualquier
+   OTRO elemento no interactivo con rol interactivo es hallazgo.
 
 Checklist adicional sobre los archivos modificados:
 

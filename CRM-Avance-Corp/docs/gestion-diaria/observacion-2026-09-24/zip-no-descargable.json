@@ -1,0 +1,11 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T03:16:11.588654+00:00",
+  "url": "https://crm.miavance.com/crm-20260925T023617Z-b402a7f1b5c9.zip",
+  "http": 404,
+  "tipo": "text/html",
+  "bytes": 1910,
+  "esZip": false,
+  "bodySha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+  "alcance": "GET Range 0-31 del nombre exacto del archivo desplegado; no es inventario de todos los archivos del hosting."
+}
