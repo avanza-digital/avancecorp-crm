@@ -1,0 +1,166 @@
+{
+  "recordedAt": "2026-09-25T05:20:02.812269+00:00",
+  "sourceCommit": "4a4cb1ecb8f38df77b30f0edae9853a2c39edfb5",
+  "mainIntegrated": "3027028d7c97e9623f26e1d4af45c65014374d1c",
+  "branch": "codex/gestion-diaria-f6-ux-gerencia-20260924",
+  "cwd": "CRM-Avance-Corp/app",
+  "runtimeChangedAfterChecks": false,
+  "docker": {
+    "image": "mcr.microsoft.com/playwright:v1.61.1-noble",
+    "container": "avancecorp-f6-ux-gerencia",
+    "volume": "avancecorp-f6-ux-gerencia-node-modules",
+    "task": "gestion-diaria-f6-ux-gerencia",
+    "network": "fixtures interceptadas; sin escrituras productivas"
+  },
+  "checks": [
+    {
+      "command": "npm run check",
+      "status": "PASS",
+      "exitCode": 0,
+      "tests": 4421,
+      "testFiles": 298,
+      "testDuration": "32.02s",
+      "includes": [
+        "lint",
+        "typecheck",
+        "coverage",
+        "release-config",
+        "push-worker",
+        "build",
+        "bundle",
+        "duplication"
+      ],
+      "existingLintWarnings": 5,
+      "log": "ux-gerencia-check-final.log",
+      "logSha256": "fe35980d144c606d4ebaf134a5cdbfdca7bd631d5d6a6cb771abe748c935121e",
+      "checkpointDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/gestion-diaria-f6-preparacion-2026-09-24"
+    },
+    {
+      "command": "npm run test:e2e:docker -- --workers=2 --retries=0 --reporter=list",
+      "status": "PASS",
+      "exitCode": 0,
+      "browser": "chromium",
+      "passed": 270,
+      "failed": 0,
+      "skipped": 26,
+      "duration": "10.1m",
+      "workers": 2,
+      "retries": 0,
+      "log": "ux-gerencia-chromium-completo-final.log",
+      "logSha256": "cf17c6d04228ae34b187565aff53c6c5d060ef70f15d648c8a5e189c6723b2c0",
+      "checkpointDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/gestion-diaria-f6-preparacion-2026-09-24"
+    },
+    {
+      "command": "npm run test:e2e:docker -- e2e/gestion-diaria-pulso.spec.ts --config=playwright.gestion-diaria.webkit.config.ts --workers=1 --retries=0 --reporter=list",
+      "status": "PASS",
+      "exitCode": 0,
+      "browser": "webkit",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "1.4m",
+      "workers": 1,
+      "retries": 0,
+      "log": "ux-gerencia-webkit-10-final.log",
+      "logSha256": "c5f04314c9ed07dffe0be56fa799c087dd8047bacee573e183441092defc50bd",
+      "checkpointDirectory": "/Users/usuario/.local/share/avancecorp-checkpoints/gestion-diaria-f6-preparacion-2026-09-24"
+    }
+  ],
+  "reviews": [
+    {
+      "file": "REVIEW-1.md",
+      "verdict": "CHANGES_REQUESTED",
+      "resolution": "hallazgos corregidos; decisiones en ACTA.md"
+    },
+    {
+      "file": "REVIEW-2.md",
+      "verdict": "PASS",
+      "resolution": "opciones aceptadas verificadas en el candidato final; límites en ACTA.md"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "capturas-chromium/f5-analista-escritorio.png",
+      "sha256": "bfa677e395d3dd58a3803386313067bf4d0eb087f25dae362abe79df1438a134"
+    },
+    {
+      "file": "capturas-chromium/f5-equipo-escritorio.png",
+      "sha256": "3f1f33ab4982391f396e23121e2d77befc62c7dc36530d5dd851856eef452d23"
+    },
+    {
+      "file": "capturas-chromium/f5-equipo-movil.png",
+      "sha256": "1b0d664fab31c04915581e733deae9ca2535f0f5a466db2b94917cd5a254cb10"
+    },
+    {
+      "file": "capturas-chromium/f5-habitos-hueco.png",
+      "sha256": "b23d805030526107e7dbc113f5201a96aff72647f7d33de74c2c589107a89c4e"
+    },
+    {
+      "file": "capturas-chromium/f5-habitos.png",
+      "sha256": "da395d0e210ed59f446eea995fa61585c8a01af1221ebda744bd1f2c4c7302a8"
+    },
+    {
+      "file": "capturas-chromium/f5-operacion-escritorio.png",
+      "sha256": "e96a40a506047f2f4036751eea7e2d73c80cb1ea2b9123fae348af9fda4c6e96"
+    },
+    {
+      "file": "capturas-chromium/f5-operacion-movil.png",
+      "sha256": "bf4dcad2c6d8c49f22e676f4cfbb68bf6f01c1bae7b81a32eaed0d7e71829faa"
+    },
+    {
+      "file": "capturas-chromium/f6-habitos-movil.png",
+      "sha256": "cb07cf69fd4b1a741e425ebfa60c8e0b6dee2f685de85d3d4df776e4538963ad"
+    },
+    {
+      "file": "capturas-chromium/f6-registro-ampliado.png",
+      "sha256": "101ef01c483e38095621cc638e28d593b4a8ff91e0f1e407232df6d3ead22a83"
+    },
+    {
+      "file": "capturas-webkit/f5-analista-escritorio.png",
+      "sha256": "29ce089a36694650a6e00a521cf643a4859b600579850176fa8d4b85d1df4c36"
+    },
+    {
+      "file": "capturas-webkit/f5-equipo-escritorio.png",
+      "sha256": "7d03e98d3ee9b789aec58398bf4b544078a4e1c4a92d4b6fe8a88696674ece8e"
+    },
+    {
+      "file": "capturas-webkit/f5-equipo-movil.png",
+      "sha256": "185b93e75f3538acc9006981ee2f251f22b9e82d51c48925c83dbd0e6ed0767b"
+    },
+    {
+      "file": "capturas-webkit/f5-habitos-hueco.png",
+      "sha256": "49e62d9aab5e8d5ea18c26e45769a87dae7ff3528a3b0f939d94fe7d01784217"
+    },
+    {
+      "file": "capturas-webkit/f5-habitos.png",
+      "sha256": "dbb0fa78fe118e082a6d214ff5ec482f84b1c730f04b380840897f67f158bad0"
+    },
+    {
+      "file": "capturas-webkit/f5-operacion-escritorio.png",
+      "sha256": "41b21485439ab70750598eefd26d022068664a5531da68370cd56ebb8a39e056"
+    },
+    {
+      "file": "capturas-webkit/f5-operacion-movil.png",
+      "sha256": "eb1bdb9749f89e686f4c23db256a4773761d8b99307b0bc5aad796c2a96e5443"
+    },
+    {
+      "file": "capturas-webkit/f6-habitos-movil.png",
+      "sha256": "2aab3a6cef274119c7360a3b2de6329550f1e24e33f0d9a380499e28fb02133a"
+    },
+    {
+      "file": "capturas-webkit/f6-registro-ampliado.png",
+      "sha256": "0f868d09925e53c6d7b269ef867ed1bc7a7894b68dccac07a276d8c7f9647ca9"
+    }
+  ],
+  "figma": {
+    "evidence": "figma-validacion-local.json",
+    "screenshot": "figma-validacion-local.png",
+    "visualInspection": "PASS; estado legible y casillas de integración/retirada pendientes"
+  },
+  "limits": [
+    "Las pruebas UI usan fixtures; no sustituyen los ensayos RLS de F5.",
+    "26 omisiones previstas en clientes.spec.ts y contratos.spec.ts.",
+    "Publicación de la UX gerencial NOT RUN.",
+    "Siete días reales y retirada final de Seguimiento NOT RUN."
+  ]
+}

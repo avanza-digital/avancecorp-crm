@@ -10,12 +10,17 @@
 > [Acta](f5-publicacion-2026-09-24/ACTA.md). F6 tiene la cola completa preparada
 > en PR #97; su retirada requiere siete días estables desde ese T0, no antes
 > del 01/10 a las 21:57:11 Lima. [Observación](OBSERVACION-F3-F5.md).
+> **Ampliación F6 solicitada el 24/09:** integrar la UX/UI horizontal de
+> supervisión en gerencia, adaptando información, acciones y alcance a su rol.
+> Implementada y validada localmente: 4.421 pruebas, Chromium 270/0/26 y
+> WebKit 10/0 PASS. Revisión GitHub y publicación pendientes.
+> [Acta UX gerencial](f6-ux-gerencia-2026-09-24/ACTA.md).
 
 
 **Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).
 Miguel pidió el 23/09 conservar allí exactamente las fases y casillas del plan
 presentado en el chat y actualizar **el mismo tablero** con cada avance verificado.
-La correspondencia de nodos y los 76 puntos está en [FIGMA-PLAN.json](FIGMA-PLAN.json).
+La correspondencia de nodos y los 77 puntos está en [FIGMA-PLAN.json](FIGMA-PLAN.json).
 Al cerrar un avance, actualizar este documento, el tablero y la nota del vault;
 conservar pendientes las comprobaciones sin evidencia. No crear un tablero nuevo
 en cada sesión ni prometer sincronización automática en segundo plano.
@@ -2000,13 +2005,24 @@ de fechas: no hace falta un contador nuevo.
 
 ---
 
-### Fase 6 — Absorber Seguimiento y cerrar (CERRAR → OBSERVAR → DERRIBAR) · LEVEL 2 · 1 PR
+### Fase 6 — Integrar UX/UI de gerencia, absorber Seguimiento y cerrar · LEVEL 2
 
-**Objetivo:** reunir la operación diaria en un solo módulo, sin perder las capacidades de
-Seguimiento ni romper los enlaces existentes. Se considera lograda cuando los accesos antiguos
-llevan a Gestión Diaria, la vista duplicada se ha retirado y las pruebas confirman que las
-funciones y los permisos conservados siguen funcionando. La retirada comienza solo después
-del período de estabilidad de F3–F5; TypeSafe no es una condición para este cierre.
+**Objetivo:** extender a gerencia la experiencia horizontal aprobada de supervisión,
+adaptando información y acciones a su rol, y reunir la operación diaria en un solo
+módulo, conservando las capacidades y enlaces de Seguimiento. El cierre requiere
+esa integración UX/UI verificada, los accesos antiguos dirigidos a Gestión Diaria,
+la vista duplicada retirada y las funciones y permisos conservados. La retirada
+comienza solo después del período estable de F3–F5; TypeSafe no condiciona el cierre.
+
+**Entrega añadida por Miguel el 24/09 — candidata validada, sin publicar:** cabecera y resumen compactos,
+tabla comparativa y detalle lateral, filtros y navegación con contexto y foco
+conservados. Para gerencia, aplicar estos patrones a toda la operación, equipos
+y supervisores, pulso y hábitos, manteniendo operación → equipo → analista →
+registro → ficha y las definiciones y permisos de F5. Verificar densidad,
+legibilidad, escritorio/móvil, teclado y estados de carga, vacío y error, con
+evidencia visual y Docker E2E del cambio. Preparar esta entrega durante la
+observación. [Alcance ejecutable](PREPARACION-F6-2026-09-24.md) y
+[acta de validación local del 25/09](f6-ux-gerencia-2026-09-24/ACTA.md).
 
 Cuando las fases 3–5 lleven al menos una semana en producción sin incidencias: `#/seguimiento` a `ALIAS_HEREDADO` → `gestion-diaria` (`router.ts:111-119`); retirar `'seguimiento'` de `VISTAS`, `CAPACIDAD_POR_VISTA` (línea 24) y su early-return (línea 100), sidebar, `App.tsx`, `TITULOS`; repuntar `lib/sla-avisos-presentacion.ts:22`, `screens/hoy/supervisor.tsx:836`, `ayuda-vendedor-panel.tsx:65-67`, `e2e/sla-operacion.spec.ts`; `ColaSlaPanel` sigue vivo. Actualizar los ~10 tests que mencionan `seguimiento`. `npm run check:all`. Vault, `Inicio.md`, actas en `MIGRACIONES.md`, PLAN.md del repo con «Lo construido vs lo planteado».
 

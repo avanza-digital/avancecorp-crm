@@ -1,0 +1,101 @@
+{
+  "estado": "PASS_ALCANCE_REGISTRADO",
+  "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+  "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L?node-id=2-122",
+  "createdNodeIds": [
+    "94:2"
+  ],
+  "mutatedNodeIds": [
+    "2:123",
+    "2:124",
+    "2:5",
+    "2:125",
+    "2:126",
+    "2:127",
+    "2:128",
+    "2:129",
+    "2:122",
+    "2:9"
+  ],
+  "newRequirement": {
+    "id": "94:2",
+    "name": "F6/ux-gerencia",
+    "text": "☐ Integrar UX/UI de supervisión en gerencia, adaptada a su rol.",
+    "state": "PENDIENTE",
+    "x": 28,
+    "y": 138,
+    "width": 840,
+    "height": 35
+  },
+  "card": {
+    "id": "2:122",
+    "width": 896,
+    "height": 450
+  },
+  "title": "F6 — UX/UI gerencial y Seguimiento",
+  "status": "UX/UI gerencial pendiente · observación en curso.",
+  "header": "24/09/2026 · F5 publicada · F6: UX/UI gerencial pendiente y observación real.",
+  "children": [
+    {
+      "id": "2:123",
+      "x": 28,
+      "y": 24,
+      "width": 840,
+      "height": 46
+    },
+    {
+      "id": "2:124",
+      "x": 28,
+      "y": 82,
+      "width": 840,
+      "height": 32
+    },
+    {
+      "id": "2:125",
+      "x": 28,
+      "y": 187,
+      "width": 840,
+      "height": 35
+    },
+    {
+      "id": "2:126",
+      "x": 28,
+      "y": 236,
+      "width": 840,
+      "height": 35
+    },
+    {
+      "id": "2:127",
+      "x": 28,
+      "y": 285,
+      "width": 840,
+      "height": 35
+    },
+    {
+      "id": "2:128",
+      "x": 28,
+      "y": 334,
+      "width": 840,
+      "height": 35
+    },
+    {
+      "id": "2:129",
+      "x": 28,
+      "y": 383,
+      "width": 840,
+      "height": 35
+    },
+    {
+      "id": "94:2",
+      "x": 28,
+      "y": 138,
+      "width": 840,
+      "height": 35
+    }
+  ],
+  "withdrawalCondition": "Siete días reales estables; conservada",
+  "visual": "PASS: captura revisada, sin solapamientos ni texto recortado",
+  "captura": "figma-alcance.png",
+  "implementacionUX": "NOT RUN",
+  "pruebasUX": "NOT RUN"
+}
