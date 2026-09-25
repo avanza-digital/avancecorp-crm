@@ -115,6 +115,8 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     const persona = habitos.datos!.personas.find((p) => p.dias.some((d) => d.jornada.hueco?.minutos === 165))!
     fireEvent.click(within(informe).getByRole('button', { name: `Ver hábitos de ${persona.nombre_completo}` }))
     expect(screen.getByRole('region', { name: 'Detalle de hábitos' })).toHaveTextContent('165 min')
+    fireEvent.click(screen.getByRole('link', { name: 'Ver pulso y registro' }), { ctrlKey: true })
+    expect(screen.getByRole('tab', { name: 'Hábitos del equipo' })).toHaveAttribute('aria-selected', 'true')
     fireEvent.click(within(informe).getByRole('button', { name: 'Cómo leer los hábitos' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('La alerta de tasa muy baja sigue apagada')
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar explicación' }))
@@ -164,6 +166,8 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('ya no tiene permiso')
     pulso = previa; fireEvent.click(screen.getByRole('tab', { name: 'Pulso diario' }))
+    fireEvent.change(screen.getByLabelText('Día de la operación'), { target: { value: '2026-09-22' } })
+    fireEvent.keyDown(screen.getByLabelText('Día de la operación'), { key: 'Enter' })
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Verificar sesión' })).toBeInTheDocument()
   })

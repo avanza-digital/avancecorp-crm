@@ -130,6 +130,11 @@ test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ p
   await detalle.getByRole('heading', { name: grupo.nombre, exact: true }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('f5-equipo-movil.png'), fullPage: true })
+  await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
+  await detalle.getByRole('link', { name: grupo.nombre, exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Analistas del equipo' }).getByRole('heading', { name: grupo.nombre, exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Ver detalle', exact: true }).click()
   await page.getByRole('region', { name: 'Detalle de la operación' }).getByRole('link', { name: 'Toda la operación', exact: true }).click()
   await expect(page).toHaveURL(/#\/gestion-diaria$/)
   await expect(page.getByRole('heading', { name: 'Equipos y atención actual', exact: true })).toBeFocused()
@@ -281,16 +286,22 @@ test('F6 hábitos: búsqueda, selección por teclado y móvil conservan el día 
   await expect(page.getByRole('table', { name: 'Comparación de hábitos por analista' })).toContainText('Ningún analista coincide')
 })
 
-test('F6 una revocación del registro oculta Pulso y Hábitos hasta verificar la sesión', async ({ page }) => {
+for (const ambito of ['general', 'analista']) test(`F6 una revocación del registro ${ambito} oculta Pulso y Hábitos hasta verificar la sesión`, async ({ page }) => {
   const estado = await montar(page)
-  await page.getByRole('button', { name: 'Registro general', exact: true }).click()
-  const registro = page.getByRole('region', { name: 'Registro general de la operación' })
+  if (ambito === 'general') await page.getByRole('button', { name: 'Registro general', exact: true }).click()
+  else {
+    await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
+    await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
+    await page.getByRole('tab', { name: 'Registro', exact: true }).click()
+  }
+  const registro = page.getByRole('region', { name: `Registro de actividad del ${DIA}`, exact: true })
   await expect(registro).toContainText(`Llamada ficticia F5 del ${DIA}`)
   estado.registroRevocado = true
   await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Toda la operación', exact: true }).getByRole('alert')).toContainText('ya no tiene permiso')
   await expect(page.getByRole('table')).toHaveCount(0)
   await expect(registro).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Verificar sesión', exact: true })).toBeFocused()
   await page.getByRole('tab', { name: 'Hábitos del equipo', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Verificar sesión', exact: true })).toBeVisible()
   await expect(page.getByRole('table')).toHaveCount(0)
@@ -305,5 +316,6 @@ test('F6 al ampliar desde móvil aparece el equipo seleccionado y su detalle', a
   await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.setViewportSize({ width: 1512, height: 900 })
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Detalle de la operación' }).getByRole('heading', { name: grupo.nombre, exact: true })).toBeVisible()
 })

@@ -106,7 +106,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
     <Tabs etiqueta="Vistas de gerencia" className="gp-vistas" tamano="grande" pestanas={PESTANAS} valor={activa} onCambio={(valor) => {
       setPestana(valor); setGeneral(false); if (ruta) window.location.hash = hashDe('gestion-diaria')
     }}>
-      {activa === 'habitos' && <div className="gp-periodo"><label htmlFor={`${id}-periodo`}>Período hasta {dia}</label><Select id={`${id}-periodo`} className="min-h-11 text-base" value={dias} onChange={(e) => setDias(Number(e.target.value) as 7 | 14 | 30)}>{[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>}
+      {activa === 'habitos' && !sinPermiso && <div className="gp-periodo"><label htmlFor={`${id}-periodo`}>Período hasta {dia}</label><Select id={`${id}-periodo`} className="min-h-11 text-base" value={dias} onChange={(e) => setDias(Number(e.target.value) as 7 | 14 | 30)}>{[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>}
       {error ? <ErrorConsultaGerencia error={error} recargar={consulta.recargar} enVuelo={consulta.enVuelo} /> : consulta.cargando ? <PanelCargando filas={6} />
         : activa === 'habitos' ? habitos.datos && <ReporteHabitos key={`${dia}:${dias}`} datos={habitos.datos} equipos={pulso.datos?.equipos ?? []} estrecho={estrecho} alAbrirAnalista={() => setPestana('pulso')} />
           : pulso.datos && <>

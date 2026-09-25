@@ -114,7 +114,7 @@ export function ReporteHabitos({ datos, equipos, estrecho, alAbrirAnalista }: {
 
 function DetalleHabitos({ persona: p, alAbrirAnalista }: { persona: PersonaHabitos; alAbrirAnalista: () => void }) {
   return <article>
-    <div className="gp-cabecera-fila"><p>{p.resumen.llamadas} llamadas en el período</p><a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'analista', id: p.analista_id })} onClick={alAbrirAnalista}>Ver pulso y registro</a></div>
+    <div className="gp-cabecera-fila"><p>{p.resumen.llamadas} llamadas en el período</p><a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'analista', id: p.analista_id })} onClick={(e) => { if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) alAbrirAnalista() }}>Ver pulso y registro</a></div>
       <dl className="gp-habitos-resumen">
         <div><dt>Contacto personal</dt><dd>{cifraPulso(p.resumen.tasa_contacto, true)}</dd><p>{p.resumen.contestadas} de {p.resumen.utiles} útiles</p></div>
         <div><dt>Contacto del equipo</dt><dd>{cifraPulso(p.equipo.tasa_contacto, true)}</dd><p>{p.equipo.utiles === null ? 'Sin equipo comercial asignado' : `${p.equipo.contestadas} de ${p.equipo.utiles} útiles`}</p></div>
