@@ -1,5 +1,12 @@
 # P-0XX — publicación detenida por el merge de esquema
 
+> **Actualización 25/09/2026:** esta nota registra el bloqueo histórico. Miguel
+> autorizó otra vía: las cuatro migraciones canónicas se aplicaron directamente
+> en producción, las tres Edge Functions se actualizaron y el portal se publicó
+> por Hostinger. La persona usuaria confirmó visualmente que las cuentas del CRM
+> aparecen en el portal. Estado actual:
+> [[P-0XX - publicación y conciliación pendiente (2026-09-25)]].
+
 Estado al 25/09/2026: los cambios P-0XX están commiteados localmente y
 probados en la rama `p0xx-cuentas-unificadas-20260925`; **producción y
 miavance.com siguen con la versión anterior**. El Merge Request que abrí se
