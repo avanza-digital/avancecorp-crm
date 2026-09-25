@@ -1,0 +1,207 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:58:19.352Z",
+  "proyecto": "xyrdxcraoqdgctzkvpsj",
+  "criterio": "Sin nuevos avisos estructurales atribuibles a F5; unused_index se informa por separado porque depende de estadísticas de uso.",
+  "limite": "Los avisos preexistentes no quedan corregidos ni aprobados por esta comparación. pg_trgm está en extensions en el banco; producción lo mantiene en public.",
+  "resultados": {
+    "security": {
+      "antes": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "nivel": "INFO",
+          "hallazgos": 67
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 226
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "nivel": "WARN",
+          "hallazgos": 1
+        }
+      ],
+      "despues": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "nivel": "INFO",
+          "hallazgos": 67
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 226
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "nivel": "WARN",
+          "hallazgos": 1
+        }
+      ],
+      "nuevos": [],
+      "retirados": [],
+      "padre": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "nivel": "INFO",
+          "hallazgos": 67
+        },
+        {
+          "nombre": "extension_in_public",
+          "nivel": "WARN",
+          "hallazgos": 1
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "nivel": "WARN",
+          "hallazgos": 226
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "nivel": "WARN",
+          "hallazgos": 1
+        }
+      ]
+    },
+    "performance": {
+      "antes": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "nivel": "INFO",
+          "hallazgos": 53
+        },
+        {
+          "nombre": "auth_rls_initplan",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "no_primary_key",
+          "nivel": "INFO",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "hallazgos": 220
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "nivel": "WARN",
+          "hallazgos": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "nivel": "INFO",
+          "hallazgos": 1
+        }
+      ],
+      "despues": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "nivel": "INFO",
+          "hallazgos": 53
+        },
+        {
+          "nombre": "auth_rls_initplan",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "no_primary_key",
+          "nivel": "INFO",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "hallazgos": 218
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "nivel": "WARN",
+          "hallazgos": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "nivel": "INFO",
+          "hallazgos": 1
+        }
+      ],
+      "nuevos": [],
+      "retirados": [
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "detalle": "Index \\`busquedas_cliente_existente_lead_idx\\` on table \\`crm.busquedas_cliente_existente\\` has not been used",
+          "metadata": {
+            "name": "busquedas_cliente_existente",
+            "type": "table",
+            "schema": "crm"
+          },
+          "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        },
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "detalle": "Index \\`busquedas_cliente_existente_persona_idx\\` on table \\`crm.busquedas_cliente_existente\\` has not been used",
+          "metadata": {
+            "name": "busquedas_cliente_existente",
+            "type": "table",
+            "schema": "crm"
+          },
+          "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        }
+      ],
+      "padre": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "nivel": "INFO",
+          "hallazgos": 53
+        },
+        {
+          "nombre": "auth_rls_initplan",
+          "nivel": "WARN",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "no_primary_key",
+          "nivel": "INFO",
+          "hallazgos": 2
+        },
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "hallazgos": 124
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "nivel": "WARN",
+          "hallazgos": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "nivel": "INFO",
+          "hallazgos": 1
+        }
+      ]
+    }
+  }
+}

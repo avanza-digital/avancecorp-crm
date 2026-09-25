@@ -1,0 +1,97 @@
+{
+  "fecha_evaluacion": "2026-09-24",
+  "origen": "ensayo-aislado-2026-09-21.json",
+  "origen_sha256": "1b13f44b29a57a2cd7a923e9457d25640c9454a5fc02c64b4879836b836ecd9e",
+  "fecha_ensayo": "2026-09-21 20:36:00 UTC",
+  "modelo": "jev-1.13.0",
+  "alcance": "Reanálisis sin nuevas inferencias; 20 casos sintéticos, sin etiquetas humanas independientes ni estratificación por equipo.",
+  "resultados_validos": 20,
+  "coincidencia": {
+    "numerador": 19,
+    "denominador": 20,
+    "valor": 0.95,
+    "wilson_95": [
+      0.763868806553258,
+      0.9911185511992047
+    ]
+  },
+  "precision_alerta": {
+    "numerador": 9,
+    "denominador": 10,
+    "valor": 0.9,
+    "wilson_95": [
+      0.5958499732047615,
+      0.9821237869049271
+    ]
+  },
+  "sensibilidad": {
+    "numerador": 9,
+    "denominador": 9,
+    "valor": 1,
+    "wilson_95": [
+      0.7008549515804559,
+      1
+    ]
+  },
+  "tasa_falsas_alertas": {
+    "numerador": 1,
+    "denominador": 11,
+    "valor": 0.09090909090909091,
+    "wilson_95": [
+      0.016232172885884855,
+      0.37735843645159567
+    ]
+  },
+  "contradicciones_omitidas": 0,
+  "matriz": {
+    "compatible": {
+      "compatible": 8,
+      "posible_contradiccion": 0,
+      "informacion_insuficiente": 0
+    },
+    "posible_contradiccion": {
+      "compatible": 0,
+      "posible_contradiccion": 9,
+      "informacion_insuficiente": 0
+    },
+    "informacion_insuficiente": {
+      "compatible": 0,
+      "posible_contradiccion": 1,
+      "informacion_insuficiente": 2
+    }
+  },
+  "discrepancias": [
+    {
+      "id": "c04",
+      "esperado": "informacion_insuficiente",
+      "clase": "posible_contradiccion",
+      "confianza": 0.26
+    }
+  ],
+  "latencia_ms": {
+    "metodo": "Rango más próximo: ordenadas[ceil(p × n) − 1]",
+    "p50": 948,
+    "p95": 1031,
+    "maximo": 1079,
+    "lote": 4601
+  },
+  "coste_referencial_usd": {
+    "entrada_por_millon": 0.042,
+    "salida_por_millon": 0,
+    "fuente": "https://docs.typesafe.ai/models",
+    "fecha_tarifa_consultada": "2026-09-24",
+    "tokens_entrada": 12328,
+    "tokens_salida": 1102,
+    "total": 0.0005177760000000001,
+    "por_caso": 0.000025888800000000002,
+    "alcance": "Estimación con tarifa consultada; no acredita factura ni precio histórico. Este reanálisis no consume API."
+  },
+  "decision": "NO_ACTIVAR",
+  "motivos": [
+    "No hay referencia real independiente por equipo; el ensayo técnico no prueba utilidad comercial.",
+    "Una falsa alerta entre 11 negativos (9,09 %) supera el criterio provisional de 5 %; muestra insuficiente para calibración.",
+    "No está acreditada la rotación de la credencial previamente expuesta ni resueltas conservación y condiciones de transferencia de notas reales."
+  ],
+  "condiciones_para_reabrir": "Referencia válida por equipo, credencial vigente segura, minimización/conservación resueltas y evaluación independiente sin ajustar umbrales sobre el conjunto de validación.",
+  "habilita_produccion": false
+}

@@ -1,0 +1,158 @@
+[
+  {
+    "ruta": "aliados/belysh.png",
+    "local_dimensiones": [
+      3508,
+      3253
+    ],
+    "remoto_dimensiones": [
+      1600,
+      1484
+    ],
+    "pixeles_identicos": false,
+    "remoto_sha256": "61f594fd5e373092c15fd4c715f5d218691f482ab5691d96ed99eb8b4fa737cb"
+  },
+  {
+    "ruta": "aliados/clinica-alvarez.png",
+    "local_dimensiones": [
+      852,
+      368
+    ],
+    "remoto_dimensiones": [
+      852,
+      368
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "3675cf4e5bde40f544ac2b9d0e3a0bfcc21db9dc632d58a92d68c48b75161282"
+  },
+  {
+    "ruta": "aliados/mascapital.png",
+    "local_dimensiones": [
+      3508,
+      3253
+    ],
+    "remoto_dimensiones": [
+      1600,
+      1484
+    ],
+    "pixeles_identicos": false,
+    "remoto_sha256": "e9e8b4337d5b5519a9747c78ddac7839b80a38a32cb56f3dddb79e865cc66f5c"
+  },
+  {
+    "ruta": "aliados/ntc-agency.png",
+    "local_dimensiones": [
+      3508,
+      3253
+    ],
+    "remoto_dimensiones": [
+      1600,
+      1484
+    ],
+    "pixeles_identicos": false,
+    "remoto_sha256": "a126f2bd63727ff0573d3474bf1d8db4e4c6ef2652cda402014a45319739b8c9"
+  },
+  {
+    "ruta": "aliados/phoenix.png",
+    "local_dimensiones": [
+      3508,
+      3253
+    ],
+    "remoto_dimensiones": [
+      1600,
+      1484
+    ],
+    "pixeles_identicos": false,
+    "remoto_sha256": "3567651689adf05c76f6183e136860a195bfbd47a4ea1c9efb57e519b28c959b"
+  },
+  {
+    "ruta": "aliados/prodelco.png",
+    "local_dimensiones": [
+      1187,
+      267
+    ],
+    "remoto_dimensiones": [
+      1187,
+      267
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "34a38f8c144cae9b5b4b747eb9d3e9777f99fe1cf86d965aab0a061c41b477f9"
+  },
+  {
+    "ruta": "aliados/qorilazo.png",
+    "local_dimensiones": [
+      3508,
+      3253
+    ],
+    "remoto_dimensiones": [
+      1600,
+      1484
+    ],
+    "pixeles_identicos": false,
+    "remoto_sha256": "e596e831377952c3255b03a10148e761bff142d40dad9021789f01efebf01528"
+  },
+  {
+    "ruta": "brand/avance-icon-192.png",
+    "local_dimensiones": [
+      192,
+      192
+    ],
+    "remoto_dimensiones": [
+      192,
+      192
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "d8f58269f11078f1ef5d1162663f267c374d038ef2184b4afa3dba2ce9b1de67"
+  },
+  {
+    "ruta": "brand/avance-icon-512.png",
+    "local_dimensiones": [
+      512,
+      512
+    ],
+    "remoto_dimensiones": [
+      512,
+      512
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11"
+  },
+  {
+    "ruta": "brand/avance-icon.png",
+    "local_dimensiones": [
+      512,
+      512
+    ],
+    "remoto_dimensiones": [
+      512,
+      512
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11"
+  },
+  {
+    "ruta": "brand/avance-logo-full.png",
+    "local_dimensiones": [
+      1200,
+      1200
+    ],
+    "remoto_dimensiones": [
+      1200,
+      1200
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "6045f5a7829d94198c6cc4c6c6916eea6256906ad41a1f93aad60ea7a9ddb8cc"
+  },
+  {
+    "ruta": "contrato/fondo-corporativo.png",
+    "local_dimensiones": [
+      1449,
+      2048
+    ],
+    "remoto_dimensiones": [
+      1449,
+      2048
+    ],
+    "pixeles_identicos": true,
+    "remoto_sha256": "e5689c571b5af5db3de1a973cf5c82fc64df91633619a26b85fb0621f987894b"
+  }
+]

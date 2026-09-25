@@ -19,6 +19,9 @@ vi.mock('@/screens/gestion-diaria/analista', () => ({
 vi.mock('@/screens/gestion-diaria/supervisor', () => ({
   GestionDiariaSupervisor: () => <section aria-label="Mi equipo hoy (mock)" />,
 }))
+vi.mock('@/screens/gestion-diaria/gerencia', () => ({
+  GestionDiariaGerencia: () => <section aria-label="Toda la operación (mock)" />,
+}))
 const { GestionDiaria } = await import('./gestion-diaria')
 
 beforeEach(() => { yo = { id: 'u1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }; RECIBIDO.props = null })
@@ -42,8 +45,14 @@ describe('GestionDiaria por rol', () => {
     expect(RECIBIDO.props).toBeNull()
     expect(screen.queryByLabelText('Día del registro')).not.toBeInTheDocument()
   })
-  it('gerencia: todo, exportable, y elige el día sin poder ir al futuro', () => {
+  it('gerencia real abre el tablero de operación completo', () => {
     yo = { id: 'u-ger', rol: 'gerencia', demo: false, nombre_completo: 'GER' }
+    render(<GestionDiaria />)
+    expect(screen.getByLabelText('Toda la operación (mock)')).toBeInTheDocument()
+    expect(RECIBIDO.props).toBeNull()
+  })
+  it('gerencia demo conserva el registro ficticio con fecha y exportación', () => {
+    yo = { id: 'u-ger', rol: 'gerencia', demo: true, nombre_completo: 'GER' }
     render(<GestionDiaria />)
     expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19', analistaIds: null, mostrarAnalista: true, permitirEquipo: true, permitirExportar: true })
     const dia = screen.getByLabelText('Día del registro')

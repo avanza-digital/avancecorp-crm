@@ -1,0 +1,41 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:57:25.969Z",
+  "ref": "xyrdxcraoqdgctzkvpsj",
+  "funcionesTotales": 773,
+  "nuevas": [
+    "crm.gestion_diaria_habitos_fn(date,integer)",
+    "crm.gestion_diaria_pulso_fn(date)",
+    "private.assert_gestion_diaria_pulso()",
+    "private.gestion_diaria_fechas_activas(date,date)",
+    "private.gestion_diaria_gestiones_eventos(timestamp with time zone,timestamp with time zone)",
+    "private.gestion_diaria_habitos_jornada(date,uuid[],timestamp with time zone)",
+    "private.gestion_diaria_llamadas_eventos(timestamp with time zone,timestamp with time zone,uuid[])",
+    "private.gestion_diaria_pulso_autores(timestamp with time zone,timestamp with time zone)",
+    "private.gestion_diaria_pulso_autorizar()",
+    "private.gestion_diaria_pulso_dia(date)",
+    "private.gestion_diaria_pulso_metricas(jsonb,integer)",
+    "private.gestion_diaria_pulso_roster()"
+  ],
+  "cambiadas": [
+    {
+      "firma": "private.assert_gestion_diaria_analista()",
+      "campos": [
+        "cuerpo",
+        "definicion"
+      ]
+    },
+    {
+      "firma": "private.gestion_diaria_llamadas(timestamp with time zone,timestamp with time zone,uuid[])",
+      "campos": [
+        "cuerpo",
+        "definicion"
+      ]
+    }
+  ],
+  "tablasPoliticasPermisosRolesSinCambios": true,
+  "antecedentesIntactos": 355,
+  "despuesDeMatriz": true,
+  "permisosColumnasEsquemasDefault": "PASS",
+  "cronActivos": 0
+}

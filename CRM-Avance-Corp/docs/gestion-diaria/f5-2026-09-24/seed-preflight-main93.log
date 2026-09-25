@@ -1,0 +1,10 @@
+✓ runtime y variables validos
+✓ destino permitido: ozmxjmjopdnyhxsecmvf.supabase.co
+✓ plan: 13 usuarios Auth/perfil
+✓ plan: 11 miembros CRM (10 activos, 1 inactivo)
+✓ plan: 7 leads y 7 actividades deterministas
+✓ plan: 5 tareas de agenda deterministas (tenencia derivada del lead)
+✓ plan: 1 cliente bancario + 2 contratos (1 enlazado y 1 legacy) + 1 cuenta contractual
+Preflight terminado; no se abrio ninguna conexion.
+npm notice run avancecorp-crm-tools@0.0.0 seed:preflight
+npm notice run node supabase/scripts/seed-demo.mjs --preflight

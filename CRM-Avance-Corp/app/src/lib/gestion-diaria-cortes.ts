@@ -5,7 +5,7 @@ import * as v from 'valibot'
 const Natural = v.pipe(v.number(), v.integer(), v.minValue(0))
 const Positivo = v.pipe(v.number(), v.integer(), v.minValue(1))
 const Instante = v.pipe(v.string(), v.check((s) => Number.isFinite(Date.parse(s)), 'Instante inválido'))
-const CorteSchema = v.pipe(v.object({
+export const CorteSchema = v.pipe(v.object({
   estado: v.picklist(['pendiente', 'sin_cartera', 'cumplido', 'recuperado', 'incumplido']),
   llamadas: v.nullable(Natural),
   objetivo: v.nullable(Positivo),

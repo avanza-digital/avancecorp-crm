@@ -1,0 +1,41 @@
+{
+  "estado": "PASS",
+  "medidas": [
+    {
+      "rpc": "habitos_14",
+      "p95_ms": 463.48,
+      "maximo_ms": 467.4,
+      "minimo_ms": 431.69,
+      "mediana_ms": 435.67,
+      "respuesta_bytes": 73486
+    },
+    {
+      "rpc": "habitos_30",
+      "p95_ms": 941.69,
+      "maximo_ms": 951.38,
+      "minimo_ms": 780.4,
+      "mediana_ms": 859.8,
+      "respuesta_bytes": 154577
+    },
+    {
+      "rpc": "habitos_7",
+      "p95_ms": 309.1,
+      "maximo_ms": 315.1,
+      "minimo_ms": 189.21,
+      "mediana_ms": 204.21,
+      "respuesta_bytes": 38350
+    },
+    {
+      "rpc": "pulso",
+      "p95_ms": 233.5,
+      "maximo_ms": 247.83,
+      "minimo_ms": 143.71,
+      "mediana_ms": 161.32,
+      "respuesta_bytes": 8627
+    }
+  ],
+  "tareas_vencidas": 1008,
+  "muestras_por_rpc": 5,
+  "analistas_activos": 5,
+  "llamadas_insertadas": 30000
+}

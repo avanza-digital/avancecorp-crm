@@ -1,0 +1,13 @@
+{
+  "project_ref": "xyrdxcraoqdgctzkvpsj",
+  "branch_id": "83def1af-e12e-4579-852f-4f3fd2cf25c7",
+  "parent": "dctqcbznekcyxhjujuci",
+  "organizacion": "fzxtxnkvslpcsscxqfbr",
+  "with_data": false,
+  "autorizado_por_usuario": true,
+  "tope_usd": 5,
+  "tarifa_usd_hora": 0.01344,
+  "creado": "2026-09-24T22:09:10.284618Z",
+  "eliminar_antes_de": "2026-09-25T02:09:10Z",
+  "alcance": "ensayo temporal F5; no merge productivo"
+}

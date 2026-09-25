@@ -1,0 +1,12 @@
+low 0
+high 0
+max 0
+oom 0
+oom_kill 3
+oom_group_kill 0
+sock_throttled 127987
+MemTotal:        6321128 kB
+MemFree:           75076 kB
+MemAvailable:     658288 kB
+Buffers:            2208 kB
+Cached:          1004344 kB

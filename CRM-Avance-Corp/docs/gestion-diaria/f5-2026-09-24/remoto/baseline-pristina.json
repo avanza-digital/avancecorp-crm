@@ -1,0 +1,15 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:22:24.725Z",
+  "ref": "xyrdxcraoqdgctzkvpsj",
+  "sha256": "2421af7ece21889556d8cc8b6cd4af08ac1715609464f66fe381ef6042833b27",
+  "bytes": 3560037,
+  "schemas": [
+    "crm",
+    "private",
+    "public"
+  ],
+  "leads": 7,
+  "tareas": 5,
+  "authPreservado": 17
+}

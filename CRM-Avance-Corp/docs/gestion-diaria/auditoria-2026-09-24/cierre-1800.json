@@ -1,0 +1,72 @@
+{
+  "zona": "America/Lima",
+  "fecha": "2026-09-24T18:58:23.837323-05:00",
+  "estado": "PASS",
+  "limite": "Auditoría de RPC bajo rol authenticated con contexto de cada supervisor; no es una nueva sesión humana ni una observación de popup.",
+  "f5_instalada": false,
+  "solo_lectura": "on",
+  "supervisores": [
+    {
+      "dia": "2026-09-24",
+      "caso": 1,
+      "alertas": [
+        {
+          "tipo": "corte_manana",
+          "estado": "pendiente",
+          "entrega": 1,
+          "miembros": 4,
+          "fin_jornada": "2026-09-24T18:00:00-05:00",
+          "puede_posponer": false,
+          "puede_presentar": false
+        },
+        {
+          "tipo": "corte_tarde",
+          "estado": "pendiente",
+          "entrega": 0,
+          "miembros": 7,
+          "fin_jornada": "2026-09-24T18:00:00-05:00",
+          "puede_posponer": false,
+          "puede_presentar": false
+        }
+      ],
+      "generado_en": "2026-09-24T18:58:18.750514-05:00",
+      "entregas_hoy": 2,
+      "estado_cortes": "activo",
+      "aplazamientos_hoy": 1,
+      "avisos_habilitados": true,
+      "reconocimientos_hoy": 0
+    },
+    {
+      "dia": "2026-09-24",
+      "caso": 2,
+      "alertas": [],
+      "generado_en": "2026-09-24T18:58:21.302678-05:00",
+      "entregas_hoy": 0,
+      "estado_cortes": "activo",
+      "aplazamientos_hoy": 0,
+      "avisos_habilitados": true,
+      "reconocimientos_hoy": 0
+    },
+    {
+      "dia": "2026-09-24",
+      "caso": 3,
+      "alertas": [
+        {
+          "tipo": "corte_tarde",
+          "estado": "pendiente",
+          "entrega": 0,
+          "miembros": 5,
+          "fin_jornada": "2026-09-24T18:00:00-05:00",
+          "puede_posponer": false,
+          "puede_presentar": false
+        }
+      ],
+      "generado_en": "2026-09-24T18:58:21.472033-05:00",
+      "entregas_hoy": 2,
+      "estado_cortes": "activo",
+      "aplazamientos_hoy": 0,
+      "avisos_habilitados": true,
+      "reconocimientos_hoy": 0
+    }
+  ]
+}
