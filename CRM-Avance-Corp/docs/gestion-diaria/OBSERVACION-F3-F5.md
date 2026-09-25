@@ -58,6 +58,13 @@ sonda de Gestión Diaria dio 11/11 PASS. [Evidencia y límites](f6-ux-gerencia-2
 Es otro control puntual de T0, no un día adicional ni una nueva publicación
 de esta tarea. La UX de gerencia del PR #101 todavía no está servida.
 
+Actualización del 25/09, 05:14–05:18 Lima: UX gerencial F6 publicada desde
+`f9196dba`, con autorización específica de Miguel. Archivos HTTPS 81/81 y
+recorrido real de lectura 8/8 PASS, incluida ficha y regreso con fecha y
+paginación conservadas. [Acta](f6-ux-gerencia-2026-09-24/PUBLICACION-2026-09-25.md).
+T0 no cambia; todavía no se ha cumplido el primer día completo. El corte único
+del sábado 26/09 a las 11:30 sigue pendiente.
+
 Una incidencia relevante impide cerrar por el mero paso del calendario:
 corregir, verificar y acreditar el período estable antes de retirar Seguimiento.
 La equivalencia de cola, permisos, acciones y enlaces debe probarse también,

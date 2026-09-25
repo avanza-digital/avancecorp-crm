@@ -5,6 +5,9 @@ actualizado: 2026-09-25
 
 # UX horizontal de gerencia preparada y validada
 
+> **Estado vigente:** [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]].
+> Esta nota conserva la preparación y el estado anterior a la publicación.
+
 **Integrada en Main; publicación pendiente.**
 Estado vigente en [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]].
 [PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101) integrado

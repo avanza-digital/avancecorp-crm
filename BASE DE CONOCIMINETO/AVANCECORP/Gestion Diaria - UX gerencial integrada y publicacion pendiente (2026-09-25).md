@@ -5,6 +5,9 @@ actualizado: 2026-09-25
 
 # UX gerencial integrada; publicación pendiente
 
+> **Estado vigente:** [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]].
+> Esta nota conserva la preparación y el estado anterior a la publicación.
+
 Continúa [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]].
 **PR #101 integrado manualmente por miguejbs98**, en Main `f9196dba`, sin
 revisión APPROVED. El paquete está preparado y verificado; aún no se publicó.

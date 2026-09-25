@@ -1,4 +1,8 @@
-# F6 — Integrada en Main, publicación de la UX pendiente
+# F6 — Historial previo a la publicación de la UX
+
+> **Estado superado:** F6 quedó autorizada, publicada y verificada el 25/09
+> a las 05:14 Lima. [Acta vigente](PUBLICACION-2026-09-25.md). El contenido
+> siguiente conserva el preflight y los bloqueos anteriores, ya resueltos.
 
 **25/09/2026. Paquete preparado; despliegue de la UX NOT RUN.**
 El [PR #101](https://github.com/avanza-digital/avancecorp-crm/pull/101) fue

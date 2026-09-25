@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-09-25T10:18:38.915440+00:00",
+  "status": "PASS",
+  "url": "https://crm.miavance.com/#/gestion-diaria",
+  "source": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "method": "Chrome existente con sesión de gerencia; interacción de lectura y capturas inspeccionadas",
+  "observations": [
+    {
+      "case": "Portada y acceso autenticado",
+      "result": "PASS"
+    },
+    {
+      "case": "Consulta de 24/09/2026",
+      "result": "PASS",
+      "calls": 243,
+      "usefulCalls": 241,
+      "answered": 74,
+      "distinctLeads": 206,
+      "contactRate": "30.7%",
+      "teamsDisplayed": 4
+    },
+    {
+      "case": "Tabla comparativa y detalle lateral en 1440 × 900",
+      "result": "PASS"
+    },
+    {
+      "case": "Equipo → analista → registro",
+      "result": "PASS",
+      "teamAnalysts": 10,
+      "teamCalls": 130,
+      "analystCalls": 40
+    },
+    {
+      "case": "Paginación, ficha y vuelta al registro",
+      "result": "PASS",
+      "loadedBefore": 25,
+      "loadedAfter": 40,
+      "preservedAfterClosingLead": 40,
+      "datePreserved": "2026-09-24"
+    },
+    {
+      "case": "Hábitos del equipo a 14 días",
+      "result": "PASS",
+      "analystsDisplayed": 19,
+      "from": "2026-09-11",
+      "through": "2026-09-24",
+      "contactRate": "42.8%"
+    },
+    {
+      "case": "Vista estrecha inicial y restauración del tamaño normal",
+      "result": "PASS"
+    },
+    {
+      "case": "Regreso a Hoy",
+      "result": "PASS",
+      "day": "2026-09-25"
+    }
+  ],
+  "realDataMutations": false,
+  "sensitiveRecordsIncluded": false,
+  "limit": "Smoke posterior de lectura, no sustituye la matriz RLS y Docker ya aprobada ni siete días de observación."
+}

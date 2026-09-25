@@ -5,13 +5,15 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]] — **PAQUETE F6 VERIFICADO, SIN PUBLICAR:** PR #101 integrado en `f9196dba`, CI Main PASS. Producción ya sirve `3027028d` con la cola F6. Pendientes autorización F6 y restablecer Hostinger (401); siete días reales conservados.
+- [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]] — **UX F6 PUBLICADA Y VERIFICADA:** fuente `f9196dba`, 81/81 archivos HTTPS y recorrido gerencial 8/8 PASS. Fecha, tabla, detalle lateral, hábitos y ficha con contexto conservado. Mismo Figma actualizado; retirada pendiente de siete días estables y corte del sábado.
 
-- [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]] — **CANDIDATO VALIDADO, SIN PUBLICAR:** UX de supervisión adaptada a gerencia, con cifras y permisos de F5. Gate 4.421/298, Chromium 270/0/26, WebKit 10/0 y revisión independiente PASS. Integrada en Main sin revisión APPROVED; publicación pendiente según la nota vigente. Siete días reales siguen condicionando la retirada.
+- [[Gestion Diaria - UX gerencial integrada y publicacion pendiente (2026-09-25)]] — Historial del paquete y los bloqueos anteriores, resueltos por la publicación verificada de F6.
+
+- [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]] — Evidencia técnica de la UX publicada: gate 4.421/298, Chromium 270/0/26, WebKit 10/0 y revisión independiente PASS. Estado vigente en el acta de publicación anterior.
 
 - [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]] — **F5 PUBLICADA Y VERIFICADA:** SQL por merge nativo, frontend `b402a7f1`, 2.267 aserciones y HTTP 21/21, cifras y 78 archivos servidos PASS. T0 24/09 21:57:11 Lima; retirada F6 no antes del 01/10 a esa hora y con estabilidad acreditada. Banco eliminado; sábado pendiente.
 
-- [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **PREPARACIÓN SIN RETIRADA:** PR #97 integrado en Main `3b792867`, controles GitHub PASS, gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. Cola todavía sin publicar. La observación real comienza con F5; no hay siete días cumplidos.
+- [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **COLA PUBLICADA; RETIRADA PENDIENTE:** PR #97 integrado y servido inicialmente en `3027028d`; conservado en F6 `f9196dba`. Gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. Los siete días reales aún no están acreditados.
 
 - [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]] — Historial de preparación y validación F5; publicación vigente en la nota anterior. F4.1 OFF; cierre F4 auditado, sábado pendiente.
 

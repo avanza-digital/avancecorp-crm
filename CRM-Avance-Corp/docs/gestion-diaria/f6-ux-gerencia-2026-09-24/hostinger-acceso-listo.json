@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-25T10:12:59.063142+00:00",
+  "status": "PASS",
+  "method": "hosting_listWebsitesV1",
+  "domain": "crm.miavance.com",
+  "matchedSites": 1,
+  "siteEnabled": true,
+  "credential": "Nuevo token proporcionado por Miguel; guardado y verificado en el Llavero, sin valor en esta evidencia",
+  "previousCredential": "Reintentado por solicitud del usuario: HTTP401; sustituido después por nueva credencial explícita",
+  "authorization": "autorizacion-f6.json",
+  "deployment": "PREPARED"
+}
