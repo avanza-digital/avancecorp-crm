@@ -8,6 +8,24 @@ actualizado: 2026-09-24
 Continúa [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]].
 **Preparación aditiva verificada, sin publicar ni retirar Seguimiento.**
 
+**Ampliación de F6 solicitada por Miguel el 24/09:** integrar para gerencia la
+UX/UI horizontal ya aprobada e implementada para supervisores. Reutilizar
+cabecera y resumen compactos, tabla comparativa y detalle lateral, filtros y
+navegación con contexto y foco conservados; adaptar los datos y las acciones a
+toda la operación, equipos y supervisores, pulso y hábitos y recorrido hasta
+analista, registro y ficha. Conservar las cifras y permisos de F5.
+
+Esta integración gerencial está **implementada y validada localmente**.
+Véase [[Gestion Diaria - UX horizontal de gerencia preparada (2026-09-25)]];
+revisión normal de GitHub y publicación pendientes.
+Es una entrega obligatoria añadida al goal y puede prepararse durante la
+observación. Requiere evidencia visual, legibilidad/densidad, móvil/teclado y
+regresión de los recorridos; los PASS anteriores de la cola no acreditan el
+alcance nuevo. El período de siete días sigue condicionando la retirada final.
+El plan ejecutable está en `EJECUCION-F4-1-F6-2026-09-24.md` y
+`PREPARACION-F6-2026-09-24.md`; enlaza con
+[[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]].
+
 Analista, supervisor y gerencia pueden acceder a la cola completa desde Gestión
 Diaria. Reutiliza consultas, filtros, conteos del servidor y páginas por cursor
 de 10/25/50. La fecha del resumen no cambia los pendientes actuales; se explica

@@ -1,0 +1,36 @@
+{
+  "recordedAt": "2026-09-25T05:17:31.215Z",
+  "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
+  "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
+  "mutatedNodeIds": [
+    "2:124",
+    "2:5"
+  ],
+  "nodes": [
+    {
+      "id": "2:124",
+      "text": "UX validada · revisión y publicación pendientes.",
+      "x": 28,
+      "y": 82,
+      "width": 840,
+      "height": 32
+    },
+    {
+      "id": "2:5",
+      "text": "25/09/2026 · F5 publicada · F6: UX gerencial validada; revisión y publicación pendientes.",
+      "x": 72,
+      "y": 264,
+      "width": 3100,
+      "height": 41
+    }
+  ],
+  "checkboxesUnchanged": true,
+  "scopeItemId": "94:2",
+  "retirementStillPending": true,
+  "screenshot": {
+    "file": "figma-validacion-local.png",
+    "width": 976,
+    "height": 530
+  },
+  "sourceCommit": "4a4cb1ecb8f38df77b30f0edae9853a2c39edfb5"
+}

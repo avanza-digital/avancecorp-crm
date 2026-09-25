@@ -1,4 +1,4 @@
-# F6 — Preparación para absorber Seguimiento
+# F6 — UX/UI gerencial y preparación para absorber Seguimiento
 
 24/09/2026. **Cola completa implementada y verificada; retirada NOT RUN.**
 F5 está publicada y verificada desde el **24/09/2026, 21:57:11 Lima**.
@@ -8,6 +8,27 @@ El [registro de observación](OBSERVACION-F3-F5.md) acredita T0 y conserva
 pendientes los controles diarios y la retirada, no antes del 01/10 a esa hora.
 La cola completa está en el [PR #97](https://github.com/avanza-digital/avancecorp-crm/pull/97),
 integrado en Main `3b792867`, todavía sin publicar. [Estado y evidencia](observacion-2026-09-24/PR97-INTEGRADO.md).
+
+## Ampliación de alcance: UX/UI horizontal para gerencia
+
+Miguel solicita el 24/09 integrar en gerencia la experiencia ya aprobada e
+implementada para supervisores, con la información y las acciones propias de
+gerencia. **Estado: IMPLEMENTADA Y VALIDADA LOCALMENTE; revisión GitHub y publicación pendientes.**
+[Acta y evidencia nueva](f6-ux-gerencia-2026-09-24/ACTA.md).
+Los resultados de la cola completa siguen acreditando aquella preparación.
+
+La referencia es la composición horizontal de [GESTION-DIARIA.md](GESTION-DIARIA.md):
+cabecera y resumen compactos, tabla comparativa y panel lateral de detalle,
+filtros junto a la tabla y conservación de selección, contexto y foco. En
+gerencia, adaptar estos patrones a toda la operación, comparación de equipos
+y supervisores, pulso y hábitos, y recorrido operación → equipo → analista →
+registro → ficha. Mantener las definiciones y permisos que F5 ya verifica.
+
+La entrega exige comprobar legibilidad y densidad, escritorio y móvil, teclado,
+foco y estados de carga, vacío y error. Conservar evidencia visual comparativa,
+ejecutar los controles y Docker E2E pertinentes al alcance nuevo y reflejar
+el avance en el mismo Figma, plan y vault. Puede implementarse y validarse
+durante la observación; la retirada final conserva la condición de siete días.
 
 ## Capacidades que deben conservarse
 
@@ -36,15 +57,17 @@ Las rutas siguientes son relativas a `CRM-Avance-Corp/app`.
    histórica. Mantener esa distinción visible.
 2. Conservar temporalmente ambos accesos mientras se comprueba equivalencia.
    Verificar filtros, conteos, páginas, acciones, apertura de ficha y permisos.
-3. Registrar la fecha/hora y el commit de publicación verificada de F5. Desde
+3. Integrar la UX/UI horizontal en gerencia con la adaptación por rol descrita
+   arriba y validar su experiencia completa, sin perder funciones de F5.
+4. Registrar la fecha/hora y el commit de publicación verificada de F5. Desde
    ese instante acumular al menos siete días reales de estabilidad de F3–F5.
    Una prueba sintética, la conformidad anterior o siete días desde F4 no
    sustituyen esta observación. Registrar incidencias y su cierre con evidencia.
-4. Una vez acreditado el período y sin incidencias bloqueantes pendientes,
+5. Una vez acreditado el período y sin incidencias bloqueantes pendientes,
    convertir rutas antiguas en alias seguros, retirar la entrada lateral y el
    contenedor de pantalla duplicados. Conservar componentes compartidos,
    datos, RPC, permisos y guardados pendientes.
-5. Ejecutar gates, revisión proporcional, Docker E2E, publicación desde Main
+6. Ejecutar gates, revisión proporcional, Docker E2E, publicación desde Main
    verificado y comprobación viva de enlaces antiguos. Actualizar el mismo
    tablero de Figma y el vault con el acta final.
 
@@ -52,6 +75,7 @@ Las rutas siguientes son relativas a `CRM-Avance-Corp/app`.
 
 | Caso | Resultado requerido | Estado F6 |
 | --- | --- | --- |
+| UX/UI horizontal de gerencia adaptada desde supervisión | Resumen, tabla y detalle coherentes; alcance global, cifras, acciones y recorrido gerenciales conservados; evidencia visual y Docker E2E | PASS local (gate 4.421/298, Chromium 270/0/26, WebKit 10/0); integración/publicación pendientes |
 | Matriz de roles, sesión revocada y cambio de cuenta | Mismos permisos, sin datos anteriores visibles ni nuevas capacidades | NOT RUN |
 | 101 o más oportunidades, filtros y páginas 10/25/50 | Poder llegar a todas; conteos completos del servidor y cursor válido | NOT RUN |
 | Caducidad del cursor, nueva gestión y actualización | Reiniciar posición sin omisiones ni duplicados; error recuperable | NOT RUN |
@@ -73,9 +97,9 @@ restablecer la entrada y el contenedor de Seguimiento del artefacto anterior
 verificado, conservando Gestión Diaria. Comprobar enlaces y permisos después de
 restaurar. No eliminar los alias ni el código compartido durante la observación.
 
-**Criterio de cierre:** cola equivalente demostrada, siete días acreditados,
-retirada y publicación verificadas. Este documento prepara ese trabajo; no lo
-declara ejecutado.
+**Criterio de cierre:** UX/UI horizontal gerencial integrada y verificada,
+cola equivalente demostrada, siete días acreditados, retirada y publicación
+verificadas. Este documento prepara ese trabajo; no lo declara ejecutado.
 
 ## Preparación implementada después del inventario
 
