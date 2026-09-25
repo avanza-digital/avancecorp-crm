@@ -1,4 +1,5 @@
 /* oxlint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role -- Conserva la semántica de tabla en WebKit al apilar celdas. */
+/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar las columnas con el teclado. */
 import { useId, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ArrowRight, Info, Search } from 'lucide-react'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
@@ -80,7 +81,7 @@ export function ReporteHabitos({ datos, equipos, estrecho, alAbrirAnalista }: {
           <span className="gd-conteo">{filas.length} resultados</span>
         </div>
         {persona && !filas.includes(persona) && <p className="gd-seleccion-oculta">La selección no aparece con los filtros actuales.</p>}
-        <div className="gd-tabla-scroll ac-scroll"><table role="table" className="gp-tabla gp-tabla-habitos" aria-label="Comparación de hábitos por analista">
+        <div className="gd-tabla-scroll ac-scroll" tabIndex={0} role="region" aria-label="Desplazar tabla de hábitos"><table role="table" className="gp-tabla gp-tabla-habitos" aria-label="Comparación de hábitos por analista">
           <thead role="rowgroup"><tr role="row">{COLUMNAS.map((c) => <th role="columnheader" scope="col" key={c.orden} aria-sort={orden === c.orden ? ascendente ? 'ascending' : 'descending' : 'none'}>
             <button type="button" onClick={() => { setOrden(c.orden); setAscendente(orden === c.orden ? !ascendente : c.orden === 'nombre') }} aria-label={`Ordenar hábitos por ${c.titulo.toLocaleLowerCase('es')}`}>{c.titulo}{orden === c.orden && (ascendente ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />)}</button>
           </th>)}</tr></thead>

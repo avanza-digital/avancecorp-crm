@@ -1,9 +1,11 @@
 /* oxlint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role -- Conserva la semántica de tabla en WebKit al apilar celdas. */
+/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar las columnas con el teclado. */
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, Search } from 'lucide-react'
+import { ArrowDown, ArrowUp, ListFilter, Search } from 'lucide-react'
 import { cifraPulso, type EquipoPulso } from '@/lib/gestion-diaria-pulso'
 import { hashDe } from '@/lib/router'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 type Orden = 'nombre' | 'llamadas' | 'contacto' | 'sin_actividad' | 'vencidas' | 'primer_intento' | 'dispersion'
 const COLUMNAS: { orden: Orden; titulo: string }[] = [
@@ -28,8 +30,9 @@ export function ComparacionEquiposGerencia({ equipos, abrir }: { equipos: Equipo
   const [atencion, setAtencion] = useState(false)
   const [orden, setOrden] = useState<Orden>('nombre')
   const [ascendente, setAscendente] = useState(true)
+  const conAtencion = equipos.filter((e) => e.metricas.sin_actividad > 0 || e.tareas_vencidas > 0 || (e.primer_intento_vencido ?? 0) > 0)
   const filas = equipos.filter((e) => e.nombre.toLocaleLowerCase('es').includes(busqueda.trim().toLocaleLowerCase('es'))
-    && (!atencion || e.metricas.sin_actividad > 0 || e.tareas_vencidas > 0 || (e.primer_intento_vencido ?? 0) > 0))
+    && (!atencion || conAtencion.includes(e)))
     .toSorted((a, b) => {
       const nombre = a.nombre.localeCompare(b.nombre, 'es')
       if (orden === 'nombre') return nombre * (ascendente ? 1 : -1)
@@ -40,10 +43,10 @@ export function ComparacionEquiposGerencia({ equipos, abrir }: { equipos: Equipo
   return <>
     <div className="gd-filtros gp-filtros">
       <div className="gd-busqueda"><Search aria-hidden /><Input type="search" aria-label="Buscar equipo" placeholder="Buscar equipo" className="min-h-11 pl-9 text-base" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
-      <label className="gp-filtro-check"><input type="checkbox" checked={atencion} onChange={(e) => setAtencion(e.target.checked)} />Con vencidas o sin actividad</label>
+      <Button variant={atencion ? 'default' : 'outline'} className="min-h-11 text-base" aria-pressed={atencion} onClick={() => setAtencion(!atencion)}><ListFilter aria-hidden />Con atención ({conAtencion.length})</Button>
       <span className="gd-conteo">{filas.length} de {equipos.length} equipos</span>
     </div>
-    <div className="gd-tabla-scroll ac-scroll"><table role="table" className="gp-tabla gp-tabla-equipos" aria-label="Resumen por supervisor">
+    <div className="gd-tabla-scroll ac-scroll" tabIndex={0} role="region" aria-label="Desplazar tabla de equipos"><table role="table" className="gp-tabla gp-tabla-equipos" aria-label="Resumen por supervisor">
       <thead role="rowgroup"><tr role="row">{COLUMNAS.map((c) => <th role="columnheader" scope="col" key={c.orden} aria-sort={orden === c.orden ? ascendente ? 'ascending' : 'descending' : 'none'}>
         <button type="button" onClick={() => { setOrden(c.orden); setAscendente(orden === c.orden ? !ascendente : c.orden === 'nombre') }} aria-label={`Ordenar equipos por ${c.titulo.toLocaleLowerCase('es')}`}>
           {c.titulo}{orden === c.orden && (ascendente ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />)}

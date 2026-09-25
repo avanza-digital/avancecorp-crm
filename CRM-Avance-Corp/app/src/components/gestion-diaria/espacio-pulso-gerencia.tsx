@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type RefObject, type MouseEvent } from 'react'
-import { ArrowLeft, Search } from 'lucide-react'
+import { ArrowLeft, ListFilter, Search } from 'lucide-react'
 import { type PulsoGerencia, type EquipoPulso, cifraPulso } from '@/lib/gestion-diaria-pulso'
 import { filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo } from '@/lib/gestion-diaria-equipo'
 import { hashDe } from '@/lib/router'
@@ -110,7 +110,7 @@ export function EspacioPulsoGerencia({ datos, ruta, consulta, actualizacion, est
       {grupo && <>
         <div className="gd-filtros gp-filtros">
           <div className="gd-busqueda"><Search aria-hidden /><Input type="search" aria-label="Buscar analista del equipo" placeholder="Buscar analista" className="min-h-11 pl-9 text-base" value={filtros.busqueda} onChange={(e) => cambiarFiltros((f) => ({ ...f, busqueda: e.target.value }))} /></div>
-          <label className="gp-filtro-check"><input type="checkbox" checked={filtros.soloProblemas} onChange={(e) => cambiarFiltros((f) => ({ ...f, soloProblemas: e.target.checked }))} />Requieren atención</label>
+          <Button variant={filtros.soloProblemas ? 'default' : 'outline'} className="min-h-11 text-base" aria-pressed={filtros.soloProblemas} onClick={() => cambiarFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}><ListFilter aria-hidden />Con atención ({filas.filter((f) => f.requiere_atencion).length})</Button>
           <span className="gd-conteo">{mostradas.length} de {filas.length} analistas</span>
         </div>
         {consulta.error ? <ErrorConsultaGerencia error={consulta.error} recargar={consulta.recargar} enVuelo={consulta.enVuelo} /> : consulta.cargando ? <PanelCargando /> : <>

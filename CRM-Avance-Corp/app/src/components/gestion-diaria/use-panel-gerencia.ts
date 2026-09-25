@@ -6,7 +6,9 @@ export function usePanelGerencia(pantalla: RefObject<HTMLElement | null>) {
   useLayoutEffect(() => {
     const nodo = pantalla.current
     if (!nodo || typeof ResizeObserver === 'undefined') return
-    const medir = () => setEstrecho(nodo.clientWidth < 1236)
+    // Desde 960 px útiles caben tabla (584) + separación (16) + detalle (360).
+    // Las columnas adicionales desplazan dentro de la tabla, no toda la página.
+    const medir = () => setEstrecho(nodo.clientWidth < 960)
     const observer = new ResizeObserver(medir)
     observer.observe(nodo)
     medir()

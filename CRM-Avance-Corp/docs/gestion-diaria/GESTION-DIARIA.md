@@ -1,5 +1,11 @@
 # GESTIÓN DIARIA — el documento único
 
+> **Corrección visual reabierta el 25/09:** Miguel reportó diferencias con
+> supervisión y reiteró la orientación horizontal. Se corrige la composición
+> con el menú abierto, manteniendo el alcance gerencial. La publicación previa
+> sigue acreditada; esta corrección aún no está publicada.
+> [Evidencia y estado](f6-paridad-ui-2026-09-25/ACTA.md).
+
 > **Decisión vigente del 24/09:** Miguel cierra sus pendientes de validación manual,
 > pide auditoría y continuar F4.1–F6. Auditoría dirigida: 57 pruebas, 6 E2E Docker y
 > lectura en cuatro sesiones Auth nuevas del banco PASS; reaviso productivo único

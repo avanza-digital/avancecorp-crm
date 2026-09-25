@@ -1,5 +1,11 @@
 # F6 — UX/UI gerencial y preparación para absorber Seguimiento
 
+> **Corrección visual reabierta el 25/09:** Miguel reportó diferencias con
+> supervisión y reiteró la orientación horizontal. Se corrige la composición
+> con el menú abierto, manteniendo el alcance gerencial. La publicación previa
+> sigue acreditada; esta corrección aún no está publicada.
+> [Evidencia y estado](f6-paridad-ui-2026-09-25/ACTA.md).
+
 24/09/2026. **Cola completa implementada y verificada; retirada NOT RUN.**
 F5 está publicada y verificada desde el **24/09/2026, 21:57:11 Lima**.
 El período obligatorio de siete días estables ha empezado; aún no se ha cumplido.

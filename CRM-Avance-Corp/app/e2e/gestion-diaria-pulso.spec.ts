@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal, leadReal, UID } from './_helpers'
 import fixture from '../src/lib/gestion-diaria-f5.test.fixture.json' with { type: 'json' }
+import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
 
 // Transporte interceptado sobre respuestas SQL sintéticas reales. No prueba
 // por sí solo Auth/RLS: las 18 solicitudes PostgREST del banco cubren esa capa.
@@ -63,6 +64,79 @@ async function montar(page: Page) {
   return estado
 }
 
+test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil', async ({ page, browser, baseURL }, info) => {
+  const referencia = await browser.newPage({ baseURL, viewport: { width: 1366, height: 900 } })
+  await referencia.clock.setFixedTime(new Date('2026-09-24T15:00:00Z'))
+  await montarBackendReal(referencia, { rolCrm: 'supervisor', leads: [], tareas: [] })
+  await referencia.route('**/rest/v1/rpc/gestion_diaria_equipo_fn', route => route.fulfill({ json: {
+    ...diaEquipoPrueba(Array.from({ length: 10 }, (_, i) => filaEquipoPrueba({
+      analista_id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, nombre_completo: `ANALISTA ${i + 1}`,
+    }))), dia: '2026-09-24', supervisor_id: UID,
+  } }))
+  await loginReal(referencia)
+  await referencia.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
+  await expect(referencia.getByRole('group', { name: 'Resumen del equipo' })).toBeVisible()
+  await referencia.screenshot({ path: info.outputPath('supervision-1366-menu-abierto.png'), fullPage: true })
+  await referencia.close()
+
+  await montar(page)
+  await page.getByRole('button', { name: 'Fijar menú abierto', exact: true }).click()
+  await page.mouse.move(1000, 80)
+  for (const [width, height] of [[1366, 900], [1366, 768], [1280, 800]]) {
+    await page.setViewportSize({ width: width!, height: height! })
+    await page.screenshot({ path: info.outputPath(`gerencia-${width}x${height}-menu-abierto.png`), fullPage: true })
+    const panel = page.getByRole('region', { name: 'Detalle de la operación', exact: true })
+    await expect(panel).toBeVisible()
+    const tabla = await page.getByRole('region', { name: 'Equipos de la operación', exact: true }).boundingBox()
+    const lateral = await panel.boundingBox()
+    expect(lateral!.x).toBeGreaterThanOrEqual(tabla!.x + tabla!.width)
+    expect(Math.abs(lateral!.y - tabla!.y)).toBeLessThan(2)
+    expect(tabla!.y).toBeLessThan(350)
+    const indicadores = page.getByRole('region', { name: 'Indicadores de la operación' })
+    const posiciones = await indicadores.locator('dl>div').evaluateAll(nodos => nodos.map(n => n.getBoundingClientRect().y))
+    expect(new Set(posiciones).size).toBe(1)
+    expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate(n => n.scrollHeight <= n.clientHeight + 1 && n.scrollWidth <= n.clientWidth + 1)).toBe(true)
+  }
+  const columnas = page.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true })
+  await columnas.focus(); await columnas.press('ArrowRight')
+  await expect.poll(() => columnas.evaluate(n => n.scrollLeft)).toBeGreaterThan(0)
+  await columnas.evaluate(n => { n.scrollTop = n.scrollHeight; n.scrollLeft = n.scrollWidth })
+  const encabezado = columnas.getByRole('columnheader').first()
+  await page.screenshot({ path: info.outputPath('gerencia-tabla-desplazada.png'), fullPage: true })
+  await expect.poll(() => encabezado.evaluate(n => {
+    const r = n.getBoundingClientRect()
+    return Boolean(document.elementFromPoint(r.x + 16, r.bottom - 8)?.closest('thead'))
+  })).toBe(true)
+  await page.getByRole('button', { name: 'Ordenar equipos por dispersión de contacto', exact: true }).focus()
+  await expect(page.getByRole('link', { name: grupo.nombre, exact: true })).toBeInViewport()
+  await page.getByRole('button', { name: 'Comparar días', exact: true }).click()
+  await expect(page.getByRole('table', { name: 'Cifras del día, anterior y referencia' }).getByRole('row')).toHaveCount(9)
+  await page.screenshot({ path: info.outputPath('gerencia-comparacion.png'), fullPage: true })
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Comparar días', exact: true })).toBeFocused()
+  await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
+  await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Detalle de la operación', exact: true })).toContainText(analista.nombre_completo!)
+  expect(await page.getByRole('table', { name: 'Actividad y pendientes por analista' }).locator('tbody tr').first().evaluate(n => getComputedStyle(n).display)).toBe('table-row')
+  await page.screenshot({ path: info.outputPath('gerencia-analista-horizontal.png'), fullPage: true })
+  await page.getByRole('tab', { name: 'Hábitos del equipo', exact: true }).click()
+  await page.getByRole('button', { name: `Ver hábitos de ${analista.nombre_completo}`, exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const habitos = await page.getByRole('region', { name: 'Comparación de hábitos', exact: true }).boundingBox()
+  const detalleHabitos = await page.getByRole('region', { name: 'Detalle de hábitos', exact: true }).boundingBox()
+  expect(detalleHabitos!.x).toBeGreaterThanOrEqual(habitos!.x + habitos!.width)
+  await page.screenshot({ path: info.outputPath('gerencia-habitos-horizontal.png'), fullPage: true })
+  await page.setViewportSize({ width: 1248, height: 700 })
+  const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
+  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(960)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Detalle de hábitos', exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 1247, height: 700 })
+  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(959)
+  await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
+})
+
 test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto', async ({ page }, info) => {
   const estado = await montar(page)
   const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
@@ -104,6 +178,15 @@ test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con 
 
 test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {
   const estado = await montar(page)
+  for (const width of [390, 360, 320]) {
+    await page.setViewportSize({ width, height: 844 })
+    await expect.poll(() => page.getByRole('region', { name: 'Indicadores de la operación' }).locator('dl>div').evaluateAll(casillas =>
+      casillas.flatMap(casilla => Array.from(casilla.children).filter(n => {
+        const caja = casilla.getBoundingClientRect(), texto = n.getBoundingClientRect()
+        return texto.left < caja.left || texto.right > caja.right
+      }).map(n => n.textContent)),
+    )).toEqual([])
+  }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.mouse.move(380, 80)
   const dia = page.getByLabel('Día de la operación', { exact: true })
@@ -237,7 +320,7 @@ test('F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensi
   await expect(panel.getByRole('listitem')).toHaveCount(26)
   await page.screenshot({ path: info.outputPath('f6-registro-ampliado.png'), fullPage: true })
   await panel.getByRole('button', { name: 'Restaurar panel', exact: true }).click()
-  await page.setViewportSize({ width: 1100, height: 900 })
+  await page.setViewportSize({ width: 1000, height: 900 })
   await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
   await expect(etapa).toHaveValue('nuevo')
   await expect(panel.getByRole('listitem')).toHaveCount(26)
