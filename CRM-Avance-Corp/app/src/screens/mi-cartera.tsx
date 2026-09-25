@@ -111,6 +111,18 @@ import type {
  * (mismo criterio que FilaCliente/FilaContrato: cerrada es estado normal).
  */
 const AVISO_VENTANA_MS = 30 * 60_000
+const ROLES_PORTAL_CORRECCION_CLIENTE = new Set(['admin', 'superadmin', 'operaciones', 'analista'])
+
+function puedeCorregirDatosCliente(
+  cliente: ClienteBasico,
+  edicionGlobal: boolean,
+  rolPortal: string | null | undefined,
+  yoId: string | null | undefined,
+): boolean {
+  return edicionGlobal || (
+    ROLES_PORTAL_CORRECCION_CLIENTE.has(rolPortal ?? '') && esMiCliente(cliente, yoId ?? '')
+  )
+}
 
 /** Lectura local del resultado N3. Ausente = el núcleo no pudo confirmar nada;
  *  `no_aportada` sólo existe cuando su mapa completo sí descartó la operación. */
@@ -1254,7 +1266,6 @@ function VistaMiCartera({
       ambitoGlobal ||
       esMiCliente(g.cliente, yoId) ||
       (yo?.rol === 'supervisor' && dueno != null && rosterIds.has(dueno))
-    const clientePropio = esMiCliente(g.cliente, yoId)
     // Consultar y mutar son capacidades distintas: Directorio tiene lectura
     // global de la ficha comercial redactada, pero jamás hereda una escritura.
     const consultable = lecturaCarteraHabilitada && dentroDelAmbito
@@ -1265,7 +1276,8 @@ function VistaMiCartera({
     // lista y en el radar de vencimiento, pero no reciben botones que el RPC
     // rechazará hasta que Administración los reactive.
     const accionable = accionesContractualesHabilitadas && dentroDelAmbito && g.cliente.activo
-    const corregibleCliente = accionable && (edicionGlobal || clientePropio)
+    const corregibleCliente = accionable
+      && puedeCorregirDatosCliente(g.cliente, edicionGlobal, yo?.rol_portal, yoId)
 
     return {
       grupo: g,
@@ -1893,6 +1905,8 @@ export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolea
         puedeContratar: !gestionarSolo && yo?.puede_contratar === true,
       })
     : null
+  const corregibleFicha = grupoFicha != null && contextoFicha?.accionable === true
+    && puedeCorregirDatosCliente(grupoFicha.cliente, contextoFicha.edicionGlobal, yo?.rol_portal, yo?.id)
 
   // Si una actualización de cartera retira al cliente del ámbito (por ejemplo,
   // después de una reasignación), no conservamos un overlay invisible que
@@ -2003,6 +2017,8 @@ export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolea
     })
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenCarteraClientes(yo?.id) })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.cuentasBancarias(id, 'PEN') })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.cuentasBancarias(id, 'USD') })
   }
 
   // Crear/corregir contrato → refrescar tanto la cartera como los núcleos de
@@ -2149,7 +2165,7 @@ export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolea
                 : undefined
             }
             onCorregir={
-              contextoFicha.accionable
+              corregibleFicha
                 ? () =>
                     setOverlay({
                       tipo: 'cliente-corregir',

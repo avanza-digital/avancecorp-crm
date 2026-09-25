@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { contextoContratacionDesdeAcceso } from "../_shared/acceso-crm.mjs";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
 import { validarBancarios } from "../_shared/bancarios.mjs";
+import { clasificarAltaPerfilConCuentas, compensarAuthAltaRechazada } from "../_shared/alta-perfil-cuentas.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
 import {
   authTieneMarca,
@@ -180,8 +181,8 @@ Deno.serve(async (req: Request) => {
 
     // DATOS BANCARIOS — FRONTERA (2026-07-27). La cuenta donde se le deposita el
     // interés al cliente deja de ser una regla del navegador: se exige AQUÍ, antes
-    // de tocar Auth, `perfiles` o el correo de bienvenida, y las columnas entran
-    // en el MISMO INSERT del cliente. Antes se escribían en un segundo UPDATE
+    // de tocar Auth, `perfiles` o el correo de bienvenida, y la RPC inserta
+    // perfil + cuentas en la MISMA transacción. Antes se escribían en un UPDATE
     // desde el front: un POST directo, un front viejo o un fallo de red creaban un
     // cliente REAL, con correo enviado, al que el área de pagos no podía
     // transferir. Fail-closed: sin bloque válido no se crea nada.
@@ -199,7 +200,22 @@ Deno.serve(async (req: Request) => {
     }
     const valBancarios = validarBancarios(bancarios);
     if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
-    const columnasBancarias = valBancarios.columnas;
+    const cuentasBancarias = valBancarios.cuentas;
+    const crearPerfilConCuentas = (
+      id: string, nombre: string, apellidosCliente: string | null,
+      nombresCliente: string | null, telefonoCliente: string | null,
+      asesorId: string | null,
+    ) => adminClient.schema("crm").rpc("crear_perfil_cliente_con_cuentas", {
+      p_perfil: {
+        id, nombre_completo: nombre, apellidos: apellidosCliente,
+        nombres: nombresCliente, tipo_documento: tipoDoc, dni: dniLimpio,
+        telefono: telefonoCliente, domicilio: domicilioLegal,
+        correo: emailNormalizado, debe_cambiar_password: true,
+        asesor_perfil_id: asesorId,
+      },
+      p_cuentas: cuentasBancarias,
+      p_actor_id: callerId,
+    });
 
     let perfilId = "";
     let yaExistia = false;
@@ -302,33 +318,23 @@ Deno.serve(async (req: Request) => {
         }
         perfilId = created.user.id;
 
-        const { error: perfilErr } = await adminClient.from("perfiles").insert({
-          id: perfilId,
-          nombre_completo: nombreNormalizado,
-          apellidos: apellidosNorm,
-          nombres: nombresNorm,
-          tipo_documento: tipoDoc,
-          dni: dniLimpio,
-          telefono: (telefono ?? lead.telefono ?? "").toString().trim() || null,
-          domicilio: domicilioLegal,
-          correo: emailNormalizado,
-          rol: "cliente",
-          activo: true,
-          creado_por: callerId,
-          debe_cambiar_password: true,
-          asesor_perfil_id: asesorId,
-          // Las 14 columnas bancarias, ya validadas arriba: el cliente NACE con su
-          // cuenta. Si este insert falla, no queda cliente a medias (se borra el
-          // usuario de Auth justo debajo).
-          ...columnasBancarias,
-        });
-        if (perfilErr) {
-          await adminClient.auth.admin.deleteUser(perfilId);
-          if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
-            return json(cors, { error: "Este documento ya está registrado" }, 409);
+        const repetirAltaPerfil = () => crearPerfilConCuentas(
+          perfilId, nombreNormalizado, apellidosNorm, nombresNorm,
+          (telefono ?? lead.telefono ?? "").toString().trim() || null,
+          asesorId,
+        );
+        const altaPerfil = await repetirAltaPerfil();
+        const estadoPerfil = await clasificarAltaPerfilConCuentas(adminClient, perfilId, altaPerfil, repetirAltaPerfil);
+        if (estadoPerfil === "incierta") {
+          return json(cors, { error: "No se pudo confirmar el alta. El usuario quedó reservado para revisión; no repitas la conversión." }, 503);
+        }
+        if (estadoPerfil === "rechazada") {
+          if (!await compensarAuthAltaRechazada(adminClient, perfilId)) {
+            return json(cors, { error: "No se pudo completar ni revertir el alta. Requiere revisión de Gerencia." }, 503);
           }
-          if (perfilErr.code === "23514") return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
-          return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
+          if (altaPerfil.error?.code === "23505") return json(cors, { error: "El documento o correo ya está registrado" }, 409);
+          if (altaPerfil.error?.code === "23514") return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
+          return json(cors, { error: "No se pudo registrar el cliente y sus cuentas. Reintenta la conversión." }, 400);
         }
 
         // EL CORREO YA NO SE MANDA AQUÍ. Ver el bloque de abajo, tras cerrar el
@@ -466,24 +472,27 @@ Deno.serve(async (req: Request) => {
         nombreParaBienvenida = nombreNormalizado;
         nombreCortoBienvenida = nombresNorm || nombreNormalizado;
         if (saga.paso !== "enlazar") {
-          const { error: perfilErr } = await adminClient.from("perfiles").insert({
-            id: newUserId, nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
-            tipo_documento: tipoDoc, dni: dniLimpio, telefono: telefonoNorm, domicilio: domicilioLegal,
-            correo: emailNormalizado, rol: "cliente", activo: true, creado_por: callerId,
-            debe_cambiar_password: true, asesor_perfil_id: lead.vendedor_id, ...columnasBancarias,
-          });
-          if (perfilErr) {
-            const decision = decidirTrasFalloPerfil(perfilErr);
+          const repetirAltaPerfil = () => crearPerfilConCuentas(
+            newUserId, nombreNormalizado, apellidosNorm, nombresNorm,
+            telefonoNorm, lead.vendedor_id,
+          );
+          const altaPerfil = await repetirAltaPerfil();
+          const estadoPerfil = await clasificarAltaPerfilConCuentas(adminClient, newUserId, altaPerfil, repetirAltaPerfil);
+          if (estadoPerfil === "incierta") {
+            return json(cors, { error: "No se pudo confirmar el alta. Reintenta para reanudar la conversión sin crear otro usuario." }, 503);
+          }
+          if (estadoPerfil === "rechazada") {
+            const decision = decidirTrasFalloPerfil(altaPerfil.error ?? {});
             if (decision === "compensar") {
-              const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-              if (!delErr) {
-                const rc = await avanzar("compensar_auth", {});
-                if (rc.error) console.warn("crm-convertir-lead: compensar_auth pendiente:", rc.error.message);
+              if (!await compensarAuthAltaRechazada(adminClient, newUserId)) {
+                return json(cors, { error: "No se pudo revertir el alta. Requiere revisión de Gerencia." }, 503);
               }
+              const rc = await avanzar("compensar_auth", {});
+              if (rc.error) return json(cors, { error: "El usuario se revirtió, pero la saga requiere revisión de Gerencia." }, 503);
               return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
             }
-            if (decision === "revision") return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia)" }, 409);
-            if (decision === "error") return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
+            if (decision === "revision" || decision === "perfil_ya_existia") return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia)" }, 409);
+            return json(cors, { error: "No se pudo registrar el cliente y sus cuentas. Reintenta la conversión." }, 400);
           }
           const r = await avanzar("perfil_creado", { perfil_id: newUserId });
           if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
@@ -551,8 +560,8 @@ Deno.serve(async (req: Request) => {
       email_enviado: emailEnviado,
       ...(emailError ? { email_error: emailError } : {}),
     }, 200);
-  } catch (e) {
-    return json(corsHeaders(req), { error: (e as Error)?.message || "Error inesperado" }, 500);
+  } catch {
+    return json(corsHeaders(req), { error: "No se pudo completar la conversión. Reintenta o contacta a soporte." }, 500);
   }
 });
 

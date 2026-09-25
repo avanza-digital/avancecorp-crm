@@ -10,6 +10,7 @@ export interface CuentaClienteVista {
   titularDistinto: boolean
   beneficiarioNombre: string | null
   beneficiarioDni: string | null
+  origen?: CuentaBancariaSeleccionable['origen'] | null
   /** null = casilla vigente del perfil (no tiene fecha de registro propia). */
   registradaEn: string | null
 }
@@ -28,6 +29,7 @@ export function cuentaClienteDesdeRpc(cuenta: CuentaBancariaSeleccionable): Cuen
     titularDistinto: cuenta.titular_distinto,
     beneficiarioNombre: cuenta.beneficiario_nombre,
     beneficiarioDni: cuenta.beneficiario_dni,
+    origen: cuenta.origen,
     registradaEn: cuenta.creada_en,
   }
 }
@@ -55,5 +57,5 @@ export function cuentasClienteEmbebidas(detalle: ClienteDetalle, moneda: Moneda)
           beneficiarioDni: detalle.beneficiario_dni,
         }
   const tieneCuenta = [cuenta.banco, cuenta.tipoCuenta, cuenta.numeroCuenta, cuenta.cci].some((dato) => dato?.trim())
-  return tieneCuenta ? [{ clave: `perfil-${moneda}`, ...cuenta, registradaEn: null }] : []
+  return tieneCuenta ? [{ clave: `perfil-${moneda}`, ...cuenta, origen: null, registradaEn: null }] : []
 }

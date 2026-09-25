@@ -70,7 +70,7 @@ export async function obtenerFichaInversionista(id: string, paginaInversiones: n
 }
 
 const CuentaSchema = v.object({
-  cuenta_id: v.nullable(v.string()), moneda: v.picklist(['PEN', 'USD']), origen: v.picklist(['perfil', 'contrato']),
+  cuenta_id: v.nullable(v.string()), moneda: v.picklist(['PEN', 'USD']), origen: v.picklist(['perfil', 'contrato', 'portal']),
   es_cuenta_perfil: v.boolean(), creada_en: v.nullable(v.string()), banco: v.string(),
   tipo_cuenta: v.picklist(['ahorros', 'corriente']), numero_cuenta: v.string(), cci: v.string(),
   titular_distinto: v.boolean(), beneficiario_nombre: v.nullable(v.string()), beneficiario_dni: v.nullable(v.string()),

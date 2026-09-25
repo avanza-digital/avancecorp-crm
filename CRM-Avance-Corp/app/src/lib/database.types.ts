@@ -5722,6 +5722,10 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_cuenta_cliente: {
+        Args: { p_cliente_id: string; p_cuenta: Json }
+        Returns: string
+      }
       registrar_actividad_v2: {
         Args: {
           p_detalle?: string

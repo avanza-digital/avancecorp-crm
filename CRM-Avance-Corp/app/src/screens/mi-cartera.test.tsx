@@ -1111,9 +1111,30 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText('Información del cliente')).toBeInTheDocument()
     expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
     expect(screen.getByText('Cuenta para recibir pagos en soles')).toBeInTheDocument()
-    expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
+    expect(screen.getByText('••••1234')).toBeInTheDocument()
     expect(screen.getByText('Cuenta para recibir pagos en dólares')).toBeInTheDocument()
     expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
+  })
+
+  it('el vendedor comercial consulta la Ficha 360 sin acceso a Corregir datos', async () => {
+    const user = userEvent.setup()
+    montar({ yo: { id: 'yo', rol: 'vendedor', rol_portal: 'comercial', puede_contratar: true, demo: false } })
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    expect(within(ficha).getByText('Cuenta para recibir pagos en soles')).toBeInTheDocument()
+    expect(within(ficha).queryByRole('button', { name: 'Corregir datos' })).not.toBeInTheDocument()
+  })
+
+  it('el analista de la cartera puede abrir Corregir datos desde la Ficha 360', async () => {
+    const user = userEvent.setup()
+    montar({ yo: { id: 'yo', rol: 'vendedor', rol_portal: 'analista', puede_contratar: true, demo: false } })
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    expect(within(ficha).getByRole('button', { name: 'Corregir datos' })).toBeInTheDocument()
   })
 
   it('vuelve de Gestionar a la misma Ficha 360 y enfoca Seguimiento', async () => {
@@ -1379,8 +1400,8 @@ describe('MiCartera (demo aislada)', () => {
 
     expect(screen.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })).toBeInTheDocument()
     expect(screen.getByText('rosa.aguilar@correo.pe')).toBeInTheDocument()
-    expect(screen.getByText('19100000001234')).toBeInTheDocument()
-    expect(screen.getByText('00219100000000123456')).toBeInTheDocument()
+    expect(screen.getByText('••••1234')).toBeInTheDocument()
+    expect(screen.getByText('••••3456')).toBeInTheDocument()
     // El hook conserva su orden estable, pero recibe enabled=false: el fixture
     // es la única fuente y obtenerClienteDetalle nunca puede ejecutarse.
     expect(useClienteDetalleMock).toHaveBeenCalledWith('dc-cli-1', false)
@@ -1984,9 +2005,9 @@ describe('MiCartera — supervisión (filtro por analista + Sin analista)', () =
     expect(within(filaContrato).queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
   })
 
-  it('sí permite al supervisor corregir su propio cliente dentro de la ventana', () => {
+  it('sí permite al supervisor con rol portal analista corregir su propio cliente dentro de la ventana', () => {
     montar({
-      yo: YO_SUP,
+      yo: { ...YO_SUP, rol_portal: 'analista' },
       equipo: EQUIPO_SUP,
       clientes: [cliente({ asesor_perfil_id: 'sup', creado_por: 'sup' })],
       contratos: [],
@@ -2190,7 +2211,7 @@ describe('MiCartera (móvil, card-stack)', () => {
 
     expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
     expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
-    expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
+    expect(screen.getByText('••••1234')).toBeInTheDocument()
     expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
   })
 
@@ -2330,9 +2351,15 @@ describe('MiCartera (móvil, card-stack)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('Corregir cliente: PRESENTE si es mío y con ventana viva', () => {
+  it('Corregir cliente: AUSENTE para vendedor aunque sea suyo y la ventana siga viva', () => {
     activarMovil()
     montar() // cliente creado_por 'yo', creado_en reciente → ventana viva
+    expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
+  })
+
+  it('Corregir cliente: PRESENTE para analista dueño con ventana viva', () => {
+    activarMovil()
+    montar({ yo: { id: 'yo', rol: 'vendedor', rol_portal: 'analista', puede_contratar: true, demo: false } })
     expect(screen.getByRole('button', { name: 'Corregir cliente' })).toBeInTheDocument()
   })
 

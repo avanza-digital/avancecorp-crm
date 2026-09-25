@@ -213,5 +213,6 @@ test('la edge usa la RPC con JWT y no vuelve a leer crm.equipo con service_role'
   assert.ok(fuenteEdge.includes('await userClient\n      .schema("crm").rpc("mi_acceso_fn")'));
   assert.ok(fuenteEdge.includes('resolverAutorizacionAltaCliente(perfil, acceso, callerId)'));
   assert.equal(fuenteEdge.includes('.schema("crm")\n        .from("equipo")'), false);
-  assert.ok(fuenteEdge.includes('asesor_perfil_id: autorizacion.asesorId'));
+  assert.ok(fuenteEdge.includes('let asesorIdAlta = autorizacion.asesorId'));
+  assert.ok(fuenteEdge.includes('asesor_perfil_id: asesorIdAlta'));
 });

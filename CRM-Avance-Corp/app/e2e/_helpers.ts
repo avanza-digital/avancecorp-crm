@@ -260,7 +260,7 @@ export interface CuentaBancariaReal {
   titular_distinto: boolean
   beneficiario_nombre: string | null
   beneficiario_dni: string | null
-  origen: 'perfil' | 'contrato'
+  origen: 'perfil' | 'contrato' | 'portal'
   es_cuenta_perfil: boolean
   creada_en: string | null
 }
