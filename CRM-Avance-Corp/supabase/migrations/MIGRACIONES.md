@@ -1,7 +1,12 @@
 ## 20260925002615 — public.audit_log pasa a ser de solo añadir
 
-**PREPARADA, NO APLICADA (25/09/2026).** P1 #2 de la auditoría ACID; OK de Miguel el
-24/09 («Arranca sii»). **Excepción escrita** a la regla «ninguna migración altera
+**PUBLICADA Y VERIFICADA el 25/09/2026 ~02:08 UTC** (Miguel, con `!` y `db query --file`).
+Veredicto `AUDIT_LOG_SOLO_ANADIR_OK`. Postflight comprobado a mano: candado `c93672e8…`, dos
+triggers `O` (27 y 34), ACL `anon=ar authenticated=ar service_role=arm`, ninguna API conserva
+UPDATE, DELETE ni TRUNCATE, y EXECUTE del candado solo para el dueño. Logs 01:55–02:15 sin
+P0409, 42501 ni tiempos agotados. Advisors de seguridad sin hallazgos sobre estos objetos.
+Registro en `supabase_migrations`: pendiente (decisión de Miguel).
+P1 #2 de la auditoría ACID; OK de Miguel el 24/09 («Arranca sii»). **Excepción escrita** a la regla «ninguna migración altera
 public» (LEEME), con precedente en el P-055 (F1, F3 y F7).
 Antes (prod, 24/09): `anon=arwd`, `authenticated=arwd`, `service_role=arwdDxtm`, sin
 trigger: solo la falta de policy frenaba a las API, y service_role podía editar,
@@ -35,8 +40,13 @@ Reversa: `supabase/scripts/rollback-audit-log-solo-anadir.sql`.
 
 ## 20260925001914 — SLA: el veto de contacto se consulta una vez por lote
 
-**PREPARADA, NO APLICADA (25/09/2026).** P1 #1 de la auditoría ACID; OK de Miguel el
-24/09. Causa medida en prod: `private.sla_operacion_leads` tardaba 6 628 ms en la cartera
+**PUBLICADA Y VERIFICADA el 25/09/2026 ~02:00 UTC** (Miguel, con `!` y `db query --file`).
+Veredicto en prod: 2304 filas y 0 distintas (10 vetadas); 2301 y 0 distintas (7 vetadas);
+1 127 ms. Postflight comprobado a mano: cuerpo `12749d60…`, sin candidata, `assert_sla_nucleo`
+OK, ACL solo del dueño. RPC reales como gerencia, antes → después:
+`avisos_sla_resumen_v2_fn` 4 709 → **1 582 ms**, `cola_accion_v2_fn` 5 096 → **1 976 ms**,
+`gestion_diaria_equipo_fn` 4 715 → **1 576 ms**. Registro en `supabase_migrations`: pendiente.
+P1 #1 de la auditoría ACID; OK de Miguel el 24/09. Causa medida en prod: `private.sla_operacion_leads` tardaba 6 628 ms en la cartera
 global (2302 leads), y de eso 5 658 ms eran `persona_vetada(id)` fila por fila. En lote,
 `leads_vetados_persona` tarda 57 ms. Por ahí pasan las cuatro RPC que se quedan sin
 tiempo (~60 al día contra el tope de 8 s): avisos_sla_resumen_v2, cola_accion_v2,
