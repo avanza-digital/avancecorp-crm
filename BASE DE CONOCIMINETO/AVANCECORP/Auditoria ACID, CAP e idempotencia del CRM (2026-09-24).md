@@ -110,15 +110,32 @@ banco Docker con el gate RLS antes y después, y review de Codex. Relacionado:
 [[PLAN MAESTRO del servidor (P-055) - de la deuda a la capa semantica]] ·
 [[Analisis de propuesta SLA por etapas - 2026-09-06]] · [[Inicio]].
 
-## ⏸️ En curso (pausa del 24/09 por la tarde)
+## ✅ P1 #1 y #2 EN PRODUCCIÓN (25/09/2026, ~02:00–02:08 UTC)
 
-Miguel autorizó los P1 #1 y #2 («Arranca sii»). Se midió todo; **no hay nada escrito ni
-aplicado todavía**.
+Los aplicó Miguel con `!` tras ensayarlos en prod (deshechos), en un banco Docker propio a
+paridad y con dos revisiones. Cambios en la PR #96 (`fde86d24`).
 
-- **#1 SLA:** en la cartera global (2302 leads) la función tarda 6,6 s, y **5,7 s** son la
-  consulta del veto de contacto lead por lead. La misma consulta en lote tarda **57 ms**. Tras el
-  arreglo se espera ~1 s. Las 4 RPC con tiempo agotado pasan por esa función.
-- **#2 `audit_log`:** hay que dejar pasar la cascada que anonimiza al actor cuando se borra un
-  usuario (`usuario_id → NULL`). Si no, borrar un usuario fallaría.
+- **#1 SLA:** el veto de contacto se consulta en lote. La función de la cartera global pasó
+  de 6,6 s a **1,1 s**, con 0 filas distintas frente a la versión anterior. Las RPC reales como
+  gerencia, antes → después:
 
-Detalle técnico para retomar: memoria `auditoria-acid-cap-idempotencia` del proyecto.
+  | RPC | Antes | Después |
+  |---|---|---|
+  | avisos del SLA | 4,7 s | **1,6 s** |
+  | cola de acción | 5,1 s | **2,0 s** |
+  | equipo de Gestión Diaria | 4,7 s | **1,6 s** |
+
+  Ya no rozan el tope de 8 s.
+- **#2 bitácora:** `public.audit_log` es de solo añadir. Las API no pueden editarla, borrarla
+  ni vaciarla, y un trigger lo impide también al dueño. Borrar un usuario sigue funcionando:
+  anonimiza su rastro (probado también por la API de Auth). Cuesta ~9 µs por fila de su historial.
+- **Qué aportaron las revisiones:** el auditor RLS pidió exigir que el perfil ya esté borrado y
+  comparar la fila entera. Codex cazó que comparar solo en jsonb confunde un NULL de SQL con un
+  `'null'::jsonb`: ahora se compara también con tipos.
+- **Pendientes:**
+  - Registrar las dos versiones en `supabase_migrations`: el clasificador me bloqueó preparar el
+    script; lo decide Miguel.
+  - Fusionar la #96.
+  - Seguir con P1 #3 (reinicio del 19/09 + `ANALYZE`) y #4 (cierre de mes antes del 01/10).
+- 🔑 Los tiempos agotados del SLA venían de UNA función llamada 2302 veces por consulta, no de
+  la carga. Medir por piezas (`explain analyze` de cada llamada interna) lo encontró en minutos.
