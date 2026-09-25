@@ -140,7 +140,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     setError(null)
     setEmpresa(s.datos.empresa)
     if (s.datos.empresa === 'avance' && s.necesita_portal) {
-      try {setEditar(Boolean(leerBorradorAcceso(actor, persona, origenIntento, s.solicitud_id)))}
+      try {setEditar(!s.acceso_creado && Boolean(leerBorradorAcceso(actor, persona, origenIntento, s.solicitud_id)))}
       catch { /* La solicitud del servidor sigue siendo recuperable. */ }
     }
     recibir(s)
@@ -186,29 +186,49 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     limpiarBorradorAcceso(actor, persona, origenIntento)
     setBorradorSinGuardar(false)
     recibir(await prepararSolicitudInversion(i))
+    if (origenLead && datos.alta_portal) await fichaQ.refetch()
   }
   async function revisarDatos(datos: DatosInversion) {
     if (!intento) {await preparar(datos); return}
     if (!solicitud?.datos) throw new Error('Consulta primero la solicitud pendiente.')
-    if (mismoContenidoInversion(datos, solicitud.datos)) {
+    if (mismoContenidoInversion(datos, solicitud.datos) && !correoFichaDistinto) {
       limpiarBorradorAcceso(actor, persona, origenIntento)
       limpiarBorradorCondiciones(actor, persona, origenIntento)
       setBorradorSinGuardar(false); setEditar(false); return
     }
     const motivoEfectivo = solicitud.datos.empresa === 'avance' && !solicitud.datos.contrato?.capital
-      ? 'Completar condiciones contractuales después de preparar el acceso Avance' : motivo.trim()
+      ? !perfil ? 'Corregir y confirmar el correo y los datos del primer acceso Avance'
+        : 'Completar condiciones contractuales después de preparar el acceso Avance' : motivo.trim()
     if (motivoEfectivo.length < 10) throw new Error('Indica un motivo de al menos 10 caracteres, sin datos personales.')
     const i = {...intento, correccion: {clave: crypto.randomUUID(), revision: solicitud.revision_datos, datos, motivo: motivoEfectivo}}
     guardar(i)
-    recibir(await corregirSolicitudInversion(i))
+    try {recibir(await corregirSolicitudInversion(i))}
+    catch (e) {
+      // Estas respuestas certifican que la transacción fue rechazada. El
+      // borrador conserva lo escrito; sólo una respuesta incierta necesita la
+      // pantalla de recuperación (red, 5xx, bloqueo o timeout).
+      if (e instanceof CrmApiError && ['P0409', 'PT409', '22023', 'P0429', '55P03'].includes(e.code ?? '')) {
+        const limpio: IntentoInversion = {...i}; delete limpio.correccion; guardar(limpio)
+        setEditar(true)
+        const actual = await consultarSolicitudInversion(i.clave).catch(() => null)
+        if (actual) recibir(actual)
+        await fichaQ.refetch().catch(() => undefined)
+      }
+      throw e
+    }
     const limpio: IntentoInversion = {...i}; delete limpio.correccion; guardar(limpio)
     limpiarBorradorAcceso(actor, persona, origenIntento)
     limpiarBorradorCondiciones(actor, persona, origenIntento)
     setBorradorSinGuardar(false)
     setEditar(false); setMotivo('')
+    if (origenLead && datos.alta_portal) await fichaQ.refetch()
   }
   const datos = solicitud?.datos ?? intento?.datos
   const perfil = operacion?.fuente.perfil_id ?? ficha?.persona.perfil_id ?? perfilCreado
+  const correoFicha = ficha?.persona.correo?.trim().toLowerCase() ?? ''
+  const accesoCreado = solicitud?.acceso_creado === true
+  const correoFichaDistinto = Boolean(origenLead && !perfil && !accesoCreado && datos?.alta_portal
+    && correoFicha !== datos.alta_portal.correo.trim().toLowerCase())
   const base: DatosInversion = datos ?? {inversionista_id: ficha?.persona.inversionista_id ?? persona,
     ...(origenLead ? {lead_id: origenLead.id} : {}), empresa: empresa ?? 'avance',
     ...(origenLead && empresa && empresa !== 'avance' ? {
@@ -340,8 +360,18 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   </DialogBody></>
   else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<PasosAcceso actual={1} /><DialogBody className="space-y-4">
     <p className="text-sm">Completa los datos de acceso para su primera inversión Avance. Después elegirás las condiciones y revisarás el contrato.</p>
-    {!intento || editar ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} origen={origenIntento}
-      solicitud={intento?.clave ?? null} inicial={datos?.alta_portal} correo={ficha.persona.correo ?? ''}
+    {correoFichaDistinto && <div role="status" className="space-y-2 rounded-xl border border-border bg-muted/20 p-3 text-sm [overflow-wrap:anywhere]">
+      <p>El correo de la ficha y el de esta solicitud son distintos. Confirma cuál usará el cliente antes de crear su acceso.</p>
+      <p>Ficha: <strong>{correoFicha || 'Sin correo'}</strong></p>
+      <p>Solicitud: <strong>{datos?.alta_portal?.correo}</strong></p>
+      {!editar && <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={ocupado || !CORREO_RE.test(correoFicha)} onClick={() => void ejecutar(() => revisarDatos({...base,
+          alta_portal: {...datos!.alta_portal!, correo: correoFicha}}))}>Usar correo de la ficha</Button>
+        <Button variant="outline" disabled={ocupado} onClick={() => void ejecutar(() => revisarDatos(base))}>Conservar correo de la solicitud</Button>
+      </div>}
+    </div>}
+    {!intento || (editar && !accesoCreado) ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} origen={origenIntento}
+      solicitud={intento?.clave ?? null} inicial={datos?.alta_portal} correo={ficha.persona.correo ?? ''} sincronizaFicha={Boolean(origenLead)}
       telefono={ficha.persona.telefono ?? ''} ocupado={ocupado} onEstadoBorrador={estadoBorrador}
       onContinuar={alta => ejecutar(async () => {
         if (intento) await revisarDatos({...base, alta_portal: alta})
@@ -354,10 +384,20 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
           <div><dt className="text-muted-foreground">Correo de acceso Avance</dt><dd className="font-semibold">{datos?.alta_portal?.correo}</dd></div>
           <div className="sm:col-span-2"><dt className="text-muted-foreground">Domicilio legal para el contrato</dt><dd>{datos?.alta_portal?.domicilio}</dd></div>
         </dl>
-        <p className="text-xs text-muted-foreground">Confirma que el cliente puede recibir mensajes en ese correo. Puedes corregirlo antes de crear el acceso.</p>
+        <p className="text-xs text-muted-foreground">{accesoCreado
+          ? 'El acceso ya fue creado con este correo. Puedes completar el proceso pendiente. Para cambiar el correo de ingreso, usa la gestión de acceso.'
+          : 'Confirma que el cliente puede recibir mensajes en ese correo. Puedes corregirlo antes de crear el acceso.'}</p>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button variant="outline" disabled={ocupado} onClick={() => setEditar(true)}>Corregir datos de acceso</Button>
-          <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
+          {!accesoCreado && <Button variant="outline" disabled={ocupado} onClick={() => setEditar(true)}>Corregir datos de acceso</Button>}
+          <Button disabled={ocupado || correoFichaDistinto} onClick={() => void ejecutar(async () => {
+            // Una edición desde otra pestaña puede haber cambiado la revisión
+            // mientras este resumen seguía abierto. Exigir que se vea primero.
+            const actual = await consultarSolicitudInversion(intento.clave)
+            if (actual.revision_datos !== solicitud?.revision_datos
+              || !actual.datos || !datos || !mismoContenidoInversion(actual.datos, datos)) {
+              recibir(actual); await fichaQ.refetch()
+              throw new CrmApiError('Los datos de acceso cambiaron. Revisa el correo actualizado antes de continuar.', 'PT409')
+            }
             const r = await completarAccesoInversion(intento)
             setPerfilCreado(r.perfil_id); recibir(await consultarSolicitudInversion(intento.clave)); await fichaQ.refetch()
           })}>{ocupado ? 'Completando acceso…' : 'Completar acceso Avance'}</Button>
@@ -481,9 +521,9 @@ function PasosAcceso({actual}: {actual: 1 | 2 | 3}) {
   </nav>
 }
 
-function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefono, ocupado, onEstadoBorrador, onContinuar}: {
+function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefono, sincronizaFicha, ocupado, onEstadoBorrador, onContinuar}: {
   actor: string; persona: string; origen?: OrigenIntento; solicitud: string | null; inicial?: AltaPortal | undefined
-  correo: string; telefono: string; ocupado: boolean
+  correo: string; telefono: string; sincronizaFicha: boolean; ocupado: boolean
   onEstadoBorrador: (sinGuardar: boolean) => void; onContinuar: (datos: AltaPortal) => Promise<void>
 }) {
   const [inicio] = useState(() => {
@@ -549,6 +589,11 @@ function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefon
     </fieldset>
     <fieldset className="space-y-2"><legend className="text-sm font-semibold">Contacto y acceso</legend>
       <div className="grid gap-3 sm:grid-cols-2">{campo('correo', 'Correo de acceso Avance')}{campo('telefono', 'Teléfono')}</div>
+      {sincronizaFicha && datos.correo.trim().toLowerCase() !== correo.trim().toLowerCase() && <div className="space-y-2 text-sm [overflow-wrap:anywhere]">
+        <p>Correo actual de la ficha: <strong>{correo || 'Sin correo'}</strong>. Al revisar, el correo que escribiste actualizará también la ficha.</p>
+        {CORREO_RE.test(correo.trim()) && <Button type="button" variant="outline" disabled={ocupado}
+          onClick={() => cambiar('correo', correo.trim().toLowerCase())}>Usar correo de la ficha</Button>}
+      </div>}
     </fieldset>
     <fieldset className="space-y-2"><legend className="text-sm font-semibold">Domicilio para el contrato</legend>
       {campo('domicilio', 'Domicilio legal')}

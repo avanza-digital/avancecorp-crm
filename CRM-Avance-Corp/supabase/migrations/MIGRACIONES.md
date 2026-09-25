@@ -1,3 +1,27 @@
+## 20260925170437 — correo del primer acceso sincronizado con la ficha
+
+**PREPARADA; NO APLICADA EN PRODUCCIÓN.** Fix de la conversión del 25/09.
+Antes de crear Auth, editar el correo en la ficha actualiza la solicitud preparada
+(y su reserva), y corregir el acceso actualiza la ficha. La reserva mantiene claim,
+token y hash original de preparación. La corrección conserva control de revisión,
+ámbito, motivo y auditoría. Una cuenta Auth ya creada mantiene sus credenciales.
+
+Nuevo guard de primera vinculación `app_metadata.claim_id` en `auth.users`
+(AFTER INSERT OR UPDATE OF raw_app_meta_data): serializa con la corrección, exige
+el correo vigente y deja marcador atómico, conservando el CAS de la Edge actual.
+GoTrue real agrega los metadatos mediante UPDATE después del INSERT; ambos
+caminos están ensayados. Otras altas y actualizaciones de cuentas mantienen su flujo.
+No modifica objetos `public`, policies ni grants públicos; helpers privados sin
+EXECUTE para API. Quien puede editar la ficha por RLS sincroniza el correo pendiente;
+una importación sin actor no inventa auditoría y exige revisión antes de Auth.
+
+Guardas MD5 de seis dependencias contrastadas con producción en lectura. Banco
+Docker sintético propio: SQL, GoTrue/PostgREST, Edge actual y carreras concurrentes.
+Pendientes de autorización/ejecución: branch hospedada → RLS/advisors → merge;
+publicación frontend por `$release-crm`. Campo JSON aditivo `acceso_creado` para recuperar Auth sin perfil; esquema frontend opcional y consumidores `v.object` compatibles. Sin nuevas firmas ni columnas públicas.
+Runbook y resultados: `../scripts/correo-acceso/README.md`. Reversión operativa
+conserva el guard de Auth frente a peticiones tardías, no borra datos ni cuentas.
+
 ## 20260925002615 — public.audit_log pasa a ser de solo añadir
 
 **PUBLICADA Y VERIFICADA el 25/09/2026 ~02:08 UTC** (Miguel, con `!` y `db query --file`).

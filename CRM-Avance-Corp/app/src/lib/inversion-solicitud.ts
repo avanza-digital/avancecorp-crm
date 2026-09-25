@@ -37,6 +37,7 @@ export const SolicitudInversionSchema = v.object({
   identidad_fusionada: v.boolean(), responsable_esperado_id: v.nullable(Uuid),
   responsable_actual_id: v.nullable(Uuid), requiere_revision_responsable: v.boolean(),
   revision_datos: Revision, revision_responsable: Revision, hash_datos: v.string(),
+  acceso_creado: v.optional(v.boolean()),
   necesita_portal: v.boolean(), comprobante_bucket: v.nullable(v.string()), comprobante_ruta: v.nullable(v.string()),
   resultado: v.nullable(ConfirmacionInversionSchema), datos: v.optional(DatosInversionSchema),
   // Venta cruzada (cliente de otra cartera): el servidor añade la puerta y el analista
