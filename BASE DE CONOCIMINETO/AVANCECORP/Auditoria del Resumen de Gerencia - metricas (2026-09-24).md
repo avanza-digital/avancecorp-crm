@@ -1,7 +1,7 @@
 ---
 tags: [crm, gerencia, resumen, auditoria, conversion, capital, citas]
 fecha: 2026-09-24
-estado: front-arreglado-en-PR · servidor-y-dato-pendientes
+estado: front-en-produccion · servidor-y-dato-pendientes
 ---
 
 # Auditoría del Resumen de Gerencia: métricas (24/09/2026)
@@ -71,6 +71,15 @@ reales y rótulos que dicen otra cosa.
 Verificación: `npm run check` 4,408/4,408; 18 mutantes, uno por arreglo, todos
 muertos; revisión adversarial de 4 lentes (19 hallazgos menores, corregidos).
 Codex NO revisó: cupo agotado hasta el 26/09.
+
+## Publicación (25/09/2026, 23:1x Lima del 24/09)
+
+PR #100 fusionada por squash (`3027028d`). Release
+`crm-20260925T041520Z-3027028d7c97` (build `build-20260925T041520137Z`), construido
+en worktree limpio; preflight OK contra lo vivo `b402a7f1`; publicado por Miguel con
+`deploy-hostinger-mcp.mjs deploy` (la MCP de Hostinger no cargó en la sesión).
+Smoke: home 200, `version.json` e `index-*.js` idénticos al build, textos nuevos en
+el bundle vivo. Rollback: `crm-20260925T023617Z-b402a7f1b5c9.zip` en `releases/`.
 
 ## Pendiente de servidor (plan + OK de Miguel)
 
