@@ -296,5 +296,13 @@
     "pr93": "MERGED",
     "producto_f5_sin_cambios": true,
     "tipos_integrados_y_regenerados": "PASS"
+  },
+  "pull_request": {
+    "number": 94,
+    "url": "https://github.com/avanza-digital/avancecorp-crm/pull/94",
+    "estado": "OPEN",
+    "review": "REVIEW_REQUIRED",
+    "producto_commit": "e2c73d5b032d30269232443bcd2f8c5ebe69312a",
+    "publicacion": "NOT RUN"
   }
 }

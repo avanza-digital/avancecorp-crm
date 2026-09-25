@@ -20,6 +20,9 @@ equipos, analista, registro y hábitos de 7/14/30 días. Consultar/Enter confirm
 el día y conserva foco/contexto. Pendientes y organigrama actuales explícitos.
 Tasa muy baja continúa apagada. **SQL y frontend F5 NO publicados.**
 
+[PR #94](https://github.com/avanza-digital/avancecorp-crm/pull/94) abierto, revisión normal
+pendiente. Fuente del producto: `e2c73d5b`. No hay excepción de administrador.
+
 ## Evidencia final
 
 Main #93 integrado: `a1bbe24d` en la copia mediante `e523085e`. Se conservan
