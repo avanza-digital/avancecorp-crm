@@ -1,0 +1,19 @@
+{
+  "inicio": "2026-09-25T02:53:05.081215+00:00",
+  "domain": "crm.miavance.com",
+  "archive": "crm-20260925T023617Z-b402a7f1b5c9.zip",
+  "sha256": "70b94da52e9002e92a4729579e7726a13f7539f0c9b16c0eb7a9de479eb41fe0",
+  "fin": "2026-09-25T02:53:13.819376+00:00",
+  "respuesta": {
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"upload\":{\"status\":\"success\",\"data\":{\"filename\":\"crm-20260925T023617Z-b402a7f1b5c9.zip\"}},\"deploy\":{\"status\":\"success\",\"data\":{\"message\":\"Request accepted\"}},\"removeArchive\":{\"status\":\"skipped\"}}"
+        }
+      ]
+    },
+    "jsonrpc": "2.0",
+    "id": 2
+  }
+}

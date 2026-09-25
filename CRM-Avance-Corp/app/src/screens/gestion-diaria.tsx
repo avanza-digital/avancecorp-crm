@@ -8,7 +8,7 @@
 // Densidad (20/09/2026): el registro del propio analista («¿Qué hice hoy?») se
 // pliega. Es memoria, no trabajo pendiente: releer el log propio no cambia a
 // quién hay que llamar, y abierto duplicaba el largo de la pantalla.
-import { useState, type JSX } from 'react'
+import { useState, useSyncExternalStore, type JSX, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -20,6 +20,35 @@ import { Plegable } from '@/components/gestion-diaria/plegable'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
 import { CalendarCheck2 } from 'lucide-react'
+import { ColaSeguimiento } from '@/components/app/cola-seguimiento'
+import { hashDe, leerHash } from '@/lib/router'
+
+const suscribirRuta = (cambio: () => void) => { window.addEventListener('hashchange', cambio); return () => window.removeEventListener('hashchange', cambio) }
+const fotoRuta = () => window.location.hash
+
+/** Ambos accesos siguen vigentes hasta completar la observación productiva de F6. */
+export function GestionDiaria(): JSX.Element {
+  const { yo } = useAuth()
+  useSyncExternalStore(suscribirRuta, fotoRuta)
+  if (!yo) return <PanelVacio icono={CalendarCheck2} titulo="Sin sesión" detalle="Vuelve a entrar para ver la gestión del día." />
+  if (yo.rol !== 'vendedor' && yo.rol !== 'supervisor' && yo.rol !== 'gerencia') {
+    return <PanelVacio icono={CalendarCheck2} titulo="Gestión Diaria no está disponible para tu rol" detalle="Este módulo es para analistas, supervisores y gerencia." />
+  }
+  const cola = leerHash().detalleGestion?.tipo === 'cola'
+  const cabeceraSupervisor = yo.rol === 'supervisor' && !cola
+  const enlace = 'inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+  const accesoCola = <a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })} aria-current={cola ? 'page' : undefined} className={`${enlace} ${cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Seguimiento completo</a>
+  return <div key={`${yo.id}:${yo.rol}:${yo.demo}`} className="mx-auto w-full max-w-[1640px] space-y-5">
+    {!cabeceraSupervisor && <nav aria-label="Secciones de Gestión Diaria" className="flex flex-wrap gap-3">
+      <a href={hashDe('gestion-diaria')} aria-current={!cola ? 'page' : undefined} className={`${enlace} ${!cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Resumen del día</a>
+      {accesoCola}
+    </nav>}
+    {cola ? <>
+      <p className="text-base text-[var(--muted-foreground-strong)]">Pendientes actuales de tu ámbito. La fecha del resumen no cambia esta cola.</p>
+      <ColaSeguimiento />
+    </> : <ResumenGestionDiaria accesoSeguimiento={cabeceraSupervisor ? <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav> : undefined} />}
+  </div>
+}
 
 function Cabecera({ pregunta, detalle, children }: { pregunta: string; detalle: string; children?: JSX.Element | undefined }) {
   return (
@@ -33,7 +62,7 @@ function Cabecera({ pregunta, detalle, children }: { pregunta: string; detalle: 
   )
 }
 
-export function GestionDiaria(): JSX.Element {
+function ResumenGestionDiaria({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode }): JSX.Element {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
   const [dia, setDia] = useState(hoy)
@@ -55,7 +84,7 @@ export function GestionDiaria(): JSX.Element {
         </div>
       )
     case 'supervisor':
-      return <GestionDiariaSupervisor />
+      return <GestionDiariaSupervisor accesoSeguimiento={accesoSeguimiento} />
     case 'gerencia':
       if (!yo.demo) return <GestionDiariaGerencia />
       return (

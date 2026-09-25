@@ -60,7 +60,8 @@ function VistaGerencia({ actor, hoy }: { actor: string; hoy: string }) {
   const [dias, setDias] = useState<7 | 14 | 30>(14)
   const [actualizacion, setActualizacion] = useState(0)
   useSyncExternalStore(suscribirRuta, fotoRuta)
-  const ruta = leerHash().detalleGestion
+  const detalleRuta = leerHash().detalleGestion
+  const ruta = detalleRuta?.tipo === 'cola' ? undefined : detalleRuta
   const claveRuta = ruta ? `${ruta.tipo}:${ruta.id}` : null
   const ultimaRutaEnfocada = useRef<string | null>(null)
   useEffect(() => { if (claveRuta === null) ultimaRutaEnfocada.current = null }, [claveRuta])

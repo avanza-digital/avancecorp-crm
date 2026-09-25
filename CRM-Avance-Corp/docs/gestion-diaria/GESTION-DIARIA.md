@@ -6,8 +6,10 @@
 > registrado a las 13:39. No se atribuyen pruebas humanas omitidas ni controles
 > futuros. [Acta y límites](F4-AUDITORIA-Y-CONFORMIDAD-2026-09-24.md).
 > **Plan a ejecutar:** [F4.1–F6 por entregas](EJECUCION-F4-1-F6-2026-09-24.md).
-> F5 puede avanzar mientras se evalúa la IA; retirada de Seguimiento después de
-> siete días estables desde la publicación verificada de F5.
+> **F5 publicada y verificada:** 24/09/2026, 21:57:11 Lima, fuente `b402a7f1`.
+> [Acta](f5-publicacion-2026-09-24/ACTA.md). F6 tiene la cola completa preparada
+> en PR #97; su retirada requiere siete días estables desde ese T0, no antes
+> del 01/10 a las 21:57:11 Lima. [Observación](OBSERVACION-F3-F5.md).
 
 
 **Plan visual vivo:** [Gestión Diaria — Plan por fases y avance en Figma](https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L).

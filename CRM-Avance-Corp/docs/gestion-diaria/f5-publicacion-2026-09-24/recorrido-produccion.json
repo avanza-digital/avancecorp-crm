@@ -1,0 +1,20 @@
+{
+  "estado": "PASS",
+  "verificadoEnUtc": "2026-09-25 02:57:11 UTC",
+  "origen": "Chrome; cuenta de gerencia ya autorizada",
+  "url": "https://crm.miavance.com/#/gestion-diaria",
+  "fuente": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+  "casos": {
+    "pulsoHoy": "243 llamadas, 241 útiles, 74 contestadas, 30.7 %, 206 leads, 33 citas; 756 tareas vencidas actuales",
+    "diaAnterior": "2026-09-23: 169 llamadas, 168 útiles, 58 contestadas, 34.5 %, 152 leads, 21 citas",
+    "habitos7": "471 contestadas / 1192 útiles; 39.5 %",
+    "habitos14": "1035 contestadas / 2421 útiles; 42.8 %",
+    "habitos30": "2208 contestadas / 5170 útiles; 42.7 %",
+    "detalleHabitos": "Primera llamada, hueco y horario; muestra insuficiente y cortes históricos visibles",
+    "recorrido": "Operación → equipo de 10 personas → analista → registro de 15 llamadas → ficha → cierre con foco y registro conservados → operación",
+    "visual": "Fecha e indicadores legibles en ventana actual; sin error visible",
+    "umbralBajo": "OFF"
+  },
+  "modificacionesDeNegocio": 0,
+  "limites": "Smoke productivo con gerencia. Permisos negativos y otros roles comprobados en banco; no se crean registros, reconocimientos ni aplazamientos para probar."
+}

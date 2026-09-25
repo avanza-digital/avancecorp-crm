@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { paginaDeFilas, type FilaDiaria, type GrupoDia } from '@/lib/gestion-diaria-analista'
+import { hashDe } from '@/lib/router'
 
 export const FILAS_POR_PAGINA = 5
 
@@ -135,7 +136,7 @@ export function ColaDeHoy({
                 {/* Se ANUNCIA: al pasar de página cambian las cinco filas y sin
                     esto el lector de pantalla no diría nada (WCAG 4.1.3). */}
                 <p role="status" aria-live="polite" className="text-base text-[var(--muted-foreground-strong)]">
-                  {vista.rango}{hayMas && ' de los cargados · hay más en Seguimiento comercial'}
+                  {vista.rango}{hayMas && <> de los cargados · <a className="font-semibold text-primary underline underline-offset-4" href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })}>Ver todas las oportunidades</a></>}
                 </p>
                 <div className="flex gap-2">
                   {/* `aria-disabled` y no `disabled`, con la guarda en el handler:

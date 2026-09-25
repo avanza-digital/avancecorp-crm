@@ -1,0 +1,14 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T02:36:09.787Z",
+  "ref": "pofsqqtkguisvfejzkaj",
+  "versionesPadre": 357,
+  "versionesRama": 358,
+  "versionesRegistradas": [
+    "20260925001914",
+    "20260925002615"
+  ],
+  "cambioEsquemaProductivoDuranteMatriz": false,
+  "aclRestauracionCorregidos": 9,
+  "alcance": "El esquema actual fue ensayado antes de registrar sus dos versiones. Se conservan los 355 antecedentes originales; F5 es la única pendiente."
+}
