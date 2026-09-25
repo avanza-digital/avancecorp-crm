@@ -59,10 +59,9 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   // `public.perfiles` la comparte el portal y duplicar el dato es como acaban
   // divergiendo. Fail-closed en demo, igual que el resto de consultas de aquí.
   const qSegundo = useSegundoNumeroCliente(clienteId, !precargado)
-  // Las cuentas salen de la MISMA RPC del flujo de contrato (ledger
-  // crm.cuentas_bancarias + casilla vigente del perfil, deduplicados por el
-  // servidor): es la única fuente que incluye las cuentas registradas AL CREAR
-  // un contrato — leer solo las columnas embebidas de perfiles las escondía.
+  // Las cuentas salen del ledger crm.cuentas_bancarias. La RPC de detalle
+  // también devuelve el último registro activo por moneda desde ese ledger;
+  // las columnas bancarias de public.perfiles no son fuente de lectura.
   // La confirmación debe ser posterior al mount: una copia cacheada de una
   // sesión/capacidad anterior no puede disparar una consulta bancaria.
   const ledgerRemotoHabilitado =

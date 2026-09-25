@@ -292,6 +292,9 @@ export function validarSeccionBancariaDetallada(
   if (!banco) {
     return { ok: false, error: `Selecciona el banco de la cuenta${suf}.`, campo: 'banco' }
   }
+  if (banco.length > 100) {
+    return { ok: false, error: `El banco${suf} no puede superar 100 caracteres.`, campo: 'banco' }
+  }
   if (!numero_cuenta) {
     return {
       ok: false,
@@ -301,10 +304,10 @@ export function validarSeccionBancariaDetallada(
   }
   // Cajas municipales (ej. Caja Cusco) emiten cuentas con letras — se acepta
   // alfanumérico y guiones (regla espejo del portal, analista.js 2026-07-18).
-  if (!/^[A-Za-z0-9-]+$/.test(numero_cuenta)) {
+  if (!/^[A-Za-z0-9-]{1,30}$/.test(numero_cuenta)) {
     return {
       ok: false,
-      error: `El N° de cuenta${suf} solo puede contener letras, números y guiones (sin espacios).`,
+      error: `El N° de cuenta${suf} solo admite letras, números y guiones (máximo 30).`,
       campo: 'numero_cuenta',
     }
   }
@@ -341,6 +344,13 @@ export function validarSeccionBancariaDetallada(
       return {
         ok: false,
         error: `Escribe el nombre completo del beneficiario${suf} (titular de la cuenta).`,
+        campo: 'beneficiario_nombre',
+      }
+    }
+    if (beneficiario_nombre.length > 200) {
+      return {
+        ok: false,
+        error: `El nombre del beneficiario${suf} no puede superar 200 caracteres.`,
         campo: 'beneficiario_nombre',
       }
     }
@@ -382,7 +392,7 @@ export function validarSeccionBancaria(
     : { ok: false, error: resultado.error }
 }
 
-/** Las 14 columnas bancarias EXACTAS de public.perfiles (PEN base + _usd). */
+/** DTO legado de validacion: nunca se persiste en public.perfiles desde la ficha. */
 export interface PatchBancarios {
   banco: string | null
   tipo_cuenta: string | null
@@ -400,7 +410,7 @@ export interface PatchBancarios {
   beneficiario_dni_usd: string | null
 }
 
-/** PEN → columnas base; USD → sufijo _usd. Un solo objeto para el UPDATE. */
+/** PEN → claves base; USD → sufijo _usd para consumidores de validacion legados. */
 export function armarPatchBancarios(
   pen: DatosSeccionBancaria,
   usd: DatosSeccionBancaria,
@@ -440,9 +450,8 @@ export function validarBancariosForm(
   opciones?: {
     /**
      * SOLO corregir: el cliente ya tiene cuenta activa en crm.cuentas_bancarias
-     * (vinculada a un contrato). Perdona ÚNICAMENTE la regla «al menos una»
-     * con ambas casillas vacías — el patch va con nulls (idempotente: si las
-     * casillas ya estaban vacías, el perfil no cambia). Nunca perdona una
+     * del cliente. Perdona ÚNICAMENTE la regla «al menos una»
+     * con ambas casillas vacías; nunca se escribe el DTO en el perfil. Nunca perdona una
      * sección malformada: eso se corrige o se vacía, jamás pasa a medias.
      */
     cuentaEnLedger?: boolean
@@ -476,7 +485,7 @@ export interface ValoresClienteForm {
   usd: SeccionBancariaForm
 }
 
-/** Payload ya normalizado, listo para la edge (alta) o el UPDATE (corregir). */
+/** Identidad normalizada y DTO bancario de validacion; la ficha no persiste el DTO. */
 export interface ClienteValidado {
   /** Derivado con APELLIDOS primero (norma del portal 2026-06-09). */
   nombre_completo: string

@@ -66,14 +66,13 @@ test("las dos edges validan antes de efectos y persisten el valor normalizado", 
   );
 
   assert.ok(crear.includes('from "../_shared/domicilio.mjs"'));
-  assert.ok(
-    crear.includes("requerido: bancarios !== undefined && bancarios !== null"),
-  );
+  assert.ok(crear.includes("requerido: domicilio !== undefined && domicilio !== null"));
   assert.ok(crear.includes("domicilio: domicilioLegal"));
   assert.ok(
     crear.indexOf("validarDomicilioLegal(") <
       crear.indexOf("auth.admin.createUser("),
   );
+  assert.ok(crear.indexOf("validarBancarios(") < crear.indexOf("auth.admin.createUser("));
 
   assert.ok(convertir.includes('from "../_shared/domicilio.mjs"'));
   assert.ok(convertir.includes("domicilio: domicilioLegal"));

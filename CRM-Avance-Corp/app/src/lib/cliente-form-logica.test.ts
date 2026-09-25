@@ -133,7 +133,7 @@ describe('validarSeccionBancaria (espejo de leerYValidarBancarios)', () => {
     // Cuentas de cajas municipales llevan letras/guiones (Caja Cusco, 2026-07-18):
     // letras y guiones pasan; espacios y otros símbolos no.
     expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: '12 34' }), 'Soles'))
-      .toEqual({ ok: false, error: 'El N° de cuenta (Soles) solo puede contener letras, números y guiones (sin espacios).' })
+      .toEqual({ ok: false, error: 'El N° de cuenta (Soles) solo admite letras, números y guiones (máximo 30).' })
     expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: 'A105-201332' }), 'Soles'))
       .toEqual({ ok: false, error: 'Selecciona el tipo de cuenta (Soles).' })
     expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: '123' }), 'Soles'))
@@ -147,6 +147,17 @@ describe('validarSeccionBancaria (espejo de leerYValidarBancarios)', () => {
     ).toEqual({ ok: false, error: 'El CCI (Soles) es obligatorio.' })
     expect(validarSeccionBancaria(seccionPenCompleta({ cci: '123' }), 'Soles'))
       .toEqual({ ok: false, error: 'El CCI (Soles) debe tener exactamente 20 dígitos.' })
+  })
+
+  it('aplica los límites bancarios de la RPC antes de enviar el formulario', () => {
+    expect(validarSeccionBancaria(seccionPenCompleta({ banco: 'B'.repeat(101) }), 'Soles'))
+      .toEqual({ ok: false, error: 'El banco (Soles) no puede superar 100 caracteres.' })
+    expect(validarSeccionBancaria(seccionPenCompleta({ numero_cuenta: '1'.repeat(31) }), 'Soles'))
+      .toEqual({ ok: false, error: 'El N° de cuenta (Soles) solo admite letras, números y guiones (máximo 30).' })
+    expect(validarSeccionBancaria(seccionPenCompleta({
+      titular_distinto: true, beneficiario_nombre: 'A'.repeat(201), beneficiario_dni: '12345678',
+    }), 'Soles'))
+      .toEqual({ ok: false, error: 'El nombre del beneficiario (Soles) no puede superar 200 caracteres.' })
   })
 
   it('beneficiario: solo se exige con el check activo, con doc de 8–12 dígitos', () => {

@@ -33,38 +33,36 @@ test('body sin el bloque bancarios se rechaza (fail-closed, no crea a medias)', 
 test('basta la cuenta en SOLES', () => {
   const r = validarBancarios({ pen: seccionValida(), usd: {} });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.banco, 'BCP');
-  assert.equal(r.columnas.banco_usd, null);
+  assert.equal(r.cuentas.length, 1);
+  assert.equal(r.cuentas[0].moneda, 'PEN');
+  assert.equal(r.cuentas[0].banco, 'BCP');
 });
 
 test('basta la cuenta en DÓLARES', () => {
   const r = validarBancarios({ pen: {}, usd: seccionValida({ banco: 'Interbank' }) });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.banco, null);
-  assert.equal(r.columnas.banco_usd, 'Interbank');
+  assert.equal(r.cuentas.length, 1);
+  assert.equal(r.cuentas[0].moneda, 'USD');
+  assert.equal(r.cuentas[0].banco, 'Interbank');
 });
 
-test('las dos monedas caen en sus columnas y no se cruzan', () => {
+test('las dos monedas van a filas separadas del ledger', () => {
   const r = validarBancarios({
     pen: seccionValida({ banco: 'BCP', numero_cuenta: 'PEN-1' }),
     usd: seccionValida({ banco: 'BBVA', numero_cuenta: 'USD-1' }),
   });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.numero_cuenta, 'PEN-1');
-  assert.equal(r.columnas.numero_cuenta_usd, 'USD-1');
+  assert.deepEqual(r.cuentas.map((c) => [c.moneda, c.numero_cuenta]), [
+    ['PEN', 'PEN-1'], ['USD', 'USD-1'],
+  ]);
 });
 
-test('devuelve las 14 columnas EXACTAS de perfiles, ni una más', () => {
+test('devuelve solo las claves de una cuenta del ledger', () => {
   const r = validarBancarios({ pen: seccionValida(), usd: {} });
   assert.equal(r.ok, true);
-  assert.deepEqual(Object.keys(r.columnas).sort(), [
-    'banco', 'banco_usd',
-    'beneficiario_dni', 'beneficiario_dni_usd',
-    'beneficiario_nombre', 'beneficiario_nombre_usd',
-    'cci', 'cci_usd',
-    'numero_cuenta', 'numero_cuenta_usd',
-    'tipo_cuenta', 'tipo_cuenta_usd',
-    'titular_distinto', 'titular_distinto_usd',
+  assert.deepEqual(Object.keys(r.cuentas[0]).sort(), [
+    'banco', 'beneficiario_dni', 'beneficiario_nombre', 'cci',
+    'moneda', 'numero_cuenta', 'tipo_cuenta', 'titular_distinto',
   ]);
 });
 
@@ -101,7 +99,7 @@ test('tipo de cuenta fuera del catálogo se rechaza', () => {
 test('la caja municipal con letras en el número de cuenta SÍ pasa', () => {
   const r = validarBancarios({ pen: seccionValida({ banco: 'Caja Cusco', numero_cuenta: '106-01-AB1234' }), usd: {} });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.numero_cuenta, '106-01-AB1234');
+  assert.equal(r.cuentas[0].numero_cuenta, '106-01-AB1234');
 });
 
 test('un número de cuenta con espacios se rechaza', () => {
@@ -149,7 +147,7 @@ test('el nombre del beneficiario se normaliza a MAYÚSCULA sin espacios dobles',
     usd: {},
   });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.beneficiario_nombre, 'ANA MARÍA RUIZ');
+  assert.equal(r.cuentas[0].beneficiario_nombre, 'ANA MARÍA RUIZ');
 });
 
 test('sin titular distinto los campos del beneficiario quedan en null', () => {
@@ -158,9 +156,19 @@ test('sin titular distinto los campos del beneficiario quedan en null', () => {
     usd: {},
   });
   assert.equal(r.ok, true);
-  assert.equal(r.columnas.beneficiario_nombre, null);
-  assert.equal(r.columnas.beneficiario_dni, null);
-  assert.equal(r.columnas.titular_distinto, false);
+  assert.equal(r.cuentas[0].beneficiario_nombre, null);
+  assert.equal(r.cuentas[0].beneficiario_dni, null);
+  assert.equal(r.cuentas[0].titular_distinto, false);
+});
+
+test('rechaza límites que también aplica la base antes de crear Auth', () => {
+  for (const parche of [
+    { banco: 'B'.repeat(101) },
+    { numero_cuenta: '1'.repeat(31) },
+    { titular_distinto: true, beneficiario_nombre: 'A'.repeat(201), beneficiario_dni: '12345678' },
+  ]) {
+    assert.equal(validarBancarios({ pen: seccionValida(parche), usd: {} }).ok, false);
+  }
 });
 
 test('marcar SOLO el check de titular distinto no cuenta como sección vacía', () => {

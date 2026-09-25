@@ -2730,7 +2730,7 @@ const CuentaBancariaSeleccionableRowSchema = v.pipe(
     titular_distinto: v.boolean(),
     beneficiario_nombre: v.nullable(v.string()),
     beneficiario_dni: v.nullable(v.string()),
-    origen: v.picklist(['perfil', 'contrato']),
+    origen: v.picklist(['perfil', 'contrato', 'portal']),
     es_cuenta_perfil: v.boolean(),
     creada_en: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
   }),
@@ -2777,6 +2777,38 @@ export async function listarCuentasBancariasCliente(
     cuentas.push(fila.output)
   }
   return cuentas
+}
+
+/** Registra una versión del ledger con la autorización de la cartera. */
+export async function registrarCuentaCliente(
+  clienteId: string,
+  moneda: 'PEN' | 'USD',
+  cuenta: SeccionBancariaForm,
+): Promise<string> {
+  const { data, error } = await cliente().schema('crm').rpc('registrar_cuenta_cliente', {
+    p_cliente_id: clienteId,
+    p_cuenta: {
+      moneda, banco: cuenta.banco, tipo_cuenta: cuenta.tipo_cuenta,
+      numero_cuenta: cuenta.numero_cuenta, cci: cuenta.cci,
+      titular_distinto: cuenta.titular_distinto,
+      beneficiario_nombre: cuenta.beneficiario_nombre,
+      beneficiario_dni: cuenta.beneficiario_dni,
+    },
+  })
+  if (error) {
+    const fallo = new CrmApiError(
+      error.code === '42501'
+        ? 'No tienes permiso para registrar esta cuenta.'
+        : 'No se pudo registrar la cuenta bancaria. Revisa los datos e intenta de nuevo.',
+      error.code || 'CUENTA_NO_REGISTRADA',
+    )
+    registrarError('crm.cuentas_bancarias.registro_fallido', fallo)
+    throw fallo
+  }
+  if (typeof data !== 'string' || !v.safeParse(v.pipe(v.string(), v.uuid()), data).success) {
+    throw new CrmApiError('El registro de la cuenta no quedó confirmado.', 'RESPUESTA_INVALIDA')
+  }
+  return data
 }
 
 export interface CrearContratoInput {
@@ -3418,7 +3450,11 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
 }
 
 // ── Corrección del cliente (analista: RLS 5 h; Gerencia: RPC acotada) ──────────
-export type ClientePortalPatch = Database['public']['Tables']['perfiles']['Update']
+export type ClientePortalPatch = Omit<Database['public']['Tables']['perfiles']['Update'],
+  | 'banco' | 'tipo_cuenta' | 'numero_cuenta' | 'cci'
+  | 'titular_distinto' | 'beneficiario_nombre' | 'beneficiario_dni'
+  | 'banco_usd' | 'tipo_cuenta_usd' | 'numero_cuenta_usd' | 'cci_usd'
+  | 'titular_distinto_usd' | 'beneficiario_nombre_usd' | 'beneficiario_dni_usd'>
 
 /**
  * Devuelve `true` si el servidor guardó. En el camino del analista, `false`

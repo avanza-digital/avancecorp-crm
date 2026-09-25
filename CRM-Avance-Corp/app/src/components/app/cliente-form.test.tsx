@@ -31,6 +31,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     corregirCorreoClienteAdmin: vi.fn(),
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
+    registrarCuentaCliente: vi.fn(),
   }
 })
 
@@ -43,11 +44,13 @@ const corregirDocumento = vi.mocked(crmApi.corregirDocumentoClienteAdmin)
 const corregirCorreo = vi.mocked(crmApi.corregirCorreoClienteAdmin)
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
+const registrarCuenta = vi.mocked(crmApi.registrarCuentaCliente)
 
-// clearMocks corre antes de cada test: este default deja el ledger VACÍO salvo
-// que el test lo pueble — la precarga clásica (casillas del perfil) manda.
+// clearMocks corre antes de cada test: el ledger queda vacío salvo que el test
+// lo pueble. Las casillas de corrección son siempre para registrar otra cuenta.
 beforeEach(() => {
   listarCuentas.mockResolvedValue([])
+  registrarCuenta.mockResolvedValue('cta-nueva')
 })
 
 function cuentaLedger(over: Partial<CuentaBancariaSeleccionable> = {}): CuentaBancariaSeleccionable {
@@ -123,7 +126,7 @@ function montar(props: PropsParciales = {}) {
       id: rol === 'gerencia' ? 'gerencia' : 'yo',
       nombre_completo: rol === 'gerencia' ? 'GERENCIA' : 'ANALISTA',
       rol,
-      ...(props.rolPortal ? { rol_portal: props.rolPortal } : {}),
+      rol_portal: props.rolPortal ?? 'analista',
       demo: false,
       puede_contratar: true,
     },
@@ -280,7 +283,7 @@ describe('ClienteForm — modo crear (alta atómica)', () => {
 })
 
 describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
-  it('precarga TODO, bloquea el correo (cuenta de acceso) y guarda el patch completo', async () => {
+  it('precarga identidad, bloquea el correo y guarda un patch sin claves bancarias', async () => {
     const user = userEvent.setup()
     obtenerDetalle.mockResolvedValue(detalleBase())
     actualizarCliente.mockResolvedValue(true)
@@ -299,9 +302,10 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     const domicilio = screen.getByLabelText('Domicilio legal completo *')
     expect(domicilio).toHaveValue('Av. Javier Prado Este 123, San Isidro, Lima')
     expect(screen.getByText(/solo a contratos futuros/)).toBeInTheDocument()
-    // Bancarios precargados (PEN del detalle).
+    // El detalle puede traer columnas bancarias de compatibilidad, pero nunca
+    // se copian a las casillas de alta de una nueva versión.
     const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
-    expect(within(pen).getByLabelText('Banco')).toHaveValue('BCP')
+    expect(within(pen).getByLabelText('Banco')).toHaveValue('')
     // Cuenta regresiva de la ventana (recién creado → vigente).
     expect(screen.getByText(/Ventana de corrección: Quedan/)).toBeInTheDocument()
 
@@ -320,14 +324,80 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
       nombre_completo: 'PORTAL UNO CLIENTE',
       telefono: '988777666',
       domicilio: 'Jr. Los Cedros 456, Miraflores, Lima',
-      banco: 'BCP',
-      cci: '00219112345678901234',
-      banco_usd: null,
     })
+    for (const clave of ['banco', 'numero_cuenta', 'cci', 'banco_usd', 'numero_cuenta_usd', 'cci_usd']) {
+      expect(patch).not.toHaveProperty(clave)
+    }
+    expect(registrarCuenta).not.toHaveBeenCalled()
     expect(patch).not.toHaveProperty('tipo_documento')
     expect(patch).not.toHaveProperty('dni')
     expect(corregirDocumento).not.toHaveBeenCalled()
     expect(toast.success).toHaveBeenCalledWith('Datos del cliente corregidos.')
+  })
+
+  it('registra una nueva cuenta en el ledger sin enviarla al patch de perfiles', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    const { onListo } = montar({ modo: 'corregir', clienteId: 'cli-1' })
+    await screen.findByText('Cuentas vigentes del cliente')
+
+    const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
+    await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
+    await user.selectOptions(within(pen).getByLabelText('Tipo de cuenta'), 'ahorros')
+    await user.type(within(pen).getByLabelText('N° de cuenta'), 'NUEVA6087')
+    await user.type(within(pen).getByLabelText(/CCI/), '00000000000000000018')
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
+    expect(registrarCuenta).toHaveBeenCalledWith('cli-1', 'PEN', expect.objectContaining({
+      banco: 'BCP', numero_cuenta: 'NUEVA6087', cci: '00000000000000000018',
+    }))
+    expect(actualizarCliente).toHaveBeenCalledTimes(1)
+    const [, patch] = actualizarCliente.mock.calls[0]!
+    expect(JSON.stringify(patch)).not.toContain('NUEVA6087')
+    expect(patch).not.toHaveProperty('banco')
+    expect(patch).not.toHaveProperty('cci')
+  })
+
+  it('un vendedor comercial puede leer sus cuentas pero no abrir el editor bancario', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    listarCuentas.mockImplementation(async (_id, moneda) => moneda === 'PEN'
+      ? [cuentaLedger({ moneda: 'PEN', numero_cuenta: 'TEST6087' })] : [])
+    montar({ modo: 'corregir', clienteId: 'cli-1', rolPortal: 'comercial' })
+
+    expect(await screen.findByText('Cuentas vigentes del cliente')).toBeInTheDocument()
+    expect(screen.getByText(/N° ••••6087/)).toBeInTheDocument()
+    const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
+    expect(within(pen).getByLabelText('Banco')).toBeDisabled()
+    expect(screen.getByText(/registro de cuentas está reservado/)).toBeInTheDocument()
+  })
+
+  it('informa guardado parcial si la segunda moneda falla y no cierra la ficha', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    registrarCuenta
+      .mockResolvedValueOnce('cta-pen')
+      .mockRejectedValueOnce(new CrmApiError('Fallo seguro', 'POSTGREST_ERROR'))
+    const { onListo } = montar({ modo: 'corregir', clienteId: 'cli-1' })
+    await screen.findByText('Cuentas vigentes del cliente')
+
+    for (const [moneda, numero, cci] of [
+      ['Soles (PEN)', 'NUEVA6087', '00000000000000000018'],
+      ['Dólares (USD)', 'NUEVA9168', '00000000000000000019'],
+    ] as const) {
+      const grupo = screen.getByRole('group', { name: `Cuenta bancaria en ${moneda}` })
+      await user.selectOptions(within(grupo).getByLabelText('Banco'), 'BCP')
+      await user.selectOptions(within(grupo).getByLabelText('Tipo de cuenta'), 'ahorros')
+      await user.type(within(grupo).getByLabelText('N° de cuenta'), numero)
+      await user.type(within(grupo).getByLabelText(/CCI/), cci)
+    }
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/una cuenta se guardaron; la otra requiere reintento/)
+    expect(onListo).not.toHaveBeenCalled()
+    expect(registrarCuenta).toHaveBeenCalledTimes(2)
   })
 
   it('una capacidad bancaria cacheada antes del mount no dispara el ledger si el detalle fresco la revoca', async () => {
@@ -356,7 +426,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(screen.queryByDisplayValue('SERVIDOR-NO-DEBE-PINTARSE')).not.toBeInTheDocument()
     const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
     expect(within(pen).getByLabelText('Banco')).toHaveValue('')
-    expect(screen.queryByText('Cuentas registradas en contratos')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cuentas vigentes del cliente')).not.toBeInTheDocument()
   })
 
   it('una cuenta cacheada antes del mount no se pinta ni desbloquea la validación mientras el refresh está pendiente', async () => {
@@ -389,43 +459,33 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(actualizarCliente).not.toHaveBeenCalled()
   })
 
-  it('ESTADO DE PRODUCCIÓN: la cuenta USD que vive solo en el ledger se MUESTRA (solo lectura) sin sembrar las casillas', async () => {
-    // Réplica del caso ORMESINDA JULCA: cuenta USD registrada al crear un
-    // contrato → vive SOLO en crm.cuentas_bancarias. Antes el formulario la
-    // escondía por completo. OJO: NO se siembra en los inputs — al guardar iría
-    // a perfiles y el fallback perfil_legacy de Pagos la usaría para contratos
-    // viejos sin vínculo (veto Codex 2026-08-11 a esa convergencia).
+  it('muestra las cuentas vigentes enmascaradas con origen y fecha, sin sembrar las casillas', async () => {
     obtenerDetalle.mockResolvedValue(detalleBase()) // banco_usd null (fixture)
-    // Payload FIEL de la RPC: para PEN devuelve la casilla del perfil como fila
-    // es_cuenta_perfil (así la sintetiza cuentas_bancarias_cliente_fn), no [].
     listarCuentas.mockImplementation(async (_id, moneda) =>
       moneda === 'USD'
         ? [cuentaLedger()]
         : [cuentaLedger({
-            cuenta_id: null,
+            cuenta_id: 'cta-pen',
             moneda: 'PEN',
             banco: 'BCP',
             tipo_cuenta: 'ahorros',
             numero_cuenta: '19112345678901',
             cci: '00219112345678901234',
             origen: 'perfil',
-            es_cuenta_perfil: true,
-            creada_en: null,
+            es_cuenta_perfil: false,
           })])
     montar({ modo: 'corregir', clienteId: 'cli-1' })
 
-    // El bloque informativo lista la cuenta del contrato…
-    expect(await screen.findByText('Cuentas registradas en contratos')).toBeInTheDocument()
-    expect(screen.getByText(/BBVA · corriente · 72728282828282 — dólares/)).toBeInTheDocument()
-    // …pero la casilla USD editable queda VACÍA (nada del ledger se siembra).
+    expect(await screen.findByText('Cuentas vigentes del cliente')).toBeInTheDocument()
+    expect(screen.getByText(/USD · BBVA · corriente · N° ••••8282/)).toBeInTheDocument()
+    expect(screen.getByText(/PEN · BCP · ahorros · N° ••••8901/)).toBeInTheDocument()
+    expect(screen.getByText(/Perfil migrado/)).toBeInTheDocument()
+    expect(screen.queryByText(/72728282828282/)).not.toBeInTheDocument()
     const usd = screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })
     expect(within(usd).getByLabelText('Banco')).toHaveValue('')
     expect(within(usd).getByLabelText('N° de cuenta')).toHaveValue('')
-    // La casilla PEN del perfil se precarga como siempre, y su copia histórica
-    // en el ledger (fila origen 'perfil') NO se lista como cuenta de contrato.
     const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
-    expect(within(pen).getByLabelText('Banco')).toHaveValue('BCP')
-    expect(screen.queryByText(/BCP · ahorros/)).not.toBeInTheDocument()
+    expect(within(pen).getByLabelText('Banco')).toHaveValue('')
   })
 
   it('una cuenta que solo vive en el ledger DESBLOQUEA la corrección SIN copiarse jamás a perfiles', async () => {
@@ -442,7 +502,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     const { onListo } = montar({ modo: 'corregir', clienteId: 'cli-1' })
 
     // Esperar el bloque informativo garantiza que el flag del ledger ya llegó.
-    await screen.findByText('Cuentas registradas en contratos')
+    await screen.findByText('Cuentas vigentes del cliente')
     const tel = screen.getByLabelText('Teléfono')
     await user.clear(tel)
     await user.type(tel, '999111222')
@@ -450,27 +510,16 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
 
     await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
     const [, patch] = actualizarCliente.mock.calls[0]!
-    // LA aserción anti-backfill: el teléfono viaja, las 14 bancarias van null
-    // (idempotente sobre un perfil que ya estaba vacío) y la cuenta del ledger
-    // NO aparece por ningún lado del patch.
-    expect(patch).toMatchObject({
-      telefono: '999111222',
-      banco: null,
-      numero_cuenta: null,
-      cci: null,
-      banco_usd: null,
-      numero_cuenta_usd: null,
-      cci_usd: null,
-    })
+    expect(patch).toMatchObject({ telefono: '999111222' })
+    for (const clave of ['banco', 'numero_cuenta', 'cci', 'banco_usd', 'numero_cuenta_usd', 'cci_usd']) {
+      expect(patch).not.toHaveProperty(clave)
+    }
+    expect(registrarCuenta).not.toHaveBeenCalled()
     expect(JSON.stringify(patch)).not.toContain('BBVA')
     expect(screen.queryByText(/Registra al menos una cuenta/)).not.toBeInTheDocument()
   })
 
-  // GUARDA del comportamiento nuevo (pasa también sobre el código viejo, que
-  // jamás llamaba la RPC): fija que el fallo del ledger no bloquea corregir.
-  // Los detectores del FIX son los dos tests de arriba (bloque informativo y
-  // desbloqueo sin backfill).
-  it('si la RPC de cuentas falla, corregir sigue operable con las casillas del perfil y AVISA con su Reintentar', async () => {
+  it('si la RPC de cuentas falla, permite corregir identidad y avisa antes de registrar otra cuenta', async () => {
     const user = userEvent.setup()
     obtenerDetalle.mockResolvedValue(detalleBase())
     listarCuentas
@@ -480,27 +529,28 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     montar({ modo: 'corregir', clienteId: 'cli-1' })
 
     const pen = await screen.findByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
-    expect(within(pen).getByLabelText('Banco')).toHaveValue('BCP')
+    expect(within(pen).getByLabelText('Banco')).toHaveValue('')
     expect(screen.getByRole('button', { name: /Guardar corrección/ })).toBeEnabled()
     // La degradación NO es muda: sin esto el analista no distingue «no tiene
     // cuentas en contratos» de «no se pudo leer el ledger».
     const aviso = await screen.findByRole('status')
-    expect(aviso).toHaveTextContent(/No se pudieron consultar las cuentas registradas en contratos/)
+    expect(aviso).toHaveTextContent(/No se pudieron consultar las cuentas vigentes/)
 
     // Su Reintentar repara las consultas del ledger: aparece el bloque
     // informativo y el aviso se limpia solo (derivado en vivo).
     await user.click(within(aviso).getByRole('button', { name: /Reintentar/ }))
-    expect(await screen.findByText('Cuentas registradas en contratos')).toBeInTheDocument()
+    expect(await screen.findByText('Cuentas vigentes del cliente')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('cuando el ledger responde sin cuentas de contrato no hay aviso ni bloque informativo', async () => {
+  it('cuando el ledger responde vacío muestra estado vacío explícito', async () => {
     obtenerDetalle.mockResolvedValue(detalleBase())
     montar({ modo: 'corregir', clienteId: 'cli-1' }) // default: ledger []
 
     await screen.findByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(screen.queryByText('Cuentas registradas en contratos')).not.toBeInTheDocument()
+    expect(screen.getByText('Cuentas vigentes del cliente')).toBeInTheDocument()
+    expect(screen.getByText('Sin cuentas bancarias vigentes.')).toBeInTheDocument()
   })
 
   it('Reintentar del ERROR DE CARGA obtiene primero la autorización y recién entonces consulta el ledger', async () => {
@@ -519,8 +569,8 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
 
     // Con la red sana el detalle confirma banca_visible y habilita PEN/USD: el
     // bloque informativo trae la cuenta sin una llamada bancaria prematura.
-    expect(await screen.findByText('Cuentas registradas en contratos')).toBeInTheDocument()
-    expect(screen.getByText(/BBVA · corriente/)).toBeInTheDocument()
+    expect(await screen.findByText('Cuentas vigentes del cliente')).toBeInTheDocument()
+    expect(screen.getByText(/USD · BBVA · corriente/)).toBeInTheDocument()
     expect(listarCuentas).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })

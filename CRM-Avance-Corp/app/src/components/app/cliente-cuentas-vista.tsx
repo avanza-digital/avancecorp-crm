@@ -29,14 +29,18 @@ export function DatoClienteCopiable({
   valor,
   className = '',
   monoespaciado = false,
+  enmascarado = false,
 }: {
   etiqueta: string
   valor: string | null | undefined
   className?: string
   monoespaciado?: boolean
+  enmascarado?: boolean
 }) {
   const [copiado, setCopiado] = useState(false)
-  const texto = valorCliente(valor ?? null)
+  const texto = enmascarado && valor?.trim()
+    ? `••••${valor.trim().slice(-4)}`
+    : valorCliente(valor ?? null)
   const valorCopiable = valor?.trim() ?? ''
   const sePuedeCopiar = valorCopiable !== ''
 
@@ -128,8 +132,12 @@ export function CuentasClienteMoneda({
                 valor={cuenta.numeroCuenta}
                 className="col-span-2"
                 monoespaciado
+                enmascarado
               />
-              <DatoClienteCopiable etiqueta="CCI" valor={cuenta.cci} className="col-span-2" monoespaciado />
+              <DatoClienteCopiable etiqueta="CCI" valor={cuenta.cci} className="col-span-2" monoespaciado enmascarado />
+              {cuenta.origen && (
+                <DatoCliente etiqueta="Origen">{{ perfil: 'Perfil migrado', contrato: 'CRM / contrato', portal: 'Ficha de cliente' }[cuenta.origen]}</DatoCliente>
+              )}
               <DatoCliente etiqueta={uso === 'pagos' ? 'La cuenta está a nombre de' : 'Titular de la cuenta'}>
                 {uso === 'pagos'
                   ? cuenta.titularDistinto

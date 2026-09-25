@@ -394,7 +394,7 @@ describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
       }),
     )
 
-    await expect(actualizarClientePortal('cli-1', { banco: 'BCP' })).resolves.toBe(true)
+    await expect(actualizarClientePortal('cli-1', { telefono: '+51911111111' })).resolves.toBe(true)
     expect(capturadas[0]?.searchParams.get('id')).toBe('eq.cli-1')
     expect(capturadas[0]?.searchParams.get('select')).toBe('id')
   })

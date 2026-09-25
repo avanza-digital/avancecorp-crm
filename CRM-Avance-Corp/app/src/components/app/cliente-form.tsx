@@ -2,8 +2,8 @@
 // del modal #modalCliente del panel del analista (public_html/admin/analista.html
 // + js/admin/analista.js), campo por campo y validación por validación.
 //
-// Flujo del ALTA (UN paso desde 2026-07-27): la edge crear-cliente crea Auth +
-//   perfil CON sus cuentas bancarias en el mismo INSERT y manda el correo REAL de
+// Flujo del ALTA: la edge crear-cliente crea Auth +
+//   perfil y cuentas bancarias en una transacción y manda el correo REAL de
 //   bienvenida (clave temporal = documento con ceros a 8), vía crearClientePortal.
 //   Antes eran DOS pasos y los bancarios iban en un UPDATE posterior: si ese paso
 //   fallaba quedaba un cliente real, con su correo ya enviado, sin cuenta donde
@@ -13,7 +13,7 @@
 //   la identidad técnica, el rol y el analista responsable. Un rechazo devuelve
 //   false o error y JAMÁS se dice "guardado".
 //
-// La lógica pura (validaciones, catálogo de bancos, patch de 14 bancarias) vive
+// La lógica pura (validaciones y catálogo de bancos) vive
 // en lib/cliente-form-logica; aquí solo el estado y el pintado.
 import { useEffect, useRef, useState } from 'react'
 import { Pencil, RotateCcw, UserRoundPlus } from 'lucide-react'
@@ -29,6 +29,7 @@ import {
   corregirCorreoClienteAdmin,
   corregirDocumentoClienteAdmin,
   crearClientePortal,
+  registrarCuentaCliente,
   mensajeDeError,
   CrmApiError,
 } from '@/data/crm-api'
@@ -42,9 +43,6 @@ import { useAuth } from '@/lib/auth-context'
 import { puedeCorregirCorreoCliente, puedeCorregirDocumentoCliente } from '@/lib/roles'
 import {
   SECCION_BANCARIA_VACIA,
-  hayCuentaEnLedger,
-  seccionPenDesdeDetalle,
-  seccionUsdDesdeDetalle,
   validarClienteForm,
   type SeccionBancariaForm,
 } from '@/lib/cliente-form-logica'
@@ -57,6 +55,14 @@ const MSG_VENTANA_VENCIDA =
 /** Marca «el banner inline ya tiene el mensaje»: el catch no debe pisarlo con
  *  el genérico; solo re-lanza para el estado de error del BotonGuardar. */
 class ErrorYaMostrado extends Error {}
+
+const cuentaEnmascarada = (valor: string) => `••••${valor.slice(-4)}`
+const origenCuenta = (origen: CuentaBancariaSeleccionable['origen']) => ({
+  perfil: 'Perfil migrado', contrato: 'CRM / contrato', portal: 'Ficha de cliente',
+})[origen]
+const fechaCuenta = (valor: string | null) => valor
+  ? new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium' }).format(new Date(valor))
+  : 'Fecha no disponible'
 
 
 export interface ClienteFormProps {
@@ -81,6 +87,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const esCorregir = modo === 'corregir'
   const { yo } = useAuth()
   const esGerencia = yo?.rol === 'gerencia'
+  const puedeRegistrarBanca = !esCorregir || esGerencia
+    || ['admin', 'superadmin', 'operaciones', 'analista'].includes(yo?.rol_portal ?? '')
   const puedeCorregirDocumento = esCorregir && puedeCorregirDocumentoCliente(yo)
   // El correo es la CREDENCIAL de acceso, no un dato de contacto: puerta mas
   // estrecha que la del documento (solo superadmin).
@@ -96,7 +104,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [telefono, setTelefono] = useState('')
   const [correo, setCorreo] = useState('')
   const [domicilio, setDomicilio] = useState('')
-  // Bancarios (PEN = columnas base, USD = sufijo _usd; independientes)
+  // En corrección, campos vacíos significan «registrar otra cuenta» opcional.
   const [pen, setPen] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   const [usd, setUsd] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   // Corregir: detalle cargado (habilita legacy/grandfathering y la cuenta regresiva)
@@ -119,10 +127,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     !qDetalle.isFetching &&
     qDetalle.isFetchedAfterMount &&
     qDetalle.data.cuentas_bancarias_visibles
-  // Las cuentas del LEDGER completan la precarga bancaria: una cuenta
-  // registrada al crear un contrato vive SOLO en crm.cuentas_bancarias y las
-  // casillas de perfiles no la conocen (regla en precargarSeccionBancaria).
-  // Solo alimentan la siembra; el guardado sigue escribiendo las casillas.
+  // El ledger muestra todas las cuentas activas; el editor de alta de otra
+  // cuenta permanece vacío y escribe únicamente mediante la RPC versionada.
   const qCuentasPen = useCuentasBancariasCliente(clienteId ?? '', 'PEN', ledgerRemotoHabilitado)
   const qCuentasUsd = useCuentasBancariasCliente(clienteId ?? '', 'USD', ledgerRemotoHabilitado)
   // Nunca derivar validaciones ni pintar números desde el `data` vivo de React
@@ -174,24 +180,15 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     qCuentasPen.isError,
     qCuentasUsd.isError,
   ])
-  // Siembra ÚNICA y solo con datos RECIÉN traídos: isFetchedAfterMount exige un
-  // fetch COMPLETADO tras el mount — sin red el refetch queda 'paused' (isFetching
-  // false + isSuccess true con la copia cacheada) y sembrar esa copia vieja haría
-  // que el UPDATE de set completo pise bancarios corregidos por otra sesión. Un
-  // refetch posterior (foco de ventana) no debe pisar lo que el analista edita.
-  // Las cuentas del ledger esperan lo mismo, pero su FALLO no bloquea el
-  // formulario: degrada a la precarga de siempre (solo casillas del perfil).
+  // La identidad se siembra una vez desde una lectura fresca. Los inputs de
+  // nueva cuenta quedan vacíos; un refetch no pisa lo que el usuario escribe.
   const sembrado = useRef(false)
   useEffect(() => {
     if (!esCorregir || sembrado.current) return
     if (!qDetalle.isSuccess || qDetalle.isFetching || !qDetalle.isFetchedAfterMount) return
     const d = qDetalle.data
     sembrado.current = true
-    // Precarga TODO (espejo de abrirModalClienteCorregir del portal). Las
-    // casillas bancarias vienen SOLO del perfil: las cuentas del ledger jamás
-    // se siembran aquí (se muestran aparte, en solo lectura) porque al guardar
-    // irían a perfiles y el fallback perfil_legacy de Pagos las usaría para
-    // contratos viejos sin vínculo (veto Codex 2026-08-11 a esa convergencia).
+    // Identidad y contacto compartidos por perfiles; cuentas del ledger aparte.
     setApellidos(d.apellidos ?? '')
     setNombres(d.nombres ?? '')
     setTipoDoc(d.tipo_documento)
@@ -199,29 +196,18 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     setTelefono(d.telefono ?? '')
     setCorreo(d.correo ?? '')
     setDomicilio(d.domicilio ?? '')
-    // Defensa en profundidad: el servidor redacta las 14 columnas cuando el
-    // flag es false, pero el formulario tampoco confía en una combinación
-    // incoherente de flag cerrado + valores no nulos.
-    setPen(d.banca_visible ? seccionPenDesdeDetalle(d) : SECCION_BANCARIA_VACIA)
-    setUsd(d.banca_visible ? seccionUsdDesdeDetalle(d) : SECCION_BANCARIA_VACIA)
     setDetalle(d)
   }, [esCorregir, qDetalle.isSuccess, qDetalle.isFetching, qDetalle.isFetchedAfterMount, qDetalle.data])
 
-  // Derivados del ledger (crm.cuentas_bancarias) — la fuente que la ficha ya
-  // usa. NO alimentan las casillas: informan al analista y perdonan la regla
-  // «al menos una cuenta» cuando los contratos ya tienen dónde depositar.
+  // Derivados del ledger (crm.cuentas_bancarias) — toda cuenta activa es visible.
   const cuentasConfirmadasVigentes =
     cuentasConfirmadas?.clienteId === clienteId ? cuentasConfirmadas : null
   const cuentasLedger =
     esCorregir && ledgerRemotoHabilitado && cuentasConfirmadasVigentes != null
     ? [...cuentasConfirmadasVigentes.pen, ...cuentasConfirmadasVigentes.usd]
     : []
-  const cuentasDeContrato = cuentasLedger.filter((c) => c.origen === 'contrato')
-  const ledgerCubre = hayCuentaEnLedger(cuentasLedger)
-  // La degradación NO es muda: si el ledger no se pudo leer, el analista lo ve —
-  // sin el aviso escribiría a mano una cuenta «que no existía» o chocaría con
-  // «Registra al menos una cuenta» sin pista del porqué. Derivado en vivo: un
-  // reintento exitoso lo limpia solo.
+  const cuentasVigentes = cuentasLedger
+  // Si falla una moneda, no se habilita el registro bancario a ciegas.
   const avisoLedger =
     esCorregir &&
     detalle != null &&
@@ -229,8 +215,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     (qCuentasPen.isError || qCuentasUsd.isError)
   // No validar contra «cero cuentas» mientras las dos monedas aún se están
   // revalidando: sería un falso negativo y tentaría a usar la caché para evitarlo.
-  // Si la RPC falla, el aviso explícito toma el relevo y se permite degradar a
-  // las casillas embebidas que ya llegaron autorizadas en el detalle.
+  // Un fallo muestra aviso; la identidad puede seguir guardándose sin banca.
   const ledgerPendiente =
     esCorregir &&
     detalle != null &&
@@ -243,8 +228,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     if (qCuentasUsd.isError) void qCuentasUsd.refetch()
   }
 
-  // Una vez sembrado, el formulario manda: un fallo de un refetch posterior no
-  // lo tumba (el guardado revalida en el servidor de todos modos).
+  // El servidor revalida todo dato antes de persistir.
   const errorCarga = !esCorregir
     ? null
     : !clienteId
@@ -261,10 +245,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     const r = validarClienteForm(
       { apellidos, nombres, tipo_documento: tipoDoc, documento, telefono, correo, domicilio, pen, usd },
       esCorregir ? detalle : null,
-      // El ledger perdona la regla «al menos una cuenta» SOLO en corregir: el
-      // cliente ya tiene dónde cobrar (cuenta activa vinculada a contrato) y
-      // el patch con casillas vacías es idempotente sobre perfiles.
-      { cuentaEnLedger: ledgerCubre },
+      // En corrección se pueden guardar identidad/contacto sin agregar cuenta.
+      { cuentaEnLedger: esCorregir },
     )
     if (!r.ok) {
       setError(r.error)
@@ -273,6 +255,22 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
       throw new Error(r.error)
     }
     const c = r.cliente
+    const cuentasNuevas = [
+      ...([pen.banco, pen.tipo_cuenta, pen.numero_cuenta, pen.cci].some((valor) => valor.trim()) || pen.titular_distinto
+        ? [{ moneda: 'PEN' as const, datos: pen }] : []),
+      ...([usd.banco, usd.tipo_cuenta, usd.numero_cuenta, usd.cci].some((valor) => valor.trim()) || usd.titular_distinto
+        ? [{ moneda: 'USD' as const, datos: usd }] : []),
+    ]
+    if (esCorregir && cuentasNuevas.length && !puedeRegistrarBanca) {
+      const mensaje = 'Solo Analistas, Gerencia o Administración pueden registrar cuentas bancarias.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
+    if (esCorregir && cuentasNuevas.length && (!ledgerRemotoHabilitado || cuentasConfirmadasVigentes == null)) {
+      const mensaje = 'Espera a que carguen las cuentas vigentes antes de registrar otra.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
     const documentoCambio = esCorregir && detalle !== null && (
       c.tipo_documento !== detalle.tipo_documento || c.dni !== (detalle.dni ?? '')
     )
@@ -317,7 +315,6 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             // nombre_completo original (rama esLegacySinSeparar de la validación).
             apellidos: c.apellidos,
             nombres: c.nombres,
-            ...c.bancarios,
             actualizado_en: new Date().toISOString(),
           },
           esGerencia,
@@ -353,6 +350,19 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             throw new ErrorYaMostrado(mensaje)
           }
         }
+        let registradas = 0
+        for (const nueva of cuentasNuevas) {
+          try {
+            await registrarCuentaCliente(clienteId as string, nueva.moneda, nueva.datos)
+            registradas++
+          } catch (e) {
+            const mensaje = registradas
+              ? 'Los datos personales y una cuenta se guardaron; la otra requiere reintento. Vuelve a abrir la ficha.'
+              : `Los datos personales se guardaron. ${mensajeDeError(e, 'No se pudo registrar la cuenta.')}`
+            setError(mensaje)
+            throw new ErrorYaMostrado(mensaje)
+          }
+        }
         toast.success(
           correoCambio
             ? 'Datos corregidos. El cliente entra al portal con su correo nuevo.'
@@ -360,8 +370,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         )
         onListo(clienteId as string)
       } else {
-        // UN SOLO PASO: la edge valida los bancarios, crea la cuenta CON sus
-        // cuentas de depósito en el mismo INSERT y manda el correo. Las
+        // La Edge valida los bancarios y crea el perfil y sus cuentas en una
+        // transaccion de BD; Auth y el correo se coordinan fuera de ella. Las
         // secciones van CRUDAS: la validación que manda es la del servidor.
         const alta = await crearClientePortal({
           email: c.correo,
@@ -418,8 +428,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     </DialogHeader>
   )
 
-  // (Ya no existe el estado "alta parcial": la edge escribe las cuentas en el
-  //  mismo INSERT del cliente, así que o nace con su cuenta o no nace.)
+  // La Edge registra perfil y cuentas en una transacción antes del correo.
 
   if (esCorregir && cargando) {
     return (
@@ -685,8 +694,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-300"
           >
             <span>
-              No se pudieron consultar las cuentas registradas en contratos: puede faltar
-              información abajo.
+              No se pudieron consultar las cuentas vigentes. Reintenta antes de registrar otra.
             </span>
             <Button type="button" variant="outline" size="sm" onClick={reintentarCuentasLedger}>
               <RotateCcw aria-hidden /> Reintentar
@@ -694,22 +702,19 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           </div>
         )}
 
-        {cuentasDeContrato.length > 0 && (
-          // Solo lectura A PROPÓSITO: estas cuentas viven en crm.cuentas_bancarias
-          // atadas a SU contrato. Copiarlas a las casillas del perfil las volvería
-          // la cuenta de cobro de contratos viejos sin vínculo (fallback
-          // perfil_legacy de Pagos) — el backfill por inferencia que está prohibido.
+        {esCorregir && cuentasConfirmadasVigentes != null && (
           <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-            <b className="text-foreground">Cuentas registradas en contratos</b> — se administran
-            desde el contrato, no aquí:
-            <ul className="mt-1 list-disc pl-4">
-              {cuentasDeContrato.map((c) => (
-                <li key={c.cuenta_id ?? `${c.moneda}-${c.cci}`}>
-                  {c.banco} · {c.tipo_cuenta} · {c.numero_cuenta} —{' '}
-                  {c.moneda === 'PEN' ? 'soles' : 'dólares'}
-                </li>
-              ))}
-            </ul>
+            <b className="text-foreground">Cuentas vigentes del cliente</b>
+            {cuentasVigentes.length ? (
+              <ul className="mt-1 list-disc pl-4">
+                {cuentasVigentes.map((c) => (
+                  <li key={c.cuenta_id ?? `${c.moneda}-${c.cci}`}>
+                    {c.moneda} · {c.banco} · {c.tipo_cuenta} · N° {cuentaEnmascarada(c.numero_cuenta)}
+                    {' '}· CCI {cuentaEnmascarada(c.cci)} · {origenCuenta(c.origen)} · {fechaCuenta(c.creada_en)}
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="mt-1">Sin cuentas bancarias vigentes.</p>}
           </div>
         )}
 
@@ -720,8 +725,12 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           usd={usd}
           onPen={setPen}
           onUsd={setUsd}
-          deshabilitado={enviando}
+          deshabilitado={enviando || !puedeRegistrarBanca}
+          registroOpcional={esCorregir}
         />
+        {esCorregir && !puedeRegistrarBanca && (
+          <p className="text-[11px] text-muted-foreground">El registro de cuentas está reservado a Analistas, Gerencia y Administración.</p>
+        )}
       </DialogBody>
       <DialogFooter className="justify-between">
         <Button variant="ghost" size="sm" onClick={onCerrar} disabled={enviando}>

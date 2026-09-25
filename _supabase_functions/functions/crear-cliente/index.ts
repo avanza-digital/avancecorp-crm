@@ -12,6 +12,7 @@ import {
 // Datos bancarios: misma frontera que usa crm-convertir-lead, para que las dos
 // puertas de alta de clientes no puedan divergir.
 import { validarBancarios } from "../_shared/bancarios.mjs";
+import { clasificarAltaPerfilConCuentas, compensarAuthAltaRechazada } from "../_shared/alta-perfil-cuentas.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
 import { resolverAutorizacionAltaCliente } from "./autorizacion.mjs";
 import {
@@ -94,34 +95,38 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const {
       email, password, nombre_completo, apellidos, nombres, dni, telefono,
-      domicilio, tipo_documento, bancarios,
+      domicilio, tipo_documento, bancarios, asesor_perfil_id,
     } = body || {};
 
     if (!email || !nombre_completo) {
       return json(cors, { error: "email y nombre_completo son obligatorios" }, 400);
     }
 
-    // El portal legacy aún no captura domicilio y no se rompe por esta entrega.
-    // El CRM moderno se distingue por su bloque bancario atómico: para él el
-    // domicilio es obligatorio y queda validado ANTES de Auth o del perfil.
+    // El portal no captura domicilio; el CRM sí lo exige en su formulario.
+    // El bloque bancario ya no distingue a los dos dominios: ambos lo envían.
     const valDomicilio = validarDomicilioLegal(domicilio, {
-      requerido: bancarios !== undefined && bancarios !== null,
+      requerido: domicilio !== undefined && domicilio !== null,
     });
     if (!valDomicilio.ok) return json(cors, { error: valDomicilio.error }, 400);
     const domicilioLegal = valDomicilio.valor;
 
-    // DATOS BANCARIOS (2026-07-27) — ADITIVO Y RETROCOMPATIBLE. El portal
-    // (js/admin/clientes.js) NO manda este bloque y sigue con su flujo de
-    // siempre: crea el cliente aquí y escribe las cuentas en un UPDATE aparte.
-    // El CRM SÍ lo manda, y entonces las cuentas entran en el MISMO INSERT del
-    // cliente — sin ventana en la que exista un cliente, con su correo ya
-    // enviado, al que el área de pagos no le puede transferir. Si el bloque
-    // viene, se valida completo (fail-closed): mandarlo a medias es un 400.
-    let columnasBancarias = {};
-    if (bancarios !== undefined && bancarios !== null) {
-      const valBancarios = validarBancarios(bancarios);
-      if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
-      columnasBancarias = valBancarios.columnas;
+    // Sin banca válida no se crea Auth ni perfil. Un bundle viejo recibe 400
+    // antes de producir un cliente sin destino de pago.
+    const valBancarios = validarBancarios(bancarios);
+    if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
+    const cuentasBancarias = valBancarios.cuentas;
+    let asesorIdAlta = autorizacion.asesorId;
+    if (asesor_perfil_id !== undefined && asesor_perfil_id !== null && asesor_perfil_id !== "") {
+      if (!["admin", "superadmin"].includes(perfil?.rol ?? "") || typeof asesor_perfil_id !== "string") {
+        return json(cors, { error: "No autorizado para asignar un analista" }, 403);
+      }
+      const { data: asesor, error: asesorErr } = await adminClient
+        .from("perfiles").select("id,rol,activo")
+        .eq("id", asesor_perfil_id).maybeSingle();
+      if (asesorErr || !asesor || !asesor.activo || asesor.rol !== "analista") {
+        return json(cors, { error: "El analista indicado no está disponible" }, 400);
+      }
+      asesorIdAlta = asesor.id;
     }
 
     const emailNormalizado = email.trim().toLowerCase();
@@ -172,6 +177,22 @@ Deno.serve(async (req: Request) => {
       claveTemporal = true;
     }
 
+    // Esta RPC inserta el perfil y las cuentas PEN/USD en una transacción.
+    // El service_role solo se usa dentro de esta Edge, después de verificar JWT
+    // y capacidad de alta; p_actor_id queda en creado_por y en la auditoría.
+    const crearPerfilConCuentas = (id: string) => adminClient.schema("crm")
+      .rpc("crear_perfil_cliente_con_cuentas", {
+        p_perfil: {
+          id, nombre_completo: nombreNormalizado, apellidos: apellidosNorm,
+          nombres: nombresNorm, tipo_documento: tipoDoc, dni: dniLimpio || null,
+          telefono: telefono?.trim() || null, domicilio: domicilioLegal,
+          correo: emailNormalizado, debe_cambiar_password: claveTemporal,
+          asesor_perfil_id: asesorIdAlta,
+        },
+        p_cuentas: cuentasBancarias,
+        p_actor_id: callerId,
+      });
+
     // ── F2.b b3 · IDENTIDAD UNIFICADA ─────────────────────────────────────────
     // La bandera se lee con la sesión del caller (crm.bandera_activa). Fail-closed:
     // si no se puede leer, no se crea nada. Con la bandera APAGADA el flujo de abajo
@@ -200,43 +221,27 @@ Deno.serve(async (req: Request) => {
 
       newUserId = created.user.id;
 
-      const { error: perfilErr } = await adminClient
-        .from("perfiles")
-        .insert({
-          id: newUserId,
-          nombre_completo: nombreNormalizado,
-          apellidos: apellidosNorm,
-          nombres: nombresNorm,
-          tipo_documento: tipoDoc,
-          dni: dniLimpio || null,
-          telefono: telefono?.trim() || null,
-          domicilio: domicilioLegal,
-          correo: emailNormalizado,
-          rol: "cliente",
-          activo: true,
-          creado_por: userRes.user.id,
-          debe_cambiar_password: claveTemporal,
-          // Analista legacy o Vendedor CRM se autoasignan. Supervisión, Gerencia
-          // y administradores crean sin apropiarse de la cartera.
-          asesor_perfil_id: autorizacion.asesorId,
-          // Vacío cuando el caller no manda el bloque (portal): el insert queda
-          // EXACTAMENTE como antes.
-          ...columnasBancarias,
-        });
-
-      if (perfilErr) {
-        await adminClient.auth.admin.deleteUser(newUserId);
+      const altaPerfil = await crearPerfilConCuentas(newUserId);
+      const estadoPerfil = await clasificarAltaPerfilConCuentas(
+        adminClient, newUserId, altaPerfil, () => crearPerfilConCuentas(newUserId),
+      );
+      if (estadoPerfil === "incierta") {
+        return json(cors, { error: "No se pudo confirmar el alta. El usuario quedó reservado para revisión; no repitas el registro." }, 503);
+      }
+      if (estadoPerfil === "rechazada") {
+        if (!await compensarAuthAltaRechazada(adminClient, newUserId)) {
+          return json(cors, { error: "No se pudo completar ni revertir el alta. Requiere revisión de Gerencia." }, 503);
+        }
+        const perfilErr = altaPerfil.error;
         // El disparador sigue anclado al NOMBRE del constraint (perfiles_dni_key),
         // no al texto visible: la columna no se renombró.
-        if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
-          return json(cors, { error: "Este documento ya está registrado" }, 409);
-        }
+        if (perfilErr?.code === "23505") return json(cors, { error: "El documento o correo ya está registrado" }, 409);
         // Violación de CHECK (23514): mensaje limpio, sin filtrar el valor del
         // documento (PII) ni la definición del constraint en la respuesta.
-        if (perfilErr.code === "23514") {
+        if (perfilErr?.code === "23514") {
           return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
         }
-        return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
+        return json(cors, { error: "No se pudo registrar el perfil y sus cuentas. Revisa los datos e intenta nuevamente." }, 400);
       }
     } else {
       // Con identidad: documento OBLIGATORIO (la persona se reconoce por él).
@@ -251,7 +256,7 @@ Deno.serve(async (req: Request) => {
         tipo_documento: tipoDoc, documento: dniLimpio, correo: emailNormalizado,
         nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
         telefono: telefono?.trim() || null, domicilio: domicilioLegal,
-        bancarios: bancarios ?? null, asesor_id: autorizacion.asesorId,
+        bancarios, asesor_id: asesorIdAlta,
       });
       if (errReclamo) return json(cors, { error: errReclamo.message }, statusDeErrorSaga(errReclamo));
       let saga = interpretarReclamo(reclamo);
@@ -315,49 +320,29 @@ Deno.serve(async (req: Request) => {
         newUserId = saga.authUserId;
       }
 
-      // 3) PERFIL (mismas columnas de siempre), salvo que ya exista de esta misma saga.
+      // 3) PERFIL + CUENTAS (una transacción), reentrante para la misma saga.
       if (saga.paso !== "enlazar") {
-        const { error: perfilErr } = await adminClient
-          .from("perfiles")
-          .insert({
-            id: newUserId,
-        nombre_completo: nombreNormalizado,
-        apellidos: apellidosNorm,
-        nombres: nombresNorm,
-        tipo_documento: tipoDoc,
-        dni: dniLimpio || null,
-        telefono: telefono?.trim() || null,
-        domicilio: domicilioLegal,
-        correo: emailNormalizado,
-        rol: "cliente",
-        activo: true,
-        creado_por: userRes.user.id,
-        debe_cambiar_password: claveTemporal,
-        // Analista legacy o Vendedor CRM se autoasignan. Supervisión, Gerencia
-        // y administradores crean sin apropiarse de la cartera.
-        asesor_perfil_id: autorizacion.asesorId,
-        // Vacío cuando el caller no manda el bloque (portal): el insert queda
-        // EXACTAMENTE como antes.
-        ...columnasBancarias,
-          });
-        if (perfilErr) {
-          const decision = decidirTrasFalloPerfil(perfilErr);
+        const altaPerfil = await crearPerfilConCuentas(newUserId);
+        const estadoPerfil = await clasificarAltaPerfilConCuentas(
+          adminClient, newUserId, altaPerfil, () => crearPerfilConCuentas(newUserId),
+        );
+        if (estadoPerfil === "incierta") {
+          return json(cors, { error: "No se pudo confirmar el alta. Reintenta para reanudarla sin crear otro usuario." }, 503);
+        }
+        if (estadoPerfil === "rechazada") {
+          const decision = decidirTrasFalloPerfil(altaPerfil.error ?? {});
           if (decision === "compensar") {
-            // Datos inválidos: se borra el Auth (comprobando el resultado) y el claim vuelve a 'reclamado'.
-            const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-            if (!delErr) {
-              const rc = await avanzar("compensar_auth", {});
-              if (rc.error) console.warn("crear-cliente: compensar_auth pendiente:", rc.error.message);
+            if (!await compensarAuthAltaRechazada(adminClient, newUserId)) {
+              return json(cors, { error: "No se pudo revertir el alta. Requiere revisión de Gerencia." }, 503);
             }
+            const rc = await avanzar("compensar_auth", {});
+            if (rc.error) return json(cors, { error: "El usuario se revirtió, pero la saga requiere revisión de Gerencia." }, 503);
             return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
           }
-          if (decision === "revision") {
+          if (decision === "revision" || decision === "perfil_ya_existia") {
             return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia: la saga quedó a medias)" }, 409);
           }
-          if (decision === "error") {
-            return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
-          }
-          // perfil_ya_existia: el INSERT de un intento anterior sí llegó; se sigue.
+          return json(cors, { error: "No se pudo registrar el perfil y sus cuentas. Reintenta el alta." }, 400);
         }
         const r = await avanzar("perfil_creado", { perfil_id: newUserId });
         if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
@@ -428,8 +413,8 @@ Deno.serve(async (req: Request) => {
       ...respuestaIdentidad,
     }, 200);
 
-  } catch (e) {
-    return json(corsHeaders(req), { error: (e as Error)?.message || "Error inesperado" }, 500);
+  } catch {
+    return json(corsHeaders(req), { error: "No se pudo completar el alta del cliente. Reintenta o contacta a soporte." }, 500);
   }
 });
 

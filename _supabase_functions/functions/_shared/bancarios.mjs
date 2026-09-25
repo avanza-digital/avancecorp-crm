@@ -4,22 +4,14 @@
  * Por qué existe: la cuenta bancaria es donde se le deposita el interés al
  * cliente. Sin ella el área de pagos no puede transferirle (el Excel de pagos
  * sale con "datos bancarios incompletos"), así que un cliente sin cuenta es un
- * cliente roto. Hasta 2026-07-27 la regla "al menos una cuenta" vivía SOLO en el
- * navegador y las columnas se escribían en un SEGUNDO UPDATE, después de crear
- * la cuenta Auth y de mandar el correo de bienvenida: un POST directo, un front
- * viejo o un fallo de red dejaban un cliente REAL sin cuenta donde cobrar.
- * Ahora la regla se exige aquí y las columnas entran en el MISMO INSERT.
+ * cliente roto. La regla "al menos una cuenta" se exige en esta frontera; las
+ * cuentas se registran en crm.cuentas_bancarias antes de confirmar el alta.
  *
  * ESPEJO de app/src/lib/cliente-form-logica.ts (el CRM) — ahí las reglas son
  * idénticas campo por campo. Si se cambia una aquí, cambiarla también allí.
  *
- * ⚠️ El portal (public_html/js/admin/clientes.js y analista.js) es un espejo
- * PARCIAL: su `leerYValidarBancarios` NO valida el FORMATO del número de cuenta
- * (solo que no esté vacío), así que acepta cosas como '0011 0814 0200 12345' con
- * espacios, que esta frontera rechaza. Hoy no rompe nada porque el portal NO
- * manda el bloque `bancarios` a crear-cliente y sigue guardándolas por su UPDATE
- * de siempre. Pero ANTES de hacer que el portal mande el bloque hay que alinear
- * su validación, o números que sus admins tipean hoy pasarían a dar 400.
+ * El portal y el CRM envían el mismo bloque `{pen, usd}`. El servidor valida
+ * siempre, incluso si un navegador viejo omite el bloque.
  *
  * Módulo PURO y sin dependencias (ni Deno ni Supabase) a propósito: así corre
  * bajo `node --test` sin levantar nada — mismo patrón que
@@ -30,25 +22,17 @@
 export const TIPOS_CUENTA = ["ahorros", "corriente"];
 
 /**
- * Las 14 columnas bancarias EXACTAS de public.perfiles. Declaradas para que las
- * edges en TypeScript puedan hacer `...columnas` sobre un tipo concreto (con un
- * `object` suelto, `deno check` rechaza el spread en un objeto tipado).
+ * Cuenta normalizada para el RPC de crm. El `moneda` viaja en p_cuenta.
  *
- * @typedef {object} ColumnasBancarias
- * @property {string | null} banco
- * @property {string | null} tipo_cuenta
- * @property {string | null} numero_cuenta
- * @property {string | null} cci
+ * @typedef {object} CuentaCliente
+ * @property {'PEN' | 'USD'} moneda
+ * @property {string} banco
+ * @property {string} tipo_cuenta
+ * @property {string} numero_cuenta
+ * @property {string} cci
  * @property {boolean} titular_distinto
  * @property {string | null} beneficiario_nombre
  * @property {string | null} beneficiario_dni
- * @property {string | null} banco_usd
- * @property {string | null} tipo_cuenta_usd
- * @property {string | null} numero_cuenta_usd
- * @property {string | null} cci_usd
- * @property {boolean} titular_distinto_usd
- * @property {string | null} beneficiario_nombre_usd
- * @property {string | null} beneficiario_dni_usd
  */
 
 /**
@@ -122,7 +106,7 @@ export function validarSeccionBancaria(seccion, moneda) {
   if (!banco) return { ok: false, error: `Selecciona el banco de la cuenta${suf}.` };
   if (!numero_cuenta) return { ok: false, error: `El N° de cuenta${suf} es obligatorio.` };
   // Las cajas municipales emiten cuentas con letras: alfanumérico + guiones.
-  if (!/^[A-Za-z0-9-]+$/.test(numero_cuenta)) {
+  if (!/^[A-Za-z0-9-]{1,30}$/.test(numero_cuenta)) {
     return {
       ok: false,
       error: `El N° de cuenta${suf} solo puede contener letras, números y guiones (sin espacios).`,
@@ -133,6 +117,7 @@ export function validarSeccionBancaria(seccion, moneda) {
     return { ok: false, error: `Tipo de cuenta${suf} inválido.` };
   }
   if (!cci) return { ok: false, error: `El CCI${suf} es obligatorio.` };
+  if (banco.length > 100) return { ok: false, error: `El banco${suf} no puede superar 100 caracteres.` };
   if (!/^[0-9]{20}$/.test(cci)) {
     return { ok: false, error: `El CCI${suf} debe tener exactamente 20 dígitos.` };
   }
@@ -147,6 +132,9 @@ export function validarSeccionBancaria(seccion, moneda) {
         ok: false,
         error: `Escribe el nombre completo del beneficiario${suf} (titular de la cuenta).`,
       };
+    }
+    if (beneficiario_nombre.length > 200) {
+      return { ok: false, error: `El nombre del beneficiario${suf} no puede superar 200 caracteres.` };
     }
     if (!beneficiario_dni) {
       return { ok: false, error: `El DNI del beneficiario${suf} es obligatorio.` };
@@ -175,35 +163,18 @@ export function validarSeccionBancaria(seccion, moneda) {
 }
 
 /**
- * PEN va a las columnas base, USD a las mismas con sufijo `_usd`.
- *
- * @param {DatosSeccion} pen
- * @param {DatosSeccion} usd
- * @returns {ColumnasBancarias}
+ * @param {'PEN'|'USD'} moneda
+ * @param {DatosSeccion} datos
+ * @returns {CuentaCliente}
  */
-function armarColumnas(pen, usd) {
-  return {
-    banco: pen.banco,
-    tipo_cuenta: pen.tipo_cuenta,
-    numero_cuenta: pen.numero_cuenta,
-    cci: pen.cci,
-    titular_distinto: pen.titular_distinto,
-    beneficiario_nombre: pen.beneficiario_nombre,
-    beneficiario_dni: pen.beneficiario_dni,
-    banco_usd: usd.banco,
-    tipo_cuenta_usd: usd.tipo_cuenta,
-    numero_cuenta_usd: usd.numero_cuenta,
-    cci_usd: usd.cci,
-    titular_distinto_usd: usd.titular_distinto,
-    beneficiario_nombre_usd: usd.beneficiario_nombre,
-    beneficiario_dni_usd: usd.beneficiario_dni,
-  };
+function armarCuenta(moneda, datos) {
+  return { moneda, ...datos };
 }
 
 /**
  * Validación COMPLETA del bloque bancario: las dos monedas + la regla dura
- * "AL MENOS UNA cuenta" (soles o dólares). Devuelve las 14 columnas listas para
- * entrar en el MISMO INSERT de `perfiles` que el resto del cliente.
+ * "AL MENOS UNA cuenta" (soles o dólares). Devuelve cuentas para registrar en
+ * el ledger, sin proyectarlas en `perfiles`.
  *
  * `bancarios` ausente/no-objeto se trata como las dos secciones vacías → falla
  * por "al menos una cuenta". Es deliberado y fail-closed: un caller que no manda
@@ -211,7 +182,7 @@ function armarColumnas(pen, usd) {
  * cliente al que después no se le puede depositar.
  *
  * @param {unknown} bancarios  `{ pen: {...}, usd: {...} }`
- * @returns {{ok: true, columnas: ColumnasBancarias} | {ok: false, error: string}}
+ * @returns {{ok: true, cuentas: CuentaCliente[]} | {ok: false, error: string}}
  */
 export function validarBancarios(bancarios) {
   const b = bancarios && typeof bancarios === "object" ? bancarios : {};
@@ -229,5 +200,8 @@ export function validarBancarios(bancarios) {
     };
   }
 
-  return { ok: true, columnas: armarColumnas(valPen.datos, valUsd.datos) };
+  const cuentas = [];
+  if (!valPen.vacia) cuentas.push(armarCuenta("PEN", valPen.datos));
+  if (!valUsd.vacia) cuentas.push(armarCuenta("USD", valUsd.datos));
+  return { ok: true, cuentas };
 }
