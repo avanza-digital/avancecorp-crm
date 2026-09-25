@@ -103,7 +103,7 @@ export interface RutaHash {
   detalleGestion?: DetalleGestion
 }
 
-export interface DetalleGestion { tipo: 'equipo' | 'analista'; id: string }
+export type DetalleGestion = { tipo: 'equipo' | 'analista'; id: string } | { tipo: 'cola' }
 
 function esVista(v: string | undefined): v is Vista {
   return v != null && (VISTAS as readonly string[]).includes(v)
@@ -138,13 +138,14 @@ const UUID_PERSONA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 /** Hash canónico de una vista y su ficha opcional. */
 function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is DetalleGestion {
-  return !!detalle && (detalle.tipo === 'equipo' || detalle.tipo === 'analista')
-    && (UUID_PERSONA.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))
+  return !!detalle && (detalle.tipo === 'cola' || ((detalle.tipo === 'equipo' || detalle.tipo === 'analista')
+    && (UUID_PERSONA.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))))
 }
 
 export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): string {
   if (vista === 'gestion-diaria' && detalleGestionValido(detalleGestion)) {
-    return `#/gestion-diaria/${detalleGestion.tipo}/${detalleGestion.id}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
+    const seccion = detalleGestion.tipo === 'cola' ? 'cola' : `${detalleGestion.tipo}/${detalleGestion.id}`
+    return `#/gestion-diaria/${seccion}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
   }
   if (vista === 'hoy' && !leadId && solicitudTasaId && UUID_PERSONA.test(solicitudTasaId)) return `#/hoy/solicitud-tasa/${solicitudTasaId}`
   if (vista === 'mi-cartera' && !leadId && inversionistaId && UUID_PERSONA.test(inversionistaId)) return `#/mi-cartera/inversionista/${inversionistaId}`
@@ -158,9 +159,9 @@ export function leerHash(): RutaHash {
   const partes = crudo.split('/').filter(Boolean)
   const vista = resolverVista(partes[0])
   let leadId: string | null = null
-  const candidato = { tipo: partes[1], id: partes[2] } as DetalleGestion
+  const candidato = (partes[1] === 'cola' ? { tipo: 'cola' } : { tipo: partes[1], id: partes[2] }) as DetalleGestion
   const detalleGestion = vista === 'gestion-diaria' && detalleGestionValido(candidato) ? candidato : undefined
-  const indiceLead = detalleGestion ? 3 : 1
+  const indiceLead = detalleGestion?.tipo === 'cola' ? 2 : detalleGestion ? 3 : 1
   if (vista && partes[indiceLead] === 'lead' && partes[indiceLead + 1]) {
     try {
       leadId = decodeURIComponent(partes[indiceLead + 1]!)

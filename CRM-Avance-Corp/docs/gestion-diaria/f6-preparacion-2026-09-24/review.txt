@@ -1,0 +1,59 @@
+VERDICT:
+PASS
+
+SUMMARY:
+The F6 delta is additive and consistent with the stated scope. Hash parsing and serialization for `{ tipo: 'cola' }` are correct and canonical, and they don't interfere with `equipo`/`analista`. The preserved context in `App.tsx` only acts after `sanearVista`, so roles without access (directorio, coordinador, closed gate) never retain it. The queue is extracted into `ColaSeguimiento` without changing the SLA logic. `/seguimiento` keeps identical behaviour. Opening or closing a lead keeps `ColaSlaPanel` mounted because only the hash changes and the tree and `key` stay the same. I found no mandatory changes. The findings below are low-risk (P3).
+
+FINDINGS:
+
+[P3] Duplicated role list in the screen
+File: `CRM-Avance-Corp/app/src/screens/gestion-diaria.tsx`
+Lines: new `GestionDiaria` (check `yo.rol !== 'vendedor' && … 'gerencia'`)
+Problem: This repeats the rule that already lives in `vistaPermitida` (`src/lib/vistas.ts:105`).
+Evidence: `vistas.ts` says it is the "Política única de acceso a vistas". The wrapper hardcodes the same three roles.
+Impact: If the rule changes in `vistas.ts` (for example, directorio gets access), the screen would silently diverge. This is defence in depth, not a security hole: `sanearVista` in `App.tsx` stops the route first.
+Recommendation: Keep the check but derive it from `vistaPermitida('gestion-diaria', …)`, or from an exported role constant shared by both places.
+
+[P3] Inconsistent naming of the same destination
+File: `cola-de-hoy.tsx:139`, `gestion-diaria.tsx` (nav)
+Problem: The same destination has three names: "Ver todas las oportunidades" (ColaDeHoy link), "Seguimiento completo" (tab), and "Seguimiento comercial" (the panel's h2 and the sidebar item that is kept).
+Impact: Minor cognitive load and orientation cost for screen-reader users (WCAG 3.2.4 Consistent Identification is borderline, since they are different links to the same destination).
+Recommendation: Unify the visible text, or at least make the ColaDeHoy link say "Ver el seguimiento completo".
+
+[P3] Link inside a live region
+File: `cola-de-hoy.tsx:138-139`
+Problem: The new `<a>` is inside `<p role="status" aria-live="polite">`.
+Evidence: On every page change, the live region re-announces the range plus the link text.
+Impact: Extra verbosity; it does not break functionality. ARIA does not forbid it.
+Recommendation (optional): Move the link out of the `<p role="status">`, as a sibling, and leave only the range in the announcement.
+
+[P3] Sidebar behaviour while on the queue (hypothesis, not verified)
+File: `App.tsx:379-384`, `427-439`
+Problem: From `#/gestion-diaria/cola`, clicking "Gestión Diaria" in the sidebar calls `setVista('gestion-diaria')` with no change. The state→hash effect doesn't re-run because `vista`, `leadAbiertoId` and `rol` are unchanged, so the user stays on the queue instead of going back to the summary.
+Impact: This may be desired, but it is not documented or tested.
+Recommendation: Decide the expected behaviour and add an assertion in E2E or App tests.
+
+TEST GAPS:
+- No unit test asserts the new ColaDeHoy link (`href="#/gestion-diaria/cola"`, shown only when `hayMas`).
+- No App-level unit test covers hash→state for supervisor/vendedor with `#/gestion-diaria/equipo/<uuid>/lead/x`. It should confirm the non-cola detail is still dropped and the lead is kept. The union change makes this regression worth pinning; today only E2E covers the positive cola case.
+- The sidebar-while-on-queue case from the P3 above.
+- As PRIMARY already stated, the 403/revocation and scope evidence comes from intercepted transport. It is not real RLS verification.
+
+ARCHITECTURE RISKS:
+- `GestionDiaria` reads `window.location.hash` directly (`useSyncExternalStore` plus `leerHash`) instead of reading App state. This is safe today: the only `replaceState` calls (App normalization) never toggle the cola/summary section for an already-permitted role, and the snapshot is re-read on every render. If a future normalization changes the section with `replaceState`, the screen won't re-render, because `replaceState` does not fire `hashchange` (documented in `router.ts:181-182`). It's worth leaving a comment where the section is derived.
+
+SECURITY RISKS:
+- None new. The context is only preserved when `destino === 'gestion-diaria'` after `sanearVista`, and the shared queries and RPC are unchanged (`sla-operacion-queries.ts`). The real boundary is still server-side RLS.
+
+REGRESSION RISKS:
+- `/seguimiento`: identical JSX, moved into the shared component. Low risk.
+- Gerencia F5: `detalleRuta?.tipo === 'cola' ? undefined` narrows correctly, and `claveRuta` still has `id`. In cola mode, `VistaGerencia` isn't mounted anyway.
+- Going Summary → Queue → Summary loses the queue filters and page because the component unmounts. This is intended and covered by E2E (line 144 expects 10 default rows).
+
+RECOMMENDED NEXT ACTIONS:
+1. (Optional) Derive the wrapper's role check from `vistaPermitida`.
+2. Add a unit test for the ColaDeHoy link and a routing test for a non-gerencia role with an `equipo`/`analista` detail.
+3. Decide and document the sidebar click behaviour while on the queue, then unify the destination naming.
+
+CONFIDENCE:
+MEDIUM-HIGH. The limit is that I did not see the full `ResumenGestionDiaria`, the shell's heading hierarchy, or the complete `ColaDeHoy` tests.

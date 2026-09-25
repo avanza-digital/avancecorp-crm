@@ -1,0 +1,125 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T02:52:57.597Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "migration": "20260924201358",
+  "sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+  "via": "merge_branch",
+  "branchId": "f981e6c9-8b65-465f-a82f-047c79215f21",
+  "funciones": 774,
+  "nuevas": [
+    "crm.gestion_diaria_habitos_fn(date,integer)",
+    "crm.gestion_diaria_pulso_fn(date)",
+    "private.assert_gestion_diaria_pulso()",
+    "private.gestion_diaria_fechas_activas(date,date)",
+    "private.gestion_diaria_gestiones_eventos(timestamp with time zone,timestamp with time zone)",
+    "private.gestion_diaria_habitos_jornada(date,uuid[],timestamp with time zone)",
+    "private.gestion_diaria_llamadas_eventos(timestamp with time zone,timestamp with time zone,uuid[])",
+    "private.gestion_diaria_pulso_autores(timestamp with time zone,timestamp with time zone)",
+    "private.gestion_diaria_pulso_autorizar()",
+    "private.gestion_diaria_pulso_dia(date)",
+    "private.gestion_diaria_pulso_metricas(jsonb,integer)",
+    "private.gestion_diaria_pulso_roster()"
+  ],
+  "cambiadas": [
+    {
+      "firma": "private.assert_gestion_diaria_analista()",
+      "campos": [
+        "cuerpo",
+        "definicion"
+      ]
+    },
+    {
+      "firma": "private.gestion_diaria_llamadas(timestamp with time zone,timestamp with time zone,uuid[])",
+      "campos": [
+        "cuerpo",
+        "definicion"
+      ]
+    }
+  ],
+  "migraciones": 358,
+  "antecedentesIntactos": 357,
+  "estructuraPermisosPoliticas": "INTACTOS",
+  "sondaHoy": {
+    "dia": "2026-09-24",
+    "checks": {
+      "citas": true,
+      "fecha": true,
+      "utiles": true,
+      "llamadas": true,
+      "contestadas": true,
+      "leads_unicos": true,
+      "solo_lectura": true,
+      "tasa_contacto": true,
+      "cuadre_equipos": true,
+      "llamadas_por_lead": true,
+      "pendientes_actuales": true
+    },
+    "estado": "PASS",
+    "limite": "No sustituye las pruebas de comparación histórica, hábitos, navegación ni permisos negativos.",
+    "alcance": "Recuentos globales, tasas y suma de equipos frente a actividades y tareas originales bajo gerencia; una sentencia READ COMMITTED y READ ONLY.",
+    "tablero": {
+      "utiles": 241,
+      "llamadas": 243,
+      "contestadas": 74,
+      "leads_unicos": 206,
+      "con_actividad": 15,
+      "sin_actividad": 4,
+      "tasa_contacto": 30.7,
+      "citas_agendadas": 33,
+      "analistas_activos": 19,
+      "llamadas_por_lead": 1.18
+    },
+    "originales": {
+      "utiles": 241,
+      "llamadas": 243,
+      "contestadas": 74,
+      "leads_unicos": 206,
+      "citas_agendadas": 33,
+      "vencidas_actuales": 756
+    },
+    "generado_en": "2026-09-24T21:52:14.213968-05:00"
+  },
+  "sondaAyer": {
+    "alcance": "Recuentos globales, tasas y suma de equipos frente a actividades y tareas originales bajo gerencia; una sentencia READ COMMITTED y READ ONLY.",
+    "checks": {
+      "citas": true,
+      "contestadas": true,
+      "cuadre_equipos": true,
+      "fecha": true,
+      "leads_unicos": true,
+      "llamadas": true,
+      "llamadas_por_lead": true,
+      "pendientes_actuales": true,
+      "solo_lectura": true,
+      "tasa_contacto": true,
+      "utiles": true
+    },
+    "dia": "2026-09-23",
+    "estado": "PASS",
+    "generado_en": "2026-09-24T21:49:33.027726-05:00",
+    "limite": "No sustituye las pruebas de comparación histórica, hábitos, navegación ni permisos negativos.",
+    "originales": {
+      "citas_agendadas": 21,
+      "contestadas": 58,
+      "leads_unicos": 152,
+      "llamadas": 169,
+      "utiles": 168,
+      "vencidas_actuales": 756
+    },
+    "tablero": {
+      "analistas_activos": 19,
+      "citas_agendadas": 21,
+      "con_actividad": 14,
+      "contestadas": 58,
+      "leads_unicos": 152,
+      "llamadas": 169,
+      "llamadas_por_lead": 1.11,
+      "sin_actividad": 5,
+      "tasa_contacto": 34.5,
+      "utiles": 168
+    }
+  },
+  "sentenciasLedgerNativo": 42,
+  "cotejoSQL": "42 fragmentos idénticos byte a byte y en orden al SQL canónico; los huecos contienen sólo separadores y espacios. Huella del SQL canónico conservada."
+}

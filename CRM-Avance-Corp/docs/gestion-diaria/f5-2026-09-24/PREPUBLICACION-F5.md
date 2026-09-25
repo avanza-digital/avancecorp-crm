@@ -1,6 +1,9 @@
 # F5 — Autorización y preparación de publicación
 
-24/09/2026. **Autorizada con condiciones; todavía NO publicada.**
+24/09/2026. **Registro histórico de preparación. Publicación completada.**
+El estado vigente, la autorización posterior y el respaldo inmediato están en
+el [acta productiva](../f5-publicacion-2026-09-24/ACTA.md). Los bloqueos y el
+paquete anterior descritos a continuación corresponden a momentos previos.
 
 Miguel respondió: «Autorizar SQL F5 y $release-crm tras aprobación en GitHub».
 La pregunta incluía también que los controles debían haber pasado. Se conserva
@@ -46,7 +49,7 @@ coinciden; no se convirtió en PASS ni se modificaron imágenes o la configuraci
 del sitio para ocultarlo. Revalidar versión, manifiesto y respaldo justo antes
 de publicar, porque otra tarea puede publicar mientras se espera la revisión.
 
-## Acceso de publicación
+## Acceso de publicación — registro inicial
 
 La habilidad [release-crm](../../../../.agents/skills/release-crm/SKILL.md) exige
 el conector Hostinger y construir desde Main limpio, idéntico al remoto. En esta
@@ -78,3 +81,50 @@ del conector. No se cambió proveedor, DNS, MCP ni se intentó una publicación.
    sigue siendo una verificación futura; no se marca cumplido por anticipado.
 
 No se reconstruye ni publica otro frontend únicamente por añadir esta acta.
+
+## Actualización: integración externa y acceso recuperado
+
+Todos los controles de `9bde971f` terminaron PASS. GitHub registra que
+`miguejbs98` integró el PR #94 el 24/09 a las 20:22:12 Lima en
+`8da4bcf31039d0b0953e556c6eab5080ac1346c8`. Su árbol es idéntico al de
+`9bde971f`; Main local de la copia autorizada y `avancecorp/main` coinciden.
+La API de revisiones devuelve una lista vacía. Codex no ejecutó esa integración
+ni una excepción de administrador. La condición explícita de revisión aprobada
+sigue pendiente de resolución: el merge no se registra como revisión APPROVED.
+
+Miguel autorizó recuperar Hostinger mediante token. Se guardó en el Llavero de
+macOS y se comprobó con el servidor oficial `@hostinger/mcp@1.63.3`, instalado
+fuera del repositorio con scripts de instalación deshabilitados. El proceso
+recibe la credencial en memoria. No se incluyó su valor en archivos, actas,
+configuración o commits; tampoco se modificaron MCP global, DNS ni el sitio.
+
+**PASS:** initialize, inventario de 74 herramientas de hosting y disponibilidad
+de `hosting_deployStaticWebsite` con su esquema real: `domain`, `archivePath`
+y `removeArchive`. La consulta autenticada encontró exactamente
+`crm.miavance.com`, habilitado, y pudo leer su index.html de 2.178 bytes,
+que referencia `assets/index-D_95DKmo.js`. El bloqueo de acceso está resuelto;
+el despliegue sigue NOT RUN. La consulta manual anterior al MCP remoto que
+respondió 403 no utilizó OAuth almacenado: no acreditaba un fallo de la cuenta.
+
+La revisión Endor del paquete quedó UNKNOWN: sin herramienta expuesta ni
+`endorctl` instalado; no se atribuye una aprobación de seguridad. Fuente
+oficial y versión comprobadas contra GitHub/npm. La evidencia sin secretos y
+el cliente de lectura están en el checkpoint privado,
+`hostinger-token-validacion.json` y `hostinger-local/`.
+
+La lectura productiva posterior mantiene 355 migraciones y cero entradas
+para `20260924201358`. Antes de SQL y frontend debe resolverse la condición
+GitHub, preparar el artefacto exacto y ejecutar los controles de promoción
+indicados arriba. No se atribuye el inicio de los siete días reales.
+
+## Cierre posterior: autorización explícita y publicación
+
+Miguel respondió «Sí, publicar F5 con esa integración». Autoriza usar la
+integración externa del PR #94 para publicar SQL F5 y `$release-crm`; no la
+convierte en revisión APPROVED. La publicación quedó verificada desde Main
+`b402a7f1` el 24/09 a las 21:57:11 Lima, tras un nuevo ensayo remoto completo
+y conciliación productiva. El respaldo inmediato fue actualizado a Main #93
+`a1bbe24d`, conservando los cambios de la publicación paralela de venta cruzada.
+La rama temporal posterior fue eliminada; coste estimado acumulado US$0,029838.
+Los siete días de observación empiezan en ese T0 y siguen pendientes de cumplirse.
+Evidencia y límites: [ACTA.md](../f5-publicacion-2026-09-24/ACTA.md).
