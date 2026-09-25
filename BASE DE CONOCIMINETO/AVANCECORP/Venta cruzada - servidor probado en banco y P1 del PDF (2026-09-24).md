@@ -34,8 +34,9 @@ Tablero de avance: https://www.figma.com/board/rD4CaZo3wL199yPMdNcErn
 **El servidor está EN PRODUCCIÓN desde el 24/09** (fases 1–4, con el OK de Miguel). Antes de
 escribir se ensayó contra la producción real en una transacción que siempre se deshace: las 5
 migraciones aplicaron y ningún guardián empeoró. Después se aplicaron una a una y se registraron.
-Verificado: 5 versiones, 6 puertas, bitácora vacía; advisors sin errores. **Falta publicar el
-frente** con `/release-crm`. Detalle y evidencia en
+Verificado: 5 versiones, 6 puertas, bitácora vacía; advisors sin errores. **El frente también
+está publicado** (24/09, 20:12 Lima): release `build-20260925T011258009Z` desde `a1bbe24d` (PR #93),
+con el preflight en verde y lo servido idéntico al ZIP. Detalle y evidencia en
 `CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md`; pruebas, reversas, concurrencia y
 mutantes en `CRM-Avance-Corp/supabase/scripts/venta-cruzada/`.
 
@@ -113,7 +114,6 @@ mutantes en `CRM-Avance-Corp/supabase/scripts/venta-cruzada/`.
 
 ## Pendiente
 
-- Publicar el frente con `/release-crm` (lo invoca Miguel) y fusionar a `main` el mismo día.
 - 🔑 Para la próxima publicación: esta sesión no puede escribir en producción (lo bloquea el
   clasificador de permisos, ni siquiera deja escribir el guion). Funciona así: yo preparo y
   valido en el banco el ensayo que nunca escribe; Miguel lo lanza con `!`; si dice OK, lanza la
