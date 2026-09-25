@@ -8,11 +8,11 @@ import {
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
-import { money, porcentajeConversionCanonica } from '@/lib/format'
+import { money, moneyCompacta, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionMensual, ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
-import { agregarObjetivos, objetivosCero } from '@/lib/objetivos'
+import { agregarObjetivos, capitalReal, objetivosCero } from '@/lib/objetivos'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 
 // TC real para que el consolidado se ejercite en su rama normal.
@@ -81,11 +81,18 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
     <div
       role="img"
       aria-label={ariaLabel}
+      data-x={JSON.stringify((option as { xAxis?: { data?: unknown[] } }).xAxis?.data ?? [])}
       data-series={JSON.stringify(option.series?.[0]?.data ?? [])}
       data-meta-series={JSON.stringify(option.series?.[1]?.data ?? [])}
     />
   ),
 }))
+
+function pastillaDe(rotulo: string): HTMLElement {
+  const pastilla = screen.getByText(rotulo, { selector: '.gi-hero-metric span' }).closest('.gi-hero-metric')
+  if (!(pastilla instanceof HTMLElement)) throw new Error(`sin pastilla ${rotulo}`)
+  return pastilla
+}
 
 function conOrigenesVerificados(datos: MetricasConversiones): MetricasConversiones {
   return {
@@ -408,7 +415,8 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getAllByText('Capital').length).toBeGreaterThan(0)
     expect(screen.queryByText('Capital PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
-    expect(screen.getAllByText(/Citas realizadas del período|Citas del período/).length).toBeGreaterThan(0)
+    expect(within(pastillaDe('Citas')).getByText('realizadas')).toBeInTheDocument()
+    expect(screen.queryByText('Citas del período')).not.toBeInTheDocument()
     expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay analistas medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
@@ -417,7 +425,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // el capital que se ENSEÑA es el confirmado del cumplimiento, consolidado
     // al TC: 1.480.000 PEN + 96.000 USD × 3,5 = 1.816.000. Si esto vuelve a
     // decir S/ 0 o «Sin capital confirmado», la tarjeta volvió a la fuente rota.
-    expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
+    expect(screen.getByText(/^Capital confirmado · /)).toBeInTheDocument()
     // El KPI lleva la cifra EXACTA; la pastilla del héroe, la compacta
     // (S/ 1.82 M) — un monto de 7 dígitos reventaba el layout (captura 27/08).
     expect(screen.getByText(money(1_816_000, 'PEN'))).toBeInTheDocument()
@@ -445,7 +453,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
       />,
     )
 
-    const tarjeta = screen.getByText('Capital confirmado del mes').closest('[data-gi-kpi]')
+    const tarjeta = screen.getByText(/^Capital confirmado · /).closest('[data-gi-kpi]')
     expect(tarjeta).toHaveTextContent('—')
     expect(tarjeta).toHaveTextContent('Cumplimiento confirmado no disponible')
     expect(screen.queryByText(money(0, 'PEN'))).not.toBeInTheDocument()
@@ -470,10 +478,10 @@ describe('estados vacíos del resumen de Gerencia', () => {
       />,
     )
 
-    const tarjeta = screen.getByText('Capital confirmado del mes').closest('[data-gi-kpi]')
+    const tarjeta = screen.getByText(/^Capital confirmado · /).closest('[data-gi-kpi]')
     expect(tarjeta).toHaveTextContent('Calculando…')
     expect(tarjeta).toHaveTextContent('Consultando el tipo de cambio para consolidar los dólares…')
-    expect(screen.getByText('Capital del mes').closest('.gi-hero-metric')).toHaveTextContent('Consultando…')
+    expect(pastillaDe('Capital')).toHaveTextContent('Consultando…')
     // Un total solo-PEN aquí sería afirmar un número que va a cambiar al llegar el TC.
     expect(within(tarjeta as HTMLElement).queryByText(money(1_480_000, 'PEN'))).not.toBeInTheDocument()
   })
@@ -532,7 +540,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // UN SOLO contador de leads a la vista (veto de Miguel 27/08 noche): el
     // héroe solo dice los cierres; los 607 del KPI son la única cuenta de
     // leads visible en el Resumen. La base del núcleo ya no se exhibe.
-    expect(screen.getByText('10 cierres este mes')).toBeInTheDocument()
+    expect(screen.getByText(/^10 cierres en /)).toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.queryByText(/leads asignados/)).not.toBeInTheDocument()
     expect(screen.getByText('de 184 prospectos del período')).toBeInTheDocument()
@@ -611,7 +619,8 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     )
 
     expect(screen.getAllByText(/Aporte de Referido al índice/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Citas realizadas del período|Citas del período/).length).toBeGreaterThan(0)
+    expect(within(pastillaDe('Citas')).getByText('realizadas')).toBeInTheDocument()
+    expect(screen.queryByText('Citas del período')).not.toBeInTheDocument()
   })
 
   it('no inventa un 15 % cuando todavía no existe una meta publicada', () => {
@@ -728,11 +737,15 @@ describe('gráfica por origen — publicación fail-closed', () => {
     ] })
 
     const panel = panelOrigenes()
-    expect(within(panel).getByText('10.90%')).toBeInTheDocument()
-    expect(within(panel).queryByText('72.70%')).not.toBeInTheDocument()
-    expect(within(panel).getByText('3.10%')).toBeInTheDocument()
+    expect(within(panel).getByText('10.9%')).toBeInTheDocument()
+    expect(within(panel).queryByText('72.7%')).not.toBeInTheDocument()
+    expect(within(panel).getByText('3.1%')).toBeInTheDocument()
+    // Rótulo legible (el del selector «Conversión de»), nunca el código crudo.
+    expect(within(panel).getByText('Referido', { selector: 'span' })).toBeInTheDocument()
+    expect(within(panel).queryByText('referido', { selector: 'span' })).not.toBeInTheDocument()
     expect(within(panel).getByText(/pesando lo mismo que en la conversión general/)).toBeInTheDocument()
-    expect(within(panel).getByText(/cada cierre cuenta ×0\.15, como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).getByText(/^Referido: cada cierre cuenta ×0\.15, como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).queryByText(/^referido:/)).toBeNull()
     expect(within(panel).queryByText(/No es la conversión ponderada/)).not.toBeInTheDocument()
   })
 
@@ -744,7 +757,7 @@ describe('gráfica por origen — publicación fail-closed', () => {
     ] })
 
     const panel = panelOrigenes()
-    expect(within(panel).getByText('72.70%')).toBeInTheDocument()
+    expect(within(panel).getByText('72.7%')).toBeInTheDocument()
     expect(within(panel).getByText(/No es la conversión ponderada/)).toBeInTheDocument()
     expect(within(panel).getByText(/de los recibidos por ese origen, cuánto cerró/)).toBeInTheDocument()
   })
@@ -830,7 +843,7 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
   it('conserva 150% de conversión y 200% de capital; sólo las barras terminan en100', () => {
     panelConFuentesDiscrepantes(60, 908_000)
     const conversion = screen.getByText('Cumplimiento de la meta de conversión').parentElement
-    const capital = screen.getByText('Capital').parentElement
+    const capital = within(screen.getByRole('heading', { name: 'Avance de metas' }).closest('section') as HTMLElement).getByText('Capital').parentElement
     expect(conversion).toHaveTextContent('150%')
     expect(capital).toHaveTextContent('200%')
     expect(conversion?.parentElement?.querySelector('.gi-fill')).toHaveStyle({ width: '100%' })
@@ -865,5 +878,207 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
     expect(barra).not.toBeNull()
     expect(within(barra as HTMLElement).getByText('Dato no disponible')).toBeInTheDocument()
     expect(within(barra as HTMLElement).queryByText('100%')).not.toBeInTheDocument()
+  })
+})
+
+
+// Auditoría del Resumen de Gerencia (24/09/2026): cada caso fija un número o
+// un rótulo que en producción se leía como otra cosa.
+describe('auditoría 24/09 — el rótulo dice lo que muestra el número', () => {
+  function montar(props: Partial<Parameters<typeof ResumenGerenciaPanel>[0]> = {}): void {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31'))}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+        {...props}
+      />,
+    )
+  }
+
+  function heroe(): HTMLElement {
+    const seccion = document.querySelector('[data-gi-hero]')
+    if (!(seccion instanceof HTMLElement)) throw new Error('sin héroe')
+    return seccion
+  }
+
+  it('las piezas mensuales nombran su mes y la pastilla de citas dice «realizadas»', () => {
+    montar()
+    expect(within(pastillaDe('Capital')).getByText('agosto 2026')).toBeInTheDocument()
+    expect(screen.getByText('Capital confirmado · agosto 2026')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mejores analistas · agosto 2026' })).toBeInTheDocument()
+    expect(within(pastillaDe('Citas')).getByText('realizadas')).toBeInTheDocument()
+    expect(within(pastillaDe('Meta')).getByText('conversión · agosto 2026')).toBeInTheDocument()
+    expect(screen.getByText(/pactadas · por fecha prevista de la cita/)).toBeInTheDocument()
+  })
+
+  it('la barra de la meta de conversión escribe su propia base mensual', () => {
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    montar({
+      conversionMensual: { ...mensual, cobertura: { ...mensual.cobertura, medible: true }, total: { ...mensual.total, conversion_pct: 7.07 } },
+      meta: { ...META_EQUIPO, conversionObjetivo: 15 },
+    })
+    expect(screen.getByText(/Índice de agosto 2026 a la fecha: 7\.07% de 15%/)).toBeInTheDocument()
+  })
+
+  it('mes parcial delegado: el héroe conserva el aviso «Provisional» de la foto mensual', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31'))
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    montar({
+      conversiones: { ...datos, nucleo: { ...datos.nucleo!, fuente: 'mensual', es_mes_calendario: true } },
+      conversionMensual: {
+        ...mensual,
+        cobertura: { ...mensual.cobertura, medible: false, motivo_no_medible: 'mes_parcial', suelo_historico: '2026-08-17T17:09:09Z', cierres_sin_episodio: 0 },
+      },
+    })
+    expect(heroe()).toHaveTextContent(/Provisional: el registro empieza el 17 ago/)
+  })
+
+  it('el aviso de la foto no se pega a un rango que no es ese mes', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-08', '2026-08-14'))
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    montar({
+      conversiones: { ...datos, nucleo: { ...datos.nucleo!, fuente: 'rango_vivo', es_mes_calendario: false } },
+      conversionMensual: {
+        ...mensual,
+        cobertura: { ...mensual.cobertura, medible: false, motivo_no_medible: 'mes_parcial', suelo_historico: '2026-08-17T17:09:09Z', cierres_sin_episodio: 0 },
+      },
+    })
+    expect(heroe()).not.toHaveTextContent(/Provisional/)
+  })
+
+  it('cifra delegada (mes sellado) con la sonda viva en descuadre: % y rótulo oficiales, sin conteos vivos', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31'))
+    montar({
+      conversiones: {
+        ...datos,
+        nucleo: {
+          ...datos.nucleo!, fuente: 'mensual', es_mes_calendario: true, sellado: true,
+          base: 'llegada_unica', llegadas: 140, altas_manuales: 12, referidos_recibidos: 8,
+        },
+        sondas: { ...datos.sondas!, cuadra: false, paridad_nucleo: 1 },
+      },
+    })
+    expect(heroe()).toHaveTextContent(porcentajeConversionCanonica(datos.nucleo!.conversion_pct))
+    expect(heroe()).toHaveTextContent('Cifra oficial del mes cerrado')
+    expect(heroe()).toHaveTextContent(/desglose de cierres en revisión/)
+    // Cierres y llegadas son del recálculo vivo que la sonda marcó: no se pintan.
+    expect(heroe()).not.toHaveTextContent(/cierres no referidos/)
+    expect(heroe()).not.toHaveTextContent(/prospectos recibidos/)
+    expect(heroe()).not.toHaveTextContent(/Cifras en revisión/)
+  })
+
+  it('mes anterior al registro (payload real de junio): el motivo, sin «Base: 0»', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-06-01', '2026-06-30'))
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    montar({
+      conversiones: {
+        ...datos,
+        nucleo: {
+          ...datos.nucleo!, fuente: 'mensual', es_mes_calendario: true, base: 'llegada_unica',
+          divisor: 0, numerador: 0, conversion_pct: null, llegadas: 0, altas_manuales: 0, referidos_recibidos: 0,
+        },
+        sondas: { ...datos.sondas!, cuadra: null, paridad_nucleo: null, paridad_filas: 0 },
+      },
+      conversionMensual: {
+        ...mensual,
+        periodo: { ...mensual.periodo, mes: '2026-06' },
+        cobertura: { ...mensual.cobertura, medible: false, motivo_no_medible: 'anterior_al_ledger', cierres_sin_episodio: 0 },
+      },
+    })
+    expect(heroe()).toHaveTextContent('Mes anterior al registro de asignaciones')
+    expect(heroe()).not.toHaveTextContent(/Base: 0/)
+    expect(heroe()).not.toHaveTextContent(/prospectos recibidos/)
+    expect(heroe()).not.toHaveTextContent(/Cifras en revisión/)
+  })
+
+  it('rango sin base que no es el mes: no hereda el aviso de la foto mensual', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-10'))
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    montar({
+      conversiones: {
+        ...datos,
+        nucleo: { ...datos.nucleo!, fuente: 'rango_vivo', es_mes_calendario: false, divisor: 0, numerador: 0, conversion_pct: null },
+        sondas: { ...datos.sondas!, cuadra: null, paridad_nucleo: null, paridad_filas: 0 },
+      },
+      conversionMensual: {
+        ...mensual,
+        cobertura: { ...mensual.cobertura, medible: false, motivo_no_medible: 'mes_parcial', suelo_historico: '2026-08-17T17:09:09Z', cierres_sin_episodio: 0 },
+      },
+    })
+    expect(heroe()).toHaveTextContent(/Sin base comercial para este período/)
+    expect(heroe()).not.toHaveTextContent(/Provisional/)
+  })
+
+  it('un descuadre real con divisor 0 sigue diciendo «Cifras en revisión»', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-10'))
+    montar({
+      conversiones: {
+        ...datos,
+        nucleo: { ...datos.nucleo!, fuente: 'rango_vivo', es_mes_calendario: false, divisor: 0, numerador: 0, conversion_pct: null },
+        sondas: { ...datos.sondas!, cuadra: false, paridad_nucleo: 1, paridad_filas: 3 },
+      },
+    })
+    expect(heroe()).toHaveTextContent(/Cifras en revisión/)
+    expect(heroe()).not.toHaveTextContent(/Sin base comercial/)
+  })
+
+  it('sin base (divisor 0, sonda sin verificación) no dice «en revisión»', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-06-01', '2026-06-30'))
+    montar({
+      conversiones: {
+        ...datos,
+        nucleo: { ...datos.nucleo!, fuente: 'rango_vivo', divisor: 0, numerador: 0, conversion_pct: null },
+        sondas: { ...datos.sondas!, cuadra: null, paridad_nucleo: null, paridad_filas: 0 },
+      },
+      conversionMensual: null,
+    })
+    expect(heroe()).toHaveTextContent(/Sin base comercial para este período/)
+    expect(heroe()).not.toHaveTextContent(/Cifras en revisión/)
+  })
+
+  it('sin tipo de cambio, la pastilla de capital dice cuántos dólares faltan', () => {
+    montar({ tc: null })
+    const usd = capitalReal(CUMPLIMIENTO_EQUIPO!, 'USD')
+    expect(usd).toBeGreaterThan(0)
+    expect(pastillaDe('Capital')).toHaveTextContent(`+ ${moneyCompacta(usd, 'USD')} · sin TC`)
+  })
+
+  it('sin tipo de cambio pero sin capital en dólares, la pastilla no inventa «+ US$ 0»', () => {
+    montar({
+      tc: null,
+      cumplimiento: { ...CUMPLIMIENTO_EQUIPO!, detalles: CUMPLIMIENTO_EQUIPO!.detalles.map((d) => d.moneda === 'USD' ? { ...d, capitalReal: 0 } : d) },
+      meta: { ...META_EQUIPO, detalles: META_EQUIPO.detalles.map((d) => d.moneda === 'USD' ? { ...d, capitalObjetivo: 10_000 } : d) },
+    })
+    expect(pastillaDe('Capital')).not.toHaveTextContent(/sin TC/)
+  })
+
+  it('la gráfica semanal rotula fechas legibles y marca el bloque corto', () => {
+    montar({ conversiones: conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-24')) })
+    const etiquetas = JSON.parse(screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' }).getAttribute('data-x') ?? '[]') as string[]
+    expect(etiquetas.length).toBeGreaterThan(0)
+    expect(etiquetas.some((e) => e.startsWith('2026-'))).toBe(false)
+    expect(etiquetas.some((e) => /\(6 días\)$/.test(e))).toBe(true)
+  })
+
+  it('con filtro de fuente, «Avance de metas» no presenta el aporte del rango como mensual', () => {
+    montar({ origenFiltrado: 'referido' })
+    const metas = screen.getByRole('heading', { name: 'Avance de metas' }).closest('section')
+    expect(metas).not.toBeNull()
+    expect(metas).not.toHaveTextContent(/Aporte de Referido al índice/)
+    expect(metas).toHaveTextContent(/su aporte del mes completo está en Metas/)
+    expect(metas).toHaveTextContent('Capital')
+    // La meta del índice TOTAL no se pinta junto al aporte de una sola fuente.
+    expect(within(pastillaDe('Meta')).getByText('No aplica al filtro')).toBeInTheDocument()
   })
 })

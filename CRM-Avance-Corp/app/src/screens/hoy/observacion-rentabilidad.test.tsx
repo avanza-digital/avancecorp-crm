@@ -91,7 +91,7 @@ describe('ObservacionRentabilidadPanel (Rentabilidad R2)', () => {
     expect(casos).toHaveTextContent(/Upgrade sin contrato origen claro/)
     expect(casos).toHaveTextContent(/2 casos/)
     expect(screen.getByText(/política v1: base 15%, Observación/)).toBeInTheDocument()
-    expect(screen.getByText(/Nada se bloquea todavía/)).toBeInTheDocument()
+    expect(screen.getByText(/Hoy la política no bloquea/)).toBeInTheDocument()
   })
 
   it('si el servidor declara incoherencia, la tarjeta lo dice con un alert y la región viva no lee cifras', () => {
@@ -169,6 +169,24 @@ describe('ObservacionRentabilidadPanel (Rentabilidad R2)', () => {
     expect(screen.getByText('La observación solo existe en sesión real')).toBeInTheDocument()
   })
 
+  it('si el registro empezó dentro del horizonte, el pie dice desde cuándo observa', () => {
+    ok(payload())
+    const { container } = render(<ObservacionRentabilidadPanel />)
+    expect(screen.getAllByText(/Observación desde el 06 set\.? 2026, cuando empezó el registro/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Observación de los últimos 30 días/)).toBeNull()
+    // La región viva lo anuncia igual, y sin paréntesis anidados.
+    const estado = container.querySelector('p[role="status"].sr-only')
+    expect(estado).toHaveTextContent(/fuera de la base · Observación desde el 06 set/)
+    expect(estado?.textContent ?? '').not.toContain('))')
+  })
+
+  it('con el registro más antiguo que el horizonte, el pie dice «últimos N días»', () => {
+    ok(payload({ cobertura: { observacion_activa_desde: '2026-06-01T00:00:00+00:00', cobertura_desde: '2026-08-08T05:00:00+00:00', periodo_sin_cobertura: false } }))
+    render(<ObservacionRentabilidadPanel />)
+    expect(screen.getAllByText(/Observación de los últimos 30 días/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/cuando empezó el registro/)).toBeNull()
+  })
+
   it('motivoSinRegla traduce los motivos técnicos del observador', () => {
     expect(motivoSinRegla('upgrade_origen_ambiguo')).toBe('Upgrade sin contrato origen claro')
     expect(motivoSinRegla('upgrade_sin_contrato_activo_previo')).toBe('Upgrade sin contrato activo previo')
@@ -183,13 +201,13 @@ describe('ObservacionRentabilidadPanel (Rentabilidad R2)', () => {
     render(<ObservacionRentabilidadPanel />)
     expect(screen.getByText(/política v2: base 15%, Candado activo/)).toBeInTheDocument()
     expect(screen.getByText(/solo puede venir de una autorización de Gerencia/)).toBeInTheDocument()
-    expect(screen.queryByText(/Nada se bloquea todavía/)).toBeNull()
+    expect(screen.queryByText(/Hoy la política no bloquea/)).toBeNull()
   })
 
   it('sin política legible no se afirma si el servidor bloquea', () => {
     ok(payload({ politica: null }))
     render(<ObservacionRentabilidadPanel />)
     expect(screen.getByText(/No se pudo leer el modo de la política/)).toBeInTheDocument()
-    expect(screen.queryByText(/Nada se bloquea todavía/)).toBeNull()
+    expect(screen.queryByText(/Hoy la política no bloquea/)).toBeNull()
   })
 })

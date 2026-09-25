@@ -156,6 +156,24 @@ describe('filtro por fuente del índice comercial', () => {
     expect(adaptarAporteConversionRango(datos, 'referido')).toBeNull()
   })
 
+  it('publica la base con la que dividió: oficial sin filtro, viva con fuente', () => {
+    const datos = metricasConNucleo()
+    datos.nucleo = {
+      ...datos.nucleo!,
+      divisor: 200,
+      numerador: 9,
+      conversion_pct: 4.5,
+      recalculo_vivo: { divisor: 100, numerador: 4.3, conversion_pct: 4.3 },
+    }
+    expect(adaptarAporteConversionRango(datos, null)).toMatchObject({ divisor: 200, porcentaje: 4.5 })
+    // 0,15 ÷ 100 = 0,15 %: el % se calculó sobre la base viva y la publica.
+    expect(adaptarAporteConversionRango(datos, 'renovacion')).toMatchObject({ divisor: 100, porcentaje: 0.15 })
+    expect(adaptarAporteConversionRango(datos, 'upgrade')).toMatchObject({ divisor: 100 })
+    // Antes la cartera devolvía la base oficial (200) y la multiselección, que
+    // exige la viva, caía entera a «no disponible».
+    expect(adaptarAporteConversionRango(datos, ['upgrade', 'renovacion'])).not.toBeNull()
+  })
+
   it('acepta un origen de prospecto solo cuando el servidor confirma el mismo filtro', () => {
     const datos = metricasConNucleo()
     expect(adaptarAporteConversionRango(datos, 'landing')).toBeNull()

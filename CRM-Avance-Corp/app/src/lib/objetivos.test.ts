@@ -12,6 +12,7 @@ import {
   metaConversionAplicable,
   objetivosDesdeConfiguracion,
   type CumplimientoMetasRpc,
+  produccionPorPersona,
 } from './objetivos'
 
 const V1 = '00000000-0000-4000-8000-000000000001'
@@ -290,5 +291,28 @@ describe('metas versionadas y jerarquía', () => {
     // Sin cumplimiento publicado se sigue leyendo el roster vivo, que es lo que
     // el editor de metas necesita para ofrecer a quién fijarle meta.
     expect(metaVigente(rosterHoy, null)).toBe(rosterHoy)
+  })
+})
+
+describe('produccionPorPersona («Por empresa»)', () => {
+  const detalle = (moneda: 'PEN' | 'USD', capitalReal: number) => ({
+    categoria: 'nuevo' as const, moneda, capitalObjetivo: 0, capitalReal, capitalCumplimientoPct: null,
+    contratosObjetivo: 0, contratosReal: 1, contratosCumplimientoPct: null, capitalAjuste: 0, contratosAjuste: 0,
+  })
+
+  it('suma a quien está fuera del ranking con su nombre y su producción', () => {
+    const porVendedor = { ana: { nombre: 'Ana', detalles: [detalle('PEN', 10)] } } as never
+    const fueraRanking = [{ personaId: 'sup', nombre: 'Supervisor', detalles: [detalle('PEN', 90)] }] as never
+    const mapa = produccionPorPersona({ porVendedor, fueraRanking })
+    expect(mapa?.sup?.nombre).toBe('Supervisor')
+    expect(mapa?.sup?.detalles[0]?.capitalReal).toBe(90)
+    expect(mapa?.ana?.nombre).toBe('Ana')
+  })
+
+  it('si una persona está en los dos, gana la fila con meta; sin foto, null', () => {
+    const porVendedor = { ana: { nombre: 'Ana (meta)', detalles: [detalle('PEN', 10)] } } as never
+    const fueraRanking = [{ personaId: 'ana', nombre: 'Ana (fuera)', detalles: [detalle('PEN', 99)] }] as never
+    expect(produccionPorPersona({ porVendedor, fueraRanking })?.ana?.nombre).toBe('Ana (meta)')
+    expect(produccionPorPersona(null)).toBeNull()
   })
 })
