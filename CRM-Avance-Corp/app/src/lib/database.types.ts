@@ -5316,6 +5316,19 @@ export type Database = {
         Args: { p_perfil_id: string }
         Returns: Json
       }
+      impacto_eliminacion_usuario_fn: {
+        Args: { p_perfil_id: string }
+        Returns: Json
+      }
+      eliminar_usuario_fn: {
+        Args: {
+          p_perfil_id: string
+          p_nombre_confirmacion: string
+          p_version_perfil: string
+          p_version_equipo?: string
+        }
+        Returns: Json
+      }
       importar_lead_fn: { Args: { p_fila: Json }; Returns: Json }
       ingresos_reparto_mes_fn: { Args: { p_mes: string }; Returns: Json }
       inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }

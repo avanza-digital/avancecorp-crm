@@ -1,0 +1,104 @@
+{
+  "estado": "BACKEND_INSTALADO_PANTALLAS_PENDIENTES",
+  "fechaVerificacion": "2026-09-25T20:34:42.664Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "autorizacion": "Usuario aprobó las dos migraciones con «siii»",
+  "ciclo": "rama sin datos, estructura vigente, fixtures sintéticos, pruebas, merge nativo, lectura posterior, eliminación de rama",
+  "rama": {
+    "id": "4d6d5d55-cec3-4302-90d7-d90254757bc1",
+    "proyecto": "nojjwdpeziyabrpabudx",
+    "nombre": "eliminacion-auditada-20260925",
+    "eliminada": true,
+    "ausenciaConfirmada": true
+  },
+  "migraciones": [
+    {
+      "version": "20260925172955",
+      "nombre": "crm_eliminacion_contrato_cotitular_alta",
+      "sha256": "215a4683dab01c6939ed6bcf4bdbcffe906a0e673b4e2c2d93f76fdf1f530a71"
+    },
+    {
+      "version": "20260925180145",
+      "nombre": "crm_eliminacion_usuarios_sin_pendientes",
+      "sha256": "d40e59320fab899aa2c7bec602836014bdf9c873709d513d037b4d8f2ce90c91"
+    }
+  ],
+  "verificacion": {
+    "sql": {
+      "pass": 33,
+      "fail": 0
+    },
+    "httpAuth": {
+      "solicitudes": 22,
+      "resultado": "PASS"
+    },
+    "e2eDockerPrevio": {
+      "pass": 5
+    },
+    "migracionesPreviasIntactas": 358,
+    "migracionesTotal": 360,
+    "funciones": 779,
+    "tablas": 124,
+    "cuerposACLTriggers": "PASS: igualdad con candidato",
+    "edgeFunctionsSinCambios": 21,
+    "rolesStorageAuthTriggers": "Sin cambios",
+    "ledger": "Merge divide en statements; tokens cotejados preservando literales y cuerpos dollar-quoted"
+  },
+  "advisorsDelta": {
+    "security": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+        "detail": "Table \\`private.usuarios_retirados\\` has RLS enabled, but no policies exist",
+        "metadata": {
+          "name": "usuarios_retirados",
+          "type": "table",
+          "schema": "private"
+        },
+        "observed_at": "2026-09-25T20:15:11.662Z"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.eliminar_usuario_fn(p_perfil_id uuid, p_nombre_confirmacion text, p_version_perfil timestamp with time zone, p_version_equipo timestamp with time zone)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/eliminar_usuario_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "eliminar_usuario_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_perfil_id uuid, p_nombre_confirmacion text, p_version_perfil timestamp with time zone, p_version_equipo timestamp with time zone",
+          "security_definer": true
+        },
+        "observed_at": "2026-09-25T20:15:11.662Z"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "detail": "Function `crm.impacto_eliminacion_usuario_fn(p_perfil_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/impacto_eliminacion_usuario_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "impacto_eliminacion_usuario_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_perfil_id uuid",
+          "security_definer": true
+        },
+        "observed_at": "2026-09-25T20:15:11.662Z"
+      }
+    ],
+    "performance": []
+  },
+  "alvaro": {
+    "auth": 0,
+    "perfil": 0,
+    "equipo": 0,
+    "sesiones": 0,
+    "eventosAdministrativosConservados": 4
+  },
+  "contratoCaptura": {
+    "numero": "2026-01-001471",
+    "presente": true
+  },
+  "pendiente": "Publicación de pantallas; invocación humana $release-crm y gates vigentes"
+}

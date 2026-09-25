@@ -6,6 +6,7 @@ import {
   Search,
   Shield,
   ToggleLeft,
+  Trash2,
   UserRoundCog,
   Users,
 } from 'lucide-react'
@@ -33,6 +34,8 @@ import {
   useCrearCandidatoUsuario,
   useFijarMembresiaUsuario,
   useImpactoDesactivacionUsuario,
+  useImpactoEliminacionUsuario,
+  useEliminarUsuario,
   useUsuariosAdministrables,
 } from '@/data/crm-config-queries'
 import { mensajeDeError } from '@/data/crm-api'
@@ -55,6 +58,7 @@ import {
 } from '@/lib/roles'
 import type {
   ImpactoDesactivacionUsuario,
+  ImpactoEliminacionUsuario,
   UsuarioAdministrable,
 } from '@/lib/usuarios-config'
 
@@ -97,7 +101,8 @@ type Modal =
   | { tipo: 'editar'; usuario: UsuarioAdministrable }
   | { tipo: 'rol'; usuario: UsuarioAdministrable }
   | { tipo: 'jerarquia'; usuario: UsuarioAdministrable }
-  | { tipo: 'membresia'; usuario: UsuarioAdministrable; impacto: ImpactoDesactivacionUsuario | null }
+  | { tipo: 'membresia'; usuario: UsuarioAdministrable; impacto: ImpactoDesactivacionUsuario | null; transferir?: boolean }
+  | { tipo: 'eliminar'; usuario: UsuarioAdministrable; impacto: ImpactoEliminacionUsuario }
   | null
 
 function formularioDe(usuario: UsuarioAdministrable): FormularioPersona {
@@ -246,6 +251,9 @@ export function ConfigUsuarios() {
   const jerarquia = useActualizarJerarquiaUsuario()
   const impacto = useImpactoDesactivacionUsuario()
   const membresia = useFijarMembresiaUsuario()
+  const impactoEliminacion = useImpactoEliminacionUsuario()
+  const eliminacion = useEliminarUsuario()
+  const [nombreConfirmacion, setNombreConfirmacion] = useState('')
   const [modal, setModal] = useState<Modal>(null)
   const [persona, setPersona] = useState<FormularioPersona>(PERSONA_VACIA)
   const [rol, setRol] = useState<Rol>('vendedor')
@@ -256,7 +264,7 @@ export function ConfigUsuarios() {
   const total = filas[0]?.total ?? (pagina === 0 ? filas.length : 0)
   const paginas = Math.max(1, Math.ceil(total / TAMANO_PAGINA))
   const ocupada = crear.isPending || editar.isPending || asignarRol.isPending
-    || jerarquia.isPending || membresia.isPending
+    || jerarquia.isPending || membresia.isPending || eliminacion.isPending
 
   const supervisoresActivos = useMemo(() => (catalogo.data ?? []).filter((usuario) =>
     usuario.activo_crm === true
@@ -448,9 +456,40 @@ export function ConfigUsuarios() {
     }
   }
 
+  const abrirEliminacion = async (usuario: UsuarioAdministrable) => {
+    try {
+      const resultado = await impactoEliminacion.mutateAsync(usuario.perfil_id)
+      setNombreConfirmacion('')
+      setModal({ tipo: 'eliminar', usuario, impacto: resultado })
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo comprobar la eliminación del usuario.'))
+    }
+  }
+
+  const guardarEliminacion = async () => {
+    if (modal?.tipo !== 'eliminar' || !modal.usuario.version_perfil
+      || modal.impacto.pendientes.requiere_reemplazo
+      || nombreConfirmacion !== modal.usuario.nombre_completo) return
+    try {
+      const resultado = await eliminacion.mutateAsync({
+        perfilId: modal.usuario.perfil_id,
+        nombreConfirmacion,
+        versionPerfil: modal.usuario.version_perfil,
+        versionEquipo: modal.usuario.version_equipo,
+      })
+      setModal(null)
+      toast.success(resultado.resultado === 'eliminado'
+        ? 'Usuario eliminado.'
+        : 'Acceso retirado. Se conserva su nombre como autor del historial.')
+      await recargar()
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo eliminar el usuario.'))
+    }
+  }
+
   const guardarMembresia = async () => {
     if (modal?.tipo !== 'membresia' || !modal.usuario.version_equipo) return
-    const activar = modal.usuario.activo_crm !== true
+    const activar = modal.usuario.activo_crm !== true && !modal.transferir
     const bloqueo = activar ? motivoBloqueoActivacion(modal.usuario) : null
     if (bloqueo) {
       toast.error(bloqueo)
@@ -482,7 +521,8 @@ export function ConfigUsuarios() {
         && usuario.activo_portal
         && usuario.rol_crm === modal.usuario.rol_crm)
     : []
-  const bloqueoActivacion = modal?.tipo === 'membresia' && !modal.usuario.activo_crm
+  const desactivaMembresia = modal?.tipo === 'membresia' && (modal.usuario.activo_crm || modal.transferir)
+  const bloqueoActivacion = modal?.tipo === 'membresia' && !desactivaMembresia
     ? motivoBloqueoActivacion(modal.usuario)
     : null
 
@@ -559,6 +599,7 @@ export function ConfigUsuarios() {
                           {administraJerarquia && usuario.version_equipo && <Button size="xs" variant="outline" onClick={() => abrirJerarquia(usuario)}><UserRoundCog aria-hidden /> Jerarquía</Button>}
                           {administraPersonas && usuario.version_equipo && <Button size="xs" variant="outline" disabled={impacto.isPending} onClick={() => void abrirMembresia(usuario)}><ToggleLeft aria-hidden /> {usuario.activo_crm ? 'Desactivar' : 'Activar'}</Button>}
                           {auditaDirectorio && <span className="text-[10px] font-semibold text-muted-foreground">Solo lectura</span>}
+                          {administraPersonas && usuario.perfil_id !== yo?.id && usuario.version_perfil && <Button size="xs" variant="outline" aria-label={`Eliminar a ${usuario.nombre_completo}`} disabled={impactoEliminacion.isPending || ocupada} onClick={() => void abrirEliminacion(usuario)}><Trash2 aria-hidden /> Eliminar</Button>}
                         </div>
                       </td>
                     </tr>
@@ -613,16 +654,28 @@ export function ConfigUsuarios() {
       </Dialog>
 
       <Dialog open={modal?.tipo === 'membresia'} onClose={() => !ocupada && setModal(null)} ariaLabel="Cambiar membresía CRM" className="w-[620px]">
-        <DialogHeader><DialogTitle>{modal?.tipo === 'membresia' && modal.usuario.activo_crm ? 'Desactivar membresía CRM' : 'Activar membresía CRM'}</DialogTitle><DialogDescription>{modal?.tipo === 'membresia' ? modal.usuario.nombre_completo : ''}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{modal?.tipo === 'membresia' && desactivaMembresia ? 'Desactivar membresía CRM' : 'Activar membresía CRM'}</DialogTitle><DialogDescription>{modal?.tipo === 'membresia' ? modal.usuario.nombre_completo : ''}</DialogDescription></DialogHeader>
         <DialogBody className="space-y-4">
-          {modal?.tipo === 'membresia' && modal.usuario.activo_crm && modal.impacto && <><ResumenImpacto impacto={modal.impacto} />{modal.impacto.requiere_reemplazo && <div><Label htmlFor="reemplazo-usuario">Reemplazo activo del mismo rol</Label><Select id="reemplazo-usuario" value={reemplazoId} disabled={ocupada || catalogo.isPending} onChange={(e) => setReemplazoId(e.target.value)} className="mt-1"><option value="">Selecciona un reemplazo</option>{reemplazos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select><p className="mt-2 text-xs font-semibold text-warning">Subordinados, leads, tareas y clientes se transferirán en la misma transacción.</p></div>}</>}
-          {modal?.tipo === 'membresia' && !modal.usuario.activo_crm && (
+          {modal?.tipo === 'membresia' && desactivaMembresia && modal.impacto && <><ResumenImpacto impacto={modal.impacto} />{modal.impacto.requiere_reemplazo && <div><Label htmlFor="reemplazo-usuario">Reemplazo activo del mismo rol</Label><Select id="reemplazo-usuario" value={reemplazoId} disabled={ocupada || catalogo.isPending} onChange={(e) => setReemplazoId(e.target.value)} className="mt-1"><option value="">Selecciona un reemplazo</option>{reemplazos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select><p className="mt-2 text-xs font-semibold text-warning">Subordinados, leads, tareas y clientes se transferirán en la misma transacción.</p></div>}</>}
+          {modal?.tipo === 'membresia' && !desactivaMembresia && (
             bloqueoActivacion
               ? <p className="rounded-lg bg-warning/10 px-3 py-2 text-sm font-semibold text-warning-text">{bloqueoActivacion}</p>
               : <p className="text-sm">Al activar, el usuario podrá entrar al CRM con su rol y jerarquía actuales. El perfil Portal debe seguir activo.</p>
           )}
         </DialogBody>
-        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button variant={modal?.tipo === 'membresia' && modal.usuario.activo_crm ? 'destructive' : 'default'} onClick={() => void guardarMembresia()} disabled={ocupada || Boolean(bloqueoActivacion) || (modal?.tipo === 'membresia' && Boolean(modal.impacto?.requiere_reemplazo) && !reemplazoId)}>{ocupada ? 'Procesando…' : modal?.tipo === 'membresia' && modal.usuario.activo_crm ? 'Desactivar y transferir' : 'Activar membresía'}</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button variant={modal?.tipo === 'membresia' && desactivaMembresia ? 'destructive' : 'default'} onClick={() => void guardarMembresia()} disabled={ocupada || Boolean(bloqueoActivacion) || (modal?.tipo === 'membresia' && Boolean(modal.impacto?.requiere_reemplazo) && !reemplazoId)}>{ocupada ? 'Procesando…' : modal?.tipo === 'membresia' && desactivaMembresia ? 'Desactivar y transferir' : 'Activar membresía'}</Button></DialogFooter>
+      </Dialog>
+
+      <Dialog open={modal?.tipo === 'eliminar'} onClose={() => !ocupada && setModal(null)} ariaLabel="Eliminar usuario CRM" className="w-[620px]">
+        <DialogHeader><DialogTitle>Eliminar usuario del CRM</DialogTitle><DialogDescription>{modal?.tipo === 'eliminar' ? modal.usuario.nombre_completo : ''}</DialogDescription></DialogHeader>
+        <DialogBody className="space-y-4">
+          {modal?.tipo === 'eliminar' && (modal.impacto.pendientes.requiere_reemplazo
+            ? <><p className="text-sm font-semibold text-warning-text">Transfiere primero sus pendientes a otro usuario activo.</p><ResumenImpacto impacto={modal.impacto.pendientes} />{!modal.usuario.version_equipo && <p className="text-sm font-semibold text-warning-text">Esta cuenta aún no tiene membresía. Completa su alta o asigna su rol antes de transferir los pendientes.</p>}<p className="text-sm">Después de la transferencia, vuelve a seleccionar Eliminar. Las actividades realizadas conservarán su autor.</p></>
+            : <><p className="text-sm">{modal.impacto.conserva_historial ? 'Se retirará su acceso al CRM y al Portal. Su nombre y las actividades realizadas se conservarán en el historial.' : 'Se eliminarán su cuenta de acceso y su perfil. Esta acción es irreversible.'}</p><Label htmlFor="confirmar-eliminar-usuario">Escribe su nombre completo para confirmar</Label><Input id="confirmar-eliminar-usuario" value={nombreConfirmacion} disabled={ocupada} autoComplete="off" onChange={(e) => setNombreConfirmacion(e.target.value)} /></>)}
+        </DialogBody>
+        <DialogFooter><Button variant="outline" disabled={ocupada} onClick={() => setModal(null)}>Cancelar</Button>{modal?.tipo === 'eliminar' && (modal.impacto.pendientes.requiere_reemplazo
+          ? <Button disabled={ocupada || !modal.usuario.version_equipo} onClick={() => { setReemplazoId(''); setModal({ tipo: 'membresia', usuario: modal.usuario, impacto: modal.impacto.pendientes, transferir: true }) }}>Transferir pendientes</Button>
+          : <Button variant="destructive" disabled={ocupada || nombreConfirmacion !== modal.usuario.nombre_completo} onClick={() => void guardarEliminacion()}>{ocupada ? 'Eliminando…' : 'Confirmar eliminación'}</Button>)}</DialogFooter>
       </Dialog>
 
     </ConfiguracionShell>

@@ -11,6 +11,8 @@ import {
   crearProductoInversion,
   crearVersionProducto,
   fijarMembresiaUsuario,
+  eliminarUsuario,
+  obtenerImpactoEliminacion,
   listarProductosSeleccionables,
   listarCatalogoUsuariosAdministrables,
   listarEstadoSlaLeads,
@@ -218,6 +220,17 @@ export function useCrearProductoInversion() {
   const { demo } = useFuenteConfiguracion()
   const invalidar = useInvalidarProductos()
   return useMutation({ mutationFn: mutacionSoloReal(demo, crearProductoInversion), onSuccess: invalidar })
+}
+
+export function useImpactoEliminacionUsuario() {
+  const { demo } = useFuenteConfiguracion()
+  return useMutation({ mutationFn: mutacionSoloReal(demo, obtenerImpactoEliminacion) })
+}
+
+export function useEliminarUsuario() {
+  const { demo } = useFuenteConfiguracion()
+  const invalidar = useInvalidarUsuarios()
+  return useMutation({ mutationFn: mutacionSoloReal(demo, eliminarUsuario), onSuccess: invalidar })
 }
 
 export function useCrearVersionProducto() {

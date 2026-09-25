@@ -54,6 +54,17 @@ export const ResultadoPerfilActualizadoSchema = v.strictObject({
   idempotente: v.boolean(),
 })
 
+export const ImpactoEliminacionUsuarioSchema = v.strictObject({
+  pendientes: ImpactoDesactivacionUsuarioSchema,
+  conserva_historial: v.boolean(),
+})
+export type ImpactoEliminacionUsuario = v.InferOutput<typeof ImpactoEliminacionUsuarioSchema>
+
+export const ResultadoEliminacionUsuarioSchema = v.strictObject({
+  perfil_id: UuidSchema,
+  resultado: v.picklist(['eliminado', 'historial_conservado']),
+})
+
 export const ResultadoMembresiaSchema = v.strictObject({
   perfil_id: UuidSchema,
   activo_crm: v.boolean(),
