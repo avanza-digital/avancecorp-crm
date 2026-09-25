@@ -1,0 +1,35 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh --config=playwright.gestion-diaria.webkit.config.ts --output=test-results/f5-main93-webkit-libre --workers=1 --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 5 tests using 1 worker
+T::error file=e2e/gestion-diaria-pulso.spec.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto::  1) [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto %0A    Test timeout of 30000ms exceeded.
+::error file=e2e/gestion-diaria-pulso.spec.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto,line=91,col=14::  1) [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto %0A    Error: page.screenshot: Target crashed %0A    Call log:%0A      - taking page screenshot%0A      - waiting for fonts to load...%0A      - fonts loaded%0A%0A%0A      89 |   await page.goForward()%0A      90 |   await expect(detalle).toBeVisible()%0A    > 91 |   await page.screenshot({ path: info.outputPath('f5-analista-escritorio.png'), fullPage: true })%0A         |              ^%0A      92 | })%0A      93 |%0A      94 | test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:91:14
+····
+::notice title=🎭 Playwright Run Summary::  1 failed%0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto %0A  4 passed (1.7m)
+
+  1) [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.screenshot: Target crashed
+    Call log:
+      - taking page screenshot
+      - waiting for fonts to load...
+      - fonts loaded
+
+
+      89 |   await page.goForward()
+      90 |   await expect(detalle).toBeVisible()
+    > 91 |   await page.screenshot({ path: info.outputPath('f5-analista-escritorio.png'), fullPage: true })
+         |              ^
+      92 | })
+      93 |
+      94 | test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {
+        at /app/e2e/gestion-diaria-pulso.spec.ts:91:14
+
+    Error Context: test-results/f5-main93-webkit-libre/gestion-diaria-pulso-F5-es-cd0f2-ficha-y-vuelta-con-contexto-webkit/error-context.md
+
+  1 failed
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto
+  4 passed (1.7m)

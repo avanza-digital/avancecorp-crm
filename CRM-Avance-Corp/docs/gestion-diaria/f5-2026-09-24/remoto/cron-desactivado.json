@@ -1,0 +1,17 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:13:14.672Z",
+  "antes": [
+    {
+      "id": 1,
+      "activo": true,
+      "nombre": "recordatorio-cuotas-3d"
+    },
+    {
+      "id": 2,
+      "activo": true,
+      "nombre": "ciclo-contratos-diario"
+    }
+  ],
+  "activos": 0
+}

@@ -1,0 +1,120 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+The SQL layer is mostly sound for the requested scope. The gate is SECURITY INVOKER throughout, and every public entry point and every projection helper calls `gestion_diaria_pulso_autorizar()`. The ACLs are exact, and revocation with the same JWT is proven over real PostgREST. The call core is preserved for non-NULL arrays. The authorless, revoked and non-vendor buckets reconcile with a raw oracle.
+
+No P0 or P1 was found. Six actionable items remain before production:
+
+- One verified a11y/focus bug.
+- One verified metric-semantics inconsistency.
+- Two evidence gaps where the UI depends on an unproven contract.
+- Two lower-severity leaks of current state and compatibility issues.
+
+Remote branch, advisors and production were not run, and the full Docker suite is still pending. Neither is claimed here.
+
+FINDINGS:
+
+[P2] Changing the day while a drilldown is open steals focus from the date input, and partial keyboard entry fires requests
+File: `app/src/screens/gestion-diaria/gerencia.tsx`
+Lines: 83, 93, 110, 144
+Problem: `DesglosePulso` is keyed by `` `${dia}:${ruta.tipo}:${ruta.id}` `` (L110) and focuses its `h3` on mount (L144). A day change gives a new query key, so `consulta.cargando` swaps the whole panel for `PanelCargando` (L93). When data arrives, the detail remounts and calls `titulo.current.focus()`.
+- The native date input fires `onChange` per completed segment, and L83 calls `cambiarDia` each time.
+- A keyboard user editing the day with a team or analyst route open is moved to the heading after the first intermediate valid date.
+- Each intermediate valid date also issues a full pulse plus `equipo_fn(null)` request and writes sessionStorage.
+- Each intermediate invalid year (e.g. 0002 or 0020) re-announces the `role="alert"` at L88.
+- Focus is also stolen after an error followed by Reintentar, because the error branch unmounts the detail.
+Evidence: L110 key includes `dia`. L144 has `useEffect(..., [])` with `focus()`. L93 branches on `cargando`/`error` before rendering the detail. No test covers "change day while route open" and asserts focus stays on `#…-dia`.
+Impact: WCAG 3.2.2 (On Input) risk, lost keyboard context, and unnecessary heavy RPCs.
+Recommendation:
+- Focus the heading only when the route (`tipo`/`id`) changes, not on the `dia` remount. Pass a flag, or key only by `tipo:id` and reset internal state on `dia`.
+- Commit the day on blur or Enter, or debounce `onChange` with validity. Update the aviso only on commit.
+- Add an RTL test: route open, change the date, and assert that `document.activeElement` is the date input.
+
+[P2] The reference "Promedio" of contact rate averages daily percentages, contradicting the pooled-rate rule used everywhere else
+File: `supabase/migrations/20260924201358_crm_gestion_diaria_pulso_habitos.sql`
+Lines: 270, 272 (versus 181, 391–392, 415, 419; test L87 "tasa de numeradores, no media de porcentajes")
+Problem: `media.tasa_contacto = round(avg(daily tasa),1)` is an unweighted mean of per-day ratios, and `llamadas_por_lead` is likewise a mean of ratios. The daily value, the team value and the habits `operacion`/`resumen`/`equipo` all use Σcontestadas/Σútiles.
+- A 7-day base with a 2/2 day and a 10/100 day yields a mean of 55.0 %, while the pooled rate is 11.8 %.
+- The UI (L127) presents the figure beside "Actual" as a direct comparator.
+Evidence: Diff between L270 and L181. The frontend schema cannot catch this, because `camposMedia` only checks nullable ≥0 (`gestion-diaria-pulso.ts` L31).
+Impact: Misleading managerial comparison, and an internal inconsistency with the stated core semantics.
+Recommendation:
+- Compute `round(100.0*sum(contestadas)/nullif(sum(utiles),0),1)` over `v_base`. Keep `dias_con_tasa` as a sample size.
+- For `llamadas_por_lead`, either use Σllamadas/Σleads_unicos or label it explicitly "media de ratios diarios".
+- Add a SQL assertion with two unequal-volume days.
+
+[P2] The drilldown table depends on `gestion_diaria_equipo_fn(dia, NULL)` returning the whole roster for gerencia, which is unproven outside interception (hypothesis)
+File: `app/src/data/gestion-diaria-pulso-queries.ts` L33–36; `gerencia.tsx` L137, L160; `gestion-diaria-api.ts` diff (`soloPresentes`)
+Problem: The team and analyst tables filter `presentarEquipo(equipo_fn(dia,null))` by IDs from the pulse. Nothing attached shows what `equipo_fn` returns with the supervisor omitted under a gerencia JWT. Unanswered questions:
+- Is it the entire operation, or the caller's own team?
+- Does it include active vendors whose nearest-active-supervisor resolution yields NULL ('fuera'), or who sit under nested supervisors?
+- Does it still echo `supervisor_id` in a way that `DiaEquipoSchema` accepts?
+- The SQL harness (`test-pulso-habitos.sql`) never calls `equipo_fn`.
+- The HTTP harness (`contrato-http.mjs`) only calls the two F5 RPCs.
+- The E2E intercepts `gestion_diaria_equipo_fn` with a fixture (e2e L38–42).
+Impact: If `equipo_fn` uses a different or partial partition, rows silently disappear from team tables. L160 then tells the manager "El analista ya no aparece" even though the pulse counted that person. The analyst detail (L158) also would not render.
+Recommendation:
+- Add to the SQL harness a check under the gerente JWT that the set of `analista_id` values from `equipo_fn(dia,null)` is a superset of `pulso_roster()`, including the nested (supervisor_b) and supervisor-less (c) vendors.
+- Add one 200 plus one 42501 (supervisor calling with NULL) to the PostgREST script.
+
+[P2] Pulse cost scales with a full year of activity and is polled; the reference window is uncapped relative to the 365-day gate (hypothesis on cost, verified on range)
+File: migration L160–171, L257–260; queries L15, L26–27
+Problem:
+- Every pulse call runs `fechas_activas(v_dia-365, v_dia)`, which materializes `distinct` Lima dates over all gestiones plus reunion tasks for 365 days, just to take 7.
+- For `v_dia = hoy-365`, the scan reaches back to `hoy-730`. `habitos_fn` explicitly caps at `hoy-365` (L378–379), so the two RPCs apply different historical limits.
+- Both hooks use `refetchInterval: INTERVALO_REGISTRO_MS` and `refetchOnWindowFocus: 'always'`, including 30-day habits: about 30× `pulso_dia` plus cortes plus jornada, with a p95 of 942 ms on only 30k synthetic calls.
+- The perf evidence does not state that those 30k calls are spread over a year, so the year-scan cost is unmeasured.
+Impact: Production latency and DB load under polling are unknown, and could approach the authenticated `statement_timeout` as history grows.
+Recommendation:
+- Re-measure with at least 12 months of realistic volume, and state the index used (`actividades(creado_en)` with `tipo`).
+- Consider a backward-bounded search, e.g. a loop stepping back by day or month until 7 active dates are found.
+- Decide explicitly whether the base may cross `hoy-365`, and document it.
+- Disable interval and focus refetch for habits, since historical windows are immutable apart from today.
+
+[P3] NULL elements in the array now change legacy core output
+File: migration L4, L19–20, L87–88, L105–108 (versus original core `in (select v.id …)`, `=` joins)
+Problem: Previously, a NULL element in `p_vendedor_ids` produced a zero row, because `IN` or `=` never matches NULL. It now returns the real authorless calls and citas. The parity test (test L109–113) covers `array[a,b,revocado]`, duplicates, `'{}'` and `null::uuid[]`, but not `array[a, NULL]`.
+Evidence: L20 `array_position(p_vendedor_ids,null) is not null`, and the joins at L105–108 use `is not distinct from`.
+Impact: Any existing caller whose ID array can contain NULL would silently change counts. Examples include `array_agg` over a left join in `equipo_fn`, `analista_core`, `cortes` or `metricas_agenda`.
+Recommendation:
+- Attach a grep or CodeGraph listing of all callers of `private.gestion_diaria_llamadas`, showing their arrays cannot contain NULL.
+- Add a parity row that documents the intended divergence for `array[a,NULL]`.
+
+[P3] Current state leaks into historical-day projections without a label
+File: migration L154–156; `gerencia.tsx` L122–128, L155–156, L161
+Problem:
+- `pulso_autores` adds the vendors of all current `activo and estado='pendiente'` tasks to every historical day, including NULL for unassigned tasks. These rows carry only zero facts.
+- They surface as "Otros autores … 0 llamadas" entries, and as "Sin autor: 0 llamadas" plus the L161 note on days with no authorless calls.
+- `vencidas` (L286–290) already joins `crm.tareas` to the roster independently, so these persona rows are not needed for pending counts.
+- The headline KPIs "Analistas sin actividad" and "Anterior/Promedio" (L126–127) are computed on the current roster for past days. Only the teams section (L99) says "Organigrama actual", although the requirement asks for current-organigram figures to be explicitly labelled.
+Recommendation:
+- Drop the pending clause at L156, or keep only personas with any fact (llamadas, citas or gestiones > 0) when not in the roster.
+- Add "organigrama actual" wording to the `ResumenPulso` note.
+- Add a test: a historical day with no NULL-author calls shows no "Sin autor" line.
+
+TEST GAPS:
+- No SQL or HTTP test of `equipo_fn(dia, NULL)` scope for gerencia (see the third P2 above).
+- No SQL coverage of `habitos_fn` with 14 or 30 days. The E2E uses fixtures, and only the 7-day window and the hoy-365 cap are asserted in SQL.
+- No assertion on the weighting of `media.tasa_contacto`.
+- Nothing asserts that `count(distinct lead_id)` (L235–236) and `leads_tocados` (`array_agg(distinct)`, which counts NULL) agree when `lead_id` is NULL. This is harmless only if `actividades.lead_id` is NOT NULL; please confirm.
+- Holiday handling: `habitos_jornada` only knows Sunday and Saturday. If `gestion_diaria_cortes` marks holidays `no_laborable`, the jornada and cortes columns disagree for the same day (hypothesis).
+- `cortesDelDia` returns an empty string when `estado='activo'` and both cortes are null (`reporte-habitos.tsx` L9), leaving an empty cell with no text.
+- Mobile CSS (`gerencia.css` L28) sets `display:block` on `table`/`tr`, which drops table semantics in WebKit. There is no VoiceOver or axe check at 390 px.
+
+SECURITY RISKS:
+- No leak found. The private event helpers without the authorizer (L9–33) are INVOKER under RLS and live in the non-exposed `private` schema, so they are equivalent to direct table reads. Names of non-roster authors go only through `equipo_visible_fn` (verified at test L98–103).
+- The UI gate is gerencia-only while the server also admits `es_lector_global`. That is consistent and safe.
+
+REGRESSION RISKS:
+- The NULL-element semantics of the legacy core (P3 above).
+- The F3 gate `assert_gestion_diaria_analista` was fully replaced. Please confirm that the md5 `7c5d…` at L535 is the re-measured value for the new body and that any meta-seal or census over the gate itself was updated.
+
+RECOMMENDED NEXT ACTIONS:
+1. Fix focus and commit behavior on day change (first P2) and add the RTL test.
+2. Switch `media.tasa_contacto` to a pooled rate, with a SQL assertion.
+3. Add SQL and HTTP evidence for `equipo_fn(dia,NULL)` scope under gerencia.
+4. Re-measure the pulse with a year of history, cap or justify the `hoy-730` reach, and disable polling for habits.
+5. Attach the caller inventory for the legacy core, and trim current-pending personas from historical days.
+
+CONFIDENCE:
+MEDIUM. SQL and TSX are fully shown, but the bodies of `equipo_fn`, `gestion_diaria_cortes`, `equipo_pendientes`, `Tabs` and `RegistroActividad`, plus the remote and live results, are not available.

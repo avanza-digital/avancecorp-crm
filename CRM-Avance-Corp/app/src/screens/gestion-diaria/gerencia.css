@@ -1,0 +1,37 @@
+.gd-pulso { width:100%; max-width:1640px; margin-inline:auto; display:flex; flex-direction:column; gap:24px; font-size:16px; line-height:1.5; container-type:inline-size; }
+.gd-pulso h2 { font-size:28px; font-weight:750; letter-spacing:-.035em; color:var(--primary); }
+.gp-cabecera,.gp-cabecera-fila { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.gp-controles { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.gp-nota { padding:16px; background:var(--muted); border-radius:12px; }
+.gp-nota p+p { margin-top:6px; }
+.gp-nota summary,.gp-dias-habitos>summary { cursor:pointer; min-height:44px; padding-block:10px; font-weight:600; color:var(--primary); }
+.gp-indicadores { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.gp-indicadores>div,.gp-panel { padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--card); }
+.gp-indicadores dt { font-weight:600; color:var(--muted-foreground-strong); }
+.gp-indicadores dd { font-size:32px; font-weight:750; letter-spacing:-.035em; color:var(--primary); font-variant-numeric:tabular-nums; margin-block:8px; }
+.gp-indicadores p,.gp-habitos-resumen p,.gp-tabla p { color:var(--muted-foreground-strong); font-weight:400; }
+.gp-tabla-scroll { overflow:auto; max-width:100%; }
+.gp-tabla { width:100%; border-collapse:collapse; table-layout:fixed; }
+.gp-tabla th,.gp-tabla td { padding:12px 8px; text-align:left; vertical-align:top; border-bottom:1px solid var(--border); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.gp-tabla thead { background:var(--muted); }
+.gp-tabla th:first-child { width:23%; }
+.gp-tabla a,.gp-ruta a,.gp-panel li a,.gp-cabecera-fila a { color:var(--primary); text-decoration:underline; text-underline-offset:3px; display:inline-block; padding-block:10px; }
+.gp-tabla th a { padding-top:0; }
+.gp-periodo { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:20px; }
+.gp-periodo>div { width:220px; }
+.gp-habitos-resumen { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; margin-block:16px; }
+.gp-habitos-resumen dt { color:var(--muted-foreground-strong); }
+.gp-habitos-resumen dd { font-size:20px; font-weight:600; color:var(--primary); margin-top:4px; }
+.gd-pulso :is(a,button,input,select,summary,[tabindex]):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@container (max-width:1000px) { .gp-indicadores,.gp-habitos-resumen { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@container (max-width:760px) {
+  .gp-tabla,.gp-tabla tbody,.gp-tabla tr { display:block; width:100%; }
+  .gp-tabla thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .gp-tabla tr { padding-block:10px; border-bottom:1px solid var(--border); }
+  .gp-tabla th:first-child { display:block; width:100%; }
+  .gp-tabla td { display:block; border:0; padding-block:6px; }
+  .gp-tabla td::before { content:attr(data-etiqueta) ': '; color:var(--muted-foreground-strong); font-weight:600; }
+  .gp-tabla th { border:0; }
+  .gp-tabla td p { margin-left:0; }
+}
+@container (max-width:450px) { .gp-indicadores,.gp-habitos-resumen { grid-template-columns:minmax(0,1fr); } .gp-panel { padding:14px; } .gd-pulso h2 { font-size:24px; } }

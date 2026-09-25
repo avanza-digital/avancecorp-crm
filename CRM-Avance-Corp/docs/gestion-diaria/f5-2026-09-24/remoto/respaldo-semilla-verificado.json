@@ -1,0 +1,10 @@
+{
+  "estado": "PASS",
+  "tablas": {
+    "crm.leads": 7,
+    "crm.tareas": 5
+  },
+  "snapshot_inicio": "2026-09-24T22:20:43.159307Z",
+  "matriz_inicio": "2026-09-24T22:21:23.499Z",
+  "nota": "pg_dump inicio su snapshot antes de la matriz; leads y tareas de semilla comprobados en el artefacto"
+}

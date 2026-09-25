@@ -15,6 +15,7 @@ import { fechaLima } from '@/lib/agenda-derivada'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
 import { GestionDiariaAnalista } from '@/screens/gestion-diaria/analista'
 import { GestionDiariaSupervisor } from '@/screens/gestion-diaria/supervisor'
+import { GestionDiariaGerencia } from '@/screens/gestion-diaria/gerencia'
 import { Plegable } from '@/components/gestion-diaria/plegable'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
@@ -56,9 +57,10 @@ export function GestionDiaria(): JSX.Element {
     case 'supervisor':
       return <GestionDiariaSupervisor />
     case 'gerencia':
+      if (!yo.demo) return <GestionDiariaGerencia />
       return (
         <div className="mx-auto w-full max-w-[1640px] space-y-6">
-          <Cabecera pregunta="¿Qué está pasando hoy?" detalle="El registro de actividad de toda la operación, por equipo y por analista, exportable. El pulso del día llega en la siguiente entrega.">
+          <Cabecera pregunta="¿Qué está pasando hoy?" detalle="Registro con datos ficticios del modo demo. El tablero completo y los hábitos consultan la operación desde una sesión real de gerencia.">
             <label className="flex items-center gap-2 text-xs font-semibold text-[var(--muted-foreground-strong)]">
               Día
               <Input type="date" value={dia} max={hoy} onChange={(e) => setDia(e.target.value)} className="w-auto" aria-label="Día del registro" />

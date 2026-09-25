@@ -1,0 +1,10 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:56:56.400Z",
+  "ref": "xyrdxcraoqdgctzkvpsj",
+  "sha256": "b138287d8983bd171eda9a37a9c8be3a24de18e4a81992d9baf1566c9e46ce78",
+  "authPreservado": 25,
+  "leads": 7,
+  "tareas": 5,
+  "limite": "Esquemas del producto restaurados; Auth/Storage/historial conservados; repetir cotejo completo antes de F5."
+}

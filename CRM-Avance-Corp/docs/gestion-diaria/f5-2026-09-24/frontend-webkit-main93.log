@@ -1,0 +1,167 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh --config=playwright.gestion-diaria.webkit.config.ts --output=test-results/f5-main93-webkit --workers=1 --retries=0
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 5 tests using 1 worker
+F::error file=e2e/_helpers.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto,line=3393,col=68::  1) [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('button', { name: 'Ocultar menú' })%0A    Expected: visible%0A    Timeout: 10000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 10000ms%0A      - waiting for getByRole('button', { name: 'Ocultar menú' })%0A%0A%0A       at _helpers.ts:3393%0A%0A      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()%0A      3392 |   if (!esperarWorkspace) return%0A    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })%0A           |                                                                    ^%0A      3394 | }%0A      3395 |%0A      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.%0A        at loginReal (/app/e2e/_helpers.ts:3393:68)%0A        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:62:18
+F::error file=e2e/_helpers.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:94:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento,line=3393,col=68::  2) [webkit] › e2e/gestion-diaria-pulso.spec.ts:94:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('button', { name: 'Ocultar menú' })%0A    Expected: visible%0A    Timeout: 10000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 10000ms%0A      - waiting for getByRole('button', { name: 'Ocultar menú' })%0A%0A%0A       at _helpers.ts:3393%0A%0A      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()%0A      3392 |   if (!esperarWorkspace) return%0A    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })%0A           |                                                                    ^%0A      3394 | }%0A      3395 |%0A      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.%0A        at loginReal (/app/e2e/_helpers.ts:3393:68)%0A        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:95:18
+T::error file=e2e/gestion-diaria-pulso.spec.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral::  3) [webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral %0A    Test timeout of 30000ms exceeded.
+::error file=e2e/_helpers.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral,line=3393,col=68::  3) [webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('button', { name: 'Ocultar menú' })%0A    Expected: visible%0A    Timeout: 10000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 10000ms%0A      - waiting for getByRole('button', { name: 'Ocultar menú' })%0A%0A%0A       at _helpers.ts:3393%0A%0A      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()%0A      3392 |   if (!esperarWorkspace) return%0A    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })%0A           |                                                                    ^%0A      3394 | }%0A      3395 |%0A      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.%0A        at loginReal (/app/e2e/_helpers.ts:3393:68)%0A        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:124:18
+F::error file=e2e/_helpers.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:143:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar,line=3393,col=68::  4) [webkit] › e2e/gestion-diaria-pulso.spec.ts:143:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('button', { name: 'Ocultar menú' })%0A    Expected: visible%0A    Timeout: 10000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 10000ms%0A      - waiting for getByRole('button', { name: 'Ocultar menú' })%0A%0A%0A       at _helpers.ts:3393%0A%0A      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()%0A      3392 |   if (!esperarWorkspace) return%0A    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })%0A           |                                                                    ^%0A      3394 | }%0A      3395 |%0A      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.%0A        at loginReal (/app/e2e/_helpers.ts:3393:68)%0A        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:144:18
+T::error file=e2e/gestion-diaria-pulso.spec.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado::  5) [webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado %0A    Test timeout of 30000ms exceeded.
+::error file=e2e/gestion-diaria-pulso.spec.ts,title=[webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado,line=55,col=75::  5) [webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado %0A    Error: locator.click: Page crashed%0A    Call log:%0A      - waiting for getByRole('button', { name: 'Gestión Diaria', exact: true })%0A        - locator resolved to <button class="ac-nav-item group relative flex w-full items-center rounded-lg py-2 text-sm font-medium cursor-pointer gap-3 px-3 text-sidebar-foreground hover:bg-white/[0.06] hover:text-white">…</button>%0A      - attempting click action%0A        - waiting for element to be visible, enabled and stable%0A        - element is visible, enabled and stable%0A        - scrolling into view if needed%0A        - done scrolling%0A        - performing click action%0A%0A%0A      53 |   })%0A      54 |   await loginReal(page)%0A    > 55 |   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()%0A         |                                                                           ^%0A      56 |   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()%0A      57 |   await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toBeVisible()%0A      58 |   return estado%0A        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:55:75)%0A        at /app/e2e/gestion-diaria-pulso.spec.ts:161:3
+
+::notice title=🎭 Playwright Run Summary::  5 failed%0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto %0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:94:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento %0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral %0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:143:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar %0A    [webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado
+
+  1) [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'Ocultar menú' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for getByRole('button', { name: 'Ocultar menú' })
+
+
+       at _helpers.ts:3393
+
+      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()
+      3392 |   if (!esperarWorkspace) return
+    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
+           |                                                                    ^
+      3394 | }
+      3395 |
+      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.
+        at loginReal (/app/e2e/_helpers.ts:3393:68)
+        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:62:18
+
+    Error Context: test-results/f5-main93-webkit/gestion-diaria-pulso-F5-es-cd0f2-ficha-y-vuelta-con-contexto-webkit/error-context.md
+
+  2) [webkit] › e2e/gestion-diaria-pulso.spec.ts:94:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'Ocultar menú' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for getByRole('button', { name: 'Ocultar menú' })
+
+
+       at _helpers.ts:3393
+
+      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()
+      3392 |   if (!esperarWorkspace) return
+    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
+           |                                                                    ^
+      3394 | }
+      3395 |
+      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.
+        at loginReal (/app/e2e/_helpers.ts:3393:68)
+        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:95:18
+
+    Error Context: test-results/f5-main93-webkit/gestion-diaria-pulso-F5-mó-4402e--directo-sin-desbordamiento-webkit/error-context.md
+
+  3) [webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral
+
+    Test timeout of 30000ms exceeded.
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'Ocultar menú' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for getByRole('button', { name: 'Ocultar menú' })
+
+
+       at _helpers.ts:3393
+
+      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()
+      3392 |   if (!esperarWorkspace) return
+    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
+           |                                                                    ^
+      3394 | }
+      3395 |
+      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.
+        at loginReal (/app/e2e/_helpers.ts:3393:68)
+        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:124:18
+
+    Error Context: test-results/f5-main93-webkit/gestion-diaria-pulso-F5-há-7f666-y-cortes-sin-activar-umbral-webkit/error-context.md
+
+  4) [webkit] › e2e/gestion-diaria-pulso.spec.ts:143:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'Ocultar menú' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for getByRole('button', { name: 'Ocultar menú' })
+
+
+       at _helpers.ts:3393
+
+      3391 |   await page.getByRole('button', { name: /^Entrar$/ }).click()
+      3392 |   if (!esperarWorkspace) return
+    > 3393 |   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
+           |                                                                    ^
+      3394 | }
+      3395 |
+      3396 | /** Transporte de la ruta compartida para las suites de UI sin backend.
+        at loginReal (/app/e2e/_helpers.ts:3393:68)
+        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:54:3)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:144:18
+
+    Error Context: test-results/f5-main93-webkit/gestion-diaria-pulso-F5-er-8c6fe-peración-vuelve-a-consultar-webkit/error-context.md
+
+  5) [webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Page crashed
+    Call log:
+      - waiting for getByRole('button', { name: 'Gestión Diaria', exact: true })
+        - locator resolved to <button class="ac-nav-item group relative flex w-full items-center rounded-lg py-2 text-sm font-medium cursor-pointer gap-3 px-3 text-sidebar-foreground hover:bg-white/[0.06] hover:text-white">…</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - performing click action
+
+
+      53 |   })
+      54 |   await loginReal(page)
+    > 55 |   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
+         |                                                                           ^
+      56 |   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+      57 |   await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toBeVisible()
+      58 |   return estado
+        at montar (/app/e2e/gestion-diaria-pulso.spec.ts:55:75)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:161:3
+
+    Error Context: test-results/f5-main93-webkit/gestion-diaria-pulso-F5-co-8651e-tación-del-registro-cargado-webkit/error-context.md
+
+  5 failed
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:61:1 › F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:94:1 › F5 móvil: fecha, recarga y enlace directo sin desbordamiento
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:123:1 › F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin activar umbral
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:143:1 › F5 error y revocación ocultan datos; recuperación vuelve a consultar
+    [webkit] › e2e/gestion-diaria-pulso.spec.ts:160:1 › F5 conserva la fila fuera de equipos y exportación del registro cargado

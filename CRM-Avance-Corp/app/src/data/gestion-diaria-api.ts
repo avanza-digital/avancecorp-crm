@@ -103,9 +103,9 @@ export async function obtenerDiaAnalista(
 }
 
 /** Foto completa del equipo: el eco de día y supervisor evita mezclar ámbitos. */
-export async function obtenerDiaEquipo(dia: string, supervisorId: string, signal?: AbortSignal): Promise<DiaEquipo> {
+export async function obtenerDiaEquipo(dia: string, supervisorId: string | null, signal?: AbortSignal): Promise<DiaEquipo> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('gestion_diaria_equipo_fn', { p_dia: dia, p_supervisor_id: supervisorId })
+  let consulta = sb.schema('crm').rpc('gestion_diaria_equipo_fn', { p_dia: dia, ...soloPresentes({ p_supervisor_id: supervisorId }) })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) throw new CrmApiError(error.message, error.code)

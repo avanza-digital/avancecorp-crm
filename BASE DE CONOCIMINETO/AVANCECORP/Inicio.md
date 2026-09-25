@@ -5,6 +5,8 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - F4.1 apagada y F5 en desarrollo (2026-09-24)]] — **F5 VALIDADA, NO PUBLICADA:** gate 4.386/297, Chromium 256/0/26, WebKit 5/0, matriz remota 2.267/0 y Auth/HTTP 21/21 PASS. Bancos retirados (~US$0,019 acumulados). F4.1 OFF; cierre F4 auditado, sábado pendiente. F6 preparada, semana sin iniciar.
+
 - [[Gestion Diaria - auditoria y plan F4.1-F6 (2026-09-24)]] — Conformidad manual cerrada por Miguel; auditoría dirigida PASS, reaviso 13:39 comprobado. Plan F4.1–F6 definido; controles futuros conservados.
 
 - [[Gestion Diaria - recorrido de supervision conforme (2026-09-24)]] — **RECORRIDO ACEPTADO POR MIGUEL:** H6.4 cerrada, 72/72 tareas. Primer corte contrastado: 4 cumplieron, 1 recuperó y 5 pendientes. Aplazamiento real hasta 13:34 Lima conservado tras recarga y nueva pestaña. F4 sigue abierto para reconocimiento, otra sesión/dispositivo, corte 16:00 y sábado 26/09.
