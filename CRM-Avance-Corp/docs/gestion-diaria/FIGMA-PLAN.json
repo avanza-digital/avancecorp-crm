@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T00:07:13.316492+00:00",
+  "updatedAt": "2026-09-25T02:57:11Z",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1727,7 +1727,7 @@
     {
       "key": "F5",
       "title": "F5 — Gerencia: “Toda la operación”",
-      "status": "PR integrado · falta revisión registrada para publicar.",
+      "status": "PUBLICADA · SQL y frontend verificados.",
       "items": [
         [
           true,
@@ -1754,15 +1754,15 @@
           "Validar un umbral real; tasa muy baja continúa apagada."
         ],
         [
-          false,
-          "Publicar F5: pruebas y ensayo remoto terminados."
+          true,
+          "Publicar F5 y conciliar sus cifras en producción."
         ]
       ]
     },
     {
       "key": "F6",
       "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Cola completa preparada · semana estable sin iniciar.",
+      "status": "Observación desde 24/09, 21:57 · cola en PR #97.",
       "items": [
         [
           false,
@@ -1800,10 +1800,16 @@
     "f5": "CONTRATO-F5-2026-09-24.md",
     "f6": "PREPARACION-F6-2026-09-24.md",
     "corte1600": "auditoria-2026-09-24/CORTE-1600.md",
-    "publication": "NOT RUN",
+    "publication": "f5-publicacion-2026-09-24/ACTA.md",
     "cierre1800": "auditoria-2026-09-24/CIERRE-1800.md",
     "f5Remote": "f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md",
-    "f5FinalVisual": "f5-2026-09-24/figma-f5-validada.png",
-    "observation": "OBSERVACION-F3-F5.md"
+    "f5FinalVisual": "f5-publicacion-2026-09-24/figma-f5-publicada.png",
+    "observation": "OBSERVACION-F3-F5.md",
+    "f6FinalVisual": "f5-publicacion-2026-09-24/figma-f6-observacion.png",
+    "f6PullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/97",
+    "observationStartedAt": "2026-09-25T02:57:11Z",
+    "earliestRetirementAt": "2026-10-02T02:57:11Z",
+    "stableSevenDays": "NOT RUN",
+    "saturdayCut": "NOT RUN"
   }
 }

@@ -1,0 +1,1197 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T02:53:39.580566+00:00",
+  "release_id": "crm-20260925T023617Z-b402a7f1b5c9",
+  "commit": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+  "zip_sha256": "70b94da52e9002e92a4729579e7726a13f7539f0c9b16c0eb7a9de479eb41fe0",
+  "total": 78,
+  "passed": 78,
+  "root": {
+    "ruta": "",
+    "estado": "PASS",
+    "http": 200,
+    "bytes": 2178,
+    "sha256": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+    "esperado": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "Age": null,
+      "ETag": "W/\"882-6ab597d2-920700581e7bf8a8;gz\"",
+      "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+    }
+  },
+  "archivos": [
+    {
+      "ruta": "assets/acciones-reconocer-alerta-DP5EXMqU.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 2581,
+      "sha256": "92fcdeeaf47f0e164c82b00a95beda03e5f000ae1dbd0a2429a3f2e6dc1b3b7a",
+      "esperado": "92fcdeeaf47f0e164c82b00a95beda03e5f000ae1dbd0a2429a3f2e6dc1b3b7a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"a15-6ab597d2-8a1243be45a7d394;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/agenda-4YzbU6cQ.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 31083,
+      "sha256": "677369e493df8a773b6a27386568ccfd5bf0f6093f34562a669d03c55b3d7c21",
+      "esperado": "677369e493df8a773b6a27386568ccfd5bf0f6093f34562a669d03c55b3d7c21",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"796b-6ab597d2-98b78c7a1a67023a;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/ahora-CyLTFCpv.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 516,
+      "sha256": "6b397163f4bc1f1a68eef0400de06b4966796ae46e0ab69740117284cef41a51",
+      "esperado": "6b397163f4bc1f1a68eef0400de06b4966796ae46e0ab69740117284cef41a51",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "77184",
+        "ETag": "W/\"204-6ab3f3fa-5e37dbd38038715a;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/alertas-QRTze4ES.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 13637,
+      "sha256": "57dda3197ff3e6793be6773139e2f66ebf0559f68fd9620db541c3a6626d0c57",
+      "esperado": "57dda3197ff3e6793be6773139e2f66ebf0559f68fd9620db541c3a6626d0c57",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3545-6ab597d2-f431af45ae238e7;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 947,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "esperado": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "291463",
+        "ETag": "W/\"3b3-6ab128a4-bc00d761e2695f62;gz\"",
+        "Last-Modified": "Mon, 21 Sep 2026 12:52:52 GMT"
+      }
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 98,
+      "sha256": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "esperado": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "107400",
+        "ETag": "\"62-6ab3f3fa-144f161ca26c7176;;;\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/aviso-degradacion-oxmyKssV.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1198,
+      "sha256": "1e09a14e96963c9356700513ea3f36d045172149dfbf25f01e5593aa4b546ffb",
+      "esperado": "1e09a14e96963c9356700513ea3f36d045172149dfbf25f01e5593aa4b546ffb",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "3827",
+        "ETag": "W/\"4ae-6ab5844a-8bbc160bdf801d2f;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/button-CpiEwf0o.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1964,
+      "sha256": "b08c2f2b8f5c4738b598f47d8f2788eac2e0f1027cbae4f5da80338674d979fe",
+      "esperado": "b08c2f2b8f5c4738b598f47d8f2788eac2e0f1027cbae4f5da80338674d979fe",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"7ac-6ab5844a-d11959ef81c6abba;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/card-CIYkZJ3m.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 737,
+      "sha256": "e810b54f6105bbae2389e074faf5e52ae7b686cdf79ca0543efbfdcd6ecb2cf5",
+      "esperado": "e810b54f6105bbae2389e074faf5e52ae7b686cdf79ca0543efbfdcd6ecb2cf5",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "3281",
+        "ETag": "W/\"2e1-6ab5844a-3aa93ad21b6f7db2;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/cartera-DtMwueyd.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 14764,
+      "sha256": "818a3936debca1e2cb3f95ed4f7572cda90b57d21d34cf787a51131d5ac88633",
+      "esperado": "818a3936debca1e2cb3f95ed4f7572cda90b57d21d34cf787a51131d5ac88633",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"39ac-6ab597d2-6f1308f392dcb958;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-d9NCJtH3.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 15269,
+      "sha256": "b75e9544d2a792ca9251659ced70ee74ee0de549d9667d008281853a9d827c98",
+      "esperado": "b75e9544d2a792ca9251659ced70ee74ee0de549d9667d008281853a9d827c98",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3ba5-6ab597d2-d9e1488c3ec0d1df;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-citas-Dkn-2Eij.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 17028,
+      "sha256": "7c7ac1a172d9698826f42687f0640b7e8bf8b2f9c46a20a7f1bacec7c935e83b",
+      "esperado": "7c7ac1a172d9698826f42687f0640b7e8bf8b2f9c46a20a7f1bacec7c935e83b",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"4284-6ab597d2-682397fc5fe7ceb;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-Du5hjYH9.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 12028,
+      "sha256": "658a306b26f174ae2cc1a0f412d8a0b3dd88c9e775c19c8b61d5bcab94041221",
+      "esperado": "658a306b26f174ae2cc1a0f412d8a0b3dd88c9e775c19c8b61d5bcab94041221",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"2efc-6ab597d2-caaadaeb903d76ab;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-Bga28ytj.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 12134,
+      "sha256": "7039a8a77ca2125eb45419b9e1a439ecc4c81cd0d56c1910b8198e3e28c08f5e",
+      "esperado": "7039a8a77ca2125eb45419b9e1a439ecc4c81cd0d56c1910b8198e3e28c08f5e",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"2f66-6ab597d2-eb9692f26075dc7a;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-metas-BDevnaZ0.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 16115,
+      "sha256": "49060c6d7340b7177679d8026081f315a78a301aff0ef353624b5a0f6b2ad7e4",
+      "esperado": "49060c6d7340b7177679d8026081f315a78a301aff0ef353624b5a0f6b2ad7e4",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3ef3-6ab597d2-88d69ac9d12bfeda;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-productos-BCLfg55y.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 27097,
+      "sha256": "d206e9289c6dd9b0951aba016b2e05212145f7101b129cb4633954b214ca558a",
+      "esperado": "d206e9289c6dd9b0951aba016b2e05212145f7101b129cb4633954b214ca558a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"69d9-6ab597d2-33c889532f5bf105;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-rentabilidad-Bn47J8Ns.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 14716,
+      "sha256": "3188e7d07fb12581bd3b2edce57b21868b8dfe3e5b25a36d6bf8b269a7cc7eb2",
+      "esperado": "3188e7d07fb12581bd3b2edce57b21868b8dfe3e5b25a36d6bf8b269a7cc7eb2",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"397c-6ab597d2-3869f14189c904c3;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-sla-Brqijafh.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 17240,
+      "sha256": "f9a6b371c4325f1563774f78c53c3260faac4dbb5ed673711ac086bf75f8a124",
+      "esperado": "f9a6b371c4325f1563774f78c53c3260faac4dbb5ed673711ac086bf75f8a124",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"4358-6ab597d2-49783c7afdbba503;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/config-usuarios-DW0WIoy1.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 23937,
+      "sha256": "b29affd85f4c4b9928f3929998b13ce20fa575fbfecb4d8e1763e902cedbaad5",
+      "esperado": "b29affd85f4c4b9928f3929998b13ce20fa575fbfecb4d8e1763e902cedbaad5",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"5d81-6ab597d2-a6fd3aa4fb0ddba6;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/configuracion-shell-CWHuvRE5.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1972,
+      "sha256": "54607fc1fb752d5983cc440141e071513e58b0e74f51226c100feeba8a07b6c8",
+      "esperado": "54607fc1fb752d5983cc440141e071513e58b0e74f51226c100feeba8a07b6c8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"7b4-6ab597d2-a1aa0aae8d1ee167;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/control-citas-YAENLKH-.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 4187,
+      "sha256": "f24110934eb7aece2d7903e7cefe40e34fa6dc21609357e9b01d159b95a14a4a",
+      "esperado": "f24110934eb7aece2d7903e7cefe40e34fa6dc21609357e9b01d159b95a14a4a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"105b-6ab597d2-eef9d92a43ba6fbf;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-CovsfZGG.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 2528,
+      "sha256": "d9bbbdcc7f31b9f3e7d5e3dec1d137942dba6470e0cab5b349fd9df5cc1d46d2",
+      "esperado": "d9bbbdcc7f31b9f3e7d5e3dec1d137942dba6470e0cab5b349fd9df5cc1d46d2",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1982",
+        "ETag": "W/\"9e0-6ab5844a-328d106d21c53052;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/crm-api-CuAlpzTW.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 224907,
+      "sha256": "08101824980eb54990cb57ba4f2276673b345e736ba2e7116b3070bcec6491d1",
+      "esperado": "08101824980eb54990cb57ba4f2276673b345e736ba2e7116b3070bcec6491d1",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"36e8b-6ab597d2-ad88ea70e87542ae;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/crm-queries-d9r_UPpD.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 15736,
+      "sha256": "4da029a9218e9660650749c059e5a97d11fb67ce2b2a0cbf3c89f187b5c4d6a8",
+      "esperado": "4da029a9218e9660650749c059e5a97d11fb67ce2b2a0cbf3c89f187b5c4d6a8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3d78-6ab597d2-693d2d01ebae47fb;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 244552,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "esperado": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "291464",
+        "ETag": "W/\"3bb48-6ab128a4-c590d16261ba6a63;gz\"",
+        "Last-Modified": "Mon, 21 Sep 2026 12:52:52 GMT"
+      }
+    },
+    {
+      "ruta": "assets/derivaciones-B1ZMmOfo.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 13734,
+      "sha256": "c18107af30d3b316450df67fa63c3e45aee59c321ad66457a1af63b1577d754e",
+      "esperado": "c18107af30d3b316450df67fa63c3e45aee59c321ad66457a1af63b1577d754e",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"35a6-6ab597d2-35ddfdb7ad48e470;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/desglose-monedas-C9E_WO9P.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 701,
+      "sha256": "2f01521749407f47d37560b01fdd7f970ea95ebd4b42be68d2e687f58d3895b9",
+      "esperado": "2f01521749407f47d37560b01fdd7f970ea95ebd4b42be68d2e687f58d3895b9",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"2bd-6ab597d2-c93cd28a1fc8fd11;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 12574,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "esperado": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "77184",
+        "ETag": "W/\"311e-6ab3f3fa-f697520be09e2176;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-D33omG0T.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 7528,
+      "sha256": "8a71ab50f5d31aeb1b432d86919c5a08fc684173183e3e5bbaf4e3fb079aaba2",
+      "esperado": "8a71ab50f5d31aeb1b432d86919c5a08fc684173183e3e5bbaf4e3fb079aaba2",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"1d68-6ab597d2-ef3e02869b2f93be;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/dropdown-menu-D2zmNjUD.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 3134,
+      "sha256": "7a27283be99ace255d1ff6819d60574b51fb5f2dd3733e9791d59a7ea5978a9b",
+      "esperado": "7a27283be99ace255d1ff6819d60574b51fb5f2dd3733e9791d59a7ea5978a9b",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"c3e-6ab5844a-5f9b50fcd2ae723f;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/echart-bar-CJ7XQVqX.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 21988,
+      "sha256": "3b3dff31d6e5fdee04424503674b0c0a5de7a47c9007513a7786a0ae7b792049",
+      "esperado": "3b3dff31d6e5fdee04424503674b0c0a5de7a47c9007513a7786a0ae7b792049",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "3249",
+        "ETag": "W/\"55e4-6ab5844a-fc8067309f06c539;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/echart-CIvurqcw.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 487201,
+      "sha256": "949c36e24d4b71e10f0994fa33c5093e7a7b3db5644f8ddc3650eac14cdc2c6b",
+      "esperado": "949c36e24d4b71e10f0994fa33c5093e7a7b3db5644f8ddc3650eac14cdc2c6b",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"76f21-6ab5844a-becb61baa293814a;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/echart-line-BrRG2d6m.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 45314,
+      "sha256": "d032c3ec9e475c415a92615d9613473c6c9fd5375fa9b78b2f4ddebfa662f0b1",
+      "esperado": "d032c3ec9e475c415a92615d9613473c6c9fd5375fa9b78b2f4ddebfa662f0b1",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1982",
+        "ETag": "W/\"b102-6ab5844a-399aa1cb10f2f718;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/equipo-DBY_Qg3x.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 26787,
+      "sha256": "831c6f2b46e63403b9e9f3f3d7c29b28d43d32d35da4373c7e300b1715bd96f8",
+      "esperado": "831c6f2b46e63403b9e9f3f3d7c29b28d43d32d35da4373c7e300b1715bd96f8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"68a3-6ab597d2-342d24df72c60d53;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/escape-dialogo-BhefE2FP.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 20295,
+      "sha256": "95349a4ea4d5cafec06cadbfcbce87417bc1f4c65319332edf9bbeccd63d6d69",
+      "esperado": "95349a4ea4d5cafec06cadbfcbce87417bc1f4c65319332edf9bbeccd63d6d69",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "107414",
+        "ETag": "W/\"4f47-6ab3f3fa-a1586543f0e7fa39;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 84559,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "esperado": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "291465",
+        "ETag": "W/\"14a4f-6ab128a4-2aba9adfc821b3af;gz\"",
+        "Last-Modified": "Mon, 21 Sep 2026 12:52:52 GMT"
+      }
+    },
+    {
+      "ruta": "assets/facturacion-Dh2FJemK.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 31064,
+      "sha256": "06f1f85469b9ef35f9ab85a43e272ca66a330dfc26143076e814b8db4f9262cf",
+      "esperado": "06f1f85469b9ef35f9ab85a43e272ca66a330dfc26143076e814b8db4f9262cf",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"7958-6ab597d2-b91069db2459ab9f;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 17293,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "esperado": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "headers": {
+        "Content-Type": "text/css",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "36237",
+        "ETag": "W/\"438d-6ab505ec-52f4243f042ed9f7;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 11:13:48 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gerencia-BPp5evUa.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 190949,
+      "sha256": "7f1e942df7d688c378c3ddb7a4b3f6d3763f8ece492e51ad8ada0951b88026b8",
+      "esperado": "7f1e942df7d688c378c3ddb7a4b3f6d3763f8ece492e51ad8ada0951b88026b8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"2e9e5-6ab597d2-d07db91569b86ec8;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gerencia-Dz6X_EoP.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 101376,
+      "sha256": "06eca2c7575bcce770ac71b6d21c057d93da621d542ded683766af73511330de",
+      "esperado": "06eca2c7575bcce770ac71b6d21c057d93da621d542ded683766af73511330de",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"18c00-6ab597d2-e55bca4ef45d16e9;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-DZEAD3kK.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 23536,
+      "sha256": "dd2e4a6cc02aa0bd445e7189ca666dcfcf7a380bebb3ecab4dee595e1ebcdd3d",
+      "esperado": "dd2e4a6cc02aa0bd445e7189ca666dcfcf7a380bebb3ecab4dee595e1ebcdd3d",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"5bf0-6ab597d2-3de3346b0c6b3709;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gestion-diaria-BGdWtBpr.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 116000,
+      "sha256": "1182bda14a8c95a9edd2a89964ef8e696739b13c020921775bece26446e3869d",
+      "esperado": "1182bda14a8c95a9edd2a89964ef8e696739b13c020921775bece26446e3869d",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"1c520-6ab597d2-c218b749357b9c0b;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/gestion-diaria-CNZTulyI.css",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 12310,
+      "sha256": "bbd2b460b72e386521bf5b8086005fd6f817af670cc2b75e9cac05698f734dbd",
+      "esperado": "bbd2b460b72e386521bf5b8086005fd6f817af670cc2b75e9cac05698f734dbd",
+      "headers": {
+        "Content-Type": "text/css",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3016-6ab597d2-3c2ccdd1d6bf73a9;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-Co5uZPOl.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 14201,
+      "sha256": "c0add9439b64b5afcafc8c99a545cded945f889fa5253b3ee4ce6030f11d5c22",
+      "esperado": "c0add9439b64b5afcafc8c99a545cded945f889fa5253b3ee4ce6030f11d5c22",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3779-6ab597d2-9f062da0b017bd6f;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/hoy-DkUzrOZJ.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 92999,
+      "sha256": "29721338d33e99960cf60cd5aae87592fbcf26bfa93e233fc5c4d71b0634e00b",
+      "esperado": "29721338d33e99960cf60cd5aae87592fbcf26bfa93e233fc5c4d71b0634e00b",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"16b47-6ab597d2-7b995f2d5264090;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/index-CdaHXLg0.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 726622,
+      "sha256": "d126920c4edf076db9f01611a20667aa76707b3090f877dfa979443e358076b5",
+      "esperado": "d126920c4edf076db9f01611a20667aa76707b3090f877dfa979443e358076b5",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"b165e-6ab597d2-1e6c14b6ae466a4c;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/index-CnxRZCUW.css",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 157403,
+      "sha256": "43b390edaec769016420e1f435e83523568caf9e90940698ebd949cb575dd413",
+      "esperado": "43b390edaec769016420e1f435e83523568caf9e90940698ebd949cb575dd413",
+      "headers": {
+        "Content-Type": "text/css",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"266db-6ab5844a-9fc1ec0dd68802dc;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/input-CKer6P8O.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1011,
+      "sha256": "e5f41ff5c9e49e52633ed10146aeaaf4d6f61304281a154d6c7bad411795ebb1",
+      "esperado": "e5f41ff5c9e49e52633ed10146aeaaf4d6f61304281a154d6c7bad411795ebb1",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "3820",
+        "ETag": "W/\"3f3-6ab5844a-cd6da90a60adf268;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/kpi-card-ANGuhNOr.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1141,
+      "sha256": "902911f8fca2837acbf193c49a32159a2317b2f173b554d17fd6afbd20fb21a8",
+      "esperado": "902911f8fca2837acbf193c49a32159a2317b2f173b554d17fd6afbd20fb21a8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"475-6ab5844a-2b36603e24e209ed;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/lead-hover-card-DAr_6YHP.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 33882,
+      "sha256": "9df69a2b3435d4f4dcd4b1e3773b8ba7bcb819303b128bddce81fe607e82a200",
+      "esperado": "9df69a2b3435d4f4dcd4b1e3773b8ba7bcb819303b128bddce81fe607e82a200",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"845a-6ab597d2-e4741a2845250368;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-Bfy5IZkX.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 19957,
+      "sha256": "af9d1dbbad1796b28d897bcc74e7044896ac47698fee51ee68cc38ecc3a58de4",
+      "esperado": "af9d1dbbad1796b28d897bcc74e7044896ac47698fee51ee68cc38ecc3a58de4",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"4df5-6ab597d2-46a43aee49e8e914;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/mi-cartera-B28C2AXG.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 213905,
+      "sha256": "c253d1e93be6f550894c32c200e42f637a9e7ca4e86438d10dbbca3047883028",
+      "esperado": "c253d1e93be6f550894c32c200e42f637a9e7ca4e86438d10dbbca3047883028",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"34391-6ab597d2-bb744de40e5cce3;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-CmpxLK8z.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 4175,
+      "sha256": "16f6a375c6da60b5d66f7c597f7a3c32cb333eee94558ba85fd04b5926e3c60e",
+      "esperado": "16f6a375c6da60b5d66f7c597f7a3c32cb333eee94558ba85fd04b5926e3c60e",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"104f-6ab597d2-5e3f7c6000da821;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/paginacion-CrZzhzWJ.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 990,
+      "sha256": "511e395af4bed21deaaa7df0e444398efd535424c1d1d3ce6c8de4a27c3cfdf8",
+      "esperado": "511e395af4bed21deaaa7df0e444398efd535424c1d1d3ce6c8de4a27c3cfdf8",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3de-6ab597d2-62992e1c054b7b28;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/pipeline-L7YOYxlU.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 14894,
+      "sha256": "d04c088b5f2561358b62c72ac94a95bccdd539efb312063837324d2230ac8da1",
+      "esperado": "d04c088b5f2561358b62c72ac94a95bccdd539efb312063837324d2230ac8da1",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"3a2e-6ab597d2-b36d59fcb08d6905;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/progress-D0ikcgue.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 426,
+      "sha256": "bb23812245dd8a67a864e3623cb44af70208afd620f664b8cc26619d6be66013",
+      "esperado": "bb23812245dd8a67a864e3623cb44af70208afd620f664b8cc26619d6be66013",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"1aa-6ab5844a-46fe86965bbe5bde;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/ranking-vendedores-BkIbwt5I.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 37297,
+      "sha256": "8fcfc972648eb4a7ae1cf8d7fdac1ec7d37f6b1e7115a543b90b2d07f7cafd8a",
+      "esperado": "8fcfc972648eb4a7ae1cf8d7fdac1ec7d37f6b1e7115a543b90b2d07f7cafd8a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"91b1-6ab597d2-2223481f0edab7b9;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 190815,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "esperado": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "77184",
+        "ETag": "W/\"2e95f-6ab3f3fa-2daaad198967b75e;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/repartir-CdJkkEfR.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 50786,
+      "sha256": "0215a32f7ce11ba48ce51d1979641bf36c6359643788781a10ca7b0d902fba59",
+      "esperado": "0215a32f7ce11ba48ce51d1979641bf36c6359643788781a10ca7b0d902fba59",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"c662-6ab597d2-6983def204172726;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/rescate-carpeta-BNoMJ9sW.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 205,
+      "sha256": "0f4b3a864de0c87e4f679919099a3f35b7bb6e41e0a5de61f12e485dafbe3c5a",
+      "esperado": "0f4b3a864de0c87e4f679919099a3f35b7bb6e41e0a5de61f12e485dafbe3c5a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "\"cd-6ab597d2-9ba324bfdec313f9;;;\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/rescate-descartados-Dii-ipHi.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 30837,
+      "sha256": "17252cd55dabfb01e3e7aae57ca25004a8744ec3efee7ec353fbfc2993d4a59a",
+      "esperado": "17252cd55dabfb01e3e7aae57ca25004a8744ec3efee7ec353fbfc2993d4a59a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"7875-6ab597d2-e33187fea8d0e881;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 694,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "esperado": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "107409",
+        "ETag": "W/\"2b6-6ab3f3fa-254f65105183759c;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/section-head-Cb3Dky9G.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 432,
+      "sha256": "d90117cb7dd429cee218a9d001dd040c72ff151b8d3e53d72f8034234f4b88fc",
+      "esperado": "d90117cb7dd429cee218a9d001dd040c72ff151b8d3e53d72f8034234f4b88fc",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"1b0-6ab5844a-743710427f2691e8;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/seguimiento-BAtHz0b-.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 815,
+      "sha256": "dfa1fd1dd5a942305104086032eaa53bf2a5e7323a2b563d58fe113c0ec01236",
+      "esperado": "dfa1fd1dd5a942305104086032eaa53bf2a5e7323a2b563d58fe113c0ec01236",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"32f-6ab597d2-8f76604e80cd6970;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/select-Ct4SsceX.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 868,
+      "sha256": "b92ffde07e238fbba8b176eaea975323f3157a05021ba49f067152ef6f1ac0f7",
+      "esperado": "b92ffde07e238fbba8b176eaea975323f3157a05021ba49f067152ef6f1ac0f7",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"364-6ab597d2-ecfde843b92396f2;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/sla-operacion-DNLRbiYd.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 5648,
+      "sha256": "271c32b75f390e2713d28d4f64b0591fc870896b9627db1828160394dcd2d411",
+      "esperado": "271c32b75f390e2713d28d4f64b0591fc870896b9627db1828160394dcd2d411",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"1610-6ab597d2-40fab1728f2a7e0c;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/stat-strip-Bv6AJE0P.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 2196,
+      "sha256": "b75f7fa52c06278d401e68aa9500f7e2290a0ac195c68c45458b231fdc6e971a",
+      "esperado": "b75f7fa52c06278d401e68aa9500f7e2290a0ac195c68c45458b231fdc6e971a",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"894-6ab5844a-5cbe83b44efbeef3;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 675,
+      "sha256": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "esperado": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "107416",
+        "ETag": "W/\"2a3-6ab3f3fa-286623df306775e2;gz\"",
+        "Last-Modified": "Wed, 23 Sep 2026 15:44:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/tabla-OepJEWd6.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 701,
+      "sha256": "6928d77b93b4630af1ad7cfcb23ba97c056d111ab5d1cd761f7b833df3b31446",
+      "esperado": "6928d77b93b4630af1ad7cfcb23ba97c056d111ab5d1cd761f7b833df3b31446",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"2bd-6ab5844a-dd4e47acfb15b32a;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "assets/ui-vendor-CJpsc-7E.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 94171,
+      "sha256": "33287c8e02a8fc0f9fb6bae9979728a2416ba875967ad2c16f66bae6a621e765",
+      "esperado": "33287c8e02a8fc0f9fb6bae9979728a2416ba875967ad2c16f66bae6a621e765",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"16fdb-6ab597d2-52f88eaca3f8aa54;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-B_qjoETf.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1608,
+      "sha256": "07a8d95bb06d692b4b3e0f5d021b03388c6ae1d3c2dc76372cb1fff640e3b48e",
+      "esperado": "07a8d95bb06d692b4b3e0f5d021b03388c6ae1d3c2dc76372cb1fff640e3b48e",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"648-6ab597d2-2e1ad9949443edfa;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-D4Xo6eZV.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 1596,
+      "sha256": "6501cb8337fead35fb88ed455ebb66feda668fec0632345da58ac3afa7514871",
+      "esperado": "6501cb8337fead35fb88ed455ebb66feda668fec0632345da58ac3afa7514871",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"63c-6ab597d2-4eab3af4739bcef2;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DZjEhXsT.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 290,
+      "sha256": "5875dc50a1dbb70aafb587b80c387cddc8a6e62c2e4bfc7e262973556c0aed13",
+      "esperado": "5875dc50a1dbb70aafb587b80c387cddc8a6e62c2e4bfc7e262973556c0aed13",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "\"122-6ab597d2-7cbab3a7c524d44e;;;\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-6K4OELfx.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 493,
+      "sha256": "11d1ae11932b9952c21d84c63e955e954c437d19a70ac15b0e1bca71da6db7de",
+      "esperado": "11d1ae11932b9952c21d84c63e955e954c437d19a70ac15b0e1bca71da6db7de",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": null,
+        "ETag": "W/\"1ed-6ab597d2-6763a94347ccb65c;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 298,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "esperado": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "291467",
+        "ETag": "\"12a-6ab128a4-918d22507e9a5ab3;;;\"",
+        "Last-Modified": "Mon, 21 Sep 2026 12:52:52 GMT"
+      }
+    },
+    {
+      "ruta": "assets/utils-BQtK_ljd.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 26939,
+      "sha256": "b9e490644900e48816f799fc127ed21a160d3ac664f3d27eb1b80f37987a9e88",
+      "esperado": "b9e490644900e48816f799fc127ed21a160d3ac664f3d27eb1b80f37987a9e88",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Age": "1981",
+        "ETag": "W/\"693b-6ab5844a-5f7142106f30b7e3;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 20:12:58 GMT"
+      }
+    },
+    {
+      "ruta": "index.html",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 2178,
+      "sha256": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+      "esperado": "c0c323c28c42947931153efac607ebbf89673ddd993f7126d40a9d66a9590c8d",
+      "headers": {
+        "Content-Type": "text/html",
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Age": null,
+        "ETag": "W/\"882-6ab597d2-920700581e7bf8a8;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:18 GMT"
+      }
+    },
+    {
+      "ruta": "sw-crm.js",
+      "estado": "PASS",
+      "http": 200,
+      "bytes": 3742,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "esperado": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "headers": {
+        "Content-Type": "application/x-javascript",
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Age": null,
+        "ETag": "W/\"e9e-6ab597d0-25f5facc508caca9;gz\"",
+        "Last-Modified": "Thu, 24 Sep 2026 21:36:16 GMT"
+      }
+    }
+  ],
+  "alcance": "HTML y todos los JS/CSS servidos por HTTPS comparados byte a byte con el manifiesto. No incluye PNG ni .htaccess."
+}

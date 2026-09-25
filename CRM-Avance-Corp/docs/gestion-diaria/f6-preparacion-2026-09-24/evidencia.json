@@ -71,7 +71,7 @@
   },
   "limites": [
     "Transporte E2E interceptado; no es nueva prueba de RLS real",
-    "Siete dias reales no iniciados",
+    "Siete días reales iniciados el 24/09 21:57:11 Lima, todavía no cumplidos",
     "Alias futuros y retirada NOT RUN",
     "Medicion especifica 1280px con menu abierto NOT RUN",
     "Auditoria completa con lector de pantalla NOT RUN"
@@ -138,5 +138,12 @@
     "lint": "PASS",
     "typecheck": "PASS",
     "runtime_producto_sin_cambios": true
+  },
+  "actualizacion_publicacion_f5": {
+    "fecha_utc": "2026-09-25T02:57:11Z",
+    "commit_servido": "b402a7f1b5c9789c1d592baa428f0bde8e1e9752",
+    "acta": "../f5-publicacion-2026-09-24/ACTA.md",
+    "f6_publicacion": "NOT RUN",
+    "retirada": "NOT RUN"
   }
 }

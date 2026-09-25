@@ -1,0 +1,29 @@
+{
+  "estado": "PASS",
+  "deletedAtUtc": "2026-09-25T02:57:31Z",
+  "branchId": "f981e6c9-8b65-465f-a82f-047c79215f21",
+  "projectRef": "pofsqqtkguisvfejzkaj",
+  "recibo": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true}"
+      }
+    ],
+    "isError": false
+  },
+  "readback": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"branches\":[{\"id\":\"dff61d67-6c6e-4564-811b-e0458ed12747\",\"name\":\"banco-f7\",\"project_ref\":\"cwkiejoaqadcnaieghnf\",\"is_default\":false,\"persistent\":false,\"status\":\"MIGRATIONS_FAILED\",\"created_at\":\"2026-09-01T21:28:59.965127+00:00\",\"updated_at\":\"2026-09-01T21:28:59.965127+00:00\",\"parent_project_ref\":\"dctqcbznekcyxhjujuci\",\"with_data\":false,\"preview_project_status\":\"ACTIVE_HEALTHY\"},{\"id\":\"e8dd9b77-b6dd-49a0-b452-a971efb4e8ba\",\"name\":\"main\",\"project_ref\":\"dctqcbznekcyxhjujuci\",\"is_default\":true,\"persistent\":false,\"status\":\"FUNCTIONS_DEPLOYED\",\"created_at\":\"2026-07-11T15:35:32.185629+00:00\",\"updated_at\":\"2026-07-11T15:35:32.185629+00:00\",\"parent_project_ref\":\"dctqcbznekcyxhjujuci\",\"with_data\":false,\"preview_project_status\":\"ACTIVE_HEALTHY\"}]}"
+      }
+    ],
+    "isError": false
+  },
+  "costoRamaEstimadoUSD": 0.010464,
+  "costoAcumuladoEstimadoUSD": 0.029838,
+  "topeUSD": 5,
+  "nota": "Estimación por duración y precio horario autorizado; no es factura. Banco ajeno banco-f7 intacto.",
+  "credencialLocalRamaEliminada": true
+}

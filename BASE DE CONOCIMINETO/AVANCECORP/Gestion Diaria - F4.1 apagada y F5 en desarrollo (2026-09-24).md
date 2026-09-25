@@ -5,6 +5,9 @@ actualizado: 2026-09-24
 
 # F4.1 apagada, F5 validada y F6 preparada
 
+> Registro histórico de preparación. F5 se publicó y verificó después, el 24/09
+> a las 21:57:11 Lima. Estado vigente: [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]].
+
 Continúa [[Gestion Diaria - auditoria y plan F4.1-F6 (2026-09-24)]].
 La conformidad de Miguel está cerrada. No volver a pedirla. Trabajo reanudado
 por su instrucción después de la pausa segura del 24/09.

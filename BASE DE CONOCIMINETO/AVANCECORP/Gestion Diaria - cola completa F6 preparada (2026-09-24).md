@@ -27,15 +27,15 @@ regresión completa terminó con Chromium 265/0/26 y WebKit 14/0 PASS, sin
 reintentos. La configuración WebKit está versionada; lint/tipos finales PASS. El primer
 FAIL permanece documentado, junto con las limitaciones de las pruebas de UI.
 
-F5 fue integrada externamente en Main `8da4bcf3` sin una revisión APPROVED
-registrada. Sus controles pasaron, pero SQL/frontend no están publicados.
-Hostinger ya está accesible con el token autorizado y guardado en Llavero;
-la herramienta de despliegue está disponible. Falta resolver la condición de
-revisión GitHub antes de publicar. No solicitar otra conformidad de negocio.
+F5 fue integrada externamente en Main `8da4bcf3` sin revisión APPROVED.
+Miguel autorizó después usar esa integración para publicar F5. SQL y frontend
+quedaron verificados desde `b402a7f1` el 24/09 a las 21:57:11 Lima. Véase
+[[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]].
 
-Los siete días reales de F3–F5 todavía no empiezan. T0 exige SQL promovida,
-frontend publicado y verificación viva; solo después puede retirarse el módulo
-anterior. El corte del sábado 26/09 sigue pendiente.
+La preparación F6 está en el PR #97, en borrador, sin publicar. Los siete días
+reales empiezan en ese T0 y no se cumplen antes del 01/10 a las 21:57:11 Lima.
+La retirada exige estabilidad acreditada y ausencia de incidencias relevantes;
+el corte del sábado 26/09 sigue pendiente. No solicitar otra conformidad manual.
 
 Evidencia: `CRM-Avance-Corp/docs/gestion-diaria/f6-preparacion-2026-09-24/ACTA.md`,
 `REVISION-F6-PREPARACION-2026-09-24.md`, `PREPARACION-F6-2026-09-24.md` y

@@ -1,6 +1,9 @@
 # F5 — Autorización y preparación de publicación
 
-24/09/2026. **Autorizada con condiciones; todavía NO publicada.**
+24/09/2026. **Registro histórico de preparación. Publicación completada.**
+El estado vigente, la autorización posterior y el respaldo inmediato están en
+el [acta productiva](../f5-publicacion-2026-09-24/ACTA.md). Los bloqueos y el
+paquete anterior descritos a continuación corresponden a momentos previos.
 
 Miguel respondió: «Autorizar SQL F5 y $release-crm tras aprobación en GitHub».
 La pregunta incluía también que los controles debían haber pasado. Se conserva
@@ -113,3 +116,15 @@ La lectura productiva posterior mantiene 355 migraciones y cero entradas
 para `20260924201358`. Antes de SQL y frontend debe resolverse la condición
 GitHub, preparar el artefacto exacto y ejecutar los controles de promoción
 indicados arriba. No se atribuye el inicio de los siete días reales.
+
+## Cierre posterior: autorización explícita y publicación
+
+Miguel respondió «Sí, publicar F5 con esa integración». Autoriza usar la
+integración externa del PR #94 para publicar SQL F5 y `$release-crm`; no la
+convierte en revisión APPROVED. La publicación quedó verificada desde Main
+`b402a7f1` el 24/09 a las 21:57:11 Lima, tras un nuevo ensayo remoto completo
+y conciliación productiva. El respaldo inmediato fue actualizado a Main #93
+`a1bbe24d`, conservando los cambios de la publicación paralela de venta cruzada.
+La rama temporal posterior fue eliminada; coste estimado acumulado US$0,029838.
+Los siete días de observación empiezan en ese T0 y siguen pendientes de cumplirse.
+Evidencia y límites: [ACTA.md](../f5-publicacion-2026-09-24/ACTA.md).

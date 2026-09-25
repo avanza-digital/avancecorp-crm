@@ -1,0 +1,43 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-25T02:36:37.459Z",
+  "ref": "pofsqqtkguisvfejzkaj",
+  "solicitudes": 21,
+  "actoresAuth": 7,
+  "latenciasMs": [
+    590,
+    654,
+    1463,
+    1512,
+    154,
+    142,
+    202,
+    142,
+    163,
+    143,
+    165,
+    143,
+    230,
+    284,
+    138,
+    135,
+    126,
+    133,
+    129,
+    154,
+    143
+  ],
+  "checks": [
+    "dos lectores autorizados",
+    "cuatro roles denegados",
+    "anon",
+    "fechas y periodo invalidos",
+    "revocacion con el mismo JWT",
+    "drilldown gerencial global",
+    "supervisor NULL limitado al equipo propio",
+    "supervisor ajeno denegado",
+    "9 llamadas/8 utiles/5 contestadas/2 leads/1008 vencidas",
+    "hueco de 165 minutos"
+  ],
+  "auth": "GoTrue real con siete actores sinteticos; tokens solo en memoria"
+}

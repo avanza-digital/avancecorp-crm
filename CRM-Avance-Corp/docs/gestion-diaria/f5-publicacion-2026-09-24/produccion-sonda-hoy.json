@@ -1,0 +1,46 @@
+{
+  "rows": [
+    {
+      "evidencia": {
+        "dia": "2026-09-24",
+        "checks": {
+          "citas": true,
+          "fecha": true,
+          "utiles": true,
+          "llamadas": true,
+          "contestadas": true,
+          "leads_unicos": true,
+          "solo_lectura": true,
+          "tasa_contacto": true,
+          "cuadre_equipos": true,
+          "llamadas_por_lead": true,
+          "pendientes_actuales": true
+        },
+        "estado": "PASS",
+        "limite": "No sustituye las pruebas de comparación histórica, hábitos, navegación ni permisos negativos.",
+        "alcance": "Recuentos globales, tasas y suma de equipos frente a actividades y tareas originales bajo gerencia; una sentencia READ COMMITTED y READ ONLY.",
+        "tablero": {
+          "utiles": 241,
+          "llamadas": 243,
+          "contestadas": 74,
+          "leads_unicos": 206,
+          "con_actividad": 15,
+          "sin_actividad": 4,
+          "tasa_contacto": 30.7,
+          "citas_agendadas": 33,
+          "analistas_activos": 19,
+          "llamadas_por_lead": 1.18
+        },
+        "originales": {
+          "utiles": 241,
+          "llamadas": 243,
+          "contestadas": 74,
+          "leads_unicos": 206,
+          "citas_agendadas": 33,
+          "vencidas_actuales": 756
+        },
+        "generado_en": "2026-09-24T21:52:14.213968-05:00"
+      }
+    }
+  ]
+}

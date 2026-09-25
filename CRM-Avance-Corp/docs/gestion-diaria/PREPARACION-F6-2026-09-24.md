@@ -1,10 +1,13 @@
 # F6 — Preparación para absorber Seguimiento
 
 24/09/2026. **Cola completa implementada y verificada; retirada NOT RUN.**
-F5 todavía no está publicada y verificada. El período obligatorio de siete días
-estables no ha comenzado. Referencia: [plan de ejecución](EJECUCION-F4-1-F6-2026-09-24.md).
-El [registro de observación](OBSERVACION-F3-F5.md) deja preparados el inicio,
-las evidencias diarias y la conciliación de lectura sin atribuir días cumplidos.
+F5 está publicada y verificada desde el **24/09/2026, 21:57:11 Lima**.
+El período obligatorio de siete días estables ha empezado; aún no se ha cumplido.
+Referencia: [plan de ejecución](EJECUCION-F4-1-F6-2026-09-24.md).
+El [registro de observación](OBSERVACION-F3-F5.md) acredita T0 y conserva
+pendientes los controles diarios y la retirada, no antes del 01/10 a esa hora.
+La cola completa está en el [PR #97](https://github.com/avanza-digital/avancecorp-crm/pull/97),
+en borrador; no forma parte de la publicación F5.
 
 ## Capacidades que deben conservarse
 

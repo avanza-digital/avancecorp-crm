@@ -3,9 +3,10 @@
 24/09/2026. **Preparación aditiva verificada; sin publicar ni retirar Seguimiento.**
 F5 fue integrada por `miguejbs98` en Main `8da4bcf3` mediante el
 [PR #94](https://github.com/avanza-digital/avancecorp-crm/pull/94), con controles
-PASS y sin revisión aprobada registrada. Esa condición sigue pendiente de
-resolución. El acceso a Hostinger ya está recuperado. No se publicó F5 ni
-esta preparación F6. La semana estable continúa sin iniciar.
+PASS y sin revisión aprobada registrada. Miguel autorizó posteriormente publicar
+F5 tomando esa integración como aprobación. [F5 publicada y verificada](../f5-publicacion-2026-09-24/ACTA.md)
+desde Main `b402a7f1`, el 24/09 a las 21:57:11 Lima. Esta preparación F6 está en
+el PR #97, sin publicar; la semana real ha empezado, pero todavía no se cumple.
 
 ## Comportamiento preparado
 
