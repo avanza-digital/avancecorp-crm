@@ -22,6 +22,27 @@ describe('router por hash', () => {
     expect(hashDe('cartera', 'lead/á 1')).toBe('#/cartera/lead/lead%2F%C3%A1%201')
   })
 
+  it('conserva equipo/analista al abrir y cerrar la ficha desde Gestión Diaria', () => {
+    const id = '10000000-0000-4000-8000-000000000001'
+    for (const tipo of ['equipo', 'analista'] as const) {
+      const detalleGestion = { tipo, id }
+      escribirHash('gestion-diaria', 'lead/1', true, undefined, undefined, detalleGestion)
+      expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: 'lead/1', detalleGestion })
+      escribirHash('gestion-diaria', null, true, undefined, undefined, leerHash().detalleGestion)
+      expect(window.location.hash).toBe(`#/gestion-diaria/${tipo}/${id}`)
+    }
+  })
+
+  it('permite la fila fuera de equipos y descarta detalles inválidos o de otra vista', () => {
+    escribirHash('gestion-diaria', null, true, undefined, undefined, { tipo: 'equipo', id: 'fuera' })
+    expect(leerHash().detalleGestion).toEqual({ tipo: 'equipo', id: 'fuera' })
+    for (const hash of ['#/gestion-diaria/analista/fuera', '#/gestion-diaria/equipo/../../x', '#/hoy/equipo/fuera']) {
+      window.location.hash = hash
+      expect(leerHash().detalleGestion).toBeUndefined()
+    }
+    expect(hashDe('hoy', null, undefined, undefined, { tipo: 'equipo', id: 'fuera' })).toBe('#/hoy')
+  })
+
   it.each([
     ['#/hoy', 'hoy'],
     ['#/alertas', 'alertas'],

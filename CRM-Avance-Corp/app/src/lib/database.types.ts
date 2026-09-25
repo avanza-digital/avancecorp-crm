@@ -5231,6 +5231,11 @@ export type Database = {
         }
         Returns: Json
       }
+      gestion_diaria_habitos_fn: {
+        Args: { p_dias?: number; p_hasta?: string }
+        Returns: Json
+      }
+      gestion_diaria_pulso_fn: { Args: { p_dia?: string }; Returns: Json }
       gestion_diaria_analista_fn: {
         Args: { p_analista_id?: string; p_dia?: string }
         Returns: Json

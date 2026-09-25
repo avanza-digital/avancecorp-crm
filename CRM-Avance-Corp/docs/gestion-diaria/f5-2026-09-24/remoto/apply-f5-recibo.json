@@ -1,0 +1,17 @@
+{
+  "fecha": "2026-09-24T22:39:08Z",
+  "project_id": "xyrdxcraoqdgctzkvpsj",
+  "migration": "20260924201358_crm_gestion_diaria_pulso_habitos.sql",
+  "sha256": "5f904c2b9b492b72fdb1ff1815aac2376d881939d6a8eaed938d1404380bf6b2",
+  "tool": "supabase_apply_migration",
+  "resultado": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true}"
+      }
+    ],
+    "isError": false
+  },
+  "produccion": false
+}

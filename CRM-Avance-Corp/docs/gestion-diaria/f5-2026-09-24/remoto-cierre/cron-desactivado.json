@@ -1,0 +1,18 @@
+{
+  "estado": "PASS",
+  "ref": "ozmxjmjopdnyhxsecmvf",
+  "antes": [
+    {
+      "jobid": 1,
+      "active": true,
+      "jobname": "recordatorio-cuotas-3d"
+    },
+    {
+      "jobid": 2,
+      "active": true,
+      "jobname": "ciclo-contratos-diario"
+    }
+  ],
+  "activos": 0,
+  "fecha": "2026-09-24T23:57:25.854Z"
+}

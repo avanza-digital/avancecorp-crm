@@ -1,0 +1,20 @@
+{
+  "estado": "PASS",
+  "fecha": "2026-09-24T22:41:34.196256+00:00",
+  "project_id": "xyrdxcraoqdgctzkvpsj",
+  "generador": "supabase gen types --project-id xyrdxcraoqdgctzkvpsj --schema crm",
+  "sha256_generado": "a0d947d631a8e7fe169d52ec4e7b68ce4965b20d514f59c696b71033078b6fef",
+  "puertas": [
+    {
+      "rpc": "gestion_diaria_pulso_fn",
+      "estado": "PASS",
+      "contrato": "gestion_diaria_pulso_fn: { Args: { p_dia?: string }; Returns: Json }"
+    },
+    {
+      "rpc": "gestion_diaria_habitos_fn",
+      "estado": "PASS",
+      "contrato": "gestion_diaria_habitos_fn: {\n        Args: { p_dias?: number; p_hasta?: string }\n        Returns: Json\n      }"
+    }
+  ],
+  "alcance": "Dos firmas F5 coinciden con el cliente. Contratos ajenos conservados."
+}
