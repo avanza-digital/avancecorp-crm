@@ -1,4 +1,4 @@
-## 20260925223000 — P-0XX: cuentas visibles para el propio cliente, S4
+## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
 
 **SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
 `private.cuentas_cliente_propias_autorizado()` exige que `auth.uid()` sea un
