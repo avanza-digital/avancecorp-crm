@@ -1,5 +1,12 @@
 # P-0XX — estado de publicación (25/09/2026)
 
+> **Actualización, 25/09/2026 16:21 (Lima): publicado en producción.** Miguel
+> autorizó expresamente la excepción para ejecutar las cuatro migraciones
+> canónicas en producción y publicar el portal por Hostinger. El Merge Request
+> inseguro permaneció cerrado. La ejecución, las verificaciones y los
+> pendientes están en [ACTA-PUBLICACION.md](ACTA-PUBLICACION.md). Todo lo que
+> sigue documenta el estado y el plan **anteriores** a esa autorización.
+
 **No usar el Merge Request del dashboard.** Se cerró sin fusionar. Su SQL
 descargado omitía el bloque `DO $backfill$` de S1 y proponía eliminar objetos
 ajenos a P-0XX (`crm.periodos_cerrados.ponderacion_renovacion`, dos funciones de
