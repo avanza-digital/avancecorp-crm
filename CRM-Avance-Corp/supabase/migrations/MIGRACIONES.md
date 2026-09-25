@@ -1,3 +1,58 @@
+## 20260925002615 — public.audit_log pasa a ser de solo añadir
+
+**PREPARADA, NO APLICADA (25/09/2026).** P1 #2 de la auditoría ACID; OK de Miguel el
+24/09 («Arranca sii»). **Excepción escrita** a la regla «ninguna migración altera
+public» (LEEME), con precedente en el P-055 (F1, F3 y F7).
+Antes (prod, 24/09): `anon=arwd`, `authenticated=arwd`, `service_role=arwdDxtm`, sin
+trigger: solo la falta de policy frenaba a las API, y service_role podía editar,
+borrar o vaciar la bitácora. Después: los tres pierden UPDATE, DELETE, TRUNCATE,
+REFERENCES y TRIGGER, y conservan SELECT e INSERT (service_role, también MAINTAIN).
+Dos triggers (`private.trg_audit_log_solo_anadir`, INVOKER, P0409) abortan UPDATE,
+DELETE y TRUNCATE, también al dueño (contra DML accidental: el dueño puede desactivar el
+trigger). Única excepción: la cascada de la FK usuario_id → perfiles ON DELETE SET NULL.
+Debe llegar anidada, cambiar solo usuario_id → NULL y con el perfil ya borrado. La fila se
+compara de dos maneras: tipada, que distingue NULL de `'null'::jsonb` (lo cazó Codex), y
+en jsonb entera, para que una columna futura no se cuele.
+Banco Docker propio a paridad (13/13 huellas): gate completo ANTES 2232 ✓ / 41 ✗ y
+DESPUÉS 2233 ✓ / 41 ✗, con los 41 ✗ idénticos (fixtures). Conducta: el dueño no edita,
+no borra ni vacía; las API reciben 42501 (REST 403/401). Borrar un usuario anonimiza su
+rastro por las tres vías (perfil, auth.users y `DELETE /auth/v1/admin/users`) con las
+otras columnas intactas. Los triggers anidados que tocan otra columna, `NULL`→`'null'::jsonb`
+o una columna futura abortan. Siete mutantes, los siete detectados. Costo: borrar un usuario
+con 20 000 filas pasa de 202 a 378 ms; el actor más grande de prod tiene 6 399.
+Ensayo en prod (deshecho): ACL y huella del candado `c93672e8…` iguales al banco.
+Reversa probada en el banco: exige la definición del candado, no solo su nombre, y
+devuelve el ACL letra por letra.
+Revisión: auditor RLS (APTO CON CAMBIOS, todo aplicado) y Codex LEVEL 3 (CHANGES_REQUESTED
+sin P0/P1: aceptados la comparación tipada y la reversa por definición).
+**Riesgos declarados:** service_role conserva INSERT con BYPASSRLS («solo añadir» no es
+«no falsificable») y MAINTAIN (LOCK TABLE). `scripts/multiempresa-f8/identidades/probar.py`
+(:112, :272) hace UPDATE sobre audit_log. Hoy no se rompe: corre contra su propia foto
+`multiempresa_f7_20260911`, anterior a esto. Si se rehace esa foto, esos dos UPDATE deben
+ir con el trigger desactivado.
+Aplicar en horario valle: CREATE TRIGGER toma SHARE ROW EXCLUSIVE.
+Reversa: `supabase/scripts/rollback-audit-log-solo-anadir.sql`.
+
+## 20260925001914 — SLA: el veto de contacto se consulta una vez por lote
+
+**PREPARADA, NO APLICADA (25/09/2026).** P1 #1 de la auditoría ACID; OK de Miguel el
+24/09. Causa medida en prod: `private.sla_operacion_leads` tardaba 6 628 ms en la cartera
+global (2302 leads), y de eso 5 658 ms eran `persona_vetada(id)` fila por fila. En lote,
+`leads_vetados_persona` tarda 57 ms. Por ahí pasan las cuatro RPC que se quedan sin
+tiempo (~60 al día contra el tope de 8 s): avisos_sla_resumen_v2, cola_accion_v2,
+gestion_diaria_avisos y gestion_diaria_equipo.
+Cambio: un CTE `vetados` con una sola llamada en lote y `exists(...)` en lugar de la
+llamada por fila. El resto del cuerpo es byte a byte el vivo (6151f055 → 12749d60).
+La migración compara vieja y candidata en UNA sentencia, con la misma foto. Aborta si
+una fila difiere, si no hay vetados o si el cuerpo instalado no es el que pasó la paridad.
+Ensayo en prod (deshecho, versión final): 2304 filas y 0 distintas (10 vetadas); 2301 y 0
+distintas (7 vetadas); el cuerpo nuevo tarda **1 109 ms**. RPC reales como gerencia ANTES:
+avisos_sla_resumen_v2 4 709 ms, cola_accion_v2 5 096 ms, gestion_diaria_equipo 4 715 ms.
+En el banco, el mismo gate A/B que la de audit_log, sin regresiones; con la bandera
+encendida, un lead recién vetado sale con `restriccion_contacto`.
+Reversa: `supabase/scripts/rollback-sla-veto-en-lote.sql`. 🔴 Orden: esta reversa va ANTES
+que `rollback-sla-accion-rol.sql`, que se ancla a 6151f055.
+
 ## 20260923234404 — H3: pendientes paginados del supervisor
 
 **PUBLICADA Y VERIFICADA el 24/09/2026 mediante merge nativo de Supabase.**
