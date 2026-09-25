@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-09-25T15:05:17.415703+00:00",
+  "pullRequest": 103,
+  "sourceCommit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+  "userReply": "Autorizar publicación de la corrección del PR #103",
+  "scope": "Publicar mediante $release-crm la corrección horizontal y móvil del PR103, aceptando su integración manual como aprobación, cuando Main CI termine PASS",
+  "appliesToOtherPullRequests": false
+}

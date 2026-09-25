@@ -1,10 +1,10 @@
 # F6 — UX/UI gerencial y preparación para absorber Seguimiento
 
-> **Corrección visual reabierta el 25/09:** Miguel reportó diferencias con
-> supervisión y reiteró la orientación horizontal. Se corrige la composición
-> con el menú abierto, manteniendo el alcance gerencial. La publicación previa
-> sigue acreditada; esta corrección aún no está publicada.
-> [Evidencia y estado](f6-paridad-ui-2026-09-25/ACTA.md).
+> **Corrección horizontal publicada el 25/09, 10:13 Lima:** gerencia conserva
+> tabla y detalle lado a lado con el menú abierto y comparte la presentación
+> de supervisión. Fuente `65e96df9`; 81/81 archivos HTTPS y recorrido real 9/9
+> PASS. La observación y retirada de Seguimiento siguen pendientes.
+> [Acta de publicación](f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md).
 
 24/09/2026. **Cola completa implementada y verificada; retirada NOT RUN.**
 F5 está publicada y verificada desde el **24/09/2026, 21:57:11 Lima**.

@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-25T15:07:13.697921+00:00",
+  "status": "PASS",
+  "method": "hosting_listWebsitesV1",
+  "domain": "crm.miavance.com",
+  "matchedSites": 1,
+  "credential": "Credencial existente del Llavero; no expuesta",
+  "site": {
+    "domain": "crm.miavance.com",
+    "vhost_type": "addon",
+    "is_enabled": true,
+    "website_type": "other"
+  }
+}

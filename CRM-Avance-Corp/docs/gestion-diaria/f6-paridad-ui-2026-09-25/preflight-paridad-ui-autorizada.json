@@ -1,0 +1,191 @@
+{
+  "checkedAt": "2026-09-25T15:12:16.258186+00:00",
+  "source": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+  "mainRemoteMatches": true,
+  "cleanTree": true,
+  "ci": {
+    "conclusion": "success",
+    "headSha": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+    "jobs": [
+      {
+        "completedAt": "2026-09-25T14:59:38Z",
+        "conclusion": "success",
+        "databaseId": 108124470910,
+        "name": "cambios",
+        "startedAt": "2026-09-25T14:59:23Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-25T14:59:25Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-25T14:59:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:35Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-09-25T14:59:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:35Z",
+            "conclusion": "success",
+            "name": "Clasificar el diff",
+            "number": 3,
+            "startedAt": "2026-09-25T14:59:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:35Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 6,
+            "startedAt": "2026-09-25T14:59:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:35Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 7,
+            "startedAt": "2026-09-25T14:59:35Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36151156284/job/108124470910"
+      },
+      {
+        "completedAt": "2026-09-25T15:11:27Z",
+        "conclusion": "success",
+        "databaseId": 108124574819,
+        "name": "app-check",
+        "startedAt": "2026-09-25T14:59:40Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-25T14:59:42Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-25T14:59:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:48Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-09-25T14:59:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T14:59:50Z",
+            "conclusion": "success",
+            "name": "Use Node.js 24",
+            "number": 3,
+            "startedAt": "2026-09-25T14:59:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:00:00Z",
+            "conclusion": "success",
+            "name": "Install locked dependencies",
+            "number": 4,
+            "startedAt": "2026-09-25T14:59:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:24Z",
+            "conclusion": "success",
+            "name": "Lint, typecheck, test con cobertura y build",
+            "number": 5,
+            "startedAt": "2026-09-25T15:00:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:24Z",
+            "conclusion": "success",
+            "name": "Post Use Node.js 24",
+            "number": 9,
+            "startedAt": "2026-09-25T15:11:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:25Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 10,
+            "startedAt": "2026-09-25T15:11:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:25Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 11,
+            "startedAt": "2026-09-25T15:11:25Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36151156284/job/108124574819"
+      },
+      {
+        "completedAt": "2026-09-25T15:11:32Z",
+        "conclusion": "success",
+        "databaseId": 108128971518,
+        "name": "verify",
+        "startedAt": "2026-09-25T15:11:29Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-25T15:11:31Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-25T15:11:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:31Z",
+            "conclusion": "success",
+            "name": "Evaluar los resultados",
+            "number": 2,
+            "startedAt": "2026-09-25T15:11:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-25T15:11:31Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-09-25T15:11:31Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36151156284/job/108128971518"
+      }
+    ],
+    "status": "completed"
+  },
+  "approval": "autorizacion-paridad-ui-pr103.json",
+  "artifactVerified": {
+    "nombre": "crm-20260925T150218Z-65e96df95511.zip",
+    "bytes": 2320890,
+    "sha256": "bf7351942b63599ee92531175ee45b696d5657035c843bd4f4839a437447e4ee"
+  },
+  "rollbackRechecked": [
+    {
+      "path": "index.html",
+      "status": "PASS"
+    },
+    {
+      "path": "version.json",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

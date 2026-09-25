@@ -1,0 +1,87 @@
+{
+  "recordedAt": "2026-09-25T15:24:53.317147+00:00",
+  "sourceCommit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+  "buildId": "build-20260925T150218036Z",
+  "status": "PASS",
+  "passed": 9,
+  "failed": 0,
+  "method": "Recorrido de lectura en sesión productiva de gerencia mediante navegador Chrome; sin datos comerciales escritos",
+  "checks": [
+    {
+      "check": "Acceso a gerencia y composición horizontal 1366×768 con menú abierto",
+      "status": "PASS"
+    },
+    {
+      "check": "Consulta del 24/09 y ocho indicadores",
+      "status": "PASS"
+    },
+    {
+      "check": "Comparación completa y cierre con Escape, foco devuelto a Comparar días",
+      "status": "PASS"
+    },
+    {
+      "check": "Filtro de atención y apertura de equipo con diez analistas",
+      "status": "PASS"
+    },
+    {
+      "check": "Analista → registro de 40 llamadas → ficha → regreso con fecha y paginación conservadas",
+      "status": "PASS"
+    },
+    {
+      "check": "Hábitos conserva el día seleccionado, comparación y detalle lateral",
+      "status": "PASS"
+    },
+    {
+      "check": "Detalle de Hábitos sigue lateral a 1280×800 con menú abierto",
+      "status": "PASS"
+    },
+    {
+      "check": "Móvil 390 y 320 px: ocho valores dentro de sus casillas, sin desbordamiento de página",
+      "status": "PASS"
+    },
+    {
+      "check": "Regreso a Hoy con menú y tamaño de ventana restaurados",
+      "status": "PASS"
+    }
+  ],
+  "desktopGeometry1366": {
+    "table": {
+      "x": 264,
+      "y": 344,
+      "width": 702,
+      "height": 348
+    },
+    "detail": {
+      "x": 982,
+      "y": 344,
+      "width": 360,
+      "height": 348
+    }
+  },
+  "habitsGeometry1280": {
+    "detail": {
+      "x": 896,
+      "y": 326,
+      "width": 360,
+      "height": 450
+    }
+  },
+  "mobile": [
+    {
+      "width": 390,
+      "scrollWidth": 390,
+      "values": 8,
+      "valuesOutsideCells": 0
+    },
+    {
+      "width": 320,
+      "scrollWidth": 320,
+      "values": 8,
+      "valuesOutsideCells": 0
+    }
+  ],
+  "limitations": [
+    "Verifica lectura, presentación y navegación; no es una nueva conciliación SQL/RLS ni otro día estable completo",
+    "El registro lateral usa tarjetas; un intento de esperar una tabla HTML fue sustituido por inspección del componente real y validación de 25→40 gestiones"
+  ]
+}
