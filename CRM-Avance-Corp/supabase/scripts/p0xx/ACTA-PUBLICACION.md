@@ -1,5 +1,11 @@
 # P-0XX — acta de publicación (25/09/2026)
 
+> **Pendiente funcional identificado después de publicar el portal:** el frontend
+> servido en `crm.miavance.com` aún es anterior a P-0XX. Su formulario de edición
+> manda las claves bancarias al perfil, que S2 ahora rechaza. También le falta
+> aceptar `origen='portal'`. Se debe publicar el frontend CRM compatible antes de
+> cerrar el trabajo; la confirmación visual del portal no acredita ese formulario.
+
 Miguel autorizó explícitamente una excepción a la instrucción inicial de que
 solo él fusionaría la rama Supabase. El Merge Request por diff de esquema se
 cerró sin aplicarlo porque omitía el backfill de datos y proponía borrar
@@ -68,3 +74,42 @@ y coincidieron byte por byte con el ZIP. El service worker usa `avance-v123`.
   modo `perfil` del alta de contrato. El bloqueo de pago protege los contratos
   sin cuenta vinculada. La rama temporal sigue disponible para investigar los
   pendientes y conserva un costo por hora.
+
+## Verificación posterior y preparación del frontend CRM
+
+- Snapshot de los 887 archivos versionados de `app/` contrastado byte a byte
+  con el commit P-0XX: E2E completo en Docker, **267 PASS / 26 SKIP / 0 FAIL**.
+  Un primer ensayo detectó que el enlace absoluto de `node_modules` en la copia
+  temporal dejaba las fuentes fuera de la ruta de Vite; se retiró solo ese enlace
+  temporal antes de la corrida válida. No se cambió código de producto.
+- Matriz HTTP/RLS pertinente: `node supabase/scripts/test-rls.mjs --contratos`,
+  **287/287 PASS** en `hhpjiygytwoayxymziqo`, con login real de los 13 usuarios
+  ficticios de `fixtures.mjs`. Cubre acceso bancario por ámbito, roles, revocación,
+  contratos y acceso anónimo. El conjunto global de dominios CRM queda sin ejecutar.
+  Para montar el fixture se completaron por SQL privilegiado sus dos contratos,
+  cuenta y vínculo: el seed genérico intenta hacerlo por API y no puede leer
+  `crm.periodos_cerrados` desde ese trigger. No se ampliaron grants de tabla.
+- La rama carecía del permiso `EXECUTE` de `service_role` sobre
+  `public.contrato_tiene_pagos(uuid)`. Se comprobó la misma definición en ambas
+  bases y el permiso existente en producción, y se reprodujo **solo en la rama**.
+  Antes de repetir la matriz se restableció su fixture de domicilio y se
+  desactivaron sus cuentas adicionales, sin alterar las cuentas P-0XX originales.
+- Auditoría HTTP del CRM servido: `build-20260925T150218036Z`, 74 archivos JS
+  descargados. `mi-cartera-BPDLxHJa.js` aún extiende el patch con `...r.bancarios`;
+  ninguno de los archivos descargados llama `registrar_cuenta_cliente`. Esto
+  prueba la incompatibilidad del formulario con la guarda S2 productiva.
+- Se preparó una copia Git independiente desde `avancecorp/main` (`6d7be76f`)
+  y se integraron únicamente los commits P-0XX. El único conflicto era el
+  registro documental de migraciones; se conservaron ambas entradas. Las Edge
+  Functions resultantes coinciden con las ya desplegadas. `npm run check` de
+  esta combinación pasó: **4440 tests**, build/typecheck, lint, configuración,
+  bundle y duplicación (0,49 % de líneas). Su E2E y publicación se registrarán
+  al completarse. La publicación CRM requiere la invocación humana de
+  `$release-crm`, según `CRM-Avance-Corp/CLAUDE.md` y la habilidad local.
+- Se entregó un segundo reporte privado:
+  `_DEV_NO_SUBIR/releases/p0xx-conciliacion-perfiles-20260925.md`, con los **3**
+  conflictos (banco, número, titular/beneficiario, respectivamente) y los **17**
+  grupos cliente/moneda con varias cuentas activas. Los valores bancarios están
+  enmascarados. Su fuente de solo lectura es `reporte-conciliacion-perfiles.sql`.
+  Estas filas pueden solaparse con los 23 contratos; no son clientes adicionales
+  para sumar. No se decidió qué dato real prevalece sin evidencia de Operaciones.
