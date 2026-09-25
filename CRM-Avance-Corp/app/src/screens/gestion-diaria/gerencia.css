@@ -117,11 +117,15 @@
 }
 @container (max-width:520px) {
   .gd-indicadores.gp-indicadores dl { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .gd-indicadores.gp-indicadores dl>div { flex-wrap:wrap; }
   .gp-indicadores dl>div { border-bottom:1px solid var(--border); }
   .gp-cabecera { align-items:start; }
   .gp-controles { gap:6px; }
   .gd-selector-fecha.gp-controles input { width:160px; }
   .gp-panel { padding:14px; }
+}
+@container (max-width:260px) {
+  .gd-indicadores.gp-indicadores dl { grid-template-columns:minmax(0,1fr); }
 }
 @media (max-height:650px), (max-width:900px) {
   .gd-supervisor.gd-pulso { height:auto; min-height:0; }

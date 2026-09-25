@@ -92,12 +92,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 8658,
+                  "duration": 8715,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:21.752Z",
+                  "startTime": "2026-09-25T14:26:45.422Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -126,12 +126,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 1,
                   "status": "passed",
-                  "duration": 4463,
+                  "duration": 4558,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:21.751Z",
+                  "startTime": "2026-09-25T14:26:45.396Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -160,12 +160,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 1,
                   "status": "passed",
-                  "duration": 7669,
+                  "duration": 7961,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:26.432Z",
+                  "startTime": "2026-09-25T14:26:50.207Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -194,12 +194,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4667,
+                  "duration": 4355,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:30.628Z",
+                  "startTime": "2026-09-25T14:26:54.362Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -209,7 +209,7 @@
           ],
           "id": "875ed6962abffceaea78-64b47e516a5d5ca813ff",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 219,
+          "line": 228,
           "column": 1
         },
         {
@@ -228,12 +228,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 1,
                   "status": "passed",
-                  "duration": 4763,
+                  "duration": 4260,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:34.114Z",
+                  "startTime": "2026-09-25T14:26:58.179Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -243,7 +243,7 @@
           ],
           "id": "875ed6962abffceaea78-70466aedf654e5c401f8",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 243,
+          "line": 252,
           "column": 1
         },
         {
@@ -262,12 +262,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4848,
+                  "duration": 5093,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:35.311Z",
+                  "startTime": "2026-09-25T14:26:58.738Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -277,7 +277,7 @@
           ],
           "id": "875ed6962abffceaea78-cff7066db172b9fc7878",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 260,
+          "line": 269,
           "column": 1
         },
         {
@@ -296,12 +296,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 1,
                   "status": "passed",
-                  "duration": 7413,
+                  "duration": 6635,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:38.895Z",
+                  "startTime": "2026-09-25T14:27:02.463Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -311,7 +311,7 @@
           ],
           "id": "875ed6962abffceaea78-eb48ce0600639e100d16",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 274,
+          "line": 283,
           "column": 1
         },
         {
@@ -330,12 +330,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 5078,
+                  "duration": 5134,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:40.185Z",
+                  "startTime": "2026-09-25T14:27:03.843Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -345,7 +345,7 @@
           ],
           "id": "875ed6962abffceaea78-e9506f18159d0ee5013f",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 332,
+          "line": 341,
           "column": 1
         },
         {
@@ -364,12 +364,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 7756,
+                  "duration": 8572,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:45.280Z",
+                  "startTime": "2026-09-25T14:27:09.011Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -379,7 +379,7 @@
           ],
           "id": "875ed6962abffceaea78-d8fa2bfb79a2a4fa709c",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 363,
+          "line": 372,
           "column": 47
         },
         {
@@ -398,12 +398,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 1,
                   "status": "passed",
-                  "duration": 8076,
+                  "duration": 8550,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:46.377Z",
+                  "startTime": "2026-09-25T14:27:09.122Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -413,7 +413,7 @@
           ],
           "id": "875ed6962abffceaea78-456652911e3bd930a9f6",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 363,
+          "line": 372,
           "column": 47
         },
         {
@@ -432,12 +432,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4093,
+                  "duration": 4247,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-25T14:09:53.047Z",
+                  "startTime": "2026-09-25T14:27:17.647Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -447,7 +447,7 @@
           ],
           "id": "875ed6962abffceaea78-1ed9794e30d3c5657c03",
           "file": "gestion-diaria-pulso.spec.ts",
-          "line": 387,
+          "line": 396,
           "column": 1
         }
       ]
@@ -455,8 +455,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-25T14:09:20.535Z",
-    "duration": 36854.864,
+    "startTime": "2026-09-25T14:26:44.213Z",
+    "duration": 37927.753,
     "expected": 11,
     "skipped": 0,
     "unexpected": 0,

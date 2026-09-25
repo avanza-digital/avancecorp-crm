@@ -1855,7 +1855,7 @@
         "reason": "Paridad UI y composición horizontal con menú abierto; incidencia reportada por Miguel",
         "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/103",
         "gate": "PASS 4423/298",
-        "e2e": "Completo inicial 271/0/26; finales Chromium11/0 yWebKit11/0; cero reintentos",
+        "e2e": "Completo tras review 271/0/26 en 14ed7336; después del ajuste móvil final: Chromium 11/0 y WebKit 11/0; cero reintentos",
         "review": "CHANGES_REQUESTED; observaciones resueltas y verificadas por PRIMARY"
       }
     }

@@ -178,6 +178,15 @@ test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con 
 
 test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {
   const estado = await montar(page)
+  for (const width of [390, 360, 320]) {
+    await page.setViewportSize({ width, height: 844 })
+    await expect.poll(() => page.getByRole('region', { name: 'Indicadores de la operación' }).locator('dl>div').evaluateAll(casillas =>
+      casillas.flatMap(casilla => Array.from(casilla.children).filter(n => {
+        const caja = casilla.getBoundingClientRect(), texto = n.getBoundingClientRect()
+        return texto.left < caja.left || texto.right > caja.right
+      }).map(n => n.textContent)),
+    )).toEqual([])
+  }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.mouse.move(380, 80)
   const dia = page.getByLabel('Día de la operación', { exact: true })

@@ -33,12 +33,11 @@ No se modifica la pantalla de supervisión ni SQL, RPC, RLS o permisos.
 - **PASS**: regresión reproducida antes y corregida después; escritorio con
   menú abierto a 1366 y 1280 px, indicadores en una sola fila, tabla y detalle
   alineados, sin desbordamiento de página; columnas accesibles con teclado.
-- **PASS**: 11 E2E dirigidos Chromium en Docker, cero fallos y cero reintentos.
 - **PASS**: `npm run check`, 4423 pruebas / 298 archivos, lint, tipos, cobertura,
   configuración de publicación, build, bundle y duplicación.
 - **PASS**: suite completa Chromium en Docker, 271 aprobadas / 0 fallos /
-  26 omitidas / 0 reintentos (`e2e-completo.json`, implementación `e3aff5cf`).
-- **PASS tras la revisión**: 11 E2E Chromium y 11 WebKit en Docker, sin fallos,
+  26 omitidas / 0 reintentos (`e2e-completo.json`, implementación `14ed7336`, después de resolver el review).
+- **PASS tras la revisión y el ajuste móvil final**: 11 E2E Chromium y 11 WebKit en Docker, sin fallos,
   omitidas ni reintentos; `e2e-dirigido-final.json` y `e2e-webkit-final.json`.
   Incluyen desplazamiento en ambos ejes y transición exacta 960/959 px útiles.
   `npm run check` repetido tras los ajustes: 4423/298 PASS (`check-final.log`).
@@ -69,8 +68,22 @@ de Seguimiento sigue condicionada a siete días reales estables.
   [Hábitos](despues/gerencia-habitos-horizontal.png) y
   [comparación completa](despues/gerencia-comparacion.png).
 - [Desplazamiento con cabecera preservada](despues/gerencia-tabla-desplazada.png).
+- [Móvil a 390 px, con valores dentro de su casilla](despues/gerencia-movil-390.png).
 
 Evidencia sintética inspeccionada por Codex PRIMARY. El CSS conserva el texto
 operativo de 16 px y controles de 44 px; se reutilizan los componentes y tokens
 de supervisión. La tabla añade scroll interno cuando las columnas no caben,
 para que el panel siga a la derecha sin desbordar toda la página.
+
+## Ajuste final de legibilidad móvil
+
+La inspección de la [captura móvil anterior](antes/porcentaje-movil.png) detectó que «62.5 %» sobresalía de su
+casilla a 390 px, aunque la página completa no desbordaba. Se reprodujo con
+una prueba geométrica de cada etiqueta y valor (`movil-antes.log`). Se permite
+el salto de línea del valor y se usa una sola columna en el ancho útil mínimo
+(260 px). Se comprueban 390, 360 y 320 px. La composición de escritorio no
+cambia. La suite completa 271/0/26 corresponde al commit `14ed7336`; este
+ajuste exclusivamente móvil tiene PASS en los 11 recorridos de Chromium y
+los 11 de WebKit, sin fallos ni reintentos. La prueba comprueba cada casilla
+a 390, 360 y 320 px. El gate final vuelve a pasar con 4423 pruebas / 298
+archivos. Los reportes finales y la captura móvil están adjuntos a esta acta.
