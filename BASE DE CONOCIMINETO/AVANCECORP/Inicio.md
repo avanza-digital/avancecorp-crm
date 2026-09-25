@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Gestion Diaria - Plan visual de Comparar dias (2026-09-25)]] — **PLAN APARTE EN FIGMA, PENDIENTE:** rediseñar la comparación para entender fechas, cambios y magnitudes de un vistazo; tres etapas y nueve tareas.
+
 - [[Gestion Diaria - Correccion de paridad horizontal de gerencia (2026-09-25)]] — **PUBLICADA Y VERIFICADA:** fuente `65e96df9`, paridad UI y orientación horizontal con menú abierto; 81/81 archivos y recorrido real 9/9 PASS. Observación y retirada de Seguimiento pendientes.
 
 - [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]] — **UX F6 PUBLICADA Y VERIFICADA:** fuente `f9196dba`, 81/81 archivos HTTPS y recorrido gerencial 8/8 PASS. Fecha, tabla, detalle lateral, hábitos y ficha con contexto conservado. Mismo Figma actualizado; retirada pendiente de siete días estables y corte del sábado.
