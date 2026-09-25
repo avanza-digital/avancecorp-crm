@@ -162,7 +162,16 @@ la sesión bloquea escribir en producción:
 Vuelta atrás: `scripts/venta-cruzada/reversa-fase4..1.sql`, en ese orden (fallan cerradas si ya
 hay datos de venta cruzada). El frente sale aparte con `/release-crm`.
 
-## 🧪 Venta cruzada · Fases 5 y 6 (frente y pruebas de punta a punta) — **SIN MIGRACIÓN NUEVA · FRENTE SIN PUBLICAR**
+## ✅ Venta cruzada · Fases 5 y 6 (frente y pruebas de punta a punta) — **SIN MIGRACIÓN NUEVA · FRENTE PUBLICADO 24/09/2026**
+
+**Release del frente** (`/release-crm`, Miguel): artefacto `crm-20260925T011259Z-a1bbe24d46a6.zip`
+construido en un worktree limpio desde `a1bbe24d` (PR #93 fusionada; también lleva la #92), con
+`npm run check` en verde (4352 tests) y el manifiesto verificado. Preflight obligatorio:
+`live=build-20260924T161347948Z/929fbbcccb57 candidate=a1bbe24d46a6` → OK (el manifiesto del release
+vivo se copió a `releases/` desde el worktree de la sesión que lo publicó). Publicado con el token
+de Miguel; smoke: `build-20260925T011258009Z` servido, home 200 y 103/103 archivos de código y datos
+byte a byte iguales al ZIP (los 13 PNG los re-codifica el CDN de Hostinger, `server: hcdn`; son los
+mismos del release anterior). El `main` local integró `avancecorp/main` (`04c722ea`, avance rápido).
 
 **Qué hay.** El frente de la venta cruzada y la evidencia de que las fases 1–4 no rompen nada:
 - **Frente** (`app/src`): módulo único `data/cliente-existente-api.ts` (+ `cliente-existente-queries.ts`),
