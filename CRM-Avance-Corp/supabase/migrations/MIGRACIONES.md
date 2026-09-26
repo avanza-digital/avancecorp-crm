@@ -1,3 +1,48 @@
+## 20260926182748 — Portal · Pagos: se retira `public.admin_pagos_resumen()`
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026 (~18:45 UTC)** por Miguel con
+`db query --linked --file` + registrador (orden expresa: «retira eso ahora mismo»).
+Verificado después: `to_regprocedure('public.admin_pagos_resumen()')` es NULL, versión
+`20260926182748` registrada con su nombre, `pagos_admin_resumen_contratos` y
+`admin_pagos_metricas` responden, y el `pagos.js?v=43` vivo no contiene la llamada. Desde F2 (portal commit `232b2ea`) la pantalla de
+Pagos pide páginas a `pagos_admin_resumen_contratos`; la función vieja («todo de golpe»,
+~2,8 s) ya no tiene ningún consumidor: 0 funciones, vistas, triggers, jobs de cron ni
+dependencias en `pg_depend`; en el código solo un comentario y los tipos generados del CRM.
+Solo lectura, sin datos afectados. Reversa ejecutable con el cuerpo exacto y sus grants:
+`../scripts/reversa-portal-admin-pagos-resumen.sql`. Registro:
+`../scripts/registrar-portal-retira-admin-pagos-resumen.sql` (se niega si la función sigue viva).
+Pendiente tras aplicar: regenerar `database.types.ts` del CRM cuando toque (la entrada
+`admin_pagos_resumen` queda obsoleta; nada la usa).
+
+## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026**, registro
+`20260926172402`, tras el ensayo en `hhpjiygytwoayxymziqo` y autorización
+expresa de Miguel para los dos SQL finales. No se modificaron firmas, cuerpos,
+search_path ni permisos de tablas.
+
+`crm.registrar_cuenta_cliente` y `public.mis_cuentas_bancarias_fn` pasan a
+SECURITY INVOKER. Sus dos autorizadores privados conservan SECURITY DEFINER
+y reciben EXECUTE para authenticated, con denegación a anon/PUBLIC. Las
+funciones hecho siguen cerradas; la API no expone el esquema private.
+
+SQL S2/S4 y fronteras de permisos PASS; HTTP específico 10 PASS; matriz
+HTTP/RLS de contratos 287 PASS. Advisors: desaparecen exactamente los dos
+avisos introducidos por P-0XX, con cero hallazgos nuevos de seguridad o
+rendimiento. Reversa de permisos ensayada con ROLLBACK: PASS.
+
+Los scripts operativos en `../scripts/p0xx/` se ensayaron con datos ficticios
+y luego se ejecutaron como transacción productiva aprobada: 2 versiones nuevas
+y 1 nombre de banco legado corregido, con actor administrativo y auditoría.
+Repetición: 0 + 0; perfiles válidos: 501, sin equivalente: 0. Los cuatro vínculos
+conservaron su huella y el trigger legado terminó habilitado. Estos scripts
+no forman parte de la migración de permisos ni se ejecutan automáticamente.
+
+Advisors productivos: exactamente dos avisos de P-0XX retirados y cero nuevos.
+Acta: `../scripts/p0xx/CIERRE-PRODUCCION.md`. Reporte actualizado de 23 contratos
+sin vínculo (21 operativos y 2 demo) entregado. Rama propia eliminada y ausencia verificada.
+La publicación CRM/portal de P-0XX no requiere otro despliegue por este ajuste.
+
 ## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
 
 **SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
@@ -20,6 +65,32 @@ concedida a `authenticated`; la prueba de alcance propio documenta por qué se
 mantiene. La reversa S1 ahora toma bloqueos de cuenta, cronograma y vínculo
 antes de comprobar pagos y borrar; el ensayo con `ROLLBACK` dejó 3 cuentas y
 2 vínculos intactos.
+
+## 20260925172955 / 20260925180145 — Eliminación auditada de contratos y usuarios
+
+**INSTALADAS Y VERIFICADAS EN PRODUCCIÓN.** 25/09/2026, lectura final 15:34 Lima.
+
+- `20260925172955_crm_eliminacion_contrato_cotitular_alta.sql`: Admin/Superadmin
+  pueden eliminar contratos cuyo cotitular solo tiene procedencia del alta. Copia
+  completa versión 4, actor/reserva exactos, permisos exclusivamente de Edge;
+  conserva archivos e identidades. Historial posterior y cierres continúan protegidos.
+  Comparación de snapshot/hash de la fila completa: revisar al cambiar columnas de
+  `public.contrato_titulares`. Portal retira su bloqueo antiguo de Admin con pagos.
+- `20260925180145_crm_eliminacion_usuarios_sin_pendientes.sql`: Gerencia elimina
+  cuentas comerciales sin pendientes; conserva autoría e identidad inactiva cuando
+  hay historial. Transferencia previa, revocación de sesiones, auditoría privada,
+  versiones y protección concurrente de asignaciones. No elimina cuentas protegidas
+  del Portal ni la propia cuenta. Contiene cuerpos completos y preguard de huellas.
+
+Eliminación puntual de Álvaro **ya ejecutada y verificada**, mediante la purga
+existente, sin instalar estas migraciones. Acta y resultados exactos en
+`supabase/scripts/usuarios-eliminar/VERIFICACION.md`: SQL 17 + 16 PASS,
+frontend global 4.430 PASS, E2E Docker 5 PASS. Gate global de duplicación FAIL por
+archivos ajenos. Tras aprobación expresa, rama remota: 33 SQL y 22 HTTP/Auth PASS;
+advisors sin ERROR nuevo, INFO privado deny-all y dos WARN de RPC con guardas
+gerenciales previstos. Merge nativo de solo estos dos SQL; 358 migraciones previas
+intactas y 21 Edge Functions sin cambios. Cuerpos/ACL/triggers cotejados en
+producción. Rama temporal eliminada; pantallas todavía pendientes de publicación.
 
 ## 20260925194026 — P-0XX: pagos con cuenta contractual, S3
 
@@ -13352,3 +13423,57 @@ Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
 `docs/gestion-diaria/f5-publicacion-2026-09-24/ACTA.md`. Contrato:
 `docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
 `docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.
+
+## 20260925190000_crm_ranking_origen_vendedor.sql
+
+**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Añade desglose del capital
+confirmado por canal y conversión mensual por analista para la ficha de Ranking.
+Reutiliza las filas del núcleo de capital y la atribución del productor canónico,
+separa renovaciones/upgrades como Cartera, evita multiplicación por leads y
+concilia PEN/USD con `cumplimiento_metas_fn`. Congela fotos nuevas dentro del
+INSERT de `cierre_mes_vendedor`; las fotos anteriores permanecen indisponibles.
+La RPC exige que el analista figure en el payload visible del actor.
+
+Ensayo en Docker local dentro de `BEGIN`/`ROLLBACK`: migración, paridad por
+vendedor/categoría/moneda, contrato con dos leads de distinto origen sin
+duplicar capital, cierre cooperativo, ajustes netos, rechazo de desajustes,
+conversión Referido, peso ausente, ACL, ámbito Gerencia/Supervisión y denegación
+de una identidad ajena, trigger de foto y su aislamiento ante
+fallo PASS (`supabase/scripts/ranking-origen/prueba-local.sql`). La foto nueva
+sigue append-only; un UPDATE del desglose fue rechazado con P0409.
+Los casos especiales son fixtures transaccionales sobre el banco local.
+Miguel aprobó el SQL exacto (SHA-256
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`).
+Preflight productivo de solo lectura el 25/09: los cuatro MD5 canónicos siguen
+iguales; el desglose calculado desde las mismas filas cuadra en 32 grupos de
+analista/moneda de septiembre y 29 de agosto, sin diferencias de capital.
+Los cuatro canales tienen leads y cierres en septiembre; no hay ajustes de
+mes cerrado. Falta ensayar la migración en una rama propia antes del merge;
+el conector exige confirmar la organización y el costo de la rama.
+
+Rama propia `ranking-origen-capital-20260925` creada con costo horario aprobado,
+pero su replay se detuvo antes de este SQL, tras 86/358 migraciones, en
+`20260812000259_crm_cierres_externos`: el postflight exige una fila activa en
+`crm.equipo` y una rama nueva no copia los datos de producción. La rama se
+eliminó y se verificó su ausencia de la lista de ramas. **No se aplicó esta
+migración ni se modificó producción.** El gate remoto de rama queda FAIL;
+se requiere resolver el replay histórico o una excepción expresa al ciclo
+«rama → merge» para instalar el SQL aprobado.
+Miguel eligió esperar la reparación del replay de ramas; no autorizó una
+excepción directa a producción. Postflight remoto: RPC, columna y migración
+ausentes de producción; rama de prueba ausente de la lista.
+Segundo intento pedido por Miguel: rama exclusiva
+`ranking-origen-capital-reintento-20260925` (misma tarifa autorizada). Durante
+el arranque mostró brevemente `FUNCTIONS_DEPLOYED`, pero terminó
+`MIGRATIONS_FAILED` con las mismas 86/358 migraciones y sin las funciones
+canónicas requeridas por este SQL. Se eliminó la rama y se comprobó su
+ausencia. RPC y columna siguen ausentes de producción. No repetir el intento
+sin una solución para el postflight histórico de `20260812000259`.
+Revisión independiente de la implementación: `CHANGES_REQUESTED`; se atendió
+el riesgo de bloquear el sello ante una excepción del detalle, se alinearon
+conteo de cierres y numerador, se evitó afirmar 0 % si falta el peso de Referido
+y se materializan las filas de capital una vez por ficha. El ámbito se comprobó
+contra `cumplimiento_metas_fn` (usa `auth.uid()` y visibilidad explícita) y la
+clave `(periodo, vendedor_id)` de la foto es primaria. Queda por medir el tiempo
+de cierre con un mes productivo en un entorno autorizado; un descuadre conserva
+la foto como no disponible, sin reescribirla.
