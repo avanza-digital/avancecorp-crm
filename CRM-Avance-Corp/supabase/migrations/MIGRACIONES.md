@@ -1,3 +1,30 @@
+## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
+
+**APLICADA Y VERIFICADA SOLO EN RAMA**, proyecto `hhpjiygytwoayxymziqo`.
+Miguel autorizó ensayar esta excepción a la convención SECURITY DEFINER;
+su aplicación productiva requiere una autorización nueva. No se modificaron
+firmas, cuerpos, search_path ni permisos de tablas.
+
+`crm.registrar_cuenta_cliente` y `public.mis_cuentas_bancarias_fn` pasan a
+SECURITY INVOKER. Sus dos autorizadores privados conservan SECURITY DEFINER
+y reciben EXECUTE para authenticated, con denegación a anon/PUBLIC. Las
+funciones hecho siguen cerradas; la API no expone el esquema private.
+
+SQL S2/S4 y fronteras de permisos PASS; HTTP específico 10 PASS; matriz
+HTTP/RLS de contratos 287 PASS. Advisors: desaparecen exactamente los dos
+avisos introducidos por P-0XX, con cero hallazgos nuevos de seguridad o
+rendimiento. Reversa de permisos ensayada con ROLLBACK: PASS.
+
+Los scripts operativos en `../scripts/p0xx/` preparan dos correcciones
+versionadas y la propuesta excepcional de corregir un nombre de banco
+legado. Solo se ensayaron con datos ficticios: atomicidad, idempotencia,
+auditoría, reversa y conservación de vínculos PASS. No son parte de la
+migración de permisos ni se ejecutan automáticamente. La escritura puntual
+en legado y cualquier reparación productiva siguen pendientes de aprobación.
+
+Acta y límites: `../scripts/p0xx/CIERRE-EXCEPCIONES.md`. La publicación CRM y
+portal del 25/09 sigue vigente; este ajuste no necesita otro despliegue visual.
+
 ## 20260925172955 / 20260925180145 — Eliminación auditada de contratos y usuarios
 
 **INSTALADAS Y VERIFICADAS EN PRODUCCIÓN.** 25/09/2026, lectura final 15:34 Lima.
