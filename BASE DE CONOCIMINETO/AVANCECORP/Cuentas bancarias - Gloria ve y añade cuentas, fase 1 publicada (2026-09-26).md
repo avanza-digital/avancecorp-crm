@@ -60,13 +60,24 @@ contrato entero) · ¿Gerencia del CRM también ve números completos? (recomend
   vías (lista de cuentas, ficha CRM, Excel de Pagos —Operaciones lo usa para pagar— y columnas legado de
   perfiles). Decisión pendiente de Miguel.
 
+## Fase 2b — quien ve la cuenta la ve completa (PUBLICADA 26/09)
+
+- Miguel vio el mapa de las 4 vías y decidió: «quiero que el analista también vea las cuentas» →
+  **todos los que ya ven la cuenta la ven completa** (admin, superadmin, Operaciones, analistas), como el
+  CRM, que ya dejaba copiar el N° completo. Tapar en el servidor quedó DESCARTADO.
+- Base: migración `20260926200757_crm_historial_cuentas_sin_tapado` (el historial deja de tapar; mismo
+  gate y filtro). Precondición, reversas y registrador con **firma completa** (cuerpo + SECURITY +
+  search_path + comentario de las 2 funciones): Codex R1 y R2 bloquearon por las reversas, ambas corregidas.
+  Aplicada con OK de Miguel; advisors iguales; sonda OK.
+- Portal `5998025`: `cuentas-cliente-core.js?v=4` sin tapado (`clientes.js v53`, `analista.js v32`, SW v132);
+  18/18 lecturas idénticas. **No cambia:** vista del propio cliente (sigue ••••), selector de cuenta del
+  contrato, Pagos, CRM.
+
 ## Pendiente
 
 - 🔴 **Verificación visual de Miguel/Gloria:** entrar como admin → Clientes → «Cuentas» (números completos) y
   añadir una cuenta real que un cliente haya pedido → comprobar que aparece en su ficha del CRM.
-- 🔴 **Riesgo preexistente:** `crm.cuentas_bancarias_cliente_fn` devuelve números completos a operaciones y
-  analistas autorizados (se ven con las herramientas del navegador). Si se quiere confidencialidad real por rol,
-  hay que enmascarar en el servidor (candidato a la fase 2).
+- ~~Riesgo de números completos para operaciones y analistas~~: **aceptado por Miguel el 26/09 (F2b)**.
 - La raíz del repo tiene `main` local desfasado de `avancecorp/main` (10 atrás / 42 adelante): el commit de esta
   nota queda local hasta la integración.
 

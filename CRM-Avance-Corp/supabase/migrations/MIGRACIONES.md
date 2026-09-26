@@ -1,6 +1,9 @@
 ## 20260926200757 — Cuentas de Gloria · F2b: el historial deja de tapar datos
 
-**PREPARADA Y ENSAYADA EN EL BANCO DOCKER; PENDIENTE DE APLICAR EN PRODUCCIÓN.** Recrea
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** (con OK explícito de Miguel: «Sí, aplícala
+tú»), registrada con firma completa; huella viva `0806cc19…`, sin `es_admin` en el cuerpo; sonda sin
+datos OK (usuario inventado → 42501, ACL {postgres, authenticated}); advisors de seguridad idénticos
+a antes. Portal publicado después (5998025). Recrea
 `private.historial_cuentas_cliente_autorizado` SIN tapado por rol (misma firma, autorización,
 filtro `activa = false` y join de personal). Decisión de Miguel (26/09): «todos los que ya ven la
 cuenta la ven completa» (admin, superadmin, Operaciones y analistas), como el CRM. Revierte a
