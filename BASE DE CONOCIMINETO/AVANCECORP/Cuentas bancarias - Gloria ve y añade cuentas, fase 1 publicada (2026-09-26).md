@@ -62,7 +62,7 @@ https://www.figma.com/board/kZ8XNjC5fEsbogzzZMNCK7?node-id=18-2 — **al cerrar 
 
 - Raíz `18:2` · título `18:3` · subtítulo `18:4` · **actualizado `18:5`** · leyenda `18:6`
 - Columnas: pedido `18:7` · fases `18:8` · reglas `18:9`
-- Pedido: P1 `18:13` · P2 «cómo estaba» `18:18` · P3 «dónde vamos» `18:27` (status `18:29`, línea F1–F4 `18:30`)
+- Pedido: P1 `18:13` · P2 «problemas encontrados» `18:18` (status `18:20`) · P3 «dónde vamos» `18:27` (status `18:29`, línea F1–F4 `18:30`)
 - F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`)
 - Reglas: no cambia `18:68` · decisiones `18:74` · **te toca decidir `18:80`** (ítems `18:83`–`18:85`) · riesgos `18:86`
 
