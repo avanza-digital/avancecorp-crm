@@ -54,5 +54,17 @@ contrato entero) · ¿Gerencia del CRM también ve números completos? (recomend
 - La raíz del repo tiene `main` local desfasado de `avancecorp/main` (10 atrás / 42 adelante): el commit de esta
   nota queda local hasta la integración.
 
+## Tablero en Figma (seguimiento de Miguel)
+
+Sección «Plan Cuentas Gloria» en el mismo FigJam del plan de Pagos, a la derecha:
+https://www.figma.com/board/kZ8XNjC5fEsbogzzZMNCK7?node-id=18-2 — **al cerrar cada fase, marcar ☐→◉→☑ ahí**
+(si no está en el tablero, para Miguel no pasó).
+
+- Raíz `18:2` · título `18:3` · subtítulo `18:4` · **actualizado `18:5`** · leyenda `18:6`
+- Columnas: pedido `18:7` · fases `18:8` · reglas `18:9`
+- Pedido: P1 `18:13` · P2 «cómo estaba» `18:18` · P3 «dónde vamos» `18:27` (status `18:29`, línea F1–F4 `18:30`)
+- F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`)
+- Reglas: no cambia `18:68` · decisiones `18:74` · **te toca decidir `18:80`** (ítems `18:83`–`18:85`) · riesgos `18:86`
+
 Relacionado: [[P-0XX - publicación y conciliación pendiente (2026-09-25)]],
 [[Cuentas bancarias - ledger vs casillas del perfil]], [[Arquitectura del portal]].
