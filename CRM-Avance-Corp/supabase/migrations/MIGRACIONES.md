@@ -13448,3 +13448,47 @@ Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
 `docs/gestion-diaria/f5-publicacion-2026-09-24/ACTA.md`. Contrato:
 `docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
 `docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.
+
+## 20260925190000_crm_ranking_origen_vendedor.sql
+
+**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Añade desglose del capital
+confirmado por canal y conversión mensual por analista para la ficha de Ranking.
+Reutiliza las filas del núcleo de capital y la atribución del productor canónico,
+separa renovaciones/upgrades como Cartera, evita multiplicación por leads y
+concilia PEN/USD con `cumplimiento_metas_fn`. Congela fotos nuevas dentro del
+INSERT de `cierre_mes_vendedor`; las fotos anteriores permanecen indisponibles.
+La RPC exige que el analista figure en el payload visible del actor.
+
+Ensayo en Docker local dentro de `BEGIN`/`ROLLBACK`: migración, paridad por
+vendedor/categoría/moneda, contrato con dos leads de distinto origen sin
+duplicar capital, cierre cooperativo, ajustes netos, rechazo de desajustes,
+conversión Referido, peso ausente, ACL, ámbito Gerencia/Supervisión y denegación
+de una identidad ajena, trigger de foto y su aislamiento ante fallo PASS
+(`supabase/scripts/ranking-origen/prueba-local.sql`). La foto nueva sigue
+append-only; un UPDATE del desglose fue rechazado con P0409. Los casos
+especiales son fixtures transaccionales sobre el banco local.
+
+Miguel aprobó el SQL exacto (SHA-256
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`).
+Preflight productivo de solo lectura el 25/09: los cuatro MD5 canónicos siguen
+iguales; el desglose calculado desde las mismas filas cuadra en 32 grupos de
+analista/moneda de septiembre y 29 de agosto, sin diferencias de capital.
+Los cuatro canales tienen leads y cierres en septiembre; no hay ajustes de mes
+cerrado. Falta ensayar la migración en una rama propia antes del merge.
+
+Dos ramas exclusivas con costo autorizado fallaron antes de este SQL, tras
+86/358 migraciones, en `20260812000259_crm_cierres_externos`: su postflight
+exige una fila activa en `crm.equipo` y una rama nueva no copia los datos de
+producción. Ambas ramas fueron eliminadas; producción no se modificó. El gate
+remoto queda FAIL: se requiere reparar ese replay histórico o una excepción
+expresa al ciclo «rama → merge» antes de instalar esta migración. La RPC y la
+columna siguen ausentes de producción.
+
+Revisión independiente de la implementación: `CHANGES_REQUESTED`; se atendió
+el riesgo de bloquear el sello ante una excepción del detalle, se alinearon
+conteo de cierres y numerador, se evitó afirmar 0 % si falta el peso de Referido
+y se materializan las filas de capital una vez por ficha. El ámbito se comprobó
+contra `cumplimiento_metas_fn` (usa `auth.uid()` y visibilidad explícita) y la
+clave `(periodo, vendedor_id)` de la foto es primaria. Queda por medir el tiempo
+de cierre con un mes productivo en un entorno autorizado; un descuadre conserva
+la foto como no disponible, sin reescribirla.
