@@ -1,3 +1,27 @@
+## 20260926193424 — Cuentas de Gloria · F2: historial de cuentas retiradas del cliente
+
+**PREPARADA, ENSAYADA EN EL BANCO DOCKER; PENDIENTE DE APLICAR EN PRODUCCIÓN** (la aplica Miguel
+con `db query --linked --file` + registrador). Solo lectura y ADITIVA: crea
+`private.historial_cuentas_cliente_autorizado(uuid)` (SECURITY DEFINER, autoriza con
+`private.puede_gestionar_cuentas_cliente` y lee las versiones `activa = false` de
+`crm.cuentas_bancarias` + nombre de quien las retiró) y la puerta
+`crm.historial_cuentas_cliente_fn(uuid)` (SECURITY INVOKER, mismo patrón que `20260926145330`).
+EXECUTE solo a authenticated. No cambia ninguna función, política, tabla ni permiso existente.
+N°, CCI y beneficiario (nombre y DNI) salen COMPLETOS solo para `public.es_admin()` (admin/
+superadmin); al resto de autorizados, N° y CCI tapados desde el servidor (`••••` + como mucho 4,
+nunca más de la mitad) y beneficiario NULL (Codex R1 P1 + R2 PASS; auditor-rls PASS con P3-1/2/4
+aplicados: beneficiario NULL, nombre de quien retiró solo si es personal, registrador con huella).
+Banco local (55322): foto del catálogo antes/después = solo las 2 funciones nuevas; prueba
+`../scripts/cuentas-gloria/test-historial-cuentas-cliente.sql` (admin, operaciones y analista
+de cartera ven; analista ajeno, cliente y anon 42501; mismo 42501 para inexistente, no-cliente,
+inactivo y NULL; tapado en servidor; 3 mutantes cazados). Gate `test-rls.mjs` NOT RUN: la
+semilla del banco choca con un fixture de P-0XX (DNI 90000001); la matriz HTTP del historial
+queda pendiente para cuando el banco se pueda sembrar; reversa
+`../scripts/cuentas-gloria/reversa-historial-cuentas-cliente.sql` deja el catálogo idéntico.
+Registro: `../scripts/cuentas-gloria/registrar-historial-cuentas-cliente.sql` (se niega si la
+migración no está aplicada). Consumidor: ventana «Cuentas» del panel admin del portal
+(`cuentas-cliente-core.js?v=3`). Publicar el portal DESPUÉS de aplicar esto.
+
 ## 20260926182748 — Portal · Pagos: se retira `public.admin_pagos_resumen()`
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026 (~18:45 UTC)** por Miguel con
