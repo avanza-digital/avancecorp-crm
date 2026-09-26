@@ -8,8 +8,10 @@ begin
        'crm.cuentas_bancarias', 'SELECT')
      or pg_catalog.has_function_privilege('anon',
        'public.mis_cuentas_bancarias_fn()', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated',
+       'private.cuentas_cliente_propias_autorizado()', 'EXECUTE')
      or pg_catalog.has_function_privilege('authenticated',
-       'private.cuentas_cliente_propias_autorizado()', 'EXECUTE') is true then
+       'private.cuentas_cliente_vigentes(uuid)', 'EXECUTE') then
     raise exception 'S4: permisos bancarios demasiado amplios';
   end if;
 end;

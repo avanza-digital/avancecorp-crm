@@ -83,6 +83,31 @@ begin
 end;
 $alta_integridad$;
 
+-- El permiso temporal del analista se prueba con un cliente creado en esta
+-- transaccion; la fecha de alta de la semilla historica es inmutable.
+update public.perfiles
+set asesor_perfil_id = 'b0000000-0000-4000-8000-000000000002'
+where id = 'c0000000-0000-4000-8000-000000000008';
+set local role authenticated;
+set local request.jwt.claim.sub = 'b0000000-0000-4000-8000-000000000002';
+do $analista_reciente$
+declare
+  v_puerta uuid;
+  v_autorizado uuid;
+begin
+  v_puerta := crm.registrar_cuenta_cliente(
+    'c0000000-0000-4000-8000-000000000008',
+    '{"moneda":"USD","banco":"BCP","tipo_cuenta":"corriente","numero_cuenta":"TESTUSD8","cci":"00000000000000000019"}'::jsonb);
+  v_autorizado := private.registrar_cuenta_cliente_autorizado(
+    'c0000000-0000-4000-8000-000000000008',
+    '{"moneda":"USD","banco":"BCP","tipo_cuenta":"corriente","numero_cuenta":"TESTUSD8","cci":"00000000000000000019"}'::jsonb);
+  if v_puerta is null or v_puerta is distinct from v_autorizado then
+    raise exception 'S2: el analista vigente no conserva el acceso autorizado';
+  end if;
+end;
+$analista_reciente$;
+reset role;
+
 -- Una respuesta tardia del alta no debe reactivar una cuenta desactivada.
 update crm.cuentas_bancarias
    set activa = false,
@@ -148,7 +173,8 @@ begin
 end;
 $fuera_cartera$;
 
-set local request.jwt.claim.sub = 'b0000000-0000-4000-8000-000000000002';
+-- Gerencia puede versionar este cliente antiguo en cualquier fecha de ensayo.
+set local request.jwt.claim.sub = 'b0000000-0000-4000-8000-000000000003';
 do $versionar$
 declare
   v_igual uuid;
@@ -213,12 +239,12 @@ begin
       where cliente_id = 'c0000000-0000-4000-8000-000000000005'
         and moneda = 'PEN' and cci = '00000000000000000006'
         and activa and origen = 'portal'
-        and creado_por = 'b0000000-0000-4000-8000-000000000002') <> 1
+        and creado_por = 'b0000000-0000-4000-8000-000000000003') <> 1
      or not exists (
        select 1 from crm.cuentas_bancarias
        where id = 'e0000000-0000-4000-8000-000000000003'
          and activa is false
-         and desactivada_por = 'b0000000-0000-4000-8000-000000000002')
+         and desactivada_por = 'b0000000-0000-4000-8000-000000000003')
      or not exists (
        select 1 from crm.contrato_cuentas_pago
        where contrato_id = 'd0000000-0000-4000-8000-000000000006'
