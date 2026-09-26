@@ -1,9 +1,9 @@
 ## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
 
-**APLICADA Y VERIFICADA SOLO EN RAMA**, proyecto `hhpjiygytwoayxymziqo`.
-Miguel autorizó ensayar esta excepción a la convención SECURITY DEFINER;
-su aplicación productiva requiere una autorización nueva. No se modificaron
-firmas, cuerpos, search_path ni permisos de tablas.
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026**, registro
+`20260926172402`, tras el ensayo en `hhpjiygytwoayxymziqo` y autorización
+expresa de Miguel para los dos SQL finales. No se modificaron firmas, cuerpos,
+search_path ni permisos de tablas.
 
 `crm.registrar_cuenta_cliente` y `public.mis_cuentas_bancarias_fn` pasan a
 SECURITY INVOKER. Sus dos autorizadores privados conservan SECURITY DEFINER
@@ -15,15 +15,17 @@ HTTP/RLS de contratos 287 PASS. Advisors: desaparecen exactamente los dos
 avisos introducidos por P-0XX, con cero hallazgos nuevos de seguridad o
 rendimiento. Reversa de permisos ensayada con ROLLBACK: PASS.
 
-Los scripts operativos en `../scripts/p0xx/` preparan dos correcciones
-versionadas y la propuesta excepcional de corregir un nombre de banco
-legado. Solo se ensayaron con datos ficticios: atomicidad, idempotencia,
-auditoría, reversa y conservación de vínculos PASS. No son parte de la
-migración de permisos ni se ejecutan automáticamente. La escritura puntual
-en legado y cualquier reparación productiva siguen pendientes de aprobación.
+Los scripts operativos en `../scripts/p0xx/` se ensayaron con datos ficticios
+y luego se ejecutaron como transacción productiva aprobada: 2 versiones nuevas
+y 1 nombre de banco legado corregido, con actor administrativo y auditoría.
+Repetición: 0 + 0; perfiles válidos: 501, sin equivalente: 0. Los cuatro vínculos
+conservaron su huella y el trigger legado terminó habilitado. Estos scripts
+no forman parte de la migración de permisos ni se ejecutan automáticamente.
 
-Acta y límites: `../scripts/p0xx/CIERRE-EXCEPCIONES.md`. La publicación CRM y
-portal del 25/09 sigue vigente; este ajuste no necesita otro despliegue visual.
+Advisors productivos: exactamente dos avisos de P-0XX retirados y cero nuevos.
+Acta: `../scripts/p0xx/CIERRE-PRODUCCION.md`. Reporte actualizado de 23 contratos
+sin vínculo (21 operativos y 2 demo) entregado. Rama propia eliminada y ausencia verificada.
+La publicación CRM/portal de P-0XX no requiere otro despliegue por este ajuste.
 
 ## 20260925172955 / 20260925180145 — Eliminación auditada de contratos y usuarios
 

@@ -1,5 +1,8 @@
 # P-0XX — cierre de excepciones ensayado
 
+**Ensayo histórico. Cierre aplicado y verificado en producción:**
+[[P-0XX - cierre productivo verificado (2026-09-26)]].
+
 CRM y portal siguen publicados y Miguel confirmó que ve las cuentas del CRM
 en el portal. El objetivo permanece abierto por tres diferencias históricas y
 dos avisos adicionales del advisor. El PR documental #107 ya está integrado.
