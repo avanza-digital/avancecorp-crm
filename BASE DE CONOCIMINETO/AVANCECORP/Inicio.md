@@ -5,6 +5,16 @@ actualizado: 2026-09-24
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Cuentas bancarias - Gloria ve y añade cuentas, fase 1 publicada (2026-09-26)]] — **FASE 1 PUBLICADA:** botón «Cuentas» en Clientes con «Añadir cuenta» (aparece en el CRM); admin/superadmin ven N°, CCI y beneficiario completos. Fases 2–4 (historial, cambiar cuenta de pago por pedido del cliente, retirar) pendientes. Verificación visual de Gloria pendiente.
+
+- [[P-0XX - cierre productivo verificado (2026-09-26)]] — **CERRADO:** CRM y portal comparten cuentas; 501 registros válidos sin diferencias, dos avisos retirados y cero nuevos. 23 contratos sin vínculo: 21 operativos y 2 demo, reportados y bloqueados para pago. Rama temporal eliminada.
+
+- [[Portal Pagos - plan de mejora en Figma (2026-09-26)]] — **F1–F5 PUBLICADAS Y VERIFICADAS EN PRODUCCIÓN 26/09 (commits `12d9d4f`, `bf32942`, `97895bb`, `232b2ea`, `10693b1`, `d13117a` del portal, por TUS archivo a archivo, caché purgada). F5 = decisión de Miguel «solo lo que toca pagar»: Pagos queda en Agenda + buscador, sin pestañas; la tabla de contratos aparece solo al buscar; «Pagados este mes» pasa al Dashboard; el tramo «Próximos 30 días» quedó RECHAZADO. Pendiente: pasada visual de Miguel y retirar `admin_pagos_resumen` ~03/10:** Pagos del admin se veía roto por un retardo de aparición sin tope (fila 650 → 18 s en blanco) y trae los 656 contratos de golpe; la función paginada del servidor ya existe y no se usa. F1 = solo estilos (tope 400 ms, aviso de cuenta alineado, letra ≥14 px), 116/116 pruebas. Siguen F2 paginar · F3 agenda por tramos · F4 lectura. Tablero FigJam vivo; actualizarlo al cerrar cada fase.
+
+- [[Eliminacion de usuarios y contratos - preparada y Alvaro eliminado (2026-09-25)]] — **BACKEND INSTALADO Y VERIFICADO:** Álvaro eliminado; contratos con cotitular de alta corregidos; eliminación de usuarios exige transferir pendientes y conserva autoría. 33 SQL y 22 HTTP/Auth PASS; rama eliminada. Pantallas pendientes de publicación.
+
+- [[Ranking - capital por canal de llegada (decision 2026-09-25)]] — Decisión para la ficha del Ranking: canales de llegada, Cartera separada y desglose mensual que cuadre con el capital confirmado. Botón de regreso retirado localmente; datos por origen pendientes de SQL.
+
 - [[Gestion Diaria - F5 publicada y F6 en observacion (2026-09-24)]] — **F5 PUBLICADA Y VERIFICADA:** SQL por merge nativo, frontend `b402a7f1`, 2.267 aserciones y HTTP 21/21, cifras y 78 archivos servidos PASS. T0 24/09 21:57:11 Lima; retirada F6 no antes del 01/10 a esa hora y con estabilidad acreditada. Banco eliminado; sábado pendiente.
 
 - [[Gestion Diaria - cola completa F6 preparada (2026-09-24)]] — **PREPARACIÓN SIN RETIRADA:** PR #97 integrado en Main `3b792867`, controles GitHub PASS, gate 4.393/297, Chromium 265/0/26 y WebKit 14/0 PASS. Cola todavía sin publicar. La observación real comienza con F5; no hay siete días cumplidos.
