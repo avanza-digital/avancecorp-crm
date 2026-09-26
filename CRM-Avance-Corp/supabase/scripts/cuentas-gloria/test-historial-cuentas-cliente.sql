@@ -1,4 +1,4 @@
--- PRUEBA del historial de cuentas (20260926193424_crm_historial_cuentas_cliente) — SOLO BANCO.
+-- PRUEBA del historial de cuentas (20260926193424 + 20260926200757 sin tapado) — SOLO BANCO.
 -- ⚠️ Jamás contra producción: siembra usuarios y cuentas FICTICIOS. Todo va en UNA transacción
 -- que termina en ROLLBACK: no deja nada escrito.
 --
@@ -7,9 +7,9 @@
 --
 -- Casos: admin y operaciones ven el historial; el analista de la cartera también; un analista
 -- ajeno, el propio cliente y anon reciben 42501; solo salen cuentas retiradas y del cliente
--- pedido; orden por fecha de retiro; nombre de quién retiró (o NULL si no hay). N°, CCI y DNI
--- del beneficiario llegan COMPLETOS solo al admin; a Operaciones y al analista, tapados.
--- Mutantes: sin permisos, sin el filtro de retiradas y sin el tapado → los tres cazados.
+-- pedido; orden por fecha de retiro; nombre de quién retiró (o NULL si no hay). N°, CCI y
+-- beneficiario llegan COMPLETOS a todo autorizado (decisión de Miguel 26/09, F2b).
+-- Mutantes: sin permisos, sin el filtro de retiradas y CON tapado → los tres cazados.
 \set ON_ERROR_STOP 1
 begin;
 set local lock_timeout = '5s';
@@ -157,24 +157,26 @@ begin
      is distinct from '89830000000012|00389800000000000012|40404040' then
     raise exception 'FALLO: el admin debía recibir N°, CCI y DNI completos';
   end if;
-  if pg_temp.datos_de('e7a10000-0000-4000-8000-000000000002') is distinct from '••••0012|••••0012|-'
-     or pg_temp.datos_de('e7a10000-0000-4000-8000-000000000003') is distinct from '••••0012|••••0012|-' then
-    raise exception 'FALLO: Operaciones y el analista debían recibir N° y CCI tapados y sin DNI del beneficiario';
+  if pg_temp.datos_de('e7a10000-0000-4000-8000-000000000002')
+       is distinct from '89830000000012|00389800000000000012|40404040'
+     or pg_temp.datos_de('e7a10000-0000-4000-8000-000000000003')
+       is distinct from '89830000000012|00389800000000000012|40404040' then
+    raise exception 'FALLO: Operaciones y el analista debían recibir N°, CCI y DNI completos';
   end if;
   perform set_config('request.jwt.claims',
     json_build_object('sub', 'e7a10000-0000-4000-8000-000000000002', 'role', 'authenticated')::text, true);
-  if exists (select 1 from crm.historial_cuentas_cliente_fn('e7a10000-0000-4000-8000-000000000005') h
-             where h.beneficiario_nombre is not null) then
-    raise exception 'FALLO: el nombre del beneficiario no debía llegar a quien no es admin';
+  if not exists (select 1 from crm.historial_cuentas_cliente_fn('e7a10000-0000-4000-8000-000000000005') h
+                 where h.beneficiario_nombre = 'ANA PRUEBA ROJAS') then
+    raise exception 'FALLO: el nombre del beneficiario debía llegar a Operaciones';
   end if;
-  -- Un N° corto (4 caracteres, cliente D) no sale entero: como mucho la mitad.
+  -- Un N° corto (4 caracteres, cliente D) también sale completo.
   perform set_config('request.jwt.claims',
     json_build_object('sub', 'e7a10000-0000-4000-8000-000000000002', 'role', 'authenticated')::text, true);
   if (select h.numero_cuenta from crm.historial_cuentas_cliente_fn('e7a10000-0000-4000-8000-000000000006') h)
-     is distinct from '••••34' then
-    raise exception 'FALLO: un N° corto debía salir como ••••34 para Operaciones';
+     is distinct from '1234' then
+    raise exception 'FALLO: un N° corto debía salir completo para Operaciones';
   end if;
-  raise notice 'OK tapado en servidor: admin completo · Operaciones y analista ••••+4 y sin beneficiario · N° corto ••••34';
+  raise notice 'OK sin tapado: admin, Operaciones y analista reciben N°, CCI y beneficiario completos';
 end;
 $casos$;
 
@@ -267,7 +269,7 @@ end;
 $m2$;
 rollback to savepoint mutante_filtro;
 
--- ── Mutante 3: sin el tapado → Operaciones recibiría el N° completo ──────────────────────────
+-- ── Mutante 3: CON tapado (versión 20260926193424) → Operaciones ya no vería completo ──────
 savepoint mutante_tapado;
 create or replace function private.historial_cuentas_cliente_autorizado(p_cliente_id uuid)
 returns table (
@@ -278,24 +280,29 @@ returns table (
 )
 language plpgsql stable security definer set search_path to ''
 as $m$
+declare v_completo boolean := coalesce((select public.es_admin()), false);
 begin
   if not coalesce(private.puede_gestionar_cuentas_cliente(p_cliente_id), false) then
-    raise exception using errcode = '42501', message = 'x';
+    raise exception using errcode = '42501', message = 'Cliente no encontrado o fuera de tu cartera';
   end if;
   return query
-  select cb.id, cb.moneda, cb.banco, cb.tipo_cuenta, cb.numero_cuenta, cb.cci, cb.titular_distinto,
-         cb.beneficiario_nombre, cb.beneficiario_dni, cb.origen, cb.creado_en, cb.desactivada_en,
-         pr.nombre_completo
+  select cb.id, cb.moneda, cb.banco, cb.tipo_cuenta,
+         case when v_completo then cb.numero_cuenta else '••••' || right(cb.numero_cuenta, 4) end,
+         case when v_completo then cb.cci else '••••' || right(cb.cci, 4) end,
+         cb.titular_distinto,
+         case when v_completo then cb.beneficiario_nombre end,
+         case when v_completo then cb.beneficiario_dni end,
+         cb.origen, cb.creado_en, cb.desactivada_en, pr.nombre_completo
   from crm.cuentas_bancarias cb left join public.perfiles pr on pr.id = cb.desactivada_por
   where cb.cliente_id = p_cliente_id and cb.activa is false;
 end;
 $m$;
 do $m3$
 begin
-  if pg_temp.datos_de('e7a10000-0000-4000-8000-000000000002') = '••••0012|••••0012|-' then
-    raise exception 'MUTANTE 3 NO CAZADO: la prueba no distingue el tapado en servidor';
+  if pg_temp.datos_de('e7a10000-0000-4000-8000-000000000002') = '89830000000012|00389800000000000012|40404040' then
+    raise exception 'MUTANTE 3 NO CAZADO: la prueba no distingue el tapado';
   end if;
-  raise notice 'OK mutante 3 cazado (sin tapado, Operaciones recibiría los números completos)';
+  raise notice 'OK mutante 3 cazado (con tapado, Operaciones dejaría de ver completo)';
 end;
 $m3$;
 rollback to savepoint mutante_tapado;

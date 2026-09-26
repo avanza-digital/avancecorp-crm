@@ -1,3 +1,19 @@
+## 20260926200757 — Cuentas de Gloria · F2b: el historial deja de tapar datos
+
+**PREPARADA Y ENSAYADA EN EL BANCO DOCKER; PENDIENTE DE APLICAR EN PRODUCCIÓN.** Recrea
+`private.historial_cuentas_cliente_autorizado` SIN tapado por rol (misma firma, autorización,
+filtro `activa = false` y join de personal). Decisión de Miguel (26/09): «todos los que ya ven la
+cuenta la ven completa» (admin, superadmin, Operaciones y analistas), como el CRM. Revierte a
+propósito el tapado añadido por Codex R1 en `20260926193424`; el público NO cambia. Precondición:
+FIRMA COMPLETA de la F2 (cuerpo, SECURITY, search_path y comentario de las dos funciones); huella
+nueva del núcleo `0806cc19…`. Codex R1 BLOCK (reversa sin precondición) → R2 BLOCK (firma parcial)
+→ ambas corregidas: las dos reversas y el registrador exigen la firma completa de su versión y se
+niegan ante cualquier deriva (ensayado: F2b sin F2, comentario ajeno, reversas fuera de orden).
+Banco: catálogo antes/después = solo cambia el núcleo; prueba con 3 mutantes (incluido «con
+tapado»); reversa `../scripts/cuentas-gloria/reversa-historial-sin-tapado.sql` repone la huella
+exacta. Registro: `../scripts/cuentas-gloria/registrar-historial-sin-tapado.sql` (exige la huella
+nueva). Portal: `cuentas-cliente-core.js?v=4` sin tapado; publicar DESPUÉS de aplicar esto.
+
 ## 20260926193424 — Cuentas de Gloria · F2: historial de cuentas retiradas del cliente
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** con `db query --linked --file` + registrador
