@@ -197,6 +197,11 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                   <dd className="mt-3 text-2xl font-bold leading-8 tabular-nums text-[var(--gi-blue)]">{porcentajeConversionCanonica(fila.avance)}</dd>
                 </div>
               </dl>
+              {!concilia && (fila.capitalAjustePen > 0 || fila.capitalAjusteUsd > 0 || fila.contratosAjuste > 0) && (
+                <p className="text-xs text-[var(--muted-foreground-strong)]">
+                    Ajustes de cierre descontados: {money(fila.capitalAjustePen, 'PEN')} · {money(fila.capitalAjusteUsd, 'USD')}.
+                </p>
+              )}
               <p className="text-xs text-[var(--muted-foreground-strong)]">
                 {tc != null ? `TC S/ ${numero(tc, 4)} · ${fuenteTc ?? 'BCRP'}` : 'TC no disponible · US$ separado'}
               </p>

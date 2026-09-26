@@ -7,6 +7,12 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
+// Matriz focalizada del nuevo RPC. No sustituye ni modifica el gate general.
+if (process.argv.length === 3 && process.argv[2] === '--ranking-origen') {
+  await import('./ranking-origen/test-rls.mjs');
+  process.exit(0);
+}
+
 // La URL del banco contiene una contraseña. Usar variables PG evita que una
 // excepción de execFileSync la incluya en la línea del comando o en sus args.
 function psqlBancoSinSecretos(args, opciones = {}) {

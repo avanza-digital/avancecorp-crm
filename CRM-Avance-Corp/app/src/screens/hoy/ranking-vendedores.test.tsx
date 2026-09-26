@@ -196,6 +196,17 @@ describe('ficha real de capital por origen', () => {
     expect(within(ficha).getByText('Desglose no disponible')).toBeInTheDocument()
     expect(within(ficha).queryByText('Landing')).not.toBeInTheDocument()
   })
+
+  it('conserva el ajuste del capital neto en meses sin desglose histórico', () => {
+    const { fila, tc } = datos()
+    fila.capitalAjustePen = 100
+    fila.capitalAjusteUsd = 20
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="agosto 2026" tc={tc}
+      cargando={false} error={null} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    expect(screen.getByText(/Ajustes de cierre descontados/)).toHaveTextContent('S/ 100')
+    expect(screen.getByText(/Ajustes de cierre descontados/)).toHaveTextContent('US$ 20')
+    expect(screen.getByText('Desglose no disponible')).toBeInTheDocument()
+  })
 })
 
 describe('ranking general de analistas', () => {

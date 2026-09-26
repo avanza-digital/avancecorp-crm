@@ -13451,7 +13451,10 @@ Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
 
 ## 20260925190000_crm_ranking_origen_vendedor.sql
 
-**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Añade desglose del capital
+**APLICADA MEDIANTE MERGE NATIVO EL 26/09/2026**, registro remoto
+`20260926211038`. SHA-256 del SQL aprobado, sin modificaciones:
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`.
+Añade desglose del capital
 confirmado por canal y conversión mensual por analista para la ficha de Ranking.
 Reutiliza las filas del núcleo de capital y la atribución del productor canónico,
 separa renovaciones/upgrades como Cartera, evita multiplicación por leads y
@@ -13492,3 +13495,34 @@ contra `cumplimiento_metas_fn` (usa `auth.uid()` y visibilidad explícita) y la
 clave `(periodo, vendedor_id)` de la foto es primaria. Queda por medir el tiempo
 de cierre con un mes productivo en un entorno autorizado; un descuadre conserva
 la foto como no disponible, sin reescribirla.
+
+### Cierre del ensayo y auditoría — 26/09/2026
+
+Las incidencias anteriores quedan resueltas. Se reconstruyó la rama exclusiva
+`ranking-esquema-20260926` (`pztwbtpxybfvqwmvmznf`) desde el esquema productivo
+sin datos personales: 368 registros de migración exactos y 792 funciones con
+igual cuerpo, comentario y ACL. Paridad de columnas, triggers, RLS, índices y
+vistas. Tres CHECKs presentan exclusivamente aplanado de AND al restaurar
+pg_dump; sus predicados son iguales. Se restauraron los comentarios internos
+que el CLI había retirado de dos funciones. No se modificó el SQL candidato.
+
+`scripts/test-rls.mjs --ranking-origen`: PASS con Auth/PostgREST real y SQL bajo
+authenticated. Incluye gerencia, supervisor propio/ajeno, usuario inactivo,
+fuera del equipo y anon; paridad monetaria de dos meses, ambigüedad, cooperativa,
+decimales, Referido ponderado/peso ausente, cierre real con deuda S/100, neto
+S/11900, conversión conservada al sellar, foto inmutable e histórico sin foto.
+La suite general de conversiones no se repitió; este es el gate focalizado.
+
+Carga sintética: 272 contratos del mes, 2048 leads, 34 vendedores, cierre en
+7,29 s, 34 fotos disponibles y cero degradadas. Supera los 155/119 contratos de
+agosto/septiembre productivos. Tipos regenerados desde la rama: RPC y columna
+coinciden con los tipos incluidos. Frontend: check PASS (4454 tests), Docker
+276 PASS/26 omitidos y smoke final Ranking 1 PASS. check:scripts y preflights
+offline PASS. Auditoría Claude: PASS tras corregir conexión de padres y aviso
+de ajustes; se añadieron sus casos de decimales y conversión sellada.
+
+Advisors: cero nuevos ERROR y cero nuevos avisos anon. Único aviso de seguridad
+nuevo: RPC SECURITY DEFINER accesible a authenticated, intencional y con ámbito
+verificado. Performance sin nuevos avisos estructurales; el banco presenta más
+índices unused por su historia sintética. Las 21 Edge conservan hashes y JWT.
+El delta de merge se verificó: exactamente una migración, ninguna ajena.

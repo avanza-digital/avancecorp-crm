@@ -1,7 +1,7 @@
 ---
 tags: [crm, ranking, origenes, capital]
 fecha: 2026-09-25
-estado: implementación local preparada; SQL aprobado; rama de Supabase bloqueada por replay histórico
+estado: SQL publicado por merge nativo; ensayo y auditoría PASS; frontend en publicación
 ---
 
 # Ranking — capital por canal de llegada
@@ -42,5 +42,35 @@ El ensayo remoto del 25/09 creó una rama exclusiva con costo autorizado. El rep
 Miguel eligió **esperar la reparación de ramas**. No hay autorización para aplicar directamente en producción. Se verificó que la RPC, la columna `origenes_ranking` y la migración siguen ausentes de producción, y que la rama de prueba ya no figura en Supabase.
 
 A pedido de Miguel se abrió una segunda rama exclusiva. El estado `FUNCTIONS_DEPLOYED` fue transitorio: volvió a terminar `MIGRATIONS_FAILED` con solo 86/358 migraciones y sin funciones canónicas. También se eliminó esta rama; la RPC y columna siguen ausentes de producción. No tiene sentido reintentar sin reparar el postflight histórico de `20260812000259` o el mecanismo de seed previo al replay.
+
+## Ensayo reparado y SQL publicado — 26/09/2026
+
+El bloqueo histórico quedó resuelto reconstruyendo el esquema en una rama
+exclusiva sin copiar datos personales. Se verificaron las 368 migraciones
+existentes, 792 funciones con sus ACL y la paridad estructural; solo tres CHECKs
+tienen paréntesis aplanados por pg_dump sin cambiar sus predicados. Se aplicó
+el SQL aprobado sin cambios y se publicó por **merge nativo**, registro remoto
+`20260926211038`. Las 21 Edge conservaron código y verify_jwt. Postflight:
+funciones idénticas a las ensayadas, RPC sin acceso anon, 17/17 analistas de
+agosto y 19/19 de septiembre conciliados por moneda.
+
+Auditoría Claude final: PASS. Se corrigió la propagación de mes y actor desde
+Gerencia/Equipo, que faltaba en el cambio aislado, y el aviso de ajustes cuando
+no hay desglose histórico. `npm run check`: 4454 tests PASS. Docker: 276 PASS,
+26 omitidos; smoke final de Ranking: 1 PASS. Matriz RLS focalizada con Auth y
+PostgREST reales PASS; no se volvió a ejecutar la suite general de conversiones.
+Ensayo con deuda real, cierre real, decimales, peso referido sellado, foto
+inmutable y foto antigua sin reconstruir PASS. Carga: 272 contratos mensuales,
+2048 leads, 34 vendedores, 7,29 s y ninguna foto degradada.
+
+La conversión por canal usa los leads **creados en ese mes** y su primer
+analista histórico; no cuenta de nuevo un lead por una reasignación posterior.
+El capital vivo conserva el tratamiento del payload canónico y el cierre
+descuenta la deuda al sellarse. No se cambió la fórmula ni se introdujo tolerancia
+monetaria: la prueba con céntimos concilia exactamente.
+
+Frontend pendiente únicamente de empaquetado, publicación y smoke HTTP.
+Los scripts reproducibles están en `supabase/scripts/ranking-origen/` y el
+detalle del ensayo en `supabase/migrations/MIGRACIONES.md`.
 
 Relacionado con [[Ranking de capital total unificado (TC BCRP)]], [[Rankings por mes calendario (decision 2026-09-02)]], [[Canales de origen de leads CRM]] y [[Produccion fuera del ranking (decision 2026-09-02)]].
