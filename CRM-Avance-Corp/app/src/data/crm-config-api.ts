@@ -33,6 +33,8 @@ import {
 } from '@/lib/sla-versionado'
 import {
   ImpactoDesactivacionUsuarioSchema,
+  ImpactoEliminacionUsuarioSchema,
+  ResultadoEliminacionUsuarioSchema,
   ResultadoEdgeUsuariosSchema,
   ResultadoJerarquiaSchema,
   ResultadoMembresiaSchema,
@@ -270,6 +272,30 @@ export async function fijarMembresiaUsuario(input: {
   })
   if (error) throw errorConfiguracion(error, 'crm.config.usuarios.membresia_fallida')
   return parsear(ResultadoMembresiaSchema, data, 'crm.config.usuarios.membresia_contrato_invalido')
+}
+
+export async function obtenerImpactoEliminacion(perfilId: string) {
+  const { data, error } = await cliente().schema('crm').rpc('impacto_eliminacion_usuario_fn', {
+    p_perfil_id: perfilId,
+  })
+  if (error) throw errorConfiguracion(error, 'crm.config.usuarios.impacto_eliminacion_fallido')
+  return parsear(ImpactoEliminacionUsuarioSchema, data, 'crm.config.usuarios.impacto_eliminacion_invalido')
+}
+
+export async function eliminarUsuario(input: {
+  perfilId: string
+  nombreConfirmacion: string
+  versionPerfil: string
+  versionEquipo: string | null
+}) {
+  const { data, error } = await cliente().schema('crm').rpc('eliminar_usuario_fn', {
+    p_perfil_id: input.perfilId,
+    p_nombre_confirmacion: input.nombreConfirmacion,
+    p_version_perfil: input.versionPerfil,
+    p_version_equipo: nuloExplicito(input.versionEquipo),
+  })
+  if (error) throw errorConfiguracion(error, 'crm.config.usuarios.eliminacion_fallida')
+  return parsear(ResultadoEliminacionUsuarioSchema, data, 'crm.config.usuarios.eliminacion_invalida')
 }
 
 // ── Productos ────────────────────────────────────────────────────────────────
