@@ -2,10 +2,10 @@
 
 ## Estado
 
-El CRM y el portal ya estan publicados. Este ajuste posterior permanece
-**solo en la rama** `p0xx-cuentas-unificadas-20260925`, proyecto
-`hhpjiygytwoayxymziqo`. La autorizacion productiva anterior cubria cuatro
-migraciones concretas; no cubre este nuevo ajuste.
+**Aplicado y verificado en produccion el 26/09/2026**, tras la autorizacion
+expresa de Miguel para los dos SQL finales y la reparacion puntual del legado.
+Estado y resultados definitivos: [CIERRE-PRODUCCION.md](CIERRE-PRODUCCION.md).
+Esta nota conserva el detalle del ensayo previo con datos ficticios.
 
 Miguel autorizo probar SECURITY INVOKER exclusivamente en las dos entradas de
 pantalla. Tambien confirmo conservar el beneficiario corregido en la ficha del
@@ -100,6 +100,7 @@ No hay cambios de frontend en esta correccion. Se conserva la evidencia de
 la publicacion anterior: 4.440 tests, 274 E2E aprobados y 26 omisiones previstas.
 No se atribuyen esos resultados a una nueva ejecucion.
 
-Pendientes: autorizacion productiva para el ajuste y la reparacion excepcional,
-verificacion productiva final y actualizacion de los reportes de conciliacion.
-El retiro de columnas/trigger legados y del modo perfil sigue fuera de alcance.
+La autorizacion, aplicacion, verificacion productiva y actualizacion del reporte
+se completaron el 26/09. La rama propia fue eliminada al finalizar. Operaciones
+conserva 21 contratos operativos; el reporte identifica ademas 2 demo. El retiro de columnas/trigger legados
+y del modo perfil sigue fuera de alcance.
