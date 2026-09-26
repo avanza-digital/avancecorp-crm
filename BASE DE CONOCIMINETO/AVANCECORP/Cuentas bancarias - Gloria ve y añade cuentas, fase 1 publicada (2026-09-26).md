@@ -44,6 +44,22 @@ contrato entero) · ¿Gerencia del CRM también ve números completos? (recomend
   12/12 lecturas idénticas; el HTML vivo pide `clientes.js?v=51` → `cuentas-cliente-core.js?v=2`.
   Preflight del portal OK (0 archivos vivos perdidos, solo esos 4 cambian).
 
+## Fase 2 — historial de cuentas (PUBLICADA 26/09)
+
+- Base: migración `20260926193424_crm_historial_cuentas_cliente` (lectura nueva
+  `crm.historial_cuentas_cliente_fn`, puerta INVOKER + núcleo `private` DEFINER). **El servidor tapa
+  N°, CCI y beneficiario para quien no es admin/superadmin** (Codex R1 BLOCK por fuga de números
+  retirados → corregido → R2 PASS; auditor-rls PASS con P3 aplicados). Aplicada y registrada en prod con
+  huella; advisors limpios; sonda sin datos OK.
+- Portal `a233bec`: sección «Cuentas anteriores» («Retirada el [fecha] por [persona]»). 146/146 pruebas;
+  4 archivos idénticos en prod (3 lecturas), `clientes.js?v=52`, `cuentas-cliente-core.js?v=3`, SW v131.
+- Banco Docker: foto del catálogo antes/después (solo 2 funciones nuevas), prueba de permisos con 3
+  mutantes, reversa idéntica. **Gate `test-rls.mjs` NOT RUN**: la semilla choca con un fixture de P-0XX
+  (DNI 90000001) que no se tocó; su limpieza estándar sí vació las tablas `crm` del banco local 55322.
+- La F2 se separó en **F2b** («números protegidos en el servidor»): hoy los números completos salen por 4
+  vías (lista de cuentas, ficha CRM, Excel de Pagos —Operaciones lo usa para pagar— y columnas legado de
+  perfiles). Decisión pendiente de Miguel.
+
 ## Pendiente
 
 - 🔴 **Verificación visual de Miguel/Gloria:** entrar como admin → Clientes → «Cuentas» (números completos) y
@@ -63,7 +79,7 @@ https://www.figma.com/board/kZ8XNjC5fEsbogzzZMNCK7?node-id=18-2 — **al cerrar 
 - Raíz `18:2` · título `18:3` · subtítulo `18:4` · **actualizado `18:5`** · leyenda `18:6`
 - Columnas: pedido `18:7` · fases `18:8` · reglas `18:9`
 - Pedido: P1 `18:13` · P2 «problemas encontrados» `18:18` (status `18:20`) · P3 «dónde vamos» `18:27` (status `18:29`, línea F1–F4 `18:30`)
-- F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`)
+- F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F2b `21:2` · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`)
 - Reglas: no cambia `18:68` · decisiones `18:74` · **te toca decidir `18:80`** (ítems `18:83`–`18:85`) · riesgos `18:86`
 
 Relacionado: [[P-0XX - publicación y conciliación pendiente (2026-09-25)]],

@@ -1,7 +1,10 @@
 ## 20260926193424 — Cuentas de Gloria · F2: historial de cuentas retiradas del cliente
 
-**PREPARADA, ENSAYADA EN EL BANCO DOCKER; PENDIENTE DE APLICAR EN PRODUCCIÓN** (la aplica Miguel
-con `db query --linked --file` + registrador). Solo lectura y ADITIVA: crea
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** con `db query --linked --file` + registrador
+(Miguel lo lanzó con `!`, se cortó sin aplicar nada; comprobado vacío, se relanzó con su «sigue»). El
+registrador acreditó la huella `md5(prosrc)` ensayada; advisors de seguridad sin avisos sobre las 2
+funciones; sonda sin datos: usuario inventado → 42501 del gate, ACL = {postgres, authenticated}.
+Portal publicado después (a233bec). Solo lectura y ADITIVA: crea
 `private.historial_cuentas_cliente_autorizado(uuid)` (SECURITY DEFINER, autoriza con
 `private.puede_gestionar_cuentas_cliente` y lee las versiones `activa = false` de
 `crm.cuentas_bancarias` + nombre de quien las retiró) y la puerta
