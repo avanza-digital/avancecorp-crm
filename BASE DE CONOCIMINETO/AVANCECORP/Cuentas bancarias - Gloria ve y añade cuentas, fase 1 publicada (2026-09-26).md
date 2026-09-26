@@ -16,6 +16,7 @@ vea todo el detalle bancario del cliente sin nada oculto, pueda añadir cuentas 
 3. **Cambiar la cuenta de pago por pedido del cliente** (servidor, delicada): hoy el enlace contrato→cuenta es
    inmutable por diseño (`crm.contrato_cuentas_pago`, trigger «La cuenta de pago del contrato es histórica y no se
    reemplaza»). Hay que versionarlo por fechas y guardar en cada cuota pagada la cuenta usada.
+   → ⏸️ **Hecha y ensayada, EN PAUSA sin aplicar (26/09):** [[Cuentas de Gloria - F3 cambiar la cuenta de pago, en pausa (2026-09-26)]].
 4. **Retirar una cuenta**: nunca se borra; si tiene cuotas pendientes, primero se cambia (fase 3).
 
 Decisiones que Miguel aún debe tomar para la fase 3: ¿cambio por contrato entero o cuota por cuota? (recomendado:

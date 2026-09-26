@@ -1,3 +1,70 @@
+## 20260926204051 — Cuentas de Gloria · F3: cambiar la cuenta de pago por pedido del cliente
+
+**⏸️ EN PAUSA (26/09, a pedido de Miguel). PREPARADA Y ENSAYADA EN EL BANCO DOCKER; NO APLICADA EN
+PRODUCCIÓN.** Para retomar: mostrar el SQL a Miguel y obtener su OK explícito. Toca objetos de
+`public` (dos triggers AFTER en `public.cronograma_pagos` y bloqueos FOR SHARE de `public.contratos`)
+y de `storage` (bucket y 7 políticas); el OK se anotará aquí. Después se aplica y se registra con
+`../scripts/cuentas-gloria/registrar-cambio-cuenta-pago.sql`, se corren los advisors y se sigue el
+orden base → Edge → portal. Decisiones de Miguel (26/09): por contrato entero; solo admin/superadmin;
+aviso al cliente por portal y correo; respaldo obligatorio = el correo del cliente donde pide el cambio.
+
+Piezas:
+- Registros **sin claves foráneas**: son constancias que sobreviven a contratos, cuotas, clientes,
+  cuentas y personas, y las guardas de eliminación auditada de contratos y usuarios no ven
+  dependencias nuevas. Nada se borra (BEFORE DELETE).
+  - `crm.cuotas_cuenta_pagada`, el sello por cuota: `registro` = la cuenta vigente en la FECHA del pago
+    (corregir la fecha re-sella); `inferido` = el backfill de las pagadas con enlace (en prod, 877 de
+    915). **El registro de pagos no cambia.**
+  - `crm.contrato_cuenta_pago_cambios`: historial inmutable; solo `notificado_en` NULL→fecha.
+  - `crm.cambio_cuenta_avisos`.
+- El candado del enlace admite SOLO el cambio registrado en el historial en la misma transacción.
+- `crm.cambiar_cuenta_pago_contratos` (INVOKER→DEFINER):
+  - solo admin/superadmin activo con la membresía CRM NO revocada (P04, `private.admin_banca_vigente`);
+  - todo o nada; idempotente comparando todos los datos;
+  - el respaldo debe subirlo el mismo admin y no respaldar otra solicitud, ni por ruta ni por
+    contenido (eTag);
+  - no cambia un contrato con un aviso al cliente en curso;
+  - bloquea contratos y después enlaces, el mismo orden que el registro de un pago.
+- Lecturas solo para admin vigente; bucket privado `respaldos-cambio-cuenta` con fronteras RESTRICTIVE
+  (anon incluido).
+- Aviso en dos pasos (`reclamar`/`confirmar`, solo service_role y para un actor admin vigente):
+  - reserva de 10 min con token; `reclamar` bloquea los enlaces;
+  - se sellan solo los contratos anunciados; los superados salen como tales.
+
+Banco (26/09, esquema de prod, PG 17.6): ciclo completo en verde.
+- Aplicar.
+- Test `../scripts/cuentas-gloria/test-cambio-cuenta-pago.sql`: 34 comprobaciones, 17 mutantes cazados.
+- Ensayo del registro, con huella de las 16 funciones `21bb1838606355e1161a44fb0b66e809`.
+- Reversa `../scripts/cuentas-gloria/reversa-cambio-cuenta-pago.sql`: catálogo idéntico (2052 líneas).
+  Se niega si hay cambios registrados, pagos sellados al registrarse (ensayado) o piezas distintas.
+- Ensayo del backfill.
+- NOT RUN:
+  - gate `test-rls` (su siembra choca con el fixture P-0XX del banco);
+  - prueba del orden de bloqueos con dos sesiones (auditor-rls lo razonó correcto, P3).
+
+Revisiones:
+- **Codex R1 BLOCK:** 7 hallazgos, resueltos.
+- **auditor-rls R1 CHANGES_REQUESTED:** todo aceptado salvo el orden de bloqueos, rechazado con
+  evidencia (el pago bloquea contrato → enlace).
+- **Codex R2 BLOCK (última ronda), sin P0.** Aceptados con arreglo:
+  - aviso de una cuenta superada;
+  - reversa que borraba constancias;
+  - envío duplicado (Idempotency-Key en Resend y novedad sin duplicar);
+  - sello parcial;
+  - mismo correo con otra ruta (eTag);
+  - corrección de fecha.
+
+  **Riesgo aceptado por alcance:** «la carrera en la importación del Excel». Arreglarlo exige cambiar
+  cómo se registra un pago, que el objetivo de F3 excluye. El sello deduce la cuenta por la fecha, así
+  que un depósito a la cuenta anterior del MISMO día del cambio (o posterior, con un Excel viejo) puede
+  quedar anotado en la nueva. La importación avisa esas filas y nunca pide volver a depositar.
+  Propuesta aparte para Miguel: que el registro declare a qué cuenta se depositó. Se preparó y probó
+  (RPC con el CCI del Excel) y se retiró para respetar el alcance.
+- **auditor-rls R2: APPROVED** (sin cambios obligatorios).
+
+Consumidores: Edge `notificar-cambio-cuenta` (nueva, verify_jwt), la ventana «Cuentas» y la vista
+previa de la importación de Pagos del portal.
+
 ## 20260926200757 — Cuentas de Gloria · F2b: el historial deja de tapar datos
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** (con OK explícito de Miguel: «Sí, aplícala
