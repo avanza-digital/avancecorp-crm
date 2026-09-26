@@ -13448,3 +13448,81 @@ Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
 `docs/gestion-diaria/f5-publicacion-2026-09-24/ACTA.md`. Contrato:
 `docs/gestion-diaria/CONTRATO-F5-2026-09-24.md`; ensayo y límites:
 `docs/gestion-diaria/f5-2026-09-24/CIERRE-ENSAYO-REMOTO.md`.
+
+## 20260925190000_crm_ranking_origen_vendedor.sql
+
+**APLICADA MEDIANTE MERGE NATIVO EL 26/09/2026**, registro remoto
+`20260926211038`. SHA-256 del SQL aprobado, sin modificaciones:
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`.
+Añade desglose del capital
+confirmado por canal y conversión mensual por analista para la ficha de Ranking.
+Reutiliza las filas del núcleo de capital y la atribución del productor canónico,
+separa renovaciones/upgrades como Cartera, evita multiplicación por leads y
+concilia PEN/USD con `cumplimiento_metas_fn`. Congela fotos nuevas dentro del
+INSERT de `cierre_mes_vendedor`; las fotos anteriores permanecen indisponibles.
+La RPC exige que el analista figure en el payload visible del actor.
+
+Ensayo en Docker local dentro de `BEGIN`/`ROLLBACK`: migración, paridad por
+vendedor/categoría/moneda, contrato con dos leads de distinto origen sin
+duplicar capital, cierre cooperativo, ajustes netos, rechazo de desajustes,
+conversión Referido, peso ausente, ACL, ámbito Gerencia/Supervisión y denegación
+de una identidad ajena, trigger de foto y su aislamiento ante fallo PASS
+(`supabase/scripts/ranking-origen/prueba-local.sql`). La foto nueva sigue
+append-only; un UPDATE del desglose fue rechazado con P0409. Los casos
+especiales son fixtures transaccionales sobre el banco local.
+
+Miguel aprobó el SQL exacto (SHA-256
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`).
+Preflight productivo de solo lectura el 25/09: los cuatro MD5 canónicos siguen
+iguales; el desglose calculado desde las mismas filas cuadra en 32 grupos de
+analista/moneda de septiembre y 29 de agosto, sin diferencias de capital.
+Los cuatro canales tienen leads y cierres en septiembre; no hay ajustes de mes
+cerrado. Falta ensayar la migración en una rama propia antes del merge.
+
+Dos ramas exclusivas con costo autorizado fallaron antes de este SQL, tras
+86/358 migraciones, en `20260812000259_crm_cierres_externos`: su postflight
+exige una fila activa en `crm.equipo` y una rama nueva no copia los datos de
+producción. Ambas ramas fueron eliminadas; producción no se modificó. El gate
+remoto queda FAIL: se requiere reparar ese replay histórico o una excepción
+expresa al ciclo «rama → merge» antes de instalar esta migración. La RPC y la
+columna siguen ausentes de producción.
+
+Revisión independiente de la implementación: `CHANGES_REQUESTED`; se atendió
+el riesgo de bloquear el sello ante una excepción del detalle, se alinearon
+conteo de cierres y numerador, se evitó afirmar 0 % si falta el peso de Referido
+y se materializan las filas de capital una vez por ficha. El ámbito se comprobó
+contra `cumplimiento_metas_fn` (usa `auth.uid()` y visibilidad explícita) y la
+clave `(periodo, vendedor_id)` de la foto es primaria. Queda por medir el tiempo
+de cierre con un mes productivo en un entorno autorizado; un descuadre conserva
+la foto como no disponible, sin reescribirla.
+
+### Cierre del ensayo y auditoría — 26/09/2026
+
+Las incidencias anteriores quedan resueltas. Se reconstruyó la rama exclusiva
+`ranking-esquema-20260926` (`pztwbtpxybfvqwmvmznf`) desde el esquema productivo
+sin datos personales: 368 registros de migración exactos y 792 funciones con
+igual cuerpo, comentario y ACL. Paridad de columnas, triggers, RLS, índices y
+vistas. Tres CHECKs presentan exclusivamente aplanado de AND al restaurar
+pg_dump; sus predicados son iguales. Se restauraron los comentarios internos
+que el CLI había retirado de dos funciones. No se modificó el SQL candidato.
+
+`scripts/test-rls.mjs --ranking-origen`: PASS con Auth/PostgREST real y SQL bajo
+authenticated. Incluye gerencia, supervisor propio/ajeno, usuario inactivo,
+fuera del equipo y anon; paridad monetaria de dos meses, ambigüedad, cooperativa,
+decimales, Referido ponderado/peso ausente, cierre real con deuda S/100, neto
+S/11900, conversión conservada al sellar, foto inmutable e histórico sin foto.
+La suite general de conversiones no se repitió; este es el gate focalizado.
+
+Carga sintética: 272 contratos del mes, 2048 leads, 34 vendedores, cierre en
+7,29 s, 34 fotos disponibles y cero degradadas. Supera los 155/119 contratos de
+agosto/septiembre productivos. Tipos regenerados desde la rama: RPC y columna
+coinciden con los tipos incluidos. Frontend: check PASS (4454 tests), Docker
+276 PASS/26 omitidos y smoke final Ranking 1 PASS. check:scripts y preflights
+offline PASS. Auditoría Claude: PASS tras corregir conexión de padres y aviso
+de ajustes; se añadieron sus casos de decimales y conversión sellada.
+
+Advisors: cero nuevos ERROR y cero nuevos avisos anon. Único aviso de seguridad
+nuevo: RPC SECURITY DEFINER accesible a authenticated, intencional y con ámbito
+verificado. Performance sin nuevos avisos estructurales; el banco presenta más
+índices unused por su historia sintética. Las 21 Edge conservan hashes y JWT.
+El delta de merge se verificó: exactamente una migración, ninguna ajena.

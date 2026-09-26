@@ -381,6 +381,7 @@ export type Database = {
           estado: string
           nombre_completo: string
           numerador: number
+          origenes_ranking: Json | null
           periodo: string
           procedencia: Json
           referidos_aporta_pct: number | null
@@ -407,6 +408,7 @@ export type Database = {
           estado: string
           nombre_completo: string
           numerador: number
+          origenes_ranking?: Json | null
           periodo: string
           procedencia?: Json
           referidos_aporta_pct?: number | null
@@ -433,6 +435,7 @@ export type Database = {
           estado?: string
           nombre_completo?: string
           numerador?: number
+          origenes_ranking?: Json | null
           periodo?: string
           procedencia?: Json
           referidos_aporta_pct?: number | null
@@ -5725,6 +5728,10 @@ export type Database = {
       purgar_membresia_crm: {
         Args: { p_motivo: string; p_perfil_id: string }
         Returns: undefined
+      }
+      ranking_origen_vendedor_fn: {
+        Args: { p_periodo: string; p_vendedor_id: string }
+        Returns: Json
       }
       reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
       reasignar_responsable_relacion_fn: {

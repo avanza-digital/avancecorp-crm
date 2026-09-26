@@ -41,6 +41,7 @@ import {
   listarMetricasConversionesEquipo,
   obtenerConversionMensual,
   obtenerCumplimientoMetas,
+  obtenerRankingOrigenVendedor,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
   listarFacturacionDiaria,
@@ -191,6 +192,9 @@ export const crmQueryKeys = {
     [...crmQueryKeys.cumplimientoMetasPrefijo(), periodo] as const,
   cumplimientoMetas: (periodo: string, actorId?: string | null) =>
     [...crmQueryKeys.cumplimientoMetasPeriodo(periodo), actorId ?? null] as const,
+  rankingOrigenesPrefijo: () => [...crmQueryKeys.metricas(), 'ranking-origenes'] as const,
+  rankingOrigenes: (periodo: string, vendedorId: string, actorId?: string | null) =>
+    [...crmQueryKeys.rankingOrigenesPrefijo(), periodo, vendedorId, actorId ?? null] as const,
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
@@ -956,6 +960,20 @@ export function useCumplimientoMetas(
   })
 }
 
+/** Se consulta solo al abrir la ficha de un analista real del mes seleccionado. */
+export function useRankingOrigenVendedor(
+  habilitada: boolean,
+  periodo: string,
+  vendedorId: string | null,
+  actorId?: string | null,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId),
+    queryFn: ({ signal }) => obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
+    enabled: habilitada && Boolean(periodo) && Boolean(vendedorId) && Boolean(actorId),
+  })
+}
+
 /**
  * Cada cuánto se re-pregunta el estado del ciclo con la pestaña abierta. El
  * estado cambia por CALENDARIO (medianoche de Lima) y por el cron (09:20):
@@ -1002,6 +1020,7 @@ export function useCierreMesEstado(habilitada: boolean) {
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.cumplimientoMetasPrefijo() }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.conversionMensualPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.rankingOrigenesPrefijo() }),
     ]).then(() => queryClient.invalidateQueries({
       queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
     }))

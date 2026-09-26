@@ -147,6 +147,8 @@ vi.mock('./inteligencia-comercial', () => ({
 }))
 vi.mock('./ranking-vendedores', () => ({
   RankingVendedoresPanel: ({
+    periodoMes,
+    actorId,
     conversionError,
     onReintentarConversion,
     capitalError,
@@ -162,6 +164,8 @@ vi.mock('./ranking-vendedores', () => ({
     etiquetaAlcance,
   }: {
     conversionError: string | null
+    periodoMes: string
+    actorId: string | null
     onReintentarConversion: () => void
     capitalError: string | null
     cosechaError: string | null
@@ -178,6 +182,7 @@ vi.mock('./ranking-vendedores', () => ({
     <div>
       <h1>Ranking de analistas{fotoMensualError || conversionError || capitalError || cosechaError ? ` · ERROR: ${fotoMensualError ?? conversionError ?? capitalError ?? cosechaError}` : ''}</h1>
       <output aria-label="Meta del ranking">{metaMensual.etiqueta}|{String(metaMensual.comparable)}</output>
+      <output aria-label="Consulta de orígenes">{periodoMes}|{actorId}</output>
       <output aria-label="Metas del ranking">{Object.keys(metasVendedores).sort().join(',')}</output>
       <output aria-label="Cumplimiento del ranking">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
       <output aria-label="Carga de foto mensual">{String(fotoMensualCargando ?? false)}</output>
@@ -505,6 +510,7 @@ describe('Hoy · gerencia — ranking por mes calendario', () => {
     expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 'g-1')
     expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
     expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('agosto 2026|true')
+    expect(screen.getByLabelText('Consulta de orígenes')).toHaveTextContent('2026-08-01|g-1')
     expect(screen.getByLabelText('Metas del ranking')).toHaveTextContent('d-v1,d-v2,d-v3')
     expect(screen.getByLabelText('Cumplimiento del ranking')).toHaveTextContent('d-v1,d-v2,d-v3')
     expect(screen.getByLabelText('Carga de foto mensual')).toHaveTextContent('false')

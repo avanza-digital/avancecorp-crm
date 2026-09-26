@@ -79,6 +79,7 @@ import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda
 import { MetricasConversionesSchema, type MetricasConversiones } from '@/lib/metricas-conversiones'
 import { MetricasConversionesEquipoSchema, type MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { ConversionMensualSchema, type ConversionMensual } from '@/lib/conversion-mensual'
+import { RankingOrigenVendedorSchema, type RankingOrigenVendedor } from '@/lib/ranking-origen'
 import { MetricasReunionesSchema, type MetricasReuniones } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
@@ -1005,6 +1006,32 @@ export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSi
   }
   const resultado = v.safeParse(CumplimientoMetasSchema, data)
   if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
+}
+
+/** Desglose conciliado de capital y tasa mensual por canal de un analista visible. */
+export async function obtenerRankingOrigenVendedor(
+  periodo: string,
+  vendedorId: string,
+  signal?: AbortSignal,
+): Promise<RankingOrigenVendedor> {
+  let consulta = cliente().schema('crm').rpc('ranking_origen_vendedor_fn', {
+    p_periodo: periodo,
+    p_vendedor_id: vendedorId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el desglose por origen.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.ranking.origen_fallido', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(RankingOrigenVendedorSchema, data)
+  if (!resultado.success || resultado.output.periodo !== periodo
+    || resultado.output.vendedor_id !== vendedorId) {
+    throw new CrmApiError('El desglose por origen no corresponde al analista y mes consultados.', 'RANKING_ORIGEN_CONTRACT')
+  }
   return resultado.output
 }
 

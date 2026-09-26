@@ -247,6 +247,8 @@ vi.mock('@/components/common/animated-value', () => ({
 // arnés afirma, sin mezclarlo con capital o cosecha.
 vi.mock('./hoy/ranking-vendedores', () => ({
   RankingVendedoresPanel: ({
+    periodoMes,
+    actorId,
     conversionError,
     capitalError,
     metaMensual,
@@ -260,6 +262,8 @@ vi.mock('./hoy/ranking-vendedores', () => ({
     estadoFotoMensual,
   }: {
     conversionError: string | null
+    periodoMes: string
+    actorId: string | null
     capitalError: string | null
     metaMensual: { etiqueta: string, comparable: boolean }
     metasVendedores: Record<string, unknown>
@@ -274,6 +278,7 @@ vi.mock('./hoy/ranking-vendedores', () => ({
     <div>
       <h1>Ranking de mi equipo{fotoMensualError || conversionError || capitalError ? ` · ERROR: ${fotoMensualError ?? conversionError ?? capitalError}` : ''}</h1>
       <output aria-label="Meta del ranking de equipo">{metaMensual.etiqueta}|{String(metaMensual.comparable)}</output>
+      <output aria-label="Consulta de orígenes de equipo">{periodoMes}|{actorId}</output>
       <output aria-label="Metas históricas de equipo">{Object.keys(metasVendedores).sort().join(',')}</output>
       <output aria-label="Cumplimiento histórico de equipo">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
       <output aria-label="Carga mensual de equipo">{String(fotoMensualCargando ?? false)}</output>
@@ -362,6 +367,12 @@ afterEach(() => {
 })
 
 describe('Equipo — el ranking y la conversión mensual', () => {
+  it('conecta el detalle por origen con el mes seleccionado y la sesión del supervisor', () => {
+    montar()
+    expect(screen.getByLabelText('Consulta de orígenes de equipo')).toHaveTextContent('2026-09-01|s-1')
+    fireEvent.change(screen.getByLabelText('Mes del ranking'), { target: { value: '2026-08' } })
+    expect(screen.getByLabelText('Consulta de orígenes de equipo')).toHaveTextContent('2026-08-01|s-1')
+  })
   it('mantiene activo el observador de cierre sin mostrar el banner de Gerencia', () => {
     CONVERSION_EQUIPO_OPERATIVA = 12
     montar()

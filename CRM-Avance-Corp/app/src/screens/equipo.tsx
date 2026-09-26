@@ -818,6 +818,8 @@ function EquipoSupervisor(): JSX.Element {
           )}
         </div>
         <RankingVendedoresPanel
+          periodoMes={periodoRanking.desde}
+          actorId={yo?.id ?? null}
           conversionMensual={conversionMensualEquipo}
           conversionError={errorConversionRanking}
           onReintentarConversion={() => {
