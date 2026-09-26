@@ -17,6 +17,8 @@ const dobles = vi.hoisted(() => ({
   jerarquia: vi.fn(),
   impacto: vi.fn(),
   membresia: vi.fn(),
+  impactoEliminacion: vi.fn(),
+  eliminar: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
   toastError: vi.fn(),
@@ -46,6 +48,8 @@ vi.mock('@/data/crm-config-queries', () => ({
   useActualizarJerarquiaUsuario: () => ({ mutateAsync: dobles.jerarquia, isPending: false }),
   useImpactoDesactivacionUsuario: () => ({ mutateAsync: dobles.impacto, isPending: false }),
   useFijarMembresiaUsuario: () => ({ mutateAsync: dobles.membresia, isPending: false }),
+  useImpactoEliminacionUsuario: () => ({ mutateAsync: dobles.impactoEliminacion, isPending: false }),
+  useEliminarUsuario: () => ({ mutateAsync: dobles.eliminar, isPending: false }),
 }))
 
 const { ConfigUsuarios } = await import('./config-usuarios')
@@ -153,6 +157,12 @@ beforeEach(() => {
     requiere_reemplazo: true,
   } satisfies ImpactoDesactivacionUsuario)
   dobles.membresia.mockReset().mockResolvedValue({})
+  dobles.impactoEliminacion.mockReset().mockResolvedValue({
+    pendientes: { perfil_id: ID_VENDEDOR, subordinados_activos: 0, leads_abiertos: 0,
+      leads_en_bandeja: 0, tareas_pendientes: 0, clientes_activos: 0, requiere_reemplazo: false },
+    conserva_historial: false,
+  })
+  dobles.eliminar.mockReset().mockResolvedValue({ perfil_id: ID_VENDEDOR, resultado: 'eliminado' })
   dobles.toastSuccess.mockReset()
   dobles.toastWarning.mockReset()
   dobles.toastError.mockReset()
@@ -160,6 +170,56 @@ beforeEach(() => {
 })
 
 describe('ConfigUsuarios', () => {
+  it('exige nombre exacto y envía versiones al eliminar una cuenta vacía', async () => {
+    const user = userEvent.setup()
+    render(<ConfigUsuarios />)
+    await user.click(screen.getByRole('button', { name: 'Eliminar a ANA ANALISTA' }))
+    const confirmar = await screen.findByRole('button', { name: 'Confirmar eliminación' })
+    expect(confirmar).toBeDisabled()
+    await user.type(screen.getByLabelText('Escribe su nombre completo para confirmar'), 'ANA ANALISTA')
+    await user.click(confirmar)
+    await waitFor(() => expect(dobles.eliminar).toHaveBeenCalledWith({
+      perfilId: ID_VENDEDOR, nombreConfirmacion: 'ANA ANALISTA',
+      versionPerfil: usuario().version_perfil, versionEquipo: usuario().version_equipo,
+    }))
+    expect(dobles.toastSuccess).toHaveBeenCalledWith('Usuario eliminado.')
+  })
+
+  it('bloquea eliminación con pendientes y abre la transferencia existente', async () => {
+    dobles.impactoEliminacion.mockResolvedValue({ pendientes: await dobles.impacto(), conserva_historial: true })
+    const user = userEvent.setup()
+    render(<ConfigUsuarios />)
+    await user.click(screen.getByRole('button', { name: 'Eliminar a ANA ANALISTA' }))
+    await user.click(await screen.findByRole('button', { name: 'Transferir pendientes' }))
+    expect(screen.getByRole('dialog', { name: 'Desactivar membresía CRM' })).toBeVisible()
+    expect(screen.getByLabelText('Reemplazo activo del mismo rol')).toBeVisible()
+    expect(dobles.eliminar).not.toHaveBeenCalled()
+  })
+
+  it('explica y confirma la conservación de la autoría histórica', async () => {
+    dobles.impactoEliminacion.mockResolvedValue({ ...(await dobles.impactoEliminacion()), conserva_historial: true })
+    dobles.eliminar.mockResolvedValue({ perfil_id: ID_VENDEDOR, resultado: 'historial_conservado' })
+    const user = userEvent.setup()
+    render(<ConfigUsuarios />)
+    await user.click(screen.getByRole('button', { name: 'Eliminar a ANA ANALISTA' }))
+    expect(await screen.findByText(/Su nombre y las actividades realizadas se conservarán/)).toBeVisible()
+    await user.type(screen.getByLabelText('Escribe su nombre completo para confirmar'), 'ANA ANALISTA')
+    await user.click(screen.getByRole('button', { name: 'Confirmar eliminación' }))
+    await waitFor(() => expect(dobles.toastSuccess).toHaveBeenCalledWith('Acceso retirado. Se conserva su nombre como autor del historial.'))
+  })
+
+  it('mantiene el diálogo y muestra el rechazo actual del servidor', async () => {
+    dobles.eliminar.mockRejectedValue(new Error('Transfiere primero los seguimientos'))
+    const user = userEvent.setup()
+    render(<ConfigUsuarios />)
+    await user.click(screen.getByRole('button', { name: 'Eliminar a ANA ANALISTA' }))
+    await user.type(await screen.findByLabelText('Escribe su nombre completo para confirmar'), 'ANA ANALISTA')
+    await user.click(screen.getByRole('button', { name: 'Confirmar eliminación' }))
+    await waitFor(() => expect(dobles.toastError).toHaveBeenCalled())
+    expect(screen.getByRole('dialog', { name: 'Eliminar usuario del CRM' })).toBeVisible()
+    expect(dobles.toastSuccess).not.toHaveBeenCalled()
+  })
+
   it('representa carga, error seguro con reintento y búsqueda vacía', async () => {
     dobles.consulta = consultaCon(undefined, { isPending: true })
     const carga = render(<ConfigUsuarios />)

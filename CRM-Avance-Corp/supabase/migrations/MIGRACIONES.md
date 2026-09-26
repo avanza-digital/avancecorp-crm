@@ -25,6 +25,33 @@ en legado y cualquier reparación productiva siguen pendientes de aprobación.
 Acta y límites: `../scripts/p0xx/CIERRE-EXCEPCIONES.md`. La publicación CRM y
 portal del 25/09 sigue vigente; este ajuste no necesita otro despliegue visual.
 
+## 20260925172955 / 20260925180145 — Eliminación auditada de contratos y usuarios
+
+**INSTALADAS Y VERIFICADAS EN PRODUCCIÓN.** 25/09/2026, lectura final 15:34 Lima.
+
+- `20260925172955_crm_eliminacion_contrato_cotitular_alta.sql`: Admin/Superadmin
+  pueden eliminar contratos cuyo cotitular solo tiene procedencia del alta. Copia
+  completa versión 4, actor/reserva exactos, permisos exclusivamente de Edge;
+  conserva archivos e identidades. Historial posterior y cierres continúan protegidos.
+  Comparación de snapshot/hash de la fila completa: revisar al cambiar columnas de
+  `public.contrato_titulares`. Portal retira su bloqueo antiguo de Admin con pagos.
+- `20260925180145_crm_eliminacion_usuarios_sin_pendientes.sql`: Gerencia elimina
+  cuentas comerciales sin pendientes; conserva autoría e identidad inactiva cuando
+  hay historial. Transferencia previa, revocación de sesiones, auditoría privada,
+  versiones y protección concurrente de asignaciones. No elimina cuentas protegidas
+  del Portal ni la propia cuenta. Contiene cuerpos completos y preguard de huellas.
+
+Eliminación puntual de Álvaro **ya ejecutada y verificada**, mediante la purga
+existente, sin instalar estas migraciones. Acta y resultados exactos en
+`supabase/scripts/usuarios-eliminar/VERIFICACION.md`: SQL 17 + 16 PASS,
+frontend global 4.430 PASS, E2E Docker 5 PASS. Gate global de duplicación FAIL por
+archivos ajenos. Tras aprobación expresa, rama remota: 33 SQL y 22 HTTP/Auth PASS;
+advisors sin ERROR nuevo, INFO privado deny-all y dos WARN de RPC con guardas
+gerenciales previstos. Merge nativo de solo estos dos SQL; 358 migraciones previas
+intactas y 21 Edge Functions sin cambios. Cuerpos/ACL/triggers cotejados en
+producción. Rama temporal eliminada; pantallas todavía pendientes de publicación.
+
+
 ## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
 
 **APLICADA EN PRODUCCIÓN EL 25/09/2026**, registro `20260925211308`, tras

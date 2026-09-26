@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Eliminacion de usuarios y contratos - preparada y Alvaro eliminado (2026-09-25)]] — **BACKEND INSTALADO Y VERIFICADO:** Álvaro eliminado; contratos con cotitular de alta corregidos; eliminación de usuarios exige transferir pendientes y conserva autoría. 33 SQL y 22 HTTP/Auth PASS; rama eliminada. Pantallas pendientes de publicación.
+
 - [[Gestion Diaria - Correccion de paridad horizontal de gerencia (2026-09-25)]] — **PUBLICADA Y VERIFICADA:** fuente `65e96df9`, paridad UI y orientación horizontal con menú abierto; 81/81 archivos y recorrido real 9/9 PASS. Observación y retirada de Seguimiento pendientes.
 
 - [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]] — **UX F6 PUBLICADA Y VERIFICADA:** fuente `f9196dba`, 81/81 archivos HTTPS y recorrido gerencial 8/8 PASS. Fecha, tabla, detalle lateral, hábitos y ficha con contexto conservado. Mismo Figma actualizado; retirada pendiente de siete días estables y corte del sábado.
