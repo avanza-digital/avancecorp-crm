@@ -3,12 +3,14 @@
 -- producción para obtener la lista real y actualizada. No muestra cuenta ni CCI.
 -- El analista responsable vigente es perfiles.asesor_perfil_id; el cierre
 -- histórico del contrato puede pertenecer a otra persona.
+-- Se conservan los contratos demo en el censo y se identifican explícitamente.
 select ct.numero_contrato,
        cli.nombre_completo as cliente,
-       cli.dni,
+       coalesce(cli.dni, 'Sin DNI registrado') as dni,
        c.moneda,
        coalesce(analista.nombre_completo, 'Sin analista asignado') as analista,
-       c.motivo
+       c.motivo,
+       ct.es_demo
 from private.conciliacion_cuentas_p0xx c
 join public.contratos ct on ct.id = c.contrato_id
 join public.perfiles cli on cli.id = c.cliente_id

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render as renderConPruebas, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
@@ -10,7 +11,17 @@ import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import type { ObjetivosPorVendedor, ProduccionFueraRanking } from '@/lib/objetivos'
+import { clasificarRankingCapitalTotal } from '@/lib/conversion-vendedores'
+import type { RankingOrigenVendedor } from '@/lib/ranking-origen'
 import { RankingVendedoresPanel } from './ranking-vendedores'
+import { DetalleCapitalRanking } from './ranking-detalle'
+
+function render(elemento: Parameters<typeof renderConPruebas>[0]) {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderConPruebas(elemento, {
+    wrapper: ({ children }) => <QueryClientProvider client={cliente}>{children}</QueryClientProvider>,
+  })
+}
 
 /** Fila mensual sin actividad — el roster real siempre trae UNA fila por analista. */
 function filaSinActividad(vendedorId: string): ResponsableConversionMensual {
@@ -87,15 +98,25 @@ describe('consulta de Ranking F1', () => {
     render(<RankingVendedoresPanel {...props} tipoSeleccionado="capital-total" onAbrirConversiones={abrirConversiones} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle de Carla Mendoza' })[0]!)
     const detalle = screen.getByRole('dialog', { name: 'Carla Mendoza' })
+    const resumen = detalle.querySelector('dl')!
     for (const cifra of ['S/ 317,518', 'S/ 250,024', '127.00%']) {
-      expect(within(detalle).getByText(cifra)).toBeInTheDocument()
+      expect(within(resumen).getByText(cifra)).toBeInTheDocument()
     }
+    const origenes = within(detalle).getByRole('region', { name: 'Vista de ejemplo del capital y conversión por origen' })
+    expect(origenes).toHaveTextContent('Ejemplo ficticio')
+    expect(origenes).toHaveTextContent('Landing')
+    expect(origenes).toHaveTextContent('Formulario')
+    expect(origenes).toHaveTextContent('Referido')
+    expect(origenes).toHaveTextContent('Wallking')
+    expect(origenes).toHaveTextContent('Cartera')
+    expect(origenes).toHaveTextContent('3.00%')
     expect(within(detalle).getByText(/Mes calendario · setiembre 2026/)).toBeInTheDocument()
     expect(within(detalle).getByText(/TC S\/ 3.751/)).toBeInTheDocument()
     fireEvent.click(within(detalle).getByRole('button', { name: 'Abrir Conversiones' }))
     expect(abrirConversiones).toHaveBeenCalledWith('demo-v3')
     expect(props.cumplimientoVendedores).toEqual(original)
-    fireEvent.click(within(detalle).getByRole('button', { name: 'Volver a Ranking' }))
+    expect(within(detalle).queryByRole('button', { name: 'Volver a Ranking' })).not.toBeInTheDocument()
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Cerrar detalle' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Capital total' })).toHaveAttribute('aria-selected', 'true')
   })
@@ -118,10 +139,73 @@ describe('consulta de Ranking F1', () => {
     render(<RankingVendedoresPanel {...datos()} tipoSeleccionado="capital-total" tc={null} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle de Carla Mendoza' })[0]!)
     const detalle = screen.getByRole('dialog', { name: 'Carla Mendoza' })
-    expect(within(detalle).getByText('S/ 250,000')).toBeInTheDocument()
-    expect(within(detalle).getByText(/Tipo de cambio no disponible/)).toBeInTheDocument()
-    expect(within(detalle).getAllByText(/aparte \(sin TC\)/)).toHaveLength(2)
+    const resumen = detalle.querySelector('dl')!
+    expect(within(resumen).getByText('S/ 250,000')).toBeInTheDocument()
+    expect(within(detalle).getByText(/TC no disponible/)).toBeInTheDocument()
+    expect(within(resumen).getAllByText(/aparte \(sin TC\)/)).toHaveLength(2)
     expect(within(detalle).queryByText('S/ 317,518')).not.toBeInTheDocument()
+  })
+})
+
+describe('ficha real de capital por origen', () => {
+  const datos = () => {
+    const tc = 3.751
+    const ranking = clasificarRankingCapitalTotal(
+      conversionEquipoDemo(),
+      metasConversionEquipoDemo(),
+      cumplimientoMetasConversionEquipoDemo().porVendedor,
+      tc,
+    )
+    const original = ranking.conPuesto.find((fila) => fila.vendedor.nombre === 'Carla Mendoza')!
+    const vendedorId = '00000000-0000-4000-8000-000000000001'
+    const fila = { ...original, vendedor: { ...original.vendedor, vendedorId } }
+    const origenes: RankingOrigenVendedor = {
+      version: 1, periodo: '2026-09-01', vendedor_id: vendedorId, disponible: true,
+      filas: [
+        { origen: 'landing', capital_pen: 100000, capital_usd: 5000, contratos: 2, leads: 40, cierres: 4, conversion_pct: 10 },
+        { origen: 'formulario', capital_pen: 50000, capital_usd: 4000, contratos: 1, leads: 20, cierres: 2, conversion_pct: 10 },
+        { origen: 'referido', capital_pen: 50000, capital_usd: 4000, contratos: 1, leads: 10, cierres: 1, conversion_pct: 1.5 },
+        { origen: 'oficina', capital_pen: 50000, capital_usd: 5000, contratos: 1, leads: 0, cierres: 0, conversion_pct: null },
+      ],
+    }
+    return { fila, origenes, tc }
+  }
+
+  it('muestra importes y conversión de los cuatro canales, con raya si no hay divisor', () => {
+    const { fila, origenes, tc } = datos()
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={tc}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const ficha = screen.getByRole('dialog')
+    const desglose = within(ficha).getByRole('region', { name: 'Capital y conversión por origen' })
+    for (const canal of ['Landing', 'Formulario', 'Referido', 'Wallking']) {
+      expect(within(desglose).getByText(canal)).toBeInTheDocument()
+    }
+    expect(desglose).toHaveTextContent('1.50%')
+    expect(within(desglose).getAllByText('Conversión')).toHaveLength(4)
+    expect(desglose).toHaveTextContent('—')
+    expect(within(desglose).getByText('S/ 317,518')).toBeInTheDocument()
+    expect(within(ficha).queryByText('Ejemplo ficticio')).not.toBeInTheDocument()
+  })
+
+  it('oculta todos los canales si el total en alguna moneda no concilia', () => {
+    const { fila, origenes, tc } = datos()
+    origenes.filas[0]!.capital_usd += 1
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={tc}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const ficha = screen.getByRole('dialog')
+    expect(within(ficha).getByText('Desglose no disponible')).toBeInTheDocument()
+    expect(within(ficha).queryByText('Landing')).not.toBeInTheDocument()
+  })
+
+  it('conserva el ajuste del capital neto en meses sin desglose histórico', () => {
+    const { fila, tc } = datos()
+    fila.capitalAjustePen = 100
+    fila.capitalAjusteUsd = 20
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="agosto 2026" tc={tc}
+      cargando={false} error={null} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    expect(screen.getByText(/Ajustes de cierre descontados/)).toHaveTextContent('S/ 100')
+    expect(screen.getByText(/Ajustes de cierre descontados/)).toHaveTextContent('US$ 20')
+    expect(screen.getByText('Desglose no disponible')).toBeInTheDocument()
   })
 })
 

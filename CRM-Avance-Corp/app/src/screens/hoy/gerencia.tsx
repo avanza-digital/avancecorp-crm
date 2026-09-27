@@ -687,6 +687,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {seccion === 'ranking-vendedores' && (
         <RankingVendedoresPanel
+          periodoMes={periodoRanking.desde}
+          actorId={yo?.id ?? null}
           conversionMensual={conversionMensualPaneles}
           conversionError={errorFuenteConversion ?? errorConversionMensual}
           fuenteConversion={fuenteActiva}

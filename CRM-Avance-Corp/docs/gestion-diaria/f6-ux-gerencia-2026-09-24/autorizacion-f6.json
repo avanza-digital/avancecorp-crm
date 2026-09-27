@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-09-25T10:09:27.456125+00:00",
+  "status": "AUTHORIZED",
+  "source": "Respuesta explícita de Miguel en esta conversación e invocación humana de release-crm",
+  "statement": "Autorizar publicación de F6",
+  "sourceCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "manualMergeException": "PR101 aceptado como aprobación para esta publicación F6",
+  "scope": "Frontend F6 mediante release-crm en crm.miavance.com; sin retirada final de Seguimiento ni SQL nuevo",
+  "hostingerPreference": "Tras reintentar la credencial anterior (401), el usuario proporcionó una nueva; acceso recuperado y valor guardado en el Llavero.",
+  "secretIncluded": false,
+  "requestAgain": false,
+  "accessResolvedAt": "2026-09-25T10:13:43.981029+00:00"
+}

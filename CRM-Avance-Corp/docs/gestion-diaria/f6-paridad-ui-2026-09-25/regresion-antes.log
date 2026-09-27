@@ -1,0 +1,36 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-pulso.spec.ts --grep F6 horizontal: --workers=1 --retries=0 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 1 test using 1 worker
+
+  ✘  1 [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil (11.9s)
+
+
+  1) [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('region', { name: 'Detalle de la operación', exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('region', { name: 'Detalle de la operación', exact: true })
+
+
+      87 |     await page.screenshot({ path: info.outputPath(`gerencia-${width}-menu-abierto.png`), fullPage: true })
+      88 |     const panel = page.getByRole('region', { name: 'Detalle de la operación', exact: true })
+    > 89 |     await expect(panel).toBeVisible()
+         |                         ^
+      90 |     const tabla = await page.getByRole('region', { name: 'Equipos de la operación', exact: true }).boundingBox()
+      91 |     const lateral = await panel.boundingBox()
+      92 |     expect(lateral!.x).toBeGreaterThanOrEqual(tabla!.x + tabla!.width)
+        at /app/e2e/gestion-diaria-pulso.spec.ts:89:25
+
+    Error Context: test-results/gestion-diaria-pulso-F6-ho-15e5a-menú-abierto-en-un-portátil-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil

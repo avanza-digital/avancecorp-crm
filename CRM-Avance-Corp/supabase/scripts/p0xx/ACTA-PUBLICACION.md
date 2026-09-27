@@ -3,9 +3,10 @@
 > **Servidor, portal y CRM publicados.** Miguel autorizó el frontend con
 > `$release-crm`; el PR #106 quedó integrado y `crm.miavance.com` sirve el build
 > `build-20260925T220850705Z` desde Main `caf999794655`. El formulario compatible
-> registra cuentas por RPC y acepta `origen='portal'`. Quedan las conciliaciones
-> de datos y las dos advertencias de seguridad documentadas abajo; no se declara
-> cumplido el criterio literal de cero excepciones.
+> registra cuentas por RPC y acepta `origen='portal'`. Las tres discrepancias
+> y las dos advertencias que quedaron en esta fecha se resolvieron el 26/09:
+> [acta de cierre productivo](CIERRE-PRODUCCION.md), con cero diferencias y
+> cero avisos nuevos. Esta nota conserva el historial de la publicacion original.
 
 Miguel autorizó explícitamente una excepción a la instrucción inicial de que
 solo él fusionaría la rama Supabase. El Merge Request por diff de esquema se

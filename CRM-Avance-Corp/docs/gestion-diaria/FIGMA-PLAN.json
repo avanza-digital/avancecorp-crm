@@ -1,7 +1,7 @@
 {
   "fileKey": "9Pg7jMDRg3UVbb4XfeM80L",
   "url": "https://www.figma.com/board/9Pg7jMDRg3UVbb4XfeM80L",
-  "updatedAt": "2026-09-25T03:24:55.496244+00:00",
+  "updatedAt": "2026-09-25",
   "source": "GESTION-DIARIA.md",
   "policy": "Actualizar este mismo archivo y sus nodos con cada avance verificado; no recrear el tablero ni marcar PASS sin evidencia.",
   "rootNodeId": "2:2",
@@ -1367,6 +1367,7 @@
       "titleId": "2:123",
       "statusId": "2:124",
       "itemIds": [
+        "94:2",
         "2:125",
         "2:126",
         "2:127",
@@ -1374,7 +1375,7 @@
         "2:129"
       ],
       "noteId": null,
-      "height": 401
+      "height": 450
     }
   },
   "uiSectionId": "2:130",
@@ -1384,7 +1385,7 @@
     "next": "2:9"
   },
   "phaseCardCount": 13,
-  "itemCount": 76,
+  "itemCount": 77,
   "bounds": {
     "width": 3300,
     "height": 9406.34375
@@ -1761,9 +1762,13 @@
     },
     {
       "key": "F6",
-      "title": "F6 — Absorber Seguimiento y cerrar",
-      "status": "Observación desde 24/09, 21:57 · cola integrada.",
+      "title": "F6 — UX/UI gerencial y Seguimiento",
+      "status": "Corrección horizontal publicada · observación en curso",
       "items": [
+        [
+          true,
+          "Publicar corrección UI gerencia: horizontal con menú abierto"
+        ],
         [
           false,
           "Acumular al menos una semana de F3–F5 estables en producción."
@@ -1813,6 +1818,58 @@
     "saturdayCut": "NOT RUN",
     "f6Integration": "observacion-2026-09-24/PR97-INTEGRADO.md",
     "f6Main": "3b7928671062cddae8eb951cb364fc13aa0dcaed",
-    "f6Publication": "NOT RUN"
+    "f6Publication": "PASS: cola y UX gerencial PR101 servidas desde f9196dba; 81/81 archivos y recorrido productivo PASS",
+    "f6UxGerencia": {
+      "status": "CORRECCION_HORIZONTAL_PUBLICADA_VERIFICADA",
+      "requestedAt": "2026-09-25T04:12:43.783039+00:00",
+      "goalRequirement": "Integrar en gerencia la UX/UI horizontal aprobada para supervisión, adaptada al alcance, cifras y acciones de gerencia.",
+      "figmaNodeId": "94:2",
+      "implementation": "PASS",
+      "verification": "PASS 4423/298; Chromium final 11/0; WebKit final 11/0; suite completa 271/0/26 antes del ajuste móvil",
+      "scopeEvidence": "f6-ux-gerencia-2026-09-24/figma-alcance.json",
+      "mayPrepareDuringObservation": true,
+      "sevenStableDaysStillRequiredForRetirement": true,
+      "sourceCommit": "e0a9330656038bff01cd54c18754905ca0eeff4e",
+      "branch": "codex/gestion-diaria-f6-paridad-ui-20260925",
+      "acta": "f6-paridad-ui-2026-09-25/ACTA.md",
+      "validation": "f6-paridad-ui-2026-09-25/preflight-paridad-ui-autorizada.json",
+      "review": "CHANGES_REQUESTED; observaciones resueltas y verificadas por PRIMARY; integración manual PR103 aceptada expresamente por Miguel",
+      "publication": "PASS 25/09 10:13 Lima; 81/81 archivos y recorrido real 9/9",
+      "figmaEvidence": "f6-paridad-ui-2026-09-25/figma-pr103-publicada.json",
+      "figmaScreenshot": "f6-paridad-ui-2026-09-25/figma-pr103-publicada.png",
+      "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/103",
+      "githubReviewDecision": "REVIEW_REQUIRED; sin reviews APPROVED",
+      "mainCommit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+      "githubState": "MERGED",
+      "githubMainChecks": "PASS 3/3",
+      "currentEvidence": "f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md",
+      "publishedCommit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+      "publicationAuthorization": "f6-paridad-ui-2026-09-25/autorizacion-paridad-ui-pr103.json; específica para PR103, no constituye revisión APPROVED",
+      "visualCorrection": {
+        "requestedAt": "2026-09-25",
+        "branch": "codex/gestion-diaria-f6-paridad-ui-20260925",
+        "baseCommit": "2a83a5ef40cc27ac020fc039c3c56022e6022ad0",
+        "acta": "f6-paridad-ui-2026-09-25/ACTA.md",
+        "status": "PUBLICADA_VERIFICADA",
+        "publication": "PASS 81/81 HTTPS y 9/9 recorrido real",
+        "reason": "Paridad UI y composición horizontal con menú abierto; incidencia reportada por Miguel",
+        "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/103",
+        "gate": "PASS 4423/298",
+        "e2e": "Completo tras review 271/0/26 en 14ed7336; después del ajuste móvil final: Chromium 11/0 y WebKit 11/0; cero reintentos",
+        "review": "CHANGES_REQUESTED; observaciones resueltas y verificadas por PRIMARY",
+        "publishedCommit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+        "buildId": "build-20260925T150218036Z",
+        "publicationActa": "f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md"
+      },
+      "previousPublication": {
+        "publishedCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+        "publication": "PASS: 25/09 05:14 Lima; 81/81 archivos y recorrido gerencial 8/8",
+        "pullRequest": "https://github.com/avanza-digital/avancecorp-crm/pull/101",
+        "publicationAuthorization": "autorizacion-f6.json; específica para PR101, no constituye revisión APPROVED",
+        "verification": "PASS: gate 4421/298; Chromium 270/0/26; WebKit 10/0",
+        "review": "PASS independiente; publicación del merge manual PR101 autorizada expresamente por Miguel",
+        "acta": "f6-ux-gerencia-2026-09-24/ACTA.md"
+      }
+    }
   }
 }

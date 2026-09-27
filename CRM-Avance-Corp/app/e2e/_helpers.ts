@@ -3398,6 +3398,7 @@ export async function loginReal(
 export async function montarConversionCompartida(page:Page) {
   const persona='11111111-1111-4111-8111-111111111111'
   let nombre='PERSONA SINTÉTICA',leadId:string|null=null,perfil:string|null=null
+  let correoFicha='persona@pruebas.example'
   let solicitud:Record<string,unknown>|null=null
   await page.route('**/rest/v1/rpc/*',async route=>{
     const fn=new URL(route.request().url()).pathname.split('/').at(-1),b=route.request().postDataJSON()
@@ -3406,13 +3407,19 @@ export async function montarConversionCompartida(page:Page) {
       return route.fulfill({json:{inversionista_id:persona,lead_id:leadId,solicitud_id:solicitud?.solicitud_id??null}})
     }
     if(fn==='contexto_conversion_inversion_fn')return route.fulfill({json:{solicitud_id:solicitud?.solicitud_id??null,documento_tipo:'DNI',persona:{inversionista_id:persona,perfil_id:perfil,
-      nombre,correo:'persona@pruebas.example',telefono:'999888777',responsable_id:UID,responsable_nombre:'ANALISTA DEL LEAD'},
+      nombre,correo:correoFicha,telefono:'999888777',responsable_id:UID,responsable_nombre:'ANALISTA DEL LEAD'},
       capacidades:{nueva_inversion:true,motivo_no_operable:null}}})
     if(fn==='preparar_inversion_fn'){
+      correoFicha=b.p_datos.alta_portal?.correo??correoFicha
       solicitud={solicitud_id:b.p_clave,lead_id:leadId,estado:'preparada',inversion_id:null,inversionista_id:persona,
         inversionista_origen_id:persona,identidad_fusionada:false,responsable_esperado_id:UID,responsable_actual_id:UID,
         requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'prueba',
         necesita_portal:!perfil,comprobante_bucket:null,comprobante_ruta:null,resultado:null,datos:b.p_datos}
+      return route.fulfill({json:solicitud})
+    }
+    if(fn==='corregir_solicitud_inversion_fn' && solicitud){
+      correoFicha=b.p_datos.alta_portal?.correo??correoFicha
+      solicitud={...solicitud,datos:b.p_datos,revision_datos:Number(solicitud.revision_datos)+1}
       return route.fulfill({json:solicitud})
     }
     if(fn==='solicitud_inversion_fn')return route.fulfill({json:solicitud})

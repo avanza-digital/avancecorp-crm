@@ -69,6 +69,7 @@ import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from 
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
+import { ConversionEstadoSchema, type ConversionEstado } from '@/lib/conversion-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
 import {
@@ -79,6 +80,7 @@ import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda
 import { MetricasConversionesSchema, type MetricasConversiones } from '@/lib/metricas-conversiones'
 import { MetricasConversionesEquipoSchema, type MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { ConversionMensualSchema, type ConversionMensual } from '@/lib/conversion-mensual'
+import { RankingOrigenVendedorSchema, type RankingOrigenVendedor } from '@/lib/ranking-origen'
 import { MetricasReunionesSchema, type MetricasReuniones } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
@@ -1005,6 +1007,32 @@ export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSi
   }
   const resultado = v.safeParse(CumplimientoMetasSchema, data)
   if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
+}
+
+/** Desglose conciliado de capital y tasa mensual por canal de un analista visible. */
+export async function obtenerRankingOrigenVendedor(
+  periodo: string,
+  vendedorId: string,
+  signal?: AbortSignal,
+): Promise<RankingOrigenVendedor> {
+  let consulta = cliente().schema('crm').rpc('ranking_origen_vendedor_fn', {
+    p_periodo: periodo,
+    p_vendedor_id: vendedorId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el desglose por origen.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.ranking.origen_fallido', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(RankingOrigenVendedorSchema, data)
+  if (!resultado.success || resultado.output.periodo !== periodo
+    || resultado.output.vendedor_id !== vendedorId) {
+    throw new CrmApiError('El desglose por origen no corresponde al analista y mes consultados.', 'RANKING_ORIGEN_CONTRACT')
+  }
   return resultado.output
 }
 
@@ -6241,14 +6269,30 @@ export async function anularCierreAvance(datos: AnularCierreAvanceDatos): Promis
   }
 }
 
+/** Crédito temporal leído de la puerta autorizada, separado del estado de cierre. */
+export async function obtenerConversionEstado(leadId: string, signal?: AbortSignal): Promise<ConversionEstado> {
+  if (!v.safeParse(UuidSchema, leadId).success) {
+    throw new CrmApiError('El identificador del lead no es válido.', 'CONVERSION_LEAD_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('conversion_estado_lead_v1', { p_lead_id: leadId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.conversion_estado.consulta_fallida')
+  const resultado = v.safeParse(ConversionEstadoSchema, data)
+  if (!resultado.success || resultado.output.lead_id !== leadId) {
+    const fallo = new CrmApiError('No se pudo verificar el estado de conversión.', 'CONVERSION_ESTADO_CONTRACT')
+    registrarError('crm.conversion_estado.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
 /**
- * El estado del cierre de unos leads (`crm.cierres_estado_fn`): qué canal y si
- * está anulado. Es la ÚNICA vía por la que el front puede enterarse de una
- * anulación — su tabla es deny-by-default a propósito.
- *
- * Devuelve solo los leads con algo que decir; la ausencia significa «cerró en
- * Avance y no está anulado» (ver `estadoDelCierre`, donde ese default se escribe
- * una vez).
+ * Estado del cierre (`crm.cierres_estado_fn`): canal y anulación. Su tabla es
+ * deny-by-default. Devuelve solo leads con algo que decir; la ausencia significa
+ * «Avance no anulado», no ausencia de inversión (ver `estadoDelCierre`).
  */
 export async function obtenerCierresEstado(leadIds: readonly string[], signal?: AbortSignal): Promise<CierreEstado[]> {
   // Sin ids no hay pregunta: se ahorra un viaje por cada pantalla que todavía

@@ -22,6 +22,7 @@ import {
   derivarLeadsEquipo,
   obtenerCierreMesEstado,
   obtenerCierresEstado,
+  obtenerConversionEstado,
   obtenerCierresExternos,
   listarCarteraPagina,
   listarActividadesCliente,
@@ -41,6 +42,7 @@ import {
   listarMetricasConversionesEquipo,
   obtenerConversionMensual,
   obtenerCumplimientoMetas,
+  obtenerRankingOrigenVendedor,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
   listarFacturacionDiaria,
@@ -191,6 +193,9 @@ export const crmQueryKeys = {
     [...crmQueryKeys.cumplimientoMetasPrefijo(), periodo] as const,
   cumplimientoMetas: (periodo: string, actorId?: string | null) =>
     [...crmQueryKeys.cumplimientoMetasPeriodo(periodo), actorId ?? null] as const,
+  rankingOrigenesPrefijo: () => [...crmQueryKeys.metricas(), 'ranking-origenes'] as const,
+  rankingOrigenes: (periodo: string, vendedorId: string, actorId?: string | null) =>
+    [...crmQueryKeys.rankingOrigenesPrefijo(), periodo, vendedorId, actorId ?? null] as const,
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
@@ -204,6 +209,7 @@ export const crmQueryKeys = {
   // YA normalizados: sin eso cada render pediría lo mismo con una clave nueva.
   cierresEstadoPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-estado'] as const,
   cierresEstado: (leadIds: readonly string[]) => [...crmQueryKeys.cierresEstadoPrefijo(), leadIds.join(',')] as const,
+  conversionEstadoLead: (leadId: string) => [...crmQueryKeys.cierresEstadoPrefijo(), 'conversion-v1', leadId] as const,
   metricasReunionesPrefijo: () => [...crmQueryKeys.metricas(), 'reuniones'] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricasReunionesPrefijo(), desde, hasta] as const,
@@ -273,6 +279,7 @@ const CLAVES_INVALIDACION_COMERCIAL = {
     crmQueryKeys.leads(),
   ],
   conversionExterna: [
+    crmQueryKeys.cierresEstadoPrefijo(),
     crmQueryKeys.cierresExternosPrefijo(),
     ...CLAVES_FOTOS_POR_PERIODO,
     crmQueryKeys.leads(),
@@ -956,6 +963,20 @@ export function useCumplimientoMetas(
   })
 }
 
+/** Se consulta solo al abrir la ficha de un analista real del mes seleccionado. */
+export function useRankingOrigenVendedor(
+  habilitada: boolean,
+  periodo: string,
+  vendedorId: string | null,
+  actorId?: string | null,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId),
+    queryFn: ({ signal }) => obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
+    enabled: habilitada && Boolean(periodo) && Boolean(vendedorId) && Boolean(actorId),
+  })
+}
+
 /**
  * Cada cuánto se re-pregunta el estado del ciclo con la pestaña abierta. El
  * estado cambia por CALENDARIO (medianoche de Lima) y por el cron (09:20):
@@ -1002,6 +1023,7 @@ export function useCierreMesEstado(habilitada: boolean) {
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.cumplimientoMetasPrefijo() }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.conversionMensualPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.rankingOrigenesPrefijo() }),
     ]).then(() => queryClient.invalidateQueries({
       queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
     }))
@@ -1168,6 +1190,13 @@ export function useCierresEstado(habilitada: boolean, leadIds: readonly string[]
     queryKey: crmQueryKeys.cierresEstado(ids),
     queryFn: ({ signal }) => obtenerCierresEstado(ids, signal),
     enabled: habilitada && ids.length > 0,
+  })
+}
+
+export function useConversionEstado(leadId: string) {
+  return useQuery({
+    queryKey: crmQueryKeys.conversionEstadoLead(leadId),
+    queryFn: ({ signal }) => obtenerConversionEstado(leadId, signal),
   })
 }
 

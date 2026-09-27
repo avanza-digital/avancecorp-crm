@@ -17,6 +17,8 @@ import {
   asignarRolUsuario,
   crearCandidatoUsuario,
   fijarMembresiaUsuario,
+  eliminarUsuario,
+  obtenerImpactoEliminacion,
   listarCatalogoUsuariosAdministrables,
   listarEstadoSlaLeads,
   publicarMetas,
@@ -35,6 +37,37 @@ const VERSION_PERFIL = '2026-08-07T18:00:00.000Z'
 const VERSION_EQUIPO = '2026-08-07T18:01:00.000Z'
 
 const server = setupServer()
+
+it('eliminación usa la RPC autenticada, versiones y confirmación exacta', async () => {
+  server.use(http.post(RPC('eliminar_usuario_fn'), async ({ request }) => {
+    expect(request.headers.get('content-profile')).toBe('crm')
+    expect(await request.json()).toEqual({ p_perfil_id: PERFIL_ID,
+      p_nombre_confirmacion: 'ANA ANALISTA', p_version_perfil: VERSION_PERFIL, p_version_equipo: null })
+    return HttpResponse.json({ perfil_id: PERFIL_ID, resultado: 'historial_conservado' })
+  }))
+  await expect(eliminarUsuario({ perfilId: PERFIL_ID, nombreConfirmacion: 'ANA ANALISTA',
+    versionPerfil: VERSION_PERFIL, versionEquipo: null })).resolves.toEqual({
+    perfil_id: PERFIL_ID, resultado: 'historial_conservado',
+  })
+})
+
+it('propaga el bloqueo de pendientes del servidor y rechaza un impacto incompleto', async () => {
+  server.use(http.post(RPC('eliminar_usuario_fn'), () => HttpResponse.json({
+    code: 'P0001', message: 'Transfiere primero los seguimientos',
+  }, { status: 400 })), http.post(RPC('impacto_eliminacion_usuario_fn'), () => HttpResponse.json({ conserva_historial: false })))
+  await expect(eliminarUsuario({ perfilId: PERFIL_ID, nombreConfirmacion: 'ANA',
+    versionPerfil: VERSION_PERFIL, versionEquipo: VERSION_EQUIPO })).rejects.toThrow('Transfiere primero')
+  await expect(obtenerImpactoEliminacion(PERFIL_ID)).rejects.toBeInstanceOf(CrmApiError)
+})
+
+it('acepta el impacto de un candidato sin membresía con personas a cargo', async () => {
+  server.use(http.post(RPC('impacto_eliminacion_usuario_fn'), () => HttpResponse.json({
+    pendientes: { perfil_id: PERFIL_ID, subordinados_activos: 0, leads_abiertos: 0,
+      leads_en_bandeja: 0, tareas_pendientes: 0, clientes_activos: 0, personas_a_cargo: 1,
+      requiere_reemplazo: true }, conserva_historial: true,
+  })))
+  expect((await obtenerImpactoEliminacion(PERFIL_ID)).pendientes.personas_a_cargo).toBe(1)
+})
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())

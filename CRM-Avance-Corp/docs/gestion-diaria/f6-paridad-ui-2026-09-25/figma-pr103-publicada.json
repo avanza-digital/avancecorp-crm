@@ -1,0 +1,58 @@
+{
+  "mutatedNodeIds": [
+    "2:124",
+    "94:2",
+    "2:5"
+  ],
+  "changed": [
+    {
+      "id": "2:124",
+      "before": "Corrección horizontal validada · pendiente revisión y publicación",
+      "after": "Corrección horizontal publicada · observación en curso",
+      "width": 840,
+      "height": 32,
+      "x": 28,
+      "y": 82
+    },
+    {
+      "id": "94:2",
+      "before": "☐ Publicar corrección UI gerencia: horizontal con menú abierto",
+      "after": "☑ Publicar corrección UI gerencia: horizontal con menú abierto",
+      "width": 840,
+      "height": 35,
+      "x": 28,
+      "y": 138
+    },
+    {
+      "id": "2:5",
+      "before": "25/09 · Corrección UI gerencia validada, PR #103 · observación en curso",
+      "after": "25/09 · Corrección UI de gerencia publicada y verificada · fuente 65e96df9",
+      "width": 3100,
+      "height": 41,
+      "x": 72,
+      "y": 264
+    }
+  ],
+  "pending": [
+    {
+      "id": "2:125",
+      "text": "☐ Acumular al menos una semana de F3–F5 estables en producción."
+    },
+    {
+      "id": "2:126",
+      "text": "☐ Redirigir los accesos antiguos de Seguimiento a Gestión Diaria."
+    },
+    {
+      "id": "2:127",
+      "text": "☐ Retirar la pantalla duplicada conservando sus capacidades."
+    },
+    {
+      "id": "2:128",
+      "text": "☐ Verificar navegación, permisos y funcionamiento completo."
+    },
+    {
+      "id": "2:129",
+      "text": "☐ Actualizar la documentación y cerrar el módulo."
+    }
+  ]
+}

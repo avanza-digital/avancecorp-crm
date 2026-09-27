@@ -52,6 +52,27 @@ Actualización del 24/09, 22:24 Lima: [PR #97 integrado y CI PASS](observacion-2
 La preparación F6 está en Main; el frontend productivo sigue siendo F5 `b402a7f1`.
 Este control adicional de T0 no cuenta como otro día de observación.
 
+Actualización del 25/09, 00:46–00:49 Lima: la versión externa `3027028d`
+ya sirve la cola del PR #97 y Resumen #100. Se cotejaron 79 HTML/JS/CSS y la
+sonda de Gestión Diaria dio 11/11 PASS. [Evidencia y límites](f6-ux-gerencia-2026-09-24/PUBLICACION-PENDIENTE.md).
+Es otro control puntual de T0, no un día adicional ni una nueva publicación
+de esta tarea. La UX de gerencia del PR #101 todavía no está servida.
+
+Actualización del 25/09, 05:14–05:18 Lima: UX gerencial F6 publicada desde
+`f9196dba`, con autorización específica de Miguel. Archivos HTTPS 81/81 y
+recorrido real de lectura 8/8 PASS, incluida ficha y regreso con fecha y
+paginación conservadas. [Acta](f6-ux-gerencia-2026-09-24/PUBLICACION-2026-09-25.md).
+T0 no cambia; todavía no se ha cumplido el primer día completo. El corte único
+del sábado 26/09 a las 11:30 sigue pendiente.
+
+Actualización del 25/09, 10:13 Lima: corregida y publicada la incidencia visual
+reportada por Miguel, fuente `65e96df9` (PR #103). Archivos HTTPS 81/81 y
+recorrido de lectura 9/9 PASS: composición horizontal con menú abierto,
+fecha histórica, comparación, equipo/analista/registro/ficha y móvil.
+[Acta y límites](f6-paridad-ui-2026-09-25/PUBLICACION-2026-09-25.md).
+Se cierra esta incidencia UI; no se acredita un día adicional ni se cambia T0.
+El primer día completo y el corte real del sábado siguen pendientes.
+
 Una incidencia relevante impide cerrar por el mero paso del calendario:
 corregir, verificar y acreditar el período estable antes de retirar Seguimiento.
 La equivalencia de cola, permisos, acciones y enlaces debe probarse también,

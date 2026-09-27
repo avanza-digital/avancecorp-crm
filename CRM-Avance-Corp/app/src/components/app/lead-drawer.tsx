@@ -77,6 +77,7 @@ import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
 import { estadoDelCierre, puedeAnularCierreAvance } from '@/lib/cierre-estado'
 import { useCierresEstado } from '@/data/crm-queries'
+import { ConversionCreditoLead } from './conversion-credito-lead'
 import { AnularCierreAvanceDialog } from '@/components/app/anular-cierre-avance'
 import { ChipAnulado } from '@/components/app/chip-anulado'
 import {
@@ -500,12 +501,13 @@ function BannerTerminal({ l, escribe, onClienteDelLead }: {
           {convertido
             ? yo?.demo
               ? 'La conversión confirma la inversión y cierra el lead como ganado (demo).'
-              : 'Inversión registrada y lead cerrado como ganado.'
+              : 'Lead cerrado como ganado. El crédito mensual se verifica por separado.'
             : `Motivo: ${motivo ?? '—'}`}
         </p>
         {/* La anulación se ve AQUÍ, junto al «Convertido a cliente» que
             contradice, y con la razón escrita: quien mire esta ficha tiene que
             poder explicarse por qué el número del analista bajó. */}
+        {convertido && !demo && <ConversionCreditoLead leadId={l.id} />}
         {convertido && anulado && (
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-destructive-text">
             <ChipAnulado etiqueta="CIERRE ANULADO" />

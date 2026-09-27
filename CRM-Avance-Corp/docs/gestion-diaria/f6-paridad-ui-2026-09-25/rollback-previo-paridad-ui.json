@@ -1,0 +1,576 @@
+{
+  "checkedAt": "2026-09-25T15:02:49.098160+00:00",
+  "sourceCommit": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "expectedBuild": "build-20260925T054322011Z",
+  "passed": 81,
+  "failed": 0,
+  "files": [
+    {
+      "ruta": "404.html",
+      "status": 200,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "expected": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "pass": true
+    },
+    {
+      "ruta": "assets/acciones-reconocer-alerta-CfDtLQLy.js",
+      "status": 200,
+      "sha256": "0d93b619cd0c3ba914c529a661f456d802e2c3ad388a0cfab6e439f91bf73c42",
+      "expected": "0d93b619cd0c3ba914c529a661f456d802e2c3ad388a0cfab6e439f91bf73c42",
+      "pass": true
+    },
+    {
+      "ruta": "assets/agenda-CP1C6vGS.js",
+      "status": 200,
+      "sha256": "13374f353c13c7e4f8906579db8c4550fc720f984b6c956f74e56e5cdc297bf2",
+      "expected": "13374f353c13c7e4f8906579db8c4550fc720f984b6c956f74e56e5cdc297bf2",
+      "pass": true
+    },
+    {
+      "ruta": "assets/ahora-CyLTFCpv.js",
+      "status": 200,
+      "sha256": "6b397163f4bc1f1a68eef0400de06b4966796ae46e0ab69740117284cef41a51",
+      "expected": "6b397163f4bc1f1a68eef0400de06b4966796ae46e0ab69740117284cef41a51",
+      "pass": true
+    },
+    {
+      "ruta": "assets/alertas-DRJL7p2_.js",
+      "status": 200,
+      "sha256": "0ee7b44c114659c64bffc12ef56ac4ebd9c8da9a63329ede41948e852bc010cc",
+      "expected": "0ee7b44c114659c64bffc12ef56ac4ebd9c8da9a63329ede41948e852bc010cc",
+      "pass": true
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "expected": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "pass": true
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "status": 200,
+      "sha256": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "expected": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "pass": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion-oxmyKssV.js",
+      "status": 200,
+      "sha256": "1e09a14e96963c9356700513ea3f36d045172149dfbf25f01e5593aa4b546ffb",
+      "expected": "1e09a14e96963c9356700513ea3f36d045172149dfbf25f01e5593aa4b546ffb",
+      "pass": true
+    },
+    {
+      "ruta": "assets/button-CpiEwf0o.js",
+      "status": 200,
+      "sha256": "b08c2f2b8f5c4738b598f47d8f2788eac2e0f1027cbae4f5da80338674d979fe",
+      "expected": "b08c2f2b8f5c4738b598f47d8f2788eac2e0f1027cbae4f5da80338674d979fe",
+      "pass": true
+    },
+    {
+      "ruta": "assets/card-CIYkZJ3m.js",
+      "status": 200,
+      "sha256": "e810b54f6105bbae2389e074faf5e52ae7b686cdf79ca0543efbfdcd6ecb2cf5",
+      "expected": "e810b54f6105bbae2389e074faf5e52ae7b686cdf79ca0543efbfdcd6ecb2cf5",
+      "pass": true
+    },
+    {
+      "ruta": "assets/cartera-B8VBsKru.js",
+      "status": 200,
+      "sha256": "0128f03a90e8662ea32ebf148cd791fb6788ddcb1cc77aad3e60729a3be30561",
+      "expected": "0128f03a90e8662ea32ebf148cd791fb6788ddcb1cc77aad3e60729a3be30561",
+      "pass": true
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-CpwC59dc.js",
+      "status": 200,
+      "sha256": "5dfe7f5731e77134fe561dce149e4b2c9b117af35cbf80d45387bf311b984588",
+      "expected": "5dfe7f5731e77134fe561dce149e4b2c9b117af35cbf80d45387bf311b984588",
+      "pass": true
+    },
+    {
+      "ruta": "assets/cola-seguimiento-CyGKf7ny.js",
+      "status": 200,
+      "sha256": "f7a9ebb2136fa543a0be76fd772d9bf9bf92728fe2821e15ad6e6d183f3c1b0f",
+      "expected": "f7a9ebb2136fa543a0be76fd772d9bf9bf92728fe2821e15ad6e6d183f3c1b0f",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-BG9QC25n.js",
+      "status": 200,
+      "sha256": "448966eb7a27decfe939f5e4dded80eaaa5b1aaaa06a4f77bb8de5f050c1e31e",
+      "expected": "448966eb7a27decfe939f5e4dded80eaaa5b1aaaa06a4f77bb8de5f050c1e31e",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-citas-D4h3EjDx.js",
+      "status": 200,
+      "sha256": "c4476b137fda81db54305b012dfd6b06515ea82d9a739d3e8fff1e7961d636e2",
+      "expected": "c4476b137fda81db54305b012dfd6b06515ea82d9a739d3e8fff1e7961d636e2",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-DzLgJIiq.js",
+      "status": 200,
+      "sha256": "2494c453931397388127044dee08572dab61dc03fcbe3a239730b0d8ada56c6b",
+      "expected": "2494c453931397388127044dee08572dab61dc03fcbe3a239730b0d8ada56c6b",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-metas-oAYGiZ2E.js",
+      "status": 200,
+      "sha256": "66e8af190b392d70459e7e9da0c8ded1acadf8d006cae99891386af53dc51e47",
+      "expected": "66e8af190b392d70459e7e9da0c8ded1acadf8d006cae99891386af53dc51e47",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-productos-DY3rjosj.js",
+      "status": 200,
+      "sha256": "3b9fc19c0b3f33e4e74ff94b091392cb0c1adffa33a00b8ea26148062e646d92",
+      "expected": "3b9fc19c0b3f33e4e74ff94b091392cb0c1adffa33a00b8ea26148062e646d92",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-rentabilidad-D5iY7ipg.js",
+      "status": 200,
+      "sha256": "049138bc3ccc4d9f7c2348e1b6c77c3bc5f2e35d85fc1c44300c61ebfbc27ddf",
+      "expected": "049138bc3ccc4d9f7c2348e1b6c77c3bc5f2e35d85fc1c44300c61ebfbc27ddf",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-sla-LzLK5k-a.js",
+      "status": 200,
+      "sha256": "774ccf9f4f72162e5daa85a2f29dd10437050ac342c777992351e3e843b710c2",
+      "expected": "774ccf9f4f72162e5daa85a2f29dd10437050ac342c777992351e3e843b710c2",
+      "pass": true
+    },
+    {
+      "ruta": "assets/config-usuarios-C7KWi3Wy.js",
+      "status": 200,
+      "sha256": "249a75d5b6f25516001bc69cdcfe58e7816738d7020d73ffa9b23d663376d020",
+      "expected": "249a75d5b6f25516001bc69cdcfe58e7816738d7020d73ffa9b23d663376d020",
+      "pass": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-D1rdlPwq.js",
+      "status": 200,
+      "sha256": "d11597ff09727d1b9067a64b671ef89c333ac1cea7840b6c5b0ea7b4192e3809",
+      "expected": "d11597ff09727d1b9067a64b671ef89c333ac1cea7840b6c5b0ea7b4192e3809",
+      "pass": true
+    },
+    {
+      "ruta": "assets/control-citas-Ba9paygU.js",
+      "status": 200,
+      "sha256": "5a6713c0a13672aaf765be2d331d1f1a963f688e1da70b5d87032b060ba70f8e",
+      "expected": "5a6713c0a13672aaf765be2d331d1f1a963f688e1da70b5d87032b060ba70f8e",
+      "pass": true
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-CovsfZGG.js",
+      "status": 200,
+      "sha256": "d9bbbdcc7f31b9f3e7d5e3dec1d137942dba6470e0cab5b349fd9df5cc1d46d2",
+      "expected": "d9bbbdcc7f31b9f3e7d5e3dec1d137942dba6470e0cab5b349fd9df5cc1d46d2",
+      "pass": true
+    },
+    {
+      "ruta": "assets/crm-api-CwYcj6PJ.js",
+      "status": 200,
+      "sha256": "15436818c908270905e23d4acb6cb6e398ce3431bbe616cc6832d852e177d0d1",
+      "expected": "15436818c908270905e23d4acb6cb6e398ce3431bbe616cc6832d852e177d0d1",
+      "pass": true
+    },
+    {
+      "ruta": "assets/crm-queries-CV_s6AYF.js",
+      "status": 200,
+      "sha256": "1e7e16f9786f6c42da28e40917e7081aa0758529ab22e407cec1865dee65878c",
+      "expected": "1e7e16f9786f6c42da28e40917e7081aa0758529ab22e407cec1865dee65878c",
+      "pass": true
+    },
+    {
+      "ruta": "assets/data-vendor-DTp_zWmI.js",
+      "status": 200,
+      "sha256": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "expected": "99167353761dfd97828a20543ab065278688318e099a4d4b2c696b409494d0e6",
+      "pass": true
+    },
+    {
+      "ruta": "assets/derivaciones-Bc8fg_wA.js",
+      "status": 200,
+      "sha256": "122d4cc2da4d57fa6f4b442a5ce2f85e62b1ce1cc689ad35b1e859c059bf2dee",
+      "expected": "122d4cc2da4d57fa6f4b442a5ce2f85e62b1ce1cc689ad35b1e859c059bf2dee",
+      "pass": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-DOwUdIsS.js",
+      "status": 200,
+      "sha256": "68f4cbe9e4b0726d8bd6b75ef68057a0c3d9b811c9b85973ab77f16d7a5cfbde",
+      "expected": "68f4cbe9e4b0726d8bd6b75ef68057a0c3d9b811c9b85973ab77f16d7a5cfbde",
+      "pass": true
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "expected": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "pass": true
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-PxpZ64Nr.js",
+      "status": 200,
+      "sha256": "96034c80e01e45c6d8db82e30683a74c898cfb82197b134c5abd67a2a4820e7f",
+      "expected": "96034c80e01e45c6d8db82e30683a74c898cfb82197b134c5abd67a2a4820e7f",
+      "pass": true
+    },
+    {
+      "ruta": "assets/dropdown-menu-D2zmNjUD.js",
+      "status": 200,
+      "sha256": "7a27283be99ace255d1ff6819d60574b51fb5f2dd3733e9791d59a7ea5978a9b",
+      "expected": "7a27283be99ace255d1ff6819d60574b51fb5f2dd3733e9791d59a7ea5978a9b",
+      "pass": true
+    },
+    {
+      "ruta": "assets/echart-bar-CJ7XQVqX.js",
+      "status": 200,
+      "sha256": "3b3dff31d6e5fdee04424503674b0c0a5de7a47c9007513a7786a0ae7b792049",
+      "expected": "3b3dff31d6e5fdee04424503674b0c0a5de7a47c9007513a7786a0ae7b792049",
+      "pass": true
+    },
+    {
+      "ruta": "assets/echart-CIvurqcw.js",
+      "status": 200,
+      "sha256": "949c36e24d4b71e10f0994fa33c5093e7a7b3db5644f8ddc3650eac14cdc2c6b",
+      "expected": "949c36e24d4b71e10f0994fa33c5093e7a7b3db5644f8ddc3650eac14cdc2c6b",
+      "pass": true
+    },
+    {
+      "ruta": "assets/echart-line-BrRG2d6m.js",
+      "status": 200,
+      "sha256": "d032c3ec9e475c415a92615d9613473c6c9fd5375fa9b78b2f4ddebfa662f0b1",
+      "expected": "d032c3ec9e475c415a92615d9613473c6c9fd5375fa9b78b2f4ddebfa662f0b1",
+      "pass": true
+    },
+    {
+      "ruta": "assets/equipo-CwfU_-oQ.js",
+      "status": 200,
+      "sha256": "615639d696f3840306633f93f15c2324edd9292a9f6856b3a91bef7b12aaa476",
+      "expected": "615639d696f3840306633f93f15c2324edd9292a9f6856b3a91bef7b12aaa476",
+      "pass": true
+    },
+    {
+      "ruta": "assets/escape-dialogo-BhefE2FP.js",
+      "status": 200,
+      "sha256": "95349a4ea4d5cafec06cadbfcbce87417bc1f4c65319332edf9bbeccd63d6d69",
+      "expected": "95349a4ea4d5cafec06cadbfcbce87417bc1f4c65319332edf9bbeccd63d6d69",
+      "pass": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "expected": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "pass": true
+    },
+    {
+      "ruta": "assets/facturacion-DUreamW5.js",
+      "status": 200,
+      "sha256": "d3dbf8aa79ae61d54be6877933d7b6e11b6ac795a5150483273069490e6428dd",
+      "expected": "d3dbf8aa79ae61d54be6877933d7b6e11b6ac795a5150483273069490e6428dd",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "status": 200,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "expected": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gerencia-BYgbAEyE.js",
+      "status": 200,
+      "sha256": "7230ab9167182978b39596bce045a682eb0e65f7573d24f59cda9215caf82526",
+      "expected": "7230ab9167182978b39596bce045a682eb0e65f7573d24f59cda9215caf82526",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gerencia-CrhDsn4Z.js",
+      "status": 200,
+      "sha256": "568de553e303f165e123509fa36600ba67d7f08e93cc3f51132a8517dcf312ef",
+      "expected": "568de553e303f165e123509fa36600ba67d7f08e93cc3f51132a8517dcf312ef",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-Bp4v4YKn.js",
+      "status": 200,
+      "sha256": "102634dd5228ba3ebbacd835a7f69248f1ff07c258e70e7a240e83becdcb4824",
+      "expected": "102634dd5228ba3ebbacd835a7f69248f1ff07c258e70e7a240e83becdcb4824",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-DjFMw0G8.css",
+      "status": 200,
+      "sha256": "3ebc99cbcca570a1efdb34d36c683e34e97b919ba57d7de9f62178c8265db307",
+      "expected": "3ebc99cbcca570a1efdb34d36c683e34e97b919ba57d7de9f62178c8265db307",
+      "pass": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-WUiyMvx6.js",
+      "status": 200,
+      "sha256": "ce8a5e7744453933d29fc2d20a81f5e8a1a5290e5cabd647874036150ef1b306",
+      "expected": "ce8a5e7744453933d29fc2d20a81f5e8a1a5290e5cabd647874036150ef1b306",
+      "pass": true
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-DS9Ggunl.js",
+      "status": 200,
+      "sha256": "605467f4692a5cd4df9262b7cd8a1ce4c5c5ef2352123748edfde0090f96ca18",
+      "expected": "605467f4692a5cd4df9262b7cd8a1ce4c5c5ef2352123748edfde0090f96ca18",
+      "pass": true
+    },
+    {
+      "ruta": "assets/hoy-DJhRV2vC.js",
+      "status": 200,
+      "sha256": "c6dcd056966b9aa1a692c535c908475df532faa4e00c6800b7a8277944827270",
+      "expected": "c6dcd056966b9aa1a692c535c908475df532faa4e00c6800b7a8277944827270",
+      "pass": true
+    },
+    {
+      "ruta": "assets/index-EAS1gRIP.js",
+      "status": 200,
+      "sha256": "76eae786765a12ed6c5f34e301998f64aab855e72435992bbfb6efd98355aee9",
+      "expected": "76eae786765a12ed6c5f34e301998f64aab855e72435992bbfb6efd98355aee9",
+      "pass": true
+    },
+    {
+      "ruta": "assets/index-Gq3LhwtP.css",
+      "status": 200,
+      "sha256": "c4e1a1d97a71b7cefcf11f505974a3d531cfb34960d12bb8304451353b887cf5",
+      "expected": "c4e1a1d97a71b7cefcf11f505974a3d531cfb34960d12bb8304451353b887cf5",
+      "pass": true
+    },
+    {
+      "ruta": "assets/input-CKer6P8O.js",
+      "status": 200,
+      "sha256": "e5f41ff5c9e49e52633ed10146aeaaf4d6f61304281a154d6c7bad411795ebb1",
+      "expected": "e5f41ff5c9e49e52633ed10146aeaaf4d6f61304281a154d6c7bad411795ebb1",
+      "pass": true
+    },
+    {
+      "ruta": "assets/kpi-card-ANGuhNOr.js",
+      "status": 200,
+      "sha256": "902911f8fca2837acbf193c49a32159a2317b2f173b554d17fd6afbd20fb21a8",
+      "expected": "902911f8fca2837acbf193c49a32159a2317b2f173b554d17fd6afbd20fb21a8",
+      "pass": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-CznwN8ov.js",
+      "status": 200,
+      "sha256": "c5a2de697ec756b386a3211ba177b98751f5452c95afb46b04d704a03db01fa0",
+      "expected": "c5a2de697ec756b386a3211ba177b98751f5452c95afb46b04d704a03db01fa0",
+      "pass": true
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-hOa_Tg0a.js",
+      "status": 200,
+      "sha256": "bbb0fe4f0a45f1bed3771b6589c1ede16e9edcf06869364ed762c1aeb1585783",
+      "expected": "bbb0fe4f0a45f1bed3771b6589c1ede16e9edcf06869364ed762c1aeb1585783",
+      "pass": true
+    },
+    {
+      "ruta": "assets/mi-cartera-n8Dakxsd.js",
+      "status": 200,
+      "sha256": "10e3634b6bf45f143f7e72c0b39b04fe2e94cc918d496850881151890a7f3806",
+      "expected": "10e3634b6bf45f143f7e72c0b39b04fe2e94cc918d496850881151890a7f3806",
+      "pass": true
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-COsHzuKP.js",
+      "status": 200,
+      "sha256": "30889f405cc726711b846acc237cf8ff94d9eb6fa6c07271741bb7ba58d07117",
+      "expected": "30889f405cc726711b846acc237cf8ff94d9eb6fa6c07271741bb7ba58d07117",
+      "pass": true
+    },
+    {
+      "ruta": "assets/paginacion-CrZzhzWJ.js",
+      "status": 200,
+      "sha256": "511e395af4bed21deaaa7df0e444398efd535424c1d1d3ce6c8de4a27c3cfdf8",
+      "expected": "511e395af4bed21deaaa7df0e444398efd535424c1d1d3ce6c8de4a27c3cfdf8",
+      "pass": true
+    },
+    {
+      "ruta": "assets/pipeline-CMDlziw7.js",
+      "status": 200,
+      "sha256": "900e0edbd0f0d8094dc129430a9bdd45be294f257cb4ced2772f6b7438e5731f",
+      "expected": "900e0edbd0f0d8094dc129430a9bdd45be294f257cb4ced2772f6b7438e5731f",
+      "pass": true
+    },
+    {
+      "ruta": "assets/progress-D0ikcgue.js",
+      "status": 200,
+      "sha256": "bb23812245dd8a67a864e3623cb44af70208afd620f664b8cc26619d6be66013",
+      "expected": "bb23812245dd8a67a864e3623cb44af70208afd620f664b8cc26619d6be66013",
+      "pass": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-O27thNcp.js",
+      "status": 200,
+      "sha256": "36311eee3dfe864acba62fcd35826a183400d08481c40f943b27a606e5484338",
+      "expected": "36311eee3dfe864acba62fcd35826a183400d08481c40f943b27a606e5484338",
+      "pass": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "expected": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "pass": true
+    },
+    {
+      "ruta": "assets/repartir-CugGXsQQ.js",
+      "status": 200,
+      "sha256": "4c13beeabd93c418111ecdc8c1fe8a79df07f2e6d3cdb0968b5ae272d5b5b51b",
+      "expected": "4c13beeabd93c418111ecdc8c1fe8a79df07f2e6d3cdb0968b5ae272d5b5b51b",
+      "pass": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-CWocMfep.js",
+      "status": 200,
+      "sha256": "f2afb7aff7931ce641f7ddc3094a2b8af8b0b2679ffece4867de4b52b8942afe",
+      "expected": "f2afb7aff7931ce641f7ddc3094a2b8af8b0b2679ffece4867de4b52b8942afe",
+      "pass": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-CyTBLyZI.js",
+      "status": 200,
+      "sha256": "afe89ddecbfe7c6c093567f2f1b0237113c0544e890d4a9ff5b701ce83866b6b",
+      "expected": "afe89ddecbfe7c6c093567f2f1b0237113c0544e890d4a9ff5b701ce83866b6b",
+      "pass": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "expected": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "pass": true
+    },
+    {
+      "ruta": "assets/section-head-Cb3Dky9G.js",
+      "status": 200,
+      "sha256": "d90117cb7dd429cee218a9d001dd040c72ff151b8d3e53d72f8034234f4b88fc",
+      "expected": "d90117cb7dd429cee218a9d001dd040c72ff151b8d3e53d72f8034234f4b88fc",
+      "pass": true
+    },
+    {
+      "ruta": "assets/seguimiento-DuNeicrT.js",
+      "status": 200,
+      "sha256": "75dea59eb435703837dc9e9dcb2e7cb46208fa5451c26a6563268a3ab0d8cc98",
+      "expected": "75dea59eb435703837dc9e9dcb2e7cb46208fa5451c26a6563268a3ab0d8cc98",
+      "pass": true
+    },
+    {
+      "ruta": "assets/select-Ct4SsceX.js",
+      "status": 200,
+      "sha256": "b92ffde07e238fbba8b176eaea975323f3157a05021ba49f067152ef6f1ac0f7",
+      "expected": "b92ffde07e238fbba8b176eaea975323f3157a05021ba49f067152ef6f1ac0f7",
+      "pass": true
+    },
+    {
+      "ruta": "assets/sla-operacion-Dx3wcGH4.js",
+      "status": 200,
+      "sha256": "99c03a06541f0e936a0bbce5806ac664f2eeee6b94bcb03a51bbe9aed0ae2cf0",
+      "expected": "99c03a06541f0e936a0bbce5806ac664f2eeee6b94bcb03a51bbe9aed0ae2cf0",
+      "pass": true
+    },
+    {
+      "ruta": "assets/stat-strip-Bv6AJE0P.js",
+      "status": 200,
+      "sha256": "b75f7fa52c06278d401e68aa9500f7e2290a0ac195c68c45458b231fdc6e971a",
+      "expected": "b75f7fa52c06278d401e68aa9500f7e2290a0ac195c68c45458b231fdc6e971a",
+      "pass": true
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "status": 200,
+      "sha256": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "expected": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "pass": true
+    },
+    {
+      "ruta": "assets/tabla-OepJEWd6.js",
+      "status": 200,
+      "sha256": "6928d77b93b4630af1ad7cfcb23ba97c056d111ab5d1cd761f7b833df3b31446",
+      "expected": "6928d77b93b4630af1ad7cfcb23ba97c056d111ab5d1cd761f7b833df3b31446",
+      "pass": true
+    },
+    {
+      "ruta": "assets/ui-vendor-CJpsc-7E.js",
+      "status": 200,
+      "sha256": "33287c8e02a8fc0f9fb6bae9979728a2416ba875967ad2c16f66bae6a621e765",
+      "expected": "33287c8e02a8fc0f9fb6bae9979728a2416ba875967ad2c16f66bae6a621e765",
+      "pass": true
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-C3EZtTuz.js",
+      "status": 200,
+      "sha256": "18ab1cc8605abdd010ee758cfcc4e8008c68ed6fb45e851de56c36a2ec827ff1",
+      "expected": "18ab1cc8605abdd010ee758cfcc4e8008c68ed6fb45e851de56c36a2ec827ff1",
+      "pass": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-BdgelUSv.js",
+      "status": 200,
+      "sha256": "fa973f8410379831b4550bf49f03a18fe8409fd262da693d07c62c2fd9e4921e",
+      "expected": "fa973f8410379831b4550bf49f03a18fe8409fd262da693d07c62c2fd9e4921e",
+      "pass": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DsaTiDr3.js",
+      "status": 200,
+      "sha256": "bd1fa54624f4d7853a10cfec3e8b60056c9aad0f4a5a48c389ffe7742db9bdb6",
+      "expected": "bd1fa54624f4d7853a10cfec3e8b60056c9aad0f4a5a48c389ffe7742db9bdb6",
+      "pass": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-DgFQh4H9.js",
+      "status": 200,
+      "sha256": "6bab59990f901875e29fb45cfa5ea2a5e48b94f5771dcdfe2c98bcad38aea611",
+      "expected": "6bab59990f901875e29fb45cfa5ea2a5e48b94f5771dcdfe2c98bcad38aea611",
+      "pass": true
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "expected": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "pass": true
+    },
+    {
+      "ruta": "assets/utils-BQtK_ljd.js",
+      "status": 200,
+      "sha256": "b9e490644900e48816f799fc127ed21a160d3ac664f3d27eb1b80f37987a9e88",
+      "expected": "b9e490644900e48816f799fc127ed21a160d3ac664f3d27eb1b80f37987a9e88",
+      "pass": true
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "sha256": "83a044c2edabe8110980d07524ec39a3ccadfeafb73ab873517b3d79275c50e7",
+      "expected": "83a044c2edabe8110980d07524ec39a3ccadfeafb73ab873517b3d79275c50e7",
+      "pass": true
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "expected": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "pass": true
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "sha256": "1efeab037e50b87e3754f7703ca2c23ff51ea6fa9fdcf3a515e037f0087ff904",
+      "expected": "1efeab037e50b87e3754f7703ca2c23ff51ea6fa9fdcf3a515e037f0087ff904",
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "recordedAt": "2026-09-25T06:13:34.605647+00:00",
+  "change": "gate-realidad.mjs: lectura explícita de public.perfiles para clientes activos sin domicilio",
+  "checkScripts": {
+    "status": "PASS",
+    "command": "npm run check:scripts",
+    "workingDirectory": "CRM-Avance-Corp",
+    "evidence": "La cadena de comandos enlazados con && alcanza y completa su última suite, conversion/coherencia.test.mjs (23/23), sin fallos.",
+    "nodeTestSuites": 11,
+    "nodeTests": 334,
+    "nodePassed": 334,
+    "nodeFailed": 0,
+    "logName": "check-scripts-esquema-perfiles.log",
+    "logSha256": "5cd85bb8675fac64dad552949268eb24ec94735595dcec293628c92ab1608f53"
+  },
+  "productionCli": {
+    "status": "NOT RUN",
+    "reason": "Faltan las variables de servicio; no se ejecutó el cliente con credenciales privilegiadas."
+  },
+  "productionSql": {
+    "status": "MEASURED_READ_ONLY",
+    "evidence": "realidad-sql-20260925.json",
+    "matchingAssumptions": 8,
+    "divergentAssumptions": 1,
+    "divergence": "290 clientes activos sin domicilio; el flujo de contratación recoge el dato faltante."
+  },
+  "frontendChanged": false,
+  "review": "LEVEL 1: referencia de esquema; sin nueva revisión independiente."
+}

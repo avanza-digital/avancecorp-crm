@@ -1,0 +1,19 @@
+{
+  "source": {
+    "commit": "65e96df95511e683dfd39dc852ecd5e5312abc57",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "destino": "crm.miavance.com",
+  "release_id": "crm-20260925T150218Z-65e96df95511",
+  "archivo": {
+    "nombre": "crm-20260925T150218Z-65e96df95511.zip",
+    "bytes": 2320890,
+    "sha256": "bf7351942b63599ee92531175ee45b696d5657035c843bd4f4839a437447e4ee"
+  },
+  "cantidad_archivos": 117,
+  "buildId": "build-20260925T150218036Z",
+  "manifestSHA256": "ca33d61d1937abf836e2173e1950b70baf117dbf1c0a76aea3c784919ccbffab",
+  "verification": "PASS release:crm y release:crm:verify; Main local = avancecorp/main; árbol completo idéntico a e0a93306",
+  "rollback": "release-main101/crm-20260925T054322Z-f9196dba908f.zip"
+}

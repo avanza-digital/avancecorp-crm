@@ -1,5 +1,7 @@
 # P-0XX — CRM y portal publicados; conciliación pendiente
 
+Actualización: [[P-0XX - cierre productivo verificado (2026-09-26)]].
+
 El 25/09/2026 Miguel autorizó excepcionalmente publicar P-0XX sin usar el
 Merge Request del dashboard, que omitía datos y borraba objetos ajenos. Se
 aplicaron las cuatro migraciones S1, S3, S4 y S2; las tres Edge Functions y el

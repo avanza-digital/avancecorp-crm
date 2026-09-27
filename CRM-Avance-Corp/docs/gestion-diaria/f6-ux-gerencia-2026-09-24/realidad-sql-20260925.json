@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-09-25T05:51:16.714Z",
+  "source": "CRM-Avance-Corp/supabase/scripts/gate-realidad.mjs",
+  "cli": "NOT RUN: exit 2, faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY",
+  "schemaFinding": "El script general apunta a crm.perfiles, que no existe; la medición SQL usa public.perfiles, relación productiva de perfiles.",
+  "evidence": [
+    {
+      "observado_en": "2026-09-25 05:49:25.635432+00",
+      "valores": {
+        "actividades": 15973,
+        "equipo_operativo": 22,
+        "leads_en_cartera": 2304,
+        "metas_publicadas": 21,
+        "tareas_pendientes": 1323,
+        "metas_bajo_el_sello": 0,
+        "roster_metas_completo": 0,
+        "clientes_con_domicilio_legal": 290
+      },
+      "conversion_un_solo_nucleo": {
+        "mes": "2026-09-01",
+        "hasta": "2026-09-25",
+        "cuadra": true,
+        "motivo": null,
+        "detalle": {
+          "rango": {
+            "pct": 7.07,
+            "divisor": 1327,
+            "numerador": 93.85
+          },
+          "mensual": {
+            "pct": 7.07,
+            "divisor": 1327,
+            "numerador": 93.85
+          },
+          "distribucion": {
+            "pct": 7.07,
+            "divisor": 1327,
+            "numerador": 93.85
+          },
+          "nucleo_directo": {
+            "pct": 7.07,
+            "divisor": 1327,
+            "numerador": 93.85
+          },
+          "rango_recalculo": {
+            "pct": 7.07,
+            "divisor": 1327,
+            "numerador": 93.85
+          }
+        },
+        "declaran": {
+          "rango": "mensual",
+          "distribucion": "mensual"
+        },
+        "conciliacion": {
+          "deuda_aplicada": 0,
+          "neto_numerador": 93.85,
+          "bruto_numerador": 93.85,
+          "deuda_pendiente": 0,
+          "vendedores_topados": 0
+        },
+        "caminos_leidos": 5
+      },
+      "solo_lectura": "on"
+    }
+  ],
+  "scope": "Nueve supuestos originales medidos en SQL READ ONLY; no equivale a afirmar PASS del comando CLI."
+}

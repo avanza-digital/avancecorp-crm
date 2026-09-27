@@ -331,6 +331,48 @@ export type Database = {
           },
         ]
       }
+      cambio_cuenta_avisos: {
+        Row: {
+          actualizado_en: string
+          correo_en: string | null
+          creado_en: string
+          id: string
+          intentos: number
+          novedad_en: string | null
+          reclamado_en: string | null
+          reserva: string | null
+          solicitud_id: string
+          superada_en: string | null
+          ultimo_error: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          correo_en?: string | null
+          creado_en?: string
+          id?: string
+          intentos?: number
+          novedad_en?: string | null
+          reclamado_en?: string | null
+          reserva?: string | null
+          solicitud_id: string
+          superada_en?: string | null
+          ultimo_error?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          correo_en?: string | null
+          creado_en?: string
+          id?: string
+          intentos?: number
+          novedad_en?: string | null
+          reclamado_en?: string | null
+          reserva?: string | null
+          solicitud_id?: string
+          superada_en?: string | null
+          ultimo_error?: string | null
+        }
+        Relationships: []
+      }
       cartera_lecturas: {
         Row: {
           actor_id: string
@@ -381,6 +423,7 @@ export type Database = {
           estado: string
           nombre_completo: string
           numerador: number
+          origenes_ranking: Json | null
           periodo: string
           procedencia: Json
           referidos_aporta_pct: number | null
@@ -407,6 +450,7 @@ export type Database = {
           estado: string
           nombre_completo: string
           numerador: number
+          origenes_ranking?: Json | null
           periodo: string
           procedencia?: Json
           referidos_aporta_pct?: number | null
@@ -433,6 +477,7 @@ export type Database = {
           estado?: string
           nombre_completo?: string
           numerador?: number
+          origenes_ranking?: Json | null
           periodo?: string
           procedencia?: Json
           referidos_aporta_pct?: number | null
@@ -593,6 +638,48 @@ export type Database = {
           },
         ]
       }
+      contrato_cuenta_pago_cambios: {
+        Row: {
+          cambiado_en: string
+          cambiado_por: string
+          cliente_id: string
+          contrato_id: string
+          cuenta_anterior_id: string
+          cuenta_nueva_id: string
+          id: string
+          motivo: string
+          notificado_en: string | null
+          respaldo_ruta: string
+          solicitud_id: string
+        }
+        Insert: {
+          cambiado_en?: string
+          cambiado_por: string
+          cliente_id: string
+          contrato_id: string
+          cuenta_anterior_id: string
+          cuenta_nueva_id: string
+          id?: string
+          motivo: string
+          notificado_en?: string | null
+          respaldo_ruta: string
+          solicitud_id: string
+        }
+        Update: {
+          cambiado_en?: string
+          cambiado_por?: string
+          cliente_id?: string
+          contrato_id?: string
+          cuenta_anterior_id?: string
+          cuenta_nueva_id?: string
+          id?: string
+          motivo?: string
+          notificado_en?: string | null
+          respaldo_ruta?: string
+          solicitud_id?: string
+        }
+        Relationships: []
+      }
       contrato_cuentas_pago: {
         Row: {
           contrato_id: string
@@ -714,6 +801,100 @@ export type Database = {
         }
         Relationships: []
       }
+      conversion_acreditaciones: {
+        Row: {
+          acreditado_en: string
+          actualizado_en: string
+          analista_id: string | null
+          confirmado_en: string
+          creado_en: string
+          episodio_id: string
+          estado: string
+          fecha_comercial: string
+          fuente_id: string
+          fuente_tipo: string
+          id: string
+          incluida_en_sello: boolean | null
+          inversionista_id: string | null
+          lead_id: string
+          motivo: string
+          origen: string
+          periodo_comercial: string
+          plazo_hasta: string
+          politica_desde: string
+          sellado_en: string | null
+          vinculado_en: string
+        }
+        Insert: {
+          acreditado_en: string
+          actualizado_en?: string
+          analista_id?: string | null
+          confirmado_en: string
+          creado_en?: string
+          episodio_id: string
+          estado: string
+          fecha_comercial: string
+          fuente_id: string
+          fuente_tipo: string
+          id?: string
+          incluida_en_sello?: boolean | null
+          inversionista_id?: string | null
+          lead_id: string
+          motivo: string
+          origen: string
+          periodo_comercial: string
+          plazo_hasta: string
+          politica_desde?: string
+          sellado_en?: string | null
+          vinculado_en: string
+        }
+        Update: {
+          acreditado_en?: string
+          actualizado_en?: string
+          analista_id?: string | null
+          confirmado_en?: string
+          creado_en?: string
+          episodio_id?: string
+          estado?: string
+          fecha_comercial?: string
+          fuente_id?: string
+          fuente_tipo?: string
+          id?: string
+          incluida_en_sello?: boolean | null
+          inversionista_id?: string | null
+          lead_id?: string
+          motivo?: string
+          origen?: string
+          periodo_comercial?: string
+          plazo_hasta?: string
+          politica_desde?: string
+          sellado_en?: string | null
+          vinculado_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_acreditaciones_episodio_id_fkey"
+            columns: ["episodio_id"]
+            isOneToOne: true
+            referencedRelation: "lead_asignaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_acreditaciones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_acreditaciones_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversion_pesos: {
         Row: {
           creado_en: string
@@ -734,6 +915,30 @@ export type Database = {
           nota?: string | null
           peso_referido?: number
           peso_renovacion?: number
+          vigente_desde?: string
+        }
+        Relationships: []
+      }
+      conversion_politica: {
+        Row: {
+          activada_en: string | null
+          manifiesto_huella: string | null
+          resultado: Json | null
+          unica: boolean
+          vigente_desde: string
+        }
+        Insert: {
+          activada_en?: string | null
+          manifiesto_huella?: string | null
+          resultado?: Json | null
+          unica?: boolean
+          vigente_desde?: string
+        }
+        Update: {
+          activada_en?: string | null
+          manifiesto_huella?: string | null
+          resultado?: Json | null
+          unica?: boolean
           vigente_desde?: string
         }
         Relationships: []
@@ -885,6 +1090,69 @@ export type Database = {
           origen?: string
           tipo_cuenta?: string
           titular_distinto?: boolean
+        }
+        Relationships: []
+      }
+      cuentas_bancarias_retiros: {
+        Row: {
+          cliente_id: string
+          cuenta_id: string
+          id: string
+          moneda: string
+          motivo: string
+          respaldo_ruta: string | null
+          retirado_en: string
+          retirado_por: string
+          solicitud_id: string
+        }
+        Insert: {
+          cliente_id: string
+          cuenta_id: string
+          id?: string
+          moneda: string
+          motivo: string
+          respaldo_ruta?: string | null
+          retirado_en?: string
+          retirado_por: string
+          solicitud_id: string
+        }
+        Update: {
+          cliente_id?: string
+          cuenta_id?: string
+          id?: string
+          moneda?: string
+          motivo?: string
+          respaldo_ruta?: string | null
+          retirado_en?: string
+          retirado_por?: string
+          solicitud_id?: string
+        }
+        Relationships: []
+      }
+      cuotas_cuenta_pagada: {
+        Row: {
+          contrato_id: string
+          cuenta_bancaria_id: string
+          cuota_id: string
+          id: string
+          origen: string
+          sellada_en: string
+        }
+        Insert: {
+          contrato_id: string
+          cuenta_bancaria_id: string
+          cuota_id: string
+          id?: string
+          origen: string
+          sellada_en?: string
+        }
+        Update: {
+          contrato_id?: string
+          cuenta_bancaria_id?: string
+          cuota_id?: string
+          id?: string
+          origen?: string
+          sellada_en?: string
         }
         Relationships: []
       }
@@ -4350,24 +4618,6 @@ export type Database = {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: Json
       }
-      actualizar_contrato_con_cuenta_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_id: string
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
-      actualizar_contrato_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_id: string
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
       actualizar_jerarquia_usuario_fn: {
         Args: {
           p_idempotencia: string
@@ -4478,9 +4728,39 @@ export type Database = {
         }
         Returns: Json
       }
+      cambiar_cuenta_pago_contratos: {
+        Args: {
+          p_cliente_id: string
+          p_contrato_ids: string[]
+          p_cuenta_nueva_id: string
+          p_motivo: string
+          p_respaldo_ruta: string
+          p_solicitud_id: string
+        }
+        Returns: Json
+      }
       cambiar_modo_sla_operacion: {
         Args: { p_expected_revision: number; p_modo: string }
         Returns: Json
+      }
+      cambios_cuenta_pago_cliente_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          aviso_error: string
+          aviso_estado: string
+          banco_anterior: string
+          banco_nuevo: string
+          cambiado_en: string
+          cambiado_por_nombre: string
+          cambio_id: string
+          motivo: string
+          notificado_en: string
+          numero_anterior: string
+          numero_contrato: string
+          numero_nuevo: string
+          respaldo_ruta: string
+          solicitud_id: string
+        }[]
       }
       cancelar_solicitud_inversion_fn: {
         Args: { p_revision_datos_esperada: number; p_solicitud: string }
@@ -4735,6 +5015,16 @@ export type Database = {
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
       configuracion_sla_v2_fn: { Args: never; Returns: Json }
+      confirmar_aviso_cambio_cuenta: {
+        Args: {
+          p_correo: boolean
+          p_error?: string
+          p_novedad: boolean
+          p_reserva: string
+          p_solicitud_id: string
+        }
+        Returns: Json
+      }
       confirmar_envio_push_tasa_fn: {
         Args: {
           p_codigo_http?: number
@@ -4876,6 +5166,24 @@ export type Database = {
           tipo_interes: string
         }[]
       }
+      contratos_cuenta_pago_cliente_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          banco: string
+          cci: string
+          contrato_id: string
+          cuenta_bancaria_id: string
+          cuenta_retirada: boolean
+          cuotas_pendientes: number
+          estado: string
+          moneda: string
+          numero_contrato: string
+          numero_cuenta: string
+          pagadas_por_cuenta: Json
+          proxima_fecha: string
+          tipo_cuenta: string
+        }[]
+      }
       contratos_por_periodo_comercial_fn: {
         Args: { p_periodo: string }
         Returns: Json
@@ -4900,6 +5208,7 @@ export type Database = {
         }
         Returns: Json
       }
+      conversion_estado_lead_v1: { Args: { p_lead_id: string }; Returns: Json }
       conversion_mensual_fn: { Args: { p_periodo: string }; Returns: Json }
       conversion_mensual_sin_cartera_fn: {
         Args: { p_periodo: string }
@@ -4985,23 +5294,6 @@ export type Database = {
         Args: { p_contrato: Json; p_cronograma: Json; p_cuenta: Json }
         Returns: Json
       }
-      crear_contrato_con_cuenta_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_cuenta: Json
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
-      crear_contrato_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
       crear_lead_si_disponible: {
         Args: {
           p_categoria_interes?: string
@@ -5022,6 +5314,10 @@ export type Database = {
           p_vendedor_id?: string
         }
         Returns: Json
+      }
+      crear_perfil_cliente_con_cuentas: {
+        Args: { p_actor_id: string; p_cuentas: Json; p_perfil: Json }
+        Returns: string
       }
       crear_producto_inversion: {
         Args: {
@@ -5146,6 +5442,15 @@ export type Database = {
         Returns: Json
       }
       eliminar_cliente_fn: { Args: { p_perfil_id: string }; Returns: Json }
+      eliminar_usuario_fn: {
+        Args: {
+          p_nombre_confirmacion: string
+          p_perfil_id: string
+          p_version_equipo?: string
+          p_version_perfil: string
+        }
+        Returns: Json
+      }
       enlazar_lead_inversionista_fn: {
         Args: { p_inversionista: string; p_lead_id: string; p_motivo: string }
         Returns: Json
@@ -5231,11 +5536,6 @@ export type Database = {
         }
         Returns: Json
       }
-      gestion_diaria_habitos_fn: {
-        Args: { p_dias?: number; p_hasta?: string }
-        Returns: Json
-      }
-      gestion_diaria_pulso_fn: { Args: { p_dia?: string }; Returns: Json }
       gestion_diaria_analista_fn: {
         Args: { p_analista_id?: string; p_dia?: string }
         Returns: Json
@@ -5243,6 +5543,10 @@ export type Database = {
       gestion_diaria_avisos_fn: { Args: never; Returns: Json }
       gestion_diaria_equipo_fn: {
         Args: { p_dia?: string; p_supervisor_id?: string }
+        Returns: Json
+      }
+      gestion_diaria_habitos_fn: {
+        Args: { p_dias?: number; p_hasta?: string }
         Returns: Json
       }
       gestion_diaria_pendientes_fn: {
@@ -5259,6 +5563,7 @@ export type Database = {
         Args: { p_alerta_id: string; p_solicitud_id: string }
         Returns: Json
       }
+      gestion_diaria_pulso_fn: { Args: { p_dia?: string }; Returns: Json }
       gestion_diaria_reconocer_corte: {
         Args: { p_accion: string; p_alerta_id: string; p_solicitud_id: string }
         Returns: Json
@@ -5274,6 +5579,24 @@ export type Database = {
           p_version_esperada: number
         }
         Returns: Json
+      }
+      historial_cuentas_cliente_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          banco: string
+          beneficiario_dni: string
+          beneficiario_nombre: string
+          cci: string
+          creada_en: string
+          cuenta_id: string
+          desactivada_en: string
+          desactivada_por_nombre: string
+          moneda: string
+          numero_cuenta: string
+          origen: string
+          tipo_cuenta: string
+          titular_distinto: boolean
+        }[]
       }
       historial_decisiones_tasa_gerencia_fn: {
         Args: {
@@ -5313,6 +5636,10 @@ export type Database = {
         Returns: Json
       }
       impacto_desactivacion_usuario_fn: {
+        Args: { p_perfil_id: string }
+        Returns: Json
+      }
+      impacto_eliminacion_usuario_fn: {
         Args: { p_perfil_id: string }
         Returns: Json
       }
@@ -5419,15 +5746,6 @@ export type Database = {
       metricas_agenda_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
-      }
-      metricas_altas_analista_fn: {
-        Args: { p_meses?: number }
-        Returns: {
-          altas: number
-          analista_id: string
-          analista_nombre: string
-          mes: string
-        }[]
       }
       metricas_capital_mes_fn: {
         Args: { p_meses?: number }
@@ -5713,6 +6031,10 @@ export type Database = {
         Args: { p_motivo: string; p_perfil_id: string }
         Returns: undefined
       }
+      ranking_origen_vendedor_fn: {
+        Args: { p_periodo: string; p_vendedor_id: string }
+        Returns: Json
+      }
       reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
       reasignar_responsable_relacion_fn: {
         Args: {
@@ -5722,9 +6044,9 @@ export type Database = {
         }
         Returns: Json
       }
-      registrar_cuenta_cliente: {
-        Args: { p_cliente_id: string; p_cuenta: Json }
-        Returns: string
+      reclamar_aviso_cambio_cuenta: {
+        Args: { p_actor: string; p_dry_run?: boolean; p_solicitud_id: string }
+        Returns: Json
       }
       registrar_actividad_v2: {
         Args: {
@@ -5749,6 +6071,10 @@ export type Database = {
           p_whatsapp: string
         }
         Returns: Json
+      }
+      registrar_cuenta_cliente: {
+        Args: { p_cliente_id: string; p_cuenta: Json }
+        Returns: string
       }
       registrar_llamada_v3: {
         Args: {
@@ -5777,6 +6103,15 @@ export type Database = {
           p_tarea_id?: string
         }
         Returns: Json
+      }
+      registrar_pago_con_cuenta: {
+        Args: {
+          p_cci: string
+          p_cuota_id: string
+          p_fecha: string
+          p_monto: number
+        }
+        Returns: string
       }
       registrar_push_tasa_fn: {
         Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
@@ -5926,6 +6261,26 @@ export type Database = {
       resumen_cartera_fn: { Args: never; Returns: Json }
       resumen_reparto_fn: { Args: never; Returns: Json }
       resumen_tareas_fn: { Args: never; Returns: Json }
+      retirar_cuenta_cliente: {
+        Args: {
+          p_cliente_id: string
+          p_cuenta_id: string
+          p_motivo: string
+          p_respaldo_ruta?: string
+          p_solicitud_id: string
+        }
+        Returns: Json
+      }
+      retiros_cuentas_cliente_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          cuenta_id: string
+          motivo: string
+          respaldo_ruta: string
+          retirado_en: string
+          retirado_por_nombre: string
+        }[]
+      }
       retomar_conversion_gerencia_fn: {
         Args: { p_lead_id: string }
         Returns: Json
@@ -6661,24 +7016,6 @@ export type Database = {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: Json
       }
-      actualizar_contrato_con_cuenta_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_id: string
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
-      actualizar_contrato_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_id: string
-          p_producto_condicion_id: string
-        }
-        Returns: Json
-      }
       actualizar_numero_contrato: {
         Args: {
           p_categoria?: string
@@ -6689,7 +7026,6 @@ export type Database = {
         Returns: Json
       }
       admin_pagos_metricas: { Args: never; Returns: Json }
-      admin_pagos_resumen: { Args: never; Returns: Json }
       bandeja_actividad: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -6718,14 +7054,6 @@ export type Database = {
       }
       crear_contrato: {
         Args: { p_contrato: Json; p_cronograma: Json }
-        Returns: Json
-      }
-      crear_contrato_producto: {
-        Args: {
-          p_contrato: Json
-          p_cronograma: Json
-          p_producto_condicion_id: string
-        }
         Returns: Json
       }
       dashboard_admin_metricas: { Args: never; Returns: Json }
@@ -6780,6 +7108,18 @@ export type Database = {
       }
       metricas_directorio: { Args: never; Returns: Json }
       mi_rol: { Args: never; Returns: string }
+      mis_cuentas_bancarias_fn: {
+        Args: never
+        Returns: {
+          banco: string
+          cci_mascara: string
+          creada_en: string
+          moneda: string
+          numero_cuenta_mascara: string
+          origen: string
+          tipo_cuenta: string
+        }[]
+      }
       obtener_mi_asesor: {
         Args: never
         Returns: {

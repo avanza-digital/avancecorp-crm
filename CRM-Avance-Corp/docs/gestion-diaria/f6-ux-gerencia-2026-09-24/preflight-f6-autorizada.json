@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-25T10:13:43.981029+00:00",
+  "source": "f9196dba908fab4a28048e43ceab2c1284156cee",
+  "branch": "main",
+  "mainRemoteMatches": true,
+  "cleanTree": true,
+  "checks": "4421/298 PASS; Chromium 270/0/26, WebKit 10/0; app idéntica a 4a4cb1ec",
+  "artifactVerified": "ARTEFACTO_OK e6c17b3b8084c154137160aef01c0f0ed49c93d1984261f3e2986e90f3f4ffeb",
+  "rollback": "PASS 79 HTML/JS/CSS y version.json; rollback-previo-f6-autorizada.json",
+  "authorization": "autorizacion-f6.json",
+  "hostingerAccess": "PASS; hostinger-acceso-listo.json"
+}

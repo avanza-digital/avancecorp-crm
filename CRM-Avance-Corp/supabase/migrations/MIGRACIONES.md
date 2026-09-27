@@ -1,3 +1,86 @@
+## 20260927080006 — Conversión: declaraciones técnicas del control analítico
+
+**APROBADA Y ENSAYADA EN RAMA; NO EN PRODUCCIÓN.** Dos escritores internos
+se declaran operativos; deuda conserva clase analítica con huella actualizada.
+Sin cambios a funciones, permisos, contratos ni techo. Ensayo revertido y
+postflight PASS, sin ocultar cuatro hallazgos anteriores del inventario.
+SHA-256 `2b34a9b60f384bf09b83bf0c163cddb2cf7935c0bebe4d5442e72b19c0c69324`.
+Creada por CLI como 20260927074717; conciliada con versión nativa sin cambio
+de bytes. Matriz final activa y puertas de publicación en curso.
+
+## 20260927073637 — Conversión: fecha comercial y acreditación dentro de plazo
+
+**APROBADA E INSTALADA EN RAMA; NO EN PRODUCCIÓN.** Rama de trabajo
+`codex/conversion-fecha-comercial`, basada en Main `98be5666`.
+Miguel aprobó cierre comercial, confirmación y vínculo antes de finalizar el
+día 10 Lima, vigencia desde septiembre y conservación de agosto/anteriores.
+Caso ambiguo: fuente de septiembre, no mayo. Cuatro reemplazos autorizados para
+conciliación nominal; caso sin inversión pendiente sin crédito. Datos personales
+y UUID operativos solo en el manifiesto privado, nunca en este repositorio público.
+
+Frontera única día 11, evaluador puro, registro auditado RLS privado, escritor
+idempotente y núcleo comercial. Triggers CRM de confirmación/vínculo, corrección
+comercial, deuda por mes acreditado y RPC autorizada de explicación para la ficha.
+Diez suites SQL, cinco mutantes y once carreras de dos sesiones PASS; escritores
+reales Avance/cooperativa, pendiente sin crédito y fotos selladas verificadas.
+Frontend `npm run check` PASS: 4468 tests; E2E Docker 275 passed, 26 skipped,
+1 flaky (Gestión diaria, pasó al reintentar). Tipos nuevos generados localmente.
+Instalación inactiva: conserva la lectura anterior hasta conciliar y activar
+atómicamente el manifiesto privado. Lote parcial/drift/plazo vencido se revierten.
+Manifiesto real revalidado sin divergencias; aún NO aplicado. Reversa y huellas
+PASS. P1 del review Claude corregidos: cambio de día conserva vínculo válido;
+pertenencia individual al sello evita deuda por fuente excluida antes de cerrar.
+Retirada auditada sincronizada con el sello mediante trigger sólo CRM; retiro
+antes/después, corrección/anulación concurrentes y Metas con cuotas nominales
+sintéticas PASS. Reversa repetida tras este ajuste PASS.
+E2E focal de Gestión diaria 11/11 PASS. Tipos nuevos regenerados localmente.
+Estado: `../scripts/conversion-fecha/ESTADO.md`; evaluación `REVISION.md` al lado.
+Baseline y candidata OFF remotos 2267/0 cada una; escritores HTTP 15/15 y
+estado/plazo 5/5 PASS. Enero cargado en septiembre: inversión intacta, cero
+crédito en ambos meses. Tipos integrales, check y reversa remota PASS; advisors
+sin nuevas advertencias. Matriz activa final y publicación pendientes.
+SQL creado como 20260927035114, conciliado con versión nativa sin alterar bytes;
+SHA-256 `21e615f519164d2eb68437f0e358a0d37df1cf5dbbb8bf221f0d614f134dd896`.
+No autoriza activar Cron ni sellar meses. Acta vigente: `ENSAYO-REMOTO.md`.
+
+## 20260927015203 — Ranking: continuidad legada acreditada como Cartera
+
+**PROBADA EN DOCKER LOCAL Y RAMA REMOTA. NO APLICADA EN PRODUCCIÓN.**
+Entrega A, ensayo remoto y publicación autorizados el 26/09/2026; instalación pendiente.
+Rama qinpzjnslblwqjrhaqqf, registro nativo 20260927015203.
+SQL exacto sin cambios; HTTP/Auth, matriz SQL focal, reversión y advisors PASS.
+Acta durable: releases/ranking-cartera-20260926/ENSAYO-REMOTO.md del workspace.
+
+Reemplaza únicamente el cuerpo de
+`private.ranking_capital_origen_filas(timestamptz,timestamptz,uuid)`.
+Después de los leads directos y el fallback temporal, usa el ledger de
+operaciones de cartera para clasificar como `cartera` contratos legados
+`nuevo` sin origen: exige contrato nuevo, cliente, moneda, fecha y tipo
+upgrade/renovación concordantes. No cambia categorías, capital, atribución,
+conversión, COOPAC, fotos selladas, firma pública ni permisos. No escribe
+datos ni altera objetos de `public`. Helper privado SECURITY DEFINER
+preexistente, search_path vacío, owner postgres, ejecución cerrada a clientes.
+
+Preflight de huellas del lector y los dos núcleos monetarios; reversión exacta
+ensayada. SQL local: 25 aserciones nuevas PASS, regresión del ranking PASS,
+foto sellada y respuesta de RPC sin cambios PASS. Proyección productiva de
+solo lectura: 143 filas antes/después, 12 cambian solo el canal, cero
+duplicados; Betzabeth: S/150.000 pasa de sin_origen a cartera sin alterar
+los otros importes. Claude (auditor SQL/RLS): PASS, sin cambios obligatorios.
+Comprobadas sus observaciones: cero discordancias cliente/moneda/fecha/tipo
+entre los 12 casos de septiembre; fecha canónica deriva del campo persistido;
+monedas e índice único verificados, tercer tipo rechazado por CHECK.
+Un lead directo, incluso sin origen, impide intencionalmente el rescate.
+Revisión completa y gates remotos se registran en
+`../scripts/ranking-cartera/VERIFICACION.md`.
+
+Pendiente antes de publicar: integración con Main vigente y merge nativo.
+Rama terminó FUNCTIONS_DEPLOYED/ACTIVE_HEALTHY. Versión local conciliada con
+la nativa sin cambiar un byte del SQL aprobado inicialmente como 20260927003433.
+Ensayo remoto no equivale a publicación. Autorización productiva: «sii» de Miguel.
+Tipos no regenerados: firma, retornos y shape JSON existentes intactos.
+No se implementa aquí la restricción de nueva inversión por empresa.
+
 ## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
 
 **OK EXPLÍCITO DE MIGUEL (26/09, ~22:45): «Sí, aplica y publica»; P04 en pagos: «Dejarlo como está»
@@ -363,29 +446,6 @@ Acta: `../scripts/p0xx/CIERRE-PRODUCCION.md`. Reporte actualizado de 23 contrato
 sin vínculo (21 operativos y 2 demo) entregado. Rama propia eliminada y ausencia verificada.
 La publicación CRM/portal de P-0XX no requiere otro despliegue por este ajuste.
 
-## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
-
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
-`private.cuentas_cliente_propias_autorizado()` exige que `auth.uid()` sea un
-cliente activo y delega en `private.cuentas_cliente_vigentes`; la RPC de pantalla
-`public.mis_cuentas_bancarias_fn()` no acepta un ID externo y solo devuelve
-cuenta/CCI enmascarados. No se concedió SELECT de `crm.cuentas_bancarias` a
-`authenticated`. `miavance.com/perfil.html` muestra las cuentas activas del
-cliente, con estado vacío y error explícitos, sin prometer que sustituyan la
-instrucción de pago histórica vinculada al contrato.
-
-Ensayos de rama: cliente ficticio ve BCP PEN `…6087` y USD `…9168`, otro cliente
-ve 0 filas, un miembro CRM no puede usar la RPC, grants de tabla/función
-interna cerrados (`S4_PORTAL_CLIENTE_OK`). El oráculo transaccional de banca en
-perfiles devuelve `CUENTAS_TX_OK`; el seed y gate RLS históricos dejaron de
-esperar escrituras bancarias válidas en perfiles. Preflights de seed y RLS
-pasaron; gate RLS completo requiere credenciales y banco limpio. Portal 116/116
-tests. El advisor agrega un WARN conocido por la nueva RPC `SECURITY DEFINER`
-concedida a `authenticated`; la prueba de alcance propio documenta por qué se
-mantiene. La reversa S1 ahora toma bloqueos de cuenta, cronograma y vínculo
-antes de comprobar pagos y borrar; el ensayo con `ROLLBACK` dejó 3 cuentas y
-2 vínculos intactos.
-
 ## 20260925172955 / 20260925180145 — Eliminación auditada de contratos y usuarios
 
 **INSTALADAS Y VERIFICADAS EN PRODUCCIÓN.** 25/09/2026, lectura final 15:34 Lima.
@@ -412,16 +472,43 @@ gerenciales previstos. Merge nativo de solo estos dos SQL; 358 migraciones previ
 intactas y 21 Edge Functions sin cambios. Cuerpos/ACL/triggers cotejados en
 producción. Rama temporal eliminada; pantallas todavía pendientes de publicación.
 
+
+## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
+
+**APLICADA EN PRODUCCIÓN EL 25/09/2026**, registro `20260925211308`, tras
+autorización excepcional de Miguel. Portal publicado y lectura visual confirmada.
+`private.cuentas_cliente_propias_autorizado()` exige que `auth.uid()` sea un
+cliente activo y delega en `private.cuentas_cliente_vigentes`; la RPC de pantalla
+`public.mis_cuentas_bancarias_fn()` no acepta un ID externo y solo devuelve
+cuenta/CCI enmascarados. No se concedió SELECT de `crm.cuentas_bancarias` a
+`authenticated`. `miavance.com/perfil.html` muestra las cuentas activas del
+cliente, con estado vacío y error explícitos, sin prometer que sustituyan la
+instrucción de pago histórica vinculada al contrato.
+
+Ensayos de rama: cliente ficticio ve BCP PEN `…6087` y USD `…9168`, otro cliente
+ve 0 filas, un miembro CRM no puede usar la RPC, grants de tabla/función
+interna cerrados (`S4_PORTAL_CLIENTE_OK`). El oráculo transaccional de banca en
+perfiles devuelve `CUENTAS_TX_OK`; el seed y gate RLS históricos dejaron de
+esperar escrituras bancarias válidas en perfiles. Preflights de seed y RLS
+pasaron; la verificación posterior de contratos/cuentas completó 287 aserciones
+HTTP/RLS en rama. Ensayo inicial Portal 116/116
+tests. El advisor agrega un WARN conocido por la nueva RPC `SECURITY DEFINER`
+concedida a `authenticated`; la prueba de alcance propio documenta por qué se
+mantiene. La reversa S1 ahora toma bloqueos de cuenta, cronograma y vínculo
+antes de comprobar pagos y borrar; el ensayo con `ROLLBACK` dejó 3 cuentas y
+2 vínculos intactos.
+
 ## 20260925194026 — P-0XX: pagos con cuenta contractual, S3
 
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925`; sin merge ni publicación.
+**APLICADA EN PRODUCCIÓN EL 25/09/2026**, registro `20260925211253`, tras
+autorización excepcional de Miguel. Las pantallas de pagos del portal se publicaron.
 `private.exigir_cuenta_pago_cronograma()` impide registrar una cuota pagada si
 su contrato no tiene una cuenta vinculada y coherente. Dos triggers cubren
 INSERT pagado y UPDATE pendiente → pagado, después del trigger documental 00.
 La cuenta vinculada puede estar inactiva por versionado: conserva su valor como
 instrucción histórica. No se cambian montos, intereses ni cronogramas.
 
-`miavance.com/public_html/admin/pagos.html` consulta exclusivamente
+`miavance.com/admin/pagos.html` consulta exclusivamente
 `crm.cuentas_pago_contratos_fn` para agenda y resumen; bloquea pago manual,
 importación y exportación si falta vínculo. Los formularios de contrato Admin y
 Analista eligen expresamente una cuenta activa de la moneda y crean contrato,
@@ -438,9 +525,11 @@ persiste el WARN de S2 por su RPC autorizada. Véase
 
 ## 20260925153226 + 20260925210000 — P-0XX: cuentas de cliente en el ledger, S1 y S2
 
-**SOLO EN LA RAMA** `p0xx-cuentas-unificadas-20260925` (`hhpjiygytwoayxymziqo`),
-25/09/2026. No se aplicaron a producción ni se publicaron las pantallas. Número P
-definitivo pendiente de Miguel.
+**APLICADAS EN PRODUCCIÓN EL 25/09/2026**, registros `20260925211205` (S1) y
+`20260925211353` (S2), tras ensayo en `hhpjiygytwoayxymziqo` y autorización
+excepcional de Miguel. Portal y tres Edge Functions publicados; el frontend CRM
+compatible todavía requiere publicación mediante `$release-crm`. Número P
+definitivo pendiente de Miguel. Acta: `../scripts/p0xx/ACTA-PUBLICACION.md`.
 
 S1 copia cuentas válidas de `perfiles` a `crm.cuentas_bancarias` y vincula contratos
 antiguos únicamente con una candidata activa inequívoca del mismo cliente y moneda.
@@ -448,9 +537,11 @@ antiguos únicamente con una candidata activa inequívoca del mismo cliente y mo
 ficticios: 3 cuentas, 2 vínculos, 3 contratos activos pendientes; replay: 0 altas.
 `supabase/scripts/p0xx/reporte-conciliacion-activos.sql` lista los pendientes con
 cliente, DNI, moneda y analista, sin números bancarios.
-`crm.cliente_detalle_fn` conserva su firma y muestra el ledger. Producción se consultó
-solo con `SELECT`: proyección 241 cuentas migrables, 3 conflictos de mismo CCI y 257
-contratos vinculables; quedarían 23 activos pendientes (incluye 2 demo).
+`crm.cliente_detalle_fn` conserva su firma y muestra el ledger. Resultado productivo:
+241 cuentas y 257 vínculos insertados; 23 contratos activos pendientes de conciliación
+(16 sin cuenta y 7 ambiguos) y 3 perfiles con mismo CCI y otros datos. Esos tres no se
+sobrescribieron; la comprobación literal de cero perfiles válidos sin equivalente
+sigue abierta. Las cifras coincidieron con la proyección previa al despliegue.
 
 S2 introduce el validador común `private.validar_cuenta_bancaria`, registro versionado
 `crm.registrar_cuenta_cliente`, alta atómica de perfil y cuentas para las Edge y un
@@ -471,6 +562,39 @@ de cartera. El cierre de Pagos y contratos nuevos del portal se registra en S3.
 Detalle y decisiones: [[P-0XX - cuentas compartidas CRM portal - S1 en rama (2026-09-25)]]
 en el vault. Para revertir S1, usar exclusivamente los IDs de
 `private.backfill_cuentas_p0xx`; no borrar filas por heurística.
+
+## 20260925201350 — conservar un solo índice de la reserva de acceso
+
+**PROBADA EN RAMA TEMPORAL; NO APLICADA EN PRODUCCIÓN.** El advisor del
+despliegue detectó que `inversion_solicitudes_auth_claim_idx` duplicaba el índice
+vigente `inversion_solicitudes_auth_idx`. Esta migración comprueba que ambos son
+equivalentes y que el original está listo y válido, y elimina únicamente el nuevo.
+Sin cambios de funciones, permisos, datos ni comportamiento. Forma parte del
+mismo despliegue de correo; no se reescribe la migración ya versionada.
+
+## 20260925170437 — correo del primer acceso sincronizado con la ficha
+
+**PREPARADA; NO APLICADA EN PRODUCCIÓN.** Fix de la conversión del 25/09.
+Antes de crear Auth, editar el correo en la ficha actualiza la solicitud preparada
+(y su reserva), y corregir el acceso actualiza la ficha. La reserva mantiene claim,
+token y hash original de preparación. La corrección conserva control de revisión,
+ámbito, motivo y auditoría. Una cuenta Auth ya creada mantiene sus credenciales.
+
+Nuevo guard de primera vinculación `app_metadata.claim_id` en `auth.users`
+(AFTER INSERT OR UPDATE OF raw_app_meta_data): serializa con la corrección, exige
+el correo vigente y deja marcador atómico, conservando el CAS de la Edge actual.
+GoTrue real agrega los metadatos mediante UPDATE después del INSERT; ambos
+caminos están ensayados. Otras altas y actualizaciones de cuentas mantienen su flujo.
+No modifica objetos `public`, policies ni grants públicos; helpers privados sin
+EXECUTE para API. Quien puede editar la ficha por RLS sincroniza el correo pendiente;
+una importación sin actor no inventa auditoría y exige revisión antes de Auth.
+
+Guardas MD5 de seis dependencias contrastadas con producción en lectura. Banco
+Docker sintético propio: SQL, GoTrue/PostgREST, Edge actual y carreras concurrentes.
+Pendientes de autorización/ejecución: branch hospedada → RLS/advisors → merge;
+publicación frontend por `$release-crm`. Campo JSON aditivo `acceso_creado` para recuperar Auth sin perfil; esquema frontend opcional y consumidores `v.object` compatibles. Sin nuevas firmas ni columnas públicas.
+Runbook y resultados: `../scripts/correo-acceso/README.md`. Reversión operativa
+conserva el guard de Auth frente a peticiones tardías, no borra datos ni cuentas.
 
 ## 20260925002615 — public.audit_log pasa a ser de solo añadir
 
@@ -13746,7 +13870,10 @@ Rama eliminada; acumulado estimado US$0,029838. Acta vigente:
 
 ## 20260925190000_crm_ranking_origen_vendedor.sql
 
-**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Añade desglose del capital
+**APLICADA MEDIANTE MERGE NATIVO EL 26/09/2026**, registro remoto
+`20260926211038`. SHA-256 del SQL aprobado, sin modificaciones:
+`0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`.
+Añade desglose del capital
 confirmado por canal y conversión mensual por analista para la ficha de Ranking.
 Reutiliza las filas del núcleo de capital y la atribución del productor canónico,
 separa renovaciones/upgrades como Cartera, evita multiplicación por leads y
@@ -13758,37 +13885,27 @@ Ensayo en Docker local dentro de `BEGIN`/`ROLLBACK`: migración, paridad por
 vendedor/categoría/moneda, contrato con dos leads de distinto origen sin
 duplicar capital, cierre cooperativo, ajustes netos, rechazo de desajustes,
 conversión Referido, peso ausente, ACL, ámbito Gerencia/Supervisión y denegación
-de una identidad ajena, trigger de foto y su aislamiento ante
-fallo PASS (`supabase/scripts/ranking-origen/prueba-local.sql`). La foto nueva
-sigue append-only; un UPDATE del desglose fue rechazado con P0409.
-Los casos especiales son fixtures transaccionales sobre el banco local.
+de una identidad ajena, trigger de foto y su aislamiento ante fallo PASS
+(`supabase/scripts/ranking-origen/prueba-local.sql`). La foto nueva sigue
+append-only; un UPDATE del desglose fue rechazado con P0409. Los casos
+especiales son fixtures transaccionales sobre el banco local.
+
 Miguel aprobó el SQL exacto (SHA-256
 `0e883ef84e778699a60223392dc62e2442f9a9f93e36a257159a890d67fc95ec`).
 Preflight productivo de solo lectura el 25/09: los cuatro MD5 canónicos siguen
 iguales; el desglose calculado desde las mismas filas cuadra en 32 grupos de
 analista/moneda de septiembre y 29 de agosto, sin diferencias de capital.
-Los cuatro canales tienen leads y cierres en septiembre; no hay ajustes de
-mes cerrado. Falta ensayar la migración en una rama propia antes del merge;
-el conector exige confirmar la organización y el costo de la rama.
+Los cuatro canales tienen leads y cierres en septiembre; no hay ajustes de mes
+cerrado. Falta ensayar la migración en una rama propia antes del merge.
 
-Rama propia `ranking-origen-capital-20260925` creada con costo horario aprobado,
-pero su replay se detuvo antes de este SQL, tras 86/358 migraciones, en
-`20260812000259_crm_cierres_externos`: el postflight exige una fila activa en
-`crm.equipo` y una rama nueva no copia los datos de producción. La rama se
-eliminó y se verificó su ausencia de la lista de ramas. **No se aplicó esta
-migración ni se modificó producción.** El gate remoto de rama queda FAIL;
-se requiere resolver el replay histórico o una excepción expresa al ciclo
-«rama → merge» para instalar el SQL aprobado.
-Miguel eligió esperar la reparación del replay de ramas; no autorizó una
-excepción directa a producción. Postflight remoto: RPC, columna y migración
-ausentes de producción; rama de prueba ausente de la lista.
-Segundo intento pedido por Miguel: rama exclusiva
-`ranking-origen-capital-reintento-20260925` (misma tarifa autorizada). Durante
-el arranque mostró brevemente `FUNCTIONS_DEPLOYED`, pero terminó
-`MIGRATIONS_FAILED` con las mismas 86/358 migraciones y sin las funciones
-canónicas requeridas por este SQL. Se eliminó la rama y se comprobó su
-ausencia. RPC y columna siguen ausentes de producción. No repetir el intento
-sin una solución para el postflight histórico de `20260812000259`.
+Dos ramas exclusivas con costo autorizado fallaron antes de este SQL, tras
+86/358 migraciones, en `20260812000259_crm_cierres_externos`: su postflight
+exige una fila activa en `crm.equipo` y una rama nueva no copia los datos de
+producción. Ambas ramas fueron eliminadas; producción no se modificó. El gate
+remoto queda FAIL: se requiere reparar ese replay histórico o una excepción
+expresa al ciclo «rama → merge» antes de instalar esta migración. La RPC y la
+columna siguen ausentes de producción.
+
 Revisión independiente de la implementación: `CHANGES_REQUESTED`; se atendió
 el riesgo de bloquear el sello ante una excepción del detalle, se alinearon
 conteo de cierres y numerador, se evitó afirmar 0 % si falta el peso de Referido
@@ -13797,3 +13914,34 @@ contra `cumplimiento_metas_fn` (usa `auth.uid()` y visibilidad explícita) y la
 clave `(periodo, vendedor_id)` de la foto es primaria. Queda por medir el tiempo
 de cierre con un mes productivo en un entorno autorizado; un descuadre conserva
 la foto como no disponible, sin reescribirla.
+
+### Cierre del ensayo y auditoría — 26/09/2026
+
+Las incidencias anteriores quedan resueltas. Se reconstruyó la rama exclusiva
+`ranking-esquema-20260926` (`pztwbtpxybfvqwmvmznf`) desde el esquema productivo
+sin datos personales: 368 registros de migración exactos y 792 funciones con
+igual cuerpo, comentario y ACL. Paridad de columnas, triggers, RLS, índices y
+vistas. Tres CHECKs presentan exclusivamente aplanado de AND al restaurar
+pg_dump; sus predicados son iguales. Se restauraron los comentarios internos
+que el CLI había retirado de dos funciones. No se modificó el SQL candidato.
+
+`scripts/test-rls.mjs --ranking-origen`: PASS con Auth/PostgREST real y SQL bajo
+authenticated. Incluye gerencia, supervisor propio/ajeno, usuario inactivo,
+fuera del equipo y anon; paridad monetaria de dos meses, ambigüedad, cooperativa,
+decimales, Referido ponderado/peso ausente, cierre real con deuda S/100, neto
+S/11900, conversión conservada al sellar, foto inmutable e histórico sin foto.
+La suite general de conversiones no se repitió; este es el gate focalizado.
+
+Carga sintética: 272 contratos del mes, 2048 leads, 34 vendedores, cierre en
+7,29 s, 34 fotos disponibles y cero degradadas. Supera los 155/119 contratos de
+agosto/septiembre productivos. Tipos regenerados desde la rama: RPC y columna
+coinciden con los tipos incluidos. Frontend: check PASS (4454 tests), Docker
+276 PASS/26 omitidos y smoke final Ranking 1 PASS. check:scripts y preflights
+offline PASS. Auditoría Claude: PASS tras corregir conexión de padres y aviso
+de ajustes; se añadieron sus casos de decimales y conversión sellada.
+
+Advisors: cero nuevos ERROR y cero nuevos avisos anon. Único aviso de seguridad
+nuevo: RPC SECURITY DEFINER accesible a authenticated, intencional y con ámbito
+verificado. Performance sin nuevos avisos estructurales; el banco presenta más
+índices unused por su historia sintética. Las 21 Edge conservan hashes y JWT.
+El delta de merge se verificó: exactamente una migración, ninguna ajena.

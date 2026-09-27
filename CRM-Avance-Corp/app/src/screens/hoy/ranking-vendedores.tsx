@@ -35,8 +35,11 @@ import type {
 import type { TipoCambio } from '@/lib/tipo-cambio'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 import { rotuloDeLaCifra } from '@/lib/conversion-rotulo'
+import { useRankingOrigenVendedor } from '@/data/crm-queries'
 
 interface RankingVendedoresPanelProps {
+  periodoMes?: string
+  actorId?: string | null
   /**
    * LA fuente del tab «Conversión» desde la conversión mensual ponderada
    * (`crm.conversion_mensual_fn`) — tri-estado como `tc`:
@@ -649,6 +652,8 @@ function ProduccionFueraRankingPanel({
 }
 
 export function RankingVendedoresPanel({
+  periodoMes = '',
+  actorId = null,
   conversionMensual,
   conversionError,
   onReintentarConversion,
@@ -763,6 +768,15 @@ export function RankingVendedoresPanel({
   const rankingCapitalTotal = useMemo(
     () => clasificarRankingCapitalTotal(equipoRanking, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [cumplimientoVendedores, equipoRanking, metasVendedores, tc],
+  )
+  const filaDetalle = rankingCapitalTotal.conPuesto.find((fila) => fila.vendedor.vendedorId === detalleId) ?? null
+  const origenesDetalle = useRankingOrigenVendedor(
+    detalleId !== null && !detalleId.startsWith('demo-')
+      && tipo === 'capital-total' && !fotoMensualCargando
+      && !fotoMensualError && !capitalError && metaMensual.comparable,
+    periodoMes,
+    filaDetalle?.vendedor.vendedorId ?? null,
+    actorId,
   )
   const totalVendedores = equipoRanking.length
   const poblacionMensualIndisponible = fotoMensualCargando || Boolean(fotoMensualError)
@@ -929,12 +943,16 @@ export function RankingVendedoresPanel({
       )}
       <DetalleCapitalRanking
         abierto={detalleId !== null}
-        fila={rankingCapitalTotal.conPuesto.find((fila) => fila.vendedor.vendedorId === detalleId) ?? null}
+        fila={filaDetalle}
         periodo={metaMensual.etiqueta}
         tc={rankingCapitalTotal.tc}
         fuenteTc={tc?.fuente}
         cargando={cargandoActivo}
         error={errorActivo ?? (!metaMensual.comparable ? mensajeMetaNoComparable(metaMensual) : null)}
+        origenes={origenesDetalle.data}
+        origenesCargando={origenesDetalle.isPending && origenesDetalle.fetchStatus === 'fetching'}
+        origenesError={origenesDetalle.isError}
+        onReintentarOrigenes={() => { void origenesDetalle.refetch() }}
         onCerrar={() => setDetalleId(null)}
         onReintentar={reintentarActivo}
         onAbrirConversiones={onAbrirConversiones}

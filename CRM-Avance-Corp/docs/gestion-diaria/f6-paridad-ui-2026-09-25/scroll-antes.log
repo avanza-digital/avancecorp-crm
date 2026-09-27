@@ -1,0 +1,32 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/gestion-diaria-pulso.spec.ts --grep F6 horizontal: --workers=1 --retries=0 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 1 test using 1 worker
+
+  ✘  1 [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil (12.5s)
+
+
+  1) [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      107 |     const r = n.getBoundingClientRect()
+      108 |     return document.elementFromPoint(r.x + 16, r.bottom - 8)?.closest('thead') !== null
+    > 109 |   })).toBe(true)
+          |       ^
+      110 |   await page.getByRole('button', { name: 'Ordenar equipos por dispersión de contacto', exact: true }).focus()
+      111 |   await expect(page.getByRole('link', { name: grupo.nombre, exact: true })).toBeInViewport()
+      112 |   await page.getByRole('button', { name: 'Comparar días', exact: true }).click()
+        at /app/e2e/gestion-diaria-pulso.spec.ts:109:7
+
+    Error Context: test-results/gestion-diaria-pulso-F6-ho-15e5a-menú-abierto-en-un-portátil-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/gestion-diaria-pulso.spec.ts:67:1 › F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil

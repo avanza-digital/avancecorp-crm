@@ -42,7 +42,7 @@ LOCK_HASH="$(shasum -a 256 "$APP_DIR/package-lock.json" | cut -d' ' -f1)"
 
 echo "E2E en Docker · imagen ${IMAGE}"
 exec docker run --rm --init --ipc=host \
-  "${CONTAINER_ARGS[@]}" \
+  ${CONTAINER_ARGS[@]+"${CONTAINER_ARGS[@]}"} \
   --label "avancecorp.task=${CRM_E2E_TASK:-crm-e2e}" \
   -e CI=1 \
   -e LOCK_HASH="$LOCK_HASH" \
