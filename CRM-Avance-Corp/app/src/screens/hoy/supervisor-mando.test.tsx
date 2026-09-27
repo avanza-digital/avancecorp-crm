@@ -245,7 +245,8 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     // «Todas» no tiene total en `totales`: sin número hasta que se abre.
     expect(within(pestanas).getByRole('tab', { name: 'Todas' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Ver todo en Seguimiento/ })).toHaveAttribute('href', '#/seguimiento')
-    expect(screen.getByText('3 de 3')).toBeInTheDocument()
+    // Con todo a la vista, el enlace no promete más filas de las que hay.
+    expect(screen.getByRole('link', { name: 'Ver todo en Seguimiento' })).toBeInTheDocument()
   })
 
   it('cada fila dice de quién es, en qué estado está y desde cuándo, con la severidad en la tira', () => {
@@ -396,7 +397,8 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
       { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN' },
     ])
     montar()
-    expect(screen.getByText('1 en rojo · 0 en ámbar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1 en rojo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '0 en ámbar' })).toBeDisabled()
     const equipo = screen.getByRole('list', { name: 'Analistas del equipo' })
     const karen = within(equipo).getByRole('button', { name: /KAREN ZAPATA/ })
     expect(karen).toHaveTextContent('2 citas sin asistir')
@@ -421,7 +423,7 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
     const equipo = screen.getByRole('list', { name: 'Analistas del equipo' })
     expect(within(equipo).getByRole('button', { name: /JORGE HUAMÁN/ })).toHaveTextContent('Al día')
     // Karen no tiene actividad desde el 20/09: 6 días, rojo. Jorge no cuenta.
-    expect(screen.getByText('1 en rojo · 0 en ámbar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1 en rojo' })).toBeInTheDocument()
   })
 
   it('con la agenda CAÍDA avisa en la tarjeta, deja reintentar y no dice «Al día» ni «Sin alertas»', () => {
@@ -748,5 +750,53 @@ describe('Hoy · supervisor — puesto de mando: todo número se abre (Miguel, 2
     expect(pestana).toHaveAttribute('aria-selected', 'true')
     expect(pedidoCola()?.filtros.senal).toBe('primera_atencion')
     await waitFor(() => expect(pestana).toHaveFocus())
+  })
+})
+
+describe('Hoy · supervisor — puesto de mando: todo número se abre, segunda tanda (Codex)', () => {
+  it('«N en rojo» deja en la lista solo a esos analistas; «Ver todos» los devuelve', () => {
+    LEADS = [...LEADS, lead({ id: 'l-4', nombre_completo: 'LEAD DE JORGE', vendedor_id: JORGE, creado_en: '2026-09-26T14:00:00Z' })]
+    montar()
+    const equipo = () => screen.getByRole('list', { name: 'Analistas del equipo' })
+    // El roster trae también al ex analista (sin cartera): 3 filas.
+    const todas = within(equipo()).getAllByRole('listitem').length
+    fireEvent.click(screen.getByRole('button', { name: '1 en rojo' }))
+    expect(screen.getByRole('button', { name: '1 en rojo' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(equipo()).getAllByRole('listitem')).toHaveLength(1)
+    expect(equipo()).toHaveTextContent('KAREN ZAPATA')
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todos' }))
+    expect(within(equipo()).getAllByRole('listitem')).toHaveLength(todas)
+  })
+
+  it('con más casos que filas, el enlace dice cuántos hay y lleva a Seguimiento', () => {
+    RESPONDER = (filtros) => ({ data: pagina(colaTodo(), { filtros: { ...filtros }, total_items: 12, totales: { pendientes: 12 } }), error: null, isFetching: false })
+    montar()
+    expect(screen.getByRole('link', { name: 'Ver los 12 en Seguimiento' })).toHaveAttribute('href', '#/seguimiento')
+  })
+
+  it('los hechos del analista llevan a su día y a la agenda del equipo', () => {
+    METRICAS_AGENDA = agenda([{ vendedor_id: KAREN, nombre: 'KAREN ZAPATA', toques: 9, pct_completadas: 50 }])
+    vi.useRealTimers()
+    montar()
+    fireEvent.click(within(screen.getByRole('list', { name: 'Analistas del equipo' })).getByRole('button', { name: /KAREN ZAPATA/ }))
+    expect(screen.getByRole('link', { name: /activos .* Ver su día/ })).toHaveAttribute('href', '#/gestion-diaria')
+    fireEvent.click(screen.getByRole('button', { name: /9 toques en 7 días .* Ver agenda/ }))
+    expect(screen.getByRole('dialog', { name: 'Detalle del equipo' })).toBeInTheDocument()
+  })
+
+  it('el capital confirmado del detalle se abre en Facturación', () => {
+    vi.useRealTimers()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    expect(within(screen.getByRole('dialog')).getByRole('link', { name: /→$/ })).toHaveAttribute('href', '#/facturacion')
+  })
+
+  it('sin el modo activo la tarjeta «Primeras gestiones vencidas» no tiene acción (no hay cola a la que ir)', () => {
+    vi.useRealTimers()
+    MODO.activo = false
+    MODO.data = undefined
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Primeras gestiones vencidas/ })).not.toBeInTheDocument()
   })
 })

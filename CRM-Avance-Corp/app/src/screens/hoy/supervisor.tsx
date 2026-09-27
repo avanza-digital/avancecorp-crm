@@ -283,13 +283,7 @@ export function HoySupervisor(): JSX.Element {
         {/* Sin payload, los subs NO afirman estados positivos («todos
             contactados», «bandeja vacía»): sin dato no hay afirmación.
             Abre la pestaña Urgente de la cola, donde van esos leads. */}
-        <button
-          type="button"
-          aria-label={cola ? `Nuevos sin responder: ${cola.porBucket.sin_responder ?? 0}. Ver en la cola urgente` : 'Nuevos sin responder: sin dato'}
-          onClick={() => irAPestanaCola('urgente')}
-          disabled={cola == null}
-          className="relative block h-full w-full cursor-pointer rounded-xl text-left text-inherit outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default"
-        >
+        <div className="relative h-full">
         <KpiCard
           label="Nuevos sin responder"
           value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
@@ -304,7 +298,16 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={120}
         />
-        </button>
+        {/* Botón ESTIRADO encima (un <button> no puede contener los <div> de KpiCard). */}
+        {cola != null && (
+          <button
+            type="button"
+            aria-label={`Nuevos sin responder: ${cola.porBucket.sin_responder ?? 0}. Ver en la cola urgente`}
+            onClick={() => irAPestanaCola('urgente')}
+            className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          />
+        )}
+        </div>
         <a
           href={hashDe('derivaciones')}
           aria-label={etiquetaAccesoReparto}

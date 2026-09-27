@@ -153,6 +153,8 @@ function PuestoDeMando(): JSX.Element {
   // vuelve al botón «Detalle», que es lo que Radix haría por defecto).
   const focoTrasDetalle = useRef<HTMLElement | null>(null)
   const [focoALaCola, setFocoALaCola] = useState(false)
+  // «1 en rojo · 3 en ámbar» se abre: deja en la lista solo a esos analistas.
+  const [nivelEquipo, setNivelEquipo] = useState<'critico' | 'atencion' | null>(null)
   const abrirDetalle = () => {
     setFocoALaCola(false)
     setDetalleAbierto(true)
@@ -571,14 +573,13 @@ function PuestoDeMando(): JSX.Element {
                     })}
                   </ul>
                 )}
-                <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/60 px-5 py-2.5 text-xs">
-                  <span className="tabular-nums text-muted-foreground-strong">
-                    {paginaVigente && paginaVigente.items.length > 0
-                      ? `${numero(paginaVigente.items.length)} de ${numero(paginaVigente.total_items)}`
-                      : ''}
-                  </span>
-                  <a href={hashDe('seguimiento')} className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 font-bold text-accent hover:underline pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
-                    Ver todo en Seguimiento <ChevronRight className="size-3.5" aria-hidden />
+                <div className="mt-auto flex items-center justify-end gap-3 border-t border-border/60 px-5 py-2.5 text-xs">
+                  {/* El conteo va DENTRO del enlace: el número abre su lista. */}
+                  <a href={hashDe('seguimiento')} className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 font-bold tabular-nums text-accent hover:underline pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
+                    {paginaVigente && paginaVigente.total_items > paginaVigente.items.length
+                      ? `Ver los ${numero(paginaVigente.total_items)} en Seguimiento`
+                      : 'Ver todo en Seguimiento'}
+                    <ChevronRight className="size-3.5" aria-hidden />
                   </a>
                 </div>
               </div>
@@ -598,12 +599,32 @@ function PuestoDeMando(): JSX.Element {
             )}
           />
           {rank != null && rank.length > 0 && (semaforoEquipo.rojo > 0 || semaforoEquipo.ambar > 0 || datos.agendaConfirmada != null) && (
-            <p className="-mt-2 px-5 pb-2 text-xs text-muted-foreground-strong">
+            <div className="-mt-2 flex flex-wrap items-center gap-1 px-5 pb-2 text-xs text-muted-foreground-strong">
               {semaforoEquipo.rojo === 0 && semaforoEquipo.ambar === 0
                 // Solo con la agenda confirmada: sin ella, cero señales es desconocido.
-                ? 'Sin alertas en el equipo'
-                : `${numero(semaforoEquipo.rojo)} en rojo · ${numero(semaforoEquipo.ambar)} en ámbar`}
-            </p>
+                ? <p>Sin alertas en el equipo</p>
+                : (
+                  <div role="group" aria-label="Ver analistas por nivel" className="flex flex-wrap items-center gap-1">
+                    {([['critico', semaforoEquipo.rojo, 'en rojo'], ['atencion', semaforoEquipo.ambar, 'en ámbar']] as const).map(([nivel, n, texto], i) => (
+                      <span key={nivel} className="inline-flex items-center gap-1">
+                        {i > 0 && <span aria-hidden>·</span>}
+                        <button
+                          type="button"
+                          aria-pressed={nivelEquipo === nivel}
+                          disabled={n === 0}
+                          onClick={() => setNivelEquipo((actual) => (actual === nivel ? null : nivel))}
+                          className={cn(CLASE_CIFRA, 'disabled:cursor-default disabled:no-underline', nivelEquipo === nivel && 'font-bold text-foreground underline')}
+                        >
+                          {numero(n)} {texto}
+                        </button>
+                      </span>
+                    ))}
+                    {nivelEquipo != null && (
+                      <button type="button" className={cn(CLASE_CIFRA, 'ml-1 text-accent')} onClick={() => setNivelEquipo(null)}>Ver todos</button>
+                    )}
+                  </div>
+                )}
+            </div>
           )}
           <div className={cn(datos.errorAgenda && 'mx-5 mb-2')}>
             <AvisoDegradacion activo={datos.errorAgenda != null} queReintenta="de la agenda del equipo" onReintentar={datos.recargarAgenda}>
@@ -625,7 +646,7 @@ function PuestoDeMando(): JSX.Element {
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles
             <ul role="list" aria-label="Analistas del equipo" className="border-t border-border/60">
-              {rank.map((r) => {
+              {rank.filter((r) => nivelEquipo == null || lecturas.get(r.m.perfil_id)?.nivel === nivelEquipo).map((r) => {
                 const id = r.m.perfil_id
                 const lectura = lecturas.get(id) ?? { nivel: null, senales: [] }
                 const rezago = rezagosConfirmados.get(id)
@@ -677,17 +698,19 @@ function PuestoDeMando(): JSX.Element {
                           {lectura.senales.slice(1).map((s) => <ChipSenal key={s.texto} texto={s.texto} nivel={s.nivel} />)}
                         </div>
                       )}
-                      <p className="text-xs tabular-nums text-muted-foreground-strong">
+                      <a href={hashDe('gestion-diaria')} className={cn(CLASE_CIFRA, 'text-xs tabular-nums text-muted-foreground-strong')}>
                         {numero(r.activos)} activos · {conversion}
                         {r.operacionesCartera != null && r.operacionesCartera > 0 ? ` · ${numero(r.operacionesCartera)} de cartera` : ''}
                         {r.sinTocar > 0 ? ` · ${numero(r.sinTocar)} sin tocar` : ''}
-                      </p>
+                        <span className="font-semibold text-accent"> · Ver su día →</span>
+                      </a>
                       {rezago != null && (
-                        <p className="text-xs tabular-nums text-muted-foreground-strong">
+                        <button type="button" onClick={abrirDetalle} className={cn(CLASE_CIFRA, 'block text-xs tabular-nums text-muted-foreground-strong')}>
                           {rezago.toques > 0
                             ? `${numero(rezago.toques)} toques en 7 días${rezago.pct_completadas != null ? ` · ${Math.round(rezago.pct_completadas)} % completadas` : ''}`
                             : 'Sin toques registrados en 7 días'}
-                        </p>
+                          <span className="font-semibold text-accent"> · Ver agenda</span>
+                        </button>
                       )}
                     </div>
                   </li>
@@ -796,17 +819,10 @@ function PuestoDeMando(): JSX.Element {
               delay={60}
             />
             </a>
-            {/* Abre la cola en su pestaña: cierra el detalle y deja el foco en ella. */}
-            <button
-              type="button"
-              className={CLASE_KPI_ENLACE}
-              onClick={() => {
-                focoTrasDetalle.current = document.getElementById(`${idPanelCola}-tab-primera_atencion`)
-                setFocoALaCola(true)
-                setDetalleAbierto(false)
-                verPrimeraGestion()
-              }}
-            >
+            {/* Abre la cola en su pestaña: cierra el detalle y deja el foco en ella.
+                Botón ESTIRADO encima de la tarjeta (un <button> no puede
+                contener los <div> de KpiCard). Sin cola visible, no hay acción. */}
+            <div className="relative h-full">
               <KpiCard
                 label="Primeras gestiones vencidas"
                 value={primeraGestionPendiente == null ? '—' : String(primeraGestionPendiente)}
@@ -817,7 +833,23 @@ function PuestoDeMando(): JSX.Element {
                   : primeraGestionPendiente > 0 ? 'Ver cuáles son →' : 'Ninguna vencida'}
                 delay={120}
               />
-            </button>
+              {modo.activo && primeraGestionPendiente != null && (
+                <button
+                  type="button"
+                  aria-label={`Primeras gestiones vencidas: ${numero(primeraGestionPendiente)}. Verlas en la cola`}
+                  className={cn(CLASE_KPI_ENLACE, 'absolute inset-0')}
+                  onClick={() => {
+                    const destino = document.getElementById(`${idPanelCola}-tab-primera_atencion`)
+                    // Solo se desvía el foco si la pestaña existe; si no, Radix lo
+                    // devuelve a «Detalle» como siempre.
+                    focoTrasDetalle.current = destino
+                    setFocoALaCola(destino != null)
+                    setDetalleAbierto(false)
+                    verPrimeraGestion()
+                  }}
+                />
+              )}
+            </div>
             <a
               href={hashDe('derivaciones')}
               aria-label={`Por repartir: ${datos.etiquetaAccesoReparto}`}
@@ -846,7 +878,10 @@ function PuestoDeMando(): JSX.Element {
                   <div key={f.label}>
                     <div className="mb-1.5 flex items-baseline justify-between gap-2">
                       <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
-                      <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
+                      {f.label === 'Capital confirmado'
+                        // El capital confirmado se abre en Facturación: el mes día a día, por analista.
+                        ? <a href={hashDe('facturacion')} className={cn(CLASE_CIFRA, 'text-xs font-bold tabular-nums text-primary')}>{f.txt} →</a>
+                        : <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>}
                     </div>
                     {f.nota && <p className="mb-1 text-[11px] tabular-nums text-muted-foreground-strong">{f.nota}</p>}
                     {f.sinDato
