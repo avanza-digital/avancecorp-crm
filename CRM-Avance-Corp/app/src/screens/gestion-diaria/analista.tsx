@@ -24,6 +24,13 @@
 // Densidad: piso de 16 px (queja de los analistas del 20/09/2026). Un solo
 // rojo: queda reservado a lo vencido («Se pasó hace 45 min»); la severidad se
 // DICE con esas mismas palabras, nunca solo con el color.
+// RESULTADO DENTRO DE «AHORA» (etapa 3, 27/09/2026): tras «Llamar», los 7
+// resultados y sus pasos aparecen en la misma tarjeta, sin ventana encima. La
+// invariante que manda (hallazgo P0 de Codex): el resultado va SIEMPRE a quien
+// se llamó. Al pulsar «Llamar» nace una SESIÓN inmutable —la fila, el lead y su
+// tarea autoritativa— y la tarjeta, el guardado y el reintento operan solo
+// sobre ella, aunque la cola se refresque o cambie de orden; una respuesta
+// tardía de una sesión ya cerrada se ignora.
 // Integración F4 (21/09): conserva los arreglos publicados de caché parcial,
 // tarea autoritativa, paginación y carreras.
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode, type Ref } from 'react'
@@ -43,7 +50,7 @@ import {
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
 import { useColaSlaPagina } from '@/data/sla-operacion-queries'
 import { AccionesContacto } from '@/components/app/contacto'
-import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
+import { RegistroResultadoTarjeta } from '@/components/gestion-diaria/registrar-resultado'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
 import { BarrasPorHora } from '@/components/gestion-diaria/barras-por-hora'
 import { FranjaCifras, type CifraDelDia } from '@/components/gestion-diaria/franja-cifras'
@@ -52,10 +59,27 @@ import { Badge } from '@/components/ui/badge'
 import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu'
 import { Tabs } from '@/components/ui/tabs'
 import { fechaLima } from '@/lib/agenda-derivada'
+import { primerNombre } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { ColaDeHoy, FILAS_POR_PAGINA } from '@/components/gestion-diaria/cola-de-hoy'
 
 const LIMITE_COLA = 100
 type VistaDerecha = 'cola' | 'actividad' | 'seguimiento'
+
+/**
+ * La llamada en curso: a quién se llamó, fijado al pulsar «Llamar» (antes de
+ * copiar el número o de salir al marcador). Nada de esto se recalcula con la
+ * cola: es una foto.
+ */
+interface SesionLlamada {
+  id: number
+  fila: FilaDiaria
+  lead: Lead
+  /** `undefined` mientras se resuelve la tarea autoritativa; `null` = sin tarea. */
+  tarea: Tarea | null | undefined
+  /** El formulario del resultado está a la vista en la tarjeta. */
+  abierta: boolean
+}
 const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
 export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
@@ -69,7 +93,12 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   // del día es fail-closed (un refetch fallido devuelve `null`) y, si el filtro,
   // la pestaña o la persona elegida colgaran del subárbol, un parpadeo de red le
   // borraría al analista dónde estaba.
-  const [panel, setPanel] = useState<{ lead: Lead; tarea: Tarea | null } | null>(null)
+  const [sesion, setSesionEstado] = useState<SesionLlamada | null>(null)
+  // Espejo síncrono de la sesión: las respuestas asíncronas comparan contra él
+  // para saber si su sesión sigue viva (el estado de React llega un render tarde).
+  const sesionRef = useRef<SesionLlamada | null>(null)
+  const contadorSesion = useRef(0)
+  const setSesion = (s: SesionLlamada | null) => { sesionRef.current = s; setSesionEstado(s) }
   const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
   const [elegido, setElegido] = useState<string | null>(null)
   // El filtro que pidió el analista; `null` = «Todo», el de entrada.
@@ -128,7 +157,6 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   // Sin elección explícita, «Ahora» es el primero de la página: el orden del
   // servidor ya dice quién urge más.
   const fila = elegida ?? vista.filas[0] ?? null
-  const posicion = fila === null ? 0 : lista.findIndex((f) => f.lead_id === fila.lead_id) + 1
 
   // EL TELÉFONO NO VIAJA EN LA COLA. `cola_accion_v2_fn` devuelve del lead solo
   // id, nombre, etapa y analista; el número vive en el ámbito del store, que
@@ -156,6 +184,14 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   }, [asegurarLead, fila?.lead_id, leadsPorId])
 
   function elegir(f: FilaDiaria) {
+    const actual = sesionRef.current
+    if (actual?.abierta) {
+      toast.info(`Primero guarda o cierra el resultado de ${primerNombre(actual.lead.nombre_completo)}.`)
+      return
+    }
+    // Sin formulario abierto (p. ej. volvió del marcador antes de 4 s), elegir a
+    // otra persona abandona la llamada fijada.
+    if (actual !== null) setSesion(null)
     setElegido(f.lead_id)
     requestAnimationFrame(() => {
       panelAhora.current?.scrollIntoView?.({ block: 'nearest' })
@@ -171,33 +207,66 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   function irAPagina(p: number) {
     setPagina(Math.min(Math.max(p, 0), vista.paginas - 1))
   }
-  async function abrirPanel() {
-    if (fila === null || abriendoPanel) return
-    const suyo = leadsPorId.get(fila.lead_id)
-    if (suyo === undefined) { void abrirLead(fila.lead_id); return }
-    // `tarea_id` viene de la cola del SERVIDOR y es autoritativa: ese id viaja
-    // de vuelta para cerrar la tarea. Las tareas del store son una colección
-    // PARCIAL igual que los leads, así que no encontrarla ahí no significa que
-    // no exista — se pide por id. Caer al cálculo de siempre cerraría otra
-    // tarea telefónica, o ninguna (Codex, 20/09).
-    const pendientes = tareasDe(suyo.id)
-    if (fila.tarea_id !== null) {
-      const local = pendientes.find((x) => x.id === fila.tarea_id)
-      if (local !== undefined) { setPanel({ lead: suyo, tarea: local }); return }
-      setAbriendoPanel(true)
-      try {
-        const traida = await obtenerTareaParaRevision(suyo.id, fila.tarea_id)
-        // Si el servidor tampoco la da, se abre SIN tarea: mejor no cerrar
-        // ninguna que cerrar la que no era.
-        setPanel({ lead: suyo, tarea: traida })
-      } catch {
-        setPanel({ lead: suyo, tarea: null })
-      } finally {
-        setAbriendoPanel(false)
+  /**
+   * Fija la llamada en curso a la persona de la tarjeta. Si ya hay una sesión,
+   * es ESA (la tarjeta la está mostrando). Sin el lead en el ámbito no hay
+   * sesión: la tarjeta ofrece la ficha, como siempre.
+   */
+  function iniciarSesion(): SesionLlamada | null {
+    const actual = sesionRef.current
+    if (actual !== null) return actual
+    if (filaActiva === null) return null
+    const suyo = leadsPorId.get(filaActiva.lead_id)
+    if (suyo === undefined) return null
+    const nueva: SesionLlamada = { id: ++contadorSesion.current, fila: filaActiva, lead: suyo, tarea: undefined, abierta: false }
+    setSesion(nueva)
+    setElegido(filaActiva.lead_id)
+    return nueva
+  }
+  /**
+   * Abre el resultado en la tarjeta para la sesión en curso. `tarea_id` viene
+   * de la cola del SERVIDOR y es autoritativa: ese id viaja de vuelta para
+   * cerrar la tarea. Las tareas del store son una colección PARCIAL igual que
+   * los leads, así que no encontrarla ahí no significa que no exista — se pide
+   * por id. Caer al cálculo de siempre cerraría otra tarea telefónica, o
+   * ninguna (Codex, 20/09).
+   */
+  async function abrirRegistro() {
+    const s = iniciarSesion()
+    if (s === null) { if (filaActiva) void abrirLead(filaActiva.lead_id); return }
+    if (s.abierta || abriendoPanel) return
+    const pendientes = tareasDe(s.lead.id)
+    let tarea: Tarea | null
+    if (s.fila.tarea_id !== null) {
+      const local = pendientes.find((x) => x.id === s.fila.tarea_id)
+      if (local !== undefined) tarea = local
+      else {
+        setAbriendoPanel(true)
+        try {
+          // Si el servidor tampoco la da, se abre SIN tarea: mejor no cerrar
+          // ninguna que cerrar la que no era.
+          tarea = await obtenerTareaParaRevision(s.lead.id, s.fila.tarea_id)
+        } catch {
+          tarea = null
+        } finally {
+          setAbriendoPanel(false)
+        }
       }
-      return
+    } else {
+      tarea = tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null
     }
-    setPanel({ lead: suyo, tarea: tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null })
+    // Una respuesta tardía de una sesión ya cerrada no abre nada.
+    if (sesionRef.current?.id !== s.id) return
+    setSesion({ ...s, tarea, abierta: true })
+  }
+  /** Cierra la sesión (si sigue siendo la misma) y devuelve el foco a «Llamar». */
+  function cerrarSesion(id: number) {
+    if (sesionRef.current?.id !== id) return
+    setSesion(null)
+    requestAnimationFrame(() => {
+      const llamar = panelAhora.current?.querySelector<HTMLElement>('[data-accion-panel] a, [data-accion-panel] button')
+      ;(llamar ?? nombreAhora.current)?.focus()
+    })
   }
   /**
    * Al guardar, «Ahora» pasa a la persona que venía DETRÁS en la lista que se
@@ -249,6 +318,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
 
   const corte = dia.dia ? horaLimaDe(dia.dia.generado_en) : null
   const filaActiva = colaCargando ? null : fila
+  // Lo que pinta la tarjeta: la sesión, si hay una; si no, la fila viva.
+  const filaTarjeta = sesion?.fila ?? filaActiva
+  const leadTarjeta = sesion?.lead ?? (filaActiva ? leadsPorId.get(filaActiva.lead_id) ?? null : null)
+  const posicionTarjeta = filaTarjeta === null ? 0 : lista.findIndex((f) => f.lead_id === filaTarjeta.lead_id) + 1
   const fecha = FECHA_LARGA.format(new Date(ahora))
   const total = filas.length
   const conteoCola = colaCaida ? '?' : hayMas ? `${total}+` : String(total)
@@ -297,18 +370,23 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
           <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} className="shrink-0" />
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <PanelAhora fila={filaActiva} lead={filaActiva ? leadsPorId.get(filaActiva.lead_id) ?? null : null}
-              sinConversacionDias={dia.dia.sin_conversacion_dias} ahora={ahora} cargando={colaCargando} colaCaida={colaCaida}
-              filtroVacio={filaActiva === null && total > 0}
+            <PanelAhora fila={filaTarjeta} lead={leadTarjeta}
+              sinConversacionDias={dia.dia.sin_conversacion_dias} ahora={ahora} cargando={colaCargando && sesion === null} colaCaida={colaCaida}
+              filtroVacio={filaTarjeta === null && total > 0}
               seccionRef={panelAhora} nombreRef={nombreAhora}
-              posicion={posicion} total={lista.length}
-              cargandoLead={filaActiva !== null && cargandoLead === filaActiva.lead_id} abriendoPanel={abriendoPanel}
-              // «Llamar» FIJA a la persona: si mientras marca (en el celular, con
-              // el CRM en segundo plano) entra un lead más urgente, la tarjeta
-              // no cambia y la pregunta del resultado vuelve para ESTA persona.
-              onLlamar={() => { if (filaActiva) setElegido(filaActiva.lead_id) }}
-              onRegistrar={() => { if (filaActiva) void abrirPanel() }}
-              onAbrirFicha={() => { if (filaActiva) void abrirLead(filaActiva.lead_id) }} />
+              posicion={posicionTarjeta} total={lista.length}
+              cargandoLead={filaTarjeta !== null && cargandoLead === filaTarjeta.lead_id} abriendoPanel={abriendoPanel}
+              // «Llamar» FIJA a la persona: nace la sesión de llamada. Si mientras
+              // marca (en el celular, con el CRM en segundo plano) entra un lead
+              // más urgente, la tarjeta no cambia y el resultado va a ESTA persona.
+              onLlamar={() => { iniciarSesion() }}
+              onRegistrar={() => { void abrirRegistro() }}
+              onAbrirFicha={() => { if (filaTarjeta) void abrirLead(filaTarjeta.lead_id) }}
+              registro={sesion?.abierta ? (() => {
+                const { id: idSesion, lead: leadSesion } = sesion
+                return <RegistroResultadoTarjeta key={idSesion} lead={leadSesion} tarea={sesion.tarea ?? null}
+                  onClose={() => cerrarSesion(idSesion)} onGuardado={() => void alGuardar(leadSesion.id)} />
+              })() : undefined} />
 
             <section aria-label="Tu cola y tu actividad" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:min-h-0">
               <Tabs
@@ -345,10 +423,6 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
         </>
       )}
 
-      {panel !== null && (
-        <RegistrarResultado lead={panel.lead} tarea={panel.tarea} onClose={() => setPanel(null)}
-          onGuardado={() => void alGuardar(panel.lead.id)} />
-      )}
     </div>
   )
 }
@@ -387,7 +461,7 @@ function cifrasDelDia(dia: DiaAnalista): CifraDelDia[] {
  * Lo secundario —ver la ficha, registrar desde el menú— vive detrás de «···»
  * (ley de Hick). Escala y medidas: las del diseño (384 px de ancho, radio 32).
  */
-function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, onLlamar, onRegistrar, onAbrirFicha, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total }: {
+function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, onLlamar, onRegistrar, onAbrirFicha, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total, registro }: {
   fila: FilaDiaria | null
   lead: Lead | null
   sinConversacionDias: number
@@ -405,6 +479,8 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   onAbrirFicha: () => void
   seccionRef: Ref<HTMLElement>
   nombreRef: Ref<HTMLButtonElement>
+  /** El resultado de la llamada en curso: ocupa el lugar de las acciones. */
+  registro?: ReactNode
 }): JSX.Element {
   const id = useId()
   const etapa = fila === null ? null : ETAPA_INFO[fila.etapa as Etapa]?.label ?? fila.etapa
@@ -412,7 +488,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   return (
     <div className="flex min-h-0 shrink-0 justify-center lg:w-[430px]">
       <section ref={seccionRef} aria-labelledby={`${id}-ahora`}
-        className="flex w-full max-w-[384px] flex-col overflow-hidden rounded-[32px] border border-border-strong bg-card shadow-[0_10px_28px_rgb(17_30_61/0.10)] lg:h-full">
+        className="flex w-full max-w-[384px] flex-col overflow-clip rounded-[32px] border border-border-strong bg-card shadow-[0_10px_28px_rgb(17_30_61/0.10)] lg:h-full">
         <div className="shrink-0 bg-primary text-primary-foreground">
           <span aria-hidden="true" className="mx-auto mt-2.5 block h-[5px] w-14 rounded-full bg-white/30" />
           <div className="flex items-center gap-2.5 px-5 pb-3.5 pt-2">
@@ -429,7 +505,9 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                   : 'Nada pendiente ahora. Cuando entre un lead nuevo aparecerá aquí.'}
           </p>
         ) : (
-          <div className="ac-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[18px] py-5">
+          <div className={registro !== undefined
+            ? 'flex min-h-0 flex-1 flex-col gap-3 pt-4 [&>*:not(section)]:px-[18px]'
+            : 'ac-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[18px] py-5'}>
             <div className="flex min-w-0 flex-col gap-0.5">
               <button ref={nombreRef} type="button" onClick={onAbrirFicha}
                 aria-label={`Abrir la ficha de ${fila.nombre_completo}`}
@@ -438,16 +516,16 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
               </button>
               <p className="text-[13px] text-[var(--muted-foreground-strong)]">{etapa}</p>
             </div>
-            <div className="flex flex-col items-start gap-2 rounded-xl bg-muted/70 px-3.5 py-3">
+            {registro === undefined && <div className="flex flex-col items-start gap-2 rounded-xl bg-muted/70 px-3.5 py-3">
               {tiempo !== null && (
                 <Badge className="min-h-[22px] py-0 text-[11.5px]" color={tiempo.vencido ? 'var(--destructive-text)' : 'var(--accent-press)'}>{tiempo.texto}</Badge>
               )}
               <p className="text-[13px] leading-snug text-foreground/80">
                 {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
               </p>
-            </div>
-            {lead !== null && <p className="text-center text-2xl font-extrabold tracking-[0.02em] tabular-nums text-primary">{lead.telefono}</p>}
-            <div className="relative">
+            </div>}
+            {lead !== null && <p className={cn('text-center font-extrabold tracking-[0.02em] tabular-nums text-primary', registro !== undefined ? 'text-xl' : 'text-2xl')}>{lead.telefono}</p>}
+            {registro !== undefined ? registro : <div className="relative">
               {lead !== null ? (
                 // `key={lead.id}`: UNA instancia por lead. Antes las acciones
                 // vivían dentro de cada fila y se desmontaban con ella; aquí hay
@@ -480,12 +558,12 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                   <DropdownItem className="min-h-11 text-base" onSelect={onAbrirFicha}>Ver la ficha completa</DropdownItem>
                 </DropdownMenu>
               </div>
-            </div>
+            </div>}
           </div>
         )}
-        <p className="shrink-0 border-t border-border px-5 pb-1.5 pt-3 text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
+        {registro === undefined && <p className="shrink-0 border-t border-border px-5 pb-1.5 pt-3 text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
           El orden lo pone el servidor: nuevo sin intento primero, luego lo vencido y lo de hoy. Al guardar pasas al siguiente.
-        </p>
+        </p>}
         <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-24 shrink-0 rounded-full bg-border-strong" />
       </section>
     </div>

@@ -11,7 +11,7 @@ import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import { StoreDataContext } from '@/lib/store-context'
 import type { ConfirmacionLlamada, RegistrarLlamadaInput, StoreDataApi } from '@/lib/store'
 import type { Actividad, Lead, Tarea } from '@/lib/tipos'
-import { RegistrarResultado } from './registrar-resultado'
+import { RegistrarResultado, RegistroResultadoTarjeta } from './registrar-resultado'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
 // Lunes 21/09/2026 10:00 Lima: dentro de la ventana legal, día hábil.
@@ -293,5 +293,89 @@ describe('RegistrarResultado', () => {
     expect(onClose).toHaveBeenCalled()
     expect(registrarLlamada).not.toHaveBeenCalled()
     expect(toast.info).toHaveBeenCalledWith(expect.stringMatching(/sin registrar/))
+  })
+})
+
+// La MISMA lógica montada dentro de la tarjeta «Ahora» (27/09/2026): sin
+// ventana encima y con su propio contrato de teclado (hallazgo de Codex).
+function montarTarjeta({ lead = LEAD, persistido = Promise.resolve(true) }: Pick<Montaje, 'lead' | 'persistido'> = {}) {
+  vi.useRealTimers()
+  vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+  const orden: string[] = []
+  const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => ({ ok: true, persistido, confirmacion: Promise.resolve({ actividad_id: 'act-1', siguiente_id: null, descartado: false }) }))
+  const api = {
+    registrarLlamada, deshacerResultadoLlamada: vi.fn(), tareasDe: () => [], actividadesDe: () => [],
+    lead: (id: string) => (id === lead.id ? lead : undefined),
+  } as unknown as StoreDataApi
+  const onClose = vi.fn(() => { orden.push('cerrar') })
+  const onGuardado = vi.fn(() => { orden.push('guardado') })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={sesion('v1')}>
+        <StoreDataContext.Provider value={api}>
+          <button type="button">Fuera de la tarjeta</button>
+          <RegistroResultadoTarjeta lead={lead} tarea={null} onClose={onClose} onGuardado={onGuardado} />
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
+  )
+  return { registrarLlamada, onClose, onGuardado, orden }
+}
+
+describe('RegistroResultadoTarjeta', () => {
+  it('pinta los siete resultados en UNA línea, bajo su título, y lleva el foco al primero', async () => {
+    montarTarjeta()
+    const tarjeta = screen.getByRole('region', { name: '¿Qué pasó con la llamada?' })
+    expect(tarjeta).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(7)
+    // El detalle de cada opción queda para el diálogo: la tarjeta es compacta.
+    expect(screen.queryByText('Se propone el siguiente intento')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('radio', { name: /No contestó/ })).toHaveFocus())
+    // No finge un diálogo.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('los atajos 1–7 funcionan SOLO con el foco dentro de la tarjeta', async () => {
+    const user = userEvent.setup()
+    montarTarjeta()
+    await waitFor(() => expect(screen.getByRole('radio', { name: /No contestó/ })).toHaveFocus())
+    await user.keyboard('3')
+    expect(screen.getByRole('radio', { name: /agendó cita/ })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Fuera de la tarjeta' }))
+    await user.keyboard('1')
+    expect(screen.getByRole('radio', { name: /agendó cita/ })).toBeChecked()
+  })
+
+  it('Escape dentro de la tarjeta = «Cerrar sin registrar», y lo avisa', async () => {
+    const user = userEvent.setup()
+    const { onClose, registrarLlamada } = montarTarjeta()
+    await waitFor(() => expect(screen.getByRole('radio', { name: /No contestó/ })).toHaveFocus())
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(registrarLlamada).not.toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalledWith(expect.stringMatching(/sin registrar/))
+  })
+
+  it('mientras guarda, Escape no cierra nada', async () => {
+    const user = userEvent.setup()
+    let confirmar: (ok: boolean) => void = () => {}
+    const { onClose } = montarTarjeta({ persistido: new Promise<boolean>((r) => { confirmar = r }) })
+    await user.click(screen.getByRole('radio', { name: /No contestó/ }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+    confirmar(true)
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('«Guardar» escribe sobre el lead de la tarjeta y cierra ANTES de pasar al siguiente', async () => {
+    const user = userEvent.setup()
+    const { registrarLlamada, orden } = montarTarjeta()
+    await user.click(screen.getByRole('radio', { name: /volver a llamar/ }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(orden).toEqual(['cerrar', 'guardado']))
+    expect(registrarLlamada.mock.calls[0]?.[0]).toBe('l1')
+    expect(peticion(registrarLlamada as ReturnType<typeof montar>['registrarLlamada'])).toMatchObject({ resultado: 'volver_a_llamar' })
   })
 })

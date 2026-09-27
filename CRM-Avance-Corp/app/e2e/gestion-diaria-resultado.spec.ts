@@ -15,7 +15,9 @@ for (const ancho of [1440, 390]) {
     const ahora = page.getByRole('region', { name: 'Ahora' })
     const llamar = ahora.getByRole('button', { name: /Copiar el número de/ })
     await llamar.click()
-    const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+    // Etapa 3 (27/09/2026): el resultado se registra DENTRO de «Ahora», sin ventana.
+    const panel = ahora.getByRole('region', { name: /Qué pasó con la llamada/ })
+    await expect(page.getByRole('dialog', { name: /Cómo salió la llamada/ })).toHaveCount(0)
     await expect(panel.locator('input[name="resultado-llamada"]')).toHaveCount(7)
     await panel.getByRole('radio', { name: /no le interesa/ }).check()
     await expect(panel.locator('input[name="resultado-llamada"]')).toHaveCount(1)
@@ -34,7 +36,8 @@ for (const ancho of [1440, 390]) {
     const pequenos = await panel.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*'))
       .filter((el) => el.getClientRects().length > 0 && Array.from(el.childNodes)
         .some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()))
-      .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) < 16)
+      // Escala del diseño de Gestión Diaria (Miguel, 27/09/2026): nada bajo 11 px.
+      .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) < 11)
       .map((el) => el.textContent?.trim()))
     expect(pequenos).toEqual([])
     await panel.getByRole('radio', { name: /no le interesa/ }).scrollIntoViewIfNeeded()

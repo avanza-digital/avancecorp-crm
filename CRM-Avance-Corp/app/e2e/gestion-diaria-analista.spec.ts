@@ -79,7 +79,7 @@ test('Analista: cambiar de grupo cambia a quién propone «Ahora»', async ({ pa
   await expect(ahora).not.toHaveText(primero)
 })
 
-test('Analista: el panel de resultado se abre desde «Ahora»', async ({ page }) => {
+test('Analista: el resultado se abre DENTRO de «Ahora», sin ventana encima', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
   const ahora = page.getByRole('region', { name: 'Ahora' })
@@ -93,11 +93,18 @@ test('Analista: el panel de resultado se abre desde «Ahora»', async ({ page })
   expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true)
   await ahora.getByRole('button', { name: /^Más acciones para / }).click()
   await registrar.click()
-  const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  const panel = ahora.getByRole('region', { name: /Qué pasó con la llamada/ })
   await expect(panel).toBeVisible({ timeout: 10_000 })
-  await expect(panel.getByRole('radio', { name: /No contest/ })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(panel.getByRole('radio')).toHaveCount(7)
+  // El foco entra al formulario y los atajos 1–7 funcionan dentro de la tarjeta.
+  await expect(panel.getByRole('radio', { name: /No contest/ })).toBeFocused()
+  await page.keyboard.press('2')
+  await expect(panel.getByRole('radio', { name: /volver a llamar/ })).toBeChecked()
+  // Escape = cerrar sin registrar: vuelve la tarjeta normal de la misma persona.
   await page.keyboard.press('Escape')
   await expect(panel).toHaveCount(0)
+  await expect(ahora.getByRole('button', { name: /^Más acciones para / })).toBeVisible()
 })
 
 test('Analista: «Mi actividad» y «Mi seguimiento» son pestañas; «Ahora» sigue a la vista', async ({ page }) => {
