@@ -290,7 +290,7 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   arregló en el compacto; sumar `@axe-core/playwright`; actualizar el tablero de Figma.
 - **Siguiente:** Miguel la mira en producción y fusiona la PR #115; traerla al `main` local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
 
-## Plan de la pantalla del SUPERVISOR — v2 tras Codex (27/09, ESPERANDO OK de Miguel)
+## Plan de la pantalla del SUPERVISOR — v2 tras Codex (27/09, APROBADO e IMPLEMENTADO en rama aislada)
 
 Base: `screens/gestion-diaria/supervisor.tsx` (+ `supervisor.css`, compartido con gerencia vía
 `gerencia.tsx:22`), `tabla-equipo-diaria.tsx`, `panel-analista-supervisor.tsx`,
@@ -371,3 +371,30 @@ supervisor que abra al analista directo (archivo de esa sesión; el router ya ad
 Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]],
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
 [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]], [[Fundamentos UX del CRM]].
+
+## Estado de la pantalla del supervisor (27/09 — IMPLEMENTADA, sin publicar)
+
+- **Dónde:** rama `trabajo/supervisor-diseno-20260927`, trabajada en un worktree aislado (regla de Miguel:
+  «tu trabajo todo aislado no compartas entornos»). Commit `5aecbcd1`, con el vivo `01d5ddc4` integrado.
+- **Qué quedó:** cabecera con fecha, «Hoy», «Actualizado» e información; cinco cifras en línea («Necesitan
+  atención» en ámbar); tabla propia del supervisor (avatar, contacto en 3 estados, citas, vencidas en rojo,
+  atención en palabras por gravedad); panel al lado desde 1100 px con resumen del analista (aviso de
+  vencidas → Pendientes, 4 cuadros, llamadas por hora, «Más datos del día»), últimas gestiones y registro.
+  El panel se abre solo con el analista MÁS GRAVE (sin importar el orden de la tabla); cerrarlo lo apaga.
+  Por debajo de 640 px cada analista es una tarjeta. Gerencia NO cambia (estilos propios `mi-equipo.css`).
+- **Codex:** revisión de código CHANGES_REQUESTED (4 P2 + 1 P3 + 2 riesgos), todo aplicado con pruebas:
+  candidata por gravedad, el reintento no roba el foco, Pendientes sigue cada control, vuelven «N gestiones ·
+  fecha · Lima», «Tareas vencidas» sin número se sigue diciendo, umbrales coordinados (1100 / 640 px).
+- **Verificación:** `npm run check` PASS (4626 pruebas). La suite E2E completa aislada se cayó a mitad por
+  memoria del Docker compartido (ENOMEM en el Vite del contenedor) → 29 fallos ajenos; se repitió lo
+  afectado: 92 PASS + 1 intermitente (H5, consultas de la pantalla de inicio al entrar, antes de «Mi equipo»;
+  pasó al reintentar).
+- **Pendiente:** Miguel lo revisa en local; publicar con `/release-crm` desde la rama (ya lleva el vivo `01d5ddc4`)
+  y fusionarla a `main` el mismo día. El vivo pasó a `build-20260927T205509063Z`, sin manifiesto en `releases/`
+  (otra sesión): el preflight lo pedirá.
+- **Decisiones y diferidos:** filas de 52 px del diseño = 6 analistas visibles a 1512×805 (antes 10);
+  opciones si molesta: filas de 48 px o llevar «Cortes y avisos» a la cabecera. Diferidos de accesibilidad:
+  quitar `aria-label` de ordenar/nombre (afecta a gerencia), semántica de tarjetas en WebKit (necesita
+  VoiceOver), parada de tabulador del scroll en modo equipo.
+- **Lecciones:** no correr `npm run check` mientras corre un E2E (el informe de cobertura dispara recargas
+  del Vite que se prueba); en Docker compartido, correr con contenedor, etiqueta y volumen propios.
