@@ -1,7 +1,7 @@
 ---
 tags: [gestion-diaria, diseno, ux, plan]
 actualizado: 2026-09-27
-estado: analista PUBLICADA 27/09 13:05 Lima (build-20260927T180505461Z, commit db29ecdd) · supervisor y gerencia esperan su plan
+estado: analista PUBLICADA 27/09 (último build-20260927T191408274Z, commit 8d4be227 — «Llamar» 44 px y «Lo último con este lead») · supervisor y gerencia esperan su plan
 ---
 
 # Gestión Diaria — diseño VitaNova con los colores del CRM (27/09/2026)
@@ -230,9 +230,51 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   commit `d3064076` sobre `avancecorp/main`): solo los 29 archivos de este trabajo, `app/`
   idéntico byte a byte al publicado, sin lo de Gloria ni las citas por equipo de otra sesión;
   pre-push 4512/4512. Al fusionarla (squash): traer `avancecorp/main` al `main` local y borrar la rama.
-- ⚠️ **Para el próximo `/release-crm`:** el `main` local ya lleva `3e6c3587` (citas para supervisores
-  por equipo, de otra sesión), que depende de la migración `20260927172931`. Un build desde `main`
-  lo publicaría: la migración tiene que estar aplicada ANTES (orden de despliegue por dirección).
+- **Segundo ajuste, publicado el 27/09 a las 13:39 Lima — el teléfono a todo el alto.** Miguel:
+  «que el módulo del teléfono sea más largo… ese pequeño dash se corre a la derecha y el teléfono
+  sube hasta donde dice ¿a quién llamo ahora?». Desde `lg`, el teléfono ocupa la columna izquierda
+  en todo el alto (≈530 → ≈700 px a 1446×818); título, avisos, franja de cifras y pestañas a la
+  derecha, con el MISMO orden del DOM (grid). Cabecera: título en la fila de la fecha y los botones,
+  subtítulo debajo (`order-last`). En reposo, número y acciones al pie del teléfono (pantalla de
+  llamada); con el resultado abierto caben las 7 opciones. Celular sin cambios.
+  Commit `4396acfc` sobre el vivo `db29ecdd` (rama de publicación, ya fusionada en `main` con
+  `d53df94d` y borrada): **no se publicó la punta de `main`** porque llevaba trabajo de otras
+  sesiones sin publicar — `3e6c3587` (citas por equipo, migración `20260927172931` NO aplicada) y el
+  «Hoy del supervisor» F1–F3 «sin conectar». Artefacto `crm-20260927T183849Z-4396acfcb46d`, build
+  `build-20260927T183847624Z`; check PASS (4512) sobre ese árbol, manifiesto OK, preflight OK contra
+  `db29ecdd`, configuración idéntica; humo 200, índice `index-Br7FaJ8z.js` = build, 104/117 byte a
+  byte + 12 PNG de la CDN (iguales al release anterior).
+- **Tercer ajuste, publicado el 27/09 a las 14:14 Lima — «Llamar» de 44 px y «Lo último con este
+  lead».** Miguel: «el botón de llamar está muy grande» y «hay espacio en blanco… poner información
+  relevante para el seguimiento, la última actividad o el último seguimiento». «Llamar» pasó de
+  52 a 44 px de alto (la altura de WhatsApp; 44 es el mínimo táctil). En el aire del teléfono, «Lo
+  último con este lead»: las **2** últimas gestiones (tipo, resultado, nota y hace cuánto), sin
+  movimientos del sistema, con «Ver todo» a la ficha; sale del historial por lead de la ficha
+  (`useActividadesDeLead`, sin consultas nuevas). Con 3 no cabía junto a «Correo». Estados: cargando,
+  fallo con «Reintentar», vacío («esta llamada será la primera»); nunca «sin gestiones» por no
+  saberlo. Se oculta con el resultado abierto; acciones `sticky` al pie en pantallas bajas. Los
+  iconos de las gestiones y el «hace X» se unificaron en `components/app/actividad-visual.ts` (había
+  dos copias: ficha y directorio). Commit `8d4be227` sobre el vivo `4396acfc` (fusionado en `main`
+  con `9b060fba`); check PASS (4516, 4 pruebas nuevas); E2E dirigida en Docker 88 PASS / 13 saltadas
+  / 1 FALLO: `gestion-diaria-horizontal-h5` (supervisor, `resumen_cartera_fn` 2 vs 1 con 32
+  analistas) en el taller compartido con cambios SIN COMMITEAR de la sesión del supervisor; sobre el
+  árbol exacto del release (`8d4be227`) pasa 2/2. Artefacto `crm-20260927T191408Z-8d4be227d676`,
+  build `build-20260927T191408274Z`; manifiesto OK, preflight OK, configuración idéntica; humo 200,
+  índice `index-DjRxOV9u.js` = build, 104/117 byte a byte + 12 PNG de la CDN.
+- 🔴 **Docker E2E compartido:** dos corridas de la suite completa murieron con código 143 (parada
+  desde fuera) mientras otras dos sesiones corrían las suyas: mi contenedor llevaba la etiqueta
+  genérica `crm-e2e`. Correr con `CRM_E2E_TASK=<propia>` y, con Docker ocupado, specs dirigidos.
+- 🔴 **Lección: el primer rediseño rompió `e2e/foco-alto-contraste.spec.ts`**, que buscaba las filas
+  por la estructura vieja de la cola (listas por grupo). Yo solo había corrido los specs de Gestión
+  Diaria + SLA; otra sesión lo ajustó a la pestaña «Cola de hoy» (`59fceade`). No era un fallo de
+  la pantalla, pero sí un hueco de verificación: **al cambiar la estructura de una pantalla, correr
+  la suite E2E completa** (o buscar en TODOS los specs los selectores que cambian).
+- ⚠️ **Para el próximo `/release-crm`:** el `main` local ya lleva trabajo de otras sesiones SIN
+  publicar: `3e6c3587` (citas para supervisores por equipo, que depende de la migración
+  `20260927172931`, NO aplicada) y el «Hoy del supervisor» F1–F4 (`b862ac80` lo CONECTA). Un build
+  desde `main` los publicaría: la migración va ANTES (orden de despliegue por dirección) y conviene
+  que esa sesión confirme H5 (arriba). Mis tres releases de hoy se construyeron sobre el vivo, no
+  sobre la punta de `main`.
 - **Revisiones:** Codex del plan (BLOCK, 6 hallazgos, todos aceptados) y del código
   (CHANGES_REQUESTED: P1 Escape durante el envío → guardia síncrona `estaEnviando`; P2 cerrar
   sin registrar con un grupo filtrado → «Ahora» vuelve a la persona llamada; ambos con prueba
