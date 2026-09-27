@@ -1,3 +1,41 @@
+## 20260927015203 — Ranking: continuidad legada acreditada como Cartera
+
+**PROBADA EN DOCKER LOCAL Y RAMA REMOTA. NO APLICADA EN PRODUCCIÓN.**
+Entrega A, ensayo remoto y publicación autorizados el 26/09/2026; instalación pendiente.
+Rama qinpzjnslblwqjrhaqqf, registro nativo 20260927015203.
+SQL exacto sin cambios; HTTP/Auth, matriz SQL focal, reversión y advisors PASS.
+Acta durable: releases/ranking-cartera-20260926/ENSAYO-REMOTO.md del workspace.
+
+Reemplaza únicamente el cuerpo de
+`private.ranking_capital_origen_filas(timestamptz,timestamptz,uuid)`.
+Después de los leads directos y el fallback temporal, usa el ledger de
+operaciones de cartera para clasificar como `cartera` contratos legados
+`nuevo` sin origen: exige contrato nuevo, cliente, moneda, fecha y tipo
+upgrade/renovación concordantes. No cambia categorías, capital, atribución,
+conversión, COOPAC, fotos selladas, firma pública ni permisos. No escribe
+datos ni altera objetos de `public`. Helper privado SECURITY DEFINER
+preexistente, search_path vacío, owner postgres, ejecución cerrada a clientes.
+
+Preflight de huellas del lector y los dos núcleos monetarios; reversión exacta
+ensayada. SQL local: 25 aserciones nuevas PASS, regresión del ranking PASS,
+foto sellada y respuesta de RPC sin cambios PASS. Proyección productiva de
+solo lectura: 143 filas antes/después, 12 cambian solo el canal, cero
+duplicados; Betzabeth: S/150.000 pasa de sin_origen a cartera sin alterar
+los otros importes. Claude (auditor SQL/RLS): PASS, sin cambios obligatorios.
+Comprobadas sus observaciones: cero discordancias cliente/moneda/fecha/tipo
+entre los 12 casos de septiembre; fecha canónica deriva del campo persistido;
+monedas e índice único verificados, tercer tipo rechazado por CHECK.
+Un lead directo, incluso sin origen, impide intencionalmente el rescate.
+Revisión completa y gates remotos se registran en
+`../scripts/ranking-cartera/VERIFICACION.md`.
+
+Pendiente antes de publicar: integración con Main vigente y merge nativo.
+Rama terminó FUNCTIONS_DEPLOYED/ACTIVE_HEALTHY. Versión local conciliada con
+la nativa sin cambiar un byte del SQL aprobado inicialmente como 20260927003433.
+Ensayo remoto no equivale a publicación. Autorización productiva: «sii» de Miguel.
+Tipos no regenerados: firma, retornos y shape JSON existentes intactos.
+No se implementa aquí la restricción de nueva inversión por empresa.
+
 ## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026**, registro

@@ -1,0 +1,288 @@
+BEGIN
+SET
+SET
+ set_config 
+------------
+ on
+(1 row)
+
+CREATE FUNCTION
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+INSERT 0 3
+INSERT 0 1
+SELECT 1
+CREATE FUNCTION
+CREATE FUNCTION
+SELECT 1
+SELECT 7
+SELECT 1
+SELECT 7
+UPDATE 5
+ exigir 
+--------
+ 
+(1 row)
+
+DO
+CREATE FUNCTION
+REVOKE
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+SAVEPOINT
+UPDATE 1
+ exigir 
+--------
+ 
+(1 row)
+
+UPDATE 1
+ exigir 
+--------
+ 
+(1 row)
+
+DO
+INSERT 0 1
+ exigir 
+--------
+ 
+(1 row)
+
+UPDATE 1
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+SAVEPOINT
+ set_config 
+------------
+ on
+(1 row)
+
+DELETE 1
+INSERT 0 1
+ exigir 
+--------
+ 
+(1 row)
+
+ROLLBACK
+SAVEPOINT
+ set_config 
+------------
+ on
+(1 row)
+
+DELETE 1
+INSERT 0 1
+ exigir 
+--------
+ 
+(1 row)
+
+ROLLBACK
+SAVEPOINT
+ set_config 
+------------
+ on
+(1 row)
+
+DELETE 1
+INSERT 0 1
+ exigir 
+--------
+ 
+(1 row)
+
+ROLLBACK
+SAVEPOINT
+ set_config 
+------------
+ on
+(1 row)
+
+DELETE 1
+INSERT 0 1
+ exigir 
+--------
+ 
+(1 row)
+
+ROLLBACK
+SAVEPOINT
+ set_config 
+------------
+ on
+(1 row)
+
+DELETE 1
+DO
+ROLLBACK
+ROLLBACK
+DO
+CREATE FUNCTION
+REVOKE
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ROLLBACK
+NOTICE:  PASS: destino sintético exclusivo
+NOTICE:  PASS: fixtures de tres upgrades presentes
+NOTICE:  PASS: índice único de contrato nuevo disponible para EXISTS
+NOTICE:  PASS: cinco diferencias esperadas no vacías, en PEN y USD
+NOTICE:  PASS: contratos, leads, ledger, auditoría, capital, conversión, canales y sellos idénticos
+NOTICE:  PASS: solo cinco cambios de canal, sin duplicar filas ni mover vendedores
+NOTICE:  PASS: tres upgrades PEN: Cartera por 70000 del fixture sin recategorizar contrato
+NOTICE:  PASS: misma clasificación con un contrato sin espejo y dos con espejo
+NOTICE:  PASS: COOPAC conserva origen y monto
+NOTICE:  PASS: una fila por operación
+NOTICE:  PASS: firma, owner, ACL, volatilidad y search_path intactos
+NOTICE:  PASS: helper cerrado a anon, authenticated y service_role
+NOTICE:  PASS: lead tardío enlazado conserva Referido sobre ledger
+NOTICE:  PASS: origen directo ambiguo no se maquilla como Cartera
+NOTICE:  PASS: origen anterior por perfil conserva precedencia
+NOTICE:  PASS: fallback ambiguo no se maquilla como Cartera
+NOTICE:  PASS: sin ledger válido no se infiere continuidad
+NOTICE:  PASS: ledger de otra moneda no clasifica
+NOTICE:  PASS: ledger de otra fecha no clasifica
+NOTICE:  PASS: ledger de otro cliente no clasifica
+NOTICE:  PASS: renovación legada acreditada también clasifica
+NOTICE:  PASS: ledger rechaza un tipo fuera de upgrade/renovación
+NOTICE:  PASS: reversión restaura definición exacta anterior
+NOTICE:  PASS: reversión restaura resultados anteriores
+NOTICE:  PASS: reversión no modifica datos ni métricas
+PASS: /private/tmp/ranking-cartera.AfQUSa/CRM-Avance-Corp/supabase/scripts/ranking-cartera/prueba-local.sql; transacción revertida
+BEGIN
+SET
+SET
+ set_config 
+------------
+ on
+(1 row)
+
+DO
+CREATE FUNCTION
+REVOKE
+DO
+DO
+ROLLBACK
+NOTICE:  Ranking origen: varios leads y canal ambiguo PASS
+NOTICE:  Ranking origen: cierre cooperativo PASS
+NOTICE:  Ranking origen: conversión Referido y peso ausente PASS
+NOTICE:  Ranking origen: ámbito Gerencia/Supervisión y denegación PASS
+NOTICE:  Ranking origen: 2026-08-01 · 0 grupos · paridad PASS
+NOTICE:  Ranking origen: 2026-09-01 · 2 grupos · paridad PASS
+NOTICE:  Ranking origen: ACL PASS
+NOTICE:  Ranking origen: foto de cierre PASS
+WARNING:  Ranking origen no disponible al sellar 2026-09-01 / b0000000-0000-4000-8000-000000000001: SQLSTATE 22P02
+NOTICE:  Ranking origen: fallo aislado del cierre PASS
+NOTICE:  Ranking origen: foto inmutable PASS
+PASS: regresión previa del ranking bajo el candidato; transacción revertida
+BEGIN
+SET
+SET
+ set_config 
+------------
+ on
+(1 row)
+
+DO
+DO
+SELECT 2
+              set_config              
+--------------------------------------
+ b0000000-0000-4000-8000-000000000003
+(1 row)
+
+SELECT 1
+DO
+CREATE FUNCTION
+REVOKE
+DO
+ROLLBACK
+NOTICE:  Ranking origen: varios leads y canal ambiguo PASS
+NOTICE:  Ranking origen: cierre cooperativo PASS
+NOTICE:  Ranking origen: conversión Referido y peso ausente PASS
+NOTICE:  Ranking origen: ámbito Gerencia/Supervisión y denegación PASS
+NOTICE:  Ranking origen: 2026-08-01 · 0 grupos · paridad PASS
+NOTICE:  Ranking origen: 2026-09-01 · 2 grupos · paridad PASS
+NOTICE:  Ranking origen: ACL PASS
+NOTICE:  Ranking origen: foto de cierre PASS
+WARNING:  Ranking origen no disponible al sellar 2026-09-01 / b0000000-0000-4000-8000-000000000001: SQLSTATE 22P02
+NOTICE:  Ranking origen: fallo aislado del cierre PASS
+NOTICE:  Ranking origen: foto inmutable PASS
+NOTICE:  PASS: foto no vacía y RPC sellada intactas tras migración
+PASS: mes ya sellado conserva foto y respuesta pública; transacción revertida
+PASS: sin and o.cliente_id = c.cliente_id; mutante rechazado por su aserción específica
+PASS: sin and o.moneda = c.moneda; mutante rechazado por su aserción específica
+PASS: sin and o.fecha_operacion = c.fecha_cierre_comercial; mutante rechazado por su aserción específica
