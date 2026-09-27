@@ -3,11 +3,23 @@ tags: [portal, crm, cuentas-bancarias, pagos, gloria, en-pausa]
 actualizado: 2026-09-26
 ---
 
-# Cuentas de Gloria · F3 — cambiar la cuenta de pago (⏸️ EN PAUSA, 26/09/2026)
+# Cuentas de Gloria · F3 — cambiar la cuenta de pago (✅ EN PRODUCCIÓN, 26/09/2026)
 
-**Estado:** ⏸️ **en pausa a pedido de Miguel** (26/09, tras la auditoría). Todo está hecho y
-ensayado en el banco Docker, pero **nada está aplicado en producción ni publicado**. Plan general
-y fases anteriores: [[Cuentas bancarias - Gloria ve y añade cuentas, fase 1 publicada (2026-09-26)]].
+**Estado:** ✅ **en producción desde el 26/09 (~19:55)**:
+- **Base:** migración `20260926204051` aplicada y registrada con huella; advisors sin alertas nuevas.
+- **Edge:** `notificar-cambio-cuenta` v1 activa.
+- **Portal:** publicado (commit `14b3b20`, SW v133).
+
+Hubo una pausa a pedido de Miguel tras la auditoría; al retomar, dio su OK explícito al SQL
+(«Sí, aplícala tú»), a la Edge y al portal («Sí, las dos»). El riesgo del «mismo día» quedó
+**aceptado por ahora**. Plan general y fases anteriores:
+[[Cuentas bancarias - Gloria ve y añade cuentas, fase 1 publicada (2026-09-26)]].
+
+**Pendiente:**
+- que Gloria haga el primer cambio real: ejercita el aviso con su sesión, que no se pudo probar sin
+  ella;
+- la pasada visual de Miguel;
+- integrar el `main` local con `avancecorp/main` (el push está bloqueado por divergencia).
 
 ## Qué resuelve (comercial)
 
@@ -22,17 +34,15 @@ de sus contratos abiertos desde la ventana «Cuentas» del portal:
 Decisiones de Miguel: por contrato entero; solo admin y superadmin; aviso por portal y correo; el
 respaldo es el correo del cliente.
 
-## Qué está listo (sin commit de producción)
+## Qué se entregó (en producción)
 
 - **Migración** `CRM-Avance-Corp/supabase/migrations/20260926204051_crm_cambio_cuenta_pago.sql`,
   con su prueba, reversa y registro en `CRM-Avance-Corp/supabase/scripts/cuentas-gloria/`. Detalle
-  en `MIGRACIONES.md`.
-- **Edge Function** `_supabase_functions/functions/notificar-cambio-cuenta/`. No está desplegada.
-- **Portal:**
-  - `clientes.js v54` / `clientes.html`, `cambio-cuenta-core.js v1`, `cuentas-cliente-core v5`,
-    `cuentas-pago-core v3`, `pagos.js v44` / `pagos.html` y SW `v133`;
-  - ⛔ **no publicar antes de aplicar la migración**: la ventana «Cuentas» llamaría funciones que
-    no existen.
+  en `MIGRACIONES.md`. La reversa ya se niega en cuanto haya un pago sellado o un cambio registrado.
+- **Edge Function** `_supabase_functions/functions/notificar-cambio-cuenta/` (v1 activa).
+- **Portal:** `clientes.js v54` / `clientes.html`, `cambio-cuenta-core.js v1`,
+  `cuentas-cliente-core v5`, `cuentas-pago-core v3`, `pagos.js v44` / `pagos.html` y SW `v133`
+  (commit `14b3b20`).
 - **Evidencia (26/09):**
   - Banco Docker con el esquema de prod: aplicar → 34 comprobaciones con 17 mutantes cazados →
     registro con huella de 16 funciones `21bb1838606355e1161a44fb0b66e809` → reversa con catálogo
@@ -55,7 +65,7 @@ respaldo es el correo del cliente.
   depositar**. Un mensaje anterior («vuelve a exportar y paga a la cuenta nueva») podía causar un
   doble depósito.
 
-## Riesgos aceptados (a confirmar con Miguel al retomar)
+## Riesgos aceptados (Miguel, 26/09: «Aceptarlo por ahora» para el del mismo día)
 
 - **Mismo día:** un depósito a la cuenta anterior el MISMO día del cambio (o después, con un Excel
   viejo) puede quedar anotado en la cuenta nueva, porque la fecha no dice la hora.
@@ -65,22 +75,18 @@ respaldo es el correo del cliente.
 - **Falta una prueba con dos sesiones del orden de bloqueos.** El auditor lo razonó correcto.
 - **El gate `test-rls` no se corrió:** su siembra choca con el fixture P-0XX del banco.
 
-## Cómo retomar (en este orden)
+## Cómo se publicó (26/09)
 
-1. **Mostrar el SQL a Miguel** y pedir su **OK explícito**. Toca `public` (dos triggers AFTER en
-   `cronograma_pagos` y bloqueos FOR SHARE de `contratos`) y `storage` (bucket y 7 políticas).
-   Anotarlo en `MIGRACIONES.md`.
-2. Si el código cambió desde el 26/09, repetir el ciclo del banco. La huella del registro y de la
-   reversa debe coincidir con la viva.
-3. **Aplicar:** `supabase db query --linked --file .../20260926204051_crm_cambio_cuenta_pago.sql`. Si
-   el clasificador bloquea, que lo lance Miguel con `!`. Después, **registrar** con
-   `registrar-cambio-cuenta-pago.sql` y revisar los **advisors**.
-4. **Edge:** desplegar `notificar-cambio-cuenta` (verify_jwt activo) con el OK de Miguel. Probar con
-   `dry_run`.
-5. **Portal:**
-   - comprobar las versiones vivas (SW, `pagos.js`, `clientes.js`) por si otra sesión publicó;
-   - preflight, subida por TUS archivo por archivo, SW al final;
-   - purga y 3 lecturas.
-6. Marcar ☑ la tarjeta F3 del tablero (`18:50`, estado `18:52`). Luego commit y `main`.
+1. OK de Miguel anotado en `MIGRACIONES.md` → aplicar (`db query --linked --file`) → registrar con
+   la huella (16 funciones `21bb1838…`, idéntica a la ensayada) → advisors: solo INFO esperados.
+2. Edge: `npx supabase@2.114.0 functions deploy notificar-cambio-cuenta --project-ref … --use-api`
+   desde una copia exacta.
+   - Vivo = árbol, `verify_jwt=true`.
+   - Smoke: OPTIONS 200, sin sesión 401, token inválido 401.
+3. Portal:
+   - preflight (0 archivos vivos perdidos; lo vivo era F2b `5998025`);
+   - TUS archivo por archivo, con el SW v133 al final;
+   - purga;
+   - 24/24 lecturas idénticas; las URL versionadas sirven el commit.
 
 Relacionadas: [[Cuentas bancarias por contrato]] · [[Cuentas bancarias - ledger vs casillas del perfil]]

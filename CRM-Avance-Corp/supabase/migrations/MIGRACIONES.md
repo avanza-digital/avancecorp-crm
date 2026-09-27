@@ -1,7 +1,26 @@
 ## 20260926204051 — Cuentas de Gloria · F3: cambiar la cuenta de pago por pedido del cliente
 
-**⏸️ EN PAUSA (26/09, a pedido de Miguel). PREPARADA Y ENSAYADA EN EL BANCO DOCKER; NO APLICADA EN
-PRODUCCIÓN.** Para retomar: mostrar el SQL a Miguel y obtener su OK explícito. Toca objetos de
+**OK EXPLÍCITO DE MIGUEL (26/09, 19:40, al retomar tras la pausa): «Sí, aplícala tú»** para tocar
+`public` (dos triggers AFTER en `public.cronograma_pagos`, bloqueos FOR SHARE de `public.contratos`) y
+`storage` (bucket y 7 políticas). Riesgo del «mismo día»: **«Aceptarlo por ahora»** (la fase aparte
+«registrar a qué cuenta se depositó» queda para después).
+**✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~19:45)** con `db query --linked --file`: sin errores, y
+el postflight interno pasó (EXECUTE exacto, sin claves foráneas, RLS, 7 políticas, 2 triggers del
+sello, backfill completo). **Registrada** con `registrar-cambio-cuenta-pago.sql`: la huella viva de
+las 16 funciones coincide con la ensayada (`21bb1838…`). **Advisors:** sin alertas nuevas de
+seguridad ni de rendimiento; solo INFO esperados (RLS sin políticas en las 3 tablas, que se leen por
+funciones, e índices recién creados «sin uso»).
+- **Edge `notificar-cambio-cuenta` v1 ACTIVA (26/09, ~19:50)**, con OK de Miguel («Sí, las dos»):
+  - `verify_jwt=true`; desplegada con `npx supabase@2.114.0 functions deploy … --use-api` desde una
+    copia exacta del árbol, y los archivos vivos son idénticos;
+  - smoke: OPTIONS 200 con CORS de miavance.com; POST sin sesión 401; token inválido 401.
+  - Hueco: el `dry_run` con una sesión real de admin queda para el primer uso de Gloria.
+- **Portal PUBLICADO (26/09, ~19:55)**, commit `14b3b20`:
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F2b (`5998025`);
+  - TUS archivo por archivo, con el SW v133 al final; purga;
+  - 24/24 lecturas idénticas, y las URL versionadas (`clientes.js?v=54`, `pagos.js?v=44`,
+    `cambio-cuenta-core.js?v=1`, `cuentas-cliente-core.js?v=5`, `cuentas-pago-core.js?v=3`) sirven el
+    commit. Para retomar: mostrar el SQL a Miguel y obtener su OK explícito. Toca objetos de
 `public` (dos triggers AFTER en `public.cronograma_pagos` y bloqueos FOR SHARE de `public.contratos`)
 y de `storage` (bucket y 7 políticas); el OK se anotará aquí. Después se aplica y se registra con
 `../scripts/cuentas-gloria/registrar-cambio-cuenta-pago.sql`, se corren los advisors y se sigue el
