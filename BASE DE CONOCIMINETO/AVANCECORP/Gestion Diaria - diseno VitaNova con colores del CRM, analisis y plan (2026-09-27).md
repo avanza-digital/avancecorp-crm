@@ -226,7 +226,13 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   configuración (URL de Supabase, clave pública y DSN de Sentry) idénticas al build anterior.
 - **Paso 1 del release:** `main` local iba 73 commits por delante de `avancecorp/main` (lo de
   Gloria, que se queda solo en local, más notas y estos commits) y 0 por detrás. Miguel siguió
-  tras el aviso. A GitHub llega por PR de integración sin lo de Gloria (receta de la #114).
+  tras el aviso. A GitHub va por la **PR #115** (rama `integra/gestion-diaria-analista-20260927`,
+  commit `d3064076` sobre `avancecorp/main`): solo los 29 archivos de este trabajo, `app/`
+  idéntico byte a byte al publicado, sin lo de Gloria ni las citas por equipo de otra sesión;
+  pre-push 4512/4512. Al fusionarla (squash): traer `avancecorp/main` al `main` local y borrar la rama.
+- ⚠️ **Para el próximo `/release-crm`:** el `main` local ya lleva `3e6c3587` (citas para supervisores
+  por equipo, de otra sesión), que depende de la migración `20260927172931`. Un build desde `main`
+  lo publicaría: la migración tiene que estar aplicada ANTES (orden de despliegue por dirección).
 - **Revisiones:** Codex del plan (BLOCK, 6 hallazgos, todos aceptados) y del código
   (CHANGES_REQUESTED: P1 Escape durante el envío → guardia síncrona `estaEnviando`; P2 cerrar
   sin registrar con un grupo filtrado → «Ahora» vuelve a la persona llamada; ambos con prueba
@@ -240,8 +246,7 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   «Copiar el número de X y registrar la llamada» (cambiarlo toca muchos specs); el lector lee
   raro «1–8 de 23»; «Ver más» del registro en modo normal tiene el mismo detalle de foco que se
   arregló en el compacto; sumar `@axe-core/playwright`; actualizar el tablero de Figma.
-- **Siguiente:** Miguel la mira en producción; fusionar la PR de integración y traerla al `main`
-  local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
+- **Siguiente:** Miguel la mira en producción y fusiona la PR #115; traerla al `main` local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
 
 Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]],
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
