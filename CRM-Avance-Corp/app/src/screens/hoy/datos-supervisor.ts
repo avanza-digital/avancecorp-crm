@@ -351,6 +351,7 @@ export function useDatosSupervisor() {
     etiquetaAccesoReparto,
     cumplimientoMensual,
     conversionConfirmada,
+    conversionMensualError,
     filasMeta,
     hayErrorMensual,
     reintentarMensual,
