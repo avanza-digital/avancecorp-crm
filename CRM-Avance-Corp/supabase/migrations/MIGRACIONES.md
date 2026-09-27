@@ -1,6 +1,6 @@
 ## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
 
-**PREPARADA Y ENSAYADA; PENDIENTE DE REVISIONES Y DEL OK DE MIGUEL.** Cierra el caso del «mismo
+**PREPARADA, ENSAYADA Y REVISADA (Codex y auditor-rls); PENDIENTE DEL OK DE MIGUEL.** Cierra el caso del «mismo
 día» aceptado en F3: un Excel exportado con la cuenta A, depositado en A, y un cambio A→B ese mismo
 día antes de importar dejaba el pago anotado en B. Decisiones de Miguel (26/09): solo cuentas de
 pago del contrato (actual o histórica, cualquier versión); el pago manual muestra la cuenta y la
@@ -20,15 +20,24 @@ Piezas:
 - `crm.contratos_cuenta_pago_cliente_fn`: `pagadas_por_cuenta` suma `declaradas` (columna al final;
   misma firma). Constraint de `origen` admite `declarado`.
 - Toca `public` solo por lectura y por el UPDATE de la RPC bajo RLS; no crea ni cambia triggers,
-  policies ni tablas de `public`.
+  policies ni tablas de `public`. **Pero cambia la CONDUCTA de los dos triggers de F3 sobre
+  `public.cronograma_pagos`** (el sello puede rechazar con 22023 un UPDATE cuando la declaración
+  no es válida): por eso pide el OK explícito de Miguel, como F3/F4/arreglos.
+- `service_role` queda sin EXECUTE sobre la RPC (a propósito: el portal la llama con la sesión del
+  usuario; ningún proceso de servicio registra pagos por esta vía).
+- Corregir la fecha de una cuota pagada SIN sello (las 38 de prod sin cuenta de pago) la sella como
+  `inferido` cuando el contrato ya tenga enlace: misma semántica que F3 (el auditor cazó una
+  desviación involuntaria y se restauró).
 
 Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo en verde.
-- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 14 comprobaciones, 6 mutantes
+- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 16 comprobaciones, 6 mutantes
   (sin declaración, sin restricción al contrato, sin limpiar el ajuste, sin validar CCI, sin exigir
   pendiente, sin testigo). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la
-  clave nueva).
+  clave nueva). 🔴 El caso «service_role llama la RPC» se acredita por catálogo: ejecutarlo con
+  `set role service_role` TUMBA el servidor del banco (trampa conocida).
 - Registro `../scripts/cuentas-gloria/registrar-pago-declara-cuenta.sql` ensayado, con huella de las
-  4 funciones `ad041f74f137838e22b80bd018f0d449`.
+  4 funciones `5fe996aff266f293464c24e59764269b`. El postflight acredita además DEFINER/INVOKER y
+  volatilidad de cada función.
 - Reversa `../scripts/cuentas-gloria/reversa-pago-declara-cuenta.sql`: repone F3 + arreglos byte a
   byte; se niega con sellos `declarado` (ensayado). Orden de reversas: F5 → arreglos → F4 → F3.
   Tras las cuatro, catálogo idéntico (2052 líneas).
@@ -46,7 +55,14 @@ Revisiones:
     no sea 20 dígitos (probado en navegador: la fila dañada cae en errores, la válida se registra);
   - P2: la declaración dependía de un GUC libre → testigo por transacción que solo arma la RPC;
   - P3: pruebas de 22023 en subtransacción y de «ya pagada + CCI ajeno» (ajuste limpio, sin sello).
-- **auditor-rls:** pendiente.
+- **auditor-rls: APPROVED** (sin cambios obligatorios). Sus P3, aplicados: semántica de F3 al corregir
+  la fecha de una cuota sin sello; postflight con `prosecdef`/`provolatile`; pruebas de CCI de otro
+  cliente, UPDATE directo con ajuste vacío y `service_role` sin EXECUTE. Su P3 sobre P04 en el
+  registro de pagos queda como decisión de Miguel (ver abajo). Presupuesto LEVEL 3 agotado.
+- **Decisión pendiente de Miguel (P04):** hoy un admin con la membresía CRM revocada marca pagos
+  (igual que con el UPDATE directo vigente). Cerrarlo dentro de la RPC es barato pero parcial
+  mientras exista el UPDATE directo (anulación); cerrarlo del todo tocaría la policy de
+  `public.cronograma_pagos`.
 
 Consumidor: Pagos del portal (importación del Excel y modal «Marcar como pagado»); la ventana
 «Cuentas» de Gloria lee `declaradas`. Orden: base → portal.

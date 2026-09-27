@@ -84,7 +84,8 @@ begin
   -- fecha ('registro'); lo declarado y lo inferido no dependen de ella.
   if not v_nuevo_pago then
     select q.origen into v_origen_previo from crm.cuotas_cuenta_pagada q where q.cuota_id = new.id;
-    if v_origen_previo is distinct from 'registro' then
+    -- Sin sello previo (cuota pagada antes de tener cuenta de pago): se sella como 'inferido'.
+    if v_origen_previo is not null and v_origen_previo <> 'registro' then
       return null;
     end if;
   end if;
@@ -263,12 +264,16 @@ declare v_f record;
 begin
   for v_f in
     select * from (values
-      ('private.sellar_cuenta_cuota_pagada()', null),
-      ('crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', 'authenticated'),
-      ('private.contratos_cuenta_pago_cliente_autorizado(uuid)', 'authenticated'),
-      ('crm.contratos_cuenta_pago_cliente_fn(uuid)', 'authenticated')
-    ) as f(firma, rol)
+      ('private.sellar_cuenta_cuota_pagada()', null, true, 'v'),
+      ('crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', 'authenticated', false, 'v'),
+      ('private.contratos_cuenta_pago_cliente_autorizado(uuid)', 'authenticated', true, 's'),
+      ('crm.contratos_cuenta_pago_cliente_fn(uuid)', 'authenticated', false, 's')
+    ) as f(firma, rol, definer, volatilidad)
   loop
+    if not exists (select 1 from pg_catalog.pg_proc p
+                   where p.oid = v_f.firma::regprocedure and p.prosecdef = v_f.definer and p.provolatile = v_f.volatilidad) then
+      raise exception 'F5: DEFINER/INVOKER o volatilidad inesperados en %', v_f.firma;
+    end if;
     if exists (
       select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
       where p.oid = v_f.firma::regprocedure and a.privilege_type = 'EXECUTE'
@@ -285,9 +290,6 @@ begin
       where conrelid = 'crm.cuotas_cuenta_pagada'::regclass and conname = 'cuotas_cuenta_pagada_origen_valido')
      is distinct from 'CHECK ((origen = ANY (ARRAY[''registro''::text, ''declarado''::text, ''inferido''::text])))' then
     raise exception 'F5: la regla de origen no quedó como se esperaba';
-  end if;
-  if (select prosecdef from pg_catalog.pg_proc where oid = 'crm.registrar_pago_con_cuenta(uuid,date,numeric,text)'::regprocedure) then
-    raise exception 'F5: la RPC de registro debe ser INVOKER';
   end if;
   if (select count(*) from pg_catalog.pg_trigger where tgrelid = 'public.cronograma_pagos'::regclass
       and tgname in ('trg_cronograma_pagos_20_sellar_cuenta_insert', 'trg_cronograma_pagos_20_sellar_cuenta_update')) <> 2 then

@@ -1,7 +1,7 @@
 -- REVERSA de 20260927024423_crm_pago_declara_cuenta (F5).
 -- Repone byte a byte el sello y la lectura de F3 (con los arreglos 20260927020317) y la regla de
 -- origen; retira la RPC. Se NIEGA si ya hay sellos 'declarado' (su constancia se perdería) o si las
--- piezas vivas no son las de F5 (huella ad041f74f137838e22b80bd018f0d449).
+-- piezas vivas no son las de F5 (huella 5fe996aff266f293464c24e59764269b).
 begin;
 set local lock_timeout = '5s';
 do $pre$
@@ -23,7 +23,7 @@ begin
                   to_regprocedure('crm.registrar_pago_con_cuenta(uuid,date,numeric,text)'),
                   to_regprocedure('private.contratos_cuenta_pago_cliente_autorizado(uuid)'),
                   to_regprocedure('crm.contratos_cuenta_pago_cliente_fn(uuid)'));
-  if v_huella is distinct from 'ad041f74f137838e22b80bd018f0d449' then
+  if v_huella is distinct from '5fe996aff266f293464c24e59764269b' then
     raise exception 'REVERSA: las piezas vivas no son las de la F5 (huella %); no se toca', v_huella;
   end if;
 end $pre$;

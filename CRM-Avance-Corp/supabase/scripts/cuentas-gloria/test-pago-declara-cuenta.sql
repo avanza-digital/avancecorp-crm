@@ -15,6 +15,7 @@ select to_regprocedure('private.exigir_cuenta_pago_cronograma()') is null as fal
 -- ── Siembra ficticia ─────────────────────────────────────────────────────────────────────────
 -- 01 admin · 02 operaciones · 03 analista (asesor de C) · 05 cliente C · 07 admin revocado (P04).
 insert into auth.users (id, email, aud, role) values
+  ('e7b60000-0000-4000-8000-000000000006', 'f6.cliente.d@prueba.invalid', 'authenticated', 'authenticated'),
   ('e7b60000-0000-4000-8000-000000000001', 'f6.admin@prueba.invalid', 'authenticated', 'authenticated'),
   ('e7b60000-0000-4000-8000-000000000002', 'f6.oper@prueba.invalid', 'authenticated', 'authenticated'),
   ('e7b60000-0000-4000-8000-000000000003', 'f6.analista@prueba.invalid', 'authenticated', 'authenticated'),
@@ -25,7 +26,8 @@ insert into public.perfiles (id, nombre_completo, nombres, dni, correo, rol, act
   ('e7b60000-0000-4000-8000-000000000002', 'F6 OPERACIONES PRUEBA', null, '77760002', 'f6.oper@prueba.invalid', 'operaciones', true, null),
   ('e7b60000-0000-4000-8000-000000000003', 'F6 ANALISTA PRUEBA', null, '77760003', 'f6.analista@prueba.invalid', 'analista', true, null),
   ('e7b60000-0000-4000-8000-000000000005', 'PRUEBA CLIENTE EF', 'CLIENTE', '77760005', 'f6.cliente@prueba.invalid', 'cliente', true, 'e7b60000-0000-4000-8000-000000000003'),
-  ('e7b60000-0000-4000-8000-000000000007', 'F6 ADMIN REVOCADA', null, '77760007', 'f6.revocada@prueba.invalid', 'admin', true, null);
+  ('e7b60000-0000-4000-8000-000000000007', 'F6 ADMIN REVOCADA', null, '77760007', 'f6.revocada@prueba.invalid', 'admin', true, null),
+  ('e7b60000-0000-4000-8000-000000000006', 'PRUEBA CLIENTE DE', 'CLIENTE', '77760006', 'f6.cliente.d@prueba.invalid', 'cliente', true, 'e7b60000-0000-4000-8000-000000000003');
 insert into crm.equipo (perfil_id, rol_crm, activo) values ('e7b60000-0000-4000-8000-000000000007', 'gerencia', false);
 
 -- Cuentas del cliente C (PEN): A (cuenta de pago de K1), B (vigente, será la nueva), Z (vigente pero
@@ -35,12 +37,15 @@ insert into crm.cuentas_bancarias
   ('e7b6c000-0000-4000-8000-000000000001', 'e7b60000-0000-4000-8000-000000000005', 'PEN', 'BCP', 'ahorros', '19100000000001', '00219100000000000001', false, true, 'contrato', '2026-03-01', null, null),
   ('e7b6c000-0000-4000-8000-000000000002', 'e7b60000-0000-4000-8000-000000000005', 'PEN', 'Interbank', 'ahorros', '89830000000002', '00389800000000000002', false, true, 'contrato', '2026-09-20', null, null),
   ('e7b6c000-0000-4000-8000-000000000003', 'e7b60000-0000-4000-8000-000000000005', 'PEN', 'Scotiabank', 'ahorros', '00070000000003', '00907000000000000003', false, true, 'contrato', '2026-01-03', null, null),
-  ('e7b6c000-0000-4000-8000-000000000004', 'e7b60000-0000-4000-8000-000000000005', 'PEN', 'BCP', 'corriente', '19100000000001', '00219100000000000001', false, false, 'contrato', '2026-01-01', 'e7b60000-0000-4000-8000-000000000001', '2026-03-01 10:00-05');
+  ('e7b6c000-0000-4000-8000-000000000004', 'e7b60000-0000-4000-8000-000000000005', 'PEN', 'BCP', 'corriente', '19100000000001', '00219100000000000001', false, false, 'contrato', '2026-01-01', 'e7b60000-0000-4000-8000-000000000001', '2026-03-01 10:00-05'),
+  -- Z2: cuenta vigente de OTRO cliente (D), misma moneda.
+  ('e7b6c000-0000-4000-8000-000000000005', 'e7b60000-0000-4000-8000-000000000006', 'PEN', 'BCP', 'ahorros', '19100000000009', '00219100000000000009', false, true, 'contrato', '2026-01-09', null, null);
 alter table public.contratos disable trigger user;
 insert into public.contratos
   (id, numero_contrato, cliente_id, capital, moneda, tasa_anual, tipo_interes, modalidad, estado,
    fecha_inicio, fecha_vencimiento, producto_condicion_id, fecha_cierre_comercial) values
-  ('e7b6d000-0000-4000-8000-000000000001', 'F6-K1', 'e7b60000-0000-4000-8000-000000000005', 10000, 'PEN', 12, 'simple', 'mensual', 'activo', '2026-01-01', '2027-01-01', 'd0000000-0000-4000-8000-000000000002', '2026-01-01');
+  ('e7b6d000-0000-4000-8000-000000000001', 'F6-K1', 'e7b60000-0000-4000-8000-000000000005', 10000, 'PEN', 12, 'simple', 'mensual', 'activo', '2026-01-01', '2027-01-01', 'd0000000-0000-4000-8000-000000000002', '2026-01-01'),
+  ('e7b6d000-0000-4000-8000-000000000002', 'F6-K2', 'e7b60000-0000-4000-8000-000000000005', 10000, 'PEN', 12, 'simple', 'mensual', 'activo', '2026-01-01', '2027-01-01', 'd0000000-0000-4000-8000-000000000002', '2026-01-01');
 alter table public.contratos enable trigger user;
 insert into crm.contrato_cuentas_pago (contrato_id, cuenta_bancaria_id) values
   ('e7b6d000-0000-4000-8000-000000000001', 'e7b6c000-0000-4000-8000-000000000001');
@@ -54,6 +59,11 @@ insert into public.cronograma_pagos (id, contrato_id, numero_cuota, fecha_progra
   ('e7b6e000-0000-4000-8000-000000000006', 'e7b6d000-0000-4000-8000-000000000001', 6, '2027-02-01', 100, 'pendiente', null),
   ('e7b6e000-0000-4000-8000-000000000007', 'e7b6d000-0000-4000-8000-000000000001', 7, '2027-03-01', 100, 'pendiente', null),
   ('e7b6e000-0000-4000-8000-000000000008', 'e7b6d000-0000-4000-8000-000000000001', 8, '2027-04-01', 100, 'pendiente', null);
+-- K2 #1 pagada SIN cuenta de pago (como las 38 de prod): sin sello. Los triggers de exigencia se saltan.
+alter table public.cronograma_pagos disable trigger user;
+insert into public.cronograma_pagos (id, contrato_id, numero_cuota, fecha_programada, monto_programado, estado, fecha_pago_real) values
+  ('e7b6e000-0000-4000-8000-000000000021', 'e7b6d000-0000-4000-8000-000000000002', 1, '2026-02-01', 100, 'pagado', '2026-02-01');
+alter table public.cronograma_pagos enable trigger user;
 insert into storage.objects (bucket_id, name, owner, owner_id, metadata) values
   ('respaldos-cambio-cuenta', 'e7b60000-0000-4000-8000-000000000005/e7b6f000-0000-4000-8000-000000000001.pdf',
    'e7b60000-0000-4000-8000-000000000001', 'e7b60000-0000-4000-8000-000000000001', '{"size": 2048, "mimetype": "application/pdf", "eTag": "\"f601\""}');
@@ -269,6 +279,48 @@ begin
 end;
 $procedencia$;
 
+-- ── G. Huecos del auditor: otro cliente, UPDATE directo, service_role, cuota sin sello ───────
+do $huecos$
+declare
+  OPER constant uuid := 'e7b60000-0000-4000-8000-000000000002';
+  C7 constant uuid := 'e7b6e000-0000-4000-8000-000000000007';
+  K2C1 constant uuid := 'e7b6e000-0000-4000-8000-000000000021';
+begin
+  -- CCI válido de OTRO cliente (misma moneda): 22023, sin marcar.
+  update public.cronograma_pagos set estado = 'pendiente', fecha_pago_real = null, monto_pagado = null where id = C7;
+  perform pg_temp.espera(pg_temp.registrar(OPER, C7, pg_temp.hoy(), 100, '00219100000000000009'), 'ERR:22023:El CCI del depósito no es de una cuenta de pago', 'CCI de otro cliente');
+  perform pg_temp.espera(pg_temp.estado(C7), 'pendiente', 'otro cliente no marca');
+  -- UPDATE directo (sin RPC) con el ajuste vacío: sigue siendo «sin declaración» → 'registro'.
+  perform set_config('crm.cci_deposito', '', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', OPER, 'role', 'authenticated')::text, true);
+  execute 'set local role authenticated';
+  update public.cronograma_pagos set estado = 'pagado', fecha_pago_real = pg_temp.hoy(), monto_pagado = 100, registrado_por = OPER where id = C7;
+  execute 'reset role';
+  perform pg_temp.espera(pg_temp.sello(C7), 'e7b6c000-0000-4000-8000-000000000002|registro', 'UPDATE directo sin ajuste → deducido');
+  -- Cuota pagada SIN sello (contrato sin cuenta de pago): corregir la fecha no crea sello; al recibir enlace y corregir, sella 'inferido' (semántica de F3).
+  perform pg_temp.espera(pg_temp.sello(K2C1), 'sin sello', 'K2#1 sin sello');
+  update public.cronograma_pagos set fecha_pago_real = '2026-02-02' where id = K2C1;
+  perform pg_temp.espera(pg_temp.sello(K2C1), 'sin sello', 'sin enlace sigue sin sello');
+  insert into crm.contrato_cuentas_pago (contrato_id, cuenta_bancaria_id) values ('e7b6d000-0000-4000-8000-000000000002', 'e7b6c000-0000-4000-8000-000000000003');
+  update public.cronograma_pagos set fecha_pago_real = '2026-02-03' where id = K2C1;
+  perform pg_temp.espera(pg_temp.sello(K2C1), 'e7b6c000-0000-4000-8000-000000000003|inferido', 'con enlace y corrección → inferido');
+  raise notice 'OK huecos: CCI de otro cliente se rechaza; el UPDATE directo sin ajuste deduce; una cuota sin sello que recibe enlace se sella como inferido al corregir la fecha';
+end;
+$huecos$;
+-- service_role no ejecuta la RPC: se acredita por el catálogo (ACL exacta), NUNCA ejecutándola con
+-- SET ROLE service_role: en este banco, ese SET ROLE + llamada tumba el servidor (trampa conocida:
+-- «Postgres se cae por un permiso de función»).
+do $srv$
+begin
+  if pg_catalog.has_function_privilege('service_role', 'crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', 'EXECUTE')
+     or pg_catalog.has_function_privilege('anon', 'crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated', 'crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', 'EXECUTE') then
+    raise exception 'FALLO: EXECUTE de la RPC no es exactamente authenticated';
+  end if;
+  raise notice 'OK service_role y anon sin EXECUTE sobre la RPC (catálogo)';
+end;
+$srv$;
+
 -- anon no ejecuta la RPC.
 set local role anon;
 do $anon$
@@ -294,10 +346,10 @@ begin
   -- A: #1 registro + #2 #3 #5 declaradas = 4 (3 declaradas) · B: #4 #6 #7 declaradas = 3 (3 declaradas)
   if r.pagadas_por_cuenta <> jsonb_build_array(
        jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000001', 'banco', 'BCP', 'numero_cuenta', '19100000000001', 'cuotas', 4, 'inferidas', 0, 'declaradas', 3),
-       jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000002', 'banco', 'Interbank', 'numero_cuenta', '89830000000002', 'cuotas', 4, 'inferidas', 0, 'declaradas', 4)) then
+       jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000002', 'banco', 'Interbank', 'numero_cuenta', '89830000000002', 'cuotas', 4, 'inferidas', 0, 'declaradas', 3)) then
     raise exception 'FALLO: pagadas_por_cuenta no cuadra: %', r.pagadas_por_cuenta;
   end if;
-  raise notice 'OK lectura: pagadas por cuenta trae declaradas (A: 4, 3 declaradas · B: 4, 4 declaradas)';
+  raise notice 'OK lectura: pagadas por cuenta trae declaradas (A: 4, 3 declaradas · B: 4, 3 declaradas + 1 registro)';
 end;
 $lectura$;
 
