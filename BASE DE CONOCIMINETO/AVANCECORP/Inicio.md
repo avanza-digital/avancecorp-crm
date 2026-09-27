@@ -6,6 +6,10 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Conversion - publicacion verificada (2026-09-27)]] — **PUBLICADA:** conversión por cierre comercial y vínculo confirmado hasta finalizar el día 10 siguiente, desde septiembre. 97 acreditadas, 9 tardías y 2 pendientes; históricos/importes intactos. PR #113, SQL por merge nativo, matriz 2268/0 y 80 archivos HTTP PASS. Límites previos documentados.
+
+- [[Ranking cartera - publicacion verificada (2026-09-26)]] — **PUBLICADO:** continuidad legada acreditada aparece como Cartera; Betzabeth S/150000, totales y conversión intactos. SQL por merge nativo, PR #112, verificaciones PASS, rama temporal eliminada. Restricción de nueva inversión por empresa pendiente.
+
 - [[Cuentas bancarias - Gloria ve y añade cuentas, fase 1 publicada (2026-09-26)]] — **FASE 1 PUBLICADA:** botón «Cuentas» en Clientes con «Añadir cuenta» (aparece en el CRM); admin/superadmin ven N°, CCI y beneficiario completos. Fases 2–4 (historial, cambiar cuenta de pago por pedido del cliente, retirar) pendientes. Verificación visual de Gloria pendiente.
 
 - [[P-0XX - cierre productivo verificado (2026-09-26)]] — **CERRADO:** CRM y portal comparten cuentas; 501 registros válidos sin diferencias, dos avisos retirados y cero nuevos. 23 contratos sin vínculo: 21 operativos y 2 demo, reportados y bloqueados para pago. Rama temporal eliminada.
