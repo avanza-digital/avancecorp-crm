@@ -1,0 +1,39 @@
+/* «Mi equipo hoy» del supervisor con el diseño de Gestión Diaria (27/09/2026).
+ * Estilos PROPIOS: gerencia sigue con supervisor.css (su raíz también se llama
+ * gd-supervisor, por eso aquí nada cuelga de esa clase).
+ * Shell vigente: Topbar 64 + padding vertical 48 = 112 px. Solo desplazan la
+ * tabla y el panel; la página no, salvo en pantallas bajas o angostas. */
+.me-pantalla { container-type: inline-size; height: calc(100svh - 112px); min-height: 560px; }
+@media (max-height: 650px), (max-width: 1023px) {
+  .me-pantalla { height: auto; min-height: 0; }
+  /* Con la página desplazándose, la tabla no lleva un scroll propio encima. */
+  .me-pantalla .gd-tabla-scroll { flex: none; overflow: visible; }
+}
+
+.me-equipo { container-type: inline-size; }
+.me-col-nombre { width: auto; }
+/* El foco no queda bajo la cabecera pegada de la tabla (SC 2.4.11). */
+.me-tabla tbody :is(button, a) { scroll-margin-top: 3rem; }
+
+/* Contenedor angosto (celular, zoom 200 %): cada analista es una tarjeta con
+ * rótulos, sin scroll lateral (reflujo WCAG 1.4.10). Los botones de ordenar
+ * siguen arriba, en una fila que se reparte. En px, como ANCHO_EN_LINEA: con el
+ * panel al lado la tabla mide ≥ 724 px y nunca cae aquí (revisión Codex). */
+@container (max-width: 640px) {
+  .me-tabla colgroup { display: none; }
+  .me-tabla thead { display: block; position: static; }
+  .me-tabla thead tr { display: flex; flex-wrap: wrap; gap: 0 6px; padding: 4px 10px; border-bottom: 1px solid var(--border); }
+  .me-tabla thead th { border: 0 !important; padding: 0 !important; }
+  .me-tabla thead th button { justify-content: flex-start !important; }
+  .me-tabla tbody { display: block; }
+  .me-tabla tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 6px 10px; border-bottom: 1px solid var(--border); }
+  .me-tabla tbody tr > * { border: 0 !important; text-align: left !important; padding: 4px 10px !important; box-shadow: none !important; }
+  .me-tabla tbody th, .me-tabla tbody td[colspan] { grid-column: 1 / -1; }
+  .me-tabla tbody td::before { content: attr(data-etiqueta); display: block; margin-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--muted-foreground-strong); }
+  .me-tabla tbody td [aria-hidden='true'] { justify-content: flex-start; }
+}
+
+@media (forced-colors: active) {
+  .me-tabla [data-activa='true'] th, .me-tabla tbody tr[data-activa='true'] > th { border-left: 3px solid Highlight !important; }
+  .me-tabla th, .me-tabla td { border-bottom: 1px solid CanvasText; }
+}

@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
-import { Info, ListFilter, RefreshCw, Search, Users, X } from 'lucide-react'
+import { Check, ClipboardList, Info, RefreshCw, Search, Users, X } from 'lucide-react'
 import { useAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
-import { filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo, type FilaEquipoPresentada, type EstadoEquipo } from '@/lib/gestion-diaria-equipo'
+import { compararGravedad, filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo, type FilaEquipoPresentada, type EstadoEquipo } from '@/lib/gestion-diaria-equipo'
 import { useDiaEquipo } from '@/data/gestion-diaria-equipo-queries'
 import { CrmApiError } from '@/data/crm-api'
 import { TablaEquipoDiaria } from '@/components/gestion-diaria/tabla-equipo-diaria'
@@ -16,14 +16,31 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FranjaCifras } from '@/components/gestion-diaria/franja-cifras'
 import { FranjaCortesSupervisor } from '@/components/gestion-diaria/franja-cortes-supervisor'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
 import { EstadoCortesEquipo } from '@/components/gestion-diaria/estado-cortes-equipo'
 import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
+import { cn } from '@/lib/utils'
+// supervisor.css sigue siendo de gerencia y de los diálogos de cortes; la
+// pantalla del supervisor tiene sus estilos propios (mi-equipo.css, 27/09).
 import './supervisor.css'
+import './mi-equipo.css'
 
 const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
-const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false }
+// «Atención» por gravedad (revisión Codex, 27/09): lo vencido primero.
+const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false, gravedad: true }
+/**
+ * Ancho mínimo de la pantalla para tener tabla y panel LADO A LADO: columnas
+ * fijas de la tabla (68 + 132 + 56 + 72 + 156 = 484) + nombre con iniciales
+ * (≥ 200) + rellenos y bordes (24) + canal de scroll (16) + separación (16) +
+ * panel (360) = 1100. A 1440 con el menú abierto la pantalla mide ~1150: cabe.
+ * Por debajo, el detalle se abre encima como siempre. La tabla pasa a tarjetas
+ * por debajo de 640 px (mi-equipo.css): nunca en línea. Solo del supervisor.
+ */
+const ANCHO_EN_LINEA = 1100
+const CONTROL = 'h-9 text-[13px] pointer-coarse:h-11'
+const BOTON_CABECERA = 'inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-border bg-card px-3 text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-card pointer-coarse:h-11'
 
 export function GestionDiariaSupervisor({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
   const { yo } = useAuth()
@@ -58,6 +75,16 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const origen = useRef<HTMLElement | null>(null)
   const focoEnPanel = useRef(false)
   const apertura = useRef(0)
+  // Un cierre voluntario, una salida de ámbito o una apertura pedida por un aviso
+  // apagan la selección automática en esta visita a la pantalla.
+  const autoInhibida = useRef(false)
+  const ahora = useAhora()
+  // «Actualizando…» solo cuando lo pidió el supervisor: el refresco de cada minuto
+  // no cambia el botón enfocado ni lo anuncia (revisión a11y, 27/09).
+  const [manual, setManual] = useState(false)
+  const [reintentando, setReintentando] = useState(false)
+  const tituloError = useRef<HTMLHeadingElement>(null)
+  const focoEnEquipo = useRef(false)
   const dia = consulta.error ? null : consulta.dia
   const equipo = dia ? presentarEquipo(dia) : []
   const filas = filtrarOrdenarEquipo(equipo, filtros)
@@ -65,13 +92,14 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const atencion = equipo.filter((f) => f.requiere_atencion).length
   const sinPermiso = consulta.error instanceof CrmApiError && consulta.error.code === '42501'
   const fueraDeAmbito = seleccion !== null && (sinPermiso || (dia !== null && seleccion.analista !== null && !fila))
+  const automatica = seleccion?.origen === 'automatica'
   useLayoutEffect(() => {
     const nodo = pantalla.current
     if (!nodo || typeof ResizeObserver === 'undefined') return
     const medir = () => {
       const tabla = nodo.querySelector('.gd-tabla-scroll')
       const scrollbar = tabla instanceof HTMLElement ? tabla.offsetWidth - tabla.clientWidth : 0
-      setEstrecho(nodo.clientWidth < 1236 + Math.max(0, scrollbar - 16))
+      setEstrecho(nodo.clientWidth < ANCHO_EN_LINEA + Math.max(0, scrollbar - 16))
     }
     const observador = new ResizeObserver(medir)
     observador.observe(nodo)
@@ -81,6 +109,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   useEffect(() => {
     const recordarFoco = (e: FocusEvent) => {
       focoEnPanel.current = e.target instanceof Node && Boolean(document.getElementById(panelId)?.contains(e.target))
+      focoEnEquipo.current = e.target instanceof Element && Boolean(e.target.closest('.me-equipo'))
     }
     document.addEventListener('focusin', recordarFoco)
     return () => document.removeEventListener('focusin', recordarFoco)
@@ -88,6 +117,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   useLayoutEffect(() => {
     if (!fueraDeAmbito) return
     const focoDentro = focoEnPanel.current
+    autoInhibida.current = true
     setSeleccion(null)
     setAmpliado(false)
     setAnuncio('Se cerró el detalle porque su ámbito ya no está autorizado. Revisa el equipo antes de abrir otro.')
@@ -113,8 +143,9 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
     if (!dia) return
     if (pedido.actor === actor && pedido.dia === hoy && esHoy && dia.equipo.some((f) => f.analista_id === pedido.analista)) {
       origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      autoInhibida.current = true
       setSeleccion({ analista: pedido.analista, nombre: dia.equipo.find((f) => f.analista_id === pedido.analista)!.nombre_completo,
-        pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
+        pestana: 'llamadas', apertura: ++apertura.current, enfocar: true, origen: 'aviso' })
       setDevolverFocoAuxiliar(false)
       setAuxiliar(null)
       setAnuncio('Abierto el registro de llamadas solicitado.')
@@ -135,99 +166,202 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
     const persona = dia?.equipo.find((f) => f.analista_id === id)
     if (!persona || sinPermiso) return
     origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true })
+    autoInhibida.current = true
+    setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true, origen: 'aviso' })
     setDevolverFocoAuxiliar(false); setAuxiliar(null)
     setAnuncio('Abierto el registro de llamadas solicitado.')
   }
   const seleccionar = (persona: FilaEquipoPresentada) => {
     origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    if (seleccion?.analista === persona.analista_id) return
-    setSeleccion({ analista: persona.analista_id, nombre: persona.nombre_completo, pestana: 'todo', apertura: ++apertura.current, enfocar: false })
+    // Pulsar a quien ya abrió la selección automática la hace SUYA.
+    if (seleccion?.analista === persona.analista_id) {
+      if (automatica) setSeleccion((s) => s && { ...s, origen: 'usuario' })
+      return
+    }
+    setSeleccion({ analista: persona.analista_id, nombre: persona.nombre_completo, pestana: 'todo', apertura: ++apertura.current, enfocar: false, origen: 'usuario' })
     setAnuncio(`Seleccionado ${persona.nombre_completo}. Detalle disponible.`)
   }
   const cerrar = () => {
+    autoInhibida.current = true
+    const analista = seleccion?.analista ?? null
     setSeleccion(null); setAmpliado(false)
     requestAnimationFrame(() => {
-      if (origen.current?.isConnected && origen.current.getClientRects().length) origen.current.focus({ preventScroll: true })
-      else tituloEquipo.current?.focus({ preventScroll: true })
+      // Una selección automática no tiene origen: el foco vuelve a SU fila, no al título.
+      const fila = analista === null ? null : pantalla.current?.querySelector<HTMLElement>(`[data-analista="${CSS.escape(analista)}"] button[aria-controls]`)
+      const destino = origen.current?.isConnected && origen.current.getClientRects().length ? origen.current : fila ?? tituloEquipo.current
+      destino?.focus({ preventScroll: true })
+      destino?.scrollIntoView?.({ block: 'nearest' })
     })
   }
-  const ordenar = (orden: OrdenEquipo) => setFiltros((f) => ({ ...f, orden, ascendente: f.orden === orden ? !f.ascendente : orden === 'nombre' }))
-  const modal = seleccion !== null && !fueraDeAmbito && (estrecho || ampliado)
+  const ordenar = (orden: OrdenEquipo) => {
+    const titulo = { nombre: 'nombre', llamadas: 'llamadas', contacto: 'contacto', pendientes: 'pendientes', citas: 'citas', vencidas: 'vencidas', atencion: 'atención' }[orden]
+    const ascendente = filtros.orden === orden ? !filtros.ascendente : orden === 'nombre'
+    setFiltros((f) => ({ ...f, orden, ascendente }))
+    setAnuncio(`Ordenado por ${titulo}, ${ascendente ? 'ascendente' : 'descendente'}.`)
+  }
+  // Selección AUTOMÁTICA (plan v2 tras Codex, 27/09): quien más atención
+  // necesita, SOLO con el panel en línea, hoy, con una foto válida de la fecha
+  // pedida y sin un aviso esperando; nunca abre una ventana ni mueve el foco.
+  const candidata = filas.filter((f) => f.requiere_atencion).toSorted(compararGravedad)[0]
+  useEffect(() => {
+    if (autoInhibida.current || seleccion !== null || !esHoy || estrecho || !dia || dia.dia !== fecha
+      || consulta.cargando || consulta.error || sinPermiso || avisos?.registroPedido || !candidata) return
+    origen.current = null
+    setSeleccion({ analista: candidata.analista_id, nombre: candidata.nombre_completo, pestana: 'todo', apertura: ++apertura.current, enfocar: false, origen: 'automatica' })
+  }, [seleccion, esHoy, estrecho, dia, fecha, consulta.cargando, consulta.error, sinPermiso, avisos?.registroPedido, candidata])
+  // Una automática que se queda sin sitio al lado se CIERRA sin abrir ventana;
+  // si el supervisor ya la estaba leyendo (foco dentro), pasa a ser suya.
+  useLayoutEffect(() => {
+    if (!estrecho || !automatica) return
+    const activo = document.activeElement
+    if (activo && document.getElementById(panelId)?.contains(activo)) setSeleccion((s) => s && { ...s, origen: 'usuario' })
+    else setSeleccion(null)
+  }, [estrecho, automatica, panelId])
+  const modal = seleccion !== null && !fueraDeAmbito && !automatica && (estrecho || ampliado)
+  const vacioPanel = dia && esHoy && dia.equipo.length > 0 && !equipo.some((f) => f.requiere_atencion)
+    ? 'Nadie necesita atención ahora. Elige un analista para ver su día.' : undefined
+  const abrirRegistroEquipo = () => {
+    if (!dia || sinPermiso) return
+    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setSeleccion({ analista: null, nombre: null, pestana: 'todo', apertura: ++apertura.current, enfocar: true, origen: 'usuario' })
+  }
+  const actualizar = () => {
+    if (consulta.enVuelo || alertas.cargando) return
+    setManual(true)
+    void consulta.recargar(); alertas.reintentar(); setActualizacion((n) => n + 1)
+  }
+  const enVuelo = consulta.enVuelo || alertas.cargando
+  const actualizando = manual && enVuelo
+  useEffect(() => { if (!enVuelo) setManual(false) }, [enVuelo])
+  // Reintento: si sale bien, el bloque de error desaparece con el foco dentro →
+  // el foco va al título; si vuelve a fallar, se dice (revisión a11y, 27/09).
+  useEffect(() => {
+    if (!reintentando || consulta.enVuelo) return
+    setReintentando(false)
+    if (consulta.error) setAnuncio('El reintento no pudo consultar el equipo.')
+    else requestAnimationFrame(() => {
+      const activo = document.activeElement
+      if (!activo || activo === document.body) tituloEquipo.current?.focus({ preventScroll: true })
+    })
+  }, [reintentando, consulta.enVuelo, consulta.error])
+  // Si un refresco falla con el foco en la tabla o la barra, la alerta los reemplaza:
+  // el foco pasa a su título en vez de caer al documento.
+  useLayoutEffect(() => {
+    // Solo si el foco se PERDIÓ (cayó al documento); si sigue en «Reintentar», se queda.
+    const activo = document.activeElement
+    if (!consulta.error || !focoEnEquipo.current || (activo && activo !== document.body)) return
+    focoEnEquipo.current = false
+    tituloError.current?.focus({ preventScroll: true })
+  }, [consulta.error])
+  const hora = dia ? horaLimaDe(dia.generado_en) : null
   return (
-    <section ref={pantalla} aria-label={esHoy ? 'Mi equipo hoy' : 'Mi equipo por fecha'} className="gd-supervisor" data-estrecho={estrecho}>
-      <header className="gd-cabecera">
-        <h2 ref={tituloEquipo} tabIndex={-1}>{esHoy ? 'Mi equipo hoy' : 'Mi equipo'}</h2>
-        <div className="gd-selector-fecha">
+    <section ref={pantalla} aria-label={esHoy ? 'Mi equipo hoy' : 'Mi equipo por fecha'} data-estrecho={estrecho}
+      className="me-pantalla mx-auto flex w-full max-w-[1440px] flex-col gap-4 text-foreground">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 ref={tituloEquipo} tabIndex={-1} className="rounded-md text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{esHoy ? 'Mi equipo hoy' : 'Mi equipo'}</h2>
+          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Actividad registrada, pendientes y analistas que necesitan atención.</p>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {/* El selector ya dice la fecha: al lado solo va la hora de la foto. */}
           <label><span className="sr-only">Fecha de gestión</span>
-            <Input ref={entradaFecha} type="date" defaultValue={hoy} min={primeraFecha} max={hoy} className="min-h-11 text-base"
+            <Input ref={entradaFecha} type="date" defaultValue={hoy} min={primeraFecha} max={hoy} className={cn(CONTROL, 'w-[150px] min-h-0')}
               onChange={(e) => {
                 // El campo nativo conserva la escritura por segmentos. Volver a
                 // asignar value en cada tecla reinicia el año en Chromium.
                 if (e.currentTarget.validity.valid) cambiarFecha(e.currentTarget.value)
               }} onBlur={(e) => { e.currentTarget.value = fecha }} />
           </label>
-          <Button variant="outline" className="min-h-11 text-base" disabled={esHoy} onClick={() => cambiarFecha(hoy)}>Hoy</Button>
-          <span className="gd-fecha">Lima{demo ? ' · Demo' : ''}</span>
-        </div>
-        <div className="gd-acciones-cabecera">
+          <button type="button" className={BOTON_CABECERA} aria-disabled={esHoy} onClick={() => { if (!esHoy) cambiarFecha(hoy) }}>Hoy</button>
           {accesoSeguimiento}
-          <Button variant="ghost" className="min-h-11 text-base" disabled={!dia || sinPermiso} onClick={() => {
-            origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-            setSeleccion({ analista: null, nombre: null, pestana: 'todo', apertura: ++apertura.current, enfocar: true })
-          }}>Registro del equipo</Button>
-          <Button variant="outline" className="min-h-11 text-base" disabled={consulta.enVuelo || alertas.cargando} onClick={() => { void consulta.recargar(); alertas.reintentar(); setActualizacion((n) => n + 1) }}>
-            <RefreshCw className="size-4" aria-hidden />{consulta.enVuelo || alertas.cargando ? 'Actualizando…' : 'Actualizar'}
-          </Button>
-          <Button variant="ghost" size="icon" className="size-11" aria-label="Información de esta vista" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('info') }}><Info aria-hidden /></Button>
+          {hora && <p className="whitespace-nowrap pl-1 text-xs tabular-nums text-[var(--muted-foreground-strong)]">Actualizado {hora}</p>}
+          <button type="button" className={BOTON_CABECERA} aria-disabled={actualizando} aria-busy={actualizando} onClick={actualizar}>
+            <RefreshCw className={cn('size-4', actualizando && 'motion-safe:animate-spin')} aria-hidden />{actualizando ? 'Actualizando…' : 'Actualizar'}
+          </button>
+          <button type="button" className={cn(BOTON_CABECERA, 'w-9 justify-center px-0 pointer-coarse:w-11')} aria-label="Información de esta vista" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('info') }}>
+            <Info aria-hidden className="size-4" />
+          </button>
         </div>
       </header>
-      <div role="group" aria-label="Resumen del equipo" className="gd-indicadores">
-        {dia ? <dl>{[
-          ['Analistas', dia.resumen.analistas], ['Con registro', dia.resumen.con_actividad], ['Sin registro', dia.resumen.sin_actividad],
-          ['Con pendientes', dia.resumen.con_pendientes], ['Necesitan atención', atencion],
-        ].map(([etiqueta, valor]) => <div key={etiqueta}><dt>{etiqueta}</dt><dd>{valor}</dd></div>)}</dl>
-          : <p>{consulta.error ? 'Resumen no disponible' : 'Consultando indicadores…'}</p>}
-      </div>
-      <div className="gd-espacio">
-        <div className="gd-equipo">
-          {consulta.error ? <div role="alert" className="gd-estado">
-            <h3 className="font-semibold">{sinPermiso ? 'Ya no tienes autorización para ver este equipo' : 'No pudimos consultar la actividad y los pendientes del equipo'}</h3>
-            <p>{sinPermiso ? 'Revisa tu acceso con gerencia. No se muestran los datos anteriores.' : 'Los datos no están disponibles; esto no significa que el equipo no tenga actividad o pendientes.'}</p>
-            {!sinPermiso && <Button className="min-h-11 text-base" disabled={consulta.enVuelo} onClick={() => { void consulta.recargar() }}>Reintentar</Button>}
-          </div> : consulta.cargando || !dia ? <p role="status" aria-busy="true" className="gd-estado">Consultando el equipo completo…</p>
-            : dia.equipo.length === 0 ? <PanelVacio icono={Users} tamano="grande" titulo="No tienes analistas activos asignados" detalle="Gerencia puede revisar la composición de tu equipo. No es un resultado de actividad cero." />
-              : <>
-                <div className="gd-filtros">
-                  <label className="gd-busqueda"><span className="sr-only">Buscar analista</span><Search aria-hidden />
-                    <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar analista" className="min-h-11 pl-9 text-base" /></label>
-                  <Select aria-label="Estado de actividad" value={filtros.estado} onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as EstadoEquipo }))} className="min-h-11 text-base">
-                    <option value="todos">Todos</option><option value="con_registro">Con registro</option><option value="sin_registro">Sin registro</option><option value="con_pendientes">Con pendientes</option>
-                  </Select>
-                  <Button variant={filtros.soloProblemas ? 'default' : 'outline'} className="min-h-11 text-base" aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}><ListFilter aria-hidden />Con atención ({atencion})</Button>
-                  <p aria-live="polite" className="gd-conteo">{filas.length} de {dia.resumen.analistas}</p>
-                </div>
-                <TablaEquipoDiaria filas={filas} filtros={filtros} ordenar={ordenar} seleccion={seleccion?.analista ?? null} seleccionar={seleccionar}
-                  panelId={panelId} minimo={dia.umbrales.minimo_llamadas_utiles} irAlDetalle={() => tituloPanel.current?.focus({ preventScroll: true })} />
-              </>}
+
+      {dia ? <FranjaCifras etiqueta="Resumen del equipo" disposicion="en-linea" className="shrink-0" cifras={[
+        { etiqueta: 'Analistas', valor: String(dia.resumen.analistas) },
+        { etiqueta: 'Con registro', valor: String(dia.resumen.con_actividad) },
+        { etiqueta: 'Sin registro', valor: String(dia.resumen.sin_actividad) },
+        { etiqueta: 'Con pendientes', valor: String(dia.resumen.con_pendientes) },
+        // Ámbar y no rojo: mezcla vencidas con cortes y tiempo sin llamar (Codex, 27/09).
+        { etiqueta: 'Necesitan atención', valor: String(atencion), tono: atencion > 0 ? 'aviso' : 'normal' },
+      ]} />
+        : <div role="group" aria-label="Resumen del equipo" className="shrink-0 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] text-[var(--muted-foreground-strong)]">
+          <p>{consulta.error ? 'Resumen no disponible' : 'Consultando indicadores…'}</p>
+        </div>}
+
+      <div className={cn('grid min-h-0 flex-1 gap-4', estrecho ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_360px]')}>
+        <div className="me-equipo flex min-h-0 min-w-0 flex-col overflow-clip rounded-2xl border border-border bg-card">
+          {consulta.error ? <div role="alert" className="flex flex-col items-start gap-3 p-6 text-[13.5px]">
+            <h3 ref={tituloError} tabIndex={-1} className="rounded-md text-[15px] font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{sinPermiso ? 'Ya no tienes autorización para ver este equipo' : 'No pudimos consultar la actividad y los pendientes del equipo'}</h3>
+            <p className="text-[var(--muted-foreground-strong)]">{sinPermiso ? 'Revisa tu acceso con gerencia. No se muestran los datos anteriores.' : 'Los datos no están disponibles; esto no significa que el equipo no tenga actividad o pendientes.'}</p>
+            {!sinPermiso && <Button className={cn(CONTROL, 'aria-disabled:cursor-default aria-disabled:opacity-60')} aria-disabled={consulta.enVuelo}
+              onClick={() => { if (consulta.enVuelo) return; setReintentando(true); void consulta.recargar() }}>{reintentando ? 'Reintentando…' : 'Reintentar'}</Button>}
+          </div> : consulta.cargando || !dia ? <p role="status" className="p-6 text-[13.5px] text-[var(--muted-foreground-strong)]">Consultando el equipo completo…</p>
+            : <>
+              {/* La barra existe con cualquier foto válida: «Registro del equipo»
+                  sigue a mano aunque no haya analistas (Codex, 27/09). */}
+              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+                {dia.equipo.length > 0 && <>
+                  <label className="relative w-[220px] max-w-full"><span className="sr-only">Buscar analista</span>
+                    <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar analista…" className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
+                  </label>
+                  <div className="w-[170px]">
+                    <Select aria-label="Estado de actividad" value={filtros.estado} onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as EstadoEquipo }))} className={cn(CONTROL, 'min-h-0')}>
+                      <option value="todos">Todos los estados</option><option value="con_registro">Con registro</option><option value="sin_registro">Sin registro</option><option value="con_pendientes">Con pendientes</option>
+                    </Select>
+                  </div>
+                  <button type="button" aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}
+                    className={cn('inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11',
+                      filtros.soloProblemas ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>
+                    {filtros.soloProblemas && <Check aria-hidden className="size-3.5" />}Con atención
+                    <span className={cn('grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums',
+                      atencion > 0 ? 'bg-[var(--warning-text)] text-white' : 'bg-muted text-[var(--muted-foreground-strong)]')}>{atencion}</span>
+                  </button>
+                </>}
+                <button type="button" onClick={abrirRegistroEquipo} aria-disabled={sinPermiso}
+                  className="ml-auto inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md px-1 text-[13px] font-semibold text-[var(--accent-press)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50 pointer-coarse:h-11">
+                  <ClipboardList aria-hidden className="size-4" />Registro del equipo
+                </button>
+              </div>
+              {dia.equipo.length === 0
+                ? <PanelVacio icono={Users} titulo="No tienes analistas activos asignados" detalle="Gerencia puede revisar la composición de tu equipo. No es un resultado de actividad cero." />
+                : <>
+                  <TablaEquipoDiaria contexto="supervisor" filas={filas} filtros={filtros} ordenar={ordenar} seleccion={seleccion?.analista ?? null} seleccionar={seleccionar}
+                    panelId={panelId} minimo={dia.umbrales.minimo_llamadas_utiles} irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
+                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
+                    <p><span role="status">{filas.length} de {dia.resumen.analistas} analistas</span> · Actualizado {hora}</p>
+                    <p>La actividad registrada no acredita presencia.</p>
+                  </div>
+                </>}
+            </>}
         </div>
-        <PanelSupervisorAdaptable modal={modal} cerrar={cerrar} tituloRef={tituloPanel}>
+        <PanelSupervisorAdaptable modal={modal} cerrar={cerrar} tituloRef={tituloPanel} claseAlojamiento={cn('me-panel-alojamiento flex min-h-0 min-w-0 flex-col', estrecho && 'hidden')}>
           <PanelAnalistaSupervisor key={fecha} id={panelId} seleccion={fueraDeAmbito ? null : seleccion} fila={fila} dia={fecha} minimo={dia?.umbrales.minimo_llamadas_utiles} tituloRef={tituloPanel}
-            ampliado={ampliado} puedeAmpliar={!estrecho} ampliar={() => setAmpliado((v) => !v)} cerrar={cerrar} oculta={Boolean(dia && seleccion?.analista && !filas.some((f) => f.analista_id === seleccion.analista))}
-            limpiar={() => setFiltros(FILTROS_INICIALES)} actualizacion={actualizacion} revalidar={() => { void consulta.recargar() }} />
+            ampliado={ampliado} puedeAmpliar={!estrecho} ampliar={() => { setAmpliado((v) => !v); if (automatica) setSeleccion((s) => s && { ...s, origen: 'usuario' }) }} cerrar={cerrar}
+            oculta={Boolean(dia && seleccion?.analista && !filas.some((f) => f.analista_id === seleccion.analista))}
+            limpiar={() => setFiltros(FILTROS_INICIALES)} actualizacion={actualizacion} revalidar={() => { void consulta.recargar() }}
+            esHoy={esHoy} ahora={ahora} vacio={vacioPanel} silencioso={automatica} />
         </PanelSupervisorAdaptable>
       </div>
       {esHoy ? <FranjaCortesSupervisor consulta={consulta} abrir={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }} />
-        : <section className="gd-cortes" aria-label="Consulta de otra fecha">
-          <Button variant="ghost" className="min-h-11 shrink-0 text-base" aria-haspopup="dialog" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }}>Cortes del día</Button>
-          <p className="gd-cortes-resumen">Actividad del día elegido. El equipo y los pendientes reflejan su estado actual.</p>
+        : <section className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-border bg-card px-3 py-1.5 text-[13px]" aria-label="Consulta de otra fecha">
+          <button type="button" className={BOTON_CABECERA} aria-haspopup="dialog" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }}>Cortes del día</button>
+          <p className="min-w-0 flex-1 text-[var(--muted-foreground-strong)]">Actividad del día elegido. El equipo y los pendientes reflejan su estado actual.</p>
         </section>}
       <p className="sr-only" role="status">{anuncio}</p>
       <Dialog focoAlCerrar={devolverFocoAuxiliar ? undefined : tituloPanel} open={auxiliar !== null} onClose={() => setAuxiliar(null)} className={auxiliar === 'info' ? 'gd-dialogo-info' : 'gd-dialogo-avisos'}>
         <DialogHeader className="flex-row items-center justify-between"><DialogTitle className="text-base">{auxiliar === 'info' ? 'Información de esta vista' : esHoy ? 'Cortes de llamadas y otros avisos' : 'Cortes del día seleccionado'}</DialogTitle>
           <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label={auxiliar === 'info' ? 'Cerrar información' : 'Cerrar avisos'} onClick={() => setAuxiliar(null)}><X aria-hidden /></Button></DialogHeader>
         <DialogBody className="space-y-3 text-base">{auxiliar === 'info' ? <>
-          <p>{fecha} · Hora de Lima. {dia ? `Datos consultados a las ${horaLimaDe(dia.generado_en)}.` : 'Sin datos confirmados.'} Actualización cada minuto.</p>
+          <p>{fecha} · Hora de Lima{demo ? ' · Modo demo' : ''}. {dia ? `Datos consultados a las ${horaLimaDe(dia.generado_en)}.` : 'Sin datos confirmados.'} Actualización cada minuto.</p>
           <p>Puedes consultar desde hoy hasta 365 días atrás. Las llamadas y el registro corresponden a la fecha elegida; el equipo y los pendientes reflejan su estado actual.</p>
           <p>Los indicadores cuentan personas del equipo completo, incluso cuando filtras la tabla.</p>
           <p>La tasa usa llamadas útiles; número errado y otra persona quedan fuera. Se califica desde {dia?.umbrales.minimo_llamadas_utiles ?? 'el mínimo vigente de'} llamadas útiles.</p>

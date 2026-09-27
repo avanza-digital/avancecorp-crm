@@ -43,3 +43,16 @@ describe('FranjaCifras', () => {
     expect(screen.getByTestId('chip')).toHaveTextContent('Bien')
   })
 })
+
+describe('FranjaCifras en línea (supervisor, 27/09/2026)', () => {
+  it('pinta número y etiqueta en una línea SIN cambiar el orden término → definición', () => {
+    const { container } = render(<FranjaCifras etiqueta="Resumen del equipo" disposicion="en-linea" cifras={[{ etiqueta: 'Analistas', valor: '5' }]} />)
+    const celda = container.querySelector('dl > div')!
+    expect(celda).toHaveClass('flex-row-reverse')
+    expect(celda.firstElementChild?.tagName).toBe('DT')
+  })
+  it('el tono de aviso usa el ámbar de TEXTO: «Necesitan atención» no es un vencimiento', () => {
+    render(<FranjaCifras etiqueta="Cifras" cifras={[{ etiqueta: 'Necesitan atención', valor: '4', tono: 'aviso' }]} />)
+    expect(screen.getByText('4')).toHaveClass('text-[var(--warning-text)]')
+  })
+})

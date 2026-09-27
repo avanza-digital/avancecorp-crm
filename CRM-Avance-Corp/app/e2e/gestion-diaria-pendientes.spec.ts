@@ -58,7 +58,9 @@ test('H3: últimas tres comparten Registro; pendientes conservan páginas, ficha
   await expect(registro.getByRole('listitem')).toHaveCount(5)
   expect(estado.registro).toBe(lecturasRegistro)
   await panel.getByRole('tab',{name:'Resumen',exact:true}).click()
-  await panel.getByRole('button',{name:'Ver pendientes (55)'}).click()
+  // Resumen del diseño (27/09): el cuadro Pendientes muestra el 55 y su acceso «Ver pendientes».
+  await expect(panel.getByRole('term').filter({hasText:/^Pendientes$/}).locator('xpath=following-sibling::dd[1]')).toContainText('55')
+  await panel.getByRole('button',{name:'Ver pendientes de ANA H3'}).click()
   const lista=panel.getByRole('list',{name:'Lista de tareas pendientes'})
   await expect(panel.getByRole('heading',{name:'Pendientes de ANA H3'})).toBeFocused()
   await expect(lista.getByRole('listitem')).toHaveCount(25)
