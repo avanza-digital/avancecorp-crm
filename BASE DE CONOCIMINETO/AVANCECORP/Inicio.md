@@ -6,7 +6,7 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Gestion Diaria - diseno VitaNova con colores del CRM, analisis y plan (2026-09-27)]] — **PANTALLA DEL ANALISTA PUBLICADA 27/09 (build-20260927T180505461Z, commit db29ecdd); sigue el plan de supervisor:** el diseño «Gestión diaria pantallas» (VitaNova) tiene la misma estructura que el módulo en producción; cambia la presentación. Vista previa con navy/azul y Plus Jakarta Sans en `GESTION DIARIA/`. Solo pantalla, sin migraciones. Decidido: 4 cifras en gerencia y resultado dentro de «Ahora».
+- [[Gestion Diaria - diseno VitaNova con colores del CRM, analisis y plan (2026-09-27)]] — **PANTALLA DEL ANALISTA PUBLICADA 27/09 (último build-20260927T191408274Z: teléfono alto, «Llamar» 44 px y «Lo último con este lead»); sigue el plan de supervisor:** el diseño «Gestión diaria pantallas» (VitaNova) tiene la misma estructura que el módulo en producción; cambia la presentación. Vista previa con navy/azul y Plus Jakarta Sans en `GESTION DIARIA/`. Solo pantalla, sin migraciones. Decidido: 4 cifras en gerencia y resultado dentro de «Ahora».
 
 - [[Conversion - publicacion verificada (2026-09-27)]] — **PUBLICADA:** conversión por cierre comercial y vínculo confirmado hasta finalizar el día 10 siguiente, desde septiembre. 97 acreditadas, 9 tardías y 2 pendientes; históricos/importes intactos. PR #113, SQL por merge nativo, matriz 2268/0 y 80 archivos HTTP PASS. Límites previos documentados.
 

@@ -40,7 +40,8 @@ import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { ETAPA_INFO, type Etapa, type Lead, type Tarea } from '@/lib/tipos'
+import { ETAPA_INFO, TIPOS_ACTIVIDAD, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
+import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
 import { presentarCitas } from '@/lib/terminologia'
 import {
@@ -50,6 +51,8 @@ import {
 } from '@/lib/gestion-diaria-analista'
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
 import { useColaSlaPagina } from '@/data/sla-operacion-queries'
+import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
+import { haceRelativo, ICONO_ACTIVIDAD } from '@/components/app/actividad-visual'
 import { AccionesContacto } from '@/components/app/contacto'
 import { RegistroResultadoTarjeta } from '@/components/gestion-diaria/registrar-resultado'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
@@ -362,63 +365,77 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
       })() : undefined} />
   )
 
+  // Con teléfono en pantalla (el día cargado, o una llamada en curso aunque el
+  // día se haya caído), desde `lg` el teléfono ocupa TODO el alto a la
+  // izquierda, desde la altura del título, y el título, los avisos, las cifras
+  // y las pestañas van a la derecha (Miguel, 27/09: «que el teléfono sea más
+  // largo»). El orden del DOM no cambia —título, avisos, cifras, teléfono,
+  // pestañas—: el lector de pantalla y el tabulador recorren lo mismo que antes.
+  const conTelefono = dia.dia !== null || sesion !== null
+
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 lg:h-[calc(100svh-7rem)] lg:min-h-[640px]">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0 flex-1 basis-80">
+    <div className={cn('mx-auto grid w-full max-w-[1440px] content-start gap-4 lg:h-[calc(100svh-7rem)] lg:min-h-[640px]',
+      conTelefono && 'lg:grid-cols-[430px_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]')}>
+      <div className={cn('flex min-w-0 flex-col gap-4', conTelefono && 'lg:col-start-2 lg:row-start-1')}>
+        {/* El título comparte fila con la fecha y los botones, y el subtítulo va
+            debajo a todo el ancho (`order-last`): en la columna derecha no cabían
+            lado a lado. El DOM conserva título → subtítulo → botones. */}
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
           <h2 ref={encabezado} tabIndex={-1} className="text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-primary">¿A quién llamo ahora?</h2>
-          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">
+          <p className="order-last basis-full text-[13px] text-[var(--muted-foreground-strong)]">
             Llama, guarda el resultado y pasas al siguiente. {corte ? `Corte ${corte}` : 'Sin corte confirmado'} · se actualiza cada minuto.
           </p>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <span className="text-[13px] text-foreground/80 first-letter:uppercase">{fecha}</span>
-          {accesoSeguimiento}
-          <button type="button" aria-label="Actualizar" title="Actualizar" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
-            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] border border-border bg-card text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
-            <RefreshCw aria-hidden className={`size-4 ${dia.enVuelo ? 'motion-safe:animate-spin' : ''}`} />
-          </button>
-        </div>
-      </header>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <span className="text-[13px] text-foreground/80 first-letter:uppercase">{fecha}</span>
+            {accesoSeguimiento}
+            <button type="button" aria-label="Actualizar" title="Actualizar" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
+              className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] border border-border bg-card text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
+              <RefreshCw aria-hidden className={`size-4 ${dia.enVuelo ? 'motion-safe:animate-spin' : ''}`} />
+            </button>
+          </div>
+        </header>
 
-      {dia.dia === null && sesion !== null ? (
-        // Con una llamada en curso, un refresco fallido (p. ej. al volver del
-        // marcador) NO desmonta «Ahora»: se perdería el formulario a medio llenar.
-        // Se avisa y se sigue pintando la sesión; lo demás espera a que vuelva.
-        <>
+        {dia.dia === null && sesion !== null ? (
+          // Con una llamada en curso, un refresco fallido (p. ej. al volver del
+          // marcador) NO desmonta «Ahora»: se perdería el formulario a medio llenar.
+          // Se avisa y se sigue pintando la sesión; lo demás espera a que vuelva.
           <p role="alert" className="shrink-0 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
             No se pudo actualizar tu día. Termina de registrar a {primerNombre(sesion.lead.nombre_completo)}: lo demás vuelve en cuanto se recupere la conexión.
           </p>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">{tarjetaAhora}</div>
-        </>
-      ) : dia.error != null && dia.dia === null ? (
-        <PanelError mensaje="No se pudo cargar tu día. Lo que ves no está confirmado." onReintentar={() => { void dia.recargar() }} reintentando={dia.enVuelo} />
-      ) : dia.dia === null && dia.cargando ? (
-        <PanelCargando filas={6} />
-      ) : dia.dia === null ? (
-        <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." />
+        ) : dia.dia !== null && (
+          <>
+            {/* Los avisos que cambian la decisión de marcar van FUERA de las
+                pestañas: se ven siempre, esté abierta la que esté. */}
+            {colaCaida && (
+              <p role="alert" className="shrink-0 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
+                No se pudo leer la cola del servidor: solo se muestran los leads sin conversación. Reintenta para verla completa.
+              </p>
+            )}
+            {dia.dia.cartera_truncada && (
+              <p role="status" className="shrink-0 text-[13px] font-semibold text-[var(--muted-foreground-strong)]">
+                Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
+              </p>
+            )}
+
+            <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} />
+          </>
+        )}
+      </div>
+
+      {!conTelefono ? (
+        dia.error != null ? (
+          <PanelError mensaje="No se pudo cargar tu día. Lo que ves no está confirmado." onReintentar={() => { void dia.recargar() }} reintentando={dia.enVuelo} />
+        ) : dia.cargando ? (
+          <PanelCargando filas={6} />
+        ) : (
+          <PanelVacio icono={ClipboardList} titulo="Tu día no está disponible" detalle="No hay conexión con el CRM. Se cargará solo cuando vuelva." />
+        )
       ) : (
         <>
-          {/* Los avisos que cambian la decisión de marcar van FUERA de las
-              pestañas: se ven siempre, esté abierta la que esté. */}
-          {colaCaida && (
-            <p role="alert" className="shrink-0 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
-              No se pudo leer la cola del servidor: solo se muestran los leads sin conversación. Reintenta para verla completa.
-            </p>
-          )}
-          {dia.dia.cartera_truncada && (
-            <p role="status" className="shrink-0 text-[13px] font-semibold text-[var(--muted-foreground-strong)]">
-              Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
-            </p>
-          )}
-
-          <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} className="shrink-0" />
-
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            {tarjetaAhora}
-
-            <section aria-label="Tu cola y tu actividad" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:min-h-0">
+          {tarjetaAhora}
+          {dia.dia !== null && (
+            <section aria-label="Tu cola y tu actividad" className="flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:col-start-2 lg:row-start-2 lg:min-h-0">
               <Tabs
                 etiqueta="Qué ver"
                 variante="subrayado"
@@ -453,10 +470,9 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 )}
               </Tabs>
             </section>
-          </div>
+          )}
         </>
       )}
-
     </div>
   )
 }
@@ -538,7 +554,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
     return () => nodo.removeEventListener('focusin', alEntrar)
   }, [])
   return (
-    <div className="flex min-h-0 shrink-0 justify-center lg:w-[430px]">
+    <div className="flex min-h-0 justify-center lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:w-[430px]">
       <section ref={enlazarSeccion} aria-labelledby={`${id}-ahora`}
         className="flex w-full max-w-[384px] flex-col overflow-clip rounded-[32px] border border-border-strong bg-card shadow-[0_10px_28px_rgb(17_30_61/0.10)] lg:h-full">
         <div className="shrink-0 bg-primary text-primary-foreground">
@@ -550,7 +566,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
           </div>
         </div>
         {fila === null ? (
-          <p className="flex-1 px-6 py-8 text-center text-sm leading-relaxed text-[var(--muted-foreground-strong)]">
+          <p className="grid flex-1 place-items-center px-6 py-8 text-center text-sm leading-relaxed text-[var(--muted-foreground-strong)]">
             {cargando ? 'Buscando a quién llamar…'
               : colaCaida ? 'No se pudo leer tu cola: no sabemos a quién te toca llamar. Pulsa «Actualizar».'
                 : filtroVacio ? 'Nada en este filtro. Vuelve a «Todo» para ver a quién llamar.'
@@ -576,8 +592,20 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
               </p>
             </div>}
-            {lead !== null && <p className={cn('text-center font-extrabold tracking-[0.02em] tabular-nums text-primary', registro !== undefined ? 'text-xl' : 'text-2xl')}>{lead.telefono}</p>}
-            {registro !== undefined ? registro : <div className="relative">
+            {registro === undefined && <LoUltimo leadId={fila.lead_id} nombre={fila.nombre_completo} ahora={ahora} onVerTodo={onAbrirFicha} />}
+            {registro !== undefined ? (
+              <>
+                {lead !== null && <p className="text-center text-xl font-extrabold tracking-[0.02em] tabular-nums text-primary">{lead.telefono}</p>}
+                {registro}
+              </>
+            ) : (
+            // En reposo, el número y las acciones bajan al PIE, como en una
+            // pantalla de llamada: arriba quién es y lo último con él, abajo cómo
+            // llamarlo. `sticky`: en una pantalla baja, «Lo último» se desplaza
+            // por debajo y «Llamar» nunca se sale de la vista.
+            <div className="sticky bottom-0 mt-auto flex flex-col gap-3.5 bg-card pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:-top-5 before:h-5 before:bg-gradient-to-t before:from-card before:to-transparent">
+            {lead !== null && <p className="text-center text-2xl font-extrabold tracking-[0.02em] tabular-nums text-primary">{lead.telefono}</p>}
+            <div className="relative">
               {lead !== null ? (
                 // `key={lead.id}`: UNA instancia por lead. Antes las acciones
                 // vivían dentro de cada fila y se desmontaban con ella; aquí hay
@@ -586,10 +614,11 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 // resultado se escribía sobre el lead equivocado. La clave fuerza
                 // el remontaje: el contacto a medias se cae a la vista, que es
                 // reparable — atribuirlo a otra persona, no (hallazgo de Codex).
-                // El envoltorio da la forma del diseño: «Llamar» píldora de 52 px
-                // y lo demás de 44, dejando sitio a «···» junto al último.
+                // El envoltorio da la forma del diseño: píldoras de 44 px —«Llamar»
+                // bajó de 52 porque se veía muy grande (Miguel, 27/09)—, dejando
+                // sitio a «···» junto a la última.
                 <div data-accion-panel="si"
-                  className="[&>div]:flex-col [&>div]:items-stretch [&>div]:!gap-2.5 [&>div>*]:justify-center [&>div>*]:!rounded-full [&>div>*]:!font-bold [&>div>*:first-child]:!h-[52px] [&>div>*:first-child]:!text-[15px] [&>div>*:not(:first-child)]:!h-11 [&>div>*:not(:first-child)]:!text-[13px] [&>div>*:not(:first-child)]:!font-semibold [&>div>*:not(:first-child)]:mr-[54px] [&_svg]:!size-[18px]">
+                  className="[&>div]:flex-col [&>div]:items-stretch [&>div]:!gap-2.5 [&>div>*]:justify-center [&>div>*]:!rounded-full [&>div>*]:!font-bold [&>div>*:first-child]:!h-11 [&>div>*:first-child]:!text-sm [&>div>*:not(:first-child)]:!h-11 [&>div>*:not(:first-child)]:!text-[13px] [&>div>*:not(:first-child)]:!font-semibold [&>div>*:not(:first-child)]:mr-[54px] [&_svg]:!size-[18px]">
                   <AccionesContacto key={lead.id} lead={lead} destacada onLlamar={onLlamar} onRegistrarLlamada={onRegistrar} />
                 </div>
               ) : (
@@ -610,7 +639,9 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                   <DropdownItem className="min-h-11 text-base" onSelect={onAbrirFicha}>Ver la ficha completa</DropdownItem>
                 </DropdownMenu>
               </div>
-            </div>}
+            </div>
+            </div>
+            )}
           </div>
         )}
         {registro === undefined && <p className="shrink-0 border-t border-border px-5 pb-1.5 pt-3 text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
@@ -619,6 +650,68 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
         <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-24 shrink-0 rounded-full bg-border-strong" />
       </section>
     </div>
+  )
+}
+
+/** Lo que cuenta como gestión con el lead; los movimientos del sistema (etapas,
+ * reasignaciones, conversión) no dicen qué se habló con él. */
+const TIPOS_GESTION: ReadonlySet<TipoActividad> = new Set<TipoActividad>(['llamada_realizada', 'llamada_no_contestada', 'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada', 'nota'])
+// Dos: caben con las acciones del teléfono (también con «Correo») a 1440×818.
+const TOPE_LO_ULTIMO = 2
+
+/**
+ * «Lo último con este lead» (Miguel, 27/09): lo que el analista necesita saber
+ * ANTES de marcar —qué pasó en las últimas gestiones y qué quedó dicho—, en el
+ * aire que dejó el teléfono a todo el alto. Sale del historial POR LEAD que ya
+ * usa la ficha (sin consultas nuevas al servidor). Sin historial todavía se dice
+ * que está cargando o que falló: nunca «sin gestiones» por no saberlo.
+ */
+function LoUltimo({ leadId, nombre, ahora, onVerTodo }: { leadId: string; nombre: string; ahora: number; onVerTodo: () => void }): JSX.Element {
+  const id = useId()
+  const historial = useActividadesDeLead(leadId)
+  const gestiones = historial.items.filter((a) => TIPOS_GESTION.has(a.tipo)).slice(0, TOPE_LO_ULTIMO)
+  const nota = 'text-[13px] leading-snug text-[var(--muted-foreground-strong)]'
+  return (
+    <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-2 pt-1">
+      <div className="flex items-center justify-between gap-2">
+        <h4 id={`${id}-titulo`} className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--muted-foreground-strong)]">Lo último con este lead</h4>
+        <button type="button" onClick={onVerTodo} aria-label={`Ver todo el historial de ${nombre}`}
+          className="min-h-6 shrink-0 cursor-pointer rounded-md text-xs font-semibold text-[var(--accent-press)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11">
+          Ver todo
+        </button>
+      </div>
+      {historial.cargando ? (
+        <p className={nota}>Cargando sus últimas gestiones…</p>
+      ) : historial.error != null ? (
+        <p className={nota}>
+          No se pudo cargar su historial.{' '}
+          <button type="button" onClick={historial.reintentar} className="cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Reintentar</button>
+        </p>
+      ) : gestiones.length === 0 ? (
+        <p className={nota}>Sin gestiones todavía: esta llamada será la primera.</p>
+      ) : (
+        // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+        <ol role="list" className="flex flex-col gap-2.5">
+          {gestiones.map((a) => {
+            const Icono = ICONO_ACTIVIDAD[a.tipo]
+            const clave = a.metadata?.['resultado']
+            const resultado = typeof clave === 'string' ? etiquetaResultado(clave) : null
+            return (
+              <li key={a.id} className="flex gap-2.5">
+                <span aria-hidden="true" className="mt-px grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[var(--muted-foreground-strong)] [&_svg]:size-3.5"><Icono /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-[13px] font-bold text-primary">{TIPOS_ACTIVIDAD[a.tipo]}{resultado !== null && ` · ${resultado}`}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--muted-foreground-strong)]">{haceRelativo(a.creado_en, ahora)}</span>
+                  </p>
+                  {a.detalle && <p className="line-clamp-2 text-[13px] leading-snug text-foreground/80">{presentarCitas(a.detalle)}</p>}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </section>
   )
 }
 

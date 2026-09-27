@@ -27,6 +27,7 @@ const dobles = vi.hoisted(() => ({
   // lead para armar el panel, y sin él la pantalla manda a abrir la ficha.
   leads: [] as Array<Record<string, unknown>>,
   asegurarLead: vi.fn(async () => true),
+  historial: { items: [] as Array<Record<string, unknown>>, cargando: false, error: null as unknown, reintentar: vi.fn(), pedidos: [] as Array<string | null> },
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z') }))
@@ -44,6 +45,14 @@ vi.mock('@/data/gestion-diaria-queries', () => ({
 }))
 vi.mock('@/data/sla-operacion-queries', () => ({ useColaSlaPagina: () => dobles.cola }))
 vi.mock('@/data/gestion-diaria-api', () => ({ deshacerResultadoLlamada: dobles.deshacer }))
+// «Lo último con este lead» (27/09/2026): el historial por lead tiene sus
+// pruebas; aquí se prueba QUÉ se pinta con él y que se pide por el lead de «Ahora».
+vi.mock('@/data/use-actividades-de-lead', () => ({
+  useActividadesDeLead: (leadId: string | null) => {
+    dobles.historial.pedidos.push(leadId)
+    return { ...dobles.historial, senales: {}, hayMas: false, cargandoMas: false, cargarMas: () => {} }
+  },
+}))
 vi.mock('@/components/app/contacto', async () => {
   const { useEffect, useState } = await import('react')
   const real = await vi.importActual<typeof import('@/components/app/contacto')>('@/components/app/contacto')
@@ -134,6 +143,7 @@ beforeEach(() => {
   dobles.panel.props = null
   dobles.asegurarLead = vi.fn(async () => true)
   dobles.obtenerTarea = vi.fn(async () => null)
+  dobles.historial = { items: [], cargando: false, error: null, reintentar: vi.fn(), pedidos: [] }
   dobles.leads = [
     { id: 'l1', nombre_completo: 'NUEVO SIN INTENTO', telefono: '+51999000111', etapa: 'nuevo' },
     ...['l2', 'l3', 'l4', 'l5', 'l6'].map((x) => ({ id: x, nombre_completo: `LEAD ${x}`, telefono: '+51999000222', etapa: 'nuevo' })),
@@ -779,5 +789,64 @@ describe('GestionDiariaAnalista · el resultado DENTRO de «Ahora» (etapa 3)', 
     rerender(<GestionDiariaAnalista />)
     await waitFor(() => expect(screen.getAllByText('LEAD l9').length).toBeGreaterThan(0))
     expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+  })
+})
+
+describe('«Lo último con este lead» en «Ahora» (Miguel, 27/09/2026)', () => {
+  const gestion = (id: string, tipo: string, creado_en: string, detalle: string, metadata?: Record<string, unknown>) =>
+    ({ id, lead_id: 'l1', tipo, detalle, autor_nombre: 'ANALISTA UNO', creado_en, ...(metadata ? { metadata } : {}) })
+
+  it('muestra las 2 últimas GESTIONES del lead de «Ahora», sin los movimientos del sistema', () => {
+    dobles.historial.items = [
+      gestion('x1', 'cambio_etapa', '2026-09-20T17:50:00Z', 'Pasó a contactado'),
+      gestion('x2', 'llamada_realizada', '2026-09-20T17:00:00Z', 'Contestó: pide que la llamen el lunes', { resultado: 'volver_a_llamar' }),
+      gestion('x3', 'whatsapp_enviado', '2026-09-20T13:00:00Z', 'Le envié la dirección'),
+      gestion('x4', 'nota', '2026-09-18T13:00:00Z', 'Nota vieja'),
+    ]
+    render(<GestionDiariaAnalista />)
+    const bloque = within(screen.getByRole('region', { name: 'Ahora' })).getByRole('region', { name: 'Lo último con este lead' })
+    const filas = within(bloque).getAllByRole('listitem')
+    expect(filas).toHaveLength(2)
+    expect(filas[0]).toHaveTextContent('Llamada realizada · Volver a llamar')
+    expect(filas[0]).toHaveTextContent('Contestó: pide que la llamen el lunes')
+    expect(filas[0]).toHaveTextContent('hace 1 h')
+    expect(filas[1]).toHaveTextContent('WhatsApp enviado')
+    expect(bloque).not.toHaveTextContent('Pasó a contactado')
+    expect(bloque).not.toHaveTextContent('Nota vieja')
+    // Se pide por el lead que está en «Ahora».
+    expect(dobles.historial.pedidos.at(-1)).toBe('l1')
+  })
+
+  it('mientras carga lo dice, si falla ofrece reintentar y sin gestiones no inventa nada', () => {
+    dobles.historial.cargando = true
+    const { rerender } = render(<GestionDiariaAnalista />)
+    const bloque = () => screen.getByRole('region', { name: 'Lo último con este lead' })
+    expect(bloque()).toHaveTextContent('Cargando sus últimas gestiones…')
+    expect(bloque()).not.toHaveTextContent('Sin gestiones')
+
+    dobles.historial.cargando = false
+    dobles.historial.error = new Error('502')
+    rerender(<GestionDiariaAnalista />)
+    expect(bloque()).toHaveTextContent('No se pudo cargar su historial.')
+    fireEvent.click(within(bloque()).getByRole('button', { name: 'Reintentar' }))
+    expect(dobles.historial.reintentar).toHaveBeenCalledTimes(1)
+
+    dobles.historial.error = null
+    rerender(<GestionDiariaAnalista />)
+    expect(bloque()).toHaveTextContent('Sin gestiones todavía: esta llamada será la primera.')
+  })
+
+  it('«Ver todo» abre la ficha del lead de «Ahora»', () => {
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todo el historial de NUEVO SIN INTENTO' }))
+    expect(dobles.abrirLead).toHaveBeenCalledWith('l1')
+  })
+
+  it('con el resultado abierto, «Lo último» deja su sitio al formulario', async () => {
+    render(<GestionDiariaAnalista />)
+    expect(screen.getByRole('region', { name: 'Lo último con este lead' })).toBeInTheDocument()
+    abrirResultado()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(screen.queryByRole('region', { name: 'Lo último con este lead' })).not.toBeInTheDocument()
   })
 })
