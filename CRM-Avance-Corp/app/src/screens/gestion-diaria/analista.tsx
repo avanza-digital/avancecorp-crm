@@ -40,7 +40,8 @@ import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { ETAPA_INFO, type Etapa, type Lead, type Tarea } from '@/lib/tipos'
+import { ETAPA_INFO, TIPOS_ACTIVIDAD, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
+import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
 import { presentarCitas } from '@/lib/terminologia'
 import {
@@ -50,6 +51,8 @@ import {
 } from '@/lib/gestion-diaria-analista'
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
 import { useColaSlaPagina } from '@/data/sla-operacion-queries'
+import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
+import { haceRelativo, ICONO_ACTIVIDAD } from '@/components/app/actividad-visual'
 import { AccionesContacto } from '@/components/app/contacto'
 import { RegistroResultadoTarjeta } from '@/components/gestion-diaria/registrar-resultado'
 import { RegistroActividad } from '@/components/gestion-diaria/registro-actividad'
@@ -589,6 +592,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
               </p>
             </div>}
+            {registro === undefined && <LoUltimo leadId={fila.lead_id} nombre={fila.nombre_completo} ahora={ahora} onVerTodo={onAbrirFicha} />}
             {registro !== undefined ? (
               <>
                 {lead !== null && <p className="text-center text-xl font-extrabold tracking-[0.02em] tabular-nums text-primary">{lead.telefono}</p>}
@@ -596,9 +600,10 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
               </>
             ) : (
             // En reposo, el número y las acciones bajan al PIE, como en una
-            // pantalla de llamada: arriba quién es, abajo cómo llamarlo. Con el
-            // teléfono a todo el alto, el aire queda en medio y no bajo «Llamar».
-            <div className="mt-auto flex flex-col gap-3.5">
+            // pantalla de llamada: arriba quién es y lo último con él, abajo cómo
+            // llamarlo. `sticky`: en una pantalla baja, «Lo último» se desplaza
+            // por debajo y «Llamar» nunca se sale de la vista.
+            <div className="sticky bottom-0 mt-auto flex flex-col gap-3.5 bg-card pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:-top-5 before:h-5 before:bg-gradient-to-t before:from-card before:to-transparent">
             {lead !== null && <p className="text-center text-2xl font-extrabold tracking-[0.02em] tabular-nums text-primary">{lead.telefono}</p>}
             <div className="relative">
               {lead !== null ? (
@@ -609,10 +614,11 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 // resultado se escribía sobre el lead equivocado. La clave fuerza
                 // el remontaje: el contacto a medias se cae a la vista, que es
                 // reparable — atribuirlo a otra persona, no (hallazgo de Codex).
-                // El envoltorio da la forma del diseño: «Llamar» píldora de 52 px
-                // y lo demás de 44, dejando sitio a «···» junto al último.
+                // El envoltorio da la forma del diseño: píldoras de 44 px —«Llamar»
+                // bajó de 52 porque se veía muy grande (Miguel, 27/09)—, dejando
+                // sitio a «···» junto a la última.
                 <div data-accion-panel="si"
-                  className="[&>div]:flex-col [&>div]:items-stretch [&>div]:!gap-2.5 [&>div>*]:justify-center [&>div>*]:!rounded-full [&>div>*]:!font-bold [&>div>*:first-child]:!h-[52px] [&>div>*:first-child]:!text-[15px] [&>div>*:not(:first-child)]:!h-11 [&>div>*:not(:first-child)]:!text-[13px] [&>div>*:not(:first-child)]:!font-semibold [&>div>*:not(:first-child)]:mr-[54px] [&_svg]:!size-[18px]">
+                  className="[&>div]:flex-col [&>div]:items-stretch [&>div]:!gap-2.5 [&>div>*]:justify-center [&>div>*]:!rounded-full [&>div>*]:!font-bold [&>div>*:first-child]:!h-11 [&>div>*:first-child]:!text-sm [&>div>*:not(:first-child)]:!h-11 [&>div>*:not(:first-child)]:!text-[13px] [&>div>*:not(:first-child)]:!font-semibold [&>div>*:not(:first-child)]:mr-[54px] [&_svg]:!size-[18px]">
                   <AccionesContacto key={lead.id} lead={lead} destacada onLlamar={onLlamar} onRegistrarLlamada={onRegistrar} />
                 </div>
               ) : (
@@ -644,6 +650,68 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
         <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-24 shrink-0 rounded-full bg-border-strong" />
       </section>
     </div>
+  )
+}
+
+/** Lo que cuenta como gestión con el lead; los movimientos del sistema (etapas,
+ * reasignaciones, conversión) no dicen qué se habló con él. */
+const TIPOS_GESTION: ReadonlySet<TipoActividad> = new Set<TipoActividad>(['llamada_realizada', 'llamada_no_contestada', 'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada', 'nota'])
+// Dos: caben con las acciones del teléfono (también con «Correo») a 1440×818.
+const TOPE_LO_ULTIMO = 2
+
+/**
+ * «Lo último con este lead» (Miguel, 27/09): lo que el analista necesita saber
+ * ANTES de marcar —qué pasó en las últimas gestiones y qué quedó dicho—, en el
+ * aire que dejó el teléfono a todo el alto. Sale del historial POR LEAD que ya
+ * usa la ficha (sin consultas nuevas al servidor). Sin historial todavía se dice
+ * que está cargando o que falló: nunca «sin gestiones» por no saberlo.
+ */
+function LoUltimo({ leadId, nombre, ahora, onVerTodo }: { leadId: string; nombre: string; ahora: number; onVerTodo: () => void }): JSX.Element {
+  const id = useId()
+  const historial = useActividadesDeLead(leadId)
+  const gestiones = historial.items.filter((a) => TIPOS_GESTION.has(a.tipo)).slice(0, TOPE_LO_ULTIMO)
+  const nota = 'text-[13px] leading-snug text-[var(--muted-foreground-strong)]'
+  return (
+    <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-2 pt-1">
+      <div className="flex items-center justify-between gap-2">
+        <h4 id={`${id}-titulo`} className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--muted-foreground-strong)]">Lo último con este lead</h4>
+        <button type="button" onClick={onVerTodo} aria-label={`Ver todo el historial de ${nombre}`}
+          className="min-h-6 shrink-0 cursor-pointer rounded-md text-xs font-semibold text-[var(--accent-press)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11">
+          Ver todo
+        </button>
+      </div>
+      {historial.cargando ? (
+        <p className={nota}>Cargando sus últimas gestiones…</p>
+      ) : historial.error != null ? (
+        <p className={nota}>
+          No se pudo cargar su historial.{' '}
+          <button type="button" onClick={historial.reintentar} className="cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Reintentar</button>
+        </p>
+      ) : gestiones.length === 0 ? (
+        <p className={nota}>Sin gestiones todavía: esta llamada será la primera.</p>
+      ) : (
+        // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+        <ol role="list" className="flex flex-col gap-2.5">
+          {gestiones.map((a) => {
+            const Icono = ICONO_ACTIVIDAD[a.tipo]
+            const clave = a.metadata?.['resultado']
+            const resultado = typeof clave === 'string' ? etiquetaResultado(clave) : null
+            return (
+              <li key={a.id} className="flex gap-2.5">
+                <span aria-hidden="true" className="mt-px grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[var(--muted-foreground-strong)] [&_svg]:size-3.5"><Icono /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-[13px] font-bold text-primary">{TIPOS_ACTIVIDAD[a.tipo]}{resultado !== null && ` · ${resultado}`}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--muted-foreground-strong)]">{haceRelativo(a.creado_en, ahora)}</span>
+                  </p>
+                  {a.detalle && <p className="line-clamp-2 text-[13px] leading-snug text-foreground/80">{presentarCitas(a.detalle)}</p>}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </section>
   )
 }
 
