@@ -1,7 +1,7 @@
 ---
 tags: [crm, ux, supervisor, hoy, plan, seguimiento]
 actualizado: 2026-09-27
-estado: implementado-en-local-sin-publicar
+estado: publicado-2026-09-27
 ---
 
 # Hoy del supervisor - puesto de mando en una pantalla (plan 2026-09-27)
@@ -101,7 +101,20 @@ equipo va a «Mi equipo hoy»; desaparece la pestaña «Sin movimiento» (sin da
 - **Residuos aceptados (P3):** el error de apertura de ficha se anuncia dos veces (toast del store +
   aviso local, igual que el módulo Seguimiento); anillo de foco `ring/40` de toda la casa; el
   `Sheet` de la ficha no descarta `<body>` como origen de foco (el `Dialog` sí) — deuda aparte.
-- ⛔ **Sin publicar:** Miguel lo mira primero en local con su usuario (el demo es modo legado).
+- **Todo número se abre** (regla de Miguel 27/09, «¿para qué quiero saber si no puedo verlo?»):
+  `02e88946` + `1f5918bb` + `d301f693`; Codex PASS. Excepción: la conversión del mes (su lista,
+  la vista Conversiones, es solo de gerencia).
+- ✅ **PUBLICADO el 27/09 a las 15:10 Lima** por `/release-crm` de Miguel: artefacto
+  `crm-20260927T200302Z-01d5ddc4b653`, build `build-20260927T200301496Z`, commit `01d5ddc4`.
+  Rama de publicación `release/hoy-supervisor-20260927` = vivo anterior `8d4be227` + solo estos
+  commits (cherry-pick), en worktree aparte: **se dejó fuera `3e6c3587` (Citas por equipo)
+  porque su migración `20260927172931` NO está aplicada en producción** (verificado por SQL).
+  Check PASS (4597) en esa rama, `ARTEFACTO_OK`, preflight OK contra `8d4be227`, configuración
+  (Supabase, clave pública, Sentry) idéntica al build anterior. Humo: inicio 200, `version.json`
+  nuevo, `index-DQc8V59y.js` = build, 105/117 byte a byte (11 PNG de la CDN + `.htaccess`), ZIP
+  404. Rama fusionada en `main` (`491a90c4`) y borrada; manifiesto copiado a `releases/` del
+  `main` (el preflight ya reconoce el vivo nuevo).
+- **GitHub:** pendiente la PR de integración (el `main` local no se empuja: lleva lo de Gloria).
 
 ## Revisión de Codex del plan (27/09)
 
