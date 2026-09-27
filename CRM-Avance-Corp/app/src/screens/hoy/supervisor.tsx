@@ -248,6 +248,8 @@ export function HoySupervisor(): JSX.Element {
         {/* F2 (figura-fondo): los KPIs son CONSULTA, no alarma — iconos en
             neutro. Desde F3 TODOS: la urgencia de «Nuevos sin responder»
             vive en la franja, que es su reemplazo. */}
+        {/* Regla de Miguel (27/09/2026): todo número se abre y enseña su lista. */}
+        <a href={hashDe('pipeline')} className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         <KpiCard
           label="Pronóstico de capital abierto"
           // `capitalPrincipal` y NO `totalEnSoles`: esto es PRONÓSTICO, no
@@ -267,6 +269,8 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={0}
         />
+        </a>
+        <a href={hashDe('cartera')} className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         <KpiCard
           label="Leads activos del equipo"
           value={resumen ? String(resumen.totales.asignados) : '—'}
@@ -275,8 +279,17 @@ export function HoySupervisor(): JSX.Element {
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} a cargo`}
           delay={60}
         />
+        </a>
         {/* Sin payload, los subs NO afirman estados positivos («todos
-            contactados», «bandeja vacía»): sin dato no hay afirmación. */}
+            contactados», «bandeja vacía»): sin dato no hay afirmación.
+            Abre la pestaña Urgente de la cola, donde van esos leads. */}
+        <button
+          type="button"
+          aria-label={cola ? `Nuevos sin responder: ${cola.porBucket.sin_responder ?? 0}. Ver en la cola urgente` : 'Nuevos sin responder: sin dato'}
+          onClick={() => irAPestanaCola('urgente')}
+          disabled={cola == null}
+          className="relative block h-full w-full cursor-pointer rounded-xl text-left text-inherit outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default"
+        >
         <KpiCard
           label="Nuevos sin responder"
           value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
@@ -291,6 +304,7 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={120}
         />
+        </button>
         <a
           href={hashDe('derivaciones')}
           aria-label={etiquetaAccesoReparto}

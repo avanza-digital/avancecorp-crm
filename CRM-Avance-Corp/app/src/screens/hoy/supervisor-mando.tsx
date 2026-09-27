@@ -67,6 +67,11 @@ const SEV_TEXTO: Record<CosaDeHoy['severidad'], string> = { critica: 'Hoy', aten
 const SEV_TEXTO_COLOR: Record<CosaDeHoy['severidad'], string> = { critica: 'var(--destructive-text)', atencion: 'var(--warning-text)' }
 const SEV_BORDE: Record<CosaDeHoy['severidad'], string> = { critica: SEMAFORO.critico, atencion: SEMAFORO.atencion }
 
+// Regla de Miguel (27/09/2026): «para qué quiero saber si no puedo verlo».
+// TODO número de esta pantalla se abre y enseña la lista que hay detrás.
+const CLASE_CIFRA = 'inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-md px-1 -mx-1 text-left underline-offset-4 decoration-muted-foreground/60 hover:underline pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
+const CLASE_KPI_ENLACE = 'relative block h-full w-full cursor-pointer rounded-xl text-left text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+
 /** Chip de señal: el ámbar suave usa el token de TEXTO (el hex puro no llega a 4.5:1 sobre su tinte). */
 function ChipSenal({ texto, nivel }: { texto: string; nivel: 'critico' | 'atencion' }): JSX.Element {
   return nivel === 'critico'
@@ -144,6 +149,14 @@ function PuestoDeMando(): JSX.Element {
   const [decisionAbierta, setDecisionAbierta] = useState<CosaDeHoy['id'] | null>(null)
   const [detalleAbierto, setDetalleAbierto] = useState(false)
   const tituloDetalle = useRef<HTMLSpanElement>(null)
+  // Si el detalle se cierra PARA ir a la cola, el foco va a la pestaña (y no
+  // vuelve al botón «Detalle», que es lo que Radix haría por defecto).
+  const focoTrasDetalle = useRef<HTMLElement | null>(null)
+  const [focoALaCola, setFocoALaCola] = useState(false)
+  const abrirDetalle = () => {
+    setFocoALaCola(false)
+    setDetalleAbierto(true)
+  }
 
   const filtros: FiltrosSla = { senal: pestana, etapa: null, analista_id: analistaId }
   const consultaCola = useColaSlaPagina(filtros, null, COLA_VISIBLES, modo.activo)
@@ -691,28 +704,52 @@ function PuestoDeMando(): JSX.Element {
         {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
         <ul role="list" aria-label="Cifras del equipo" className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] tabular-nums text-muted-foreground-strong">
           <li>
-            <strong className="font-extrabold text-primary">{pronosticoCorto}</strong> pronóstico
-            {pronostico?.otra ? ` · +${pronostico.otra} aparte` : ''}
+            <a href={hashDe('pipeline')} className={CLASE_CIFRA}>
+              <strong className="font-extrabold text-primary">{pronosticoCorto}</strong> pronóstico
+              {pronostico?.otra ? ` · +${pronostico.otra} aparte` : ''}
+            </a>
           </li>
-          <li><strong className="font-extrabold text-primary">{datos.resumen ? numero(datos.resumen.totales.asignados) : '—'}</strong> leads activos</li>
-          <li><strong className="font-extrabold text-primary">{metaTexto}</strong> de la meta</li>
-          <li><strong className="font-extrabold text-primary">{conversionTexto}</strong> conversión del mes</li>
+          <li>
+            <a href={hashDe('cartera')} className={CLASE_CIFRA}>
+              <strong className="font-extrabold text-primary">{datos.resumen ? numero(datos.resumen.totales.asignados) : '—'}</strong> leads activos
+            </a>
+          </li>
+          <li>
+            <button type="button" className={CLASE_CIFRA} onClick={abrirDetalle}>
+              <strong className="font-extrabold text-primary">{metaTexto}</strong> de la meta
+            </button>
+          </li>
+          <li>
+            <button type="button" className={CLASE_CIFRA} onClick={abrirDetalle}>
+              <strong className="font-extrabold text-primary">{conversionTexto}</strong> conversión del mes
+            </button>
+          </li>
           <li aria-hidden className="h-[18px] w-px bg-border" />
-          <li><strong className="font-extrabold text-primary">{agendaResumen ? numero(agendaResumen.toques) : '—'}</strong> toques en 7 días</li>
-          <li><strong className="font-extrabold text-primary">{agendaResumen?.pctCompletadas != null ? `${agendaResumen.pctCompletadas} %` : '—'}</strong> completadas</li>
-          <li className="inline-flex items-center gap-1">
-            {agendaResumen && agendaResumen.noAsistio >= 2 && (
-              <AlertTriangle className="size-3 shrink-0" style={{ color: 'var(--destructive-text)' }} aria-hidden />
-            )}
-            <strong
-              className="font-extrabold"
-              style={{ color: agendaResumen && agendaResumen.noAsistio >= 2 ? 'var(--destructive-text)' : 'var(--primary)' }}
-            >
-              {agendaResumen ? numero(agendaResumen.noAsistio) : '—'}
-            </strong> {agendaResumen?.noAsistio === 1 ? 'cita sin asistir' : 'citas sin asistir'}
+          <li>
+            <button type="button" className={CLASE_CIFRA} onClick={abrirDetalle}>
+              <strong className="font-extrabold text-primary">{agendaResumen ? numero(agendaResumen.toques) : '—'}</strong> toques en 7 días
+            </button>
+          </li>
+          <li>
+            <button type="button" className={CLASE_CIFRA} onClick={abrirDetalle}>
+              <strong className="font-extrabold text-primary">{agendaResumen?.pctCompletadas != null ? `${agendaResumen.pctCompletadas} %` : '—'}</strong> completadas
+            </button>
+          </li>
+          <li>
+            <button type="button" className={CLASE_CIFRA} onClick={abrirDetalle}>
+              {agendaResumen && agendaResumen.noAsistio >= 2 && (
+                <AlertTriangle className="size-3 shrink-0" style={{ color: 'var(--destructive-text)' }} aria-hidden />
+              )}
+              <strong
+                className="font-extrabold"
+                style={{ color: agendaResumen && agendaResumen.noAsistio >= 2 ? 'var(--destructive-text)' : 'var(--primary)' }}
+              >
+                {agendaResumen ? numero(agendaResumen.noAsistio) : '—'}
+              </strong> {agendaResumen?.noAsistio === 1 ? 'cita sin asistir' : 'citas sin asistir'}
+            </button>
           </li>
         </ul>
-        <Button type="button" variant="outline" size="sm" className="ml-auto min-h-9 text-accent pointer-coarse:min-h-10" onClick={() => setDetalleAbierto(true)}>
+        <Button type="button" variant="outline" size="sm" className="ml-auto min-h-9 text-accent pointer-coarse:min-h-10" onClick={abrirDetalle}>
           Detalle
         </Button>
       </section>
@@ -721,6 +758,7 @@ function PuestoDeMando(): JSX.Element {
         open={detalleAbierto}
         onClose={() => setDetalleAbierto(false)}
         focoInicial={tituloDetalle}
+        focoAlCerrar={focoALaCola ? focoTrasDetalle : undefined}
         className="w-[1180px] max-h-[88vh] max-w-[94vw]"
       >
         <DialogHeader>
@@ -731,6 +769,7 @@ function PuestoDeMando(): JSX.Element {
         <DialogBody className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {/* Pronóstico: `capitalPrincipal`, NUNCA un total mixto con los dólares. */}
+            <a href={hashDe('pipeline')} className={CLASE_KPI_ENLACE}>
             <KpiCard
               label="Pronóstico de capital abierto"
               value={pronostico ? pronostico.valor : '—'}
@@ -746,6 +785,8 @@ function PuestoDeMando(): JSX.Element {
                       : 'En soles · abiertos con analista'
               }
             />
+            </a>
+            <a href={hashDe('cartera')} className={CLASE_KPI_ENLACE}>
             <KpiCard
               label="Leads activos del equipo"
               value={datos.resumen ? String(datos.resumen.totales.asignados) : '—'}
@@ -754,16 +795,29 @@ function PuestoDeMando(): JSX.Element {
               sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} a cargo`}
               delay={60}
             />
-            <KpiCard
-              label="Primeras gestiones vencidas"
-              value={primeraGestionPendiente == null ? '—' : String(primeraGestionPendiente)}
-              icon={AlertTriangle}
-              color={SEMAFORO.neutro}
-              sub={primeraGestionPendiente == null
-                ? 'Sin dato por ahora'
-                : primeraGestionPendiente > 0 ? 'Revísalas con cada analista' : 'Ninguna vencida'}
-              delay={120}
-            />
+            </a>
+            {/* Abre la cola en su pestaña: cierra el detalle y deja el foco en ella. */}
+            <button
+              type="button"
+              className={CLASE_KPI_ENLACE}
+              onClick={() => {
+                focoTrasDetalle.current = document.getElementById(`${idPanelCola}-tab-primera_atencion`)
+                setFocoALaCola(true)
+                setDetalleAbierto(false)
+                verPrimeraGestion()
+              }}
+            >
+              <KpiCard
+                label="Primeras gestiones vencidas"
+                value={primeraGestionPendiente == null ? '—' : String(primeraGestionPendiente)}
+                icon={AlertTriangle}
+                color={SEMAFORO.neutro}
+                sub={primeraGestionPendiente == null
+                  ? 'Sin dato por ahora'
+                  : primeraGestionPendiente > 0 ? 'Ver cuáles son →' : 'Ninguna vencida'}
+                delay={120}
+              />
+            </button>
             <a
               href={hashDe('derivaciones')}
               aria-label={`Por repartir: ${datos.etiquetaAccesoReparto}`}
