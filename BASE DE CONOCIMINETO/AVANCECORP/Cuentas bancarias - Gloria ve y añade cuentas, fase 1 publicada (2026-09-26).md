@@ -18,6 +18,13 @@ vea todo el detalle bancario del cliente sin nada oculto, pueda añadir cuentas 
    reemplaza»). Hay que versionarlo por fechas y guardar en cada cuota pagada la cuenta usada.
    → ✅ **EN PRODUCCIÓN (26/09):** [[Cuentas de Gloria - F3 cambiar la cuenta de pago, en producción (2026-09-26)]].
 4. **Retirar una cuenta**: nunca se borra; si tiene cuotas pendientes, primero se cambia (fase 3).
+   → ✅ **EN PRODUCCIÓN (26/09, ~21:05):** migración `20260927012948` aplicada y registrada (huella de 5
+   funciones `59937ad4…`), portal `f0377f5` (SW v134). Botón «Retirar» en «Cuentas» (solo admin
+   vigente); si la cuenta física (mismo CCI, cualquier versión) cobra contratos abiertos, se rechaza
+   y lleva a «Cambiar cuenta de pago»; la cuenta retirada queda en «Cuentas anteriores» con motivo.
+   Revisiones: Codex (BLOCK sin P0/P1, resuelto) y auditor-rls (P1 «por versión y no por cuenta
+   física», corregido). Pendientes aparte: el motivo de F3 acepta solo espacios por RPC (usa
+   `btrim`); marcar en el panel de F3 un contrato que vuelva a abrirse con una cuenta ya retirada.
    → **Decisiones de Miguel (26/09, al arrancar F4):** si la cuenta todavía cobra contratos abiertos,
    **se bloquea y se cambia primero con F3** (no en un solo paso); **motivo obligatorio y correo del
    cliente opcional**; **no se avisa al cliente** (no cambia ningún pago). Solo admin/superadmin con

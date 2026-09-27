@@ -1,6 +1,18 @@
 ## 20260927012948 — Cuentas de Gloria · F4: retirar una cuenta bancaria del cliente
 
-**PREPARADA, ENSAYADA Y REVISADA; PENDIENTE DEL OK DE MIGUEL PARA APLICAR.** No toca objetos de
+**OK EXPLÍCITO DE MIGUEL (26/09, ~20:55): «Sí, aplica y publica».**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:00)** con `db query --linked --file`: sin errores,
+  con las precondiciones y el postflight en verde.
+- **Registrada** con `registrar-retirar-cuenta-cliente.sql`: la huella viva de las 5 funciones
+  coincide con la ensayada (`59937ad4…`).
+- **Advisors:** sin alertas nuevas; solo INFO esperados (RLS sin políticas en el registro, que se
+  lee por funciones, e índice recién creado).
+- **Portal PUBLICADO** (commit `f0377f5`):
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F3 (`e491420`);
+  - TUS archivo por archivo, con el SW v134 al final; purga;
+  - 12/12 lecturas idénticas; `clientes.js?v=55` y `retiro-cuenta-core.js?v=1` sirven el commit.
+
+No toca objetos de
 `public` ni de `storage`: solo lee `public.contratos`, `public.perfiles` y `storage.objects`; el
 bucket y sus políticas son los de F3. Decisiones de Miguel (26/09):
 - si la cuenta cobra contratos abiertos (`activo`/`vencido`) se bloquea y se cambia primero con F3;
