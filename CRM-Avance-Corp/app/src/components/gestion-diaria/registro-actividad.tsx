@@ -10,7 +10,7 @@
 // resultado tipificado (`metadata.evento = 'revision'`); el «buscador» de
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -59,6 +59,13 @@ interface Props {
   onSinPermiso?: (() => void) | undefined
   /** H3: comparte la primera página sin filtro con Últimas gestiones. */
   compartirPrimeraPagina?: boolean
+  /**
+   * «¿Qué hice hoy?» del analista (diseño del 27/09/2026): título corto,
+   * filtros en pastilla y filas limpias, sin la descripción, el filtro de etapa
+   * ni el «Actualizar» propio (la pantalla ya se refresca cada minuto).
+   * Supervisor y gerencia conservan su versión hasta sus propios planes.
+   */
+  compacto?: boolean
 }
 
 export function RegistroActividad(props: Props) {
@@ -68,7 +75,7 @@ export function RegistroActividad(props: Props) {
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false, compacto = false }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
@@ -209,6 +216,55 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     </>
   )
 
+  // Mientras llega la página siguiente, `pagina` es null y `hayMas` se apaga:
+  // el botón seguiría desmontándose con el foco dentro (revisión a11y, 27/09).
+  const cargandoSiguiente = cursorVigente !== null && !pagina && !error
+  const listaCompacta = (
+    <>
+      {/* Sin «actualizando…»: con el refresco de cada minuto el lector lo
+          anunciaba dos veces por minuto. La lista ya lleva `aria-busy`. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {visibles.length} {visibles.length === 1 ? 'gestión' : 'gestiones'} cargadas{hayMas ? ' · hay más' : ''}
+      </p>
+      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+      <ol role="list" aria-label="Registro de actividad" aria-busy={enVuelo}>
+        {visibles.map((item) => {
+          const tono = tonoDeTipo(item.tipo)
+          const etapaEntonces = item.etapa_en_ese_momento ? ETAPA_INFO[item.etapa_en_ese_momento as Etapa]?.label ?? item.etapa_en_ese_momento : null
+          const etapaActual = ETAPA_INFO[item.lead_etapa as Etapa]?.label ?? item.lead_etapa
+          const resultado = typeof item.metadata['resultado'] === 'string' ? (item.metadata['resultado'] as string) : null
+          return (
+            <li key={item.id} className="flex gap-3 border-b border-muted py-2.5">
+              <time dateTime={item.creado_en} className="w-10 shrink-0 pt-0.5 text-[13px] font-bold tabular-nums text-foreground/80">{horaDeItem(item)}</time>
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="min-h-[22px] py-0 text-[11.5px]" color={TONO[tono]}>{ETIQUETA_CORTA[item.tipo]}</Badge>
+                  {resultado && <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--primary)" variant="outline">{resultado.replaceAll('_', ' ')}</Badge>}
+                  <button type="button" onClick={() => void abrirLead(item.lead_id)}
+                    className="rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    {item.lead_nombre}
+                  </button>
+                </div>
+                {item.detalle && <p className="whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground/80">{item.detalle}</p>}
+                <p className="text-[11.5px] text-[var(--muted-foreground-strong)]">{etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual} ahora</p>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+      {error && visibles.length > 0 && (
+        <p role="alert" className="text-[13px] font-semibold text-[var(--warning-text)]">No se pudo traer la siguiente página. Se conservan las ya consultadas.</p>
+      )}
+      {(hayMas || cargandoSiguiente || (error && visibles.length > 0)) && (
+        <div className="flex justify-center pt-2">
+          <BotonVerMasCompacto ocupado={enVuelo} error={Boolean(error)}
+            onPulsar={error ? () => void recargar() : verMas}
+            alSalirConFoco={() => encabezado.current?.focus({ preventScroll: true })} />
+        </div>
+      )}
+    </>
+  )
+
   const panel = sinPermiso ? (
     <div role="alert" className="space-y-2 rounded-xl border border-border bg-card p-6 text-base">
       <h4 className="font-semibold text-primary">Ya no tienes autorización para ver este registro</h4>
@@ -227,7 +283,21 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   ) : visibles.length === 0 ? (
     <PanelVacio tamano="grande" icono={ClipboardList} titulo={pestana === 'todo' && etapa === null ? (esHoy ? 'Todavía no hay actividad hoy' : 'Sin actividad ese día') : 'No hay actividad con estos filtros'}
       detalle={pestana === 'todo' && etapa === null ? 'Ninguna gestión registrada en el ámbito consultado.' : 'Prueba con la pestaña «Todo» u otra etapa. Esto no significa que no haya otras gestiones.'} />
-  ) : lista
+  ) : compacto ? listaCompacta : lista
+
+  if (compacto) {
+    return (
+      <section aria-labelledby={`${id}-titulo`} className="space-y-2">
+        <h3 ref={encabezado} tabIndex={-1} id={`${id}-titulo`} className="text-[15px] font-extrabold text-primary">
+          ¿Qué hice hoy?
+        </h3>
+        <Tabs variante="pastilla" etiqueta="Tipo de actividad" pestanas={PESTANAS_REGISTRO} valor={pestana} onCambio={setPestana}
+          className="space-y-2 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold">
+          {panel}
+        </Tabs>
+      </section>
+    )
+  }
 
   return (
     <section aria-labelledby={`${id}-titulo`} className="space-y-4">
@@ -284,5 +354,33 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
         {panel}
       </Tabs>
     </section>
+  )
+}
+
+/**
+ * «Ver más» de la versión compacta: `aria-disabled` y no `disabled` mientras
+ * carga (el refresco de cada minuto no expulsa el foco), y si deja de hacer
+ * falta con el foco DENTRO, lo entrega al título «¿Qué hice hoy?» en vez de
+ * dejarlo caer al inicio de la página.
+ */
+function BotonVerMasCompacto({ ocupado, error, onPulsar, alSalirConFoco }: {
+  ocupado: boolean
+  error: boolean
+  onPulsar: () => void
+  alSalirConFoco: () => void
+}) {
+  const boton = useRef<HTMLButtonElement>(null)
+  const salir = useRef(alSalirConFoco)
+  salir.current = alSalirConFoco
+  useLayoutEffect(() => {
+    const nodo = boton.current
+    // Al desmontarse el nodo todavía está en el documento: se sabe si tenía el foco.
+    return () => { if (nodo !== null && document.activeElement === nodo) salir.current() }
+  }, [])
+  return (
+    <button ref={boton} type="button" aria-disabled={ocupado} aria-busy={ocupado || undefined} onClick={() => { if (!ocupado) onPulsar() }}
+      className="inline-flex h-9 cursor-pointer items-center rounded-[10px] px-3 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50">
+      {ocupado ? 'Cargando…' : error ? 'Reintentar' : 'Ver más'}
+    </button>
   )
 }

@@ -5,9 +5,8 @@
 import { expect, test } from '@playwright/test'
 import { entrarDemo } from './_helpers'
 
-// Cada rol abre el registro con SU pregunta. Se nombran exactas porque desde
-// el layout de dos paneles (20/09/2026) el analista trae dos h2 más —«¿A quién
-// llamo ahora?» y «Cola de hoy»—, y un locator por «hoy» ya casa con varios.
+// Cada rol abre el registro con SU pregunta. Se nombran exactas porque el
+// analista trae más encabezados con «hoy» y un locator suelto casaría con varios.
 const PREGUNTA_DEL_ROL = {
   Analista: '¿Qué hice hoy?',
   Supervisor: 'Mi equipo hoy',
@@ -21,7 +20,9 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     await expect(page).toHaveURL(/#\/gestion-diaria$/)
     if (rol === 'Analista') {
       await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
-      await page.getByRole('heading', { name: /¿Qué hice hoy\?/ }).click()
+      // Diseño del 27/09/2026: el registro vive en la pestaña «Mi actividad».
+      await page.getByRole('tablist', { name: 'Qué ver' }).getByRole('tab', { name: /^Mi actividad/ }).click()
+      await expect(page.getByRole('heading', { name: '¿Qué hice hoy?' })).toBeVisible()
     } else {
       await expect(page.getByRole('heading', { level: 2, name: PREGUNTA_DEL_ROL[rol], exact: true })).toBeVisible()
     }

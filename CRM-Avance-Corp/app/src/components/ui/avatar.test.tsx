@@ -36,4 +36,12 @@ describe('Avatar', () => {
     const m = render(<Avatar nombre="Alex" genero="M" />)
     expect(svgHTML(f.container)).not.toBe(svgHTML(m.container))
   })
+
+  it('relleno: iniciales en blanco sobre el color pleno (fila elegida)', () => {
+    const { container } = render(<Avatar nombre="Luz Acuña" color="rgb(29, 78, 216)" relleno />)
+    const pastilla = container.firstElementChild as HTMLElement
+    expect(pastilla.textContent).toBe('LA')
+    expect(pastilla.style.background).toBe('rgb(29, 78, 216)')
+    expect(pastilla.style.color).toBe('rgb(255, 255, 255)')
+  })
 })

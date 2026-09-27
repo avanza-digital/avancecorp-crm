@@ -69,11 +69,18 @@ export function Avatar({
   nombre,
   genero,
   color = 'var(--accent)',
+  relleno = false,
   className,
 }: {
   nombre: string | null | undefined
   genero?: Genero | null
   color?: string | undefined
+  /**
+   * Iniciales en blanco sobre el color pleno: marca a la persona ELEGIDA en una
+   * lista (Gestión Diaria, 27/09/2026). Nunca va sola: la fila lo dice también
+   * con `aria-current` y con texto.
+   */
+  relleno?: boolean | undefined
   className?: string | undefined
 }): JSX.Element {
   // Silueta SOLO con género conocido; sin dato (null/ausente) → iniciales.
@@ -100,7 +107,7 @@ export function Avatar({
   return (
     <span
       className={cn(BASE, 'text-[11px] font-bold', className)}
-      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
+      style={relleno ? { background: color, color: '#fff' } : { background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
       aria-hidden
     >
       {iniciales(nombre)}

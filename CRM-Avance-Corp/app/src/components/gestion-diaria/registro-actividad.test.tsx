@@ -268,3 +268,60 @@ describe('Registro en panel horizontal', () => {
     expect(revalidar).toHaveBeenCalledOnce()
   })
 })
+
+describe('RegistroActividad — versión compacta del analista (27/09/2026)', () => {
+  it('título corto, filtros en pastilla y filas limpias; sin descripción, filtro de etapa ni «Actualizar» propio', () => {
+    montar({ analistaIds: ['u1'], mostrarAnalista: false, compacto: true })
+    expect(screen.getByRole('heading', { name: '¿Qué hice hoy?' })).toBeInTheDocument()
+    expect(screen.getByRole('tablist', { name: 'Tipo de actividad' })).toHaveClass('flex-wrap')
+    expect(screen.getByRole('tab', { name: 'Llamadas' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByLabelText(/Etapa actual del lead/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Actualizar/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Texto íntegro de cada gestión/)).not.toBeInTheDocument()
+    const filas = within(screen.getByRole('list', { name: 'Registro de actividad' })).getAllByRole('listitem')
+    expect(filas).toHaveLength(2)
+    expect(within(filas[0]!).getByText('Detalle íntegro 1')).toBeInTheDocument()
+    expect(within(filas[0]!).getByText(/Nuevo entonces · Contactado ahora/)).toBeInTheDocument()
+    // Sin detalle escrito no se pinta una línea vacía: la fila queda limpia.
+    expect(within(filas[1]!).queryByText('Sin detalle escrito.')).not.toBeInTheDocument()
+    // El conteo se sigue anunciando al lector de pantalla.
+    expect(screen.getByText(/2 gestiones cargadas/)).toHaveClass('sr-only')
+  })
+
+  it('«Ver más» sigue funcionando en la versión compacta', () => {
+    ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, n) => item(n + 1)))
+    montar({ analistaIds: ['u1'], mostrarAnalista: false, compacto: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver más' }))
+    expect(ultima().cursor).not.toBeNull()
+  })
+})
+
+describe('RegistroActividad compacto — «Ver más» no suelta el foco (revisión a11y, 27/09/2026)', () => {
+  it('sigue montado con aria-disabled mientras carga, y si ya no hay más entrega el foco al título', () => {
+    ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, n) => item(n + 1)))
+    const vista = montar({ analistaIds: ['u1'], mostrarAnalista: false, compacto: true })
+    const boton = screen.getByRole('button', { name: 'Ver más' })
+    boton.focus()
+    fireEvent.click(boton)
+    // Llega la página siguiente: mientras viaja no hay `pagina` y el hook está en vuelo.
+    ESTADO.pagina = null
+    ESTADO.enVuelo = true
+    vista.rerender(<RegistroActividad dia="2026-09-19" analistaIds={['u1']} mostrarAnalista={false} permitirExportar={false} compacto />)
+    const cargando = screen.getByRole('button', { name: 'Cargando…' })
+    expect(cargando).toHaveAttribute('aria-disabled', 'true')
+    expect(cargando).toHaveFocus()
+    // Llegó y ya no hay más: el botón se va y el foco pasa al título, no al body.
+    ESTADO.pagina = pagina([item(40)])
+    ESTADO.enVuelo = false
+    vista.rerender(<RegistroActividad dia="2026-09-19" analistaIds={['u1']} mostrarAnalista={false} permitirExportar={false} compacto />)
+    expect(screen.queryByRole('button', { name: /Ver más|Cargando/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '¿Qué hice hoy?' })).toHaveFocus()
+  })
+
+  it('la lista compacta lleva role=list y el conteo no anuncia «actualizando…»', () => {
+    ESTADO.enVuelo = true
+    montar({ analistaIds: ['u1'], mostrarAnalista: false, compacto: true })
+    expect(screen.getByRole('list', { name: 'Registro de actividad' })).toHaveAttribute('role', 'list')
+    expect(screen.getByText(/gestiones cargadas/)).not.toHaveTextContent(/actualizando/)
+  })
+})

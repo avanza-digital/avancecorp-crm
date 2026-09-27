@@ -141,7 +141,10 @@ test('F6 analista: móvil y teclado, acciones propias y vuelta al resumen', asyn
   await expect(listaCola(page).locator(':scope > li')).toHaveCount(2)
   await page.getByRole('link', { name: 'Resumen del día', exact: true }).click()
   await expect(page).toHaveURL(/#\/gestion-diaria$/)
-  await expect(page.getByRole('link', { name: 'Resumen del día', exact: true })).toHaveAttribute('aria-current', 'page')
+  // Diseño del 27/09/2026: en su resumen el analista lleva un solo acceso,
+  // «Seguimiento completo ›», en la cabecera de «Mi día».
+  await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Seguimiento completo/ })).toBeVisible()
   await page.goBack()
   await expect(page).toHaveURL(/#\/gestion-diaria\/cola$/)
   await expect(listaCola(page).locator(':scope > li')).toHaveCount(10)

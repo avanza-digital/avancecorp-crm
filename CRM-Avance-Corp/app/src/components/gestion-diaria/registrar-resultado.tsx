@@ -1,17 +1,26 @@
 // Panel «Registrar resultado de la llamada» (Gestión Diaria F2, mockup 5).
 // Es la ÚNICA definición del resultado de una llamada en el CRM: lo montan las
 // acciones de contacto (colas, Hoy, ficha), el cierre de una tarea de llamada
-// y el composer del drawer. Vive en un `Dialog` (el probado dentro del Sheet
-// de la ficha), con la jerarquía del mockup: paso 1 = uno de siete resultados
-// (atajos 1–7); paso 2 = lo que ese resultado exige (fecha, cita, submotivo o
-// la decisión del analista ante un número errado); nota opcional; «Guardar».
+// y el composer del drawer. Paso 1 = uno de siete resultados (atajos 1–7);
+// paso 2 = lo que ese resultado exige (fecha, cita, submotivo o la decisión del
+// analista ante un número errado); nota opcional; «Guardar».
+//
+// DOS PRESENTACIONES, UNA SOLA LÓGICA (27/09/2026, diseño de Gestión Diaria):
+// `useRegistroResultado` guarda el estado, las reglas espejo del servidor y el
+// envío; `CamposResultado` pinta los dos pasos. `RegistrarResultado` los monta
+// en el `Dialog` de siempre (ficha, Hoy, colas, composer: su contrato no
+// cambia) y `RegistroResultadoTarjeta` dentro de la tarjeta «Ahora» de «Mi
+// día», sin ventana encima. La tarjeta NO finge un diálogo (hallazgo de Codex):
+// tiene su propio contrato de teclado —atajos 1–7 solo con el foco dentro de
+// ella y fuera de un campo, Escape = «Cerrar sin registrar» salvo mientras
+// guarda— y el foco lo maneja quien la monta.
 //
 // Nada en silencio: el toast enumera lo que ocurrió DE VERDAD (registrado,
 // tarea cerrada, etapa, siguiente, descarte, No insistir) y ofrece «Deshacer»
 // 15 s, que llama a `crm.deshacer_resultado_llamada` (24 h, solo el autor).
 // La regla comercial vive en el servidor (`crm.registrar_llamada_v4`): aquí
 // solo se arma la petición y se espeja lo que él rechazaría.
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent as EventoTeclado, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -38,6 +47,7 @@ import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useCRMData } from '@/lib/store-context'
 import type { RegistrarLlamadaInput } from '@/lib/store'
 import { presentarCitas } from '@/lib/terminologia'
+import { cn } from '@/lib/utils'
 import { ETAPA_INFO, TIPOS_TAREA, esTipoTarea, type LeadContactable, type Tarea } from '@/lib/tipos'
 
 type DecisionNumero = 'segundo_numero' | 'descartar' | 'reintento' | 'solo_registrar'
@@ -51,7 +61,7 @@ export interface RegistrarResultadoProps {
   onClose: () => void
   /** Se llama SOLO cuando el servidor confirmó el resultado (nunca al cancelar
    *  ni al quedar «por confirmar»): Gestión Diaria lo usa para saltar a la
-   *  siguiente fila de la cola del día. `onClose` se dispara igual, después. */
+   *  siguiente fila de la cola del día. `onClose` se dispara igual, ANTES. */
   onGuardado?: (() => void) | undefined
 }
 
@@ -66,14 +76,24 @@ function camposPara(tipo: CamposSiguiente['tipo'], titulo: string, ms: number): 
 }
 
 /** Campos donde se ESCRIBE: ahí los dígitos son texto, no atajos. Los radios y
- *  casillas (donde cae el foco inicial del diálogo) sí aceptan los atajos. */
+ *  casillas (donde cae el foco inicial) sí aceptan los atajos. */
 const ES_CAMPO = (el: EventTarget | null): boolean => {
   if (!(el instanceof HTMLElement)) return false
   if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return true
   return el instanceof HTMLInputElement && !['radio', 'checkbox', 'button', 'submit'].includes(el.type)
 }
 
-export function RegistrarResultado({ lead, tarea, notaInicial, onClose, onGuardado }: RegistrarResultadoProps): JSX.Element {
+/**
+ * La lógica ÚNICA del resultado de una llamada. `dentro` dice si una tecla
+ * pertenece a esta presentación (el diálogo o la tarjeta): los atajos de un
+ * carácter se acotan al componente (WCAG 2.1.4), nunca a cualquier cosa que
+ * esté en pantalla.
+ */
+function useRegistroResultado(
+  { lead, tarea, notaInicial, onClose, onGuardado }: RegistrarResultadoProps,
+  raiz: RefObject<HTMLElement | null>,
+  dentro: (objetivo: EventTarget | null) => boolean,
+) {
   const { registrarLlamada, deshacerResultadoLlamada, tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -170,25 +190,23 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose, onGuarda
   const tiposSiguientes = resultado ? tiposSiguientesDeResultado(resultado) : []
   const cancelaria = descarta ? pendientes.filter((t) => t.id !== tarea?.id).length : 0
 
-  // Atajos 1–7 mientras el panel está abierto (es modal): SOLO cuando el foco
-  // no está en un campo (teclear «1» en la nota no debe cambiar el resultado)
-  // y sin modificadores. Se escucha en el documento porque el foco inicial
-  // queda en el contenedor del diálogo, fuera de este árbol.
+  // Atajos 1–7: SOLO cuando el foco no está en un campo (teclear «1» en la nota
+  // no debe cambiar el resultado), sin modificadores y dentro de ESTA
+  // presentación. Se escucha en el documento porque el foco inicial del diálogo
+  // queda en su contenedor, fuera de este árbol.
   const elegirRef = useRef(elegir)
   elegirRef.current = elegir
-  const raiz = useRef<HTMLDivElement>(null)
+  const dentroRef = useRef(dentro)
+  dentroRef.current = dentro
   useEffect(() => {
     if (!enfocarResultado.current || !resultado) return
     enfocarResultado.current = false
-    raiz.current?.querySelector<HTMLInputElement>(`input[name="resultado-llamada"][value="${resultado}"]`)?.focus()
-  }, [mostrarOpciones, resultado])
+    raiz.current?.querySelector<HTMLInputElement>(`input[type="radio"][value="${resultado}"]`)?.focus()
+  }, [mostrarOpciones, resultado, raiz])
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.isComposing || ES_CAMPO(e.target)) return
-      // Solo mientras ESTE diálogo tiene el foco (WCAG 2.1.4: atajos de un
-      // carácter acotados al componente), no cualquier modal apilado.
-      const dialogo = raiz.current?.closest<HTMLElement>('[role="dialog"]')
-      if (!dialogo || !(e.target instanceof Node) || !dialogo.contains(e.target)) return
+      if (!dentroRef.current(e.target)) return
       const r = RESULTADOS.find((x) => x.atajo === e.key)
       if (!r) return
       e.preventDefault()
@@ -284,6 +302,14 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose, onGuarda
     if (typeof entrada === 'string') { toast.error(entrada); return }
     void enviar(entrada)
   }
+  // Con un guardado sin confirmar NO se afirma que no quedó nada: el servidor
+  // pudo haberlo escrito. Queda en «Guardados por confirmar».
+  const cerrarSinRegistrar = () => {
+    if (enviando.current) return
+    onClose()
+    if (sinConfirmar) toast.warning('Guardado pendiente de confirmar: verifícalo en «Guardados por confirmar»')
+    else toast.info('Llamada sin registrar: no quedó en el historial')
+  }
 
   const opciones: OpcionRadio<ResultadoLlamada>[] = RESULTADOS.filter((r) => mostrarOpciones || r.clave === resultado).map((r) => ({ valor: r.clave, etiqueta: r.etiqueta, detalle: r.detalle, atajo: r.atajo }))
   const opcionesSubmotivo: OpcionRadio<SubmotivoLlamada>[] = def?.paso === 'submotivo'
@@ -296,146 +322,233 @@ export function RegistrarResultado({ lead, tarea, notaInicial, onClose, onGuarda
     { valor: 'solo_registrar' as const, etiqueta: 'Solo registrar', detalle: 'Sin tarea ni descarte' },
   ]
 
+  /** Seguro SÍNCRONO de «está guardando»: `procesando` llega un render tarde. */
+  const estaEnviando = () => enviando.current
+
+  return {
+    lead, tarea, nombre, soyDueno, ahora, estaEnviando,
+    resultado, def, mostrarOpciones, setMostrarOpciones, enfocarResultado, elegir,
+    submotivo, setSubmotivo, decision, setDecision, agendar, setAgendar, perdido, setPerdido,
+    descartarInteres, setDescartarInteres, noInsista, setNoInsista, cierraTarea, setCierraTarea,
+    nota, setNota, campos, editar, setTituloEditado, tituloEditado, camposReunion, setCamposReunion,
+    procesando, sinConfirmar, enviar, guardar, cerrarSinRegistrar,
+    intentosPrevios, ofrecePerdido, descarta, muestraSiguiente, siguienteOpcional, tiposSiguientes, cancelaria,
+    opciones, opcionesSubmotivo, opcionesDecision,
+  }
+}
+type ControlRegistro = ReturnType<typeof useRegistroResultado>
+
+/**
+ * Los dos pasos del resultado, iguales en el diálogo y en la tarjeta. `grande`
+ * = el diálogo de siempre (piso de 16 px); sin él, la escala del diseño de
+ * Gestión Diaria que lleva la tarjeta «Ahora» (27/09/2026).
+ */
+function CamposResultado({ c, grande, idBase }: { c: ControlRegistro; grande: boolean; idBase: string }): JSX.Element {
+  const texto = grande ? 'text-base' : 'text-[13px]'
+  // Un nombre de grupo POR INSTANCIA (revisión a11y, 27/09): la tarjeta sigue a
+  // la vista mientras la ficha abre el diálogo, y dos grupos de radios con el
+  // mismo `name` fuera de un <form> son UNO para el navegador (flechas que saltan
+  // de uno a otro, marcas que se desmarcan solas, descripciones duplicadas).
+  const sufijo = idBase.replaceAll(':', '')
+  const ids = { opciones: `${idBase}-opciones`, submotivo: `${idBase}-submotivo`, tipo: `${idBase}-siguiente-tipo`, titulo: `${idBase}-siguiente-titulo`, fecha: `${idBase}-siguiente-fecha`, hora: `${idBase}-siguiente-hora` }
+  const { def, campos } = c
   return (
-    <Dialog open onClose={() => { if (!enviando.current) onClose() }} ariaLabel="Resultado de la llamada" className="w-[560px] [&_button]:text-base [&_select]:text-base [&_label]:text-base [&_p]:text-base">
+    <fieldset disabled={c.procesando || c.sinConfirmar !== null} className="min-w-0 space-y-3">
+      <div id={ids.opciones}>
+        <RadioGroup<ResultadoLlamada> grande={grande} leyenda="Resultado" opciones={grande ? c.opciones : c.opciones.map((o) => ({ ...o, detalle: undefined }))} valor={c.resultado} onCambio={c.elegir} obligatorio nombre={`resultado-llamada-${sufijo}`} descripcion={c.mostrarOpciones ? (grande ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Atajos: 1 a 7 eligen el resultado; Esc cierra sin registrar.') : 'Para elegir otro, usa «Cambiar resultado».'} />
+      </div>
+      {c.resultado && <Button type="button" variant="outline" size={grande ? 'default' : 'sm'} aria-expanded={c.mostrarOpciones} aria-controls={ids.opciones} onClick={() => {
+        c.enfocarResultado.current = true
+        c.setMostrarOpciones(!c.mostrarOpciones)
+      }}>{c.mostrarOpciones ? 'Mantener resultado' : 'Cambiar resultado'}</Button>}
+
+      {def?.paso === 'submotivo' && (
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor={ids.submotivo} className={texto}>{def.clave === 'no_interesado' ? '¿Por qué no le interesa?' : '¿Qué producto pide?'} · obligatorio</Label>
+            <Select id={ids.submotivo} required value={c.submotivo ?? ''} className={texto} onChange={(e) => {
+              c.setSubmotivo(c.opcionesSubmotivo.find((s) => s.valor === e.target.value)?.valor ?? null)
+            }}>
+              <option value="" disabled>Selecciona un motivo</option>
+              {c.opcionesSubmotivo.map((s) => <option key={s.valor} value={s.valor}>{s.etiqueta}</option>)}
+            </Select>
+          </div>
+          <label className={cn('flex cursor-pointer items-start gap-2 font-semibold', texto)}>
+            <input type="checkbox" className="mt-1 size-4 shrink-0 accent-[var(--accent)]" checked={c.descartarInteres} onChange={(e) => c.setDescartarInteres(e.target.checked)} />
+            <span>Descartar y enviar al Centro de rescate</span>
+          </label>
+          {c.descartarInteres && <p className={cn('font-semibold text-foreground/85', texto)}>
+            {c.nombre} saldrá de tu cartera hacia el Centro de rescate; puedes deshacerlo desde el aviso al guardar (el servidor lo admite 24 h).
+            {c.cancelaria > 0 && ` Se cancelarán ${c.cancelaria} ${c.cancelaria === 1 ? 'tarea pendiente' : 'tareas pendientes'}.`}
+          </p>}
+          <label className={cn('flex cursor-pointer items-start gap-2 font-semibold text-foreground/85', texto)}>
+            <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={c.noInsista} onChange={(e) => c.setNoInsista(e.target.checked)} />
+            <span>Pidió que no lo vuelvan a llamar <span className="font-normal text-[var(--muted-foreground-strong)]">(Ley 29571; esta marca no se puede deshacer desde aquí)</span></span>
+          </label>
+          {!c.descartarInteres && <p className={cn('text-muted-foreground', texto)}>El lead se mantiene en tu cartera. Este resultado no lo descarta.</p>}
+        </div>
+      )}
+
+      {def?.paso === 'decision_numero' && (
+        <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
+          <RadioGroup<DecisionNumero> grande={grande} leyenda="¿Qué hacemos con este número?" opciones={c.opcionesDecision} valor={c.decision} onCambio={c.setDecision} obligatorio nombre={`decision-numero-${sufijo}`} descripcion="Esta llamada cuenta como intento, pero no entra en la tasa de contacto." />
+        </div>
+      )}
+
+      {c.ofrecePerdido && (
+        <label className={cn('flex cursor-pointer items-start gap-2 rounded-xl border border-destructive/30 p-2.5 font-semibold text-foreground/85', texto)}>
+          <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={c.perdido} onChange={(e) => c.setPerdido(e.target.checked)} />
+          <span>Marcar perdido: no responde <span className="font-normal text-[var(--muted-foreground-strong)]">(ya van {c.intentosPrevios} intentos sin respuesta; sale de tu cartera; deshacer desde el aviso)</span></span>
+        </label>
+      )}
+
+      {c.muestraSiguiente && campos && (
+        <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
+          {c.siguienteOpcional ? (
+            <label className={cn('flex cursor-pointer items-start gap-2 font-semibold text-foreground/85', texto)}>
+              <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={c.agendar} onChange={(e) => c.setAgendar(e.target.checked)} />
+              <span>Agendar próxima acción <span className="font-normal text-[var(--muted-foreground-strong)]">(puedes ajustar el tipo, la fecha y la hora)</span></span>
+            </label>
+          ) : (
+            <p className={cn('font-bold text-[var(--muted-foreground-strong)]', texto)}>{campos.tipo === 'reunion' ? 'La cita' : 'Cuándo volver a llamar'}</p>
+          )}
+          {(!c.siguienteOpcional || c.agendar) && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Label htmlFor={ids.tipo} className={texto}>Tipo de próxima acción</Label>
+                <Select id={ids.tipo} value={campos.tipo} className={texto} onChange={(e) => {
+                  const tipo = e.target.value
+                  if (!esTipoTarea(tipo) || !c.tiposSiguientes.includes(tipo)) return
+                  c.editar({ tipo, ...(!c.tituloEditado ? { titulo: tituloProximaAccion(tipo, c.nombre) } : {}) })
+                }}>
+                  {TIPOS_TAREA.filter((t) => c.tiposSiguientes.includes(t.k)).map((t) => <option key={t.k} value={t.k}>{t.label}</option>)}
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor={ids.titulo} className={texto}>Título</Label>
+                <Input id={ids.titulo} value={campos.titulo} onChange={(e) => { c.setTituloEditado(true); c.editar({ titulo: e.target.value }) }} className={cn('h-10', texto)} maxLength={200} />
+              </div>
+              <div>
+                <Label htmlFor={ids.fecha} className={texto}>Fecha</Label>
+                <Input id={ids.fecha} type="date" value={campos.fecha} onChange={(e) => c.editar({ fecha: e.target.value })} className={cn('h-10', texto)} />
+              </div>
+              <div>
+                <Label htmlFor={ids.hora} className={texto}>Hora</Label>
+                <Input id={ids.hora} type="time" value={campos.hora} onChange={(e) => c.editar({ hora: e.target.value })} className={cn('h-10', texto)} />
+              </div>
+              {(campos.tipo === 'llamada' || campos.tipo === 'whatsapp') && (
+                <p className={cn('text-[var(--muted-foreground-strong)] sm:col-span-2', texto)}>Ventana legal: lunes a sábado, 07:00–20:00 (Lima).</p>
+              )}
+              {campos.tipo === 'reunion' && (
+                <div className="sm:col-span-2"><CamposReunion valor={c.camposReunion} onChange={c.setCamposReunion} /></div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <p role="status" className={c.noInsista || c.lead.no_contactar ? cn('text-muted-foreground', texto) : 'sr-only'}>
+        {(c.noInsista || c.lead.no_contactar) ? 'No volver a contactar: no se agendará una próxima acción.' : ''}
+      </p>
+
+      {def && !c.soyDueno && !c.descarta && !c.noInsista && (
+        <p className={cn('text-muted-foreground', texto)}>La agenda es del analista dueño del lead: se registra la llamada sin agendar el siguiente paso.</p>
+      )}
+
+      {c.tarea && (
+        <label className={cn('flex cursor-pointer items-start gap-2 font-semibold text-foreground/85', texto)}>
+          <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={c.cierraTarea} onChange={(e) => c.setCierraTarea(e.target.checked)} />
+          <span>Cerrar también «{presentarCitas(c.tarea.titulo)}» <span className="font-normal text-muted-foreground">({tareaAEvento(c.tarea, c.ahora).cuando})</span></span>
+        </label>
+      )}
+
+      <Textarea aria-label="Nota de la llamada" value={c.nota} onChange={(e) => c.setNota(e.target.value)} placeholder="Nota (opcional)…" className={cn('min-h-[56px]', texto)} />
+    </fieldset>
+  )
+}
+
+/** El diálogo de siempre: ficha del lead, Hoy, colas y composer. Contrato intacto. */
+export function RegistrarResultado(props: RegistrarResultadoProps): JSX.Element {
+  const raiz = useRef<HTMLDivElement>(null)
+  const idBase = useId()
+  const c = useRegistroResultado(props, raiz, (objetivo) => {
+    // Solo mientras ESTE diálogo tiene el foco (WCAG 2.1.4), no cualquier modal apilado.
+    const dialogo = raiz.current?.closest<HTMLElement>('[role="dialog"]')
+    return Boolean(dialogo) && objetivo instanceof Node && dialogo!.contains(objetivo)
+  })
+  return (
+    // Escape o el fondo NO cierran mientras guarda. Se mira el seguro síncrono
+    // (`estaEnviando`) y no `procesando`: entre el clic en «Guardar» y el render
+    // siguiente hay un instante en que el estado aún dice «no» (Codex, 27/09).
+    <Dialog open onClose={() => { if (!c.estaEnviando()) props.onClose() }} ariaLabel="Resultado de la llamada" className="w-[560px] [&_button]:text-base [&_select]:text-base [&_label]:text-base [&_p]:text-base">
       {/* Columna flex que hereda la altura del Dialog: sin esto el cuerpo no
           obtiene su scroll interno y «Guardar» queda fuera de la pantalla. */}
       <div ref={raiz} className="flex min-h-0 flex-1 flex-col">
         <DialogHeader>
-          <DialogTitle className="text-xl">¿Cómo salió la llamada con {nombre}?</DialogTitle>
+          <DialogTitle className="text-xl">¿Cómo salió la llamada con {c.nombre}?</DialogTitle>
           <DialogDescription className="text-base">
             Registra el resultado y elige la próxima acción. Se guardan juntos en el historial y la agenda.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
-          <fieldset disabled={procesando || sinConfirmar !== null} className="min-w-0 space-y-3">
-            <div id="opciones-resultado-llamada">
-              <RadioGroup<ResultadoLlamada> grande leyenda="Resultado" opciones={opciones} valor={resultado} onCambio={elegir} obligatorio nombre="resultado-llamada" descripcion={mostrarOpciones ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Para elegir otro, usa «Cambiar resultado».'} />
-            </div>
-            {resultado && <Button type="button" variant="outline" aria-expanded={mostrarOpciones} aria-controls="opciones-resultado-llamada" onClick={() => {
-              enfocarResultado.current = true
-              setMostrarOpciones(!mostrarOpciones)
-            }}>{mostrarOpciones ? 'Mantener resultado' : 'Cambiar resultado'}</Button>}
-
-            {def?.paso === 'submotivo' && (
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="submotivo-llamada">{def.clave === 'no_interesado' ? '¿Por qué no le interesa?' : '¿Qué producto pide?'} · obligatorio</Label>
-                  <Select id="submotivo-llamada" required value={submotivo ?? ''} onChange={(e) => {
-                    setSubmotivo(opcionesSubmotivo.find((s) => s.valor === e.target.value)?.valor ?? null)
-                  }}>
-                    <option value="" disabled>Selecciona un motivo</option>
-                    {opcionesSubmotivo.map((s) => <option key={s.valor} value={s.valor}>{s.etiqueta}</option>)}
-                  </Select>
-                </div>
-                <label className="flex cursor-pointer items-start gap-2 text-base font-semibold">
-                  <input type="checkbox" className="mt-1 size-4 shrink-0 accent-[var(--accent)]" checked={descartarInteres} onChange={(e) => setDescartarInteres(e.target.checked)} />
-                  <span>Descartar y enviar al Centro de rescate</span>
-                </label>
-                {descartarInteres && <p className="text-base font-semibold text-foreground/85">
-                  {nombre} saldrá de tu cartera hacia el Centro de rescate; puedes deshacerlo desde el aviso al guardar (el servidor lo admite 24 h).
-                  {cancelaria > 0 && ` Se cancelarán ${cancelaria} ${cancelaria === 1 ? 'tarea pendiente' : 'tareas pendientes'}.`}
-                </p>}
-                <label className="flex cursor-pointer items-start gap-2 text-base font-semibold text-foreground/85">
-                  <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={noInsista} onChange={(e) => setNoInsista(e.target.checked)} />
-                  <span>Pidió que no lo vuelvan a llamar <span className="font-normal text-[var(--muted-foreground-strong)]">(Ley 29571; esta marca no se puede deshacer desde aquí)</span></span>
-                </label>
-                {!descartarInteres && <p className="text-base text-muted-foreground">El lead se mantiene en tu cartera. Este resultado no lo descarta.</p>}
-              </div>
-            )}
-
-            {def?.paso === 'decision_numero' && (
-              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
-                <RadioGroup<DecisionNumero> grande leyenda="¿Qué hacemos con este número?" opciones={opcionesDecision} valor={decision} onCambio={setDecision} obligatorio nombre="decision-numero" descripcion="Esta llamada cuenta como intento, pero no entra en la tasa de contacto." />
-              </div>
-            )}
-
-            {ofrecePerdido && (
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-destructive/30 p-2.5 text-base font-semibold text-foreground/85">
-                <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={perdido} onChange={(e) => setPerdido(e.target.checked)} />
-                <span>Marcar perdido: no responde <span className="font-normal text-[var(--muted-foreground-strong)]">(ya van {intentosPrevios} intentos sin respuesta; sale de tu cartera; deshacer desde el aviso)</span></span>
-              </label>
-            )}
-
-            {muestraSiguiente && campos && (
-              <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
-                {siguienteOpcional ? (
-                  <label className="flex cursor-pointer items-start gap-2 text-base font-semibold text-foreground/85">
-                    <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={agendar} onChange={(e) => setAgendar(e.target.checked)} />
-                    <span>Agendar próxima acción <span className="font-normal text-[var(--muted-foreground-strong)]">(puedes ajustar el tipo, la fecha y la hora)</span></span>
-                  </label>
-                ) : (
-                  <p className="text-base font-bold text-[var(--muted-foreground-strong)]">{campos.tipo === 'reunion' ? 'La cita' : 'Cuándo volver a llamar'}</p>
-                )}
-                {(!siguienteOpcional || agendar) && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="siguiente-tipo">Tipo de próxima acción</Label>
-                      <Select id="siguiente-tipo" value={campos.tipo} onChange={(e) => {
-                        const tipo = e.target.value
-                        if (!esTipoTarea(tipo) || !tiposSiguientes.includes(tipo)) return
-                        editar({ tipo, ...(!tituloEditado ? { titulo: tituloProximaAccion(tipo, nombre) } : {}) })
-                      }}>
-                        {TIPOS_TAREA.filter((t) => tiposSiguientes.includes(t.k)).map((t) => <option key={t.k} value={t.k}>{t.label}</option>)}
-                      </Select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="siguiente-titulo" className="text-base">Título</Label>
-                      <Input id="siguiente-titulo" value={campos.titulo} onChange={(e) => { setTituloEditado(true); editar({ titulo: e.target.value }) }} className="h-10 text-base" maxLength={200} />
-                    </div>
-                    <div>
-                      <Label htmlFor="siguiente-fecha" className="text-base">Fecha</Label>
-                      <Input id="siguiente-fecha" type="date" value={campos.fecha} onChange={(e) => editar({ fecha: e.target.value })} className="h-10 text-base" />
-                    </div>
-                    <div>
-                      <Label htmlFor="siguiente-hora" className="text-base">Hora</Label>
-                      <Input id="siguiente-hora" type="time" value={campos.hora} onChange={(e) => editar({ hora: e.target.value })} className="h-10 text-base" />
-                    </div>
-                    {(campos.tipo === 'llamada' || campos.tipo === 'whatsapp') && (
-                      <p className="sm:col-span-2 text-base text-[var(--muted-foreground-strong)]">Ventana legal: lunes a sábado, 07:00–20:00 (Lima).</p>
-                    )}
-                    {campos.tipo === 'reunion' && (
-                      <div className="sm:col-span-2"><CamposReunion valor={camposReunion} onChange={setCamposReunion} /></div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <p role="status" className={noInsista || lead.no_contactar ? 'text-base text-muted-foreground' : 'sr-only'}>
-              {(noInsista || lead.no_contactar) ? 'No volver a contactar: no se agendará una próxima acción.' : ''}
-            </p>
-
-            {def && !soyDueno && !descarta && !noInsista && (
-              <p className="text-base text-muted-foreground">La agenda es del analista dueño del lead: se registra la llamada sin agendar el siguiente paso.</p>
-            )}
-
-            {tarea && (
-              <label className="flex cursor-pointer items-start gap-2 text-base font-semibold text-foreground/85">
-                <input type="checkbox" className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--accent)]" checked={cierraTarea} onChange={(e) => setCierraTarea(e.target.checked)} />
-                <span>Cerrar también «{presentarCitas(tarea.titulo)}» <span className="font-normal text-muted-foreground">({tareaAEvento(tarea, ahora).cuando})</span></span>
-              </label>
-            )}
-
-            <Textarea aria-label="Nota de la llamada" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota (opcional)…" className="min-h-[56px] text-base" />
-          </fieldset>
-          {sinConfirmar && <p role="alert" className="text-base text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
+          <CamposResultado c={c} grande idBase={idBase} />
+          {c.sinConfirmar && <p role="alert" className="text-base text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
         </DialogBody>
         <DialogFooter>
-          {/* Con un guardado sin confirmar NO se afirma que no quedó nada: el
-              servidor pudo haberlo escrito. Queda en «Guardados por confirmar». */}
-          <Button variant="ghost" size="sm" disabled={procesando} onClick={() => {
-            onClose()
-            if (sinConfirmar) toast.warning('Guardado pendiente de confirmar: verifícalo en «Guardados por confirmar»')
-            else toast.info('Llamada sin registrar: no quedó en el historial')
-          }}>
-            {sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
+          <Button variant="ghost" size="sm" disabled={c.procesando} onClick={c.cerrarSinRegistrar}>
+            {c.sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
           </Button>
-          {sinConfirmar
-            ? <Button size="sm" disabled={procesando} onClick={() => void enviar(sinConfirmar)}>{procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
-            : <Button size="sm" disabled={procesando || !resultado} onClick={guardar}>{procesando ? 'Guardando…' : 'Guardar'}</Button>}
+          {c.sinConfirmar
+            ? <Button size="sm" disabled={c.procesando} onClick={() => void c.enviar(c.sinConfirmar!)}>{c.procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
+            : <Button size="sm" disabled={c.procesando || !c.resultado} onClick={c.guardar}>{c.procesando ? 'Guardando…' : 'Guardar'}</Button>}
         </DialogFooter>
       </div>
     </Dialog>
+  )
+}
+
+/**
+ * El resultado DENTRO de la tarjeta «Ahora» de «Mi día» (diseño del 27/09/2026):
+ * sin ventana encima. No finge un diálogo: es una sección con su título, y su
+ * teclado es propio (atajos 1–7 con el foco dentro; Escape = cerrar sin
+ * registrar, salvo mientras guarda). Al abrir, el foco va a los resultados.
+ */
+export function RegistroResultadoTarjeta(props: RegistrarResultadoProps): JSX.Element {
+  const raiz = useRef<HTMLElement>(null)
+  const idBase = useId()
+  const c = useRegistroResultado(props, raiz, (objetivo) => objetivo instanceof Node && Boolean(raiz.current?.contains(objetivo)))
+  useEffect(() => {
+    raiz.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus()
+  }, [])
+  const alTecla = (e: EventoTeclado<HTMLElement>) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || c.estaEnviando()) return
+    e.preventDefault()
+    e.stopPropagation()
+    c.cerrarSinRegistrar()
+  }
+  return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape de la sección: el contrato de teclado de la tarjeta (Codex, 27/09).
+    <section ref={raiz} role="group" aria-labelledby={`${idBase}-titulo`} onKeyDown={alTecla} className="flex min-h-0 flex-1 flex-col">
+      <div className="ac-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-[18px] pb-3 [&_:is(input,select,textarea,button)]:scroll-mb-20">
+        <h4 id={`${idBase}-titulo`} className="text-sm font-extrabold text-primary">¿Qué pasó con la llamada?</h4>
+        <CamposResultado c={c} grande={false} idBase={idBase} />
+        {c.sinConfirmar && <p role="alert" className="text-[13px] font-semibold text-[var(--destructive-text)]">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
+      </div>
+      {/* Pegado abajo también en el celular, donde la tarjeta no tiene alto fijo
+          y la página es la que se desplaza: «Guardar» nunca queda fuera de la vista. */}
+      <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-[18px] py-3">
+        {/* `aria-disabled` y no `disabled` (regla de la casa): el botón pulsado
+            conserva el foco aunque el guardado falle o quede sin confirmar. */}
+        <button type="button" aria-disabled={c.procesando} onClick={c.cerrarSinRegistrar}
+          className="inline-flex h-10 cursor-pointer items-center rounded-[10px] px-2.5 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50">
+          {c.sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
+        </button>
+        {c.sinConfirmar
+          ? <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press aria-disabled:cursor-default aria-disabled:opacity-50" aria-disabled={c.procesando} aria-busy={c.procesando || undefined}
+            onClick={() => { if (!c.estaEnviando() && c.sinConfirmar) void c.enviar(c.sinConfirmar) }}>{c.procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
+          : <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press aria-disabled:cursor-default aria-disabled:opacity-50" aria-disabled={c.procesando || !c.resultado} aria-busy={c.procesando || undefined}
+            onClick={() => { if (!c.estaEnviando() && c.resultado) c.guardar() }}>{c.procesando ? 'Guardando…' : 'Guardar'}</Button>}
+      </div>
+    </section>
   )
 }
