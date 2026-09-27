@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { candidatosDeHoy, tresCosasDeHoy, type TresCosasInput } from './tres-cosas'
+import { candidatosDeHoy, partesDeCosa, tresCosasDeHoy, type TresCosasInput } from './tres-cosas'
 import type { ColaAccionOperativa } from './cola-accion'
 import type { ItemCola } from './inteligencia'
 import type { MetricaAgendaVendedor } from './metricas-agenda'
@@ -241,5 +241,20 @@ describe('candidatosDeHoy + seguimiento activo (27/09/2026)', () => {
       ],
     }))
     for (const cosa of agrupadas) expect(cosa).not.toHaveProperty('vendedorId')
+  })
+})
+
+describe('partesDeCosa', () => {
+  it('separa la cifra inicial del título', () => {
+    expect(partesDeCosa('4 primeras gestiones vencidas')).toEqual({ cifra: '4', resto: 'primeras gestiones vencidas' })
+    expect(partesDeCosa('50+ sin movimiento · el peor lleva 9 días')).toEqual({ cifra: '50+', resto: 'sin movimiento · el peor lleva 9 días' })
+  })
+
+  it('con dueño, la cifra sale de detrás del nombre y el nombre va al final', () => {
+    expect(partesDeCosa('KAREN ZAPATA: 2 citas sin asistir')).toEqual({ cifra: '2', resto: 'citas sin asistir · Karen' })
+  })
+
+  it('sin número no inventa cifra', () => {
+    expect(partesDeCosa('Revisar el equipo')).toEqual({ cifra: null, resto: 'Revisar el equipo' })
   })
 })

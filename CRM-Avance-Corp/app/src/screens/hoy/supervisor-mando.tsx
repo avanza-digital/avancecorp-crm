@@ -11,7 +11,7 @@
 // Modo legado (demo, o seguimiento apagado por gerencia) → la pantalla
 // clásica ./supervisor.tsx, que sigue siendo también el rollback de una línea.
 // Meta, reparto, agenda y TC: ./datos-supervisor.ts, compartido con ella.
-import { useId, useMemo, useState, type JSX } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
 import { ChevronRight, ListChecks, RefreshCw, UsersRound } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
@@ -24,6 +24,7 @@ import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
 import { estadoCasoSupervision, momentoCaso } from '@/lib/cola-supervision'
 import { conteoSemaforoEquipo, lecturaAnalista, type LecturaAnalista } from '@/lib/senal-equipo'
+import { candidatosDeHoy, partesDeCosa, tresCosasDeHoy, type CosaDeHoy } from '@/lib/tres-cosas'
 import { haceTexto } from '@/lib/inteligencia'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
@@ -52,6 +53,11 @@ const VACIO_PESTANA: Record<PestanaMando, string> = {
   tareas_vencidas: 'Ninguna tarea vencida.',
   todas: 'Sin oportunidades con acciones en el seguimiento.',
 }
+
+// La severidad TAMBIÉN en texto: el color nunca va solo.
+const SEV_TEXTO: Record<CosaDeHoy['severidad'], string> = { critica: 'Hoy', atencion: 'Esta semana' }
+const SEV_TEXTO_COLOR: Record<CosaDeHoy['severidad'], string> = { critica: 'var(--destructive-text)', atencion: 'var(--warning-text)' }
+const SEV_BORDE: Record<CosaDeHoy['severidad'], string> = { critica: SEMAFORO.critico, atencion: SEMAFORO.atencion }
 
 /** Chip de señal: el ámbar suave usa el token de TEXTO (el hex puro no llega a 4.5:1 sobre su tinte). */
 function ChipSenal({ texto, nivel }: { texto: string; nivel: 'critico' | 'atencion' }): JSX.Element {
@@ -86,6 +92,7 @@ function PuestoDeMando(): JSX.Element {
   const [anuncio, setAnuncio] = useState('')
   const [abriendo, setAbriendo] = useState<string | null>(null)
   const [errorApertura, setErrorApertura] = useState(false)
+  const [decisionAbierta, setDecisionAbierta] = useState<CosaDeHoy['id'] | null>(null)
 
   const filtros: FiltrosSla = { senal: pestana, etapa: null, analista_id: analistaId }
   const consultaCola = useColaSlaPagina(filtros, null, COLA_VISIBLES, modo.activo)
@@ -93,6 +100,12 @@ function PuestoDeMando(): JSX.Element {
   // fallido; con error, la cola NO se muestra como vigente.
   const pagina = consultaCola.error ? undefined : consultaCola.data
   const paginaVigente = pagina?.modo === 'activo' ? pagina : undefined
+  // Las decisiones del día miran a TODO el equipo: sin filtro por analista.
+  // Sin filtro es la MISMA clave que la cola (TanStack la comparte); con
+  // filtro es la consulta que la cola tenía antes de filtrar.
+  const consultaEquipo = useColaSlaPagina({ senal: pestana, etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
+  const paginaEquipo = consultaEquipo.error ? undefined : consultaEquipo.data
+  const paginaEquipoVigente = paginaEquipo?.modo === 'activo' ? paginaEquipo : undefined
 
   // El store es caché PARCIAL: un lead ausente es «desconocido», no «sin
   // monto» ni «sin teléfono». Contacto y monto solo con el lead completo.
@@ -118,6 +131,8 @@ function PuestoDeMando(): JSX.Element {
   const elegirPestana = (id: PestanaMando) => {
     setPestana(id)
     setErrorApertura(false)
+    // La tarjeta de primera gestión ES esa pestaña: si se va de ella, se cierra.
+    if (id !== 'primera_atencion' && decisionAbierta === 'primera_gestion') setDecisionAbierta(null)
   }
 
   async function abrirFicha(id: string) {
@@ -150,6 +165,81 @@ function PuestoDeMando(): JSX.Element {
   )
   const semaforoEquipo = conteoSemaforoEquipo([...lecturas.values()])
 
+  // ── 1 · Decide primero: las mismas reglas de la franja clásica ──
+  // Fail-closed por fuente: un candidato solo existe si su fuente llegó bien,
+  // y «Nada que decidir» solo se afirma con TODAS las fuentes confirmadas.
+  const primeraGestionPendiente = paginaEquipoVigente?.totales.primera_atencion ?? null
+  const entradaCosas = {
+    cola: null,
+    totalPorRepartir: datos.resumenOp.error ? null : datos.totalPorRepartir,
+    esperaMasLargaReparto: datos.esperaMasLargaReparto,
+    vendedoresAgenda: datos.agendaConfirmada?.vendedores ?? [],
+    primeraGestionPendiente,
+  }
+  const candidatos = candidatosDeHoy(entradaCosas)
+  const cosas = tresCosasDeHoy(entradaCosas)
+  const estaSemana = candidatos.slice(cosas.length)
+  const fuentesCaidas = [
+    consultaEquipo.error ? 'el seguimiento' : null,
+    datos.errorAgenda ? 'la agenda' : null,
+    datos.resumenOp.error ? 'el reparto' : null,
+  ].filter((f): f is string => f != null)
+  const fuentesListas = paginaEquipoVigente != null
+    && datos.agendaConfirmada != null
+    && datos.resumen != null
+  const reintentarDecisiones = () => {
+    if (consultaEquipo.error) void consultaEquipo.refetch()
+    if (datos.errorAgenda) datos.recargarAgenda()
+    if (datos.resumenOp.error) void datos.resumenOp.recargar()
+  }
+
+  const alternarDecision = (cosa: CosaDeHoy) => {
+    const abrir = decisionAbierta !== cosa.id
+    setDecisionAbierta(abrir ? cosa.id : null)
+    if (cosa.id !== 'primera_gestion') return
+    // Primera gestión: la cola de abajo pasa a ESA pestaña, para todo el equipo.
+    if (abrir) {
+      setPestana('primera_atencion')
+      setAnalistaId(null)
+      setAnuncio('Mostrando las primeras gestiones vencidas de todo el equipo')
+    } else if (pestana === 'primera_atencion') {
+      setPestana('pendientes')
+      setAnuncio('Mostrando los pendientes de todo el equipo')
+    }
+  }
+  const verPrimeraGestion = () => {
+    setDecisionAbierta('primera_gestion')
+    setPestana('primera_atencion')
+    setAnalistaId(null)
+    setAnuncio('Mostrando las primeras gestiones vencidas de todo el equipo')
+    requestAnimationFrame(() => document.getElementById(`${idPanelCola}-tab-primera_atencion`)?.focus())
+  }
+
+  /** Una línea de contexto con datos YA confirmados; sin dato, nada. */
+  const contextoDe = (cosa: CosaDeHoy): string | null => {
+    switch (cosa.id) {
+      case 'primera_gestion':
+        return 'Revisa la primera gestión con cada analista: abajo quedan solo esos casos.'
+      case 'no_asistio':
+      case 'sin_accion': {
+        if (cosa.vendedorId != null) {
+          const r = rezagosConfirmados.get(cosa.vendedorId)
+          if (!r) return null
+          return `En 7 días: ${numero(r.no_asistio)} sin asistir · ${numero(r.vencidas)} tareas vencidas · ${numero(r.leads_sin_accion)} sin próxima acción.`
+        }
+        const nombres = (datos.agendaConfirmada?.vendedores ?? [])
+          .filter((v) => v.rol === 'vendedor' && v.activo
+            && (cosa.id === 'no_asistio' ? v.no_asistio >= 2 : v.leads_sin_accion >= 3))
+          .map((v) => `${primerNombre(v.nombre)} (${cosa.id === 'no_asistio' ? v.no_asistio : v.leads_sin_accion})`)
+        return nombres.length > 0 ? nombres.join(' · ') : null
+      }
+      case 'por_repartir':
+        return 'Leads sin analista en tu bandeja. El reparto se hace en Derivar leads.'
+      default:
+        return null
+    }
+  }
+
   const errorIndicadores = !datos.sesionReal
     ? false
     : Boolean(datos.resumenOp.error || datos.vendedoresOp.error)
@@ -163,6 +253,51 @@ function PuestoDeMando(): JSX.Element {
   return (
     <div className="mx-auto flex max-w-[1376px] flex-col gap-4 ac-rise">
       <p className="sr-only" role="status" aria-live="polite">{anuncio}</p>
+
+      {modo.activo && (
+        <section aria-labelledby={`${idPanelCola}-decide`} className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <h2 id={`${idPanelCola}-decide`} className="text-lg font-extrabold tracking-tight text-primary">Decide primero</h2>
+            {estaSemana.length > 0 && <EstaSemana cosas={estaSemana} onVerPrimeraGestion={verPrimeraGestion} />}
+          </div>
+          {fuentesCaidas.length > 0 && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-card px-4 py-2.5">
+              <p className="text-xs">
+                Algunas decisiones no se pudieron confirmar: no respondió {fuentesCaidas.join(', ').replace(/, ([^,]*)$/, ' ni $1')}.
+              </p>
+              <Button variant="outline" size="sm" onClick={reintentarDecisiones}>
+                <RefreshCw aria-hidden /> Reintentar
+              </Button>
+            </div>
+          )}
+          {cosas.length === 0 ? (
+            fuentesCaidas.length > 0 ? null : (
+              <Card>
+                <CardContent className="py-4">
+                  <p role="status" className="text-sm text-muted-foreground">
+                    {fuentesListas ? 'Nada que decidir ahora mismo.' : 'Revisando las decisiones del día…'}
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          ) : (
+            <div className="grid gap-3.5 lg:grid-cols-3">
+              {cosas.map((cosa) => (
+                <TarjetaDecision
+                  key={cosa.id}
+                  cosa={cosa}
+                  abierta={decisionAbierta === cosa.id}
+                  contexto={contextoDe(cosa)}
+                  idContexto={`${idPanelCola}-decision-${cosa.id}`}
+                  onAlternar={() => alternarDecision(cosa)}
+                  onVerPrimeraGestion={verPrimeraGestion}
+                  etiquetaReparto={datos.etiquetaAccesoReparto}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <AvisoDegradacion
         activo={errorIndicadores}
@@ -453,6 +588,153 @@ function PuestoDeMando(): JSX.Element {
           )}
         </Card>
       </div>
+    </div>
+  )
+}
+
+/** El botón de acción de una decisión. Nunca va DENTRO del botón que la despliega. */
+function AccionDecision({ cosa, onVerPrimeraGestion, etiquetaReparto }: {
+  cosa: CosaDeHoy
+  onVerPrimeraGestion: () => void
+  etiquetaReparto: string
+}): JSX.Element {
+  const clase = 'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-press focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
+  if (cosa.id === 'primera_gestion') {
+    return (
+      <button type="button" className={clase} aria-label={`Ver las ${cosa.texto} en la cola`} onClick={onVerPrimeraGestion}>
+        Ver <ChevronRight className="size-3.5" aria-hidden />
+      </button>
+    )
+  }
+  if (cosa.id === 'por_repartir') {
+    return (
+      <a href={hashDe('derivaciones')} className={clase} aria-label={etiquetaReparto}>
+        Repartir <ChevronRight className="size-3.5" aria-hidden />
+      </a>
+    )
+  }
+  if (cosa.id === 'no_asistio' || cosa.id === 'sin_accion') {
+    // La cola no contiene citas ni leads «sin próxima acción»: filtrarla
+    // enseñaría OTROS casos. La decisión se toma viendo el día del equipo.
+    const label = cosa.vendedorId != null ? 'Ver su día' : 'Ver el equipo'
+    return (
+      <a href={hashDe('gestion-diaria')} className={clase} aria-label={`${label}: ${cosa.texto}`}>
+        {label} <ChevronRight className="size-3.5" aria-hidden />
+      </a>
+    )
+  }
+  // Candidatos del modo legado: aquí no aparecen (la cola legada llega null),
+  // pero si algún día lo hicieran, su lugar es el módulo de seguimiento.
+  return (
+    <a href={hashDe('seguimiento')} className={clase} aria-label={`${cosa.accion}: ${cosa.texto}`}>
+      {cosa.accion} <ChevronRight className="size-3.5" aria-hidden />
+    </a>
+  )
+}
+
+function TarjetaDecision({ cosa, abierta, contexto, idContexto, onAlternar, onVerPrimeraGestion, etiquetaReparto }: {
+  cosa: CosaDeHoy
+  abierta: boolean
+  contexto: string | null
+  idContexto: string
+  onAlternar: () => void
+  onVerPrimeraGestion: () => void
+  etiquetaReparto: string
+}): JSX.Element {
+  const { cifra, resto } = partesDeCosa(cosa.texto)
+  return (
+    <Card
+      data-decision={cosa.id}
+      className={cn('overflow-hidden border-l-4', abierta && 'ring-2 ring-accent')}
+      style={{ borderLeftColor: SEV_BORDE[cosa.severidad] }}
+    >
+      <div className="flex items-center gap-2 py-2 pl-4 pr-3">
+        <button
+          type="button"
+          aria-expanded={abierta}
+          aria-controls={idContexto}
+          aria-label={`${SEV_TEXTO[cosa.severidad]}: ${cosa.texto}`}
+          onClick={onAlternar}
+          className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        >
+          {cifra && (
+            <span className="min-w-10 text-[32px] font-extrabold leading-none tracking-tight tabular-nums text-primary">{cifra}</span>
+          )}
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: SEV_TEXTO_COLOR[cosa.severidad] }}>
+              {SEV_TEXTO[cosa.severidad]}
+            </span>
+            <span className="block truncate text-[15px] font-bold" title={resto}>{resto}</span>
+          </span>
+          <ChevronRight
+            className={cn('size-4 shrink-0 transition-transform', abierta ? '-rotate-90 text-accent' : 'rotate-90 text-muted-foreground')}
+            aria-hidden
+          />
+        </button>
+        <AccionDecision cosa={cosa} onVerPrimeraGestion={onVerPrimeraGestion} etiquetaReparto={etiquetaReparto} />
+      </div>
+      <p id={idContexto} hidden={!abierta} className="border-t border-border/60 px-4 py-2.5 text-xs text-muted-foreground-strong">
+        {contexto ?? 'Sin más detalle confirmado por ahora.'}
+      </p>
+    </Card>
+  )
+}
+
+/** «Esta semana · N»: lo que no entró en las tres tarjetas. Esc y clic fuera lo cierran. */
+function EstaSemana({ cosas, onVerPrimeraGestion }: { cosas: CosaDeHoy[]; onVerPrimeraGestion: () => void }): JSX.Element {
+  const [abierto, setAbierto] = useState(false)
+  const contenedor = useRef<HTMLDivElement>(null)
+  const disparador = useRef<HTMLButtonElement>(null)
+  const idLista = useId()
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = (e: PointerEvent) => {
+      if (!contenedor.current?.contains(e.target as Node)) setAbierto(false)
+    }
+    // Esc cierra y devuelve el foco al disparador, esté donde esté el foco
+    // dentro de la lista (y también si quedó fuera: el popover no atrapa).
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setAbierto(false)
+      if (contenedor.current?.contains(document.activeElement)) disparador.current?.focus()
+    }
+    document.addEventListener('pointerdown', fuera)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', fuera)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [abierto])
+  return (
+    <div ref={contenedor} className="relative">
+      <button
+        ref={disparador}
+        type="button"
+        aria-expanded={abierto}
+        aria-controls={idLista}
+        onClick={() => setAbierto((v) => !v)}
+        className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-semibold text-muted-foreground-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      >
+        <span className="size-2 rounded-full" style={{ background: SEMAFORO.atencion }} aria-hidden />
+        Esta semana · {cosas.length}
+        <ChevronRight className={cn('size-3.5 transition-transform', abierto ? '-rotate-90' : 'rotate-90')} aria-hidden />
+      </button>
+      <ul
+        id={idLista}
+        hidden={!abierto}
+        aria-label="Decisiones para esta semana"
+        className="ac-pop absolute right-0 top-11 z-20 w-[340px] max-w-[90vw] rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-pop)]"
+      >
+        {cosas.map((c) => (
+          <li key={c.id} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold">
+            <span className="size-2 shrink-0 rounded-full" style={{ background: SEV_BORDE[c.severidad] }} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="sr-only">{SEV_TEXTO[c.severidad]}: </span>{c.texto}
+            </span>
+            <AccionDecision cosa={c} onVerPrimeraGestion={() => { setAbierto(false); onVerPrimeraGestion() }} etiquetaReparto={`Repartir: ${c.texto}`} />
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
