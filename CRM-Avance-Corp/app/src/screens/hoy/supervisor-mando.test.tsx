@@ -663,9 +663,36 @@ describe('Hoy · supervisor — puesto de mando: arreglos de la revisión F2/F3'
       },
       isError: true,
     }
+    vi.useRealTimers()
     montar()
     expect(screen.getByRole('list', { name: 'Cifras del equipo' })).toHaveTextContent('— conversión del mes')
     expect(screen.getByText(/No se pudieron cargar algunos indicadores del equipo/)).toBeInTheDocument()
+    // Tampoco dentro del detalle: ni porcentaje ni divisor retenidos.
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Detalle del equipo' })
+    expect(dialogo).toHaveTextContent('Conversión del mes no disponible')
+    expect(dialogo).not.toHaveTextContent(/40[,.]?\d*\s?%|10 recibidos/)
+  })
+
+  it('«Detalle» abre con el foco en su título, no en mitad de la rejilla', async () => {
+    vi.useRealTimers()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('Detalle del equipo'))
+  })
+
+  it('«Esta semana» se cierra cuando el foco SALE con el teclado', () => {
+    METRICAS_AGENDA = agenda([
+      { vendedor_id: KAREN, nombre: 'KAREN ZAPATA', no_asistio: 2 },
+      { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', leads_sin_accion: 5 },
+    ])
+    LEADS = [...LEADS, lead({ id: 'l-5', nombre_completo: 'SIN DUEÑO', vendedor_id: null })]
+    montar()
+    const disparador = screen.getByRole('button', { name: /Esta semana · 1/ })
+    fireEvent.click(disparador)
+    const fuera = screen.getByRole('button', { name: 'Detalle' })
+    fireEvent.focusOut(disparador, { relatedTarget: fuera })
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('al cerrar «Detalle» con Esc el foco VUELVE al botón', async () => {

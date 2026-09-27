@@ -47,4 +47,20 @@ describe('nombresCortos', () => {
     expect(m.get('KAREN LÓPEZ')).toBe('Karen L.')
     expect(m.get('JORGE HUAMÁN')).toBe('Jorge')
   })
+
+  it('con la MISMA inicial de apellido sube de nivel hasta que no choquen (Codex)', () => {
+    const m = nombresCortos(['KAREN ZAPATA', 'KAREN ZÚÑIGA', 'KAREN LÓPEZ'])
+    expect(m.get('KAREN ZAPATA')).toBe('Karen Zapata')
+    expect(m.get('KAREN ZÚÑIGA')).toBe('Karen Zúñiga')
+    // La que ya se distinguía con la inicial no se alarga de más.
+    expect(m.get('KAREN LÓPEZ')).toBe('Karen L.')
+    const etiquetas = [...m.values()]
+    expect(new Set(etiquetas).size).toBe(etiquetas.length)
+  })
+
+  it('mismo primer nombre y mismo apellido final: recurre al nombre completo', () => {
+    const m = nombresCortos(['ANA MARÍA TORRES', 'ANA LUCÍA TORRES'])
+    expect(m.get('ANA MARÍA TORRES')).toBe('Ana María Torres')
+    expect(m.get('ANA LUCÍA TORRES')).toBe('Ana Lucía Torres')
+  })
 })

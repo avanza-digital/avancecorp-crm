@@ -186,12 +186,17 @@ export function useDatosSupervisor() {
   const conversionMensualCargando = !esDemoConversion
     && qConversionMensual.isPending
     && qConversionMensual.data === undefined
+  const conversionMensualError = !esDemoConversion && qConversionMensual.isError
+  // Fail-closed: tras un refetch fallido TanStack conserva la respuesta
+  // anterior; con error NO se publica (ni porcentaje, ni divisor, ni nota) —
+  // se dice «no disponible» y se ofrece reintentar (Codex, auditoría final).
   const conversionMensual = esDemoConversion
     ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
     : conversionMensualCargando
       ? undefined
-      : (qConversionMensual.data ?? null)
-  const conversionMensualError = !esDemoConversion && qConversionMensual.isError
+      : conversionMensualError
+        ? null
+        : (qConversionMensual.data ?? null)
   // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
   // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
   // tres pantallas que pintan esta misma cifra.
