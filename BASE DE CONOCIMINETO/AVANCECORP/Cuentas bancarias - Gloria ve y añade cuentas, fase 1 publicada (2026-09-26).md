@@ -23,8 +23,12 @@ vea todo el detalle bancario del cliente sin nada oculto, pueda añadir cuentas 
    vigente); si la cuenta física (mismo CCI, cualquier versión) cobra contratos abiertos, se rechaza
    y lleva a «Cambiar cuenta de pago»; la cuenta retirada queda en «Cuentas anteriores» con motivo.
    Revisiones: Codex (BLOCK sin P0/P1, resuelto) y auditor-rls (P1 «por versión y no por cuenta
-   física», corregido). Pendientes aparte: el motivo de F3 acepta solo espacios por RPC (usa
-   `btrim`); marcar en el panel de F3 un contrato que vuelva a abrirse con una cuenta ya retirada.
+   física», corregido).
+   → ✅ **Arreglos posteriores EN PRODUCCIÓN (26/09, ~21:40, migración `20260927020317`, portal
+   `eb17904` SW v135):** el motivo de F3 exige ≥5 caracteres visibles (como F4), y el panel «Cuenta de
+   pago de los contratos» marca «⚠️ CUENTA RETIRADA: cámbiala» cuando la cuenta física de pago ya no
+   tiene versión vigente. auditor-rls APPROVED. Con esto, el plan de las cuentas de Gloria queda
+   cerrado; falta solo el uso real de Gloria y la pasada visual de Miguel.
    → **Decisiones de Miguel (26/09, al arrancar F4):** si la cuenta todavía cobra contratos abiertos,
    **se bloquea y se cambia primero con F3** (no en un solo paso); **motivo obligatorio y correo del
    cliente opcional**; **no se avisa al cliente** (no cambia ningún pago). Solo admin/superadmin con

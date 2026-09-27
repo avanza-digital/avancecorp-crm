@@ -1,6 +1,19 @@
 ## 20260927020317 — Cuentas de Gloria · arreglos: motivo de F3 y marca «cuenta retirada»
 
-**PREPARADA Y ENSAYADA; PENDIENTE DE AUDITORÍA Y DEL OK DE MIGUEL.** Los dos arreglos pequeños que
+**OK EXPLÍCITO DE MIGUEL (26/09, ~21:15): «Sí, aplica y publica».**
+- **auditor-rls: APPROVED** (sin cambios en el SQL). Sus P3 quedan para la próxima migración de la
+  familia: reponer la guarda `proacl is null` y la precondición `rolbypassrls` en el postflight,
+  fijar el texto esperado de la constraint, actualizar `comment on column … motivo`, probar NBSP y
+  ZWSP por separado y el caso de 501 caracteres. Su P2 (ledger) era un cruce de tiempos: la fila
+  decía «se aplica en cuanto apruebe» y así era.
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:35)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-arreglos-cuentas-gloria.sql`
+  (huella viva `2d448025…` = ensayada). **Advisors:** sin alertas nuevas.
+- **Portal PUBLICADO** (commit `eb17904`, SW v135): preflight OK (lo vivo era F4 `c9ca65a`), TUS
+  archivo por archivo con el SW al final, purga, 15/15 lecturas idénticas; `clientes.js?v=56`,
+  `cambio-cuenta-core.js?v=2` y `retiro-cuenta-core.js?v=2` sirven el commit.
+
+Los dos arreglos pequeños que
 dejaron las revisiones de F3/F4, pedidos por Miguel el 26/09. No toca `public` ni `storage`.
 - **Motivo de F3** con la regla de F4: bordes sin espacios de ningún tipo y ≥5 caracteres visibles.
   Se recrea `private.cambiar_cuenta_pago_contratos_autorizado` (mismo texto salvo dos líneas) y se
