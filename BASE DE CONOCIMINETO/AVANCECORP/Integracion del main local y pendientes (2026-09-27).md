@@ -1,7 +1,7 @@
 ---
 tags: [git, integracion, pendientes, gloria]
 fecha: 2026-09-27
-estado: main local integrado con GitHub; PR #114 abierta (sin lo de Gloria); limpieza parcial
+estado: cerrado; PR #114 fusionada y traída al main local; limpieza completa
 ---
 
 # Integración del main local y pendientes (27/09/2026)
@@ -37,11 +37,12 @@ Supabase armada desde GitHub no las tendrá: armarla desde el `main` local. En c
 integración futura, excluir esos archivos (receta: worktree desde `avancecorp/main` +
 `git checkout main -- <archivos que sí van>`; `Inicio.md` sin las líneas de Gloria).
 
-## Tras fusionar la #114
+## PR #114 fusionada (27/09, 10:21 Lima)
 
-Traer `avancecorp/main` al `main` local en un worktree. `Inicio.md` puede chocar, porque GitHub
-lo tiene sin las líneas de Gloria: gana la versión local. El árbol resultante debe ser idéntico
-al del `main` local; luego se avanza con `--ff-only`.
+Squash `a1620980` en `avancecorp/main`. Traída al `main` local con la fusión `408f037c`, preparada
+en un worktree: `Inicio.md` chocó como estaba previsto y ganó la versión local (GitHub no tiene las
+líneas de Gloria). El árbol resultante quedó **idéntico** al del `main` local, así que el avance
+`--ff-only` no cambió ningún archivo. Rama de la PR borrada en local y en GitHub.
 
 ## Limpieza
 
