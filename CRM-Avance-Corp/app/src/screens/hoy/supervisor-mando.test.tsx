@@ -629,7 +629,7 @@ describe('Hoy · supervisor — puesto de mando: consulta y detalle (F3)', () =>
     for (const kpi of ['Pronóstico de capital abierto', 'Leads activos del equipo', 'Primeras gestiones vencidas', 'Por repartir']) {
       expect(within(dialogo).getByText(kpi)).toBeInTheDocument()
     }
-    expect(within(dialogo).getByText('Revísalas con cada analista')).toBeInTheDocument()
+    expect(within(dialogo).getByText('Ver cuáles son →')).toBeInTheDocument()
     expect(within(dialogo).getByRole('heading', { name: 'Cumplimiento del mes' })).toBeInTheDocument()
     expect(within(dialogo).getAllByText('Sin meta fijada para este mes').length).toBeGreaterThan(0)
     expect(within(dialogo).getByRole('region', { name: 'Agenda del equipo' })).toBeInTheDocument()
@@ -718,5 +718,35 @@ describe('Hoy · supervisor — puesto de mando: arreglos de la revisión F2/F3'
     expect(within(lista).getByRole('link', { name: 'Repartir 1 lead pendiente' })).toHaveAttribute('href', '#/derivaciones')
     fireEvent.pointerDown(document.body)
     expect(disparador).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+describe('Hoy · supervisor — puesto de mando: todo número se abre (Miguel, 27/09)', () => {
+  it('cada cifra de la franja lleva a su lista: pipeline, leads o el detalle', () => {
+    vi.useRealTimers()
+    montar()
+    const cifras = screen.getByRole('list', { name: 'Cifras del equipo' })
+    expect(within(cifras).getByRole('link', { name: /pronóstico/ })).toHaveAttribute('href', '#/pipeline')
+    expect(within(cifras).getByRole('link', { name: /leads activos/ })).toHaveAttribute('href', '#/cartera')
+    for (const nombre of [/de la meta/, /conversión del mes/, /toques en 7 días/, /completadas/, /sin asistir/]) {
+      expect(within(cifras).getByRole('button', { name: nombre })).toBeInTheDocument()
+    }
+    fireEvent.click(within(cifras).getByRole('button', { name: /sin asistir/ }))
+    expect(screen.getByRole('dialog', { name: 'Detalle del equipo' })).toBeInTheDocument()
+  })
+
+  it('«Primeras gestiones vencidas» del detalle cierra el diálogo y deja la cola en esa pestaña, con el foco en ella', async () => {
+    vi.useRealTimers()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Detalle del equipo' })
+    expect(within(dialogo).getByRole('link', { name: /Pronóstico de capital abierto/ })).toHaveAttribute('href', '#/pipeline')
+    expect(within(dialogo).getByRole('link', { name: /Leads activos del equipo/ })).toHaveAttribute('href', '#/cartera')
+    fireEvent.click(within(dialogo).getByRole('button', { name: /Primeras gestiones vencidas/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const pestana = screen.getByRole('tab', { name: /Primera gestión/ })
+    expect(pestana).toHaveAttribute('aria-selected', 'true')
+    expect(pedidoCola()?.filtros.senal).toBe('primera_atencion')
+    await waitFor(() => expect(pestana).toHaveFocus())
   })
 })

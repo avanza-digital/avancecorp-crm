@@ -533,6 +533,19 @@ describe('Hoy · supervisor — «Hoy, tres cosas» (F3)', () => {
     expect(screen.queryByText(/citas sin asistir/)).not.toBeInTheDocument()
   })
 
+  it('los números se abren: «Nuevos sin responder» lleva a la cola urgente y el pronóstico al pipeline (Miguel, 27/09)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'Date', 'requestAnimationFrame'] })
+    montar({ leads: [viejo, nuevoLead] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevos sin responder: 1. Ver en la cola urgente' }))
+    vi.advanceTimersByTime(50)
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(urgente)
+    expect(screen.getByRole('link', { name: /Pronóstico de capital abierto/ })).toHaveAttribute('href', '#/pipeline')
+    expect(screen.getByRole('link', { name: /Leads activos del equipo/ })).toHaveAttribute('href', '#/cartera')
+  })
+
   it('ESTADO DE PRODUCCIÓN (sin nada que hacer): la franja NO se pinta', () => {
     montar({ leads: [] })
     expect(screen.queryByRole('region', { name: 'Hoy, tres cosas' })).not.toBeInTheDocument()
