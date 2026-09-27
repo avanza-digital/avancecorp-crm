@@ -42,20 +42,47 @@ export function momentoCaso(bucket: string, referenciaEn: string | null, ahora: 
   return dias >= 0 ? `venció ${haceTexto(dias)}` : `vence en ${duracionTexto(-dias)}`
 }
 
+const capital = (palabra: string) => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+
 /**
  * Nombre corto de cada persona para chips y columnas estrechas: el primer
- * nombre, y si dos lo comparten, la inicial del último apellido para
- * distinguirlos («Karen Z.» / «Karen L.»). Dos chips iguales no se pueden elegir.
+ * nombre; si dos lo comparten, se añade lo MÍNIMO que los distingue, por
+ * niveles: inicial del último apellido («Karen Z.»), el apellido entero
+ * («Karen Zapata») y, si aún chocan, el nombre completo. Dos chips iguales no
+ * se pueden elegir. Nombres completos idénticos quedan iguales: ahí la
+ * identidad la da el id, no la etiqueta.
  */
 export function nombresCortos(nombres: readonly string[]): Map<string, string> {
   const unicos = [...new Set(nombres.map((n) => n.trim()).filter(Boolean))]
-  const porPila = new Map<string, number>()
-  for (const n of unicos) porPila.set(primerNombre(n), (porPila.get(primerNombre(n)) ?? 0) + 1)
-  return new Map(unicos.map((n) => {
-    const pila = primerNombre(n)
-    if ((porPila.get(pila) ?? 0) < 2) return [n, pila] as const
-    const partes = n.split(/\s+/)
-    const inicial = partes.length > 1 ? (partes[partes.length - 1] ?? '').charAt(0).toUpperCase() : ''
-    return [n, inicial ? `${pila} ${inicial}.` : pila] as const
-  }))
+  const niveles: Array<(n: string) => string> = [
+    (n) => primerNombre(n),
+    (n) => {
+      const partes = n.split(/\s+/)
+      return partes.length > 1 ? `${primerNombre(n)} ${(partes[partes.length - 1] ?? '').charAt(0).toUpperCase()}.` : primerNombre(n)
+    },
+    (n) => {
+      const partes = n.split(/\s+/)
+      return partes.length > 1 ? `${primerNombre(n)} ${capital(partes[partes.length - 1] ?? '')}` : primerNombre(n)
+    },
+    (n) => n.split(/\s+/).map(capital).join(' '),
+  ]
+  const resultado = new Map<string, string>()
+  let pendientes = unicos
+  for (const [i, nivel] of niveles.entries()) {
+    const etiquetas = new Map(pendientes.map((n) => [n, nivel(n)] as const))
+    const cuenta = new Map<string, number>()
+    for (const e of etiquetas.values()) cuenta.set(e, (cuenta.get(e) ?? 0) + 1)
+    const esUltimo = i === niveles.length - 1
+    // Cada nombre se queda en el primer nivel en que su etiqueta ya no choca.
+    pendientes = pendientes.filter((n) => {
+      const e = etiquetas.get(n) ?? n
+      if ((cuenta.get(e) ?? 0) < 2 || esUltimo) {
+        resultado.set(n, e)
+        return false
+      }
+      return true
+    })
+    if (pendientes.length === 0) break
+  }
+  return resultado
 }

@@ -548,8 +548,8 @@ function PuestoDeMando(): JSX.Element {
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                           </button>
                           {leadStore && (
-                            // Las acciones compactas miden 28 px: se llevan al mínimo de 36 (40 táctil).
-                            <div className="[&_a]:min-h-9 [&_button]:min-h-9 pointer-coarse:[&_a]:min-h-10 pointer-coarse:[&_button]:min-h-10">
+                            // Las acciones compactas miden 28 px: se llevan al mínimo de 36 (40 táctil), alto Y ancho.
+                            <div className="[&_a]:min-h-9 [&_a]:min-w-9 [&_button]:min-h-9 [&_button]:min-w-9 pointer-coarse:[&_a]:min-h-10 pointer-coarse:[&_a]:min-w-10 pointer-coarse:[&_button]:min-h-10 pointer-coarse:[&_button]:min-w-10">
                               <AccionesContacto lead={leadStore} compacto />
                             </div>
                           )}
@@ -829,7 +829,7 @@ function PuestoDeMando(): JSX.Element {
           </p>
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" size="sm" className="min-h-9" onClick={() => setDetalleAbierto(false)}>Cerrar</Button>
+          <Button variant="outline" size="sm" className="min-h-9 pointer-coarse:min-h-10" onClick={() => setDetalleAbierto(false)}>Cerrar</Button>
         </DialogFooter>
       </Dialog>
     </div>
