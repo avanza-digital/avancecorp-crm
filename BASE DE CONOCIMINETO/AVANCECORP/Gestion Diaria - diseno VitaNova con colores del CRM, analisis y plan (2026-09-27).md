@@ -1,7 +1,7 @@
 ---
 tags: [gestion-diaria, diseno, ux, plan]
 actualizado: 2026-09-27
-estado: analista IMPLEMENTADA en local 27/09 (160fdd00 · 28cf6438 · dd5acb5e), SIN publicar · supervisor y gerencia esperan su plan
+estado: analista PUBLICADA 27/09 13:05 Lima (build-20260927T180505461Z, commit db29ecdd) · supervisor y gerencia esperan su plan
 ---
 
 # Gestión Diaria — diseño VitaNova con los colores del CRM (27/09/2026)
@@ -210,11 +210,23 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
 - **Publicación:** antes de cada etapa, preflight del proyecto (integrar remoto, `main` =
   `avancecorp/main`, construir desde ese commit).
 
-## Estado de la pantalla del analista (27/09 — implementada en local, SIN publicar)
+## Estado de la pantalla del analista (27/09 — PUBLICADA en crm.miavance.com)
 
 - **Commits en `main` local:** `160fdd00` (A1 + A2: piezas comunes, franja, cola «Todo» de 8 filas,
   pestañas a la derecha), `28cf6438` (A3: resultado dentro de «Ahora» con sesión de llamada
-  inmutable), `dd5acb5e` (arreglos de las revisiones). Sin push ni publicación.
+  inmutable), `dd5acb5e` (arreglos de las revisiones).
+- **Publicada el 27/09 a las 13:05 Lima** por `/release-crm` de Miguel: artefacto
+  `crm-20260927T180506Z-db29ecdd96cf`, build `build-20260927T180505461Z`, commit `db29ecdd`
+  (contiene el vivo anterior `88db9ebf`, #113; frente a él solo cambian los 3 commits de arriba).
+  Construida en un worktree limpio: el trabajo sin commitear de la otra sesión (citas por equipo)
+  quedó fuera. Check sobre ese árbol PASS (4512 pruebas), manifiesto `ARTEFACTO_OK`, preflight OK.
+  Humo: inicio 200, `version.json` nuevo, `index-hlHxLrnn.js` igual al del build y **104/117
+  archivos idénticos byte a byte**; los 12 PNG distintos son la recompresión de la CDN
+  (`server: hcdn`, `-imm-edge5`; iguales en el release anterior y en este). Huellas de la
+  configuración (URL de Supabase, clave pública y DSN de Sentry) idénticas al build anterior.
+- **Paso 1 del release:** `main` local iba 73 commits por delante de `avancecorp/main` (lo de
+  Gloria, que se queda solo en local, más notas y estos commits) y 0 por detrás. Miguel siguió
+  tras el aviso. A GitHub llega por PR de integración sin lo de Gloria (receta de la #114).
 - **Revisiones:** Codex del plan (BLOCK, 6 hallazgos, todos aceptados) y del código
   (CHANGES_REQUESTED: P1 Escape durante el envío → guardia síncrona `estaEnviando`; P2 cerrar
   sin registrar con un grupo filtrado → «Ahora» vuelve a la persona llamada; ambos con prueba
@@ -222,14 +234,14 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   `aria-disabled` en controles con foco, scroll dentro del panel de la pestaña, 44 px táctiles.
 - **Verificación:** `npm run check` PASS (303 archivos, 4513 pruebas, sin avisos nuevos); E2E en
   Docker de Gestión Diaria + SLA **62/62 PASS** (incluye 1440×900 sin scroll de página y celular).
-- **Cómo verlo:** `npm run dev` en `app/` → «Explorar en modo demo» → Analista → Gestión Diaria.
+- **Cómo verlo:** en producción, entrando como analista → Gestión Diaria; en local, `npm run dev` en
+  `app/` → «Explorar en modo demo» → Analista → Gestión Diaria.
 - **Diferido (menor, ya existía o no bloquea):** el nombre accesible de «Llamar» sigue siendo
   «Copiar el número de X y registrar la llamada» (cambiarlo toca muchos specs); el lector lee
   raro «1–8 de 23»; «Ver más» del registro en modo normal tiene el mismo detalle de foco que se
   arregló en el compacto; sumar `@axe-core/playwright`; actualizar el tablero de Figma.
-- **Siguiente:** Miguel revisa en local; si aprueba, publica con `/release-crm` (preflight
-  obligatorio). Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego
-  gerencia.
+- **Siguiente:** Miguel la mira en producción; fusionar la PR de integración y traerla al `main`
+  local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
 
 Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]],
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
