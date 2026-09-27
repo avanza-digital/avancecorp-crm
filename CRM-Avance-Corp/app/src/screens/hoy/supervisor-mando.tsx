@@ -12,7 +12,7 @@
 // clásica ./supervisor.tsx, que sigue siendo también el rollback de una línea.
 // Meta, reparto, agenda y TC: ./datos-supervisor.ts, compartido con ella.
 import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
-import { AlertTriangle, ChevronRight, Inbox, ListChecks, RefreshCw, Target, Users, UsersRound, Wallet } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Inbox, ListChecks, Target, Users, UsersRound, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +26,7 @@ import { AccionesContacto } from '@/components/app/contacto'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
-import { estadoCasoSupervision, momentoCaso } from '@/lib/cola-supervision'
+import { estadoCasoSupervision, momentoCaso, nombresCortos } from '@/lib/cola-supervision'
 import { conteoSemaforoEquipo, lecturaAnalista, type LecturaAnalista } from '@/lib/senal-equipo'
 import { candidatosDeHoy, partesDeCosa, tresCosasDeHoy, type CosaDeHoy } from '@/lib/tres-cosas'
 import { colorMeta, haceTexto } from '@/lib/inteligencia'
@@ -79,6 +79,31 @@ const COLOR_NIVEL: Record<NonNullable<LecturaAnalista['nivel']>, string> = {
   atencion: SEMAFORO.atencion,
   neutro: SEMAFORO.neutro,
 }
+const TEXTO_NIVEL: Record<NonNullable<LecturaAnalista['nivel']>, string> = {
+  critico: 'En rojo',
+  atencion: 'En ámbar',
+  neutro: 'Sin cartera abierta',
+}
+
+/**
+ * Marca del nivel con FORMA además de color (rojo y ámbar se confunden con
+ * protanopia): triángulo = rojo, punto lleno = ámbar, aro = neutro.
+ */
+function MarcaNivel({ nivel }: { nivel: LecturaAnalista['nivel'] }): JSX.Element {
+  if (nivel == null) return <span className="size-3 shrink-0" aria-hidden />
+  if (nivel === 'critico') {
+    return <AlertTriangle data-testid="equipo-semaforo" data-nivel={nivel} className="size-3 shrink-0" style={{ color: SEMAFORO.critico }} aria-hidden />
+  }
+  return (
+    <span
+      data-testid="equipo-semaforo"
+      data-nivel={nivel}
+      className={cn('size-2 shrink-0 rounded-full', nivel === 'neutro' && 'border-2 bg-transparent')}
+      style={nivel === 'neutro' ? { borderColor: COLOR_NIVEL.neutro } : { background: COLOR_NIVEL[nivel] }}
+      aria-hidden
+    />
+  )
+}
 
 export function HoySupervisorMando(): JSX.Element {
   const modo = useModoSla()
@@ -100,8 +125,17 @@ function PuestoDeMando(): JSX.Element {
 
   const [pestana, setPestana] = useState<PestanaMando>('pendientes')
   const [analistaElegido, setAnalistaId] = useState<string | null>(null)
-  // Un analista que sale del equipo no deja la cola filtrada por un id oculto.
-  const analistaId = analistaElegido != null && ambito.vendedores.some((m) => m.perfil_id === analistaElegido)
+  // Analistas SELECCIONABLES del equipo (no las filas cargadas): los chips no
+  // dependen de lo que haya traído la página ni prometen conteos del cliente.
+  const analistas = useMemo(
+    () => ambito.vendedores
+      .filter((m) => m.activo && m.rol_crm === 'vendedor')
+      .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es')),
+    [ambito.vendedores],
+  )
+  // El filtro vale solo para quien sigue siendo seleccionable: quien sale, se
+  // desactiva o cambia de rol no deja la cola filtrada por un id sin chip.
+  const analistaId = analistaElegido != null && analistas.some((m) => m.perfil_id === analistaElegido)
     ? analistaElegido
     : null
   const [anuncio, setAnuncio] = useState('')
@@ -109,6 +143,7 @@ function PuestoDeMando(): JSX.Element {
   const [errorApertura, setErrorApertura] = useState(false)
   const [decisionAbierta, setDecisionAbierta] = useState<CosaDeHoy['id'] | null>(null)
   const [detalleAbierto, setDetalleAbierto] = useState(false)
+  const tituloDetalle = useRef<HTMLSpanElement>(null)
 
   const filtros: FiltrosSla = { senal: pestana, etapa: null, analista_id: analistaId }
   const consultaCola = useColaSlaPagina(filtros, null, COLA_VISIBLES, modo.activo)
@@ -121,24 +156,27 @@ function PuestoDeMando(): JSX.Element {
   const revisionVigente = modo.data?.control_revision
   const esVigente = (p: typeof pagina) => p != null && p.modo === 'activo' && p.control_revision === revisionVigente
   const paginaVigente = esVigente(pagina) ? pagina : undefined
-  // Las decisiones del día miran a TODO el equipo: sin filtro por analista.
-  // Sin filtro es la MISMA clave que la cola (TanStack la comparte); con
-  // filtro es la consulta que la cola tenía antes de filtrar.
-  const consultaEquipo = useColaSlaPagina({ senal: pestana, etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
+  // Las decisiones del día miran a TODO el equipo y a una clave ESTABLE: los
+  // `totales` no dependen de la señal (cola_accion_v2_fn filtra por etapa y
+  // analista antes de contarlos), así que cambiar de pestaña no deja la
+  // banda sin su fuente mientras llega otra respuesta. Con «Para atender
+  // ahora» y sin analista, es la misma clave que la cola: TanStack la comparte.
+  const consultaEquipo = useColaSlaPagina({ senal: 'pendientes', etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
   const paginaEquipo = consultaEquipo.error ? undefined : consultaEquipo.data
   const paginaEquipoVigente = esVigente(paginaEquipo) ? paginaEquipo : undefined
 
   // El store es caché PARCIAL: un lead ausente es «desconocido», no «sin
   // monto» ni «sin teléfono». Contacto y monto solo con el lead completo.
   const leadPorId = useMemo(() => new Map(ambito.leads.map((l) => [l.id, l] as const)), [ambito.leads])
-  // Analistas del equipo (no las filas cargadas): los chips no dependen de
-  // lo que haya traído la página y no prometen conteos del lado cliente.
-  const analistas = useMemo(
-    () => ambito.vendedores
-      .filter((m) => m.activo && m.rol_crm === 'vendedor')
-      .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es')),
-    [ambito.vendedores],
+  // Nombres cortos sin ambigüedad para chips y la columna del analista.
+  const cortos = useMemo(
+    () => nombresCortos([
+      ...analistas.map((m) => m.nombre_completo),
+      ...(paginaVigente?.items ?? []).map((i) => i.lead.analista_nombre ?? ''),
+    ]),
+    [analistas, paginaVigente],
   )
+  const corto = (nombre: string | null | undefined) => (nombre ? cortos.get(nombre.trim()) ?? primerNombre(nombre) : '')
   const nombreAnalista = analistaId != null
     ? ambito.vendedores.find((m) => m.perfil_id === analistaId)?.nombre_completo ?? null
     : null
@@ -246,7 +284,8 @@ function PuestoDeMando(): JSX.Element {
         if (cosa.vendedorId != null) {
           const r = rezagosConfirmados.get(cosa.vendedorId)
           if (!r) return null
-          return `En 7 días: ${numero(r.no_asistio)} sin asistir · ${numero(r.vencidas)} tareas vencidas · ${numero(r.leads_sin_accion)} sin próxima acción.`
+          const plural = (n: number, uno: string, varios: string) => `${numero(n)} ${n === 1 ? uno : varios}`
+          return `En 7 días: ${plural(r.no_asistio, 'cita sin asistir', 'citas sin asistir')} · ${plural(r.vencidas, 'tarea vencida', 'tareas vencidas')} · ${plural(r.leads_sin_accion, 'lead sin próxima acción', 'leads sin próxima acción')}.`
         }
         const nombres = (datos.agendaConfirmada?.vendedores ?? [])
           .filter((v) => v.rol === 'vendedor' && v.activo
@@ -261,26 +300,31 @@ function PuestoDeMando(): JSX.Element {
     }
   }
 
+  // Los errores del mes (meta, cumplimiento, conversión, TC) también se
+  // avisan aquí: la franja muestra «—» y el aviso no espera a abrir «Detalle».
   const errorIndicadores = !datos.sesionReal
     ? false
-    : Boolean(datos.resumenOp.error || datos.vendedoresOp.error)
+    : Boolean(datos.resumenOp.error || datos.vendedoresOp.error || datos.hayErrorMensual)
   const reintentarIndicadores = () => {
     if (datos.resumenOp.error) void datos.resumenOp.recargar()
     if (datos.vendedoresOp.error) void datos.vendedoresOp.recargar()
+    if (datos.hayErrorMensual) datos.reintentarMensual()
   }
 
   // ── 3 · Consulta: las cifras de siempre, en una línea; el detalle, encima ──
   const agendaResumen = datos.agendaConfirmada ? resumenAgenda(datos.agendaConfirmada.vendedores) : null
   const filaCapital = datos.filasMeta[0]
   const metaTexto = filaCapital == null || filaCapital.sinDato ? '—' : `${Math.round(filaCapital.pct)} %`
-  const conversionTexto = datos.conversionConfirmada == null ? '—' : porcentajeConversionCanonica(datos.conversionConfirmada)
+  const conversionTexto = datos.conversionMensualError || datos.conversionConfirmada == null
+    ? '—'
+    : porcentajeConversionCanonica(datos.conversionConfirmada)
   const pronostico = datos.capitalPronostico
   // En la franja, compacto (S/ 1.48 M); la cifra exacta vive en el KPI del detalle.
   const pronosticoCorto = pronostico && datos.resumen
     ? moneyCompacta(pronostico.soloDolares ? datos.resumen.capital.asignado.usd : datos.resumen.capital.asignado.pen, pronostico.moneda)
     : '—'
 
-  const tituloCola = nombreAnalista ? `Pendientes de ${primerNombre(nombreAnalista)}` : 'Pendientes del equipo'
+  const tituloCola = nombreAnalista ? `Pendientes de ${corto(nombreAnalista)}` : 'Pendientes del equipo'
 
   return (
     <div className="mx-auto flex max-w-[1376px] flex-col gap-4 ac-rise">
@@ -290,25 +334,25 @@ function PuestoDeMando(): JSX.Element {
         <section aria-labelledby={`${idPanelCola}-decide`} className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <h2 id={`${idPanelCola}-decide`} className="text-lg font-extrabold tracking-tight text-primary">Decide primero</h2>
-            {estaSemana.length > 0 && <EstaSemana cosas={estaSemana} onVerPrimeraGestion={verPrimeraGestion} />}
+            {estaSemana.length > 0 && <EstaSemana cosas={estaSemana} onVerPrimeraGestion={verPrimeraGestion} etiquetaReparto={datos.etiquetaAccesoReparto} />}
           </div>
-          {fuentesCaidas.length > 0 && (
-            <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-card px-4 py-2.5">
-              <p className="text-xs">
-                Algunas decisiones no se pudieron confirmar: no respondió {fuentesCaidas.join(', ').replace(/, ([^,]*)$/, ' ni $1')}.
-              </p>
-              <Button variant="outline" size="sm" onClick={reintentarDecisiones}>
-                <RefreshCw aria-hidden /> Reintentar
-              </Button>
-            </div>
-          )}
-          {cosas.length === 0 ? (
+          <AvisoDegradacion activo={fuentesCaidas.length > 0} queReintenta="de las decisiones del día" onReintentar={reintentarDecisiones}>
+            Algunas decisiones no se pudieron confirmar: no respondió {fuentesCaidas.join(', ').replace(/, ([^,]*)$/, ' ni $1')}.
+          </AvisoDegradacion>
+          {/* Sin todas las fuentes no se ORDENA: una tarjeta ámbar no ocupa el
+              puesto de una roja que aún no llegó. Con una fuente caída sí se
+              muestra lo confirmado, bajo el aviso de que está incompleto. */}
+          {!fuentesListas && fuentesCaidas.length === 0 ? (
+            <Card>
+              <CardContent className="py-4">
+                <p role="status" className="text-sm text-muted-foreground">Revisando las decisiones del día…</p>
+              </CardContent>
+            </Card>
+          ) : cosas.length === 0 ? (
             fuentesCaidas.length > 0 ? null : (
               <Card>
                 <CardContent className="py-4">
-                  <p role="status" className="text-sm text-muted-foreground">
-                    {fuentesListas ? 'Nada que decidir ahora mismo.' : 'Revisando las decisiones del día…'}
-                  </p>
+                  <p role="status" className="text-sm text-muted-foreground">Nada que decidir ahora mismo.</p>
                 </CardContent>
               </Card>
             )
@@ -340,62 +384,62 @@ function PuestoDeMando(): JSX.Element {
       </AvisoDegradacion>
 
       {/* ── 2 · Cola del seguimiento + Equipo hoy ── */}
+      <h2 className="sr-only">Pendientes y equipo</h2>
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="flex min-w-0 flex-col overflow-hidden lg:col-span-3">
-          <SectionHead icon={ListChecks} title={tituloCola} />
+          <SectionHead
+            icon={ListChecks}
+            title={tituloCola}
+            className="flex-wrap gap-y-2"
+            right={modo.activo ? (
+              <div role="tablist" aria-label="Filtrar los pendientes" className="inline-flex flex-wrap rounded-lg bg-muted/60 p-0.5">
+                {PESTANAS.map((p, indice) => {
+                  const n = conteoPestana(p.id)
+                  return (
+                    <button
+                      key={p.id}
+                      id={`${idPanelCola}-tab-${p.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={pestana === p.id}
+                      aria-controls={`${idPanelCola}-panel`}
+                      aria-label={n == null ? p.label : `${p.label}: ${numero(n)}`}
+                      tabIndex={pestana === p.id ? 0 : -1}
+                      onClick={() => elegirPestana(p.id)}
+                      onKeyDown={(e) => {
+                        const destino = e.key === 'ArrowRight' ? (indice + 1) % PESTANAS.length
+                          : e.key === 'ArrowLeft' ? (indice - 1 + PESTANAS.length) % PESTANAS.length
+                          : e.key === 'Home' ? 0 : e.key === 'End' ? PESTANAS.length - 1 : null
+                        if (destino == null) return
+                        e.preventDefault()
+                        const siguiente = PESTANAS[destino]
+                        if (!siguiente) return
+                        elegirPestana(siguiente.id)
+                        document.getElementById(`${idPanelCola}-tab-${siguiente.id}`)?.focus()
+                      }}
+                      className={cn(
+                        'min-h-9 cursor-pointer rounded-md px-3 text-xs font-semibold tabular-nums transition-colors pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                        pestana === p.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground-strong hover:text-foreground',
+                      )}
+                    >
+                      {p.label}{n != null && <span aria-hidden> {numero(n)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : undefined}
+          />
           {!modo.activo ? (
             <CardContent className="pb-5 pt-0">
-              {modo.error ? (
-                <div role="alert" className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm">No se pudo cargar el seguimiento. Los pendientes todavía no están confirmados.</p>
-                  <Button variant="outline" size="sm" onClick={() => void modo.refetch()}>
-                    <RefreshCw aria-hidden /> Reintentar
-                  </Button>
-                </div>
-              ) : (
+              <AvisoDegradacion activo={modo.error != null} queReintenta="del seguimiento" onReintentar={() => void modo.refetch()}>
+                No se pudo cargar el seguimiento. Los pendientes todavía no están confirmados.
+              </AvisoDegradacion>
+              {modo.error == null && (
                 <p role="status" className="text-sm text-muted-foreground">Consultando el seguimiento comercial…</p>
               )}
             </CardContent>
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-2 px-5 pb-2.5">
-                <div role="tablist" aria-label="Filtrar los pendientes" className="inline-flex flex-wrap rounded-lg bg-muted/60 p-0.5">
-                  {PESTANAS.map((p, indice) => {
-                    const n = conteoPestana(p.id)
-                    return (
-                      <button
-                        key={p.id}
-                        id={`${idPanelCola}-tab-${p.id}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={pestana === p.id}
-                        aria-controls={`${idPanelCola}-panel`}
-                        aria-label={n == null ? p.label : `${p.label}: ${numero(n)}`}
-                        tabIndex={pestana === p.id ? 0 : -1}
-                        onClick={() => elegirPestana(p.id)}
-                        onKeyDown={(e) => {
-                          const destino = e.key === 'ArrowRight' ? (indice + 1) % PESTANAS.length
-                            : e.key === 'ArrowLeft' ? (indice - 1 + PESTANAS.length) % PESTANAS.length
-                            : e.key === 'Home' ? 0 : e.key === 'End' ? PESTANAS.length - 1 : null
-                          if (destino == null) return
-                          e.preventDefault()
-                          const siguiente = PESTANAS[destino]
-                          if (!siguiente) return
-                          elegirPestana(siguiente.id)
-                          document.getElementById(`${idPanelCola}-tab-${siguiente.id}`)?.focus()
-                        }}
-                        className={cn(
-                          'min-h-9 cursor-pointer rounded-md px-3 text-xs font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-                          pestana === p.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground-strong hover:text-foreground',
-                        )}
-                      >
-                        {p.label}{n != null && <span aria-hidden> {numero(n)}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
               {analistas.length > 0 && (
                 <div role="group" aria-label="Filtrar por analista" className="flex flex-wrap items-center gap-1.5 px-5 pb-3">
                   <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground-strong" aria-hidden>Analista</span>
@@ -404,7 +448,7 @@ function PuestoDeMando(): JSX.Element {
                     aria-pressed={analistaId == null}
                     onClick={() => elegirAnalista(null)}
                     className={cn(
-                      'min-h-9 cursor-pointer rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                      'min-h-9 cursor-pointer rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                       analistaId == null ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground-strong hover:text-foreground',
                     )}
                   >
@@ -418,11 +462,11 @@ function PuestoDeMando(): JSX.Element {
                       aria-label={m.nombre_completo}
                       onClick={() => elegirAnalista(m.perfil_id)}
                       className={cn(
-                        'min-h-9 cursor-pointer rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                        'min-h-9 cursor-pointer rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                         analistaId === m.perfil_id ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground-strong hover:text-foreground',
                       )}
                     >
-                      {primerNombre(m.nombre_completo)}
+                      {corto(m.nombre_completo)}
                     </button>
                   ))}
                 </div>
@@ -438,14 +482,12 @@ function PuestoDeMando(): JSX.Element {
                 tabIndex={paginaVigente && paginaVigente.items.length > 0 ? undefined : 0}
                 className="flex flex-1 flex-col"
               >
-                {consultaCola.error ? (
-                  <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-5 py-4">
-                    <p className="text-sm">No se pudo cargar la cola. Los pendientes todavía no están confirmados.</p>
-                    <Button variant="outline" size="sm" onClick={() => void consultaCola.refetch()}>
-                      <RefreshCw aria-hidden /> Reintentar
-                    </Button>
-                  </div>
-                ) : !pagina ? (
+                <div className={cn(consultaCola.error && 'border-t border-border/60 px-5 py-4')}>
+                  <AvisoDegradacion activo={consultaCola.error != null} queReintenta="de los pendientes del equipo" onReintentar={() => void consultaCola.refetch()}>
+                    No se pudo cargar la cola. Los pendientes todavía no están confirmados.
+                  </AvisoDegradacion>
+                </div>
+                {consultaCola.error ? null : !pagina ? (
                   <p role="status" className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">Cargando los pendientes del equipo…</p>
                 ) : !paginaVigente ? (
                   <p role="status" className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">
@@ -455,16 +497,18 @@ function PuestoDeMando(): JSX.Element {
                   </p>
                 ) : paginaVigente.items.length === 0 ? (
                   <p className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">
-                    {nombreAnalista ? `${primerNombre(nombreAnalista)} no tiene casos aquí.` : VACIO_PESTANA[pestana]}
+                    {nombreAnalista ? `${corto(nombreAnalista)} no tiene casos aquí.` : VACIO_PESTANA[pestana]}
                   </p>
                 ) : (
-                  <ul aria-label={`${tituloCola}: ${PESTANAS.find((p) => p.id === pestana)?.label ?? ''}`} aria-busy={consultaCola.isFetching || abriendo !== null}>
+                  // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+                  <ul role="list" aria-label={`${tituloCola}: ${PESTANAS.find((p) => p.id === pestana)?.label ?? ''}`} aria-busy={consultaCola.isFetching || abriendo !== null}>
                     {paginaVigente.items.map((item) => {
                       const leadStore = leadPorId.get(item.lead_id)
                       const colorTira = item.severidad === 'baja' ? 'transparent' : SEV_COLOR[item.severidad]
-                      const analistaFila = item.lead.analista_nombre ? primerNombre(item.lead.analista_nombre) : 'Sin analista'
+                      const analistaFila = item.lead.analista_nombre ? corto(item.lead.analista_nombre) : 'Sin analista'
                       const estado = `${estadoCasoSupervision(item.bucket)} · ${momentoCaso(item.bucket, item.referencia_en, ahora)}`
                       const monto = leadStore?.monto_estimado != null ? moneyK(leadStore.monto_estimado, leadStore.moneda) : null
+                      const urgente = item.severidad === 'critica'
                       return (
                         <li
                           key={item.lead_id}
@@ -474,27 +518,41 @@ function PuestoDeMando(): JSX.Element {
                         >
                           <button
                             type="button"
-                            disabled={abriendo !== null}
+                            // aria-disabled y NO disabled: un botón enfocado que se deshabilita
+                            // suelta el foco a <body> y la ficha lo devolvía ahí al cerrarse.
+                            // La guarda de abrirFicha ya evita el doble envío.
+                            aria-disabled={abriendo !== null || undefined}
                             onClick={() => void abrirFicha(item.lead_id)}
-                            // El nombre dicta TODO lo visible (dueño, estado, tiempo, monto):
-                            // un lector de pantalla no puede perder lo que se ve.
-                            aria-label={`Abrir ficha de ${item.lead.nombre_completo}, de ${analistaFila}: ${estado}${monto ? `, ${monto}` : ''}`}
-                            className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 py-2 pl-[17px] text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40 disabled:cursor-wait"
+                            // El nombre dicta TODO lo visible (dueño, urgencia, estado,
+                            // tiempo, monto): un lector de pantalla no puede perder lo que se ve.
+                            aria-label={`Abrir ficha de ${item.lead.nombre_completo}, de ${analistaFila}${urgente ? ', urgente' : ''}: ${estado}${monto ? `, ${monto}` : ''}`}
+                            className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 py-2 pl-[17px] text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40 aria-disabled:cursor-wait"
                           >
                             {analistaId == null && (
-                              <span className="flex w-[118px] shrink-0 items-center gap-2">
+                              <span className="hidden w-[118px] shrink-0 items-center gap-2 sm:flex">
                                 <span aria-hidden><Avatar nombre={item.lead.analista_nombre} className="size-[26px] text-[10px]" /></span>
                                 <span className="truncate text-xs font-semibold text-muted-foreground-strong">{analistaFila}</span>
                               </span>
                             )}
                             <span className="min-w-0 flex-1 leading-tight">
                               <span className="block truncate text-sm font-semibold">{item.lead.nombre_completo}</span>
-                              <span className="block truncate text-xs text-muted-foreground">{estado}</span>
+                              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground-strong">
+                                {urgente && <AlertTriangle className="size-3 shrink-0" style={{ color: 'var(--destructive-text)' }} aria-hidden />}
+                                <span className="truncate">
+                                  {analistaId == null && <span className="sm:hidden">{analistaFila} · </span>}
+                                  {estado}
+                                </span>
+                              </span>
                             </span>
                             {monto && <span className="shrink-0 text-right text-[13px] font-semibold tabular-nums">{monto}</span>}
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                           </button>
-                          {leadStore && <AccionesContacto lead={leadStore} compacto />}
+                          {leadStore && (
+                            // Las acciones compactas miden 28 px: se llevan al mínimo de 36 (40 táctil).
+                            <div className="[&_a]:min-h-9 [&_button]:min-h-9 pointer-coarse:[&_a]:min-h-10 pointer-coarse:[&_button]:min-h-10">
+                              <AccionesContacto lead={leadStore} compacto />
+                            </div>
+                          )}
                         </li>
                       )
                     })}
@@ -506,7 +564,7 @@ function PuestoDeMando(): JSX.Element {
                       ? `${numero(paginaVigente.items.length)} de ${numero(paginaVigente.total_items)}`
                       : ''}
                   </span>
-                  <a href={hashDe('seguimiento')} className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 font-bold text-accent hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
+                  <a href={hashDe('seguimiento')} className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 font-bold text-accent hover:underline pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
                     Ver todo en Seguimiento <ChevronRight className="size-3.5" aria-hidden />
                   </a>
                 </div>
@@ -521,8 +579,8 @@ function PuestoDeMando(): JSX.Element {
             icon={UsersRound}
             title="Equipo hoy"
             right={(
-              <a href={hashDe('gestion-diaria')} className="inline-flex min-h-9 items-center rounded-md px-1 text-xs font-bold text-accent hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
-                Mi equipo hoy →
+              <a href={hashDe('gestion-diaria')} className="inline-flex min-h-9 items-center gap-1 rounded-md px-1 text-xs font-bold text-accent hover:underline pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
+                Mi equipo hoy <span aria-hidden>→</span>
               </a>
             )}
           />
@@ -534,14 +592,11 @@ function PuestoDeMando(): JSX.Element {
                 : `${numero(semaforoEquipo.rojo)} en rojo · ${numero(semaforoEquipo.ambar)} en ámbar`}
             </p>
           )}
-          {datos.errorAgenda && (
-            <div role="alert" className="mx-5 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-text/30 bg-warning-text/5 px-3 py-2">
-              <p className="text-xs">La agenda del equipo no respondió: las citas y tareas de cada analista no se están midiendo.</p>
-              <Button variant="outline" size="sm" onClick={datos.recargarAgenda}>
-                <RefreshCw aria-hidden /> Reintentar
-              </Button>
-            </div>
-          )}
+          <div className={cn(datos.errorAgenda && 'mx-5 mb-2')}>
+            <AvisoDegradacion activo={datos.errorAgenda != null} queReintenta="de la agenda del equipo" onReintentar={datos.recargarAgenda}>
+              La agenda del equipo no respondió: las citas y tareas de cada analista no se están midiendo.
+            </AvisoDegradacion>
+          </div>
           {rank == null ? (
             <CardContent className="pb-5 pt-0">
               <p className="text-sm text-muted-foreground">
@@ -555,7 +610,8 @@ function PuestoDeMando(): JSX.Element {
               <p className="text-sm text-muted-foreground">Sin analistas a cargo.</p>
             </CardContent>
           ) : (
-            <ul aria-label="Analistas del equipo" className="border-t border-border/60">
+            // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+            <ul role="list" aria-label="Analistas del equipo" className="border-t border-border/60">
               {rank.map((r) => {
                 const id = r.m.perfil_id
                 const lectura = lecturas.get(id) ?? { nivel: null, senales: [] }
@@ -567,6 +623,13 @@ function PuestoDeMando(): JSX.Element {
                     : rezago != null ? 'Al día' : `Última actividad ${haceTexto(r.diasSinActividadMax)}`)
                 const cap = totalEnSoles(r.capitalPEN, r.capitalUSD, tc?.promedio)
                 const idDetalle = `${idPanelCola}-equipo-${id}`
+                // PEN y USD jamás se suman sin decirlo: el nombre lleva el desglose.
+                const desglose = r.capitalUSD > 0
+                  ? cap.tc != null
+                    ? ` (${moneyK(r.capitalPEN, 'PEN')} más ${moneyK(r.capitalUSD, 'USD')})`
+                    : `, más ${moneyK(r.capitalUSD, 'USD')} aparte sin tipo de cambio`
+                  : ''
+                const nivelTexto = lectura.nivel != null ? `${TEXTO_NIVEL[lectura.nivel]}. ` : ''
                 const conversion = r.conversion == null
                   ? r.conversionDisponible && r.divisorConversion === 0 ? 'sin divisor mensual' : 'conversión no disponible'
                   : `${textoConversionOperativa(r.conversion)} conversión`
@@ -576,16 +639,14 @@ function PuestoDeMando(): JSX.Element {
                       type="button"
                       aria-expanded={abierto}
                       aria-controls={idDetalle}
-                      aria-label={`${r.m.nombre_completo}: ${principal}. Capital en proceso ${cap.total != null ? moneyK(cap.total) : 'sin dato'}. ${abierto ? 'Mostrando sus pendientes' : 'Ver sus pendientes'}`}
+                      aria-label={`${r.m.nombre_completo}: ${nivelTexto}${principal}. Capital en proceso ${cap.total != null ? moneyK(cap.total) : 'sin dato'}${desglose}. ${abierto ? 'Mostrando sus pendientes' : 'Ver sus pendientes'}`}
                       onClick={() => elegirAnalista(id)}
                       className={cn(
                         'flex min-h-[52px] w-full cursor-pointer items-center gap-2.5 px-5 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40',
                         abierto && 'bg-accent/[0.08]',
                       )}
                     >
-                      {lectura.nivel != null
-                        ? <span data-testid="equipo-semaforo" data-nivel={lectura.nivel} className="size-2 shrink-0 rounded-full" style={{ background: COLOR_NIVEL[lectura.nivel] }} aria-hidden />
-                        : <span className="size-2 shrink-0" aria-hidden />}
+                      <MarcaNivel nivel={lectura.nivel} />
                       <span aria-hidden><Avatar nombre={r.m.nombre_completo} color={SEMAFORO.ok} className="size-[30px] text-[10px]" /></span>
                       <span className="min-w-0 flex-1 leading-tight">
                         <span className="block truncate text-[13.5px] font-bold">{r.m.nombre_completo}</span>
@@ -593,7 +654,7 @@ function PuestoDeMando(): JSX.Element {
                       </span>
                       <span className="shrink-0 text-right leading-tight">
                         <span className="block text-[13.5px] font-extrabold tabular-nums">{cap.total != null ? moneyK(cap.total) : '—'}</span>
-                        <DesgloseMonedas pen={r.capitalPEN} usd={r.capitalUSD} tc={cap.tc} compacto />
+                        <DesgloseMonedas pen={r.capitalPEN} usd={r.capitalUSD} tc={cap.tc} compacto tono="fuerte" />
                       </span>
                       <ChevronRight className={cn('size-3.5 shrink-0 transition-transform', abierto ? '-rotate-90 text-accent' : 'rotate-90 text-muted-foreground')} aria-hidden />
                     </button>
@@ -627,7 +688,8 @@ function PuestoDeMando(): JSX.Element {
       {/* ── 3 · Consulta: cifras en una línea; «Detalle» abre todo lo demás ── */}
       <section aria-label="Consulta" className="flex min-h-12 flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-border bg-card px-5 py-2">
         <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground-strong" aria-hidden>Consulta</span>
-        <ul aria-label="Cifras del equipo" className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] tabular-nums text-muted-foreground-strong">
+        {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+        <ul role="list" aria-label="Cifras del equipo" className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] tabular-nums text-muted-foreground-strong">
           <li>
             <strong className="font-extrabold text-primary">{pronosticoCorto}</strong> pronóstico
             {pronostico?.otra ? ` · +${pronostico.otra} aparte` : ''}
@@ -638,16 +700,19 @@ function PuestoDeMando(): JSX.Element {
           <li aria-hidden className="h-[18px] w-px bg-border" />
           <li><strong className="font-extrabold text-primary">{agendaResumen ? numero(agendaResumen.toques) : '—'}</strong> toques en 7 días</li>
           <li><strong className="font-extrabold text-primary">{agendaResumen?.pctCompletadas != null ? `${agendaResumen.pctCompletadas} %` : '—'}</strong> completadas</li>
-          <li>
+          <li className="inline-flex items-center gap-1">
+            {agendaResumen && agendaResumen.noAsistio >= 2 && (
+              <AlertTriangle className="size-3 shrink-0" style={{ color: 'var(--destructive-text)' }} aria-hidden />
+            )}
             <strong
               className="font-extrabold"
               style={{ color: agendaResumen && agendaResumen.noAsistio >= 2 ? 'var(--destructive-text)' : 'var(--primary)' }}
             >
               {agendaResumen ? numero(agendaResumen.noAsistio) : '—'}
-            </strong> no asistió
+            </strong> {agendaResumen?.noAsistio === 1 ? 'cita sin asistir' : 'citas sin asistir'}
           </li>
         </ul>
-        <Button type="button" variant="outline" size="sm" className="ml-auto min-h-9 text-accent" onClick={() => setDetalleAbierto(true)}>
+        <Button type="button" variant="outline" size="sm" className="ml-auto min-h-9 text-accent pointer-coarse:min-h-10" onClick={() => setDetalleAbierto(true)}>
           Detalle
         </Button>
       </section>
@@ -655,10 +720,12 @@ function PuestoDeMando(): JSX.Element {
       <Dialog
         open={detalleAbierto}
         onClose={() => setDetalleAbierto(false)}
+        focoInicial={tituloDetalle}
         className="w-[1180px] max-h-[88vh] max-w-[94vw]"
       >
         <DialogHeader>
-          <DialogTitle>Detalle del equipo</DialogTitle>
+          {/* El foco entra por el título, no en mitad de la rejilla de indicadores. */}
+          <DialogTitle><span ref={tituloDetalle} tabIndex={-1} className="outline-none">Detalle del equipo</span></DialogTitle>
           <DialogDescription>Indicadores, cumplimiento del mes y agenda de los últimos 7 días.</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
@@ -699,7 +766,7 @@ function PuestoDeMando(): JSX.Element {
             />
             <a
               href={hashDe('derivaciones')}
-              aria-label={datos.etiquetaAccesoReparto}
+              aria-label={`Por repartir: ${datos.etiquetaAccesoReparto}`}
               className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <KpiCard
@@ -736,11 +803,9 @@ function PuestoDeMando(): JSX.Element {
                 <p className="text-[11px] text-muted-foreground-strong">
                   El capital en dólares entra al total convertido a tipo de cambio real. El pronóstico no cuenta como cumplimiento.
                 </p>
-                {datos.hayErrorMensual && (
-                  <Button variant="ghost" size="sm" onClick={datos.reintentarMensual}>
-                    Reintentar
-                  </Button>
-                )}
+                <AvisoDegradacion activo={datos.hayErrorMensual} queReintenta="de la meta y el cumplimiento del mes" onReintentar={datos.reintentarMensual}>
+                  Parte del cumplimiento del mes no se pudo cargar: se muestra «—» donde falta el dato.
+                </AvisoDegradacion>
               </CardContent>
             </Card>
             <div className="min-w-0 lg:col-span-3">
@@ -764,7 +829,7 @@ function PuestoDeMando(): JSX.Element {
           </p>
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => setDetalleAbierto(false)}>Cerrar</Button>
+          <Button variant="outline" size="sm" className="min-h-9" onClick={() => setDetalleAbierto(false)}>Cerrar</Button>
         </DialogFooter>
       </Dialog>
     </div>
@@ -777,10 +842,10 @@ function AccionDecision({ cosa, onVerPrimeraGestion, etiquetaReparto }: {
   onVerPrimeraGestion: () => void
   etiquetaReparto: string
 }): JSX.Element {
-  const clase = 'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-press focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
+  const clase = 'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-press pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
   if (cosa.id === 'primera_gestion') {
     return (
-      <button type="button" className={clase} aria-label={`Ver las ${cosa.texto} en la cola`} onClick={onVerPrimeraGestion}>
+      <button type="button" className={clase} aria-label={`Ver en la cola: ${cosa.texto}`} onClick={onVerPrimeraGestion}>
         Ver <ChevronRight className="size-3.5" aria-hidden />
       </button>
     )
@@ -827,7 +892,7 @@ function TarjetaDecision({ cosa, abierta, contexto, idContexto, onAlternar, onVe
       className={cn('overflow-hidden border-l-4', abierta && 'ring-2 ring-accent')}
       style={{ borderLeftColor: SEV_BORDE[cosa.severidad] }}
     >
-      <div className="flex items-center gap-2 py-2 pl-4 pr-3">
+      <div className="flex flex-wrap items-center gap-2 py-2 pl-4 pr-3">
         <button
           type="button"
           aria-expanded={abierta}
@@ -843,7 +908,7 @@ function TarjetaDecision({ cosa, abierta, contexto, idContexto, onAlternar, onVe
             <span className="block text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: SEV_TEXTO_COLOR[cosa.severidad] }}>
               {SEV_TEXTO[cosa.severidad]}
             </span>
-            <span className="block truncate text-[15px] font-bold" title={resto}>{resto}</span>
+            <span className="line-clamp-2 break-words text-[15px] font-bold">{resto}</span>
           </span>
           <ChevronRight
             className={cn('size-4 shrink-0 transition-transform', abierta ? '-rotate-90 text-accent' : 'rotate-90 text-muted-foreground')}
@@ -860,7 +925,11 @@ function TarjetaDecision({ cosa, abierta, contexto, idContexto, onAlternar, onVe
 }
 
 /** «Esta semana · N»: lo que no entró en las tres tarjetas. Esc y clic fuera lo cierran. */
-function EstaSemana({ cosas, onVerPrimeraGestion }: { cosas: CosaDeHoy[]; onVerPrimeraGestion: () => void }): JSX.Element {
+function EstaSemana({ cosas, onVerPrimeraGestion, etiquetaReparto }: {
+  cosas: CosaDeHoy[]
+  onVerPrimeraGestion: () => void
+  etiquetaReparto: string
+}): JSX.Element {
   const [abierto, setAbierto] = useState(false)
   const contenedor = useRef<HTMLDivElement>(null)
   const disparador = useRef<HTMLButtonElement>(null)
@@ -877,11 +946,19 @@ function EstaSemana({ cosas, onVerPrimeraGestion }: { cosas: CosaDeHoy[]; onVerP
       setAbierto(false)
       if (contenedor.current?.contains(document.activeElement)) disparador.current?.focus()
     }
+    // Tabular fuera del popover lo cierra: si no, quedaría encima de las
+    // tarjetas que reciben el foco a continuación (WCAG 2.4.11).
+    const nodo = contenedor.current
+    const salida = (e: FocusEvent) => {
+      if (e.relatedTarget instanceof Node && !nodo?.contains(e.relatedTarget)) setAbierto(false)
+    }
     document.addEventListener('pointerdown', fuera)
     document.addEventListener('keydown', escape)
+    nodo?.addEventListener('focusout', salida)
     return () => {
       document.removeEventListener('pointerdown', fuera)
       document.removeEventListener('keydown', escape)
+      nodo?.removeEventListener('focusout', salida)
     }
   }, [abierto])
   return (
@@ -892,13 +969,14 @@ function EstaSemana({ cosas, onVerPrimeraGestion }: { cosas: CosaDeHoy[]; onVerP
         aria-expanded={abierto}
         aria-controls={idLista}
         onClick={() => setAbierto((v) => !v)}
-        className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-semibold text-muted-foreground-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-semibold text-muted-foreground-strong hover:text-foreground pointer-coarse:min-h-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
         <span className="size-2 rounded-full" style={{ background: SEMAFORO.atencion }} aria-hidden />
         Esta semana · {cosas.length}
         <ChevronRight className={cn('size-3.5 transition-transform', abierto ? '-rotate-90' : 'rotate-90')} aria-hidden />
       </button>
-      <ul
+      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+      <ul role="list"
         id={idLista}
         hidden={!abierto}
         aria-label="Decisiones para esta semana"
@@ -910,7 +988,7 @@ function EstaSemana({ cosas, onVerPrimeraGestion }: { cosas: CosaDeHoy[]; onVerP
             <span className="min-w-0 flex-1">
               <span className="sr-only">{SEV_TEXTO[c.severidad]}: </span>{c.texto}
             </span>
-            <AccionDecision cosa={c} onVerPrimeraGestion={() => { setAbierto(false); onVerPrimeraGestion() }} etiquetaReparto={`Repartir: ${c.texto}`} />
+            <AccionDecision cosa={c} onVerPrimeraGestion={() => { setAbierto(false); onVerPrimeraGestion() }} etiquetaReparto={etiquetaReparto} />
           </li>
         ))}
       </ul>

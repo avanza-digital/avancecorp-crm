@@ -21,6 +21,8 @@ const TONOS = {
   casa: { conTc: 'text-muted-foreground', sinTc: 'text-foreground' },
   /** Dentro del panel de inteligencia de gerencia. */
   gerencia: { conTc: 'text-[var(--gi-muted)]', sinTc: 'text-[var(--gi-navy)]' },
+  /** Filas con fondo tintado (selección): el gris flojo baja de 4,5:1 a 11 px. */
+  fuerte: { conTc: 'text-muted-foreground-strong', sinTc: 'text-foreground' },
 } as const
 
 export interface DesgloseMonedasProps {

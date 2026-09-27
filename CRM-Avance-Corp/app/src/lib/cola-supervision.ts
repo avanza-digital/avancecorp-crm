@@ -7,6 +7,7 @@
 // caso, y el tiempo dice qué significa la fecha de referencia de ese bucket:
 // en unos es un plazo (vence / venció), en otros el inicio (desde).
 import { DIA_MS, duracionTexto, haceTexto } from './inteligencia'
+import { primerNombre } from './format'
 
 /** Estado del caso visto desde supervisión, por bucket del seguimiento. */
 export const ESTADO_CASO_SUPERVISION: Record<string, string> = {
@@ -39,4 +40,22 @@ export function momentoCaso(bucket: string, referenciaEn: string | null, ahora: 
   const dias = (ahora - ms) / DIA_MS
   if (!BUCKETS_CON_PLAZO.has(bucket)) return `desde ${haceTexto(Math.max(0, dias))}`
   return dias >= 0 ? `venció ${haceTexto(dias)}` : `vence en ${duracionTexto(-dias)}`
+}
+
+/**
+ * Nombre corto de cada persona para chips y columnas estrechas: el primer
+ * nombre, y si dos lo comparten, la inicial del último apellido para
+ * distinguirlos («Karen Z.» / «Karen L.»). Dos chips iguales no se pueden elegir.
+ */
+export function nombresCortos(nombres: readonly string[]): Map<string, string> {
+  const unicos = [...new Set(nombres.map((n) => n.trim()).filter(Boolean))]
+  const porPila = new Map<string, number>()
+  for (const n of unicos) porPila.set(primerNombre(n), (porPila.get(primerNombre(n)) ?? 0) + 1)
+  return new Map(unicos.map((n) => {
+    const pila = primerNombre(n)
+    if ((porPila.get(pila) ?? 0) < 2) return [n, pila] as const
+    const partes = n.split(/\s+/)
+    const inicial = partes.length > 1 ? (partes[partes.length - 1] ?? '').charAt(0).toUpperCase() : ''
+    return [n, inicial ? `${pila} ${inicial}.` : pila] as const
+  }))
 }

@@ -4,7 +4,7 @@
 // (./datos-supervisor.ts) corre de verdad sobre los mismos mocks que usa
 // supervisor.test.tsx; lo que se sustituye es la red.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol } from '@/lib/objetivos'
 import type { Actividad, Lead, Miembro, Yo } from '@/lib/tipos'
 import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
@@ -46,6 +46,7 @@ vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => <section aria-label
 vi.mock('./supervisor', () => ({ HoySupervisor: () => <p>Pantalla clásica del supervisor</p> }))
 
 let METRICAS_AGENDA: MetricasAgenda | undefined
+let CONVERSION: { data: unknown; isError: boolean } = { data: undefined, isError: false }
 let AGENDA_ERROR: Error | null = null
 const REFETCH_AGENDA = vi.fn()
 vi.mock('@/data/crm-queries', () => ({
@@ -56,7 +57,7 @@ vi.mock('@/data/crm-queries', () => ({
   useSolicitarTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
   useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   useMetricasAgenda: () => ({ data: METRICAS_AGENDA, error: AGENDA_ERROR, isPending: false, isFetching: false, refetch: REFETCH_AGENDA }),
-  useConversionMensual: () => ({ data: undefined, isError: false, isPending: false, isFetching: false, refetch: vi.fn() }),
+  useConversionMensual: () => ({ data: CONVERSION.data, isError: CONVERSION.isError, isPending: false, isFetching: false, refetch: vi.fn() }),
   useCierresExternos: () => ({ data: undefined, isError: false, isPending: false, isFetching: false, refetch: () => {} }),
 }))
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_e: unknown, f: string) => f }))
@@ -185,6 +186,7 @@ beforeEach(() => {
   CUMPLIMIENTO = null
   METRICAS_AGENDA = agenda([{ vendedor_id: KAREN, nombre: 'KAREN ZAPATA' }, { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN' }])
   AGENDA_ERROR = null
+  CONVERSION = { data: undefined, isError: false }
   RESPONDER = (filtros) => {
     const todas = colaTodo().filter((i) => filtros.analista_id == null || i.lead.analista_id === filtros.analista_id)
     return {
@@ -224,9 +226,8 @@ describe('Hoy · supervisor — puesto de mando: qué pantalla se elige', () => 
     MODO.activo = false
     MODO.error = new Error('caído')
     montar()
-    const alerta = screen.getByRole('alert')
-    expect(alerta).toHaveTextContent('No se pudo cargar el seguimiento')
-    fireEvent.click(within(alerta).getByRole('button', { name: /Reintentar/ }))
+    expect(screen.getByText(/No se pudo cargar el seguimiento/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar la carga del seguimiento' }))
     expect(REFETCH_MODO).toHaveBeenCalledTimes(1)
   })
 })
@@ -318,9 +319,8 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     montar()
     expect(screen.queryByText('ROSA CHÁVEZ')).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Para atender ahora' })).toBeInTheDocument()
-    const alerta = screen.getAllByRole('alert').find((a) => a.textContent?.includes('No se pudo cargar la cola'))
-    expect(alerta).toBeDefined()
-    fireEvent.click(within(alerta!).getByRole('button', { name: /Reintentar/ }))
+    expect(screen.getByText(/No se pudo cargar la cola/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar la carga de los pendientes del equipo' }))
     expect(REFETCH_COLA).toHaveBeenCalledTimes(1)
   })
 
@@ -342,6 +342,16 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     rerender(<HoySupervisorMando />)
     expect(pedidoCola()?.filtros.analista_id).toBeNull()
     expect(screen.getByRole('heading', { name: 'Pendientes del equipo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('si el analista elegido se DESACTIVA (sigue en el roster), el filtro también cae', () => {
+    const { rerender } = montar()
+    fireEvent.click(screen.getByRole('button', { name: 'JORGE HUAMÁN' }))
+    expect(pedidoCola()?.filtros.analista_id).toBe(JORGE)
+    VENDEDORES = VENDEDORES.map((m) => (m.perfil_id === JORGE ? { ...m, activo: false } : m))
+    rerender(<HoySupervisorMando />)
+    expect(pedidoCola()?.filtros.analista_id).toBeNull()
     expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -372,7 +382,7 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     montar()
     const fila = within(screen.getByRole('list', { name: /Pendientes del equipo/ })).getAllByRole('listitem')[0]!
     await act(async () => {
-      fireEvent.click(within(fila).getByRole('button', { name: 'Abrir ficha de ROSA CHÁVEZ, de Karen: Primera gestión pendiente · venció hace 2 días, S/ 20k' }))
+      fireEvent.click(within(fila).getByRole('button', { name: 'Abrir ficha de ROSA CHÁVEZ, de Karen, urgente: Primera gestión pendiente · venció hace 2 días, S/ 20k' }))
     })
     expect(abrirLead).toHaveBeenCalledWith('l-1')
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudo abrir la ficha')
@@ -423,9 +433,8 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
     ]
     montar()
     expect(screen.queryByText('Sin alertas en el equipo')).not.toBeInTheDocument()
-    const alerta = screen.getAllByRole('alert').find((a) => a.textContent?.includes('La agenda del equipo no respondió'))
-    expect(alerta).toBeDefined()
-    fireEvent.click(within(alerta!).getByRole('button', { name: /Reintentar/ }))
+    expect(screen.getByText(/La agenda del equipo no respondió/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar la carga de la agenda del equipo' }))
     expect(REFETCH_AGENDA).toHaveBeenCalledTimes(1)
     const equipo = screen.getByRole('list', { name: 'Analistas del equipo' })
     expect(equipo).not.toHaveTextContent('Al día')
@@ -457,7 +466,7 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
 
   it('el enlace de la cabecera lleva a «Mi equipo hoy»', () => {
     montar()
-    expect(screen.getByRole('link', { name: 'Mi equipo hoy →' })).toHaveAttribute('href', '#/gestion-diaria')
+    expect(screen.getByRole('link', { name: 'Mi equipo hoy' })).toHaveAttribute('href', '#/gestion-diaria')
   })
 })
 
@@ -495,6 +504,9 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
     expect(document.getElementById(tarjeta.getAttribute('aria-controls')!)).toHaveTextContent('Revisa la primera gestión con cada analista')
     expect(screen.getByRole('tab', { name: /Primera gestión/ })).toHaveAttribute('aria-selected', 'true')
     expect(pedidoCola()?.filtros).toEqual({ senal: 'primera_atencion', etapa: null, analista_id: null })
+    // La fuente de la tarjeta NO cambia de clave al cambiar la pestaña (Codex F2/F3).
+    expect(pedidoEquipo()?.filtros).toEqual({ senal: 'pendientes', etapa: null, analista_id: null })
+    expect(tarjeta).toBeInTheDocument()
     fireEvent.click(tarjeta)
     expect(tarjeta).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('tab', { name: /Para atender ahora/ })).toHaveAttribute('aria-selected', 'true')
@@ -502,7 +514,7 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
 
   it('«Ver» lleva a la cola y le pasa el foco a la pestaña', () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver las 1 primera gestión vencida en la cola' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ver en la cola: 1 primera gestión vencida' }))
     act(() => { vi.advanceTimersByTime(32) })
     const pestana = screen.getByRole('tab', { name: /Primera gestión/ })
     expect(pestana).toHaveAttribute('aria-selected', 'true')
@@ -518,7 +530,7 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
     expect(tarjeta).toHaveAttribute('aria-expanded', 'true')
     expect(pedidoCola()?.filtros).toEqual(antes)
     expect(document.getElementById(tarjeta.getAttribute('aria-controls')!))
-      .toHaveTextContent('En 7 días: 2 sin asistir · 1 tareas vencidas · 1 sin próxima acción.')
+      .toHaveTextContent('En 7 días: 2 citas sin asistir · 1 tarea vencida · 1 lead sin próxima acción.')
     expect(screen.getByRole('link', { name: 'Ver su día: KAREN ZAPATA: 2 citas sin asistir' })).toHaveAttribute('href', '#/gestion-diaria')
   })
 
@@ -552,6 +564,14 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
     expect(document.querySelectorAll('[data-decision]')).toHaveLength(0)
   })
 
+  it('con una fuente AÚN cargando no ordena: ni la tarjeta que ya se conoce ocupa un puesto', () => {
+    // El seguimiento ya trae 1 primera gestión, pero la agenda no llegó.
+    METRICAS_AGENDA = undefined
+    montar()
+    expect(screen.getByText('Revisando las decisiones del día…')).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-decision]')).toHaveLength(0)
+  })
+
   it('mientras el seguimiento carga no afirma que no hay nada: «Revisando…»', () => {
     RESPONDER = () => ({ data: undefined, error: null, isFetching: true })
     montar()
@@ -563,10 +583,9 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
     RESPONDER = (filtros) => ({ data: pagina([], { filtros: { ...filtros } }), error: new Error('caído'), isFetching: false })
     AGENDA_ERROR = new Error('agenda caída')
     montar()
-    const alerta = screen.getAllByRole('alert').find((a) => a.textContent?.includes('Algunas decisiones no se pudieron confirmar'))
-    expect(alerta).toHaveTextContent('no respondió el seguimiento ni la agenda')
+    expect(screen.getByText(/Algunas decisiones no se pudieron confirmar/)).toHaveTextContent('no respondió el seguimiento ni la agenda')
     expect(screen.queryByText('Nada que decidir ahora mismo.')).not.toBeInTheDocument()
-    fireEvent.click(within(alerta!).getByRole('button', { name: /Reintentar/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar la carga de las decisiones del día' }))
     expect(REFETCH_COLA).toHaveBeenCalled()
     expect(REFETCH_AGENDA).toHaveBeenCalled()
   })
@@ -595,7 +614,7 @@ describe('Hoy · supervisor — puesto de mando: consulta y detalle (F3)', () =>
     expect(cifras).toHaveTextContent('10 toques en 7 días')
     expect(cifras).toHaveTextContent('60 % completadas')
     // 2 no asistió en el equipo: el número va en rojo de TEXTO, con su palabra al lado.
-    const itemNoAsistio = within(cifras).getAllByRole('listitem').find((li) => li.textContent === '2 no asistió')!
+    const itemNoAsistio = within(cifras).getAllByRole('listitem').find((li) => li.textContent === '2 citas sin asistir')!
     expect(itemNoAsistio.querySelector('strong')).toHaveStyle({ color: 'var(--destructive-text)' })
     expect(document.body).not.toHaveTextContent(/pipeline|suma÷suma|solo producción/i)
   })
@@ -615,7 +634,7 @@ describe('Hoy · supervisor — puesto de mando: consulta y detalle (F3)', () =>
     expect(within(dialogo).getAllByText('Sin meta fijada para este mes').length).toBeGreaterThan(0)
     expect(within(dialogo).getByRole('region', { name: 'Agenda del equipo' })).toBeInTheDocument()
     expect(within(dialogo).getByText(/Ves solo a tu equipo/)).toBeInTheDocument()
-    expect(within(dialogo).getByRole('link', { name: 'Ver derivaciones; bandeja sin pendientes' })).toHaveAttribute('href', '#/derivaciones')
+    expect(within(dialogo).getByRole('link', { name: 'Por repartir: Ver derivaciones; bandeja sin pendientes' })).toHaveAttribute('href', '#/derivaciones')
     fireEvent.keyDown(dialogo, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -626,5 +645,51 @@ describe('Hoy · supervisor — puesto de mando: consulta y detalle (F3)', () =>
     fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cerrar' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('Hoy · supervisor — puesto de mando: arreglos de la revisión F2/F3', () => {
+  it('una conversión RETENIDA tras un error no se publica en la franja y el aviso es visible sin abrir el detalle', () => {
+    CONVERSION = {
+      data: {
+        version: 1, generado_en: '2026-09-26T15:00:00Z', alcance: 'equipo',
+        periodo: { mes: '2026-09', mes_nombre: 'septiembre', anio: 2026, zona: 'America/Lima', desde: '2026-09-01T05:00:00Z', hasta: '2026-10-01T05:00:00Z' },
+        ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
+        fuentes: { divisor: 'x', numerador: 'x', referido: 'x' },
+        cobertura: { medible: true, suelo_historico: null, motivo_no_medible: null, divisor_aproximado: 0, divisor_por_motivo: { ingreso: 10 }, cierres_sin_episodio: 0, fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 } },
+        cartera: {},
+        total: { analistas: 1, divisor: 10, cierres_no_referidos: 0, cierres_referidos: 0, cierres_de_arrastre: 0, referidos_recibidos: 0, numerador: 4, conversion_pct: 40, referidos_aporta_pct: null, cartera: {} },
+        responsables: [],
+      },
+      isError: true,
+    }
+    montar()
+    expect(screen.getByRole('list', { name: 'Cifras del equipo' })).toHaveTextContent('— conversión del mes')
+    expect(screen.getByText(/No se pudieron cargar algunos indicadores del equipo/)).toBeInTheDocument()
+  })
+
+  it('al cerrar «Detalle» con Esc el foco VUELVE al botón', async () => {
+    vi.useRealTimers()
+    montar()
+    const boton = screen.getByRole('button', { name: 'Detalle' })
+    boton.focus()
+    fireEvent.click(boton)
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Detalle del equipo' }), { key: 'Escape' })
+    await waitFor(() => expect(boton).toHaveFocus())
+  })
+
+  it('«Esta semana» se cierra con un clic fuera y usa la etiqueta del reparto del servidor', () => {
+    METRICAS_AGENDA = agenda([
+      { vendedor_id: KAREN, nombre: 'KAREN ZAPATA', no_asistio: 2 },
+      { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', leads_sin_accion: 5 },
+    ])
+    LEADS = [...LEADS, lead({ id: 'l-5', nombre_completo: 'SIN DUEÑO', vendedor_id: null })]
+    montar()
+    const disparador = screen.getByRole('button', { name: /Esta semana · 1/ })
+    fireEvent.click(disparador)
+    const lista = screen.getByRole('list', { name: 'Decisiones para esta semana' })
+    expect(within(lista).getByRole('link', { name: 'Repartir 1 lead pendiente' })).toHaveAttribute('href', '#/derivaciones')
+    fireEvent.pointerDown(document.body)
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
   })
 })

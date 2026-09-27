@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estadoCasoSupervision, momentoCaso } from './cola-supervision'
+import { estadoCasoSupervision, momentoCaso, nombresCortos } from './cola-supervision'
 
 const AHORA = Date.parse('2026-09-27T15:00:00Z')
 
@@ -33,5 +33,18 @@ describe('momentoCaso', () => {
   it('sin fecha (null o ilegible) lo dice en vez de inventar un tiempo', () => {
     expect(momentoCaso('primera_atencion', null, AHORA)).toBe('sin fecha confirmada')
     expect(momentoCaso('seguimiento', 'no-es-fecha', AHORA)).toBe('sin fecha confirmada')
+  })
+})
+
+describe('nombresCortos', () => {
+  it('primer nombre cuando no se repite', () => {
+    expect([...nombresCortos(['KAREN ZAPATA', 'JORGE HUAMÁN']).values()]).toEqual(['Karen', 'Jorge'])
+  })
+
+  it('si dos comparten el primer nombre, los distingue con la inicial del apellido', () => {
+    const m = nombresCortos(['KAREN ZAPATA', 'KAREN LÓPEZ', 'JORGE HUAMÁN', 'KAREN ZAPATA'])
+    expect(m.get('KAREN ZAPATA')).toBe('Karen Z.')
+    expect(m.get('KAREN LÓPEZ')).toBe('Karen L.')
+    expect(m.get('JORGE HUAMÁN')).toBe('Jorge')
   })
 })
