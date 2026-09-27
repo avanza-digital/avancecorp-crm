@@ -45,13 +45,13 @@ al del `main` local; luego se avanza con `--ff-only`.
 
 ## Limpieza
 
-- **35 ramas locales borradas** (71 → 36), todas ya dentro de `main` o con PR fusionada en el
+- **37 ramas locales borradas** (71 → 34; 35 por el agente y 2 por Miguel, abajo), todas ya dentro de `main` o con PR fusionada en el
   mismo commit. Se recuperan con `git branch <rama> <commit>` mientras git no las recolecte:
   `ci/e2e-local-docker` `e0c07e5ada87` · `codex/f4-cierre` `fa33e375f7c2` · `codex/f5-cartera` `3a4cd223101b` · `codex/f5-instalacion` `5ec315696fa4` · `codex/f6-postventa` `a2a2c90293bd` · `codex/f7-metricas` `e9ead769aba4` · `codex/f8-piloto` `faa1059745aa` · `codex/gestion-diaria-f4-vista-equipo` `c237dc071f4f` · `conversion/doce-puertas-unificadas` `26b75814071c` · `docs/cierre-rechazos-tasa-20260916` `51512f0b9a8b` · `docs/cierre-rechazos-tasa-a-main-20260917` `fd68135d8907` · `docs/gestion-diaria-f3-acta` `cb6089707211` · `docs/rentabilidad-integral-publicada-20260918` `1bc710f30e39` · `feat/leads-filtro-origen` `718b01931fd3` · `feat/multiempresa-f1-expand` `b57bf35e58b2` · `feat/multiempresa-f2-backfill` `f9e053ca9267` · `feat/multiempresa-f2b-cola` `f0a262e63731` · `feat/multiempresa-f3-puertas` `f88e978c1af4` · `gestion-diaria/f2-resultado` `cece2489052b` · `gestion-diaria/f3-cache-parcial` `41df4e8428df` · `gestion-diaria/f3-pestana-vacia` `4b7307ae7e7a` · `gestion-diaria/nivel-bajo-ambar` `960a744c56b1` · `probe` `37a936c75673` · `release/alfin-banco-20260901` `a56fdac21a19` · `release/landing-formulario-20260901` `3cc480bd2ade` · `release/restaurar-ficha360-20260831` `3e6d69ee6ba9` · `ux/gerencia-f2` `96f20383948e` · `codex/corregir-acceso-clave-servicio-20260919` `f9ca932f0f16` · `codex/gestion-diaria-f4-detalle-analista` `d60eafb03080` · `codex/gestion-multiempresa` `24794825274e` · `fix/rechazos-tasa-jornada` `e01b4718a77a` · `fix/tipo-cambio-bcrp-set-20260918` `4d33785eddd6` · `foco-accesible-21-09` `4c408e471d38` · `venta-cruzada/publicacion-fases-1-6` `dd6f4ab2eb68` · `venta-cruzada/docs-release-frente` `790cee3ab69b`
-- **Bloqueado por el clasificador de permisos (lo lanza Miguel):** borrar
-  `wip/workspace-20260823-completo` (ya dentro de `main`), `git worktree prune` de 7 worktrees
-  cuyas carpetas ya no existen y retirar `/private/tmp/avancecorp-ranking-origen-wt` con su rama
-  `codex/ranking-origen-20260926` (limpio y contenido en `main`).
+- **Hechos por Miguel con `!`** (el clasificador los bloqueó para el agente): borrada
+  `wip/workspace-20260823-completo` `977e4f34` (ya dentro de `main`), `git worktree prune` de 7
+  worktrees sin carpeta, y retirado `/private/tmp/avancecorp-ranking-origen-wt` con su rama
+  `codex/ranking-origen-20260926` `58ff3937` (contenida en `main`). Quedan 34 ramas y 1 worktree.
 - **Se quedan:** 32 ramas viejas que se fusionaron por squash o se abandonaron, porque no hay
   forma automática de probar que no guarden trabajo. Entre ellas están las de la Ficha 360 de
   agosto. También se queda el worktree `supervisor-fecha-20260924`, que tiene 1 cambio sin

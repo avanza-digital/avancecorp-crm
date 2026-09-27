@@ -6,7 +6,7 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Integracion del main local y pendientes (2026-09-27)]] — **INTEGRADO:** main local al día con GitHub (#101–#113); PR #114 sin lo de Gloria (cuentas de Gloria y Pagos del portal quedan SOLO en local, decisión de Miguel). Limpieza de 35 ramas y lista de pendientes al 27/09.
+- [[Integracion del main local y pendientes (2026-09-27)]] — **INTEGRADO:** main local al día con GitHub (#101–#113); PR #114 sin lo de Gloria (cuentas de Gloria y Pagos del portal quedan SOLO en local, decisión de Miguel). Limpieza de 37 ramas y lista de pendientes al 27/09.
 
 - [[Conversion - publicacion verificada (2026-09-27)]] — **PUBLICADA:** conversión por cierre comercial y vínculo confirmado hasta finalizar el día 10 siguiente, desde septiembre. 97 acreditadas, 9 tardías y 2 pendientes; históricos/importes intactos. PR #113, SQL por merge nativo, matriz 2268/0 y 80 archivos HTTP PASS. Límites previos documentados.
 
