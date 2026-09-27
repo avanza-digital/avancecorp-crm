@@ -1,3 +1,44 @@
+## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
+
+**PREPARADA Y ENSAYADA; PENDIENTE DE REVISIONES Y DEL OK DE MIGUEL.** Cierra el caso del «mismo
+día» aceptado en F3: un Excel exportado con la cuenta A, depositado en A, y un cambio A→B ese mismo
+día antes de importar dejaba el pago anotado en B. Decisiones de Miguel (26/09): solo cuentas de
+pago del contrato (actual o histórica, cualquier versión); el pago manual muestra la cuenta y la
+declara; sin CCI se deduce por fecha; los pagos anteriores no cambian.
+
+Piezas:
+- `private.sellar_cuenta_cuota_pagada()` (create or replace): si la transacción trae el ajuste
+  `crm.cci_deposito`, sella la cuenta del cliente con ese CCI restringida al contrato (enlace actual
+  ∪ historial de F3), `origen = 'declarado'`; otro CCI → 22023 y el pago no se registra. Sin ajuste,
+  deduce por fecha (`registro`). Corregir la fecha solo re-sella lo deducido.
+- `crm.registrar_pago_con_cuenta(p_cuota_id, p_fecha, p_monto, p_cci)` — INVOKER, EXECUTE solo
+  authenticated: monto > 0, CCI de 20 dígitos si viene; `set_config` local a la transacción;
+  `UPDATE … where estado = 'pendiente'` con la RLS de siempre (`cronograma_admin_actualiza`);
+  limpia el ajuste; devuelve la cuota o NULL.
+- `crm.contratos_cuenta_pago_cliente_fn`: `pagadas_por_cuenta` suma `declaradas` (columna al final;
+  misma firma). Constraint de `origen` admite `declarado`.
+- Toca `public` solo por lectura y por el UPDATE de la RPC bajo RLS; no crea ni cambia triggers,
+  policies ni tablas de `public`.
+
+Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 12 comprobaciones, 5 mutantes
+  (sin declaración, sin restricción al contrato, sin limpiar el ajuste, sin validar CCI, sin exigir
+  pendiente). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la clave nueva).
+- Registro `../scripts/cuentas-gloria/registrar-pago-declara-cuenta.sql` ensayado, con huella de las
+  4 funciones `af5c176fb94a153098da7b10e3c6e9af`.
+- Reversa `../scripts/cuentas-gloria/reversa-pago-declara-cuenta.sql`: repone F3 + arreglos byte a
+  byte; se niega con sellos `declarado` (ensayado). Orden de reversas: F5 → arreglos → F4 → F3.
+  Tras las cuatro, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): pago manual muestra y declara la cuenta vigente; el Excel
+  «viejo» declara la cuenta con la que se exportó.
+- Hecho documentado: un admin con membresía CRM revocada (P04) marca pagos, igual que con el UPDATE
+  directo vigente (la RLS de `public.cronograma_pagos` no aplica P04; cambiarlo tocaría una policy
+  de `public` y no es de esta fase).
+- NOT RUN: gate `test-rls` (mismo motivo que F3); concurrencia con dos sesiones.
+
+Consumidor: Pagos del portal (importación del Excel y modal «Marcar como pagado»); la ventana
+«Cuentas» de Gloria lee `declaradas`. Orden: base → portal.
+
 ## 20260927020317 — Cuentas de Gloria · arreglos: motivo de F3 y marca «cuenta retirada»
 
 **OK EXPLÍCITO DE MIGUEL (26/09, ~21:15): «Sí, aplica y publica».**

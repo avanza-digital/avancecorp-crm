@@ -428,7 +428,7 @@ begin
   select * into r from crm.contratos_cuenta_pago_cliente_fn('e7b10000-0000-4000-8000-000000000005') where numero_contrato = 'F3-K1';
   if r.cuenta_bancaria_id is distinct from 'e7b1c000-0000-4000-8000-000000000002' or r.cuotas_pendientes <> 1
      or r.proxima_fecha is distinct from '2026-12-01'::date
-     or r.pagadas_por_cuenta <> jsonb_build_array(
+     or (select jsonb_agg(x - 'declaradas') from jsonb_array_elements(r.pagadas_por_cuenta) x) <> jsonb_build_array(
           jsonb_build_object('cuenta_bancaria_id', 'e7b1c000-0000-4000-8000-000000000001', 'banco', 'BCP',
                              'numero_cuenta', '19100000000001', 'cuotas', 3, 'inferidas', 1),
           jsonb_build_object('cuenta_bancaria_id', 'e7b1c000-0000-4000-8000-000000000002', 'banco', 'Interbank',
