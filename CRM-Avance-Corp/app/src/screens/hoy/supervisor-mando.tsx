@@ -12,12 +12,16 @@
 // clásica ./supervisor.tsx, que sigue siendo también el rollback de una línea.
 // Meta, reparto, agenda y TC: ./datos-supervisor.ts, compartido con ella.
 import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
-import { ChevronRight, ListChecks, RefreshCw, UsersRound } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Inbox, ListChecks, RefreshCw, Target, Users, UsersRound, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
+import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
@@ -25,17 +29,21 @@ import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
 import { estadoCasoSupervision, momentoCaso } from '@/lib/cola-supervision'
 import { conteoSemaforoEquipo, lecturaAnalista, type LecturaAnalista } from '@/lib/senal-equipo'
 import { candidatosDeHoy, partesDeCosa, tresCosasDeHoy, type CosaDeHoy } from '@/lib/tres-cosas'
-import { haceTexto } from '@/lib/inteligencia'
+import { colorMeta, haceTexto } from '@/lib/inteligencia'
+import { resumenAgenda } from '@/lib/agenda-equipo-vista'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
-import { totalEnSoles } from '@/lib/capital-unificado'
-import { moneyK, numero, primerNombre } from '@/lib/format'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { moneyCompacta, moneyK, numero, porcentajeConversionCanonica, primerNombre } from '@/lib/format'
 import { hashDe } from '@/lib/router'
 import { cn } from '@/lib/utils'
 import { usePanelesActions } from '@/lib/store-context'
+import { useAuth } from '@/lib/auth-context'
 import type { FiltrosSla } from '@/lib/sla-operacion'
 import { HoySupervisor } from './supervisor'
 import { useDatosSupervisor } from './datos-supervisor'
+import { AgendaEquipoPanel } from './agenda-equipo'
+import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 
 /** Filas de la vista previa: lo demás vive en el módulo Seguimiento. */
 const COLA_VISIBLES = 7
@@ -74,38 +82,51 @@ const COLOR_NIVEL: Record<NonNullable<LecturaAnalista['nivel']>, string> = {
 
 export function HoySupervisorMando(): JSX.Element {
   const modo = useModoSla()
+  const { yo } = useAuth()
   if (modo.legado) return <HoySupervisor />
-  // Cambiar de revisión del seguimiento remonta la pantalla: ningún filtro ni
-  // selección de la revisión anterior sobrevive sobre datos de otra.
-  return <PuestoDeMando key={String(modo.data?.control_revision ?? 'sin-revision')} />
+  // Cambiar de identidad o de revisión del seguimiento remonta la pantalla:
+  // ningún filtro ni selección sobrevive sobre datos de otra (como
+  // SlaOperacionBoundary).
+  return <PuestoDeMando key={`${yo?.id ?? ''}|${yo?.rol ?? ''}|${modo.data?.control_revision ?? 'sin-revision'}`} />
 }
 
 function PuestoDeMando(): JSX.Element {
   const modo = useModoSla()
   const datos = useDatosSupervisor()
   const { abrirLead } = usePanelesActions()
+  const { yo } = useAuth()
   const { ambito, rank, tc, ahora } = datos
   const idPanelCola = useId()
 
   const [pestana, setPestana] = useState<PestanaMando>('pendientes')
-  const [analistaId, setAnalistaId] = useState<string | null>(null)
+  const [analistaElegido, setAnalistaId] = useState<string | null>(null)
+  // Un analista que sale del equipo no deja la cola filtrada por un id oculto.
+  const analistaId = analistaElegido != null && ambito.vendedores.some((m) => m.perfil_id === analistaElegido)
+    ? analistaElegido
+    : null
   const [anuncio, setAnuncio] = useState('')
   const [abriendo, setAbriendo] = useState<string | null>(null)
   const [errorApertura, setErrorApertura] = useState(false)
   const [decisionAbierta, setDecisionAbierta] = useState<CosaDeHoy['id'] | null>(null)
+  const [detalleAbierto, setDetalleAbierto] = useState(false)
 
   const filtros: FiltrosSla = { senal: pestana, etapa: null, analista_id: analistaId }
   const consultaCola = useColaSlaPagina(filtros, null, COLA_VISIBLES, modo.activo)
   // Fail-closed: TanStack conserva la última respuesta tras un refetch
   // fallido; con error, la cola NO se muestra como vigente.
   const pagina = consultaCola.error ? undefined : consultaCola.data
-  const paginaVigente = pagina?.modo === 'activo' ? pagina : undefined
+  // Vigente = modo activo Y la MISMA revisión de reglas que el modo: la caché
+  // de TanStack no conoce la revisión y, al remontar, podría servir una página
+  // calculada con las reglas anteriores mientras refresca.
+  const revisionVigente = modo.data?.control_revision
+  const esVigente = (p: typeof pagina) => p != null && p.modo === 'activo' && p.control_revision === revisionVigente
+  const paginaVigente = esVigente(pagina) ? pagina : undefined
   // Las decisiones del día miran a TODO el equipo: sin filtro por analista.
   // Sin filtro es la MISMA clave que la cola (TanStack la comparte); con
   // filtro es la consulta que la cola tenía antes de filtrar.
   const consultaEquipo = useColaSlaPagina({ senal: pestana, etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
   const paginaEquipo = consultaEquipo.error ? undefined : consultaEquipo.data
-  const paginaEquipoVigente = paginaEquipo?.modo === 'activo' ? paginaEquipo : undefined
+  const paginaEquipoVigente = esVigente(paginaEquipo) ? paginaEquipo : undefined
 
   // El store es caché PARCIAL: un lead ausente es «desconocido», no «sin
   // monto» ni «sin teléfono». Contacto y monto solo con el lead completo.
@@ -247,6 +268,17 @@ function PuestoDeMando(): JSX.Element {
     if (datos.resumenOp.error) void datos.resumenOp.recargar()
     if (datos.vendedoresOp.error) void datos.vendedoresOp.recargar()
   }
+
+  // ── 3 · Consulta: las cifras de siempre, en una línea; el detalle, encima ──
+  const agendaResumen = datos.agendaConfirmada ? resumenAgenda(datos.agendaConfirmada.vendedores) : null
+  const filaCapital = datos.filasMeta[0]
+  const metaTexto = filaCapital == null || filaCapital.sinDato ? '—' : `${Math.round(filaCapital.pct)} %`
+  const conversionTexto = datos.conversionConfirmada == null ? '—' : porcentajeConversionCanonica(datos.conversionConfirmada)
+  const pronostico = datos.capitalPronostico
+  // En la franja, compacto (S/ 1.48 M); la cifra exacta vive en el KPI del detalle.
+  const pronosticoCorto = pronostico && datos.resumen
+    ? moneyCompacta(pronostico.soloDolares ? datos.resumen.capital.asignado.usd : datos.resumen.capital.asignado.pen, pronostico.moneda)
+    : '—'
 
   const tituloCola = nombreAnalista ? `Pendientes de ${primerNombre(nombreAnalista)}` : 'Pendientes del equipo'
 
@@ -417,7 +449,9 @@ function PuestoDeMando(): JSX.Element {
                   <p role="status" className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">Cargando los pendientes del equipo…</p>
                 ) : !paginaVigente ? (
                   <p role="status" className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">
-                    Las reglas del seguimiento cambiaron. Actualiza la pantalla para ver el modo vigente.
+                    {pagina.modo !== 'activo'
+                      ? 'Las reglas del seguimiento cambiaron. Actualiza la pantalla para ver el modo vigente.'
+                      : 'Actualizando los pendientes con las reglas vigentes…'}
                   </p>
                 ) : paginaVigente.items.length === 0 ? (
                   <p className="border-t border-border/60 px-5 py-4 text-sm text-muted-foreground">
@@ -492,9 +526,10 @@ function PuestoDeMando(): JSX.Element {
               </a>
             )}
           />
-          {rank != null && rank.length > 0 && (
+          {rank != null && rank.length > 0 && (semaforoEquipo.rojo > 0 || semaforoEquipo.ambar > 0 || datos.agendaConfirmada != null) && (
             <p className="-mt-2 px-5 pb-2 text-xs text-muted-foreground-strong">
               {semaforoEquipo.rojo === 0 && semaforoEquipo.ambar === 0
+                // Solo con la agenda confirmada: sin ella, cero señales es desconocido.
                 ? 'Sin alertas en el equipo'
                 : `${numero(semaforoEquipo.rojo)} en rojo · ${numero(semaforoEquipo.ambar)} en ámbar`}
             </p>
@@ -588,6 +623,150 @@ function PuestoDeMando(): JSX.Element {
           )}
         </Card>
       </div>
+
+      {/* ── 3 · Consulta: cifras en una línea; «Detalle» abre todo lo demás ── */}
+      <section aria-label="Consulta" className="flex min-h-12 flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-border bg-card px-5 py-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground-strong" aria-hidden>Consulta</span>
+        <ul aria-label="Cifras del equipo" className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] tabular-nums text-muted-foreground-strong">
+          <li>
+            <strong className="font-extrabold text-primary">{pronosticoCorto}</strong> pronóstico
+            {pronostico?.otra ? ` · +${pronostico.otra} aparte` : ''}
+          </li>
+          <li><strong className="font-extrabold text-primary">{datos.resumen ? numero(datos.resumen.totales.asignados) : '—'}</strong> leads activos</li>
+          <li><strong className="font-extrabold text-primary">{metaTexto}</strong> de la meta</li>
+          <li><strong className="font-extrabold text-primary">{conversionTexto}</strong> conversión del mes</li>
+          <li aria-hidden className="h-[18px] w-px bg-border" />
+          <li><strong className="font-extrabold text-primary">{agendaResumen ? numero(agendaResumen.toques) : '—'}</strong> toques en 7 días</li>
+          <li><strong className="font-extrabold text-primary">{agendaResumen?.pctCompletadas != null ? `${agendaResumen.pctCompletadas} %` : '—'}</strong> completadas</li>
+          <li>
+            <strong
+              className="font-extrabold"
+              style={{ color: agendaResumen && agendaResumen.noAsistio >= 2 ? 'var(--destructive-text)' : 'var(--primary)' }}
+            >
+              {agendaResumen ? numero(agendaResumen.noAsistio) : '—'}
+            </strong> no asistió
+          </li>
+        </ul>
+        <Button type="button" variant="outline" size="sm" className="ml-auto min-h-9 text-accent" onClick={() => setDetalleAbierto(true)}>
+          Detalle
+        </Button>
+      </section>
+
+      <Dialog
+        open={detalleAbierto}
+        onClose={() => setDetalleAbierto(false)}
+        className="w-[1180px] max-h-[88vh] max-w-[94vw]"
+      >
+        <DialogHeader>
+          <DialogTitle>Detalle del equipo</DialogTitle>
+          <DialogDescription>Indicadores, cumplimiento del mes y agenda de los últimos 7 días.</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Pronóstico: `capitalPrincipal`, NUNCA un total mixto con los dólares. */}
+            <KpiCard
+              label="Pronóstico de capital abierto"
+              value={pronostico ? pronostico.valor : '—'}
+              icon={Wallet}
+              color={SEMAFORO.neutro}
+              sub={
+                pronostico?.otra
+                  ? `En soles · +${pronostico.otra} aparte`
+                  : pronostico?.soloDolares
+                    ? 'En dólares · abiertos con analista'
+                    : datos.resumen && datos.resumen.capital.asignado.pen === 0 && datos.resumen.totales.asignados > 0
+                      ? 'Sin montos estimados — complétalos en cada ficha'
+                      : 'En soles · abiertos con analista'
+              }
+            />
+            <KpiCard
+              label="Leads activos del equipo"
+              value={datos.resumen ? String(datos.resumen.totales.asignados) : '—'}
+              icon={Users}
+              color={SEMAFORO.neutro}
+              sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} a cargo`}
+              delay={60}
+            />
+            <KpiCard
+              label="Primeras gestiones vencidas"
+              value={primeraGestionPendiente == null ? '—' : String(primeraGestionPendiente)}
+              icon={AlertTriangle}
+              color={SEMAFORO.neutro}
+              sub={primeraGestionPendiente == null
+                ? 'Sin dato por ahora'
+                : primeraGestionPendiente > 0 ? 'Revísalas con cada analista' : 'Ninguna vencida'}
+              delay={120}
+            />
+            <a
+              href={hashDe('derivaciones')}
+              aria-label={datos.etiquetaAccesoReparto}
+              className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <KpiCard
+                label="Por repartir"
+                value={datos.totalPorRepartir == null ? '—' : String(datos.totalPorRepartir)}
+                icon={Inbox}
+                color={SEMAFORO.neutro}
+                sub={datos.detalleReparto}
+                delay={180}
+              />
+            </a>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-5">
+            <Card className="lg:col-span-2">
+              <SectionHead
+                icon={Target}
+                title="Cumplimiento del mes"
+                right={tc ? <span className="text-xs text-muted-foreground-strong">{rotuloTipoCambio(tc.promedio, tc.fuente)}</span> : undefined}
+              />
+              <CardContent className="space-y-4 pb-5 pt-0">
+                {datos.filasMeta.map((f) => (
+                  <div key={f.label}>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
+                      <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
+                    </div>
+                    {f.nota && <p className="mb-1 text-[11px] tabular-nums text-muted-foreground-strong">{f.nota}</p>}
+                    {f.sinDato
+                      ? <p className="text-[11px] text-muted-foreground-strong">{f.sinDato}</p>
+                      : <Progress value={f.pct} color={colorMeta(f.pct)} />}
+                  </div>
+                ))}
+                <p className="text-[11px] text-muted-foreground-strong">
+                  El capital en dólares entra al total convertido a tipo de cambio real. El pronóstico no cuenta como cumplimiento.
+                </p>
+                {datos.hayErrorMensual && (
+                  <Button variant="ghost" size="sm" onClick={datos.reintentarMensual}>
+                    Reintentar
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+            <div className="min-w-0 lg:col-span-3">
+              <AgendaEquipoPanel
+                datos={datos.datosAgenda}
+                cargando={datos.cargandoAgenda}
+                error={datos.errorAgenda}
+                modoDemo={yo?.demo === true}
+                onReintentar={datos.recargarAgenda}
+                equipo={datos.equipo}
+              />
+            </div>
+          </div>
+
+          {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC). */}
+          <DesglosePorEmpresa demo={yo?.demo === true} porVendedor={datos.cumplimientoMensual?.porVendedor ?? null} />
+          {/* Rentabilidad R3: las solicitudes de tasa propias en curso (solo si hay). */}
+          <TasasAutorizadasAnalistaPanel />
+          <p className="text-[11px] text-muted-foreground-strong">
+            Ves solo a tu equipo y tu bandeja de reparto; cada rol ve únicamente lo que le corresponde.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => setDetalleAbierto(false)}>Cerrar</Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   )
 }

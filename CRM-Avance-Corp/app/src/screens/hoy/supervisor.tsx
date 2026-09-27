@@ -105,6 +105,7 @@ export function HoySupervisor(): JSX.Element {
     hayErrorMensual,
     reintentarMensual,
     datosAgenda,
+    agendaConfirmada,
     errorAgenda,
     cargandoAgenda,
     recargarAgenda,
@@ -222,9 +223,11 @@ export function HoySupervisor(): JSX.Element {
       cola,
       totalPorRepartir,
       esperaMasLargaReparto,
-      vendedoresAgenda: datosAgenda?.vendedores ?? [],
+      // Para DECIDIR, solo la agenda confirmada: tras un refetch fallido
+      // TanStack conserva la respuesta anterior (Codex, F1 del puesto de mando).
+      vendedoresAgenda: agendaConfirmada?.vendedores ?? [],
     }),
-    [cola, totalPorRepartir, esperaMasLargaReparto, datosAgenda],
+    [cola, totalPorRepartir, esperaMasLargaReparto, agendaConfirmada],
   )
   // «Ver →» de la franja: selecciona la pestaña y le LLEVA el foco (el
   // focus() también hace scroll hasta la tarjeta de la cola).

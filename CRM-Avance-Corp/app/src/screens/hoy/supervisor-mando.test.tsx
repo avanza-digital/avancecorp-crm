@@ -324,6 +324,27 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     expect(REFETCH_COLA).toHaveBeenCalledTimes(1)
   })
 
+  it('una página de OTRA revisión de reglas (caché) no se pinta mientras refresca', () => {
+    RESPONDER = (filtros) => ({ data: pagina(colaTodo(), { filtros: { ...filtros }, control_revision: 1 }), error: null, isFetching: true })
+    MODO.data = { control_revision: 2 }
+    montar()
+    expect(screen.queryByText('ROSA CHÁVEZ')).not.toBeInTheDocument()
+    expect(screen.getByText('Actualizando los pendientes con las reglas vigentes…')).toBeInTheDocument()
+    // Las decisiones tampoco usan esos conteos viejos.
+    expect(screen.queryByRole('button', { name: /primera gestión vencida/ })).not.toBeInTheDocument()
+  })
+
+  it('si el analista elegido sale del equipo, la cola deja de filtrarse por su id', () => {
+    const { rerender } = montar()
+    fireEvent.click(screen.getByRole('button', { name: 'KAREN ZAPATA' }))
+    expect(pedidoCola()?.filtros.analista_id).toBe(KAREN)
+    VENDEDORES = VENDEDORES.filter((m) => m.perfil_id !== KAREN)
+    rerender(<HoySupervisorMando />)
+    expect(pedidoCola()?.filtros.analista_id).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Pendientes del equipo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('una respuesta que ya no es del modo activo no se pinta como vigente', () => {
     RESPONDER = () => ({ data: pagina(colaTodo(), { modo: 'legado' }), error: null, isFetching: false })
     montar()
@@ -393,16 +414,45 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
     expect(screen.getByText('1 en rojo · 0 en ámbar')).toBeInTheDocument()
   })
 
-  it('con la agenda CAÍDA avisa en la tarjeta, deja reintentar y no dice «Al día»', () => {
+  it('con la agenda CAÍDA avisa en la tarjeta, deja reintentar y no dice «Al día» ni «Sin alertas»', () => {
     AGENDA_ERROR = new Error('agenda caída')
+    // Todos con actividad fresca: sin agenda, cero señales es DESCONOCIDO.
+    LEADS = [
+      lead({ creado_en: '2026-09-26T14:00:00Z' }),
+      lead({ id: 'l-4', nombre_completo: 'LEAD DE JORGE', vendedor_id: JORGE, creado_en: '2026-09-26T14:00:00Z' }),
+    ]
     montar()
-    LEADS = [...LEADS, lead({ id: 'l-4', nombre_completo: 'LEAD DE JORGE', vendedor_id: JORGE, creado_en: '2026-09-26T14:00:00Z' })]
+    expect(screen.queryByText('Sin alertas en el equipo')).not.toBeInTheDocument()
     const alerta = screen.getAllByRole('alert').find((a) => a.textContent?.includes('La agenda del equipo no respondió'))
     expect(alerta).toBeDefined()
     fireEvent.click(within(alerta!).getByRole('button', { name: /Reintentar/ }))
     expect(REFETCH_AGENDA).toHaveBeenCalledTimes(1)
     const equipo = screen.getByRole('list', { name: 'Analistas del equipo' })
     expect(equipo).not.toHaveTextContent('Al día')
+  })
+
+  it('«Sin alertas» solo con la agenda confirmada y todos sin señal', () => {
+    LEADS = [
+      lead({ creado_en: '2026-09-26T14:00:00Z' }),
+      lead({ id: 'l-4', nombre_completo: 'LEAD DE JORGE', vendedor_id: JORGE, creado_en: '2026-09-26T14:00:00Z' }),
+    ]
+    montar()
+    expect(screen.getByText('Sin alertas en el equipo')).toBeInTheDocument()
+  })
+
+  it('mientras la agenda carga tampoco afirma «Sin alertas»', () => {
+    METRICAS_AGENDA = undefined
+    LEADS = [lead({ creado_en: '2026-09-26T14:00:00Z' })]
+    montar()
+    expect(screen.queryByText('Sin alertas en el equipo')).not.toBeInTheDocument()
+  })
+
+  it('un analista sin leads abiertos conserva su alerta roja de agenda', () => {
+    METRICAS_AGENDA = agenda([{ vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', no_asistio: 3 }])
+    montar()
+    const jorge = within(screen.getByRole('list', { name: 'Analistas del equipo' })).getByRole('button', { name: /JORGE HUAMÁN/ })
+    expect(jorge).toHaveTextContent('3 citas sin asistir')
+    expect(within(jorge).getByTestId('equipo-semaforo')).toHaveAttribute('data-nivel', 'critico')
   })
 
   it('el enlace de la cabecera lleva a «Mi equipo hoy»', () => {
@@ -526,5 +576,55 @@ describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
     MODO.data = undefined
     montar()
     expect(screen.queryByRole('heading', { name: 'Decide primero' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Hoy · supervisor — puesto de mando: consulta y detalle (F3)', () => {
+  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): la franja da cifras con «—» donde no hay dato y sin jerga', () => {
+    METRICAS_AGENDA = agenda([
+      { vendedor_id: KAREN, nombre: 'KAREN ZAPATA', toques: 6, completadas: 3, no_asistio: 1, pct_completadas: 75 },
+      { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', toques: 4, completadas: 0, no_asistio: 1 },
+    ])
+    montar()
+    const cifras = screen.getByRole('list', { name: 'Cifras del equipo' })
+    expect(cifras).toHaveTextContent('S/ 20k pronóstico · +US$ 15k aparte')
+    expect(cifras).toHaveTextContent('2 leads activos')
+    // Sin meta publicada no hay % de meta que inventar.
+    expect(cifras).toHaveTextContent('— de la meta')
+    expect(cifras).toHaveTextContent('— conversión del mes')
+    expect(cifras).toHaveTextContent('10 toques en 7 días')
+    expect(cifras).toHaveTextContent('60 % completadas')
+    // 2 no asistió en el equipo: el número va en rojo de TEXTO, con su palabra al lado.
+    const itemNoAsistio = within(cifras).getAllByRole('listitem').find((li) => li.textContent === '2 no asistió')!
+    expect(itemNoAsistio.querySelector('strong')).toHaveStyle({ color: 'var(--destructive-text)' })
+    expect(document.body).not.toHaveTextContent(/pipeline|suma÷suma|solo producción/i)
+  })
+
+  it('«Detalle» abre un diálogo con TODO lo que la pantalla clásica mostraba; Esc lo cierra y el foco vuelve', () => {
+    vi.useRealTimers()
+    montar()
+    const boton = screen.getByRole('button', { name: 'Detalle' })
+    boton.focus()
+    fireEvent.click(boton)
+    const dialogo = screen.getByRole('dialog', { name: 'Detalle del equipo' })
+    for (const kpi of ['Pronóstico de capital abierto', 'Leads activos del equipo', 'Primeras gestiones vencidas', 'Por repartir']) {
+      expect(within(dialogo).getByText(kpi)).toBeInTheDocument()
+    }
+    expect(within(dialogo).getByText('Revísalas con cada analista')).toBeInTheDocument()
+    expect(within(dialogo).getByRole('heading', { name: 'Cumplimiento del mes' })).toBeInTheDocument()
+    expect(within(dialogo).getAllByText('Sin meta fijada para este mes').length).toBeGreaterThan(0)
+    expect(within(dialogo).getByRole('region', { name: 'Agenda del equipo' })).toBeInTheDocument()
+    expect(within(dialogo).getByText(/Ves solo a tu equipo/)).toBeInTheDocument()
+    expect(within(dialogo).getByRole('link', { name: 'Ver derivaciones; bandeja sin pendientes' })).toHaveAttribute('href', '#/derivaciones')
+    fireEvent.keyDown(dialogo, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('«Cerrar» también cierra el detalle', () => {
+    vi.useRealTimers()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
