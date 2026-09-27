@@ -10,7 +10,7 @@
 // resultado tipificado (`metadata.evento = 'revision'`); el «buscador» de
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -216,12 +216,18 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     </>
   )
 
+  // Mientras llega la página siguiente, `pagina` es null y `hayMas` se apaga:
+  // el botón seguiría desmontándose con el foco dentro (revisión a11y, 27/09).
+  const cargandoSiguiente = cursorVigente !== null && !pagina && !error
   const listaCompacta = (
     <>
+      {/* Sin «actualizando…»: con el refresco de cada minuto el lector lo
+          anunciaba dos veces por minuto. La lista ya lleva `aria-busy`. */}
       <p role="status" aria-live="polite" className="sr-only">
-        {visibles.length} {visibles.length === 1 ? 'gestión' : 'gestiones'} cargadas{hayMas ? ' · hay más' : ''}{enVuelo ? ' · actualizando…' : ''}
+        {visibles.length} {visibles.length === 1 ? 'gestión' : 'gestiones'} cargadas{hayMas ? ' · hay más' : ''}
       </p>
-      <ol aria-label="Registro de actividad" aria-busy={enVuelo}>
+      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+      <ol role="list" aria-label="Registro de actividad" aria-busy={enVuelo}>
         {visibles.map((item) => {
           const tono = tonoDeTipo(item.tipo)
           const etapaEntonces = item.etapa_en_ese_momento ? ETAPA_INFO[item.etapa_en_ese_momento as Etapa]?.label ?? item.etapa_en_ese_momento : null
@@ -249,12 +255,11 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
       {error && visibles.length > 0 && (
         <p role="alert" className="text-[13px] font-semibold text-[var(--warning-text)]">No se pudo traer la siguiente página. Se conservan las ya consultadas.</p>
       )}
-      {(hayMas || (error && visibles.length > 0)) && (
+      {(hayMas || cargandoSiguiente || (error && visibles.length > 0)) && (
         <div className="flex justify-center pt-2">
-          <button type="button" disabled={enVuelo} onClick={error ? () => void recargar() : verMas}
-            className="inline-flex h-9 cursor-pointer items-center rounded-[10px] px-3 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50">
-            {error ? 'Reintentar' : 'Ver más'}
-          </button>
+          <BotonVerMasCompacto ocupado={enVuelo} error={Boolean(error)}
+            onPulsar={error ? () => void recargar() : verMas}
+            alSalirConFoco={() => encabezado.current?.focus({ preventScroll: true })} />
         </div>
       )}
     </>
@@ -349,5 +354,33 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
         {panel}
       </Tabs>
     </section>
+  )
+}
+
+/**
+ * «Ver más» de la versión compacta: `aria-disabled` y no `disabled` mientras
+ * carga (el refresco de cada minuto no expulsa el foco), y si deja de hacer
+ * falta con el foco DENTRO, lo entrega al título «¿Qué hice hoy?» en vez de
+ * dejarlo caer al inicio de la página.
+ */
+function BotonVerMasCompacto({ ocupado, error, onPulsar, alSalirConFoco }: {
+  ocupado: boolean
+  error: boolean
+  onPulsar: () => void
+  alSalirConFoco: () => void
+}) {
+  const boton = useRef<HTMLButtonElement>(null)
+  const salir = useRef(alSalirConFoco)
+  salir.current = alSalirConFoco
+  useLayoutEffect(() => {
+    const nodo = boton.current
+    // Al desmontarse el nodo todavía está en el documento: se sabe si tenía el foco.
+    return () => { if (nodo !== null && document.activeElement === nodo) salir.current() }
+  }, [])
+  return (
+    <button ref={boton} type="button" aria-disabled={ocupado} aria-busy={ocupado || undefined} onClick={() => { if (!ocupado) onPulsar() }}
+      className="inline-flex h-9 cursor-pointer items-center rounded-[10px] px-3 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50">
+      {ocupado ? 'Cargando…' : error ? 'Reintentar' : 'Ver más'}
+    </button>
   )
 }

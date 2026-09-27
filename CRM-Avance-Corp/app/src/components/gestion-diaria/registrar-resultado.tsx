@@ -201,7 +201,7 @@ function useRegistroResultado(
   useEffect(() => {
     if (!enfocarResultado.current || !resultado) return
     enfocarResultado.current = false
-    raiz.current?.querySelector<HTMLInputElement>(`input[name="resultado-llamada"][value="${resultado}"]`)?.focus()
+    raiz.current?.querySelector<HTMLInputElement>(`input[type="radio"][value="${resultado}"]`)?.focus()
   }, [mostrarOpciones, resultado, raiz])
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -322,8 +322,11 @@ function useRegistroResultado(
     { valor: 'solo_registrar' as const, etiqueta: 'Solo registrar', detalle: 'Sin tarea ni descarte' },
   ]
 
+  /** Seguro SÍNCRONO de «está guardando»: `procesando` llega un render tarde. */
+  const estaEnviando = () => enviando.current
+
   return {
-    lead, tarea, nombre, soyDueno, ahora,
+    lead, tarea, nombre, soyDueno, ahora, estaEnviando,
     resultado, def, mostrarOpciones, setMostrarOpciones, enfocarResultado, elegir,
     submotivo, setSubmotivo, decision, setDecision, agendar, setAgendar, perdido, setPerdido,
     descartarInteres, setDescartarInteres, noInsista, setNoInsista, cierraTarea, setCierraTarea,
@@ -342,12 +345,17 @@ type ControlRegistro = ReturnType<typeof useRegistroResultado>
  */
 function CamposResultado({ c, grande, idBase }: { c: ControlRegistro; grande: boolean; idBase: string }): JSX.Element {
   const texto = grande ? 'text-base' : 'text-[13px]'
+  // Un nombre de grupo POR INSTANCIA (revisión a11y, 27/09): la tarjeta sigue a
+  // la vista mientras la ficha abre el diálogo, y dos grupos de radios con el
+  // mismo `name` fuera de un <form> son UNO para el navegador (flechas que saltan
+  // de uno a otro, marcas que se desmarcan solas, descripciones duplicadas).
+  const sufijo = idBase.replaceAll(':', '')
   const ids = { opciones: `${idBase}-opciones`, submotivo: `${idBase}-submotivo`, tipo: `${idBase}-siguiente-tipo`, titulo: `${idBase}-siguiente-titulo`, fecha: `${idBase}-siguiente-fecha`, hora: `${idBase}-siguiente-hora` }
   const { def, campos } = c
   return (
     <fieldset disabled={c.procesando || c.sinConfirmar !== null} className="min-w-0 space-y-3">
       <div id={ids.opciones}>
-        <RadioGroup<ResultadoLlamada> grande={grande} leyenda="Resultado" opciones={grande ? c.opciones : c.opciones.map((o) => ({ ...o, detalle: undefined }))} valor={c.resultado} onCambio={c.elegir} obligatorio nombre="resultado-llamada" descripcion={c.mostrarOpciones ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Para elegir otro, usa «Cambiar resultado».'} />
+        <RadioGroup<ResultadoLlamada> grande={grande} leyenda="Resultado" opciones={grande ? c.opciones : c.opciones.map((o) => ({ ...o, detalle: undefined }))} valor={c.resultado} onCambio={c.elegir} obligatorio nombre={`resultado-llamada-${sufijo}`} descripcion={c.mostrarOpciones ? (grande ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Atajos: 1 a 7 eligen el resultado; Esc cierra sin registrar.') : 'Para elegir otro, usa «Cambiar resultado».'} />
       </div>
       {c.resultado && <Button type="button" variant="outline" size={grande ? 'default' : 'sm'} aria-expanded={c.mostrarOpciones} aria-controls={ids.opciones} onClick={() => {
         c.enfocarResultado.current = true
@@ -383,7 +391,7 @@ function CamposResultado({ c, grande, idBase }: { c: ControlRegistro; grande: bo
 
       {def?.paso === 'decision_numero' && (
         <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
-          <RadioGroup<DecisionNumero> grande={grande} leyenda="¿Qué hacemos con este número?" opciones={c.opcionesDecision} valor={c.decision} onCambio={c.setDecision} obligatorio nombre="decision-numero" descripcion="Esta llamada cuenta como intento, pero no entra en la tasa de contacto." />
+          <RadioGroup<DecisionNumero> grande={grande} leyenda="¿Qué hacemos con este número?" opciones={c.opcionesDecision} valor={c.decision} onCambio={c.setDecision} obligatorio nombre={`decision-numero-${sufijo}`} descripcion="Esta llamada cuenta como intento, pero no entra en la tasa de contacto." />
         </div>
       )}
 
@@ -469,7 +477,10 @@ export function RegistrarResultado(props: RegistrarResultadoProps): JSX.Element 
     return Boolean(dialogo) && objetivo instanceof Node && dialogo!.contains(objetivo)
   })
   return (
-    <Dialog open onClose={() => { if (!c.procesando) props.onClose() }} ariaLabel="Resultado de la llamada" className="w-[560px] [&_button]:text-base [&_select]:text-base [&_label]:text-base [&_p]:text-base">
+    // Escape o el fondo NO cierran mientras guarda. Se mira el seguro síncrono
+    // (`estaEnviando`) y no `procesando`: entre el clic en «Guardar» y el render
+    // siguiente hay un instante en que el estado aún dice «no» (Codex, 27/09).
+    <Dialog open onClose={() => { if (!c.estaEnviando()) props.onClose() }} ariaLabel="Resultado de la llamada" className="w-[560px] [&_button]:text-base [&_select]:text-base [&_label]:text-base [&_p]:text-base">
       {/* Columna flex que hereda la altura del Dialog: sin esto el cuerpo no
           obtiene su scroll interno y «Guardar» queda fuera de la pantalla. */}
       <div ref={raiz} className="flex min-h-0 flex-1 flex-col">
@@ -507,32 +518,36 @@ export function RegistroResultadoTarjeta(props: RegistrarResultadoProps): JSX.El
   const idBase = useId()
   const c = useRegistroResultado(props, raiz, (objetivo) => objetivo instanceof Node && Boolean(raiz.current?.contains(objetivo)))
   useEffect(() => {
-    raiz.current?.querySelector<HTMLInputElement>('input[name="resultado-llamada"]')?.focus()
+    raiz.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus()
   }, [])
   const alTecla = (e: EventoTeclado<HTMLElement>) => {
-    if (e.key !== 'Escape' || e.defaultPrevented || c.procesando) return
+    if (e.key !== 'Escape' || e.defaultPrevented || c.estaEnviando()) return
     e.preventDefault()
     e.stopPropagation()
     c.cerrarSinRegistrar()
   }
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape de la sección: el contrato de teclado de la tarjeta (Codex, 27/09).
-    <section ref={raiz} aria-labelledby={`${idBase}-titulo`} onKeyDown={alTecla} className="flex min-h-0 flex-1 flex-col">
-      <div className="ac-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-[18px] pb-3">
+    <section ref={raiz} role="group" aria-labelledby={`${idBase}-titulo`} onKeyDown={alTecla} className="flex min-h-0 flex-1 flex-col">
+      <div className="ac-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-[18px] pb-3 [&_:is(input,select,textarea,button)]:scroll-mb-20">
         <h4 id={`${idBase}-titulo`} className="text-sm font-extrabold text-primary">¿Qué pasó con la llamada?</h4>
         <CamposResultado c={c} grande={false} idBase={idBase} />
-        {c.sinConfirmar && <p role="alert" className="text-[13px] font-semibold text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
+        {c.sinConfirmar && <p role="alert" className="text-[13px] font-semibold text-[var(--destructive-text)]">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
       </div>
       {/* Pegado abajo también en el celular, donde la tarjeta no tiene alto fijo
           y la página es la que se desplaza: «Guardar» nunca queda fuera de la vista. */}
       <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-[18px] py-3">
-        <button type="button" disabled={c.procesando} onClick={c.cerrarSinRegistrar}
-          className="inline-flex h-10 cursor-pointer items-center rounded-[10px] px-2.5 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50">
+        {/* `aria-disabled` y no `disabled` (regla de la casa): el botón pulsado
+            conserva el foco aunque el guardado falle o quede sin confirmar. */}
+        <button type="button" aria-disabled={c.procesando} onClick={c.cerrarSinRegistrar}
+          className="inline-flex h-10 cursor-pointer items-center rounded-[10px] px-2.5 text-[13px] font-bold text-[var(--accent-press)] transition-colors hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50">
           {c.sinConfirmar ? 'Cerrar (pendiente de confirmar)' : 'Cerrar sin registrar'}
         </button>
         {c.sinConfirmar
-          ? <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press" disabled={c.procesando} onClick={() => void c.enviar(c.sinConfirmar!)}>{c.procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
-          : <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press" disabled={c.procesando || !c.resultado} onClick={c.guardar}>{c.procesando ? 'Guardando…' : 'Guardar'}</Button>}
+          ? <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press aria-disabled:cursor-default aria-disabled:opacity-50" aria-disabled={c.procesando} aria-busy={c.procesando || undefined}
+            onClick={() => { if (!c.estaEnviando() && c.sinConfirmar) void c.enviar(c.sinConfirmar) }}>{c.procesando ? 'Confirmando…' : 'Reintentar guardado'}</Button>
+          : <Button className="h-10 rounded-[10px] bg-accent px-4 text-[13px] font-bold hover:bg-accent-press aria-disabled:cursor-default aria-disabled:opacity-50" aria-disabled={c.procesando || !c.resultado} aria-busy={c.procesando || undefined}
+            onClick={() => { if (!c.estaEnviando() && c.resultado) c.guardar() }}>{c.procesando ? 'Guardando…' : 'Guardar'}</Button>}
       </div>
     </section>
   )

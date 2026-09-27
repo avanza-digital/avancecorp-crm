@@ -239,7 +239,7 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
 describe('GestionDiariaAnalista · la franja y «Mi actividad»', () => {
   it('la franja resume el día en 4 cifras, con el % pegado a sus útiles y su nivel', () => {
     render(<GestionDiariaAnalista />)
-    const franja = screen.getByRole('region', { name: 'Tu día en cifras' })
+    const franja = screen.getByRole('group', { name: 'Tu día en cifras' })
     expect(within(franja).getAllByRole('term').map((x) => x.textContent)).toEqual(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
     const valores = within(franja).getAllByRole('definition').map((x) => x.textContent)
     expect(valores).toEqual(['9hoy', '5de 9', '63 %Bien · de 8 útiles', '1hoy'])
@@ -258,7 +258,7 @@ describe('GestionDiariaAnalista · la franja y «Mi actividad»', () => {
   it('sin llamadas útiles no hay chip ni porcentaje inventado', () => {
     dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, utiles: 0, tasa_contacto_pct: null, nivel: null } } as DiaAnalista
     render(<GestionDiariaAnalista />)
-    const franja = screen.getByRole('region', { name: 'Tu día en cifras' })
+    const franja = screen.getByRole('group', { name: 'Tu día en cifras' })
     expect(within(franja).getByText('—')).toHaveAttribute('aria-hidden', 'true')
     expect(within(franja).getByText('sin dato')).toBeInTheDocument()
     expect(within(franja).getByText(/se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
@@ -510,7 +510,7 @@ describe('GestionDiariaAnalista · estados que hoy se ven en producción', () =>
     render(<GestionDiariaAnalista />)
     expect(screen.getByText('No tienes nada pendiente ahora')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/Nada pendiente ahora/)
-    expect(within(screen.getByRole('region', { name: 'Tu día en cifras' })).getByText('sin dato')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Tu día en cifras' })).getByText('sin dato')).toBeInTheDocument()
     verPestana(/^Mi actividad/)
     expect(await screen.findByText('Todavía no hay llamadas hoy.')).toBeInTheDocument()
   })
@@ -738,5 +738,46 @@ describe('GestionDiariaAnalista · el resultado DENTRO de «Ahora» (etapa 3)', 
     await new Promise((r) => setTimeout(r, 0))
     expect(dobles.panel.props).toBeNull()
     expect(screen.queryByRole('region', { name: 'Resultado en la tarjeta (mock)' })).not.toBeInTheDocument()
+  })
+
+  it('llamar a A, mirar otro grupo y cerrar sin registrar: la tarjeta y el foco vuelven a A (Codex, 27/09)', async () => {
+    render(<GestionDiariaAnalista />)
+    dobles.contacto.onLlamar?.()
+    fireEvent.click(screen.getByRole('tab', { name: /^Vencidas/ }))
+    // La tarjeta sigue en A mientras se mira otro grupo.
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+    dobles.contacto.onRegistrar?.()
+    await waitFor(() => expect(dobles.panel.props?.lead).toMatchObject({ id: 'l1' }))
+    const props = dobles.panel.props!
+    dobles.panel.props = null
+    ;(props['onClose'] as () => void)()
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Resultado en la tarjeta (mock)' })).not.toBeInTheDocument())
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+    expect(screen.getByTestId('acciones-contacto')).toHaveAttribute('data-lead', 'l1')
+  })
+
+  it('con una llamada en curso, un refresco del día que FALLA no desmonta «Ahora» ni el resultado', async () => {
+    const { rerender } = render(<GestionDiariaAnalista />)
+    abrirResultado()
+    await waitFor(() => expect(dobles.panel.props?.lead).toMatchObject({ id: 'l1' }))
+    dobles.dia = null
+    dobles.errorDia = new Error('502')
+    rerender(<GestionDiariaAnalista />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/No se pudo actualizar tu día. Termina de registrar a Nuevo/)
+    expect(screen.getByRole('region', { name: 'Resultado en la tarjeta (mock)' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+    // Fail-closed: con el día caído no se pintan cifras ni cola sin confirmar.
+    expect(screen.queryByRole('group', { name: 'Tu día en cifras' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Grupos de la cola' })).not.toBeInTheDocument()
+  })
+
+  it('con el foco dentro de «Ahora», un refresco no le cambia la persona a quien la lee', async () => {
+    const { rerender } = render(<GestionDiariaAnalista />)
+    fireEvent.focus(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Abrir la ficha de NUEVO SIN INTENTO' }))
+    dobles.leads = [...dobles.leads, { id: 'l9', nombre_completo: 'LEAD l9', telefono: '+51999000999', etapa: 'nuevo' }]
+    dobles.cola = { ...dobles.cola, data: { items: [itemCola('l9', 'primera_atencion', '2026-09-20T09:00:00Z'), ...((dobles.cola.data as { items: unknown[] }).items)] } }
+    rerender(<GestionDiariaAnalista />)
+    await waitFor(() => expect(screen.getAllByText('LEAD l9').length).toBeGreaterThan(0))
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
   })
 })

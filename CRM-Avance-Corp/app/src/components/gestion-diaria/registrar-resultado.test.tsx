@@ -3,7 +3,7 @@
 // (dueño vs supervisor, ventana legal, descarte con submotivo) y el toast con
 // «Deshacer». El store se simula: aquí se prueba QUÉ petición se arma.
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -88,7 +88,7 @@ describe('RegistrarResultado', () => {
     const user = userEvent.setup()
     montar()
     await user.click(screen.getByRole('radio', { name: /No contestó/ }))
-    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(document.querySelectorAll('input[name^="resultado-llamada"]')).toHaveLength(1)
     expect(screen.getByRole('radio', { name: /No contestó/ })).toHaveFocus()
     await user.clear(screen.getByLabelText('Título'))
     await user.type(screen.getByLabelText('Título'), 'Seguimiento personalizado')
@@ -97,13 +97,13 @@ describe('RegistrarResultado', () => {
     expect(screen.getByRole('radio', { name: /No contestó/ })).toBeChecked()
     expect(screen.getByLabelText('Título')).toHaveValue('Seguimiento personalizado')
     await user.click(screen.getByRole('button', { name: 'Cambiar resultado' }))
-    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(7)
+    expect(document.querySelectorAll('input[name^="resultado-llamada"]')).toHaveLength(7)
     await user.keyboard('1')
-    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(document.querySelectorAll('input[name^="resultado-llamada"]')).toHaveLength(1)
     expect(screen.getByLabelText('Título')).toHaveValue('Seguimiento personalizado')
     await user.click(screen.getByRole('button', { name: 'Cambiar resultado' }))
     await user.click(screen.getByRole('radio', { name: /no le interesa/ }))
-    expect(document.querySelectorAll('input[name="resultado-llamada"]')).toHaveLength(1)
+    expect(document.querySelectorAll('input[name^="resultado-llamada"]')).toHaveLength(1)
     expect(screen.getByRole('checkbox', { name: /Descartar y enviar/ })).not.toBeChecked()
   })
 
@@ -326,7 +326,7 @@ function montarTarjeta({ lead = LEAD, persistido = Promise.resolve(true) }: Pick
 describe('RegistroResultadoTarjeta', () => {
   it('pinta los siete resultados en UNA línea, bajo su título, y lleva el foco al primero', async () => {
     montarTarjeta()
-    const tarjeta = screen.getByRole('region', { name: '¿Qué pasó con la llamada?' })
+    const tarjeta = screen.getByRole('group', { name: '¿Qué pasó con la llamada?' })
     expect(tarjeta).toBeInTheDocument()
     expect(screen.getAllByRole('radio')).toHaveLength(7)
     // El detalle de cada opción queda para el diálogo: la tarjeta es compacta.
@@ -377,5 +377,93 @@ describe('RegistroResultadoTarjeta', () => {
     await waitFor(() => expect(orden).toEqual(['cerrar', 'guardado']))
     expect(registrarLlamada.mock.calls[0]?.[0]).toBe('l1')
     expect(peticion(registrarLlamada as ReturnType<typeof montar>['registrarLlamada'])).toMatchObject({ resultado: 'volver_a_llamar' })
+  })
+})
+
+describe('RegistrarResultado — el seguro de «guardando» es SÍNCRONO (Codex, 27/09/2026)', () => {
+  it('un Escape que llega DENTRO del guardado, antes de que React pinte «Guardando…», no cierra el diálogo', async () => {
+    const user = userEvent.setup()
+    vi.useRealTimers()
+    vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+    let confirmar: (ok: boolean) => void = () => {}
+    // El store dispara el Escape en el MISMO instante en que se registra: el estado
+    // `procesando` todavía no se ha pintado; solo el seguro síncrono lo sabe.
+    const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      return { ok: true, persistido: new Promise<boolean>((res) => { confirmar = res }), confirmacion: Promise.resolve({ actividad_id: 'act-1', siguiente_id: null, descartado: false }) }
+    })
+    const api = { registrarLlamada, deshacerResultadoLlamada: vi.fn(), tareasDe: () => [], actividadesDe: () => [], lead: () => LEAD } as unknown as StoreDataApi
+    const onClose = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={sesion('v1')}>
+          <StoreDataContext.Provider value={api}>
+            <RegistrarResultado lead={LEAD} tarea={null} onClose={onClose} />
+          </StoreDataContext.Provider>
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    )
+    await user.click(screen.getByRole('radio', { name: /No contestó/ }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(registrarLlamada).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    confirmar(true)
+    // Al confirmar, se cierra UNA sola vez (sin cierre duplicado).
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('RegistroResultadoTarjeta — convivencia y foco (revisión a11y, 27/09/2026)', () => {
+  it('la tarjeta y el diálogo montados A LA VEZ tienen grupos de radios separados', async () => {
+    const user = userEvent.setup()
+    vi.useRealTimers()
+    vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+    const api = { registrarLlamada: vi.fn(), deshacerResultadoLlamada: vi.fn(), tareasDe: () => [], actividadesDe: () => [], lead: () => LEAD } as unknown as StoreDataApi
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={sesion('v1')}>
+          <StoreDataContext.Provider value={api}>
+            <RegistroResultadoTarjeta lead={LEAD} tarea={null} onClose={vi.fn()} />
+            <RegistrarResultado lead={LEAD} tarea={null} onClose={vi.fn()} />
+          </StoreDataContext.Provider>
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    )
+    const nombres = new Set(Array.from(document.querySelectorAll<HTMLInputElement>('input[name^="resultado-llamada"]')).map((r) => r.name))
+    expect(nombres.size).toBe(2)
+    const dialogo = screen.getByRole('dialog')
+    await user.click(within(dialogo).getByRole('radio', { name: /volver a llamar/ }))
+    // Elegir en el diálogo NO toca la tarjeta (que el diálogo modal oculta al
+    // lector mientras está abierto: por eso `hidden`).
+    const tarjeta = screen.getByRole('group', { name: '¿Qué pasó con la llamada?', hidden: true })
+    const radiosTarjeta = Array.from(tarjeta.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+    expect(radiosTarjeta).toHaveLength(7)
+    expect(radiosTarjeta.every((radio) => !radio.checked)).toBe(true)
+  })
+
+  it('si el guardado falla, el foco se queda en «Guardar» para reintentar', async () => {
+    const user = userEvent.setup()
+    vi.useRealTimers()
+    vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+    const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => ({ ok: false, error: 'Sin conexión' }))
+    const api = { registrarLlamada, deshacerResultadoLlamada: vi.fn(), tareasDe: () => [], actividadesDe: () => [], lead: () => LEAD } as unknown as StoreDataApi
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={sesion('v1')}>
+          <StoreDataContext.Provider value={api}>
+            <RegistroResultadoTarjeta lead={LEAD} tarea={null} onClose={vi.fn()} />
+          </StoreDataContext.Provider>
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    )
+    await user.click(screen.getByRole('radio', { name: /No contestó/ }))
+    const guardar = screen.getByRole('button', { name: 'Guardar' })
+    await user.click(guardar)
+    expect(toast.error).toHaveBeenCalledWith('Sin conexión')
+    expect(guardar).toHaveFocus()
+    expect(guardar).not.toBeDisabled()
   })
 })

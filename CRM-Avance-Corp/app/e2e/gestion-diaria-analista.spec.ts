@@ -13,7 +13,7 @@ test('Analista: «Mi día» abre con la franja, «Ahora» y su cola con «Todo»
   await expect(page).toHaveURL(/#\/gestion-diaria$/)
 
   await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Tu día en cifras' }).getByRole('term')).toHaveText(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
+  await expect(page.getByRole('group', { name: 'Tu día en cifras' }).getByRole('term')).toHaveText(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
   // El registro crudo vive en «Mi actividad», sin filtro de analista.
   await expect(page.getByRole('tablist', { name: 'Qué ver' }).getByRole('tab')).toHaveText([/^Cola de hoy/, 'Mi actividad', /^Mi seguimiento/])
   await expect(page.getByRole('combobox', { name: 'Analista' })).toHaveCount(0)
@@ -93,7 +93,7 @@ test('Analista: el resultado se abre DENTRO de «Ahora», sin ventana encima', a
   expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true)
   await ahora.getByRole('button', { name: /^Más acciones para / }).click()
   await registrar.click()
-  const panel = ahora.getByRole('region', { name: /Qué pasó con la llamada/ })
+  const panel = ahora.getByRole('group', { name: /Qué pasó con la llamada/ })
   await expect(panel).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(panel.getByRole('radio')).toHaveCount(7)

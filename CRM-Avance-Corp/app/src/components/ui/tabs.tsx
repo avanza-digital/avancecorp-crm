@@ -1,8 +1,10 @@
 // Pestañas accesibles (patrón WAI-ARIA APG «tabs» con activación automática).
 // Nace en la Fase 0 de Gestión Diaria como PRIMITIVA: hasta ahora el tablist se
 // copiaba a mano en cada pantalla (ranking, supervisor, repartir, rentabilidad).
-// Contrato: flechas con vuelta, Home/End, `tabIndex` móvil (roving), el panel
-// activo enlazado por `aria-labelledby` y objetivos de 44 px.
+// Contrato: flechas con vuelta, Home/End, `tabIndex` móvil (roving) y el panel
+// activo enlazado por `aria-labelledby`. Los objetivos miden 44–48 px en
+// `segmentado`; las variantes del diseño de Gestión Diaria son más compactas
+// (decisión de Miguel del 27/09/2026) y crecen a 44 px en pantallas táctiles.
 import { useId, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +41,12 @@ interface TabsProps<V extends string> {
   variante?: 'segmentado' | 'subrayado' | 'pastilla' | undefined
   /** Clases del `tabpanel` (p. ej. para que herede la altura de la tarjeta). */
   clasePanel?: string | undefined
+  /**
+   * El panel es una parada del tabulador (default: sí, como siempre). `false`
+   * cuando el panel ARRANCA con controles: la parada vacía sobra, y con
+   * pestañas anidadas se suman dos antes de llegar a algo útil (a11y, 27/09).
+   */
+  panelEnfocable?: boolean | undefined
 }
 
 const CLASES_TAMANO = {
@@ -54,11 +62,14 @@ const CLASES_VARIANTE = {
     inactiva: 'text-[var(--muted-foreground-strong)] hover:text-primary',
     extra: 'text-[var(--muted-foreground-strong)]',
   },
+  // La raya de la activa es una sombra INTERIOR y no un borde con margen
+  // negativo: con `overflow-x-auto` ese margen se recortaba (1 de los 2 px) y
+  // también el foco; por lo mismo el contorno del foco va hacia adentro.
   subrayado: {
     lista: 'flex w-full gap-6 overflow-x-auto border-b border-border',
-    tab: '-mb-px shrink-0 justify-center whitespace-nowrap border-b-2 !px-0.5 font-semibold',
-    activa: 'border-accent font-bold text-[var(--accent-press)]',
-    inactiva: 'border-transparent text-[var(--muted-foreground-strong)] hover:text-primary',
+    tab: 'shrink-0 justify-center whitespace-nowrap !px-0.5 font-semibold focus-visible:!-outline-offset-2',
+    activa: 'font-bold text-[var(--accent-press)] shadow-[inset_0_-2px_0_var(--color-accent)]',
+    inactiva: 'text-[var(--muted-foreground-strong)] hover:text-primary',
     extra: '',
   },
   pastilla: {
@@ -75,7 +86,7 @@ function idsDeTab(idBase: string, valor: string): { tab: string; panel: string }
   return { tab: `${idBase}-tab-${valor}`, panel: `${idBase}-panel-${valor}` }
 }
 
-export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className, tamano = 'normal', variante = 'segmentado', clasePanel }: TabsProps<V>) {
+export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className, tamano = 'normal', variante = 'segmentado', clasePanel, panelEnfocable = true }: TabsProps<V>) {
   const medidas = CLASES_TAMANO[tamano]
   const aspecto = CLASES_VARIANTE[variante]
   const idAuto = useId()
@@ -128,7 +139,7 @@ export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, ch
         })}
       </div>
       {children !== undefined && (
-        <div role="tabpanel" id={activo.panel} aria-labelledby={activo.tab} tabIndex={0} className={cn('focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40', clasePanel)}>
+        <div role="tabpanel" id={activo.panel} aria-labelledby={activo.tab} tabIndex={panelEnfocable ? 0 : undefined} className={cn('focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40', clasePanel)}>
           {children}
         </div>
       )}

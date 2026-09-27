@@ -21,7 +21,8 @@
 //     «Todo» primero), «Mi actividad» (barras por hora, descartes y registro del
 //     día) y «Mi seguimiento» (compromisos desde mañana). Lo que antes eran
 //     plegables apilados abajo ahora son pestañas: todo en horizontal.
-// Densidad: piso de 16 px (queja de los analistas del 20/09/2026). Un solo
+// Escala: la del diseño (Miguel, 27/09/2026: «hay demasiada letra, no está
+// respetando el diseño»), que sustituye el piso de 16 px del 20/09. Un solo
 // rojo: queda reservado a lo vencido («Se pasó hace 45 min»); la severidad se
 // DICE con esas mismas palabras, nunca solo con el color.
 // RESULTADO DENTRO DE «AHORA» (etapa 3, 27/09/2026): tras «Llamar», los 7
@@ -33,7 +34,7 @@
 // tardía de una sesión ya cerrada se ignora.
 // Integración F4 (21/09): conserva los arreglos publicados de caché parcial,
 // tarea autoritativa, paginación y carreras.
-import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode, type Ref } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode, type Ref, type RefObject } from 'react'
 import { CalendarClock, ClipboardList, MoreHorizontal, Phone, RefreshCw, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -121,6 +122,11 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const [abriendoPanel, setAbriendoPanel] = useState(false)
 
   const dia = useDiaAnalista(null, null)
+  // El último día CONFIRMADO: solo sirve para seguir pintando la llamada en curso
+  // si un refresco falla (revisión a11y, 27/09). Las cifras y la cola NO se
+  // pintan con él: el día es fail-closed.
+  const ultimoDia = useRef<DiaAnalista | null>(null)
+  useEffect(() => { if (dia.dia !== null) ultimoDia.current = dia.dia }, [dia.dia])
   // La cola del día: la misma fuente que «Seguimiento comercial», sin filtros.
   const cola = useColaSlaPagina({ senal: 'todas', etapa: null, analista_id: null }, null, LIMITE_COLA, !yo?.demo)
   const paginaCola = cola.error ? undefined : cola.data
@@ -259,10 +265,17 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     if (sesionRef.current?.id !== s.id) return
     setSesion({ ...s, tarea, abierta: true })
   }
-  /** Cierra la sesión (si sigue siendo la misma) y devuelve el foco a «Llamar». */
+  /**
+   * Cierra la sesión (si sigue siendo la misma), deja ELEGIDA a la persona de la
+   * llamada —aunque mientras tanto se haya mirado otro filtro, la tarjeta vuelve
+   * a ella y no a la primera de la lista (Codex, 27/09)— y devuelve el foco a
+   * «Llamar». Al guardar, `alGuardar` corre justo después y elige al siguiente.
+   */
   function cerrarSesion(id: number) {
-    if (sesionRef.current?.id !== id) return
+    const actual = sesionRef.current
+    if (actual?.id !== id) return
     setSesion(null)
+    setElegido(actual.fila.lead_id)
     requestAnimationFrame(() => {
       const llamar = panelAhora.current?.querySelector<HTMLElement>('[data-accion-panel] a, [data-accion-panel] button')
       ;(llamar ?? nombreAhora.current)?.focus()
@@ -326,6 +339,29 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const total = filas.length
   const conteoCola = colaCaida ? '?' : hayMas ? `${total}+` : String(total)
 
+  const tarjetaAhora = (
+    <PanelAhora fila={filaTarjeta} lead={leadTarjeta}
+      sinConversacionDias={dia.dia?.sin_conversacion_dias ?? ultimoDia.current?.sin_conversacion_dias ?? 0} ahora={ahora} cargando={colaCargando && sesion === null} colaCaida={colaCaida}
+      filtroVacio={filaTarjeta === null && total > 0}
+      seccionRef={panelAhora} nombreRef={nombreAhora}
+      posicion={posicionTarjeta} total={lista.length}
+      cargandoLead={filaTarjeta !== null && cargandoLead === filaTarjeta.lead_id} abriendoPanel={abriendoPanel}
+      // «Llamar» FIJA a la persona: nace la sesión de llamada. Si mientras
+      // marca (en el celular, con el CRM en segundo plano) entra un lead
+      // más urgente, la tarjeta no cambia y el resultado va a ESTA persona.
+      onLlamar={() => { iniciarSesion() }}
+      onRegistrar={() => { void abrirRegistro() }}
+      onAbrirFicha={() => { if (filaTarjeta) void abrirLead(filaTarjeta.lead_id) }}
+      // Con el foco dentro, «Ahora» deja de cambiar sola: el refresco de cada
+      // minuto no puede cambiarle la persona a quien la está leyendo (a11y).
+      onEnfoque={() => { if (elegido === null && sesion === null && filaActiva !== null) setElegido(filaActiva.lead_id) }}
+      registro={sesion?.abierta ? (() => {
+        const { id: idSesion, lead: leadSesion } = sesion
+        return <RegistroResultadoTarjeta key={idSesion} lead={leadSesion} tarea={sesion.tarea ?? null}
+          onClose={() => cerrarSesion(idSesion)} onGuardado={() => void alGuardar(leadSesion.id)} />
+      })() : undefined} />
+  )
+
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 lg:h-[calc(100svh-7rem)] lg:min-h-[640px]">
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-3">
@@ -346,7 +382,17 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
         </div>
       </header>
 
-      {dia.error != null && dia.dia === null ? (
+      {dia.dia === null && sesion !== null ? (
+        // Con una llamada en curso, un refresco fallido (p. ej. al volver del
+        // marcador) NO desmonta «Ahora»: se perdería el formulario a medio llenar.
+        // Se avisa y se sigue pintando la sesión; lo demás espera a que vuelva.
+        <>
+          <p role="alert" className="shrink-0 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
+            No se pudo actualizar tu día. Termina de registrar a {primerNombre(sesion.lead.nombre_completo)}: lo demás vuelve en cuanto se recupere la conexión.
+          </p>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">{tarjetaAhora}</div>
+        </>
+      ) : dia.error != null && dia.dia === null ? (
         <PanelError mensaje="No se pudo cargar tu día. Lo que ves no está confirmado." onReintentar={() => { void dia.recargar() }} reintentando={dia.enVuelo} />
       ) : dia.dia === null && dia.cargando ? (
         <PanelCargando filas={6} />
@@ -370,28 +416,16 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
           <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} className="shrink-0" />
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <PanelAhora fila={filaTarjeta} lead={leadTarjeta}
-              sinConversacionDias={dia.dia.sin_conversacion_dias} ahora={ahora} cargando={colaCargando && sesion === null} colaCaida={colaCaida}
-              filtroVacio={filaTarjeta === null && total > 0}
-              seccionRef={panelAhora} nombreRef={nombreAhora}
-              posicion={posicionTarjeta} total={lista.length}
-              cargandoLead={filaTarjeta !== null && cargandoLead === filaTarjeta.lead_id} abriendoPanel={abriendoPanel}
-              // «Llamar» FIJA a la persona: nace la sesión de llamada. Si mientras
-              // marca (en el celular, con el CRM en segundo plano) entra un lead
-              // más urgente, la tarjeta no cambia y el resultado va a ESTA persona.
-              onLlamar={() => { iniciarSesion() }}
-              onRegistrar={() => { void abrirRegistro() }}
-              onAbrirFicha={() => { if (filaTarjeta) void abrirLead(filaTarjeta.lead_id) }}
-              registro={sesion?.abierta ? (() => {
-                const { id: idSesion, lead: leadSesion } = sesion
-                return <RegistroResultadoTarjeta key={idSesion} lead={leadSesion} tarea={sesion.tarea ?? null}
-                  onClose={() => cerrarSesion(idSesion)} onGuardado={() => void alGuardar(leadSesion.id)} />
-              })() : undefined} />
+            {tarjetaAhora}
 
             <section aria-label="Tu cola y tu actividad" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:min-h-0">
               <Tabs
                 etiqueta="Qué ver"
                 variante="subrayado"
+                // «Cola de hoy» arranca con controles: su panel no es parada del
+                // tabulador. En «Mi actividad» y «Mi seguimiento» el panel ES el
+                // contenedor con scroll, alcanzable con el teclado (revisión a11y).
+                panelEnfocable={vistaDerecha !== 'cola'}
                 valor={vistaDerecha}
                 onCambio={setVistaDerecha}
                 pestanas={[
@@ -400,7 +434,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                   { valor: 'seguimiento', etiqueta: 'Mi seguimiento', ...(dia.dia.compromisos_total > 0 ? { extra: `· ${dia.dia.compromisos_total}` } : {}) },
                 ]}
                 className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-[22px] [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:pt-1.5 [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm [&>[role=tablist]>[role=tab]>span]:text-sm"
-                clasePanel="flex min-h-0 flex-1 flex-col"
+                clasePanel={vistaDerecha === 'cola' ? 'flex min-h-0 flex-1 flex-col' : 'ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2'}
               >
                 {vistaDerecha === 'cola' ? (
                   <ColaDeHoy
@@ -461,7 +495,7 @@ function cifrasDelDia(dia: DiaAnalista): CifraDelDia[] {
  * Lo secundario —ver la ficha, registrar desde el menú— vive detrás de «···»
  * (ley de Hick). Escala y medidas: las del diseño (384 px de ancho, radio 32).
  */
-function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, onLlamar, onRegistrar, onAbrirFicha, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total, registro }: {
+function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, onLlamar, onRegistrar, onAbrirFicha, onEnfoque, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total, registro }: {
   fila: FilaDiaria | null
   lead: Lead | null
   sinConversacionDias: number
@@ -477,7 +511,9 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   onLlamar: () => void
   onRegistrar: () => void
   onAbrirFicha: () => void
-  seccionRef: Ref<HTMLElement>
+  /** El foco entró en la tarjeta. */
+  onEnfoque: () => void
+  seccionRef: RefObject<HTMLElement | null>
   nombreRef: Ref<HTMLButtonElement>
   /** El resultado de la llamada en curso: ocupa el lugar de las acciones. */
   registro?: ReactNode
@@ -485,9 +521,25 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   const id = useId()
   const etapa = fila === null ? null : ETAPA_INFO[fila.etapa as Etapa]?.label ?? fila.etapa
   const tiempo = fila === null ? null : tiempoDeFila(fila, ahora)
+  // `focusin` nativo (burbujea desde cualquier control de la tarjeta): la
+  // sección no es un control, así que no lleva manejador de eventos en JSX.
+  const seccion = useRef<HTMLElement | null>(null)
+  const enfoque = useRef(onEnfoque)
+  enfoque.current = onEnfoque
+  const enlazarSeccion = (nodo: HTMLElement | null) => {
+    seccion.current = nodo
+    seccionRef.current = nodo
+  }
+  useEffect(() => {
+    const nodo = seccion.current
+    if (nodo === null) return
+    const alEntrar = () => enfoque.current()
+    nodo.addEventListener('focusin', alEntrar)
+    return () => nodo.removeEventListener('focusin', alEntrar)
+  }, [])
   return (
     <div className="flex min-h-0 shrink-0 justify-center lg:w-[430px]">
-      <section ref={seccionRef} aria-labelledby={`${id}-ahora`}
+      <section ref={enlazarSeccion} aria-labelledby={`${id}-ahora`}
         className="flex w-full max-w-[384px] flex-col overflow-clip rounded-[32px] border border-border-strong bg-card shadow-[0_10px_28px_rgb(17_30_61/0.10)] lg:h-full">
         <div className="shrink-0 bg-primary text-primary-foreground">
           <span aria-hidden="true" className="mx-auto mt-2.5 block h-[5px] w-14 rounded-full bg-white/30" />
@@ -587,7 +639,8 @@ function MiActividad({ dia, analistaId, hoy, deshaciendo, onDeshacer, onAbrirFic
 }): JSX.Element {
   const m = dia.marcador
   return (
-    <div className="ac-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-[18px] py-4">
+    // El scroll lo pone el tabpanel que la envuelve (alcanzable con teclado).
+    <div className="space-y-6 px-[18px] py-4">
       <h3 className="sr-only">Mi actividad de hoy</h3>
       <div className="space-y-2">
         <BarrasPorHora porHora={m.por_hora} titulo="Llamadas por hora" alto={130}
@@ -617,7 +670,7 @@ function MiSeguimiento({ dia, onAbrirFicha }: {
   onAbrirFicha: (leadId: string) => void
 }): JSX.Element {
   return (
-    <div className="ac-scroll min-h-0 flex-1 overflow-y-auto px-[18px] py-4">
+    <div className="px-[18px] py-4">
       <h3 className="text-[15px] font-extrabold text-primary">
         Mi seguimiento <span className="font-semibold text-[var(--muted-foreground-strong)]">· {dia.compromisos_total} {dia.compromisos_total === 1 ? 'compromiso' : 'compromisos'} desde mañana</span>
       </h3>

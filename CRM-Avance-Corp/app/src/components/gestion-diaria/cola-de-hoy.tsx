@@ -36,7 +36,7 @@ export interface PestanaCola {
 }
 
 const ETIQUETA_GRUPO = Object.fromEntries(GRUPOS_DIA.map((g) => [g.clave, g.etiqueta])) as Record<GrupoDia, string>
-const BOTON_PAGINA = 'inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-45 aria-disabled:hover:bg-card'
+const BOTON_PAGINA = 'inline-flex h-8 pointer-coarse:h-11 cursor-pointer items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-45 aria-disabled:hover:bg-card'
 
 export function ColaDeHoy({
   idBase, pestanas, filtro, onFiltro, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas, colaCaida, sinConversacionDias,
@@ -75,7 +75,7 @@ export function ColaDeHoy({
   const ayuda = filtro === 'todo' ? 'El orden lo pone el servidor, como en tu Hoy.' : pestanas.find((p) => p.clave === filtro)?.ayuda
 
   return (
-    <section aria-labelledby={`${idBase}-cola`} className="relative flex min-h-0 flex-1 flex-col">
+    <section role="group" aria-labelledby={`${idBase}-cola`} className="relative flex min-h-0 flex-1 flex-col">
       <h3 id={`${idBase}-cola`} className="sr-only">Cola de hoy</h3>
       {cargando ? (
         <div className="p-[18px]"><PanelCargando filas={FILAS_POR_PAGINA} /></div>
@@ -91,13 +91,14 @@ export function ColaDeHoy({
           <Tabs
             etiqueta="Grupos de la cola"
             variante="pastilla"
+            panelEnfocable={false}
             valor={filtro}
             onCambio={onFiltro}
             pestanas={[
               { valor: 'todo' as FiltroCola, etiqueta: FILTRO_TODO.etiqueta, extra: conteo('todo', total) },
               ...pestanas.map((p) => ({ valor: p.clave as FiltroCola, etiqueta: p.etiqueta, extra: conteo(p.clave, p.total) })),
             ]}
-            className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]]:border-b [&>[role=tablist]]:border-muted [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:py-3 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold [&>[role=tablist]>[role=tab]>span]:text-[12.5px]"
+            className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]]:border-b [&>[role=tablist]]:border-muted [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:py-3 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold [&>[role=tablist]>[role=tab]>span]:text-[12.5px] pointer-coarse:[&>[role=tablist]>[role=tab]]:min-h-11"
             clasePanel="flex min-h-0 flex-1 flex-col"
           >
             {vista.total === 0 ? (

@@ -11,7 +11,7 @@ describe('FranjaCifras', () => {
       { etiqueta: 'Llamadas', valor: '18', apoyo: 'hoy' },
       { etiqueta: 'Contestaron', valor: '11', apoyo: 'de 18' },
     ]} />)
-    const franja = screen.getByRole('region', { name: 'Tu día en cifras' })
+    const franja = screen.getByRole('group', { name: 'Tu día en cifras' })
     const terminos = within(franja).getAllByRole('term').map((t) => t.textContent)
     expect(terminos).toEqual(['Llamadas', 'Contestaron'])
     expect(within(franja).getAllByRole('definition')[1]).toHaveTextContent('11de 18')

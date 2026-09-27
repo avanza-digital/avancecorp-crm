@@ -45,7 +45,8 @@ export function BarrasPorHora({ porHora, titulo, apoyo, alto = 110, className }:
               return (
                 <div key={b.hora} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
                   <span className={cn('mb-[3px] text-[11px] font-bold tabular-nums text-foreground/80', b.llamadas === 0 && 'invisible')}>{b.llamadas}</span>
-                  <span className={cn('w-full max-w-[22px] bg-accent/25', noContestadas > 0 && 'rounded-t')} style={{ height: noContestadas }} />
+                  {/* El tenue lleva un filo: solo, contra el blanco, apenas se veía (1,4:1). */}
+                  <span className={cn('w-full max-w-[22px] bg-accent/25', noContestadas > 0 && 'rounded-t ring-1 ring-inset ring-accent/45')} style={{ height: noContestadas }} />
                   <span className={cn('w-full max-w-[22px] bg-accent', noContestadas === 0 && contestadas > 0 && 'rounded-t')} style={{ height: contestadas }} />
                   <span className="mt-[5px] text-[11px] tabular-nums text-[var(--muted-foreground-strong)]">{String(b.hora).padStart(2, '0')}</span>
                 </div>
@@ -60,7 +61,7 @@ export function BarrasPorHora({ porHora, titulo, apoyo, alto = 110, className }:
           </ul>
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-foreground/80">
             <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="size-2.5 rounded-[3px] bg-accent" />Contestaron</span>
-            <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="size-2.5 rounded-[3px] bg-accent/25" />No contestaron</span>
+            <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="size-2.5 rounded-[3px] bg-accent/25 ring-1 ring-inset ring-accent/45" />No contestaron</span>
             {fuera > 0 && <span>{plural(fuera, 'llamada', 'llamadas')} fuera de la franja 08–20.</span>}
           </div>
         </>

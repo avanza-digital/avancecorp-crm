@@ -32,7 +32,8 @@ export function FranjaCifras({ etiqueta, cifras, className }: {
   className?: string | undefined
 }): JSX.Element {
   return (
-    <section aria-label={etiqueta} className={cn('rounded-2xl border border-border bg-card', className)}>
+    // Grupo con nombre, no una región más: la pantalla ya tiene las suyas.
+    <section role="group" aria-label={etiqueta} className={cn('rounded-2xl border border-border bg-card', className)}>
       <dl className={cn('grid grid-cols-2 gap-y-4 py-4', COLUMNAS[cifras.length] ?? 'sm:grid-cols-4')}>
         {cifras.map((c, i) => (
           // En el celular son 2 por fila (raya solo en la segunda); desde tablet,
