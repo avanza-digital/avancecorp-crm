@@ -13609,9 +13609,19 @@ nuevo: RPC SECURITY DEFINER accesible a authenticated, intencional y con ámbito
 verificado. Performance sin nuevos avisos estructurales; el banco presenta más
 índices unused por su historia sintética. Las 21 Edge conservan hashes y JWT.
 El delta de merge se verificó: exactamente una migración, ninguna ajena.
+## 20260927172930 — Vigilante analítico previo a Citas
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 27/09/2026.** Repara el censo del
+vigilante sin ampliar su techo (14): separa las filas crudas de Ranking de su
+agregación, declara el impacto operativo de eliminación y actualiza la huella
+vigente de la auditoría de contratos. Antes de aplicar se ensayó la migración
+completa dentro de una transacción con `rollback`; los tres últimos períodos de
+Ranking conservaron exactamente sus resultados. SHA-256:
+`4b25732afb8adda4dcc4f4b96c08f2aee325294b4a8f0c3afbac6ff5938aa4b9`.
+
 ## 20260927172931 — Citas: Supervisión limitada al equipo asignado
 
-**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Habilita la vista Citas
+**✅ APLICADA, REGISTRADA Y PUBLICADA EN PRODUCCIÓN el 27/09/2026.** Habilita la vista Citas
 para Supervisión y conserva Gerencia global. La RPC detallada se restringe en
 cada fuente al subárbol vigente de `private.vendedor_ids_visibles(auth.uid())`:
 tareas, historial, ledger de asignaciones, cierres y capital. El testigo
@@ -13623,3 +13633,12 @@ cada sustitución interna exige una coincidencia única y el postflight comprueb
 SECURITY DEFINER, `search_path`, ACL anónima y el sello analítico. El RLS gate
 añade la lectura positiva de `sup1`, ausencia de `testigo` y exclusión del
 subárbol de `sup2`; analista, coordinador y cliente conservan 42501.
+
+Postflight productivo: guard analítico OK (37 candidatos, 14 sujetos al techo,
+19 inventarios fuera del techo y 4 auxiliares), `anon` bloqueado, puerta de
+Supervisión habilitada y testigo solo para Gerencia. Sonda con supervisor real:
+11 vendedores visibles y cero IDs fuera de ámbito en población, conversiones y
+capital. Front vivo: commit `8ec3dd1f67e1`, build
+`build-20260927T205509063Z`, preflight sobre `01d5ddc4b653` y smoke HTTP de
+`version.json`, HTML y chunks. SHA-256 de la migración:
+`1ed04fc5e8c7884d79f7d4090b1b6e1a4669a74a60e4826ac4ad54972f089191`.
