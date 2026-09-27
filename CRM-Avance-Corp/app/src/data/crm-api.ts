@@ -69,6 +69,7 @@ import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from 
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
+import { ConversionEstadoSchema, type ConversionEstado } from '@/lib/conversion-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
 import {
@@ -6268,14 +6269,30 @@ export async function anularCierreAvance(datos: AnularCierreAvanceDatos): Promis
   }
 }
 
+/** Crédito temporal leído de la puerta autorizada, separado del estado de cierre. */
+export async function obtenerConversionEstado(leadId: string, signal?: AbortSignal): Promise<ConversionEstado> {
+  if (!v.safeParse(UuidSchema, leadId).success) {
+    throw new CrmApiError('El identificador del lead no es válido.', 'CONVERSION_LEAD_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('conversion_estado_lead_v1', { p_lead_id: leadId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.conversion_estado.consulta_fallida')
+  const resultado = v.safeParse(ConversionEstadoSchema, data)
+  if (!resultado.success || resultado.output.lead_id !== leadId) {
+    const fallo = new CrmApiError('No se pudo verificar el estado de conversión.', 'CONVERSION_ESTADO_CONTRACT')
+    registrarError('crm.conversion_estado.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
 /**
- * El estado del cierre de unos leads (`crm.cierres_estado_fn`): qué canal y si
- * está anulado. Es la ÚNICA vía por la que el front puede enterarse de una
- * anulación — su tabla es deny-by-default a propósito.
- *
- * Devuelve solo los leads con algo que decir; la ausencia significa «cerró en
- * Avance y no está anulado» (ver `estadoDelCierre`, donde ese default se escribe
- * una vez).
+ * Estado del cierre (`crm.cierres_estado_fn`): canal y anulación. Su tabla es
+ * deny-by-default. Devuelve solo leads con algo que decir; la ausencia significa
+ * «Avance no anulado», no ausencia de inversión (ver `estadoDelCierre`).
  */
 export async function obtenerCierresEstado(leadIds: readonly string[], signal?: AbortSignal): Promise<CierreEstado[]> {
   // Sin ids no hay pregunta: se ahorra un viaje por cada pantalla que todavía

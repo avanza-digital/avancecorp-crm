@@ -1,3 +1,48 @@
+## 20260927080006 — Conversión: declaraciones técnicas del control analítico
+
+**APROBADA Y ENSAYADA EN RAMA; NO EN PRODUCCIÓN.** Dos escritores internos
+se declaran operativos; deuda conserva clase analítica con huella actualizada.
+Sin cambios a funciones, permisos, contratos ni techo. Ensayo revertido y
+postflight PASS, sin ocultar cuatro hallazgos anteriores del inventario.
+SHA-256 `2b34a9b60f384bf09b83bf0c163cddb2cf7935c0bebe4d5442e72b19c0c69324`.
+Creada por CLI como 20260927074717; conciliada con versión nativa sin cambio
+de bytes. Matriz final activa y puertas de publicación en curso.
+
+## 20260927073637 — Conversión: fecha comercial y acreditación dentro de plazo
+
+**APROBADA E INSTALADA EN RAMA; NO EN PRODUCCIÓN.** Rama de trabajo
+`codex/conversion-fecha-comercial`, basada en Main `98be5666`.
+Miguel aprobó cierre comercial, confirmación y vínculo antes de finalizar el
+día 10 Lima, vigencia desde septiembre y conservación de agosto/anteriores.
+Caso ambiguo: fuente de septiembre, no mayo. Cuatro reemplazos autorizados para
+conciliación nominal; caso sin inversión pendiente sin crédito. Datos personales
+y UUID operativos solo en el manifiesto privado, nunca en este repositorio público.
+
+Frontera única día 11, evaluador puro, registro auditado RLS privado, escritor
+idempotente y núcleo comercial. Triggers CRM de confirmación/vínculo, corrección
+comercial, deuda por mes acreditado y RPC autorizada de explicación para la ficha.
+Diez suites SQL, cinco mutantes y once carreras de dos sesiones PASS; escritores
+reales Avance/cooperativa, pendiente sin crédito y fotos selladas verificadas.
+Frontend `npm run check` PASS: 4468 tests; E2E Docker 275 passed, 26 skipped,
+1 flaky (Gestión diaria, pasó al reintentar). Tipos nuevos generados localmente.
+Instalación inactiva: conserva la lectura anterior hasta conciliar y activar
+atómicamente el manifiesto privado. Lote parcial/drift/plazo vencido se revierten.
+Manifiesto real revalidado sin divergencias; aún NO aplicado. Reversa y huellas
+PASS. P1 del review Claude corregidos: cambio de día conserva vínculo válido;
+pertenencia individual al sello evita deuda por fuente excluida antes de cerrar.
+Retirada auditada sincronizada con el sello mediante trigger sólo CRM; retiro
+antes/después, corrección/anulación concurrentes y Metas con cuotas nominales
+sintéticas PASS. Reversa repetida tras este ajuste PASS.
+E2E focal de Gestión diaria 11/11 PASS. Tipos nuevos regenerados localmente.
+Estado: `../scripts/conversion-fecha/ESTADO.md`; evaluación `REVISION.md` al lado.
+Baseline y candidata OFF remotos 2267/0 cada una; escritores HTTP 15/15 y
+estado/plazo 5/5 PASS. Enero cargado en septiembre: inversión intacta, cero
+crédito en ambos meses. Tipos integrales, check y reversa remota PASS; advisors
+sin nuevas advertencias. Matriz activa final y publicación pendientes.
+SQL creado como 20260927035114, conciliado con versión nativa sin alterar bytes;
+SHA-256 `21e615f519164d2eb68437f0e358a0d37df1cf5dbbb8bf221f0d614f134dd896`.
+No autoriza activar Cron ni sellar meses. Acta vigente: `ENSAYO-REMOTO.md`.
+
 ## 20260927015203 — Ranking: continuidad legada acreditada como Cartera
 
 **PROBADA EN DOCKER LOCAL Y RAMA REMOTA. NO APLICADA EN PRODUCCIÓN.**

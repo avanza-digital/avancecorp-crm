@@ -22,6 +22,7 @@ import {
   derivarLeadsEquipo,
   obtenerCierreMesEstado,
   obtenerCierresEstado,
+  obtenerConversionEstado,
   obtenerCierresExternos,
   listarCarteraPagina,
   listarActividadesCliente,
@@ -208,6 +209,7 @@ export const crmQueryKeys = {
   // YA normalizados: sin eso cada render pediría lo mismo con una clave nueva.
   cierresEstadoPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-estado'] as const,
   cierresEstado: (leadIds: readonly string[]) => [...crmQueryKeys.cierresEstadoPrefijo(), leadIds.join(',')] as const,
+  conversionEstadoLead: (leadId: string) => [...crmQueryKeys.cierresEstadoPrefijo(), 'conversion-v1', leadId] as const,
   metricasReunionesPrefijo: () => [...crmQueryKeys.metricas(), 'reuniones'] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricasReunionesPrefijo(), desde, hasta] as const,
@@ -277,6 +279,7 @@ const CLAVES_INVALIDACION_COMERCIAL = {
     crmQueryKeys.leads(),
   ],
   conversionExterna: [
+    crmQueryKeys.cierresEstadoPrefijo(),
     crmQueryKeys.cierresExternosPrefijo(),
     ...CLAVES_FOTOS_POR_PERIODO,
     crmQueryKeys.leads(),
@@ -1187,6 +1190,13 @@ export function useCierresEstado(habilitada: boolean, leadIds: readonly string[]
     queryKey: crmQueryKeys.cierresEstado(ids),
     queryFn: ({ signal }) => obtenerCierresEstado(ids, signal),
     enabled: habilitada && ids.length > 0,
+  })
+}
+
+export function useConversionEstado(leadId: string) {
+  return useQuery({
+    queryKey: crmQueryKeys.conversionEstadoLead(leadId),
+    queryFn: ({ signal }) => obtenerConversionEstado(leadId, signal),
   })
 }
 

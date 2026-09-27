@@ -27,6 +27,7 @@ vi.mock('@/data/crm-queries', () => ({
   usePoliticaRentabilidad: () => ({ data: undefined, isPending: true, isError: false }),
   useSolicitudesTasa: () => ({ data: [], isPending: true, isError: false }),
   useCierresEstado: () => ({ data: [] }),
+  useConversionEstado: () => ({ data: undefined, isError: false }),
   useAnularCierreAvance: () => ({ mutateAsync: vi.fn() }),
   useConvertirLeadExterno: () => ({ mutateAsync: vi.fn() }),
   useCuentasBancariasCliente: () => ({ data: [], isPending: false, isError: false, isFetching: false, refetch: vi.fn() }),
