@@ -11,11 +11,11 @@
 | Carpeta     | Qué es                                                                                  | Servidor          |
 | ----------- | --------------------------------------------------------------------------------------- | ----------------- |
 | `galeria/`  | Componentes UI animados — React + Vite + Motion + GSAP + Lenis + Tailwind v4 + shadcn/ui | `localhost:5173`  |
-| `remotion/` | Videos programados (MP4) — Remotion                                                     | `localhost:3000`  |
+| `remotion/` | Videos programados (MP4) y diseño de animaciones — Remotion                             | `localhost:3000`  |
 
 ## Regla de herramientas (decisión 2026-07-28)
 
-- **Remotion** = SOLO fabricar **videos** (MP4: intro del logo, piezas para redes). No sirve para UI viva.
+- **Remotion** = **videos** (MP4: intro del logo, piezas para redes) **y** tablero donde se diseñan y aprueban animaciones, también las de componentes (decisión de Miguel, 27/09/2026). El componente vivo se implementa después con Motion/GSAP.
 - **Motion** (`motion/react`) = micro-interacciones de UI: hovers, entradas, transiciones.
 - **GSAP** (`useGSAP` + ScrollTrigger) = animaciones ligadas al scroll y timelines complejos. Hoy es gratis al 100% (plugins incluidos).
 

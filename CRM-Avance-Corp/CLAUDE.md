@@ -29,10 +29,10 @@ espejos del CRM en `supabase/functions/` deben quedar **byte a byte iguales**.
 
 ## ⚠️ El gate de REALIDAD (`npm run gate:realidad`) — correr ANTES de arreglar una pantalla
 
-Tres veces en dos días un cambio pasó el gate entero (1.500+ tests, e2e, RLS) y **no
-hizo nada en producción**, siempre por la misma razón: los tests montan el mundo del
-FIXTURE (metas publicadas, cartera poblada, gate de leads abierto) y producción es
-otro mundo. El bug no estaba en el código: estaba en el mundo que el código asumía.
+Un cambio puede pasar el gate entero (tests, e2e, RLS) y **no hacer nada en producción**:
+los tests montan el mundo del FIXTURE (metas publicadas, cartera poblada, gate de leads
+abierto) y producción es otro mundo. El bug no está en el código, sino en el mundo que el
+código asume.
 
 `supabase/scripts/gate-realidad.mjs` mide esa distancia y dice, por cada supuesto
 incumplido, **qué pantallas se están probando hoy contra un mundo que no existe**.

@@ -138,6 +138,10 @@ paridad y con dos revisiones. Cambios en la PR #96 (`fde86d24`).
     donde estaban los archivos. Guardó nombre y sentencias; es la vía cuando el clasificador
     bloquea preparar el INSERT a mano.
   - Fusionar la #96.
-  - Seguir con P1 #3 (reinicio del 19/09 + `ANALYZE`) y #4 (cierre de mes antes del 01/10).
+  - P1 #3: ✅ `ANALYZE` hecho el 25/09 04:04 UTC (Miguel, con `!`). Las 5 tablas tienen
+    estadística = filas reales (`perfiles` figuraba con 20; tiene 543). **Queda** la causa del
+    reinicio del 19/09 16:12 UTC: métricas del panel de Supabase o ticket (Miguel).
+  - P1 #4 (cierre de mes antes del 01/10) NO es de esta línea de trabajo: es de la reapertura
+    de agosto ([[Cierre de mes]]). Aquí solo quedó como recordatorio.
 - 🔑 Los tiempos agotados del SLA venían de UNA función llamada 2302 veces por consulta, no de
   la carga. Medir por piezas (`explain analyze` de cada llamada interna) lo encontró en minutos.

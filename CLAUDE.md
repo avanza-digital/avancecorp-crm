@@ -4,10 +4,7 @@
 
 **Por qué existe esta regla.** El despliegue no añade: **REEMPLAZA el sitio entero** con la foto
 de UNA rama. Si publicas desde una rama que no contiene lo que otra sesión publicó ayer, lo de
-ayer desaparece — nadie lo borra, es que no estaba en tu foto. Entre agosto y el 01/09/2026 el
-tronco estuvo parado 29 días mientras cada sesión abría su rama y la abandonaba tras publicar:
-se acumularon 33 ramas, la Ficha 360 tuvo que rescatarse a mano cinco veces, y el 01/09 el
-preflight rechazó un despliegue que habría borrado ~3 767 líneas de trabajo ajeno.
+ayer desaparece — nadie lo borra, es que no estaba en tu foto.
 
 **El invariante:** `main` SIEMPRE contiene lo que está en producción (CRM, portal y las
 migraciones ya aplicadas). Puede contener además trabajo aún sin publicar; lo que nunca puede
@@ -23,7 +20,8 @@ es quedarse atrás.
 
 **Al empezar una sesión:**
 1. Trabaja desde `main`, consulta `avancecorp/main` e integra sus cambios sin sobrescribirlos.
-   Antes de publicar, ambos deben apuntar al mismo commit.
+   Antes de publicar, ambos deben apuntar al mismo commit. Única excepción: la rama de rescate
+   cuando el preflight rechaza (abajo), que se publica aparte y vuelve a `main` el mismo día.
 2. Si te encuentras en una rama vieja (`wip/…`, `release/…` de otro día), NO trabajes encima:
    comprueba antes con `git merge-base --is-ancestor main <tu-rama>` que contiene el tronco.
 
@@ -44,8 +42,10 @@ sobre otra línea. Y si lo que necesitas es aislamiento de verdad, no uses una r
   Compara el candidato con el commit VIVO (`crm.miavance.com/version.json` → `buildId` →
   manifiesto en `CRM-Avance-Corp/releases/`) y **se niega** si tu build no contiene lo vivo.
   Nunca lo trates como un trámite: es la única defensa contra publicar la rama equivocada.
-- **Portal** → `node _DEV_NO_SUBIR/preflight-portal.mjs <zip>`. Comprueba que el ZIP no borre
-  archivos que hoy están vivos y que contenga lo publicado.
+- **Portal** → no lleva preflight (decisión de Miguel, 27/09/2026): se sube sobrescribiendo
+  archivos, sin reemplazar el sitio entero (ver `public_html/CLAUDE.md` §14). Solo si algún día
+  se sube un ZIP que reemplace el sitio completo, pásalo antes por
+  `node _DEV_NO_SUBIR/preflight-portal.mjs <zip>`.
 
 **Después de publicar, el mismo día:** fusiona a `main` lo que acabas de publicar y súbelo
 (`git push avancecorp main`, y `git -C public_html push origin main` si tocaste el
@@ -54,20 +54,24 @@ accidental.
 
 **Si el preflight te rechaza:** NO fuerces. Averigua qué rama está viva, crea una rama nueva
 desde ese tip y asienta tu cambio encima (`git checkout <tu-commit> -- <archivos>` tras
-comprobar que el parche aplica limpio); luego vuelve a construir y a pasar el preflight.
+comprobar que el parche aplica limpio); luego vuelve a construir, pasa el preflight y publica
+desde esa rama (decisión de Miguel, 27/09/2026: el rescate va en una copia aparte, no en `main`).
+Ese mismo día fusiona la rama de rescate a `main` y súbela, como dice «Después de publicar».
 
 ## CodeGraph
 
 Este proyecto usa CodeGraph como herramienta principal para buscar, comprender y ubicarse en el código.
 
 Reglas:
-- **SIEMPRE usar CodeGraph PRIMERO para buscar/ubicarse en el código.** `grep` y la lectura cruda son complementos puntuales cuando el grafo no alcanza.
-- Preferir el MCP `codegraph_explore`; si no está disponible, usar `codegraph explore "<pregunta concreta>"` desde la raíz.
+- Para ubicarte en código que no conoces, empieza por CodeGraph (herramientas `mcp__codegraph__*`,
+  p. ej. `codegraph_get_ai_context` o `codegraph_symbol_search`), y también para entender quién
+  llama a algo o de qué depende. Si solo necesitas leer un archivo que ya conoces, léelo
+  directo; `grep` complementa cuando el grafo no alcanza.
 - No usar Graphify, `graphify-out/`, `GRAPH_REPORT.md` ni comandos de actualización de Graphify.
 
 ## Vault de Obsidian (memoria del proyecto)
 
-Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Léelo al **inicio de cada sesión** para tener contexto del proyecto antes de actuar.
+Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Al **inicio de cada sesión**, lee su punto de entrada para tener contexto antes de actuar.
 
 - **Ubicación del vault:** `BASE DE CONOCIMINETO/AVANCECORP/`
   (ojo: la carpeta está escrita sin la "E" — `CONOCIMINETO`; usa la ruta tal cual.)
@@ -75,7 +79,8 @@ Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento cura
 - **Config de Obsidian:** `BASE DE CONOCIMINETO/AVANCECORP/.obsidian/` (no es contenido; no la edites como nota).
 
 Reglas:
-- Al iniciar sesión, lee las notas `.md` del vault para cargar el conocimiento del proyecto (no solo el grafo de código).
+- Al iniciar sesión, lee `Inicio.md`. Antes de tocar un tema, busca y lee SOLO las notas de ese tema (por nombre o
+  con `grep` dentro del vault). **No leas el vault entero:** son 400+ notas (4,6 MB) y cuesta tokens sin aportar.
 - El MCP **CODEgraph** cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
 - Cuando captures conocimiento nuevo y duradero del proyecto, escríbelo como una nota `.md` en el vault, enlazando con `[[wikilinks]]` a notas relacionadas.
 
@@ -86,8 +91,8 @@ Vive **FUERA de este repo**, en la carpeta hermana `../ui-playground/`
 crean y aprueban animaciones ANTES de tocar los proyectos reales.
 
 - `galeria/` — componentes de UI animados (React + Vite + **Motion** + **GSAP**) → `npm run dev` → `localhost:5173`.
-- `remotion/` — videos programados con **Remotion** (MP4: intros, piezas para redes) → `npm run dev` → `localhost:3000`.
-- Regla de herramientas: Remotion = SOLO videos; Motion/GSAP = componentes vivos de interfaz.
+- `remotion/` — **Remotion**: videos programados (MP4: intros, piezas para redes) y tablero donde se diseñan y aprueban animaciones, también las de componentes → `npm run dev` → `localhost:3000`.
+- Regla de herramientas (decisión de Miguel, 27/09/2026): Remotion sirve para los dos, videos y diseño de animaciones. El componente vivo que llega al CRM o al portal se implementa con Motion/GSAP.
 - Flujo: crear en el laboratorio → Miguel aprueba → promover (CRM casi directo por ser React; portal portado a vanilla).
 
 **Comandos del flujo** (en `.claude/commands/`): `/lab` (arranca los 2 servidores), `/componente <pedido>`,
@@ -130,6 +135,15 @@ formato de review, riesgo y presupuesto, invocación, autoridad) y en `.ai/VERIF
 Este archivo define cómo se organiza el backend de este proyecto. Léelo antes de crear
 tablas, funciones, endpoints o pantallas. Si una tarea choca con estas reglas, detente y
 explica el conflicto antes de escribir código.
+
+**Aplica también al CRM actual** (decisión de Miguel, 27/09/2026). En el CRM no hay un esquema
+`api` aparte: las puertas son las funciones no trigger del esquema `crm` (el que expone la API),
+el núcleo son las funciones de `private` y los triggers, y los tipos salen de `public,crm`
+(`npm run gen:types`). El CRM todavía no cumple la regla entera: las pantallas que leen tablas
+directo, las puertas que tocan tablas sin núcleo y las inversiones son deuda medida en el mapa de
+capas (`SERVIDOR-CRM/mapa-capas-2026-09-17/`, plan en `PLAN-CIERRE-SALTOS.md`). El trabajo nuevo
+no abre saltos nuevos. Los saltos que ya existen se cierran siguiendo ese plan, un paso por PR y
+con plan aprobado; no reestructures código viejo de paso en otra tarea.
 
 ## La regla central
 
@@ -215,8 +229,7 @@ directo. Ningún secreto sale de la capa de núcleo.
 - Estados: tipo `enum` con valores en minúscula (`reservada`, `confirmada`, `cancelada`).
 - Funciones de `api`: verbo + entidad (`crear_cliente`, `listar_citas`, `cerrar_turno`).
 - Vistas de `api`: prefijo `v_` (`v_agenda_dia`).
-- Toda tabla, columna, vista y función lleva `COMMENT ON`. El diccionario
-  `docs/diccionario.md` se genera desde esos comentarios; no se edita a mano.
+- Toda tabla, columna, vista y función lleva `COMMENT ON`.
 
 ## Migraciones
 
@@ -236,7 +249,7 @@ directo. Ningún secreto sale de la capa de núcleo.
 - [ ] Prueba de rol: cada rol solo ejecuta lo que le corresponde.
 - [ ] Advisors de seguridad y rendimiento de Supabase sin alertas nuevas.
 - [ ] Tipos regenerados y typecheck en verde.
-- [ ] `COMMENT ON` completo y diccionario regenerado.
+- [ ] `COMMENT ON` completo.
 - [ ] Ningún secreto en código, logs ni commits.
 
 ## Qué NO hacer

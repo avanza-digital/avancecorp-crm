@@ -20,7 +20,9 @@ Reglas completas en `supabase/migrations/LEEME.md` y ledger en `supabase/migrati
    - Tablas nuevas SOLO en esquema `crm` (helpers de visibilidad en `private`).
    - **RLS ON en el mismo statement de creación**; policies deny-by-default; SIN policy
      DELETE (soft-delete `activo = false`).
-   - Trigger `log_audit_change` sobre toda tabla `crm.*` nueva.
+   - Trigger de auditoría sobre toda tabla `crm.*` nueva: `private.log_audit_crm`, o
+     `private.log_audit_sin_secretos` (con las columnas a enmascarar) si guarda secretos: tokens,
+     claves, contraseñas o credenciales.
    - `COMMENT ON` para tablas y columnas nuevas.
    - Funciones: `SECURITY DEFINER` solo con justificación escrita y `SET search_path` fijo.
    - **Grants explícitos**. ⚠️ `crm.leads` tiene privilegios POR COLUMNA: toda columna

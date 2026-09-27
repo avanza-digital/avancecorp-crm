@@ -20,7 +20,8 @@ preparar, verificar o crear la habilidad, respetar ese alcance sin publicar.
 - El destino Git es **avancecorp/main** del repositorio `avancecorp-crm`.
   Hacer fetch, integrar cambios remotos sin sobrescribirlos y comprobar que Main
   local y `avancecorp/main` apuntan al mismo commit. No usar `origin/main` de otro
-  proyecto, `tronco`, ramas de release ni push forzado.
+  proyecto, `tronco`, ramas de release ni push forzado. Única excepción: la rama de
+  rescate cuando el preflight rechaza («Si el preflight te rechaza» en `CLAUDE.md`).
 - Construir desde una copia limpia de ese commit. Preservar trabajos ajenos;
   no incluir cambios sin confirmar ni usar `--allow-dirty`. Si esos cambios son
   parte necesaria de lo que Miguel quiere publicar, resolver su inclusión antes
@@ -45,6 +46,14 @@ preparar, verificar o crear la habilidad, respetar ese alcance sin publicar.
    subir; si cambiaron, integrar, comprobar el nuevo código y reconstruir.
 4. Identificar el último ZIP publicado para recuperación. Conservarlo junto
    con su manifiesto; no confundir un paquete preparado con uno publicado.
+5. Pasar el preflight obligatorio desde la raíz del repositorio (el conector de
+   Hostinger no lo corre):
+   ```sh
+   node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com CRM-Avance-Corp/releases/<zip-generado>.zip
+   ```
+   Compara el candidato con el commit vivo y se niega si el build no contiene lo
+   publicado. Si rechaza, no publicar: seguir «Si el preflight te rechaza» del
+   `CLAUDE.md` raíz.
 
 ## Publicar y comprobar
 
@@ -61,8 +70,10 @@ preparar, verificar o crear la habilidad, respetar ese alcance sin publicar.
   y el acceso básico sin crear ni eliminar datos reales para probar.
 - Si la publicación devuelve un resultado ambiguo, consultar estado y archivos
   servidos antes de repetir. Si falla la verificación posterior, diagnosticar
-  con esa evidencia y recuperar el ZIP publicado anterior cuando sea necesario;
-  no reintentar indefinidamente ni revertir SQL o auditorías.
+  con esa evidencia. El ZIP publicado anterior es la vía de recuperación, pero el
+  preflight lo rechazará: no publicarlo sin preflight por cuenta propia; reportar la
+  evidencia a Miguel, que decide el rollback. No reintentar indefinidamente ni revertir
+  SQL o auditorías.
 
 ## Entrega
 

@@ -18,8 +18,9 @@ Contexto fijo del proyecto:
 - PII sensible en `crm.leads`: DNI, teléfono, fecha_nacimiento, genero, monto_estimado.
 - Ledger inmutable `crm.lead_asignaciones`; log inmutable `crm.actividades`.
 - Reglas no negociables: RLS ON al crear la tabla; deny-by-default; sin policy DELETE
-  (soft-delete `activo=false`); nada de tocar objetos de `public`; trigger
-  `log_audit_change` en toda tabla `crm.*`.
+  (soft-delete `activo=false`); nada de tocar objetos de `public`; toda tabla `crm.*`
+  lleva el trigger de auditoría `private.log_audit_crm` (o `private.log_audit_sin_secretos`,
+  con las columnas a enmascarar, si guarda secretos: tokens, claves, contraseñas o credenciales).
 - ⚠️ `crm.leads` tiene grants POR COLUMNA: columna nueva sin GRANT explícito = invisible
   para PostgREST (falla silenciosa conocida del proyecto).
 

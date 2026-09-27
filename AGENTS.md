@@ -2,7 +2,7 @@
 
 - Main local debe seguir `avancecorp/main` (`avancecorp-crm`), no `avancecorp/tronco` ni `origin/main` (otro proyecto).
 - Antes de publicar, integrar los cambios remotos sin sobrescribirlos y comprobar que Main local y `avancecorp/main` apuntan al mismo commit.
-- Publicar únicamente un artefacto construido desde ese commit verificado. No crear ramas de release ni usar `push --force`.
+- Publicar únicamente un artefacto construido desde ese commit verificado. Única excepción: la rama de rescate cuando el preflight rechaza (ver «Si el preflight te rechaza» en `CLAUDE.md`), que se crea desde el commit vivo, se publica desde ahí y se fusiona a Main el mismo día. No crear otras ramas de release ni usar `push --force`.
 - Las menciones anteriores a `tronco` en el vault son historial; el destino vigente es `avancecorp/main`.
 
 ## CodeGraph del proyecto
@@ -18,7 +18,7 @@ Reglas:
 
 ## Vault de Obsidian (memoria del proyecto)
 
-Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Léelo al **inicio de cada sesión** para tener contexto del proyecto antes de actuar.
+Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento curada del negocio. Al **inicio de cada sesión**, lee su punto de entrada para tener contexto antes de actuar.
 
 - **Ubicación del vault:** `BASE DE CONOCIMINETO/AVANCECORP/`
   (ojo: la carpeta está escrita sin la "E" — `CONOCIMINETO`; usa la ruta tal cual.)
@@ -26,7 +26,8 @@ Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento cura
 - **Config de Obsidian:** `BASE DE CONOCIMINETO/AVANCECORP/.obsidian/` (no es contenido; no la edites como nota).
 
 Reglas:
-- Al iniciar sesión, lee las notas `.md` del vault para cargar el conocimiento del proyecto (no solo el grafo de código).
+- Al iniciar sesión, lee `Inicio.md`. Antes de tocar un tema, busca y lee SOLO las notas de ese tema (por nombre o
+  con `grep` dentro del vault). **No leas el vault entero:** son 400+ notas (4,6 MB) y cuesta tokens sin aportar.
 - CodeGraph cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
 - Cuando captures conocimiento nuevo y duradero del proyecto, escríbelo como una nota `.md` en el vault, enlazando con `[[wikilinks]]` a notas relacionadas.
 

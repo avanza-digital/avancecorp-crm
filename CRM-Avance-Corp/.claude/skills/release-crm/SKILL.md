@@ -14,9 +14,11 @@ un ZIP que no haya pasado la verificación.
 
 ## Pasos
 
-1. **Estado limpio**: `git status` sobre `CRM-Avance-Corp/`. Si hay cambios sin commitear
-   que afectan a `app/`, avisar y pedir confirmación antes de seguir (el manifiesto ancla
-   el commit actual).
+1. **Estado limpio y tronco al día**: `git status` sobre `CRM-Avance-Corp/`. Si hay cambios
+   sin commitear que afectan a `app/`, avisar y pedir confirmación antes de seguir (el
+   manifiesto ancla el commit actual). Haz `git fetch avancecorp`, integra sus cambios sin
+   sobrescribirlos y comprueba que `main` local y `avancecorp/main` apuntan al mismo commit;
+   si no, para y avisa.
 
 2. **Gates rápidos** (en `CRM-Avance-Corp/app/`):
    ```bash
@@ -36,15 +38,25 @@ un ZIP que no haya pasado la verificación.
    npm run release:crm:verify -- releases/<el-nuevo>.manifest.json
    ```
 
-5. **Publicar** con el MCP de Hostinger (`hosting_deployStaticWebsite`) apuntando el ZIP
+5. **Preflight (obligatorio; el MCP no lo corre)**, desde la raíz del repositorio:
+   ```bash
+   node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com CRM-Avance-Corp/releases/<el-nuevo>.zip
+   ```
+   Compara el candidato con el commit VIVO (`version.json` → manifiesto en `releases/`) y se
+   niega si el build no contiene lo publicado. Si rechaza, NO publiques: sigue «Si el
+   preflight te rechaza» del `CLAUDE.md` raíz.
+
+6. **Publicar** con el MCP de Hostinger (`hosting_deployStaticWebsite`) apuntando el ZIP
    recién verificado al sitio de `crm.miavance.com`. Mismo carril que el portal.
 
-6. **Smoke post-deploy**:
+7. **Smoke post-deploy**:
    ```bash
    curl -s -o /dev/null -w "%{http_code}\n" https://crm.miavance.com/
    ```
    y comprobar que el `index-<hash>.js` referenciado por
    `https://crm.miavance.com/` existe (HTTP 200) y coincide con el de `app/dist/index.html`.
 
-7. **Reportar**: nombre del artefacto, commit, resultado del smoke. Si algo falló después
-   de publicar, el ZIP anterior en `releases/` es el rollback inmediato (mismo paso 5).
+8. **Reportar**: nombre del artefacto, commit, resultado del preflight y del smoke. Si algo
+   falló después de publicar, el ZIP anterior en `releases/` es la vía de recuperación, pero el
+   preflight lo rechazará (no contiene lo que acabas de publicar). No lo publiques saltándote
+   el preflight por tu cuenta: reporta a Miguel la evidencia del smoke y él decide el rollback.
