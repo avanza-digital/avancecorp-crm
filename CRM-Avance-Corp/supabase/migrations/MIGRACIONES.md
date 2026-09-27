@@ -1,3 +1,27 @@
+## 20260927020317 — Cuentas de Gloria · arreglos: motivo de F3 y marca «cuenta retirada»
+
+**PREPARADA Y ENSAYADA; PENDIENTE DE AUDITORÍA Y DEL OK DE MIGUEL.** Los dos arreglos pequeños que
+dejaron las revisiones de F3/F4, pedidos por Miguel el 26/09. No toca `public` ni `storage`.
+- **Motivo de F3** con la regla de F4: bordes sin espacios de ningún tipo y ≥5 caracteres visibles.
+  Se recrea `private.cambiar_cuenta_pago_contratos_autorizado` (mismo texto salvo dos líneas) y se
+  sustituye la constraint de `crm.contrato_cuenta_pago_cambios`, tras comprobar que ninguna fila
+  existente la incumple.
+- **`cuenta_retirada`** (columna nueva al final de `crm.contratos_cuenta_pago_cliente_fn`): la cuenta
+  física de pago del contrato abierto ya no tiene versión vigente (renovación borrada → contrato
+  reabierto con cuenta retirada). El panel del portal lo marca «⚠️ CUENTA RETIRADA: cámbiala». Una
+  cuenta corregida (versión vieja + vigente, mismo CCI) no cuenta.
+
+Precondiciones: md5 de las 3 funciones vivas de F3 y definición exacta de la constraint. Reversa
+`../scripts/cuentas-gloria/reversa-arreglos-cuentas-gloria.sql` (repone F3 byte a byte; se niega si
+la huella viva no es `2d448025afaa5d8a9734c7f4fce65799`). Orden de reversas: arreglos → F4 → F3.
+
+Banco (26/09): test `../scripts/cuentas-gloria/test-arreglos-cuentas-gloria.sql` (2 casos, 2
+mutantes); F3 y F4 en verde con los arreglos encima; registro ensayado; tras las tres reversas,
+catálogo idéntico. Portal 160/160 y navegador local con la marca visible solo en el contrato afectado.
+
+Consumidor: panel «Cuenta de pago de los contratos» del portal (`cambio-cuenta-core v2`,
+`clientes.js v56`, SW v135). Orden: base → portal.
+
 ## 20260927012948 — Cuentas de Gloria · F4: retirar una cuenta bancaria del cliente
 
 **OK EXPLÍCITO DE MIGUEL (26/09, ~20:55): «Sí, aplica y publica».**
