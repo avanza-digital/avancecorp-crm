@@ -238,6 +238,11 @@ function PuestoDeMando(): JSX.Element {
     [rank, rezagosConfirmados],
   )
   const semaforoEquipo = conteoSemaforoEquipo([...lecturas.values()])
+  // El filtro por nivel se anula solo si ese nivel se queda sin nadie (una
+  // actualización resolvió las alertas): nunca una lista vacía sin salida.
+  const nivelVigente = nivelEquipo != null && (nivelEquipo === 'critico' ? semaforoEquipo.rojo : semaforoEquipo.ambar) > 0
+    ? nivelEquipo
+    : null
 
   // ── 1 · Decide primero: las mismas reglas de la franja clásica ──
   // Fail-closed por fuente: un candidato solo existe si su fuente llegó bien,
@@ -610,16 +615,16 @@ function PuestoDeMando(): JSX.Element {
                         {i > 0 && <span aria-hidden>·</span>}
                         <button
                           type="button"
-                          aria-pressed={nivelEquipo === nivel}
+                          aria-pressed={nivelVigente === nivel}
                           disabled={n === 0}
                           onClick={() => setNivelEquipo((actual) => (actual === nivel ? null : nivel))}
-                          className={cn(CLASE_CIFRA, 'disabled:cursor-default disabled:no-underline', nivelEquipo === nivel && 'font-bold text-foreground underline')}
+                          className={cn(CLASE_CIFRA, 'disabled:cursor-default disabled:no-underline', nivelVigente === nivel && 'font-bold text-foreground underline')}
                         >
                           {numero(n)} {texto}
                         </button>
                       </span>
                     ))}
-                    {nivelEquipo != null && (
+                    {nivelVigente != null && (
                       <button type="button" className={cn(CLASE_CIFRA, 'ml-1 text-accent')} onClick={() => setNivelEquipo(null)}>Ver todos</button>
                     )}
                   </div>
@@ -646,7 +651,7 @@ function PuestoDeMando(): JSX.Element {
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles
             <ul role="list" aria-label="Analistas del equipo" className="border-t border-border/60">
-              {rank.filter((r) => nivelEquipo == null || lecturas.get(r.m.perfil_id)?.nivel === nivelEquipo).map((r) => {
+              {rank.filter((r) => nivelVigente == null || lecturas.get(r.m.perfil_id)?.nivel === nivelVigente).map((r) => {
                 const id = r.m.perfil_id
                 const lectura = lecturas.get(id) ?? { nivel: null, senales: [] }
                 const rezago = rezagosConfirmados.get(id)

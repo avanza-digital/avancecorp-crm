@@ -768,6 +768,23 @@ describe('Hoy · supervisor — puesto de mando: todo número se abre, segunda t
     expect(within(equipo()).getAllByRole('listitem')).toHaveLength(todas)
   })
 
+  it('si el nivel elegido se queda sin nadie tras una actualización, la lista vuelve entera (Codex)', () => {
+    METRICAS_AGENDA = agenda([{ vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', no_asistio: 2 }])
+    LEADS = [
+      lead({ creado_en: '2026-09-26T14:00:00Z' }),
+      lead({ id: 'l-4', nombre_completo: 'LEAD DE JORGE', vendedor_id: JORGE, creado_en: '2026-09-26T14:00:00Z' }),
+    ]
+    const { rerender } = montar()
+    fireEvent.click(screen.getByRole('button', { name: '1 en rojo' }))
+    const equipo = () => screen.getByRole('list', { name: 'Analistas del equipo' })
+    expect(within(equipo()).getAllByRole('listitem')).toHaveLength(1)
+    // La agenda se refresca y Jorge ya no tiene no-shows: nadie en rojo.
+    METRICAS_AGENDA = agenda([{ vendedor_id: JORGE, nombre: 'JORGE HUAMÁN' }])
+    rerender(<HoySupervisorMando />)
+    expect(screen.getByText('Sin alertas en el equipo')).toBeInTheDocument()
+    expect(within(equipo()).getAllByRole('listitem').length).toBeGreaterThan(1)
+  })
+
   it('con más casos que filas, el enlace dice cuántos hay y lleva a Seguimiento', () => {
     RESPONDER = (filtros) => ({ data: pagina(colaTodo(), { filtros: { ...filtros }, total_items: 12, totales: { pendientes: 12 } }), error: null, isFetching: false })
     montar()

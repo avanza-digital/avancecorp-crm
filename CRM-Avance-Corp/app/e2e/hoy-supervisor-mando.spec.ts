@@ -21,7 +21,7 @@ test('supervisor: decide primero, cola filtrada en el servidor y detalle — tod
   const lista = page.getByRole('list', { name: /^Pendientes del equipo/ })
   await expect(lista.locator(':scope > li')).toHaveCount(7)
   expect(pedidos.at(-1)).toMatchObject({ p_limite: 7, p_senal: 'pendientes', p_cursor: null })
-  await expect(page.getByRole('link', { name: /Ver todo en Seguimiento/ })).toHaveAttribute('href', '#/seguimiento')
+  await expect(page.getByRole('link', { name: /en Seguimiento$/ })).toHaveAttribute('href', '#/seguimiento')
   await page.screenshot({ path: test.info().outputPath('hoy-supervisor-1440x900.png'), animations: 'disabled' })
 
   // Abrir la ficha con teclado y volver con Esc: el foco regresa a la fila
