@@ -4,10 +4,7 @@
 
 **Por qué existe esta regla.** El despliegue no añade: **REEMPLAZA el sitio entero** con la foto
 de UNA rama. Si publicas desde una rama que no contiene lo que otra sesión publicó ayer, lo de
-ayer desaparece — nadie lo borra, es que no estaba en tu foto. Entre agosto y el 01/09/2026 el
-tronco estuvo parado 29 días mientras cada sesión abría su rama y la abandonaba tras publicar:
-se acumularon 33 ramas, la Ficha 360 tuvo que rescatarse a mano cinco veces, y el 01/09 el
-preflight rechazó un despliegue que habría borrado ~3 767 líneas de trabajo ajeno.
+ayer desaparece — nadie lo borra, es que no estaba en tu foto.
 
 **El invariante:** `main` SIEMPRE contiene lo que está en producción (CRM, portal y las
 migraciones ya aplicadas). Puede contener además trabajo aún sin publicar; lo que nunca puede
@@ -61,8 +58,10 @@ comprobar que el parche aplica limpio); luego vuelve a construir y a pasar el pr
 Este proyecto usa CodeGraph como herramienta principal para buscar, comprender y ubicarse en el código.
 
 Reglas:
-- **SIEMPRE usar CodeGraph PRIMERO para buscar/ubicarse en el código.** `grep` y la lectura cruda son complementos puntuales cuando el grafo no alcanza.
-- Preferir el MCP `codegraph_explore`; si no está disponible, usar `codegraph explore "<pregunta concreta>"` desde la raíz.
+- Para ubicarte en código que no conoces, empieza por CodeGraph (herramientas `mcp__codegraph__*`,
+  p. ej. `codegraph_get_ai_context` o `codegraph_symbol_search`), y también para entender quién
+  llama a algo o de qué depende. Si solo necesitas leer un archivo que ya conoces, léelo
+  directo; `grep` complementa cuando el grafo no alcanza.
 - No usar Graphify, `graphify-out/`, `GRAPH_REPORT.md` ni comandos de actualización de Graphify.
 
 ## Vault de Obsidian (memoria del proyecto)
@@ -216,8 +215,7 @@ directo. Ningún secreto sale de la capa de núcleo.
 - Estados: tipo `enum` con valores en minúscula (`reservada`, `confirmada`, `cancelada`).
 - Funciones de `api`: verbo + entidad (`crear_cliente`, `listar_citas`, `cerrar_turno`).
 - Vistas de `api`: prefijo `v_` (`v_agenda_dia`).
-- Toda tabla, columna, vista y función lleva `COMMENT ON`. El diccionario
-  `docs/diccionario.md` se genera desde esos comentarios; no se edita a mano.
+- Toda tabla, columna, vista y función lleva `COMMENT ON`.
 
 ## Migraciones
 
@@ -237,7 +235,7 @@ directo. Ningún secreto sale de la capa de núcleo.
 - [ ] Prueba de rol: cada rol solo ejecuta lo que le corresponde.
 - [ ] Advisors de seguridad y rendimiento de Supabase sin alertas nuevas.
 - [ ] Tipos regenerados y typecheck en verde.
-- [ ] `COMMENT ON` completo y diccionario regenerado.
+- [ ] `COMMENT ON` completo.
 - [ ] Ningún secreto en código, logs ni commits.
 
 ## Qué NO hacer
