@@ -4,9 +4,19 @@ import { conteoSemaforoEquipo, lecturaAnalista } from './senal-equipo'
 const sinRezago = { no_asistio: 0, leads_sin_accion: 0, vencidas: 0 }
 
 describe('lecturaAnalista', () => {
-  it('sin cartera abierta es NEUTRO y no enseña señales (no hay nada que medir)', () => {
-    expect(lecturaAnalista({ activos: 0, diasSinActividadMax: 9 }, { no_asistio: 3, leads_sin_accion: 2, vencidas: 1 }))
-      .toEqual({ nivel: 'neutro', senales: [] })
+  it('sin cartera abierta NI señales de agenda es NEUTRO (no hay nada que medir)', () => {
+    expect(lecturaAnalista({ activos: 0, diasSinActividadMax: 9 }, sinRezago)).toEqual({ nivel: 'neutro', senales: [] })
+    expect(lecturaAnalista({ activos: 0, diasSinActividadMax: 0 }, null)).toEqual({ nivel: 'neutro', senales: [] })
+  })
+
+  it('sin cartera abierta la AGENDA sigue mandando: un no-show repetido no desaparece (Codex F1)', () => {
+    const l = lecturaAnalista({ activos: 0, diasSinActividadMax: 9 }, { no_asistio: 3, leads_sin_accion: 0, vencidas: 1 })
+    expect(l.nivel).toBe('critico')
+    // Los días sin actividad no cuentan sin leads abiertos.
+    expect(l.senales).toEqual([
+      { texto: '3 citas sin asistir', nivel: 'critico' },
+      { texto: '1 tarea vencida', nivel: 'atencion' },
+    ])
   })
 
   it('con actividad fresca y sin rezago no hay señal', () => {

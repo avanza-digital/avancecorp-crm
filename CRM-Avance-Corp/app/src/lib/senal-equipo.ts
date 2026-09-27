@@ -10,7 +10,10 @@
 // · citas sin asistir: ≥2 rojo (una sola no es patrón);
 // · leads sin próxima acción: ≥1 ámbar · ≥5 rojo (umbral de la campana);
 // · tareas vencidas: ámbar.
-// La severidad del analista es la PEOR de sus señales: nunca se rebaja.
+// La severidad del analista es la PEOR de sus señales: nunca se rebaja. Las
+// señales de AGENDA valen aunque su cartera abierta haya llegado a cero (un
+// patrón de no-shows de esta semana no desaparece por cerrar leads); solo la de
+// días sin actividad exige leads abiertos. Neutro = sin cartera Y sin señales.
 import type { MetricaAgendaVendedor } from './metricas-agenda'
 import { haceTexto } from './inteligencia'
 
@@ -38,7 +41,6 @@ export function lecturaAnalista(
   fila: { activos: number; diasSinActividadMax: number },
   rezago: RezagoAgenda | null | undefined,
 ): LecturaAnalista {
-  if (fila.activos === 0) return { nivel: 'neutro', senales: [] }
   const senales: SenalAnalista[] = []
   if (rezago != null && rezago.no_asistio >= 2) {
     senales.push({ texto: `${rezago.no_asistio} citas sin asistir`, nivel: 'critico' })
@@ -51,7 +53,7 @@ export function lecturaAnalista(
     })
   }
   const dias = fila.diasSinActividadMax
-  if (dias >= 2) {
+  if (fila.activos > 0 && dias >= 2) {
     senales.push({ texto: `Un lead sin actividad ${haceTexto(dias)}`, nivel: dias > 5 ? 'critico' : 'atencion' })
   }
   if (rezago != null && rezago.vencidas > 0) {
@@ -60,8 +62,8 @@ export function lecturaAnalista(
   }
   // sort estable: las rojas suben y cada nivel conserva el orden de arriba.
   senales.sort((a, b) => (a.nivel === b.nivel ? 0 : a.nivel === 'critico' ? -1 : 1))
-  const nivel = senales.length === 0 ? null : senales[0]?.nivel ?? null
-  return { nivel, senales }
+  if (senales.length === 0) return { nivel: fila.activos === 0 ? 'neutro' : null, senales }
+  return { nivel: senales[0]?.nivel ?? null, senales }
 }
 
 /** Conteo EXCLUSIVO de la cabecera: cada analista cuenta una sola vez. */
