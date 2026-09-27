@@ -25,19 +25,10 @@ import { SectionHead } from '@/components/common/section-head'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AgendaEquipoPanel } from './agenda-equipo'
+import { useDatosSupervisor } from './datos-supervisor'
 import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 import { TresCosas } from './tres-cosas'
-import {
-  BUCKET_LABEL,
-  DIA_MS,
-  capitalPrincipal,
-  colorMeta,
-  diasSinActividad,
-  haceCortoTexto,
-  haceTexto,
-  indexarUltimaActividad,
-  pctMeta,
-} from '@/lib/inteligencia'
+import { BUCKET_LABEL, colorMeta, haceTexto } from '@/lib/inteligencia'
 import { TOPE_ESTANCADOS } from '@/lib/cola-accion'
 import {
   derivarNovedades,
@@ -49,37 +40,18 @@ import {
 } from '@/lib/visita-sin-movimiento'
 import { useSplashVisible } from '@/lib/splash-visible'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
-import { fechaLima } from '@/lib/agenda-derivada'
-import {
-  capitalObjetivo,
-  metaVigente,
-  capitalReal,
-  metaConversionAplicable,
-  objetivosCero,
-  periodoLima,
-} from '@/lib/objetivos'
-import { useConversionMensual } from '@/data/crm-queries'
-import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
-import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
-import { useAhora } from '@/lib/ahora'
-import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { mensajeDeError } from '@/data/crm-api'
-import { useMetricasAgenda } from '@/data/crm-queries'
-import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { moneyK, numero } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { hashDe } from '@/lib/router'
 import { tresCosasDeHoy } from '@/lib/tres-cosas'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
-import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
-import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
-import { useTipoCambio } from '@/lib/tipo-cambio'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -98,9 +70,6 @@ const PESTANAS_COLA: ReadonlyArray<{ id: PestanaCola; label: string }> = [
   { id: 'todo', label: 'Todo' },
 ]
 
-// Texto neutro de una meta que gerencia todavía no fijó para el mes.
-const SIN_META = 'Sin meta fijada para este mes'
-
 /** Semáforo por días sin actividad: azul <2 · ámbar 2–5 · rojo >5. */
 function semaforoDias(d: number): string {
   if (d > 5) return SEMAFORO.critico
@@ -110,119 +79,47 @@ function semaforoDias(d: number): string {
 
 export function HoySupervisor(): JSX.Element {
   const modoSla = useModoSla()
-  const {
-    ambito,
-    actividades,
-    tareas,
-    objetivos,
-    objetivosError,
-    cumplimientoMetas,
-    cumplimientoMetasError,
-    recargar,
-    equipo,
-  } = useCRMData()
+  const { ambito, actividades, tareas, equipo } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola — en sesión real
   // esos vencimientos ya llegan resueltos dentro de cola_accion_fn, así que el
   // RPC de estado SLA ni se pide (habilitado = demo).
   const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades, yo?.demo === true)
-  // Reloj vivo: tick por minuto y al volver a la pestaña — la bandeja y los
-  // "hace N" se refrescan solos al pasar el tiempo.
-  const ahora = useAhora()
-  const periodoVigente = periodoLima(ahora)
-  const periodoStoreIntentado = useRef<string | null>(null)
-  const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
-  const fotoMensualStoreVigente = yo?.demo === true || (
-    objetivos.periodo === periodoVigente
-    && (cumplimientoMetas == null || cumplimientoMetas.periodo === periodoVigente)
-  )
-  useEffect(() => {
-    if (yo?.demo || fotoMensualStoreVigente
-      || periodoStoreIntentado.current === periodoVigente) return
-    periodoStoreIntentado.current = periodoVigente
-    setRecargaPeriodoFallida(false)
-    void recargar().then((ok) => {
-      if (!ok) setRecargaPeriodoFallida(true)
-    })
-  }, [fotoMensualStoreVigente, periodoVigente, recargar, yo?.demo])
+  // Meta, reparto, agenda y tipo de cambio: derivación COMPARTIDA con el
+  // puesto de mando (./datos-supervisor.ts). Aquí queda lo propio del modo
+  // legado: la cola cola_accion_fn, sus pestañas y la visita F4.3.
+  const {
+    resumenOp,
+    resumen,
+    vendedoresOp,
+    rank,
+    tc,
+    capitalPronostico,
+    esperaMasLargaReparto,
+    totalPorRepartir,
+    detalleReparto,
+    etiquetaAccesoReparto,
+    cumplimientoMensual,
+    filasMeta,
+    hayErrorMensual,
+    reintentarMensual,
+    datosAgenda,
+    agendaConfirmada,
+    errorAgenda,
+    cargandoAgenda,
+    recargarAgenda,
+    rezagosAgenda,
+  } = useDatosSupervisor()
   // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
   const [colaExpandida, setColaExpandida] = useState(false)
   // Pestaña elegida a mano; `null` = automática (la primera con filas), así
   // un supervisor que entra por la mañana aterriza donde hay trabajo.
   const [pestanaElegida, setPestanaElegida] = useState<PestanaCola | null>(null)
 
-  // ── F1b: los agregados llegan del servidor (o del espejo demo vivo) ──
-  // resumen_cartera_fn → tiles de capital/activos/parkeados; cola_accion_fn →
-  // cola + estancados + tile "sin responder"; metricas_vendedores_fn → ranking.
-  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
-  const resumen = resumenOp.resumen
+  // cola_accion_fn → cola + estancados + tile "sin responder".
   const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice, modoSla.legado)
   const cola = colaOp.cola
-  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades)
-  const rank = vendedoresOp.metricas?.filas ?? null
-  // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
-  // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
-  const { tc, recargar: recargarTipoCambio } = useTipoCambio()
-  const diaTipoCambio = fechaLima(ahora)
-  const diaTipoCambioAnterior = useRef(diaTipoCambio)
-  useEffect(() => {
-    if (diaTipoCambioAnterior.current === diaTipoCambio) return
-    diaTipoCambioAnterior.current = diaTipoCambio
-    recargarTipoCambio()
-  }, [diaTipoCambio, recargarTipoCambio])
-  // Pronóstico: `capitalPrincipal` (criterio compartido con Cartera/Pipeline),
-  // NUNCA un total mixto. Antes se fijaba PEN a mano y un equipo que vende en
-  // dólares se titulaba «S/ 0».
-  const capitalPronostico = resumen
-    ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
-    : null
-  // HOY solo resume la bandeja; la operación completa vive en Derivar leads.
-  // Conservamos el índice local para resumir la espera observable del caso más
-  // rezagado sin añadir otra consulta; si no hubo actividad, parte del ingreso.
-  // Fase 3 «sin topes»: en sesión real el arranque ya no baja el registro de
-  // actividades, y sin él la «espera» de un parkeado caería a `creado_en`
-  // (un lead de 30 días parkeado hace una hora diría «30 días»; su
-  // `tenencia_desde` se anula al quedar sin analista). Antes que exagerar, en
-  // sesión real se omite la antigüedad: el conteo del RPC sigue siendo la
-  // verdad y el CTA lo dice sin cifra. En demo sigue el timeline del fixture.
-  const bandejaReparto = useMemo(() => {
-    const parkeados = ambito.leads.filter(
-      (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado' && l.vendedor_id == null,
-    )
-    const indice = indexarUltimaActividad(actividades)
-    return { parkeados, indice }
-  }, [ambito, actividades])
-
-  const esperaMasLargaReparto = useMemo(() => {
-    if (!yo?.demo) return null
-    if (bandejaReparto.parkeados.length === 0) return null
-    let maxima = 0
-    for (const lead of bandejaReparto.parkeados) {
-      maxima = Math.max(
-        maxima,
-        diasSinActividad(lead, actividades, ahora, bandejaReparto.indice),
-      )
-    }
-    return maxima
-  }, [actividades, ahora, bandejaReparto, yo?.demo])
-
-  // El conteo del RPC sigue siendo la autoridad. Si el detalle local aún no
-  // está disponible, el CTA conserva la verdad y omite la antigüedad.
-  const totalPorRepartir = resumen?.totales.parkeados ?? null
-  const hayPorRepartir = (totalPorRepartir ?? 0) > 0
-  const detalleReparto = totalPorRepartir == null
-    ? 'Sin dato por ahora · Ver derivaciones →'
-    : hayPorRepartir
-      ? esperaMasLargaReparto == null
-        ? 'Pendientes en tu bandeja · Repartir →'
-        : `Más rezagado: ${haceCortoTexto(esperaMasLargaReparto)} · Repartir →`
-      : 'Bandeja al día · Ver historial →'
-  const etiquetaAccesoReparto = totalPorRepartir == null
-    ? 'Ver derivaciones; total por repartir no disponible'
-    : hayPorRepartir
-      ? `Repartir ${totalPorRepartir} ${totalPorRepartir === 1 ? 'lead pendiente' : 'leads pendientes'}`
-      : 'Ver derivaciones; bandeja sin pendientes'
 
   // Nombres para los estancados del payload (el servidor no manda nombres de
   // personas): join con el roster completo, una sola vez por render.
@@ -319,178 +216,6 @@ export function HoySupervisor(): JSX.Element {
     if (vendedoresOp.error) void vendedoresOp.recargar()
   }
 
-  // La meta sale del snapshot cuando lo hay: si un analista se fue o cambió
-  // de equipo, su meta y su producción viajan juntas (ver `metaVigente`).
-  const fotoMensualStoreCargando = !yo?.demo
-    && !fotoMensualStoreVigente
-    && !recargaPeriodoFallida
-  const objetivosMensualesError = fotoMensualStoreVigente
-    ? objetivosError
-    : recargaPeriodoFallida
-  const cumplimientoMensualError = fotoMensualStoreVigente
-    ? cumplimientoMetasError
-    : recargaPeriodoFallida
-  const objetivosMensuales = fotoMensualStoreVigente
-    ? objetivos
-    : objetivosCero(periodoVigente)
-  const cumplimientoMensual = fotoMensualStoreVigente ? cumplimientoMetas : null
-  const meta = metaVigente(objetivosMensuales.supervisor, cumplimientoMensual?.supervisor ?? null)
-  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosMensualesError)
-  const cumplimiento = cumplimientoMensual?.supervisor ?? null
-  const metaCapitalPen = capitalObjetivo(meta, 'PEN')
-  const metaCapitalUsd = capitalObjetivo(meta, 'USD')
-  const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
-  const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-
-  // LA CONVERSIÓN DEL MES del EQUIPO — total del payload de alcance 'equipo'
-  // (crm.conversion_mensual_fn), no el cumplimiento: la definición acordada
-  // llega ya, sin esperar a la migración B (E1, plan §4bis). El total viene
-  // RECALCULADO del servidor (suma÷suma, jamás media de porcentajes).
-  const esDemoConversion = yo?.demo === true
-  const qConversionMensual = useConversionMensual(
-    !esDemoConversion,
-    periodoVigente,
-    'equipo',
-    yo?.id,
-  )
-  const conversionMensualCargando = !esDemoConversion
-    && qConversionMensual.isPending
-    && qConversionMensual.data === undefined
-  const conversionMensual = esDemoConversion
-    ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
-    : conversionMensualCargando
-      ? undefined
-      : (qConversionMensual.data ?? null)
-  const conversionMensualError = !esDemoConversion && qConversionMensual.isError
-  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
-  // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
-  // tres pantallas que pintan esta misma cifra.
-  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const totalConversion = totalConversionPublicable(conversionMensual)
-  const conversionConfirmada = totalConversion?.conversion_pct ?? null
-  const recibidosEquipo = totalConversion?.divisor ?? null
-  // ── Cumplimiento del mes ──────────────────────────────────────────────────
-  // PEN y USD ya NO van por separado: la meta se pacta en soles (el editor
-  // escribe todo en `nuevo/PEN`), así que la fila de dólares vivía en «Sin meta
-  // fijada» para siempre mientras el capital real en USD no movía ninguna
-  // barra. Se consolida con el MISMO tipo de cambio en numerador y denominador
-  // —comparar a tasas distintas es comparar peras con manzanas— igual que en el
-  // panel del analista y en el de gerencia.
-  const capitalConfirmado = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tc?.promedio)
-  const metaCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
-  const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tc === undefined && hayDolares
-  const tcCaido = tc === null && hayDolares
-  const ajusteCierre = cumplimiento?.ajuste
-  const notaAjusteCierre = ajusteCierre != null && (
-    ajusteCierre.aplicadoPen > 0
-    || ajusteCierre.aplicadoUsd > 0
-    || ajusteCierre.contratosAplicados > 0
-  )
-    ? [
-        'Neto tras ajuste de cierre',
-        ajusteCierre.aplicadoPen > 0 ? `−${money(ajusteCierre.aplicadoPen, 'PEN')}` : null,
-        ajusteCierre.aplicadoUsd > 0 ? `−${money(ajusteCierre.aplicadoUsd, 'USD')}` : null,
-        ajusteCierre.contratosAplicados > 0
-          ? `−${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
-          : null,
-      ].filter(Boolean).join(' · ')
-    : null
-  const notaCapitalMonedas = !tcEnVuelo && (capitalConfirmadoUsd ?? 0) > 0
-    ? `${moneyK(capitalConfirmadoPen ?? 0, 'PEN')} + ${moneyK(capitalConfirmadoUsd ?? 0, 'USD')}`
-      + (capitalConfirmado.tc == null
-        ? ' · sin tipo de cambio: el total NO incluye los dólares'
-        : ` · ${rotuloTipoCambio(capitalConfirmado.tc, tc?.fuente ?? 'TC del día')}`)
-    : null
-  const filasMeta: Array<{
-    label: string
-    txt: string
-    pct: number
-    sinDato: string | null
-    nota?: string | null
-  }> = [
-    {
-      label: 'Capital confirmado',
-      txt:
-        tcEnVuelo
-          ? 'Calculando…'
-          : (metaCapital.total ?? 0) > 0 && capitalConfirmado.total != null
-          ? `${moneyK(capitalConfirmado.total, 'PEN')} de ${moneyK(metaCapital.total ?? 0, 'PEN')}`
-          : capitalConfirmado.total == null ? '—' : moneyK(capitalConfirmado.total, 'PEN'),
-      pct: tcEnVuelo ? 0 : pctMeta(capitalConfirmado.total ?? 0, metaCapital.total ?? 0),
-      // El desglose solo aporta cuando hay dólares; si no, repetiría el total.
-      nota: [notaCapitalMonedas, notaAjusteCierre].filter(Boolean).join(' · ') || null,
-      sinDato: fotoMensualStoreCargando
-        ? 'Actualizando la meta y el cumplimiento de este mes…'
-        : objetivosMensualesError
-        ? 'Meta mensual no disponible'
-        : tcEnVuelo
-          ? 'Consultando el tipo de cambio para consolidar los dólares…'
-          : (metaCapital.total ?? 0) <= 0
-            ? SIN_META
-            : cumplimientoMensualError || capitalConfirmado.total == null
-              ? 'Cumplimiento confirmado no disponible'
-              : null,
-    },
-    {
-      label: 'Conversión del mes',
-      txt:
-        conversionMensualCargando
-          ? 'Calculando…'
-          : conversionConfirmada == null
-          ? '—'
-          : metaConversion != null
-            ? `${porcentajeConversionCanonica(conversionConfirmada)} de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
-            : `${porcentajeConversionCanonica(conversionConfirmada)} · ${numero(recibidosEquipo)} recibidos`,
-      // El porqué de que la cifra no sea definitiva viaja PEGADO a ella. Antes
-      // esto la sustituía, y un mes con recibidos y cierres decía «sin datos».
-      nota: lecturaConversion.aviso,
-      pct: pctMeta(conversionConfirmada ?? 0, metaConversion ?? 0),
-      sinDato: conversionMensualCargando
-        ? 'Consultando la conversión del mes…'
-        : conversionMensualError
-          ? 'Conversión del mes no disponible'
-          : !lecturaConversion.mostrar
-          ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-          : conversionConfirmada == null
-            ? 'Sin leads recibidos este mes'
-            : fotoMensualStoreCargando
-              ? 'Actualizando la meta de este mes…'
-              : objetivosMensualesError
-              ? 'Meta mensual no disponible'
-              : metaConversion == null
-                ? SIN_META
-                : null,
-    },
-  ]
-
-  // ── Fase F — Agenda del equipo (RPC crm.metricas_agenda_fn) ──
-  // Periodo fijo: últimos 7 días con el reloj vivo (se corre solo al pasar la
-  // medianoche de Lima). En demo se alimenta del fixture sin tocar la red.
-  const sesionReal = Boolean(yo && !yo.demo)
-  const hastaMA = fechaLima(ahora)
-  const desdeMA = fechaLima(ahora - 6 * DIA_MS)
-  const consultaAgenda = useMetricasAgenda(sesionReal, desdeMA, hastaMA)
-  // En sesión real con data aún undefined y sin error, viaja undefined a
-  // propósito: el panel muestra su estado de carga.
-  const datosAgenda = sesionReal ? consultaAgenda.data : metricasAgendaDemo(desdeMA, hastaMA)
-  const errorAgenda =
-    sesionReal && consultaAgenda.error
-      ? mensajeDeError(
-          consultaAgenda.error,
-          'No pudimos consultar la agenda del equipo. Revisa tu conexión e inténtalo otra vez.',
-        )
-      : null
-  const cargandoAgenda =
-    sesionReal && (consultaAgenda.isPending || consultaAgenda.isFetching)
-  // Rezagos de agenda por miembro (vendedor_id → métrica) para que la señal de
-  // vencidas / sin acción / no-shows viva DENTRO de la fila de "Tu equipo hoy":
-  // la persona se juzga en un solo lugar, sin cruzar a la tabla de la izquierda.
-  const rezagosAgenda = useMemo(
-    () => new Map((datosAgenda?.vendedores ?? []).map((v) => [v.vendedor_id, v] as const)),
-    [datosAgenda],
-  )
-
   // ── F3: «Hoy, tres cosas» — el sistema prioriza el día (ley de Tesler). ──
   // Mismas fuentes que ya están en pantalla; sin dato no hay tarjeta.
   const cosas = useMemo(
@@ -498,9 +223,11 @@ export function HoySupervisor(): JSX.Element {
       cola,
       totalPorRepartir,
       esperaMasLargaReparto,
-      vendedoresAgenda: datosAgenda?.vendedores ?? [],
+      // Para DECIDIR, solo la agenda confirmada: tras un refetch fallido
+      // TanStack conserva la respuesta anterior (Codex, F1 del puesto de mando).
+      vendedoresAgenda: agendaConfirmada?.vendedores ?? [],
     }),
-    [cola, totalPorRepartir, esperaMasLargaReparto, datosAgenda],
+    [cola, totalPorRepartir, esperaMasLargaReparto, agendaConfirmada],
   )
   // «Ver →» de la franja: selecciona la pestaña y le LLEVA el foco (el
   // focus() también hace scroll hasta la tarjeta de la cola).
@@ -521,6 +248,8 @@ export function HoySupervisor(): JSX.Element {
         {/* F2 (figura-fondo): los KPIs son CONSULTA, no alarma — iconos en
             neutro. Desde F3 TODOS: la urgencia de «Nuevos sin responder»
             vive en la franja, que es su reemplazo. */}
+        {/* Regla de Miguel (27/09/2026): todo número se abre y enseña su lista. */}
+        <a href={hashDe('pipeline')} className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         <KpiCard
           label="Pronóstico de capital abierto"
           // `capitalPrincipal` y NO `totalEnSoles`: esto es PRONÓSTICO, no
@@ -540,6 +269,8 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={0}
         />
+        </a>
+        <a href={hashDe('cartera')} className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         <KpiCard
           label="Leads activos del equipo"
           value={resumen ? String(resumen.totales.asignados) : '—'}
@@ -548,8 +279,11 @@ export function HoySupervisor(): JSX.Element {
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} a cargo`}
           delay={60}
         />
+        </a>
         {/* Sin payload, los subs NO afirman estados positivos («todos
-            contactados», «bandeja vacía»): sin dato no hay afirmación. */}
+            contactados», «bandeja vacía»): sin dato no hay afirmación.
+            Abre la pestaña Urgente de la cola, donde van esos leads. */}
+        <div className="relative h-full">
         <KpiCard
           label="Nuevos sin responder"
           value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
@@ -564,6 +298,16 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={120}
         />
+        {/* Botón ESTIRADO encima (un <button> no puede contener los <div> de KpiCard). */}
+        {cola != null && (
+          <button
+            type="button"
+            aria-label={`Nuevos sin responder: ${cola.porBucket.sin_responder ?? 0}. Ver en la cola urgente`}
+            onClick={() => irAPestanaCola('urgente')}
+            className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          />
+        )}
+        </div>
         <a
           href={hashDe('derivaciones')}
           aria-label={etiquetaAccesoReparto}
@@ -856,9 +600,7 @@ export function HoySupervisor(): JSX.Element {
             cargando={cargandoAgenda}
             error={errorAgenda}
             modoDemo={yo?.demo === true}
-            onReintentar={() => {
-              if (sesionReal) void consultaAgenda.refetch()
-            }}
+            onReintentar={recargarAgenda}
             equipo={equipo}
           />
         </div>
@@ -1001,21 +743,8 @@ export function HoySupervisor(): JSX.Element {
               <p className="text-[10.5px] text-muted-foreground">
                 El capital en dólares entra al total convertido a tipo de cambio real. El capital abierto de arriba es pronóstico y no cuenta como cumplimiento.
               </p>
-              {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (objetivosMensualesError || cumplimientoMensualError) {
-                      setRecargaPeriodoFallida(false)
-                      void recargar().then((ok) => {
-                        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
-                      })
-                    }
-                    if (conversionMensualError) void qConversionMensual.refetch()
-                    if (tcCaido) recargarTipoCambio()
-                  }}
-                >
+              {hayErrorMensual && (
+                <Button variant="ghost" size="sm" onClick={reintentarMensual}>
                   Reintentar
                 </Button>
               )}
