@@ -162,8 +162,13 @@ test('Analista: dos columnas sin bajar a 1440×900 y móvil sin desbordamiento',
   await expect(ahora).toBeVisible()
   const a = (await ahora.boundingBox())!
   const c = (await tarjeta.boundingBox())!
-  expect(c.x).toBeGreaterThanOrEqual(a.x + a.width)
-  expect(Math.abs(c.y - a.y)).toBeLessThan(2)
+  const titulo = (await page.getByRole('heading', { name: '¿A quién llamo ahora?' }).boundingBox())!
+  const franja = (await page.getByRole('group', { name: 'Tu día en cifras' }).boundingBox())!
+  // El teléfono ocupa TODO el alto a la izquierda (Miguel, 27/09): arranca a la
+  // altura del título y acaba donde acaba la cola; título, cifras y cola a la derecha.
+  for (const derecha of [c, titulo, franja]) expect(derecha.x).toBeGreaterThanOrEqual(a.x + a.width)
+  expect(Math.abs(a.y - titulo.y)).toBeLessThan(12)
+  expect(Math.abs((a.y + a.height) - (c.y + c.height))).toBeLessThan(2)
   // La pantalla cabe entera: el área de contenido no se desplaza.
   expect(await page.evaluate(() => {
     const area = document.querySelector('[data-vista-scroll]')
