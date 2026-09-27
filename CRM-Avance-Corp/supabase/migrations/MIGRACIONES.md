@@ -1,3 +1,64 @@
+## 20260927012948 — Cuentas de Gloria · F4: retirar una cuenta bancaria del cliente
+
+**PREPARADA, ENSAYADA Y REVISADA; PENDIENTE DEL OK DE MIGUEL PARA APLICAR.** No toca objetos de
+`public` ni de `storage`: solo lee `public.contratos`, `public.perfiles` y `storage.objects`; el
+bucket y sus políticas son los de F3. Decisiones de Miguel (26/09):
+- si la cuenta cobra contratos abiertos (`activo`/`vencido`) se bloquea y se cambia primero con F3;
+- motivo obligatorio y correo del cliente opcional;
+- sin aviso al cliente;
+- solo admin/superadmin con membresía CRM vigente (P04).
+
+Piezas:
+- `crm.cuentas_bancarias_retiros`: registro inmutable del retiro (cuenta, cliente, moneda, motivo,
+  respaldo, quién, cuándo), sin claves foráneas (como F3). Un retiro por versión; UPDATE, DELETE y
+  TRUNCATE bloqueados.
+- `crm.retirar_cuenta_cliente` (INVOKER→DEFINER):
+  - solo cuentas vigentes del cliente;
+  - rechazo `22023` con `detail = contratos_abiertos` y la lista si la cuenta **física** (cliente,
+    moneda y CCI, en cualquiera de sus versiones) cobra contratos abiertos;
+  - motivo con al menos 5 caracteres visibles (ni tabuladores ni espacios Unicode lo rellenan);
+  - idempotente por solicitud;
+  - «ya fue retirada el …» o «ya no está vigente: se reemplazó por una versión corregida»;
+  - la cuenta pasa a `activa = false` y el candado de versiones (se exige su md5) impide reactivarla.
+  - Bloquea la cuenta FOR UPDATE antes de mirar los enlaces: el alta de contrato con cuenta
+    existente y el cambio de F3 esperan y después la ven retirada.
+- `crm.retiros_cuentas_cliente_fn`: motivos para «Cuentas anteriores», con la compuerta del
+  historial (`private.puede_gestionar_cuentas_cliente`, con P04). La ruta del respaldo solo la ve el
+  admin vigente.
+
+Banco (26/09, esquema de prod, con la F3 aplicada como prerrequisito): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-retirar-cuenta-cliente.sql`: 17 comprobaciones, 10 mutantes
+  cazados. La prueba de F3 sigue en verde con F4 aplicada.
+- Registro `../scripts/cuentas-gloria/registrar-retirar-cuenta-cliente.sql` ensayado, con huella de
+  las 5 funciones `59937ad4b058238a5a1cf6ba60936644`.
+- Reversa `../scripts/cuentas-gloria/reversa-retirar-cuenta-cliente.sql`: bloquea la tabla y se
+  niega con retiros registrados (ensayado); tras revertir F4 y F3, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): «Retirar» solo para admin; rechazo con lista y atajo a F3 sin
+  subir archivo; retiro → «Cuentas anteriores» con motivo y «Ver correo».
+- NOT RUN:
+  - gate `test-rls` (mismo motivo que F3);
+  - prueba de concurrencia con dos sesiones (bloqueos razonados y confirmados por Codex y el auditor).
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0 ni P1.**
+  - P2 motivo de solo espacios o tabuladores por RPC → corregido en SQL y pantalla. F3 tiene lo mismo
+    (usa `btrim`): queda como arreglo aparte.
+  - P3 adjunto huérfano → la pantalla avisa de los contratos abiertos antes de subir; el resto,
+    riesgo aceptado como en F3.
+  - P3 campos editables al guardar → bloqueados.
+  - P3 sin prueba de concurrencia → declarado.
+- **auditor-rls CHANGES_REQUESTED.**
+  - P1 contratos abiertos por versión y no por cuenta física → corregido, con caso y mutante.
+  - P3 reversa sin bloqueo → corregido.
+  - P3 TRUNCATE → corregido.
+  - P3 aceptado: un contrato `renovado` puede volver a `activo` si se borra su renovación
+    (`trg_contratos_05_restaurar_operacion`) y quedar cobrando en una cuenta retirada. Es poco
+    probable; mostrarlo en el panel de F3 queda como mejora aparte.
+- **Riesgos heredados (no nuevos):** `public.audit_log` guarda la fila del retiro y la lee cualquier
+  `es_admin()`; `service_role` conserva UPDATE sobre `crm.cuentas_bancarias`.
+
+Consumidor: ventana «Cuentas» del portal (botón «Retirar», solo admin). Orden: base → portal.
+
 ## 20260926204051 — Cuentas de Gloria · F3: cambiar la cuenta de pago por pedido del cliente
 
 **OK EXPLÍCITO DE MIGUEL (26/09, 19:40, al retomar tras la pausa): «Sí, aplícala tú»** para tocar

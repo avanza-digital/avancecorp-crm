@@ -18,6 +18,11 @@ vea todo el detalle bancario del cliente sin nada oculto, pueda añadir cuentas 
    reemplaza»). Hay que versionarlo por fechas y guardar en cada cuota pagada la cuenta usada.
    → ✅ **EN PRODUCCIÓN (26/09):** [[Cuentas de Gloria - F3 cambiar la cuenta de pago, en producción (2026-09-26)]].
 4. **Retirar una cuenta**: nunca se borra; si tiene cuotas pendientes, primero se cambia (fase 3).
+   → **Decisiones de Miguel (26/09, al arrancar F4):** si la cuenta todavía cobra contratos abiertos,
+   **se bloquea y se cambia primero con F3** (no en un solo paso); **motivo obligatorio y correo del
+   cliente opcional**; **no se avisa al cliente** (no cambia ningún pago). Solo admin/superadmin con
+   la membresía CRM vigente (P04). Registro inmutable del retiro en `crm`, sin claves foráneas;
+   «Cuentas anteriores» suma el motivo.
 
 Decisiones que Miguel aún debe tomar para la fase 3: ¿cambio por contrato entero o cuota por cuota? (recomendado:
 contrato entero) · ¿Gerencia del CRM también ve números completos? (recomendado: solo administradores).
