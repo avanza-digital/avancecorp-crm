@@ -20,7 +20,8 @@ preparar, verificar o crear la habilidad, respetar ese alcance sin publicar.
 - El destino Git es **avancecorp/main** del repositorio `avancecorp-crm`.
   Hacer fetch, integrar cambios remotos sin sobrescribirlos y comprobar que Main
   local y `avancecorp/main` apuntan al mismo commit. No usar `origin/main` de otro
-  proyecto, `tronco`, ramas de release ni push forzado.
+  proyecto, `tronco`, ramas de release ni push forzado. Única excepción: la rama de
+  rescate cuando el preflight rechaza («Si el preflight te rechaza» en `CLAUDE.md`).
 - Construir desde una copia limpia de ese commit. Preservar trabajos ajenos;
   no incluir cambios sin confirmar ni usar `--allow-dirty`. Si esos cambios son
   parte necesaria de lo que Miguel quiere publicar, resolver su inclusión antes

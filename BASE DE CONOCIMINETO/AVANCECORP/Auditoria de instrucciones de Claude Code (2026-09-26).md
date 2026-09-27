@@ -1,7 +1,7 @@
 ---
 tags: [claude, codex, instrucciones, auditoria, despliegue]
 fecha: 2026-09-26
-estado: correcciones aplicadas; 4 decisiones pendientes de Miguel
+estado: correcciones aplicadas; decisiones de Miguel aplicadas el 27/09
 ---
 
 # Auditoría de instrucciones de Claude Code (26/09/2026)
@@ -28,17 +28,19 @@ aceptados y corregidos.
   pwa-architect, web-platform-expert). Se corrigieron en la copia local sincronizada. Hay que
   replicar el cambio en claude.ai o la próxima sincronización lo pisa.
 
-## Decisiones pendientes de Miguel
+## Decisiones de Miguel (27/09/2026), ya aplicadas
 
-1. **Arquitectura en 4 capas del CLAUDE.md raíz.** Dice describir este backend, pero el CRM no
-   tiene esquema `api` y la app llama `.schema('crm')` directo. ¿Es el objetivo del CRM (el
-   código es deuda) o solo el estándar para módulos nuevos?
-2. **Preflight rechazado.** El CLAUDE.md raíz manda crear una rama desde lo vivo, pero la regla
-   más nueva exige publicar solo desde `main` igual a `avancecorp/main`. ¿Cuál vale?
-3. **Preflight del portal.** El CLAUDE.md raíz lo exige con un ZIP; el del portal describe una
-   subida manual sin preflight.
-4. **Remotion.** `/lab` dice que ahí se diseñan también los componentes; el CLAUDE.md dice
-   «Remotion = SOLO videos».
+1. **Arquitectura en 4 capas: sí aplica al CRM actual.** El CLAUDE.md raíz explica cómo se
+   traduce al CRM (puertas = funciones de `crm`, núcleo = `private` y triggers). Lo que no
+   cumple es deuda del [[Mapa de capas del servidor CRM - 2026-09-17]] y se cierra con su plan.
+2. **Preflight rechazado: rescate en una copia aparte.** Se crea una rama desde lo vivo, se
+   publica desde ella y se fusiona a `main` el mismo día. Quedó como excepción explícita en el
+   CLAUDE.md, en AGENTS.md y en la skill de release de Codex.
+3. **Portal: sin preflight.** Se sube sobrescribiendo archivos. El script `preflight-portal.mjs`
+   queda solo para el caso de subir un ZIP que reemplace el sitio entero.
+4. **Remotion: para los dos**, videos y diseño de animaciones (también de componentes). Ver
+   [[UI Playground (laboratorio de animaciones)]].
 
-Además: `_dev_artifacts/citas-ticket-soles/repo/` es una copia vieja del repo con sus propias
-instrucciones (CLAUDE.md de 1 269 líneas) que cargan si una sesión entra ahí.
+La copia vieja `_dev_artifacts/citas-ticket-soles/repo/` se movió a la Papelera el 27/09. No
+tenía cambios sin guardar y su último commit ya estaba en `main`. Los logs de la carpeta
+padre, que citan otras notas, se quedaron.

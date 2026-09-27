@@ -2,7 +2,7 @@
 
 - Main local debe seguir `avancecorp/main` (`avancecorp-crm`), no `avancecorp/tronco` ni `origin/main` (otro proyecto).
 - Antes de publicar, integrar los cambios remotos sin sobrescribirlos y comprobar que Main local y `avancecorp/main` apuntan al mismo commit.
-- Publicar únicamente un artefacto construido desde ese commit verificado. No crear ramas de release ni usar `push --force`.
+- Publicar únicamente un artefacto construido desde ese commit verificado. Única excepción: la rama de rescate cuando el preflight rechaza (ver «Si el preflight te rechaza» en `CLAUDE.md`), que se crea desde el commit vivo, se publica desde ahí y se fusiona a Main el mismo día. No crear otras ramas de release ni usar `push --force`.
 - Las menciones anteriores a `tronco` en el vault son historial; el destino vigente es `avancecorp/main`.
 
 ## CodeGraph del proyecto
