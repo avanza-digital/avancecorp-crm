@@ -290,6 +290,84 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   arregló en el compacto; sumar `@axe-core/playwright`; actualizar el tablero de Figma.
 - **Siguiente:** Miguel la mira en producción y fusiona la PR #115; traerla al `main` local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
 
+## Plan de la pantalla del SUPERVISOR — v2 tras Codex (27/09, ESPERANDO OK de Miguel)
+
+Base: `screens/gestion-diaria/supervisor.tsx` (+ `supervisor.css`, compartido con gerencia vía
+`gerencia.tsx:22`), `tabla-equipo-diaria.tsx`, `panel-analista-supervisor.tsx`,
+`panel-supervisor-adaptable.tsx` (portal en línea ↔ ventana; hoy ventana si `clientWidth < 1236`),
+`detalle-analista.tsx` (8 métricas + gráfico propio), `ultimas-gestiones-supervisor.tsx` (pide 25,
+muestra 3). Datos: una foto `gestion_diaria_equipo_fn` (`useDiaEquipo`); registro, pendientes y avisos
+con sus consultas propias. **Solape con el «Hoy del supervisor» de otra sesión (`#/hoy`,
+`supervisor-mando.tsx`): ningún archivo en común; el mando no muestra la actividad del día y enlaza a
+`#/gestion-diaria` «Mi equipo hoy» (su test lo exige) → mantener ruta y nombre; no tocar `screens/hoy/*`,
+`lib/senal-equipo.ts`, `lib/cola-supervision.ts`, `lib/tres-cosas.ts` ni la API de `Avatar`.**
+
+**Revisión Codex del plan v1** (encargo `docs/encargos/2026-09-27-codex-plan-supervisor-diseno.md`):
+CHANGES_REQUESTED, confianza HIGH, 7 P1 + 3 P2 — **todos aceptados**:
+1. P1 Selección automática sin máquina de estados (`seleccion === null` significa cierre, cambio de
+   fecha, fuera de ámbito o transición de `registroPedido`; `modal = seleccion && (estrecho||ampliado)`
+   → abriría una ventana y movería el foco al estrecharse). → Origen de la selección
+   (`automatica`/`usuario`/`aviso`), `registroPedido` manda, nada automático con carga/error/42501/
+   petición pendiente/`dia ≠ fecha`, cierre voluntario o salida de ámbito lo inhiben, una automática
+   que pasa a estrecho se CIERRA sin ventana, solo filas visibles con los filtros, sin reutilizar un
+   `origen` viejo.
+2. P1 El umbral ~1100 choca con la cuadrícula (840 tabla + 380 panel + 16 = 1236; `@container
+   max-width:1235px`; tarjetas por debajo de 839; gerencia comparte clases). → Cuadrícula nueva SOLO
+   del supervisor (clases/contenedor propios) con anchos exactos; umbral = mínimo real de tabla +
+   panel; gerencia conserva los suyos. Verificar 1440 y 1280 con menú abierto/cerrado, 1366, 1512,
+   zoom 200 %, con barra de scroll y al cambiar de ancho con el foco dentro.
+3. P1 La reutilización rígida quitaba funciones a GERENCIA (compara Pendientes por analista; su
+   panel solo tiene Resumen y Registro; `DetalleAnalista` muestra `citas_hoy` «Citas pendientes del
+   día», ≠ `citas_agendadas`; su registro abre filtrado a llamadas). → **Gerencia NO cambia en este
+   plan**: tabla con columnas por contexto (`supervisor`: Citas; `gerencia`: Pendientes, como hoy),
+   resumen nuevo SOLO en el supervisor, acciones inyectadas; `DetalleAnalista` sigue en gerencia
+   hasta su plan (entonces se unifica).
+4. P1 «Atención»: prioridad y color sin contrato (el orden actual cuenta motivos antes que
+   gravedad; `primer_intento_vencido`/`datos_incompletos` son `null` sin SLA activo). → Matriz
+   (fuente · disponible · texto · color · prioridad): tareas vencidas (rojo, 1) → primer intento
+   fuera de plazo (ámbar, 2; solo con SLA activo) → cortes pendientes (ámbar, 3; solo hoy) → más de
+   2 h sin llamar (ámbar, 4) → datos por revisar (ámbar, 5). El total «Necesitan atención» de la
+   franja va en ÁMBAR (mezcla señales; el rojo queda para lo vencido); el orden «Atención» y la
+   selección automática del supervisor usan esa prioridad.
+5. P1 «Sin muestra» ambiguo. → Tres estados: 0 útiles «— · Sin llamadas útiles»; insuficiente
+   «Sin muestra suficiente · N útiles; mínimo M»; evaluado «% · nivel · N útiles».
+6. P1 Contratos de a11y. → `aria-sort` y nombre de la tabla; scroll de tabla y panel alcanzable y
+   con nombre; anillo de la casa y prueba en `forced-colors`; `aria-disabled` + guarda en «Hoy» y
+   «Actualizar»; `role=status` en conteos; `panelEnfocable` decidido por pestaña.
+7. P2 «Registro del equipo» desaparecía con el equipo vacío. → La barra existe con foto válida
+   aunque haya 0 analistas; los filtros solo con filas; la acción siempre (habilitada con foto y
+   permiso).
+8. P2 Estados de S3. → Tabla de estados: carga inicial, recarga fallida con datos previos, error sin
+   datos, 42501 (retira datos), equipo vacío, actividad cero, cortes ausentes/desactivados/día no
+   laborable, fecha histórica («Cortes del día»); los textos de la «i» se conservan.
+9. P2 Cifras que no cuadran. → Nota compacta junto a las barras (incluyen contestaciones no útiles) y
+   al registro (solo leads visibles hoy); `horarioConfirmado` antes de `BarrasPorHora`.
+10. P1 Pruebas. → Migración por fase con cobertura equivalente: S1 tipografía (piso 11 px como el
+    analista), alto de fila, columnas, `aria-sort`; S2 barras nuevas, foco del panel adaptable y
+    selección automática; S3 suite completa tras retirar CSS. `gestion-diaria-horizontal-h5` se
+    estabiliza (medir tras asentarse las consultas) o se reporta FAIL: el historial no lo convierte
+    en PASS.
+
+**Fases (v2):**
+- **S1 · Cabecera, cifras y tabla** (solo supervisor): cabecera del diseño conservando fecha (365
+  días), «Hoy», «Seguimiento completo», «Actualizar» e «i»; franja de 5 cifras (`FranjaCifras`,
+  atención en ámbar); barra siempre presente con «Registro del equipo»; tabla con iniciales, Llamadas,
+  Contacto (3 estados), **Citas** (`marcador.citas_agendadas`), Vencidas (rojo), **Atención en
+  palabras** (matriz) y orden por gravedad; pie «N de N · Actualizado» + «La actividad registrada no
+  acredita presencia». Pruebas migradas; H5 estabilizada o FAIL.
+- **S2 · Panel al lado**: cuadrícula propia con umbral exacto; selección automática con su máquina
+  de estados; cabecera con iniciales; pestañas subrayadas; Resumen con aviso de vencidas, 4 cuadros
+  (Llamadas, Contacto, Citas agendadas, Pendientes — no WhatsApp: no existe por analista),
+  `BarrasPorHora` con guarda y nota, línea compacta de las métricas que hoy da `DetalleAnalista`,
+  últimas 3 gestiones con chip de resultado, «Ver el registro del día».
+- **S3 · El resto + limpieza**: registro (modo normal, conserva el filtro de etapa), pendientes,
+  «Registro del equipo», cortes y avisos, «i» y la tabla de estados; retirar solo el CSS que ya no
+  use nadie (gerencia incluida).
+
+**Diferidos:** unificar gerencia con estas piezas (su plan); enlace «Ver su día» del Hoy del
+supervisor que abra al analista directo (archivo de esa sesión; el router ya admite
+`{tipo:'analista', id}`); alinear el vocabulario de atención con el mando («Primera gestión vencida»).
+
 Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]],
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
 [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]], [[Fundamentos UX del CRM]].
