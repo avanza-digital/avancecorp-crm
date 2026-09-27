@@ -52,7 +52,8 @@ insert into public.cronograma_pagos (id, contrato_id, numero_cuota, fecha_progra
   ('e7b6e000-0000-4000-8000-000000000004', 'e7b6d000-0000-4000-8000-000000000001', 4, '2026-12-01', 100, 'pendiente', null),
   ('e7b6e000-0000-4000-8000-000000000005', 'e7b6d000-0000-4000-8000-000000000001', 5, '2027-01-01', 100, 'pendiente', null),
   ('e7b6e000-0000-4000-8000-000000000006', 'e7b6d000-0000-4000-8000-000000000001', 6, '2027-02-01', 100, 'pendiente', null),
-  ('e7b6e000-0000-4000-8000-000000000007', 'e7b6d000-0000-4000-8000-000000000001', 7, '2027-03-01', 100, 'pendiente', null);
+  ('e7b6e000-0000-4000-8000-000000000007', 'e7b6d000-0000-4000-8000-000000000001', 7, '2027-03-01', 100, 'pendiente', null),
+  ('e7b6e000-0000-4000-8000-000000000008', 'e7b6d000-0000-4000-8000-000000000001', 8, '2027-04-01', 100, 'pendiente', null);
 insert into storage.objects (bucket_id, name, owner, owner_id, metadata) values
   ('respaldos-cambio-cuenta', 'e7b60000-0000-4000-8000-000000000005/e7b6f000-0000-4000-8000-000000000001.pdf',
    'e7b60000-0000-4000-8000-000000000001', 'e7b60000-0000-4000-8000-000000000001', '{"size": 2048, "mimetype": "application/pdf", "eTag": "\"f601\""}');
@@ -233,6 +234,41 @@ begin
   raise notice 'OK permisos: analista y cliente no marcan (RLS); operaciones y admin sí; el ajuste se limpia al salir';
 end;
 $permisos$;
+-- ── F. Procedencia y limpieza (Codex F5) ────────────────────────────────────────────────────
+do $procedencia$
+declare
+  OPER constant uuid := 'e7b60000-0000-4000-8000-000000000002';
+  C8 constant uuid := 'e7b6e000-0000-4000-8000-000000000008';
+  C2 constant uuid := 'e7b6e000-0000-4000-8000-000000000002';
+  v text;
+begin
+  -- Un CCI fijado A MANO (sin la RPC) no declara nada: el sello lo rechaza (testigo ausente).
+  perform set_config('crm.cci_deposito', '00389800000000000002', true);
+  begin
+    update public.cronograma_pagos set estado = 'pagado', fecha_pago_real = pg_temp.hoy(), monto_pagado = 100 where id = C8;
+    raise exception 'FALLO: un CCI fijado a mano se aceptó como declaración';
+  exception when sqlstate '22023' then
+    if sqlerrm not like 'La cuenta del depósito solo se declara por crm.registrar_pago_con_cuenta%' then raise; end if;
+  end;
+  perform set_config('crm.cci_deposito', '', true);
+  perform pg_temp.espera(pg_temp.estado(C8), 'pendiente', 'CCI a mano no marca');
+  -- Tras un 22023 atrapado (CCI ajeno) el ajuste queda limpio y la cuota sigue pendiente.
+  perform pg_temp.espera(pg_temp.registrar(OPER, C8, pg_temp.hoy(), 100, '00907000000000000003'), 'ERR:22023:El CCI del depósito no es de una cuenta de pago', 'CCI ajeno');
+  if coalesce(current_setting('crm.cci_deposito', true), '') <> '' or coalesce(current_setting('crm.cci_deposito_testigo', true), '') <> '' then
+    raise exception 'FALLO: el ajuste quedó sucio tras un 22023';
+  end if;
+  -- Ya pagada + CCI ajeno: no marca (NULL), no sella, no deja el ajuste.
+  v := pg_temp.registrar(OPER, C2, pg_temp.hoy(), 100, '00907000000000000003');
+  perform pg_temp.espera(v, 'OK:null', 'ya pagada con CCI ajeno');
+  perform pg_temp.espera(pg_temp.sello(C2), 'e7b6c000-0000-4000-8000-000000000001|declarado', 'ya pagada conserva su sello');
+  if coalesce(current_setting('crm.cci_deposito', true), '') <> '' then raise exception 'FALLO: ajuste sucio tras ya pagada'; end if;
+  -- Y después de todo eso, la vía buena sigue funcionando en la misma transacción.
+  perform pg_temp.espera(pg_temp.registrar(OPER, C8, pg_temp.hoy(), 100, '00389800000000000002'), 'OK:' || C8::text, 'vía buena tras los rechazos');
+  perform pg_temp.espera(pg_temp.sello(C8), 'e7b6c000-0000-4000-8000-000000000002|declarado', 'C8 declarado en B');
+  raise notice 'OK procedencia: un CCI fijado a mano no declara; tras un 22023 el ajuste queda limpio; ya pagada + CCI ajeno no marca ni sella; la vía buena sigue';
+end;
+$procedencia$;
+
 -- anon no ejecuta la RPC.
 set local role anon;
 do $anon$
@@ -258,10 +294,10 @@ begin
   -- A: #1 registro + #2 #3 #5 declaradas = 4 (3 declaradas) · B: #4 #6 #7 declaradas = 3 (3 declaradas)
   if r.pagadas_por_cuenta <> jsonb_build_array(
        jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000001', 'banco', 'BCP', 'numero_cuenta', '19100000000001', 'cuotas', 4, 'inferidas', 0, 'declaradas', 3),
-       jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000002', 'banco', 'Interbank', 'numero_cuenta', '89830000000002', 'cuotas', 3, 'inferidas', 0, 'declaradas', 3)) then
+       jsonb_build_object('cuenta_bancaria_id', 'e7b6c000-0000-4000-8000-000000000002', 'banco', 'Interbank', 'numero_cuenta', '89830000000002', 'cuotas', 4, 'inferidas', 0, 'declaradas', 4)) then
     raise exception 'FALLO: pagadas_por_cuenta no cuadra: %', r.pagadas_por_cuenta;
   end if;
-  raise notice 'OK lectura: pagadas por cuenta trae declaradas (A: 4, 3 declaradas · B: 3, 3 declaradas)';
+  raise notice 'OK lectura: pagadas por cuenta trae declaradas (A: 4, 3 declaradas · B: 4, 4 declaradas)';
 end;
 $lectura$;
 
@@ -291,6 +327,7 @@ rollback to savepoint m2;
 -- M3: la RPC no limpia el ajuste → un UPDATE directo posterior en la misma transacción heredaría el CCI.
 savepoint m3;
 select pg_temp.mutar('crm.registrar_pago_con_cuenta(uuid,date,numeric,text)', $r$perform pg_catalog.set_config('crm.cci_deposito', '', true);
+  perform pg_catalog.set_config('crm.cci_deposito_testigo', '', true);
   return v_id;$r$, $r$return v_id;$r$);
 do $m3$ begin
   perform pg_temp.registrar('e7b60000-0000-4000-8000-000000000002', 'e7b6e000-0000-4000-8000-000000000007', pg_temp.hoy(), 100, '00389800000000000002');
@@ -316,6 +353,20 @@ do $m5$ begin
   raise notice 'OK mutante 5 cazado (sin exigir pendiente, pisaría un pago ya registrado)';
 end $m5$;
 rollback to savepoint m5;
+
+-- M6: el sello sin exigir el testigo → un CCI fijado a mano (sin la RPC) declararía la cuenta.
+savepoint m6;
+select pg_temp.mutar('private.sellar_cuenta_cuota_pagada()',
+  'if v_cci is not null and v_testigo is distinct from', 'if false and v_testigo is distinct from');
+do $m6$ begin
+  perform set_config('crm.cci_deposito', '00389800000000000002', true);
+  update public.cronograma_pagos set estado = 'pendiente', fecha_pago_real = null, monto_pagado = null where id = 'e7b6e000-0000-4000-8000-000000000007';
+  update public.cronograma_pagos set estado = 'pagado', fecha_pago_real = pg_temp.hoy(), monto_pagado = 100 where id = 'e7b6e000-0000-4000-8000-000000000007';
+  perform set_config('crm.cci_deposito', '', true);
+  if pg_temp.sello('e7b6e000-0000-4000-8000-000000000007') <> 'e7b6c000-0000-4000-8000-000000000002|declarado' then raise exception 'MUTANTE 6 NO CAZADO'; end if;
+  raise notice 'OK mutante 6 cazado (sin testigo, un CCI a mano sin la RPC declararía la cuenta)';
+end $m6$;
+rollback to savepoint m6;
 
 select 'PAGO_DECLARA_CUENTA_OK' as veredicto;
 rollback;

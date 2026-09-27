@@ -3,7 +3,8 @@
 -- Qué hace:
 --   1. El sello por cuota (private.sellar_cuenta_cuota_pagada) admite una cuenta DECLARADA: si la
 --      transacción trae el ajuste crm.cci_deposito, la cuota se sella en la cuenta del cliente con
---      ese CCI (cualquier versión: cliente+moneda+CCI), siempre que sea o haya sido cuenta de pago
+--      ese CCI (cualquier versión: cliente+moneda+CCI) —solo si la declaración la armó la RPC en esa
+--      misma transacción (testigo)—, siempre que sea o haya sido cuenta de pago
 --      de ESE contrato (enlace actual o historial de F3); otro CCI se rechaza (22023). origen =
 --      'declarado'. Sin ajuste, deduce por la fecha como hasta hoy ('registro'). Corregir la fecha
 --      solo re-sella lo deducido.
@@ -66,9 +67,16 @@ as $function$
 declare
   v_cuenta uuid;
   v_cci text := nullif(pg_catalog.current_setting('crm.cci_deposito', true), '');
+  v_testigo text := nullif(pg_catalog.current_setting('crm.cci_deposito_testigo', true), '');
   v_nuevo_pago boolean := tg_op = 'INSERT';
   v_origen_previo text;
 begin
+  -- Procedencia: la declaración solo vale si la armó crm.registrar_pago_con_cuenta en ESTA
+  -- transacción (testigo = md5 del txid + CCI). Un CCI fijado a mano sin la RPC se ignora.
+  if v_cci is not null and v_testigo is distinct from pg_catalog.md5(pg_catalog.txid_current()::text || '|' || v_cci) then
+    raise exception using errcode = '22023',
+      message = 'La cuenta del depósito solo se declara por crm.registrar_pago_con_cuenta';
+  end if;
   if not v_nuevo_pago then
     v_nuevo_pago := old.estado is distinct from 'pagado';
   end if;
@@ -167,12 +175,15 @@ begin
     raise exception using errcode = '22023', message = 'El CCI del depósito no tiene 20 dígitos';
   end if;
   perform pg_catalog.set_config('crm.cci_deposito', coalesce(v_cci, ''), true);
+  perform pg_catalog.set_config('crm.cci_deposito_testigo',
+    case when v_cci is null then '' else pg_catalog.md5(pg_catalog.txid_current()::text || '|' || v_cci) end, true);
   update public.cronograma_pagos
      set estado = 'pagado', fecha_pago_real = p_fecha, monto_pagado = p_monto,
          registrado_por = (select auth.uid())
    where id = p_cuota_id and estado = 'pendiente'
   returning id into v_id;
   perform pg_catalog.set_config('crm.cci_deposito', '', true);
+  perform pg_catalog.set_config('crm.cci_deposito_testigo', '', true);
   return v_id;
 end;
 $function$;
@@ -241,7 +252,7 @@ $function$;
 revoke all on function crm.contratos_cuenta_pago_cliente_fn(uuid) from public, anon, authenticated, service_role;
 grant execute on function crm.contratos_cuenta_pago_cliente_fn(uuid) to authenticated;
 
-comment on function private.sellar_cuenta_cuota_pagada() is 'Trigger AFTER en public.cronograma_pagos: al pasar una cuota a pagado sella la cuenta DECLARADA (ajuste crm.cci_deposito: cuenta de pago del contrato, actual o histórica, con ese CCI) o, sin declaración, la vigente en la fecha del pago; corregir la fecha re-sella solo lo deducido. No cambia el registro del pago. SECURITY DEFINER porque quien registra el pago (gestor de cartera) no tiene grants sobre los registros crm.';
+comment on function private.sellar_cuenta_cuota_pagada() is 'Trigger AFTER en public.cronograma_pagos: al pasar una cuota a pagado sella la cuenta DECLARADA (ajuste crm.cci_deposito armado por crm.registrar_pago_con_cuenta en la misma transacción, con testigo: cuenta de pago del contrato, actual o histórica, con ese CCI) o, sin declaración, la vigente en la fecha del pago; corregir la fecha re-sella solo lo deducido. No cambia el registro del pago. SECURITY DEFINER porque quien registra el pago (gestor de cartera) no tiene grants sobre los registros crm.';
 comment on function private.contratos_cuenta_pago_cliente_autorizado(uuid) is 'Contratos abiertos del cliente con su cuenta de pago, cuotas pendientes, cuotas pagadas por cuenta (con las inferidas y las declaradas aparte) y cuenta_retirada (la cuenta física de pago ya no tiene versión vigente: hay que cambiarla). Solo admin vigente. SECURITY DEFINER porque authenticated no tiene grants sobre enlace ni sellos. DATOS SENSIBLES.';
 comment on function crm.contratos_cuenta_pago_cliente_fn(uuid) is 'Puerta (INVOKER) de los contratos abiertos del cliente con su cuenta de pago y la marca cuenta_retirada. Solo admin.';
 comment on function crm.registrar_pago_con_cuenta(uuid, date, numeric, text) is 'Marca una cuota PENDIENTE como pagada declarando el CCI de la cuenta a la que se depositó (20 dígitos; vacío = se deduce por la fecha); rechaza monto nulo o <= 0. INVOKER: el UPDATE corre con la RLS de quien registra (gestor de cartera). La usan la importación del Excel y el modal de pago manual. Devuelve la cuota o NULL si no estaba pendiente.';

@@ -8,9 +8,11 @@ declara; sin CCI se deduce por fecha; los pagos anteriores no cambian.
 
 Piezas:
 - `private.sellar_cuenta_cuota_pagada()` (create or replace): si la transacción trae el ajuste
-  `crm.cci_deposito`, sella la cuenta del cliente con ese CCI restringida al contrato (enlace actual
-  ∪ historial de F3), `origen = 'declarado'`; otro CCI → 22023 y el pago no se registra. Sin ajuste,
-  deduce por fecha (`registro`). Corregir la fecha solo re-sella lo deducido.
+  `crm.cci_deposito` **y su testigo** (`crm.cci_deposito_testigo` = md5 del txid + CCI, que solo arma
+  la RPC en esa misma transacción), sella la cuenta del cliente con ese CCI restringida al contrato
+  (enlace actual ∪ historial de F3), `origen = 'declarado'`; otro CCI → 22023 y el pago no se
+  registra; un CCI fijado a mano sin la RPC → 22023. Sin ajuste, deduce por fecha (`registro`).
+  Corregir la fecha solo re-sella lo deducido.
 - `crm.registrar_pago_con_cuenta(p_cuota_id, p_fecha, p_monto, p_cci)` — INVOKER, EXECUTE solo
   authenticated: monto > 0, CCI de 20 dígitos si viene; `set_config` local a la transacción;
   `UPDATE … where estado = 'pendiente'` con la RLS de siempre (`cronograma_admin_actualiza`);
@@ -21,11 +23,12 @@ Piezas:
   policies ni tablas de `public`.
 
 Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo en verde.
-- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 12 comprobaciones, 5 mutantes
+- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 14 comprobaciones, 6 mutantes
   (sin declaración, sin restricción al contrato, sin limpiar el ajuste, sin validar CCI, sin exigir
-  pendiente). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la clave nueva).
+  pendiente, sin testigo). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la
+  clave nueva).
 - Registro `../scripts/cuentas-gloria/registrar-pago-declara-cuenta.sql` ensayado, con huella de las
-  4 funciones `af5c176fb94a153098da7b10e3c6e9af`.
+  4 funciones `ad041f74f137838e22b80bd018f0d449`.
 - Reversa `../scripts/cuentas-gloria/reversa-pago-declara-cuenta.sql`: repone F3 + arreglos byte a
   byte; se niega con sellos `declarado` (ensayado). Orden de reversas: F5 → arreglos → F4 → F3.
   Tras las cuatro, catálogo idéntico (2052 líneas).
@@ -35,6 +38,15 @@ Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo
   directo vigente (la RLS de `public.cronograma_pagos` no aplica P04; cambiarlo tocaría una policy
   de `public` y no es de esta fase).
 - NOT RUN: gate `test-rls` (mismo motivo que F3); concurrencia con dos sesiones.
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0.** Todo aceptado con arreglo:
+  - P1: el portal convertía a `null` un CCI presente pero dañado (p. ej. convertido por Excel) y el
+    servidor deducía por fecha → ahora el portal envía la celda tal cual y el servidor rechaza lo que
+    no sea 20 dígitos (probado en navegador: la fila dañada cae en errores, la válida se registra);
+  - P2: la declaración dependía de un GUC libre → testigo por transacción que solo arma la RPC;
+  - P3: pruebas de 22023 en subtransacción y de «ya pagada + CCI ajeno» (ajuste limpio, sin sello).
+- **auditor-rls:** pendiente.
 
 Consumidor: Pagos del portal (importación del Excel y modal «Marcar como pagado»); la ventana
 «Cuentas» de Gloria lee `declaradas`. Orden: base → portal.
