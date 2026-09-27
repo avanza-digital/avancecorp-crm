@@ -24,6 +24,16 @@ vea todo el detalle bancario del cliente sin nada oculto, pueda añadir cuentas 
    y lleva a «Cambiar cuenta de pago»; la cuenta retirada queda en «Cuentas anteriores» con motivo.
    Revisiones: Codex (BLOCK sin P0/P1, resuelto) y auditor-rls (P1 «por versión y no por cuenta
    física», corregido).
+5. **El pago dice a qué cuenta se depositó (F5)** — ✅ **EN PRODUCCIÓN (26/09, ~22:55)**: migración
+   `20260927024423` aplicada y registrada (huella `5fe996af…`), portal `b2a1a1f` (SW v136). Codex
+   (BLOCK sin P0: CCI dañado, testigo de procedencia, pruebas) y auditor-rls (APPROVED; P3 aplicados)
+   resueltos. P04 en pagos: riesgo heredado aceptado por Miguel. Historia: migración `20260927024423` (sello con cuenta DECLARADA por CCI restringida a cuentas de
+   pago del contrato; RPC INVOKER `crm.registrar_pago_con_cuenta`; lectura con `declaradas`) y portal
+   (importación por RPC con el CCI de la fila; modal «Se depositó en: …» que declara la cuenta).
+   Cierra el caso del «mismo día» aceptado en F3. Banco: 12 comprobaciones, 5 mutantes, F3/F4/arreglos
+   en verde con F5 encima, huella `af5c176f…`, reversa que repone F3+arreglos byte a byte. Commits
+   locales sin aplicar ni publicar: CRM `cda64a1e`, portal `7152573`. Decisiones de Miguel: solo cuentas
+   de pago del contrato (actual o histórica); el pago manual muestra la cuenta y la declara.
    → ✅ **Arreglos posteriores EN PRODUCCIÓN (26/09, ~21:40, migración `20260927020317`, portal
    `eb17904` SW v135):** el motivo de F3 exige ≥5 caracteres visibles (como F4), y el panel «Cuenta de
    pago de los contratos» marca «⚠️ CUENTA RETIRADA: cámbiala» cuando la cuenta física de pago ya no
@@ -107,7 +117,7 @@ https://www.figma.com/board/kZ8XNjC5fEsbogzzZMNCK7?node-id=18-2 — **al cerrar 
 - Raíz `18:2` · título `18:3` · subtítulo `18:4` · **actualizado `18:5`** · leyenda `18:6`
 - Columnas: pedido `18:7` · fases `18:8` · reglas `18:9`
 - Pedido: P1 `18:13` · P2 «problemas encontrados» `18:18` (status `18:20`) · P3 «dónde vamos» `18:27` (status `18:29`, línea F1–F4 `18:30`)
-- F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F2b `21:2` · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`)
+- F1 `18:32` (status `18:34`, prueba de Gloria `18:39`) · F2 `18:42` (status `18:44`) · F2b `21:2` · F3 `18:50` (status `18:52`) · F4 `18:60` (status `18:62`) · F5 `40:2` (status `40:4`)
 - Reglas: no cambia `18:68` · decisiones `18:74` · **te toca decidir `18:80`** (ítems `18:83`–`18:85`) · riesgos `18:86`
 
 Relacionado: [[P-0XX - publicación y conciliación pendiente (2026-09-25)]],

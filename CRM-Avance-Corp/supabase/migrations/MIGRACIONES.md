@@ -1,6 +1,15 @@
 ## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
 
-**PREPARADA, ENSAYADA Y REVISADA (Codex y auditor-rls); PENDIENTE DEL OK DE MIGUEL.** Cierra el caso del «mismo
+**OK EXPLÍCITO DE MIGUEL (26/09, ~22:45): «Sí, aplica y publica»; P04 en pagos: «Dejarlo como está»
+(riesgo heredado).**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~22:50)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-pago-declara-cuenta.sql`
+  (huella viva `5fe996af…` = ensayada). **Advisors:** sin alertas nuevas (solo el INFO esperado).
+- **Portal PUBLICADO** (commit `b2a1a1f`, SW v136): preflight OK (lo vivo era `a3b0d44`), TUS
+  archivo por archivo con el SW al final, purga, lecturas idénticas; `pagos.js?v=45` y
+  `cuentas-pago-core.js?v=4` sirven el commit.
+
+Cierra el caso del «mismo
 día» aceptado en F3: un Excel exportado con la cuenta A, depositado en A, y un cambio A→B ese mismo
 día antes de importar dejaba el pago anotado en B. Decisiones de Miguel (26/09): solo cuentas de
 pago del contrato (actual o histórica, cualquier versión); el pago manual muestra la cuenta y la
