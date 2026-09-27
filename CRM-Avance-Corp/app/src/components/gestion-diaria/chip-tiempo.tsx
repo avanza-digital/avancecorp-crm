@@ -5,8 +5,8 @@
 // 20/09/2026). El estado NO viaja solo en el color — el texto ya lo dice —, así
 // que cumple la regla de la casa por construcción.
 //
-// Tamaño: 16 px, el piso de la pantalla del analista. `Badge` nace a 11 px para
-// los chips de ficha, así que aquí se sube explícitamente; el color va por la
+// Tamaño: el chip del diseño de Gestión Diaria (27/09/2026, Miguel: respetar la
+// escala del diseño): 11,5 px en negrita y 22 px de alto. El color va por la
 // variante «-text» (oscura) porque `soft` pinta sobre un tinte al 12 % y los
 // tonos puros no llegan al contraste de texto (está escrito en `index.css`).
 import type { JSX } from 'react'
@@ -28,7 +28,7 @@ export function ChipTiempo({ fila, ahora, className }: {
   return (
     <Badge
       color={COLOR_TONO[tono]}
-      className={`px-3 py-0.5 text-base font-normal leading-6 ${className ?? ''}`}
+      className={`min-h-[22px] whitespace-nowrap py-0 text-[11.5px] ${className ?? ''}`}
     >
       {texto}
     </Badge>

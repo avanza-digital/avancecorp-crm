@@ -88,3 +88,35 @@ describe('Tabs — teclado (roving tabindex con vuelta)', () => {
     expect(screen.getByRole('tab', { name: /Llamadas/ })).toHaveAttribute('aria-selected', 'true')
   })
 })
+
+describe('Tabs — variantes de aspecto (27/09/2026)', () => {
+  it.each(['subrayado', 'pastilla'] as const)('%s conserva el patrón APG: tablist, tabs y panel enlazado', async (variante) => {
+    const usuario = userEvent.setup()
+    const alCambiar = vi.fn()
+    function ConVariante() {
+      const [valor, setValor] = useState<Valor>('llamadas')
+      return (
+        <Tabs etiqueta="Vista" variante={variante} clasePanel="panel-propio" pestanas={PESTANAS} valor={valor} onCambio={(v) => { setValor(v); alCambiar(v) }}>
+          <p>Panel de {valor}</p>
+        </Tabs>
+      )
+    }
+    render(<ConVariante />)
+    const activa = screen.getByRole('tab', { name: /Llamadas/ })
+    expect(activa).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveClass('panel-propio')
+    activa.focus()
+    await usuario.keyboard('{ArrowRight}')
+    expect(alCambiar).toHaveBeenLastCalledWith('whatsapp')
+    expect(screen.getByRole('tab', { name: 'WhatsApp' })).toHaveFocus()
+  })
+
+  it('pastilla rellena SOLO la activa, y el default sigue siendo el segmentado de siempre', () => {
+    const { rerender } = render(<Tabs etiqueta="Filtro" variante="pastilla" pestanas={PESTANAS} valor="whatsapp" onCambio={() => {}} />)
+    expect(screen.getByRole('tab', { name: 'WhatsApp' })).toHaveClass('bg-accent')
+    expect(screen.getByRole('tab', { name: /Llamadas/ })).not.toHaveClass('bg-accent')
+    rerender(<Tabs etiqueta="Filtro" pestanas={PESTANAS} valor="whatsapp" onCambio={() => {}} />)
+    expect(screen.getByRole('tablist')).toHaveClass('bg-muted')
+    expect(screen.getByRole('tab', { name: 'WhatsApp' })).toHaveClass('bg-white')
+  })
+})

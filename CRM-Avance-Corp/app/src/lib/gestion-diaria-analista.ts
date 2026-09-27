@@ -289,6 +289,46 @@ export function paginaDeFilas(
   return { filas: visibles, pagina: actual, paginas, rango, total }
 }
 
+/**
+ * El filtro de la cola (diseño del 27/09/2026). «Todo» NO es un grupo de
+ * negocio: es la cola entera en el orden del día (grupo y, dentro, hora). Va
+ * separado de `fila.grupo` a propósito (hallazgo de Codex): si fuera un grupo
+ * más, elegir a alguien desde «Todo» haría saltar la vista a su grupo.
+ */
+export type FiltroCola = 'todo' | GrupoDia
+export const FILTRO_TODO = { clave: 'todo', etiqueta: 'Todo', ayuda: 'Toda tu cola, en el orden del día' } as const
+
+type GruposDelDia = readonly { clave: GrupoDia; filas: readonly FilaDiaria[] }[]
+
+/** Las filas que muestra un filtro; «Todo» las concatena en el orden de `GRUPOS_DIA`. */
+export function filasDelFiltro(pestanas: GruposDelDia, filtro: FiltroCola): FilaDiaria[] {
+  return filtro === 'todo'
+    ? pestanas.flatMap((p) => p.filas)
+    : [...(pestanas.find((p) => p.clave === filtro)?.filas ?? [])]
+}
+
+/**
+ * La regla del «siguiente» al guardar (hallazgo de Codex, 27/09/2026): «Ahora»
+ * pasa a la persona que queda en el MISMO lugar de la lista que se miraba —la
+ * que venía detrás—, o a la última si el guardado era el final. Si esa lista se
+ * queda vacía, sigue con la cola entera. Devuelve una persona CONCRETA, no un
+ * índice: un refresco posterior que devuelva al guardado no lo vuelve a poner
+ * en «Ahora».
+ */
+export function siguienteTrasGuardar(
+  pestanas: GruposDelDia,
+  filtro: FiltroCola,
+  guardado: string,
+): { filtro: FiltroCola; lead_id: string | null } {
+  const lista = filasDelFiltro(pestanas, filtro)
+  const indice = lista.findIndex((f) => f.lead_id === guardado)
+  const resto = lista.filter((f) => f.lead_id !== guardado)
+  if (resto.length > 0) return { filtro, lead_id: resto[Math.min(Math.max(indice, 0), resto.length - 1)]?.lead_id ?? null }
+  if (filtro === 'todo') return { filtro, lead_id: null }
+  const todo = filasDelFiltro(pestanas, 'todo').filter((f) => f.lead_id !== guardado)
+  return { filtro: 'todo', lead_id: todo[0]?.lead_id ?? null }
+}
+
 /** Las filas agrupadas y en orden, para pintar un bloque por grupo. */
 export function agruparDiaria(filas: readonly FilaDiaria[]): { grupo: GrupoDia; filas: FilaDiaria[] }[] {
   return GRUPOS_DIA
