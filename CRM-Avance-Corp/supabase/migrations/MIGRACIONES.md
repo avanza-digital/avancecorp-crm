@@ -13609,3 +13609,17 @@ nuevo: RPC SECURITY DEFINER accesible a authenticated, intencional y con ámbito
 verificado. Performance sin nuevos avisos estructurales; el banco presenta más
 índices unused por su historia sintética. Las 21 Edge conservan hashes y JWT.
 El delta de merge se verificó: exactamente una migración, ninguna ajena.
+## 20260927172931 — Citas: Supervisión limitada al equipo asignado
+
+**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Habilita la vista Citas
+para Supervisión y conserva Gerencia global. La RPC detallada se restringe en
+cada fuente al subárbol vigente de `private.vendedor_ids_visibles(auth.uid())`:
+tareas, historial, ledger de asignaciones, cierres y capital. El testigo
+agregado del Depósito % no se entrega a Supervisión para no revelar cifras de
+otros equipos. La firma pública y el contrato Valibot no cambian.
+
+La migración preflight exige las huellas vivas del lector y de su envoltorio;
+cada sustitución interna exige una coincidencia única y el postflight comprueba
+SECURITY DEFINER, `search_path`, ACL anónima y el sello analítico. El RLS gate
+añade la lectura positiva de `sup1`, ausencia de `testigo` y exclusión del
+subárbol de `sup2`; analista, coordinador y cliente conservan 42501.

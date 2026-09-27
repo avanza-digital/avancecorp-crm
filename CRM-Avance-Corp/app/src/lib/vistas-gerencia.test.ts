@@ -21,10 +21,10 @@ describe('navegación de Gerencia', () => {
     }
   })
 
-  it('habilita todas las páginas de inteligencia solo para Gerencia', () => {
+  it('habilita las páginas de inteligencia solo para Gerencia, salvo Citas para su equipo', () => {
     for (const vista of VISTAS_GERENCIA) {
       expect(vistaPermitida(vista, 'gerencia', true)).toBe(true)
-      expect(vistaPermitida(vista, 'supervisor', true)).toBe(false)
+      expect(vistaPermitida(vista, 'supervisor', true)).toBe(vista === 'reuniones')
       expect(vistaPermitida(vista, 'vendedor', true)).toBe(false)
     }
   })
