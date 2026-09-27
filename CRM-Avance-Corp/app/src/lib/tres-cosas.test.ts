@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tresCosasDeHoy, type TresCosasInput } from './tres-cosas'
+import { candidatosDeHoy, tresCosasDeHoy, type TresCosasInput } from './tres-cosas'
 import type { ColaAccionOperativa } from './cola-accion'
 import type { ItemCola } from './inteligencia'
 import type { MetricaAgendaVendedor } from './metricas-agenda'
@@ -194,5 +194,52 @@ describe('tresCosasDeHoy', () => {
     const b = ven('v2', 'Bea', { no_asistio: 2 })
     expect(tresCosasDeHoy(entrada({ vendedoresAgenda: [a, b] })))
       .toEqual(tresCosasDeHoy(entrada({ vendedoresAgenda: [b, a] })))
+  })
+})
+
+describe('candidatosDeHoy + seguimiento activo (27/09/2026)', () => {
+  it('ESTADO DE PRODUCCIÓN (seguimiento activo, cola legada null): la primera gestión vencida es roja', () => {
+    const cosas = tresCosasDeHoy(entrada({ cola: null, primeraGestionPendiente: 4 }))
+    expect(cosas).toEqual([{
+      id: 'primera_gestion',
+      severidad: 'critica',
+      texto: '4 primeras gestiones vencidas',
+      accion: 'Ver',
+      destino: { tipo: 'vista', vista: 'seguimiento' },
+    }])
+  })
+
+  it('singular honesto y sin dato no hay tarjeta (null, ausente o cero)', () => {
+    expect(tresCosasDeHoy(entrada({ cola: null, primeraGestionPendiente: 1 }))[0]?.texto)
+      .toBe('1 primera gestión vencida')
+    expect(tresCosasDeHoy(entrada({ cola: null, primeraGestionPendiente: null }))).toEqual([])
+    expect(tresCosasDeHoy(entrada({ cola: null }))).toEqual([])
+    expect(tresCosasDeHoy(entrada({ cola: null, primeraGestionPendiente: 0 }))).toEqual([])
+  })
+
+  it('candidatosDeHoy NO recorta: lo que no entra en la franja queda para «Esta semana»', () => {
+    const entradaLlena = entrada({
+      cola: null,
+      primeraGestionPendiente: 2,
+      totalPorRepartir: 3,
+      vendedoresAgenda: [ven('v1', 'Ana', { no_asistio: 2, leads_sin_accion: 5 })],
+    })
+    const todos = candidatosDeHoy(entradaLlena)
+    expect(todos.map((c) => c.id)).toEqual(['primera_gestion', 'no_asistio', 'sin_accion', 'por_repartir'])
+    expect(tresCosasDeHoy(entradaLlena)).toEqual(todos.slice(0, 3))
+  })
+
+  it('la cosa de UN analista trae su dueño; la agrupada no señala a nadie', () => {
+    const [sola] = tresCosasDeHoy(entrada({ vendedoresAgenda: [ven('v1', 'Ana', { no_asistio: 2 })] }))
+    expect(sola).toMatchObject({ id: 'no_asistio', vendedorId: 'v1' })
+    const [accionSola] = tresCosasDeHoy(entrada({ vendedoresAgenda: [ven('v7', 'Eva', { leads_sin_accion: 3 })] }))
+    expect(accionSola).toMatchObject({ id: 'sin_accion', vendedorId: 'v7' })
+    const agrupadas = tresCosasDeHoy(entrada({
+      vendedoresAgenda: [
+        ven('v1', 'Ana', { no_asistio: 2, leads_sin_accion: 3 }),
+        ven('v2', 'Bea', { no_asistio: 2, leads_sin_accion: 3 }),
+      ],
+    }))
+    for (const cosa of agrupadas) expect(cosa).not.toHaveProperty('vendedorId')
   })
 })
