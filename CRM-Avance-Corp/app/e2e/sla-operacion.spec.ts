@@ -170,7 +170,7 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     const antesDelModulo = pedidos.length
     await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
     if (rol === 'supervisor') {
-      await page.getByRole('link', { name: /Ver todo en Seguimiento/ }).click()
+      await page.getByRole('link', { name: /en Seguimiento$/ }).click()
       await expect(page).toHaveURL(/#\/seguimiento$/)
     } else await irASeguimiento(page)
     await expect.poll(() => pedidos.length).toBeGreaterThan(antesDelModulo)
