@@ -1,9 +1,10 @@
-// La pantalla enruta por rol como Hoy: el analista abre con «Mi día» (Fase 3) y
-// conserva SU registro debajo (su id viaja al componente), el supervisor ve su
+// La pantalla enruta por rol como Hoy: el analista abre con «Mi día» (Fase 3),
+// que desde el 27/09/2026 trae dentro su registro y en su cabecera el acceso a
+// «Seguimiento completo»; el supervisor ve su
 // equipo con filtro de analista, y gerencia además elige el día y exporta. Los
 // roles que no entran reciben un mensaje, nunca datos fabricados.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { Yo } from '@/lib/tipos'
 
 let yo: Pick<Yo, 'id' | 'rol' | 'demo' | 'nombre_completo'> | null
@@ -14,7 +15,7 @@ vi.mock('@/components/gestion-diaria/registro-actividad', () => ({
   RegistroActividad: (props: Record<string, unknown>) => { RECIBIDO.props = props; return <section aria-label="Registro (mock)" /> },
 }))
 vi.mock('@/screens/gestion-diaria/analista', () => ({
-  GestionDiariaAnalista: () => <section aria-label="Mi día (mock)" />,
+  GestionDiariaAnalista: ({ accesoSeguimiento }: { accesoSeguimiento?: import('react').ReactNode }) => <section aria-label="Mi día (mock)">{accesoSeguimiento}</section>,
 }))
 vi.mock('@/screens/gestion-diaria/supervisor', () => ({
   GestionDiariaSupervisor: () => <section aria-label="Mi equipo hoy (mock)" />,
@@ -30,14 +31,15 @@ const { GestionDiaria } = await import('./gestion-diaria')
 beforeEach(() => { yo = { id: 'u1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }; RECIBIDO.props = null; window.history.replaceState(null, '', '#/gestion-diaria') })
 
 describe('GestionDiaria por rol', () => {
-  it('analista: «Mi día» primero y su propio registro debajo, sin filtro de analista ni exportación', () => {
+  it('analista: «Mi día» con «Seguimiento completo» en su cabecera; el registro ya no vive fuera', () => {
     render(<GestionDiaria />)
-    expect(screen.getByLabelText('Mi día (mock)')).toBeInTheDocument()
-    // Densidad (20/09/2026): el registro propio es un plegable — su título es
-    // el h3 del `summary` y lleva el resumen al lado; arranca cerrado.
-    const registro = screen.getByRole('heading', { level: 3, name: /¿Qué hice hoy\?/ })
-    expect(registro.closest('details')).not.toHaveAttribute('open')
-    expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19', analistaIds: ['u1'], mostrarAnalista: false, permitirExportar: false })
+    const miDia = screen.getByLabelText('Mi día (mock)')
+    // Un solo acceso en la cabecera, como el «Mi Hoy completo ›» del diseño.
+    expect(within(miDia).getByRole('link', { name: /Seguimiento completo/ })).toHaveAttribute('href', expect.stringContaining('cola'))
+    expect(screen.queryByRole('link', { name: 'Resumen del día' })).not.toBeInTheDocument()
+    // El registro del analista vive en la pestaña «Mi actividad» de «Mi día».
+    expect(screen.queryByRole('heading', { name: /¿Qué hice hoy\?/ })).not.toBeInTheDocument()
+    expect(RECIBIDO.props).toBeNull()
   })
   it('supervisor: su equipo (la RLS recorta), con filtro de analista y sin exportación', () => {
     yo = { id: 'u-sup', rol: 'supervisor', demo: false, nombre_completo: 'SUP' }

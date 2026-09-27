@@ -1,7 +1,8 @@
-// «Mi día» del analista, layout de DOS PANELES (20/09/2026): «Ahora» con la
-// persona que toca y su única acción primaria, y la cola en cuatro pestañas de
-// las que solo se ve una lista. El marcador, las horas, el seguimiento y los
-// descartes viven en desplegables de segundo nivel. Se comprueba lo que el analista necesita:
+// «Mi día» del analista con el diseño del 27/09/2026: franja de 4 cifras,
+// «Ahora» con la persona que toca y su única acción primaria, y una tarjeta con
+// pestañas —«Cola de hoy» (filtros en pastilla con «Todo» primero), «Mi
+// actividad» y «Mi seguimiento»— donde antes había plegables apilados. Se
+// comprueba lo que el analista necesita:
 // a quién llamar, que el tiempo se diga en palabras (nunca «SLA»), que al
 // registrar no le vuelvan a proponer al que acaba de cerrar, y el ESTADO DE
 // PRODUCCIÓN (un día sin llamadas ni cola). Fail-closed: si el servidor cae,
@@ -19,7 +20,7 @@ const dobles = vi.hoisted(() => ({
   abrirLead: vi.fn(),
   deshacer: vi.fn(async () => ({ ok: true })),
   panel: { props: null as Record<string, unknown> | null },
-  contacto: { montajes: [] as string[], onRegistrar: null as null | (() => void), real: false },
+  contacto: { montajes: [] as string[], onRegistrar: null as null | (() => void), onLlamar: null as null | (() => void), real: false },
   obtenerTarea: vi.fn(async () => null as Record<string, unknown> | null),
   tareas: [] as Array<Record<string, unknown>>,
   // El ámbito tiene que traer TODOS los leads de la cola: «Ahora» necesita el
@@ -48,8 +49,9 @@ vi.mock('@/components/app/contacto', async () => {
   const real = await vi.importActual<typeof import('@/components/app/contacto')>('@/components/app/contacto')
   return {
     AccionesContacto: (props: Parameters<typeof real.AccionesContacto>[0]) => {
-      const { lead, onRegistrarLlamada } = props
+      const { lead, onRegistrarLlamada, onLlamar } = props
       dobles.contacto.onRegistrar = onRegistrarLlamada ?? null
+      dobles.contacto.onLlamar = onLlamar ?? null
       const [idInicial] = useState(lead.id)
       useEffect(() => { dobles.contacto.montajes.push(idInicial) }, [idInicial])
       if (dobles.contacto.real) return <real.AccionesContacto {...props} />
@@ -59,6 +61,10 @@ vi.mock('@/components/app/contacto', async () => {
 })
 vi.mock('@/components/gestion-diaria/registrar-resultado', () => ({
   RegistrarResultado: (props: Record<string, unknown>) => { dobles.panel.props = props; return <div role="dialog" aria-label="Resultado (mock)" /> },
+}))
+// El registro del día (pestaña «Mi actividad») tiene sus propias pruebas.
+vi.mock('@/components/gestion-diaria/registro-actividad', () => ({
+  RegistroActividad: (props: Record<string, unknown>) => <section aria-label="Registro del día (mock)" data-compacto={String(props['compacto'])} />,
 }))
 const { GestionDiariaAnalista } = await import('./analista')
 
@@ -92,6 +98,11 @@ const itemCola = (id: string, bucket: string, referencia: string | null) => ({
   lead: { id, nombre_completo: id === 'l1' ? 'NUEVO SIN INTENTO' : `LEAD ${id}`, etapa: 'nuevo', analista_id: 'a1', analista_nombre: 'ANALISTA UNO' },
 })
 
+/** Abre una pestaña de la tarjeta derecha («Cola de hoy», «Mi actividad», «Mi seguimiento»). */
+function verPestana(nombre: RegExp) {
+  fireEvent.click(within(screen.getByRole('tablist', { name: 'Qué ver' })).getByRole('tab', { name: nombre }))
+}
+
 function abrirResultado() {
   fireEvent.click(screen.getByRole('button', { name: /^Más acciones para / }))
   fireEvent.click(screen.getByRole('menuitem', { name: 'Registrar resultado' }))
@@ -102,6 +113,7 @@ beforeEach(() => {
   dobles.recargar = vi.fn(async () => {})
   dobles.contacto.montajes = []
   dobles.contacto.onRegistrar = null
+  dobles.contacto.onLlamar = null
   dobles.contacto.real = false
   dobles.yo = { id: 'a1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }
   dobles.dia = DIA_LLENO
@@ -128,12 +140,13 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
     expect(within(ahora).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
   })
 
-  it('las cuatro pestañas están, con su conteo, aunque solo se vea una lista', () => {
+  it('«Todo» y los cuatro grupos están, con su conteo, aunque solo se vea una lista', () => {
     render(<GestionDiariaAnalista />)
     const tablist = screen.getByRole('tablist', { name: 'Grupos de la cola' })
     expect(within(tablist).getAllByRole('tab').map((t) => t.textContent)).toEqual([
-      'Sin primer intento1', 'Vencidas1', 'Hoy0', 'Sin conversación1',
+      'Todo3', 'Sin primer intento1', 'Vencidas1', 'Hoy0', 'Sin conversación1',
     ])
+    expect(within(tablist).getByRole('tab', { name: /^Todo/ })).toHaveAttribute('aria-selected', 'true')
     // Una sola lista a la vista: la del grupo activo.
     expect(screen.getAllByRole('list', { name: /\(\d+(–\d+)? de \d+\)$/ })).toHaveLength(1)
   })
@@ -207,42 +220,45 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
     dobles.cola = { data: undefined, error: new Error('502'), refetch: vi.fn(), isFetching: false }
     render(<GestionDiariaAnalista />)
     expect(screen.getByRole('alert')).toHaveTextContent(/No se pudo leer la cola del servidor/)
-    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
+    verPestana(/^Mi actividad/)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 })
 
-describe('GestionDiariaAnalista · Mi actividad', () => {
-  const abrir = () => { fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ })) }
-
-  it('la cabecera resume el día sin ocupar la pantalla', () => {
+describe('GestionDiariaAnalista · la franja y «Mi actividad»', () => {
+  it('la franja resume el día en 4 cifras, con el % pegado a sus útiles y su nivel', () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.getByRole('button', { name: /Mi actividad/ })).toHaveTextContent('9 llamadas · 63 % contacto (8 útiles) · 1 cita')
+    const franja = screen.getByRole('region', { name: 'Tu día en cifras' })
+    expect(within(franja).getAllByRole('term').map((x) => x.textContent)).toEqual(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
+    const valores = within(franja).getAllByRole('definition').map((x) => x.textContent)
+    expect(valores).toEqual(['9hoy', '5de 9', '63 %Bien · de 8 útiles', '1hoy'])
   })
 
-  it('el marcador completo vive en el segundo nivel, con su chip de nivel', async () => {
+  it('«Mi actividad» trae las barras por hora, cómo se cuenta y el registro compacto del día', async () => {
     render(<GestionDiariaAnalista />)
-    abrir()
-    await waitFor(() => expect(screen.getByRole('heading', { name: /Mi actividad de hoy/ })).toBeInTheDocument())
-    expect(screen.getByText('63 % · 8 llamadas')).toBeInTheDocument()
-    expect(screen.getAllByText('Bien').length).toBeGreaterThan(0)
+    verPestana(/^Mi actividad/)
+    expect(await screen.findByRole('heading', { name: 'Llamadas por hora' })).toBeInTheDocument()
     expect(screen.getByText(/Tocaste 7 leads/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Registro del día (mock)' })).toHaveAttribute('data-compacto', 'true')
+    // «Ahora» sigue en pantalla: la pestaña cambia solo la tarjeta de la derecha.
+    expect(screen.getByRole('region', { name: 'Ahora' })).toBeInTheDocument()
   })
 
-  it('sin llamadas útiles no hay chip ni porcentaje inventado', async () => {
+  it('sin llamadas útiles no hay chip ni porcentaje inventado', () => {
     dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, utiles: 0, tasa_contacto_pct: null, nivel: null } } as DiaAnalista
     render(<GestionDiariaAnalista />)
-    abrir()
-    await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument())
-    expect(screen.queryByText('Bien')).not.toBeInTheDocument()
-    expect(screen.getByText(/Se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
+    const franja = screen.getByRole('region', { name: 'Tu día en cifras' })
+    expect(within(franja).getByText('—')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(franja).getByText('sin dato')).toBeInTheDocument()
+    expect(within(franja).getByText(/se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
+    expect(screen.queryByText(/^Bien/)).not.toBeInTheDocument()
   })
 
   it('el descarte del día se puede deshacer y recarga el día', async () => {
     render(<GestionDiariaAnalista />)
-    abrir()
-    fireEvent.click(await screen.findByRole('heading', { name: /Descartados hoy/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer el descarte de ELENA VARGAS' }))
+    verPestana(/^Mi actividad/)
+    expect(await screen.findByRole('heading', { name: /Descartados hoy/ })).toHaveTextContent('se pueden deshacer 24 h')
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer el descarte de ELENA VARGAS' }))
     await waitFor(() => expect(dobles.deshacer).toHaveBeenCalledWith('act1'))
     expect(dobles.recargar).toHaveBeenCalled()
   })
@@ -253,17 +269,16 @@ describe('GestionDiariaAnalista · Mi actividad', () => {
       descartados: [{ ...DIA_LLENO.descartados[0], puede_deshacer: false, deshecho: true }],
     } as DiaAnalista
     render(<GestionDiariaAnalista />)
-    abrir()
-    fireEvent.click(await screen.findByRole('heading', { name: /Descartados hoy/ }))
+    verPestana(/^Mi actividad/)
     expect(await screen.findByText('Sin deshacer')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Deshacer el descarte/ })).not.toBeInTheDocument()
   })
 
-  it('los compromisos de mañana en adelante viven aquí, no en la cola', async () => {
+  it('los compromisos de mañana en adelante viven en «Mi seguimiento», no en la cola', async () => {
     render(<GestionDiariaAnalista />)
-    abrir()
-    fireEvent.click(await screen.findByRole('heading', { name: /Mi seguimiento/ }))
+    verPestana(/^Mi seguimiento/)
     expect(await screen.findByRole('button', { name: 'MARTÍN MUÑOZ' })).toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Grupos de la cola' })).not.toBeInTheDocument()
   })
 })
 
@@ -434,23 +449,21 @@ describe('GestionDiariaAnalista · abrir una pestaña vacía', () => {
 })
 
 describe('GestionDiariaAnalista · el foco nunca se pierde', () => {
-  it('abrir y cerrar «Mi actividad» conserva foco en su resumen, sin desmontar la cola', async () => {
+  it('las pestañas de la tarjeta se recorren con el teclado y no desmontan «Ahora»', async () => {
     render(<GestionDiariaAnalista />)
-    const titulo = screen.getByRole('heading', { name: /Mi actividad de hoy/ })
-    const plegable = titulo.closest('details')!
-    expect(plegable).not.toHaveAttribute('open')
-    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
-    await waitFor(() => expect(plegable.querySelector('summary')).toHaveFocus())
-    expect(plegable).toHaveAttribute('open')
-    expect(screen.getByRole('region', { name: 'Ahora' })).toBeInTheDocument()
-    fireEvent.click(titulo)
-    expect(plegable).not.toHaveAttribute('open')
-    expect(plegable.querySelector('summary')).toHaveFocus()
+    const cola = within(screen.getByRole('tablist', { name: 'Qué ver' })).getByRole('tab', { name: /^Cola de hoy/ })
+    expect(cola).toHaveAttribute('aria-selected', 'true')
+    cola.focus()
+    fireEvent.keyDown(cola, { key: 'ArrowRight' })
+    const actividad = within(screen.getByRole('tablist', { name: 'Qué ver' })).getByRole('tab', { name: /^Mi actividad/ })
+    await waitFor(() => expect(actividad).toHaveFocus())
+    expect(actividad).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent('NUEVO SIN INTENTO')
   })
 
   it('la paginación usa aria-disabled, no disabled: el botón pulsado conserva el foco', () => {
     dobles.cola = {
-      data: { items: Array.from({ length: 7 }, (_, i) => itemCola(`p${i}`, 'primera_atencion', `2026-09-20T1${i}:00:00Z`)) },
+      data: { items: Array.from({ length: 10 }, (_, i) => itemCola(`p${i}`, 'primera_atencion', `2026-09-20T${String(10 + i).padStart(2, '0')}:00:00Z`)) },
       error: null, refetch: vi.fn(), isFetching: false,
     }
     render(<GestionDiariaAnalista />)
@@ -464,12 +477,12 @@ describe('GestionDiariaAnalista · el foco nunca se pierde', () => {
     // se habría ido al body (regla de la casa, boton-guardar.tsx).
     expect(screen.getByRole('button', { name: 'Siguiente' })).toHaveAttribute('aria-disabled', 'true')
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Siguiente' }))
-    expect(screen.getByText('6–7 de 7')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText(/^9–11 de 11/)).toHaveAttribute('aria-live', 'polite')
   })
 
   it('la fila elegida se marca con aria-current y lo dice también con texto', () => {
     render(<GestionDiariaAnalista />)
-    const lista = screen.getByRole('list', { name: /^Sin primer intento/ })
+    const lista = screen.getByRole('list', { name: /^Todo/ })
     const fila = within(lista).getByRole('button', { name: /NUEVO SIN INTENTO/ })
     fireEvent.click(fila)
     expect(fila).toHaveAttribute('aria-current', 'true')
@@ -488,9 +501,9 @@ describe('GestionDiariaAnalista · estados que hoy se ven en producción', () =>
     render(<GestionDiariaAnalista />)
     expect(screen.getByText('No tienes nada pendiente ahora')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/Nada pendiente ahora/)
-    fireEvent.click(screen.getByRole('button', { name: /Mi actividad/ }))
-    expect(await screen.findByText('—')).toBeInTheDocument()
-    expect(await screen.findByText(/Todavía no has marcado hoy/)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Tu día en cifras' })).getByText('sin dato')).toBeInTheDocument()
+    verPestana(/^Mi actividad/)
+    expect(await screen.findByText('Todavía no hay llamadas hoy.')).toBeInTheDocument()
   })
 
   it('si el día no carga, se dice y no se pinta una cola a medias', () => {
@@ -506,7 +519,7 @@ describe('GestionDiariaAnalista · estados que hoy se ven en producción', () =>
     expect(screen.getByRole('button', { name: /^Más acciones para NUEVO SIN INTENTO/ })).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Abrir la ficha de NUEVO SIN INTENTO' })).toBeInTheDocument()
     // El nombre lleva el RANGO: prometía el total del grupo y contenía una página.
-    expect(screen.getByRole('list', { name: 'Sin primer intento (1–1 de 1)' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Todo (1–3 de 3)' })).toBeInTheDocument()
   })
 })
 
@@ -537,17 +550,15 @@ describe('GestionDiariaAnalista · integración del taller y producción', () =>
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Abrir la ficha de LEAD l2' })).toHaveFocus())
   })
 
-  it('los desplegables conservan conteos y no vuelven a cerrarse al recargar', () => {
+  it('la pestaña elegida y su conteo sobreviven a una recarga', () => {
     const { rerender } = render(<GestionDiariaAnalista />)
-    const seguimiento = screen.getByRole('heading', { name: /Mi seguimiento/ })
-    expect(seguimiento.closest('details')).not.toHaveAttribute('open')
-    expect(seguimiento).toHaveTextContent('1 compromiso desde mañana')
-    expect(screen.getByRole('heading', { name: /Descartados hoy/ })).toHaveTextContent('se pueden deshacer 24 h')
-    fireEvent.click(seguimiento)
+    const tab = () => within(screen.getByRole('tablist', { name: 'Qué ver' })).getByRole('tab', { name: /^Mi seguimiento/ })
+    expect(tab()).toHaveTextContent('Mi seguimiento· 1')
+    fireEvent.click(tab())
     dobles.dia = { ...DIA_LLENO, compromisos_total: 2 }
     rerender(<GestionDiariaAnalista />)
-    expect(screen.getByRole('heading', { name: /Mi seguimiento/ })).toHaveTextContent('2 compromisos')
-    expect(seguimiento.closest('details')).toHaveAttribute('open')
+    expect(tab()).toHaveTextContent('Mi seguimiento· 2')
+    expect(tab()).toHaveAttribute('aria-selected', 'true')
   })
 
   it('una cola aún cargando no propone a alguien de menor prioridad', () => {
@@ -605,5 +616,62 @@ describe('GestionDiariaAnalista · llamada real y refetch', () => {
     responder(true)
     await waitFor(() => expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent('LEAD l2'))
     expect(dobles.panel.props).toBeNull()
+  })
+})
+
+describe('GestionDiariaAnalista · «Todo», el siguiente y la persona fija (27/09/2026)', () => {
+  it('elegir a alguien desde «Todo» NO cambia el filtro a su grupo', async () => {
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(within(screen.getByRole('list', { name: /^Todo/ })).getByRole('button', { name: /LEAD l2/ }))
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l2')).toBeInTheDocument())
+    expect(within(screen.getByRole('tablist', { name: 'Grupos de la cola' })).getByRole('tab', { name: /^Todo/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('con un GRUPO a la vista, si el refresco mueve al elegido de grupo, la vista lo sigue', async () => {
+    const { rerender } = render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('tab', { name: /^Vencidas/ }))
+    fireEvent.click(within(screen.getByRole('list', { name: /^Vencidas/ })).getByRole('button', { name: /LEAD l2/ }))
+    dobles.cola = { ...dobles.cola, data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l2', 'tarea_hoy', '2026-09-20T22:00:00Z')] } }
+    rerender(<GestionDiariaAnalista />)
+    await waitFor(() => expect(screen.getByRole('tab', { name: /^Hoy/ })).toHaveAttribute('aria-selected', 'true'))
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l2')).toBeInTheDocument()
+  })
+
+  it('al guardar pasa a la persona que venía DETRÁS en la lista mirada, no a la primera', async () => {
+    let soltar: () => void = () => {}
+    dobles.recargar = vi.fn(() => new Promise<void>((r) => { soltar = () => { r() } }))
+    render(<GestionDiariaAnalista />)
+    // «Todo» = l1 (sin primer intento), l2 (vencida), l3 (sin conversación).
+    fireEvent.click(within(screen.getByRole('list', { name: /^Todo/ })).getByRole('button', { name: /LEAD l2/ }))
+    abrirResultado()
+    await waitFor(() => expect(dobles.panel.props?.lead).toMatchObject({ id: 'l2' }))
+    ;(dobles.panel.props!.onGuardado as () => void)()
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l3')).toBeInTheDocument())
+    soltar()
+  })
+
+  it('«Llamar» FIJA a la persona: un lead más urgente que entra durante la llamada no la cambia', async () => {
+    const { rerender } = render(<GestionDiariaAnalista />)
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+    expect(typeof dobles.contacto.onLlamar).toBe('function')
+    dobles.contacto.onLlamar?.()
+    // Entra l9, sin primer intento y más antiguo: sin la fijación, pasaría a «Ahora».
+    dobles.leads = [...dobles.leads, { id: 'l9', nombre_completo: 'LEAD l9', telefono: '+51999000999', etapa: 'nuevo' }]
+    dobles.cola = { ...dobles.cola, data: { items: [itemCola('l9', 'primera_atencion', '2026-09-20T09:00:00Z'), ...((dobles.cola.data as { items: unknown[] }).items)] } }
+    rerender(<GestionDiariaAnalista />)
+    await waitFor(() => expect(screen.getAllByText('LEAD l9').length).toBeGreaterThan(0))
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
+    expect(dobles.contacto.montajes).toEqual(['l1'])
+  })
+
+  it('el botón REAL «Llamar» avisa al pulsarlo y la persona queda fija aunque la cola cambie', async () => {
+    dobles.contacto.real = true
+    const { rerender } = render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('button', { name: /^Copiar el número de NUEVO SIN INTENTO/ }))
+    dobles.leads = [...dobles.leads, { id: 'l9', nombre_completo: 'LEAD l9', telefono: '+51999000999', etapa: 'nuevo' }]
+    dobles.cola = { ...dobles.cola, data: { items: [itemCola('l9', 'primera_atencion', '2026-09-20T09:00:00Z'), ...((dobles.cola.data as { items: unknown[] }).items)] } }
+    rerender(<GestionDiariaAnalista />)
+    await waitFor(() => expect(screen.getAllByText('LEAD l9').length).toBeGreaterThan(0))
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
   })
 })

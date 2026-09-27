@@ -4,8 +4,8 @@
 // aparezca sin su conteo.
 import { describe, expect, it } from 'vitest'
 import {
-  agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, diaAnalistaDesdeDemo, filasDiariasDemo,
-  horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, resumenMarcador, textoTasa, tiempoDeFila,
+  agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, diaAnalistaDesdeDemo, filasDelFiltro, filasDiariasDemo,
+  horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, pestanasDiarias, resumenMarcador, siguienteTrasGuardar, textoTasa, tiempoDeFila,
   type FilaDiaria, type ItemColaSla, type SenalCartera,
 } from './gestion-diaria-analista'
 import { seleccionarPrioridadesVendedor } from '@/screens/hoy/prioridades-vendedor'
@@ -230,5 +230,43 @@ describe('espejo demo', () => {
     const d = diaAnalistaDesdeDemo('a1', leads, actividades, tareas, ahora, dia)
     expect(filasDiariasDemo(d.cartera, ahora, dia).map((f) => `${f.grupo}:${f.lead_id}`))
       .toEqual(['primera_atencion:l1', 'tarea_vencida:l3'])
+  })
+})
+
+describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
+  // Dos sin primer intento, una vencida, ninguna de hoy y una sin conversación.
+  const filas = ordenarColaDiaria(
+    [item('n1', 'primera_atencion', '2026-09-20T10:00:00Z'), item('n2', 'primera_atencion', '2026-09-20T11:00:00Z'), item('v1', 'tarea_vencida', '2026-09-19T10:00:00Z')],
+    [senal('s1', { sin_conversacion: true, dias_sin_conversacion: 9 })],
+  )
+  const grupos = pestanasDiarias(filas)
+  const ids = (fs: readonly FilaDiaria[]) => fs.map((f) => f.lead_id)
+
+  it('«Todo» es la cola entera en el orden de los grupos; un grupo, solo lo suyo', () => {
+    expect(ids(filasDelFiltro(grupos, 'todo'))).toEqual(['n1', 'n2', 'v1', 's1'])
+    expect(ids(filasDelFiltro(grupos, 'tarea_vencida'))).toEqual(['v1'])
+    expect(filasDelFiltro(grupos, 'tarea_hoy')).toEqual([])
+  })
+
+  it('al guardar pasa a la que venía DETRÁS en la lista que se miraba', () => {
+    expect(siguienteTrasGuardar(grupos, 'todo', 'n1')).toEqual({ filtro: 'todo', lead_id: 'n2' })
+    expect(siguienteTrasGuardar(grupos, 'todo', 'v1')).toEqual({ filtro: 'todo', lead_id: 's1' })
+  })
+
+  it('si el guardado era el último, pasa al nuevo último de esa lista', () => {
+    expect(siguienteTrasGuardar(grupos, 'todo', 's1')).toEqual({ filtro: 'todo', lead_id: 'v1' })
+    expect(siguienteTrasGuardar(grupos, 'primera_atencion', 'n2')).toEqual({ filtro: 'primera_atencion', lead_id: 'n1' })
+  })
+
+  it('si el grupo se queda vacío, sigue con la cola entera desde el principio', () => {
+    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', 'v1')).toEqual({ filtro: 'todo', lead_id: 'n1' })
+  })
+
+  it('un guardado que no estaba en la lista mirada deja «Ahora» en la primera de esa lista', () => {
+    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', 'n1')).toEqual({ filtro: 'tarea_vencida', lead_id: 'v1' })
+  })
+
+  it('con la cola vacía no inventa a nadie', () => {
+    expect(siguienteTrasGuardar(pestanasDiarias([]), 'todo', 'x')).toEqual({ filtro: 'todo', lead_id: null })
   })
 })

@@ -85,6 +85,7 @@ export function AccionesContacto({
   grande,
   onGuardado,
   onRegistrarLlamada,
+  onLlamar,
 }: {
   lead: LeadContactable
   compacto?: boolean
@@ -114,6 +115,14 @@ export function AccionesContacto({
   onGuardado?: (() => void) | undefined
   /** «Mi día» resuelve su tarea de servidor y usa el mismo panel desde ambos accesos. */
   onRegistrarLlamada?: (() => void) | undefined
+  /**
+   * Aviso SÍNCRONO de que se pulsó «Llamar», antes de copiar o de salir al
+   * marcador (27/09/2026): «Mi día» fija ahí a la persona, para que un refresco
+   * mientras el analista está en la llamada no cambie la tarjeta ni pierda la
+   * pregunta del resultado al volver. Síncrono a propósito: en iOS un `await`
+   * antes de navegar a `tel:` corta la activación y el marcador no abre.
+   */
+  onLlamar?: (() => void) | undefined
 }): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -220,7 +229,7 @@ export function AccionesContacto({
           href={tel}
           className={CLASE_ACCION}
           aria-label={`Llamar a ${lead.nombre_completo}`}
-          onClick={marcar('tel')}
+          onClick={() => { marcar('tel')(); onLlamar?.() }}
         >
           <Phone /> <span className={labelCls}>Llamar</span>
         </a>
@@ -229,7 +238,7 @@ export function AccionesContacto({
           type="button"
           className={CLASE_ACCION}
           aria-label={`Copiar el número de ${lead.nombre_completo} y registrar la llamada`}
-          onClick={llamar}
+          onClick={() => { onLlamar?.(); void llamar() }}
         >
           <Phone /> <span className={labelCls}>Llamar</span>
         </button>

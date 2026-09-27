@@ -5,9 +5,10 @@
 // fases 4–5 del plan (docs/gestion-diaria/GESTION-DIARIA.md).
 // Fase 3 (20/09/2026): el analista abre con «Mi día» — la cola completa, su
 // marcador, sus compromisos y sus descartes — y conserva el registro debajo.
-// Densidad (20/09/2026): el registro del propio analista («¿Qué hice hoy?») se
-// pliega. Es memoria, no trabajo pendiente: releer el log propio no cambia a
-// quién hay que llamar, y abierto duplicaba el largo de la pantalla.
+// Diseño (27/09/2026): el registro del propio analista («¿Qué hice hoy?») vive
+// ahora DENTRO de «Mi día», en su pestaña «Mi actividad», y la navegación entre
+// «Resumen del día» y «Seguimiento completo» sube a su cabecera (misma ruta y
+// `aria-current` de siempre), como ya hacían supervisor y gerencia.
 import { useState, useSyncExternalStore, type JSX, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -16,10 +17,9 @@ import { RegistroActividad } from '@/components/gestion-diaria/registro-activida
 import { GestionDiariaAnalista } from '@/screens/gestion-diaria/analista'
 import { GestionDiariaSupervisor } from '@/screens/gestion-diaria/supervisor'
 import { GestionDiariaGerencia } from '@/screens/gestion-diaria/gerencia'
-import { Plegable } from '@/components/gestion-diaria/plegable'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Input } from '@/components/ui/input'
-import { CalendarCheck2 } from 'lucide-react'
+import { CalendarCheck2, ChevronRight } from 'lucide-react'
 import { ColaSeguimiento } from '@/components/app/cola-seguimiento'
 import { hashDe, leerHash } from '@/lib/router'
 
@@ -35,18 +35,26 @@ export function GestionDiaria(): JSX.Element {
     return <PanelVacio icono={CalendarCheck2} titulo="Gestión Diaria no está disponible para tu rol" detalle="Este módulo es para analistas, supervisores y gerencia." />
   }
   const cola = leerHash().detalleGestion?.tipo === 'cola'
-  const cabeceraIntegrada = (yo.rol === 'supervisor' || (yo.rol === 'gerencia' && !yo.demo)) && !cola
+  const cabeceraIntegrada = (yo.rol === 'vendedor' || yo.rol === 'supervisor' || (yo.rol === 'gerencia' && !yo.demo)) && !cola
   const enlace = 'inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
   const accesoCola = <a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })} aria-current={cola ? 'page' : undefined} className={`${enlace} ${cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Seguimiento completo</a>
+  const secciones = <nav aria-label="Secciones de Gestión Diaria" className="flex flex-wrap gap-3">
+    <a href={hashDe('gestion-diaria')} aria-current={!cola ? 'page' : undefined} className={`${enlace} ${!cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Resumen del día</a>
+    {accesoCola}
+  </nav>
+  // El analista lleva a su cabecera un solo botón, como el «Mi Hoy completo ›»
+  // del diseño (27/09/2026): la cabecera no puede pesar más que la pregunta. La
+  // vuelta al resumen sigue en la barra de secciones de la cola, con su
+  // `aria-current`. Supervisor y gerencia conservan su acceso, como hasta ahora.
+  const integrada = yo.rol === 'vendedor'
+    ? <nav aria-label="Secciones de Gestión Diaria"><a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-border bg-card px-3 text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Seguimiento completo<ChevronRight aria-hidden className="size-4" /></a></nav>
+    : <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav>
   return <div key={`${yo.id}:${yo.rol}:${yo.demo}`} className="mx-auto w-full max-w-[1640px] space-y-5">
-    {!cabeceraIntegrada && <nav aria-label="Secciones de Gestión Diaria" className="flex flex-wrap gap-3">
-      <a href={hashDe('gestion-diaria')} aria-current={!cola ? 'page' : undefined} className={`${enlace} ${!cola ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-card text-primary'}`}>Resumen del día</a>
-      {accesoCola}
-    </nav>}
+    {!cabeceraIntegrada && secciones}
     {cola ? <>
       <p className="text-base text-[var(--muted-foreground-strong)]">Pendientes actuales de tu ámbito. La fecha del resumen no cambia esta cola.</p>
       <ColaSeguimiento />
-    </> : <ResumenGestionDiaria accesoSeguimiento={cabeceraIntegrada ? <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav> : undefined} />}
+    </> : <ResumenGestionDiaria accesoSeguimiento={cabeceraIntegrada ? integrada : undefined} />}
   </div>
 }
 
@@ -66,23 +74,15 @@ function ResumenGestionDiaria({ accesoSeguimiento }: { accesoSeguimiento?: React
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
   const [dia, setDia] = useState(hoy)
-  const [registroAbierto, setRegistroAbierto] = useState(false)
   const diaValido = /^\d{4}-\d{2}-\d{2}$/.test(dia) && dia <= hoy ? dia : hoy
 
   if (!yo) return <PanelVacio icono={CalendarCheck2} titulo="Sin sesión" detalle="Vuelve a entrar para ver la gestión del día." />
 
   switch (yo.rol) {
     case 'vendedor':
-      // Fase 3: el analista entra a «Mi día» (cola, marcador, compromisos y
-      // descartes). Su registro crudo sigue debajo, plegado.
-      return (
-        <div className="mx-auto w-full max-w-[1440px] space-y-6">
-          <GestionDiariaAnalista />
-          <Plegable titulo="¿Qué hice hoy?" resumen="tu registro del día" abierto={registroAbierto} onAbrir={setRegistroAbierto}>
-            <RegistroActividad dia={hoy} analistaIds={[yo.id]} mostrarAnalista={false} permitirExportar={false} />
-          </Plegable>
-        </div>
-      )
+      // «Mi día»: cola, cifras, compromisos, descartes y su registro del día
+      // (pestaña «Mi actividad»), todo dentro de la misma pantalla.
+      return <GestionDiariaAnalista accesoSeguimiento={accesoSeguimiento} />
     case 'supervisor':
       return <GestionDiariaSupervisor accesoSeguimiento={accesoSeguimiento} />
     case 'gerencia':
