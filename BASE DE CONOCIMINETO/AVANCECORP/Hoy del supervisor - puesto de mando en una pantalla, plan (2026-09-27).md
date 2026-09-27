@@ -88,8 +88,13 @@ equipo va a «Mi equipo hoy»; desaparece la pestaña «Sin movimiento» (sin da
 - **F4** · `hoy.tsx` enruta a `HoySupervisorMando` (modo legado/demo ⇒ pantalla clásica; rollback =
   una línea) · e2e `hoy-supervisor-mando.spec.ts` (teclado a 1440×900 y reflow a 375 px) ·
   `sla-operacion.spec.ts` actualizado (el Hoy del supervisor ya pide una vista previa de 7).
+- **F4** `b862ac80` + cierre `4b54e495` (auditoría final de Codex: conversión con error anulada en
+  todos los consumidores, `nombresCortos` por niveles, áreas de toque ≥36/40 px).
 - **Auditorías:** Codex F1 (3 P1 + 2 P2) · Codex F2/F3 (1 P1 + 3 P2 + 1 P3) · `revisor-a11y`
-  (1 P1 + 7 P2 + P3) — todo aceptado salvo lo anotado abajo. Encargos en
+  (1 P1 + 7 P2 + P3) · Codex final (1 P1 + 2 P2) · **Codex cierre: PASS** — todo aceptado salvo lo
+  anotado abajo.
+- **Verificación final:** `npm run check` PASS (4589/4589) · e2e Docker 17/17 PASS · gate de realidad
+  NOT RUN (necesita la clave de servicio; supuestos de prod verificados por SQL de lectura). Encargos en
   `CRM-Avance-Corp/docs/encargos/2026-09-27-codex-supervisor-hoy-*.md`.
 - **Decisiones tomadas por defecto:** tasas autorizadas dentro de «Detalle»; enlaces de equipo a
   «Mi equipo hoy»; «citas sin asistir» y «sin próxima acción» no filtran la cola.
