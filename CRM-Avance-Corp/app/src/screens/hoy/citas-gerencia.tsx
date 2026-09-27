@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { can } from '@/lib/roles'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { useCitasGerencia, adaptarCitas, adaptarDepositos, adaptarGestion, type ConsultaCitasRpc } from '@/data/citas-gerencia'
@@ -14,7 +15,8 @@ export function CitasGerencia() {
   const { abrirLead } = usePanelesActions()
   const ahora = useAhora()
   const [mes, setMes] = useState(() => mesLima(new Date(ahora)))
-  const consulta = useCitasGerencia(mes, yo?.id ?? null, yo?.rol==='gerencia' && !yo.demo)
+  const puedeVerCitas = can(yo?.rol, 'verCitasEquipo')
+  const consulta = useCitasGerencia(mes, yo?.id ?? null, puedeVerCitas && !yo?.demo)
   const demo = useMemo<ConsultaCitasRpc>(() => {
     const [desde,hasta] = rango(defaults(mes))
     return {

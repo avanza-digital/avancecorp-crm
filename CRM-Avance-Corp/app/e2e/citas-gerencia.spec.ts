@@ -42,6 +42,14 @@ test('Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vist
   await expect(page.getByRole('button',{name:'Exportar citas'})).toBeDisabled()
 })
 
+test('Supervisor: puede abrir Citas del equipo en modo demo',async ({page}) => {
+  await page.goto('/')
+  await page.getByRole('button',{name:/explorar en modo demo/i}).click()
+  await page.getByRole('button',{name:/^Supervisor/}).click()
+  await page.getByRole('button',{name:'Citas',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'Citas del equipo'})).toBeVisible()
+})
+
 test('una consulta no habilitada muestra el error y se recupera sin recurrir a cifras de ejemplo',async ({page}) => {
   await page.clock.setFixedTime(new Date('2026-09-04T15:00:00Z'))
   await montarBackendReal(page)

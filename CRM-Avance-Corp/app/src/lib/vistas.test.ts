@@ -10,7 +10,7 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 const VISTAS_POR_GATE = {
   abierto: {
     vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
+    supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'reuniones', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
@@ -21,7 +21,7 @@ const VISTAS_POR_GATE = {
   cerrado: {
     vendedor: ['mi-cartera', 'config'],
     // Facturación no es del mundo leads: sobrevive a la llave cerrada (16/09/2026).
-    supervisor: ['facturacion', 'mi-cartera', 'derivaciones', 'equipo'],
+    supervisor: ['reuniones', 'facturacion', 'mi-cartera', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     directorio: ['mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     coordinador: ['repartir'],
