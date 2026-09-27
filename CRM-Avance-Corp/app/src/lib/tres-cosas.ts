@@ -22,6 +22,7 @@
 //   conteo del seguimiento (`primeraGestionPendiente`, 27/09/2026).
 import type { MetricaAgendaVendedor } from './metricas-agenda'
 import { haceTexto } from './inteligencia'
+import { primerNombre } from './format'
 import { TOPE_ESTANCADOS, type ColaAccionOperativa } from './cola-accion'
 
 /** Pestaña de la cola a la que salta una cosa (espejo del tablist de HOY). */
@@ -202,4 +203,18 @@ export function candidatosDeHoy({
     (a.severidad === b.severidad ? 0 : a.severidad === 'critica' ? -1 : 1)
     || PESO[a.id] - PESO[b.id]
   ))
+}
+
+/**
+ * Cifra y título de una cosa para pintarla en grande (Hoy del supervisor,
+ * puesto de mando): «4 primeras gestiones vencidas» → 4 + «primeras gestiones
+ * vencidas»; «KAREN ZAPATA: 2 citas sin asistir» → 2 + «citas sin asistir ·
+ * Karen». Sin número, sin cifra: el texto queda entero.
+ */
+export function partesDeCosa(texto: string): { cifra: string | null; resto: string } {
+  const inicial = /^(\d+\+?)\s+(.*)$/.exec(texto)
+  if (inicial) return { cifra: inicial[1] ?? null, resto: inicial[2] ?? texto }
+  const deAnalista = /^(.+?):\s+(\d+\+?)\s+(.*)$/.exec(texto)
+  if (deAnalista) return { cifra: deAnalista[2] ?? null, resto: `${deAnalista[3] ?? ''} · ${primerNombre(deAnalista[1])}` }
+  return { cifra: null, resto: texto }
 }

@@ -96,6 +96,10 @@ vi.mock('@/data/sla-operacion-queries', () => ({
 
 const { HoySupervisorMando } = await import('./supervisor-mando')
 
+/** Cada render pide la cola (con el filtro por analista) y luego la del equipo (sin él). */
+const pedidoCola = () => pedidosCola.at(-2)
+const pedidoEquipo = () => pedidosCola.at(-1)
+
 const KAREN = 'aaaaaaaa-0000-4000-8000-000000000001'
 const JORGE = 'aaaaaaaa-0000-4000-8000-000000000002'
 
@@ -230,7 +234,8 @@ describe('Hoy · supervisor — puesto de mando: qué pantalla se elige', () => 
 describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () => {
   it('ESTADO DE PRODUCCIÓN: la cola sale del seguimiento con 7 filas, conteos del servidor y enlace al módulo', () => {
     montar()
-    expect(pedidosCola.at(-1)).toEqual({ filtros: { senal: 'pendientes', etapa: null, analista_id: null }, limite: 7, habilitada: true })
+    expect(pedidoCola()).toEqual({ filtros: { senal: 'pendientes', etapa: null, analista_id: null }, limite: 7, habilitada: true })
+    expect(pedidoEquipo()).toEqual(pedidoCola())
     expect(screen.getByRole('heading', { name: 'Pendientes del equipo' })).toBeInTheDocument()
     const pestanas = screen.getByRole('tablist', { name: 'Filtrar los pendientes' })
     expect(within(pestanas).getByRole('tab', { name: 'Para atender ahora: 3' })).toHaveAttribute('aria-selected', 'true')
@@ -278,7 +283,9 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     // Solo analistas activos del equipo, sin conteos inventados en el cliente.
     expect(within(chips).getAllByRole('button').map((b) => b.textContent)).toEqual(['Todos', 'Jorge', 'Karen'])
     fireEvent.click(within(chips).getByRole('button', { name: 'KAREN ZAPATA' }))
-    expect(pedidosCola.at(-1)?.filtros).toEqual({ senal: 'pendientes', etapa: null, analista_id: KAREN })
+    expect(pedidoCola()?.filtros).toEqual({ senal: 'pendientes', etapa: null, analista_id: KAREN })
+    // Las decisiones siguen mirando a TODO el equipo.
+    expect(pedidoEquipo()?.filtros.analista_id).toBeNull()
     expect(screen.getByRole('heading', { name: 'Pendientes de Karen' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Para atender ahora: 2' })).toBeInTheDocument()
     expect(screen.getByText('Mostrando los pendientes de Karen')).toHaveAttribute('aria-live', 'polite')
@@ -286,7 +293,7 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     const filas = within(screen.getByRole('list', { name: /Pendientes de Karen/ })).getAllByRole('listitem')
     expect(filas).toHaveLength(2)
     fireEvent.click(within(chips).getByRole('button', { name: 'Todos' }))
-    expect(pedidosCola.at(-1)?.filtros.analista_id).toBeNull()
+    expect(pedidoCola()?.filtros.analista_id).toBeNull()
   })
 
   it('las flechas recorren las pestañas, mueven el foco y piden la señal al servidor', () => {
@@ -297,7 +304,7 @@ describe('Hoy · supervisor — puesto de mando: cola del seguimiento (F1)', () 
     const segunda = screen.getByRole('tab', { name: /Primera gestión/ })
     expect(segunda).toHaveAttribute('aria-selected', 'true')
     expect(segunda).toHaveFocus()
-    expect(pedidosCola.at(-1)?.filtros.senal).toBe('primera_atencion')
+    expect(pedidoCola()?.filtros.senal).toBe('primera_atencion')
     fireEvent.keyDown(segunda, { key: 'End' })
     expect(screen.getByRole('tab', { name: /^Todas/ })).toHaveAttribute('aria-selected', 'true')
     // Con «Todas» abierta, su total sí es del servidor.
@@ -373,7 +380,7 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
     expect(detalle).toHaveTextContent('1 tarea vencida')
     expect(detalle).toHaveTextContent('9 toques en 7 días · 50 % completadas')
     // Y filtra la cola a sus pendientes.
-    expect(pedidosCola.at(-1)?.filtros.analista_id).toBe(KAREN)
+    expect(pedidoCola()?.filtros.analista_id).toBe(KAREN)
     expect(screen.getByRole('heading', { name: 'Pendientes de Karen' })).toBeInTheDocument()
   })
 
@@ -401,5 +408,123 @@ describe('Hoy · supervisor — puesto de mando: equipo hoy (F1)', () => {
   it('el enlace de la cabecera lleva a «Mi equipo hoy»', () => {
     montar()
     expect(screen.getByRole('link', { name: 'Mi equipo hoy →' })).toHaveAttribute('href', '#/gestion-diaria')
+  })
+})
+
+describe('Hoy · supervisor — puesto de mando: decide primero (F2)', () => {
+  const conAgendaYReparto = () => {
+    METRICAS_AGENDA = agenda([
+      { vendedor_id: KAREN, nombre: 'KAREN ZAPATA', no_asistio: 2, vencidas: 1, leads_sin_accion: 1 },
+      { vendedor_id: JORGE, nombre: 'JORGE HUAMÁN', leads_sin_accion: 3 },
+    ])
+    // Un lead SIN analista: el reparto lo cuenta el resumen (espejo del RPC).
+    LEADS = [...LEADS, lead({ id: 'l-5', nombre_completo: 'SIN DUEÑO', vendedor_id: null })]
+  }
+
+  it('ESTADO DE PRODUCCIÓN: tres tarjetas, el rojo primero, cifra grande y la severidad en texto', () => {
+    conAgendaYReparto()
+    montar()
+    expect(screen.getByRole('heading', { name: 'Decide primero' })).toBeInTheDocument()
+    const tarjetas = document.querySelectorAll('[data-decision]')
+    // Rojo primero; entre los ámbar manda el peso fijo: el reparto antes que «sin próxima acción».
+    expect([...tarjetas].map((t) => t.getAttribute('data-decision'))).toEqual(['primera_gestion', 'no_asistio', 'por_repartir'])
+    const primera = screen.getByRole('button', { name: 'Hoy: 1 primera gestión vencida' })
+    expect(primera).toHaveTextContent('1')
+    expect(primera).toHaveTextContent('primera gestión vencida')
+    expect(screen.getByRole('button', { name: 'Hoy: KAREN ZAPATA: 2 citas sin asistir' })).toHaveTextContent('citas sin asistir · Karen')
+    // Lo que no entra en tres, a «Esta semana».
+    expect(screen.getByRole('button', { name: /Esta semana · 1/ })).toBeInTheDocument()
+  })
+
+  it('la primera gestión filtra la cola a ESA pestaña para todo el equipo; el segundo clic la devuelve', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'JORGE HUAMÁN' }))
+    const tarjeta = screen.getByRole('button', { name: 'Hoy: 1 primera gestión vencida' })
+    fireEvent.click(tarjeta)
+    expect(tarjeta).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(tarjeta.getAttribute('aria-controls')!)).toHaveTextContent('Revisa la primera gestión con cada analista')
+    expect(screen.getByRole('tab', { name: /Primera gestión/ })).toHaveAttribute('aria-selected', 'true')
+    expect(pedidoCola()?.filtros).toEqual({ senal: 'primera_atencion', etapa: null, analista_id: null })
+    fireEvent.click(tarjeta)
+    expect(tarjeta).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('tab', { name: /Para atender ahora/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('«Ver» lleva a la cola y le pasa el foco a la pestaña', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver las 1 primera gestión vencida en la cola' }))
+    act(() => { vi.advanceTimersByTime(32) })
+    const pestana = screen.getByRole('tab', { name: /Primera gestión/ })
+    expect(pestana).toHaveAttribute('aria-selected', 'true')
+    expect(pestana).toHaveFocus()
+  })
+
+  it('citas sin asistir NO filtran la cola (no contiene esos casos): despliegan y llevan al día del equipo', () => {
+    conAgendaYReparto()
+    montar()
+    const antes = pedidoCola()?.filtros
+    const tarjeta = screen.getByRole('button', { name: 'Hoy: KAREN ZAPATA: 2 citas sin asistir' })
+    fireEvent.click(tarjeta)
+    expect(tarjeta).toHaveAttribute('aria-expanded', 'true')
+    expect(pedidoCola()?.filtros).toEqual(antes)
+    expect(document.getElementById(tarjeta.getAttribute('aria-controls')!))
+      .toHaveTextContent('En 7 días: 2 sin asistir · 1 tareas vencidas · 1 sin próxima acción.')
+    expect(screen.getByRole('link', { name: 'Ver su día: KAREN ZAPATA: 2 citas sin asistir' })).toHaveAttribute('href', '#/gestion-diaria')
+  })
+
+  it('«Esta semana» lista lo que no entró, con su acción; Esc lo cierra y devuelve el foco', () => {
+    conAgendaYReparto()
+    montar()
+    const disparador = screen.getByRole('button', { name: /Esta semana · 1/ })
+    fireEvent.click(disparador)
+    expect(disparador).toHaveAttribute('aria-expanded', 'true')
+    const lista = screen.getByRole('list', { name: 'Decisiones para esta semana' })
+    expect(lista).toHaveTextContent('Esta semana: JORGE HUAMÁN: 3 leads sin próxima acción')
+    const verDia = within(lista).getByRole('link', { name: 'Ver su día: JORGE HUAMÁN: 3 leads sin próxima acción' })
+    expect(verDia).toHaveAttribute('href', '#/gestion-diaria')
+    verDia.focus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
+    expect(disparador).toHaveFocus()
+  })
+
+  it('el reparto como tarjeta conserva la etiqueta accesible del servidor', () => {
+    RESPONDER = (filtros) => ({ data: pagina([], { filtros: { ...filtros } }), error: null, isFetching: false })
+    LEADS = [...LEADS, lead({ id: 'l-5', nombre_completo: 'SIN DUEÑO', vendedor_id: null })]
+    montar()
+    expect(screen.getByRole('link', { name: 'Repartir 1 lead pendiente' })).toHaveAttribute('href', '#/derivaciones')
+  })
+
+  it('con TODAS las fuentes confirmadas y nada pendiente dice «Nada que decidir»', () => {
+    RESPONDER = (filtros) => ({ data: pagina([], { filtros: { ...filtros } }), error: null, isFetching: false })
+    montar()
+    expect(screen.getByText('Nada que decidir ahora mismo.')).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-decision]')).toHaveLength(0)
+  })
+
+  it('mientras el seguimiento carga no afirma que no hay nada: «Revisando…»', () => {
+    RESPONDER = () => ({ data: undefined, error: null, isFetching: true })
+    montar()
+    expect(screen.getByText('Revisando las decisiones del día…')).toBeInTheDocument()
+    expect(screen.queryByText('Nada que decidir ahora mismo.')).not.toBeInTheDocument()
+  })
+
+  it('fail-closed: con el seguimiento o la agenda caídos lo dice, deja reintentar y nunca «Nada que decidir»', () => {
+    RESPONDER = (filtros) => ({ data: pagina([], { filtros: { ...filtros } }), error: new Error('caído'), isFetching: false })
+    AGENDA_ERROR = new Error('agenda caída')
+    montar()
+    const alerta = screen.getAllByRole('alert').find((a) => a.textContent?.includes('Algunas decisiones no se pudieron confirmar'))
+    expect(alerta).toHaveTextContent('no respondió el seguimiento ni la agenda')
+    expect(screen.queryByText('Nada que decidir ahora mismo.')).not.toBeInTheDocument()
+    fireEvent.click(within(alerta!).getByRole('button', { name: /Reintentar/ }))
+    expect(REFETCH_COLA).toHaveBeenCalled()
+    expect(REFETCH_AGENDA).toHaveBeenCalled()
+  })
+
+  it('sin el modo activo confirmado no hay banda de decisiones', () => {
+    MODO.activo = false
+    MODO.data = undefined
+    montar()
+    expect(screen.queryByRole('heading', { name: 'Decide primero' })).not.toBeInTheDocument()
   })
 })
