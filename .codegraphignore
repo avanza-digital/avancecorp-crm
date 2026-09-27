@@ -1,0 +1,28 @@
+# CodeGraph: rutas que NO se indexan (24/09/2026).
+# Motivo: el 77 % de los re-embebidos caía en código generado o copiado, y el
+# servidor llegó a ~82 GB de RAM. Ver la memoria «codegraph-fuga-de-memoria».
+
+# Generados por build, tests y herramientas
+**/node_modules/**
+**/dist/**
+**/coverage/**
+**/test-results/**
+**/playwright-report/**
+**/.vite/**
+**/.venv/**
+**/.playwright-mcp/**
+**/.codegraph/**
+
+# Copias anidadas del repo, evidencias y respaldos
+CRM-Avance-Corp/supabase/scripts/evidencia-f4/**
+CRM-Avance-Corp/releases/private/**
+CRM-Avance-Corp/app/artifacts/**
+_dev_artifacts/**
+_DEV_NO_SUBIR/pausas/**
+_DEV_NO_SUBIR/cierres-sesion/**
+_backups/**
+_dev_backup/**
+_ARCHIVO_VIEJO/**
+artifacts/**
+output/**
+tmp/**

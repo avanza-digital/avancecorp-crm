@@ -1,6 +1,11 @@
 # Backfill de conversión: contratos «nuevo» de setiembre sin lead (2026-09-22)
 
-Investigación con solo lecturas en producción. Pendiente la decisión de Miguel.
+✅ **Ejecutado en producción el 23/09/2026 a las 18:30 (Lima)**, con el OK de Miguel.
+
+- 32 leads convertidos y 11 operaciones de cartera.
+- La conversión de setiembre pasó de 4,32 % a 6,83 %.
+- Verificado: el capital no cambió, la alarma cuadra, Metas coincide con la cifra oficial y el sistema
+  quedó igual (mismas huellas).
 
 ## Qué se encontró
 - 44 contratos `categoria='nuevo'` del 1 al 22 de setiembre no tienen lead ni operación de cartera. El cruce por persona, puente, `leads_de_personas`, DNI y teléfono de 9 dígitos **no quitó ninguno**: la sospecha de falsos positivos no se cumplió.
@@ -31,4 +36,27 @@ capital.
   objetivo» en el SLA de primer contacto y primera gestión.
 - Estado, scripts y receta del banco: `CRM-Avance-Corp/supabase/scripts/backfill-conversion-2026-09/LEEME.md`.
 
+## Segundo banco (23/09), contra la producción de ese día
+- **Un contrato hecho por el formulario de solicitud SIN partir de un lead ya no se puede
+  enganchar a un lead después** (3 casos: `001377`, `001396`, `001416`). Tres candados lo
+  impiden:
+  - una sola solicitud por inversión;
+  - el `lead_origen_id` de una solicitud es inmutable;
+  - una inversión tiene una sola fuente (un contrato o un cierre externo).
+  Esa conversión se pierde para siempre. Es un argumento para que el formulario exija un lead.
+- **El tipo A y el tipo B se cruzan.** Un cliente puede tener su primer contrato de setiembre
+  en A y el segundo del mismo mes en B. Tras correr A, ese cliente ya tiene lead, y la guarda
+  «sin lead» de B lo descartaba. Corregido en el script, y ensayado en los dos órdenes y dos veces
+  seguidas.
+- **El efecto sobre el SLA tiene dos caras:** los leads del backfill salen «fuera de objetivo» en
+  primer contacto y primera gestión, pero «cumplidos» en la etapa «nuevo».
+
 Relacionado: [[Alta directa de clientes cerrada al analista (2026-09-15)]]
+
+## Lecciones de la ejecución (23/09)
+- **Los leads con origen «oficina» (walk-in) no suman a la conversión.** Quedan convertidos, pero el núcleo
+  solo cuenta cierres de landing, formulario y referido. Dos ventas walk-in del backfill no movieron el %.
+- **En la cartera cuenta una conversión por cliente y mes.** Un segundo upgrade del mismo cliente en el
+  mismo mes no suma.
+- **Los clientes que la analista marca como «renovación» o «upgrade», pero sin contrato anterior en el
+  sistema,** se contaron como clientes nuevos, por decisión de Miguel.

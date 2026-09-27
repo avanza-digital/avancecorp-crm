@@ -1,10 +1,17 @@
 ---
 tags: [crm, release, acceso-avance, gestion-diaria, f4]
-estado: paquete verificado; no publicado
+estado: histórico; supersedido por publicación F4 del 2026-09-23
 fecha: 2026-09-22
 ---
 
 # Release CRM e5957443 — paquete preparado, publicación pendiente
+
+> **Estado posterior (23/09):** F4 se publicó desde `6bf0e84a` tras el PR #76;
+> el sitio sirve después el build `build-20260923T173450335Z`, con el parche
+> de detalle opcional del PR #77 y el flujo de Acceso Avance. Los cinco SQL F4
+> están instalados. La política v2 entra en vigor el 24/09 a las 00:00 Lima;
+> queda comprobar la primera jornada real. El resto de esta nota conserva el
+> checkpoint anterior y no describe el estado vigente.
 
 La invocación de `$release-crm` autorizó el frontend. El 22/09/2026 se preparó
 desde una copia limpia del commit `e5957443ba4584b4ba1b895eba3cd9a033f5a39b`,

@@ -6,9 +6,15 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Conversion - publicacion verificada (2026-09-27)]] — **PUBLICADA:** conversión por cierre comercial y vínculo confirmado hasta finalizar el día 10 siguiente, desde septiembre. 97 acreditadas, 9 tardías y 2 pendientes; históricos/importes intactos. PR #113, SQL por merge nativo, matriz 2268/0 y 80 archivos HTTP PASS. Límites previos documentados.
+
+- [[Ranking cartera - publicacion verificada (2026-09-26)]] — **PUBLICADO:** continuidad legada acreditada aparece como Cartera; Betzabeth S/150000, totales y conversión intactos. SQL por merge nativo, PR #112, verificaciones PASS, rama temporal eliminada. Restricción de nueva inversión por empresa pendiente.
+
 - [[P-0XX - cierre productivo verificado (2026-09-26)]] — **CERRADO:** CRM y portal comparten cuentas; 501 registros válidos sin diferencias, dos avisos retirados y cero nuevos. 23 contratos sin vínculo: 21 operativos y 2 demo, reportados y bloqueados para pago. Rama temporal eliminada.
 
 - [[Eliminacion de usuarios y contratos - preparada y Alvaro eliminado (2026-09-25)]] — **BACKEND INSTALADO Y VERIFICADO:** Álvaro eliminado; contratos con cotitular de alta corregidos; eliminación de usuarios exige transferir pendientes y conserva autoría. 33 SQL y 22 HTTP/Auth PASS; rama eliminada. Pantallas pendientes de publicación.
+
+- [[Ranking - capital por canal de llegada (decision 2026-09-25)]] — Decisión para la ficha del Ranking: canales de llegada, Cartera separada y desglose mensual que cuadre con el capital confirmado. Botón de regreso retirado localmente; datos por origen pendientes de SQL.
 
 - [[Gestion Diaria - Correccion de paridad horizontal de gerencia (2026-09-25)]] — **PUBLICADA Y VERIFICADA:** fuente `65e96df9`, paridad UI y orientación horizontal con menú abierto; 81/81 archivos y recorrido real 9/9 PASS. Observación y retirada de Seguimiento pendientes.
 
