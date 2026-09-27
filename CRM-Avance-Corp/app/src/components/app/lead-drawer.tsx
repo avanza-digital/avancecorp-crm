@@ -22,20 +22,13 @@ import {
   CalendarCheck,
   CalendarPlus,
   CalendarX2,
-  MessageCircle,
-  MessageSquare,
   MoreHorizontal,
   Pencil,
-  PhoneCall,
-  PhoneMissed,
   RotateCcw,
   Send,
   Sparkles,
-  StickyNote,
-  Users,
   X,
   XCircle,
-  type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -68,6 +61,7 @@ import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
+import { haceRelativo, ICONO_ACTIVIDAD } from './actividad-visual'
 import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { useAhora } from '@/lib/ahora'
@@ -99,7 +93,6 @@ import {
   type Lead,
   type MotivoDescarte,
   type MotivoNoRealizadaManual,
-  type TipoActividad,
   type TipoActividadManual,
   type TipoTarea,
   type Tarea,
@@ -119,35 +112,6 @@ const TIPOS_MANUALES: TipoActividadManual[] = [
   'reunion_realizada',
   'nota',
 ]
-
-const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
-  llamada_realizada: PhoneCall,
-  llamada_no_contestada: PhoneMissed,
-  whatsapp_enviado: MessageCircle,
-  whatsapp_recibido: MessageSquare,
-  reunion_realizada: CalendarCheck,
-  nota: StickyNote,
-  cambio_etapa: ArrowRightLeft,
-  reasignacion: Users,
-  conversion: BadgeCheck,
-}
-
-/** "hace X" legible; para fechas viejas cae a fmtFecha. Formato propio del timeline
- * (min/h/'ayer'), más fino que haceTexto() de lib/inteligencia — NO sustituir.
- * `ahora` viene del reloj vivo useAhora() para que refresque sin remontar. */
-function haceRelativo(iso: string, ahora: number): string {
-  const ms = ahora - new Date(iso).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return fmtFecha(iso)
-  const min = Math.floor(ms / 60_000)
-  if (min < 1) return 'ahora'
-  if (min < 60) return `hace ${min} min`
-  const h = Math.floor(min / 60)
-  if (h < 24) return `hace ${h} h`
-  const d = Math.floor(h / 24)
-  if (d === 1) return 'ayer'
-  if (d < 7) return `hace ${d} d`
-  return fmtFecha(iso)
-}
 
 /**
  * Rótulo del capital según el desenlace del lead. Un lead CERRADO no tiene
