@@ -98,7 +98,7 @@ function VistaOrigenes({ filas, tc, total, ejemplo, cartera }: {
               </div>
               {esCartera && (
                 carteraConcilia ? <div role="group" aria-label="Desglose de cartera"><dl className="mt-3 space-y-3 border-l-2 border-[var(--gi-line)] pl-3 text-xs text-[var(--gi-navy)]">
-                  {cartera!.filter((detalle) => detalle.categoria !== 'sin_clasificar' || detalle.pen !== 0 || detalle.usd !== 0).map((detalle) => (
+                  {cartera!.filter((detalle) => !['sin_clasificar', 'nuevo'].includes(detalle.categoria) || detalle.pen !== 0 || detalle.usd !== 0).map((detalle) => (
                     <div key={detalle.categoria} className="flex items-start justify-between gap-3">
                       <dt>{detalle.categoria === 'renovacion' ? 'Renovación' : detalle.categoria === 'upgrade' ? 'Upgrade' : detalle.categoria === 'nuevo' ? 'Nueva inversión' : 'Sin clasificación'}</dt>
                       <dd className="text-right tabular-nums">

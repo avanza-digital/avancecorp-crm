@@ -8,7 +8,7 @@ insert into crm.inversionistas(id) values(md5('ranking-persona-cartera')::uuid);
 insert into public.contratos(id,numero_contrato,cliente_id,capital,moneda,modalidad,
  fecha_inicio,fecha_vencimiento,fecha_cierre_comercial,categoria,analista_cierre_id,creado_por,producto_condicion_id)
 select md5('ranking-solicitud-contrato-'||n)::uuid,'RANKING-SOLICITUD-'||n,
- 'b0000000-0000-4000-8000-000000000008',monto,'PEN','anual','2026-09-09','2027-09-09','2026-09-09','nuevo',
+ 'b0000000-0000-4000-8000-000000000008',monto,'PEN','anual','2026-08-09','2027-09-09','2026-08-09','nuevo',
  'b0000000-0000-4000-8000-000000000005','b0000000-0000-4000-8000-000000000005',md5('ranking-condicion')::uuid
 from (values(1,35000),(2,10000)) d(n,monto);
 insert into storage.buckets(id,name) values('f4-comprobantes','f4-comprobantes');
@@ -17,13 +17,13 @@ insert into crm.cierres_externos(id,cooperativa,monto,moneda,documento_tipo,docu
  numero_transaccion,vendedor_id,creado_por,creado_en,fecha_comercial,fecha_imputacion,inversionista_id,es_cierre_inicial,comprobante_objeto_id,referencia_externa)
 values(md5('ranking-solicitud-cierre')::uuid,'qorilazo',20000,'PEN','DNI','12345678','PRUEBA',
  'RANKING-SOLICITUD-COOP','b0000000-0000-4000-8000-000000000005','b0000000-0000-4000-8000-000000000005',
- '2026-09-09 12:00-05','2026-09-09','2026-09-09',md5('ranking-persona-cartera')::uuid,false,md5('ranking-comprobante')::uuid,'PRUEBA');
+ '2026-08-09 12:00-05','2026-08-09','2026-08-09',md5('ranking-persona-cartera')::uuid,false,md5('ranking-comprobante')::uuid,'PRUEBA');
 insert into crm.inversiones(id,inversionista_id,empresa_id,contrato_id,cierre_externo_id,fecha_comercial,creado_por)
 select md5('ranking-inversion-'||n)::uuid,md5('ranking-persona-cartera')::uuid,
  md5(case when n=3 then 'ranking-empresa-qorilazo' else 'ranking-empresa-avance' end)::uuid,
  case when n<3 then md5('ranking-solicitud-contrato-'||n)::uuid end,
  case when n=3 then md5('ranking-solicitud-cierre')::uuid end,
- '2026-09-09','b0000000-0000-4000-8000-000000000005' from generate_series(1,3) n;
+ '2026-08-09','b0000000-0000-4000-8000-000000000005' from generate_series(1,3) n;
 insert into crm.inversion_solicitudes(id,inversionista_id,empresa_id,responsable_esperado_id,hash_payload,
  datos,estado,inversion_id,resultado,creado_por,confirmado_por)
 select md5('ranking-solicitud-'||n)::uuid,md5('ranking-persona-cartera')::uuid,
@@ -40,7 +40,7 @@ set local session_replication_role=origin;
 select set_config('request.jwt.claim.sub','b0000000-0000-4000-8000-000000000003',true);
 set local role authenticated;
 do $$ declare j jsonb;begin
- j:=crm.ranking_origen_vendedor_v2_fn('2026-09-01','b0000000-0000-4000-8000-000000000005');
+ j:=crm.ranking_origen_vendedor_v2_fn('2026-08-01','b0000000-0000-4000-8000-000000000005');
  if not exists(select 1 from jsonb_array_elements(j->'cartera') x where x->>'categoria'='nuevo' and (x->>'pen')::numeric=55000)
  or not exists(select 1 from jsonb_array_elements(j->'filas') x where x->>'origen'='sin_origen' and (x->>'capital_pen')::numeric=10000)
  or (select sum((x->>'capital_pen')::numeric) from jsonb_array_elements(j->'filas') x)<>65000
@@ -58,5 +58,38 @@ do $$begin
  or private.ranking_solicitud_cartera(md5('ranking-solicitud-contrato-1')::uuid,md5('ranking-solicitud-cierre')::uuid)
  then raise exception 'Aceptó fuente distinta o parámetros ambiguos';end if;
  raise notice 'PASS: fuente exacta obligatoria, no se infiere la procedencia por contacto ni importe';
+end $$;
+-- Restaura la fuente para sellar una foto completa de Nueva inversión.
+set local session_replication_role=replica;
+update crm.inversion_solicitudes set resultado=jsonb_build_object('fuente',jsonb_build_object('id',md5('ranking-solicitud-contrato-1')::uuid))
+where id=md5('ranking-solicitud-1')::uuid;
+set local session_replication_role=origin;
+select crm.cerrar_periodo('2026-08-01');
+create temporary table foto_cartera as
+select crm.ranking_origen_vendedor_v2_fn('2026-08-01','b0000000-0000-4000-8000-000000000005') as payload;
+do $$ declare j jsonb;begin
+ select cartera_ranking into j from crm.cierre_mes_vendedor where periodo='2026-08-01' and vendedor_id='b0000000-0000-4000-8000-000000000005';
+ if j is null or not exists(select 1 from jsonb_array_elements(j) x where x->>'categoria'='nuevo' and (x->>'pen')::numeric=55000)
+ then raise exception 'Nueva inversión no quedó en la foto: %',j;end if;
+ if (crm.cumplimiento_metas_fn('2026-08-01')#>>'{cierre,cerrado}')::boolean is distinct from
+ (exists(select 1 from crm.periodos_cerrados where periodo='2026-08-01')) then raise exception 'Fuente de cierre divergente';end if;
+ begin update crm.cierre_mes_vendedor set cartera_ranking=null where periodo='2026-08-01';
+ raise exception 'cartera_ranking editable';exception when sqlstate 'P0409' then null;end;
+ raise notice 'PASS: sello guarda Nueva inversión, fuente de cierre canónica e inmutabilidad de la columna nueva';
+end $$;
+set local session_replication_role=replica;
+update crm.inversion_solicitudes set resultado='{}' where id=md5('ranking-solicitud-1')::uuid;
+set local session_replication_role=origin;
+do $$begin
+ if (select payload from foto_cartera) is distinct from crm.ranking_origen_vendedor_v2_fn('2026-08-01','b0000000-0000-4000-8000-000000000005')
+ then raise exception 'Cartera sellada reconstruida con solicitud viva';end if;
+end $$;
+set local session_replication_role=replica;
+update crm.cierre_mes_vendedor set cartera_ranking=null where periodo='2026-08-01';
+set local session_replication_role=origin;
+do $$begin
+ if crm.ranking_origen_vendedor_v2_fn('2026-08-01','b0000000-0000-4000-8000-000000000005')->'cartera' is distinct from 'null'::jsonb
+ then raise exception 'Foto antigua reconstruida';end if;
+ raise notice 'PASS: cartera histórica independiente del vivo y foto antigua sin reconstrucción';
 end $$;
 rollback;
