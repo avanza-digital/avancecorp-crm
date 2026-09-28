@@ -50,11 +50,41 @@ describe('validarPaginaCitas', () => {
     const conCursor = { ...pedido, cursor: { despues_de: b.creado_en, despues_id: b.id } }
     // Anterior al cursor: no es la continuación.
     expect(validarPaginaCitas(pagina([c], { resumen: { total: 3 } }), conCursor)).toBeNull()
-    expect(unirPaginasCitas([primera]).map((x) => x.id)).toEqual([a.id, b.id])
+    // Sola, la primera es coherente: dice 3 y trae 2 porque faltan páginas.
+    expect(unirPaginasCitas([primera])).toEqual({ items: [a, b], total: 3 })
   })
   it('en «operación» y «fuera» las filas son de cualquier autor, también sin autor', () => {
     const libre = { ...pedido, ambito: 'fuera' as const, id: null }
     expect(validarPaginaCitas(pagina([cita(8, '2026-09-24T06:00:00.000Z', { vendedor_id: null, vendedor_nombre: null })], { ambito: 'fuera', id: null }), libre)).not.toBeNull()
+  })
+})
+
+describe('unirPaginasCitas: la secuencia de páginas ES la lista (Codex P1)', () => {
+  const x1 = cita(11, '2026-09-24T06:00:00.000Z'), x2 = cita(12, '2026-09-24T07:00:00.000Z')
+  const x3 = cita(13, '2026-09-24T08:00:00.000Z'), x4 = cita(14, '2026-09-24T09:00:00.000Z')
+  const primera = (total: number) => pagina([x1, x2], { resumen: { total }, hay_mas: true, siguiente_cursor: { despues_de: x2.creado_en, despues_id: x2.id } })
+  const siguiente = (total: number, items: CitaAgendada[]) => pagina(items, { resumen: { total } })
+  it('dos páginas coherentes: todas las filas, en orden, y su total', () => {
+    expect(unirPaginasCitas([primera(3), siguiente(3, [x3])])).toEqual({ items: [x1, x2, x3], total: 3 })
+  })
+  it('se creó una cita entre páginas: la segunda dice otro total y la secuencia no vale', () => {
+    // Antes: «3 citas» anunciadas y 4 filas mostradas, sin aviso.
+    expect(unirPaginasCitas([primera(3), siguiente(4, [x3, x4])])).toBeNull()
+  })
+  it('se retiró una cita entre páginas: tampoco vale', () => {
+    expect(unirPaginasCitas([primera(3), siguiente(2, [])])).toBeNull()
+  })
+  it('mismo total pero una fila repetida entre páginas', () => {
+    expect(unirPaginasCitas([primera(3), siguiente(3, [x2])])).toBeNull()
+  })
+  it('terminada con menos filas que su total', () => {
+    expect(unirPaginasCitas([primera(4), siguiente(4, [x3])])).toBeNull()
+  })
+  it('con páginas por venir, las filas cargadas no alcanzan el total', () => {
+    expect(unirPaginasCitas([primera(2)])).toBeNull()
+  })
+  it('sin páginas: lista vacía y total desconocido', () => {
+    expect(unirPaginasCitas([])).toEqual({ items: [], total: null })
   })
 })
 

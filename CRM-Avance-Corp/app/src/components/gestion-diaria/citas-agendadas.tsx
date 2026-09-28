@@ -57,14 +57,19 @@ export function CitasAgendadas({ dia, esHoy, ambito, id, mostrarAnalista, visibl
       </div>
     )
   }
-  if (lista.cargando) return <PanelCargando filas={3} />
+  const conteo = lista.cargando ? '' : lista.total === 0 ? `Ninguna cita agendada ${cuando}.`
+    : `${plural(lista.total ?? lista.items.length, 'cita agendada', 'citas agendadas')} ${cuando}`
   return (
     <div className="space-y-1">
+      {/* Montada siempre, también mientras carga: el conteo y el aviso de «la lista cambió»
+          se anuncian al cambiar su texto (una región que nace con él no se anuncia). */}
       <p role="status" className="text-[12.5px] text-[var(--muted-foreground-strong)]">
-        {lista.total === 0 ? `Ninguna cita agendada ${cuando}.` : `${plural(lista.total ?? lista.items.length, 'cita agendada', 'citas agendadas')} ${cuando}`}
-        {lista.consultadoEn && lista.total !== 0 && <> · consulta {horaLimaDe(lista.consultadoEn)}</>}
+        {lista.cambio && !lista.cargando && <span className="font-semibold text-foreground">La lista cambió; se actualizó. </span>}
+        {conteo}
+        {!lista.cargando && lista.consultadoEn && lista.total !== 0 && <> · consulta {horaLimaDe(lista.consultadoEn)}</>}
       </p>
-      {lista.items.length > 0 && (
+      {lista.cargando && <PanelCargando filas={3} />}
+      {!lista.cargando && lista.items.length > 0 && (
         // oxlint-disable-next-line jsx-a11y/no-redundant-roles
         <ol role="list" aria-label="Citas agendadas" aria-busy={lista.enVuelo}>
           {lista.items.map((c) => (

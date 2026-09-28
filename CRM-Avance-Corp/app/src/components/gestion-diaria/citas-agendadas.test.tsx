@@ -2,7 +2,7 @@
 // abre su ficha, analista cuando hay varios, cuándo es la cita) y estados que se dicen.
 import { createRef } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CitaAgendada } from '@/lib/gestion-diaria-citas'
 import { CrmApiError } from '@/data/crm-api'
 
@@ -17,7 +17,7 @@ const cita = (n: number, extra: Partial<CitaAgendada> = {}): CitaAgendada => ({
   vence_en: '2026-09-26T15:00:00.000Z', estado: 'pendiente', creado_en: '2026-09-24T19:32:00.000Z', ...extra,
 })
 const base = { items: [] as CitaAgendada[], total: 0, consultadoEn: '2026-09-24T22:00:00.000Z', cargando: false, enVuelo: false,
-  error: null as unknown, sinPermiso: false, hayMas: false, cargarMas: vi.fn(), recargar: vi.fn() }
+  error: null as unknown, sinPermiso: false, hayMas: false, cambio: false, cargarMas: vi.fn(), recargar: vi.fn() }
 function montar(extra: Partial<typeof base>, mostrarAnalista = true) {
   dobles.lista = { ...base, ...extra }
   const revalidar = vi.fn()
@@ -65,6 +65,14 @@ describe('CitasAgendadas', () => {
     const { revalidar } = montar({ sinPermiso: true, error: new CrmApiError('revocado', '42501') })
     expect(screen.getByRole('alert')).toHaveTextContent('Ya no tienes autorización')
     expect(revalidar).toHaveBeenCalledOnce()
+  })
+  it('si la lista cambió entre páginas, lo dice en la misma región viva, que no desaparece mientras recarga', () => {
+    montar({ cargando: true, cambio: true, total: null as unknown as number })
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent(/^$/)
+    cleanup()
+    montar({ items: [cita(1)], total: 26, cambio: true, hayMas: true })
+    expect(screen.getByRole('status')).toHaveTextContent('La lista cambió; se actualizó. 26 citas agendadas hoy')
   })
   it('«Ver más» pide la página siguiente', () => {
     const cargarMas = vi.fn()

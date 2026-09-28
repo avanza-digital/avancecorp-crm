@@ -81,11 +81,32 @@ export function validarPaginaCitas(valor: unknown, pedido: PedidoCitas): PaginaC
   return p
 }
 
-/** Las páginas se suman en orden; un id repetido conserva su última foto. */
-export function unirPaginasCitas(paginas: readonly PaginaCitas[]): CitaAgendada[] {
-  const porId = new Map<string, CitaAgendada>()
-  for (const pagina of paginas) for (const item of pagina.items) porId.set(item.id.toLowerCase(), item)
-  return [...porId.values()].sort(compararCitas)
+export interface ListaCitas { items: CitaAgendada[]; total: number | null }
+
+/**
+ * La SECUENCIA de páginas es la lista (Codex P1, 28/09): el mismo `resumen.total` en todas,
+ * ids únicos y, al terminar (`hay_mas` falso), exactamente `total` filas; mientras falten
+ * páginas, menos filas que el total. Cada página ya viene validada contra su cursor, así
+ * que el orden global se sostiene. Si algo no cuadra —se creó o se retiró una cita entre
+ * páginas—, `null`: nunca se anuncia un total que no es la lista que se muestra.
+ */
+export function unirPaginasCitas(paginas: readonly PaginaCitas[]): ListaCitas | null {
+  const primera = paginas[0]
+  if (!primera) return { items: [], total: null }
+  const ids = new Set<string>()
+  const items: CitaAgendada[] = []
+  for (const pagina of paginas) {
+    if (pagina.resumen.total !== primera.resumen.total) return null
+    for (const item of pagina.items) {
+      const clave = item.id.toLowerCase()
+      if (ids.has(clave)) return null
+      ids.add(clave)
+      items.push(item)
+    }
+  }
+  const terminada = !paginas.at(-1)!.hay_mas
+  if (terminada ? items.length !== primera.resumen.total : items.length >= primera.resumen.total) return null
+  return { items, total: primera.resumen.total }
 }
 
 /** Sólo demo: la misma forma que el servidor, con la atribución del pulso demo. */
