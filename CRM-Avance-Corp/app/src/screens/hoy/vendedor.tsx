@@ -338,16 +338,18 @@ function FilaAgenda({
         </p>
         {hora && <p className="mt-1 text-[10px] font-medium text-muted-foreground">{dia}</p>}
       </div>
-      <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 46 }} aria-hidden />
+      <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 36 }} aria-hidden />
       <span
         className="ac-chip grid size-9 shrink-0 place-items-center rounded-lg [&_svg]:size-[18px]"
         style={{ '--c': ev.color } as CSSProperties}
       >
         <Icono aria-hidden />
       </span>
-      <div className="min-w-0 flex-1 leading-tight">
+      {/* Desde `sm` la fila es UNA línea (título · tipo · capital a la derecha):
+          usa el ancho de la tarjeta en vez de apilar y dejar el resto vacío. */}
+      <div className="min-w-0 flex-1 leading-tight sm:flex sm:items-center sm:gap-x-3">
         <p className="truncate text-sm font-semibold">{ev.titulo}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:mt-0 sm:shrink-0">
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
           </Badge>
@@ -356,12 +358,12 @@ function FilaAgenda({
               Cliente
             </Badge>
           )}
-          {lead?.monto_estimado != null && (
-            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
-              {money(lead.monto_estimado, lead.moneda)} en juego
-            </span>
-          )}
         </div>
+        {lead?.monto_estimado != null && (
+          <span className="mt-1 block text-[11px] font-semibold tabular-nums text-muted-foreground sm:mt-0 sm:ml-auto sm:shrink-0 sm:pr-2">
+            {money(lead.monto_estimado, lead.moneda)} en juego
+          </span>
+        )}
       </div>
       {onCompletar && (
         <button
@@ -839,11 +841,16 @@ function FranjaAhora({
 
 function PulsoCartera({
   items,
+  className,
+  compacta = false,
 }: {
   items: Array<{ label: string; value: string; sub: string; icon: LucideIcon }>
+  className?: string
+  /** 2×2 para ir al lado de la agenda (modo activo); si no, una franja de 4. */
+  compacta?: boolean
 }): JSX.Element {
   return (
-    <Card className="min-w-0 overflow-hidden">
+    <Card className={`min-w-0 overflow-hidden${className ? ` ${className}` : ''}`}>
       <div className="flex flex-wrap items-center gap-2 border-b border-border/80 px-5 py-3">
         <span className="grid size-7 place-items-center rounded-lg bg-secondary text-primary">
           <TrendingUp className="size-4" aria-hidden />
@@ -853,7 +860,13 @@ function PulsoCartera({
           Información · no requiere acción
         </span>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-4 lg:divide-y-0">
+      <div
+        className={
+          compacta
+            ? 'grid grid-cols-2 divide-x divide-y divide-border/80'
+            : 'grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-4 lg:divide-y-0'
+        }
+      >
         {items.map(({ label, value, sub, icon: Icon }) => (
           <div key={label} className="min-w-0 p-4">
             <div className="flex items-start justify-between gap-2">
@@ -1197,6 +1210,56 @@ export function HoyVendedor(): JSX.Element {
     ...amarillos.map((item) => item.lead.id),
   ]).size
 
+  /** Cifras de «Tu cartera en contexto»: van al lado de la agenda (activo) o en franja (legado). */
+  const itemsPulso = [
+    {
+      label: 'Capital abierto',
+      value: capital?.valor ?? '—',
+      icon: Wallet,
+      sub: capital?.otra
+        ? `Pipeline activo (PEN) · +${capital.otra} aparte`
+        : capital?.soloDolares
+          ? 'Pipeline activo (USD)'
+          : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
+            ? 'Sin montos estimados — complétalos en cada ficha'
+            : 'Pronóstico de tu pipeline activo',
+    },
+    {
+      label: 'Leads activos',
+      value: nAbiertos != null ? String(nAbiertos) : '—',
+      icon: Users,
+      sub: 'Abiertos en tu cartera',
+    },
+    {
+      label: 'Entrevistas realizadas',
+      value: resumen ? String(nPropuestas) : '—',
+      icon: FileText,
+      sub:
+        resumen == null
+          ? 'Sin dato por ahora'
+          : nPropuestas > 0
+            ? 'Entrevista hecha, cierre pendiente'
+            : (nAbiertos ?? 0) > 0
+              ? 'Ninguna enviada — revisa tus citas'
+              : 'Sin leads abiertos por ahora',
+    },
+    {
+      label: 'Convertidos',
+      value: nConvertidos != null ? String(nConvertidos) : '—',
+      icon: Trophy,
+      // F3.1 (H9/D1): este número es la VISTA de cartera — ganados aún
+      // visibles dentro de la ventana operativa — y el rótulo lee esa
+      // ventana del payload en vez de afirmar «45» por su cuenta. La
+      // conversión del MES vive abajo, en «Tu cumplimiento del mes».
+      sub:
+        resumen == null
+          ? 'Sin dato por ahora'
+          : (nConvertidos ?? 0) > 0
+            ? `Ganados aún en tu cartera · ventana de ${resumen.ventana_convertidos_dias} días`
+            : 'Aún sin cierres — tu primera venta sale de la cola',
+    },
+  ]
+
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       {/* Encabezado de jornada: orientación, no otro bloque de métricas. */}
@@ -1432,64 +1495,19 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       )}>
-        <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
-          onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
-          demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
-          vencidasAbajo={0} title="Tu agenda de hoy" />
+        {/* Producción (modo activo): agenda y cartera EN DOS COLUMNAS. A todo el
+            ancho, la agenda dejaba medio monitor vacío y la cartera quedaba
+            debajo, fuera de la vista. */}
+        <div className={`grid gap-5 lg:items-start${mios.length > 0 ? ' lg:grid-cols-5' : ''}`}>
+          <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
+            onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
+            demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
+            vencidasAbajo={0} title="Tu agenda de hoy" className={mios.length > 0 ? 'min-w-0 lg:col-span-3' : 'min-w-0'} />
+          {mios.length > 0 && <PulsoCartera items={itemsPulso} className="lg:col-span-2" compacta />}
+        </div>
       </SlaOperacionBoundary>
 
-      {mios.length > 0 && (
-        <PulsoCartera
-          items={[
-            {
-              label: 'Capital abierto',
-              value: capital?.valor ?? '—',
-              icon: Wallet,
-              sub: capital?.otra
-                ? `Pipeline activo (PEN) · +${capital.otra} aparte`
-                : capital?.soloDolares
-                  ? 'Pipeline activo (USD)'
-                  : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
-                    ? 'Sin montos estimados — complétalos en cada ficha'
-                    : 'Pronóstico de tu pipeline activo',
-            },
-            {
-              label: 'Leads activos',
-              value: nAbiertos != null ? String(nAbiertos) : '—',
-              icon: Users,
-              sub: 'Abiertos en tu cartera',
-            },
-            {
-              label: 'Entrevistas realizadas',
-              value: resumen ? String(nPropuestas) : '—',
-              icon: FileText,
-              sub:
-                resumen == null
-                  ? 'Sin dato por ahora'
-                  : nPropuestas > 0
-                    ? 'Entrevista hecha, cierre pendiente'
-                    : (nAbiertos ?? 0) > 0
-                      ? 'Ninguna enviada — revisa tus citas'
-                      : 'Sin leads abiertos por ahora',
-            },
-            {
-              label: 'Convertidos',
-              value: nConvertidos != null ? String(nConvertidos) : '—',
-              icon: Trophy,
-              // F3.1 (H9/D1): este número es la VISTA de cartera — ganados aún
-              // visibles dentro de la ventana operativa — y el rótulo lee esa
-              // ventana del payload en vez de afirmar «45» por su cuenta. La
-              // conversión del MES vive abajo, en «Tu cumplimiento del mes».
-              sub:
-                resumen == null
-                  ? 'Sin dato por ahora'
-                  : (nConvertidos ?? 0) > 0
-                    ? `Ganados aún en tu cartera · ventana de ${resumen.ventana_convertidos_dias} días`
-                    : 'Aún sin cierres — tu primera venta sale de la cola',
-            },
-          ]}
-        />
-      )}
+      {modoSla.legado && mios.length > 0 && <PulsoCartera items={itemsPulso} />}
 
       {/* Progressive disclosure: el avance mensual está disponible, pero no
           compite con el trabajo del día hasta que el analista decide abrirlo. */}
