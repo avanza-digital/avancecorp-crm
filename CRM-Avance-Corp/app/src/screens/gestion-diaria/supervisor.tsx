@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
-import { Check, ClipboardList, Info, RefreshCw, Search, Users, X } from 'lucide-react'
+import { ClipboardList, Info, RefreshCw, Users, X } from 'lucide-react'
 import { useAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
-import { compararGravedad, filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo, type FilaEquipoPresentada, type EstadoEquipo } from '@/lib/gestion-diaria-equipo'
+import { compararGravedad, filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo, type FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import { useDiaEquipo } from '@/data/gestion-diaria-equipo-queries'
 import { CrmApiError } from '@/data/crm-api'
 import { TablaEquipoDiaria } from '@/components/gestion-diaria/tabla-equipo-diaria'
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FranjaCortesSupervisor } from '@/components/gestion-diaria/franja-cortes-supervisor'
+import { BarraEquipo } from '@/components/gestion-diaria/barra-equipo'
+import { BOTON_CABECERA, CONTROL } from '@/components/gestion-diaria/estilos-gestion'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
 import { EstadoCortesEquipo } from '@/components/gestion-diaria/estado-cortes-equipo'
 import { useGestionDiariaAvisos } from '@/lib/gestion-diaria-avisos-context'
@@ -27,17 +29,6 @@ import './mi-equipo.css'
 
 const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 // «Atención» por gravedad (revisión Codex, 27/09): lo vencido primero.
-type Pildora = EstadoEquipo | 'atencion'
-const PILDORAS: readonly { valor: Pildora; etiqueta: string }[] = [
-  { valor: 'todos', etiqueta: 'Todos' }, { valor: 'con_registro', etiqueta: 'Con registro' },
-  { valor: 'sin_registro', etiqueta: 'Sin registro' }, { valor: 'con_pendientes', etiqueta: 'Con pendientes' },
-  { valor: 'atencion', etiqueta: 'Necesitan atención' },
-]
-/** El resumen del servidor usa las MISMAS reglas que el filtro (`resumenEquipo`): el número es la lista. */
-function conteoPildora(p: Pildora, r: { analistas: number; con_actividad: number; sin_actividad: number; con_pendientes: number }, atencion: number): number {
-  return p === 'todos' ? r.analistas : p === 'con_registro' ? r.con_actividad : p === 'sin_registro' ? r.sin_actividad
-    : p === 'con_pendientes' ? r.con_pendientes : atencion
-}
 const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false, gravedad: true }
 /**
  * Ancho mínimo de la pantalla para tener tabla y panel LADO A LADO: columnas
@@ -48,8 +39,9 @@ const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloPr
  * por debajo de 640 px (mi-equipo.css): nunca en línea. Solo del supervisor.
  */
 const ANCHO_EN_LINEA = 1100
-const CONTROL = 'h-9 text-[13px] pointer-coarse:h-11'
-const BOTON_CABECERA = 'inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-border bg-card px-3 text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-card pointer-coarse:h-11'
+
+/** El control con el foco; `<body>` no es un origen al que volver (como `ui/dialog`). */
+const enfocado = () => { const a = document.activeElement; return a instanceof HTMLElement && a !== document.body ? a : null }
 
 export function GestionDiariaSupervisor({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
   const { yo } = useAuth()
@@ -99,9 +91,6 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const filas = filtrarOrdenarEquipo(equipo, filtros)
   const fila = equipo.find((f) => f.analista_id === seleccion?.analista)
   const atencion = equipo.filter((f) => f.requiere_atencion).length
-  const pildora: Pildora = filtros.soloProblemas ? 'atencion' : filtros.estado ?? 'todos'
-  // Cada cifra es del equipo entero: abrirla limpia la búsqueda, así la lista ES esa cifra (Codex, 27/09).
-  const elegirPildora = (p: Pildora) => setFiltros((f) => ({ ...f, busqueda: '', estado: p === 'atencion' ? 'todos' : p, soloProblemas: p === 'atencion' }))
   const sinPermiso = consulta.error instanceof CrmApiError && consulta.error.code === '42501'
   const fueraDeAmbito = seleccion !== null && (sinPermiso || (dia !== null && seleccion.analista !== null && !fila))
   const automatica = seleccion?.origen === 'automatica'
@@ -177,14 +166,15 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const abrirLlamadas = (id: string) => {
     const persona = dia?.equipo.find((f) => f.analista_id === id)
     if (!persona || sinPermiso) return
-    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    origen.current = enfocado()
     autoInhibida.current = true
     setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true, origen: 'aviso' })
     setDevolverFocoAuxiliar(false); setAuxiliar(null)
     setAnuncio('Abierto el registro de llamadas solicitado.')
   }
-  const seleccionar = (persona: FilaEquipoPresentada) => {
-    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const seleccionar = (persona: FilaEquipoPresentada, control?: HTMLElement) => {
+    // El botón pulsado y nunca `<body>`: Safari no enfoca el botón al pulsarlo (a11y, 27/09).
+    origen.current = control ?? enfocado()
     // Pulsar a quien ya abrió la selección automática la hace SUYA.
     if (seleccion?.analista === persona.analista_id) {
       if (automatica) setSeleccion((s) => s && { ...s, origen: 'usuario' })
@@ -312,36 +302,11 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
               onClick={() => { if (consulta.enVuelo) return; setReintentando(true); void consulta.recargar() }}>{reintentando ? 'Reintentando…' : 'Reintentar'}</Button>}
           </div> : consulta.cargando || !dia ? <p role="status" className="p-6 text-[13.5px] text-[var(--muted-foreground-strong)]">Consultando el equipo completo…</p>
             : <>
-              {dia.equipo.length > 0 && <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-                {/* El resumen del equipo SON los filtros: cada número abre su
-                    lista en la tabla (Miguel, 27/09: la jerarquía es de la tabla
-                    y de la ficha, no de un tablero de cifras). */}
-                <div role="group" aria-label="Resumen del equipo" className="flex flex-wrap items-center gap-1.5">
-                  {PILDORAS.map((p) => {
-                    const activa = pildora === p.valor
-                    const n = conteoPildora(p.valor, dia.resumen, atencion)
-                    return (
-                      <button key={p.valor} type="button" aria-pressed={activa} onClick={() => elegirPildora(p.valor)}
-                        className={cn('inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11',
-                          activa ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-card text-[var(--muted-foreground-strong)] hover:border-border-strong hover:text-primary')}>
-                        {activa && <Check aria-hidden className="size-3.5" />}{p.etiqueta}{' '}
-                        {p.valor === 'atencion' && n > 0
-                          // Ámbar y no rojo: mezcla vencidas con cortes y tiempo sin llamar (Codex, 27/09).
-                          ? <span className="grid min-w-5 place-items-center rounded-full bg-[var(--warning-text)] px-1.5 text-[11px] font-bold tabular-nums text-white">{n}</span>
-                          : <span className="font-bold tabular-nums">{n}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-                <label className="relative ml-auto min-w-40 max-w-[220px] flex-1"><span className="sr-only">Buscar analista</span>
-                  <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar analista…" className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
-                </label>
-              </div>}
+              {dia.equipo.length > 0 && <BarraEquipo filtros={filtros} setFiltros={setFiltros} conteos={dia.resumen} atencion={atencion} />}
               {dia.equipo.length === 0
                 ? <PanelVacio icono={Users} titulo="No tienes analistas activos asignados" detalle="Gerencia puede revisar la composición de tu equipo. No es un resultado de actividad cero." />
                 : <>
-                  <TablaEquipoDiaria contexto="supervisor" filas={filas} filtros={filtros} ordenar={ordenar} seleccion={seleccion?.analista ?? null} seleccionar={seleccionar}
+                  <TablaEquipoDiaria filas={filas} filtros={filtros} ordenar={ordenar} seleccion={seleccion?.analista ?? null} seleccionar={seleccionar}
                     panelId={panelId} minimo={dia.umbrales.minimo_llamadas_utiles} irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
                   <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
                     <p><span role="status">{filas.length} de {dia.resumen.analistas} analistas</span> · Actualizado {hora}</p>

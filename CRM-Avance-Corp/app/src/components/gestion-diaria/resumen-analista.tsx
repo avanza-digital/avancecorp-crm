@@ -42,7 +42,8 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
   esHoy: boolean
   ahora: number
   abrirLlamadas: () => void
-  abrirPendientes: (soloVencidas: boolean) => void
+  /** Sin él (gerencia, hasta tener permiso sobre pendientes) las vencidas se dicen sin enlace. */
+  abrirPendientes?: ((soloVencidas: boolean) => void) | undefined
 }): JSX.Element {
   const atencion = presentarAtencion(f)
   const contacto = presentarContacto(f.marcador, minimo)
@@ -55,14 +56,18 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
       <p className="text-xs text-[var(--muted-foreground-strong)]">
         {plural(f.gestiones_hoy, 'gestión', 'gestiones')} · {FECHA_RESUMEN.format(new Date(`${dia}T12:00:00-05:00`))} · Lima
       </p>
-      {f.tareas_vencidas > 0 && (
+      {f.tareas_vencidas > 0 && (abrirPendientes ? (
         <button type="button" onClick={() => abrirPendientes(true)}
           className={cn('flex w-full cursor-pointer items-center gap-2.5 rounded-xl bg-destructive/10 px-4 py-3 text-left text-sm font-bold text-[var(--destructive-text)] transition-colors hover:bg-destructive/15', FOCO)}>
           <AlertCircle aria-hidden className="size-[18px] shrink-0" />
           <span className="flex-1">{plural(f.tareas_vencidas, 'tarea vencida', 'tareas vencidas')}</span>
           <ChevronRight aria-hidden className="size-4 shrink-0" />
         </button>
-      )}
+      ) : (
+        <p className="flex w-full items-center gap-2.5 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
+          <AlertCircle aria-hidden className="size-[18px] shrink-0" />{plural(f.tareas_vencidas, 'tarea vencida', 'tareas vencidas')}
+        </p>
+      ))}
       {otros.length > 0 && (
         // oxlint-disable-next-line jsx-a11y/no-redundant-roles
         <ul role="list" aria-label="Otros motivos de atención" className="space-y-1 rounded-xl bg-warning/10 px-4 py-2.5 text-[13px] font-semibold text-[var(--warning-text)]">
@@ -97,9 +102,9 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
           <span className={cn('block text-xs', f.tareas_vencidas > 0 ? 'font-semibold text-[var(--destructive-text)]' : 'text-[var(--muted-foreground-strong)]')}>
             {plural(f.tareas_vencidas, 'vencida', 'vencidas')}
           </span>
-          <button type="button" onClick={() => abrirPendientes(false)} aria-label={`Ver pendientes de ${f.nombre_completo}`} className={ENLACE}>
+          {abrirPendientes && <button type="button" onClick={() => abrirPendientes(false)} aria-label={`Ver pendientes de ${f.nombre_completo}`} className={ENLACE}>
             Ver pendientes<ChevronRight aria-hidden className="size-3.5" />
-          </button>
+          </button>}
         </Cuadro>
       </dl>
 
