@@ -14025,7 +14025,17 @@ producción (lectura): las cuatro huellas coinciden (núcleo 904d3b0a…, puerta
 gate y paraguas solo postgres; `search_path` vacío en las cuatro; anon sin EXECUTE en la puerta;
 `assert_gestion_diaria()` contiene «OK: citas G4b» (la migración corre además `assert_sla_*`).
 Registro: una fila `crm_gestion_diaria_citas_lista` con el cuerpo íntegro (md5 72ad83d3…, igual
-al del archivo). Front («Citas agendadas» en supervisor y gerencia) pendiente de `/release-crm`.
+al del archivo). **Prueba sin escribir con cuentas reales: `G4B_PROD_OK`, 0 fallos** (28/09,
+`supabase/scripts/g4/prueba-prod-g4b.sql`: un DO en solo lectura que termina en raise; sin anon y
+con candado de EXECUTE sobre las 25 funciones de la cadena). Días 22, 26, 27 (vacío) y 28/09;
+2 gerencias, 3 supervisiones, coordinación y un analista reales. 232 casos lista = cifra (104
+analistas de Gerencia, 104 de Supervisión, 12 equipos, 4 «fuera», 8 operaciones, que además
+coinciden con `gestion_diaria_llamadas`), 272 páginas (hasta 8 en un caso), 305 filas; equipos +
+«fuera» parten la operación los 4 días; 32 denegaciones y errores de parámetros correctos. La
+tabla y la lista de Gerencia coinciden (40, 9, 0 y 12); las dos gerencias ven lo mismo y
+Supervisión ve lo mismo que Gerencia para cada analista. En el banco G4 la misma prueba da OK y
+un mutante del borde del día da FALLA (10). Front («Citas agendadas» en supervisor y gerencia)
+pendiente de `/release-crm`.
 Plan G4 v2 aprobado por Miguel («G4a y luego G4b»), revisado
 por Codex (plan y código) y por auditor-rls (sin P0/P1). Lectura nueva, sin tablas ni
 escrituras: puerta `crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite,
