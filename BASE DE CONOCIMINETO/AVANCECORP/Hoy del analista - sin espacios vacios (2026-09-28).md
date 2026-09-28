@@ -1,7 +1,7 @@
 ---
 tags: [crm, hoy, analista, ux, pantalla]
 fecha: 2026-09-28
-estado: en local, sin publicar
+estado: publicado 28/09/2026
 ---
 
 # Hoy del analista — sin espacios vacíos (2026-09-28)
@@ -66,6 +66,13 @@ del modo activo) y [[Hoy Analista - seguimiento solo en su modulo 2026-09-07]].
   con `py-5` crecía de 160 a ~194 px. Aceptado y resuelto poniéndolo en horizontal (medido: 70 px). Resto: sin
   regresiones (textos, ternarios, `exactOptionalPropertyTypes`, `lg:items-start` no rompe `flex-1`/`mt-auto`).
 
-Pendiente: Miguel lo mira en local (`npm run dev` en `app/`, demo como Analista) y publica con
-`/release-crm`; luego se fusiona a `main` y va a GitHub por PR de integración. Tarea aparte: el P2 de
-teclado en `FilaAgenda`.
+## Publicación (28/09, `/release-crm` por Miguel)
+
+- Commits en `main` local: `97d7609d` (pantalla + pruebas), `056f517a` (vault), merge de la PR #122 en `e486a139`.
+- Artefacto `crm-20260928T191253Z-e486a139d5c4` (SHA-256 `f222caed…`), `--allow-dirty` con suciedad ajena fuera de
+  `app/` registrada en el manifiesto. Preflight OK contra el vivo `build-20260928T182709910Z`/`43b3d6d0`.
+- Humo: `version.json` = `build-20260928T191252679Z` a la primera, raíz 200, `index-BZvXJKOn.js` con SHA-256 idéntico
+  local↔vivo, ZIP 404. Sin purga de caché.
+- 🔴 El MCP de Hostinger cambió de contrato (2.3.0): ver [[Deploy a Hostinger]] («MCP 2.x: search/execute»).
+
+Tarea aparte: el P2 de teclado en `FilaAgenda`. Pendiente: PR de integración a GitHub (sin lo de Gloria).
