@@ -75,4 +75,5 @@ del modo activo) y [[Hoy Analista - seguimiento solo en su modulo 2026-09-07]].
   local↔vivo, ZIP 404. Sin purga de caché.
 - 🔴 El MCP de Hostinger cambió de contrato (2.3.0): ver [[Deploy a Hostinger]] («MCP 2.x: search/execute»).
 
-Tarea aparte: el P2 de teclado en `FilaAgenda`. Pendiente: PR de integración a GitHub (sin lo de Gloria).
+Tarea aparte: el P2 de teclado en `FilaAgenda`. PR de integración a GitHub **#124** (sin lo de Gloria; al fusionarla,
+traer `avancecorp/main` al local). Las PR #122 y #123 ya están fusionadas en el `main` local (`e486a139`, `4a6e6609`).
