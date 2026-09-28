@@ -181,10 +181,9 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
   await page.getByRole('tab', { name: 'Hábitos del equipo', exact: true }).click()
   await page.getByRole('button', { name: `Ver hábitos de ${analista.nombre_completo}`, exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  // Hábitos conserva su panel propio: al lado con más de 1235 px de operación (con el menú fijado, 1680).
-  // Entre 1040 y 1235 px hoy la ficha se apila debajo de la tabla (fallo de CSS reportado el 27/09, sin
-  // arreglar): al corregirlo, esta comprobación puede bajar a 1440 como la del equipo.
-  await page.setViewportSize({ width: 1680, height: 900 })
+  // Hábitos va al lado desde 1040 px de operación. A 1440 con el menú fijado la operación mide
+  // ~1150: el tramo 1040–1235 donde antes la ficha se apilaba bajo la tabla (arreglado en G3).
+  await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const habitos = await page.getByRole('region', { name: 'Comparación de hábitos', exact: true }).boundingBox()
   const detalleHabitos = await page.getByRole('region', { name: 'Detalle de hábitos', exact: true }).boundingBox()
