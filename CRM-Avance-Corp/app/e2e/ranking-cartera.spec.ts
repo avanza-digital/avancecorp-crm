@@ -9,7 +9,8 @@ test('capital por origen muestra renovación y upgrade dentro de cartera en escr
     detalles: Array<{ categoria: string; moneda: string; capital_real: number }>
   }>
   for (const d of vendedores[0]!.detalles) {
-    if (d.moneda === 'PEN') d.capital_real = d.categoria === 'upgrade' ? 20000 : 10000
+    d.capital_real = d.moneda === 'PEN' && d.categoria === 'nuevo' ? 577554
+      : d.moneda === 'USD' && d.categoria === 'upgrade' ? 40000 : 0
   }
   await montarBackendReal(page, {
     rolCrm: 'gerencia', rolPortal: 'comercial',
@@ -17,13 +18,13 @@ test('capital por origen muestra renovación y upgrade dentro de cartera en escr
     cumplimientoMetas: foto.cumplimientoMetas,
     metricas: { conversionMensual: foto.conversionMensual, cosecha: foto.cosecha },
   })
-  await page.route('**/rest/v1/rpc/ranking_origen_vendedor_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/ranking_origen_vendedor_v2_fn', async (route) => {
     const consulta = route.request().postDataJSON()
     await route.fulfill({ json: {
-      version: 1, periodo: consulta.p_periodo, vendedor_id: consulta.p_vendedor_id, disponible: true,
+      version: 2,
+      cartera: [{ categoria: 'renovacion', pen: 0, usd: 0 }, { categoria: 'upgrade', pen: 577554, usd: 40000 }, { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 }], periodo: consulta.p_periodo, vendedor_id: consulta.p_vendedor_id, disponible: true,
       filas: [
-        { origen: 'formulario', capital_pen: 10000, capital_usd: 1000, contratos: 1, leads: 12, cierres: 1, conversion_pct: 8.33 },
-        { origen: 'cartera', capital_pen: 30000, capital_usd: 0, contratos: 2, leads: 0, cierres: 0, conversion_pct: null },
+        { origen: 'cartera', capital_pen: 577554, capital_usd: 40000, contratos: 2, leads: 0, cierres: 0, conversion_pct: null },
       ],
     } })
   })
@@ -34,9 +35,9 @@ test('capital por origen muestra renovación y upgrade dentro de cartera en escr
   await page.getByRole('button', { name: 'Ver detalle de ANA AGOSTO', exact: true }).first().click()
   const ficha = page.getByRole('dialog')
   const cartera = ficha.getByRole('group', { name: 'Desglose de cartera' })
-  await expect(cartera).toContainText('RenovaciónS/ 10,000')
-  await expect(cartera).toContainText('UpgradeS/ 20,000')
-  await expect(ficha.getByRole('region', { name: 'Capital y conversión por origen' })).toContainText('S/ 43,530')
+  await expect(cartera).toContainText('RenovaciónS/ 0')
+  await expect(cartera).toContainText('UpgradeS/ 718,754')
+  await expect(ficha.getByRole('region', { name: 'Capital y conversión por origen' })).toContainText('S/ 718,754')
   await page.screenshot({ path: testInfo.outputPath('cartera-desktop.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await cartera.scrollIntoViewIfNeeded()

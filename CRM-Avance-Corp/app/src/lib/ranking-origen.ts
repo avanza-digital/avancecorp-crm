@@ -15,11 +15,17 @@ const FilaOrigenRankingSchema = v.strictObject({
 
 export const RankingOrigenVendedorSchema = v.pipe(
   v.strictObject({
-    version: v.literal(1),
+    version: v.literal(2),
     periodo: FechaSchema,
     vendedor_id: UuidSchema,
     disponible: v.boolean(),
     filas: v.array(FilaOrigenRankingSchema),
+    cartera: v.fallback(v.nullable(v.pipe(v.array(v.strictObject({
+      categoria: v.picklist(['renovacion', 'upgrade', 'nuevo', 'sin_clasificar']),
+      pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+      usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+    })), v.check((filas) => filas.length === 4 && new Set(filas.map((f) => f.categoria)).size === 4,
+      'El desglose de cartera debe tener una fila por categoría'))), null),
   }),
   v.check(
     (dato) => dato.disponible || dato.filas.length === 0,

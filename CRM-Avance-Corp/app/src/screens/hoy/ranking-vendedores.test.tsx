@@ -160,7 +160,7 @@ describe('ficha real de capital por origen', () => {
     const vendedorId = '00000000-0000-4000-8000-000000000001'
     const fila = { ...original, vendedor: { ...original.vendedor, vendedorId } }
     const origenes: RankingOrigenVendedor = {
-      version: 1, periodo: '2026-09-01', vendedor_id: vendedorId, disponible: true,
+      version: 2, cartera: null, periodo: '2026-09-01', vendedor_id: vendedorId, disponible: true,
       filas: [
         { origen: 'landing', capital_pen: 100000, capital_usd: 5000, contratos: 2, leads: 40, cierres: 4, conversion_pct: 10 },
         { origen: 'formulario', capital_pen: 50000, capital_usd: 4000, contratos: 1, leads: 20, cierres: 2, conversion_pct: 10 },
@@ -217,6 +217,40 @@ describe('ficha real de capital por origen', () => {
     expect(desglose).toHaveTextContent('UpgradeS/ 80,000')
     expect(desglose).not.toHaveTextContent('Conversión')
     expect(screen.getAllByText('S/ 371,940')).toHaveLength(2)
+  })
+
+  it('usa el desglose del registro de cartera aunque cumplimiento conserve nuevo', () => {
+    const { fila, origenes } = datos()
+    Object.assign(fila, { capitalPen: 577554, capitalUsd: 40000, capitalTotal: 712658,
+      cartera: [{ categoria: 'renovacion', pen: 0, usd: 0 }, { categoria: 'upgrade', pen: 0, usd: 40000 }] })
+    origenes.filas = [{ origen: 'cartera', capital_pen: 577554, capital_usd: 40000,
+      contratos: 3, leads: 0, cierres: 0, conversion_pct: null }]
+    origenes.cartera = [
+      { categoria: 'renovacion', pen: 0, usd: 0 },
+      { categoria: 'upgrade', pen: 577554, usd: 40000 },
+      { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 },
+    ]
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={3.3776}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const desglose = screen.getByRole('group', { name: 'Desglose de cartera' })
+    expect(desglose).toHaveTextContent('RenovaciónS/ 0')
+    expect(desglose).toHaveTextContent('UpgradeS/ 712,658')
+    expect(desglose).toHaveTextContent('S/ 577,554 + US$ 40,000')
+    expect(desglose).not.toHaveTextContent('Sin clasificación')
+    expect(screen.queryByText('Desglose de renovación y upgrade no disponible')).not.toBeInTheDocument()
+  })
+
+  it('mantiene visible la parte sin clasificación sin atribuirla a renovación o upgrade', () => {
+    const { fila, origenes, tc } = datos()
+    origenes.filas[0]!.origen = 'cartera'
+    origenes.cartera = [
+      { categoria: 'renovacion', pen: 0, usd: 0 },
+      { categoria: 'upgrade', pen: 50000, usd: 5000 },
+      { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 50000, usd: 0 },
+    ]
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={tc}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    expect(screen.getByRole('group', { name: 'Desglose de cartera' })).toHaveTextContent('Sin clasificaciónS/ 50,000')
   })
 
   it('no inventa un reparto para cartera legada cuya categoría financiera sigue siendo nuevo', () => {
