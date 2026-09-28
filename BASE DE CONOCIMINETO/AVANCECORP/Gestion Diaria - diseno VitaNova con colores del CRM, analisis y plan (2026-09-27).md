@@ -502,6 +502,28 @@ yo reviso con capturas E2E.
   hallazgos, todos aplicados). El E2E migrado encontró 2 P2 reales (Hábitos apilado 1040–1235 px; foco al cerrar la
   ventana del analista) y el revisor a11y 2 P2 (origen del foco `<body>` en Safari —también en el supervisor— y aviso
   CSV que no se anunciaba). check PASS (4682) · E2E Docker local 36/36.
-- **Pendiente:** G4 (permiso de gerencia sobre `gestion_diaria_pendientes_fn`, LEVEL 3, su propio plan); P3 a11y
-  diferido: botones que navegan a una ruta deberían ser enlaces (abrir en otra pestaña); al fusionar la #118, traer
-  `avancecorp/main` al local.
+- **Pendiente:** P3 a11y diferido: botones que navegan a una ruta deberían ser enlaces (abrir en otra pestaña).
+
+## G4 — Pendientes de gerencia y lista exacta de «Citas agendadas» (28/09 — PUBLICADA)
+
+- **Base (LEVEL 3), las dos en producción 28/09**, aplicadas por Miguel con `!` y registradas con registrador
+  fail-closed (fila con el cuerpo íntegro, md5 = archivo):
+  - **G4a** `20260928043728`: Gerencia lee los pendientes de cualquier analista de la operación.
+  - **G4b** `20260928044910`: `crm.gestion_diaria_citas_fn` — lista exacta de las citas creadas en el día Lima, con la
+    MISMA definición que la cifra; ámbitos analista (Supervisión su árbol, Gerencia toda la operación), equipo,
+    «fuera» y operación (solo Gerencia); cursor `creado_en/id`; INVOKER bajo la RLS de `crm.tareas`.
+- **Prueba sin escribir con cuentas reales** (`supabase/scripts/g4/prueba-prod-g4b.sql`): `G4B_PROD_OK`, 0 fallos —
+  232 casos lista = cifra, equipos + «fuera» parten la operación, 32 denegaciones correctas. Es un DO en solo
+  lectura que termina en raise, sin anon y con candado de EXECUTE sobre las 25 funciones de la cadena (en esta
+  versión de Postgres llamar a una función sin EXECUTE puede tumbar el servidor). Antes se probó en el banco G4: OK,
+  y un mutante del borde del día da FALLA, o sea que la prueba sabe fallar.
+- **Front publicado 28/09 ~10:55 Lima** con `/release-crm` de Miguel: artefacto `crm-20260928T155351Z-4e85c9038728`,
+  build `build-20260928T155351044Z`, commit `4e85c903` (= `main` local). Construido en el worktree limpio
+  `g4-20260928`; check PASS (4736); preflight OK contra el vivo `1cd23b83`; humo HTTP 200 e `index` byte a byte.
+  Trae la pestaña **Pendientes** en la ficha de gerencia y la lista **«Citas agendadas»** que abre cada cifra de
+  citas (analista, equipo, «fuera» y toda la operación) en supervisor y gerencia.
+- **Tronco:** la #118 se trajo al local sin cambios de contenido (`4e85c903`, estrategia *ours*: su `app/` era
+  idéntico a `1cd23b83`; una fusión normal chocaba con G4 por el squash). `main` sigue por delante de
+  `avancecorp/main` por lo de Gloria, que no va a GitHub; G4 sube en la próxima PR de integración.
+
+Relacionado: [[Integracion del main local y pendientes (2026-09-27)]]

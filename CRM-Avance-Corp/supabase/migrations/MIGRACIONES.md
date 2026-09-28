@@ -13987,7 +13987,7 @@ huellas núcleo a0bde87d… y gate 6aecb25a…, puerta y ámbito sin cambios, `a
 y `assert_sla_*` en verde, anon sin EXECUTE; prueba sin escribir (DO que termina en `raise`) con
 una cuenta real de Gerencia: lee los pendientes de un analista a su nombre; un supervisor real
 sigue igual y recibe 42501 en otro equipo. Registro: una fila con el cuerpo íntegro (md5
-09dcd836…). Front (pestaña Pendientes de Gerencia) pendiente de `/release-crm`. Huellas nuevas: núcleo
+09dcd836…). Front (pestaña Pendientes de Gerencia) PUBLICADO 28/09 (build-20260928T155351044Z, commit 4e85c903). Huellas nuevas: núcleo
 `a0bde87db9ea86694ba4ee79dc109729`, gate H3 re-sellado `6aecb25a8a66e10cc5dcae69afb66281`.
 Verificado en el banco Docker aislado `crm-banco-g4` (esquema de producción por `db dump`,
 paridad 27/27 por md5, actores sintéticos, configuración SLA copiada con autores ficticios):
@@ -14035,7 +14035,7 @@ coinciden con `gestion_diaria_llamadas`), 272 páginas (hasta 8 en un caso), 305
 tabla y la lista de Gerencia coinciden (40, 9, 0 y 12); las dos gerencias ven lo mismo y
 Supervisión ve lo mismo que Gerencia para cada analista. En el banco G4 la misma prueba da OK y
 un mutante del borde del día da FALLA (10). Front («Citas agendadas» en supervisor y gerencia)
-pendiente de `/release-crm`.
+PUBLICADO 28/09 (build-20260928T155351044Z, commit 4e85c903, preflight OK contra 1cd23b83).
 Plan G4 v2 aprobado por Miguel («G4a y luego G4b»), revisado
 por Codex (plan y código) y por auditor-rls (sin P0/P1). Lectura nueva, sin tablas ni
 escrituras: puerta `crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite,
