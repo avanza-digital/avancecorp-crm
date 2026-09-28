@@ -51,14 +51,14 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
   const nombre = seleccion && !equipo ? fila?.nombre_completo ?? seleccion.nombre ?? 'Analista' : null
   const titulo = seleccion ? equipo ? 'Registro del equipo' : `Detalle de ${nombre}` : 'Detalle del analista'
   return (
-    <section id={id} aria-label={titulo} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-clip rounded-2xl border border-border bg-card">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border px-5 py-3.5">
-        {nombre !== null ? <Avatar nombre={nombre} color="var(--accent-press)" />
+    <section id={id} aria-label={titulo} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-clip rounded-2xl border border-accent/30 bg-card shadow-[0_14px_34px_-18px_rgba(17,30,61,0.35)]">
+      <header className="flex shrink-0 items-center gap-3.5 border-b border-accent/15 bg-accent/[0.06] px-5 py-4">
+        {nombre !== null ? <Avatar nombre={nombre} color="var(--accent-press)" relleno className="size-11 text-[15px]" />
           : equipo ? <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-primary"><ClipboardList className="size-4" /></span> : null}
         <div className="min-w-0 flex-1">
           {/* El nombre visible es el del analista; el lector oye «Detalle de …»,
               como el nombre de la región y del diálogo. */}
-          <TituloDialogo asChild><h3 ref={tituloRef} tabIndex={-1} className="rounded-md text-[17px] font-extrabold leading-tight tracking-[-0.01em] text-primary [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          <TituloDialogo asChild><h3 ref={tituloRef} tabIndex={-1} className="rounded-md text-[22px] font-extrabold leading-tight tracking-[-0.015em] text-primary [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
             {/* El espacio va FUERA del texto oculto: dentro se perdía («Detalle deANA»). */}
             {nombre !== null ? <><span className="sr-only">Detalle de</span>{' '}{nombre}</> : titulo}
           </h3></TituloDialogo>
@@ -76,6 +76,8 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
     </section>
   )
 }
+
+const FECHA_TITULO = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
 function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, silencioso }: Pick<Parameters<typeof PanelAnalistaSupervisor>[0], 'seleccion' | 'fila' | 'dia' | 'minimo' | 'tituloRef' | 'oculta' | 'limpiar' | 'actualizacion' | 'revalidar'> & { seleccion: SeleccionSupervisor; esHoy: boolean; ahora: number; silencioso: boolean }) {
   const equipo = seleccion.analista === null
@@ -127,9 +129,13 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
       </>}
     </div>
     <div className={cuerpo} hidden={pestana !== 'registro'} inert={pestana !== 'registro'}>
-      {registro && <section aria-label="Registro seleccionado">
-        <h4 ref={tituloRegistro} tabIndex={-1} className="mb-3 text-[15px] font-extrabold text-primary">{equipo ? 'Registro del equipo' : `Registro de ${seleccion.nombre}`}</h4>
-        <RegistroActividad key={registro.apertura} dia={dia} pestanaInicial={registro.pestana}
+      {/* Como el resumen (Miguel, 27/09): un título corto con el día, filtros en
+          pastilla y filas limpias; sin la descripción ni controles de pantalla completa. */}
+      {registro && <section aria-label="Registro seleccionado" className="space-y-2">
+        <h4 ref={tituloRegistro} tabIndex={-1} className="rounded-md text-[15px] font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          {esHoy ? 'Actividad de hoy' : `Actividad del ${FECHA_TITULO.format(new Date(`${dia}T12:00:00-05:00`))}`}
+        </h4>
+        <RegistroActividad compacto encabezadoExterno={tituloRegistro} key={registro.apertura} dia={dia} pestanaInicial={registro.pestana}
           analistaIds={seleccion.analista === null ? null : [seleccion.analista]} mostrarAnalista={equipo} permitirEquipo={false} permitirExportar={false} actualizacion={actualizacion} onSinPermiso={revalidar} compartirPrimeraPagina={!equipo} />
       </section>}
     </div>

@@ -72,7 +72,7 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
 
       <dl className="grid grid-cols-2 gap-2.5">
         <Cuadro etiqueta="Llamadas">
-          <span className="block text-2xl font-extrabold leading-tight tabular-nums text-primary">{f.marcador.llamadas}</span>
+          <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{f.marcador.llamadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{plural(f.marcador.contestadas, 'contestó', 'contestaron')}</span>
           <button type="button" onClick={abrirLlamadas} aria-label={`Ver llamadas del día de ${f.nombre_completo}`} className={ENLACE}>
             Ver llamadas<ChevronRight aria-hidden className="size-3.5" />
@@ -80,7 +80,7 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
         </Cuadro>
         <Cuadro etiqueta="Contacto">
           <span aria-hidden="true" className={cn('block font-extrabold leading-tight tabular-nums',
-            contacto.estado === 'evaluado' ? 'text-2xl text-primary' : 'text-base text-[var(--muted-foreground-strong)]')}>{contacto.valor}</span>
+            contacto.estado === 'evaluado' ? 'text-[28px] text-primary' : 'text-base text-[var(--muted-foreground-strong)]')}>{contacto.valor}</span>
           <span aria-hidden="true" className="block text-xs text-[var(--muted-foreground-strong)]">
             {contacto.estado === 'evaluado'
               ? <>{contacto.detalle} · <span className="font-semibold" style={{ color: COLOR_NIVEL[contacto.nivel!] }}>{ETIQUETA_NIVEL[contacto.nivel!]}</span></>
@@ -89,11 +89,11 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
           <span className="sr-only">{contacto.accesible}</span>
         </Cuadro>
         <Cuadro etiqueta="Citas agendadas">
-          <span className="block text-2xl font-extrabold leading-tight tabular-nums text-primary">{f.marcador.citas_agendadas}</span>
+          <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{f.marcador.citas_agendadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">desde «Agendó cita»</span>
         </Cuadro>
         <Cuadro etiqueta="Pendientes">
-          <span className="block text-2xl font-extrabold leading-tight tabular-nums text-primary">{f.tareas_pendientes}</span>
+          <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{f.tareas_pendientes}</span>
           <span className={cn('block text-xs', f.tareas_vencidas > 0 ? 'font-semibold text-[var(--destructive-text)]' : 'text-[var(--muted-foreground-strong)]')}>
             {plural(f.tareas_vencidas, 'vencida', 'vencidas')}
           </span>

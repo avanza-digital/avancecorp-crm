@@ -14,9 +14,7 @@ import { PanelSupervisorAdaptable } from '@/components/gestion-diaria/panel-supe
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { FranjaCifras } from '@/components/gestion-diaria/franja-cifras'
 import { FranjaCortesSupervisor } from '@/components/gestion-diaria/franja-cortes-supervisor'
 import { AvisosEquipo } from '@/components/gestion-diaria/avisos-equipo'
 import { EstadoCortesEquipo } from '@/components/gestion-diaria/estado-cortes-equipo'
@@ -29,12 +27,23 @@ import './mi-equipo.css'
 
 const FECHA_JORNADA = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 // «Atención» por gravedad (revisión Codex, 27/09): lo vencido primero.
+type Pildora = EstadoEquipo | 'atencion'
+const PILDORAS: readonly { valor: Pildora; etiqueta: string }[] = [
+  { valor: 'todos', etiqueta: 'Todos' }, { valor: 'con_registro', etiqueta: 'Con registro' },
+  { valor: 'sin_registro', etiqueta: 'Sin registro' }, { valor: 'con_pendientes', etiqueta: 'Con pendientes' },
+  { valor: 'atencion', etiqueta: 'Necesitan atención' },
+]
+/** El resumen del servidor usa las MISMAS reglas que el filtro (`resumenEquipo`): el número es la lista. */
+function conteoPildora(p: Pildora, r: { analistas: number; con_actividad: number; sin_actividad: number; con_pendientes: number }, atencion: number): number {
+  return p === 'todos' ? r.analistas : p === 'con_registro' ? r.con_actividad : p === 'sin_registro' ? r.sin_actividad
+    : p === 'con_pendientes' ? r.con_pendientes : atencion
+}
 const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloProblemas: false, orden: 'atencion', ascendente: false, gravedad: true }
 /**
  * Ancho mínimo de la pantalla para tener tabla y panel LADO A LADO: columnas
  * fijas de la tabla (68 + 132 + 56 + 72 + 156 = 484) + nombre con iniciales
  * (≥ 200) + rellenos y bordes (24) + canal de scroll (16) + separación (16) +
- * panel (360) = 1100. A 1440 con el menú abierto la pantalla mide ~1150: cabe.
+ * panel (360, su mínimo: crece hasta 440 con la pantalla) = 1100. A 1440 con el menú abierto la pantalla mide ~1150: cabe.
  * Por debajo, el detalle se abre encima como siempre. La tabla pasa a tarjetas
  * por debajo de 640 px (mi-equipo.css): nunca en línea. Solo del supervisor.
  */
@@ -90,6 +99,8 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const filas = filtrarOrdenarEquipo(equipo, filtros)
   const fila = equipo.find((f) => f.analista_id === seleccion?.analista)
   const atencion = equipo.filter((f) => f.requiere_atencion).length
+  const pildora: Pildora = filtros.soloProblemas ? 'atencion' : filtros.estado ?? 'todos'
+  const elegirPildora = (p: Pildora) => setFiltros((f) => ({ ...f, estado: p === 'atencion' ? 'todos' : p, soloProblemas: p === 'atencion' }))
   const sinPermiso = consulta.error instanceof CrmApiError && consulta.error.code === '42501'
   const fueraDeAmbito = seleccion !== null && (sinPermiso || (dia !== null && seleccion.analista !== null && !fila))
   const automatica = seleccion?.origen === 'automatica'
@@ -260,7 +271,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h2 ref={tituloEquipo} tabIndex={-1} className="rounded-md text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{esHoy ? 'Mi equipo hoy' : 'Mi equipo'}</h2>
-          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Actividad registrada, pendientes y analistas que necesitan atención.</p>
+          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Actividad, pendientes y atención de tu equipo.</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {/* El selector ya dice la fecha: al lado solo va la hora de la foto. */}
@@ -274,6 +285,12 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
           </label>
           <button type="button" className={BOTON_CABECERA} aria-disabled={esHoy} onClick={() => { if (!esHoy) cambiarFecha(hoy) }}>Hoy</button>
           {accesoSeguimiento}
+          {/* Con cualquier foto válida, aunque no haya analistas (Codex, 27/09). */}
+          {dia && !consulta.error && !consulta.cargando && (
+            <button type="button" className={BOTON_CABECERA} onClick={abrirRegistroEquipo} aria-disabled={sinPermiso}>
+              <ClipboardList aria-hidden className="size-4" />Registro del equipo
+            </button>
+          )}
           {hora && <p className="whitespace-nowrap pl-1 text-xs tabular-nums text-[var(--muted-foreground-strong)]">Actualizado {hora}</p>}
           <button type="button" className={BOTON_CABECERA} aria-disabled={actualizando} aria-busy={actualizando} onClick={actualizar}>
             <RefreshCw className={cn('size-4', actualizando && 'motion-safe:animate-spin')} aria-hidden />{actualizando ? 'Actualizando…' : 'Actualizar'}
@@ -284,19 +301,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
         </div>
       </header>
 
-      {dia ? <FranjaCifras etiqueta="Resumen del equipo" disposicion="en-linea" className="shrink-0" cifras={[
-        { etiqueta: 'Analistas', valor: String(dia.resumen.analistas) },
-        { etiqueta: 'Con registro', valor: String(dia.resumen.con_actividad) },
-        { etiqueta: 'Sin registro', valor: String(dia.resumen.sin_actividad) },
-        { etiqueta: 'Con pendientes', valor: String(dia.resumen.con_pendientes) },
-        // Ámbar y no rojo: mezcla vencidas con cortes y tiempo sin llamar (Codex, 27/09).
-        { etiqueta: 'Necesitan atención', valor: String(atencion), tono: atencion > 0 ? 'aviso' : 'normal' },
-      ]} />
-        : <div role="group" aria-label="Resumen del equipo" className="shrink-0 rounded-2xl border border-border bg-card px-5 py-4 text-[13px] text-[var(--muted-foreground-strong)]">
-          <p>{consulta.error ? 'Resumen no disponible' : 'Consultando indicadores…'}</p>
-        </div>}
-
-      <div className={cn('grid min-h-0 flex-1 gap-4', estrecho ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_360px]')}>
+      <div className={cn('grid min-h-0 flex-1 gap-4', estrecho ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_clamp(360px,32%,440px)]')}>
         <div className="me-equipo flex min-h-0 min-w-0 flex-col overflow-clip rounded-2xl border border-border bg-card">
           {consulta.error ? <div role="alert" className="flex flex-col items-start gap-3 p-6 text-[13.5px]">
             <h3 ref={tituloError} tabIndex={-1} className="rounded-md text-[15px] font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{sinPermiso ? 'Ya no tienes autorización para ver este equipo' : 'No pudimos consultar la actividad y los pendientes del equipo'}</h3>
@@ -305,32 +310,32 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
               onClick={() => { if (consulta.enVuelo) return; setReintentando(true); void consulta.recargar() }}>{reintentando ? 'Reintentando…' : 'Reintentar'}</Button>}
           </div> : consulta.cargando || !dia ? <p role="status" className="p-6 text-[13.5px] text-[var(--muted-foreground-strong)]">Consultando el equipo completo…</p>
             : <>
-              {/* La barra existe con cualquier foto válida: «Registro del equipo»
-                  sigue a mano aunque no haya analistas (Codex, 27/09). */}
-              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-                {dia.equipo.length > 0 && <>
-                  <label className="relative w-[220px] max-w-full"><span className="sr-only">Buscar analista</span>
-                    <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar analista…" className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
-                  </label>
-                  <div className="w-[170px]">
-                    <Select aria-label="Estado de actividad" value={filtros.estado} onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as EstadoEquipo }))} className={cn(CONTROL, 'min-h-0')}>
-                      <option value="todos">Todos los estados</option><option value="con_registro">Con registro</option><option value="sin_registro">Sin registro</option><option value="con_pendientes">Con pendientes</option>
-                    </Select>
-                  </div>
-                  <button type="button" aria-pressed={filtros.soloProblemas} onClick={() => setFiltros((f) => ({ ...f, soloProblemas: !f.soloProblemas }))}
-                    className={cn('inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11',
-                      filtros.soloProblemas ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>
-                    {filtros.soloProblemas && <Check aria-hidden className="size-3.5" />}Con atención
-                    <span className={cn('grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums',
-                      atencion > 0 ? 'bg-[var(--warning-text)] text-white' : 'bg-muted text-[var(--muted-foreground-strong)]')}>{atencion}</span>
-                  </button>
-                </>}
-                <button type="button" onClick={abrirRegistroEquipo} aria-disabled={sinPermiso}
-                  className="ml-auto inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md px-1 text-[13px] font-semibold text-[var(--accent-press)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-50 pointer-coarse:h-11">
-                  <ClipboardList aria-hidden className="size-4" />Registro del equipo
-                </button>
-              </div>
+              {dia.equipo.length > 0 && <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+                {/* El resumen del equipo SON los filtros: cada número abre su
+                    lista en la tabla (Miguel, 27/09: la jerarquía es de la tabla
+                    y de la ficha, no de un tablero de cifras). */}
+                <div role="group" aria-label="Resumen del equipo" className="flex flex-wrap items-center gap-1.5">
+                  {PILDORAS.map((p) => {
+                    const activa = pildora === p.valor
+                    const n = conteoPildora(p.valor, dia.resumen, atencion)
+                    return (
+                      <button key={p.valor} type="button" aria-pressed={activa} onClick={() => elegirPildora(p.valor)}
+                        className={cn('inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11',
+                          activa ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-card text-[var(--muted-foreground-strong)] hover:border-border-strong hover:text-primary')}>
+                        {activa && <Check aria-hidden className="size-3.5" />}{p.etiqueta}{' '}
+                        {p.valor === 'atencion' && n > 0
+                          // Ámbar y no rojo: mezcla vencidas con cortes y tiempo sin llamar (Codex, 27/09).
+                          ? <span className="grid min-w-5 place-items-center rounded-full bg-[var(--warning-text)] px-1.5 text-[11px] font-bold tabular-nums text-white">{n}</span>
+                          : <span className="font-bold tabular-nums">{n}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                <label className="relative ml-auto min-w-40 max-w-[220px] flex-1"><span className="sr-only">Buscar analista</span>
+                  <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar analista…" className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
+                </label>
+              </div>}
               {dia.equipo.length === 0
                 ? <PanelVacio icono={Users} titulo="No tienes analistas activos asignados" detalle="Gerencia puede revisar la composición de tu equipo. No es un resultado de actividad cero." />
                 : <>

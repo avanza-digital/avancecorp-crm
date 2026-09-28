@@ -69,7 +69,7 @@ test('Ruta real con store vacío: cero actividad, 270 pendientes, error y revoca
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toBeVisible()
   await expect(vista.getByRole('cell', { name: '270', exact: true }).first()).toBeVisible()
-  await vista.getByRole('button', { name: /Con atención/ }).click()
+  await vista.getByRole('button', { name: /^Necesitan atención/ }).click()
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toHaveCount(0)
   await expect(vista.getByText('BRUNO', { exact: true })).toBeVisible()
   await page.screenshot({ path: info.outputPath('equipo-ruta-real.png'), fullPage: true })
@@ -133,7 +133,7 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await abrirRegistro.focus()
   await page.keyboard.press('Enter')
   const registro = page.getByRole('region', { name: 'Registro seleccionado', exact: true })
-  await expect(registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true })).toBeFocused()
+  await expect(registro.getByRole('heading', { name: 'Actividad de hoy', exact: true })).toBeFocused()
   await expect(registro.getByRole('tab', { name: 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(registro.getByRole('combobox', { name: 'Analista', exact: true })).toHaveCount(0)
   await registro.getByRole('tab', { name: 'Todo', exact: true }).click()
@@ -162,17 +162,18 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(page.getByRole('dialog', { name: lead.nombre_completo })).toHaveCount(0)
   await registro.getByRole('button', { name: 'Ver más' }).click()
   await expect(registro.getByRole('listitem')).toHaveCount(26)
-  await registro.getByRole('combobox', { name: 'Etapa actual del lead' }).focus()
+  // Registro compacto en la ficha (27/09): el filtro que conserva el foco es la pastilla elegida.
+  await registro.getByRole('tab', { selected: true }).focus()
   await page.setViewportSize({ width: 1512, height: 805 })
   await expect(page.getByRole('dialog', { name: 'Detalle de Analista Real Uno' })).toHaveCount(0)
-  await expect(registro.getByRole('combobox', { name: 'Etapa actual del lead' })).toBeFocused()
+  await expect(registro.getByRole('tab', { selected: true })).toBeFocused()
   await expect(registro.getByRole('listitem')).toHaveCount(26)
   await page.setViewportSize({ width: 390, height: 844 })
-  await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
+  await registro.getByRole('heading', { name: 'Actividad de hoy', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('registro-detalle.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(registro.getByRole('listitem')).toHaveCount(26)
-  await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
+  await registro.getByRole('heading', { name: 'Actividad de hoy', exact: true }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('registro-detalle-movil.png') })
   const pestañas = registro.getByRole('tablist', { name: 'Tipo de actividad' })
@@ -192,7 +193,8 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
       && Number.parseFloat(getComputedStyle(el).fontSize) < 11).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
   expect(pequenos).toEqual([])
   revocado = true
-  await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
+  // Sin «Actualizar» propio en la ficha: la pantalla entera se actualiza desde su cabecera.
+  await vista.locator(':scope > header').getByRole('button', { name: 'Actualizar', exact: true }).click()
   await expect(registro.getByRole('alert')).toContainText('Ya no tienes autorización')
   await expect(registro.getByRole('listitem')).toHaveCount(0)
   await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
@@ -202,8 +204,9 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
 })
 
 // Diseño de Gestión Diaria (27/09/2026): filas de 52 px con aire en vez de las 44 px de H2 (23/09); se ven
-// menos filas sin desplazar y el resto se alcanza dentro de la tabla, sin mover la página.
-for (const medida of [{ width: 1512, height: 805, filas: 6 }, { width: 1366, height: 768, filas: 5 }]) {
+// menos filas sin desplazar y el resto se alcanza dentro de la tabla, sin mover la página. Sin el tablero de
+// cifras (Miguel, 27/09: la jerarquía es de la tabla) se gana una fila en cada tamaño: 7 y 6.
+for (const medida of [{ width: 1512, height: 805, filas: 7 }, { width: 1366, height: 768, filas: 6 }]) {
   test(`H2 densidad ${medida.width}: ${medida.filas} filas, seis columnas y texto completo`, async ({ page }, info) => {
     await page.setViewportSize(medida)
     await montarBackendReal(page, { rolCrm: 'supervisor', leads: [], tareas: [] })
