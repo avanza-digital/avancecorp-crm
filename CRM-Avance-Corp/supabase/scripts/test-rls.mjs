@@ -7,6 +7,11 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
+if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
+  await import('./ranking-origen/test-rls-origen-concreto.mjs');
+  process.exit(0);
+}
+
 // Matriz focalizada del nuevo RPC. No sustituye ni modifica el gate general.
 if (process.argv.length === 3 && process.argv[2] === '--ranking-origen') {
   await import('./ranking-origen/test-rls.mjs');
