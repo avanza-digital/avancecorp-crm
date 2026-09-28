@@ -22,7 +22,7 @@ test('capital por origen muestra renovación y upgrade dentro de cartera en escr
     const consulta = route.request().postDataJSON()
     await route.fulfill({ json: {
       version: 2,
-      cartera: [{ categoria: 'renovacion', pen: 0, usd: 0 }, { categoria: 'upgrade', pen: 577554, usd: 40000 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 }], periodo: consulta.p_periodo, vendedor_id: consulta.p_vendedor_id, disponible: true,
+      cartera: [{ categoria: 'renovacion', pen: 0, usd: 0 }, { categoria: 'upgrade', pen: 577554, usd: 40000 }, { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 }], periodo: consulta.p_periodo, vendedor_id: consulta.p_vendedor_id, disponible: true,
       filas: [
         { origen: 'cartera', capital_pen: 577554, capital_usd: 40000, contratos: 2, leads: 0, cierres: 0, conversion_pct: null },
       ],

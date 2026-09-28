@@ -228,7 +228,7 @@ describe('ficha real de capital por origen', () => {
     origenes.cartera = [
       { categoria: 'renovacion', pen: 0, usd: 0 },
       { categoria: 'upgrade', pen: 577554, usd: 40000 },
-      { categoria: 'sin_clasificar', pen: 0, usd: 0 },
+      { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 },
     ]
     render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={3.3776}
       cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
@@ -246,7 +246,7 @@ describe('ficha real de capital por origen', () => {
     origenes.cartera = [
       { categoria: 'renovacion', pen: 0, usd: 0 },
       { categoria: 'upgrade', pen: 50000, usd: 5000 },
-      { categoria: 'sin_clasificar', pen: 50000, usd: 0 },
+      { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 50000, usd: 0 },
     ]
     render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={tc}
       cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)

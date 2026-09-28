@@ -34,7 +34,7 @@ describe('contrato RPC del desglose de Ranking', () => {
 const cartera = [
   { categoria: 'renovacion', pen: 0, usd: 0 },
   { categoria: 'upgrade', pen: '577554', usd: '40000' },
-  { categoria: 'sin_clasificar', pen: 0, usd: 0 },
+  { categoria: 'nuevo', pen: 0, usd: 0 }, { categoria: 'sin_clasificar', pen: 0, usd: 0 },
 ]
 it('preserva el desglose registrado de cartera legada con PEN y USD', () => {
   expect(v.parse(RankingOrigenVendedorSchema, { ...base, cartera }).cartera?.[1])

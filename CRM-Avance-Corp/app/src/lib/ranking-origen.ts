@@ -21,10 +21,10 @@ export const RankingOrigenVendedorSchema = v.pipe(
     disponible: v.boolean(),
     filas: v.array(FilaOrigenRankingSchema),
     cartera: v.nullable(v.pipe(v.array(v.strictObject({
-      categoria: v.picklist(['renovacion', 'upgrade', 'sin_clasificar']),
+      categoria: v.picklist(['renovacion', 'upgrade', 'nuevo', 'sin_clasificar']),
       pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
       usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
-    })), v.check((filas) => filas.length === 3 && new Set(filas.map((f) => f.categoria)).size === 3,
+    })), v.check((filas) => filas.length === 4 && new Set(filas.map((f) => f.categoria)).size === 4,
       'El desglose de cartera debe tener una fila por categoría'))),
   }),
   v.check(
