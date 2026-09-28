@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   consultarVersionPublicada,
   hayVersionNueva,
+  limpiarMarcaDeVersion,
   urlParaActualizar,
+  urlSinMarcaDeVersion,
 } from './version-publicada'
 
 function respuestaJson(valor: unknown, ok = true) {
@@ -59,5 +61,86 @@ describe('version publicada', () => {
       'https://crm.miavance.com/?origen=acceso#/derivaciones',
       'build-nuevo',
     )).toBe('https://crm.miavance.com/?origen=acceso&crm_version=build-nuevo#/derivaciones')
+  })
+})
+
+describe('marca de version en la URL', () => {
+  it('quita solo crm_version y conserva la ruta hash y los demas parametros', () => {
+    expect(urlSinMarcaDeVersion('https://crm.miavance.com/?crm_version=build-1&otro=1#/hoy'))
+      .toBe('https://crm.miavance.com/?otro=1#/hoy')
+  })
+
+  it('no deja un ? suelto cuando era el unico parametro', () => {
+    expect(urlSinMarcaDeVersion('https://crm.miavance.com/?crm_version=build-1#/hoy'))
+      .toBe('https://crm.miavance.com/#/hoy')
+  })
+
+  it('devuelve null si no habia nada que limpiar', () => {
+    expect(urlSinMarcaDeVersion('https://crm.miavance.com/?otro=1#/hoy')).toBeNull()
+    expect(urlSinMarcaDeVersion('https://crm.miavance.com/#/hoy')).toBeNull()
+  })
+
+  it('devuelve null ante una URL invalida, sin lanzar', () => {
+    expect(() => urlSinMarcaDeVersion('esto no es una url')).not.toThrow()
+    expect(urlSinMarcaDeVersion('esto no es una url')).toBeNull()
+    expect(urlSinMarcaDeVersion('')).toBeNull()
+  })
+
+  it('es la inversa de urlParaActualizar: ida y vuelta devuelven la URL original', () => {
+    for (const original of [
+      'https://crm.miavance.com/?origen=acceso#/derivaciones',
+      'https://crm.miavance.com/#/hoy',
+      'https://crm.miavance.com/',
+    ]) {
+      expect(urlSinMarcaDeVersion(urlParaActualizar(original, 'build-nuevo'))).toBe(original)
+    }
+  })
+})
+
+describe('limpiarMarcaDeVersion (arranque)', () => {
+  const irA = (ruta: string) => window.history.replaceState(null, '', ruta)
+
+  afterEach(() => {
+    irA('/')
+  })
+
+  it('limpia la barra de direcciones sin perder la ruta hash ni disparar hashchange', async () => {
+    irA('/?crm_version=build-20260928T194323329Z&otro=1#/hoy')
+    const alCambiarHash = vi.fn()
+    window.addEventListener('hashchange', alCambiarHash)
+
+    expect(limpiarMarcaDeVersion()).toBe(true)
+    // hashchange se despacha en una tarea aparte: hay que dejarla correr.
+    await new Promise((resolver) => setTimeout(resolver, 0))
+
+    expect(window.location.search).toBe('?otro=1')
+    expect(window.location.hash).toBe('#/hoy')
+    expect(window.location.pathname).toBe('/')
+    expect(alCambiarHash).not.toHaveBeenCalled()
+    window.removeEventListener('hashchange', alCambiarHash)
+  })
+
+  it('no toca la URL cuando ya esta limpia', () => {
+    irA('/?otro=1#/pipeline')
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+
+    expect(limpiarMarcaDeVersion()).toBe(false)
+
+    expect(replaceState).not.toHaveBeenCalled()
+    expect(window.location.search).toBe('?otro=1')
+    expect(window.location.hash).toBe('#/pipeline')
+  })
+
+  it('no rompe el arranque si history falla', () => {
+    irA('/?crm_version=build-1#/hoy')
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      throw new Error('sin history')
+    })
+    try {
+      expect(() => limpiarMarcaDeVersion()).not.toThrow()
+      expect(limpiarMarcaDeVersion()).toBe(false)
+    } finally {
+      replaceState.mockRestore()
+    }
   })
 })

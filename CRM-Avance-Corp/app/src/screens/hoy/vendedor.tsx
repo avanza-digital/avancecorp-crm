@@ -7,6 +7,7 @@ import { useModoSla } from '@/data/sla-operacion-queries'
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -24,14 +25,12 @@ import {
   ChevronRight,
   CircleCheckBig,
   ClipboardList,
-  FileText,
   MessageCircle,
   Phone,
   Plus,
   Sparkles,
   Target,
   TrendingUp,
-  Trophy,
   Users,
   Wallet,
   Zap,
@@ -44,12 +43,12 @@ import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { AnimatedValue } from '@/components/common/animated-value'
+import { VacioCompacto } from '@/components/common/vacio-compacto'
 import { AccionesContacto } from '@/components/app/contacto'
 import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import {
   BUCKET_LABEL,
   capitalPorMoneda,
-  capitalPrincipal,
   colorMeta,
   diasDesdeReferencia,
   diasTxt,
@@ -79,6 +78,8 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { seleccionarPrioridadesVendedor, type PrioridadVendedor } from './prioridades-vendedor'
 import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
+import { CitasAnalista } from './citas-analista'
+import { cn } from '@/lib/utils'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -293,7 +294,8 @@ function textoRestoVencidas(resto: number, abajo: number): string {
 const FILA_BASE =
   'group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
 
-/** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego. */
+/** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego.
+ * («Tus citas» tiene su propia fila, `FilaCita` en citas-analista.tsx.) */
 function FilaAgenda({
   ev,
   lead,
@@ -307,6 +309,11 @@ function FilaAgenda({
 }): JSX.Element {
   const [dia, hora] = ev.cuando.split(' · ')
   const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
+  // Con role="button" el nombre lo fija el aria-label y los hijos son
+  // presentacionales: hora, día y badges (tipo, Cliente) viajan como
+  // DESCRIPCIÓN. `useId` porque la misma cita puede pintarse dos veces (agenda
+  // del día y «Tus citas») y los ids no pueden repetirse.
+  const metaId = useId()
   const abreFichaLead = ev.lead_id !== '' || Boolean(ev.inversionista_id)
   const abrir = () => {
     if (ev.inversionista_id) abrirInversionista(ev.inversionista_id)
@@ -317,8 +324,13 @@ function FilaAgenda({
         role: 'button' as const,
         tabIndex: 0,
         'aria-label': `Abrir ficha — ${ev.titulo}`,
+        'aria-describedby': `${metaId}-h ${metaId}-m`,
         onClick: abrir,
         onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+          // Solo teclas sobre la FILA (mismo guard que FilaHigiene): un Enter
+          // en el botón «Cerrar tarea» burbujea hasta aquí y el preventDefault
+          // le robaba su click nativo — abría la ficha en vez del diálogo.
+          if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             abrir()
@@ -332,7 +344,7 @@ function FilaAgenda({
       className={`${FILA_BASE}${abreFichaLead ? '' : ' cursor-default hover:bg-transparent'}`}
     >
       {/* Hora — el ancla del día */}
-      <div className="w-12 shrink-0 text-center leading-none">
+      <div id={`${metaId}-h`} className="w-12 shrink-0 text-center leading-none">
         <p className="text-base font-extrabold tabular-nums" style={{ color: ev.color }}>
           {hora ?? dia}
         </p>
@@ -349,7 +361,7 @@ function FilaAgenda({
           usa el ancho de la tarjeta en vez de apilar y dejar el resto vacío. */}
       <div className="min-w-0 flex-1 leading-tight sm:flex sm:items-center sm:gap-x-3">
         <p className="truncate text-sm font-semibold">{ev.titulo}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:mt-0 sm:shrink-0">
+        <div id={`${metaId}-m`} className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:mt-0 sm:shrink-0">
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
           </Badge>
@@ -420,34 +432,6 @@ function AgendaVacia({
   )
 }
 
-/** Estado vacío en horizontal: icono a la izquierda y texto a la derecha, en
- * una franja baja. La caja centrada con aire arriba y abajo dejaba huecos en
- * la pantalla, sobre todo cuando la tarjeta vecina sí tenía filas. */
-function VacioCompacto({
-  icono: Icono,
-  colorIcono = 'text-muted-foreground/60',
-  titulo,
-  detalle,
-  extra,
-}: {
-  icono?: LucideIcon
-  colorIcono?: string
-  titulo: string
-  detalle: ReactNode
-  extra?: ReactNode
-}): JSX.Element {
-  return (
-    <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3">
-      {Icono && <Icono className={`size-6 shrink-0 ${colorIcono}`} aria-hidden />}
-      <div className="min-w-0">
-        <p className="text-sm font-bold">{titulo}</p>
-        <p className="text-xs text-[var(--muted-foreground-strong)]">{detalle}</p>
-        {extra && <p className="mt-0.5 text-[11px] font-semibold text-foreground/70">{extra}</p>}
-      </div>
-    </div>
-  )
-}
-
 function AgendaHoy({
   eventos,
   leadPorId,
@@ -457,6 +441,7 @@ function AgendaHoy({
   nReuniones,
   nPropuestas,
   vencidasAbajo,
+  listaDesplazable = false,
   className,
   title = 'Tu agenda de hoy',
 }: {
@@ -471,6 +456,9 @@ function AgendaHoy({
    *  de la pantalla (cola + higiene). Solo la pantalla puede saberlo, y sin ese
    *  dato el pie no puede prometer nada (ver `textoRestoVencidas`). */
   vencidasAbajo: number
+  /** Modo activo: la tarjeta se estira a su columna y las filas se desplazan
+   *  DENTRO del contenido (la pantalla entera cabe en la ventana). */
+  listaDesplazable?: boolean
   className?: string
   title?: string
 }): JSX.Element {
@@ -513,7 +501,7 @@ function AgendaHoy({
           ) : undefined
         }
       />
-      <CardContent className="flex flex-1 flex-col pt-0">
+      <CardContent className={cn('flex flex-1 flex-col pt-0', listaDesplazable && 'ac-scroll min-h-0 overflow-y-auto')}>
         {eventos.length === 0 ? (
           <AgendaVacia demo={demo} nReuniones={nReuniones} nPropuestas={nPropuestas} />
         ) : (
@@ -558,9 +546,10 @@ function AgendaHoy({
                 )}
               </div>
             )}
-            {/* Cronología de HOY anclada arriba: ancla de lectura estable; el
-                remanente se llena con un pie accionable de bajo peso, no con aire. */}
-            <div className="flex flex-1 flex-col justify-start gap-1.5">
+            {/* Cronología de HOY anclada arriba; el pie «Día con espacio» sigue a
+                las filas y NO al fondo: en modo activo la tarjeta se estira a la
+                columna, y un pie pegado abajo dejaba el hueco en medio. */}
+            <div className="flex flex-col gap-1.5">
               {alDia.map((ev) => (
                 <FilaAgenda
                   key={ev.id}
@@ -571,7 +560,7 @@ function AgendaHoy({
                 />
               ))}
               {alDia.length <= 2 && (
-                <div className="mt-auto flex flex-col gap-0.5 px-1 pb-1 pt-2">
+                <div className="flex flex-col gap-0.5 px-1 pb-1 pt-2">
                   <p className="text-xs text-muted-foreground">
                     {alDia.length === 0 ? 'Sin citas para hoy' : 'Día con espacio'} — agenda la siguiente acción desde
                     una ficha de lead o desde Mi cartera.
@@ -611,7 +600,7 @@ function AgendaClientesHoy({
   const vencidas = eventos.filter((evento) => evento.vencida).length
 
   return (
-    <Card className="border-primary/20">
+    <Card className="shrink-0 border-primary/20">
       <SectionHead
         icon={CalendarClock}
         title="Clientes por gestionar hoy"
@@ -839,56 +828,6 @@ function FranjaAhora({
   )
 }
 
-function PulsoCartera({
-  items,
-  className,
-  compacta = false,
-}: {
-  items: Array<{ label: string; value: string; sub: string; icon: LucideIcon }>
-  className?: string
-  /** 2×2 para ir al lado de la agenda (modo activo); si no, una franja de 4. */
-  compacta?: boolean
-}): JSX.Element {
-  return (
-    <Card className={`min-w-0 overflow-hidden${className ? ` ${className}` : ''}`}>
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/80 px-5 py-3">
-        <span className="grid size-7 place-items-center rounded-lg bg-secondary text-primary">
-          <TrendingUp className="size-4" aria-hidden />
-        </span>
-        <h3 className="text-sm font-bold tracking-tight">Tu cartera en contexto</h3>
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Información · no requiere acción
-        </span>
-      </div>
-      <div
-        className={
-          compacta
-            ? 'grid grid-cols-2 divide-x divide-y divide-border/80'
-            : 'grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-4 lg:divide-y-0'
-        }
-      >
-        {items.map(({ label, value, sub, icon: Icon }) => (
-          <div key={label} className="min-w-0 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">{label}</p>
-              <span
-                className="ac-chip grid size-7 shrink-0 place-items-center rounded-lg"
-                style={{ '--c': 'var(--accent)' } as CSSProperties}
-              >
-                <Icon className="size-3.5" aria-hidden />
-              </span>
-            </div>
-            <p className="mt-2 text-xl font-extrabold leading-none tracking-tight tabular-nums text-primary">
-              <AnimatedValue value={value} />
-            </p>
-            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{sub}</p>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
@@ -954,16 +893,13 @@ export function HoyVendedor(): JSX.Element {
     [sesionRealPropios, propios.isPending, propios.error, mios],
   )
 
-  // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo
-  // demo vivo — esta pantalla ya no cuenta filas para sus tiles. Sin payload
-  // (cargando o RPC caída): «—», jamás una cifra inventada. La MONEDA QUE
-  // MANDA en el número grande sigue saliendo de capitalPrincipal (criterio
-  // compartido con Cartera/Pipeline — jamás un total mixto PEN+USD).
+  // ── F1b: las señales del embudo llegan del servidor (resumen_cartera_fn) o
+  // del espejo demo vivo — esta pantalla no cuenta filas por su cuenta. De
+  // aquí solo salen las cifras del vacío honesto de la agenda: los tiles de
+  // «Tu cartera en contexto» se retiraron (Miguel, 28/09/2026) y en su sitio
+  // van las citas del analista.
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
-  const capital = resumen ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd) : null
-  const nAbiertos = resumen?.totales.abiertos
-  const nConvertidos = resumen?.totales.convertidos
   const nPropuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n ?? 0
   const reunionesAgendadas = resumen?.embudo.find((p) => p.etapa === 'reunion_agendada')?.n ?? 0
 
@@ -1106,6 +1042,24 @@ export function HoyVendedor(): JSX.Element {
     return agendaDeTareas(mias, ahora).filter((evento) => evento.vencida || esDeHoy(evento, ahora))
   }, [tareas, yo?.id, ahora])
 
+  // «Tus citas»: TODAS las citas pendientes del analista —de sus leads y de
+  // los clientes de su cartera— SIN recortar al día: la del jueves también se
+  // prepara hoy. Mismos dos filtros de arriba (espejo RLS + postventa propia).
+  // `agendaDeTareas` ya deja solo pendientes+activas y ordena por vence_en,
+  // así que las vencidas quedan primero sin regla extra.
+  const citas = useMemo(() => {
+    const mias = tareas.filter(
+      (t) =>
+        t.tipo === 'reunion' &&
+        ((t.lead_id && (idsMios === null || idsMios.has(t.lead_id))) ||
+          ((t.perfil_id != null || t.inversionista_id != null) && (yo?.id == null || t.vendedor_id === yo.id))),
+    )
+    return agendaDeTareas(mias, ahora)
+  }, [tareas, idsMios, yo?.id, ahora])
+  // La fila de citas necesita la MODALIDAD (presencial/virtual) y el cierre
+  // necesita la tarea entera; el evento de agenda solo lleva el id.
+  const tareaPorId = useMemo(() => new Map(tareas.map((t) => [t.id, t] as const)), [tareas])
+
   // Modo "viernes 13:00" (Fase D): viernes p.m. es el peor momento para citas
   // nuevas → la cola deja de perseguir y ORDENA la próxima semana (vencidas,
   // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
@@ -1210,60 +1164,182 @@ export function HoyVendedor(): JSX.Element {
     ...amarillos.map((item) => item.lead.id),
   ]).size
 
-  /** Cifras de «Tu cartera en contexto»: van al lado de la agenda (activo) o en franja (legado). */
-  const itemsPulso = [
-    {
-      label: 'Capital abierto',
-      value: capital?.valor ?? '—',
-      icon: Wallet,
-      sub: capital?.otra
-        ? `Pipeline activo (PEN) · +${capital.otra} aparte`
-        : capital?.soloDolares
-          ? 'Pipeline activo (USD)'
-          : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
-            ? 'Sin montos estimados — complétalos en cada ficha'
-            : 'Pronóstico de tu pipeline activo',
-    },
-    {
-      label: 'Leads activos',
-      value: nAbiertos != null ? String(nAbiertos) : '—',
-      icon: Users,
-      sub: 'Abiertos en tu cartera',
-    },
-    {
-      label: 'Entrevistas realizadas',
-      value: resumen ? String(nPropuestas) : '—',
-      icon: FileText,
-      sub:
-        resumen == null
-          ? 'Sin dato por ahora'
-          : nPropuestas > 0
-            ? 'Entrevista hecha, cierre pendiente'
-            : (nAbiertos ?? 0) > 0
-              ? 'Ninguna enviada — revisa tus citas'
-              : 'Sin leads abiertos por ahora',
-    },
-    {
-      label: 'Convertidos',
-      value: nConvertidos != null ? String(nConvertidos) : '—',
-      icon: Trophy,
-      // F3.1 (H9/D1): este número es la VISTA de cartera — ganados aún
-      // visibles dentro de la ventana operativa — y el rótulo lee esa
-      // ventana del payload en vez de afirmar «45» por su cuenta. La
-      // conversión del MES vive abajo, en «Tu cumplimiento del mes».
-      sub:
-        resumen == null
-          ? 'Sin dato por ahora'
-          : (nConvertidos ?? 0) > 0
-            ? `Ganados aún en tu cartera · ventana de ${resumen.ventana_convertidos_dias} días`
-            : 'Aún sin cierres — tu primera venta sale de la cola',
-    },
-  ]
+  /** Abre el diálogo de cierre desde una fila de citas (solo conoce el id del evento = id de la tarea). */
+  const cerrarTareaPorId = (id: string) => {
+    const tarea = tareaPorId.get(id)
+    if (tarea) setTareaACerrar(tarea)
+  }
+
+  // «Tu cumplimiento del mes» siempre a la vista (pedido de Miguel, 28/09/2026:
+  // «que siempre se vea, que no se contraiga»): dejó de ser un <details>. La
+  // cabecera informa; no es un control. Se pinta en DOS sitios según el modo:
+  // en activo, debajo de la agenda dentro de la columna izquierda (la pantalla
+  // cabe en la ventana); fuera de activo, a todo el ancho debajo de las citas.
+  const tarjetaCumplimiento = (
+    <Card className="min-w-0 shrink-0">
+      <div className="flex min-h-14 items-center gap-3 px-5 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
+          <Target className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold tracking-tight">Tu cumplimiento del mes</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {yo?.demo ? 'Datos confirmados demo' : 'Contratos confirmados'} · metas y procedencia del mes
+          </p>
+        </div>
+        <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
+          {tcEnVuelo ? 'Capital consultando…' : capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
+          {' · '}
+          {conversionMensualCargando ? 'Conversión consultando…' : `Conversión ${porcentajeConversionCanonica(conversion)}`}
+        </span>
+      </div>
+      <CardContent className="border-t border-border/80 pt-4">
+        <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+          <MetaFila
+            icon={Wallet}
+            label="Capital confirmado"
+            valorTxt={tcEnVuelo ? 'Calculando…' : capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
+            metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
+            pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
+            delay={0}
+            nota={(
+              <>
+                {!tcEnVuelo && <DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
+                {hayAjusteCierre && ajusteCierre && (
+                  <p
+                    className="text-[11px] font-semibold tabular-nums text-warning-text"
+                    title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+                  >
+                    Neto tras ajuste de cierre
+                    {ajusteCierre.aplicadoPen > 0 ? ` · −${money(ajusteCierre.aplicadoPen, 'PEN')}` : ''}
+                    {ajusteCierre.aplicadoUsd > 0 ? ` · −${money(ajusteCierre.aplicadoUsd, 'USD')}` : ''}
+                    {ajusteCierre.contratosAplicados > 0
+                      ? ` · −${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
+                      : ''}
+                  </p>
+                )}
+              </>
+            )}
+            neutro={
+              fotoMensualStoreCargando
+                ? 'Actualizando la meta y el cumplimiento de este mes…'
+                : objetivosMensualesError
+                ? 'Meta mensual no disponible'
+                : tcEnVuelo
+                  ? 'Consultando el tipo de cambio para consolidar los dólares…'
+                  : (metaTotal.total ?? 0) <= 0
+                  ? SIN_META
+                  : cumplimientoMensualError || capitalTotal.total == null
+                    ? 'Cumplimiento confirmado no disponible'
+                    : undefined
+            }
+          />
+          <MetaFila
+            icon={TrendingUp}
+            label="Conversión del mes"
+            valorTxt={conversionMensualCargando ? 'Calculando…' : porcentajeConversionCanonica(conversion)}
+            metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
+            pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
+            delay={180}
+            nota={
+              miConversion && lecturaConversion.mostrar ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {/* `text-muted-foreground` y NO var(--gi-muted): ese token
+                    solo resuelve dentro de `.gerencia-inteligencia`, y esta
+                    pantalla no está en él — el color salía de la herencia
+                    por accidente (revisor a11y, F2.3). Mismo hex.
+                    El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
+                    lo llena el reparto, no el analista, y el número solo
+                    miente por omisión. */}
+                  Recibidos {numero(miConversion.divisor)} · cierres{' '}
+                  {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
+                  {miConversion.cierres_de_arrastre > 0 &&
+                    ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                  {(() => {
+                    // El porqué al lado del número que baja: su conversión ya
+                    // llega NETA de anulaciones de meses cerrados, y un
+                    // número que baja sin explicación es una llamada a
+                    // soporte. El detalle (mes, motivo, cuánto) va en title.
+                    const descuento = descuentoArrastre(miConversion.ajuste)
+                    return descuento ? (
+                      <>
+                        {' · '}
+                        <ChipArrastre descuento={descuento} />
+                      </>
+                    ) : null
+                  })()}
+                  {/* ⚠️ El aviso de «provisional» NO se le pone al analista
+                    (decisión de Miguel, 2026-08-14): él necesita ver su
+                    número, no la contabilidad de por qué el mes va corto.
+                    Ese matiz sí viaja a supervisor y gerencia, que son
+                    quienes comparan y deciden. */}
+                </span>
+              ) : undefined
+            }
+            neutro={
+              conversionMensualCargando
+                ? 'Consultando la conversión del mes…'
+                : conversionMensualError
+                  ? 'Conversión del mes no disponible'
+                  : !lecturaConversion.mostrar
+                  ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                  : miConversion?.estado === 'solo_referidos'
+                    ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
+                    : miConversion?.estado === 'solo_arrastre'
+                      ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
+                      : miConversion?.estado === 'sin_actividad' || conversion == null
+                        ? 'Sin leads recibidos este mes'
+                        : fotoMensualStoreCargando
+                          ? 'Actualizando la meta de este mes…'
+                          : objetivosMensualesError
+                          ? 'Meta mensual no disponible'
+                          : metaConversion == null
+                            ? SIN_META
+                            : undefined
+            }
+          />
+        </div>
+        {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
+            {/* El reintento cubre TAMBIÉN la conversión mensual (observación
+              #4 de la revisión externa: el tile decía «no disponible» sin
+              salida — recargar() solo repone el store, no esta query). */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (objetivosMensualesError || cumplimientoMensualError) {
+                  setRecargaPeriodoFallida(false)
+                  void recargar().then((ok) => {
+                    if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
+                  })
+                }
+                if (conversionMensualError) void qConversionMensual.refetch()
+                if (tcCaido) recargarTipoCambio()
+              }}
+            >
+              Reintentar
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 
   return (
-    <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
+    <div
+      className={cn(
+        'mx-auto flex min-h-0 max-w-[1240px] flex-col gap-5 ac-rise',
+        // Modo activo desde `lg`: la pantalla mide EXACTAMENTE el alto libre del
+        // <main> (100svh − Topbar 4rem − 2×1.5rem de padding del área), el mismo
+        // mecanismo que gestion-diaria/analista.tsx. Lo fijo no se comprime
+        // (`shrink-0`) y la fila agenda+citas es el tramo elástico.
+        modoSla.activo && 'lg:h-[calc(100svh-7rem)] lg:min-h-[640px]',
+      )}
+    >
       {/* Encabezado de jornada: orientación, no otro bloque de métricas. */}
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-accent">Mi jornada</p>
           <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-primary">
@@ -1495,179 +1571,56 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       )}>
-        {/* Producción (modo activo): agenda y cartera EN DOS COLUMNAS. A todo el
-            ancho, la agenda dejaba medio monitor vacío y la cartera quedaba
-            debajo, fuera de la vista. */}
-        <div className={`grid gap-5 lg:items-start${mios.length > 0 ? ' lg:grid-cols-5' : ''}`}>
-          <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
-            onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
-            demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
-            vencidasAbajo={0} title="Tu agenda de hoy" className={mios.length > 0 ? 'min-w-0 lg:col-span-3' : 'min-w-0'} />
-          {mios.length > 0 && <PulsoCartera items={itemsPulso} className="lg:col-span-2" compacta />}
+        {/* Producción (modo activo): agenda y citas EN DOS COLUMNAS que llenan
+            la altura de la ventana (Miguel, 28/09/2026: «quiero ver toda la
+            ficha sin hacer scroll»). Esta fila es el tramo elástico de la raíz
+            (`min-h-0 flex-1`) y su única fila de grid mide `minmax(0,1fr)`: los
+            `min-h-0` en cadena son lo que impide que el contenido empuje la
+            pantalla más allá de la ventana. Izquierda: la agenda se estira y
+            desplaza sus filas dentro, con «Tu cumplimiento del mes» debajo.
+            Derecha: «Tus citas» llena la columna y desplaza su lista. El
+            `lg:min-h-[26rem]` es el suelo: si lo fijo de arriba (postventa)
+            no deja sitio, la pantalla se desplaza antes que aplastar las dos
+            tarjetas. */}
+        <div className="grid min-h-0 flex-1 gap-5 lg:min-h-[26rem] lg:grid-cols-5 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
+          <div className="flex min-h-0 min-w-0 flex-col gap-5 lg:col-span-3">
+            <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
+              onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
+              demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
+              vencidasAbajo={0} title="Tu agenda de hoy" listaDesplazable
+              className="flex min-h-0 min-w-0 flex-1 flex-col" />
+            {tarjetaCumplimiento}
+          </div>
+          <CitasAnalista
+            citas={citas}
+            tareaPorId={tareaPorId}
+            leadPorId={leadPorId}
+            abrirLead={abrirLead}
+            onCompletar={cerrarTareaPorId}
+            ahora={ahora}
+            disposicion="columna"
+            className="min-h-0 min-w-0 lg:col-span-2"
+          />
         </div>
       </SlaOperacionBoundary>
 
-      {modoSla.legado && mios.length > 0 && <PulsoCartera items={itemsPulso} />}
+      {/* Legado/demo: las citas a todo el ancho, donde estaba «Tu cartera en contexto». */}
+      {modoSla.legado && (
+        <CitasAnalista
+          citas={citas}
+          tareaPorId={tareaPorId}
+          leadPorId={leadPorId}
+          abrirLead={abrirLead}
+          onCompletar={cerrarTareaPorId}
+          ahora={ahora}
+        />
+      )}
 
-      {/* Progressive disclosure: el avance mensual está disponible, pero no
-          compite con el trabajo del día hasta que el analista decide abrirlo. */}
-      <Card className="min-w-0">
-        <details className="group">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-5 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 [&::-webkit-details-marker]:hidden">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
-              <Target className="size-4" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold tracking-tight">Tu cumplimiento del mes</h3>
-              <p className="text-[11px] text-muted-foreground">
-                {yo?.demo ? 'Datos confirmados demo' : 'Contratos confirmados'} · abre para ver metas y procedencia
-              </p>
-            </div>
-            <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
-              {tcEnVuelo ? 'Capital consultando…' : capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
-              {' · '}
-              {conversionMensualCargando ? 'Conversión consultando…' : `Conversión ${porcentajeConversionCanonica(conversion)}`}
-            </span>
-            <ChevronRight
-              className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-              aria-hidden
-            />
-          </summary>
-          <CardContent className="border-t border-border/80 pt-4">
-            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-              <MetaFila
-                icon={Wallet}
-                label="Capital confirmado"
-                valorTxt={tcEnVuelo ? 'Calculando…' : capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
-                metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
-                pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
-                delay={0}
-                nota={(
-                  <>
-                    {!tcEnVuelo && <DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
-                    {hayAjusteCierre && ajusteCierre && (
-                      <p
-                        className="text-[11px] font-semibold tabular-nums text-warning-text"
-                        title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
-                      >
-                        Neto tras ajuste de cierre
-                        {ajusteCierre.aplicadoPen > 0 ? ` · −${money(ajusteCierre.aplicadoPen, 'PEN')}` : ''}
-                        {ajusteCierre.aplicadoUsd > 0 ? ` · −${money(ajusteCierre.aplicadoUsd, 'USD')}` : ''}
-                        {ajusteCierre.contratosAplicados > 0
-                          ? ` · −${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
-                          : ''}
-                      </p>
-                    )}
-                  </>
-                )}
-                neutro={
-                  fotoMensualStoreCargando
-                    ? 'Actualizando la meta y el cumplimiento de este mes…'
-                    : objetivosMensualesError
-                    ? 'Meta mensual no disponible'
-                    : tcEnVuelo
-                      ? 'Consultando el tipo de cambio para consolidar los dólares…'
-                      : (metaTotal.total ?? 0) <= 0
-                      ? SIN_META
-                      : cumplimientoMensualError || capitalTotal.total == null
-                        ? 'Cumplimiento confirmado no disponible'
-                        : undefined
-                }
-              />
-              <MetaFila
-                icon={TrendingUp}
-                label="Conversión del mes"
-                valorTxt={conversionMensualCargando ? 'Calculando…' : porcentajeConversionCanonica(conversion)}
-                metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
-                pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
-                delay={180}
-                nota={
-                  miConversion && lecturaConversion.mostrar ? (
-                    <span className="text-[11px] text-muted-foreground">
-                      {/* `text-muted-foreground` y NO var(--gi-muted): ese token
-                        solo resuelve dentro de `.gerencia-inteligencia`, y esta
-                        pantalla no está en él — el color salía de la herencia
-                        por accidente (revisor a11y, F2.3). Mismo hex.
-                        El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
-                        lo llena el reparto, no el analista, y el número solo
-                        miente por omisión. */}
-                      Recibidos {numero(miConversion.divisor)} · cierres{' '}
-                      {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
-                      {miConversion.cierres_de_arrastre > 0 &&
-                        ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
-                      {(() => {
-                        // El porqué al lado del número que baja: su conversión ya
-                        // llega NETA de anulaciones de meses cerrados, y un
-                        // número que baja sin explicación es una llamada a
-                        // soporte. El detalle (mes, motivo, cuánto) va en title.
-                        const descuento = descuentoArrastre(miConversion.ajuste)
-                        return descuento ? (
-                          <>
-                            {' · '}
-                            <ChipArrastre descuento={descuento} />
-                          </>
-                        ) : null
-                      })()}
-                      {/* ⚠️ El aviso de «provisional» NO se le pone al analista
-                        (decisión de Miguel, 2026-08-14): él necesita ver su
-                        número, no la contabilidad de por qué el mes va corto.
-                        Ese matiz sí viaja a supervisor y gerencia, que son
-                        quienes comparan y deciden. */}
-                    </span>
-                  ) : undefined
-                }
-                neutro={
-                  conversionMensualCargando
-                    ? 'Consultando la conversión del mes…'
-                    : conversionMensualError
-                      ? 'Conversión del mes no disponible'
-                      : !lecturaConversion.mostrar
-                      ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-                      : miConversion?.estado === 'solo_referidos'
-                        ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
-                        : miConversion?.estado === 'solo_arrastre'
-                          ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
-                          : miConversion?.estado === 'sin_actividad' || conversion == null
-                            ? 'Sin leads recibidos este mes'
-                            : fotoMensualStoreCargando
-                              ? 'Actualizando la meta de este mes…'
-                              : objetivosMensualesError
-                              ? 'Meta mensual no disponible'
-                              : metaConversion == null
-                                ? SIN_META
-                                : undefined
-                }
-              />
-            </div>
-            {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
-                {/* El reintento cubre TAMBIÉN la conversión mensual (observación
-                  #4 de la revisión externa: el tile decía «no disponible» sin
-                  salida — recargar() solo repone el store, no esta query). */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (objetivosMensualesError || cumplimientoMensualError) {
-                      setRecargaPeriodoFallida(false)
-                      void recargar().then((ok) => {
-                        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
-                      })
-                    }
-                    if (conversionMensualError) void qConversionMensual.refetch()
-                    if (tcCaido) recargarTipoCambio()
-                  }}
-                >
-                  Reintentar
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </details>
-      </Card>
+      {/* Fuera del modo activo (legado/demo, o mientras el seguimiento se
+          consulta o falla) el cumplimiento sigue aquí, debajo y a todo el ancho. */}
+      {!modoSla.activo && tarjetaCumplimiento}
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="shrink-0 text-[11px] text-muted-foreground">
         {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada analista trabaja solo con sus leads.
       </p>
 

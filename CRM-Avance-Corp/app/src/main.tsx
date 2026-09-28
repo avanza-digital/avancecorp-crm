@@ -9,7 +9,12 @@ import { StoreProvider } from '@/lib/store.tsx'
 import { instalarLimpiezaCacheAutenticacion, queryClient } from '@/lib/query-client'
 import { instalarSentry } from '@/lib/sentry'
 import { VersionPublicadaAviso } from '@/components/app/version-publicada'
+import { limpiarMarcaDeVersion } from '@/lib/version-publicada'
 
+// La recarga por versión nueva llega con `?crm_version=…` (llave contra cachés).
+// Se retira ANTES de montar React: el router lee una URL limpia y la llave no
+// se queda pegada en la barra de direcciones ni en los enlaces que salen de ella.
+limpiarMarcaDeVersion()
 instalarLimpiezaCacheAutenticacion()
 instalarSentry() // no-op sin VITE_SENTRY_DSN (y el chunk ni se descarga)
 
