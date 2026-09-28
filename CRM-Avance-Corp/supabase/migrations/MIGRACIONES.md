@@ -13981,8 +13981,13 @@ capital. Front vivo: commit `8ec3dd1f67e1`, build
 
 ## 20260928043728 — G4a: Gerencia lee los pendientes de cualquier analista
 
-**⏸️ PENDIENTE DE APLICAR EN PRODUCCIÓN (la aplica Miguel con `!`: migración y después
-`supabase/scripts/g4/registrar-20260928043728.sql`).** Huellas nuevas: núcleo
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 28/09/2026** (Miguel con `!`: migración y
+después `supabase/scripts/g4/registrar-20260928043728.sql`). Verificado en producción (lectura):
+huellas núcleo a0bde87d… y gate 6aecb25a…, puerta y ámbito sin cambios, `assert_gestion_diaria()`
+y `assert_sla_*` en verde, anon sin EXECUTE; prueba sin escribir (DO que termina en `raise`) con
+una cuenta real de Gerencia: lee los pendientes de un analista a su nombre; un supervisor real
+sigue igual y recibe 42501 en otro equipo. Registro: una fila con el cuerpo íntegro (md5
+09dcd836…). Front (pestaña Pendientes de Gerencia) pendiente de `/release-crm`. Huellas nuevas: núcleo
 `a0bde87db9ea86694ba4ee79dc109729`, gate H3 re-sellado `6aecb25a8a66e10cc5dcae69afb66281`.
 Verificado en el banco Docker aislado `crm-banco-g4` (esquema de producción por `db dump`,
 paridad 27/27 por md5, actores sintéticos, configuración SLA copiada con autores ficticios):
