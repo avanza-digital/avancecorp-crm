@@ -1,9 +1,12 @@
-// El conteo del botón «GESTIÓN DIARIA»: qué campo del día alimenta cada cifra
-// (sobre un día con la forma REAL del servidor), que sin día no se lea «al
-// día», que el demo muestre algo, y la visita del día en localStorage.
+// El conteo del botón «GESTIÓN DIARIA»: en sesión real cuenta la MISMA cola que
+// abre el destino (ordenada con `ordenarColaDiaria`) y el marcador del día; en
+// demo, el espejo. Sin día de HOY entero y sin cola llegada sin error ni
+// recorte NO hay cifras (nunca ceros que se lean como «al día»). Y la visita
+// del día en localStorage.
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { diaAnalistaDesdeDemo, type DiaAnalista, type SenalCartera } from '@/lib/gestion-diaria-analista'
+import { diaAnalistaDesdeDemo, type DiaAnalista, type ItemColaSla, type SenalCartera } from '@/lib/gestion-diaria-analista'
+import type { ColaSlaPagina } from '@/lib/sla-operacion'
 import type { Yo } from '@/lib/tipos'
 
 const dobles = vi.hoisted(() => ({
@@ -11,14 +14,22 @@ const dobles = vi.hoisted(() => ({
   ahora: Date.parse('2026-09-23T15:00:00Z'),
   yo: { id: 'a1', nombre_completo: 'ANALISTA UNO', rol: 'vendedor', demo: false, puede_contratar: true } as Yo | null,
   dia: null as DiaAnalista | null,
-  cargando: false,
+  diaCargando: false,
+  cola: { data: undefined as ColaSlaPagina | undefined, error: null as unknown, isPending: false },
+  colaArgs: [] as unknown[],
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => dobles.ahora }))
 vi.mock('./gestion-diaria-queries', () => ({
-  useDiaAnalista: () => ({ dia: dobles.dia, cargando: dobles.cargando, enVuelo: false, error: null, recargar: async () => {} }),
+  useDiaAnalista: () => ({ dia: dobles.dia, cargando: dobles.diaCargando, enVuelo: false, error: null, recargar: async () => {} }),
 }))
-const { claveVisita, conteoDelDia, useConteoGestionDiaria } = await import('./use-conteo-gestion-diaria')
+vi.mock('./sla-operacion-queries', () => ({
+  useColaSlaPagina: (...args: unknown[]) => {
+    dobles.colaArgs = args
+    return dobles.cola
+  },
+}))
+const { claveVisita, conteoDelDia, conteoDelDiaDemo, FILTROS_COLA, LIMITE_COLA, useConteoGestionDiaria } = await import('./use-conteo-gestion-diaria')
 
 const HORA_MS = 3_600_000
 const DIA_MS = 24 * HORA_MS
@@ -33,10 +44,15 @@ const senal = (id: string, extra: Partial<SenalCartera> = {}): SenalCartera => (
   ...extra,
 })
 
+/** Ítem de la cola v2 con lo que `ordenarColaDiaria` lee (mismo doble que en lib/gestion-diaria-analista.test.ts). */
+const item = (id: string, bucket: string, referencia: string | null): ItemColaSla => ({
+  lead_id: id, bucket, severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: 0, referencia_en: referencia, tarea_id: null,
+  lead: { id, nombre_completo: `LEAD ${id}`, etapa: 'contactado', analista_id: 'a1', analista_nombre: 'ANALISTA UNO' },
+} as unknown as ItemColaSla)
+
 /**
  * Un día con la forma del servidor (`crm.gestion_diaria_analista_fn`, versión 1),
- * el mismo contrato que valida `DiaAnalistaSchema`. Cada señal de la cartera
- * documenta a qué cifra va (o por qué no va a ninguna).
+ * el mismo contrato que valida `DiaAnalistaSchema`.
  */
 const DIA_REAL: DiaAnalista = {
   version: 1, generado_en: '2026-09-23T15:00:00Z', dia: '2026-09-23', zona: 'America/Lima', analista_id: 'a1',
@@ -56,45 +72,56 @@ const DIA_REAL: DiaAnalista = {
   }],
   compromisos_total: 1,
   cartera: [
-    // Sin primer intento (etapa nuevo y 0 llamadas) → PENDIENTE.
     senal('nuevo-sin-intento'),
-    // Nuevo pero ya llamado y sin tarea → no está en la cola.
-    senal('nuevo-ya-llamado', { llamadas_ciclo: 1 }),
-    // Tarea de hoy a las 08:00 Lima, ya pasó → VENCIDA.
     senal('vencida-hoy', { etapa: 'contactado', llamadas_ciclo: 2, proxima_tarea_en: '2026-09-23T13:00:00Z', proxima_tarea_tipo: 'llamada' }),
-    // Tarea de ayer → VENCIDA.
     senal('vencida-ayer', { etapa: 'contactado', llamadas_ciclo: 1, proxima_tarea_en: '2026-09-22T20:00:00Z', proxima_tarea_tipo: 'llamada' }),
-    // Tarea hoy a las 15:00 Lima, todavía no llega → PENDIENTE.
     senal('hoy', { etapa: 'contactado', llamadas_ciclo: 1, proxima_tarea_en: '2026-09-23T20:00:00Z', proxima_tarea_tipo: 'reunion' }),
-    // Tarea mañana → no es de hoy.
     senal('manana', { etapa: 'contactado', llamadas_ciclo: 1, proxima_tarea_en: '2026-09-24T15:00:00Z', proxima_tarea_tipo: 'llamada' }),
-    // Doce días sin conversación → PENDIENTE (grupo «Sin conversación»).
+    // Doce días sin conversación → lo añade `ordenarColaDiaria` como PENDIENTE (grupo «Sin conversación»).
     senal('abandonado', { etapa: 'contactado', llamadas_ciclo: 3, sin_conversacion: true, dias_sin_conversacion: 12 }),
-    // Vencida Y sin conversación → cuenta UNA vez, como vencida.
+    // Vencida en la cola Y sin conversación → cuenta UNA vez, como vencida.
     senal('vencida-y-abandonado', {
       etapa: 'propuesta_enviada', llamadas_ciclo: 2, proxima_tarea_en: '2026-09-21T15:00:00Z', proxima_tarea_tipo: 'llamada',
       sin_conversacion: true, dias_sin_conversacion: 9,
     }),
-    // Con conversación reciente y sin tarea → no está en la cola.
     senal('tranquilo', { etapa: 'contactado', llamadas_ciclo: 2, ultima_conversacion_en: '2026-09-22T18:00:00Z' }),
   ],
   cartera_truncada: false,
   descartados: [],
 }
 
-describe('conteoDelDia (función pura sobre el día del servidor)', () => {
-  it('hechas = marcador.llamadas; vencidas = proxima_tarea_en pasada; pendientes = sin primer intento + hoy + sin conversación, cada lead una vez', () => {
-    expect(conteoDelDia(DIA_REAL, dobles.ahora)).toEqual({ hechas: 9, vencidas: 3, pendientes: 3 })
+/** La página de la cola v2 tal como la sirve `cola_accion_v2_fn` con `senal: 'todas'` (lo que `ordenarColaDiaria` no lee va abreviado). */
+const PAGINA: ColaSlaPagina = {
+  version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-23T15:00:00Z',
+  filtros: { senal: 'todas', etapa: null, analista_id: null }, limite: 100, total_items: 6, hay_mas: false, cursor_siguiente: null,
+  rango: { desde: 1, hasta: 6 },
+  // `totales` cuenta SEÑALES de la cola, no los grupos del día: no se usan para las cifras.
+  totales: { pendientes: 5, primera_atencion: 1, tareas_vencidas: 3, seguimientos_pendientes: 1, revisiones: 0, datos_incompletos: 0, por_repartir: 0 },
+  items: [
+    item('nuevo-sin-intento', 'primera_atencion', '2026-09-23T14:00:00Z'), // → PENDIENTE
+    item('vencida-hoy', 'tarea_vencida', '2026-09-23T13:00:00Z'), // → VENCIDA
+    item('vencida-ayer', 'tarea_vencida', '2026-09-22T20:00:00Z'), // → VENCIDA
+    item('hoy', 'tarea_hoy', '2026-09-23T20:00:00Z'), // → PENDIENTE
+    item('vencida-y-abandonado', 'tarea_vencida', '2026-09-21T15:00:00Z'), // → VENCIDA (una sola vez)
+    item('seguimiento', 'seguimiento', '2026-09-23T12:00:00Z'), // bucket que no es del día → no cuenta
+  ],
+} as unknown as ColaSlaPagina
+
+describe('conteoDelDia (sesión real: cola del servidor + marcador)', () => {
+  it('hechas = marcador.llamadas; vencidas = filas tarea_vencida; pendientes = sin primer intento + hoy + sin conversación, cada lead una vez', () => {
+    expect(conteoDelDia(DIA_REAL, PAGINA)).toEqual({ hechas: 9, vencidas: 3, pendientes: 3 })
   })
 
-  it('ni los compromisos (desde mañana) ni los leads tranquilos cuentan', () => {
-    const quieto = { ...DIA_REAL, cartera: DIA_REAL.cartera.filter((s) => s.lead_id === 'manana' || s.lead_id === 'tranquilo') }
-    expect(conteoDelDia(quieto, dobles.ahora)).toEqual({ hechas: 9, vencidas: 0, pendientes: 0 })
+  it('con la cola vacía solo quedan los sin conversación de la cartera', () => {
+    expect(conteoDelDia(DIA_REAL, { items: [] })).toEqual({ hechas: 9, vencidas: 0, pendientes: 2 })
   })
+})
 
-  it('con el reloj, lo acordado para hoy pasa a vencido al dar la hora', () => {
+describe('conteoDelDiaDemo (espejo sobre la cartera)', () => {
+  it('deriva vencidas y pendientes de proxima_tarea_en, y con el reloj lo de hoy pasa a vencido al dar la hora', () => {
+    expect(conteoDelDiaDemo(DIA_REAL, dobles.ahora)).toEqual({ hechas: 9, vencidas: 3, pendientes: 3 })
     const tarde = Date.parse('2026-09-23T20:30:00Z') // 15:30 Lima
-    expect(conteoDelDia(DIA_REAL, tarde)).toEqual({ hechas: 9, vencidas: 4, pendientes: 2 })
+    expect(conteoDelDiaDemo(DIA_REAL, tarde)).toEqual({ hechas: 9, vencidas: 4, pendientes: 2 })
   })
 })
 
@@ -104,7 +131,9 @@ describe('useConteoGestionDiaria', () => {
   beforeEach(() => {
     dobles.yo = { id: 'a1', nombre_completo: 'ANALISTA UNO', rol: 'vendedor', demo: false, puede_contratar: true }
     dobles.dia = DIA_REAL
-    dobles.cargando = false
+    dobles.diaCargando = false
+    dobles.cola = { data: PAGINA, error: null, isPending: false }
+    dobles.colaArgs = []
     window.localStorage.clear()
   })
 
@@ -112,24 +141,58 @@ describe('useConteoGestionDiaria', () => {
     if (almacenOriginal) Object.defineProperty(window, 'localStorage', almacenOriginal)
   })
 
-  it('en sesión real cuenta el día del servidor y lo declara disponible', () => {
+  it('en sesión real pide la MISMA cola que el destino (filtros, sin cursor, LIMITE_COLA, habilitada) y cuenta con ella', () => {
     const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(dobles.colaArgs).toEqual([{ senal: 'todas', etapa: null, analista_id: null }, null, 100, true])
+    expect(FILTROS_COLA).toEqual({ senal: 'todas', etapa: null, analista_id: null })
+    expect(LIMITE_COLA).toBe(100)
     expect(result.current).toMatchObject({ hechas: 9, vencidas: 3, pendientes: 3, disponible: true, cargando: false, yaVisitoHoy: false })
   })
 
-  it('sin día (cargando o RPC caído) las cifras van a 0 pero NO está disponible: el botón no debe decir «al día»', () => {
+  it('mientras la cola carga no hay cifras (cargando: true, disponible: false)', () => {
+    dobles.cola = { data: undefined, error: null, isPending: true }
+    const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(result.current).toMatchObject({ hechas: 0, vencidas: 0, pendientes: 0, disponible: false, cargando: true })
+  })
+
+  it('si la cola cayó no hay cifras, aunque TanStack conserve una foto anterior', () => {
+    dobles.cola = { data: PAGINA, error: new Error('cola caída'), isPending: false }
+    const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(result.current).toMatchObject({ hechas: 0, vencidas: 0, pendientes: 0, disponible: false, cargando: false })
+  })
+
+  it('si la página quedó corta (hay_mas) no se inventan cifras con `totales`: sin cifras', () => {
+    dobles.cola = { data: { ...PAGINA, hay_mas: true, total_items: 140 }, error: null, isPending: false }
+    const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(result.current).toMatchObject({ hechas: 0, vencidas: 0, pendientes: 0, disponible: false })
+  })
+
+  it('sin día (cargando o RPC caído) no hay cifras: el botón no debe decir «al día»', () => {
     dobles.dia = null
-    dobles.cargando = true
+    dobles.diaCargando = true
     const cargando = renderHook(() => useConteoGestionDiaria())
     expect(cargando.result.current).toMatchObject({ hechas: 0, vencidas: 0, pendientes: 0, disponible: false, cargando: true })
 
-    dobles.cargando = false // el RPC cayó: el día es fail-closed
+    dobles.diaCargando = false // el RPC cayó: el día es fail-closed
     const caido = renderHook(() => useConteoGestionDiaria())
     expect(caido.result.current).toMatchObject({ hechas: 0, vencidas: 0, pendientes: 0, disponible: false, cargando: false })
   })
 
-  it('en demo el espejo del ámbito ya trae cifras: una vencida, cosas de hoy y las llamadas del día', () => {
+  it('un día que no es el de HOY en Lima (reloj cruzó la medianoche antes del refetch) no da cifras', () => {
+    dobles.dia = { ...DIA_REAL, dia: '2026-09-22' }
+    const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(result.current).toMatchObject({ disponible: false, hechas: 0, vencidas: 0, pendientes: 0 })
+  })
+
+  it('con la cartera recortada por el servidor (cartera_truncada) no da cifras', () => {
+    dobles.dia = { ...DIA_REAL, cartera_truncada: true }
+    const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(result.current).toMatchObject({ disponible: false, hechas: 0, vencidas: 0, pendientes: 0 })
+  })
+
+  it('en demo la cola va deshabilitada y el espejo del ámbito ya trae cifras: una vencida, cosas de hoy y las llamadas del día', () => {
     dobles.yo = { id: 'd-v1', nombre_completo: 'ANALISTA UNO', rol: 'vendedor', demo: true, puede_contratar: true }
+    dobles.cola = { data: undefined, error: null, isPending: true } // consulta deshabilitada: TanStack la deja «pending»
     const hace = (dias: number) => iso(dobles.ahora - dias * DIA_MS)
     const leads = [
       { id: 'l1', nombre_completo: 'JUAN PÉREZ', etapa: 'nuevo', activo: true, vendedor_id: 'd-v1', creado_en: hace(0.3) },
@@ -148,6 +211,7 @@ describe('useConteoGestionDiaria', () => {
     ]
     dobles.dia = diaAnalistaDesdeDemo('d-v1', leads, actividades, tareas, dobles.ahora, '2026-09-23')
     const { result } = renderHook(() => useConteoGestionDiaria())
+    expect(dobles.colaArgs[3]).toBe(false)
     // hechas: las dos llamadas (el WhatsApp no cuenta) · vencida: l2 · pendientes: l15 sin primer intento y l17 con tarea hoy.
     expect(result.current).toMatchObject({ hechas: 2, vencidas: 1, pendientes: 2, disponible: true, cargando: false })
   })

@@ -2,7 +2,8 @@
 // del UI Playground): qué clase pinta cada estado, que el detalle viva en el
 // aria-label y no en pantalla, que la barra diga «4 de 9», que el clic
 // descuelgue el teléfono y navegue a los 420 ms, que ⌘/Ctrl no se secuestren y
-// que sin AudioContext (jsdom) el «pop» no reviente nada.
+// que el «pop» (Web Audio) solo suene con el contexto en marcha y nunca
+// reviente nada: ni sin AudioContext (jsdom), ni con `resume()` rechazado.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { BotonGestionDiaria, DURACION_DESCOLGAR_MS, type EstadoGestionDiaria } from './boton-gestion-diaria'
@@ -32,11 +33,14 @@ function conMovimiento(): void {
 }
 
 /**
- * AudioContext de mentira: cuenta cuántos contextos se construyen y cuántos
+ * AudioContext de mentira: cuenta contextos construidos y cerrados y cuántos
  * «pop» arrancan de verdad. Es una clase real (no un `vi.fn`): `new` exige un
- * constructor auténtico.
+ * constructor auténtico. Nace en pausa, como en el navegador antes del primer
+ * gesto; `arranca` decide si `resume()` lo pone en marcha; `rechaza` hace que
+ * `resume()` falle. `close()` SIEMPRE rechaza: si el botón no lo capturase,
+ * Vitest reportaría el rechazo suelto.
  */
-function audioFalso() {
+function audioFalso({ arranca = true, rechaza = false }: { arranca?: boolean; rechaza?: boolean } = {}) {
   const start = vi.fn()
   let construidos = 0
   let cerrados = 0
@@ -47,12 +51,15 @@ function audioFalso() {
     constructor() {
       construidos += 1
     }
-    close() {
-      cerrados += 1
+    resume() {
+      if (rechaza) return Promise.reject(new Error('sin gesto del usuario'))
+      if (arranca) this.state = 'running'
       return Promise.resolve()
     }
-    resume() {
-      return Promise.resolve()
+    close() {
+      cerrados += 1
+      this.state = 'closed'
+      return Promise.reject(new Error('ya cerrado'))
     }
     createOscillator() {
       return {
@@ -69,6 +76,14 @@ function audioFalso() {
   }
   vi.stubGlobal('AudioContext', ContextoFalso)
   return { start, construidos: () => construidos, cerrados: () => cerrados }
+}
+
+/** Deja correr las promesas del pop (resume → tocar). */
+async function esperarAudio(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
 }
 
 beforeEach(() => {
@@ -173,7 +188,7 @@ describe('BotonGestionDiaria — estados', () => {
   })
 })
 
-describe('BotonGestionDiaria — clic, teclado y sonido', () => {
+describe('BotonGestionDiaria — clic y teclado', () => {
   it('el clic descuelga el teléfono, no navega por su cuenta y llama a onIr a los 420 ms', () => {
     conMovimiento()
     const onIr = vi.fn()
@@ -233,7 +248,9 @@ describe('BotonGestionDiaria — clic, teclado y sonido', () => {
     })
     expect(onIr).not.toHaveBeenCalled()
   })
+})
 
+describe('BotonGestionDiaria — sonido', () => {
   it('sin AudioContext (jsdom) pasar el cursor o enfocar no lanza', () => {
     expect(typeof AudioContext).toBe('undefined')
     render(<BotonGestionDiaria estado={URGENTE} />)
@@ -244,15 +261,33 @@ describe('BotonGestionDiaria — clic, teclado y sonido', () => {
     }).not.toThrow()
   })
 
-  it('con AudioContext suena un «pop» al pasar el cursor o enfocar, y no más de uno cada 350 ms', () => {
+  it('con el contexto en marcha suena un «pop» al pasar el cursor o enfocar, y no más de uno cada 350 ms', async () => {
     const { start, construidos } = audioFalso()
     vi.spyOn(performance, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(1100).mockReturnValueOnce(1400)
     render(<BotonGestionDiaria estado={URGENTE} />)
     fireEvent.mouseEnter(enlace()) // 1000 → suena
     fireEvent.focus(enlace()) // 1100 → dentro de la pausa
     fireEvent.mouseEnter(enlace()) // 1400 → suena
+    await esperarAudio()
     expect(construidos()).toBe(1) // un solo contexto, reutilizado
     expect(start).toHaveBeenCalledTimes(2)
+  })
+
+  it('si el navegador deja el contexto en pausa (sin gesto del usuario) el pop se descarta: ningún oscilador', async () => {
+    const { start, construidos } = audioFalso({ arranca: false })
+    render(<BotonGestionDiaria estado={URGENTE} />)
+    fireEvent.mouseEnter(enlace())
+    await esperarAudio()
+    expect(construidos()).toBe(1)
+    expect(start).not.toHaveBeenCalled()
+  })
+
+  it('si resume() se rechaza no lanza ni deja un rechazo suelto, y no suena', async () => {
+    const { start } = audioFalso({ rechaza: true })
+    render(<BotonGestionDiaria estado={URGENTE} />)
+    expect(() => fireEvent.mouseEnter(enlace())).not.toThrow()
+    await esperarAudio()
+    expect(start).not.toHaveBeenCalled()
   })
 
   it('con el sonido apagado ni siquiera crea el AudioContext', () => {
@@ -262,7 +297,7 @@ describe('BotonGestionDiaria — clic, teclado y sonido', () => {
     expect(construidos()).toBe(0)
   })
 
-  it('un AudioContext que revienta no rompe el botón', () => {
+  it('un AudioContext que revienta al construirse no rompe el botón', () => {
     class Revienta {
       constructor() {
         throw new Error('sin audio')
@@ -273,12 +308,14 @@ describe('BotonGestionDiaria — clic, teclado y sonido', () => {
     expect(() => fireEvent.mouseEnter(enlace())).not.toThrow()
   })
 
-  it('al desmontar libera el AudioContext (el navegador limita cuántos puede haber vivos)', () => {
+  it('al desmontar libera el AudioContext (close() con su rechazo capturado): el navegador limita cuántos puede haber vivos', async () => {
     const { construidos, cerrados } = audioFalso()
     const { unmount } = render(<BotonGestionDiaria estado={URGENTE} />)
     fireEvent.mouseEnter(enlace())
+    await esperarAudio()
     expect(construidos()).toBe(1)
     unmount()
+    await esperarAudio()
     expect(cerrados()).toBe(1)
   })
 })

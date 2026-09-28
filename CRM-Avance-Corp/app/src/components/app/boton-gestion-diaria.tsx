@@ -84,6 +84,24 @@ function crearPop(): Pop {
   if (typeof AudioContext === 'undefined') return { sonar() {}, cerrar() {} }
   let ctx: AudioContext | null = null
   let ultimo = Number.NEGATIVE_INFINITY
+  const tocar = (c: AudioContext) => {
+    try {
+      const t = c.currentTime
+      const osc = c.createOscillator()
+      const gain = c.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(660, t)
+      osc.frequency.exponentialRampToValueAtTime(1180, t + 0.09)
+      gain.gain.setValueAtTime(0.0001, t)
+      gain.gain.exponentialRampToValueAtTime(0.16, t + 0.012)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19)
+      osc.connect(gain).connect(c.destination)
+      osc.start(t)
+      osc.stop(t + 0.2)
+    } catch {
+      /* sin audio: el botón sigue funcionando igual */
+    }
+  }
   return {
     sonar() {
       const ahora = performance.now()
@@ -91,30 +109,34 @@ function crearPop(): Pop {
       ultimo = ahora
       try {
         ctx ??= new AudioContext()
-        if (ctx.state === 'suspended') void ctx.resume()
-        const t = ctx.currentTime
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(660, t)
-        osc.frequency.exponentialRampToValueAtTime(1180, t + 0.09)
-        gain.gain.setValueAtTime(0.0001, t)
-        gain.gain.exponentialRampToValueAtTime(0.16, t + 0.012)
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19)
-        osc.connect(gain).connect(ctx.destination)
-        osc.start(t)
-        osc.stop(t + 0.2)
+        const c = ctx
+        // El oscilador solo se programa con el contexto EN MARCHA. Si el
+        // navegador lo deja en pausa (aún no hubo gesto del usuario), el pop se
+        // descarta: no se encola para sonar tarde. Un `resume()` rechazado se
+        // captura aquí y no deja un rechazo suelto.
+        const listo = c.state === 'running' ? Promise.resolve() : c.resume()
+        listo
+          .then(() => {
+            if (c.state === 'running') tocar(c)
+          })
+          .catch(() => {
+            /* el navegador no dejó sonar: sin pop */
+          })
       } catch {
         /* sin audio: el botón sigue funcionando igual */
       }
     },
     cerrar() {
-      try {
-        void ctx?.close()
-      } catch {
-        /* ya cerrado o sin soporte */
-      }
+      const c = ctx
       ctx = null
+      if (c === null) return
+      try {
+        c.close().catch(() => {
+          /* ya cerrado */
+        })
+      } catch {
+        /* sin soporte */
+      }
     },
   }
 }
