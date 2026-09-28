@@ -2800,7 +2800,7 @@ export type Database = {
           no_contactar?: boolean
           nombre_completo: string
           nota?: string | null
-          origen?: string
+          origen: string
           perfil_id?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
@@ -3272,6 +3272,42 @@ export type Database = {
           periodo?: string
           tipo?: string
           vendedor_id?: string
+        }
+        Relationships: []
+      }
+      origenes_capital_confirmados: {
+        Row: {
+          activo: boolean
+          cierre_externo_id: string | null
+          confirmado_por: string
+          contrato_id: string | null
+          creado_en: string
+          fecha_comercial: string
+          id: string
+          motivo: string
+          origen: string
+        }
+        Insert: {
+          activo?: boolean
+          cierre_externo_id?: string | null
+          confirmado_por: string
+          contrato_id?: string | null
+          creado_en?: string
+          fecha_comercial: string
+          id?: string
+          motivo: string
+          origen: string
+        }
+        Update: {
+          activo?: boolean
+          cierre_externo_id?: string | null
+          confirmado_por?: string
+          contrato_id?: string | null
+          creado_en?: string
+          fecha_comercial?: string
+          id?: string
+          motivo?: string
+          origen?: string
         }
         Relationships: []
       }
