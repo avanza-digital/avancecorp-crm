@@ -181,8 +181,8 @@ as $function$
 declare v_firma text; v_huella text;
 begin
   for v_firma, v_huella in select * from (values
-    ('private.gestion_diaria_citas_core(date,text,uuid,integer,timestamptz,uuid)', '__H_NUCLEO_G4B__'),
-    ('crm.gestion_diaria_citas_fn(date,text,uuid,integer,timestamptz,uuid)', '__H_PUERTA_G4B__')
+    ('private.gestion_diaria_citas_core(date,text,uuid,integer,timestamptz,uuid)', '904d3b0a853a6cf794943217fc957f03'),
+    ('crm.gestion_diaria_citas_fn(date,text,uuid,integer,timestamptz,uuid)', 'fd2b0376be5e8c6728e4c33776e1a9e4')
   ) as firmas(firma, huella) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(v_firma)
       and not p.prosecdef and p.provolatile = 's' and p.proowner = 'postgres'::regrole
@@ -225,7 +225,7 @@ begin
     raise exception 'G4b: el cierre del paraguas no aparece una sola vez en assert_gestion_diaria()';
   end if;
   execute replace(v_def, v_viejo, v_nuevo);
-  if md5(pg_get_functiondef('private.assert_gestion_diaria()'::regprocedure)) is distinct from '__H_PARAGUAS_G4B__' then
+  if md5(pg_get_functiondef('private.assert_gestion_diaria()'::regprocedure)) is distinct from '58208b4fba6d2f76554e19e21444fe94' then
     raise exception 'G4b: el paraguas re-sellado no es el revisado';
   end if;
 end $enchufar$;

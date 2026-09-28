@@ -7,7 +7,8 @@ import { instantePendiente } from './gestion-diaria-pendientes'
 import { citasDelDiaDemo, type MundoDemo } from './gestion-diaria-pulso-demo'
 
 export type AmbitoCitas = 'analista' | 'equipo' | 'fuera' | 'operacion'
-export const ESTADOS_CITA = ['pendiente', 'completada', 'cancelada', 'no_show'] as const
+// El CHECK vivo de crm.tareas (tareas_estado_valido) admite también «reprogramada».
+export const ESTADOS_CITA = ['pendiente', 'completada', 'cancelada', 'no_show', 'reprogramada'] as const
 export type EstadoCita = (typeof ESTADOS_CITA)[number]
 
 const Uuid = v.pipe(v.string(), v.uuid())

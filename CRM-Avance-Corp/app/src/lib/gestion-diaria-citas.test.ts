@@ -39,7 +39,7 @@ describe('validarPaginaCitas', () => {
     ['total que no cuadra sin más páginas', pagina([a, b], { resumen: { total: 3 } })],
     ['hay_mas sin cursor', pagina([a, b], { hay_mas: true, resumen: { total: 3 } })],
     ['cursor que no es la última fila', pagina([a, b], { hay_mas: true, resumen: { total: 3 }, siguiente_cursor: { despues_de: a.creado_en, despues_id: a.id } })],
-    ['estado desconocido', pagina([{ ...a, estado: 'reprogramada' as never }])],
+    ['estado desconocido', pagina([{ ...a, estado: 'borrada' as never }])],
   ])('rechaza: %s', (_, valor) => {
     expect(validarPaginaCitas(valor, pedido)).toBeNull()
   })

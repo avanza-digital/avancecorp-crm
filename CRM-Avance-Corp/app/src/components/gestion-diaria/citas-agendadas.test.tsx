@@ -29,10 +29,11 @@ beforeEach(() => { vi.clearAllMocks() })
 
 describe('CitasAgendadas', () => {
   it('cada fila: hora de agenda, estado, lead que abre su ficha, analista y cuándo es la cita', () => {
-    montar({ items: [cita(1), cita(2, { estado: 'no_show', lead_id: null, lead_nombre: null, vendedor_nombre: null })], total: 2 })
-    expect(screen.getByRole('status')).toHaveTextContent('2 citas agendadas hoy')
+    montar({ items: [cita(1), cita(2, { estado: 'no_show', lead_id: null, lead_nombre: null, vendedor_nombre: null }), cita(3, { estado: 'reprogramada' })], total: 3 })
+    expect(screen.getByRole('status')).toHaveTextContent('3 citas agendadas hoy')
     const filas = within(screen.getByRole('list', { name: 'Citas agendadas' })).getAllByRole('listitem')
-    expect(filas).toHaveLength(2)
+    expect(filas).toHaveLength(3)
+    expect(filas[2]).toHaveTextContent('Reprogramada')
     expect(filas[0]).toHaveTextContent('Agendada a las 14:32')
     expect(filas[0]).toHaveTextContent('Pendiente')
     expect(filas[0]).toHaveTextContent('· ANALISTA UNO')

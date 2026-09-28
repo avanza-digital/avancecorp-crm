@@ -7,7 +7,7 @@ set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 do $preflight$
 begin
-  if md5(pg_get_functiondef('private.assert_gestion_diaria()'::regprocedure)) is distinct from '__H_PARAGUAS_G4B__' then
+  if md5(pg_get_functiondef('private.assert_gestion_diaria()'::regprocedure)) is distinct from '58208b4fba6d2f76554e19e21444fe94' then
     raise exception 'Reversa G4b: el paraguas vivo no es el de G4b; no se toca';
   end if;
 end $preflight$;

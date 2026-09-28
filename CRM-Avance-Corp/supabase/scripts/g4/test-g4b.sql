@@ -17,13 +17,17 @@ create temporary table g4b_actores as
 with v as (
   select e.perfil_id, e.supervisor_id, e.activo from crm.equipo e
   where private.rol_crm(e.perfil_id) = 'vendedor'
-), con_sup as (select * from v where activo and supervisor_id is not null order by perfil_id)
+), con_sup as (select * from v where activo and exists (select 1 from crm.equipo s
+    where s.perfil_id = v.supervisor_id and s.activo and private.rol_crm(s.perfil_id) = 'supervisor') order by perfil_id)
 select (select perfil_id from con_sup limit 1) v1,
   (select supervisor_id from con_sup limit 1) sup1,
   (select perfil_id from con_sup where supervisor_id <> (select supervisor_id from con_sup limit 1) limit 1) ajeno,
   (select supervisor_id from con_sup where supervisor_id <> (select supervisor_id from con_sup limit 1) limit 1) sup2,
-  (select perfil_id from v where activo and supervisor_id is null order by perfil_id limit 1) fuera,
-  (select perfil_id from v where not activo order by perfil_id limit 1) inactivo,
+  -- «fuera»: analista activo sin supervisor ACTIVO por encima (sin jefe o con un jefe retirado).
+  (select perfil_id from v where activo and (supervisor_id is null or not exists (select 1 from crm.equipo s
+    where s.perfil_id = v.supervisor_id and s.activo and private.rol_crm(s.perfil_id) = 'supervisor')) order by perfil_id limit 1) fuera,
+  -- Inactivo: fila del organigrama dada de baja (su rol efectivo ya es nulo).
+  (select e.perfil_id from crm.equipo e join public.perfiles p on p.id = e.perfil_id where not e.activo and e.supervisor_id is not null order by 1 limit 1) inactivo,
   (select perfil_id from crm.equipo where private.rol_crm(perfil_id) = 'coordinador' and activo limit 1) coordinador,
   (select perfil_id from crm.equipo where private.rol_crm(perfil_id) = 'gerencia' and activo limit 1) gerente,
   (select id from public.perfiles where activo and rol = 'directorio' limit 1) global,
@@ -81,6 +85,13 @@ select pg_temp.afirmar(v1 is not null and sup1 is not null and ajeno is not null
   'faltan actores sintéticos (v1, sup1, ajeno, sup2, fuera, inactivo, coordinador, gerente, global)') from g4b_actores;
 
 -- Fixtures (sólo aquí se desactivan triggers de usuario; se restauran enseguida).
+-- El detalle y el pulso consultan el control SLA: en un banco sin él, una fila en
+-- «observacion» (sin política, como el modo del demo). En producción ya existe.
+alter table crm.sla_operacion_control disable trigger user;
+insert into crm.sla_operacion_control(id, modo, revision, cambiado_en, cambiado_por)
+select true, 'observacion', 0, now(), gerente from g4b_actores
+where not exists (select 1 from crm.sla_operacion_control);
+alter table crm.sla_operacion_control enable trigger user;
 alter table crm.equipo disable trigger user;
 -- Supervisores anidados: sup2 cuelga de sup1. En el pulso, el analista de sup2 sigue en el
 -- equipo de sup2 (supervisor activo MÁS CERCANO); en el árbol de sup1 también está.
@@ -95,9 +106,14 @@ insert into g4b_citas(titulo, dentro) values
   ('G4B V1 BORDE INICIO', true), ('G4B V1 EMPATE A', true), ('G4B V1 EMPATE B', true),
   ('G4B V1 BORDE FIN', true), ('G4B V1 COMPLETADA', true), ('G4B V1 DIA SIGUIENTE', false),
   ('G4B V1 DIA ANTERIOR', false), ('G4B V1 INACTIVA', false), ('G4B AJENO 1', true), ('G4B AJENO 2', true),
-  ('G4B FUERA', true), ('G4B INACTIVO', true), ('G4B SIN AUTOR', true);
-insert into crm.tareas(id, perfil_id, vendedor_id, tipo, titulo, vence_en, creado_por, creado_en, estado, activo)
-select c.id, coalesce(x.vendedor, a.gerente), x.vendedor, 'reunion', c.titulo, now() + interval '2 days', a.gerente, x.creado, x.estado, x.activo
+  ('G4B FUERA', true), ('G4B INACTIVO', true), ('G4B SIN AUTOR', true), ('G4B V1 REPROGRAMADA', true);
+-- Cierres coherentes con tareas_cierre_reunion_coherente (resultado o motivo según el estado).
+insert into crm.tareas(id, perfil_id, vendedor_id, tipo, titulo, vence_en, creado_por, creado_en, estado, activo,
+  modalidad_reunion, resultado_reunion, motivo_no_realizada, cancelada_por)
+select c.id, coalesce(x.vendedor, a.gerente), x.vendedor, 'reunion', c.titulo, now() + interval '2 days', a.gerente, x.creado, x.estado, x.activo,
+  'sin_clasificar', case x.estado when 'completada' then 'interesado' end,
+  case x.estado when 'no_show' then 'cliente_no_asistio' when 'cancelada' then 'cancelada_cliente' when 'reprogramada' then 'reprogramada' end,
+  case x.estado when 'cancelada' then 'sistema' end
 from g4b_actores a
 cross join lateral (values
   ('G4B V1 BORDE INICIO', a.v1, a.ini, 'pendiente', true),
@@ -112,7 +128,8 @@ cross join lateral (values
   ('G4B AJENO 2', a.ajeno, a.ini + interval '5 hours', 'cancelada', true),
   ('G4B FUERA', a.fuera, a.ini + interval '6 hours', 'pendiente', true),
   ('G4B INACTIVO', a.inactivo, a.ini + interval '7 hours', 'no_show', true),
-  ('G4B SIN AUTOR', null::uuid, a.ini + interval '8 hours', 'pendiente', true)
+  ('G4B SIN AUTOR', null::uuid, a.ini + interval '8 hours', 'pendiente', true),
+  ('G4B V1 REPROGRAMADA', a.v1, a.ini + interval '10 hours', 'reprogramada', true)
 ) as x(titulo, vendedor, creado, estado, activo)
 join g4b_citas c on c.titulo = x.titulo;
 -- Postventa: una cita de v1 sobre un inversionista del analista «fuera». Lista y cifra
@@ -120,8 +137,8 @@ join g4b_citas c on c.titulo = x.titulo;
 alter table crm.inversionistas disable trigger user;
 insert into crm.inversionistas(id, responsable_relacion_id, creado_por) select inversionista, fuera, gerente from g4b_actores;
 alter table crm.inversionistas enable trigger user;
-insert into crm.tareas(inversionista_id, postventa_revision, vendedor_id, tipo, titulo, vence_en, creado_por, creado_en)
-select inversionista, 1, v1, 'reunion', 'G4B V1 POSTVENTA', now() + interval '2 days', v1, ini + interval '9 hours' from g4b_actores;
+insert into crm.tareas(inversionista_id, postventa_revision, vendedor_id, tipo, titulo, vence_en, creado_por, creado_en, modalidad_reunion)
+select inversionista, 1, v1, 'reunion', 'G4B V1 POSTVENTA', now() + interval '2 days', v1, ini + interval '9 hours', 'sin_clasificar' from g4b_actores;
 alter table crm.tareas enable trigger user;
 
 -- 1. Gerencia: la lista de cada analista es la cifra del detalle y de gestion_diaria_llamadas.
@@ -176,7 +193,7 @@ select pg_temp.afirmar(
   'supervisores anidados: gana el supervisor activo más cercano') from g4b_actores a;
 -- Contrato de cada fila.
 select pg_temp.afirmar(not exists (select 1 from jsonb_array_elements(pg_temp.lista(a.dia, 'operacion', null, 50)) x
-  where x->>'estado' not in ('pendiente', 'completada', 'cancelada', 'no_show') or x->>'vence_en' is null or x->>'creado_en' is null
+  where x->>'estado' not in ('pendiente', 'completada', 'cancelada', 'no_show', 'reprogramada') or x->>'vence_en' is null or x->>'creado_en' is null
     or ((x->>'lead_id') is null) <> ((x->>'lead_nombre') is null)),
   'forma de cada fila') from g4b_actores a;
 reset role;

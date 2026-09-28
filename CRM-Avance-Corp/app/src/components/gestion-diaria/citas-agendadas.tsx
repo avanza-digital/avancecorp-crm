@@ -19,6 +19,7 @@ const ESTADO: Record<EstadoCita, { texto: string; color: string }> = {
   completada: { texto: 'Realizada', color: 'var(--accent-press)' },
   cancelada: { texto: 'Cancelada', color: 'var(--muted-foreground-strong)' },
   no_show: { texto: 'No asistió', color: 'var(--warning-text)' },
+  reprogramada: { texto: 'Reprogramada', color: 'var(--muted-foreground-strong)' },
 }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 
