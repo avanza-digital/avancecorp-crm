@@ -396,22 +396,52 @@ function AgendaVacia({
   nPropuestas: number
 }): JSX.Element {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-      <CalendarDays className="size-8 text-muted-foreground/60" />
-      <p className="text-sm font-bold">Sin citas para hoy</p>
-      <p className="max-w-[44ch] text-xs text-muted-foreground">
-        {demo
+    <VacioCompacto
+      icono={CalendarDays}
+      titulo="Sin citas para hoy"
+      detalle={
+        demo
           ? 'Agenda tareas desde la ficha de un lead o un cliente y aparecerán aquí.'
-          : 'Agenda la próxima acción desde la ficha de un lead o desde Mi cartera para un cliente.'}
-      </p>
-      {(nReuniones > 0 || nPropuestas > 0) && (
-        <p className="text-[11px] font-semibold text-foreground/70">
-          {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
-          {nReuniones > 0 && nPropuestas > 0 && ' · '}
-          {nPropuestas > 0 &&
-            `${nPropuestas} ${nPropuestas === 1 ? 'entrevista por cerrar' : 'entrevistas por cerrar'}`}
-        </p>
-      )}
+          : 'Agenda la próxima acción desde la ficha de un lead o desde Mi cartera para un cliente.'
+      }
+      extra={
+        nReuniones > 0 || nPropuestas > 0 ? (
+          <>
+            {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
+            {nReuniones > 0 && nPropuestas > 0 && ' · '}
+            {nPropuestas > 0 &&
+              `${nPropuestas} ${nPropuestas === 1 ? 'entrevista por cerrar' : 'entrevistas por cerrar'}`}
+          </>
+        ) : undefined
+      }
+    />
+  )
+}
+
+/** Estado vacío en horizontal: icono a la izquierda y texto a la derecha, en
+ * una franja baja. La caja centrada con aire arriba y abajo dejaba huecos en
+ * la pantalla, sobre todo cuando la tarjeta vecina sí tenía filas. */
+function VacioCompacto({
+  icono: Icono,
+  colorIcono = 'text-muted-foreground/60',
+  titulo,
+  detalle,
+  extra,
+}: {
+  icono?: LucideIcon
+  colorIcono?: string
+  titulo: string
+  detalle: ReactNode
+  extra?: ReactNode
+}): JSX.Element {
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3">
+      {Icono && <Icono className={`size-6 shrink-0 ${colorIcono}`} aria-hidden />}
+      <div className="min-w-0">
+        <p className="text-sm font-bold">{titulo}</p>
+        <p className="text-xs text-[var(--muted-foreground-strong)]">{detalle}</p>
+        {extra && <p className="mt-0.5 text-[11px] font-semibold text-foreground/70">{extra}</p>}
+      </div>
     </div>
   )
 }
@@ -539,7 +569,7 @@ function AgendaHoy({
                 />
               ))}
               {alDia.length <= 2 && (
-                <div className="mt-auto flex flex-col items-center gap-1 pb-2 pt-6 text-center">
+                <div className="mt-auto flex flex-col gap-0.5 px-1 pb-1 pt-2">
                   <p className="text-xs text-muted-foreground">
                     {alDia.length === 0 ? 'Sin citas para hoy' : 'Día con espacio'} — agenda la siguiente acción desde
                     una ficha de lead o desde Mi cartera.
@@ -632,7 +662,7 @@ function TarjetaPrioridad({
   const capitalTxt = leadFinal?.monto_estimado != null ? money(leadFinal.monto_estimado, leadFinal.moneda) : null
 
   return (
-    <article className="relative flex min-h-52 flex-col overflow-hidden rounded-xl border border-white/15 bg-white p-4 text-foreground shadow-[0_18px_38px_-28px_rgba(2,8,23,0.9)]">
+    <article className="relative flex flex-col overflow-hidden rounded-xl border border-white/15 bg-white p-4 text-foreground shadow-[0_18px_38px_-28px_rgba(2,8,23,0.9)]">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: color }} aria-hidden />
       <div className="flex items-center justify-between gap-3 pl-1">
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
@@ -657,7 +687,7 @@ function TarjetaPrioridad({
           <p className="mt-2 text-[11px] font-bold tabular-nums text-foreground/75">{capitalTxt} en juego</p>
         )}
       </div>
-      <div className="mt-auto flex flex-wrap items-center gap-2 pl-1 pt-4">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pl-1 pt-3">
         {item && <AccionesContacto lead={item.lead} destacada />}
         {evento && (
           <Button variant="accent" size="sm" className="h-11 sm:h-9" onClick={() => onCompletar(evento.id)}>
@@ -697,7 +727,7 @@ function FranjaAhora({
     <section
       aria-labelledby="ahora-vendedor"
       aria-busy={estadoCola === 'cargando'}
-      className="relative isolate overflow-hidden rounded-2xl bg-primary px-4 py-5 text-primary-foreground shadow-[0_24px_54px_-32px_rgba(17,30,61,0.9)] sm:px-5"
+      className="relative isolate overflow-hidden rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-[0_24px_54px_-32px_rgba(17,30,61,0.9)] sm:px-5"
     >
       <div
         className="pointer-events-none absolute -right-24 -top-28 -z-10 size-80 rounded-full bg-accent/25 blur-3xl"
@@ -731,7 +761,7 @@ function FranjaAhora({
         <div
           role="status"
           aria-label="Cargando próximas acciones"
-          className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
           {[0, 1, 2].map((n) => (
             <div key={n} className="min-h-40 animate-pulse rounded-xl border border-white/15 bg-white/8 p-4">
@@ -745,37 +775,38 @@ function FranjaAhora({
           <span className="sr-only">Estamos reuniendo agenda y pendientes.</span>
         </div>
       ) : prioridades.length === 0 && estadoCola === 'error' ? (
-        <div
-          role="status"
-          className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center"
-        >
-          <AlertTriangle className="size-9 text-warning" aria-hidden />
-          <p className="mt-3 text-base font-bold">No pudimos completar tus prioridades</p>
-          <p className="mt-1 max-w-lg text-xs text-white/65">
-            Tu agenda sigue disponible, pero falta la cola de acción. Reintenta desde el aviso superior para evitar leer
-            un vacío como “al día”.
-          </p>
+        <div role="status" className="mt-4 flex items-center gap-3 rounded-xl border border-white/15 bg-white/8 px-4 py-3">
+          <AlertTriangle className="size-6 shrink-0 text-warning" aria-hidden />
+          <div className="min-w-0">
+            <p className="text-base font-bold">No pudimos completar tus prioridades</p>
+            <p className="text-xs text-white/65">
+              Tu agenda sigue disponible, pero falta la cola de acción. Reintenta desde el aviso superior para evitar leer
+              un vacío como “al día”.
+            </p>
+          </div>
         </div>
       ) : prioridades.length === 0 ? (
-        <div className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center">
-          <CircleCheckBig className="size-9 text-white" aria-hidden />
-          <p className="mt-3 text-base font-bold">
-            {totalSenales > 0 ? 'Sin urgencias inmediatas' : 'No tienes una intervención pendiente'}
-          </p>
-          <p className="mt-1 max-w-lg text-xs text-white/65">
-            {totalSenales > 0
-              ? `Tienes ${totalSenales} ${totalSenales === 1 ? 'acción de preparación' : 'acciones de preparación'} en “Después”; no las marcamos como resueltas.`
-              : 'Tu agenda y tu cartera están al día. Puedes preparar el siguiente contacto.'}
-          </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/15 bg-white/8 px-4 py-3">
+          <CircleCheckBig className="size-6 shrink-0 text-white" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold">
+              {totalSenales > 0 ? 'Sin urgencias inmediatas' : 'No tienes una intervención pendiente'}
+            </p>
+            <p className="text-xs text-white/65">
+              {totalSenales > 0
+                ? `Tienes ${totalSenales} ${totalSenales === 1 ? 'acción de preparación' : 'acciones de preparación'} en “Pendientes”; no las marcamos como resueltas.`
+                : 'Tu agenda y tu cartera están al día. Puedes preparar el siguiente contacto.'}
+            </p>
+          </div>
           <a
             href="#/agenda"
-            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 text-xs font-bold text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-white/55"
+            className="inline-flex min-h-11 basis-full items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 text-xs font-bold text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-white/55 sm:basis-auto"
           >
             <CalendarDays className="size-4" aria-hidden /> Revisar Agenda
           </a>
         </div>
       ) : (
-        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {prioridades.map((prioridad, indice) => (
             <TarjetaPrioridad
               key={prioridad.id}
@@ -1238,7 +1269,7 @@ export function HoyVendedor(): JSX.Element {
       {/* Después de las tres prioridades: solo el remanente. La proximidad
           separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
       <SlaOperacionBoundary legado={(
-      <div className="grid gap-5 lg:grid-cols-5">
+      <div className="grid gap-5 lg:grid-cols-5 lg:items-start">
         <AgendaHoy
           eventos={agendaDespues}
           leadPorId={leadPorId}
@@ -1251,7 +1282,7 @@ export function HoyVendedor(): JSX.Element {
           nReuniones={reunionesAgendadas}
           nPropuestas={nPropuestas}
           vencidasAbajo={vencidasAbajoDespues}
-          title="Después en tu agenda"
+          title="Tu agenda de hoy"
           className="min-w-0 flex flex-col lg:col-span-3"
         />
         {/* Cola de acción personal — el viernes desde las 13:00 (Lima) cambia
@@ -1259,7 +1290,7 @@ export function HoyVendedor(): JSX.Element {
         <Card className="min-w-0 lg:col-span-2">
           <SectionHead
             icon={higiene ? Sparkles : Zap}
-            title={higiene ? 'Después: viernes de higiene' : 'Después: mantén el ritmo'}
+            title={higiene ? 'Pendientes: viernes de higiene' : 'Pendientes'}
             right={
               nColaDespues > 0 ? (
                 <Badge color={higiene ? '#d97706' : 'var(--accent)'}>
@@ -1268,7 +1299,7 @@ export function HoyVendedor(): JSX.Element {
               ) : undefined
             }
           />
-          <CardContent className="space-y-1.5 pt-0">
+          <CardContent className="space-y-1.5 pt-0" aria-busy={!colaDisponible && !colaOp.error}>
             {higiene && nColaDespues > 0 && (
               <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
                 Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo vencido, mueve a
@@ -1276,13 +1307,15 @@ export function HoyVendedor(): JSX.Element {
               </p>
             )}
             {!colaDisponible ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <p className="text-sm font-bold">{colaOp.error ? 'Tu cola no está disponible' : 'Cargando tu cola…'}</p>
-                <p className="text-xs text-muted-foreground">
-                  {colaOp.error
-                    ? 'No se pudo consultar la cola de acción. Tu agenda de al lado sigue completa.'
-                    : 'Un momento — estamos trayendo tus pendientes.'}
-                </p>
+              <div role="status">
+                <VacioCompacto
+                  titulo={colaOp.error ? 'Tu cola no está disponible' : 'Cargando tu cola…'}
+                  detalle={
+                    colaOp.error
+                      ? 'No se pudo consultar la cola de acción. Tu agenda de al lado sigue completa.'
+                      : 'Un momento — estamos trayendo tus pendientes.'
+                  }
+                />
               </div>
             ) : nColaDespues === 0 ? (
               nVencidasAgendaDespues > 0 ? (
@@ -1291,34 +1324,38 @@ export function HoyVendedor(): JSX.Element {
                 // mientras el badge vecino canta N vencidas es la pantalla
                 // contradiciéndose, y el analista se va a casa creyendo que
                 // terminó. El vacío REMITE a la agenda en vez de negarla.
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <AlertTriangle className="size-8 text-warning" />
-                  <p className="text-sm font-bold">Lo pendiente está en tu agenda</p>
-                  <p className="text-xs text-muted-foreground">
-                    {nVencidasAgendaDespues === 1
-                      ? 'Tienes 1 seguimiento vencido'
-                      : `Tienes ${nVencidasAgendaDespues} seguimientos vencidos`}{' '}
-                    en «Después en tu agenda» — ciérralos o reprográmalos desde ahí.
-                  </p>
-                </div>
+                <VacioCompacto
+                  icono={AlertTriangle}
+                  colorIcono="text-warning"
+                  titulo="Lo pendiente está en tu agenda"
+                  detalle={
+                    <>
+                      {nVencidasAgendaDespues === 1
+                        ? 'Tienes 1 seguimiento vencido'
+                        : `Tienes ${nVencidasAgendaDespues} seguimientos vencidos`}{' '}
+                      en «Tu agenda de hoy» — ciérralos o reprográmalos desde ahí.
+                    </>
+                  }
+                />
               ) : (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <CircleCheckBig className="size-8 text-accent" />
-                  <p className="text-sm font-bold">
-                    {prioridadesAhora.length > 0
+                <VacioCompacto
+                  icono={CircleCheckBig}
+                  colorIcono="text-accent"
+                  titulo={
+                    prioridadesAhora.length > 0
                       ? 'Sin trabajo adicional'
                       : higiene
                         ? 'Pipeline limpio ✦'
-                        : 'Al día ✦ sin pendientes'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {higiene
+                        : 'Al día ✦ sin pendientes'
+                  }
+                  detalle={
+                    higiene
                       ? 'Nada vencido, las citas reagendadas en su día y toda tu cartera con próxima acción. Buen fin de semana.'
                       : prioridadesAhora.length > 0
                         ? 'Tus intervenciones están arriba. Aquí no queda trabajo adicional.'
-                        : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
-                  </p>
-                </div>
+                        : 'No tienes leads esperando respuesta ni seguimientos vencidos.'
+                  }
+                />
               )
             ) : (
               <>
