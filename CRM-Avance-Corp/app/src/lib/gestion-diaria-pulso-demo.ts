@@ -80,6 +80,34 @@ function organigrama(miembros: readonly Miembro[]): Organigrama {
   return { grupos: [...supervisores.values(), FUERA], equipoDe, porId, porNombre: new Map(miembros.map((m) => [m.nombre_completo, m])) }
 }
 
+export type AmbitoCitasDemo = 'analista' | 'equipo' | 'fuera' | 'operacion'
+
+/**
+ * G4b: las citas del día (tareas `reunion` CREADAS ese día) de un ámbito, con la MISMA
+ * atribución con la que el detalle y el pulso demo las cuentan: el dueño actual del lead
+ * para los analistas del organigrama; «fuera» para los analistas sin supervisor y para las
+ * que no son de nadie del organigrama. Así la lista cuadra con su cifra por construcción.
+ */
+export function citasDelDiaDemo(m: Pick<MundoDemo, 'miembros' | 'leads' | 'tareas'>, dia: string, ambito: AmbitoCitasDemo, id: string | null): Tarea[] {
+  const org = organigrama(m.miembros)
+  const leads = new Map(m.leads.map((l) => [l.id, l]))
+  return m.tareas.filter((t) => {
+    if (t.tipo !== 'reunion' || diaDe(t.creado_en) !== dia) return false
+    const lead = t.lead_id ? leads.get(t.lead_id) : undefined
+    // En el detalle cuenta la del lead de un analista del organigrama activo.
+    const analista = lead?.vendedor_id && org.equipoDe.has(lead.vendedor_id) ? lead.vendedor_id : null
+    const dueno = (lead ? lead.vendedor_id : t.vendedor_id) ?? null
+    // Sin lead y de un analista del organigrama no entra en ninguna cifra demo: tampoco aquí.
+    const clave = analista !== null ? org.equipoDe.get(analista)!.clave
+      : dueno === null || !org.equipoDe.has(dueno) ? FUERA.clave : null
+    if (clave === null) return false
+    if (ambito === 'operacion') return true
+    if (ambito === 'fuera') return clave === FUERA.clave
+    if (ambito === 'equipo') return clave === id
+    return analista === id
+  })
+}
+
 function contacto(filas: readonly Contacto[]) {
   const suma = (campo: keyof Contacto) => filas.reduce((n, f) => n + f[campo], 0)
   return { llamadas: suma('llamadas'), utiles: suma('utiles'), contestadas: suma('contestadas'), tasa_contacto: tasa(suma('contestadas'), suma('utiles')) }

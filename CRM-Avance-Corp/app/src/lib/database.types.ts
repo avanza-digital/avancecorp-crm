@@ -5541,6 +5541,17 @@ export type Database = {
         Returns: Json
       }
       gestion_diaria_avisos_fn: { Args: never; Returns: Json }
+      gestion_diaria_citas_fn: {
+        Args: {
+          p_ambito: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_dia: string
+          p_id?: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
       gestion_diaria_equipo_fn: {
         Args: { p_dia?: string; p_supervisor_id?: string }
         Returns: Json

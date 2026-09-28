@@ -19,7 +19,8 @@ export function usePendientesSupervisor(dia: string, analista: string, soloVenci
   const ahora = useAhora()
   const cliente = useQueryClient()
   const revocada = useRef(false)
-  const autorizado = yo?.rol === 'supervisor'
+  // Supervisión (su equipo) y, desde G4a (27/09/2026), Gerencia (toda la operación): el servidor decide.
+  const autorizado = yo?.rol === 'supervisor' || yo?.rol === 'gerencia'
   const clave = useMemo(() => [...clavePendientes(yo?.id ?? null, yo?.rol ?? null, yo?.demo ?? null, dia, analista, soloVencidas), apertura],
     [yo?.id, yo?.rol, yo?.demo, dia, analista, soloVencidas, apertura])
   const ambitoClave = useMemo(() => clave.slice(0, -3), [clave])
@@ -37,7 +38,9 @@ export function usePendientesSupervisor(dia: string, analista: string, soloVenci
       if (!yo || !autorizado) throw new CrmApiError('Consulta no autorizada.', '42501')
       const pedido = { supervisor: yo.id, analista, soloVencidas, limite: LIMITE_PENDIENTES, cursor: pageParam }
       if (yo.demo) {
-        if (!analistasDelEquipo(equipo, yo.id).includes(analista)) throw new CrmApiError('Consulta no autorizada.', '42501')
+        // En demo, el mismo ámbito que el servidor: Supervisión su árbol; Gerencia todo analista activo.
+        const permitidos = yo.rol === 'gerencia' ? ambito.vendedores.filter((m) => m.activo).map((m) => m.perfil_id) : analistasDelEquipo(equipo, yo.id)
+        if (!permitidos.includes(analista)) throw new CrmApiError('Consulta no autorizada.', '42501')
         return Promise.resolve(pendientesDesdeDemo(pedido, tareas, ambito.leads, ahora))
       }
       return listarPendientesSupervisor(pedido, signal)

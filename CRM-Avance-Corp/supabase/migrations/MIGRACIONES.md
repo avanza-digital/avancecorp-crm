@@ -13642,3 +13642,117 @@ capital. Front vivo: commit `8ec3dd1f67e1`, build
 `build-20260927T205509063Z`, preflight sobre `01d5ddc4b653` y smoke HTTP de
 `version.json`, HTML y chunks. SHA-256 de la migración:
 `1ed04fc5e8c7884d79f7d4090b1b6e1a4669a74a60e4826ac4ad54972f089191`.
+
+## 20260928043728 — G4a: Gerencia lee los pendientes de cualquier analista
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 28/09/2026** (Miguel con `!`: migración y
+después `supabase/scripts/g4/registrar-20260928043728.sql`). Verificado en producción (lectura):
+huellas núcleo a0bde87d… y gate 6aecb25a…, puerta y ámbito sin cambios, `assert_gestion_diaria()`
+y `assert_sla_*` en verde, anon sin EXECUTE; prueba sin escribir (DO que termina en `raise`) con
+una cuenta real de Gerencia: lee los pendientes de un analista a su nombre; un supervisor real
+sigue igual y recibe 42501 en otro equipo. Registro: una fila con el cuerpo íntegro (md5
+09dcd836…). Front (pestaña Pendientes de Gerencia) PUBLICADO 28/09 (build-20260928T155351044Z, commit 4e85c903). Huellas nuevas: núcleo
+`a0bde87db9ea86694ba4ee79dc109729`, gate H3 re-sellado `6aecb25a8a66e10cc5dcae69afb66281`.
+Verificado en el banco Docker aislado `crm-banco-g4` (esquema de producción por `db dump`,
+paridad 27/27 por md5, actores sintéticos, configuración SLA copiada con autores ficticios):
+`test-g4a.sql` → G4A_OK (Supervisión idéntica a H3 en respuesta y errores; Gerencia en dos
+equipos y «fuera»; cifra del detalle = lista; 1.006 tareas en 11 páginas = conjunto esperado;
+postventa con banderas ON y oculta con una OFF en resumen y en todas las páginas; inactivo
+fabricado; analista, coordinación, lector global, uid sin rol, sin identidad, gerencia dada de
+baja y anon → 42501; ACL efectiva comprobada); reversa → 4 huellas H3 exactas y Gerencia en
+42501; reaplicación → G4A_OK; registrador: idempotente, rechaza fila con otro cuerpo y registrar
+sin la migración aplicada. auditor-rls: sin P0/P1 (pruebas y sellado reforzados). Codex (plan y
+código): sin P0/P1 (pruebas endurecidas). `test-rls.mjs`: bloque nuevo de pendientes (NO
+ejecutado: requiere el banco con la semilla determinista). Tras una reversa la fila del
+historial queda registrada: reaplicar la migración a mano (no hay publicador que la omita).
+Plan G4 v2
+aprobado por Miguel el 27/09 («G4a y luego G4b») y revisado por Codex (rol nulo
+rechazado explícitamente). Solo cambia la AUTORIZACIÓN de
+`private.gestion_diaria_pendientes_core`: Supervisión conserva su árbol (respuesta
+idéntica a H3, comparada en la misma sentencia); Gerencia usa el roster canónico
+con supervisor nulo (toda la operación visible, «fuera» incluido), el mismo que ya
+usa `gestion_diaria_equipo_core`. Coordinación, analistas, lector global, rol nulo
+y anon: 42501. Misma firma y claves: `supervisor_id` devuelve a quien consulta, así
+los bundles publicados (`v.strictObject`) no cambian. No toca tablas, políticas ni
+grants; lectura INVOKER bajo la RLS de `crm.tareas`, que ya concede a Gerencia las
+tareas activas. Preflight con las huellas vivas (ámbito af06…, núcleo f49d…, puerta
+d69d…, gate 4244…); el gate H3 se re-sella sustituyendo solo la huella del núcleo.
+Reversa: `supabase/scripts/g4/reversa-g4a.sql` (si el front ya muestra Pendientes a
+Gerencia, revertir PRIMERO el front). Orden: base antes que front.
+
+## 20260928044910 — Gestión Diaria: lista exacta de «Citas agendadas» (G4b)
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 28/09/2026** (Miguel con `!`: migración y
+después `supabase/scripts/g4/registrar-20260928044910.sql`, sin errores). Verificado en
+producción (lectura): las cuatro huellas coinciden (núcleo 904d3b0a…, puerta fd2b0376…, gate
+12012959…, paraguas 58208b4f…); puerta y núcleo INVOKER con ACL exacta postgres + authenticated;
+gate y paraguas solo postgres; `search_path` vacío en las cuatro; anon sin EXECUTE en la puerta;
+`assert_gestion_diaria()` contiene «OK: citas G4b» (la migración corre además `assert_sla_*`).
+Registro: una fila `crm_gestion_diaria_citas_lista` con el cuerpo íntegro (md5 72ad83d3…, igual
+al del archivo). **Prueba sin escribir con cuentas reales: `G4B_PROD_OK`, 0 fallos** (28/09,
+`supabase/scripts/g4/prueba-prod-g4b.sql`: un DO en solo lectura que termina en raise; sin anon y
+con candado de EXECUTE sobre las 25 funciones de la cadena). Días 22, 26, 27 (vacío) y 28/09;
+2 gerencias, 3 supervisiones, coordinación y un analista reales. 232 casos lista = cifra (104
+analistas de Gerencia, 104 de Supervisión, 12 equipos, 4 «fuera», 8 operaciones, que además
+coinciden con `gestion_diaria_llamadas`), 272 páginas (hasta 8 en un caso), 305 filas; equipos +
+«fuera» parten la operación los 4 días; 32 denegaciones y errores de parámetros correctos. La
+tabla y la lista de Gerencia coinciden (40, 9, 0 y 12); las dos gerencias ven lo mismo y
+Supervisión ve lo mismo que Gerencia para cada analista. En el banco G4 la misma prueba da OK y
+un mutante del borde del día da FALLA (10). Front («Citas agendadas» en supervisor y gerencia)
+PUBLICADO 28/09 (build-20260928T155351044Z, commit 4e85c903, preflight OK contra 1cd23b83).
+Plan G4 v2 aprobado por Miguel («G4a y luego G4b»), revisado
+por Codex (plan y código) y por auditor-rls (sin P0/P1). Lectura nueva, sin tablas ni
+escrituras: puerta `crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite,
+p_despues_de, p_despues_id)` y núcleo `private.gestion_diaria_citas_core`, ambos INVOKER
+bajo la RLS de `crm.tareas`. La definición es la de la cifra (`private.gestion_diaria_llamadas`
+y el pulso): tareas `reunion` creadas en el día Lima, sin filtrar estado ni activo en el SQL.
+Ámbito explícito decidido en el servidor: `analista` (Supervisión su árbol, Gerencia toda la
+operación), `equipo`, `fuera` y `operacion` (solo Gerencia, con la partición del pulso). Roles
+explícitos antes del ámbito y de los parámetros; coordinación, analistas, lector global, bajas y
+rol nulo reciben 42501. Total por `cardinality(array_agg())`, como la cifra que lista (no abre un
+contador nuevo en el censo analítico).
+
+Gate `private.assert_gestion_diaria_citas()`: huellas, INVOKER, `search_path` y ACL EXACTA
+(`aclexplode`: solo postgres y authenticated) de puerta y núcleo, y huellas de las fuentes de la
+cifra (`gestion_diaria_llamadas`, `pulso_roster`, `equipo_ambito`, `pulso_autores`, `pulso_dia`,
+`pulso_metricas`, `pulso_fn`); enchufado a `private.assert_gestion_diaria()` por identidad (la
+huella del paraguas se comprueba en la misma sentencia que lo reescribe). Preflight con las
+huellas vivas de producción (27–28/09). Orden: la base antes del front.
+
+**Cambios respecto de la primera versión (no aplicada en ningún sitio salvo el banco):** el gate
+sella también las cuatro fuentes del pulso (auditor-rls P2-1) y comprueba la ACL con `aclexplode`;
+la migración verifica la huella del gate creado y fija el paraguas por identidad antes de
+enchufar. Núcleo, puerta y paraguas no cambian.
+
+**Método de aplicación:** `supabase db query --linked --file supabase/migrations/20260928044910_crm_gestion_diaria_citas_lista.sql`
+(lo lanza Miguel con `!`) y, DESPUÉS, el registrador fail-closed
+`supabase/scripts/g4/registrar-20260928044910.sql` (embebe la migración, verifica las huellas,
+rechaza la fila si trae otro cuerpo, inserta y vuelve a leer). Reversa:
+`supabase/scripts/g4/reversa-g4b.sql` (verifica las cuatro huellas, se niega si otra función o
+vista nombra la lista, desenchufa, retira y corre `assert_gestion_diaria` y `assert_sla_*`; NO
+toca la fila de `schema_migrations`: si se revierte, anotarlo aquí el mismo día).
+
+**Huellas selladas:** núcleo `904d3b0a853a6cf794943217fc957f03`, puerta
+`fd2b0376be5e8c6728e4c33776e1a9e4`, gate `12012959d2e751c43df86b847dcce037`, paraguas
+`58208b4fba6d2f76554e19e21444fe94` (el de antes, al que vuelve la reversa: `5d9dbf08…`).
+
+**Verificación (banco G4 local, esquema de producción con paridad por md5, 28/09):**
+ensayo sin commit para medir las huellas; aplicada, reversa exacta y reaplicada, con G4a
+instalada. `test-g4b.sql` → `G4B_OK`: lista = cifra (detalle, pulso y
+`gestion_diaria_llamadas`) con afirmaciones agregadas que no pasan en vacío; oráculo EXACTO del
+fixture para Gerencia (v1 y operación) y sup1; partición de la operación; bordes del día Lima y
+de 365/366 días; empates; inactiva; `reprogramada`; leads visible, inaccesible para sup1 (la cita
+sigue, sin enlace) y de nombre en blanco, con ids concretos; postventa con las banderas encendidas
+(en la lista y en la cifra) y con una apagada (fuera de las dos, y nada más cambia); sin autor;
+supervisor retirado; anidados; denegaciones por rol (también uid nulo y bajas de supervisor y
+gerente en el fixture), rol antes que parámetros, y parámetros. Cinco mutantes cazados (borde
+`<=` del día, «fuera» sin las citas sin autor, nombre de lead sin `nullif(btrim())`, sin control
+de rol, y el equivalente `t.activo` por la huella). `test-g4a.sql` sigue en `G4A_OK`. Registrador
+probado en el banco con `schema_migrations` local: fila con otro cuerpo rechazada, idempotente,
+rechazado tras la reversa, y reaplicar + registrar. Tipos: el bloque generado desde el banco
+coincide con `database.types.ts`.
+
+**No ejecutado:** `test-rls.mjs` (bloque `testGestionDiariaCitas`, con salto ruidoso ante PGRST202
+y fallo con `CRM_RLS_EXIGE_GESTION_DIARIA=1`) requiere el banco con semilla de actores y Auth: solo
+se comprobó su sintaxis. La sonda de anon pasó en el banco local; no se lanza contra producción.
+Advisors: no aplican al banco local.

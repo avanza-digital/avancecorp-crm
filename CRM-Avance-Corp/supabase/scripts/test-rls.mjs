@@ -8325,6 +8325,97 @@ async function testGestionDiariaCortes(sessions, seed) {
   // en la copia local autorizada y con reloj clonado, no con cambios de hora reales.
 }
 
+// H3 + G4a (27/09/2026): pendientes por analista. Supervisión, su árbol; Gerencia, toda la
+// operación; la respuesta nombra a quien consulta. Casos pedidos por auditor-rls para G4a.
+async function testGestionDiariaPendientes(sessions, seed) {
+  console.log('\n— Gestión Diaria: pendientes por analista (H3 + G4a) —');
+  const FN = 'gestion_diaria_pendientes_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  const rpc = (quien, analista, extra = {}) => sessions[quien].client.schema('crm').rpc(FN, { p_analista_id: analista, ...extra });
+  const probe = await rpc('sup1', id('vend1'));
+  if (probe.error?.code === 'PGRST202') {
+    const msg = '⚠ H3 no instalada: pendientes SALTADOS (no probado)';
+    if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  for (const [quien, analista] of [['sup1', 'vend1'], ['gerencia', 'vend1'], ['gerencia', 'vend3']]) {
+    const { data, error } = await rpc(quien, id(analista));
+    check(!error && data?.supervisor_id === id(quien) && data?.analista_id === id(analista),
+      `${quien} → ${analista}: pendientes autorizados y a nombre de quien consulta`);
+  }
+  for (const [quien, analista, etiqueta] of [['sup1', id('vend3'), 'vend3 (otro equipo)'], ['sup1', randomUUID(), 'inexistente'],
+    ['gerencia', id('vendInactive'), 'vendInactive'], ['gerencia', randomUUID(), 'inexistente']]) {
+    const { error } = await rpc(quien, analista);
+    check(isAuthorizationError(error), `${quien}: pendientes de ${etiqueta} → 42501`);
+  }
+  for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+    const { error } = await rpc(quien, id('vend1'));
+    check(isAuthorizationError(error), `${quien}: sin puerta de pendientes → 42501`);
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-pendientes'));
+  const anonRpc = await anon.schema('crm').rpc(FN, { p_analista_id: id('vend1') });
+  check(isAuthorizationError(anonRpc.error), 'anon no ejecuta pendientes');
+  const limite = await rpc('gerencia', id('vend1'), { p_limite: 0 });
+  check(limite.error?.code === '22023', 'gerencia: límite 0 → 22023');
+}
+
+// G4b (28/09/2026): lista exacta de «Citas agendadas». Ámbito explícito decidido en el
+// servidor: Supervisión solo `analista` de su árbol; Gerencia `analista`, `equipo`, `fuera`
+// y `operacion`. El rol se comprueba antes que los parámetros. Casos pedidos por auditor-rls.
+async function testGestionDiariaCitas(sessions, seed) {
+  console.log('\n— Gestión Diaria: lista de citas agendadas (G4b) —');
+  const FN = 'gestion_diaria_citas_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  // Días de Lima (UTC−5, sin horario de verano): hoy está dentro de la ventana; mañana, no.
+  const hoyLima = new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+  const mananaLima = new Date(Date.now() - 5 * 3600 * 1000 + 86400 * 1000).toISOString().slice(0, 10);
+  const rpc = (quien, ambito, pid = null, extra = {}) => sessions[quien].client.schema('crm')
+    .rpc(FN, { p_dia: hoyLima, p_ambito: ambito, ...(pid === null ? {} : { p_id: pid }), ...extra });
+  const probe = await rpc('gerencia', 'operacion');
+  if (probe.error?.code === 'PGRST202') {
+    const msg = '⚠ G4b no instalada: lista de citas SALTADA (no probado)';
+    if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  const sobre = (data, ambito, pid) => Boolean(data && data.version === 1 && data.zona === 'America/Lima'
+    && data.dia === hoyLima && data.ambito === ambito && (data.id ?? null) === (pid ?? null) && Array.isArray(data.items));
+  for (const [quien, ambito, clave] of [['sup1', 'analista', 'vend1'], ['gerencia', 'analista', 'vend1'], ['gerencia', 'analista', 'vend3'],
+    ['gerencia', 'equipo', 'sup1'], ['gerencia', 'equipo', 'sup2'], ['gerencia', 'fuera', null], ['gerencia', 'operacion', null]]) {
+    const pid = clave === null ? null : id(clave);
+    const { data, error } = await rpc(quien, ambito, pid);
+    const delAnalista = ambito !== 'analista' || (data?.items ?? []).every((i) => i.vendedor_id === pid);
+    check(!error && sobre(data, ambito, pid) && delAnalista,
+      `${quien} → ${ambito}${clave ? `/${clave}` : ''}: citas autorizadas con su ámbito e id${ambito === 'analista' ? ', todas del analista' : ''} (${error?.code ?? `${data?.items?.length ?? 0} filas`})`);
+  }
+  for (const [quien, ambito, pid, etiqueta] of [
+    ['sup1', 'analista', id('vend3'), 'analista/vend3 (otro equipo)'], ['sup1', 'analista', randomUUID(), 'analista/inexistente'],
+    ['sup1', 'equipo', id('sup1'), 'equipo/sup1'], ['sup1', 'fuera', null, 'fuera'], ['sup1', 'operacion', null, 'operacion'],
+    ['gerencia', 'analista', id('vendInactive'), 'analista/vendInactive'], ['gerencia', 'analista', randomUUID(), 'analista/inexistente'],
+    ['gerencia', 'equipo', id('vend1'), 'equipo/vend1 (no es supervisor)'], ['gerencia', 'equipo', randomUUID(), 'equipo/inexistente'],
+  ]) {
+    const { error } = await rpc(quien, ambito, pid);
+    check(isAuthorizationError(error), `${quien}: citas de ${etiqueta} → 42501 (${error?.code ?? 'sin error!'})`);
+  }
+  for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+    for (const [ambito, pid] of [['analista', id('vend1')], ['operacion', null]]) {
+      const { error } = await rpc(quien, ambito, pid);
+      check(isAuthorizationError(error), `${quien}: sin puerta de citas (${ambito}) → 42501 (${error?.code ?? 'sin error!'})`);
+    }
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-citas'));
+  const anonRpc = await anon.schema('crm').rpc(FN, { p_dia: hoyLima, p_ambito: 'operacion' });
+  check(isAuthorizationError(anonRpc.error), `anon no ejecuta la lista de citas (${anonRpc.error?.code ?? 'sin error!'})`);
+  for (const [nombre, ambito, pid, extra] of [
+    ['límite 0', 'operacion', null, { p_limite: 0 }], ['analista sin p_id', 'analista', null, {}],
+    ['fuera con p_id', 'fuera', id('vend1'), {}], ['día futuro', 'operacion', null, { p_dia: mananaLima }],
+  ]) {
+    const { error } = await rpc('gerencia', ambito, pid, extra);
+    check(error?.code === '22023', `gerencia: ${nombre} → 22023 (${error?.code ?? 'sin error!'})`);
+  }
+}
+
 async function testGestionDiariaResultado(sessions, seed) {
   console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
   const FN = 'registrar_llamada_v3';
@@ -14774,6 +14865,8 @@ async function main() {
       await testGestionDiariaResultado(sessions, verifiedSeed);
       await testGestionDiariaAnalista(sessions, verifiedSeed);
       await testGestionDiariaCortes(sessions, verifiedSeed);
+      await testGestionDiariaPendientes(sessions, verifiedSeed);
+      await testGestionDiariaCitas(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);

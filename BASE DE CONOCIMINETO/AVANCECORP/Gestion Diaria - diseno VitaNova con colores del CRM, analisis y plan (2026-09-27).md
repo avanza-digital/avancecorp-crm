@@ -423,5 +423,107 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
   negaba. Se verificó que su ZIP = lo vivo (buildId, entrada `index-ynpMOmj8.js`, SHA-256), se copió a
   `releases/` y su commit entró a `main` con esta fusión (trae la migración `20260927172930`; falta su
   línea en `MIGRACIONES.md`, que llega al integrar `avancecorp/main` #116).
-- **Pendiente:** PR de integración a GitHub (sin lo de Gloria). La prueba H5 la está arreglando otra
-  sesión: su cambio (arrancar en `#/gestion-diaria`) sigue SIN commitear en el taller compartido.
+- **Cierre del día (27/09, noche):** el arreglo de H5 de la otra sesión (entrar en `#/gestion-diaria`
+  antes del login) se verificó combinado con el selector nuevo (10/10 sin reintentos) y se commiteó con su
+  nota de Citas (`f46d3eb4`). `avancecorp/main` (#115, #116) se trajo al local (`1cb782ad`, solo cambia
+  `MIGRACIONES.md`: gana la entrada del vigilante 172930). **PR #117** abierta
+  (`integra/supervisor-diseno-20260927`, `9553bc2f`): app idéntica al main local, SIN lo de Gloria (receta
+  #114) y SIN la nota «Integracion del main local y pendientes» (describe lo de Gloria). Al fusionarla (squash,
+  Miguel), volver a traer `avancecorp/main` al local. Worktrees y ramas de este trabajo, retirados.
+
+## Plan de la pantalla de GERENCIA — v2 tras Codex (27/09, APROBADO «G0 a G3 ahora, G4 después» e IMPLEMENTADO)
+
+Pedido de Miguel: «las mejoras que ya hemos hecho, aplícalas para gerencia». Diseño: `vista-previa/avance-gerencia.png`.
+Codex (plan v1): CHANGES_REQUESTED — 4 P1 + 4 P2; todo incorporado aquí. Encargo y respuesta en `docs/encargos/`.
+
+**Hechos comprobados en el código:**
+- El detalle por analista de gerencia ES la consulta del supervisor (`gestion_diaria_equipo_fn(dia, null)`): dentro de
+  un equipo se reutilizan la tabla y la ficha nuevas.
+- `gestion_diaria_pendientes_core` llama al ámbito con el id de QUIEN CONSULTA y exige que sea supervisor activo:
+  con gerencia devuelve 42501 (y dispararía el retiro global de la vista). Pendientes para gerencia = migración de
+  permisos (LEVEL 3) → fase aparte G4.
+- «Citas agendadas» = tareas `reunion` CREADAS ese día (no actividades): el registro no es su lista exacta.
+- Seguimiento no admite filtros por enlace.
+
+**G1 — «Toda la operación» (nivel operación):**
+- Cabecera como el supervisor (título con el día elegido, fecha que se aplica al cambiar, «Hoy», «Seguimiento
+  completo ›», «Registro general», «Actualizado», «Actualizar», «i» con definiciones y «Comparar días» de las 8).
+- 4 cifras compactas (no tablero): Llamadas, Contacto, Citas agendadas, Sin registro, con «Ayer/Día anterior X ·
+  Referencia Y (N jornadas)». Destinos EXACTOS: Llamadas y Contacto → Registro general en «Llamadas» (con el
+  resultado de cada llamada visible y la definición contestaron ÷ útiles); Sin registro → lista en el panel de las
+  personas activas con 0 gestiones (cada una abre su equipo con ella elegida); Citas → la tabla de equipos
+  ordenada por Citas (desglose; la lista de citas creadas queda para G4). Vencidas totales → equipos ordenados por
+  vencidas.
+- Tabla de equipos protagonista (filas de 52 px): avatar, «Equipo de X» + «N analistas · N sin registro»,
+  Llamadas, Contacto (% + nivel), Citas, Vencidas, Atención (analistas DISTINTOS con `requiere_atencion`), Primer
+  intento y Dispersión (se conserva la comparación y el orden entre equipos), buscador y «Con atención». «fuera»
+  al final. Los números de cada fila abren el equipo con ese filtro u orden.
+- Panel del equipo (ficha protagonista): cabecera teñida, avatar relleno, nombre 22 px, 4 cuadros 28 px con las
+  cifras AUTORITATIVAS del pulso, «Necesitan atención» (persona → equipo con ella elegida), primer intento y
+  dispersión, «Ver el equipo». Barras por hora: solo de los analistas activos y rotuladas así; si no cuadran con
+  el total del equipo se dice cuántas llamadas son de otros autores.
+- Selección de la ficha SEPARADA de la ruta del equipo: la automática (equipo que más atención necesita) solo
+  elige ficha, sin mover el foco; cerrar la apaga; al estrechar se cierra; las aperturas manuales devuelven el foco.
+- El detalle se carga al entrar, se actualiza con «Actualizar» aunque no haya ruta, y mientras llega «Atención»
+  dice «…», nunca 0. Umbral de dos columnas por ancho del contenedor (tabla mínima + 360 px), como el supervisor.
+
+**G2 — Dentro del equipo:** la pantalla del supervisor (filtros-cifra, buscador, tabla nueva con la columna
+Pendientes de gerencia, ficha protagonista con Resumen y Registro compacto) SIN pestaña Pendientes hasta G4; los
+avisos de vencidas se muestran sin enlace. Se conservan «Otros autores de los registros» y los registros sin autor.
+42501 de cualquier fuente → retiro global de la vista (como hoy).
+
+**G3 — Registro general, Hábitos y Comparar días** con la escala del diseño, conservando filtros de equipo, analista y
+etapa y el CSV.
+
+**G4 (opcional, LEVEL 3, plan propio):** migración para que gerencia consulte pendientes por analista (y lista de
+citas creadas del día) → pestaña Pendientes y listas exactas de vencidas y citas.
+
+**Ver en local:** el modo demo no tiene gerencia. Miguel entra con su cuenta real en la copia local (solo mirar);
+yo reviso con capturas E2E.
+
+## Estado de la pantalla de gerencia (27/09 — PUBLICADA en crm.miavance.com)
+
+- **Publicada 27/09 23:20 Lima** con `/release-crm` de Miguel: artefacto `crm-20260928T041929Z-1cd23b833678`,
+  build `build-20260928T041928593Z`, commit `1cd23b83`. Preflight OK contra el vivo `d00e62ad` (supervisor); humo
+  HTTP 200, `index` igual y 81/81 archivos byte a byte. `main` local = `1cd23b83`. A GitHub va por la **PR #118**
+  (sin lo de Gloria); la #117 ya estaba fusionada (`d46cdbb8`) y se registró en el local sin cambios (`3cdef4f0`).
+- **Qué quedó** (G0–G3, tras verla Miguel en local):
+  - «Pulso diario» → **«Actividad del día»** (era jerga); «Hábitos del equipo» sigue como segunda pestaña.
+  - **Como el supervisor** (Miguel: «que quede como lo ve supervisores»): sin franja de 4 cifras; pastillas-filtro
+    Todos · Con atención · Con vencidas + buscador a la derecha; fila **«Toda la operación»** al pie de la tabla
+    (llamadas, contacto, citas, vencidas, atención, sin registro; cada número —también los ceros— abre su lista);
+    la comparación con ayer y la referencia vive solo en «Comparar días».
+  - Filas y ficha con el **nombre del supervisor** (se oye «Equipo de …»); dentro de un equipo, la pantalla del supervisor.
+  - **Registro general y del equipo compactos** como el del supervisor (con filtro de equipo y CSV; sin etapa).
+  - **Cabecera compacta** (Miguel: el filtro de fecha «debe estar pero no puede ocupar tanto espacio»): fecha + Hoy
+    junto al título; los demás botones al final de la fila de pestañas; «Actualizado» solo en el pie.
+  - G3: Hábitos y «Comparar días» con la escala del diseño (ficha protagonista, tabla `me-tabla`, ventana < 1040 px).
+- **Cómo se hizo:** agentes en paralelo (G0 demo, migración del E2E, G3, revisión a11y) + Codex 2 veces (8 + 1
+  hallazgos, todos aplicados). El E2E migrado encontró 2 P2 reales (Hábitos apilado 1040–1235 px; foco al cerrar la
+  ventana del analista) y el revisor a11y 2 P2 (origen del foco `<body>` en Safari —también en el supervisor— y aviso
+  CSV que no se anunciaba). check PASS (4682) · E2E Docker local 36/36.
+- **Pendiente:** P3 a11y diferido: botones que navegan a una ruta deberían ser enlaces (abrir en otra pestaña).
+
+## G4 — Pendientes de gerencia y lista exacta de «Citas agendadas» (28/09 — PUBLICADA)
+
+- **Base (LEVEL 3), las dos en producción 28/09**, aplicadas por Miguel con `!` y registradas con registrador
+  fail-closed (fila con el cuerpo íntegro, md5 = archivo):
+  - **G4a** `20260928043728`: Gerencia lee los pendientes de cualquier analista de la operación.
+  - **G4b** `20260928044910`: `crm.gestion_diaria_citas_fn` — lista exacta de las citas creadas en el día Lima, con la
+    MISMA definición que la cifra; ámbitos analista (Supervisión su árbol, Gerencia toda la operación), equipo,
+    «fuera» y operación (solo Gerencia); cursor `creado_en/id`; INVOKER bajo la RLS de `crm.tareas`.
+- **Prueba sin escribir con cuentas reales** (`supabase/scripts/g4/prueba-prod-g4b.sql`): `G4B_PROD_OK`, 0 fallos —
+  232 casos lista = cifra, equipos + «fuera» parten la operación, 32 denegaciones correctas. Es un DO en solo
+  lectura que termina en raise, sin anon y con candado de EXECUTE sobre las 25 funciones de la cadena (en esta
+  versión de Postgres llamar a una función sin EXECUTE puede tumbar el servidor). Antes se probó en el banco G4: OK,
+  y un mutante del borde del día da FALLA, o sea que la prueba sabe fallar.
+- **Front publicado 28/09 ~10:55 Lima** con `/release-crm` de Miguel: artefacto `crm-20260928T155351Z-4e85c9038728`,
+  build `build-20260928T155351044Z`, commit `4e85c903` (= `main` local). Construido en el worktree limpio
+  `g4-20260928`; check PASS (4736); preflight OK contra el vivo `1cd23b83`; humo HTTP 200 e `index` byte a byte.
+  Trae la pestaña **Pendientes** en la ficha de gerencia y la lista **«Citas agendadas»** que abre cada cifra de
+  citas (analista, equipo, «fuera» y toda la operación) en supervisor y gerencia.
+- **Tronco:** la #118 se trajo al local sin cambios de contenido (`4e85c903`, estrategia *ours*: su `app/` era
+  idéntico a `1cd23b83`; una fusión normal chocaba con G4 por el squash). `main` sigue por delante de
+  `avancecorp/main` por lo de Gloria, que no va a GitHub; G4 sube en la próxima PR de integración.
+
+Relacionado: [[Integracion del main local y pendientes (2026-09-27)]]

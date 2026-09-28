@@ -1,7 +1,7 @@
 // Gerencia dentro de un equipo («Toda la operación / Equipo de X», 27/09/2026):
 // la pantalla del supervisor —cifras-filtro, buscador, tabla nueva (más
-// Pendientes, que gerencia compara) y la ficha protagonista del analista— SIN
-// pestaña Pendientes hasta que gerencia tenga permiso sobre esa consulta (G4).
+// Pendientes, que gerencia compara) y la ficha protagonista del analista, con su
+// pestaña Pendientes desde G4a (el servidor ya autoriza a gerencia, 27/09).
 // La selección del usuario vive en la ruta (atrás/adelante, enlaces directos); la
 // automática —quien más atención necesita— solo en la pantalla y sin mover el
 // foco. Se conservan los autores inactivos y los registros sin autor (Codex).
@@ -222,7 +222,7 @@ export function VistaEquipoGerencia({ hora = null, equipo, filas, error, cargand
             ampliado={ampliado} puedeAmpliar={!estrecho} ampliar={() => { setAmpliado((v) => !v); if (automatica && local) setLocal({ ...local, origen: 'usuario' }) }} cerrar={cerrar}
             oculta={oculta} limpiar={() => setFiltros(() => BASE)} actualizacion={actualizacion} revalidar={revocar} esHoy={esHoy} ahora={ahora}
             vacio="Nadie del equipo necesita atención ahora. Elige un analista para ver su día." silencioso={automatica}
-            conPendientes={false} idsEquipo={idsEquipo} subtitulo={equipo.clave === 'fuera' ? 'Analista fuera de equipos comerciales' : `Analista del equipo de ${equipo.nombre}`} />
+            idsEquipo={idsEquipo} subtitulo={equipo.clave === 'fuera' ? 'Analista fuera de equipos comerciales' : `Analista del equipo de ${equipo.nombre}`} />
         </PanelSupervisorAdaptable>
       </div>
     </section>

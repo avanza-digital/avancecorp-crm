@@ -230,10 +230,11 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   const accionTotal = (tipo: AccionEquipo, control: HTMLElement) => {
     if (tipo === 'llamadas') abrirRegistroGeneral(control, 'llamadas')
     else if (tipo === 'sin_registro') abrirFicha({ tipo: 'sin_registro' }, control, true)
+    // G4b: las citas agendadas abren su lista exacta.
+    else if (tipo === 'citas') abrirFicha({ tipo: 'citas', ambito: 'operacion', clave: null, apertura: ++aperturas.current }, control, true)
     else {
-      setFiltros((f) => ({ ...f, busqueda: '', estado: tipo === 'citas' ? 'todos' : tipo, orden: tipo, ascendente: false }))
-      setAnuncio(tipo === 'citas' ? 'Equipos ordenados por citas agendadas, de más a menos.'
-        : tipo === 'vencidas' ? 'Equipos con tareas vencidas, de más a menos.' : 'Equipos con analistas que necesitan atención, de más a menos.')
+      setFiltros((f) => ({ ...f, busqueda: '', estado: tipo, orden: tipo, ascendente: false }))
+      setAnuncio(tipo === 'vencidas' ? 'Equipos con tareas vencidas, de más a menos.' : 'Equipos con analistas que necesitan atención, de más a menos.')
     }
   }
   const ordenar = (orden: OrdenOperacion) => {
@@ -278,7 +279,9 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             // Con la ficha al lado nada se mueve: se anuncia, como el supervisor (a11y, 27/09).
             if (!estrecho) setAnuncio(`Seleccionado ${nombreEquipo(f)}. Detalle disponible.`)
           }}
-          accion={(f, tipo, control) => tipo === 'llamadas'
+          accion={(f, tipo, control) => tipo === 'citas'
+            ? abrirFicha({ tipo: 'citas', ambito: f.fuera ? 'fuera' : 'equipo', clave: f.fuera ? null : f.clave, apertura: ++aperturas.current }, control, true)
+            : tipo === 'llamadas'
             ? abrirFicha({ tipo: 'registro', alcance: f.clave, pestana: 'llamadas', apertura: ++aperturas.current }, control, true)
             : entrarEquipo(f.clave, tipo)} totalOperacion={total!} accionTotal={accionTotal} panelId={panelId}
           irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
