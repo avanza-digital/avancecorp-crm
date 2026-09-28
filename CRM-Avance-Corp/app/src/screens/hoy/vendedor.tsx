@@ -1,5 +1,7 @@
-import { abrirInversionista } from '@/lib/router'
+import { abrirInversionista, escribirHash } from '@/lib/router'
 import { SlaOperacionBoundary } from '@/components/app/sla-operacion'
+import { BotonGestionDiaria } from '@/components/app/boton-gestion-diaria'
+import { useConteoGestionDiaria } from '@/data/use-conteo-gestion-diaria'
 import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
@@ -853,6 +855,9 @@ export function HoyVendedor(): JSX.Element {
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
   // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
   const ahora = useAhora()
+  // CTA «GESTIÓN DIARIA» de la cabecera (28/09/2026): cuenta el día que ya
+  // sirve `useDiaAnalista` y recuerda si el analista ya entró hoy.
+  const conteoGd = useConteoGestionDiaria()
   const periodoVigente = periodoLima(ahora)
   const periodoStoreIntentado = useRef<string | null>(null)
   const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
@@ -1349,9 +1354,30 @@ export function HoyVendedor(): JSX.Element {
             {fechaLarga(ahora)} · primero resolvemos; después revisamos el contexto.
           </p>
         </div>
-        <p className="rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-semibold text-muted-foreground shadow-sm">
-          Vista personal · solo ves tu cartera
-        </p>
+        {/* Esquina derecha: el botón «GESTIÓN DIARIA» es el único protagonista;
+            la pastilla queda debajo y menor (pieza CRM-02 del UI Playground).
+            Es el MISMO bloque en los dos modos (activo y legado). */}
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <BotonGestionDiaria
+            estado={{
+              vencidas: conteoGd.vencidas,
+              pendientes: conteoGd.pendientes,
+              hechas: conteoGd.hechas,
+              yaVisitoHoy: conteoGd.yaVisitoHoy,
+            }}
+            sinCifras={!conteoGd.disponible}
+            onIr={() => {
+              conteoGd.marcarVisita()
+              // El hash es la única vía de navegación entre vistas: App.tsx lo
+              // escucha (hashchange) y cambia la pantalla.
+              escribirHash('gestion-diaria')
+            }}
+          />
+          {/* Gris OSCURO (7,2:1) porque el texto baja a 10 px; el claro se queda en 4,76:1 (revisión a11y). */}
+          <p className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground-strong shadow-sm">
+            Vista personal · solo ves tu cartera
+          </p>
+        </div>
       </header>
 
       {/* Rentabilidad R3: qué decidió Gerencia sobre tus solicitudes de tasa (solo si hay alguna en curso). */}

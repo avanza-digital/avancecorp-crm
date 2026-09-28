@@ -178,6 +178,15 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
     }),
   }
 })
+// La CTA «GESTIÓN DIARIA» de la cabecera cuenta el día con `useDiaAnalista`
+// (react-query, sin QueryClientProvider en este arnés): aquí se fija a mano.
+// Su mapeo tiene sus propios tests en data/use-conteo-gestion-diaria.test.ts.
+const CONTEO_GD_BASE = { vencidas: 2, pendientes: 3, hechas: 4, yaVisitoHoy: false, cargando: false, disponible: true }
+let CONTEO_GD = CONTEO_GD_BASE
+const marcarVisitaGd = vi.fn()
+vi.mock('@/data/use-conteo-gestion-diaria', () => ({
+  useConteoGestionDiaria: () => ({ ...CONTEO_GD, marcarVisita: marcarVisitaGd }),
+}))
 
 const { HoyVendedor } = await import('./vendedor')
 
@@ -1407,5 +1416,56 @@ describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () =
     expect(tarjetaCumplimiento().parentElement).toBe(raiz)
     const agenda = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
     expect(agenda?.querySelector('.overflow-y-auto')).toBeNull()
+  })
+})
+
+describe('Hoy · analista — CTA «GESTIÓN DIARIA» en la cabecera (pieza CRM-02 del UI Playground)', () => {
+  afterEach(() => {
+    CONTEO_GD = CONTEO_GD_BASE
+    window.location.hash = ''
+  })
+
+  it.each([
+    ['legado', false],
+    ['activo', true],
+  ] as const)(
+    'en modo %s la cabecera pinta el enlace «GESTIÓN DIARIA» hacia #/gestion-diaria y la pastilla debajo, más pequeña',
+    (_modo, modoActivo) => {
+      montar({ modoActivo })
+      const cabecera = screen.getByRole('heading', { name: /^Hola, / }).closest('header')
+      if (!(cabecera instanceof HTMLElement)) throw new Error('sin cabecera')
+      const enlace = within(cabecera).getByRole('link', {
+        name: 'Ir a Gestión diaria. 2 vencidas, 3 pendientes. 4 de 9 gestiones hechas hoy',
+      })
+      expect(enlace).toHaveAttribute('href', '#/gestion-diaria')
+      expect(within(enlace).getByText('GESTIÓN DIARIA')).toBeInTheDocument()
+      expect(within(enlace).getByText('4 de 9')).toBeInTheDocument()
+      const boton = enlace.closest('.bgd')
+      expect(boton).toHaveClass('bgd--urgente')
+      // La pastilla queda DEBAJO del botón, en la misma columna y en 10 px.
+      const pastilla = within(cabecera).getByText('Vista personal · solo ves tu cartera')
+      const columna = boton?.parentElement
+      expect(columna).toHaveClass('flex', 'flex-col', 'gap-2')
+      expect(columna?.children[0]).toBe(boton)
+      expect(columna?.children[1]).toBe(pastilla)
+      expect(pastilla).toHaveClass('text-[10px]')
+    },
+  )
+
+  it('al hacer clic anota la visita y navega a Gestión diaria por el hash (la vía que App.tsx escucha)', () => {
+    montar()
+    fireEvent.click(screen.getByRole('link', { name: /^Ir a Gestión diaria\./ }))
+    act(() => {
+      vi.advanceTimersByTime(420)
+    })
+    expect(marcarVisitaGd).toHaveBeenCalledTimes(1)
+    expect(window.location.hash).toBe('#/gestion-diaria')
+  })
+
+  it('mientras no hay cifras del día el botón no presume «al día»', () => {
+    CONTEO_GD = { ...CONTEO_GD_BASE, vencidas: 0, pendientes: 0, hechas: 0, disponible: false }
+    montar()
+    const enlace = screen.getByRole('link', { name: 'Ir a Gestión diaria. Sin cifras del día todavía' })
+    expect(enlace.closest('.bgd')).toHaveAttribute('data-nivel', 'sin-cifras')
   })
 })
