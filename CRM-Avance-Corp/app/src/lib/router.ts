@@ -135,11 +135,15 @@ function resolverVista(seg: string | undefined): Vista | null {
 }
 
 const UUID_PERSONA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Organigrama del modo demo (lib/demo.ts: d-ger, d-sup1, d-v1…): sin él, la
+// gerencia demo no podría abrir un equipo ni un analista. Nunca coincide con un
+// UUID real; en sesión real sólo lleva a «ya no aparece», sin consultar nada.
+const ID_PERSONA_DEMO = /^d-[a-z0-9]{1,16}$/
 
 /** Hash canónico de una vista y su ficha opcional. */
 function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is DetalleGestion {
   return !!detalle && (detalle.tipo === 'cola' || ((detalle.tipo === 'equipo' || detalle.tipo === 'analista')
-    && (UUID_PERSONA.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))))
+    && (UUID_PERSONA.test(detalle.id) || ID_PERSONA_DEMO.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))))
 }
 
 export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): string {

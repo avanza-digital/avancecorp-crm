@@ -25,7 +25,7 @@ type PestanaPanel = 'resumen' | 'registro' | 'pendientes'
 
 const BOTON_ICONO = 'grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] text-[var(--muted-foreground-strong)] transition-colors hover:bg-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-11'
 
-export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, tituloRef, ampliado, ampliar, cerrar, puedeAmpliar, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, vacio, silencioso = false }: {
+export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, tituloRef, ampliado, ampliar, cerrar, puedeAmpliar, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, vacio, silencioso = false, conPendientes = true, idsEquipo = null, subtitulo = 'Analista de tu equipo' }: {
   id: string
   seleccion: SeleccionSupervisor | null
   fila: FilaEquipoPresentada | undefined
@@ -46,6 +46,11 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
   vacio?: string | undefined
   /** Selección automática: sus cargas y errores no se anuncian (el usuario no la abrió). */
   silencioso?: boolean
+  /** Gerencia (27/09): sin pestaña Pendientes hasta tener permiso sobre esa consulta (G4). */
+  conPendientes?: boolean
+  /** Alcance del registro del equipo; null = lo que la sesión puede ver (el equipo del supervisor). */
+  idsEquipo?: readonly string[] | null
+  subtitulo?: string
 }) {
   const equipo = seleccion?.analista === null
   const nombre = seleccion && !equipo ? fila?.nombre_completo ?? seleccion.nombre ?? 'Analista' : null
@@ -62,7 +67,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
             {/* El espacio va FUERA del texto oculto: dentro se perdía («Detalle deANA»). */}
             {nombre !== null ? <><span className="sr-only">Detalle de</span>{' '}{nombre}</> : titulo}
           </h3></TituloDialogo>
-          {nombre !== null && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground-strong)]">Analista de tu equipo</p>}
+          {nombre !== null && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground-strong)]">{subtitulo}</p>}
         </div>
         {seleccion && <div className="flex shrink-0 gap-0.5">
           {puedeAmpliar && <button type="button" className={BOTON_ICONO} aria-label={ampliado ? 'Restaurar panel' : 'Ampliar panel'} onClick={ampliar}>{ampliado ? <Minimize2 aria-hidden className="size-4" /> : <Maximize2 aria-hidden className="size-4" />}</button>}
@@ -71,7 +76,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
       </header>
       {!seleccion ? <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center text-[13.5px] text-[var(--muted-foreground-strong)]">
         <Users className="size-9 text-muted-foreground" aria-hidden /><p>{vacio ?? 'Selecciona un analista de la tabla para consultar su día.'}</p></div>
-        : <ContenidoSeleccionado key={`${seleccion.analista ?? 'equipo'}:${seleccion.apertura}`} seleccion={seleccion} fila={fila} dia={dia} minimo={minimo}
+        : <ContenidoSeleccionado key={`${seleccion.analista ?? 'equipo'}:${seleccion.apertura}`} seleccion={seleccion} fila={fila} dia={dia} minimo={minimo} conPendientes={conPendientes} idsEquipo={idsEquipo}
           tituloRef={tituloRef} oculta={oculta} limpiar={limpiar} actualizacion={actualizacion} revalidar={revalidar} esHoy={esHoy} ahora={ahora} silencioso={silencioso} />}
     </section>
   )
@@ -79,7 +84,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
 
 const FECHA_TITULO = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
-function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, silencioso }: Pick<Parameters<typeof PanelAnalistaSupervisor>[0], 'seleccion' | 'fila' | 'dia' | 'minimo' | 'tituloRef' | 'oculta' | 'limpiar' | 'actualizacion' | 'revalidar'> & { seleccion: SeleccionSupervisor; esHoy: boolean; ahora: number; silencioso: boolean }) {
+function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, silencioso, conPendientes, idsEquipo }: Pick<Parameters<typeof PanelAnalistaSupervisor>[0], 'seleccion' | 'fila' | 'dia' | 'minimo' | 'tituloRef' | 'oculta' | 'limpiar' | 'actualizacion' | 'revalidar'> & { seleccion: SeleccionSupervisor; esHoy: boolean; ahora: number; silencioso: boolean; conPendientes: boolean; idsEquipo: readonly string[] | null }) {
   const equipo = seleccion.analista === null
   const [pestana, setPestana] = useState<PestanaPanel>(equipo || seleccion.enfocar ? 'registro' : 'resumen')
   const [registro, setRegistro] = useState<{ pestana: PestanaRegistro; apertura: number } | null>(equipo || seleccion.enfocar ? { pestana: seleccion.pestana, apertura: 0 } : null)
@@ -116,7 +121,7 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
     <div ref={cuerpoResumen} className={cn(cuerpo, 'space-y-5')} hidden={pestana !== 'resumen'} inert={pestana !== 'resumen'}>
       {!fila || minimo === undefined ? <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">El resumen no está disponible. El registro conserva su consulta independiente.</p>
         : <ResumenAnalista fila={fila} dia={dia} minimo={minimo} esHoy={esHoy} ahora={ahora}
-          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={abrirPendientes} />}
+          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={conPendientes ? abrirPendientes : undefined} />}
       {seleccion.analista !== null && <>
         <UltimasGestionesSupervisor analista={seleccion.analista} dia={dia} visible={pestana === 'resumen'} actualizacion={actualizacion} revalidar={revalidar} silencioso={silencioso} />
         <div className="space-y-2">
@@ -136,11 +141,11 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
           {esHoy ? 'Actividad de hoy' : `Actividad del ${FECHA_TITULO.format(new Date(`${dia}T12:00:00-05:00`))}`}
         </h4>
         <RegistroActividad compacto encabezadoExterno={tituloRegistro} key={registro.apertura} dia={dia} pestanaInicial={registro.pestana}
-          analistaIds={seleccion.analista === null ? null : [seleccion.analista]} mostrarAnalista={equipo} permitirEquipo={false} permitirExportar={false} actualizacion={actualizacion} onSinPermiso={revalidar} compartirPrimeraPagina={!equipo} />
+          analistaIds={seleccion.analista === null ? idsEquipo : [seleccion.analista]} mostrarAnalista={equipo} permitirEquipo={false} permitirExportar={false} actualizacion={actualizacion} onSinPermiso={revalidar} compartirPrimeraPagina={!equipo} />
       </section>}
     </div>
     <div className={cuerpo} hidden={pestana !== 'pendientes'} inert={pestana !== 'pendientes'}>
-      {pendientes && seleccion.analista !== null && <PendientesSupervisor key={pendientes.apertura}
+      {conPendientes && pendientes && seleccion.analista !== null && <PendientesSupervisor key={pendientes.apertura}
         analista={seleccion.analista} nombre={fila?.nombre_completo ?? seleccion.nombre ?? 'Analista'} dia={dia} fila={fila}
         visible={pestana === 'pendientes'} soloVencidasInicial={pendientes.soloVencidas} apertura={pendientes.apertura}
         enfocar={pendientes.enfocar} actualizacion={actualizacion} revalidar={revalidar} />}
@@ -153,7 +158,7 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
         así el texto tras el último control se alcanza sin ratón. */}
     {equipo ? <div className="ac-scroll min-h-0 flex-1 overflow-y-auto">{contenido}</div>
       : <Tabs etiqueta="Detalle del analista" variante="subrayado" valor={pestana} onCambio={cambiar}
-        pestanas={[{ valor: 'resumen', etiqueta: 'Resumen' }, { valor: 'registro', etiqueta: 'Registro' }, { valor: 'pendientes', etiqueta: 'Pendientes' }]}
+        pestanas={[{ valor: 'resumen', etiqueta: 'Resumen' }, { valor: 'registro', etiqueta: 'Registro' }, ...(conPendientes ? [{ valor: 'pendientes' as const, etiqueta: 'Pendientes' }] : [])]}
         className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-[22px] [&>[role=tablist]]:px-5 [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm pointer-coarse:[&>[role=tablist]>[role=tab]]:min-h-11"
         clasePanel="ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2">{contenido}</Tabs>}
   </>

@@ -18,7 +18,8 @@ vi.mock('@/data/gestion-diaria-pulso-queries', () => ({
   usePulsoGerencia: (dia: string) => { pedidos.push(dia); return pulso },
   useHabitosGerencia: (_dia: string, dias: number) => { periodos.push(dias); return habitos }, useDetallePulso: () => detalle,
 }))
-vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (p: { dia: string; analistaIds: string[] | null; onSinPermiso?: () => void }) => <div data-testid="registro">{p.dia}:{JSON.stringify(p.analistaIds)}<button onClick={p.onSinPermiso}>Simular denegación del registro</button></div> }))
+vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => null }))
+vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (p: { dia: string; analistaIds: string[] | null; pestanaInicial?: string; onSinPermiso?: () => void }) => <div data-testid="registro">{p.dia}:{JSON.stringify(p.analistaIds)}:{p.pestanaInicial}<button onClick={p.onSinPermiso}>Simular denegación del registro</button></div> }))
 const { GestionDiariaGerencia } = await import('./gerencia')
 beforeEach(() => {
   yo = { id: 'g1', rol: 'gerencia', demo: false } as Yo
@@ -26,13 +27,21 @@ beforeEach(() => {
   pulso = estado(v.parse(PulsoGerenciaSchema, fixture.pulso)); habitos = estado(v.parse(HabitosGerenciaSchema, fixture.habitos)); detalle = estado(v.parse(DiaEquipoSchema, fixture.equipo))
   pedidos.length = 0; periodos.length = 0; recargar.mockClear()
 })
+const filaTotal = () => within(screen.getByRole('table', { name: 'Equipos de la operación' })).getByRole('rowheader', { name: /^Toda la operación/ }).closest('tr')!
 const ruta = (hash: string) => act(() => { history.replaceState(null, '', hash); window.dispatchEvent(new HashChangeEvent('hashchange')) })
-describe('Gerencia F5 y UX horizontal F6', () => {
-  it('muestra comparación explícita, pendientes actuales y fila de cuadre', () => {
+describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos F5/F6', () => {
+  it('como el supervisor: pastillas que filtran, «Toda la operación» al pie y el grupo sin equipo al final', () => {
     render(<GestionDiariaGerencia />)
-    expect(screen.getByRole('region', { name: 'Indicadores de la operación' })).toHaveTextContent('2026-09-22 completo')
-    expect(screen.getByRole('region', { name: 'Toda la operación' })).toHaveTextContent('1008 tareas vencidas')
-    expect(screen.getByRole('link', { name: 'Fuera de equipos comerciales' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Cifras de la operación' })).not.toBeInTheDocument()
+    const equipos = pulso.datos!.equipos
+    const pastillas = within(screen.getByRole('group', { name: 'Resumen de la operación' })).getAllByRole('button')
+    expect(pastillas.map((b) => b.textContent)).toEqual([`Todos ${equipos.length}`, expect.stringMatching(/^Con atención \d+$/), `Con vencidas ${equipos.filter((e) => e.tareas_vencidas > 0).length}`])
+    expect(pastillas[0]).toHaveAttribute('aria-pressed', 'true')
+    const total = filaTotal()
+    expect(within(total).getByRole('button', { name: '9 llamadas de toda la operación: ver en el registro general' })).toBeInTheDocument()
+    expect(within(total).getByRole('button', { name: '1008 tareas vencidas en toda la operación: ver los equipos con vencidas' })).toBeInTheDocument()
+    const filas = within(screen.getByRole('table', { name: 'Equipos de la operación' })).getAllByRole('button', { name: /^Seleccionar / })
+    expect(filas.at(-1)).toHaveAccessibleName('Seleccionar Fuera de equipos comerciales')
   })
   it('conserva las ocho comparaciones del servidor al abrirlas desde el resumen compacto', () => {
     render(<GestionDiariaGerencia />)
@@ -48,20 +57,25 @@ describe('Gerencia F5 y UX horizontal F6', () => {
   it('cero actividad conserva los pendientes y presenta las tasas sin denominador como no disponibles', () => {
     pulso = { ...pulso, datos: { ...pulso.datos!, actual: { ...pulso.datos!.ayer.metricas } } }
     render(<GestionDiariaGerencia />)
-    const indicadores = screen.getByRole('region', { name: 'Indicadores de la operación' })
-    expect(within(indicadores).getAllByRole('definition').map((n) => n.textContent)).toEqual(['0', '0', '0', '—', '5', '0', '—', '0'])
-    expect(screen.getByRole('region', { name: 'Toda la operación' })).toHaveTextContent('1008 tareas vencidas')
+    const total = filaTotal()
+    expect(within(total).getAllByRole('cell').map((n) => n.textContent).slice(0, 3)).toEqual(['0', expect.stringMatching(/^—/), '0'])
+    expect(within(total).getByRole('button', { name: '5 sin registro en toda la operación: ver quiénes' })).toBeInTheDocument()
+    // Todo número se abre, también los ceros del total (Codex, 27/09).
+    fireEvent.click(within(total).getByRole('button', { name: '0 llamadas de toda la operación: ver en el registro general' }))
+    expect(screen.getByTestId('registro')).toHaveTextContent(':null:llamadas')
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 citas agendadas de toda la operación: ver los equipos ordenados por citas' }))
+    expect(screen.getByRole('button', { name: 'Ordenar equipos por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    expect(within(total).getByRole('button', { name: /^1008 tareas vencidas/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
     expect(screen.getByRole('table', { name: 'Cifras del día, anterior y referencia' })).toHaveTextContent('Tasa de contacto——0 %')
   })
   it('recuerda la fecha por actor y conserva la última válida al introducir otra imposible', () => {
     const { rerender } = render(<GestionDiariaGerencia />)
     const input = screen.getByLabelText('Día de la operación')
+    // Una fecha completa y válida consulta al momento (como el supervisor); una imposible no.
     fireEvent.change(input, { target: { value: '2026-09-10' } })
-    expect(pedidos.at(-1)).toBe('2026-09-24')
-    fireEvent.keyDown(input, { key: 'Enter' })
     expect(pedidos.at(-1)).toBe('2026-09-10')
-    fireEvent.change(input, { target: { value: '2026-12-01' } }); fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.change(input, { target: { value: '2026-12-01' } })
     expect(input).toHaveValue('2026-09-10'); expect(screen.getByRole('alert')).toHaveTextContent('fecha válida')
     yo = { ...yo, id: 'g2' }; rerender(<GestionDiariaGerencia />)
     expect(screen.getByLabelText('Día de la operación')).toHaveValue('2026-09-24')
@@ -70,15 +84,13 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
     expect(pedidos.at(-1)).toBe('2026-09-24')
   })
-  it('editar la fecha con un detalle abierto sólo consulta al confirmar y conserva el foco tras recargar', () => {
+  it('cambiar la fecha con un equipo abierto consulta la fecha completa y conserva el foco tras recargar', () => {
     const e = pulso.datos!.equipos.find((g) => g.metricas.llamadas === 4)!
     ruta(`#/gestion-diaria/equipo/${e.clave}`)
     const { rerender } = render(<GestionDiariaGerencia />)
     const input = screen.getByLabelText('Día de la operación')
     input.focus()
     fireEvent.change(input, { target: { value: '2026-09-22' } })
-    expect(pedidos.at(-1)).toBe('2026-09-24')
-    fireEvent.keyDown(input, { key: 'Enter' })
     expect(pedidos.at(-1)).toBe('2026-09-22')
     expect(input).toHaveFocus()
     const previa = pulso
@@ -90,25 +102,27 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     const e = pulso.datos!.equipos.find((g) => g.metricas.llamadas === 4)!
     ruta(`#/gestion-diaria/equipo/${e.clave}`)
     render(<GestionDiariaGerencia />)
-    const panel = screen.getByRole('region', { name: 'Detalle de la operación' })
-    expect(within(panel).getByRole('heading', { name: e.nombre })).toHaveFocus()
-    const tabla = screen.getByRole('region', { name: 'Analistas del equipo' })
-    expect(within(tabla).getAllByRole('button', { name: /^Seleccionar a / })).toHaveLength(e.metricas.analistas_activos)
-    fireEvent.change(within(tabla).getByRole('searchbox'), { target: { value: 'No existe' } })
-    expect(within(tabla).queryAllByRole('button', { name: /^Seleccionar a / })).toHaveLength(0)
+    const equipo = screen.getByRole('region', { name: `Equipo de ${e.nombre}` })
+    expect(within(equipo).getByRole('heading', { level: 3, name: `Equipo de ${e.nombre}` })).toHaveFocus()
+    expect(within(equipo).getByRole('navigation', { name: 'Ruta de la operación' })).toHaveTextContent('Toda la operación')
+    expect(within(equipo).getAllByRole('button', { name: /^Seleccionar a / })).toHaveLength(e.metricas.analistas_activos)
+    fireEvent.change(within(equipo).getByRole('searchbox', { name: 'Buscar analista' }), { target: { value: 'No existe' } })
+    expect(within(equipo).queryAllByRole('button', { name: /^Seleccionar a / })).toHaveLength(0)
   })
   it('enlace a analista conserva su registro al abrir una ficha y oculta identidades ausentes', () => {
     const p = pulso.datos!.equipos.flatMap((e) => e.personas).find((p) => p.activo && p.llamadas === 4)!
     ruta(`#/gestion-diaria/analista/${p.analista_id}`)
     render(<GestionDiariaGerencia />)
-    const panel = screen.getByRole('region', { name: 'Detalle de la operación' })
+    const panel = screen.getByRole('region', { name: `Detalle de ${p.nombre_completo}` })
+    // Gerencia aún no consulta pendientes (G4): su ficha no ofrece esa pestaña.
+    expect(within(panel).queryByRole('tab', { name: 'Pendientes' })).not.toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('tab', { name: 'Registro' }))
     expect(within(panel).getByTestId('registro')).toHaveTextContent(JSON.stringify([p.analista_id]))
     const registro = within(panel).getByTestId('registro')
     ruta(`#/gestion-diaria/analista/${p.analista_id}/lead/otro`)
     expect(within(panel).getByTestId('registro')).toBe(registro)
     ruta('#/gestion-diaria/analista/00000000-0000-4000-8000-000000000000')
-    expect(screen.getByRole('status')).toHaveTextContent('ya no aparece')
+    expect(screen.getByText(/ya no aparece en el ámbito actual/)).toBeInTheDocument()
   })
   it('un error de refresco no conserva las cifras ni el registro; ofrece reintentar', () => {
     const { rerender } = render(<GestionDiariaGerencia />)
@@ -117,7 +131,7 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     pulso = { ...pulso, datos: null!, error: new Error('sin red') }
     rerender(<GestionDiariaGerencia />)
     expect(screen.getByRole('alert')).toHaveTextContent('datos anteriores se han ocultado')
-    expect(screen.queryByRole('table', { name: 'Resumen por supervisor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Equipos de la operación' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('registro')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' })); expect(recargar).toHaveBeenCalledOnce()
   })
@@ -140,22 +154,34 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     fireEvent.click(within(informe).getByRole('button', { name: 'Cómo leer los hábitos' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('La alerta de tasa muy baja sigue apagada')
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar explicación' }))
+    // G3: el período vive en la barra de la tabla, que se vuelve a montar con la consulta
+    // nueva; quien lo cambió con el teclado lo sigue teniendo enfocado.
+    screen.getByLabelText(/Período hasta/).focus()
     fireEvent.change(screen.getByLabelText(/Período hasta/), { target: { value: '30' } })
     expect(periodos.at(-1)).toBe(30)
+    expect(screen.getByLabelText(/Período hasta/)).toHaveFocus()
   })
   it('el guard no monta consultas ni registro para otro rol', () => {
     yo = { ...yo, rol: 'supervisor' }; render(<GestionDiariaGerencia />)
     expect(screen.getByRole('alert')).toHaveTextContent('requiere una sesión de gerencia')
     expect(pedidos).toHaveLength(0)
   })
+  it('con todos registrando, «0 sin registro» del total sigue a la vista y abre la lista vacía', () => {
+    const equipos = pulso.datos!.equipos.map((e) => ({ ...e, personas: e.personas.map((p) => ({ ...p, gestiones: Math.max(p.gestiones, 1) })),
+      metricas: { ...e.metricas, sin_actividad: 0, con_actividad: e.metricas.analistas_activos } }))
+    pulso = { ...pulso, datos: { ...pulso.datos!, equipos, actual: { ...pulso.datos!.actual, sin_actividad: 0, con_actividad: pulso.datos!.actual.analistas_activos } } }
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 sin registro en toda la operación: ver quiénes' }))
+    expect(screen.getByRole('region', { name: 'Sin registro' })).toHaveTextContent('Todos los analistas tienen registro')
+  })
   it('filtrar equipos no recalcula las cifras globales ni confunde falta de resultados con cero actividad', () => {
     render(<GestionDiariaGerencia />)
-    const indicadores = screen.getByRole('region', { name: 'Indicadores de la operación' })
-    const valores = within(indicadores).getAllByRole('definition').map((n) => n.textContent)
-    expect(valores).toHaveLength(8)
+    const valores = within(filaTotal()).getAllByRole('button').map((n) => n.textContent)
+    expect(valores.slice(0, 4)).toEqual(['2 sin registro', '9', '63 %', '3'])
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar equipo' }), { target: { value: 'NO EXISTE' } })
-    expect(screen.getByRole('table', { name: 'Resumen por supervisor' })).toHaveTextContent('Ningún equipo coincide con estos filtros')
-    expect(within(indicadores).getAllByRole('definition').map((n) => n.textContent)).toEqual(valores)
+    expect(screen.getByRole('table', { name: 'Equipos de la operación' })).toHaveTextContent('Ningún equipo coincide con estos filtros')
+    expect(screen.getByText(`0 de ${pulso.datos!.equipos.length} equipos`)).toBeInTheDocument()
+    expect(within(filaTotal()).getAllByRole('button').map((n) => n.textContent)).toEqual(valores)
   })
   it('carga y cambio de cuenta retiran el registro y los filtros de la identidad anterior', () => {
     const { rerender } = render(<GestionDiariaGerencia />)
@@ -185,7 +211,7 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     pulso = { ...pulso, datos: null!, error: new CrmApiError('Revocado', '42501') }; rerender(<GestionDiariaGerencia />)
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('ya no tiene permiso')
-    pulso = previa; fireEvent.click(screen.getByRole('tab', { name: 'Pulso diario' }))
+    pulso = previa; fireEvent.click(screen.getByRole('tab', { name: 'Actividad del día' }))
     fireEvent.change(screen.getByLabelText('Día de la operación'), { target: { value: '2026-09-22' } })
     fireEvent.keyDown(screen.getByLabelText('Día de la operación'), { key: 'Enter' })
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
@@ -195,12 +221,113 @@ describe('Gerencia F5 y UX horizontal F6', () => {
     if (ambito === 'analista') ruta(`#/gestion-diaria/analista/${fixture.habitos.personas[0]!.analista_id}`)
     render(<GestionDiariaGerencia />)
     if (ambito === 'general') fireEvent.click(screen.getByRole('button', { name: 'Registro general' }))
-    else fireEvent.click(screen.getByRole('tab', { name: 'Registro' }))
+    else fireEvent.click(within(screen.getByRole('region', { name: /^Detalle de / })).getByRole('tab', { name: 'Registro' }))
     fireEvent.click(screen.getByRole('button', { name: 'Simular denegación del registro' }))
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByTestId('registro')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Hábitos del equipo' }))
     expect(screen.getByRole('alert')).toHaveTextContent('ya no tiene permiso')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+  it('cada cifra de «Toda la operación» abre su lista exacta: registro, nombres, equipos ordenados o filtrados', () => {
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: /^9 llamadas de toda la operación/ }))
+    expect(screen.getByTestId('registro')).toHaveTextContent(':null:llamadas')
+    expect(screen.getByRole('heading', { level: 3, name: 'Registro general' })).toHaveFocus()
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '2 sin registro en toda la operación: ver quiénes' }))
+    const lista = screen.getByRole('list', { name: 'Analistas sin registro' })
+    expect(within(lista).getAllByRole('button').map((b) => b.textContent)).toEqual([expect.stringContaining('ANALISTA ANIDADO'), expect.stringContaining('ANALISTA CUATRO')])
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: /^3 citas agendadas de toda la operación/ }))
+    expect(screen.getByRole('button', { name: 'Ordenar equipos por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: /^1008 tareas vencidas en toda la operación/ }))
+    expect(screen.getByRole('button', { name: /^Con vencidas/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Ordenar equipos por vencidas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    const equipos = within(screen.getByRole('table', { name: 'Equipos de la operación' })).getAllByRole('button', { name: /^Seleccionar / })
+    expect(equipos).toHaveLength(pulso.datos!.equipos.filter((e) => e.tareas_vencidas > 0).length)
+  })
+  it('la ficha del equipo que más atención necesita se abre sola, sin mover el foco, y cerrarla la apaga', () => {
+    const { rerender } = render(<GestionDiariaGerencia />)
+    const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR DOS' })
+    expect(within(ficha).getAllByRole('term').slice(0, 4).map((n) => n.textContent)).toEqual(['Llamadas', 'Contacto', 'Citas agendadas', 'Tareas vencidas'])
+    expect(within(ficha).getByRole('list', { name: 'Necesitan atención' })).toHaveTextContent('ANALISTA TRES')
+    expect(document.body).toHaveFocus()
+    fireEvent.click(within(ficha).getByRole('button', { name: 'Cerrar detalle' }))
+    rerender(<GestionDiariaGerencia />)
+    expect(screen.queryByRole('region', { name: /^Detalle del Equipo/ })).not.toBeInTheDocument()
+  })
+  it('los números de un equipo abren sus analistas con ese filtro u orden', () => {
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(screen.getByRole('button', { name: '1 sin registro en el Equipo de SUPERVISOR DOS: ver quiénes' }))
+    const equipo = screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })
+    expect(within(equipo).getByRole('button', { name: /^Sin registro/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(equipo).getAllByRole('button', { name: /^Seleccionar a / }).map((b) => b.textContent)).toEqual(['ANALISTA CUATRO'])
+  })
+  it('cerrar la ficha del analista —con «Cerrar» o con «Atrás»— devuelve el foco a su fila aunque el clic no la enfocara (a11y)', async () => {
+    // Los `location.hash =` de pruebas anteriores disparan su hashchange más tarde: se dejan pasar antes.
+    await act(() => new Promise<void>((listo) => setTimeout(listo, 20)))
+    const dos = pulso.datos!.equipos.find((e) => e.nombre === 'SUPERVISOR DOS')!
+    ruta(`#/gestion-diaria/equipo/${dos.clave}`)
+    render(<GestionDiariaGerencia />)
+    const fila = () => within(screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })).getByRole('button', { name: 'Seleccionar a ANALISTA TRES' })
+    const frame = () => act(() => new Promise<void>((listo) => requestAnimationFrame(() => listo())))
+    // En jsdom, como en Safari, pulsar no enfoca el botón: el foco sigue en el body.
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    fireEvent.click(fila()); act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    expect(document.body).toHaveFocus()
+    fireEvent.click(within(screen.getByRole('region', { name: 'Detalle de ANALISTA TRES' })).getByRole('button', { name: 'Cerrar detalle' }))
+    act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    await frame()
+    expect(fila()).toHaveFocus()
+    // «Atrás» del navegador: la ruta cambia sin pasar por «Cerrar».
+    fireEvent.click(fila()); act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    ruta(`#/gestion-diaria/equipo/${dos.clave}`)
+    await frame()
+    expect(fila()).toHaveFocus()
+  })
+  it('desde «Necesitan atención» se entra al equipo con esa persona elegida y su ficha enfocada', () => {
+    render(<GestionDiariaGerencia />)
+    const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR DOS' })
+    fireEvent.click(within(within(ficha).getByRole('list', { name: 'Necesitan atención' })).getByRole('button'))
+    expect(location.hash).toContain('/analista/')
+    act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    const fichaAnalista = screen.getByRole('region', { name: 'Detalle de ANALISTA TRES' })
+    // Llega al RESUMEN de la persona, no a su registro (riesgo señalado por Codex).
+    expect(within(fichaAnalista).getByRole('tab', { name: 'Resumen' })).toHaveAttribute('aria-selected', 'true')
+  })
+  it('tras una denegación no queda nada al alcance: ni la comparación ni las definiciones (Codex P1)', () => {
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(screen.getByRole('button', { name: 'Registro general' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Simular denegación del registro' }))
+    expect(screen.getByRole('button', { name: 'Comparar días' })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Definiciones' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+  it('«Definiciones» vuelve a la cabecera con su propio contenido', () => {
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(screen.getByRole('button', { name: 'Definiciones' }))
+    expect(screen.getByRole('dialog', { name: 'Fechas y definiciones' })).toHaveTextContent('Contacto = contestaron ÷ llamadas útiles')
+    expect(screen.queryByRole('table', { name: 'Cifras del día, anterior y referencia' })).not.toBeInTheDocument()
+  })
+  it('llamadas, contacto y citas de cada equipo abren su lista; «Con atención» limpia la búsqueda (Codex)', () => {
+    render(<GestionDiariaGerencia />)
+    const dos = pulso.datos!.equipos.find((e) => e.nombre === 'SUPERVISOR DOS')!
+    fireEvent.click(screen.getByRole('button', { name: `${dos.metricas.llamadas} llamadas del Equipo de SUPERVISOR DOS: ver en el registro` }))
+    const ids = dos.personas.flatMap((p) => p.analista_id === null ? [] : [p.analista_id])
+    expect(screen.getByTestId('registro')).toHaveTextContent(`${JSON.stringify(ids)}:llamadas`)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar equipo' }), { target: { value: 'ANIDADO' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Con atención/ }))
+    expect(screen.getByRole('searchbox', { name: 'Buscar equipo' })).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: '1 cita agendada del Equipo de SUPERVISOR DOS: ver por analista' }))
+    expect(within(screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })).getByRole('button', { name: 'Ordenar por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+  })
+  it('si falla el detalle, la ficha dice «no disponible» en vez de consultar para siempre', () => {
+    detalle = { ...detalle, datos: null, error: new Error('sin red') }
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Equipo de SUPERVISOR UNO' }))
+    const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR UNO' })
+    expect(within(ficha).getByText(/No disponible: no se pudo consultar el detalle/)).toBeInTheDocument()
+    expect(within(ficha).queryByText('Consultando…')).not.toBeInTheDocument()
   })
 })

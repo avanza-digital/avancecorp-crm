@@ -56,16 +56,13 @@ describe('GestionDiaria por rol', () => {
     expect(screen.getByLabelText('Toda la operación (mock)')).toBeInTheDocument()
     expect(RECIBIDO.props).toBeNull()
   })
-  it('gerencia demo conserva el registro ficticio con fecha y exportación', () => {
-    yo = { id: 'u-ger', rol: 'gerencia', demo: true, nombre_completo: 'GER' }
+  it('gerencia demo abre el MISMO tablero con la operación de ejemplo (G0), no el registro suelto', () => {
+    yo = { id: 'd-ger', rol: 'gerencia', demo: true, nombre_completo: 'GERENCIA DEMO' }
     render(<GestionDiaria />)
-    expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19', analistaIds: null, mostrarAnalista: true, permitirEquipo: true, permitirExportar: true })
-    const dia = screen.getByLabelText('Día del registro')
-    expect(dia).toHaveAttribute('max', '2026-09-19')
-    fireEvent.change(dia, { target: { value: '2026-09-18' } })
-    expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-18' })
-    fireEvent.change(dia, { target: { value: '2026-12-31' } })
-    expect(RECIBIDO.props).toMatchObject({ dia: '2026-09-19' })
+    expect(screen.getByLabelText('Toda la operación (mock)')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Día del registro')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Resumen del día' })).not.toBeInTheDocument()
+    expect(RECIBIDO.props).toBeNull()
   })
   it('un rol que no entra recibe un mensaje y no se monta el registro', () => {
     yo = { id: 'u-dir', rol: 'directorio', demo: false, nombre_completo: 'DIR' }
