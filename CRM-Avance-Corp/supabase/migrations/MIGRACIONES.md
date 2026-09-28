@@ -1,3 +1,26 @@
+## 20260928163532 — Ranking: origen desde acreditaciones confirmadas
+
+**PREPARADA LOCALMENTE; NO APLICADA EN SUPABASE.** Recupera canales para
+contratos sin vínculo directo/cliente anterior, usando exclusivamente la
+acreditación confirmada de la misma fuente y fecha comercial. Conserva cartera
+legada, ambigüedades, capital, categorías financieras, atribución y conversión.
+El JSON de la RPC no cambia; las fotos selladas siguen intactas.
+
+Ensayo READ ONLY del SELECT candidato sobre septiembre: 143 filas antes/después,
+36 canales recuperados y cero diferencias en importes, moneda, categoría,
+operación o analista. Banco local de componentes: 13 casos, paridad exacta,
+política inactiva y ACL del nuevo helper PASS. No sustituye ensayo íntegro de
+la migración/vigilante en rama, matriz RLS, advisors ni autorización de merge.
+UI: renovación/upgrade desde cumplimiento existente, solo si concilian con
+Cartera por moneda; legado sin clasificación suficiente indica no disponible.
+`npm run check`: 4740 pruebas PASS; E2E Docker focal: 2/2 PASS.
+`gate:realidad`: NOT RUN (faltan URL/service role en su entorno); diagnóstico
+puntual productivo realizado mediante el conector con transacciones READ ONLY.
+Claude: CHANGES_REQUESTED; PRIMARY incorporó guardas, casos horarios y ajuste
+ARIA. Riesgo condicional de rol descartado con las tres funciones vivas
+SECURITY DEFINER/postgres y añadido al preflight. Revisión remota pendiente.
+SQL final SHA-256: `df4eb9e7496a8406a60a24ba13717286d2ae1f802bf1a50430d055e13755fa40`.
+
 ## 20260927080006 — Conversión: declaraciones técnicas del control analítico
 
 **APROBADA Y ENSAYADA EN RAMA; NO EN PRODUCCIÓN.** Dos escritores internos
