@@ -33,7 +33,9 @@ set local statement_timeout = '30s';
 
 do $avancecorp$
 declare
-  v_ensayo   boolean := true;              -- ← cambiar a false para escribir
+  -- APLICADO EN PRODUCCIÓN el 28/09/2026 (perfil d0468985-abc8-4d12-bcf2-f6fbc5096de6). Volver a
+  -- correrlo muere en el CANDADO 1. Queda en modo ensayo por si se reusa como receta.
+  v_ensayo   boolean := true;              -- ← true = ensayo (no escribe); false = aplica
   v_nombre   constant text := 'AVANCECORP';
   v_correo   constant text := 'avancecorp@miavance.com';
   v_cargo    constant text := 'Inversiones internas';

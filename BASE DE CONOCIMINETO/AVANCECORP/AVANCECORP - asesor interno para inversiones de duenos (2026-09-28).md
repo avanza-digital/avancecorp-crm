@@ -1,10 +1,16 @@
 ---
 tags: [crm, portal, contratos, equipo, ranking, decision]
 actualizado: 2026-09-28
-estado: preparado-y-ensayado-en-docker
+estado: aplicado-y-verificado-en-produccion
 ---
 
 # AVANCECORP: asesor interno para inversiones de dueños y colaboradores (2026-09-28)
+
+✅ **APLICADO EN PRODUCCIÓN el 28/09/2026** por Miguel con `!` (ensayo PASS y luego escritura).
+Verificado con lectura en prod: perfil `d0468985-abc8-4d12-bcf2-f6fbc5096de6`, rol Portal
+`analista` activo, `crm.equipo` = `supervisor` activo con `supervisor_id` nulo y 0 analistas a
+cargo, fuera de `private.roster_metas_vendedores()`, `private.rol_crm` = `supervisor`, usuario
+de auth confirmado e identidad creada. Sin DNI. Correo `avancecorp@miavance.com`.
 
 Relacionado con [[Alta directa de clientes cerrada al analista (2026-09-15)]],
 [[Como se mide la conversion del asesor]], [[Ranking cartera - publicacion verificada (2026-09-26)]]
@@ -55,9 +61,10 @@ predicado exacto de `crear_contrato` lo acepta como dueño; no está en
 supervisor falló por `validar_supervisor_usuario_crm` («Un vendedor CRM activo requiere un
 Supervisor activo»); por eso es `supervisor`.
 
-## Cómo se aplica
+## Cómo se aplicó
 
-Miguel, con `!`, desde `CRM-Avance-Corp/`:
+Miguel, con `!`, desde `CRM-Avance-Corp/` (el script queda en modo ensayo; volver a
+correrlo muere en el CANDADO 1):
 
 ```
 supabase db query --linked --file supabase/scripts/avancecorp-identidad-interna.sql
