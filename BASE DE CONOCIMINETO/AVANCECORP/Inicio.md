@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Boton GESTION DIARIA en Hoy del analista (2026-09-28)]] — **PUBLICADO 28/09 (build-20260928T233226790Z, 7e9b426a):** botón animado en la esquina de «Hoy» que lleva a Gestión diaria (teléfono que suena por estado, barra de avance, rebote, pop), diseñado en el UI Playground (CRM-02) y promovido con cifras de la misma cola que el destino. Codex y a11y aplicados. PR #129.
+
 - [[Citas - validacion de cifras del supervisor Jorge (2026-09-28)]] — **VALIDADO 28/09:** 160 citas · 37 entrevistas · 40,2 % son exactas; el % divide por 92 citas CON RESULTADO (37 realizadas + 55 no asistió), no por las 160 creadas. Codex confirma. Pendientes: el pie «Total del equipo» no muestra el divisor; un «no asistió» con fecha futura (`53b4ac59`) entra al divisor el 30/09.
 
 - [[Hoy del analista - sin espacios vacios (2026-09-28)]] — **PUBLICADO 28/09 en cuatro releases (último build-20260928T213044021Z, 7b72212a):** en producción «Tu agenda de hoy» + «Tus citas» v2 (cifras que filtran, tira de 7 días, filas de una línea) en dos columnas, «Tu cumplimiento del mes» siempre abierto y la pantalla sin scroll en escritorio; URL sin `?crm_version=…`; en el demo (legado), la pantalla «Hoy» del analista sin huecos: tarjetas de prioridad sin altura mínima, estados vacíos en horizontal (`VacioCompacto`) y las dos tarjetas de «Después» ya no se estiran a la misma altura. Solo presentación; check completo, E2E Docker 24/24, a11y y Codex PASS; humo en vivo PASS. El MCP de Hostinger 2.x cambió de contrato (ver «Deploy a Hostinger»).
