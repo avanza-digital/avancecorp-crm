@@ -11,11 +11,11 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await expect(modal).toBeVisible()
   // Decisión de Miguel (2026-09-01): el alta manual también permite declarar
-  // Landing y Formulario. Web/Campaña/WhatsApp siguen siendo solo históricos.
-  for (const origen of ['referido', 'landing', 'formulario', 'oficina', 'otro']) {
+  // Landing y Formulario. Web/Campaña/WhatsApp/Otro son solo históricos.
+  for (const origen of ['referido', 'landing', 'formulario', 'oficina']) {
     await expect(modal.locator(`#nl-origen option[value="${origen}"]`)).toHaveCount(1)
   }
-  for (const origenRetirado of ['web', 'campania', 'whatsapp']) {
+  for (const origenRetirado of ['web', 'campania', 'whatsapp', 'otro']) {
     await expect(modal.locator(`#nl-origen option[value="${origenRetirado}"]`)).toHaveCount(0)
   }
   await modal.locator('#nl-nombre').fill('LEAD PRUEBA E2E')

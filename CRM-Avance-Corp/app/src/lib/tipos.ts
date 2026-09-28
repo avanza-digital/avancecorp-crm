@@ -115,6 +115,7 @@ export const ORIGENES_HEREDADOS = [
   { k: 'web', label: 'Web' },
   { k: 'campania', label: 'Campaña' },
   { k: 'whatsapp', label: 'WhatsApp' },
+  { k: 'otro', label: 'Otro' },
 ] as const
 
 /** Orígenes disponibles al crear o editar leads, con label es-PE. */
@@ -123,13 +124,17 @@ export const ORIGENES = [
   { k: 'landing', label: 'LANDING' },
   { k: 'formulario', label: 'FORMULARIO' },
   { k: 'oficina', label: 'Walking' },
-  { k: 'otro', label: 'Otro' },
 ] as const
 
 /** Catálogo completo para lectura, validación de Supabase y métricas históricas. */
 export const ORIGENES_TODOS = [...ORIGENES, ...ORIGENES_HEREDADOS] as const
 
 export type Origen = (typeof ORIGENES_TODOS)[number]['k']
+
+/** Alta manual: exige un canal concreto; los heredados solo se leen. */
+export function esOrigenAlta(valor: unknown): valor is (typeof ORIGENES)[number]['k'] {
+  return typeof valor === 'string' && ORIGENES.some((o) => o.k === valor)
+}
 
 /**
  * PROCEDENCIA del lead: quién lo metió al CRM. Es OTRA pregunta que el origen
