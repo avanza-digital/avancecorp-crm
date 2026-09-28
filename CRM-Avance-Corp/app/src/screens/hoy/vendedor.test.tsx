@@ -667,7 +667,7 @@ describe('Hoy · analista — agenda héroe', () => {
     for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
       expect(screen.getAllByText(titulo)).toHaveLength(1)
     }
-    // El remanente cabe en «Después en tu agenda»; la cola cede para no
+    // El remanente cabe en «Tu agenda de hoy»; la cola cede para no
     // presentar dos mandatos sobre el mismo lead.
     expect(screen.queryByText(/\+2 más vencidas/)).not.toBeInTheDocument()
     expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
@@ -1114,9 +1114,9 @@ describe('Hoy · analista — viernes de higiene', () => {
       tareas: [],
     })
 
-    expect(screen.getByText('Después: viernes de higiene')).toBeInTheDocument()
+    expect(screen.getByText('Pendientes: viernes de higiene')).toBeInTheDocument()
     expect(screen.getByText('Sin urgencias inmediatas')).toBeInTheDocument()
-    expect(screen.getByText(/Tienes 1 acción de preparación en “Después”/)).toBeInTheDocument()
+    expect(screen.getByText(/Tienes 1 acción de preparación en “Pendientes”/)).toBeInTheDocument()
     expect(screen.getByText('Sin próxima acción')).toBeInTheDocument()
 
     const boton = screen.getByRole('button', {
@@ -1181,7 +1181,7 @@ describe('Hoy · analista — viernes de higiene', () => {
       ],
     })
 
-    expect(screen.getByText('Después: viernes de higiene')).toBeInTheDocument()
+    expect(screen.getByText('Pendientes: viernes de higiene')).toBeInTheDocument()
     // UNA sola vez en toda la pantalla: la pinta la agenda (manda la agenda) y
     // la higiene cede. Antes salía en las dos, con su mismo botón de cerrar.
     expect(screen.getAllByText('Llamar a Ana')).toHaveLength(1)
