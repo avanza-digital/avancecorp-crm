@@ -60,6 +60,11 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     const total = filaTotal()
     expect(within(total).getAllByRole('cell').map((n) => n.textContent).slice(0, 3)).toEqual(['0', expect.stringMatching(/^—/), '0'])
     expect(within(total).getByRole('button', { name: '5 sin registro en toda la operación: ver quiénes' })).toBeInTheDocument()
+    // Todo número se abre, también los ceros del total (Codex, 27/09).
+    fireEvent.click(within(total).getByRole('button', { name: '0 llamadas de toda la operación: ver en el registro general' }))
+    expect(screen.getByTestId('registro')).toHaveTextContent(':null:llamadas')
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 citas agendadas de toda la operación: ver los equipos ordenados por citas' }))
+    expect(screen.getByRole('button', { name: 'Ordenar equipos por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
     expect(within(total).getByRole('button', { name: /^1008 tareas vencidas/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
     expect(screen.getByRole('table', { name: 'Cifras del día, anterior y referencia' })).toHaveTextContent('Tasa de contacto——0 %')
@@ -156,6 +161,14 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     yo = { ...yo, rol: 'supervisor' }; render(<GestionDiariaGerencia />)
     expect(screen.getByRole('alert')).toHaveTextContent('requiere una sesión de gerencia')
     expect(pedidos).toHaveLength(0)
+  })
+  it('con todos registrando, «0 sin registro» del total sigue a la vista y abre la lista vacía', () => {
+    const equipos = pulso.datos!.equipos.map((e) => ({ ...e, personas: e.personas.map((p) => ({ ...p, gestiones: Math.max(p.gestiones, 1) })),
+      metricas: { ...e.metricas, sin_actividad: 0, con_actividad: e.metricas.analistas_activos } }))
+    pulso = { ...pulso, datos: { ...pulso.datos!, equipos, actual: { ...pulso.datos!.actual, sin_actividad: 0, con_actividad: pulso.datos!.actual.analistas_activos } } }
+    render(<GestionDiariaGerencia />)
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 sin registro en toda la operación: ver quiénes' }))
+    expect(screen.getByRole('region', { name: 'Sin registro' })).toHaveTextContent('Todos los analistas tienen registro')
   })
   it('filtrar equipos no recalcula las cifras globales ni confunde falta de resultados con cero actividad', () => {
     render(<GestionDiariaGerencia />)

@@ -387,6 +387,8 @@ test('F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensi
   const vista = operacion(page)
   // Las cifras de «Toda la operación» (pie de la tabla) no cambian al filtrar equipos.
   const total = vista.getByRole('table', { name: 'Equipos de la operación' }).locator('tfoot tr')
+  // Se toma la foto con el detalle ya llegado (atención y nivel de contacto), no mientras consulta.
+  await expect(total).not.toContainText('Consultando')
   const valores = await total.textContent()
   await expect(vista).toHaveAttribute('data-estrecho', 'false')
   expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate((n) => n.scrollHeight <= n.clientHeight + 1)).toBe(true)

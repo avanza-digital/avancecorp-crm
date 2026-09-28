@@ -134,7 +134,7 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
               <div className="grid min-h-[52px] grid-cols-[auto_minmax(0,1fr)] content-center items-center gap-x-2.5 py-1 text-sm font-extrabold leading-snug text-primary">
                 <span aria-hidden="true" className="row-span-2 grid size-8 place-items-center rounded-full bg-card"><Users className="size-4" /></span>
                 {totalOperacion.nombre}
-                <Integrantes f={totalOperacion} en="en toda la operación" abrir={accionTotal} />
+                <Integrantes f={totalOperacion} en="en toda la operación" abrir={accionTotal} siempre />
               </div>
             </th>
             <CifrasEquipo f={totalOperacion} del="de toda la operación" en="en toda la operación" abrir={accionTotal} umbrales={umbrales} sinDetalle={sinDetalle} total />
@@ -145,11 +145,12 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
   </>
 }
 
-function Integrantes({ f, en, abrir }: { f: FilaEquipoOperacion; en: string; abrir: (tipo: AccionEquipo, origen: HTMLElement) => void }): JSX.Element {
+/** «N analistas · M sin registro»; en el total, «0 sin registro» también se abre (Codex, 27/09). */
+function Integrantes({ f, en, abrir, siempre = false }: { f: FilaEquipoOperacion; en: string; abrir: (tipo: AccionEquipo, origen: HTMLElement) => void; siempre?: boolean }): JSX.Element {
   return (
     <p className="text-[11.5px] font-normal text-[var(--muted-foreground-strong)]">
       {f.analistas} {f.analistas === 1 ? 'analista' : 'analistas'}
-      {f.sinRegistro > 0 && <> · <button type="button" onClick={(e) => abrir('sin_registro', e.currentTarget)}
+      {(siempre || f.sinRegistro > 0) && <> · <button type="button" onClick={(e) => abrir('sin_registro', e.currentTarget)}
         aria-label={`${f.sinRegistro} sin registro ${en}: ver quiénes`} className={ENLACE_CIFRA}>{f.sinRegistro} sin registro</button></>}
     </p>
   )
@@ -168,7 +169,7 @@ function CifrasEquipo({ f, del, en, abrir, umbrales, sinDetalle, total = false }
     : { llamadas: 'ver en el registro', citas: 'ver por analista', vencidas: 'ver por analista', atencion: 'ver quiénes' }
   return <>
     <td data-etiqueta="Llamadas" className="px-2 text-right text-sm tabular-nums text-foreground">
-      {f.llamadas > 0 ? <button type="button" onClick={(e) => abrir('llamadas', e.currentTarget)} aria-label={`${f.llamadas} llamadas ${del}: ${ver.llamadas}`}
+      {f.llamadas > 0 || total ? <button type="button" onClick={(e) => abrir('llamadas', e.currentTarget)} aria-label={`${f.llamadas} llamadas ${del}: ${ver.llamadas}`}
         className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.llamadas}</button> : <span className="font-semibold">0</span>}
     </td>
     <td data-etiqueta="Contacto" className="px-2 text-right">
@@ -178,7 +179,7 @@ function CifrasEquipo({ f, del, en, abrir, umbrales, sinDetalle, total = false }
       <NivelContacto fila={f} umbrales={umbrales} />
     </td>
     <td data-etiqueta="Citas" className="px-2 text-right text-sm tabular-nums text-foreground">
-      {f.citas > 0 ? <button type="button" onClick={(e) => abrir('citas', e.currentTarget)} aria-label={`${f.citas} citas agendadas ${del}: ${ver.citas}`}
+      {f.citas > 0 || total ? <button type="button" onClick={(e) => abrir('citas', e.currentTarget)} aria-label={`${f.citas} citas agendadas ${del}: ${ver.citas}`}
         className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.citas}</button> : '0'}
     </td>
     <td data-etiqueta="Vencidas" className="px-2 text-right text-sm tabular-nums">

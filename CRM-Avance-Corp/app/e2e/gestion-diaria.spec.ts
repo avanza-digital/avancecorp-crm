@@ -12,7 +12,8 @@ import { entrarDemo } from './_helpers'
 const PREGUNTA_DEL_ROL = {
   Analista: '¿Qué hice hoy?',
   Supervisor: 'Mi equipo hoy',
-  Gerencia: 'Toda la operación',
+  // Modo demo (G0, 27/09): la operación de ejemplo es la de hoy.
+  Gerencia: 'Toda la operación hoy',
 } as const
 
 for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
