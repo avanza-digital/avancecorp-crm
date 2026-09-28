@@ -11,12 +11,12 @@ import { etiquetaOrigen } from '@/lib/tipos'
 type FilaCapital = RankingCapitalTotalVendedores['conPuesto'][number]
 
 // Sólo para enseñar la disposición en el modo demo local. La producción del
-// ranking aún no entrega el canal de cada cierre; jamás se presenta como dato.
+// ranking real se consulta por RPC; este reparto jamás se presenta como dato.
 const ORIGENES_EJEMPLO = [
   { nombre: 'Landing', pen: 40, usd: 6, conversion: { leads: 80, cierres: 6, peso: 1 } },
   { nombre: 'Formulario', pen: 24, usd: 5, conversion: { leads: 60, cierres: 5, peso: 1 } },
   { nombre: 'Referido', pen: 16, usd: 4, conversion: { leads: 20, cierres: 4, peso: 0.15 } },
-  { nombre: 'Wallking', pen: 8, usd: 2, conversion: { leads: 30, cierres: 2, peso: 1 } },
+  { nombre: 'Walking', pen: 8, usd: 2, conversion: { leads: 30, cierres: 2, peso: 1 } },
   { nombre: 'Cartera', pen: 12, usd: 1, conversion: null },
 ] as const
 
@@ -44,7 +44,7 @@ function nombreOrigen(origen: string): string {
   if (origen === 'landing') return 'Landing'
   if (origen === 'formulario') return 'Formulario'
   if (origen === 'referido') return 'Referido'
-  if (origen === 'oficina') return 'Wallking'
+  if (origen === 'oficina') return 'Walking'
   if (origen === 'cartera') return 'Cartera'
   if (origen === 'ajuste') return 'Ajustes de cierre'
   if (origen === 'sin_origen') return 'Sin origen identificado'
@@ -65,11 +65,12 @@ function filasEjemplo(fila: FilaCapital): OrigenPresentado[] {
   }))
 }
 
-function VistaOrigenes({ filas, tc, total, ejemplo }: {
+function VistaOrigenes({ filas, tc, total, ejemplo, cartera }: {
   filas: OrigenPresentado[]
   tc: number | null
   total: number | null
   ejemplo: boolean
+  cartera?: FilaCapital['cartera']
 }) {
   return (
     <section aria-label={ejemplo ? 'Vista de ejemplo del capital y conversión por origen' : 'Capital y conversión por origen'} className="rounded-2xl border border-[var(--gi-line)] bg-white p-4">
@@ -80,6 +81,10 @@ function VistaOrigenes({ filas, tc, total, ejemplo }: {
       <ul className="mt-2 divide-y divide-[var(--gi-line)]">
         {filas.map(({ origen, capitalPen, capitalUsd, conversionPct, mostrarConversion }) => {
           const capitalTotal = totalEnSoles(capitalPen, capitalUsd, tc).total
+          const esCartera = origen === 'cartera'
+          const carteraConcilia = cartera != null && cartera.length === 2
+            && Math.round(cartera.reduce((suma, fila) => suma + fila.pen, 0) * 100) === Math.round(capitalPen * 100)
+            && Math.round(cartera.reduce((suma, fila) => suma + fila.usd, 0) * 100) === Math.round(capitalUsd * 100)
           return (
             <li key={origen} className="py-3">
               <div className="flex items-start justify-between gap-3">
@@ -91,6 +96,19 @@ function VistaOrigenes({ filas, tc, total, ejemplo }: {
                     : <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={tc} tono="gerencia" />}
                 </span>
               </div>
+              {esCartera && (
+                carteraConcilia ? <div role="group" aria-label="Desglose de cartera"><dl className="mt-3 space-y-3 border-l-2 border-[var(--gi-line)] pl-3 text-xs text-[var(--gi-navy)]">
+                  {cartera!.map((detalle) => (
+                    <div key={detalle.categoria} className="flex items-start justify-between gap-3">
+                      <dt>{detalle.categoria === 'renovacion' ? 'Renovación' : 'Upgrade'}</dt>
+                      <dd className="text-right tabular-nums">
+                        <strong>{money(totalEnSoles(detalle.pen, detalle.usd, tc).total, 'PEN')}</strong>
+                        <DesgloseMonedas pen={detalle.pen} usd={detalle.usd} tc={tc} tono="gerencia" />
+                      </dd>
+                    </div>
+                  ))}
+                </dl></div> : <p className="mt-2 text-xs text-[var(--gi-muted)]">Desglose de renovación y upgrade no disponible</p>
+              )}
               {mostrarConversion && (
                 <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-[var(--gi-soft)] px-3 py-2 text-[11px] text-[var(--muted-foreground-strong)]">
                   <span>Conversión</span>
@@ -216,7 +234,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                       capitalUsd: origen.capital_usd,
                       conversionPct: origen.conversion_pct,
                       mostrarConversion: ['landing', 'formulario', 'referido', 'oficina'].includes(origen.origen),
-                    }))} tc={tc} total={fila.capitalTotal} ejemplo={false} />
+                    }))} tc={tc} total={fila.capitalTotal} ejemplo={false} cartera={fila.cartera} />
                     : <div className="flex items-center justify-between gap-3 text-xs text-[var(--gi-muted)]">
                         <span>Desglose no disponible</span>
                         {origenesError && onReintentarOrigenes && <Button variant="outline" size="sm" onClick={onReintentarOrigenes}>Reintentar</Button>}

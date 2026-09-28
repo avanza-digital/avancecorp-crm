@@ -711,6 +711,8 @@ export interface CapitalTotalVendedor {
   vendedor: IdentidadVendedorRanking
   capitalPen: number | null
   capitalUsd: number | null
+  /** Categorías del mismo cumplimiento; bruto para conciliar con los orígenes. */
+  cartera?: { categoria: 'renovacion' | 'upgrade'; pen: number; usd: number }[] | null
   /** Descuentos ya absorbidos por la foto; el capital mostrado arriba es neto. */
   capitalAjustePen: number
   capitalAjusteUsd: number
@@ -792,6 +794,13 @@ export function clasificarRankingCapitalTotal(
     const cumplimiento = crudo != null && crudo.detalles.length > 0 ? crudo : undefined
     const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
     const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+    const cartera = cumplimiento ? (['renovacion', 'upgrade'] as const).map((categoria) => ({
+      categoria,
+      pen: cumplimiento.detalles.filter((d) => d.categoria === categoria && d.moneda === 'PEN')
+        .reduce((suma, d) => suma + d.capitalReal + (d.capitalAjuste ?? 0), 0),
+      usd: cumplimiento.detalles.filter((d) => d.categoria === categoria && d.moneda === 'USD')
+        .reduce((suma, d) => suma + d.capitalReal + (d.capitalAjuste ?? 0), 0),
+    })) : null
     const capitalAjustePen = cumplimiento?.ajuste?.aplicadoPen ?? 0
     const capitalAjusteUsd = cumplimiento?.ajuste?.aplicadoUsd ?? 0
     const contratosAjuste = cumplimiento?.ajuste?.contratosAplicados ?? 0
@@ -811,6 +820,7 @@ export function clasificarRankingCapitalTotal(
       vendedor,
       capitalPen,
       capitalUsd,
+      cartera,
       capitalAjustePen,
       capitalAjusteUsd,
       contratosAjuste,

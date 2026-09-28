@@ -107,7 +107,7 @@ describe('consulta de Ranking F1', () => {
     expect(origenes).toHaveTextContent('Landing')
     expect(origenes).toHaveTextContent('Formulario')
     expect(origenes).toHaveTextContent('Referido')
-    expect(origenes).toHaveTextContent('Wallking')
+    expect(origenes).toHaveTextContent('Walking')
     expect(origenes).toHaveTextContent('Cartera')
     expect(origenes).toHaveTextContent('3.00%')
     expect(within(detalle).getByText(/Mes calendario · setiembre 2026/)).toBeInTheDocument()
@@ -177,7 +177,7 @@ describe('ficha real de capital por origen', () => {
       cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
     const ficha = screen.getByRole('dialog')
     const desglose = within(ficha).getByRole('region', { name: 'Capital y conversión por origen' })
-    for (const canal of ['Landing', 'Formulario', 'Referido', 'Wallking']) {
+    for (const canal of ['Landing', 'Formulario', 'Referido', 'Walking']) {
       expect(within(desglose).getByText(canal)).toBeInTheDocument()
     }
     expect(desglose).toHaveTextContent('1.50%')
@@ -195,6 +195,51 @@ describe('ficha real de capital por origen', () => {
     const ficha = screen.getByRole('dialog')
     expect(within(ficha).getByText('Desglose no disponible')).toBeInTheDocument()
     expect(within(ficha).queryByText('Landing')).not.toBeInTheDocument()
+  })
+
+  it('desglosa los S/ 90,000 de la captura sin sumar dos veces cartera al total', () => {
+    const { fila, origenes } = datos()
+    Object.assign(fila, {
+      capitalPen: 287500, capitalUsd: 25000, capitalTotal: 371940,
+      cartera: [{ categoria: 'renovacion', pen: 10000, usd: 0 }, { categoria: 'upgrade', pen: 80000, usd: 0 }],
+    })
+    origenes.filas = [
+      { origen: 'formulario', capital_pen: 137500, capital_usd: 0, contratos: 2, leads: 35, cierres: 2, conversion_pct: 5.71 },
+      { origen: 'referido', capital_pen: 15000, capital_usd: 0, contratos: 1, leads: 2, cierres: 1, conversion_pct: 7.5 },
+      { origen: 'oficina', capital_pen: 0, capital_usd: 25000, contratos: 1, leads: 1, cierres: 1, conversion_pct: 100 },
+      { origen: 'cartera', capital_pen: 90000, capital_usd: 0, contratos: 3, leads: 0, cierres: 0, conversion_pct: null },
+      { origen: 'sin_origen', capital_pen: 45000, capital_usd: 0, contratos: 2, leads: 0, cierres: 0, conversion_pct: null },
+    ]
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={3.3776}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const desglose = screen.getByRole('group', { name: 'Desglose de cartera' })
+    expect(desglose).toHaveTextContent('RenovaciónS/ 10,000')
+    expect(desglose).toHaveTextContent('UpgradeS/ 80,000')
+    expect(desglose).not.toHaveTextContent('Conversión')
+    expect(screen.getAllByText('S/ 371,940')).toHaveLength(2)
+  })
+
+  it('no inventa un reparto para cartera legada cuya categoría financiera sigue siendo nuevo', () => {
+    const { fila, origenes, tc } = datos()
+    origenes.filas[0]!.origen = 'cartera'
+    fila.cartera = [{ categoria: 'renovacion', pen: 10000, usd: 0 }, { categoria: 'upgrade', pen: 20000, usd: 0 }]
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={tc}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    expect(screen.getByText('Desglose de renovación y upgrade no disponible')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Desglose de cartera' })).not.toBeInTheDocument()
+    expect(screen.getByText('Cartera')).toBeInTheDocument()
+  })
+
+  it('conserva USD separado en las categorías de cartera cuando no hay TC', () => {
+    const { fila, origenes } = datos()
+    origenes.filas[0]!.origen = 'cartera'
+    fila.capitalTotal = fila.capitalPen
+    fila.cartera = [{ categoria: 'renovacion', pen: 40000, usd: 3000 }, { categoria: 'upgrade', pen: 60000, usd: 2000 }]
+    render(<DetalleCapitalRanking abierto fila={fila} periodo="setiembre 2026" tc={null}
+      cargando={false} error={null} origenes={origenes} onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const desglose = screen.getByRole('group', { name: 'Desglose de cartera' })
+    expect(desglose).toHaveTextContent('US$ 3,000 aparte (sin TC)')
+    expect(desglose).toHaveTextContent('US$ 2,000 aparte (sin TC)')
   })
 
   it('conserva el ajuste del capital neto en meses sin desglose histórico', () => {

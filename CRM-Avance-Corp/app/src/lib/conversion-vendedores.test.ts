@@ -357,6 +357,25 @@ describe('adapter de responsables de conversión', () => {
     expect(total.conPuesto[0]!.avance).toBeCloseTo((430_000 / 390_000) * 100, 6)
   })
 
+  it('usa las categorías monetarias del cumplimiento y recupera los ajustes para el desglose bruto', () => {
+    const equipo = conversionEquipoDemo().slice(0, 1)
+    const metas = metasConversionEquipoDemo()
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+    const cumplimiento = cumplimientos[equipo[0]!.vendedorId!]!
+    for (const d of cumplimiento.detalles) {
+      d.capitalReal = d.categoria === 'renovacion' ? (d.moneda === 'PEN' ? 9900 : 50)
+        : d.categoria === 'upgrade' ? (d.moneda === 'PEN' ? 80000 : 500) : 0
+      d.capitalAjuste = d.categoria === 'renovacion' && d.moneda === 'PEN' ? 100 : 0
+    }
+    const fila = clasificarRankingCapitalTotal(equipo, metas, cumplimientos, 3.5).conPuesto[0]!
+    expect(fila.cartera).toEqual([
+      { categoria: 'renovacion', pen: 10000, usd: 50 },
+      { categoria: 'upgrade', pen: 80000, usd: 500 },
+    ])
+    expect(fila.capitalPen).toBe(89900)
+    expect(fila.capitalUsd).toBe(550)
+  })
+
   it('trata un roster vacío como autoritativo y no repuebla bajas desde cumplimiento/metas', () => {
     const meta = metasConversionEquipoDemo()['demo-v1']!
     const cumplimiento = cumplimientoMetasConversionEquipoDemo().porVendedor['demo-v1']!

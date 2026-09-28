@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Ranking - origen acreditado y desglose de cartera (2026-09-28)]] — **PREPARADO, SIN PUBLICAR:** recupera canales desde acreditaciones confirmadas (36 contratos; importes intactos) y muestra renovación/upgrade cuando Cartera concilia. Caso reportado: S/ 145.000 recuperables y S/ 45.000 aún sin enlace; clientes previos, no recategorizar sin evidencia. Check 4.740 y E2E Docker 2/2 PASS; ensayo remoto y publicación pendientes.
+
 - [[Gestion Diaria - diseno VitaNova con colores del CRM, analisis y plan (2026-09-27)]] — **ANALISTA Y SUPERVISOR PUBLICADOS 27/09** (supervisor: build-20260928T014119651Z — cifras como filtros de la tabla, ficha protagonista, Registro y Pendientes compactos; analista: teléfono alto, «Llamar» 44 px, «Lo último con este lead»); **sigue gerencia, con su propio plan:** el diseño «Gestión diaria pantallas» (VitaNova) tiene la misma estructura que el módulo en producción; cambia la presentación. Vista previa con navy/azul y Plus Jakarta Sans en `GESTION DIARIA/`. Solo pantalla, sin migraciones. Decidido: 4 cifras en gerencia y resultado dentro de «Ahora».
 
 - [[Integracion del main local y pendientes (2026-09-27)]] — **INTEGRADO:** main local al día con GitHub (#101–#113); PR #114 FUSIONADA y traída, sin lo de Gloria (cuentas de Gloria y Pagos del portal quedan SOLO en local, decisión de Miguel). Limpieza de 37 ramas y lista de pendientes al 27/09.
