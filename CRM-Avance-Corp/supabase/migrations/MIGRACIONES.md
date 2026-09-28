@@ -1,6 +1,6 @@
 ## 20260928192822 / 192823 / 193048 / 194818 — Canal concreto y confirmación auditada
 
-**ENSAYADAS EN RAMA AUTORIZADA; PENDIENTES DE PUBLICACIÓN.**
+**PUBLICADAS 28/09/2026 por merge nativo de la rama autorizada.**
 - `192822`: alta manual limitada a Landing, Formulario, Referido y Walking;
   INSERT rechaza Otro/ausente incluso en mantenimiento o puente.
 - `192823`: confirmaciones de fuentes sin lead, RLS sin grants/policies API,
@@ -12,6 +12,10 @@
 Conserva firmas/ACL, capital, atribución y conversión. Los canales heredados
 concretos siguen admitidos por integraciones; no se ofrecen en alta manual.
 No crea leads retroactivos. Actor de mantenimiento declarativo de Gerencia.
+Historial 383 → 387; 22 Edge Functions sin cambios; control analítico 0 pendientes
+y sello válido. Confirmación autorizada aplicada a una fuente PEN 10.000: capital,
+conversión, leads, contratos, cuotas, episodios y fotos íntegros. Septiembre: cero
+operaciones en Otro/sin_origen. Rama temporal eliminada y ausencia verificada.
 Ensayos y evaluación del review: `../../docs/auditorias/origen-concreto-20260928/REVISION.md`.
 
 ## 20260928180237 — Ranking: procedencia de solicitudes confirmadas de Mi cartera

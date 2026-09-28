@@ -1,0 +1,5 @@
+PASS altas de tres roles, puente Landing/Formulario y rechazo de Otro/ausente
+PASS HTTP/Auth: tabla privada sin CRUD para anon, service y tres roles; RPC manual protegida
+PASS cuatro canales: contrato PEN/COOPAC USD clasificados; capital, atribucion y conversion intactos
+PASS autorizacion, actor, duplicado, inmutabilidad, mes cerrado, demo y desactivacion posterior
+PASS todos los hechos del banco revertidos; ninguna escritura productiva
