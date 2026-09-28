@@ -68,6 +68,7 @@ export function GestionDiariaGerencia({ accesoSeguimiento }: { accesoSeguimiento
 const ANCHO_EN_LINEA = 1040
 const FILTROS_OPERACION: FiltrosOperacion = { busqueda: '', conAtencion: false, orden: 'atencion', ascendente: false }
 const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+const FECHA_CORTE = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 const rutaDe = (tipo: 'equipo' | 'analista', id: string) => hashDe('gestion-diaria', null, undefined, undefined, { tipo, id })
 
 function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: string; accesoSeguimiento?: ReactNode }) {
@@ -242,7 +243,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             : entrarEquipo(f.clave, tipo)} panelId={panelId}
           irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
         <p className="shrink-0 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
-          Organigrama actual · Pendientes al {fechaLima(Date.parse(datos.pendientes_al))}, {horaLimaDe(datos.pendientes_al)} ·{' '}
+          Organigrama actual · Pendientes al {FECHA_CORTE.format(new Date(datos.pendientes_al))}, {horaLimaDe(datos.pendientes_al)} ·{' '}
           <button type="button" className={cn('cursor-pointer rounded-md font-bold text-[var(--destructive-text)] underline-offset-2 hover:underline', FOCO)}
             onClick={() => { setFiltros((f) => ({ ...f, busqueda: '', conAtencion: false, orden: 'vencidas', ascendente: false })); setAnuncio('Equipos ordenados por tareas vencidas, de más a menos.') }}>
             {datos.vencidas_global} tareas vencidas</button> en total.

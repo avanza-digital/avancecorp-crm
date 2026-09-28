@@ -154,7 +154,7 @@ export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = '
 function NivelContacto({ fila, umbrales }: { fila: FilaEquipoOperacion; umbrales: v.InferOutput<typeof UmbralesSchema> | null }): JSX.Element | null {
   const nivel = nivelEquipo(fila, umbrales)
   if (nivel.estado === 'evaluado') return <span className="mt-0.5 flex justify-end"><Badge className="min-h-[22px] py-0 text-[11.5px]" color={COLOR_NIVEL[nivel.nivel]}>{ETIQUETA_NIVEL[nivel.nivel]}</Badge></span>
-  if (nivel.estado === 'sin_muestra') return <span className="block text-[11.5px] tabular-nums text-[var(--muted-foreground-strong)]">Sin muestra · {nivel.utiles} de {nivel.minimo} útiles</span>
+  if (nivel.estado === 'sin_muestra') return <span className="block text-[11.5px] text-[var(--muted-foreground-strong)]">Sin muestra<span className="sr-only">: {nivel.utiles} de {nivel.minimo} llamadas útiles necesarias</span></span>
   return <span className="block text-[11.5px] tabular-nums text-[var(--muted-foreground-strong)]">{fila.contestadas}/{fila.utiles} útiles</span>
 }
 

@@ -43,8 +43,8 @@ export function GestionDiaria(): JSX.Element {
   // El analista y el supervisor llevan a su cabecera un solo botón compacto, como
   // el «Mi Hoy completo ›» del diseño (27/09/2026): la cabecera no puede pesar
   // más que la pregunta. La vuelta al resumen sigue en la barra de secciones de
-  // la cola, con su `aria-current`. Gerencia conserva su acceso hasta su plan.
-  const integrada = yo.rol === 'vendedor' || yo.rol === 'supervisor'
+  // la cola, con su `aria-current`. Gerencia, con su propio plan (27/09), también.
+  const integrada = yo.rol === 'vendedor' || yo.rol === 'supervisor' || yo.rol === 'gerencia'
     ? <nav aria-label="Secciones de Gestión Diaria"><a href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-border bg-card px-3 text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11">Seguimiento completo<ChevronRight aria-hidden className="size-4" /></a></nav>
     : <nav aria-label="Secciones de Gestión Diaria">{accesoCola}</nav>
   return <div key={`${yo.id}:${yo.rol}:${yo.demo}`} className="mx-auto w-full max-w-[1640px] space-y-5">
