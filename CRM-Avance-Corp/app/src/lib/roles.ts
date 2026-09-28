@@ -31,6 +31,7 @@ export const ACCIONES = [
   'verFacturacion',     // tablero Facturación: Gerencia ve la empresa, Supervisión
                         // SU equipo (Miguel, 16/09/2026); espejo de la verja de
                         // crm.facturacion_diaria_fn, que a los demás les da vacío
+  'verCitasEquipo',     // Citas: Gerencia ve la empresa; Supervisión, su subárbol.
   'verAlertas',         // bandeja por destinatario (propia, equipo o ejecutiva)
   'tomarLeadDirecto',   // F2 lead libre: tomar para SÍ un contacto en bolsa o
                         // reutilizable tras verificar — SOLO analista (espejo
@@ -72,6 +73,7 @@ export const CAPS: Record<Rol, Caps> = {
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
     verDerivacionesEquipo: false,
     verFacturacion: false,
+    verCitasEquipo: false,
     verAlertas: true, tomarLeadDirecto: true,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
@@ -83,6 +85,7 @@ export const CAPS: Record<Rol, Caps> = {
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: true,
     verFacturacion: true,
+    verCitasEquipo: true,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
@@ -94,6 +97,7 @@ export const CAPS: Record<Rol, Caps> = {
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
     verFacturacion: true,
+    verCitasEquipo: true,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: true,
     verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: false,
@@ -105,6 +109,7 @@ export const CAPS: Record<Rol, Caps> = {
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
     verFacturacion: false,
+    verCitasEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
@@ -120,6 +125,7 @@ export const CAPS: Record<Rol, Caps> = {
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
     verDerivacionesEquipo: false,
     verFacturacion: false,
+    verCitasEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: false, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,

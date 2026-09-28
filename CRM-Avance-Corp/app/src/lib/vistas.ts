@@ -25,7 +25,8 @@ const CAPACIDAD_POR_VISTA = {
   'gestion-diaria': 'verLeads',
   conversiones: null,
   'ranking-vendedores': null,
-  reuniones: null,
+  // Gerencia ve el universo y Supervisión solo su equipo; la RPC impone el alcance.
+  reuniones: 'verCitasEquipo',
   metas: null,
   rendimiento: null,
   // Gerencia y Supervisión (su equipo), 16/09/2026. El servidor recorta el ámbito.
@@ -91,6 +92,10 @@ export function vistaPermitida(
     if (vista === 'config-usuarios' && rolPortal === 'superadmin') return true
     return rol === 'gerencia' || rol === 'directorio'
   }
+  // Citas comparte el patrón de Facturación: Supervisión tiene una lectura de
+  // su subárbol, y Gerencia conserva el universo. Las demás vistas ejecutivas
+  // continúan siendo exclusivas de Gerencia.
+  if (vista === 'reuniones') return can(rol, 'verCitasEquipo')
   if (esVistaGerencia(vista)) return rol === 'gerencia'
   // El mundo leads se cierra por la llave general y, SIEMPRE, para el
   // coordinador: su ámbito de leads es ∅ y su único destino es «Repartir».

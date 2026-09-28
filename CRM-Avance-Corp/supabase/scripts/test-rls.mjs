@@ -6821,8 +6821,9 @@ async function testMetricasServidor(sessions, seed) {
   }
 
   // F2 (21/09/2026): la puerta de Citas devuelve ademas `testigo`, el calculo
-  // INDEPENDIENTE del Deposito % del mes sin filtros. Se fija su forma exacta y
-  // su aritmetica interna; y se reafirma que solo gerencia entra por esa puerta.
+  // INDEPENDIENTE del Deposito % del mes sin filtros. Gerencia recibe el
+  // universo + testigo; Supervisión recibe solo su subárbol y JAMÁS el total
+  // agregado de la empresa.
   const mesLimaF2 = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' })
     .format(new Date());
   const [anioF2, mesNumF2] = mesLimaF2.split('-').map(Number);
@@ -6857,7 +6858,41 @@ async function testMetricasServidor(sessions, seed) {
         'F2: el testigo no arrastra ningun identificador');
     }
   }
-  for (const [quien, sesion] of [['sup1', sessions.sup1], ['vend1', sessions.vend1], ['coordinador', sessions.coordinador], ['clientBank', sessions.clientBank]]) {
+  const citasSup1 = await positive(
+    'sup1 lee Citas únicamente para su subárbol, sin testigo global',
+    sessions.sup1.client.schema('crm').rpc('citas_gerencia_consulta_fn', { p_desde: desdeF2, p_hasta: hastaF2 }),
+  );
+  if (citasSup1) {
+    const propios = new Set([
+      seed.profileIdByKey.sup1,
+      seed.profileIdByKey.sup1Nested,
+      seed.profileIdByKey.vend1,
+      seed.profileIdByKey.vend2,
+      seed.profileIdByKey.vendNested,
+    ]);
+    const ajenos = new Set([seed.profileIdByKey.sup2, seed.profileIdByKey.vend3]);
+    const payload = citasSup1.data ?? {};
+    const citas = payload.citas ?? [];
+    const asignaciones = payload.gestion?.asignaciones ?? [];
+    const poblacion = payload.gestion?.poblacion ?? [];
+    const conversiones = payload.gestion?.conversiones ?? [];
+    const capital = payload.gestion?.capital ?? [];
+    check(!('testigo' in payload), 'F2: sup1 no recibe el testigo global de Gerencia');
+    check(citas.every((x) => !x.analista_id || propios.has(x.analista_id))
+      && asignaciones.every((x) => propios.has(x.analista_id))
+      && conversiones.every((x) => !x.analista_id || propios.has(x.analista_id))
+      && capital.every((x) => !x.analista_id || propios.has(x.analista_id)),
+    'F2: sup1 solo recibe citas, base, cierres y capital de su subárbol',
+    JSON.stringify({ citas, asignaciones, conversiones, capital }));
+    check(citas.every((x) => !ajenos.has(x.analista_id))
+      && asignaciones.every((x) => !ajenos.has(x.analista_id))
+      && poblacion.every((x) => !ajenos.has(x.analista_origen_id))
+      && conversiones.every((x) => !ajenos.has(x.analista_id))
+      && capital.every((x) => !ajenos.has(x.analista_id)),
+    'F2: sup1 no recibe ninguna fila atribuida al subárbol ajeno',
+    JSON.stringify({ citas, asignaciones, poblacion, conversiones, capital }));
+  }
+  for (const [quien, sesion] of [['vend1', sessions.vend1], ['coordinador', sessions.coordinador], ['clientBank', sessions.clientBank]]) {
     await expectExplicitAuthorizationDenied(
       `F2: ${quien} no entra por la puerta de citas de gerencia (ni al testigo)`,
       sesion.client.schema('crm').rpc('citas_gerencia_consulta_fn', { p_desde: desdeF2, p_hasta: hastaF2 }),
