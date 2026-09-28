@@ -431,7 +431,7 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
   #114) y SIN la nota «Integracion del main local y pendientes» (describe lo de Gloria). Al fusionarla (squash,
   Miguel), volver a traer `avancecorp/main` al local. Worktrees y ramas de este trabajo, retirados.
 
-## Plan de la pantalla de GERENCIA — v2 tras Codex (27/09, ESPERANDO OK de Miguel)
+## Plan de la pantalla de GERENCIA — v2 tras Codex (27/09, APROBADO «G0 a G3 ahora, G4 después» e IMPLEMENTADO)
 
 Pedido de Miguel: «las mejoras que ya hemos hecho, aplícalas para gerencia». Diseño: `vista-previa/avance-gerencia.png`.
 Codex (plan v1): CHANGES_REQUESTED — 4 P1 + 4 P2; todo incorporado aquí. Encargo y respuesta en `docs/encargos/`.
@@ -480,3 +480,28 @@ citas creadas del día) → pestaña Pendientes y listas exactas de vencidas y c
 
 **Ver en local:** el modo demo no tiene gerencia. Miguel entra con su cuenta real en la copia local (solo mirar);
 yo reviso con capturas E2E.
+
+## Estado de la pantalla de gerencia (27/09 — PUBLICADA en crm.miavance.com)
+
+- **Publicada 27/09 23:20 Lima** con `/release-crm` de Miguel: artefacto `crm-20260928T041929Z-1cd23b833678`,
+  build `build-20260928T041928593Z`, commit `1cd23b83`. Preflight OK contra el vivo `d00e62ad` (supervisor); humo
+  HTTP 200, `index` igual y 81/81 archivos byte a byte. `main` local = `1cd23b83`. A GitHub va por la **PR #118**
+  (sin lo de Gloria); la #117 ya estaba fusionada (`d46cdbb8`) y se registró en el local sin cambios (`3cdef4f0`).
+- **Qué quedó** (G0–G3, tras verla Miguel en local):
+  - «Pulso diario» → **«Actividad del día»** (era jerga); «Hábitos del equipo» sigue como segunda pestaña.
+  - **Como el supervisor** (Miguel: «que quede como lo ve supervisores»): sin franja de 4 cifras; pastillas-filtro
+    Todos · Con atención · Con vencidas + buscador a la derecha; fila **«Toda la operación»** al pie de la tabla
+    (llamadas, contacto, citas, vencidas, atención, sin registro; cada número —también los ceros— abre su lista);
+    la comparación con ayer y la referencia vive solo en «Comparar días».
+  - Filas y ficha con el **nombre del supervisor** (se oye «Equipo de …»); dentro de un equipo, la pantalla del supervisor.
+  - **Registro general y del equipo compactos** como el del supervisor (con filtro de equipo y CSV; sin etapa).
+  - **Cabecera compacta** (Miguel: el filtro de fecha «debe estar pero no puede ocupar tanto espacio»): fecha + Hoy
+    junto al título; los demás botones al final de la fila de pestañas; «Actualizado» solo en el pie.
+  - G3: Hábitos y «Comparar días» con la escala del diseño (ficha protagonista, tabla `me-tabla`, ventana < 1040 px).
+- **Cómo se hizo:** agentes en paralelo (G0 demo, migración del E2E, G3, revisión a11y) + Codex 2 veces (8 + 1
+  hallazgos, todos aplicados). El E2E migrado encontró 2 P2 reales (Hábitos apilado 1040–1235 px; foco al cerrar la
+  ventana del analista) y el revisor a11y 2 P2 (origen del foco `<body>` en Safari —también en el supervisor— y aviso
+  CSV que no se anunciaba). check PASS (4682) · E2E Docker local 36/36.
+- **Pendiente:** G4 (permiso de gerencia sobre `gestion_diaria_pendientes_fn`, LEVEL 3, su propio plan); P3 a11y
+  diferido: botones que navegan a una ruta deberían ser enlaces (abrir en otra pestaña); al fusionar la #118, traer
+  `avancecorp/main` al local.
