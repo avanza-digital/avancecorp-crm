@@ -2,12 +2,24 @@ import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+import * as v from 'valibot'
 import type { Yo } from '@/lib/tipos'
 import fixture from '@/lib/gestion-diaria-f5.test.fixture.json'
-const d = vi.hoisted(() => ({ pulso: vi.fn(), habitos: vi.fn(), equipo: vi.fn(), yo: null as Yo | null }))
+import { PulsoGerenciaSchema } from '@/lib/gestion-diaria-pulso'
+import { HabitosGerenciaSchema } from '@/lib/gestion-diaria-habitos'
+import { DiaEquipoSchema } from '@/lib/gestion-diaria-equipo'
+const d = vi.hoisted(() => ({ pulso: vi.fn(), habitos: vi.fn(), equipo: vi.fn(), yo: null as Yo | null, store: {} }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: d.yo }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => d.store }))
+vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-24T17:00:00Z') }))
 vi.mock('./gestion-diaria-pulso-api', () => ({ obtenerPulsoGerencia: d.pulso, obtenerHabitosGerencia: d.habitos }))
 vi.mock('./gestion-diaria-api', () => ({ obtenerDiaEquipo: d.equipo }))
+// El mundo demo se siembra relativo al reloj: el mismo instante que `useAhora`.
+vi.useFakeTimers()
+vi.setSystemTime(Date.parse('2026-09-24T17:00:00Z'))
+const demo = await import('@/lib/demo')
+vi.useRealTimers()
+d.store = { equipo: demo.EQUIPO_DEMO, ambito: { leads: demo.LEADS_DEMO }, actividadesDelAmbito: demo.ACTIVIDADES_DEMO, tareas: demo.TAREAS_DEMO }
 const { usePulsoGerencia, useHabitosGerencia, useDetallePulso, clavePulso } = await import('./gestion-diaria-pulso-queries')
 let cliente: QueryClient
 function envolver({ children }: { children: ReactNode }) { return <QueryClientProvider client={cliente}>{children}</QueryClientProvider> }
@@ -53,6 +65,30 @@ describe('F5: caché por identidad y período, cancelación y permisos', () => {
     const { result } = renderHook(() => ({ p: usePulsoGerencia('2026-09-23'), h: useHabitosGerencia('2026-09-23', 7, true), e: useDetallePulso('2026-09-23', true) }), { wrapper: envolver })
     await act(async () => { await result.current.p.recargar(); await result.current.h.recargar(); await result.current.e.recargar() })
     expect(d.pulso).not.toHaveBeenCalled(); expect(d.habitos).not.toHaveBeenCalled(); expect(d.equipo).not.toHaveBeenCalled()
+  })
+  it('la gerencia demo recibe la operación de ejemplo con la misma forma, sólo al abrir y sin red', async () => {
+    d.yo = { id: 'd-ger', rol: 'gerencia', demo: true } as Yo
+    const { result, rerender } = renderHook(({ abierta }: { abierta: boolean }) => ({ p: usePulsoGerencia('2026-09-24'),
+      h: useHabitosGerencia('2026-09-24', 7, abierta), e: useDetallePulso('2026-09-24', abierta) }), { wrapper: envolver, initialProps: { abierta: false } })
+    expect(result.current.p).toMatchObject({ cargando: false, enVuelo: false, error: null })
+    expect(v.safeParse(PulsoGerenciaSchema, result.current.p.datos).success).toBe(true)
+    expect(result.current.p.datos?.equipos.map((e) => e.clave)).toEqual(['d-sup1', 'd-sup2', 'fuera'])
+    expect(result.current.h.datos).toBeNull(); expect(result.current.e.datos).toBeNull()
+    rerender({ abierta: true })
+    expect(v.safeParse(HabitosGerenciaSchema, result.current.h.datos).success).toBe(true)
+    expect(v.parse(DiaEquipoSchema, result.current.e.datos)).toMatchObject({ supervisor_id: null })
+    expect(result.current.e.datos?.equipo.map((f) => f.analista_id).toSorted()).toEqual(['d-v1', 'd-v2', 'd-v3'])
+    await act(async () => { await result.current.p.recargar(); await result.current.h.recargar(); await result.current.e.recargar() })
+    expect(d.pulso).not.toHaveBeenCalled(); expect(d.habitos).not.toHaveBeenCalled(); expect(d.equipo).not.toHaveBeenCalled()
+  })
+  it('en demo, un día fuera de rango es un error y no cifras; otro rol demo no recibe la operación', () => {
+    d.yo = { id: 'd-ger', rol: 'gerencia', demo: true } as Yo
+    const { result, rerender } = renderHook(({ dia }: { dia: string }) => usePulsoGerencia(dia), { wrapper: envolver, initialProps: { dia: '2026-09-25' } })
+    expect(result.current.datos).toBeNull()
+    expect(result.current.error).toBeInstanceOf(RangeError)
+    d.yo = { id: 'd-sup1', rol: 'supervisor', demo: true } as Yo
+    rerender({ dia: '2026-09-24' })
+    expect(result.current).toMatchObject({ datos: null, error: null, cargando: false })
   })
   it('carga hábitos y detalle sólo al abrirlos; una ventana nueva no conserva la anterior', async () => {
     const { result, rerender } = renderHook(({ abierta, dias }: { abierta: boolean; dias: 7 | 14 }) => ({ h: useHabitosGerencia('2026-09-23', dias, abierta), e: useDetallePulso('2026-09-23', abierta) }), { wrapper: envolver, initialProps: { abierta: false, dias: 7 } })

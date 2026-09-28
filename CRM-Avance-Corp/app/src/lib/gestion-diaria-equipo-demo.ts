@@ -3,9 +3,8 @@ import { diaAnalistaDesdeDemo } from './gestion-diaria-analista'
 import { fechaLima } from './agenda-derivada'
 import { resumenEquipo, type DiaEquipo, type FilaEquipoDiario } from './gestion-diaria-equipo'
 
-/** Sólo demo: el roster no depende de tener leads; recorrer con Set evita ciclos. */
-export function diaEquipoDesdeDemo(supervisorId: string, miembros: readonly Miembro[], leads: readonly Lead[],
-  actividades: readonly Actividad[], tareas: readonly Tarea[], ahora: number, dia: string): DiaEquipo {
+/** Subárbol de un supervisor; recorrer con Set evita ciclos. */
+function subarbolDemo(supervisorId: string, miembros: readonly Miembro[]): Set<string> {
   const ids = new Set([supervisorId])
   let cambio = true
   while (cambio) {
@@ -16,7 +15,17 @@ export function diaEquipoDesdeDemo(supervisorId: string, miembros: readonly Miem
       }
     }
   }
-  const equipo = miembros.filter((m) => m.activo && m.rol_crm === 'vendedor' && ids.has(m.perfil_id)).map((m): FilaEquipoDiario => {
+  return ids
+}
+
+/**
+ * Sólo demo: el roster no depende de tener leads. `null` = toda la operación
+ * (gerencia), como `gestion_diaria_equipo_fn` sin `p_supervisor_id`.
+ */
+export function diaEquipoDesdeDemo(supervisorId: string | null, miembros: readonly Miembro[], leads: readonly Lead[],
+  actividades: readonly Actividad[], tareas: readonly Tarea[], ahora: number, dia: string): DiaEquipo {
+  const ids = supervisorId === null ? null : subarbolDemo(supervisorId, miembros)
+  const equipo = miembros.filter((m) => m.activo && m.rol_crm === 'vendedor' && (ids === null || ids.has(m.perfil_id))).map((m): FilaEquipoDiario => {
     // El fixture demo identifica al autor por nombre, no por dueño actual del lead.
     const propias = actividades.filter((a) => a.autor_nombre === m.nombre_completo && !a.local)
     const { marcador } = diaAnalistaDesdeDemo(m.perfil_id, leads, propias, tareas, ahora, dia)

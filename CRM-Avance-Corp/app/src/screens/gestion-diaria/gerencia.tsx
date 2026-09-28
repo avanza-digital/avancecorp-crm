@@ -40,7 +40,8 @@ function diaRecordado(actor: string, hoy: string) {
 export function GestionDiariaGerencia({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode }) {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
-  if (yo?.rol !== 'gerencia' || yo.demo) return <p role="alert">El pulso completo requiere una sesión de gerencia.</p>
+  // La gerencia demo entra con la operación de ejemplo del store (G0); otro rol, nunca.
+  if (yo?.rol !== 'gerencia') return <p role="alert">El pulso completo requiere una sesión de gerencia.</p>
   return <VistaGerencia key={yo.id} actor={yo.id} hoy={hoy} accesoSeguimiento={accesoSeguimiento} />
 }
 
