@@ -1,6 +1,6 @@
-// La tabla del equipo tiene DOS contextos (plan supervisor v2, 27/09/2026):
-// gerencia la conserva como estaba (con Pendientes) y el supervisor estrena el
-// diseño: iniciales, Citas, contacto en tres estados y atención en palabras.
+// La tabla del equipo con el diseño de Gestión Diaria (27/09/2026): iniciales,
+// Citas, contacto en tres estados y atención en palabras. Gerencia, dentro de un
+// equipo, compara además Pendientes.
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { TablaEquipoDiaria } from './tabla-equipo-diaria'
@@ -17,20 +17,21 @@ const filas = [
   filaEquipoPrueba({ analista_id: 'r', nombre_completo: 'RENATO FLORES' }),
 ] as FilaEquipoPresentada[]
 
-function montar(contexto?: 'supervisor') {
+function montar(conPendientes = false) {
   render(<TablaEquipoDiaria filas={filas} filtros={FILTROS} ordenar={vi.fn()} seleccion="k" seleccionar={vi.fn()}
-    panelId="panel" irAlDetalle={vi.fn()} minimo={5} {...(contexto ? { contexto } : {})} />)
+    panelId="panel" irAlDetalle={vi.fn()} minimo={5} conPendientes={conPendientes} />)
   return screen.getByRole('table')
 }
 
 describe('TablaEquipoDiaria', () => {
-  it('gerencia (por defecto) no cambia: Pendientes y «N motivos»', () => {
-    const tabla = montar()
-    expect(within(tabla).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Analista', 'Llamadas', 'Contacto', 'Pendientes', 'Vencidas', 'Atención'])
-    expect(within(tabla).getByText('2 motivos')).toBeInTheDocument()
+  it('gerencia dentro de un equipo compara también Pendientes (27/09)', () => {
+    const tabla = montar(true)
+    expect(within(tabla).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Analista', 'Llamadas', 'Contacto', 'Citas', 'Pendientes', 'Vencidas', 'Atención'])
+    const karen = within(tabla).getByRole('button', { name: 'Seleccionar a KAREN DÍAZ' }).closest('tr')!
+    expect(within(karen).getAllByRole('cell').map((c) => c.getAttribute('data-etiqueta'))).toContain('Pendientes')
   })
   it('supervisor: Citas en lugar de Pendientes, orden comunicado y la fila elegida marcada', () => {
-    const tabla = montar('supervisor')
+    const tabla = montar()
     const cabeceras = within(tabla).getAllByRole('columnheader')
     expect(cabeceras.map((c) => c.textContent)).toEqual(['Analista', 'Llamadas', 'Contacto', 'Citas', 'Vencidas', 'Atención'])
     expect(cabeceras[5]).toHaveAttribute('aria-sort', 'descending')
@@ -38,7 +39,7 @@ describe('TablaEquipoDiaria', () => {
     expect(within(tabla).getByRole('button', { name: 'Ir al detalle de KAREN DÍAZ' })).toBeInTheDocument()
   })
   it('supervisor: la atención se dice en palabras, en rojo si es vencido, con «+N» y la lista para el lector', () => {
-    const tabla = montar('supervisor')
+    const tabla = montar()
     const fila = within(tabla).getByRole('button', { name: 'Seleccionar a KAREN DÍAZ' }).closest('tr')!
     const atencion = within(fila).getByText('4 vencidas')
     expect(atencion).toHaveStyle({ color: 'var(--destructive-text)' })
@@ -48,7 +49,7 @@ describe('TablaEquipoDiaria', () => {
     expect(within(sinActividad).getByText('Sin registro')).toBeInTheDocument()
   })
   it('supervisor: el contacto sin muestra suficiente dice útiles y mínimo; el evaluado, % y nivel', () => {
-    const tabla = montar('supervisor')
+    const tabla = montar()
     const andrea = within(tabla).getByRole('button', { name: 'Seleccionar a ANDREA MORALES' }).closest('tr')!
     expect(within(andrea).getByText('Sin muestra')).toBeInTheDocument()
     expect(within(andrea).getByText('3 útiles · mínimo 5')).toBeInTheDocument()

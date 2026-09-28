@@ -1,15 +1,9 @@
 import { ArrowDown, ArrowUp, ArrowRight } from 'lucide-react'
-import { COLOR_NIVEL, ETIQUETA_NIVEL, textoTasa } from '@/lib/gestion-diaria-analista'
-import { MOTIVOS_EQUIPO, presentarAtencion, presentarContacto, type FilaEquipoPresentada, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
+import { COLOR_NIVEL, ETIQUETA_NIVEL } from '@/lib/gestion-diaria-analista'
+import { presentarAtencion, presentarContacto, type FilaEquipoPresentada, type FiltrosEquipo, type OrdenEquipo } from '@/lib/gestion-diaria-equipo'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-
-const COLUMNAS: { orden: OrdenEquipo; titulo: string }[] = [
-  { orden: 'nombre', titulo: 'Analista' }, { orden: 'llamadas', titulo: 'Llamadas' },
-  { orden: 'contacto', titulo: 'Contacto' }, { orden: 'pendientes', titulo: 'Pendientes' },
-  { orden: 'vencidas', titulo: 'Vencidas' }, { orden: 'atencion', titulo: 'Atención' },
-]
 
 interface PropsTabla {
   filas: readonly FilaEquipoPresentada[]
@@ -20,58 +14,14 @@ interface PropsTabla {
   panelId: string
   irAlDetalle: () => void
   minimo: number
-  /** `gerencia` (por defecto): la tabla de siempre, con Pendientes. `supervisor`:
-   * el diseño de Gestión Diaria (27/09) — iniciales, Citas, atención en palabras.
-   * Gerencia no cambia hasta su propio plan (revisión Codex del plan supervisor). */
-  contexto?: 'gerencia' | 'supervisor' | undefined
+  /** Gerencia dentro de un equipo compara también Pendientes (27/09). */
+  conPendientes?: boolean | undefined
 }
 
-/** Una tabla semántica; en contenedores estrechos sus celdas llevan rótulos. */
-export function TablaEquipoDiaria({ contexto = 'gerencia', ...props }: PropsTabla) {
-  return contexto === 'supervisor' ? <TablaSupervisor {...props} /> : <TablaGerencia {...props} />
-}
-
-function TablaGerencia({ filas, filtros, ordenar, seleccion, seleccionar, panelId, irAlDetalle, minimo }: Omit<PropsTabla, 'contexto'>) {
-  return (
-    <div className="gd-tabla-scroll ac-scroll">
-      <table aria-label="Actividad y pendientes por analista" className="gd-tabla">
-        <colgroup>{COLUMNAS.map((c) => <col key={c.orden} className={`gd-col-${c.orden}`} />)}</colgroup>
-        <thead><tr>{COLUMNAS.map((c) => (
-          <th key={c.orden} scope="col" aria-sort={filtros.orden === c.orden ? filtros.ascendente ? 'ascending' : 'descending' : 'none'}>
-            <button type="button" onClick={() => ordenar(c.orden)} aria-label={`Ordenar por ${c.titulo.toLocaleLowerCase('es')}`}>
-              {c.titulo}{filtros.orden === c.orden && (filtros.ascendente ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />)}
-            </button>
-          </th>
-        ))}</tr></thead>
-        <tbody>
-          {filas.length === 0 && <tr><td colSpan={6} className="gd-sin-filas">Ningún analista coincide con estos filtros.</td></tr>}
-          {filas.map((f) => {
-            const activa = f.analista_id === seleccion
-            const sinMuestra = f.marcador.nivel === null
-            const contacto = f.marcador.utiles === 0 ? '—' : sinMuestra ? 'Sin muestra' : `${f.marcador.tasa_contacto_pct} %`
-            const contextoContacto = f.marcador.utiles === 0 ? 'Sin llamadas útiles' : `${textoTasa(f.marcador)}; ${f.marcador.contestadas} de ${f.marcador.utiles} útiles; mínimo ${minimo}${sinMuestra ? '; sin muestra suficiente' : `; nivel ${ETIQUETA_NIVEL[f.marcador.nivel!]}`}`
-            return (
-              <tr key={f.analista_id} data-analista={f.analista_id} data-activa={activa}>
-                <th scope="row" className="gd-nombre"><div>
-                  <button type="button" aria-label={`Seleccionar a ${f.nombre_completo}`} aria-current={activa ? 'true' : undefined}
-                    aria-controls={panelId} onClick={() => seleccionar(f)}>{f.nombre_completo}</button>
-                  {activa && <button type="button" className="gd-ir-detalle" aria-label={`Ir al detalle de ${f.nombre_completo}`} onClick={irAlDetalle}><ArrowRight aria-hidden /></button>}
-                </div></th>
-                <td data-etiqueta="Llamadas">{f.marcador.llamadas}</td>
-                <td data-etiqueta="Contacto"><span style={f.marcador.nivel ? { color: COLOR_NIVEL[f.marcador.nivel] } : undefined}><span aria-hidden>{contacto}{f.marcador.nivel && <span className="gd-nivel-contacto">{ETIQUETA_NIVEL[f.marcador.nivel]}</span>}</span><span className="sr-only">{contextoContacto}</span></span></td>
-                <td data-etiqueta="Pendientes">{f.tareas_pendientes}</td>
-                <td data-etiqueta="Vencidas"><span className={f.tareas_vencidas > 0 ? 'text-[var(--danger-text)] font-semibold' : ''}>{f.tareas_vencidas}</span></td>
-                <td data-etiqueta="Atención"><span className={f.requiere_atencion ? 'gd-motivos' : 'text-[var(--muted-foreground-strong)]'}>
-                  {f.motivos_atencion.length ? `${f.motivos_atencion.length} ${f.motivos_atencion.length === 1 ? 'motivo' : 'motivos'}` : f.gestiones_hoy === 0 ? 'Sin registro' : 'Sin alertas'}
-                  {f.motivos_atencion.length > 0 && <span className="sr-only">: {f.motivos_atencion.map((m) => MOTIVOS_EQUIPO[m]).join('; ')}</span>}
-                </span></td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
+/** Una tabla semántica; en contenedores estrechos sus celdas llevan rótulos. La
+ * usan el supervisor y gerencia dentro de un equipo (27/09): el diseño de Gestión Diaria. */
+export function TablaEquipoDiaria(props: PropsTabla) {
+  return <TablaSupervisor {...props} />
 }
 
 const COLUMNAS_SUPERVISOR: { orden: OrdenEquipo; titulo: string; ancho: string; derecha?: boolean }[] = [
@@ -88,15 +38,17 @@ const FOCO = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visib
  * flecha «Ir al detalle»; en un contenedor estrecho (celular, zoom 200 %) las
  * filas se vuelven tarjetas con rótulos (`mi-equipo.css`), sin scroll lateral.
  */
-function TablaSupervisor({ filas, filtros, ordenar, seleccion, seleccionar, panelId, irAlDetalle, minimo }: Omit<PropsTabla, 'contexto'>) {
+function TablaSupervisor({ filas, filtros, ordenar, seleccion, seleccionar, panelId, irAlDetalle, minimo, conPendientes = false }: PropsTabla) {
+  const columnas = conPendientes ? COLUMNAS_SUPERVISOR.flatMap((c) => c.orden === 'citas'
+    ? [c, { orden: 'pendientes' as const, titulo: 'Pendientes', ancho: 'w-[84px]', derecha: true }] : [c]) : COLUMNAS_SUPERVISOR
   return (
-    <div className="gd-tabla-scroll ac-scroll min-h-0 flex-1 overflow-y-auto">
-      <table aria-label="Actividad y pendientes por analista" className="me-tabla w-full table-fixed border-separate border-spacing-0">
-        <colgroup>{COLUMNAS_SUPERVISOR.map((c) => <col key={c.orden} className={c.ancho} />)}</colgroup>
+    <div className={cn('gd-tabla-scroll ac-scroll min-h-0 flex-1 overflow-y-auto', conPendientes && '!overflow-x-auto')}>
+      <table aria-label="Actividad y pendientes por analista" className={cn('me-tabla w-full table-fixed border-separate border-spacing-0', conPendientes && '@min-[641px]:min-w-[760px]')}>
+        <colgroup>{columnas.map((c) => <col key={c.orden} className={c.ancho} />)}</colgroup>
         <thead className="sticky top-0 z-[1] bg-card">
-          <tr>{COLUMNAS_SUPERVISOR.map((c, i) => (
+          <tr>{columnas.map((c, i) => (
             <th key={c.orden} scope="col" aria-sort={filtros.orden === c.orden ? filtros.ascendente ? 'ascending' : 'descending' : 'none'}
-              className={cn('border-b border-border px-2 py-0 font-normal', i === 0 && 'pl-4', i === COLUMNAS_SUPERVISOR.length - 1 && 'pr-4')}>
+              className={cn('border-b border-border px-2 py-0 font-normal', i === 0 && 'pl-4', i === columnas.length - 1 && 'pr-4')}>
               <button type="button" onClick={() => ordenar(c.orden)} aria-label={`Ordenar por ${c.titulo.toLocaleLowerCase('es')}`}
                 className={cn('flex min-h-10 w-full cursor-pointer items-center gap-1 whitespace-nowrap rounded-md text-[12.5px] font-semibold text-[var(--muted-foreground-strong)] hover:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11',
                   c.derecha && 'justify-end', filtros.orden === c.orden && 'text-primary')}>
@@ -106,7 +58,7 @@ function TablaSupervisor({ filas, filtros, ordenar, seleccion, seleccionar, pane
           ))}</tr>
         </thead>
         <tbody>
-          {filas.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-[13px] text-[var(--muted-foreground-strong)]">Ningún analista coincide con estos filtros.</td></tr>}
+          {filas.length === 0 && <tr><td colSpan={columnas.length} className="px-4 py-6 text-[13px] text-[var(--muted-foreground-strong)]">Ningún analista coincide con estos filtros.</td></tr>}
           {filas.map((f) => {
             const activa = f.analista_id === seleccion
             const contacto = presentarContacto(f.marcador, minimo)
@@ -141,6 +93,7 @@ function TablaSupervisor({ filas, filtros, ordenar, seleccion, seleccionar, pane
                   <span className="sr-only">{contacto.accesible}</span>
                 </td>
                 <td data-etiqueta="Citas" className="px-2 text-right text-sm tabular-nums text-foreground">{f.marcador.citas_agendadas}</td>
+                {conPendientes && <td data-etiqueta="Pendientes" className="px-2 text-right text-sm tabular-nums text-foreground">{f.tareas_pendientes}</td>}
                 <td data-etiqueta="Vencidas" className={cn('px-2 text-right text-sm font-semibold tabular-nums', f.tareas_vencidas > 0 ? 'text-[var(--destructive-text)]' : 'text-foreground')}>{f.tareas_vencidas}</td>
                 <td data-etiqueta="Atención" className="py-2 pl-4 pr-4 text-[13px]">
                   {atencion.texto === null
