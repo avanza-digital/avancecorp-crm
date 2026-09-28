@@ -8,13 +8,16 @@
 import type { JSX } from 'react'
 import { ArrowDown, ArrowRight, ArrowUp, Check, Search } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { COLOR_NIVEL, ETIQUETA_NIVEL, type UmbralesSchema } from '@/lib/gestion-diaria-analista'
+import type * as v from 'valibot'
 import { Input } from '@/components/ui/input'
 import { cifraPulso } from '@/lib/gestion-diaria-pulso'
-import { nombreEquipo, type FilaEquipoOperacion, type FiltrosOperacion, type OrdenOperacion } from '@/lib/gestion-diaria-operacion'
+import { nivelEquipo, nombreEquipo, type FilaEquipoOperacion, type FiltrosOperacion, type OrdenOperacion } from '@/lib/gestion-diaria-operacion'
 import { cn } from '@/lib/utils'
 import { CONTROL, FOCO, PILDORA, PILDORA_ACTIVA, PILDORA_INACTIVA } from './estilos-gestion'
 
-export type AccionEquipo = 'sin_registro' | 'vencidas' | 'atencion'
+export type AccionEquipo = 'sin_registro' | 'vencidas' | 'atencion' | 'citas' | 'llamadas'
 
 const COLUMNAS: { orden: OrdenOperacion; titulo: string; ancho: string; derecha?: boolean }[] = [
   { orden: 'nombre', titulo: 'Equipo', ancho: 'me-col-nombre' }, { orden: 'llamadas', titulo: 'Llamadas', ancho: 'w-[72px]', derecha: true },
@@ -26,7 +29,7 @@ const COLUMNAS: { orden: OrdenOperacion; titulo: string; ancho: string; derecha?
 
 const ENLACE_CIFRA = cn('cursor-pointer rounded-md font-semibold tabular-nums underline-offset-2 hover:underline pointer-coarse:min-h-11', FOCO)
 
-export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = 'cargando', filtros, setFiltros, ordenar, seleccion, seleccionar, accion, panelId, irAlDetalle }: {
+export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = 'cargando', umbrales = null, filtros, setFiltros, ordenar, seleccion, seleccionar, accion, panelId, irAlDetalle }: {
   /** Ya filtradas y ordenadas. */
   filas: FilaEquipoOperacion[]
   total: number
@@ -34,6 +37,8 @@ export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = '
   conAtencion: number | null
   /** Por qué falta el detalle: mientras llega se dice «…»; si falló, «—» y «No disponible». */
   sinDetalle?: 'cargando' | 'error'
+  /** Umbrales del servidor para el nivel de contacto (llegan con el detalle). */
+  umbrales?: v.InferOutput<typeof UmbralesSchema> | null
   filtros: FiltrosOperacion
   setFiltros: (cambio: (f: FiltrosOperacion) => FiltrosOperacion) => void
   ordenar: (orden: OrdenOperacion) => void
@@ -50,7 +55,7 @@ export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = '
         <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar equipo…"
           className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
       </label>
-      <button type="button" aria-pressed={filtros.conAtencion} onClick={() => setFiltros((f) => ({ ...f, conAtencion: !f.conAtencion }))}
+      <button type="button" aria-pressed={filtros.conAtencion} onClick={() => setFiltros((f) => ({ ...f, conAtencion: !f.conAtencion, busqueda: f.conAtencion ? f.busqueda : '' }))}
         className={cn(PILDORA, filtros.conAtencion ? PILDORA_ACTIVA : PILDORA_INACTIVA)}>
         {filtros.conAtencion && <Check aria-hidden className="size-3.5" />}Con atención{' '}
         <span className="font-bold tabular-nums">{conAtencion ?? (sinDetalle === 'error' ? '—' : '…')}</span>
@@ -101,12 +106,20 @@ export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = '
                     </button>}
                   </div>
                 </th>
-                <td data-etiqueta="Llamadas" className="px-2 text-right text-sm font-semibold tabular-nums text-foreground">{f.llamadas}</td>
-                <td data-etiqueta="Contacto" className="px-2 text-right">
-                  <span className="block text-sm font-bold tabular-nums text-foreground">{f.tasaContacto === null ? '—' : `${Math.round(f.tasaContacto)} %`}</span>
-                  <span className="block text-[11.5px] tabular-nums text-[var(--muted-foreground-strong)]">{f.contestadas}/{f.utiles} útiles</span>
+                <td data-etiqueta="Llamadas" className="px-2 text-right text-sm tabular-nums text-foreground">
+                  {f.llamadas > 0 ? <button type="button" onClick={(e) => accion(f, 'llamadas', e.currentTarget)} aria-label={`${f.llamadas} llamadas del ${nombre}: ver en el registro`}
+                    className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.llamadas}</button> : <span className="font-semibold">0</span>}
                 </td>
-                <td data-etiqueta="Citas" className="px-2 text-right text-sm tabular-nums text-foreground">{f.citas}</td>
+                <td data-etiqueta="Contacto" className="px-2 text-right">
+                  {f.tasaContacto === null ? <span className="text-sm text-[var(--muted-foreground-strong)]">—</span>
+                    : <button type="button" onClick={(e) => accion(f, 'llamadas', e.currentTarget)} aria-label={`Contacto ${Math.round(f.tasaContacto)} % del ${nombre}: ver las llamadas y su resultado`}
+                      className={cn(ENLACE_CIFRA, 'text-sm font-bold text-foreground')}>{Math.round(f.tasaContacto)} %</button>}
+                  <NivelContacto fila={f} umbrales={umbrales} />
+                </td>
+                <td data-etiqueta="Citas" className="px-2 text-right text-sm tabular-nums text-foreground">
+                  {f.citas > 0 ? <button type="button" onClick={(e) => accion(f, 'citas', e.currentTarget)} aria-label={`${f.citas} citas agendadas del ${nombre}: ver por analista`}
+                    className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.citas}</button> : '0'}
+                </td>
                 <td data-etiqueta="Vencidas" className="px-2 text-right text-sm tabular-nums">
                   {f.vencidas > 0
                     ? <button type="button" onClick={(e) => accion(f, 'vencidas', e.currentTarget)} aria-label={`${f.vencidas} tareas vencidas en ${nombre}: ver por analista`}
@@ -135,5 +148,13 @@ export function TablaEquiposGerencia({ filas, total, conAtencion, sinDetalle = '
       </table>
     </div>
   </>
+}
+
+/** El nivel con los umbrales del servidor; sin muestra suficiente se dice con útiles y mínimo. */
+function NivelContacto({ fila, umbrales }: { fila: FilaEquipoOperacion; umbrales: v.InferOutput<typeof UmbralesSchema> | null }): JSX.Element | null {
+  const nivel = nivelEquipo(fila, umbrales)
+  if (nivel.estado === 'evaluado') return <span className="mt-0.5 flex justify-end"><Badge className="min-h-[22px] py-0 text-[11.5px]" color={COLOR_NIVEL[nivel.nivel]}>{ETIQUETA_NIVEL[nivel.nivel]}</Badge></span>
+  if (nivel.estado === 'sin_muestra') return <span className="block text-[11.5px] tabular-nums text-[var(--muted-foreground-strong)]">Sin muestra · {nivel.utiles} de {nivel.minimo} útiles</span>
+  return <span className="block text-[11.5px] tabular-nums text-[var(--muted-foreground-strong)]">{fila.contestadas}/{fila.utiles} útiles</span>
 }
 

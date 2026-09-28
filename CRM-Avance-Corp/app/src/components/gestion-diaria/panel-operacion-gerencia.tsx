@@ -35,12 +35,14 @@ function Cuadro({ etiqueta, children }: { etiqueta: string; children: ReactNode 
   )
 }
 
-export function PanelOperacionGerencia({ id, vista, pulso, detalle, esHoy, tituloRef, ampliado, puedeAmpliar, ampliar, cerrar, abrirVista, entrarEquipo, abrirPersona, actualizacion, revocar }: {
+export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFallido = false, esHoy, tituloRef, ampliado, puedeAmpliar, ampliar, cerrar, abrirVista, entrarEquipo, abrirPersona, actualizacion, revocar }: {
   id: string
   vista: VistaOperacion | null
   pulso: PulsoGerencia
   /** Filas del detalle de la operación; null mientras no llega. */
   detalle: FilaEquipoPresentada[] | null
+  /** El detalle falló: atención y barras NO disponibles (no «consultando…» para siempre). */
+  detalleFallido?: boolean
   esHoy: boolean
   tituloRef: RefObject<HTMLHeadingElement | null>
   ampliado: boolean
@@ -83,17 +85,17 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, esHoy, titul
         {vista === null ? <div className="flex h-full flex-col items-center justify-center gap-3 px-8 py-10 text-center text-[13.5px] text-[var(--muted-foreground-strong)]">
           <Users className="size-9 text-muted-foreground" aria-hidden /><p>Elige un equipo de la tabla para ver su día.</p></div>
           : vista.tipo === 'equipo' ? equipo
-            ? <FichaEquipo equipo={equipo} nombre={nombre} detalle={detalle} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
+            ? <FichaEquipo equipo={equipo} nombre={nombre} detalle={detalle} detalleFallido={detalleFallido} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
             : <p role="status" className="px-5 py-4 text-[13px]">Este equipo ya no aparece en la consulta. Elige otro de la tabla.</p>
             : vista.tipo === 'sin_registro' ? <ListaSinRegistro pulso={pulso} esHoy={esHoy} abrirPersona={abrirPersona} />
-              : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} titulo={titulo} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: 'todo', apertura: vista.apertura + 1 })} />}
+              : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} titulo={titulo} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: vista.pestana, apertura: vista.apertura + 1 })} />}
       </div>
     </section>
   )
 }
 
-function FichaEquipo({ equipo: e, nombre, detalle, esHoy, abrirVista, entrarEquipo, abrirPersona }: {
-  equipo: EquipoPulso; nombre: string; detalle: FilaEquipoPresentada[] | null; esHoy: boolean
+function FichaEquipo({ equipo: e, nombre, detalle, detalleFallido, esHoy, abrirVista, entrarEquipo, abrirPersona }: {
+  equipo: EquipoPulso; nombre: string; detalle: FilaEquipoPresentada[] | null; detalleFallido: boolean; esHoy: boolean
   abrirVista: (vista: VistaOperacion) => void; entrarEquipo: (clave: string, preset?: PresetEquipo) => void; abrirPersona: (analistaId: string) => void
 }): JSX.Element {
   const m = e.metricas
@@ -126,7 +128,9 @@ function FichaEquipo({ equipo: e, nombre, detalle, esHoy, abrirVista, entrarEqui
       </dl>
 
       <div className="space-y-1.5">
-        {barras === undefined ? <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">Consultando las llamadas por hora…</p>
+        {barras === undefined ? detalleFallido
+          ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">Las llamadas por hora no están disponibles: no se pudo consultar el detalle por analista.</p>
+          : <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">Consultando las llamadas por hora…</p>
           : barras === null ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">No se pudo confirmar el desglose por hora de todos sus analistas; no se muestran ceros como sustituto.</p>
             : <>
               <BarrasPorHora porHora={barras.porHora} titulo="Llamadas por hora del equipo" apoyo={`de sus ${plural(barras.analistas, 'analista activo', 'analistas activos')}`} />
@@ -136,7 +140,9 @@ function FichaEquipo({ equipo: e, nombre, detalle, esHoy, abrirVista, entrarEqui
 
       <div className="space-y-2">
         <h4 className="text-[15px] font-extrabold text-primary">Necesitan atención</h4>
-        {atencion === null ? <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">Consultando…</p>
+        {atencion === null ? detalleFallido
+          ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">No disponible: no se pudo consultar el detalle por analista.</p>
+          : <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">Consultando…</p>
           : atencion.length === 0 ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">Nadie del equipo necesita atención ahora.</p>
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles
             : <ul role="list" aria-label="Necesitan atención" className="space-y-1.5">
@@ -209,6 +215,7 @@ function RegistroOperacion({ vista, pulso, equipo, titulo, actualizacion, revoca
   // El registro del equipo lleva a todos sus autores con id (activos e inactivos); los sin autor, al general.
   const ids = equipo ? equipo.personas.flatMap((p) => p.analista_id === null ? [] : [p.analista_id]) : null
   const sinAutor = equipo?.personas.some((p) => p.analista_id === null) ?? false
+  const llamadasSinAutor = equipo?.personas.reduce((n, p) => p.analista_id === null ? n + p.llamadas : n, 0) ?? 0
   return (
     <section aria-label="Registro seleccionado" className="space-y-3 px-5 py-4">
       <h4 className="sr-only">{titulo}</h4>
@@ -216,7 +223,8 @@ function RegistroOperacion({ vista, pulso, equipo, titulo, actualizacion, revoca
         ? <RegistroActividad dia={pulso.dia} analistaIds={null} mostrarAnalista permitirEquipo permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
         : ids && ids.length > 0 ? <RegistroActividad dia={pulso.dia} analistaIds={ids} mostrarAnalista permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
           : <p className="text-[13px]">Este equipo no tiene autores con registro propio.</p>}
-      {sinAutor && <p className="text-[13px]">Los registros sin autor se consultan en el <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={abrirGeneral}>registro general del día</button>.</p>}
+      {sinAutor && <p className="text-[13px]">{llamadasSinAutor > 0 ? `${plural(llamadasSinAutor, 'llamada sin autor no aparece', 'llamadas sin autor no aparecen')} aquí: ` : 'Los registros sin autor se consultan en el '}
+        <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={abrirGeneral}>{llamadasSinAutor > 0 ? 'verlas en el registro general' : 'registro general del día'}</button>.</p>}
     </section>
   )
 }

@@ -6,7 +6,8 @@
 // (revisión Codex del plan, 27/09).
 import { cifraPulso, type EquipoPulso, type MetricasPulso, type PulsoGerencia } from './gestion-diaria-pulso'
 import { compararGravedad, horarioConfirmado, type FilaEquipoPresentada, type FiltrosEquipo } from './gestion-diaria-equipo'
-import type { Marcador } from './gestion-diaria-analista'
+import type { Marcador, UmbralesSchema } from './gestion-diaria-analista'
+import type * as v from 'valibot'
 
 export interface FilaEquipoOperacion {
   clave: string
@@ -121,8 +122,9 @@ export function barrasEquipo(detalle: readonly FilaEquipoPresentada[], equipo: E
     const actual = porHora.get(h.hora) ?? { hora: h.hora, llamadas: 0, contestadas: 0 }
     porHora.set(h.hora, { hora: h.hora, llamadas: actual.llamadas + h.llamadas, contestadas: actual.contestadas + h.contestadas })
   }
-  const enGrafica = filas.reduce((n, f) => n + f.marcador.llamadas, 0)
-  return { porHora: [...porHora.values()].toSorted((a, b) => a.hora - b.hora), analistas: filas.length, otros: Math.max(0, equipo.metricas.llamadas - enGrafica) }
+  // «Otros autores» sale del MISMO pulso (inactivos y sin autor), no de restar dos consultas distintas (Codex).
+  const otros = equipo.personas.reduce((n, p) => !p.activo || p.analista_id === null ? n + p.llamadas : n, 0)
+  return { porHora: [...porHora.values()].toSorted((a, b) => a.hora - b.hora), analistas: filas.length, otros }
 }
 
 /**
@@ -156,3 +158,20 @@ export function filtrosDePreset(preset?: PresetEquipo): FiltrosEquipo {
     default: return FILTROS_EQUIPO
   }
 }
+
+export type NivelEquipo =
+  | { estado: 'evaluado'; nivel: NonNullable<Marcador['nivel']> }
+  | { estado: 'sin_muestra'; utiles: number; minimo: number }
+  | { estado: 'sin_dato' }
+
+/**
+ * Nivel de contacto de un equipo con los MISMOS umbrales que el servidor aplica a
+ * cada analista (bien ≥ bien_min_pct, atención ≥ atencion_min_pct, muestra mínima de
+ * útiles). Sin umbrales (detalle aún sin llegar) no se dice nivel.
+ */
+export function nivelEquipo(f: Pick<FilaEquipoOperacion, 'tasaContacto' | 'utiles'>, umbrales: v.InferOutput<typeof UmbralesSchema> | null): NivelEquipo {
+  if (umbrales === null || f.tasaContacto === null) return { estado: 'sin_dato' }
+  if (f.utiles < umbrales.minimo_llamadas_utiles) return { estado: 'sin_muestra', utiles: f.utiles, minimo: umbrales.minimo_llamadas_utiles }
+  return { estado: 'evaluado', nivel: f.tasaContacto >= umbrales.bien_min_pct ? 'bien' : f.tasaContacto >= umbrales.atencion_min_pct ? 'atencion' : 'bajo' }
+}
+

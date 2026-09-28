@@ -62,11 +62,10 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
   const [local, setLocal] = useState<SeleccionSupervisor | null>(null)
   const [estrecho, setEstrecho] = useState(false)
   const [ampliado, setAmpliado] = useState(false)
-  const [enfocarRuta, setEnfocarRuta] = useState(false)
   const idsEquipo = equipo.personas.flatMap((p) => p.analista_id === null ? [] : [p.analista_id])
   const persona = analistaRuta ? equipo.personas.find((p) => p.analista_id === analistaRuta) : undefined
   const seleccion: SeleccionSupervisor | null = analistaRuta
-    ? { analista: analistaRuta, nombre: persona?.nombre_completo ?? null, apertura: 0, pestana: 'todo', enfocar: enfocarRuta, origen: 'usuario' }
+    ? { analista: analistaRuta, nombre: persona?.nombre_completo ?? null, apertura: 0, pestana: 'todo', enfocar: false, origen: 'usuario' }
     : local
   const mostradas = useMemo(() => filas ? filtrarOrdenarEquipo(filas, filtros) : [], [filas, filtros])
   const fila = filas?.find((f) => f.analista_id === seleccion?.analista)
@@ -87,8 +86,9 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
   // la elegida en la tabla lo deja en su fila, como el supervisor.
   useLayoutEffect(() => {
     if (!analistaRuta) return
-    setEnfocarRuta(!propia.current)
+    const externa = !propia.current
     propia.current = false
+    if (externa) requestAnimationFrame(() => tituloPanel.current?.focus({ preventScroll: true }))
   }, [analistaRuta])
   useLayoutEffect(() => {
     const nodo = raiz.current

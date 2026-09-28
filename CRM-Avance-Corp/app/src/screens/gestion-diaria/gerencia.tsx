@@ -4,7 +4,7 @@
 // equipos protagonista, ficha del equipo al lado y, dentro de cada equipo, la
 // pantalla del supervisor. Plan v2 tras la revisión de Codex (vault).
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { ClipboardList, Columns3, RefreshCw } from 'lucide-react'
+import { ClipboardList, Columns3, Info, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -93,7 +93,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   const [actualizacion, setActualizacion] = useState(0)
   const [revocada, setRevocada] = useState(false)
   const revocar = useCallback(() => setRevocada(true), [])
-  const [comparar, setComparar] = useState(false)
+  const [dialogo, setDialogo] = useState<'comparacion' | 'definiciones' | null>(null)
   const [estrecho, setEstrecho] = useState(false)
   const [ampliado, setAmpliado] = useState(false)
   const [filtros, setFiltros] = useState<FiltrosOperacion>(FILTROS_OPERACION)
@@ -186,9 +186,10 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
     window.location.hash = rutaDe('equipo', clave)
   }
   const abrirPersona = (analistaId: string) => { setAmpliado(false); window.location.hash = rutaDe('analista', analistaId) }
-  const volverOperacion = (clave?: string) => {
+  // Un solo destino de foco por transición (Codex): quien abre otra lista después no lo pide aquí.
+  const volverOperacion = (clave?: string, enfocar = true) => {
     window.location.hash = hashDe('gestion-diaria')
-    requestAnimationFrame(() => {
+    if (enfocar) requestAnimationFrame(() => {
       const fila = clave ? pantalla.current?.querySelector<HTMLElement>(`tr[data-equipo="${CSS.escape(clave)}"] th button`) : null
       ;(fila ?? titulo.current)?.focus({ preventScroll: true })
     })
@@ -221,7 +222,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
       dia={dia} esHoy={esHoy} ahora={ahora} analistaRuta={ruta.tipo === 'analista' ? ruta.id : null}
       filtros={filtrosPorEquipo[grupo.clave] ?? filtrosDePreset()} setFiltros={(cambio) => setFiltrosPorEquipo((p) => ({ ...p, [grupo.clave]: cambio(p[grupo.clave] ?? filtrosDePreset()) }))}
       actualizacion={actualizacion} revocar={revocar} volver={() => volverOperacion(grupo.clave)}
-      abrirGeneral={() => { volverOperacion(); abrirRegistroGeneral(null) }} enfocarAlEntrar={equipoEnfocado.current !== grupo.clave} />
+      abrirGeneral={() => { volverOperacion(undefined, false); abrirRegistroGeneral(null) }} enfocarAlEntrar={equipoEnfocado.current !== grupo.clave} />
   } else if (ruta) contenido = <p role="status" className="rounded-2xl border border-border bg-card p-6 text-[13.5px]">Este equipo o autor ya no aparece en el ámbito actual.{' '}
     <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={() => volverOperacion()}>Volver a toda la operación</button></p>
   else contenido = <>
@@ -232,10 +233,12 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
           No se pudo consultar el detalle por analista: la atención y las barras no están disponibles.
           <Button variant="ghost" className="h-9 text-[13px] pointer-coarse:h-11" onClick={() => void detalle.recargar()} disabled={detalle.enVuelo}>Reintentar</Button>
         </div>}
-        <TablaEquiposGerencia filas={mostradas} total={filasOp.length} conAtencion={conAtencion} sinDetalle={detalle.error ? 'error' : 'cargando'}
+        <TablaEquiposGerencia filas={mostradas} total={filasOp.length} conAtencion={conAtencion} sinDetalle={detalle.error ? 'error' : 'cargando'} umbrales={detalle.datos?.umbrales ?? null}
           filtros={filtros} setFiltros={setFiltros} ordenar={ordenar}
           seleccion={ficha?.vista.tipo === 'equipo' ? ficha.vista.clave : null} seleccionar={(f, control) => abrirFicha({ tipo: 'equipo', clave: f.clave }, control, false)}
-          accion={(f, tipo) => entrarEquipo(f.clave, tipo)} panelId={panelId}
+          accion={(f, tipo, control) => tipo === 'llamadas'
+            ? abrirFicha({ tipo: 'registro', alcance: f.clave, pestana: 'llamadas', apertura: ++aperturas.current }, control, true)
+            : entrarEquipo(f.clave, tipo)} panelId={panelId}
           irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
         <p className="shrink-0 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
           Organigrama actual · Pendientes al {fechaLima(Date.parse(datos.pendientes_al))}, {horaLimaDe(datos.pendientes_al)} ·{' '}
@@ -245,7 +248,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
         </p>
       </div>
       <PanelSupervisorAdaptable modal={modal} cerrar={cerrarFicha} tituloRef={tituloPanel} claseAlojamiento={cn('me-panel-alojamiento flex min-h-0 min-w-0 flex-col', estrecho && 'hidden')}>
-        <PanelOperacionGerencia id={panelId} vista={ficha?.vista ?? null} pulso={datos} detalle={filasDetalle} esHoy={esHoy} tituloRef={tituloPanel}
+        <PanelOperacionGerencia id={panelId} vista={ficha?.vista ?? null} pulso={datos} detalle={filasDetalle} detalleFallido={Boolean(detalle.error)} esHoy={esHoy} tituloRef={tituloPanel}
           ampliado={ampliado} puedeAmpliar={!estrecho} cerrar={cerrarFicha}
           ampliar={() => { setAmpliado((v) => !v); if (ficha && automatica) setFicha({ ...ficha, origen: 'usuario' }) }}
           abrirVista={(vista) => abrirFicha(vista, null, true)} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona}
@@ -287,8 +290,12 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             onClick={() => { if (!consulta.enVuelo && !sinPermiso) void actualizar() }}>
             <RefreshCw aria-hidden className={cn('size-4', consulta.enVuelo && 'motion-safe:animate-spin')} />Actualizar
           </button>
-          <button type="button" className={BOTON_CABECERA} aria-disabled={!datos} aria-haspopup="dialog" onClick={() => { if (datos) setComparar(true) }}>
+          <button type="button" className={BOTON_CABECERA} aria-disabled={!datos || sinPermiso} aria-haspopup="dialog" onClick={() => { if (datos && !sinPermiso) setDialogo('comparacion') }}>
             <Columns3 aria-hidden className="size-4" />Comparar días
+          </button>
+          <button type="button" className={cn(BOTON_CABECERA, 'w-9 justify-center px-0 pointer-coarse:w-11')} aria-label="Definiciones" aria-haspopup="dialog"
+            aria-disabled={!datos || sinPermiso} onClick={() => { if (datos && !sinPermiso) setDialogo('definiciones') }}>
+            <Info aria-hidden className="size-4" />
           </button>
         </div>
       </header>
@@ -300,34 +307,36 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
         clasePanel="flex min-h-0 flex-1 flex-col gap-4 pt-4">
         {contenido}
       </Tabs>
-      {datos && <DialogoComparacion datos={datos} abierto={comparar} cerrar={() => setComparar(false)} />}
+      {datos && !sinPermiso && <DialogoComparacion datos={datos} contenido={dialogo} cerrar={() => setDialogo(null)} />}
     </section>
   )
 }
 
 /** «Comparar días» conserva las 8 cifras con el día anterior y la referencia, y las definiciones. */
-function DialogoComparacion({ datos: d, abierto, cerrar }: { datos: PulsoGerencia; abierto: boolean; cerrar: () => void }) {
-  return <Dialog open={abierto} onClose={cerrar} className="gp-definiciones">
-    <DialogHeader><DialogTitle>Comparación de la operación</DialogTitle></DialogHeader>
+function DialogoComparacion({ datos: d, contenido, cerrar }: { datos: PulsoGerencia; contenido: 'comparacion' | 'definiciones' | null; cerrar: () => void }) {
+  return <Dialog open={contenido !== null} onClose={cerrar} className="gp-definiciones">
+    <DialogHeader><DialogTitle>{contenido === 'definiciones' ? 'Fechas y definiciones' : 'Comparación de la operación'}</DialogTitle></DialogHeader>
     <DialogBody><div className="space-y-4 text-[13.5px]">
-      <p>Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 jornadas con actividad.</p>
-      {d.dia === fechaLima(Date.parse(d.generado_en)) && <p>Hoy en curso; referencias de jornadas completas.</p>}
-      <div className="gp-tabla-scroll" tabIndex={0} role="region" aria-label="Desplazar comparación de días"><table className="gp-comparacion-dias" aria-label="Cifras del día, anterior y referencia">
-        <thead><tr><th scope="col">Indicador</th><th scope="col">Día elegido</th><th scope="col">Anterior</th><th scope="col">Promedio / referencia</th></tr></thead>
-        <tbody>{METRICAS.map((m) => <tr key={m.campo}><th scope="row">{m.titulo}</th>
-          <td>{cifraPulso(d.actual[m.campo], m.porcentaje)}</td><td>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</td>
-          <td>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</td></tr>)}</tbody>
-      </table></div>
-      <h3 className="text-[15px] font-extrabold text-primary">Fechas y definiciones</h3>
+      {contenido !== 'definiciones' && <>
+        <p>Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 jornadas con actividad.</p>
+        {d.dia === fechaLima(Date.parse(d.generado_en)) && <p>Hoy en curso; referencias de jornadas completas.</p>}
+        <div className="gp-tabla-scroll" tabIndex={0} role="region" aria-label="Desplazar comparación de días"><table className="gp-comparacion-dias" aria-label="Cifras del día, anterior y referencia">
+          <thead><tr><th scope="col">Indicador</th><th scope="col">Día elegido</th><th scope="col">Anterior</th><th scope="col">Promedio / referencia</th></tr></thead>
+          <tbody>{METRICAS.map((m) => <tr key={m.campo}><th scope="row">{m.titulo}</th>
+            <td>{cifraPulso(d.actual[m.campo], m.porcentaje)}</td><td>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</td>
+            <td>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</td></tr>)}</tbody>
+        </table></div>
+        <h3 className="text-[15px] font-extrabold text-primary">Fechas y definiciones</h3>
+      </>}
       <p>Personas y equipos corresponden al organigrama actual.</p>
       <p>Referencia: {d.referencia.dias.length ? d.referencia.dias.join(' · ') : `Sin jornadas con actividad desde ${d.referencia.busqueda_desde}.`}</p>
       <p>Los recuentos muestran el promedio diario. La tasa de referencia reúne contestadas y útiles de {d.referencia.dias_con_tasa} días; llamadas por lead divide las llamadas por los leads distintos de cada día sumados.</p>
-      <p>Contacto = contestaron ÷ llamadas útiles (sin «número errado» ni «no es la persona»).</p>
+      <p>Contacto = contestaron ÷ llamadas útiles (sin «número errado» ni «no es la persona»). El nivel de un equipo usa los mismos umbrales que el de cada analista.</p>
       <p>Sin registro significa sin llamadas, WhatsApp enviado, reunión realizada, nota ni conversión; no indica ausencia.</p>
       <p>Dispersión: mínimo y máximo individual con al menos {d.minimo_llamadas_utiles} llamadas útiles. Al ordenar, se compara la amplitud entre esos extremos.</p>
       <p>Los leads distintos se deduplican en toda la operación; no se suman entre equipos.</p>
       <p>Las tareas y el primer intento vencido se consultan en el momento actual, incluso al elegir un día pasado.</p>
-      <Button variant="outline" className="h-9 text-[13px] pointer-coarse:h-11" onClick={cerrar}>Cerrar comparación</Button>
+      <Button variant="outline" className="h-9 text-[13px] pointer-coarse:h-11" onClick={cerrar}>{contenido === 'definiciones' ? 'Cerrar definiciones' : 'Cerrar comparación'}</Button>
     </div></DialogBody>
   </Dialog>
 }

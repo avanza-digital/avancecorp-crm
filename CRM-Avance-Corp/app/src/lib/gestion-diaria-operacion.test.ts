@@ -7,7 +7,7 @@ import fixture from './gestion-diaria-f5.test.fixture.json'
 import { PulsoGerenciaSchema } from './gestion-diaria-pulso'
 import { DiaEquipoSchema, presentarEquipo } from './gestion-diaria-equipo'
 import {
-  atencionEquipo, barrasEquipo, filasOperacion, filtrarOrdenarOperacion, personasSinRegistro, referenciaCifra,
+  atencionEquipo, barrasEquipo, filasOperacion, filtrarOrdenarOperacion, nivelEquipo, personasSinRegistro, referenciaCifra,
   type FiltrosOperacion, type OrdenOperacion,
 } from './gestion-diaria-operacion'
 
@@ -66,7 +66,8 @@ describe('atencionEquipo y barrasEquipo', () => {
   it('las barras suman a los activos y dicen cuántas llamadas son de otros autores', () => {
     const fuera = barrasEquipo(detalle, equipo('Fuera de equipos comerciales'))!
     expect(fuera.analistas).toBe(1)
-    expect(fuera.otros).toBe(equipo('Fuera de equipos comerciales').metricas.llamadas)
+    // Los otros autores salen del pulso: inactivos y sin autor de «fuera».
+    expect(fuera.otros).toBe(equipo('Fuera de equipos comerciales').personas.filter((p) => !p.activo || p.analista_id === null).reduce((n, p) => n + p.llamadas, 0))
     const dos = barrasEquipo(detalle, equipo('SUPERVISOR DOS'))!
     const esperado = detalle.filter((f) => ['ANALISTA TRES', 'ANALISTA CUATRO'].includes(f.nombre_completo)).reduce((n, f) => n + f.marcador.llamadas, 0)
     expect(dos.porHora.reduce((n, h) => n + h.llamadas, 0)).toBe(esperado)
@@ -84,3 +85,16 @@ describe('referenciaCifra', () => {
     expect(referenciaCifra({ ...pulso, referencia: { ...pulso.referencia, cantidad: 0 } }, 'llamadas', true)).toMatch(/ · Sin referencia$/)
   })
 })
+
+describe('nivelEquipo', () => {
+  const umbrales = { version: 1 as const, bien_min_pct: 45, atencion_min_pct: 25, minimo_llamadas_utiles: 5 }
+  it('usa los umbrales del servidor y dice «sin muestra» por debajo del mínimo de útiles', () => {
+    expect(nivelEquipo({ tasaContacto: 50, utiles: 10 }, umbrales)).toEqual({ estado: 'evaluado', nivel: 'bien' })
+    expect(nivelEquipo({ tasaContacto: 30, utiles: 10 }, umbrales)).toEqual({ estado: 'evaluado', nivel: 'atencion' })
+    expect(nivelEquipo({ tasaContacto: 10, utiles: 10 }, umbrales)).toEqual({ estado: 'evaluado', nivel: 'bajo' })
+    expect(nivelEquipo({ tasaContacto: 80, utiles: 4 }, umbrales)).toEqual({ estado: 'sin_muestra', utiles: 4, minimo: 5 })
+    expect(nivelEquipo({ tasaContacto: null, utiles: 0 }, umbrales)).toEqual({ estado: 'sin_dato' })
+    expect(nivelEquipo({ tasaContacto: 50, utiles: 10 }, null)).toEqual({ estado: 'sin_dato' })
+  })
+})
+
