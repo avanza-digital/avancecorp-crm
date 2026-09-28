@@ -430,3 +430,53 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
   (`integra/supervisor-diseno-20260927`, `9553bc2f`): app idéntica al main local, SIN lo de Gloria (receta
   #114) y SIN la nota «Integracion del main local y pendientes» (describe lo de Gloria). Al fusionarla (squash,
   Miguel), volver a traer `avancecorp/main` al local. Worktrees y ramas de este trabajo, retirados.
+
+## Plan de la pantalla de GERENCIA — v2 tras Codex (27/09, ESPERANDO OK de Miguel)
+
+Pedido de Miguel: «las mejoras que ya hemos hecho, aplícalas para gerencia». Diseño: `vista-previa/avance-gerencia.png`.
+Codex (plan v1): CHANGES_REQUESTED — 4 P1 + 4 P2; todo incorporado aquí. Encargo y respuesta en `docs/encargos/`.
+
+**Hechos comprobados en el código:**
+- El detalle por analista de gerencia ES la consulta del supervisor (`gestion_diaria_equipo_fn(dia, null)`): dentro de
+  un equipo se reutilizan la tabla y la ficha nuevas.
+- `gestion_diaria_pendientes_core` llama al ámbito con el id de QUIEN CONSULTA y exige que sea supervisor activo:
+  con gerencia devuelve 42501 (y dispararía el retiro global de la vista). Pendientes para gerencia = migración de
+  permisos (LEVEL 3) → fase aparte G4.
+- «Citas agendadas» = tareas `reunion` CREADAS ese día (no actividades): el registro no es su lista exacta.
+- Seguimiento no admite filtros por enlace.
+
+**G1 — «Toda la operación» (nivel operación):**
+- Cabecera como el supervisor (título con el día elegido, fecha que se aplica al cambiar, «Hoy», «Seguimiento
+  completo ›», «Registro general», «Actualizado», «Actualizar», «i» con definiciones y «Comparar días» de las 8).
+- 4 cifras compactas (no tablero): Llamadas, Contacto, Citas agendadas, Sin registro, con «Ayer/Día anterior X ·
+  Referencia Y (N jornadas)». Destinos EXACTOS: Llamadas y Contacto → Registro general en «Llamadas» (con el
+  resultado de cada llamada visible y la definición contestaron ÷ útiles); Sin registro → lista en el panel de las
+  personas activas con 0 gestiones (cada una abre su equipo con ella elegida); Citas → la tabla de equipos
+  ordenada por Citas (desglose; la lista de citas creadas queda para G4). Vencidas totales → equipos ordenados por
+  vencidas.
+- Tabla de equipos protagonista (filas de 52 px): avatar, «Equipo de X» + «N analistas · N sin registro»,
+  Llamadas, Contacto (% + nivel), Citas, Vencidas, Atención (analistas DISTINTOS con `requiere_atencion`), Primer
+  intento y Dispersión (se conserva la comparación y el orden entre equipos), buscador y «Con atención». «fuera»
+  al final. Los números de cada fila abren el equipo con ese filtro u orden.
+- Panel del equipo (ficha protagonista): cabecera teñida, avatar relleno, nombre 22 px, 4 cuadros 28 px con las
+  cifras AUTORITATIVAS del pulso, «Necesitan atención» (persona → equipo con ella elegida), primer intento y
+  dispersión, «Ver el equipo». Barras por hora: solo de los analistas activos y rotuladas así; si no cuadran con
+  el total del equipo se dice cuántas llamadas son de otros autores.
+- Selección de la ficha SEPARADA de la ruta del equipo: la automática (equipo que más atención necesita) solo
+  elige ficha, sin mover el foco; cerrar la apaga; al estrechar se cierra; las aperturas manuales devuelven el foco.
+- El detalle se carga al entrar, se actualiza con «Actualizar» aunque no haya ruta, y mientras llega «Atención»
+  dice «…», nunca 0. Umbral de dos columnas por ancho del contenedor (tabla mínima + 360 px), como el supervisor.
+
+**G2 — Dentro del equipo:** la pantalla del supervisor (filtros-cifra, buscador, tabla nueva con la columna
+Pendientes de gerencia, ficha protagonista con Resumen y Registro compacto) SIN pestaña Pendientes hasta G4; los
+avisos de vencidas se muestran sin enlace. Se conservan «Otros autores de los registros» y los registros sin autor.
+42501 de cualquier fuente → retiro global de la vista (como hoy).
+
+**G3 — Registro general, Hábitos y Comparar días** con la escala del diseño, conservando filtros de equipo, analista y
+etapa y el CSV.
+
+**G4 (opcional, LEVEL 3, plan propio):** migración para que gerencia consulte pendientes por analista (y lista de
+citas creadas del día) → pestaña Pendientes y listas exactas de vencidas y citas.
+
+**Ver en local:** el modo demo no tiene gerencia. Miguel entra con su cuenta real en la copia local (solo mirar);
+yo reviso con capturas E2E.
