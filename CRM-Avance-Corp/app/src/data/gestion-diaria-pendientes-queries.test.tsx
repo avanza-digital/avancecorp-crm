@@ -7,16 +7,16 @@ import type { PedidoPendientes } from '@/lib/gestion-diaria-pendientes'
 import type { Yo } from '@/lib/tipos'
 import { CrmApiError } from './crm-api'
 
-const dobles = vi.hoisted(() => ({ listar: vi.fn(), yo: null as Yo | null }))
+const dobles = vi.hoisted(() => ({ listar: vi.fn(), yo: null as Yo | null, vendedores: [] as { perfil_id: string; activo: boolean }[] }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ tareas: [], equipo: [], ambito: { leads: [] } }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ tareas: [], equipo: [], ambito: { leads: [], vendedores: dobles.vendedores } }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-23T17:00:00Z') }))
 vi.mock('./gestion-diaria-pendientes-api', () => ({ listarPendientesSupervisor: dobles.listar }))
 const { usePendientesSupervisor, clavePendientes } = await import('./gestion-diaria-pendientes-queries')
 let cliente: QueryClient
 const envolver = ({ children }: { children: ReactNode }) => <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
 beforeEach(() => {
-  vi.clearAllMocks(); cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  vi.clearAllMocks(); cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } }); dobles.vendedores = []
   dobles.yo = { id: pedidoPendientes.supervisor, rol: 'supervisor', demo: false } as Yo
   dobles.listar.mockImplementation(async (p: PedidoPendientes) => {
     const inicio = p.cursor ? Number(p.cursor.despues_id.slice(-12)) + 1 : 10
@@ -116,5 +116,39 @@ describe('Memoria y refresco paginados del supervisor', () => {
     dobles.listar.mockImplementation(() => new Promise(() => {}))
     rerender(p)
     expect(result.current.items).toEqual([])
+  })
+})
+
+describe('G4a: quién consulta pendientes', () => {
+  it('gerencia consulta con su propio id como «supervisor» del pedido: el servidor autoriza toda la operación', async () => {
+    const gerente = idPendiente(90)
+    dobles.yo = { id: gerente, rol: 'gerencia', demo: false } as Yo
+    const { result } = renderHook(() => usePendientesSupervisor('2026-09-23', pedidoPendientes.analista, false, true), { wrapper: envolver })
+    await waitFor(() => expect(dobles.listar).toHaveBeenCalled())
+    expect(dobles.listar).toHaveBeenCalledWith(expect.objectContaining({ supervisor: gerente, analista: pedidoPendientes.analista }), expect.any(AbortSignal))
+    expect(result.current.sinPermiso).toBe(false)
+  })
+  it.each(['vendedor', 'coordinador', 'directorio'] as const)('%s no consulta pendientes', async (rol) => {
+    dobles.yo = { id: idPendiente(91), rol, demo: false } as Yo
+    const { result } = renderHook(() => usePendientesSupervisor('2026-09-23', pedidoPendientes.analista, false, true), { wrapper: envolver })
+    await act(async () => { await Promise.resolve() })
+    expect(dobles.listar).not.toHaveBeenCalled()
+    expect(result.current.items).toEqual([])
+  })
+})
+
+describe('G4a en modo demo: gerencia, el mismo ámbito que el servidor', () => {
+  it('lee a cualquier analista activo de la operación y a nadie más', async () => {
+    const gerente = idPendiente(92)
+    dobles.yo = { id: gerente, rol: 'gerencia', demo: true } as Yo
+    dobles.vendedores = [{ perfil_id: pedidoPendientes.analista, activo: true }, { perfil_id: idPendiente(93), activo: false }]
+    const { result } = renderHook(() => usePendientesSupervisor('2026-09-23', pedidoPendientes.analista, false, true), { wrapper: envolver })
+    await waitFor(() => expect(result.current.cargando).toBe(false))
+    expect(result.current.sinPermiso).toBe(false)
+    expect(result.current.error).toBeNull()
+    expect(result.current.pagina?.supervisor_id).toBe(gerente)
+    expect(dobles.listar).not.toHaveBeenCalled()
+    const inactivo = renderHook(() => usePendientesSupervisor('2026-09-23', idPendiente(93), false, true), { wrapper: envolver })
+    await waitFor(() => expect(inactivo.result.current.sinPermiso).toBe(true))
   })
 })

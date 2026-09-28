@@ -8325,6 +8325,41 @@ async function testGestionDiariaCortes(sessions, seed) {
   // en la copia local autorizada y con reloj clonado, no con cambios de hora reales.
 }
 
+// H3 + G4a (27/09/2026): pendientes por analista. Supervisión, su árbol; Gerencia, toda la
+// operación; la respuesta nombra a quien consulta. Casos pedidos por auditor-rls para G4a.
+async function testGestionDiariaPendientes(sessions, seed) {
+  console.log('\n— Gestión Diaria: pendientes por analista (H3 + G4a) —');
+  const FN = 'gestion_diaria_pendientes_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  const rpc = (quien, analista, extra = {}) => sessions[quien].client.schema('crm').rpc(FN, { p_analista_id: analista, ...extra });
+  const probe = await rpc('sup1', id('vend1'));
+  if (probe.error?.code === 'PGRST202') {
+    const msg = '⚠ H3 no instalada: pendientes SALTADOS (no probado)';
+    if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  for (const [quien, analista] of [['sup1', 'vend1'], ['gerencia', 'vend1'], ['gerencia', 'vend3']]) {
+    const { data, error } = await rpc(quien, id(analista));
+    check(!error && data?.supervisor_id === id(quien) && data?.analista_id === id(analista),
+      `${quien} → ${analista}: pendientes autorizados y a nombre de quien consulta`);
+  }
+  for (const [quien, analista, etiqueta] of [['sup1', id('vend3'), 'vend3 (otro equipo)'], ['sup1', randomUUID(), 'inexistente'],
+    ['gerencia', id('vendInactive'), 'vendInactive'], ['gerencia', randomUUID(), 'inexistente']]) {
+    const { error } = await rpc(quien, analista);
+    check(isAuthorizationError(error), `${quien}: pendientes de ${etiqueta} → 42501`);
+  }
+  for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+    const { error } = await rpc(quien, id('vend1'));
+    check(isAuthorizationError(error), `${quien}: sin puerta de pendientes → 42501`);
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-pendientes'));
+  const anonRpc = await anon.schema('crm').rpc(FN, { p_analista_id: id('vend1') });
+  check(isAuthorizationError(anonRpc.error), 'anon no ejecuta pendientes');
+  const limite = await rpc('gerencia', id('vend1'), { p_limite: 0 });
+  check(limite.error?.code === '22023', 'gerencia: límite 0 → 22023');
+}
+
 async function testGestionDiariaResultado(sessions, seed) {
   console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
   const FN = 'registrar_llamada_v3';
@@ -14774,6 +14809,7 @@ async function main() {
       await testGestionDiariaResultado(sessions, verifiedSeed);
       await testGestionDiariaAnalista(sessions, verifiedSeed);
       await testGestionDiariaCortes(sessions, verifiedSeed);
+      await testGestionDiariaPendientes(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);

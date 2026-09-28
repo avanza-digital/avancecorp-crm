@@ -155,9 +155,10 @@ select pg_temp.afirmar(p->'items'='[]'::jsonb and p#>>'{resumen,tareas_pendiente
   and p#>>'{resumen,tareas_vencidas}'='0' and p->'siguiente_cursor'='null'::jsonb and p->>'hay_mas'='false','cero completo y coherente')
 from (select crm.gestion_diaria_pendientes_fn(vendedor) p from h3_actores) q;
 reset role;
--- Vendedor, coordinador, gerencia y lector global no tienen esta puerta H3.
+-- Vendedor, coordinador y lector global no tienen esta puerta. Gerencia la tiene desde
+-- G4a (20260928043728); sus casos viven en supabase/scripts/g4/test-g4a.sql.
 do $$ declare actor uuid; begin
-  for actor in select unnest(array[vendedor,coordinador,gerente,global]) from h3_actores loop
+  for actor in select unnest(array[vendedor,coordinador,global]) from h3_actores loop
     perform set_config('request.jwt.claim.sub',actor::text,true);
     execute 'set local role authenticated';
     perform pg_temp.denegada(format('select crm.gestion_diaria_pendientes_fn(%L)',(select vendedor from h3_actores)));

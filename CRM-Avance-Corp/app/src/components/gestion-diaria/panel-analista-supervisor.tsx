@@ -47,7 +47,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
   vacio?: string | undefined
   /** Selección automática: sus cargas y errores no se anuncian (el usuario no la abrió). */
   silencioso?: boolean
-  /** Gerencia (27/09): sin pestaña Pendientes hasta tener permiso sobre esa consulta (G4). */
+  /** Sin pestaña Pendientes cuando la sesión no puede consultarlos (gerencia antes de G4a). */
   conPendientes?: boolean
   /** Alcance del registro del equipo; null = lo que la sesión puede ver (el equipo del supervisor). */
   idsEquipo?: readonly string[] | null

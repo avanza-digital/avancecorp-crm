@@ -115,8 +115,8 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     ruta(`#/gestion-diaria/analista/${p.analista_id}`)
     render(<GestionDiariaGerencia />)
     const panel = screen.getByRole('region', { name: `Detalle de ${p.nombre_completo}` })
-    // Gerencia aún no consulta pendientes (G4): su ficha no ofrece esa pestaña.
-    expect(within(panel).queryByRole('tab', { name: 'Pendientes' })).not.toBeInTheDocument()
+    // G4a: el servidor ya autoriza a gerencia, así que su ficha ofrece Pendientes como la del supervisor.
+    expect(within(panel).getByRole('tab', { name: 'Pendientes' })).toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('tab', { name: 'Registro' }))
     expect(within(panel).getByTestId('registro')).toHaveTextContent(JSON.stringify([p.analista_id]))
     const registro = within(panel).getByTestId('registro')
