@@ -189,7 +189,7 @@ describe('LeadNuevo — responsable comercial del supervisor', () => {
     const responsable = screen.getByRole('combobox', { name: 'Responsable comercial' })
     expect(screen.queryByRole('option', { name: 'INACTIVO' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'OTRO SUPERVISOR' })).not.toBeInTheDocument()
-    completarBaseReal('otro')
+    completarBaseReal('formulario')
     fireEvent.change(responsable, { target: { value: SESION.yo!.id } })
     fireEvent.change(responsable, { target: { value: destino } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
@@ -576,7 +576,7 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'oficina', 'otro'])
+    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'oficina'])
   })
 
   it('un supervisor ve LANDING y FORMULARIO, pero no Referido', () => {
@@ -584,7 +584,7 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['landing', 'formulario', 'oficina', 'otro'])
+    expect(opciones).toEqual(['landing', 'formulario', 'oficina'])
   })
 
   it('gerencia ve LANDING y FORMULARIO, pero tampoco Referido', () => {
@@ -592,7 +592,7 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['landing', 'formulario', 'oficina', 'otro'])
+    expect(opciones).toEqual(['landing', 'formulario', 'oficina'])
   })
 
   it.each(['landing', 'formulario'] as const)(

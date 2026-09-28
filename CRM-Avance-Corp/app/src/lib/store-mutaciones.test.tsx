@@ -137,6 +137,13 @@ describe('mutaciones del store demo', () => {
       expect(api().leads).toHaveLength(20)
     })
 
+    it.each(['otro', 'web', 'campania', 'whatsapp', undefined])('rechaza un alta sin canal vigente: %s', async (origen) => {
+      const { api, mutar } = await montarStore('vendedor')
+      const res = mutar((a) => a.crearLead(inputBase({ origen: origen as NuevoLeadInput['origen'] })))
+      expect(res).toMatchObject({ ok: false, codigo: 'origen_invalido', campo: 'origen' })
+      expect(api().leads).toHaveLength(20)
+    })
+
     it('crea un lead válido auto-asignado al analista y lo expone en su ámbito', async () => {
       const { api, mutar } = await montarStore('vendedor')
 

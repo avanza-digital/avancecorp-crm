@@ -29,6 +29,7 @@ import {
   TIPOS_CONTACTO_K,
   type Actividad,
   type CategoriaInteres,
+  esOrigenAlta,
   esTipoTarea,
   type Etapa,
   type EtapaActiva,
@@ -2377,6 +2378,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       crearLead: (input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
+        if (!esOrigenAlta(input.origen)) {
+          return {
+            ok: false,
+            codigo: 'origen_invalido',
+            campo: 'origen',
+            error: 'Selecciona un canal concreto: Landing, Formulario, Referido o Walking',
+          }
+        }
         // En creación ambos campos son obligatorios incluso en runtime. El
         // validador compartido acepta `undefined` a propósito porque también
         // valida PATCHes parciales; por eso este guard vive antes de llamarlo.

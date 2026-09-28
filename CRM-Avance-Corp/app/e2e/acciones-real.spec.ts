@@ -88,7 +88,7 @@ test('creación rechazada: rollback honesto y la RPC sí se intentó', async ({ 
   await modal.locator('#nl-nombre').fill('LEAD RECHAZADO')
   await modal.locator('#nl-telefono').fill('987333444')
   await modal.locator('#nl-monto').fill('5000')
-  await modal.locator('#nl-origen').selectOption('otro')
+  await modal.locator('#nl-origen').selectOption('formulario')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   // La última defensa única ganó una carrera externa: no hay falso éxito.
