@@ -1,7 +1,7 @@
 ---
 tags: [crm, hoy, analista, ux, pantalla]
 fecha: 2026-09-28
-estado: publicado 28/09/2026
+estado: publicado 28/09/2026 (tres releases)
 ---
 
 # Hoy del analista — sin espacios vacíos (2026-09-28)
@@ -86,6 +86,27 @@ artefacto `crm-20260928T194324Z-3c481f7f1a4f`, check 4763 PASS, humo PASS (chunk
 Lección: **antes de arreglar una pantalla, mirar la vista que corre en producción, no el demo**; el modo activo
 se fuerza un momento en local con `useModoSla()` y se revierte.
 
-Tarea aparte: el P2 de teclado en `FilaAgenda`. PR #124 FUSIONADA (squash `02242e02`, traída al local en
-`865ced05`); el segundo commit va en la PR **#125** (sin lo de Gloria; al fusionarla,
+## Tercera publicación (28/09, 15:20): «Tus citas» y URL limpia
+
+Miguel, al ver las dos columnas: «eso de tu cartera en contexto bórralo, y pon un componente que sea mejor de solo
+citas del analista, lo veo más útil; tu agenda de hoy que siga igual». Y aparte: «acomoda las URL del CRM, está mal
+que se vea eso de version build». Hecho con dos agentes en paralelo (archivos disjuntos) y una sola release:
+
+- **«Tus citas»** (`CitasAnalista`, en `vendedor.tsx`) sustituye a «Tu cartera en contexto» junto a «Tu agenda de
+  hoy»: TODAS las citas pendientes del analista (tareas `reunion` de sus leads y de los clientes de su cartera), no
+  solo las de hoy; vencidas primero y luego Hoy · Mañana · Próximas; modalidad (presencial/virtual), capital en juego,
+  cerrar tarea y abrir ficha; máximo 8 y «+N más — en Agenda». Reutiliza `FilaAgenda`, que gana `modalidad`, una
+  descripción accesible y el guard de teclado que le faltaba (Enter sobre «Cerrar tarea» ya no abre la ficha: deuda
+  cerrada). Una cita de hoy se ve en las dos tarjetas, por diseño. Se retiraron `PulsoCartera` y sus cifras.
+- **URL limpia**: la recarga por versión nueva añade `?crm_version=build-…` para saltarse la caché de `index.html`
+  y se quedaba pegada. `limpiarMarcaDeVersion()` en `main.tsx`, antes del router, la retira con `replaceState`
+  conservando la ruta hash y el resto de parámetros (`urlSinMarcaDeVersion`, pura, con pruebas).
+
+Commits `3c68b0c5` y `553a447e`; build `build-20260928T201735530Z`, artefacto `crm-20260928T201736Z-553a447e8f53`;
+check 4777 PASS; humo PASS (chunk de Hoy con «Tus citas» y sin «cartera en contexto»; el bundle ya limpia la URL).
+El vivo previo (`5ccb30ac`, «canales concretos», de otra sesión, PR #126) quedó contenido. PR de integración **#127**.
+Deuda que sigue: contraste ≈2,8:1 del `Badge` ámbar suave (compartido, `badge.tsx`) y `role="list"` en las filas.
+
+Tarea aparte (CERRADA en esta release): el P2 de teclado en `FilaAgenda`. PR #124 FUSIONADA (squash `02242e02`, traída al local en
+`865ced05`); el segundo commit fue la PR **#125** (fusionada, traída al local) (sin lo de Gloria; al fusionarla,
 traer `avancecorp/main` al local). Las PR #122 y #123 ya están fusionadas en el `main` local (`e486a139`, `4a6e6609`).
