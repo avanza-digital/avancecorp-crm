@@ -1,7 +1,7 @@
 ---
 tags: [crm, hoy, analista, ux, pantalla]
 fecha: 2026-09-28
-estado: publicado 28/09/2026 (tres releases)
+estado: publicado 28/09/2026 (cuatro releases)
 ---
 
 # Hoy del analista — sin espacios vacíos (2026-09-28)
@@ -106,6 +106,32 @@ Commits `3c68b0c5` y `553a447e`; build `build-20260928T201735530Z`, artefacto `c
 check 4777 PASS; humo PASS (chunk de Hoy con «Tus citas» y sin «cartera en contexto»; el bundle ya limpia la URL).
 El vivo previo (`5ccb30ac`, «canales concretos», de otra sesión, PR #126) quedó contenido. PR de integración **#127**.
 Deuda que sigue: contraste ≈2,8:1 del `Badge` ámbar suave (compartido, `badge.tsx`) y `role="list"` en las filas.
+
+## Cuarta publicación (28/09, 16:35): «Tus citas» v2, pantalla sin scroll y cumplimiento siempre abierto
+
+Miguel, al ver «Tus citas»: «quiero que esa ficha de citas sea más versátil, aprende a usar bien los espacios, hay
+demasiado negativo, dame una propuesta optimizada» → maqueta `GESTION DIARIA/vista-previa/tus-citas-propuesta.html`
+(A: semana + día; B: pestañas). Aprobó A con condiciones: «mantén la escala, hazlo que se adapte según la pantalla
+para no tener que hacer scroll, quiero ver toda la ficha sin hacer scroll». Aparte: «cumplimiento del mes que
+siempre se vea, que no se contraiga». Hecho con agentes en paralelo (uno por tarea, archivos disjuntos) y Codex
+refutando la propuesta (CHANGES_REQUESTED, 6 P2; aceptados: partición coherente vencidas/hoy/mañana/semana/todas,
+reloj de Lima por prop, pie sin importes porque no se abren, colores de la casa en vez del violeta de
+`COLOR_EVENTO.reunion`, `derivarReunionOperativa` para lugar/enlace, nombre accesible en la modalidad; rechazado:
+empezar por la variante B, porque Miguel aprobó A).
+
+- **`citas-analista.tsx` + `citas-analista-particion.ts`** (partición pura, probada con reloj fijo en miércoles y
+  domingo): chips-filtro con cifras, tira «Próximos 7 días» (hoy→hoy+6, `aria-current="date"`), lista por día,
+  `FilaCita` de 48 px en una línea, pie «Semana: N citas · Ver en Agenda». Sin citas, la tarjeta no se estira.
+- **Sin scroll de página en `lg+` (modo activo)**: raíz `lg:h-[calc(100svh-7rem)] lg:min-h-[640px]` (mismo mecanismo
+  que Gestión Diaria), fila `lg:grid-rows-[minmax(0,1fr)] lg:items-stretch`; izquierda agenda (`CardContent`
+  desplazable) + cumplimiento `shrink-0`; derecha citas con lista desplazable. Comprobado a 1511×812: `scrollHeight`
+  = `innerHeight`. Escala intacta.
+- **«Tu cumplimiento del mes» siempre abierto** (`aba9a24e`): sin `details`/`summary`; `demo-roles.spec.ts`
+  adaptado (NOT RUN hoy).
+- Commits `aba9a24e` + `7b72212a`; build `build-20260928T213044021Z`, artefacto `crm-20260928T213044Z-7b72212ae0b1`;
+  check 4796 PASS; humo PASS. PR **#128** (contiene también lo de la #127, aún abierta: al fusionar #128, cerrar #127).
+- 🔴 Playwright no cargó el Vite de desarrollo esta tarde (ni al agente ni a mí); el Chrome real sí. Para ver el
+  modo activo en local: forzar `useModoSla()` un momento y abrirlo en Chrome.
 
 Tarea aparte (CERRADA en esta release): el P2 de teclado en `FilaAgenda`. PR #124 FUSIONADA (squash `02242e02`, traída al local en
 `865ced05`); el segundo commit fue la PR **#125** (fusionada, traída al local) (sin lo de Gloria; al fusionarla,
