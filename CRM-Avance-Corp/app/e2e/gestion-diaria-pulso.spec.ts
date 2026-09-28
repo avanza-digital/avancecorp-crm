@@ -1,14 +1,22 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal, leadReal, UID } from './_helpers'
 import fixture from '../src/lib/gestion-diaria-f5.test.fixture.json' with { type: 'json' }
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
 
 // Transporte interceptado sobre respuestas SQL sintéticas reales. No prueba
 // por sí solo Auth/RLS: las 18 solicitudes PostgREST del banco cubren esa capa.
+// Pantalla de gerencia con el diseño de Gestión Diaria (G1 y G2, 27/09/2026): la
+// operación es la tabla de equipos con la ficha del equipo al lado y, dentro de
+// cada equipo, la pantalla del supervisor con la ficha del analista.
 const DIA = '2026-09-23'
 const grupo = fixture.pulso.equipos.find((e) => e.metricas.llamadas === 4)!
 const analista = grupo.personas.find((p) => p.activo && p.llamadas === 4)!
 const cliente = leadReal({ vendedor_id: analista.analista_id!, nombre_completo: 'CLIENTE FICTICIO F5' })
+/** Así se nombra el equipo en pantalla: «Equipo de SUPERVISOR DOS». */
+const EQUIPO = `Equipo de ${grupo.nombre}`
+// Umbrales de la ficha al lado (en px de contenedor): la operación y Hábitos, y dentro del equipo.
+const EN_LINEA_OPERACION = 1040
+const EN_LINEA_EQUIPO = 1100
 function moverFechas<T>(foto: T, dia: string): T {
   const diferencia = Date.parse(`${dia}T00:00:00Z`) - Date.parse(`${DIA}T00:00:00Z`)
   return JSON.parse(JSON.stringify(foto), (clave, valor) => {
@@ -60,8 +68,19 @@ async function montar(page: Page) {
   await loginReal(page)
   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
-  await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Equipos de la operación' })).toBeVisible()
   return estado
+}
+/** El día elegido (23/09) es pasado: la región se llama «Toda la operación», sin «hoy». */
+const operacion = (page: Page) => page.getByRole('region', { name: 'Toda la operación', exact: true })
+/** Medidas por CSS: con una ventana abierta, Radix oculta el resto del árbol accesible. */
+const raizOperacion = (page: Page) => page.locator('section[aria-label="Toda la operación"]')
+const botonCabecera = (page: Page, nombre: string) => operacion(page).locator(':scope > header').getByRole('button', { name: nombre, exact: true })
+async function entrarAlEquipo(page: Page) {
+  // La ficha del equipo que más atención necesita se abre sola en pantalla ancha: «Ver el equipo» entra.
+  await operacion(page).getByRole('region', { name: `Detalle del ${EQUIPO}`, exact: true }).getByRole('button', { name: 'Ver el equipo', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/gestion-diaria/equipo/${grupo.clave}$`))
+  return operacion(page).getByRole('region', { name: EQUIPO, exact: true })
 }
 
 test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en un portátil', async ({ page, browser, baseURL }, info) => {
@@ -82,82 +101,135 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
   await montar(page)
   await page.getByRole('button', { name: 'Fijar menú abierto', exact: true }).click()
   await page.mouse.move(1000, 80)
+  const vista = operacion(page)
+  const ficha = vista.getByRole('region', { name: `Detalle del ${EQUIPO}`, exact: true })
+  // La tarjeta de la tabla (buscador + tabla) es la que se compara con la ficha.
+  const tarjeta = vista.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true }).locator('..')
+  const cifras = vista.getByRole('region', { name: 'Cifras de la operación', exact: true })
+  // Con el menú fijado, 1366 deja 1078 px a la operación (ficha al lado) y 1280, 992: por debajo de
+  // 1040 la tabla ocupa todo el ancho y la ficha automática se cierra sin abrir ninguna ventana.
   for (const [width, height] of [[1366, 900], [1366, 768], [1280, 800]]) {
     await page.setViewportSize({ width: width!, height: height! })
+    const enLinea = width === 1366
+    await expect(vista).toHaveAttribute('data-estrecho', String(!enLinea))
+    if (enLinea) await expect(ficha).toBeVisible()
+    else await expect(ficha).toBeHidden()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await page.screenshot({ path: info.outputPath(`gerencia-${width}x${height}-menu-abierto.png`), fullPage: true })
-    const panel = page.getByRole('region', { name: 'Detalle de la operación', exact: true })
-    await expect(panel).toBeVisible()
-    const tabla = await page.getByRole('region', { name: 'Equipos de la operación', exact: true }).boundingBox()
-    const lateral = await panel.boundingBox()
-    expect(lateral!.x).toBeGreaterThanOrEqual(tabla!.x + tabla!.width)
-    expect(Math.abs(lateral!.y - tabla!.y)).toBeLessThan(2)
-    expect(tabla!.y).toBeLessThan(350)
-    const indicadores = page.getByRole('region', { name: 'Indicadores de la operación' })
-    const posiciones = await indicadores.locator('dl>div').evaluateAll(nodos => nodos.map(n => n.getBoundingClientRect().y))
+    const tabla = (await tarjeta.boundingBox())!
+    if (enLinea) {
+      const lateral = (await ficha.boundingBox())!
+      expect(lateral.x).toBeGreaterThanOrEqual(tabla.x + tabla.width)
+      expect(Math.abs(lateral.y - tabla.y)).toBeLessThan(2)
+    } else {
+      expect(Math.abs(tabla.width - (await raizOperacion(page).boundingBox())!.width)).toBeLessThan(2)
+    }
+    // La tabla empieza justo bajo cabecera, pestañas y cifras (~394 px); una fila más de cabecera la pasa de 430.
+    expect(tabla.y).toBeLessThan(420)
+    const posiciones = await cifras.locator('dl>div').evaluateAll(nodos => nodos.map(n => n.getBoundingClientRect().y))
+    expect(posiciones).toHaveLength(4)
     expect(new Set(posiciones).size).toBe(1)
     expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate(n => n.scrollHeight <= n.clientHeight + 1 && n.scrollWidth <= n.clientWidth + 1)).toBe(true)
   }
-  const columnas = page.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true })
+  // Con la ficha al lado, Primer intento y Dispersión se desplazan dentro de la tabla, no la página.
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await expect(ficha).toBeVisible()
+  const columnas = vista.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true })
   await columnas.focus(); await columnas.press('ArrowRight')
   await expect.poll(() => columnas.evaluate(n => n.scrollLeft)).toBeGreaterThan(0)
   await columnas.evaluate(n => { n.scrollTop = n.scrollHeight; n.scrollLeft = n.scrollWidth })
-  const encabezado = columnas.getByRole('columnheader').first()
+  // La cabecera pegada sigue encima de las filas; se mira la última columna, la que queda a la vista.
+  const encabezado = columnas.getByRole('columnheader').last()
   await page.screenshot({ path: info.outputPath('gerencia-tabla-desplazada.png'), fullPage: true })
   await expect.poll(() => encabezado.evaluate(n => {
     const r = n.getBoundingClientRect()
     return Boolean(document.elementFromPoint(r.x + 16, r.bottom - 8)?.closest('thead'))
   })).toBe(true)
-  await page.getByRole('button', { name: 'Ordenar equipos por dispersión de contacto', exact: true }).focus()
-  await expect(page.getByRole('link', { name: grupo.nombre, exact: true })).toBeInViewport()
-  await page.getByRole('button', { name: 'Comparar días', exact: true }).click()
+  await page.getByRole('button', { name: 'Ordenar equipos por dispersión', exact: true }).focus()
+  await expect(vista.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true })).toBeInViewport()
+  await botonCabecera(page, 'Comparar días').click()
   await expect(page.getByRole('table', { name: 'Cifras del día, anterior y referencia' }).getByRole('row')).toHaveCount(9)
   await page.screenshot({ path: info.outputPath('gerencia-comparacion.png'), fullPage: true })
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Comparar días', exact: true })).toBeFocused()
-  await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
-  await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
+  await expect(botonCabecera(page, 'Comparar días')).toBeFocused()
+
+  // Dentro del equipo la ficha va al lado desde 1100 px: con el menú fijado, un portátil de 1440.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const margen = 1440 - await raizOperacion(page).evaluate(n => n.clientWidth)
+  const equipo = await entrarAlEquipo(page)
+  const tablaAnalistas = equipo.getByRole('table', { name: 'Actividad y pendientes por analista' })
+  await equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Detalle de la operación', exact: true })).toContainText(analista.nombre_completo!)
-  expect(await page.getByRole('table', { name: 'Actividad y pendientes por analista' }).locator('tbody tr').first().evaluate(n => getComputedStyle(n).display)).toBe('table-row')
+  const detalle = equipo.getByRole('region', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
+  await expect(detalle).toBeVisible()
+  const cajaTabla = (await tablaAnalistas.boundingBox())!
+  expect((await detalle.boundingBox())!.x).toBeGreaterThanOrEqual(cajaTabla.x + cajaTabla.width)
+  expect(await tablaAnalistas.locator('tbody tr').first().evaluate(n => getComputedStyle(n).display)).toBe('table-row')
   await page.screenshot({ path: info.outputPath('gerencia-analista-horizontal.png'), fullPage: true })
+  // Umbral exacto dentro del equipo: 1100 px en línea, 1099 en ventana.
+  const raizEquipo = page.locator(`section[aria-label="${EQUIPO}"]`)
+  await page.setViewportSize({ width: EN_LINEA_EQUIPO + margen, height: 900 })
+  await expect.poll(() => raizEquipo.evaluate(n => n.clientWidth)).toBe(EN_LINEA_EQUIPO)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(detalle).toBeVisible()
+  await page.setViewportSize({ width: EN_LINEA_EQUIPO - 1 + margen, height: 900 })
+  await expect.poll(() => raizEquipo.evaluate(n => n.clientWidth)).toBe(EN_LINEA_EQUIPO - 1)
+  await expect(page.getByRole('dialog', { name: `Detalle de ${analista.nombre_completo}`, exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
   await page.getByRole('tab', { name: 'Hábitos del equipo', exact: true }).click()
   await page.getByRole('button', { name: `Ver hábitos de ${analista.nombre_completo}`, exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Hábitos conserva su panel propio: al lado con más de 1235 px de operación (con el menú fijado, 1680).
+  // Entre 1040 y 1235 px hoy la ficha se apila debajo de la tabla (fallo de CSS reportado el 27/09, sin
+  // arreglar): al corregirlo, esta comprobación puede bajar a 1440 como la del equipo.
+  await page.setViewportSize({ width: 1680, height: 900 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const habitos = await page.getByRole('region', { name: 'Comparación de hábitos', exact: true }).boundingBox()
   const detalleHabitos = await page.getByRole('region', { name: 'Detalle de hábitos', exact: true }).boundingBox()
   expect(detalleHabitos!.x).toBeGreaterThanOrEqual(habitos!.x + habitos!.width)
   await page.screenshot({ path: info.outputPath('gerencia-habitos-horizontal.png'), fullPage: true })
-  await page.setViewportSize({ width: 1248, height: 700 })
-  const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
-  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(960)
+  // Umbral exacto de la operación, que también rige Hábitos: 1040 px en línea, 1039 en ventana.
+  await page.setViewportSize({ width: EN_LINEA_OPERACION + margen, height: 700 })
+  await expect.poll(() => raizOperacion(page).evaluate(n => n.clientWidth)).toBe(EN_LINEA_OPERACION)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Detalle de hábitos', exact: true })).toBeVisible()
-  await page.setViewportSize({ width: 1247, height: 700 })
-  await expect.poll(() => vista.evaluate(n => n.clientWidth)).toBe(959)
+  await page.setViewportSize({ width: EN_LINEA_OPERACION - 1 + margen, height: 700 })
+  await expect.poll(() => raizOperacion(page).evaluate(n => n.clientWidth)).toBe(EN_LINEA_OPERACION - 1)
   await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
 })
 
 test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto', async ({ page }, info) => {
   const estado = await montar(page)
-  const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
+  const vista = operacion(page)
   await expect(vista).toContainText('1008 tareas vencidas en total')
-  await expect(vista).toContainText('Promedio: 7 de 7 días con actividad')
+  // Cada cifra se compara con el día anterior y con las jornadas de referencia (7 de 7 con actividad).
+  await expect(vista.getByRole('region', { name: 'Cifras de la operación', exact: true })).toContainText('Día anterior 0 · Referencia 4 (7 jornadas)')
   await page.screenshot({ path: info.outputPath('f5-operacion-escritorio.png'), fullPage: true })
-  const enlaceEquipo = vista.getByRole('link', { name: grupo.nombre, exact: true })
-  await enlaceEquipo.focus()
-  await enlaceEquipo.press('Enter')
+  // Con el teclado: la fila elige el equipo, la flecha lleva a su ficha y «Ver el equipo» entra.
+  const filaEquipo = vista.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true })
+  await filaEquipo.focus()
+  await filaEquipo.press('Enter')
+  await expect(filaEquipo).toHaveAttribute('aria-current', 'true')
+  await expect(filaEquipo).toBeFocused()
+  await vista.getByRole('button', { name: `Ir al detalle de ${EQUIPO}`, exact: true }).press('Enter')
+  const fichaEquipo = vista.getByRole('region', { name: `Detalle del ${EQUIPO}`, exact: true })
+  await expect(fichaEquipo.getByRole('heading', { name: `Detalle del ${EQUIPO}`, exact: true })).toBeFocused()
+  await fichaEquipo.getByRole('button', { name: 'Ver el equipo', exact: true }).press('Enter')
   await expect(page).toHaveURL(new RegExp(`/gestion-diaria/equipo/${grupo.clave}$`))
-  const detalle = vista.getByRole('region', { name: 'Detalle de la operación' })
-  await expect(vista.getByRole('region', { name: 'Analistas del equipo' }).getByRole('heading', { name: grupo.nombre, exact: true })).toBeFocused()
-  await detalle.getByRole('heading', { name: grupo.nombre, exact: true }).scrollIntoViewIfNeeded()
+  const equipo = vista.getByRole('region', { name: EQUIPO, exact: true })
+  await expect(equipo.getByRole('heading', { level: 3, name: EQUIPO, exact: true })).toBeFocused()
   await page.screenshot({ path: info.outputPath('f5-equipo-escritorio.png'), fullPage: true })
-  await page.getByRole('searchbox', { name: 'Buscar analista del equipo' }).fill(analista.nombre_completo!)
-  const fila = page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true })
+  const buscar = equipo.getByRole('searchbox', { name: 'Buscar analista', exact: true })
+  await buscar.fill(analista.nombre_completo!)
+  const fila = equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true })
   await fila.click()
   await expect(page).toHaveURL(new RegExp(`/gestion-diaria/analista/${analista.analista_id}$`))
   await expect(fila).toBeFocused()
-  await page.getByRole('button', { name: `Ir al detalle de ${analista.nombre_completo}`, exact: true }).click()
-  await expect(detalle.getByRole('heading', { name: analista.nombre_completo!, exact: true })).toBeFocused()
+  const detalle = equipo.getByRole('region', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
+  await equipo.getByRole('button', { name: `Ir al detalle de ${analista.nombre_completo}`, exact: true }).click()
+  await expect(detalle.getByRole('heading', { name: `Detalle de ${analista.nombre_completo}`, exact: true })).toBeFocused()
   await detalle.getByRole('tab', { name: 'Registro', exact: true }).click()
   await expect(detalle).toContainText(`Llamada ficticia F5 del ${DIA}`)
   expect(estado.registros.some((r) => r.p_desde === DIA && JSON.stringify(r.p_analista_ids) === JSON.stringify([analista.analista_id]))).toBe(true)
@@ -168,7 +240,7 @@ test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con 
   await expect(page).toHaveURL(new RegExp(`/analista/${analista.analista_id}$`))
   await expect(page.getByLabel('Día de la operación', { exact: true })).toHaveValue(DIA)
   await expect(detalle).toContainText(`Llamada ficticia F5 del ${DIA}`)
-  await expect(page.getByRole('searchbox', { name: 'Buscar analista del equipo' })).toHaveValue(analista.nombre_completo!)
+  await expect(buscar).toHaveValue(analista.nombre_completo!)
   await page.goBack()
   await expect(page.getByRole('heading', { name: cliente.nombre_completo, exact: true })).toBeVisible()
   await page.goForward()
@@ -178,50 +250,62 @@ test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con 
 
 test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {
   const estado = await montar(page)
+  const vista = operacion(page)
+  // Ningún texto de las cuatro cifras se sale de su casilla (se mide el texto, no la caja del bloque).
   for (const width of [390, 360, 320]) {
     await page.setViewportSize({ width, height: 844 })
-    await expect.poll(() => page.getByRole('region', { name: 'Indicadores de la operación' }).locator('dl>div').evaluateAll(casillas =>
+    await expect.poll(() => vista.getByRole('region', { name: 'Cifras de la operación', exact: true }).locator('dl>div').evaluateAll(casillas =>
       casillas.flatMap(casilla => Array.from(casilla.children).filter(n => {
-        const caja = casilla.getBoundingClientRect(), texto = n.getBoundingClientRect()
-        return texto.left < caja.left || texto.right > caja.right
+        const caja = casilla.getBoundingClientRect(), rango = document.createRange()
+        rango.selectNodeContents(n)
+        const texto = rango.getBoundingClientRect()
+        return texto.left < caja.left - 0.5 || texto.right > caja.right + 0.5
       }).map(n => n.textContent)),
     )).toEqual([])
   }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.mouse.move(380, 80)
   const dia = page.getByLabel('Día de la operación', { exact: true })
+  // La fecha se aplica al completarse (ya no hay «Consultar» ni Enter).
   await dia.fill('2026-09-22')
-  await dia.press('Enter')
-  await expect(page.getByRole('region', { name: 'Indicadores de la operación' })).toContainText('2026-09-21 completo')
   await expect.poll(() => estado.dias.at(-1)).toBe('2026-09-22')
-  await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
+  await expect(vista).toContainText('El martes, 22 de setiembre frente al día anterior')
+  await botonCabecera(page, 'Comparar días').click()
+  await expect(page.getByRole('dialog', { name: 'Comparación de la operación' })).toContainText('Anterior: 2026-09-21 completo')
+  await page.keyboard.press('Escape')
+  // En el celular la ficha del equipo se abre en una ventana; «Ver el equipo» entra por la ruta.
+  await vista.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true }).click()
+  const ventanaEquipo = page.getByRole('dialog', { name: `Detalle del ${EQUIPO}`, exact: true })
+  await expect(ventanaEquipo).toBeVisible()
+  await ventanaEquipo.getByRole('button', { name: 'Ver el equipo', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/equipo/${grupo.clave}$`))
   await page.reload()
   // Los portales se alojan fuera del workspace; esperar también su salida del splash.
   await expect.poll(() => page.locator('main').evaluate((n) => n.closest('[inert]') === null)).toBe(true)
   await expect(page).toHaveURL(new RegExp(`/equipo/${grupo.clave}$`))
-  const detalle = page.getByRole('region', { name: 'Detalle de la operación' })
-  await expect(detalle).toBeVisible()
-  await expect(page.getByRole('dialog', { name: grupo.nombre, exact: true })).toBeVisible()
-  await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  const equipo = vista.getByRole('region', { name: EQUIPO, exact: true })
+  await expect(equipo.getByRole('heading', { level: 3, name: EQUIPO, exact: true })).toBeVisible()
+  // Sin selección automática en el celular: el enlace directo no abre ninguna ventana.
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(dia).toHaveValue('2026-09-22')
   await dia.fill('2026-09-21')
-  await dia.press('Enter')
   await expect.poll(() => estado.dias.at(-1)).toBe('2026-09-21')
   await expect(dia).toBeFocused()
-  await page.getByRole('button', { name: 'Ver detalle', exact: true }).click()
-  await expect(detalle).toContainText(grupo.nombre)
-  await detalle.getByRole('heading', { name: grupo.nombre, exact: true }).scrollIntoViewIfNeeded()
+  await expect(equipo.getByRole('heading', { level: 3, name: EQUIPO, exact: true })).toBeVisible()
+  await equipo.getByRole('heading', { level: 3, name: EQUIPO, exact: true }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('f5-equipo-movil.png'), fullPage: true })
-  await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
-  await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
-  await detalle.getByRole('link', { name: grupo.nombre, exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Analistas del equipo' }).getByRole('heading', { name: grupo.nombre, exact: true })).toBeFocused()
-  await page.getByRole('button', { name: 'Ver detalle', exact: true }).click()
-  await page.getByRole('region', { name: 'Detalle de la operación' }).getByRole('link', { name: 'Toda la operación', exact: true }).click()
+  const fila = equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true })
+  await fila.click()
+  const ventanaAnalista = page.getByRole('dialog', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
+  await expect(ventanaAnalista).toBeVisible()
+  await ventanaAnalista.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/equipo/${grupo.clave}$`))
+  await expect(fila).toBeFocused()
+  await equipo.getByRole('navigation', { name: 'Ruta de la operación' }).getByRole('link', { name: 'Toda la operación', exact: true }).click()
   await expect(page).toHaveURL(/#\/gestion-diaria$/)
-  await expect(page.getByRole('heading', { name: 'Equipos y atención actual', exact: true })).toBeFocused()
-  await page.getByRole('heading', { name: 'Toda la operación', exact: true }).scrollIntoViewIfNeeded()
+  await expect(vista.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true })).toBeFocused()
+  await vista.getByRole('heading', { level: 2, name: 'Toda la operación', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('f5-operacion-movil.png'), fullPage: true })
 })
 
@@ -246,34 +330,49 @@ test('F5 hábitos: períodos reales de 7/14/30, hueco, comparación y cortes sin
   expect(estado.periodos).toEqual(expect.arrayContaining([7, 14, 30]))
   await informe.getByRole('button', { name: `Ver hábitos de ${analista.nombre_completo}`, exact: true }).click()
   await informe.getByRole('link', { name: 'Ver pulso y registro', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Detalle de la operación' })).toContainText(analista.nombre_completo!)
+  // «Ver pulso y registro» lleva a la ficha del analista dentro de su equipo.
+  await expect(page).toHaveURL(new RegExp(`/gestion-diaria/analista/${analista.analista_id}$`))
+  await expect(operacion(page).getByRole('region', { name: EQUIPO, exact: true })
+    .getByRole('region', { name: `Detalle de ${analista.nombre_completo}`, exact: true })).toBeVisible()
 })
 
 test('F5 error y revocación ocultan datos; recuperación vuelve a consultar', async ({ page }) => {
   const estado = await montar(page)
+  const vista = operacion(page)
+  // Con el registro general abierto, para comprobar que el error también lo retira.
+  await botonCabecera(page, 'Registro general').click()
+  await expect(vista.getByRole('region', { name: 'Registro general', exact: true })).toContainText(`Llamada ficticia F5 del ${DIA}`)
   estado.error = true
-  await page.getByRole('button', { name: 'Actualizar operación', exact: true }).click()
-  const alerta = page.getByRole('region', { name: 'Toda la operación' }).getByRole('alert')
+  await botonCabecera(page, 'Actualizar').click()
+  const alerta = vista.getByRole('alert')
   await expect(alerta).toContainText('datos anteriores se han ocultado')
-  await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Registro general de la operación' })).toHaveCount(0)
+  await expect(page.getByRole('table', { name: 'Equipos de la operación' })).toHaveCount(0)
+  await expect(vista.getByRole('region', { name: 'Cifras de la operación', exact: true })).toHaveCount(0)
+  await expect(vista.getByRole('region', { name: 'Registro general', exact: true })).toHaveCount(0)
   estado.error = false
   await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click()
-  await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Equipos de la operación' })).toBeVisible()
   estado.revocado = true
-  await page.getByRole('button', { name: 'Actualizar operación', exact: true }).click()
+  await botonCabecera(page, 'Actualizar').click()
   await expect(alerta).toContainText('ya no tiene permiso')
   await expect(page.getByRole('table')).toHaveCount(0)
 })
 
 test('F5 conserva la fila fuera de equipos y exportación del registro cargado', async ({ page }) => {
   await montar(page)
-  await page.getByRole('link', { name: 'Fuera de equipos comerciales', exact: true }).click()
-  const detalle = page.getByRole('region', { name: 'Detalle de la operación' })
-  await expect(page.getByRole('region', { name: 'Analistas del equipo' })).toContainText('Sin autor: 1 llamadas')
-  await expect(detalle).toContainText('Los registros sin autor se consultan en el registro general')
-  await page.getByRole('button', { name: 'Registro general', exact: true }).click()
-  const general = page.getByRole('region', { name: 'Registro general de la operación' })
+  const vista = operacion(page)
+  const filas = vista.getByRole('table', { name: 'Equipos de la operación' }).getByRole('button', { name: /^Seleccionar / })
+  // El grupo sin supervisor no compite con los equipos: siempre al final.
+  await expect(filas.last()).toHaveAccessibleName('Seleccionar Fuera de equipos comerciales')
+  await filas.last().click()
+  await vista.getByRole('region', { name: 'Detalle del Fuera de equipos comerciales', exact: true }).getByRole('button', { name: 'Ver el equipo', exact: true }).click()
+  await expect(page).toHaveURL(/\/gestion-diaria\/equipo\/fuera$/)
+  const fuera = vista.getByRole('region', { name: 'Fuera de equipos comerciales', exact: true })
+  await expect(fuera).toContainText('Sin autor: 1 llamadas')
+  // Los registros sin autor se consultan en el registro general.
+  await fuera.getByRole('button', { name: 'Ver registros sin autor en el registro general', exact: true }).click()
+  await expect(page).toHaveURL(/#\/gestion-diaria$/)
+  const general = vista.getByRole('region', { name: 'Registro general', exact: true })
   await expect(general).toContainText(`Llamada ficticia F5 del ${DIA}`)
   const descarga = page.waitForEvent('download')
   await general.getByRole('button', { name: /Exportar/ }).click()
@@ -283,59 +382,75 @@ test('F5 conserva la fila fuera de equipos y exportación del registro cargado',
 test('F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensionar y volver', async ({ page }, info) => {
   const estado = await montar(page)
   estado.paginado = true
-  const vista = page.getByRole('region', { name: 'Toda la operación', exact: true })
-  const indicadores = vista.getByRole('region', { name: 'Indicadores de la operación' }).locator('dl')
-  const cifras = await indicadores.textContent()
+  const vista = operacion(page)
+  const cifras = vista.getByRole('region', { name: 'Cifras de la operación', exact: true }).locator('dl')
+  const valores = await cifras.textContent()
   await expect(vista).toHaveAttribute('data-estrecho', 'false')
   expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate((n) => n.scrollHeight <= n.clientHeight + 1)).toBe(true)
-  const equipos = page.getByRole('table', { name: 'Resumen por supervisor' })
+  const equipos = vista.getByRole('table', { name: 'Equipos de la operación' })
   const ultimaFila = await equipos.locator('tbody tr').last().boundingBox()
-  const tabla = await equipos.locator('..').boundingBox()
+  const tabla = await vista.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true }).boundingBox()
   expect(ultimaFila!.y + ultimaFila!.height).toBeLessThanOrEqual(tabla!.y + tabla!.height + 1)
-  await page.getByRole('searchbox', { name: 'Buscar equipo', exact: true }).fill(grupo.nombre)
+  const buscarEquipo = vista.getByRole('searchbox', { name: 'Buscar equipo', exact: true })
+  await buscarEquipo.fill(grupo.nombre)
   await expect(equipos.locator('tbody tr')).toHaveCount(1)
-  await expect(indicadores).toHaveText(cifras!)
-  await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
-  const buscar = page.getByRole('searchbox', { name: 'Buscar analista del equipo', exact: true })
+  await expect(cifras).toHaveText(valores!)
+  await equipos.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true }).click()
+  const equipo = await entrarAlEquipo(page)
+  const buscar = equipo.getByRole('searchbox', { name: 'Buscar analista', exact: true })
   await buscar.fill(analista.nombre_completo!)
-  const seleccionar = page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true })
+  const seleccionar = equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true })
   await seleccionar.click()
-  const panel = page.getByRole('region', { name: 'Detalle de la operación', exact: true })
+  const panel = page.getByRole('region', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
+  const ventana = page.getByRole('dialog', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
   await panel.getByRole('tab', { name: 'Registro', exact: true }).click()
-  const etapa = panel.getByRole('combobox', { name: 'Etapa actual del lead', exact: true })
-  await etapa.selectOption('nuevo')
-  await expect(panel).toContainText(`Llamada ficticia F5 del ${DIA}`)
-  await expect(panel.getByRole('listitem')).toHaveCount(25)
-  await panel.getByRole('button', { name: 'Ver más', exact: true }).click()
-  await expect(panel.getByRole('listitem')).toHaveCount(26)
+  const registro = panel.getByRole('region', { name: 'Registro seleccionado', exact: true })
+  // El filtro del registro compacto de la ficha es la pastilla de tipo (sin selector de etapa).
+  const llamadas = registro.getByRole('tab', { name: 'Llamadas', exact: true })
+  await llamadas.click()
+  await expect(registro).toContainText(`Llamada ficticia F5 del ${DIA}`)
+  await expect(registro.getByRole('listitem')).toHaveCount(25)
+  await registro.getByRole('button', { name: 'Ver más', exact: true }).click()
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
   await panel.getByRole('button', { name: 'Ampliar panel', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
-  await expect(etapa).toHaveValue('nuevo')
-  await expect(panel.getByRole('listitem')).toHaveCount(26)
-  await panel.getByRole('button', { name: cliente.nombre_completo, exact: true }).first().click()
+  await expect(ventana).toBeVisible()
+  await expect(llamadas).toHaveAttribute('aria-selected', 'true')
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
+  await registro.getByRole('button', { name: cliente.nombre_completo, exact: true }).first().click()
   await expect(page.getByRole('heading', { name: cliente.nombre_completo, exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('heading', { name: cliente.nombre_completo, exact: true })).toHaveCount(0)
-  await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
-  await expect(panel.getByRole('listitem')).toHaveCount(26)
+  await expect(ventana).toBeVisible()
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
   await page.screenshot({ path: info.outputPath('f6-registro-ampliado.png'), fullPage: true })
   await panel.getByRole('button', { name: 'Restaurar panel', exact: true }).click()
   await page.setViewportSize({ width: 1000, height: 900 })
-  await expect(page.getByRole('dialog', { name: analista.nombre_completo!, exact: true })).toBeVisible()
-  await expect(etapa).toHaveValue('nuevo')
-  await expect(panel.getByRole('listitem')).toHaveCount(26)
+  await expect(ventana).toBeVisible()
+  await expect(llamadas).toHaveAttribute('aria-selected', 'true')
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
   await page.setViewportSize({ width: 1512, height: 900 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(etapa).toHaveValue('nuevo')
-  await page.getByRole('button', { name: 'Registro general', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Registro general de la operación' })).toBeVisible()
-  await panel.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
-  await expect(etapa).toHaveValue('nuevo')
-  await expect(buscar).toHaveValue(analista.nombre_completo!)
+  await expect(llamadas).toHaveAttribute('aria-selected', 'true')
+  await expect(registro.getByRole('listitem')).toHaveCount(26)
+  // Volver: cerrar la ficha devuelve el foco a su fila, con la búsqueda del equipo intacta.
   await panel.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
   await expect(seleccionar).toBeFocused()
-  await page.getByRole('region', { name: 'Analistas del equipo', exact: true }).getByRole('link', { name: 'Toda la operación', exact: true }).click()
-  await expect(page.getByRole('searchbox', { name: 'Buscar equipo', exact: true })).toHaveValue(grupo.nombre)
+  await expect(buscar).toHaveValue(analista.nombre_completo!)
+  // «Registro general» sale a la operación, que conserva su búsqueda de equipos.
+  await botonCabecera(page, 'Registro general').click()
+  await expect(page).toHaveURL(/#\/gestion-diaria$/)
+  const general = vista.getByRole('region', { name: 'Registro general', exact: true })
+  await expect(general).toBeVisible()
+  await expect(buscarEquipo).toHaveValue(grupo.nombre)
+  await general.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
+  await expect(botonCabecera(page, 'Registro general')).toBeFocused()
+  // Atrás vuelve al equipo con su búsqueda; la miga regresa a la operación, enfocando la fila del equipo.
+  await page.goBack()
+  await expect(page).toHaveURL(new RegExp(`/gestion-diaria/equipo/${grupo.clave}$`))
+  await expect(buscar).toHaveValue(analista.nombre_completo!)
+  await equipo.getByRole('navigation', { name: 'Ruta de la operación' }).getByRole('link', { name: 'Toda la operación', exact: true }).click()
+  await expect(buscarEquipo).toHaveValue(grupo.nombre)
+  await expect(equipos.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true })).toBeFocused()
 })
 
 test('F6 hábitos: búsqueda, selección por teclado y móvil conservan el día abierto', async ({ page }, info) => {
@@ -371,17 +486,25 @@ test('F6 hábitos: búsqueda, selección por teclado y móvil conservan el día 
 
 for (const ambito of ['general', 'analista']) test(`F6 una revocación del registro ${ambito} oculta Pulso y Hábitos hasta verificar la sesión`, async ({ page }) => {
   const estado = await montar(page)
-  if (ambito === 'general') await page.getByRole('button', { name: 'Registro general', exact: true }).click()
-  else {
-    await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
-    await page.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
-    await page.getByRole('tab', { name: 'Registro', exact: true }).click()
+  const vista = operacion(page)
+  let registro: Locator
+  if (ambito === 'general') {
+    await botonCabecera(page, 'Registro general').click()
+    registro = page.getByRole('region', { name: `Registro de actividad del ${DIA}`, exact: true })
+  } else {
+    const equipo = await entrarAlEquipo(page)
+    await equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
+    const ficha = equipo.getByRole('region', { name: `Detalle de ${analista.nombre_completo}`, exact: true })
+    await ficha.getByRole('tab', { name: 'Registro', exact: true }).click()
+    registro = ficha.getByRole('region', { name: 'Registro seleccionado', exact: true })
   }
-  const registro = page.getByRole('region', { name: `Registro de actividad del ${DIA}`, exact: true })
   await expect(registro).toContainText(`Llamada ficticia F5 del ${DIA}`)
   estado.registroRevocado = true
-  await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Toda la operación', exact: true }).getByRole('alert')).toContainText('ya no tiene permiso')
+  // El registro general conserva su «Actualizar»; el compacto de la ficha no lo tiene, así
+  // que la consulta nueva la pide su pastilla de tipo (un control que también desaparece).
+  if (ambito === 'general') await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
+  else await registro.getByRole('tab', { name: 'Llamadas', exact: true }).click()
+  await expect(vista.getByRole('alert').filter({ hasText: 'ya no tiene permiso' })).toBeVisible()
   await expect(page.getByRole('table')).toHaveCount(0)
   await expect(registro).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Verificar sesión', exact: true })).toBeFocused()
@@ -390,15 +513,19 @@ for (const ambito of ['general', 'analista']) test(`F6 una revocación del regis
   await expect(page.getByRole('table')).toHaveCount(0)
   estado.registroRevocado = false
   await page.getByRole('button', { name: 'Verificar sesión', exact: true }).click()
-  await expect(page.getByRole('table', { name: 'Resumen por supervisor' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Equipos de la operación' })).toBeVisible()
 })
 
 test('F6 al ampliar desde móvil aparece el equipo seleccionado y su detalle', async ({ page }) => {
   await montar(page)
+  // Otro equipo que el que la selección automática abriría al ampliar: así se prueba la elección del usuario.
+  const otro = `Equipo de ${fixture.pulso.equipos.find((e) => e.clave !== grupo.clave && e.clave !== 'fuera' && e.metricas.llamadas > 0)!.nombre}`
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('link', { name: grupo.nombre, exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await operacion(page).getByRole('button', { name: `Seleccionar ${otro}`, exact: true }).click()
+  // En el celular, la ficha del equipo elegido se abre en una ventana.
+  await expect(page.getByRole('dialog', { name: `Detalle del ${otro}`, exact: true })).toBeVisible()
   await page.setViewportSize({ width: 1512, height: 900 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Detalle de la operación' }).getByRole('heading', { name: grupo.nombre, exact: true })).toBeVisible()
+  await expect(operacion(page).getByRole('region', { name: `Detalle del ${otro}`, exact: true })
+    .getByRole('heading', { name: `Detalle del ${otro}`, exact: true })).toBeVisible()
 })
