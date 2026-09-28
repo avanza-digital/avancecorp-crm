@@ -13978,3 +13978,35 @@ capital. Front vivo: commit `8ec3dd1f67e1`, build
 `build-20260927T205509063Z`, preflight sobre `01d5ddc4b653` y smoke HTTP de
 `version.json`, HTML y chunks. SHA-256 de la migración:
 `1ed04fc5e8c7884d79f7d4090b1b6e1a4669a74a60e4826ac4ad54972f089191`.
+
+## 20260928043728 — G4a: Gerencia lee los pendientes de cualquier analista
+
+**⏸️ PENDIENTE DE APLICAR EN PRODUCCIÓN (la aplica Miguel con `!`: migración y después
+`supabase/scripts/g4/registrar-20260928043728.sql`).** Huellas nuevas: núcleo
+`a0bde87db9ea86694ba4ee79dc109729`, gate H3 re-sellado `6aecb25a8a66e10cc5dcae69afb66281`.
+Verificado en el banco Docker aislado `crm-banco-g4` (esquema de producción por `db dump`,
+paridad 27/27 por md5, actores sintéticos, configuración SLA copiada con autores ficticios):
+`test-g4a.sql` → G4A_OK (Supervisión idéntica a H3 en respuesta y errores; Gerencia en dos
+equipos y «fuera»; cifra del detalle = lista; 1.006 tareas en 11 páginas = conjunto esperado;
+postventa con banderas ON y oculta con una OFF en resumen y en todas las páginas; inactivo
+fabricado; analista, coordinación, lector global, uid sin rol, sin identidad, gerencia dada de
+baja y anon → 42501; ACL efectiva comprobada); reversa → 4 huellas H3 exactas y Gerencia en
+42501; reaplicación → G4A_OK; registrador: idempotente, rechaza fila con otro cuerpo y registrar
+sin la migración aplicada. auditor-rls: sin P0/P1 (pruebas y sellado reforzados). Codex (plan y
+código): sin P0/P1 (pruebas endurecidas). `test-rls.mjs`: bloque nuevo de pendientes (NO
+ejecutado: requiere el banco con la semilla determinista). Tras una reversa la fila del
+historial queda registrada: reaplicar la migración a mano (no hay publicador que la omita).
+Plan G4 v2
+aprobado por Miguel el 27/09 («G4a y luego G4b») y revisado por Codex (rol nulo
+rechazado explícitamente). Solo cambia la AUTORIZACIÓN de
+`private.gestion_diaria_pendientes_core`: Supervisión conserva su árbol (respuesta
+idéntica a H3, comparada en la misma sentencia); Gerencia usa el roster canónico
+con supervisor nulo (toda la operación visible, «fuera» incluido), el mismo que ya
+usa `gestion_diaria_equipo_core`. Coordinación, analistas, lector global, rol nulo
+y anon: 42501. Misma firma y claves: `supervisor_id` devuelve a quien consulta, así
+los bundles publicados (`v.strictObject`) no cambian. No toca tablas, políticas ni
+grants; lectura INVOKER bajo la RLS de `crm.tareas`, que ya concede a Gerencia las
+tareas activas. Preflight con las huellas vivas (ámbito af06…, núcleo f49d…, puerta
+d69d…, gate 4244…); el gate H3 se re-sella sustituyendo solo la huella del núcleo.
+Reversa: `supabase/scripts/g4/reversa-g4a.sql` (si el front ya muestra Pendientes a
+Gerencia, revertir PRIMERO el front). Orden: base antes que front.
