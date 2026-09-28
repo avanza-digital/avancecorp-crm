@@ -8,7 +8,6 @@ describe('catálogo de orígenes de lead', () => {
       { k: 'landing', label: 'LANDING' },
       { k: 'formulario', label: 'FORMULARIO' },
       { k: 'oficina', label: 'Walking' },
-      { k: 'otro', label: 'Otro' },
     ])
   })
 
@@ -19,9 +18,11 @@ describe('catálogo de orígenes de lead', () => {
     expect(activos).not.toContain('web')
     expect(activos).not.toContain('campania')
     expect(activos).not.toContain('whatsapp')
-    expect(todos).toEqual(expect.arrayContaining(['web', 'campania', 'whatsapp']))
+    expect(activos).not.toContain('otro')
+    expect(todos).toEqual(expect.arrayContaining(['web', 'campania', 'whatsapp', 'otro']))
     expect(origenLabel('web')).toBe('Web')
     expect(origenLabel('campania')).toBe('Campaña')
     expect(origenLabel('whatsapp')).toBe('WhatsApp')
+    expect(origenLabel('otro')).toBe('Otro')
   })
 })
