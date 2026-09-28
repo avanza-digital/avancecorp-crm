@@ -423,5 +423,10 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
   negaba. Se verificó que su ZIP = lo vivo (buildId, entrada `index-ynpMOmj8.js`, SHA-256), se copió a
   `releases/` y su commit entró a `main` con esta fusión (trae la migración `20260927172930`; falta su
   línea en `MIGRACIONES.md`, que llega al integrar `avancecorp/main` #116).
-- **Pendiente:** PR de integración a GitHub (sin lo de Gloria). La prueba H5 la está arreglando otra
-  sesión: su cambio (arrancar en `#/gestion-diaria`) sigue SIN commitear en el taller compartido.
+- **Cierre del día (27/09, noche):** el arreglo de H5 de la otra sesión (entrar en `#/gestion-diaria`
+  antes del login) se verificó combinado con el selector nuevo (10/10 sin reintentos) y se commiteó con su
+  nota de Citas (`f46d3eb4`). `avancecorp/main` (#115, #116) se trajo al local (`1cb782ad`, solo cambia
+  `MIGRACIONES.md`: gana la entrada del vigilante 172930). **PR #117** abierta
+  (`integra/supervisor-diseno-20260927`, `9553bc2f`): app idéntica al main local, SIN lo de Gloria (receta
+  #114) y SIN la nota «Integracion del main local y pendientes» (describe lo de Gloria). Al fusionarla (squash,
+  Miguel), volver a traer `avancecorp/main` al local. Worktrees y ramas de este trabajo, retirados.
