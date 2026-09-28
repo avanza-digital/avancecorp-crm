@@ -28,6 +28,16 @@ VIRGEN (nunca reutilizar uno ya publicado); (3) bump del `CACHE_VERSION` del SW;
 deploy, purgar la caché del hosting (`hosting_clearWebsiteCacheV1` — LiteSpeed sirve versiones
 mezcladas hasta la purga) y verificar con 3 lecturas consecutivas del sha.
 
+## 🔴 MCP de Hostinger 2.x: `search` / `execute` (desde el 28/09/2026)
+
+`hostinger-api-mcp@2.x` (el script usa `@latest`; el 28/09 bajó la 2.3.0) **ya no registra una herramienta por
+operación**: solo `search`, `execute` y `multi-execute` («Loaded 75 operations · Registered 3 tools»). El deploy
+estático es ahora la operación **`hosting_deploy-static-website`** (mismo handler TUS de siempre) y se llama
+`execute({ operation: 'hosting_deploy-static-website', params: { domain, archivePath, removeArchive } })`. Llamar a
+`hosting_deployStaticWebsite` como tool directa devuelve `-32602 Tool not found`. `_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs`
+(fuera de git) detecta el contrato con `tools/list` y usa el que corresponda; el preflight no cambió. La purga de
+caché, si hace falta, es la operación `hosting_cache_clear-website` por la misma vía.
+
 ## CRM (crm.miavance.com)
 
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
