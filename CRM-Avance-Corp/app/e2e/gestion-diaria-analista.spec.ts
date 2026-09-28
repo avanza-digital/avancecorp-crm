@@ -196,6 +196,7 @@ for (const rol of ['Supervisor', 'Gerencia'] as const) {
     await page.getByRole('button', { name: 'Gestión Diaria' }).click()
     await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveCount(0)
     if (rol === 'Supervisor') await page.getByRole('button', { name: 'Registro del equipo', exact: true }).click()
+    if (rol === 'Gerencia') await page.getByRole('button', { name: 'Registro general', exact: true }).click()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
   })
 }
