@@ -24,10 +24,17 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 type Accion = 'cargar' | 'reintentar' | 'actualizar'
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
-/** Las tareas automáticas se titulan «Acción — LEAD»: el lead ya va al lado, no se repite. */
+/**
+ * Las tareas automáticas se titulan «Acción — NOMBRE DEL LEAD»: el lead ya va al lado, no se repite.
+ * Solo con la raya «—» y el nombre verificado: completo, o sus primeras palabras si son al menos dos
+ * («GLORIA NAVARRO» de «GLORIA NAVARRO IBÁÑEZ»). «Revisar propuesta — A» se queda como está (Codex).
+ */
 function sinElLead(titulo: string, lead: string | null): string {
-  const partes = /^(.+?)\s+[—–-]\s+(.+)$/.exec(titulo)
-  return lead && partes && normalizar(lead).startsWith(normalizar(partes[2]!)) ? partes[1]! : titulo
+  const partes = /^(.+?) — (.+)$/.exec(titulo)
+  if (!lead || !partes) return titulo
+  const sufijo = normalizar(partes[2]!), nombre = normalizar(lead)
+  const esElLead = sufijo === nombre || (sufijo.split(/\s+/).length >= 2 && nombre.startsWith(`${sufijo} `))
+  return esElLead ? partes[1]! : titulo
 }
 
 export function PendientesSupervisor({ analista, nombre, dia, fila, visible, soloVencidasInicial, apertura, enfocar, actualizacion, revalidar }: {

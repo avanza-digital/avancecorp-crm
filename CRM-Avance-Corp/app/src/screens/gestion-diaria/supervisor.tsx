@@ -100,7 +100,8 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const fila = equipo.find((f) => f.analista_id === seleccion?.analista)
   const atencion = equipo.filter((f) => f.requiere_atencion).length
   const pildora: Pildora = filtros.soloProblemas ? 'atencion' : filtros.estado ?? 'todos'
-  const elegirPildora = (p: Pildora) => setFiltros((f) => ({ ...f, estado: p === 'atencion' ? 'todos' : p, soloProblemas: p === 'atencion' }))
+  // Cada cifra es del equipo entero: abrirla limpia la búsqueda, así la lista ES esa cifra (Codex, 27/09).
+  const elegirPildora = (p: Pildora) => setFiltros((f) => ({ ...f, busqueda: '', estado: p === 'atencion' ? 'todos' : p, soloProblemas: p === 'atencion' }))
   const sinPermiso = consulta.error instanceof CrmApiError && consulta.error.code === '42501'
   const fueraDeAmbito = seleccion !== null && (sinPermiso || (dia !== null && seleccion.analista !== null && !fila))
   const automatica = seleccion?.origen === 'automatica'
@@ -231,6 +232,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const modal = seleccion !== null && !fueraDeAmbito && !automatica && (estrecho || ampliado)
   const vacioPanel = dia && esHoy && dia.equipo.length > 0 && !equipo.some((f) => f.requiere_atencion)
     ? 'Nadie necesita atención ahora. Elige un analista para ver su día.' : undefined
+  const registroEquipoDisponible = Boolean(dia) && !consulta.error && !consulta.cargando && !sinPermiso
   const abrirRegistroEquipo = () => {
     if (!dia || sinPermiso) return
     origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -285,12 +287,12 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
           </label>
           <button type="button" className={BOTON_CABECERA} aria-disabled={esHoy} onClick={() => { if (!esHoy) cambiarFecha(hoy) }}>Hoy</button>
           {accesoSeguimiento}
-          {/* Con cualquier foto válida, aunque no haya analistas (Codex, 27/09). */}
-          {dia && !consulta.error && !consulta.cargando && (
-            <button type="button" className={BOTON_CABECERA} onClick={abrirRegistroEquipo} aria-disabled={sinPermiso}>
-              <ClipboardList aria-hidden className="size-4" />Registro del equipo
-            </button>
-          )}
+          {/* Con cualquier foto válida, aunque no haya analistas. Sin foto se
+              deshabilita en vez de desmontarse: no suelta el foco (Codex, 27/09). */}
+          <button type="button" className={BOTON_CABECERA} aria-disabled={!registroEquipoDisponible}
+            onClick={() => { if (registroEquipoDisponible) abrirRegistroEquipo() }}>
+            <ClipboardList aria-hidden className="size-4" />Registro del equipo
+          </button>
           {hora && <p className="whitespace-nowrap pl-1 text-xs tabular-nums text-[var(--muted-foreground-strong)]">Actualizado {hora}</p>}
           <button type="button" className={BOTON_CABECERA} aria-disabled={actualizando} aria-busy={actualizando} onClick={actualizar}>
             <RefreshCw className={cn('size-4', actualizando && 'motion-safe:animate-spin')} aria-hidden />{actualizando ? 'Actualizando…' : 'Actualizar'}

@@ -149,6 +149,13 @@ describe('Supervisor horizontal', () => {
     fireEvent.click(pildora(/^Con pendientes 1$/))
     expect(screen.getAllByRole('button', { name: /^Seleccionar a / }).map((b) => b.textContent)).toEqual(['BRUNO'])
   })
+  it('abrir una cifra limpia la búsqueda: la lista es la cifra del equipo (Codex, 27/09)', () => {
+    render(<GestionDiariaSupervisor />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ana' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Resumen del equipo' })).getByRole('button', { name: /^Necesitan atención 1$/ }))
+    expect(screen.getByRole('searchbox')).toHaveValue('')
+    expect(screen.getAllByRole('button', { name: /^Seleccionar a / }).map((b) => b.textContent)).toEqual(['BRUNO'])
+  })
   it('seleccionar conserva foco, volver a pulsar no cierra y sólo la fila activa ofrece ir al detalle', () => {
     render(<GestionDiariaSupervisor />)
     const boton = screen.getByRole('button', { name: 'Seleccionar a ANA PÉREZ' })
@@ -243,6 +250,11 @@ describe('Supervisor horizontal', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('no significa que el equipo no tenga actividad')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(dobles.recargar).toHaveBeenCalledOnce()
+    // Sin foto válida, «Registro del equipo» sigue en la cabecera pero deshabilitado (Codex, 27/09).
+    const registroEquipo = screen.getByRole('button', { name: 'Registro del equipo' })
+    expect(registroEquipo).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(registroEquipo)
+    expect(dobles.registro).not.toHaveBeenCalled()
     dobles.consulta.error = new CrmApiError('Revocado', '42501')
     vista.rerender(<GestionDiariaSupervisor />)
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()

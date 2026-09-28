@@ -47,7 +47,7 @@ describe('Lista útil de pendientes', () => {
   it('como el resumen: dos cuadros con número que filtran, la vencida se marca y el título no repite el lead (Miguel, 27/09)', () => {
     dobles.lista.items = [
       tareaPendiente(20, { tipo: 'whatsapp', titulo: 'WhatsApp — LEAD VISIBLE', vence_en: '2026-09-23T16:00:00.000001+00:00' }),
-      tareaPendiente(21, { titulo: 'Responder propuesta — Lead', vence_en: '2026-09-23T18:00:00.000001+00:00' }),
+      tareaPendiente(21, { titulo: 'Responder propuesta — Lead visible', vence_en: '2026-09-23T18:00:00.000001+00:00' }),
     ]
     dobles.lista.pagina = paginaPendientes(dobles.lista.items, { resumen: { tareas_pendientes: 5, tareas_vencidas: 2 } })
     render(<PendientesSupervisor {...props} />)
@@ -71,5 +71,38 @@ describe('Lista útil de pendientes', () => {
     vista.rerender(<PendientesSupervisor {...props} fila={filaEquipoPrueba({ primer_intento_vencido: null, datos_incompletos: 0 })} />)
     expect(screen.queryByRole('list', { name: 'Leads por revisar' })).not.toBeInTheDocument()
     expect(screen.queryByText(/no evaluado/)).not.toBeInTheDocument()
+  })
+  it('solo recorta el nombre VERIFICADO del lead tras la raya; un sufijo cualquiera se conserva (Codex, 27/09)', () => {
+    dobles.lista.items = [
+      tareaPendiente(30, { titulo: 'Revisar propuesta — A', lead_nombre: 'Ana Pérez' }),
+      tareaPendiente(31, { titulo: 'Llamar - Lead visible' }),
+      tareaPendiente(32, { titulo: 'Responder propuesta — GLORIA NAVARRO', lead_nombre: 'GLORIA NAVARRO IBÁÑEZ' }),
+    ]
+    render(<PendientesSupervisor {...props} />)
+    expect(screen.getByText('Revisar propuesta — A')).toBeVisible()
+    expect(screen.getByText('Llamar - Lead visible')).toBeVisible()
+    expect(screen.getByText('Responder propuesta')).toBeVisible()
+  })
+  it('«Vencida» con precisión de microsegundos y sin importar el desfase horario', () => {
+    const corte = '2026-09-23T17:00:00.000001+00:00'
+    dobles.lista.items = [
+      tareaPendiente(40, { titulo: 'Mismo instante', vence_en: '2026-09-23T12:00:00.000001-05:00' }),
+      tareaPendiente(41, { titulo: 'Un microsegundo antes', vence_en: '2026-09-23T17:00:00.000000+00:00' }),
+    ]
+    dobles.lista.pagina = paginaPendientes(dobles.lista.items, { pendientes_al: corte })
+    render(<PendientesSupervisor {...props} />)
+    const [igual, antes] = within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('listitem')
+    expect(within(igual!).queryByText('Vencida')).not.toBeInTheDocument()
+    expect(within(antes!).getByText('Vencida')).toBeVisible()
+  })
+  it('«Actualizar tareas» que se va con el foco dentro lo entrega al título', () => {
+    dobles.lista.congelada = true
+    const vista = render(<PendientesSupervisor {...props} />)
+    const actualizar = screen.getByRole('button', { name: 'Actualizar tareas' })
+    actualizar.focus()
+    dobles.lista = { ...dobles.lista, congelada: false }
+    vista.rerender(<PendientesSupervisor {...props} />)
+    expect(screen.queryByRole('button', { name: 'Actualizar tareas' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pendientes de ANA' })).toHaveFocus()
   })
 })
