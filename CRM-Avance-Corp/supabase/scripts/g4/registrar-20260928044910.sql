@@ -1,4 +1,11 @@
--- G4b (27/09/2026): la lista EXACTA de «Citas agendadas» de Gestión Diaria.
+-- Registra 20260928044910 (crm_gestion_diaria_citas_lista) CON su cuerpo — fail-closed.
+-- Orden de la casa: PRIMERO aplicar la migración con `db query --linked --file`, DESPUÉS este
+-- registrador. El cuerpo embebido es el archivo de la migración tal cual (no editar a mano:
+-- se regenera desde el archivo si la migración cambia antes de aplicarse).
+do $reg_g4b$
+declare v_n int; v_cuerpo text;
+begin
+  v_cuerpo := $mig_g4b$-- G4b (27/09/2026): la lista EXACTA de «Citas agendadas» de Gestión Diaria.
 -- Plan G4 v2 aprobado por Miguel («G4a y luego G4b») y revisado por Codex
 -- (P1: selector de ámbito explícito y roles explícitos; P2: rol nulo rechazado).
 --
@@ -274,3 +281,39 @@ begin
 end $postflight$;
 notify pgrst, 'reload schema';
 commit;
+$mig_g4b$;
+
+  -- 1) La migración tiene que estar aplicada TAL CUAL: las tres piezas y el paraguas con
+  --    las huellas revisadas, y el gate respondiendo OK. to_regprocedure(): una pieza que
+  --    falta da NULL (y este mensaje), no otro error.
+  if md5(pg_get_functiondef(to_regprocedure('private.gestion_diaria_citas_core(date,text,uuid,integer,timestamptz,uuid)'))) is distinct from '904d3b0a853a6cf794943217fc957f03'
+     or md5(pg_get_functiondef(to_regprocedure('crm.gestion_diaria_citas_fn(date,text,uuid,integer,timestamptz,uuid)'))) is distinct from 'fd2b0376be5e8c6728e4c33776e1a9e4'
+     or md5(pg_get_functiondef(to_regprocedure('private.assert_gestion_diaria_citas()'))) is distinct from '12012959d2e751c43df86b847dcce037'
+     or md5(pg_get_functiondef(to_regprocedure('private.assert_gestion_diaria()'))) is distinct from '58208b4fba6d2f76554e19e21444fe94' then
+    raise exception 'registrar G4b: la migración 20260928044910 no está aplicada tal cual — aplicarla antes de registrar';
+  end if;
+  if private.assert_gestion_diaria_citas() not like 'OK:%' then
+    raise exception 'registrar G4b: el gate propio no responde OK';
+  end if;
+
+  -- 2) La versión no puede existir con OTRO cuerpo.
+  select count(*) into v_n from supabase_migrations.schema_migrations
+   where version = '20260928044910' and statements is not null
+     and (cardinality(statements) <> 1 or statements[1] <> v_cuerpo);
+  if v_n > 0 then
+    raise exception 'registrar G4b: la versión 20260928044910 existe con OTRO cuerpo — investigar antes de tocar';
+  end if;
+
+  -- 3) Registro (idempotente).
+  insert into supabase_migrations.schema_migrations (version, name, statements)
+  values ('20260928044910', 'crm_gestion_diaria_citas_lista', array[v_cuerpo])
+  on conflict (version) do nothing;
+
+  -- 4) RELECTURA fail-closed: la fila EXACTA, o se cae la transacción entera.
+  select count(*) into v_n from supabase_migrations.schema_migrations
+   where version = '20260928044910' and name = 'crm_gestion_diaria_citas_lista'
+     and cardinality(statements) = 1 and statements[1] = v_cuerpo;
+  if v_n <> 1 then
+    raise exception 'registrar G4b: la relectura no encontró la fila exacta';
+  end if;
+end $reg_g4b$;
