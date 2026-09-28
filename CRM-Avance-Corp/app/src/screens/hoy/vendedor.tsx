@@ -7,6 +7,7 @@ import { useModoSla } from '@/data/sla-operacion-queries'
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -24,14 +25,12 @@ import {
   ChevronRight,
   CircleCheckBig,
   ClipboardList,
-  FileText,
   MessageCircle,
   Phone,
   Plus,
   Sparkles,
   Target,
   TrendingUp,
-  Trophy,
   Users,
   Wallet,
   Zap,
@@ -49,7 +48,6 @@ import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import {
   BUCKET_LABEL,
   capitalPorMoneda,
-  capitalPrincipal,
   colorMeta,
   diasDesdeReferencia,
   diasTxt,
@@ -68,7 +66,7 @@ import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
-import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
+import { MODALIDADES_REUNION, TIPO_EVENTO, type Lead, type ModalidadReunion, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
@@ -293,20 +291,30 @@ function textoRestoVencidas(resto: number, abajo: number): string {
 const FILA_BASE =
   'group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
 
-/** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego. */
+/** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego.
+ * `modalidad` (presencial/virtual) la pasa solo «Tus citas»: el evento de
+ * agenda no la lleva, y `sin_clasificar` no se pinta. */
 function FilaAgenda({
   ev,
   lead,
   abrirLead,
   onCompletar,
+  modalidad,
 }: {
   ev: EventoAgenda
   lead: Lead | undefined
   abrirLead: (id: string) => void
   onCompletar?: ((id: string) => void) | undefined
+  modalidad?: ModalidadReunion | null | undefined
 }): JSX.Element {
   const [dia, hora] = ev.cuando.split(' · ')
   const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
+  const modalidadTxt = MODALIDADES_REUNION.find((m) => m.k === modalidad)?.label
+  // Con role="button" el nombre lo fija el aria-label y los hijos son
+  // presentacionales: hora, día y badges (tipo, modalidad, Cliente) viajan como
+  // DESCRIPCIÓN. `useId` porque la misma cita puede pintarse dos veces (agenda
+  // del día y «Tus citas») y los ids no pueden repetirse.
+  const metaId = useId()
   const abreFichaLead = ev.lead_id !== '' || Boolean(ev.inversionista_id)
   const abrir = () => {
     if (ev.inversionista_id) abrirInversionista(ev.inversionista_id)
@@ -317,8 +325,13 @@ function FilaAgenda({
         role: 'button' as const,
         tabIndex: 0,
         'aria-label': `Abrir ficha — ${ev.titulo}`,
+        'aria-describedby': `${metaId}-h ${metaId}-m`,
         onClick: abrir,
         onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+          // Solo teclas sobre la FILA (mismo guard que FilaHigiene): un Enter
+          // en el botón «Cerrar tarea» burbujea hasta aquí y el preventDefault
+          // le robaba su click nativo — abría la ficha en vez del diálogo.
+          if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             abrir()
@@ -332,7 +345,7 @@ function FilaAgenda({
       className={`${FILA_BASE}${abreFichaLead ? '' : ' cursor-default hover:bg-transparent'}`}
     >
       {/* Hora — el ancla del día */}
-      <div className="w-12 shrink-0 text-center leading-none">
+      <div id={`${metaId}-h`} className="w-12 shrink-0 text-center leading-none">
         <p className="text-base font-extrabold tabular-nums" style={{ color: ev.color }}>
           {hora ?? dia}
         </p>
@@ -349,10 +362,15 @@ function FilaAgenda({
           usa el ancho de la tarjeta en vez de apilar y dejar el resto vacío. */}
       <div className="min-w-0 flex-1 leading-tight sm:flex sm:items-center sm:gap-x-3">
         <p className="truncate text-sm font-semibold">{ev.titulo}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:mt-0 sm:shrink-0">
+        <div id={`${metaId}-m`} className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:mt-0 sm:shrink-0">
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
           </Badge>
+          {modalidadTxt && (
+            <Badge color="var(--primary)" variant="outline" className="text-[10px]">
+              {modalidadTxt}
+            </Badge>
+          )}
           {ev.perfil_id && (
             <Badge color="var(--primary)" className="text-[10px]">
               Cliente
@@ -839,52 +857,110 @@ function FranjaAhora({
   )
 }
 
-function PulsoCartera({
-  items,
+// ── Tus citas ─────────────────────────────────────────────────────────────────
+// Las CITAS del analista (tareas `reunion` pendientes de sus leads y de los
+// clientes de su cartera), TODAS y no solo las de hoy: vencidas primero y el
+// resto en orden cronológico, agrupadas por día. Ocupa el sitio de «Tu cartera
+// en contexto» (decisión de Miguel, 28/09/2026): una cita es trabajo con hora
+// y lugar, y eso le sirve más que cuatro cifras informativas. La fila es la
+// MISMA de la agenda (FilaAgenda) más la modalidad; «Tu agenda de hoy» sigue
+// mostrando lo suyo, así que una cita de hoy se ve en las dos — allí como hito
+// del día, aquí como compromiso agendado.
+
+/** Cuántas citas LISTA la tarjeta; el excedente remite a Agenda. */
+const CITAS_VISIBLES = 8
+
+const BLOQUES_CITAS = ['Vencidas', 'Hoy', 'Mañana', 'Próximas'] as const
+type BloqueCita = (typeof BLOQUES_CITAS)[number]
+
+/** El bloque sale de `cuando` (ya resuelto en Lima por agenda-derivada); las
+ * vencidas van juntas aunque sean de hoy, igual que en la franja ámbar. */
+function bloqueDeCita(ev: EventoAgenda): BloqueCita {
+  if (ev.vencida) return 'Vencidas'
+  if (ev.cuando.startsWith('Hoy')) return 'Hoy'
+  if (ev.cuando.startsWith('Mañana')) return 'Mañana'
+  return 'Próximas'
+}
+
+function CitasAnalista({
+  citas,
+  tareaPorId,
+  leadPorId,
+  abrirLead,
+  onCompletar,
   className,
-  compacta = false,
 }: {
-  items: Array<{ label: string; value: string; sub: string; icon: LucideIcon }>
+  /** Ya filtradas a `reunion` y ordenadas por vence_en (vencidas primero). */
+  citas: EventoAgenda[]
+  tareaPorId: ReadonlyMap<string, Tarea>
+  leadPorId: (id: string) => Lead | undefined
+  abrirLead: (id: string) => void
+  onCompletar: (id: string) => void
   className?: string
-  /** 2×2 para ir al lado de la agenda (modo activo); si no, una franja de 4. */
-  compacta?: boolean
 }): JSX.Element {
+  const nVencidas = citas.filter((c) => c.vencida).length
+  const visibles = citas.slice(0, CITAS_VISIBLES)
+  const resto = citas.length - visibles.length
+  // Bloques en orden fijo y solo los que tienen filas: el orden de `citas`
+  // (vence_en asc) ya coincide con el de los bloques.
+  const bloques = BLOQUES_CITAS.map((rotulo) => ({
+    rotulo,
+    filas: visibles.filter((c) => bloqueDeCita(c) === rotulo),
+  })).filter((b) => b.filas.length > 0)
+
   return (
-    <Card className={`min-w-0 overflow-hidden${className ? ` ${className}` : ''}`}>
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/80 px-5 py-3">
-        <span className="grid size-7 place-items-center rounded-lg bg-secondary text-primary">
-          <TrendingUp className="size-4" aria-hidden />
-        </span>
-        <h3 className="text-sm font-bold tracking-tight">Tu cartera en contexto</h3>
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Información · no requiere acción
-        </span>
-      </div>
-      <div
-        className={
-          compacta
-            ? 'grid grid-cols-2 divide-x divide-y divide-border/80'
-            : 'grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-4 lg:divide-y-0'
+    <Card className={className}>
+      <SectionHead
+        icon={CalendarClock}
+        title="Tus citas"
+        right={
+          citas.length > 0 ? (
+            <Badge color={nVencidas > 0 ? '#d97706' : 'var(--accent)'}>
+              {`${citas.length} ${citas.length === 1 ? 'agendada' : 'agendadas'}`}
+              {nVencidas > 0 ? ` · ${nVencidas} vencida${nVencidas === 1 ? '' : 's'}` : ''}
+            </Badge>
+          ) : undefined
         }
-      >
-        {items.map(({ label, value, sub, icon: Icon }) => (
-          <div key={label} className="min-w-0 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">{label}</p>
-              <span
-                className="ac-chip grid size-7 shrink-0 place-items-center rounded-lg"
-                style={{ '--c': 'var(--accent)' } as CSSProperties}
-              >
-                <Icon className="size-3.5" aria-hidden />
-              </span>
-            </div>
-            <p className="mt-2 text-xl font-extrabold leading-none tracking-tight tabular-nums text-primary">
-              <AnimatedValue value={value} />
-            </p>
-            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{sub}</p>
+      />
+      <CardContent className="pt-0">
+        {citas.length === 0 ? (
+          <VacioCompacto
+            icono={CalendarClock}
+            titulo="Sin citas agendadas"
+            detalle="Agenda la próxima cita desde la ficha del lead."
+          />
+        ) : (
+          <div className="flex flex-col gap-1">
+            {bloques.map((bloque) => (
+              <div key={bloque.rotulo} className="flex flex-col gap-1">
+                <h4 className="px-2.5 pt-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                  {bloque.rotulo}
+                </h4>
+                {bloque.filas.map((ev) => (
+                  <FilaAgenda
+                    key={ev.id}
+                    ev={ev}
+                    lead={leadPorId(ev.lead_id)}
+                    abrirLead={abrirLead}
+                    onCompletar={onCompletar}
+                    modalidad={tareaPorId.get(ev.id)?.modalidad_reunion}
+                  />
+                ))}
+              </div>
+            ))}
+            {resto > 0 && (
+              <p className="px-2.5 pt-1 text-[11px] text-muted-foreground">
+                <a
+                  href="#/agenda"
+                  className="inline-flex min-h-6 items-center rounded font-semibold text-accent hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                >
+                  {`+${resto} más — en Agenda`}
+                </a>
+              </p>
+            )}
           </div>
-        ))}
-      </div>
+        )}
+      </CardContent>
     </Card>
   )
 }
@@ -954,16 +1030,13 @@ export function HoyVendedor(): JSX.Element {
     [sesionRealPropios, propios.isPending, propios.error, mios],
   )
 
-  // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo
-  // demo vivo — esta pantalla ya no cuenta filas para sus tiles. Sin payload
-  // (cargando o RPC caída): «—», jamás una cifra inventada. La MONEDA QUE
-  // MANDA en el número grande sigue saliendo de capitalPrincipal (criterio
-  // compartido con Cartera/Pipeline — jamás un total mixto PEN+USD).
+  // ── F1b: las señales del embudo llegan del servidor (resumen_cartera_fn) o
+  // del espejo demo vivo — esta pantalla no cuenta filas por su cuenta. De
+  // aquí solo salen las cifras del vacío honesto de la agenda: los tiles de
+  // «Tu cartera en contexto» se retiraron (Miguel, 28/09/2026) y en su sitio
+  // van las citas del analista.
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
-  const capital = resumen ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd) : null
-  const nAbiertos = resumen?.totales.abiertos
-  const nConvertidos = resumen?.totales.convertidos
   const nPropuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n ?? 0
   const reunionesAgendadas = resumen?.embudo.find((p) => p.etapa === 'reunion_agendada')?.n ?? 0
 
@@ -1106,6 +1179,24 @@ export function HoyVendedor(): JSX.Element {
     return agendaDeTareas(mias, ahora).filter((evento) => evento.vencida || esDeHoy(evento, ahora))
   }, [tareas, yo?.id, ahora])
 
+  // «Tus citas»: TODAS las citas pendientes del analista —de sus leads y de
+  // los clientes de su cartera— SIN recortar al día: la del jueves también se
+  // prepara hoy. Mismos dos filtros de arriba (espejo RLS + postventa propia).
+  // `agendaDeTareas` ya deja solo pendientes+activas y ordena por vence_en,
+  // así que las vencidas quedan primero sin regla extra.
+  const citas = useMemo(() => {
+    const mias = tareas.filter(
+      (t) =>
+        t.tipo === 'reunion' &&
+        ((t.lead_id && (idsMios === null || idsMios.has(t.lead_id))) ||
+          ((t.perfil_id != null || t.inversionista_id != null) && (yo?.id == null || t.vendedor_id === yo.id))),
+    )
+    return agendaDeTareas(mias, ahora)
+  }, [tareas, idsMios, yo?.id, ahora])
+  // La fila de citas necesita la MODALIDAD (presencial/virtual) y el cierre
+  // necesita la tarea entera; el evento de agenda solo lleva el id.
+  const tareaPorId = useMemo(() => new Map(tareas.map((t) => [t.id, t] as const)), [tareas])
+
   // Modo "viernes 13:00" (Fase D): viernes p.m. es el peor momento para citas
   // nuevas → la cola deja de perseguir y ORDENA la próxima semana (vencidas,
   // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
@@ -1210,55 +1301,11 @@ export function HoyVendedor(): JSX.Element {
     ...amarillos.map((item) => item.lead.id),
   ]).size
 
-  /** Cifras de «Tu cartera en contexto»: van al lado de la agenda (activo) o en franja (legado). */
-  const itemsPulso = [
-    {
-      label: 'Capital abierto',
-      value: capital?.valor ?? '—',
-      icon: Wallet,
-      sub: capital?.otra
-        ? `Pipeline activo (PEN) · +${capital.otra} aparte`
-        : capital?.soloDolares
-          ? 'Pipeline activo (USD)'
-          : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
-            ? 'Sin montos estimados — complétalos en cada ficha'
-            : 'Pronóstico de tu pipeline activo',
-    },
-    {
-      label: 'Leads activos',
-      value: nAbiertos != null ? String(nAbiertos) : '—',
-      icon: Users,
-      sub: 'Abiertos en tu cartera',
-    },
-    {
-      label: 'Entrevistas realizadas',
-      value: resumen ? String(nPropuestas) : '—',
-      icon: FileText,
-      sub:
-        resumen == null
-          ? 'Sin dato por ahora'
-          : nPropuestas > 0
-            ? 'Entrevista hecha, cierre pendiente'
-            : (nAbiertos ?? 0) > 0
-              ? 'Ninguna enviada — revisa tus citas'
-              : 'Sin leads abiertos por ahora',
-    },
-    {
-      label: 'Convertidos',
-      value: nConvertidos != null ? String(nConvertidos) : '—',
-      icon: Trophy,
-      // F3.1 (H9/D1): este número es la VISTA de cartera — ganados aún
-      // visibles dentro de la ventana operativa — y el rótulo lee esa
-      // ventana del payload en vez de afirmar «45» por su cuenta. La
-      // conversión del MES vive abajo, en «Tu cumplimiento del mes».
-      sub:
-        resumen == null
-          ? 'Sin dato por ahora'
-          : (nConvertidos ?? 0) > 0
-            ? `Ganados aún en tu cartera · ventana de ${resumen.ventana_convertidos_dias} días`
-            : 'Aún sin cierres — tu primera venta sale de la cola',
-    },
-  ]
+  /** Abre el diálogo de cierre desde una fila de citas (solo conoce el id del evento = id de la tarea). */
+  const cerrarTareaPorId = (id: string) => {
+    const tarea = tareaPorId.get(id)
+    if (tarea) setTareaACerrar(tarea)
+  }
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -1495,19 +1542,35 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       )}>
-        {/* Producción (modo activo): agenda y cartera EN DOS COLUMNAS. A todo el
-            ancho, la agenda dejaba medio monitor vacío y la cartera quedaba
+        {/* Producción (modo activo): agenda y citas EN DOS COLUMNAS. A todo el
+            ancho, la agenda dejaba medio monitor vacío y lo de al lado quedaba
             debajo, fuera de la vista. */}
-        <div className={`grid gap-5 lg:items-start${mios.length > 0 ? ' lg:grid-cols-5' : ''}`}>
+        <div className="grid gap-5 lg:grid-cols-5 lg:items-start">
           <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
             onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
             demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
-            vencidasAbajo={0} title="Tu agenda de hoy" className={mios.length > 0 ? 'min-w-0 lg:col-span-3' : 'min-w-0'} />
-          {mios.length > 0 && <PulsoCartera items={itemsPulso} className="lg:col-span-2" compacta />}
+            vencidasAbajo={0} title="Tu agenda de hoy" className="min-w-0 lg:col-span-3" />
+          <CitasAnalista
+            citas={citas}
+            tareaPorId={tareaPorId}
+            leadPorId={leadPorId}
+            abrirLead={abrirLead}
+            onCompletar={cerrarTareaPorId}
+            className="min-w-0 lg:col-span-2"
+          />
         </div>
       </SlaOperacionBoundary>
 
-      {modoSla.legado && mios.length > 0 && <PulsoCartera items={itemsPulso} />}
+      {/* Legado/demo: las citas a todo el ancho, donde estaba «Tu cartera en contexto». */}
+      {modoSla.legado && (
+        <CitasAnalista
+          citas={citas}
+          tareaPorId={tareaPorId}
+          leadPorId={leadPorId}
+          abrirLead={abrirLead}
+          onCompletar={cerrarTareaPorId}
+        />
+      )}
 
       {/* Progressive disclosure: el avance mensual está disponible, pero no
           compite con el trabajo del día hasta que el analista decide abrirlo. */}
