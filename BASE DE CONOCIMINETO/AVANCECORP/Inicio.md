@@ -6,7 +6,7 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Hoy del analista - sin espacios vacios (2026-09-28)]] — **PUBLICADO 28/09 (build-20260928T191252679Z, e486a139):** la pantalla «Hoy» del analista sin huecos: tarjetas de prioridad sin altura mínima, estados vacíos en horizontal (`VacioCompacto`) y las dos tarjetas de «Después» ya no se estiran a la misma altura. Solo presentación; check completo, E2E Docker 24/24, a11y y Codex PASS; humo en vivo PASS. El MCP de Hostinger 2.x cambió de contrato (ver «Deploy a Hostinger»).
+- [[Hoy del analista - sin espacios vacios (2026-09-28)]] — **PUBLICADO 28/09 en dos releases (último build-20260928T194323329Z, 3c481f7f):** la vista de PRODUCCIÓN (modo activo) con agenda y cartera en dos columnas y filas de agenda en una línea; en el demo (legado), la pantalla «Hoy» del analista sin huecos: tarjetas de prioridad sin altura mínima, estados vacíos en horizontal (`VacioCompacto`) y las dos tarjetas de «Después» ya no se estiran a la misma altura. Solo presentación; check completo, E2E Docker 24/24, a11y y Codex PASS; humo en vivo PASS. El MCP de Hostinger 2.x cambió de contrato (ver «Deploy a Hostinger»).
 
 - [[Ranking - desglose completo y nueva inversion de cartera (2026-09-28)]] — **PUBLICADO Y VERIFICADO:** desglose de Cartera desde operaciones reales; 577.554 PEN + 40.000 USD son Upgrade. Cuatro fuentes / S/70.000 recuperadas como Cartera → Nueva inversión; cuenta demo de Miguel excluida. Queda un contrato real de S/10.000 sin canal acreditado. SQL 381 → 383, check 4.763, Docker 280 PASS y 81 archivos HTTPS PASS; build-20260928T182709910Z. Commits `a764f140`, `a677381c`, `43b3d6d0`.
 

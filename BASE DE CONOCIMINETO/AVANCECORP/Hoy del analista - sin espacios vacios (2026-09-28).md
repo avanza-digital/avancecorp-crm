@@ -75,5 +75,17 @@ del modo activo) y [[Hoy Analista - seguimiento solo en su modulo 2026-09-07]].
   local↔vivo, ZIP 404. Sin purga de caché.
 - 🔴 El MCP de Hostinger cambió de contrato (2.3.0): ver [[Deploy a Hostinger]] («MCP 2.x: search/execute»).
 
-Tarea aparte: el P2 de teclado en `FilaAgenda`. PR de integración a GitHub **#124** (sin lo de Gloria; al fusionarla,
+## Segunda publicación (28/09, 14:45): la vista de PRODUCCIÓN
+
+Miguel vio producción «igual»: la captura de antes era el DEMO (modo legado). En producción (modo activo) los
+huecos eran otros: filas de agenda a todo el ancho con el texto en dos líneas y la cartera debajo, con medio
+monitor vacío. Arreglo (`3c481f7f`): **agenda (3/5) y «Tu cartera en contexto» (2/5, cifras en 2×2) en dos
+columnas** y **cada fila de agenda en una sola línea** desde `sm` (título · tipo · capital a la derecha; 58 px en
+vez de ~90). El legado conserva su franja de cuatro cifras. Publicado: build `build-20260928T194323329Z`,
+artefacto `crm-20260928T194324Z-3c481f7f1a4f`, check 4763 PASS, humo PASS (chunk de Hoy idéntico local↔vivo).
+Lección: **antes de arreglar una pantalla, mirar la vista que corre en producción, no el demo**; el modo activo
+se fuerza un momento en local con `useModoSla()` y se revierte.
+
+Tarea aparte: el P2 de teclado en `FilaAgenda`. PR #124 FUSIONADA (squash `02242e02`, traída al local en
+`865ced05`); el segundo commit va en la PR **#125** (sin lo de Gloria; al fusionarla,
 traer `avancecorp/main` al local). Las PR #122 y #123 ya están fusionadas en el `main` local (`e486a139`, `4a6e6609`).
