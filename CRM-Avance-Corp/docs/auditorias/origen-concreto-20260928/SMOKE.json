@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "url": "https://crm.miavance.com",
+  "commit": "5ccb30ac54f5fc85386efb7908ca282c2efb6245",
+  "buildId": "build-20260928T195627661Z",
+  "release": "crm-20260928T195628Z-5ccb30ac54f5",
+  "zipSha256": "759391f20657705202e79de6d21f31535e5da736ea285ec7ceb8195ccbbe3d08",
+  "checked": 99,
+  "homeStatus": 200,
+  "time": "2026-09-28T20:03:08.046Z"
+}
