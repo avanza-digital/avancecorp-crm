@@ -33,7 +33,7 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 
 const FECHA_RESUMEN = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 
-export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlamadas, abrirPendientes }: {
+export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlamadas, abrirPendientes, abrirCitas }: {
   fila: FilaEquipoPresentada
   /** El día consultado (AAAA-MM-DD): se dice, también dentro de la ventana. */
   dia: string
@@ -44,6 +44,8 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
   abrirLlamadas: () => void
   /** Sin él (gerencia, hasta tener permiso sobre pendientes) las vencidas se dicen sin enlace. */
   abrirPendientes?: ((soloVencidas: boolean) => void) | undefined
+  /** G4b: la lista exacta de las citas agendadas ese día. */
+  abrirCitas?: (() => void) | undefined
 }): JSX.Element {
   const atencion = presentarAtencion(f)
   const contacto = presentarContacto(f.marcador, minimo)
@@ -96,6 +98,9 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
         <Cuadro etiqueta="Citas agendadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{f.marcador.citas_agendadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">desde «Agendó cita»</span>
+          {abrirCitas && <button type="button" onClick={abrirCitas} aria-label={`Ver citas agendadas de ${f.nombre_completo}`} className={ENLACE}>
+            Ver citas<ChevronRight aria-hidden className="size-3.5" />
+          </button>}
         </Cuadro>
         <Cuadro etiqueta="Pendientes">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{f.tareas_pendientes}</span>

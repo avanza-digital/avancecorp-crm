@@ -410,7 +410,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
  * falta con el foco DENTRO, lo entrega al título «¿Qué hice hoy?» en vez de
  * dejarlo caer al inicio de la página.
  */
-function BotonVerMasCompacto({ ocupado, error, onPulsar, alSalirConFoco }: {
+export function BotonVerMasCompacto({ ocupado, error, onPulsar, alSalirConFoco }: {
   ocupado: boolean
   error: boolean
   onPulsar: () => void

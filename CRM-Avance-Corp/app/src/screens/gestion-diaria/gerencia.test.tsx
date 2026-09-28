@@ -19,6 +19,7 @@ vi.mock('@/data/gestion-diaria-pulso-queries', () => ({
   useHabitosGerencia: (_dia: string, dias: number) => { periodos.push(dias); return habitos }, useDetallePulso: () => detalle,
 }))
 vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => null }))
+vi.mock('@/components/gestion-diaria/citas-agendadas', () => ({ CitasAgendadas: (p: { dia: string; ambito: string; id: string | null }) => <div data-testid="citas">{p.dia}:{p.ambito}:{String(p.id)}</div> }))
 vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (p: { dia: string; analistaIds: string[] | null; pestanaInicial?: string; onSinPermiso?: () => void }) => <div data-testid="registro">{p.dia}:{JSON.stringify(p.analistaIds)}:{p.pestanaInicial}<button onClick={p.onSinPermiso}>Simular denegación del registro</button></div> }))
 const { GestionDiariaGerencia } = await import('./gerencia')
 beforeEach(() => {
@@ -63,8 +64,8 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     // Todo número se abre, también los ceros del total (Codex, 27/09).
     fireEvent.click(within(total).getByRole('button', { name: '0 llamadas de toda la operación: ver en el registro general' }))
     expect(screen.getByTestId('registro')).toHaveTextContent(':null:llamadas')
-    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 citas agendadas de toda la operación: ver los equipos ordenados por citas' }))
-    expect(screen.getByRole('button', { name: 'Ordenar equipos por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    fireEvent.click(within(filaTotal()).getByRole('button', { name: '0 citas agendadas de toda la operación: ver la lista' }))
+    expect(within(screen.getByRole('region', { name: 'Citas agendadas' })).getByTestId('citas')).toHaveTextContent(':operacion:null')
     expect(within(total).getByRole('button', { name: /^1008 tareas vencidas/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Comparar días' }))
     expect(screen.getByRole('table', { name: 'Cifras del día, anterior y referencia' })).toHaveTextContent('Tasa de contacto——0 %')
@@ -114,8 +115,8 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     ruta(`#/gestion-diaria/analista/${p.analista_id}`)
     render(<GestionDiariaGerencia />)
     const panel = screen.getByRole('region', { name: `Detalle de ${p.nombre_completo}` })
-    // Gerencia aún no consulta pendientes (G4): su ficha no ofrece esa pestaña.
-    expect(within(panel).queryByRole('tab', { name: 'Pendientes' })).not.toBeInTheDocument()
+    // G4a: el servidor ya autoriza a gerencia, así que su ficha ofrece Pendientes como la del supervisor.
+    expect(within(panel).getByRole('tab', { name: 'Pendientes' })).toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('tab', { name: 'Registro' }))
     expect(within(panel).getByTestId('registro')).toHaveTextContent(JSON.stringify([p.analista_id]))
     const registro = within(panel).getByTestId('registro')
@@ -237,8 +238,10 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     fireEvent.click(within(filaTotal()).getByRole('button', { name: '2 sin registro en toda la operación: ver quiénes' }))
     const lista = screen.getByRole('list', { name: 'Analistas sin registro' })
     expect(within(lista).getAllByRole('button').map((b) => b.textContent)).toEqual([expect.stringContaining('ANALISTA ANIDADO'), expect.stringContaining('ANALISTA CUATRO')])
+    // G4b: las citas agendadas abren su lista exacta en la ficha.
     fireEvent.click(within(filaTotal()).getByRole('button', { name: /^3 citas agendadas de toda la operación/ }))
-    expect(screen.getByRole('button', { name: 'Ordenar equipos por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    expect(within(screen.getByRole('region', { name: 'Citas agendadas' })).getByTestId('citas')).toHaveTextContent(':operacion:null')
+    expect(screen.getByRole('heading', { level: 3, name: 'Citas agendadas: Toda la operación' })).toHaveFocus()
     fireEvent.click(within(filaTotal()).getByRole('button', { name: /^1008 tareas vencidas en toda la operación/ }))
     expect(screen.getByRole('button', { name: /^Con vencidas/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Ordenar equipos por vencidas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
@@ -319,8 +322,20 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar equipo' }), { target: { value: 'ANIDADO' } })
     fireEvent.click(screen.getByRole('button', { name: /^Con atención/ }))
     expect(screen.getByRole('searchbox', { name: 'Buscar equipo' })).toHaveValue('')
-    fireEvent.click(screen.getByRole('button', { name: '1 cita agendada del Equipo de SUPERVISOR DOS: ver por analista' }))
-    expect(within(screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })).getByRole('button', { name: 'Ordenar por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
+    fireEvent.click(screen.getByRole('button', { name: '1 cita agendada del Equipo de SUPERVISOR DOS: ver la lista' }))
+    expect(within(screen.getByRole('region', { name: 'Citas agendadas' })).getByTestId('citas')).toHaveTextContent(`:equipo:${dos.clave}`)
+  })
+  it('G4b: la ficha del equipo abre sus citas y «fuera» pide su propio ámbito, nunca toda la operación', () => {
+    render(<GestionDiariaGerencia />)
+    const dos = pulso.datos!.equipos.find((e) => e.nombre === 'SUPERVISOR DOS')!
+    const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR DOS' })
+    fireEvent.click(within(ficha).getByRole('button', { name: 'Ver citas agendadas del Equipo de SUPERVISOR DOS' }))
+    expect(screen.getByTestId('citas')).toHaveTextContent(`:equipo:${dos.clave}`)
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Fuera de equipos comerciales' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'Detalle del grupo Fuera de equipos comerciales' }))
+      .getByRole('button', { name: 'Ver citas agendadas del grupo Fuera de equipos comerciales' }))
+    expect(screen.getByTestId('citas')).toHaveTextContent(':fuera:null')
+    expect(screen.getByRole('heading', { level: 3, name: 'Citas agendadas: Fuera de equipos comerciales' })).toBeInTheDocument()
   })
   it('si falla el detalle, la ficha dice «no disponible» en vez de consultar para siempre', () => {
     detalle = { ...detalle, datos: null, error: new Error('sin red') }
