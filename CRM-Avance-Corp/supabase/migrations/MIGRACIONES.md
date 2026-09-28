@@ -1,25 +1,34 @@
 ## 20260928180237 — Ranking: procedencia de solicitudes confirmadas de Mi cartera
 
-**EN RAMA TEMPORAL, NO PUBLICADA.** Decisión expresa de Miguel: «Cartera →
+**PUBLICADA 28/09/2026 por merge nativo de rama exclusiva.** Decisión expresa de Miguel: «Cartera →
 Nueva inversión, conservando lo registrado». El lector recupera exclusivamente
 la fuente exacta de una solicitud confirmada desde Cartera, tras los canales
 ya identificados. Aplica a contratos Avance y cierres COOPAC sin lead.
 No modifica contratos, categorías financieras, conversión ni fotos antiguas.
 La RPC v2 añade `nuevo` al desglose; el cliente sigue conciliando cada moneda.
-Pruebas de captura, permisos v1/v2, cierre/foto y solicitudes sintéticas PASS;
-check completo 4.763 PASS y E2E focal desktop/mobile 1/1 PASS. Review y suite
-Docker completa en curso; no interpretar este checkpoint como publicación.
+Pruebas de captura, permisos Auth/HTTP v1/v2, cierre/foto y solicitudes sintéticas
+PASS. Check completo 4.763 PASS, Docker 280 PASS / 26 omitidas y focal final 1/1
+PASS. Review CHANGES_REQUESTED evaluado y resuelto con evidencia en
+`../../docs/auditorias/ranking-cartera-20260928/REVISION.md`.
+Producción: cuatro fuentes / S/70.000 recuperadas como Cartera; las 144 filas
+conservan importe, moneda, categoría y vendedor. Queda un contrato real de
+S/10.000 sin evidencia de canal; no se inventa su procedencia.
 
 ## 20260928174554 — Ranking: desglose de cartera desde operaciones registradas
 
-**EN RAMA TEMPORAL, NO PUBLICADA.** RPC v2 aditiva con el mismo ámbito de v1;
+**PUBLICADA 28/09/2026 por merge nativo de rama exclusiva.** RPC v2 aditiva con el mismo ámbito de v1;
 concilia PEN y USD con el stock por origen. Contratos de categoría financiera
 `nuevo` usan la operación de cartera validada por contrato, cliente, moneda y
 fecha comercial. Conserva v1, capital, conversión y categorías financieras.
 El cierre guarda el desglose en una columna nueva; fotos antiguas quedan NULL.
 Tipos regenerados desde la rama; pruebas focales de pantalla/esquema 48 PASS;
-lint y typecheck PASS (cuatro avisos preexistentes de coverflow).
-Pendientes antes de publicación: matriz ampliada v2, review y gates completos.
+lint y typecheck PASS (cuatro avisos preexistentes de coverflow). En producción,
+la captura concilia Upgrade 577.554 PEN + 40.000 USD; Renovación 0. La otra ficha
+concilia Renovación 10.000, Upgrade 80.000 y Nueva inversión 35.000 PEN.
+Historial 381 → 383; huellas de contratos, cuotas, solicitudes, operaciones y
+fotos idénticas antes/después del merge; núcleos monetarios y v1 intactos.
+Control analítico 0 pendientes/sello válido y las 22 Edge Functions intactas.
+Lector final MD5 `53aecd29ef7efee10d4878b8e365b0d3`.
 
 ## 20260928163532 — Ranking: origen desde acreditaciones confirmadas
 
