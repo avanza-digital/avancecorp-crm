@@ -1,5 +1,12 @@
-// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
-vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
+// Estas pruebas ejercitan la vista legada (la cola activa se verifica en
+// sla-operacion.test.tsx); `montar({ modoActivo: true })` monta el modo ACTIVO de
+// producción: agenda y citas en dos columnas que llenan la ventana.
+let MODO_SLA: { legado: boolean; activo: boolean; error: null; data?: { modo: 'activo' } } = {
+  legado: true,
+  activo: false,
+  error: null,
+}
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => MODO_SLA }))
 // Tests de integración de la pantalla "Hoy · Analista" — los cinco arreglos de
 // la auditoría 2026-07-25, cada uno con su regresión:
 //   1. la agenda héroe listaba TODA la agenda futura mientras su badge contaba
@@ -251,9 +258,14 @@ function montar(
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
+    /** Modo ACTIVO de producción (dos columnas que llenan la ventana); por defecto, legado. */
+    modoActivo?: boolean
   } = {},
 ): void {
   vi.setSystemTime(over.ahora ?? MIERCOLES_10AM)
+  MODO_SLA = over.modoActivo
+    ? { legado: false, activo: true, error: null, data: { modo: 'activo' } }
+    : { legado: true, activo: false, error: null }
   YO = {
     id: 'v-1',
     nombre_completo: 'ANALISTA UNO',
@@ -1212,12 +1224,23 @@ function panelCitas(): HTMLElement {
   return tarjeta
 }
 
+/** Los «Cerrar tarea» de la tarjeta, en orden: una fila = un botón. */
+function cerrarLabels(panel: HTMLElement): string[] {
+  return within(panel)
+    .getAllByRole('button', { name: /^Cerrar tarea — / })
+    .map((b) => b.getAttribute('aria-label') ?? '')
+}
+
+function rotulosDia(panel: HTMLElement): string[] {
+  return within(panel).queryAllByRole('heading', { level: 4 }).map((h) => h.textContent ?? '')
+}
+
 describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en contexto»)', () => {
-  it('lista solo las citas pendientes (leads y clientes), la vencida primero y el resto por fecha, con modalidad', () => {
+  it('arranca en «Semana» (leads y clientes, agrupadas por día); «Todas» trae la vencida primero y la lejana al final, con modalidad por icono', () => {
     montar({
       leads: [lead({ id: 'l-1' }), lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ', monto_estimado: 25_000 })],
       tareas: [
-        // Desordenadas a propósito: el panel ordena por vence_en.
+        // Desordenadas a propósito: la ficha ordena por vence_en.
         tarea({ id: 'c-lejana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita lejana con Bruno', vence_en: '2026-07-22T15:00:00Z', modalidad_reunion: 'sin_clasificar' }),
         tarea({ id: 'c-manana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita con Bruno', vence_en: '2026-07-16T15:00:00Z', modalidad_reunion: 'virtual' }),
         tarea({ id: 'c-hoy', lead_id: 'l-1', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z', modalidad_reunion: 'presencial' }),
@@ -1230,28 +1253,35 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    expect(within(panel).getByText('5 agendadas · 1 vencida')).toBeInTheDocument()
-    expect(
-      within(panel).getAllByRole('button', { name: /^Cerrar tarea — / }).map((b) => b.getAttribute('aria-label')),
-    ).toEqual([
+    // El total de la cabecera es un botón (todo número se abre) y la ficha arranca en «Semana».
+    expect(within(panel).getByRole('button', { name: '5 agendadas · 1 vencida' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(panel).getByRole('button', { name: 'Semana 3' })).toHaveAttribute('aria-pressed', 'true')
+    // La semana (mié 15 → mar 21) NO trae la vencida ni la del miércoles 22.
+    expect(cerrarLabels(panel)).toEqual(['Cerrar tarea — Cita con Ana', 'Cerrar tarea — Cita con Bruno', 'Cerrar tarea — Cita con Rosa'])
+    expect(rotulosDia(panel)).toEqual(['Hoy · Mié 15', 'Mañana · Jue 16', 'Vie 17'])
+    // Nombre del lead resuelto; el cliente de cartera conserva el título y su badge.
+    expect(within(panel).getByText('ANA TORRES')).toBeInTheDocument()
+    expect(within(panel).getByText('BRUNO DÍAZ')).toBeInTheDocument()
+    expect(within(panel).getByText('Cita con Rosa')).toBeInTheDocument()
+    expect(within(panel).getByText('Cliente')).toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Todas 5' }))
+    expect(cerrarLabels(panel)).toEqual([
       'Cerrar tarea — Cita pendiente con Ana',
       'Cerrar tarea — Cita con Ana',
       'Cerrar tarea — Cita con Bruno',
       'Cerrar tarea — Cita con Rosa',
       'Cerrar tarea — Cita lejana con Bruno',
     ])
-    expect(within(panel).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
-      'Vencidas',
-      'Hoy',
-      'Mañana',
-      'Próximas',
-    ])
-    // Modalidad por texto; la cita `sin_clasificar` no lleva badge.
-    expect(within(panel).getByText('Presencial')).toBeInTheDocument()
-    expect(within(panel).getByText('Virtual')).toBeInTheDocument()
-    expect(within(panel).getAllByText(/^(Presencial|Virtual)$/)).toHaveLength(2)
-    expect(within(panel).getByText('Cliente')).toBeInTheDocument()
-    expect(within(panel).getAllByText(`${money(25_000)} en juego`)).toHaveLength(2)
+    expect(rotulosDia(panel)).toEqual(['Vencidas', 'Hoy · Mié 15', 'Mañana · Jue 16', 'Vie 17', 'Mié 22 Jul'])
+    // Modalidad como ICONO con nombre accesible; la `sin_clasificar` no lleva ninguno.
+    expect(within(panel).getByRole('img', { name: 'Presencial' })).toBeInTheDocument()
+    expect(within(panel).getByRole('img', { name: 'Virtual' })).toBeInTheDocument()
+    expect(within(panel).getAllByRole('img')).toHaveLength(2)
+    expect(within(panel).queryByText(/^(Presencial|Virtual)$/)).not.toBeInTheDocument()
+    // El capital va fila a fila (las dos de Bruno), sin sumarse en ningún sitio.
+    expect(within(panel).getAllByText(money(25_000))).toHaveLength(2)
+    expect(within(panel).queryByText(/en juego/)).not.toBeInTheDocument()
     expect(within(panel).queryByText('Llamar a Ana')).not.toBeInTheDocument()
     expect(within(panel).queryByText('Cita cerrada con Ana')).not.toBeInTheDocument()
   })
@@ -1262,10 +1292,10 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     const panel = panelCitas()
     expect(within(panel).getByText('Sin citas agendadas')).toBeInTheDocument()
     expect(within(panel).getByText('Agenda la próxima cita desde la ficha del lead.')).toBeInTheDocument()
-    expect(within(panel).queryByText(/^\d+ agendada/)).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: /agendada/ })).not.toBeInTheDocument()
   })
 
-  it('lista como máximo 8 citas y remite el resto a Agenda', () => {
+  it('lista la semana entera sin tope ni «+N más»; «Todas» trae el resto y la salida a Agenda va en el pie', () => {
     montar({
       tareas: Array.from({ length: 10 }, (_, i) =>
         tarea({
@@ -1278,10 +1308,16 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    expect(within(panel).getByText('10 agendadas')).toBeInTheDocument()
-    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(8)
-    expect(within(panel).getByRole('link', { name: '+2 más — en Agenda' })).toHaveAttribute('href', '#/agenda')
-    expect(within(panel).queryByText('Cita 9 con Ana')).not.toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: '10 agendadas' })).toBeInTheDocument()
+    // Semana = jueves 16 → martes 21: seis citas, TODAS pintadas.
+    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(6)
+    expect(within(panel).queryByRole('button', { name: 'Cerrar tarea — Cita 9 con Ana' })).not.toBeInTheDocument()
+    expect(within(panel).queryByText(/más — en Agenda/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Todas 10' }))
+    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(10)
+    expect(within(panel).getByRole('button', { name: 'Cerrar tarea — Cita 9 con Ana' })).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Ver en Agenda ›' })).toHaveAttribute('href', '#/agenda')
   })
 
   it('«Cerrar tarea» abre el diálogo de cierre sin abrir la ficha; Enter sobre la fila sí la abre', () => {
@@ -1290,11 +1326,12 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    const fila = within(panel).getByRole('button', { name: 'Abrir ficha — Cita con Ana' })
+    const fila = within(panel).getByRole('button', { name: 'Abrir ficha — Cita con Ana, 15:00' })
     const cerrar = within(panel).getByRole('button', { name: 'Cerrar tarea — Cita con Ana' })
-    // El nombre es el título; hora y día viajan como descripción (aria-describedby).
+    // El nombre es título + hora; día y capital viajan como descripción (aria-describedby).
     expect(fila).toHaveAccessibleDescription(/15:00/)
-    // Enter sobre el botón anidado NO es Enter sobre la fila (guard e.target).
+    expect(fila).toHaveAccessibleDescription(/Hoy/)
+    // Enter sobre el botón anidado NO es Enter sobre la fila (guard e.target + stopPropagation).
     fireEvent.keyDown(cerrar, { key: 'Enter' })
     expect(abrirLead).not.toHaveBeenCalled()
     fireEvent.keyDown(fila, { key: 'Enter' })
@@ -1305,5 +1342,70 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     fireEvent.click(cerrar)
     expect(screen.getByRole('dialog', { name: 'Cerrar tarea' })).toHaveTextContent('Cita con Ana')
     expect(abrirLead).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () => {
+  it('desde lg la raíz mide el alto del <main>, la fila agenda+citas es elástica y cada lista se desplaza dentro de su tarjeta', () => {
+    montar({
+      modoActivo: true,
+      tareas: [
+        tarea({ id: 'c-hoy', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z' }),
+        tarea({ id: 'c-manana', tipo: 'reunion', titulo: 'Cita de mañana con Ana', vence_en: '2026-07-16T15:00:00Z' }),
+      ],
+    })
+    // Modo activo de verdad: sin «Ahora» ni «Pendientes», que son del legado.
+    expect(screen.queryByRole('heading', { name: 'Tu siguiente movimiento' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pendientes' })).not.toBeInTheDocument()
+
+    const raiz = screen.getByRole('heading', { name: /^Hola, / }).closest('.ac-rise')
+    expect(raiz).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:h-[calc(100svh-7rem)]', 'lg:min-h-[640px]')
+    expect(raiz).not.toHaveClass('space-y-5')
+
+    const agenda = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+    if (!(agenda instanceof HTMLElement)) throw new Error('sin agenda')
+    expect(agenda).toHaveClass('flex', 'flex-col', 'min-h-0', 'flex-1')
+    expect(agenda.querySelector('.overflow-y-auto')).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
+    // El pie «Día con espacio» sigue a las filas, no al fondo de la tarjeta.
+    expect(within(agenda).getByText(/Día con espacio/).parentElement).not.toHaveClass('mt-auto')
+
+    const columnaIzquierda = agenda.parentElement
+    if (!(columnaIzquierda instanceof HTMLElement)) throw new Error('sin columna izquierda')
+    expect(columnaIzquierda).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-3')
+    // «Tu cumplimiento del mes» va DEBAJO de la agenda, en la misma columna, sin comprimirse.
+    const cumplimiento = tarjetaCumplimiento()
+    expect(columnaIzquierda.children[0]).toBe(agenda)
+    expect(columnaIzquierda.children[1]).toBe(cumplimiento)
+    expect(cumplimiento).toHaveClass('shrink-0')
+    expect(within(cumplimiento).getByText('Capital confirmado')).toBeInTheDocument()
+
+    const fila = columnaIzquierda.parentElement
+    expect(fila).toHaveClass('grid', 'min-h-0', 'flex-1', 'lg:grid-cols-5', 'lg:items-stretch', 'lg:grid-rows-[minmax(0,1fr)]')
+
+    const citas = panelCitas()
+    expect(citas.parentElement).toBe(fila)
+    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
+    const listaCitas = citas.querySelector('.overflow-y-auto')
+    expect(listaCitas).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
+    expect(listaCitas).not.toHaveClass('max-h-[60vh]')
+    expect(within(citas).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(2)
+
+    // Lo fijo no se comprime: cabecera y pie de pantalla.
+    expect(screen.getByRole('heading', { name: /^Hola, / }).closest('header')).toHaveClass('shrink-0')
+    expect(screen.getByText(/únicamente tu propia cartera/)).toHaveClass('shrink-0')
+  })
+
+  it('en legado (demo) nada lleva altura fija: apilado con scroll de página, citas a todo el ancho con tope de 60vh y el cumplimiento debajo', () => {
+    montar({ tareas: [tarea({ id: 'c-hoy', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z' })] })
+
+    const raiz = screen.getByRole('heading', { name: /^Hola, / }).closest('.ac-rise')
+    expect(raiz).not.toHaveClass('lg:h-[calc(100svh-7rem)]')
+    const citas = panelCitas()
+    expect(citas.parentElement).toBe(raiz)
+    expect(citas).not.toHaveClass('min-h-0')
+    expect(citas.querySelector('.overflow-y-auto')).toHaveClass('max-h-[60vh]')
+    expect(tarjetaCumplimiento().parentElement).toBe(raiz)
+    const agenda = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+    expect(agenda?.querySelector('.overflow-y-auto')).toBeNull()
   })
 })
