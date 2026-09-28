@@ -6,24 +6,16 @@
 // crítico · convertido/ganado = navy #111e3d.
 import { useMemo, type CSSProperties, type JSX } from 'react'
 import {
-  ArrowRightLeft,
   BadgeCheck,
-  CalendarCheck,
   Coins,
   Eye,
   Filter,
   History,
-  MessageCircle,
-  MessageSquare,
-  PhoneCall,
-  PhoneMissed,
   ShieldCheck,
-  StickyNote,
   Target,
   Users,
   UsersRound,
   Wallet,
-  type LucideIcon,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -43,7 +35,6 @@ import {
   ETAPA_INFO,
   MOTIVOS_DESCARTE,
   TIPOS_ACTIVIDAD,
-  type TipoActividad,
 } from '@/lib/tipos'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
@@ -56,24 +47,12 @@ import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
+import { ICONO_ACTIVIDAD } from '@/components/app/actividad-visual'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
 
 /** Filas de la bitácora «Actividad reciente» (mismo valor que pide la puerta por defecto). */
 const FILAS_BITACORA = 8
-
-// Mismo mapa de iconos del timeline del drawer (consistencia visual).
-const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
-  llamada_realizada: PhoneCall,
-  llamada_no_contestada: PhoneMissed,
-  whatsapp_enviado: MessageCircle,
-  whatsapp_recibido: MessageSquare,
-  reunion_realizada: CalendarCheck,
-  nota: StickyNote,
-  cambio_etapa: ArrowRightLeft,
-  reasignacion: Users,
-  conversion: BadgeCheck,
-}
 
 /** "hace Xh / hace Xd" compacto para la bitácora; fechas raras caen a fmtFecha.
  *  Recibe `ahora` (reloj vivo de useAhora) — NUNCA Date.now() en render. */

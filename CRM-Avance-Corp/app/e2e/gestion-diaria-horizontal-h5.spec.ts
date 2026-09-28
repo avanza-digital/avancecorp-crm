@@ -10,6 +10,11 @@ test('H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable',
   const resultados: { cantidad: number; lecturas: unknown; etapas: Record<string, Record<string, number>> }[] = []
   for (const cantidad of [1, 32]) {
     const page = await browser.newPage({ baseURL })
+    // Ambos tamaños arrancan en el módulo medido. Pasar antes por «Hoy»
+    // mezcla sus consultas y refrescos de arranque con el coste de este equipo.
+    await page.addInitScript(() => {
+      window.history.replaceState(null, '', '/#/gestion-diaria')
+    })
     const peticiones: Record<string, number> = {}
     const etapas: Record<string, Record<string, number>> = {}
     page.on('request', solicitud => {
@@ -83,7 +88,7 @@ test('H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable',
     await medir('alternar')
     expect(lecturas.registro).toBe(1)
     falloEquipo = true
-    await vista.locator('.gd-acciones-cabecera').getByRole('button', { name: 'Actualizar', exact: true }).click()
+    await vista.locator(':scope > header').getByRole('button', { name: 'Actualizar', exact: true }).click()
     await expect(vista.getByRole('alert')).toContainText('No pudimos consultar la actividad')
     await expect(panel.getByRole('tab', { name: 'Registro', exact: true })).toHaveAttribute('aria-selected', 'true')
     await expect(panel.getByRole('region', { name: 'Registro seleccionado' })).toBeVisible()
@@ -145,7 +150,7 @@ test('H5: Actualizar conserva el filtro del registro del equipo y consulta una s
   await expect(registro.getByRole('listitem')).toHaveCount(26)
   await page.waitForLoadState('networkidle')
   const anteriores = pedidos.length
-  await vista.locator('.gd-acciones-cabecera').getByRole('button', { name: 'Actualizar', exact: true }).click()
+  await vista.locator(':scope > header').getByRole('button', { name: 'Actualizar', exact: true }).click()
   await expect(registro.getByRole('listitem')).toHaveCount(25)
   await expect(registro.getByRole('tab', { name: 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
   await page.waitForLoadState('networkidle')

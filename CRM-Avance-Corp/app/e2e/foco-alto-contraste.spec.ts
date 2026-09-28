@@ -14,18 +14,18 @@ test('en alto contraste el foco se sigue viendo, aunque el control diga outline-
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
 
-  // Un control con `focus-visible:outline-none` en su clase: la fila de la cola.
-  const fila = page.getByRole('list', { name: /^Sin primer intento/ }).getByRole('button').first()
-  await expect(fila).toHaveClass(/focus-visible:outline-none/)
+  // Un control estable con `focus-visible:outline-none`: la pestaña Cola de hoy.
+  const pestanaCola = page.getByRole('tab', { name: /Cola de hoy/ })
+  await expect(pestanaCola).toHaveClass(/focus-visible:outline-none/)
 
   await page.emulateMedia({ forcedColors: 'active' })
   // El foco tiene que llegar POR TECLADO: Chromium no considera `:focus-visible`
   // un `element.focus()` programático, y la regla cuelga de ese selector.
-  await fila.focus()
+  await pestanaCola.focus()
   await page.keyboard.press('Tab')
   await page.keyboard.press('Shift+Tab')
-  await expect(fila).toBeFocused()
-  const outline = await fila.evaluate((el) => {
+  await expect(pestanaCola).toBeFocused()
+  const outline = await pestanaCola.evaluate((el) => {
     const s = getComputedStyle(el)
     return { ancho: s.outlineWidth, estilo: s.outlineStyle, visible: el.matches(':focus-visible') }
   })
@@ -38,12 +38,12 @@ test('en modo normal el control enfocado tiene un `outline` de verdad, no solo e
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Gestión Diaria' }).click()
 
-  const fila = page.getByRole('list', { name: /^Sin primer intento/ }).getByRole('button').first()
-  await fila.focus()
+  const pestanaCola = page.getByRole('tab', { name: /Cola de hoy/ })
+  await pestanaCola.focus()
   await page.keyboard.press('Tab')
   await page.keyboard.press('Shift+Tab')
-  await expect(fila).toBeFocused()
-  const outline = await fila.evaluate((el) => {
+  await expect(pestanaCola).toBeFocused()
+  const outline = await pestanaCola.evaluate((el) => {
     const s = getComputedStyle(el)
     return { ancho: s.outlineWidth, estilo: s.outlineStyle }
   })
