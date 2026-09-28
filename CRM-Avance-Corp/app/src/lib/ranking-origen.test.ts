@@ -40,7 +40,7 @@ it('preserva el desglose registrado de cartera legada con PEN y USD', () => {
   expect(v.parse(RankingOrigenVendedorSchema, { ...base, cartera }).cartera?.[1])
     .toEqual({ categoria: 'upgrade', pen: 577554, usd: 40000 })
 })
-it('rechaza categorías duplicadas o faltantes en cartera', () => {
-  expect(v.safeParse(RankingOrigenVendedorSchema, { ...base, cartera: [cartera[0], cartera[1], cartera[1]] }).success).toBe(false)
-  expect(v.safeParse(RankingOrigenVendedorSchema, { ...base, cartera: cartera.slice(0, 2) }).success).toBe(false)
+it('degrada solo cartera ante categorías duplicadas o faltantes', () => {
+  expect(v.parse(RankingOrigenVendedorSchema, { ...base, cartera: [cartera[0], cartera[1], cartera[1]] }).cartera).toBeNull()
+  expect(v.parse(RankingOrigenVendedorSchema, { ...base, cartera: cartera.slice(0, 2) }).filas[0]?.capital_pen).toBe(12000.5)
 })
