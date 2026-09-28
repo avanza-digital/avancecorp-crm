@@ -1572,162 +1572,157 @@ export function HoyVendedor(): JSX.Element {
         />
       )}
 
-      {/* Progressive disclosure: el avance mensual está disponible, pero no
-          compite con el trabajo del día hasta que el analista decide abrirlo. */}
+      {/* Siempre a la vista (pedido de Miguel, 28/09/2026: «que siempre se vea, que
+          no se contraiga»): el avance mensual dejó de ser un <details> que el
+          analista tenía que abrir. La cabecera informa; no es un control. */}
       <Card className="min-w-0">
-        <details className="group">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-5 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 [&::-webkit-details-marker]:hidden">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
-              <Target className="size-4" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold tracking-tight">Tu cumplimiento del mes</h3>
-              <p className="text-[11px] text-muted-foreground">
-                {yo?.demo ? 'Datos confirmados demo' : 'Contratos confirmados'} · abre para ver metas y procedencia
-              </p>
-            </div>
-            <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
-              {tcEnVuelo ? 'Capital consultando…' : capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
-              {' · '}
-              {conversionMensualCargando ? 'Conversión consultando…' : `Conversión ${porcentajeConversionCanonica(conversion)}`}
-            </span>
-            <ChevronRight
-              className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-              aria-hidden
+        <div className="flex min-h-14 items-center gap-3 px-5 py-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
+            <Target className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold tracking-tight">Tu cumplimiento del mes</h3>
+            <p className="text-[11px] text-muted-foreground">
+              {yo?.demo ? 'Datos confirmados demo' : 'Contratos confirmados'} · metas y procedencia del mes
+            </p>
+          </div>
+          <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
+            {tcEnVuelo ? 'Capital consultando…' : capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
+            {' · '}
+            {conversionMensualCargando ? 'Conversión consultando…' : `Conversión ${porcentajeConversionCanonica(conversion)}`}
+          </span>
+        </div>
+        <CardContent className="border-t border-border/80 pt-4">
+          <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+            <MetaFila
+              icon={Wallet}
+              label="Capital confirmado"
+              valorTxt={tcEnVuelo ? 'Calculando…' : capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
+              metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
+              pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
+              delay={0}
+              nota={(
+                <>
+                  {!tcEnVuelo && <DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
+                  {hayAjusteCierre && ajusteCierre && (
+                    <p
+                      className="text-[11px] font-semibold tabular-nums text-warning-text"
+                      title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+                    >
+                      Neto tras ajuste de cierre
+                      {ajusteCierre.aplicadoPen > 0 ? ` · −${money(ajusteCierre.aplicadoPen, 'PEN')}` : ''}
+                      {ajusteCierre.aplicadoUsd > 0 ? ` · −${money(ajusteCierre.aplicadoUsd, 'USD')}` : ''}
+                      {ajusteCierre.contratosAplicados > 0
+                        ? ` · −${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
+                        : ''}
+                    </p>
+                  )}
+                </>
+              )}
+              neutro={
+                fotoMensualStoreCargando
+                  ? 'Actualizando la meta y el cumplimiento de este mes…'
+                  : objetivosMensualesError
+                  ? 'Meta mensual no disponible'
+                  : tcEnVuelo
+                    ? 'Consultando el tipo de cambio para consolidar los dólares…'
+                    : (metaTotal.total ?? 0) <= 0
+                    ? SIN_META
+                    : cumplimientoMensualError || capitalTotal.total == null
+                      ? 'Cumplimiento confirmado no disponible'
+                      : undefined
+              }
             />
-          </summary>
-          <CardContent className="border-t border-border/80 pt-4">
-            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-              <MetaFila
-                icon={Wallet}
-                label="Capital confirmado"
-                valorTxt={tcEnVuelo ? 'Calculando…' : capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
-                metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
-                pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
-                delay={0}
-                nota={(
-                  <>
-                    {!tcEnVuelo && <DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
-                    {hayAjusteCierre && ajusteCierre && (
-                      <p
-                        className="text-[11px] font-semibold tabular-nums text-warning-text"
-                        title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
-                      >
-                        Neto tras ajuste de cierre
-                        {ajusteCierre.aplicadoPen > 0 ? ` · −${money(ajusteCierre.aplicadoPen, 'PEN')}` : ''}
-                        {ajusteCierre.aplicadoUsd > 0 ? ` · −${money(ajusteCierre.aplicadoUsd, 'USD')}` : ''}
-                        {ajusteCierre.contratosAplicados > 0
-                          ? ` · −${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
-                          : ''}
-                      </p>
-                    )}
-                  </>
-                )}
-                neutro={
-                  fotoMensualStoreCargando
-                    ? 'Actualizando la meta y el cumplimiento de este mes…'
-                    : objetivosMensualesError
-                    ? 'Meta mensual no disponible'
-                    : tcEnVuelo
-                      ? 'Consultando el tipo de cambio para consolidar los dólares…'
-                      : (metaTotal.total ?? 0) <= 0
-                      ? SIN_META
-                      : cumplimientoMensualError || capitalTotal.total == null
-                        ? 'Cumplimiento confirmado no disponible'
-                        : undefined
-                }
-              />
-              <MetaFila
-                icon={TrendingUp}
-                label="Conversión del mes"
-                valorTxt={conversionMensualCargando ? 'Calculando…' : porcentajeConversionCanonica(conversion)}
-                metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
-                pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
-                delay={180}
-                nota={
-                  miConversion && lecturaConversion.mostrar ? (
-                    <span className="text-[11px] text-muted-foreground">
-                      {/* `text-muted-foreground` y NO var(--gi-muted): ese token
-                        solo resuelve dentro de `.gerencia-inteligencia`, y esta
-                        pantalla no está en él — el color salía de la herencia
-                        por accidente (revisor a11y, F2.3). Mismo hex.
-                        El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
-                        lo llena el reparto, no el analista, y el número solo
-                        miente por omisión. */}
-                      Recibidos {numero(miConversion.divisor)} · cierres{' '}
-                      {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
-                      {miConversion.cierres_de_arrastre > 0 &&
-                        ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
-                      {(() => {
-                        // El porqué al lado del número que baja: su conversión ya
-                        // llega NETA de anulaciones de meses cerrados, y un
-                        // número que baja sin explicación es una llamada a
-                        // soporte. El detalle (mes, motivo, cuánto) va en title.
-                        const descuento = descuentoArrastre(miConversion.ajuste)
-                        return descuento ? (
-                          <>
-                            {' · '}
-                            <ChipArrastre descuento={descuento} />
-                          </>
-                        ) : null
-                      })()}
-                      {/* ⚠️ El aviso de «provisional» NO se le pone al analista
-                        (decisión de Miguel, 2026-08-14): él necesita ver su
-                        número, no la contabilidad de por qué el mes va corto.
-                        Ese matiz sí viaja a supervisor y gerencia, que son
-                        quienes comparan y deciden. */}
-                    </span>
-                  ) : undefined
-                }
-                neutro={
-                  conversionMensualCargando
-                    ? 'Consultando la conversión del mes…'
-                    : conversionMensualError
-                      ? 'Conversión del mes no disponible'
-                      : !lecturaConversion.mostrar
-                      ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-                      : miConversion?.estado === 'solo_referidos'
-                        ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
-                        : miConversion?.estado === 'solo_arrastre'
-                          ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
-                          : miConversion?.estado === 'sin_actividad' || conversion == null
-                            ? 'Sin leads recibidos este mes'
-                            : fotoMensualStoreCargando
-                              ? 'Actualizando la meta de este mes…'
-                              : objetivosMensualesError
-                              ? 'Meta mensual no disponible'
-                              : metaConversion == null
-                                ? SIN_META
-                                : undefined
-                }
-              />
+            <MetaFila
+              icon={TrendingUp}
+              label="Conversión del mes"
+              valorTxt={conversionMensualCargando ? 'Calculando…' : porcentajeConversionCanonica(conversion)}
+              metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
+              pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
+              delay={180}
+              nota={
+                miConversion && lecturaConversion.mostrar ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {/* `text-muted-foreground` y NO var(--gi-muted): ese token
+                      solo resuelve dentro de `.gerencia-inteligencia`, y esta
+                      pantalla no está en él — el color salía de la herencia
+                      por accidente (revisor a11y, F2.3). Mismo hex.
+                      El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
+                      lo llena el reparto, no el analista, y el número solo
+                      miente por omisión. */}
+                    Recibidos {numero(miConversion.divisor)} · cierres{' '}
+                    {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
+                    {miConversion.cierres_de_arrastre > 0 &&
+                      ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                    {(() => {
+                      // El porqué al lado del número que baja: su conversión ya
+                      // llega NETA de anulaciones de meses cerrados, y un
+                      // número que baja sin explicación es una llamada a
+                      // soporte. El detalle (mes, motivo, cuánto) va en title.
+                      const descuento = descuentoArrastre(miConversion.ajuste)
+                      return descuento ? (
+                        <>
+                          {' · '}
+                          <ChipArrastre descuento={descuento} />
+                        </>
+                      ) : null
+                    })()}
+                    {/* ⚠️ El aviso de «provisional» NO se le pone al analista
+                      (decisión de Miguel, 2026-08-14): él necesita ver su
+                      número, no la contabilidad de por qué el mes va corto.
+                      Ese matiz sí viaja a supervisor y gerencia, que son
+                      quienes comparan y deciden. */}
+                  </span>
+                ) : undefined
+              }
+              neutro={
+                conversionMensualCargando
+                  ? 'Consultando la conversión del mes…'
+                  : conversionMensualError
+                    ? 'Conversión del mes no disponible'
+                    : !lecturaConversion.mostrar
+                    ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                    : miConversion?.estado === 'solo_referidos'
+                      ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
+                      : miConversion?.estado === 'solo_arrastre'
+                        ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
+                        : miConversion?.estado === 'sin_actividad' || conversion == null
+                          ? 'Sin leads recibidos este mes'
+                          : fotoMensualStoreCargando
+                            ? 'Actualizando la meta de este mes…'
+                            : objetivosMensualesError
+                            ? 'Meta mensual no disponible'
+                            : metaConversion == null
+                              ? SIN_META
+                              : undefined
+              }
+            />
+          </div>
+          {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
+              {/* El reintento cubre TAMBIÉN la conversión mensual (observación
+                #4 de la revisión externa: el tile decía «no disponible» sin
+                salida — recargar() solo repone el store, no esta query). */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (objetivosMensualesError || cumplimientoMensualError) {
+                    setRecargaPeriodoFallida(false)
+                    void recargar().then((ok) => {
+                      if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
+                    })
+                  }
+                  if (conversionMensualError) void qConversionMensual.refetch()
+                  if (tcCaido) recargarTipoCambio()
+                }}
+              >
+                Reintentar
+              </Button>
             </div>
-            {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
-                {/* El reintento cubre TAMBIÉN la conversión mensual (observación
-                  #4 de la revisión externa: el tile decía «no disponible» sin
-                  salida — recargar() solo repone el store, no esta query). */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (objetivosMensualesError || cumplimientoMensualError) {
-                      setRecargaPeriodoFallida(false)
-                      void recargar().then((ok) => {
-                        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
-                      })
-                    }
-                    if (conversionMensualError) void qConversionMensual.refetch()
-                    if (tcCaido) recargarTipoCambio()
-                  }}
-                >
-                  Reintentar
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </details>
+          )}
+        </CardContent>
       </Card>
 
       <p className="text-[11px] text-muted-foreground">

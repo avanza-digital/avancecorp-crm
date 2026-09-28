@@ -278,6 +278,19 @@ function montar(
 }
 
 /**
+ * Tarjeta «Tu cumplimiento del mes». Desde el 28/09/2026 va SIEMPRE abierta
+ * (pedido de Miguel: «que siempre se vea, que no se contraiga»): ya no hay
+ * <details>/<summary> que abrir, así que se localiza por su título.
+ */
+function tarjetaCumplimiento(): HTMLElement {
+  const tarjeta = screen
+    .getByRole('heading', { name: 'Tu cumplimiento del mes' })
+    .closest('[data-slot="card"]')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error('falta la tarjeta «Tu cumplimiento del mes»')
+  return tarjeta
+}
+
+/**
  * `metas` describe si la revisión publicada TRAE metas o viene en cero. Es un
  * parámetro y no un detalle del fixture porque desde 2026-08-10 el avance se
  * mide contra la foto del snapshot: «no hay meta» ya no se simula poniendo
@@ -542,16 +555,20 @@ describe('Hoy · analista — contrato perceptual de Ahora', () => {
     expect(screen.queryByText('Tu agenda y tu cartera están al día')).not.toBeInTheDocument()
   })
 
-  it('mantiene el cumplimiento mensual colapsado hasta que el analista lo pide', () => {
+  // Pedido de Miguel (28/09/2026): «cumplimiento del mes porfa que siempre se
+  // vea, que no se contraiga». Antes era un <details> cerrado por defecto.
+  it('muestra el cumplimiento mensual siempre abierto: nada que abrir ni contraer', () => {
     montar()
 
-    const resumen = screen.getByText('Tu cumplimiento del mes').closest('summary')
-    const detalle = resumen?.closest('details')
-    expect(detalle).not.toBeNull()
-    expect(detalle).not.toHaveAttribute('open')
-
-    fireEvent.click(resumen as HTMLElement)
-    expect(detalle).toHaveAttribute('open')
+    const tarjeta = tarjetaCumplimiento()
+    const titulo = screen.getByRole('heading', { name: 'Tu cumplimiento del mes' })
+    // Ni <details>/<summary> ni una cabecera que se comporte como botón.
+    expect(tarjeta.querySelector('details, summary')).toBeNull()
+    expect(titulo.closest('summary, details, button, [role="button"]')).toBeNull()
+    // El contenido se ve sin ninguna interacción.
+    expect(within(tarjeta).getByText('Capital confirmado')).toBeVisible()
+    expect(within(tarjeta).getByText('Conversión del mes')).toBeVisible()
+    expect(within(tarjeta).getByText('Contratos confirmados · metas y procedencia del mes')).toBeVisible()
   })
 })
 
@@ -746,7 +763,7 @@ describe('Hoy · analista — meta del mes', () => {
     montar({ cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50) })
 
     expect(screen.getByText('Consultando la conversión del mes…')).toBeInTheDocument()
-    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Conversión consultando…')
+    expect(within(tarjetaCumplimiento()).getByText(/Conversión consultando…/)).toBeInTheDocument()
     expect(screen.queryByText('Sin datos de asignación para este mes')).not.toBeInTheDocument()
   })
 
@@ -992,7 +1009,7 @@ describe('Hoy · analista — meta del mes', () => {
       cumplimiento: cumplimientoPenUsd(120_000, 20_000),
     })
 
-    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Capital consultando…')
+    expect(within(tarjetaCumplimiento()).getByText(/Capital consultando…/)).toBeInTheDocument()
     expect(screen.getByText('Consultando el tipo de cambio para consolidar los dólares…')).toBeInTheDocument()
     expect(screen.queryByText(/sin tipo de cambio: el total NO incluye los dólares/)).not.toBeInTheDocument()
   })
