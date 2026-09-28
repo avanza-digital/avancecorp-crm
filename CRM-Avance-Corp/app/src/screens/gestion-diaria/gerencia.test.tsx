@@ -240,7 +240,7 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
   })
   it('los números de un equipo abren sus analistas con ese filtro u orden', () => {
     render(<GestionDiariaGerencia />)
-    fireEvent.click(screen.getByRole('button', { name: '1 sin registro en Equipo de SUPERVISOR DOS: ver quiénes' }))
+    fireEvent.click(screen.getByRole('button', { name: '1 sin registro en el Equipo de SUPERVISOR DOS: ver quiénes' }))
     const equipo = screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })
     expect(within(equipo).getByRole('button', { name: /^Sin registro/ })).toHaveAttribute('aria-pressed', 'true')
     expect(within(equipo).getAllByRole('button', { name: /^Seleccionar a / }).map((b) => b.textContent)).toEqual(['ANALISTA CUATRO'])

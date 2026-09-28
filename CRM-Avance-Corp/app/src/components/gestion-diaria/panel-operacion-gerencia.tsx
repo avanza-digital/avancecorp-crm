@@ -8,7 +8,7 @@ import { Title as TituloDialogo } from '@radix-ui/react-dialog'
 import { ChevronRight, ClipboardList, Maximize2, Minimize2, UserX, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { cifraPulso, type EquipoPulso, type PulsoGerencia } from '@/lib/gestion-diaria-pulso'
-import { atencionEquipo, barrasEquipo, nombreEquipo, personasSinRegistro, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
+import { atencionEquipo, barrasEquipo, delEquipo, nombreEquipo, personasSinRegistro, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
 import { presentarAtencion, type FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { cn } from '@/lib/utils'
@@ -58,8 +58,9 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
   const equipo = vista?.tipo === 'equipo' || (vista?.tipo === 'registro' && vista.alcance !== 'general')
     ? pulso.equipos.find((e) => e.clave === (vista.tipo === 'equipo' ? vista.clave : vista.alcance)) : undefined
   const nombre = equipo ? nombreEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : ''
+  const del = equipo ? delEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : ''
   const titulo = vista === null ? 'Detalle de la operación' : vista.tipo === 'sin_registro' ? 'Sin registro'
-    : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro del ${nombre}` : nombre
+    : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro ${del}` : nombre
   // Como la ficha del supervisor (Miguel, 27/09): un nombre corto arriba y una línea
   // debajo. Se ve el nombre del supervisor; se oye «Detalle del Equipo de …».
   const fuera = equipo?.clave === 'fuera'
@@ -68,7 +69,7 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
     : vista.tipo === 'registro' ? equipo ? nombre : null
       : equipo ? `${fuera ? '' : 'Equipo de '}${plural(equipo.metricas.analistas_activos, 'analista', 'analistas')}` : null
   return (
-    <section id={id} aria-label={vista?.tipo === 'equipo' ? `Detalle del ${nombre}` : titulo} className={FICHA}>
+    <section id={id} aria-label={vista?.tipo === 'equipo' ? `Detalle ${del}` : titulo} className={FICHA}>
       <header className={CABECERA_FICHA}>
         {vista?.tipo === 'equipo' && equipo ? <Avatar nombre={equipo.nombre} color="var(--accent-press)" relleno className="size-11 text-[15px]" />
           : <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-primary">
@@ -76,7 +77,7 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
           </span>}
         <div className="min-w-0 flex-1">
           <TituloDialogo asChild><h3 ref={tituloRef} tabIndex={-1} className={TITULO_FICHA}>
-            {vista?.tipo === 'equipo' && equipo ? <><span className="sr-only">{fuera ? 'Detalle del' : 'Detalle del Equipo de'}</span>{' '}{equipo.nombre}</>
+            {vista?.tipo === 'equipo' && equipo ? <><span className="sr-only">{fuera ? 'Detalle del grupo' : 'Detalle del Equipo de'}</span>{' '}{equipo.nombre}</>
               : vista?.tipo === 'registro' && equipo ? <>Registro del equipo<span className="sr-only">: {nombre}</span></> : titulo}
           </h3></TituloDialogo>
           {subtitulo && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground-strong)]">{subtitulo}</p>}
@@ -90,7 +91,7 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
         {vista === null ? <div className="flex h-full flex-col items-center justify-center gap-3 px-8 py-10 text-center text-[13.5px] text-[var(--muted-foreground-strong)]">
           <Users className="size-9 text-muted-foreground" aria-hidden /><p>Elige un equipo de la tabla para ver su día.</p></div>
           : vista.tipo === 'equipo' ? equipo
-            ? <FichaEquipo equipo={equipo} nombre={nombre} detalle={detalle} detalleFallido={detalleFallido} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
+            ? <FichaEquipo equipo={equipo} del={del} detalle={detalle} detalleFallido={detalleFallido} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
             : <p role="status" className="px-5 py-4 text-[13px]">Este equipo ya no aparece en la consulta. Elige otro de la tabla.</p>
             : vista.tipo === 'sin_registro' ? <ListaSinRegistro pulso={pulso} esHoy={esHoy} abrirPersona={abrirPersona} />
               : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} esHoy={esHoy} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: vista.pestana, apertura: vista.apertura + 1 })} />}
@@ -99,8 +100,8 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
   )
 }
 
-function FichaEquipo({ equipo: e, nombre, detalle, detalleFallido, esHoy, abrirVista, entrarEquipo, abrirPersona }: {
-  equipo: EquipoPulso; nombre: string; detalle: FilaEquipoPresentada[] | null; detalleFallido: boolean; esHoy: boolean
+function FichaEquipo({ equipo: e, del, detalle, detalleFallido, esHoy, abrirVista, entrarEquipo, abrirPersona }: {
+  equipo: EquipoPulso; del: string; detalle: FilaEquipoPresentada[] | null; detalleFallido: boolean; esHoy: boolean
   abrirVista: (vista: VistaOperacion) => void; entrarEquipo: (clave: string, preset?: PresetEquipo) => void; abrirPersona: (analistaId: string) => void
 }): JSX.Element {
   const m = e.metricas
@@ -113,22 +114,22 @@ function FichaEquipo({ equipo: e, nombre, detalle, detalleFallido, esHoy, abrirV
         <Cuadro etiqueta="Llamadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.llamadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{plural(m.contestadas, 'contestó', 'contestaron')}</span>
-          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas del ${nombre}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Contacto">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.tasa_contacto === null ? '—' : `${Math.round(m.tasa_contacto)} %`}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">de {plural(m.utiles, 'llamada útil', 'llamadas útiles')}</span>
-          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas y su resultado del ${nombre}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas y su resultado ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Citas agendadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.citas_agendadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{esHoy ? 'hoy' : 'ese día'}</span>
-          <button type="button" onClick={() => entrarEquipo(e.clave, 'citas')} aria-label={`Ver las citas por analista del ${nombre}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={() => entrarEquipo(e.clave, 'citas')} aria-label={`Ver las citas por analista ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Tareas vencidas">
           <span className={cn('block text-[28px] font-extrabold leading-tight tabular-nums', e.tareas_vencidas > 0 ? 'text-[var(--destructive-text)]' : 'text-primary')}>{e.tareas_vencidas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">siguen pendientes</span>
-          <button type="button" onClick={() => entrarEquipo(e.clave, 'vencidas')} aria-label={`Ver las vencidas por analista del ${nombre}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={() => entrarEquipo(e.clave, 'vencidas')} aria-label={`Ver las vencidas por analista ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
       </dl>
 

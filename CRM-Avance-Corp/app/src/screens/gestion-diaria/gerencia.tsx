@@ -185,6 +185,8 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   }
   const entrarEquipo = (clave: string, preset?: PresetEquipo) => {
     if (preset) setFiltrosPorEquipo((p) => ({ ...p, [clave]: filtrosDePreset(preset) }))
+    // En pantalla estrecha la ficha es una ventana: volver con la miga no debe reabrirla (E2E, 27/09).
+    if (estrecho) setFicha(null)
     setAmpliado(false)
     window.location.hash = rutaDe('equipo', clave)
   }
@@ -219,7 +221,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   if (error) contenido = <ErrorConsultaGerencia error={error} recargar={consulta.recargar} enVuelo={consulta.enVuelo} />
   else if (consulta.cargando) contenido = <PanelCargando filas={6} />
   else if (activa === 'habitos') contenido = habitos.datos && <>
-    <div className="gp-periodo"><label htmlFor={`${id}-periodo`}>Período hasta {dia}</label><Select id={`${id}-periodo`} className={cn(CONTROL, 'min-h-0 w-auto')} value={dias} onChange={(e) => setDias(Number(e.target.value) as 7 | 14 | 30)}>{[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>
+    <div className="gp-periodo"><label htmlFor={`${id}-periodo`}>Período hasta {dia}</label><Select id={`${id}-periodo`} className={cn(CONTROL, 'min-h-0')} value={dias} onChange={(e) => setDias(Number(e.target.value) as 7 | 14 | 30)}>{[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>
     <ReporteHabitos key={`${dia}:${dias}`} datos={habitos.datos} equipos={datos?.equipos ?? []} estrecho={estrecho} alAbrirAnalista={() => setPestana('pulso')} />
   </>
   else if (!datos) contenido = null

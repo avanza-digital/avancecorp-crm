@@ -59,6 +59,7 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
   const propia = useRef(false)
   const apertura = useRef(0)
   const autoInhibida = useRef(false)
+  const focoPendiente = useRef<string | null | undefined>(undefined)
   const [local, setLocal] = useState<SeleccionSupervisor | null>(null)
   const [estrecho, setEstrecho] = useState(false)
   const [ampliado, setAmpliado] = useState(false)
@@ -133,9 +134,17 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
     autoInhibida.current = true
     setAmpliado(false)
     setLocal(null)
-    if (analistaRuta) window.location.hash = rutaEquipo(equipo.clave)
-    devolverFoco(analista)
+    // Con una persona en la ruta, la ventana sigue abierta hasta que llega el cambio de ruta:
+    // devolver el foco antes lo rechaza su trampa y cae en el body (E2E, 27/09).
+    if (analistaRuta) { focoPendiente.current = analista; window.location.hash = rutaEquipo(equipo.clave) }
+    else devolverFoco(analista)
   }
+  useLayoutEffect(() => {
+    if (analistaRuta || focoPendiente.current === undefined) return
+    const analista = focoPendiente.current
+    focoPendiente.current = undefined
+    devolverFoco(analista)
+  })
   const abrirRegistroEquipo = (control: HTMLElement) => {
     origen.current = control
     if (analistaRuta) window.location.hash = rutaEquipo(equipo.clave)

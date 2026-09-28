@@ -105,7 +105,7 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
   const ficha = vista.getByRole('region', { name: `Detalle del ${EQUIPO}`, exact: true })
   // La tarjeta de la tabla (buscador + tabla) es la que se compara con la ficha.
   const tarjeta = vista.getByRole('region', { name: 'Desplazar tabla de equipos', exact: true }).locator('..')
-  const cifras = vista.getByRole('region', { name: 'Cifras de la operación', exact: true })
+  const pastillas = vista.getByRole('group', { name: 'Resumen de la operación', exact: true }).getByRole('button')
   // Con el menú fijado, 1366 deja 1078 px a la operación (ficha al lado) y 1280, 992: por debajo de
   // 1040 la tabla ocupa todo el ancho y la ficha automática se cierra sin abrir ninguna ventana.
   for (const [width, height] of [[1366, 900], [1366, 768], [1280, 800]]) {
@@ -124,10 +124,10 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
     } else {
       expect(Math.abs(tabla.width - (await raizOperacion(page).boundingBox())!.width)).toBeLessThan(2)
     }
-    // La tabla empieza justo bajo cabecera, pestañas y cifras (~394 px); una fila más de cabecera la pasa de 430.
-    expect(tabla.y).toBeLessThan(420)
-    const posiciones = await cifras.locator('dl>div').evaluateAll(nodos => nodos.map(n => n.getBoundingClientRect().y))
-    expect(posiciones).toHaveLength(4)
+    // Sin franja de cifras (como el supervisor): la tabla empieza bajo cabecera y pestañas.
+    expect(tabla.y).toBeLessThan(360)
+    const posiciones = await pastillas.evaluateAll(nodos => nodos.map(n => n.getBoundingClientRect().y))
+    expect(posiciones).toHaveLength(3)
     expect(new Set(posiciones).size).toBe(1)
     expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate(n => n.scrollHeight <= n.clientHeight + 1 && n.scrollWidth <= n.clientWidth + 1)).toBe(true)
   }
@@ -203,9 +203,11 @@ test('F6 horizontal: gerencia conserva tabla y detalle con el menú abierto en u
 test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con contexto', async ({ page }, info) => {
   const estado = await montar(page)
   const vista = operacion(page)
-  await expect(vista).toContainText('1008 tareas vencidas en total')
-  // Cada cifra se compara con el día anterior y con las jornadas de referencia (7 de 7 con actividad).
-  await expect(vista.getByRole('region', { name: 'Cifras de la operación', exact: true })).toContainText('Día anterior 0 · Referencia 4 (7 jornadas)')
+  // «Toda la operación» al pie de la tabla; la comparación con el día anterior y la referencia, en «Comparar días».
+  await expect(vista.getByRole('button', { name: '1008 tareas vencidas en toda la operación: ver los equipos con vencidas', exact: true })).toBeVisible()
+  await botonCabecera(page, 'Comparar días').click()
+  await expect(page.getByRole('dialog', { name: 'Comparación de la operación' })).toContainText('Referencia: 7 de 7 jornadas con actividad')
+  await page.keyboard.press('Escape')
   await page.screenshot({ path: info.outputPath('f5-operacion-escritorio.png'), fullPage: true })
   // Con el teclado: la fila elige el equipo, la flecha lleva a su ficha y «Ver el equipo» entra.
   const filaEquipo = vista.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true })
@@ -251,10 +253,10 @@ test('F5 escritorio: operación, equipo, analista, registro, ficha y vuelta con 
 test('F5 móvil: fecha, recarga y enlace directo sin desbordamiento', async ({ page }, info) => {
   const estado = await montar(page)
   const vista = operacion(page)
-  // Ningún texto de las cuatro cifras se sale de su casilla (se mide el texto, no la caja del bloque).
+  // Ninguna pastilla se sale de su fila (se mide el texto, no la caja del bloque).
   for (const width of [390, 360, 320]) {
     await page.setViewportSize({ width, height: 844 })
-    await expect.poll(() => vista.getByRole('region', { name: 'Cifras de la operación', exact: true }).locator('dl>div').evaluateAll(casillas =>
+    await expect.poll(() => vista.getByRole('group', { name: 'Resumen de la operación', exact: true }).locator('xpath=..').evaluateAll(casillas =>
       casillas.flatMap(casilla => Array.from(casilla.children).filter(n => {
         const caja = casilla.getBoundingClientRect(), rango = document.createRange()
         rango.selectNodeContents(n)
@@ -347,7 +349,7 @@ test('F5 error y revocación ocultan datos; recuperación vuelve a consultar', a
   const alerta = vista.getByRole('alert')
   await expect(alerta).toContainText('datos anteriores se han ocultado')
   await expect(page.getByRole('table', { name: 'Equipos de la operación' })).toHaveCount(0)
-  await expect(vista.getByRole('region', { name: 'Cifras de la operación', exact: true })).toHaveCount(0)
+  await expect(vista.getByRole('rowheader', { name: /^Toda la operación/ })).toHaveCount(0)
   await expect(vista.getByRole('region', { name: 'Registro general', exact: true })).toHaveCount(0)
   estado.error = false
   await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click()
@@ -365,7 +367,7 @@ test('F5 conserva la fila fuera de equipos y exportación del registro cargado',
   // El grupo sin supervisor no compite con los equipos: siempre al final.
   await expect(filas.last()).toHaveAccessibleName('Seleccionar Fuera de equipos comerciales')
   await filas.last().click()
-  await vista.getByRole('region', { name: 'Detalle del Fuera de equipos comerciales', exact: true }).getByRole('button', { name: 'Ver el equipo', exact: true }).click()
+  await vista.getByRole('region', { name: 'Detalle del grupo Fuera de equipos comerciales', exact: true }).getByRole('button', { name: 'Ver el equipo', exact: true }).click()
   await expect(page).toHaveURL(/\/gestion-diaria\/equipo\/fuera$/)
   const fuera = vista.getByRole('region', { name: 'Fuera de equipos comerciales', exact: true })
   await expect(fuera).toContainText('Sin autor: 1 llamadas')
@@ -383,8 +385,9 @@ test('F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensi
   const estado = await montar(page)
   estado.paginado = true
   const vista = operacion(page)
-  const cifras = vista.getByRole('region', { name: 'Cifras de la operación', exact: true }).locator('dl')
-  const valores = await cifras.textContent()
+  // Las cifras de «Toda la operación» (pie de la tabla) no cambian al filtrar equipos.
+  const total = vista.getByRole('table', { name: 'Equipos de la operación' }).locator('tfoot tr')
+  const valores = await total.textContent()
   await expect(vista).toHaveAttribute('data-estrecho', 'false')
   expect(await page.locator('[data-vista-scroll="gestion-diaria"]').evaluate((n) => n.scrollHeight <= n.clientHeight + 1)).toBe(true)
   const equipos = vista.getByRole('table', { name: 'Equipos de la operación' })
@@ -394,7 +397,7 @@ test('F6 gerencia: densidad, filtros y registro permanecen al ampliar, redimensi
   const buscarEquipo = vista.getByRole('searchbox', { name: 'Buscar equipo', exact: true })
   await buscarEquipo.fill(grupo.nombre)
   await expect(equipos.locator('tbody tr')).toHaveCount(1)
-  await expect(cifras).toHaveText(valores!)
+  await expect(total).toHaveText(valores!)
   await equipos.getByRole('button', { name: `Seleccionar ${EQUIPO}`, exact: true }).click()
   const equipo = await entrarAlEquipo(page)
   const buscar = equipo.getByRole('searchbox', { name: 'Buscar analista', exact: true })
@@ -490,7 +493,7 @@ for (const ambito of ['general', 'analista']) test(`F6 una revocación del regis
   let registro: Locator
   if (ambito === 'general') {
     await botonCabecera(page, 'Registro general').click()
-    registro = page.getByRole('region', { name: `Registro de actividad del ${DIA}`, exact: true })
+    registro = vista.getByRole('region', { name: 'Registro general', exact: true }).getByRole('region', { name: 'Registro seleccionado', exact: true })
   } else {
     const equipo = await entrarAlEquipo(page)
     await equipo.getByRole('button', { name: `Seleccionar a ${analista.nombre_completo}`, exact: true }).click()
@@ -500,10 +503,9 @@ for (const ambito of ['general', 'analista']) test(`F6 una revocación del regis
   }
   await expect(registro).toContainText(`Llamada ficticia F5 del ${DIA}`)
   estado.registroRevocado = true
-  // El registro general conserva su «Actualizar»; el compacto de la ficha no lo tiene, así
-  // que la consulta nueva la pide su pastilla de tipo (un control que también desaparece).
-  if (ambito === 'general') await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
-  else await registro.getByRole('tab', { name: 'Llamadas', exact: true }).click()
+  // Los dos registros son compactos (como el supervisor), sin «Actualizar» propio: la consulta
+  // nueva la pide su pastilla de tipo (un control que también desaparece).
+  await registro.getByRole('tab', { name: 'Llamadas', exact: true }).click()
   await expect(vista.getByRole('alert').filter({ hasText: 'ya no tiene permiso' })).toBeVisible()
   await expect(page.getByRole('table')).toHaveCount(0)
   await expect(registro).toHaveCount(0)

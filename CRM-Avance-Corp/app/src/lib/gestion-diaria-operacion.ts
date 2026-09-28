@@ -159,6 +159,9 @@ export function barrasEquipo(detalle: readonly FilaEquipoPresentada[], equipo: E
 
 /** «Equipo de SUPERVISOR UNO»; el grupo sin supervisor conserva su nombre. */
 export const nombreEquipo = (f: { fuera: boolean; nombre: string }) => f.fuera ? f.nombre : `Equipo de ${f.nombre}`
+/** «del Equipo de X» / «del grupo Fuera de equipos comerciales»: «del Fuera de…» no se dice (E2E, 27/09). */
+export const delEquipo = (f: { fuera: boolean; nombre: string }) => f.fuera ? `del grupo ${f.nombre}` : `del Equipo de ${f.nombre}`
+export const enEquipo = (f: { fuera: boolean; nombre: string }) => f.fuera ? `en el grupo ${f.nombre}` : `en el Equipo de ${f.nombre}`
 
 /** A dónde lleva un número del equipo: sus analistas con ese filtro u orden. */
 export type PresetEquipo = 'sin_registro' | 'vencidas' | 'atencion' | 'citas'

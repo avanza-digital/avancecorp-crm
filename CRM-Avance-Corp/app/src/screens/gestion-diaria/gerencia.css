@@ -22,7 +22,9 @@
 .gp-referencia>div { display:flex; flex-shrink:0; }
 .gd-cortes.gp-pendientes { display:block; padding:10px 12px; color:var(--muted-foreground-strong); }
 .gp-pendientes strong { color:var(--danger-text); font-weight:600; }
-.gd-pulso .gp-espacio { grid-template-columns:minmax(0,1fr) clamp(360px,30%,414px); }
+/* Sin depender de la raíz vieja `.gd-pulso` (E2E, 27/09): entre 1040 y 1235 px la regla de
+ * una columna del supervisor apilaba la ficha de Hábitos debajo de la tabla. */
+.gp-espacio.gd-espacio { grid-template-columns:minmax(0,1fr) clamp(360px,30%,414px); }
 /* En gerencia el ancho de la pantalla decide la composición; la tabla conserva
  * sus columnas y su propio desplazamiento aunque el panel reduzca su ancho. */
 .gp-espacio>.gd-equipo { container-type:normal; }
@@ -81,7 +83,7 @@
 .gp-registro [role=tablist] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
 .gp-registro [role=tablist]>button { min-width:0; padding-inline:8px; }
 .gp-registro [role=tabpanel] { display:block; }
-.gd-pulso :is(a,button,input,select,summary,[tabindex]):focus-visible,.gp-detalle :is(a,button,input,select,summary,[tabindex]):focus-visible,.gp-definiciones :is(a,button,[tabindex]):focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:4px; }
+:is(.gp-periodo,.gp-habitos-contexto,.gp-espacio) :is(a,button,input,select,summary,[tabindex]):focus-visible,.gp-detalle :is(a,button,input,select,summary,[tabindex]):focus-visible,.gp-definiciones :is(a,button,[tabindex]):focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:4px; }
 @container (min-width:840px) {
   .gp-espacio .gd-tabla,.gp-espacio .gp-tabla { min-width:840px; }
   .gp-espacio .gd-tabla tr,.gp-espacio .gp-tabla tr { background:var(--card); }

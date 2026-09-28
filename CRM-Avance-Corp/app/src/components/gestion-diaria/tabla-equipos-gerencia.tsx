@@ -14,7 +14,7 @@ import { COLOR_NIVEL, ETIQUETA_NIVEL, type UmbralesSchema } from '@/lib/gestion-
 import type * as v from 'valibot'
 import { Input } from '@/components/ui/input'
 import { cifraPulso } from '@/lib/gestion-diaria-pulso'
-import { nivelEquipo, nombreEquipo, type EstadoOperacion, type FilaEquipoOperacion, type FiltrosOperacion, type OrdenOperacion } from '@/lib/gestion-diaria-operacion'
+import { delEquipo, enEquipo, nivelEquipo, nombreEquipo, type EstadoOperacion, type FilaEquipoOperacion, type FiltrosOperacion, type OrdenOperacion } from '@/lib/gestion-diaria-operacion'
 import { cn } from '@/lib/utils'
 import { CONTROL, FOCO, PILDORA, PILDORA_ACTIVA, PILDORA_INACTIVA } from './estilos-gestion'
 
@@ -114,7 +114,7 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
                         aria-current={activa ? 'true' : undefined} aria-controls={panelId} onClick={(e) => seleccionar(f, e.currentTarget)}
                         className={cn('block max-w-full cursor-pointer rounded-md text-left text-sm font-bold leading-snug [overflow-wrap:anywhere] pointer-coarse:min-h-11', FOCO,
                           activa ? 'text-[var(--accent-press)]' : 'text-primary')}>{f.nombre}</button>
-                      <Integrantes f={f} en={`en ${nombre}`} abrir={abrir} />
+                      <Integrantes f={f} en={enEquipo(f)} abrir={abrir} />
                     </div>
                     {activa && <button type="button" aria-label={`Ir al detalle de ${nombre}`} onClick={irAlDetalle}
                       className={cn('grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-[var(--accent-press)] hover:bg-accent/10 pointer-coarse:size-11', FOCO)}>
@@ -122,7 +122,7 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
                     </button>}
                   </div>
                 </th>
-                <CifrasEquipo f={f} del={`del ${nombre}`} en={`en ${nombre}`} abrir={abrir} umbrales={umbrales} sinDetalle={sinDetalle} />
+                <CifrasEquipo f={f} del={delEquipo(f)} en={enEquipo(f)} abrir={abrir} umbrales={umbrales} sinDetalle={sinDetalle} />
               </tr>
             )
           })}
