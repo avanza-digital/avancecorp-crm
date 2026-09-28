@@ -75,7 +75,8 @@ async function montar(page: Page) {
 const operacion = (page: Page) => page.getByRole('region', { name: 'Toda la operación', exact: true })
 /** Medidas por CSS: con una ventana abierta, Radix oculta el resto del árbol accesible. */
 const raizOperacion = (page: Page) => page.locator('section[aria-label="Toda la operación"]')
-const botonCabecera = (page: Page, nombre: string) => operacion(page).locator(':scope > header').getByRole('button', { name: nombre, exact: true })
+/** Los botones de la operación van al final de la fila de pestañas (cabecera compacta, 27/09). */
+const botonCabecera = (page: Page, nombre: string) => operacion(page).getByRole('group', { name: 'Acciones de la operación', exact: true }).getByRole('button', { name: nombre, exact: true })
 async function entrarAlEquipo(page: Page) {
   // La ficha del equipo que más atención necesita se abre sola en pantalla ancha: «Ver el equipo» entra.
   await operacion(page).getByRole('region', { name: `Detalle del ${EQUIPO}`, exact: true }).getByRole('button', { name: 'Ver el equipo', exact: true }).click()

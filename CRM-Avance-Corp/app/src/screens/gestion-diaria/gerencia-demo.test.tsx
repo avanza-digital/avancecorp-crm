@@ -42,7 +42,7 @@ describe('Gerencia en modo demo (G0)', () => {
     for (const equipo of ['Equipo de SUPERVISOR UNO', 'Equipo de SUPERVISOR DOS', 'Fuera de equipos comerciales']) {
       expect(within(vista).getByRole('button', { name: `Seleccionar ${equipo}` })).toBeInTheDocument()
     }
-    expect(within(vista).getByRole('button', { name: '1 tareas vencidas en toda la operación: ver los equipos con vencidas' })).toBeInTheDocument()
+    expect(within(vista).getByRole('button', { name: '1 tarea vencida en toda la operación: ver los equipos con vencidas' })).toBeInTheDocument()
     expect(d.rpc).not.toHaveBeenCalled()
   })
   it('abre un equipo por URL con sus analistas del detalle demo, y el registro recibe sus ids', () => {

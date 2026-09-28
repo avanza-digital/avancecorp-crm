@@ -1,4 +1,3 @@
-/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar con el teclado las columnas que no caben. */
 // Tabla de equipos de «Toda la operación» (diseño de Gestión Diaria, 27/09/2026):
 // la protagonista. Misma forma que la del supervisor —pastillas que SON los
 // filtros, buscador a la derecha, tabla semántica con `aria-sort`, filas de 52 px,
@@ -30,6 +29,7 @@ const PILDORAS: readonly { valor: EstadoOperacion; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' }, { valor: 'atencion', etiqueta: 'Con atención' }, { valor: 'vencidas', etiqueta: 'Con vencidas' },
 ]
 
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 const ENLACE_CIFRA = cn('cursor-pointer rounded-md font-semibold tabular-nums underline-offset-2 hover:underline pointer-coarse:min-h-11', FOCO)
 
 export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'cargando', umbrales = null, filtros, setFiltros, ordenar, seleccion, seleccionar, accion, totalOperacion, accionTotal, panelId, irAlDetalle }: {
@@ -69,7 +69,8 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
               {p.valor === 'atencion' && n !== null && n > 0
                 // Ámbar y no rojo, como «Necesitan atención» del supervisor.
                 ? <span className="grid min-w-5 place-items-center rounded-full bg-[var(--warning-text)] px-1.5 text-[11px] font-bold tabular-nums text-white">{n}</span>
-                : <span className="font-bold tabular-nums">{n ?? (sinDetalle === 'error' ? '—' : '…')}</span>}
+                : n !== null ? <span className="font-bold tabular-nums">{n}</span>
+                  : <><span aria-hidden="true" className="font-bold">{sinDetalle === 'error' ? '—' : '…'}</span><span className="sr-only">{sinDetalle === 'error' ? 'no disponible' : 'consultando'}</span></>}
             </button>
           )
         })}
@@ -81,7 +82,8 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
       </label>
     </div>
     {/* Las dos últimas columnas desplazan dentro de la tabla, no la página. */}
-    <div className="gd-tabla-scroll ac-scroll min-h-0 flex-1 overflow-auto !overflow-x-auto" tabIndex={0} role="region" aria-label="Desplazar tabla de equipos">
+    {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar con el teclado las columnas que no caben. */}
+    <div className="gd-tabla-scroll ac-scroll min-h-0 flex-1 overflow-auto !overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Desplazar tabla de equipos">
       <table aria-label="Equipos de la operación" className="me-tabla w-full table-fixed border-separate border-spacing-0 @min-[641px]:min-w-[860px]">
         <colgroup>{COLUMNAS.map((c) => <col key={c.orden} className={c.ancho} />)}</colgroup>
         <thead className="sticky top-0 z-[1] bg-card">
@@ -112,7 +114,7 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
                       {/* Se ve el nombre del supervisor, como el del analista en su tabla; se oye «Equipo de …». */}
                       <button type="button" aria-label={`Seleccionar ${nombre}`}
                         aria-current={activa ? 'true' : undefined} aria-controls={panelId} onClick={(e) => seleccionar(f, e.currentTarget)}
-                        className={cn('block max-w-full cursor-pointer rounded-md text-left text-sm font-bold leading-snug [overflow-wrap:anywhere] pointer-coarse:min-h-11', FOCO,
+                        className={cn('block min-h-6 max-w-full cursor-pointer rounded-md text-left text-sm font-bold leading-snug [overflow-wrap:anywhere] pointer-coarse:min-h-11', FOCO,
                           activa ? 'text-[var(--accent-press)]' : 'text-primary')}>{f.nombre}</button>
                       <Integrantes f={f} en={enEquipo(f)} abrir={abrir} />
                     </div>
@@ -169,7 +171,7 @@ function CifrasEquipo({ f, del, en, abrir, umbrales, sinDetalle, total = false }
     : { llamadas: 'ver en el registro', citas: 'ver por analista', vencidas: 'ver por analista', atencion: 'ver quiénes' }
   return <>
     <td data-etiqueta="Llamadas" className="px-2 text-right text-sm tabular-nums text-foreground">
-      {f.llamadas > 0 || total ? <button type="button" onClick={(e) => abrir('llamadas', e.currentTarget)} aria-label={`${f.llamadas} llamadas ${del}: ${ver.llamadas}`}
+      {f.llamadas > 0 || total ? <button type="button" onClick={(e) => abrir('llamadas', e.currentTarget)} aria-label={`${plural(f.llamadas, 'llamada', 'llamadas')} ${del}: ${ver.llamadas}`}
         className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.llamadas}</button> : <span className="font-semibold">0</span>}
     </td>
     <td data-etiqueta="Contacto" className="px-2 text-right">
@@ -179,12 +181,12 @@ function CifrasEquipo({ f, del, en, abrir, umbrales, sinDetalle, total = false }
       <NivelContacto fila={f} umbrales={umbrales} />
     </td>
     <td data-etiqueta="Citas" className="px-2 text-right text-sm tabular-nums text-foreground">
-      {f.citas > 0 || total ? <button type="button" onClick={(e) => abrir('citas', e.currentTarget)} aria-label={`${f.citas} citas agendadas ${del}: ${ver.citas}`}
+      {f.citas > 0 || total ? <button type="button" onClick={(e) => abrir('citas', e.currentTarget)} aria-label={`${plural(f.citas, 'cita agendada', 'citas agendadas')} ${del}: ${ver.citas}`}
         className={cn(ENLACE_CIFRA, 'text-foreground')}>{f.citas}</button> : '0'}
     </td>
     <td data-etiqueta="Vencidas" className="px-2 text-right text-sm tabular-nums">
       {f.vencidas > 0
-        ? <button type="button" onClick={(e) => abrir('vencidas', e.currentTarget)} aria-label={`${f.vencidas} tareas vencidas ${en}: ${ver.vencidas}`}
+        ? <button type="button" onClick={(e) => abrir('vencidas', e.currentTarget)} aria-label={`${plural(f.vencidas, 'tarea vencida', 'tareas vencidas')} ${en}: ${ver.vencidas}`}
           className={cn(ENLACE_CIFRA, 'text-[var(--destructive-text)]')}>{f.vencidas}</button>
         : <span className="text-foreground">0</span>}
     </td>

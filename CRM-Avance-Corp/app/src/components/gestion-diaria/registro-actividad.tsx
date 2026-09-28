@@ -327,7 +327,8 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
             <button type="button" className={BOTON_CABECERA} aria-disabled={visibles.length === 0} onClick={() => { if (visibles.length > 0) exportar() }}>
               <Download aria-hidden className="size-4" />Exportar CSV
             </button>
-            {aviso && !sinPermiso && <p role="status" aria-live="polite" className="text-[12.5px] text-[var(--muted-foreground-strong)]">{aviso}</p>}
+            {/* Montada siempre: una región que nace con su texto no se anuncia (a11y, 27/09). */}
+            <p role="status" aria-live="polite" className="text-[12.5px] text-[var(--muted-foreground-strong)]">{sinPermiso ? '' : aviso ?? ''}</p>
           </div>
         )}
         {pastillas}
@@ -393,7 +394,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
         )}
       </div>
 
-      {aviso && !sinPermiso && <p role="status" aria-live="polite" className="text-base font-semibold text-[var(--muted-foreground-strong)]">{aviso}</p>}
+      <p role="status" aria-live="polite" className="text-base font-semibold text-[var(--muted-foreground-strong)]">{sinPermiso ? '' : aviso ?? ''}</p>
 
       <Tabs tamano="grande" className="[&_[role=tablist]]:grid [&_[role=tablist]]:grid-cols-2 lg:[&_[role=tablist]]:flex"
         etiqueta="Tipo de actividad" pestanas={PESTANAS_REGISTRO} valor={pestana} onCambio={setPestana}>

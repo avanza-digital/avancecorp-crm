@@ -40,6 +40,9 @@ const FILTROS_INICIALES: FiltrosEquipo = { busqueda: '', estado: 'todos', soloPr
  */
 const ANCHO_EN_LINEA = 1100
 
+/** El control con el foco; `<body>` no es un origen al que volver (como `ui/dialog`). */
+const enfocado = () => { const a = document.activeElement; return a instanceof HTMLElement && a !== document.body ? a : null }
+
 export function GestionDiariaSupervisor({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
   const { yo } = useAuth()
   const hoy = fechaLima(useAhora())
@@ -163,14 +166,15 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const abrirLlamadas = (id: string) => {
     const persona = dia?.equipo.find((f) => f.analista_id === id)
     if (!persona || sinPermiso) return
-    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    origen.current = enfocado()
     autoInhibida.current = true
     setSeleccion({ analista: id, nombre: persona.nombre_completo, pestana: 'llamadas', apertura: ++apertura.current, enfocar: true, origen: 'aviso' })
     setDevolverFocoAuxiliar(false); setAuxiliar(null)
     setAnuncio('Abierto el registro de llamadas solicitado.')
   }
-  const seleccionar = (persona: FilaEquipoPresentada) => {
-    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const seleccionar = (persona: FilaEquipoPresentada, control?: HTMLElement) => {
+    // El botón pulsado y nunca `<body>`: Safari no enfoca el botón al pulsarlo (a11y, 27/09).
+    origen.current = control ?? enfocado()
     // Pulsar a quien ya abrió la selección automática la hace SUYA.
     if (seleccion?.analista === persona.analista_id) {
       if (automatica) setSeleccion((s) => s && { ...s, origen: 'usuario' })

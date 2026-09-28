@@ -10,7 +10,8 @@ interface PropsTabla {
   filtros: FiltrosEquipo
   ordenar: (orden: OrdenEquipo) => void
   seleccion: string | null
-  seleccionar: (fila: FilaEquipoPresentada) => void
+  /** `control`: el botón pulsado, origen del foco al cerrar (Safari no lo enfoca al pulsarlo). */
+  seleccionar: (fila: FilaEquipoPresentada, control?: HTMLElement) => void
   panelId: string
   irAlDetalle: () => void
   minimo: number
@@ -70,7 +71,7 @@ function TablaSupervisor({ filas, filtros, ordenar, seleccion, seleccionar, pane
                   <div className="flex min-h-[52px] items-center gap-2.5">
                     <Avatar nombre={f.nombre_completo} color="var(--accent-press)" relleno={activa} />
                     <button type="button" aria-label={`Seleccionar a ${f.nombre_completo}`} aria-current={activa ? 'true' : undefined}
-                      aria-controls={panelId} onClick={() => seleccionar(f)}
+                      aria-controls={panelId} onClick={(e) => seleccionar(f, e.currentTarget)}
                       className={cn('min-w-0 flex-1 cursor-pointer rounded-md py-1 text-left text-sm font-bold leading-snug [overflow-wrap:anywhere] pointer-coarse:min-h-11', FOCO,
                         activa ? 'text-[var(--accent-press)]' : 'text-primary')}>{f.nombre_completo}</button>
                     {activa && <button type="button" aria-label={`Ir al detalle de ${f.nombre_completo}`} onClick={irAlDetalle}

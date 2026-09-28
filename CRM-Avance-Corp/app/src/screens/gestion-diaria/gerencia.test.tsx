@@ -262,6 +262,29 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     expect(within(equipo).getByRole('button', { name: /^Sin registro/ })).toHaveAttribute('aria-pressed', 'true')
     expect(within(equipo).getAllByRole('button', { name: /^Seleccionar a / }).map((b) => b.textContent)).toEqual(['ANALISTA CUATRO'])
   })
+  it('cerrar la ficha del analista —con «Cerrar» o con «Atrás»— devuelve el foco a su fila aunque el clic no la enfocara (a11y)', async () => {
+    // Los `location.hash =` de pruebas anteriores disparan su hashchange más tarde: se dejan pasar antes.
+    await act(() => new Promise<void>((listo) => setTimeout(listo, 20)))
+    const dos = pulso.datos!.equipos.find((e) => e.nombre === 'SUPERVISOR DOS')!
+    ruta(`#/gestion-diaria/equipo/${dos.clave}`)
+    render(<GestionDiariaGerencia />)
+    const fila = () => within(screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })).getByRole('button', { name: 'Seleccionar a ANALISTA TRES' })
+    const frame = () => act(() => new Promise<void>((listo) => requestAnimationFrame(() => listo())))
+    // En jsdom, como en Safari, pulsar no enfoca el botón: el foco sigue en el body.
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    fireEvent.click(fila()); act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    expect(document.body).toHaveFocus()
+    fireEvent.click(within(screen.getByRole('region', { name: 'Detalle de ANALISTA TRES' })).getByRole('button', { name: 'Cerrar detalle' }))
+    act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    await frame()
+    expect(fila()).toHaveFocus()
+    // «Atrás» del navegador: la ruta cambia sin pasar por «Cerrar».
+    fireEvent.click(fila()); act(() => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    ruta(`#/gestion-diaria/equipo/${dos.clave}`)
+    await frame()
+    expect(fila()).toHaveFocus()
+  })
   it('desde «Necesitan atención» se entra al equipo con esa persona elegida y su ficha enfocada', () => {
     render(<GestionDiariaGerencia />)
     const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR DOS' })
@@ -296,7 +319,7 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar equipo' }), { target: { value: 'ANIDADO' } })
     fireEvent.click(screen.getByRole('button', { name: /^Con atención/ }))
     expect(screen.getByRole('searchbox', { name: 'Buscar equipo' })).toHaveValue('')
-    fireEvent.click(screen.getByRole('button', { name: '1 citas agendadas del Equipo de SUPERVISOR DOS: ver por analista' }))
+    fireEvent.click(screen.getByRole('button', { name: '1 cita agendada del Equipo de SUPERVISOR DOS: ver por analista' }))
     expect(within(screen.getByRole('region', { name: 'Equipo de SUPERVISOR DOS' })).getByRole('button', { name: 'Ordenar por citas' }).closest('th')).toHaveAttribute('aria-sort', 'descending')
   })
   it('si falla el detalle, la ficha dice «no disponible» en vez de consultar para siempre', () => {

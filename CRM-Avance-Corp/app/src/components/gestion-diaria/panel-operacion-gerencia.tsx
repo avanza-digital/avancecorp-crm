@@ -57,8 +57,9 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
 }): JSX.Element {
   const equipo = vista?.tipo === 'equipo' || (vista?.tipo === 'registro' && vista.alcance !== 'general')
     ? pulso.equipos.find((e) => e.clave === (vista.tipo === 'equipo' ? vista.clave : vista.alcance)) : undefined
-  const nombre = equipo ? nombreEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : ''
-  const del = equipo ? delEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : ''
+  // Si el equipo sale de la consulta, el título (y el nombre de la ventana) no queda vacío (a11y, 27/09).
+  const nombre = equipo ? nombreEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : 'Equipo no disponible'
+  const del = equipo ? delEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : 'del equipo no disponible'
   const titulo = vista === null ? 'Detalle de la operación' : vista.tipo === 'sin_registro' ? 'Sin registro'
     : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro ${del}` : nombre
   // Como la ficha del supervisor (Miguel, 27/09): un nombre corto arriba y una línea
@@ -114,22 +115,22 @@ function FichaEquipo({ equipo: e, del, detalle, detalleFallido, esHoy, abrirVist
         <Cuadro etiqueta="Llamadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.llamadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{plural(m.contestadas, 'contestó', 'contestaron')}</span>
-          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={llamadas} aria-label={`Ver llamadas ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Contacto">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.tasa_contacto === null ? '—' : `${Math.round(m.tasa_contacto)} %`}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">de {plural(m.utiles, 'llamada útil', 'llamadas útiles')}</span>
-          <button type="button" onClick={llamadas} aria-label={`Ver las llamadas y su resultado ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={llamadas} aria-label={`Ver llamadas y su resultado ${del}`} className={ENLACE}>Ver llamadas<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Citas agendadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.citas_agendadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{esHoy ? 'hoy' : 'ese día'}</span>
-          <button type="button" onClick={() => entrarEquipo(e.clave, 'citas')} aria-label={`Ver las citas por analista ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={() => entrarEquipo(e.clave, 'citas')} aria-label={`Ver por analista las citas ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Tareas vencidas">
           <span className={cn('block text-[28px] font-extrabold leading-tight tabular-nums', e.tareas_vencidas > 0 ? 'text-[var(--destructive-text)]' : 'text-primary')}>{e.tareas_vencidas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">siguen pendientes</span>
-          <button type="button" onClick={() => entrarEquipo(e.clave, 'vencidas')} aria-label={`Ver las vencidas por analista ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={() => entrarEquipo(e.clave, 'vencidas')} aria-label={`Ver por analista las vencidas ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
       </dl>
 

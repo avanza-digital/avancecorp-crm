@@ -47,6 +47,13 @@ interface TabsProps<V extends string> {
    * pestañas anidadas se suman dos antes de llegar a algo útil (a11y, 27/09).
    */
   panelEnfocable?: boolean | undefined
+  /**
+   * Botones al final de la fila de pestañas (gerencia, 27/09: «no puede ocupar
+   * tanto espacio»). La fila lleva la raya del `subrayado` y se parte si no cabe.
+   */
+  acciones?: ReactNode | undefined
+  /** Clases del propio `tablist` (medidas de sus pestañas). */
+  claseLista?: string | undefined
 }
 
 const CLASES_TAMANO = {
@@ -86,7 +93,7 @@ function idsDeTab(idBase: string, valor: string): { tab: string; panel: string }
   return { tab: `${idBase}-tab-${valor}`, panel: `${idBase}-panel-${valor}` }
 }
 
-export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className, tamano = 'normal', variante = 'segmentado', clasePanel, panelEnfocable = true }: TabsProps<V>) {
+export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, children, className, tamano = 'normal', variante = 'segmentado', clasePanel, panelEnfocable = true, acciones, claseLista }: TabsProps<V>) {
   const medidas = CLASES_TAMANO[tamano]
   const aspecto = CLASES_VARIANTE[variante]
   const idAuto = useId()
@@ -108,9 +115,8 @@ export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, ch
   }
 
   const activo = idsDeTab(base, valor)
-  return (
-    <div className={cn('space-y-3', className)}>
-      <div role="tablist" aria-label={etiqueta} className={aspecto.lista}>
+  const lista = (
+      <div role="tablist" aria-label={etiqueta} className={cn(aspecto.lista, acciones !== undefined && 'w-auto border-b-0', claseLista)}>
         {pestanas.map((p) => {
           const ids = idsDeTab(base, p.valor)
           const seleccionada = p.valor === valor
@@ -138,6 +144,15 @@ export function Tabs<V extends string>({ etiqueta, pestanas, valor, onCambio, ch
           )
         })}
       </div>
+  )
+  return (
+    <div className={cn('space-y-3', className)}>
+      {acciones === undefined ? lista : (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border">
+          {lista}
+          <div className="flex min-w-0 flex-wrap items-center gap-2 py-1">{acciones}</div>
+        </div>
+      )}
       {children !== undefined && (
         <div role="tabpanel" id={activo.panel} aria-labelledby={activo.tab} tabIndex={panelEnfocable ? 0 : undefined} className={cn('focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40', clasePanel)}>
           {children}

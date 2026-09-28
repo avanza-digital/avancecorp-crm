@@ -28,7 +28,11 @@ const rutaAnalista = (id: string) => hashDe('gestion-diaria', null, undefined, u
 const rutaEquipo = (clave: string) => hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'equipo', id: clave })
 const navegarEnVentana = (e: MouseEvent<HTMLAnchorElement>) => !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey
 
-export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, recargar, minimo, dia, esHoy, ahora, analistaRuta, filtros, setFiltros, actualizacion, revocar, volver, abrirGeneral, enfocarAlEntrar = false }: {
+/** El control con el foco; `<body>` no es un origen al que volver (como `ui/dialog`). */
+const enfocado = () => { const a = document.activeElement; return a instanceof HTMLElement && a !== document.body ? a : null }
+const TITULO_ORDEN: Record<OrdenEquipo, string> = { nombre: 'nombre', llamadas: 'llamadas', contacto: 'contacto', pendientes: 'pendientes', citas: 'citas', vencidas: 'vencidas', atencion: 'atención' }
+
+export function VistaEquipoGerencia({ hora = null, equipo, filas, error, cargando, enVuelo, recargar, minimo, dia, esHoy, ahora, analistaRuta, filtros, setFiltros, actualizacion, revocar, volver, abrirGeneral, enfocarAlEntrar = false }: {
   equipo: EquipoPulso
   /** Filas del detalle de los analistas ACTIVOS del equipo; null mientras llegan. */
   filas: FilaEquipoPresentada[] | null
@@ -44,6 +48,8 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
   filtros: FiltrosEquipo
   setFiltros: (cambio: (f: FiltrosEquipo) => FiltrosEquipo) => void
   actualizacion: number
+  /** Hora de la última consulta, como el pie del supervisor. */
+  hora?: string | null
   revocar: () => void
   volver: () => void
   abrirGeneral: () => void
@@ -59,7 +65,8 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
   const propia = useRef(false)
   const apertura = useRef(0)
   const autoInhibida = useRef(false)
-  const focoPendiente = useRef<string | null | undefined>(undefined)
+  const rutaPrevia = useRef(analistaRuta)
+  const [anuncio, setAnuncio] = useState('')
   const [local, setLocal] = useState<SeleccionSupervisor | null>(null)
   const [estrecho, setEstrecho] = useState(false)
   const [ampliado, setAmpliado] = useState(false)
@@ -113,15 +120,17 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
     const activo = document.activeElement
     if (activo instanceof HTMLElement && activo !== document.body && !document.getElementById(panelId)?.contains(activo)) return
     const enTabla = analista ? raiz.current?.querySelector<HTMLElement>(`tr[data-analista="${CSS.escape(analista)}"] button`) : null
-    const destino = origen.current?.isConnected ? origen.current : enTabla ?? tituloEquipo.current
+    // `<body>` no cuenta como origen (Safari no enfoca el botón al pulsarlo) y uno oculto tampoco (a11y, 27/09).
+    const destino = origen.current?.isConnected && origen.current.getClientRects().length ? origen.current : enTabla ?? tituloEquipo.current
     destino?.focus({ preventScroll: true })
     destino?.scrollIntoView?.({ block: 'nearest' })
   })
-  const seleccionar = (f: FilaEquipoPresentada) => {
-    origen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const seleccionar = (f: FilaEquipoPresentada, control?: HTMLElement) => {
+    origen.current = control ?? enfocado()
     propia.current = true
     setLocal(null)
     if (f.analista_id !== analistaRuta) window.location.hash = rutaAnalista(f.analista_id)
+    if (!estrecho) setAnuncio(`Seleccionado ${f.nombre_completo}. Detalle disponible.`)
   }
   const seleccionarAutor = (analista: string, control: HTMLElement) => {
     origen.current = control
@@ -134,27 +143,33 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
     autoInhibida.current = true
     setAmpliado(false)
     setLocal(null)
-    // Con una persona en la ruta, la ventana sigue abierta hasta que llega el cambio de ruta:
-    // devolver el foco antes lo rechaza su trampa y cae en el body (E2E, 27/09).
-    if (analistaRuta) { focoPendiente.current = analista; window.location.hash = rutaEquipo(equipo.clave) }
+    // Con una persona en la ruta, el foco vuelve cuando la ruta YA cambió (efecto de abajo): antes,
+    // la ventana seguía abierta, su trampa lo rechazaba y caía en el body (E2E, 27/09).
+    if (analistaRuta) window.location.hash = rutaEquipo(equipo.clave)
     else devolverFoco(analista)
   }
+  // Cualquier salida de la persona de la ruta —«Cerrar», Escape, clic fuera o «Atrás» del
+  // navegador— devuelve el foco; abrir «Registro del equipo» trae el suyo (a11y, 27/09).
   useLayoutEffect(() => {
-    if (analistaRuta || focoPendiente.current === undefined) return
-    const analista = focoPendiente.current
-    focoPendiente.current = undefined
-    devolverFoco(analista)
+    const previa = rutaPrevia.current
+    rutaPrevia.current = analistaRuta
+    if (previa && !analistaRuta && local === null) devolverFoco(previa)
   })
   const abrirRegistroEquipo = (control: HTMLElement) => {
     origen.current = control
     if (analistaRuta) window.location.hash = rutaEquipo(equipo.clave)
     setLocal({ analista: null, nombre: null, apertura: ++apertura.current, pestana: 'todo', enfocar: true, origen: 'usuario' })
   }
-  const ordenar = (orden: OrdenEquipo) => setFiltros((f) => ({ ...f, orden, ascendente: f.orden === orden ? !f.ascendente : orden === 'nombre' }))
+  const ordenar = (orden: OrdenEquipo) => {
+    const ascendente = filtros.orden === orden ? !filtros.ascendente : orden === 'nombre'
+    setFiltros((f) => ({ ...f, orden, ascendente }))
+    setAnuncio(`Ordenado por ${TITULO_ORDEN[orden]}, ${ascendente ? 'ascendente' : 'descendente'}.`)
+  }
   const volverClick = (e: MouseEvent<HTMLAnchorElement>) => { if (navegarEnVentana(e)) { e.preventDefault(); volver() } }
 
   return (
     <section ref={raiz} aria-label={nombre} className="flex min-h-0 flex-1 flex-col gap-3">
+      <p role="status" className="sr-only">{anuncio}</p>
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <nav aria-label="Ruta de la operación" className="flex flex-wrap items-center gap-1 text-[12.5px] text-[var(--muted-foreground-strong)]">
@@ -179,7 +194,7 @@ export function VistaEquipoGerencia({ equipo, filas, error, cargando, enVuelo, r
                     seleccionar={seleccionar} panelId={panelId} minimo={minimo ?? 1}
                     irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />}
                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
-                  <p><span role="status">{mostradas.length} de {filas.length} analistas</span></p>
+                  <p><span role="status">{mostradas.length} de {filas.length} analistas</span>{hora && <> · Actualizado {hora}</>}</p>
                   <p>La actividad registrada no acredita presencia.</p>
                 </div>
                 {equipo.personas.some((p) => !p.activo) && (

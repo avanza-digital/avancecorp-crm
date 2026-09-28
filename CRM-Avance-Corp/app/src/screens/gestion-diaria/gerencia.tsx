@@ -1,4 +1,3 @@
-/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar la comparación con el teclado. */
 // «Toda la operación» de gerencia con el diseño de Gestión Diaria y las mejoras
 // del supervisor (Miguel, 27/09/2026): cifras finas que abren su lista, tabla de
 // equipos protagonista, ficha del equipo al lado y, dentro de cada equipo, la
@@ -11,7 +10,7 @@ import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
 import { cifraPulso, diaPulsoValido, desplazarDia, type MetricasPulso, type PulsoGerencia } from '@/lib/gestion-diaria-pulso'
 import { presentarEquipo, type FiltrosEquipo } from '@/lib/gestion-diaria-equipo'
-import { equipoConAtencion, filasOperacion, filtrarOrdenarOperacion, filtrosDePreset, totalOperacion, type FiltrosOperacion, type OrdenOperacion, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
+import { equipoConAtencion, filasOperacion, filtrarOrdenarOperacion, filtrosDePreset, nombreEquipo, totalOperacion, type FiltrosOperacion, type OrdenOperacion, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
 import { hashDe, leerHash } from '@/lib/router'
 import { CrmApiError } from '@/data/crm-api'
 import { usePulsoGerencia, useHabitosGerencia, useDetallePulso } from '@/data/gestion-diaria-pulso-queries'
@@ -69,6 +68,10 @@ const ANCHO_EN_LINEA = 1040
 const FILTROS_OPERACION: FiltrosOperacion = { busqueda: '', estado: 'todos', orden: 'atencion', ascendente: false }
 const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 const FECHA_CORTE = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+const TITULO_ORDEN: Record<OrdenOperacion, string> = {
+  nombre: 'equipo', llamadas: 'llamadas', contacto: 'contacto', citas: 'citas', vencidas: 'vencidas',
+  atencion: 'atención', primer_intento: 'primer intento', dispersion: 'dispersión',
+}
 const rutaDe = (tipo: 'equipo' | 'analista', id: string) => hashDe('gestion-diaria', null, undefined, undefined, { tipo, id })
 
 function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: string; accesoSeguimiento?: ReactNode }) {
@@ -151,6 +154,19 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   // Una automática que se queda sin sitio se cierra, sin abrir ninguna ventana.
   useLayoutEffect(() => { if (estrecho && ficha?.origen === 'automatica') setFicha(null) }, [estrecho, ficha])
   useEffect(() => { if (!ruta) equipoEnfocado.current = null; else if (grupo) equipoEnfocado.current = grupo.clave })
+  // «Atrás» desde un equipo: su vista se desmonta con el foco dentro y cae en el body;
+  // se recoloca en la fila del equipo, como hace la miga (a11y, 27/09).
+  const equipoPrevio = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const previo = equipoPrevio.current
+    equipoPrevio.current = ruta && grupo ? grupo.clave : null
+    if (!previo || ruta) return
+    requestAnimationFrame(() => {
+      const activo = document.activeElement
+      if (activo instanceof HTMLElement && activo !== document.body) return
+      ;(pantalla.current?.querySelector<HTMLElement>(`tr[data-equipo="${CSS.escape(previo)}"] th button`) ?? titulo.current)?.focus({ preventScroll: true })
+    })
+  })
   // Abrir una lista lejos del control (registro, sin registro) lleva el foco a la ficha.
   useLayoutEffect(() => { if (pedidoFoco) tituloPanel.current?.focus({ preventScroll: true }) }, [pedidoFoco])
   // El período vive en la barra de Hábitos, que se vuelve a montar con la consulta nueva:
@@ -175,7 +191,8 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
     setActualizacion((n) => n + 1)
   }
   const abrirFicha = (vista: VistaOperacion, control: HTMLElement | null, enfocar: boolean) => {
-    origenPanel.current = control ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    const activo = document.activeElement
+    origenPanel.current = control ?? (activo instanceof HTMLElement && activo !== document.body ? activo : null)
     setFicha({ vista, origen: 'usuario' })
     if (enfocar) setPedidoFoco((n) => n + 1)
   }
@@ -220,8 +237,9 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
     }
   }
   const ordenar = (orden: OrdenOperacion) => {
-    setFiltros((f) => ({ ...f, orden, ascendente: f.orden === orden ? !f.ascendente : orden === 'nombre' }))
-    setAnuncio(`Equipos ordenados por ${orden === 'primer_intento' ? 'primer intento' : orden}.`)
+    const ascendente = filtros.orden === orden ? !filtros.ascendente : orden === 'nombre'
+    setFiltros((f) => ({ ...f, orden, ascendente }))
+    setAnuncio(`Equipos ordenados por ${TITULO_ORDEN[orden]}, ${ascendente ? 'ascendente' : 'descendente'}.`)
   }
   const hora = datos ? horaLimaDe(datos.generado_en) : null
 
@@ -242,7 +260,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
       error={detalle.error} cargando={detalle.cargando} enVuelo={detalle.enVuelo} recargar={detalle.recargar} minimo={detalle.datos?.umbrales.minimo_llamadas_utiles}
       dia={dia} esHoy={esHoy} ahora={ahora} analistaRuta={ruta.tipo === 'analista' ? ruta.id : null}
       filtros={filtrosPorEquipo[grupo.clave] ?? filtrosDePreset()} setFiltros={(cambio) => setFiltrosPorEquipo((p) => ({ ...p, [grupo.clave]: cambio(p[grupo.clave] ?? filtrosDePreset()) }))}
-      actualizacion={actualizacion} revocar={revocar} volver={() => volverOperacion(grupo.clave)}
+      actualizacion={actualizacion} hora={hora} revocar={revocar} volver={() => volverOperacion(grupo.clave)}
       abrirGeneral={() => { volverOperacion(undefined, false); abrirRegistroGeneral(null) }} enfocarAlEntrar={equipoEnfocado.current !== grupo.clave} />
   } else if (ruta) contenido = <p role="status" className="rounded-2xl border border-border bg-card p-6 text-[13.5px]">Este equipo o autor ya no aparece en el ámbito actual.{' '}
     <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={() => volverOperacion()}>Volver a toda la operación</button></p>
@@ -255,7 +273,11 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
         </div>}
         <TablaEquiposGerencia filas={mostradas} total={filasOp.length} conteos={conteos} sinDetalle={detalle.error ? 'error' : 'cargando'} umbrales={detalle.datos?.umbrales ?? null}
           filtros={filtros} setFiltros={setFiltros} ordenar={ordenar}
-          seleccion={ficha?.vista.tipo === 'equipo' ? ficha.vista.clave : null} seleccionar={(f, control) => abrirFicha({ tipo: 'equipo', clave: f.clave }, control, false)}
+          seleccion={ficha?.vista.tipo === 'equipo' ? ficha.vista.clave : null} seleccionar={(f, control) => {
+            abrirFicha({ tipo: 'equipo', clave: f.clave }, control, false)
+            // Con la ficha al lado nada se mueve: se anuncia, como el supervisor (a11y, 27/09).
+            if (!estrecho) setAnuncio(`Seleccionado ${nombreEquipo(f)}. Detalle disponible.`)
+          }}
           accion={(f, tipo, control) => tipo === 'llamadas'
             ? abrirFicha({ tipo: 'registro', alcance: f.clave, pestana: 'llamadas', apertura: ++aperturas.current }, control, true)
             : entrarEquipo(f.clave, tipo)} totalOperacion={total!} accionTotal={accionTotal} panelId={panelId}
@@ -286,6 +308,8 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             {esHoy ? 'Cómo va el día frente a ayer y a los días de referencia.' : `El ${FECHA_LARGA.format(new Date(`${dia}T12:00:00-05:00`))} frente al día anterior y a los días de referencia.`}
           </p>
         </div>
+        {/* Solo el filtro de fecha junto al título (Miguel, 27/09: «eso debe estar pero no puede
+            ocupar tanto espacio»); los demás botones van al final de la fila de pestañas. */}
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label><span className="sr-only">Día de la operación</span>
             <Input ref={entrada} type="date" defaultValue={dia} min={desplazarDia(hoy, -365)} max={hoy} aria-describedby={avisoFecha ? `${id}-aviso` : undefined}
@@ -299,13 +323,22 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
               onBlur={(e) => { e.currentTarget.value = dia }} />
           </label>
           <button type="button" className={BOTON_CABECERA} aria-disabled={esHoy} onClick={() => { if (!esHoy) cambiarDia(hoy) }}>Hoy</button>
+        </div>
+      </header>
+      {avisoFecha && <p role="alert" id={`${id}-aviso`} className="text-[13px] font-semibold text-[var(--destructive-text)]">{avisoFecha}</p>}
+      <p role="status" className="sr-only">{anuncio}</p>
+      <Tabs etiqueta="Vistas de gerencia" variante="subrayado" pestanas={PESTANAS} valor={activa} panelEnfocable={false}
+        onCambio={(valor) => { setPestana(valor); if (ruta) window.location.hash = hashDe('gestion-diaria') }}
+        className="flex min-h-0 flex-1 flex-col space-y-0"
+        claseLista="gap-[22px] [&>[role=tab]]:min-h-[42px] [&>[role=tab]]:text-sm pointer-coarse:[&>[role=tab]]:min-h-11"
+        acciones={<div role="group" aria-label="Acciones de la operación" className="flex min-w-0 flex-wrap items-center gap-2">
           {accesoSeguimiento}
           <button type="button" className={BOTON_CABECERA} aria-disabled={!registroDisponible}
             onClick={(e) => { if (registroDisponible) { if (ruta) window.location.hash = hashDe('gestion-diaria'); setPestana('pulso'); abrirRegistroGeneral(e.currentTarget) } }}>
             <ClipboardList aria-hidden className="size-4" />Registro general
           </button>
-          {hora && <p className="whitespace-nowrap pl-1 text-xs tabular-nums text-[var(--muted-foreground-strong)]">Actualizado {hora}</p>}
-          <button type="button" className={BOTON_CABECERA} aria-disabled={consulta.enVuelo || sinPermiso} aria-busy={consulta.enVuelo}
+          {/* «Actualizado HH:MM» ya va en el pie de la tabla: aquí restaba el sitio que deja la fila en una línea. */}
+          <button type="button" className={BOTON_CABECERA} aria-disabled={consulta.enVuelo || sinPermiso} aria-busy={consulta.enVuelo} title={hora ? `Actualizado ${hora}` : undefined}
             onClick={() => { if (!consulta.enVuelo && !sinPermiso) void actualizar() }}>
             <RefreshCw aria-hidden className={cn('size-4', consulta.enVuelo && 'motion-safe:animate-spin')} />Actualizar
           </button>
@@ -316,13 +349,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
             aria-disabled={!datos || sinPermiso} onClick={() => { if (datos && !sinPermiso) setDialogo('definiciones') }}>
             <Info aria-hidden className="size-4" />
           </button>
-        </div>
-      </header>
-      {avisoFecha && <p role="alert" id={`${id}-aviso`} className="text-[13px] font-semibold text-[var(--destructive-text)]">{avisoFecha}</p>}
-      <p role="status" className="sr-only">{anuncio}</p>
-      <Tabs etiqueta="Vistas de gerencia" variante="subrayado" pestanas={PESTANAS} valor={activa} panelEnfocable={false}
-        onCambio={(valor) => { setPestana(valor); if (ruta) window.location.hash = hashDe('gestion-diaria') }}
-        className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-[22px] [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm pointer-coarse:[&>[role=tablist]>[role=tab]]:min-h-11"
+        </div>}
         clasePanel="flex min-h-0 flex-1 flex-col gap-4 pt-4">
         {contenido}
       </Tabs>
@@ -341,6 +368,7 @@ function DialogoComparacion({ datos: d, contenido, cerrar }: { datos: PulsoGeren
         <p className="text-[13px] text-[var(--muted-foreground-strong)]">Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 jornadas con actividad.</p>
         {d.dia === fechaLima(Date.parse(d.generado_en)) && <p className="text-[13px] text-[var(--muted-foreground-strong)]">Hoy en curso; referencias de jornadas completas.</p>}
         {/* La tabla de la pantalla (G3): 13 px, cabecera tenue, cifras alineadas a la derecha. */}
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar la comparación con el teclado. */}
         <div className={cn('ac-scroll overflow-x-auto rounded-xl border border-border', FOCO)} tabIndex={0} role="region" aria-label="Desplazar comparación de días">
           <table className="w-full min-w-[480px] border-separate border-spacing-0 text-[13px]" aria-label="Cifras del día, anterior y referencia">
             <thead className="bg-muted/70 text-[12.5px] text-[var(--muted-foreground-strong)]"><tr>
