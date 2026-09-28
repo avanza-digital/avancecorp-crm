@@ -14010,3 +14010,34 @@ tareas activas. Preflight con las huellas vivas (ámbito af06…, núcleo f49d�
 d69d…, gate 4244…); el gate H3 se re-sella sustituyendo solo la huella del núcleo.
 Reversa: `supabase/scripts/g4/reversa-g4a.sql` (si el front ya muestra Pendientes a
 Gerencia, revertir PRIMERO el front). Orden: base antes que front.
+
+## 20260928044910 — Gestión Diaria: lista exacta de «Citas agendadas» (G4b)
+
+**⏸️ PENDIENTE DE APLICAR.** Plan G4 v2 aprobado por Miguel («G4a y luego G4b») y
+revisado por Codex. Lectura nueva, sin tablas ni escrituras: puerta
+`crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite, p_despues_de, p_despues_id)`
+y núcleo `private.gestion_diaria_citas_core`, ambos INVOKER bajo la RLS de
+`crm.tareas`. La definición es la de la cifra (`private.gestion_diaria_llamadas` y el
+pulso): tareas `reunion` creadas en el día Lima, sin filtrar estado ni activo en el
+SQL. Ámbito explícito decidido en el servidor: `analista` (Supervisión su árbol,
+Gerencia toda la operación), `equipo`, `fuera` y `operacion` (solo Gerencia, con la
+partición del pulso). Roles explícitos antes del ámbito; coordinación, analistas,
+lector global y rol nulo reciben 42501. Total por `cardinality(array_agg())`, como la
+cifra que lista (no abre un contador nuevo en el censo analítico).
+
+Gate `private.assert_gestion_diaria_citas()` (huellas, INVOKER, ACL, `search_path` y las
+fuentes de la cifra) enchufado a `private.assert_gestion_diaria()` con sustitución de
+fragmento único. Preflight con las huellas vivas del 27/09. Orden: la base antes del
+front; independiente de G4a (20260928043728). Reversa: `supabase/scripts/g4/reversa-g4b.sql`.
+Pruebas: `supabase/scripts/g4/test-g4b.sql` en el banco sintético G4.
+
+Banco G4 (28/09, esquema de producción con paridad por md5): ensayo sin commit para
+medir las huellas; aplicada, reversa exacta (el paraguas vuelve a `5d9dbf08…`) y
+reaplicada, antes y después de instalar G4a; `test-g4b.sql` → `G4B_OK` (lista = cifra
+del detalle, del pulso y de `gestion_diaria_llamadas`; partición de la operación;
+bordes del día Lima, empates, inactiva, postventa, sin autor, supervisor retirado,
+anidados, `reprogramada`; denegaciones) y `test-g4a.sql` sigue en `G4A_OK`. Dos
+mutantes cazados por «lista = cifra» (borde `<=` del día y «fuera» sin las citas sin
+autor). Huellas selladas: núcleo `904d3b0a853a6cf794943217fc957f03`, puerta
+`fd2b0376be5e8c6728e4c33776e1a9e4`, paraguas `58208b4fba6d2f76554e19e21444fe94`.
+Tipos: el bloque generado desde el banco coincide con el de `database.types.ts`.

@@ -82,3 +82,15 @@ describe('ResumenAnalista', () => {
     expect(within(screen.getByRole('list', { name: 'Otros motivos de atención' })).getByText('Tareas vencidas')).toBeInTheDocument()
   })
 })
+
+describe('G4b: «Citas agendadas» abre su lista', () => {
+  it('con abrirCitas, el cuadro lleva «Ver citas»; sin él, no ofrece un enlace muerto', () => {
+    const abrirCitas = vi.fn()
+    const { unmount } = render(<ResumenAnalista fila={conLlamadas} dia="2026-09-21" minimo={5} esHoy ahora={AHORA} abrirLlamadas={vi.fn()} abrirCitas={abrirCitas} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver citas agendadas de KAREN DÍAZ' }))
+    expect(abrirCitas).toHaveBeenCalledOnce()
+    unmount()
+    montar(conLlamadas)
+    expect(screen.queryByRole('button', { name: /^Ver citas/ })).not.toBeInTheDocument()
+  })
+})

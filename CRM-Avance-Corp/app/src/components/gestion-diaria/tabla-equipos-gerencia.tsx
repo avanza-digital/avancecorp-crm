@@ -167,8 +167,8 @@ function CifrasEquipo({ f, del, en, abrir, umbrales, sinDetalle, total = false }
   umbrales: v.InferOutput<typeof UmbralesSchema> | null; sinDetalle: 'cargando' | 'error'; total?: boolean
 }): JSX.Element {
   const ver = total
-    ? { llamadas: 'ver en el registro general', citas: 'ver los equipos ordenados por citas', vencidas: 'ver los equipos con vencidas', atencion: 'ver los equipos con atención' }
-    : { llamadas: 'ver en el registro', citas: 'ver por analista', vencidas: 'ver por analista', atencion: 'ver quiénes' }
+    ? { llamadas: 'ver en el registro general', citas: 'ver la lista', vencidas: 'ver los equipos con vencidas', atencion: 'ver los equipos con atención' }
+    : { llamadas: 'ver en el registro', citas: 'ver la lista', vencidas: 'ver por analista', atencion: 'ver quiénes' }
   return <>
     <td data-etiqueta="Llamadas" className="px-2 text-right text-sm tabular-nums text-foreground">
       {f.llamadas > 0 || total ? <button type="button" onClick={(e) => abrir('llamadas', e.currentTarget)} aria-label={`${plural(f.llamadas, 'llamada', 'llamadas')} ${del}: ${ver.llamadas}`}

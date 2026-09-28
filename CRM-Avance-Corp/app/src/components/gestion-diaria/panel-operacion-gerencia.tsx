@@ -5,7 +5,7 @@
 // analistas activos, y lo dice (revisión Codex del plan).
 import { useRef, type JSX, type ReactNode, type RefObject } from 'react'
 import { Title as TituloDialogo } from '@radix-ui/react-dialog'
-import { ChevronRight, ClipboardList, Maximize2, Minimize2, UserX, Users, X } from 'lucide-react'
+import { CalendarCheck, ChevronRight, ClipboardList, Maximize2, Minimize2, UserX, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { cifraPulso, type EquipoPulso, type PulsoGerencia } from '@/lib/gestion-diaria-pulso'
 import { atencionEquipo, barrasEquipo, delEquipo, nombreEquipo, personasSinRegistro, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
@@ -14,12 +14,15 @@ import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { cn } from '@/lib/utils'
 import { BarrasPorHora } from './barras-por-hora'
 import { RegistroActividad } from './registro-actividad'
+import { CitasAgendadas } from './citas-agendadas'
 import { BOTON_ICONO, CABECERA_FICHA, FICHA, FOCO, TITULO_FICHA } from './estilos-gestion'
 
 export type VistaOperacion =
   | { tipo: 'equipo'; clave: string }
   | { tipo: 'sin_registro' }
   | { tipo: 'registro'; alcance: 'general' | string; pestana: PestanaRegistro; apertura: number }
+  /** G4b: la lista exacta de «Citas agendadas» de la operación, de un equipo o de «fuera». */
+  | { tipo: 'citas'; ambito: 'operacion' | 'equipo' | 'fuera'; clave: string | null; apertura: number }
 
 export type { PresetEquipo } from '@/lib/gestion-diaria-operacion'
 
@@ -55,31 +58,36 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
   actualizacion: number
   revocar: () => void
 }): JSX.Element {
-  const equipo = vista?.tipo === 'equipo' || (vista?.tipo === 'registro' && vista.alcance !== 'general')
-    ? pulso.equipos.find((e) => e.clave === (vista.tipo === 'equipo' ? vista.clave : vista.alcance)) : undefined
+  const claveEquipo = vista?.tipo === 'equipo' ? vista.clave : vista?.tipo === 'registro' && vista.alcance !== 'general' ? vista.alcance
+    : vista?.tipo === 'citas' && vista.ambito !== 'operacion' ? vista.ambito === 'fuera' ? 'fuera' : vista.clave : null
+  const equipo = claveEquipo === null ? undefined : pulso.equipos.find((e) => e.clave === claveEquipo)
   // Si el equipo sale de la consulta, el título (y el nombre de la ventana) no queda vacío (a11y, 27/09).
   const nombre = equipo ? nombreEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : 'Equipo no disponible'
   const del = equipo ? delEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : 'del equipo no disponible'
   const titulo = vista === null ? 'Detalle de la operación' : vista.tipo === 'sin_registro' ? 'Sin registro'
-    : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro ${del}` : nombre
+    : vista.tipo === 'citas' ? 'Citas agendadas'
+      : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro ${del}` : nombre
   // Como la ficha del supervisor (Miguel, 27/09): un nombre corto arriba y una línea
   // debajo. Se ve el nombre del supervisor; se oye «Detalle del Equipo de …».
   const fuera = equipo?.clave === 'fuera'
   const subtitulo = vista === null ? null : vista.tipo === 'sin_registro'
     ? `${plural(pulso.actual.sin_actividad, 'analista sin ninguna gestión', 'analistas sin ninguna gestión')} ${esHoy ? 'hoy' : 'ese día'}`
     : vista.tipo === 'registro' ? equipo ? nombre : null
-      : equipo ? `${fuera ? '' : 'Equipo de '}${plural(equipo.metricas.analistas_activos, 'analista', 'analistas')}` : null
+      : vista.tipo === 'citas' ? vista.ambito === 'operacion' ? 'Toda la operación' : nombre
+        : equipo ? `${fuera ? '' : 'Equipo de '}${plural(equipo.metricas.analistas_activos, 'analista', 'analistas')}` : null
   return (
     <section id={id} aria-label={vista?.tipo === 'equipo' ? `Detalle ${del}` : titulo} className={FICHA}>
       <header className={CABECERA_FICHA}>
         {vista?.tipo === 'equipo' && equipo ? <Avatar nombre={equipo.nombre} color="var(--accent-press)" relleno className="size-11 text-[15px]" />
           : <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-primary">
-            {vista?.tipo === 'sin_registro' ? <UserX className="size-4" /> : vista?.tipo === 'registro' ? <ClipboardList className="size-4" /> : <Users className="size-4" />}
+            {vista?.tipo === 'sin_registro' ? <UserX className="size-4" /> : vista?.tipo === 'registro' ? <ClipboardList className="size-4" />
+              : vista?.tipo === 'citas' ? <CalendarCheck className="size-4" /> : <Users className="size-4" />}
           </span>}
         <div className="min-w-0 flex-1">
           <TituloDialogo asChild><h3 ref={tituloRef} tabIndex={-1} className={TITULO_FICHA}>
             {vista?.tipo === 'equipo' && equipo ? <><span className="sr-only">{fuera ? 'Detalle del grupo' : 'Detalle del Equipo de'}</span>{' '}{equipo.nombre}</>
-              : vista?.tipo === 'registro' && equipo ? <>Registro del equipo<span className="sr-only">: {nombre}</span></> : titulo}
+              : vista?.tipo === 'registro' && equipo ? <>Registro del equipo<span className="sr-only">: {nombre}</span></>
+                : vista?.tipo === 'citas' ? <>Citas agendadas<span className="sr-only">: {subtitulo}</span></> : titulo}
           </h3></TituloDialogo>
           {subtitulo && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground-strong)]">{subtitulo}</p>}
         </div>
@@ -95,6 +103,7 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
             ? <FichaEquipo equipo={equipo} del={del} detalle={detalle} detalleFallido={detalleFallido} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
             : <p role="status" className="px-5 py-4 text-[13px]">Este equipo ya no aparece en la consulta. Elige otro de la tabla.</p>
             : vista.tipo === 'sin_registro' ? <ListaSinRegistro pulso={pulso} esHoy={esHoy} abrirPersona={abrirPersona} />
+              : vista.tipo === 'citas' ? <CitasOperacion key={`${vista.ambito}:${vista.clave}:${vista.apertura}`} vista={vista} dia={pulso.dia} esHoy={esHoy} actualizacion={actualizacion} revocar={revocar} />
               : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} esHoy={esHoy} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: vista.pestana, apertura: vista.apertura + 1 })} />}
       </div>
     </section>
@@ -125,7 +134,8 @@ function FichaEquipo({ equipo: e, del, detalle, detalleFallido, esHoy, abrirVist
         <Cuadro etiqueta="Citas agendadas">
           <span className="block text-[28px] font-extrabold leading-tight tabular-nums text-primary">{m.citas_agendadas}</span>
           <span className="block text-xs text-[var(--muted-foreground-strong)]">{esHoy ? 'hoy' : 'ese día'}</span>
-          <button type="button" onClick={() => entrarEquipo(e.clave, 'citas')} aria-label={`Ver por analista las citas ${del}`} className={ENLACE}>Ver por analista<ChevronRight aria-hidden className="size-3.5" /></button>
+          <button type="button" onClick={() => abrirVista({ tipo: 'citas', ambito: e.clave === 'fuera' ? 'fuera' : 'equipo', clave: e.clave === 'fuera' ? null : e.clave, apertura: Date.now() })}
+            aria-label={`Ver citas agendadas ${del}`} className={ENLACE}>Ver citas<ChevronRight aria-hidden className="size-3.5" /></button>
         </Cuadro>
         <Cuadro etiqueta="Tareas vencidas">
           <span className={cn('block text-[28px] font-extrabold leading-tight tabular-nums', e.tareas_vencidas > 0 ? 'text-[var(--destructive-text)]' : 'text-primary')}>{e.tareas_vencidas}</span>
@@ -216,6 +226,22 @@ function ListaSinRegistro({ pulso, esHoy, abrirPersona }: { pulso: PulsoGerencia
 }
 
 const FECHA_TITULO = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+
+/** G4b: la lista exacta de citas agendadas del ámbito elegido; cada fila dice su analista. */
+function CitasOperacion({ vista, dia, esHoy, actualizacion, revocar }: {
+  vista: Extract<VistaOperacion, { tipo: 'citas' }>; dia: string; esHoy: boolean; actualizacion: number; revocar: () => void
+}): JSX.Element {
+  const titulo = useRef<HTMLHeadingElement>(null)
+  return (
+    <section aria-label="Citas seleccionadas" className="space-y-2 px-5 py-4">
+      <h4 ref={titulo} tabIndex={-1} className={cn('rounded-md text-[15px] font-extrabold text-primary', FOCO)}>
+        {esHoy ? 'Citas agendadas hoy' : `Citas agendadas el ${FECHA_TITULO.format(new Date(`${dia}T12:00:00-05:00`))}`}
+      </h4>
+      <CitasAgendadas dia={dia} esHoy={esHoy} ambito={vista.ambito} id={vista.ambito === 'equipo' ? vista.clave : null} mostrarAnalista
+        visible actualizacion={actualizacion} revalidar={revocar} encabezado={titulo} />
+    </section>
+  )
+}
 
 function RegistroOperacion({ vista, pulso, equipo, esHoy, actualizacion, revocar, abrirGeneral }: {
   vista: Extract<VistaOperacion, { tipo: 'registro' }>; pulso: PulsoGerencia; equipo: EquipoPulso | undefined; esHoy: boolean
