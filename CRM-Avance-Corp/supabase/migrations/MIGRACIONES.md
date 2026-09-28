@@ -1,3 +1,19 @@
+## 20260928192822 / 192823 / 193048 / 194818 — Canal concreto y confirmación auditada
+
+**ENSAYADAS EN RAMA AUTORIZADA; PENDIENTES DE PUBLICACIÓN.**
+- `192822`: alta manual limitada a Landing, Formulario, Referido y Walking;
+  INSERT rechaza Otro/ausente incluso en mantenimiento o puente.
+- `192823`: confirmaciones de fuentes sin lead, RLS sin grants/policies API,
+  auditoría e índices únicos activos; fallback privado del ranking.
+- `193048`: fecha comercial inmutable, desactivación aun si cambia la fuente,
+  sin FKs que afecten el ciclo financiero; origen obligatorio sin default Otro.
+- `194818`: actualiza solo la huella de la declaración analítica del lector.
+
+Conserva firmas/ACL, capital, atribución y conversión. Los canales heredados
+concretos siguen admitidos por integraciones; no se ofrecen en alta manual.
+No crea leads retroactivos. Actor de mantenimiento declarativo de Gerencia.
+Ensayos y evaluación del review: `../../docs/auditorias/origen-concreto-20260928/REVISION.md`.
+
 ## 20260928180237 — Ranking: procedencia de solicitudes confirmadas de Mi cartera
 
 **PUBLICADA 28/09/2026 por merge nativo de rama exclusiva.** Decisión expresa de Miguel: «Cartera →
