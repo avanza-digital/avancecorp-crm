@@ -78,8 +78,11 @@ test('Analista: Hoy prioriza tres movimientos y abre la ficha sin cambiar de sup
   await expect(page).toHaveURL(/#\/hoy$/)
   await expect(origen).toBeFocused()
 
-  const cumplimiento = page.locator('details').filter({ hasText: 'Tu cumplimiento del mes' })
-  await expect(cumplimiento).toHaveJSProperty('open', false)
+  // «Tu cumplimiento del mes» ya no se contrae (pedido de Miguel, 28/09/2026):
+  // no hay <details> que abrir y el avance se ve entero.
+  const cumplimiento = page.locator('[data-slot="card"]').filter({ hasText: 'Tu cumplimiento del mes' })
+  await expect(cumplimiento.locator('details')).toHaveCount(0)
+  await expect(cumplimiento.getByText('Capital confirmado', { exact: true })).toBeVisible()
 })
 
 test('Analista móvil: la primera acción cabe a 390 px, conserva targets táctiles y no desborda', async ({ page }) => {
