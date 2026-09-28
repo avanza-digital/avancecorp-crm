@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Leads - franja compacta y capital convertido (2026-09-28)]] — **PUBLICADO 28/09 (build-20260928T174316188Z, 5f3656c0):** Leads sin espacio vacío (una franja con indicadores + etapas que filtran) y «Capital convertido» al filtrar convertidos (monto ESTIMADO; «confirmado» queda para contratos). Commit `5f3656c0` en main local; check 4.755, E2E 23/23 y gate de realidad PASS; Codex y revisor-a11y resueltos. Falta: PR de integración a GitHub (sin lo de Gloria).
+
 - [[Ranking - origen acreditado y desglose de cartera (2026-09-28)]] — **PUBLICADO:** recuperados 36 canales sin alterar dinero; caso reportado Formulario S/137.500, Referido S/15.000 y sin origen S/45.000. Cartera S/90.000 se desglosa Renovación S/10.000 / Upgrade S/80.000. SQL por merge nativo, check 4.740, RLS/HTTP y smoke 80 archivos PASS; build-20260928T171106059Z.
 
 - [[Gestion Diaria - diseno VitaNova con colores del CRM, analisis y plan (2026-09-27)]] — **ANALISTA Y SUPERVISOR PUBLICADOS 27/09** (supervisor: build-20260928T014119651Z — cifras como filtros de la tabla, ficha protagonista, Registro y Pendientes compactos; analista: teléfono alto, «Llamar» 44 px, «Lo último con este lead»); **sigue gerencia, con su propio plan:** el diseño «Gestión diaria pantallas» (VitaNova) tiene la misma estructura que el módulo en producción; cambia la presentación. Vista previa con navy/azul y Plus Jakarta Sans en `GESTION DIARIA/`. Solo pantalla, sin migraciones. Decidido: 4 cifras en gerencia y resultado dentro de «Ahora».
