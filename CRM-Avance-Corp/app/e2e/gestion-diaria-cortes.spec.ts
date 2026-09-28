@@ -65,7 +65,7 @@ test('H4: franja compacta, otro analista seleccionado, llamadas y ficha conserva
   const franja = page.getByRole('region', { name: 'Estado de cortes y avisos' })
   await expect(franja).toContainText('16:00 Programado')
   const medidas = await vista.evaluate((e) => ({
-    franja: e.querySelector('.gd-cortes')!.getBoundingClientRect().toJSON(),
+    franja: e.querySelector('[aria-label="Estado de cortes y avisos"]')!.getBoundingClientRect().toJSON(),
     scroll: e.closest<HTMLElement>('[data-vista-scroll]')!.scrollHeight - e.closest<HTMLElement>('[data-vista-scroll]')!.clientHeight,
   }))
   expect(medidas.franja.height).toBeLessThanOrEqual(45); expect(medidas.scroll).toBeLessThanOrEqual(1)
@@ -97,7 +97,8 @@ test('H4: franja compacta, otro analista seleccionado, llamadas y ficha conserva
   await dialogo.getByRole('button', { name: 'Ver pendientes', exact: true }).click()
   await expect(page).toHaveURL(/#\/seguimiento$/)
   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
-  await expect(page.getByText('Selecciona un analista de la tabla para consultar su día.')).toBeVisible()
+  // Al volver, abre sola con quien más atención necesita (ANA H4, 1 vencida; plan v2, 27/09).
+  await expect(page.getByRole('region', { name: 'Detalle de ANA H4', exact: true })).toBeVisible()
 })
 
 test('H4: aplazar una vez, reintento con mismo UUID y reconocimiento reflejado en campana', async ({ page }) => {

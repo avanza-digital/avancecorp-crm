@@ -7,11 +7,14 @@ import { protegerEscapeAnidado } from '@/components/ui/escape-dialogo'
  * región y diálogo mantiene filtros, páginas, scroll e instancias React.
  * Radix conserva la modalidad, capas y foco, también sobre la ficha del lead.
  * Content no debe tener animación de salida: el destino se traslada en el commit. */
-export function PanelSupervisorAdaptable({ modal, cerrar, tituloRef, children }: {
+export function PanelSupervisorAdaptable({ modal, cerrar, tituloRef, children, claseAlojamiento = 'gd-panel-alojamiento' }: {
   modal: boolean
   cerrar: () => void
   tituloRef: RefObject<HTMLHeadingElement | null>
   children: ReactNode
+  /** Clase del alojamiento en línea. El supervisor usa la suya (27/09) para no
+   * heredar los cortes de ancho de `supervisor.css`, que siguen siendo de gerencia. */
+  claseAlojamiento?: string | undefined
 }) {
   const [destino] = useState(() => {
     const nodo = document.createElement('div')
@@ -46,7 +49,7 @@ export function PanelSupervisorAdaptable({ modal, cerrar, tituloRef, children }:
   }, [modal])
   return (
     <Dialog.Root open={modal} onOpenChange={(abierto) => { if (!abierto) cerrar() }}>
-      <div ref={alojarEnLinea} className="gd-panel-alojamiento" hidden={modal} />
+      <div ref={alojarEnLinea} className={claseAlojamiento} hidden={modal} />
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-primary/25 backdrop-blur-[2px]" />
         <Dialog.Content ref={alojarEnDialogo} className="gd-panel-modal" data-slot="dialog" aria-describedby={undefined}

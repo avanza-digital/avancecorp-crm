@@ -68,7 +68,7 @@ const CLASES_VARIANTE = {
   subrayado: {
     lista: 'flex w-full gap-6 overflow-x-auto border-b border-border',
     tab: 'shrink-0 justify-center whitespace-nowrap !px-0.5 font-semibold focus-visible:!-outline-offset-2',
-    activa: 'font-bold text-[var(--accent-press)] shadow-[inset_0_-2px_0_var(--color-accent)]',
+    activa: 'font-bold text-[var(--accent-press)] shadow-[inset_0_-2px_0_var(--color-accent)] forced-colors:underline forced-colors:decoration-2 forced-colors:underline-offset-8',
     inactiva: 'text-[var(--muted-foreground-strong)] hover:text-primary',
     extra: '',
   },

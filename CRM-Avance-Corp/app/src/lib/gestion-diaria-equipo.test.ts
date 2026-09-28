@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
-import { DiaEquipoSchema, filtrarOrdenarEquipo, horarioConfirmado, tiempoSinLlamar, type OrdenEquipo } from './gestion-diaria-equipo'
+import { DiaEquipoSchema, compararGravedad, filtrarOrdenarEquipo, horarioConfirmado, presentarAtencion, presentarContacto, tiempoSinLlamar, type FilaEquipoPresentada, type OrdenEquipo } from './gestion-diaria-equipo'
 import { diaEquipoPrueba, filaEquipoPrueba } from './gestion-diaria-equipo.fixture'
 import { diaEquipoDesdeDemo } from './gestion-diaria-equipo-demo'
 import type { Actividad, Miembro } from './tipos'
@@ -125,5 +125,45 @@ describe('Espejo demo: roster y calendario', () => {
   ])('inactividad en %s %s: %s', (dia, hora, esperado) => {
     const d = diaEquipoDesdeDemo('s1', equipo, [], [], [], Date.parse(`${dia}T${hora}-05:00`), dia)
     expect(d.equipo[0]?.sin_llamar_2h).toBe(esperado)
+  })
+})
+
+describe('Supervisor con el diseño de Gestión Diaria (27/09/2026)', () => {
+  const fila = (cambios: Parameters<typeof filaEquipoPrueba>[0] = {}) => filaEquipoPrueba(cambios) as FilaEquipoPresentada
+  it('«Atención» dice el motivo MÁS GRAVE con su número, en rojo solo si es vencido, y el resto en «+N»', () => {
+    const vencidas = presentarAtencion(fila({ tareas_vencidas: 4, requiere_atencion: true, motivos_atencion: ['sin_llamar_2h', 'tarea_vencida', 'datos_incompletos'] }))
+    expect(vencidas).toEqual({ texto: '4 vencidas', tono: 'vencido', mas: 2,
+      lista: ['Tareas vencidas', 'Más de 2 h sin llamar en la jornada', 'Datos pendientes de revisar'] })
+    expect(presentarAtencion(fila({ tareas_vencidas: 1, requiere_atencion: true, motivos_atencion: ['tarea_vencida'] })).texto).toBe('1 vencida')
+    const primer = presentarAtencion(fila({ primer_intento_vencido: 3, requiere_atencion: true, motivos_atencion: ['primer_intento_vencido'] }))
+    expect(primer).toMatchObject({ texto: 'Primer intento tarde (3)', tono: 'aviso', mas: 0 })
+    expect(presentarAtencion(fila())).toEqual({ texto: null, tono: null, mas: 0, lista: [] })
+  })
+  it('sin número confirmado no inventa uno (tareas 0 o señal sin conteo)', () => {
+    expect(presentarAtencion(fila({ tareas_vencidas: 0, requiere_atencion: true, motivos_atencion: ['tarea_vencida'] })).texto).toBe('Tareas vencidas')
+    expect(presentarAtencion(fila({ primer_intento_vencido: null, requiere_atencion: true, motivos_atencion: ['primer_intento_vencido'] })).texto).toBe('Primer intento tarde')
+  })
+  it('el orden «Atención» del supervisor va por GRAVEDAD, no por número de motivos', () => {
+    const tres = fila({ analista_id: 'x', nombre_completo: 'TRES AVISOS', requiere_atencion: true, motivos_atencion: ['sin_llamar_2h', 'datos_incompletos', 'primer_intento_vencido'] })
+    const vencida = fila({ analista_id: 'y', nombre_completo: 'UNA VENCIDA', tareas_vencidas: 9, requiere_atencion: true, motivos_atencion: ['tarea_vencida'] })
+    const base = { busqueda: '', soloProblemas: false, orden: 'atencion' as const, ascendente: false }
+    expect(filtrarOrdenarEquipo([tres, vencida], { ...base, gravedad: true }).map((f) => f.nombre_completo)).toEqual(['UNA VENCIDA', 'TRES AVISOS'])
+    // Gerencia no cambia: sigue contando motivos.
+    expect(filtrarOrdenarEquipo([tres, vencida], base).map((f) => f.nombre_completo)).toEqual(['TRES AVISOS', 'UNA VENCIDA'])
+    expect(compararGravedad(vencida, tres)).toBeLessThan(0)
+  })
+  it('ordena por citas agendadas', () => {
+    const a = fila({ analista_id: 'a', nombre_completo: 'A', marcador: { ...fila().marcador, citas_agendadas: 1 } })
+    const b = fila({ analista_id: 'b', nombre_completo: 'B', marcador: { ...fila().marcador, citas_agendadas: 3 } })
+    expect(filtrarOrdenarEquipo([a, b], { busqueda: '', soloProblemas: false, orden: 'citas', ascendente: false }).map((f) => f.nombre_completo)).toEqual(['B', 'A'])
+  })
+  it('el contacto tiene TRES estados y el de muestra insuficiente dice útiles y mínimo', () => {
+    const m = fila().marcador
+    expect(presentarContacto(m, 5)).toMatchObject({ estado: 'sin_utiles', valor: '—', detalle: 'Sin llamadas útiles' })
+    const poca = presentarContacto({ ...m, llamadas: 3, utiles: 3, contestadas: 2, tasa_contacto_pct: 67, nivel: null }, 5)
+    expect(poca).toMatchObject({ estado: 'sin_muestra', valor: 'Sin muestra', detalle: '3 útiles · mínimo 5' })
+    expect(poca.accesible).toBe('Sin muestra suficiente: 2 de 3 útiles contestaron; se evalúa desde 5 útiles')
+    const buena = presentarContacto({ ...m, llamadas: 12, utiles: 11, contestadas: 2, tasa_contacto_pct: 18, nivel: 'bajo' }, 5)
+    expect(buena).toMatchObject({ estado: 'evaluado', valor: '18 %', nivel: 'bajo', detalle: 'de 11 útiles' })
   })
 })

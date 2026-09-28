@@ -1,12 +1,20 @@
-import { useEffect, useEffectEvent, useMemo, useRef } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react'
 import { useRegistroActividadOperativo } from '@/data/gestion-diaria-queries'
 import { CrmApiError } from '@/data/crm-api'
 import { usePanelesActions } from '@/lib/store-context'
 import { ETIQUETA_CORTA, horaDeItem, type FiltrosRegistro } from '@/lib/gestion-diaria'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-export function UltimasGestionesSupervisor({ analista, dia, visible, actualizacion, revalidar }: {
+const HORA = new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false })
+
+/** Las 3 últimas gestiones del analista con el diseño de Gestión Diaria (27/09):
+ * hora, etiqueta del resultado y el lead (abre su ficha). Misma consulta y clave
+ * que «Registro → Todo», así que no pide nada de más. */
+export function UltimasGestionesSupervisor({ analista, dia, visible, actualizacion, revalidar, silencioso = false }: {
   analista: string; dia: string; visible: boolean; actualizacion: number; revalidar: () => void
+  /** Panel abierto solo (selección automática): sin anunciar cargas ni errores. */
+  silencioso?: boolean
 }) {
   const filtros = useMemo<FiltrosRegistro>(() => ({ dia, analistaIds: [analista], pestana: 'todo', etapa: null }), [dia, analista])
   // Misma clave y tamaño que Registro → Todo, primera página sin filtro.
@@ -21,16 +29,32 @@ export function UltimasGestionesSupervisor({ analista, dia, visible, actualizaci
     revision.current = actualizacion; refrescar()
   }, [actualizacion])
   useEffect(() => { if (sinPermiso) revocar() }, [sinPermiso])
-  return <section className="space-y-2 mt-4" aria-label="Últimas gestiones del analista">
-    <h4 className="font-semibold">Últimas gestiones</h4>
-    {consulta.pagina && <p className="text-[var(--muted-foreground-strong)]">Consulta: {new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(consulta.pagina.generado_en))} · Lima.</p>}
-    {consulta.cargando && <p role="status">Consultando las últimas gestiones…</p>}
-    {consulta.error ? <div role="alert"><p>No se pudieron confirmar las últimas gestiones.</p>
-      {!sinPermiso && <Button className="min-h-11 text-base" variant="outline" onClick={() => { void consulta.recargar() }} disabled={consulta.enVuelo}>Reintentar últimas gestiones</Button>}</div>
-      : consulta.pagina && consulta.pagina.items.length === 0 ? <p>No hay gestiones visibles de este analista en el día.</p>
-        : <ol>{consulta.pagina?.items.slice(0, 3).map(item => <li key={item.id} className="py-2">
-          <p><time dateTime={new Date(item.creado_en).toISOString()}>{horaDeItem(item)}</time> · {ETIQUETA_CORTA[item.tipo]}</p>
-          <Button variant="link" className="min-h-11 h-auto max-w-full whitespace-normal px-0 text-left text-base" onClick={() => abrirLead(item.lead_id)}>{item.lead_nombre}</Button>
+  // Si «Reintentar» se desmonta con el foco dentro (salió bien), el foco pasa al título.
+  const titulo = useRef<HTMLHeadingElement>(null)
+  const focoEnReintento = useRef(false)
+  useLayoutEffect(() => {
+    if (consulta.error) return
+    if (focoEnReintento.current) { focoEnReintento.current = false; titulo.current?.focus({ preventScroll: true }) }
+  }, [consulta.error])
+  return <section className="space-y-2" aria-label="Últimas gestiones del analista">
+    <div className="flex items-baseline justify-between gap-3">
+      <h4 ref={titulo} tabIndex={-1} className="rounded-md text-[15px] font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Últimas gestiones</h4>
+      {consulta.pagina && <p className="text-xs tabular-nums text-[var(--muted-foreground-strong)]">Consulta {HORA.format(new Date(consulta.pagina.generado_en))}</p>}
+    </div>
+    {consulta.cargando && <p role={silencioso ? undefined : 'status'} className="text-[13px] text-[var(--muted-foreground-strong)]">Consultando las últimas gestiones…</p>}
+    {consulta.error ? <div role={silencioso ? undefined : 'alert'} className="space-y-2 text-[13px]"><p>No se pudieron confirmar las últimas gestiones.</p>
+      {!sinPermiso && <Button className="h-9 text-[13px] pointer-coarse:h-11 aria-disabled:cursor-default aria-disabled:opacity-60" variant="outline" aria-disabled={consulta.enVuelo}
+        onFocus={() => { focoEnReintento.current = true }} onBlur={() => { focoEnReintento.current = false }}
+        onClick={() => { if (!consulta.enVuelo) void consulta.recargar() }}>Reintentar últimas gestiones</Button>}</div>
+      : consulta.pagina && consulta.pagina.items.length === 0 ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">No hay gestiones visibles de este analista en el día.</p>
+        // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+        : <ol role="list" className="divide-y divide-border">{consulta.pagina?.items.slice(0, 3).map(item => <li key={item.id} className="flex min-w-0 items-center gap-3 py-2">
+          <time dateTime={new Date(item.creado_en).toISOString()} className="w-11 shrink-0 text-[13px] tabular-nums text-[var(--muted-foreground-strong)]">{horaDeItem(item)}</time>
+          <Badge className="min-h-[22px] shrink-0 py-0 text-[11.5px]" color="var(--primary)" variant="outline">{ETIQUETA_CORTA[item.tipo]}</Badge>
+          {item.lead_nombre
+            ? <button type="button" onClick={() => abrirLead(item.lead_id)}
+              className="min-w-0 cursor-pointer truncate rounded-md text-left text-[13.5px] font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11">{item.lead_nombre}</button>
+            : <span className="min-w-0 truncate text-[13px] text-[var(--muted-foreground-strong)]">Lead no visible</span>}
         </li>)}</ol>}
   </section>
 }

@@ -1,7 +1,7 @@
 // Contrato de F4. En real, todos los indicadores proceden de una sola foto
 // autorizada del servidor. Aquí sólo se valida, busca, ordena y presenta.
 import * as v from 'valibot'
-import { MarcadorSchema, UmbralesSchema, type Marcador } from './gestion-diaria-analista'
+import { ETIQUETA_NIVEL, MarcadorSchema, UmbralesSchema, type Marcador } from './gestion-diaria-analista'
 import { CortesJornadaSchema } from './gestion-diaria-cortes'
 
 const Natural = v.pipe(v.number(), v.integer(), v.minValue(0))
@@ -96,9 +96,13 @@ export function resumenEquipo(equipo: readonly FilaEquipoDiario[]) {
   }
 }
 
-export type OrdenEquipo = 'nombre' | 'llamadas' | 'contacto' | 'pendientes' | 'vencidas' | 'atencion'
+export type OrdenEquipo = 'nombre' | 'llamadas' | 'contacto' | 'pendientes' | 'citas' | 'vencidas' | 'atencion'
 export type EstadoEquipo = 'todos' | 'con_registro' | 'sin_registro' | 'con_pendientes'
-export interface FiltrosEquipo { busqueda: string; soloProblemas: boolean; estado?: EstadoEquipo; orden: OrdenEquipo; ascendente: boolean }
+export interface FiltrosEquipo {
+  busqueda: string; soloProblemas: boolean; estado?: EstadoEquipo; orden: OrdenEquipo; ascendente: boolean
+  /** «Atención» por GRAVEDAD (supervisor, 27/09) y no por número de motivos (gerencia, como antes). */
+  gravedad?: boolean
+}
 const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
 
 export function filtrarOrdenarEquipo<T extends FilaEquipoPresentada>(equipo: readonly T[], filtros: FiltrosEquipo): T[] {
@@ -113,8 +117,13 @@ export function filtrarOrdenarEquipo<T extends FilaEquipoPresentada>(equipo: rea
         case 'nombre': diferencia = a.nombre_completo.localeCompare(b.nombre_completo, 'es'); break
         case 'llamadas': diferencia = a.marcador.llamadas - b.marcador.llamadas; break
         case 'pendientes': diferencia = a.tareas_pendientes - b.tareas_pendientes; break
+        case 'citas': diferencia = a.marcador.citas_agendadas - b.marcador.citas_agendadas; break
         case 'vencidas': diferencia = a.tareas_vencidas - b.tareas_vencidas; break
         case 'atencion': {
+          if (filtros.gravedad) {
+            diferencia = -compararGravedad(a, b)
+            break
+          }
           diferencia = a.motivos_atencion.length - b.motivos_atencion.length
           if (!diferencia) return b.tareas_vencidas - a.tareas_vencidas
             || a.nombre_completo.localeCompare(b.nombre_completo, 'es') || a.analista_id.localeCompare(b.analista_id)
@@ -156,4 +165,94 @@ export function horarioConfirmado(marcador: Marcador): boolean {
     // esa diferencia histórica sólo dentro del número de llamadas no útiles.
     && contestadasPorHora >= marcador.contestadas
     && contestadasPorHora - marcador.contestadas <= marcador.llamadas - marcador.utiles
+}
+
+/**
+ * Prioridad de los motivos de atención (revisión Codex, 27/09): lo vencido
+ * primero. El orden en que llegan del servidor no dice gravedad, y contar
+ * motivos ponía tres avisos por delante de muchas tareas vencidas.
+ */
+export const PRIORIDAD_MOTIVO: readonly (keyof typeof MOTIVOS_EQUIPO)[] = [
+  'tarea_vencida', 'primer_intento_vencido', 'corte_manana', 'corte_tarde', 'sin_llamar_2h', 'datos_incompletos',
+]
+
+const rangoAtencion = (f: FilaEquipoPresentada) => {
+  const i = PRIORIDAD_MOTIVO.findIndex((m) => f.motivos_atencion.includes(m))
+  return i === -1 ? PRIORIDAD_MOTIVO.length : i
+}
+
+/** Negativo si `a` necesita atención ANTES que `b` (más grave primero). */
+export function compararGravedad(a: FilaEquipoPresentada, b: FilaEquipoPresentada): number {
+  return rangoAtencion(a) - rangoAtencion(b)
+    || b.tareas_vencidas - a.tareas_vencidas
+    || (b.primer_intento_vencido ?? 0) - (a.primer_intento_vencido ?? 0)
+    || b.motivos_atencion.length - a.motivos_atencion.length
+}
+
+export interface AtencionPresentada {
+  /** El motivo más grave, dicho con su número («4 vencidas»); null si no hay. */
+  texto: string | null
+  /** `vencido` (rojo) SOLO para tareas vencidas; el resto es `aviso` (ámbar). */
+  tono: 'vencido' | 'aviso' | null
+  /** Motivos además del principal («+2»). */
+  mas: number
+  /** Todos los motivos en palabras, en orden de gravedad. */
+  lista: string[]
+}
+
+function textoMotivo(motivo: keyof typeof MOTIVOS_EQUIPO, f: FilaEquipoPresentada): string {
+  switch (motivo) {
+    case 'tarea_vencida': return f.tareas_vencidas > 0 ? `${f.tareas_vencidas} ${f.tareas_vencidas === 1 ? 'vencida' : 'vencidas'}` : MOTIVOS_EQUIPO.tarea_vencida
+    // `null` = sin control vigente: el motivo no llega; si llega, se dice sin inventar el número.
+    case 'primer_intento_vencido': return f.primer_intento_vencido !== null && f.primer_intento_vencido > 1 ? `Primer intento tarde (${f.primer_intento_vencido})` : 'Primer intento tarde'
+    case 'corte_manana': case 'corte_tarde': return 'Corte de llamadas pendiente'
+    case 'sin_llamar_2h': return 'Más de 2 h sin llamar'
+    case 'datos_incompletos': return 'Datos por revisar'
+  }
+}
+
+/** «Atención» dicha en palabras para la tabla y el panel del supervisor. */
+export function presentarAtencion(f: FilaEquipoPresentada): AtencionPresentada {
+  const motivos = PRIORIDAD_MOTIVO.filter((m) => f.motivos_atencion.includes(m))
+  const principal = motivos[0]
+  if (principal === undefined) return { texto: null, tono: null, mas: 0, lista: [] }
+  return {
+    texto: textoMotivo(principal, f),
+    tono: principal === 'tarea_vencida' ? 'vencido' : 'aviso',
+    mas: motivos.length - 1,
+    lista: motivos.map((m) => MOTIVOS_EQUIPO[m]),
+  }
+}
+
+export interface ContactoPresentado {
+  estado: 'sin_utiles' | 'sin_muestra' | 'evaluado'
+  /** Lo que se lee grande: «18 %», «Sin muestra» o «—». */
+  valor: string
+  nivel: Marcador['nivel']
+  /** El apoyo visible: «de 11 útiles», «3 útiles · mínimo 5», «Sin llamadas útiles». */
+  detalle: string
+  /** La frase completa para el lector de pantalla. */
+  accesible: string
+}
+
+/**
+ * Los TRES estados del contacto (revisión Codex, 27/09): sin útiles, muestra
+ * insuficiente (se dice con el mínimo, nunca como una tasa evaluada) y evaluado.
+ */
+export function presentarContacto(m: Marcador, minimo: number): ContactoPresentado {
+  if (m.utiles === 0 || m.tasa_contacto_pct === null) {
+    return { estado: 'sin_utiles', valor: '—', nivel: null, detalle: 'Sin llamadas útiles', accesible: 'Sin llamadas útiles' }
+  }
+  if (m.nivel === null) {
+    return {
+      estado: 'sin_muestra', valor: 'Sin muestra', nivel: null,
+      detalle: `${m.utiles} ${m.utiles === 1 ? 'útil' : 'útiles'} · mínimo ${minimo}`,
+      accesible: `Sin muestra suficiente: ${m.contestadas} de ${m.utiles} útiles contestaron; se evalúa desde ${minimo} útiles`,
+    }
+  }
+  return {
+    estado: 'evaluado', valor: `${m.tasa_contacto_pct} %`, nivel: m.nivel,
+    detalle: `de ${m.utiles} ${m.utiles === 1 ? 'útil' : 'útiles'}`,
+    accesible: `${m.tasa_contacto_pct} %: ${m.contestadas} de ${m.utiles} útiles contestaron; nivel ${ETIQUETA_NIVEL[m.nivel]}`,
+  }
 }

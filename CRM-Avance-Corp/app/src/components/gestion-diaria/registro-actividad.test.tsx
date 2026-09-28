@@ -3,6 +3,7 @@
 // cursor al cambiar un filtro, estados vacío/error/carga, filtro por equipo y
 // la exportación solo para quien la tiene permitida. El data layer se mockea:
 // aquí se prueba la presentación y el contrato con el hook, no el servidor.
+import { createRef } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { RegistroItem, RegistroPagina } from '@/lib/gestion-diaria'
@@ -323,5 +324,22 @@ describe('RegistroActividad compacto — «Ver más» no suelta el foco (revisi�
     montar({ analistaIds: ['u1'], mostrarAnalista: false, compacto: true })
     expect(screen.getByRole('list', { name: 'Registro de actividad' })).toHaveAttribute('role', 'list')
     expect(screen.getByText(/gestiones cargadas/)).not.toHaveTextContent(/actualizando/)
+  })
+
+  it('en la ficha del supervisor usa el título de la ficha: sin «¿Qué hice hoy?» y con el autor en el registro del equipo', () => {
+    ESTADO.pagina = pagina(Array.from({ length: 26 }, (_, n) => item(n + 1)))
+    const titulo = createRef<HTMLHeadingElement>()
+    const vista = render(<><h4 ref={titulo} tabIndex={-1}>Actividad de hoy</h4>
+      <RegistroActividad dia="2026-09-19" analistaIds={null} mostrarAnalista permitirExportar={false} compacto encabezadoExterno={titulo} /></>)
+    expect(screen.queryByRole('heading', { name: '¿Qué hice hoy?' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('· ANALISTA UNO').length).toBeGreaterThan(0)
+    // El registro del equipo conserva su filtro por analista.
+    expect(screen.getByRole('combobox', { name: /^Analista/ })).toBeInTheDocument()
+    const boton = screen.getByRole('button', { name: 'Ver más' })
+    boton.focus()
+    ESTADO.pagina = pagina([item(40)])
+    vista.rerender(<><h4 ref={titulo} tabIndex={-1}>Actividad de hoy</h4>
+      <RegistroActividad dia="2026-09-19" analistaIds={null} mostrarAnalista permitirExportar={false} compacto encabezadoExterno={titulo} /></>)
+    expect(screen.getByRole('heading', { name: 'Actividad de hoy' })).toHaveFocus()
   })
 })

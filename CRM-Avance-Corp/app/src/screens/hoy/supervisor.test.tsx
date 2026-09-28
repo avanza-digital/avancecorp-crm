@@ -72,6 +72,7 @@ let CONVERSION_MENSUAL_ERROR = false
 let CONVERSION_MENSUAL_PENDING = false
 const REFETCH_CONVERSION_MENSUAL = vi.fn()
 let METRICAS_AGENDA: import('@/lib/metricas-agenda').MetricasAgenda | undefined
+let AGENDA_ERROR: Error | null = null
 vi.mock('@/data/crm-queries', () => ({
   // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
   useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
@@ -82,7 +83,7 @@ vi.mock('@/data/crm-queries', () => ({
   useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   useMetricasAgenda: () => ({
     data: METRICAS_AGENDA,
-    error: null,
+    error: AGENDA_ERROR,
     isPending: false,
     isFetching: false,
     refetch: () => {},
@@ -320,6 +321,7 @@ beforeEach(() => {
   MODO_SLA.activo = false
   instalarAlmacen()
   METRICAS_AGENDA = undefined
+  AGENDA_ERROR = null
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
   CONVERSION_MENSUAL_PENDING = false
@@ -511,6 +513,37 @@ describe('Hoy · supervisor — «Hoy, tres cosas» (F3)', () => {
     montar({ leads: [] })
     expect(screen.getByRole('link', { name: 'urgente hoy: CARLA DÍAZ: 2 citas sin asistir — Ver equipo' }))
       .toHaveAttribute('href', '#/equipo')
+  })
+
+  it('una agenda RETENIDA tras un refetch fallido no decide: la franja no usa esos datos', () => {
+    METRICAS_AGENDA = {
+      version: 1,
+      generado_en: '2026-07-15T15:00:00Z',
+      periodo: { desde: '2026-07-09', hasta: '2026-07-15', dias: 7, zona: 'America/Lima' },
+      vendedores: [{
+        vendedor_id: 'v-1', nombre: 'CARLA DÍAZ', rol: 'vendedor', activo: true,
+        toques: 5, toques_por_dia: 0.7, reuniones_realizadas: 0, completadas: 0,
+        no_asistio: 2, canceladas: 0, pct_completadas: null, tareas_creadas: 0,
+        reuniones_agendadas: 0, reprogramaciones: 0, pendientes: 0, vencidas: 0,
+        leads_sin_accion: 0,
+      }],
+    } as import('@/lib/metricas-agenda').MetricasAgenda
+    AGENDA_ERROR = new Error('refetch caído')
+    montar({ leads: [] })
+    expect(screen.queryByText(/citas sin asistir/)).not.toBeInTheDocument()
+  })
+
+  it('los números se abren: «Nuevos sin responder» lleva a la cola urgente y el pronóstico al pipeline (Miguel, 27/09)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'Date', 'requestAnimationFrame'] })
+    montar({ leads: [viejo, nuevoLead] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevos sin responder: 1. Ver en la cola urgente' }))
+    vi.advanceTimersByTime(50)
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(urgente)
+    expect(screen.getByRole('link', { name: /Pronóstico de capital abierto/ })).toHaveAttribute('href', '#/pipeline')
+    expect(screen.getByRole('link', { name: /Leads activos del equipo/ })).toHaveAttribute('href', '#/cartera')
   })
 
   it('ESTADO DE PRODUCCIÓN (sin nada que hacer): la franja NO se pinta', () => {

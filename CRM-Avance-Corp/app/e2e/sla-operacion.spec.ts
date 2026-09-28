@@ -160,15 +160,20 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     if (rol === 'gerencia') {
       await expect(page.getByRole('heading', { name: 'Resumen', exact: true })).toBeVisible()
     } else {
-      await expect(page.getByRole('link', { name: 'Abrir seguimiento', exact: true })).toBeVisible()
+      // 27/09/2026: el Hoy del supervisor es un puesto de mando con una VISTA
+      // PREVIA de 7 pendientes; el módulo completo sigue siendo Seguimiento.
+      await expect(page.getByRole('heading', { name: 'Pendientes del equipo', exact: true })).toBeVisible()
     }
     await expect(page.getByRole('list', { name: 'Oportunidades de esta página' })).toHaveCount(0)
-    expect(pedidos).toHaveLength(0)
+    if (rol === 'gerencia') expect(pedidos).toHaveLength(0)
+    else expect(pedidos.every((pedido) => pedido.p_limite === 7 && pedido.p_cursor === null)).toBe(true)
+    const antesDelModulo = pedidos.length
     await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
     if (rol === 'supervisor') {
-      await page.getByRole('link', { name: 'Abrir seguimiento', exact: true }).click()
+      await page.getByRole('link', { name: /en Seguimiento$/ }).click()
       await expect(page).toHaveURL(/#\/seguimiento$/)
     } else await irASeguimiento(page)
+    await expect.poll(() => pedidos.length).toBeGreaterThan(antesDelModulo)
     const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
     const prioridades = page.getByRole('group', { name: 'Prioridades de seguimiento' })
     await expect(lista.locator(':scope > li')).toHaveCount(10)

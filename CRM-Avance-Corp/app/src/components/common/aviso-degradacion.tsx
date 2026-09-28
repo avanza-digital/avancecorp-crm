@@ -85,7 +85,9 @@ export function AvisoDegradacion({
               // Anillo SÓLIDO (4,62:1): el token /40 de la casa se queda en
               // 1,76:1 y no llega al 3:1 que exige un indicador de foco. El
               // subrayado añade un segundo canal que no depende del color.
-              className="rounded font-semibold text-foreground underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+              // Área de toque ≥36 px (40 táctil) con un pseudo-elemento: el botón
+              // se ve igual y la franja no crece, pero el dedo no falla.
+              className="relative rounded font-semibold text-foreground underline-offset-2 after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring pointer-coarse:after:-inset-y-3.5"
               onClick={() => {
                 // Solo hay foco que rescatar si el foco estaba de verdad AQUÍ.
                 // Con ratón puede no estarlo (Safari no enfoca al hacer clic):

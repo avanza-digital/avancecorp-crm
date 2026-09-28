@@ -1,7 +1,7 @@
 ---
 tags: [gestion-diaria, diseno, ux, plan]
 actualizado: 2026-09-27
-estado: analista PUBLICADA 27/09 13:05 Lima (build-20260927T180505461Z, commit db29ecdd) · supervisor y gerencia esperan su plan
+estado: analista PUBLICADA 27/09 (último build-20260927T191408274Z, commit 8d4be227 — «Llamar» 44 px y «Lo último con este lead») · supervisor y gerencia esperan su plan
 ---
 
 # Gestión Diaria — diseño VitaNova con los colores del CRM (27/09/2026)
@@ -226,7 +226,55 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   configuración (URL de Supabase, clave pública y DSN de Sentry) idénticas al build anterior.
 - **Paso 1 del release:** `main` local iba 73 commits por delante de `avancecorp/main` (lo de
   Gloria, que se queda solo en local, más notas y estos commits) y 0 por detrás. Miguel siguió
-  tras el aviso. A GitHub llega por PR de integración sin lo de Gloria (receta de la #114).
+  tras el aviso. A GitHub va por la **PR #115** (rama `integra/gestion-diaria-analista-20260927`,
+  commit `d3064076` sobre `avancecorp/main`): solo los 29 archivos de este trabajo, `app/`
+  idéntico byte a byte al publicado, sin lo de Gloria ni las citas por equipo de otra sesión;
+  pre-push 4512/4512. Al fusionarla (squash): traer `avancecorp/main` al `main` local y borrar la rama.
+- **Segundo ajuste, publicado el 27/09 a las 13:39 Lima — el teléfono a todo el alto.** Miguel:
+  «que el módulo del teléfono sea más largo… ese pequeño dash se corre a la derecha y el teléfono
+  sube hasta donde dice ¿a quién llamo ahora?». Desde `lg`, el teléfono ocupa la columna izquierda
+  en todo el alto (≈530 → ≈700 px a 1446×818); título, avisos, franja de cifras y pestañas a la
+  derecha, con el MISMO orden del DOM (grid). Cabecera: título en la fila de la fecha y los botones,
+  subtítulo debajo (`order-last`). En reposo, número y acciones al pie del teléfono (pantalla de
+  llamada); con el resultado abierto caben las 7 opciones. Celular sin cambios.
+  Commit `4396acfc` sobre el vivo `db29ecdd` (rama de publicación, ya fusionada en `main` con
+  `d53df94d` y borrada): **no se publicó la punta de `main`** porque llevaba trabajo de otras
+  sesiones sin publicar — `3e6c3587` (citas por equipo, migración `20260927172931` NO aplicada) y el
+  «Hoy del supervisor» F1–F3 «sin conectar». Artefacto `crm-20260927T183849Z-4396acfcb46d`, build
+  `build-20260927T183847624Z`; check PASS (4512) sobre ese árbol, manifiesto OK, preflight OK contra
+  `db29ecdd`, configuración idéntica; humo 200, índice `index-Br7FaJ8z.js` = build, 104/117 byte a
+  byte + 12 PNG de la CDN (iguales al release anterior).
+- **Tercer ajuste, publicado el 27/09 a las 14:14 Lima — «Llamar» de 44 px y «Lo último con este
+  lead».** Miguel: «el botón de llamar está muy grande» y «hay espacio en blanco… poner información
+  relevante para el seguimiento, la última actividad o el último seguimiento». «Llamar» pasó de
+  52 a 44 px de alto (la altura de WhatsApp; 44 es el mínimo táctil). En el aire del teléfono, «Lo
+  último con este lead»: las **2** últimas gestiones (tipo, resultado, nota y hace cuánto), sin
+  movimientos del sistema, con «Ver todo» a la ficha; sale del historial por lead de la ficha
+  (`useActividadesDeLead`, sin consultas nuevas). Con 3 no cabía junto a «Correo». Estados: cargando,
+  fallo con «Reintentar», vacío («esta llamada será la primera»); nunca «sin gestiones» por no
+  saberlo. Se oculta con el resultado abierto; acciones `sticky` al pie en pantallas bajas. Los
+  iconos de las gestiones y el «hace X» se unificaron en `components/app/actividad-visual.ts` (había
+  dos copias: ficha y directorio). Commit `8d4be227` sobre el vivo `4396acfc` (fusionado en `main`
+  con `9b060fba`); check PASS (4516, 4 pruebas nuevas); E2E dirigida en Docker 88 PASS / 13 saltadas
+  / 1 FALLO: `gestion-diaria-horizontal-h5` (supervisor, `resumen_cartera_fn` 2 vs 1 con 32
+  analistas) en el taller compartido con cambios SIN COMMITEAR de la sesión del supervisor; sobre el
+  árbol exacto del release (`8d4be227`) pasa 2/2. Artefacto `crm-20260927T191408Z-8d4be227d676`,
+  build `build-20260927T191408274Z`; manifiesto OK, preflight OK, configuración idéntica; humo 200,
+  índice `index-DjRxOV9u.js` = build, 104/117 byte a byte + 12 PNG de la CDN.
+- 🔴 **Docker E2E compartido:** dos corridas de la suite completa murieron con código 143 (parada
+  desde fuera) mientras otras dos sesiones corrían las suyas: mi contenedor llevaba la etiqueta
+  genérica `crm-e2e`. Correr con `CRM_E2E_TASK=<propia>` y, con Docker ocupado, specs dirigidos.
+- 🔴 **Lección: el primer rediseño rompió `e2e/foco-alto-contraste.spec.ts`**, que buscaba las filas
+  por la estructura vieja de la cola (listas por grupo). Yo solo había corrido los specs de Gestión
+  Diaria + SLA; otra sesión lo ajustó a la pestaña «Cola de hoy» (`59fceade`). No era un fallo de
+  la pantalla, pero sí un hueco de verificación: **al cambiar la estructura de una pantalla, correr
+  la suite E2E completa** (o buscar en TODOS los specs los selectores que cambian).
+- ⚠️ **Para el próximo `/release-crm`:** el `main` local ya lleva trabajo de otras sesiones SIN
+  publicar: `3e6c3587` (citas para supervisores por equipo, que depende de la migración
+  `20260927172931`, NO aplicada) y el «Hoy del supervisor» F1–F4 (`b862ac80` lo CONECTA). Un build
+  desde `main` los publicaría: la migración va ANTES (orden de despliegue por dirección) y conviene
+  que esa sesión confirme H5 (arriba). Mis tres releases de hoy se construyeron sobre el vivo, no
+  sobre la punta de `main`.
 - **Revisiones:** Codex del plan (BLOCK, 6 hallazgos, todos aceptados) y del código
   (CHANGES_REQUESTED: P1 Escape durante el envío → guardia síncrona `estaEnviando`; P2 cerrar
   sin registrar con un grupo filtrado → «Ahora» vuelve a la persona llamada; ambos con prueba
@@ -240,9 +288,140 @@ el Dialog queda como adaptador SIN cambiar su contrato y la tarjeta es un segund
   «Copiar el número de X y registrar la llamada» (cambiarlo toca muchos specs); el lector lee
   raro «1–8 de 23»; «Ver más» del registro en modo normal tiene el mismo detalle de foco que se
   arregló en el compacto; sumar `@axe-core/playwright`; actualizar el tablero de Figma.
-- **Siguiente:** Miguel la mira en producción; fusionar la PR de integración y traerla al `main`
-  local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
+- **Siguiente:** Miguel la mira en producción y fusiona la PR #115; traerla al `main` local. Después, plan de **supervisor** (revisado por Codex antes de tocar código) y luego gerencia.
+
+## Plan de la pantalla del SUPERVISOR — v2 tras Codex (27/09, APROBADO e IMPLEMENTADO en rama aislada)
+
+Base: `screens/gestion-diaria/supervisor.tsx` (+ `supervisor.css`, compartido con gerencia vía
+`gerencia.tsx:22`), `tabla-equipo-diaria.tsx`, `panel-analista-supervisor.tsx`,
+`panel-supervisor-adaptable.tsx` (portal en línea ↔ ventana; hoy ventana si `clientWidth < 1236`),
+`detalle-analista.tsx` (8 métricas + gráfico propio), `ultimas-gestiones-supervisor.tsx` (pide 25,
+muestra 3). Datos: una foto `gestion_diaria_equipo_fn` (`useDiaEquipo`); registro, pendientes y avisos
+con sus consultas propias. **Solape con el «Hoy del supervisor» de otra sesión (`#/hoy`,
+`supervisor-mando.tsx`): ningún archivo en común; el mando no muestra la actividad del día y enlaza a
+`#/gestion-diaria` «Mi equipo hoy» (su test lo exige) → mantener ruta y nombre; no tocar `screens/hoy/*`,
+`lib/senal-equipo.ts`, `lib/cola-supervision.ts`, `lib/tres-cosas.ts` ni la API de `Avatar`.**
+
+**Revisión Codex del plan v1** (encargo `docs/encargos/2026-09-27-codex-plan-supervisor-diseno.md`):
+CHANGES_REQUESTED, confianza HIGH, 7 P1 + 3 P2 — **todos aceptados**:
+1. P1 Selección automática sin máquina de estados (`seleccion === null` significa cierre, cambio de
+   fecha, fuera de ámbito o transición de `registroPedido`; `modal = seleccion && (estrecho||ampliado)`
+   → abriría una ventana y movería el foco al estrecharse). → Origen de la selección
+   (`automatica`/`usuario`/`aviso`), `registroPedido` manda, nada automático con carga/error/42501/
+   petición pendiente/`dia ≠ fecha`, cierre voluntario o salida de ámbito lo inhiben, una automática
+   que pasa a estrecho se CIERRA sin ventana, solo filas visibles con los filtros, sin reutilizar un
+   `origen` viejo.
+2. P1 El umbral ~1100 choca con la cuadrícula (840 tabla + 380 panel + 16 = 1236; `@container
+   max-width:1235px`; tarjetas por debajo de 839; gerencia comparte clases). → Cuadrícula nueva SOLO
+   del supervisor (clases/contenedor propios) con anchos exactos; umbral = mínimo real de tabla +
+   panel; gerencia conserva los suyos. Verificar 1440 y 1280 con menú abierto/cerrado, 1366, 1512,
+   zoom 200 %, con barra de scroll y al cambiar de ancho con el foco dentro.
+3. P1 La reutilización rígida quitaba funciones a GERENCIA (compara Pendientes por analista; su
+   panel solo tiene Resumen y Registro; `DetalleAnalista` muestra `citas_hoy` «Citas pendientes del
+   día», ≠ `citas_agendadas`; su registro abre filtrado a llamadas). → **Gerencia NO cambia en este
+   plan**: tabla con columnas por contexto (`supervisor`: Citas; `gerencia`: Pendientes, como hoy),
+   resumen nuevo SOLO en el supervisor, acciones inyectadas; `DetalleAnalista` sigue en gerencia
+   hasta su plan (entonces se unifica).
+4. P1 «Atención»: prioridad y color sin contrato (el orden actual cuenta motivos antes que
+   gravedad; `primer_intento_vencido`/`datos_incompletos` son `null` sin SLA activo). → Matriz
+   (fuente · disponible · texto · color · prioridad): tareas vencidas (rojo, 1) → primer intento
+   fuera de plazo (ámbar, 2; solo con SLA activo) → cortes pendientes (ámbar, 3; solo hoy) → más de
+   2 h sin llamar (ámbar, 4) → datos por revisar (ámbar, 5). El total «Necesitan atención» de la
+   franja va en ÁMBAR (mezcla señales; el rojo queda para lo vencido); el orden «Atención» y la
+   selección automática del supervisor usan esa prioridad.
+5. P1 «Sin muestra» ambiguo. → Tres estados: 0 útiles «— · Sin llamadas útiles»; insuficiente
+   «Sin muestra suficiente · N útiles; mínimo M»; evaluado «% · nivel · N útiles».
+6. P1 Contratos de a11y. → `aria-sort` y nombre de la tabla; scroll de tabla y panel alcanzable y
+   con nombre; anillo de la casa y prueba en `forced-colors`; `aria-disabled` + guarda en «Hoy» y
+   «Actualizar»; `role=status` en conteos; `panelEnfocable` decidido por pestaña.
+7. P2 «Registro del equipo» desaparecía con el equipo vacío. → La barra existe con foto válida
+   aunque haya 0 analistas; los filtros solo con filas; la acción siempre (habilitada con foto y
+   permiso).
+8. P2 Estados de S3. → Tabla de estados: carga inicial, recarga fallida con datos previos, error sin
+   datos, 42501 (retira datos), equipo vacío, actividad cero, cortes ausentes/desactivados/día no
+   laborable, fecha histórica («Cortes del día»); los textos de la «i» se conservan.
+9. P2 Cifras que no cuadran. → Nota compacta junto a las barras (incluyen contestaciones no útiles) y
+   al registro (solo leads visibles hoy); `horarioConfirmado` antes de `BarrasPorHora`.
+10. P1 Pruebas. → Migración por fase con cobertura equivalente: S1 tipografía (piso 11 px como el
+    analista), alto de fila, columnas, `aria-sort`; S2 barras nuevas, foco del panel adaptable y
+    selección automática; S3 suite completa tras retirar CSS. `gestion-diaria-horizontal-h5` se
+    estabiliza (medir tras asentarse las consultas) o se reporta FAIL: el historial no lo convierte
+    en PASS.
+
+**Fases (v2):**
+- **S1 · Cabecera, cifras y tabla** (solo supervisor): cabecera del diseño conservando fecha (365
+  días), «Hoy», «Seguimiento completo», «Actualizar» e «i»; franja de 5 cifras (`FranjaCifras`,
+  atención en ámbar); barra siempre presente con «Registro del equipo»; tabla con iniciales, Llamadas,
+  Contacto (3 estados), **Citas** (`marcador.citas_agendadas`), Vencidas (rojo), **Atención en
+  palabras** (matriz) y orden por gravedad; pie «N de N · Actualizado» + «La actividad registrada no
+  acredita presencia». Pruebas migradas; H5 estabilizada o FAIL.
+- **S2 · Panel al lado**: cuadrícula propia con umbral exacto; selección automática con su máquina
+  de estados; cabecera con iniciales; pestañas subrayadas; Resumen con aviso de vencidas, 4 cuadros
+  (Llamadas, Contacto, Citas agendadas, Pendientes — no WhatsApp: no existe por analista),
+  `BarrasPorHora` con guarda y nota, línea compacta de las métricas que hoy da `DetalleAnalista`,
+  últimas 3 gestiones con chip de resultado, «Ver el registro del día».
+- **S3 · El resto + limpieza**: registro (modo normal, conserva el filtro de etapa), pendientes,
+  «Registro del equipo», cortes y avisos, «i» y la tabla de estados; retirar solo el CSS que ya no
+  use nadie (gerencia incluida).
+
+**Diferidos:** unificar gerencia con estas piezas (su plan); enlace «Ver su día» del Hoy del
+supervisor que abra al analista directo (archivo de esa sesión; el router ya admite
+`{tipo:'analista', id}`); alinear el vocabulario de atención con el mando («Primera gestión vencida»).
 
 Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)]],
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
 [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]], [[Fundamentos UX del CRM]].
+
+## Estado de la pantalla del supervisor (27/09 — PUBLICADA en crm.miavance.com)
+
+- **Dónde:** rama `trabajo/supervisor-diseno-20260927`, trabajada en un worktree aislado (regla de Miguel:
+  «tu trabajo todo aislado no compartas entornos»). Commit `5aecbcd1`, con el vivo `01d5ddc4` integrado.
+- **Qué quedó:** cabecera con fecha, «Hoy», «Actualizado» e información; cinco cifras en línea («Necesitan
+  atención» en ámbar); tabla propia del supervisor (avatar, contacto en 3 estados, citas, vencidas en rojo,
+  atención en palabras por gravedad); panel al lado desde 1100 px con resumen del analista (aviso de
+  vencidas → Pendientes, 4 cuadros, llamadas por hora, «Más datos del día»), últimas gestiones y registro.
+  El panel se abre solo con el analista MÁS GRAVE (sin importar el orden de la tabla); cerrarlo lo apaga.
+  Por debajo de 640 px cada analista es una tarjeta. Gerencia NO cambia (estilos propios `mi-equipo.css`).
+- **Codex:** revisión de código CHANGES_REQUESTED (4 P2 + 1 P3 + 2 riesgos), todo aplicado con pruebas:
+  candidata por gravedad, el reintento no roba el foco, Pendientes sigue cada control, vuelven «N gestiones ·
+  fecha · Lima», «Tareas vencidas» sin número se sigue diciendo, umbrales coordinados (1100 / 640 px).
+- **Verificación:** `npm run check` PASS (4626 pruebas). La suite E2E completa aislada se cayó a mitad por
+  memoria del Docker compartido (ENOMEM en el Vite del contenedor) → 29 fallos ajenos; se repitió lo
+  afectado: 92 PASS + 1 intermitente (H5, consultas de la pantalla de inicio al entrar, antes de «Mi equipo»;
+  pasó al reintentar).
+- **Pendiente:** Miguel lo revisa en local; publicar con `/release-crm` desde la rama (ya lleva el vivo `01d5ddc4`)
+  y fusionarla a `main` el mismo día. El vivo pasó a `build-20260927T205509063Z`, sin manifiesto en `releases/`
+  (otra sesión): el preflight lo pedirá.
+- **Decisiones y diferidos:** filas de 52 px del diseño = 6 analistas visibles a 1512×805 (antes 10);
+  opciones si molesta: filas de 48 px o llevar «Cortes y avisos» a la cabecera. Diferidos de accesibilidad:
+  quitar `aria-label` de ordenar/nombre (afecta a gerencia), semántica de tarjetas en WebKit (necesita
+  VoiceOver), parada de tabulador del scroll en modo equipo.
+- **Lecciones:** no correr `npm run check` mientras corre un E2E (el informe de cobertura dispara recargas
+  del Vite que se prueba); en Docker compartido, correr con contenedor, etiqueta y volumen propios.
+
+### Ajustes de Miguel tras verla en local y publicación (27/09, 20:41 Lima)
+
+- **Jerarquía:** el tablero de 5 cifras dejó de ser un bloque; sus números son los filtros de la tabla
+  («todo número se abre»). Abrir una cifra limpia la búsqueda (Codex). «Registro del equipo» subió a la
+  cabecera (deshabilitado, no desmontado, sin foto válida). Se ven 7 analistas a 1512×805 y 6 a 1366×768.
+- **Ficha protagonista:** 360–440 px, borde azul con sombra, cabecera teñida, avatar relleno, nombre 22 px,
+  cifras 28 px.
+- **Registro y Pendientes «como el resumen»:** el registro de la ficha usa la versión compacta con título
+  «Actividad de hoy/del <día>» (sin descripción, etapa ni «Actualizar» propio; el del equipo conserva el
+  filtro por analista y dice el autor). Pendientes: dos cuadros (Todas · Vencidas) que filtran, «Vencida»
+  al microsegundo, el nombre del lead solo se quita del título si es el nombre VERIFICADO.
+- **Codex:** CHANGES_REQUESTED (2 P2) → aplicados con pruebas mutantes. Encargo en
+  `CRM-Avance-Corp/docs/encargos/2026-09-27-codex-supervisor-jerarquia-pestanas.md`.
+- **Publicación:** `/release-crm` de Miguel. Artefacto `crm-20260928T014120Z-d00e62ad1b32`, build
+  `build-20260928T014119651Z`, commit `d00e62ad`. Preflight OK contra el vivo `8ec3dd1f`. Humo: 104/116
+  byte a byte + 12 PNG recomprimidos por la CDN. `npm run check` PASS (4633). E2E Docker aislado: 68 PASS +
+  1 intermitente (H5 «consultas iguales», que falla 3/3 también en el vivo anterior sin estos cambios).
+  Fusionado a `main` en `0b238590`.
+- **Incidente de la otra sesión (Citas por equipo):** publicó `build-20260927T205509063Z` (commit
+  `8ec3dd1f`) desde una copia temporal (`/private/tmp/avancecorp-citas-release.QEsx2k`) SIN dejar su ZIP
+  ni su manifiesto en `CRM-Avance-Corp/releases/` y SIN fusionar a `main`: el preflight de cualquiera se
+  negaba. Se verificó que su ZIP = lo vivo (buildId, entrada `index-ynpMOmj8.js`, SHA-256), se copió a
+  `releases/` y su commit entró a `main` con esta fusión (trae la migración `20260927172930`; falta su
+  línea en `MIGRACIONES.md`, que llega al integrar `avancecorp/main` #116).
+- **Pendiente:** PR de integración a GitHub (sin lo de Gloria). La prueba H5 la está arreglando otra
+  sesión: su cambio (arrancar en `#/gestion-diaria`) sigue SIN commitear en el taller compartido.

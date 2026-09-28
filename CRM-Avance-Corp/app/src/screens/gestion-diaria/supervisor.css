@@ -38,7 +38,6 @@
 .gd-tabla button:focus-visible,.gd-panel :focus-visible,.gd-cabecera h2:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:4px; }
 .gd-motivos { color:var(--warning-text); font-weight:600; }
 .gd-tabla .gd-sin-filas { padding:24px; }
-.gd-estado { padding:24px; display:flex; flex-direction:column; gap:16px; align-items:start; }
 .gd-panel-alojamiento,.gd-panel-host { min-width:0; min-height:0; height:100%; }
 .gd-panel-host { display:flex; flex-direction:column; }
 .gd-panel { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; border-radius:10px; background:var(--card); box-shadow:inset 0 0 0 1px var(--border); font-size:16px; line-height:1.375; overflow:hidden; }
@@ -53,13 +52,8 @@
 .gd-panel-cuerpo[hidden],.gd-panel-alojamiento[hidden] { display:none; }
 .gd-resumen-principal { display:flex; gap:12px; align-items:baseline; color:var(--primary); }
 .gd-resumen-principal strong { font-size:36px; font-weight:750; line-height:1.2; }
-.gd-atencion-detalle { margin-top:12px; padding:12px; border-radius:8px; background:color-mix(in srgb,var(--warning) 10%,var(--card)); color:var(--warning-text); }
 .gd-seleccion-oculta { padding:8px 12px; background:var(--muted); flex-shrink:0; }
 .gd-cortes { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:44px; flex-shrink:0; border-radius:10px; background:var(--card); box-shadow:inset 0 0 0 1px var(--border); }
-.gd-cortes-resumen { display:flex; flex:1; flex-wrap:wrap; align-items:center; gap:2px 16px; min-width:0; }
-.gd-cortes-resumen>span { overflow-wrap:anywhere; }
-.gd-cortes-resumen strong { color:var(--warning-text); font-weight:600; }
-.gd-cortes-consulta { color:var(--muted-foreground-strong); padding-right:12px; white-space:nowrap; }
 .gd-resultado-corte { border:1px solid var(--border); border-radius:8px; }
 .gd-resultado-corte summary { cursor:pointer; min-height:44px; padding:10px 12px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px; list-style:none; }
 .gd-resultado-corte summary::-webkit-details-marker { display:none; }
@@ -100,8 +94,6 @@
   .gd-tabla tbody td::before { content:attr(data-etiqueta); display:block; color:var(--muted-foreground-strong); font-size:16px; margin-bottom:4px; }
   .gd-tabla [data-activa=true] .gd-nombre { box-shadow:none; }
   .gd-cortes { flex-wrap:wrap; }
-  .gd-cortes-resumen { flex-basis:100%; padding:0 12px; }
-  .gd-cortes-consulta { padding:0 12px 8px; }
 }
 @media (max-height:650px), (max-width:900px) {
   .gd-supervisor { height:auto; min-height:0; }
