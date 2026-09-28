@@ -70,7 +70,7 @@ function VistaOrigenes({ filas, tc, total, ejemplo, cartera }: {
   tc: number | null
   total: number | null
   ejemplo: boolean
-  cartera?: FilaCapital['cartera']
+  cartera?: RankingOrigenVendedor['cartera'] | FilaCapital['cartera']
 }) {
   return (
     <section aria-label={ejemplo ? 'Vista de ejemplo del capital y conversión por origen' : 'Capital y conversión por origen'} className="rounded-2xl border border-[var(--gi-line)] bg-white p-4">
@@ -82,7 +82,7 @@ function VistaOrigenes({ filas, tc, total, ejemplo, cartera }: {
         {filas.map(({ origen, capitalPen, capitalUsd, conversionPct, mostrarConversion }) => {
           const capitalTotal = totalEnSoles(capitalPen, capitalUsd, tc).total
           const esCartera = origen === 'cartera'
-          const carteraConcilia = cartera != null && cartera.length === 2
+          const carteraConcilia = cartera != null && cartera.length >= 2
             && Math.round(cartera.reduce((suma, fila) => suma + fila.pen, 0) * 100) === Math.round(capitalPen * 100)
             && Math.round(cartera.reduce((suma, fila) => suma + fila.usd, 0) * 100) === Math.round(capitalUsd * 100)
           return (
@@ -98,9 +98,9 @@ function VistaOrigenes({ filas, tc, total, ejemplo, cartera }: {
               </div>
               {esCartera && (
                 carteraConcilia ? <div role="group" aria-label="Desglose de cartera"><dl className="mt-3 space-y-3 border-l-2 border-[var(--gi-line)] pl-3 text-xs text-[var(--gi-navy)]">
-                  {cartera!.map((detalle) => (
+                  {cartera!.filter((detalle) => detalle.categoria !== 'sin_clasificar' || detalle.pen !== 0 || detalle.usd !== 0).map((detalle) => (
                     <div key={detalle.categoria} className="flex items-start justify-between gap-3">
-                      <dt>{detalle.categoria === 'renovacion' ? 'Renovación' : 'Upgrade'}</dt>
+                      <dt>{detalle.categoria === 'renovacion' ? 'Renovación' : detalle.categoria === 'upgrade' ? 'Upgrade' : 'Sin clasificación'}</dt>
                       <dd className="text-right tabular-nums">
                         <strong>{money(totalEnSoles(detalle.pen, detalle.usd, tc).total, 'PEN')}</strong>
                         <DesgloseMonedas pen={detalle.pen} usd={detalle.usd} tc={tc} tono="gerencia" />
@@ -234,7 +234,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                       capitalUsd: origen.capital_usd,
                       conversionPct: origen.conversion_pct,
                       mostrarConversion: ['landing', 'formulario', 'referido', 'oficina'].includes(origen.origen),
-                    }))} tc={tc} total={fila.capitalTotal} ejemplo={false} cartera={fila.cartera} />
+                    }))} tc={tc} total={fila.capitalTotal} ejemplo={false} cartera={origenes?.cartera ?? fila.cartera} />
                     : <div className="flex items-center justify-between gap-3 text-xs text-[var(--gi-muted)]">
                         <span>Desglose no disponible</span>
                         {origenesError && onReintentarOrigenes && <Button variant="outline" size="sm" onClick={onReintentarOrigenes}>Reintentar</Button>}

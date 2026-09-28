@@ -1,3 +1,14 @@
+## 20260928174554 — Ranking: desglose de cartera desde operaciones registradas
+
+**EN RAMA TEMPORAL, NO PUBLICADA.** RPC v2 aditiva con el mismo ámbito de v1;
+concilia PEN y USD con el stock por origen. Contratos de categoría financiera
+`nuevo` usan la operación de cartera validada por contrato, cliente, moneda y
+fecha comercial. Conserva v1, capital, conversión y categorías financieras.
+El cierre guarda el desglose en una columna nueva; fotos antiguas quedan NULL.
+Tipos regenerados desde la rama; pruebas focales de pantalla/esquema 48 PASS;
+lint y typecheck PASS (cuatro avisos preexistentes de coverflow).
+Pendientes antes de publicación: matriz ampliada v2, review y gates completos.
+
 ## 20260928163532 — Ranking: origen desde acreditaciones confirmadas
 
 **PUBLICADA 28/09/2026 mediante merge nativo de rama Supabase exclusiva.**

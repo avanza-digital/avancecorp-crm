@@ -411,6 +411,7 @@ export type Database = {
           ajuste_pen: number
           ajuste_usd: number
           cartera: Json
+          cartera_ranking: Json | null
           cierres_de_arrastre: number
           cierres_no_referidos: number
           cierres_referidos: number
@@ -438,6 +439,7 @@ export type Database = {
           ajuste_pen?: number
           ajuste_usd?: number
           cartera?: Json
+          cartera_ranking?: Json | null
           cierres_de_arrastre: number
           cierres_no_referidos: number
           cierres_referidos: number
@@ -465,6 +467,7 @@ export type Database = {
           ajuste_pen?: number
           ajuste_usd?: number
           cartera?: Json
+          cartera_ranking?: Json | null
           cierres_de_arrastre?: number
           cierres_no_referidos?: number
           cierres_referidos?: number
@@ -6043,6 +6046,10 @@ export type Database = {
         Returns: undefined
       }
       ranking_origen_vendedor_fn: {
+        Args: { p_periodo: string; p_vendedor_id: string }
+        Returns: Json
+      }
+      ranking_origen_vendedor_v2_fn: {
         Args: { p_periodo: string; p_vendedor_id: string }
         Returns: Json
       }
