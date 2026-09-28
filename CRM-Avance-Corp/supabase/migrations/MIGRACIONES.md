@@ -1,3 +1,23 @@
+## 20260928163532 — Ranking: origen desde acreditaciones confirmadas
+
+**PUBLICADA 28/09/2026 mediante merge nativo de rama Supabase exclusiva.**
+Recupera el canal acreditado de la misma fuente y fecha comercial, después de
+vínculo directo, perfil anterior y cartera legada; conserva ambigüedades.
+No cambia RPC, capital, categorías, atribución, conversión ni fotos selladas.
+
+Producción: historial 380 → 381, 144 filas antes/después y 36 canales recuperados;
+paridad exacta de importes y huellas de contratos/cuotas/acreditaciones/fotos.
+Control analítico 0 pendientes y las 22 Edge Functions intactas.
+Rama: matriz RLS/Auth/HTTP baseline y candidata PASS, tres casos acreditados
+PEN/USD con política activa PASS; advisors sin alertas nuevas. Banco local:
+13 casos y ACL PASS. Front check 4.740 PASS; E2E completo detectó un recorrido
+antiguo de Gerencia corregido y focal final 11/11 PASS. Smoke 80 archivos PASS.
+`gate:realidad` NOT RUN por entorno; diagnóstico real READ ONLY sí ejecutado.
+Claude CHANGES_REQUESTED, hallazgos evaluados/corregidos por PRIMARY; RLS HTTP
+remoto cerró el riesgo condicional de la cadena SECURITY DEFINER/postgres.
+SQL SHA-256: `df4eb9e7496a8406a60a24ba13717286d2ae1f802bf1a50430d055e13755fa40`.
+Acta: `BASE DE CONOCIMINETO/AVANCECORP/Ranking - origen acreditado y desglose de cartera (2026-09-28).md`.
+
 ## 20260927080006 — Conversión: declaraciones técnicas del control analítico
 
 **APROBADA Y ENSAYADA EN RAMA; NO EN PRODUCCIÓN.** Dos escritores internos
