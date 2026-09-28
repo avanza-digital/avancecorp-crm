@@ -5,7 +5,15 @@
 // `crm.cola_accion_v2_fn` (`data/sla-operacion-api.ts`): aquí se ORDENA, no se
 // recalcula. Nada de negocio se decide en esta capa: el servidor manda.
 import * as v from 'valibot'
-import type { ColaSlaPagina } from '@/lib/sla-operacion'
+import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
+
+/**
+ * La página de la cola del día que piden Gestión diaria del analista y el
+ * botón «GESTIÓN DIARIA» de «Hoy»: mismos filtros y mismo límite → misma clave
+ * de TanStack → una sola consulta compartida. Cambiarlos aquí cambia a los dos.
+ */
+export const FILTROS_COLA_DIA: FiltrosSla = { senal: 'todas', etapa: null, analista_id: null }
+export const LIMITE_COLA_DIA = 100
 
 /** Ítem de la cola v2 tal como llega; el bucket es texto libre en el contrato. */
 export type ItemColaSla = ColaSlaPagina['items'][number]

@@ -29,7 +29,8 @@ vi.mock('./sla-operacion-queries', () => ({
     return dobles.cola
   },
 }))
-const { claveVisita, conteoDelDia, conteoDelDiaDemo, FILTROS_COLA, LIMITE_COLA, useConteoGestionDiaria } = await import('./use-conteo-gestion-diaria')
+const { claveVisita, conteoDelDia, conteoDelDiaDemo, useConteoGestionDiaria } = await import('./use-conteo-gestion-diaria')
+const { FILTROS_COLA_DIA, LIMITE_COLA_DIA } = await import('@/lib/gestion-diaria-analista')
 
 const HORA_MS = 3_600_000
 const DIA_MS = 24 * HORA_MS
@@ -141,11 +142,11 @@ describe('useConteoGestionDiaria', () => {
     if (almacenOriginal) Object.defineProperty(window, 'localStorage', almacenOriginal)
   })
 
-  it('en sesión real pide la MISMA cola que el destino (filtros, sin cursor, LIMITE_COLA, habilitada) y cuenta con ella', () => {
+  it('en sesión real pide la MISMA cola que el destino (filtros, sin cursor, LIMITE_COLA_DIA, habilitada) y cuenta con ella', () => {
     const { result } = renderHook(() => useConteoGestionDiaria())
     expect(dobles.colaArgs).toEqual([{ senal: 'todas', etapa: null, analista_id: null }, null, 100, true])
-    expect(FILTROS_COLA).toEqual({ senal: 'todas', etapa: null, analista_id: null })
-    expect(LIMITE_COLA).toBe(100)
+    expect(FILTROS_COLA_DIA).toEqual({ senal: 'todas', etapa: null, analista_id: null })
+    expect(LIMITE_COLA_DIA).toBe(100)
     expect(result.current).toMatchObject({ hechas: 9, vencidas: 3, pendientes: 3, disponible: true, cargando: false, yaVisitoHoy: false })
   })
 
