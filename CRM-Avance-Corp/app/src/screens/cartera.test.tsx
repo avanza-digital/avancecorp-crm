@@ -20,10 +20,22 @@ import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
 let ESTADO_CIERRES: CierreEstado[] = []
+/** Simula el payload ausente (cargando o RPC caída): el resumen no llega. */
+let RESUMEN_CAIDO = false
+/** Simula la consulta de una combinación de filtros nueva, aún en vuelo. */
+let CARGANDO = false
+/** Simula que la consulta de una combinación nueva FALLA (RPC caída tras el clic). */
+let FALLO = false
+/** Consulta de gerencia abierta desde Rendimiento (null = entrada normal). */
+let CONSULTA_GERENCIA: { consulta: { gestionAnalista: { id: string; nombre: string } | null }; setConsulta: () => void } | null = null
 const ABRIR_LEAD = vi.fn()
 
 beforeEach(() => {
   ABRIR_LEAD.mockClear()
+  RESUMEN_CAIDO = false
+  CARGANDO = false
+  FALLO = false
+  CONSULTA_GERENCIA = null
 })
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
@@ -48,6 +60,7 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('@/data/crm-queries', () => ({
   useCierresEstado: () => ({ data: ESTADO_CIERRES }),
 }))
+vi.mock('@/components/gerencia/use-consulta-gerencia', () => ({ useConsultaGerencia: () => CONSULTA_GERENCIA }))
 
 // F2: la TABLA la sirve `crm.cartera_pagina_fn` por cursor. Aquí se sustituye
 // por el MISMO espejo puro que usa el modo demo (`lib/cartera-keyset`), que es
@@ -59,11 +72,11 @@ vi.mock('@/data/use-cartera-paginada', async () => {
   return {
     useCarteraPaginada: (leads: Lead[], filtros: FiltrosCartera & FiltrosCarteraLocal) => ({
       leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null })),
-      resumen: resumenCarteraDesdeAmbito(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null }), [], Date.now(), Boolean(filtros.recepcion)),
+      resumen: RESUMEN_CAIDO || CARGANDO || FALLO ? undefined : resumenCarteraDesdeAmbito(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null }), [], Date.now(), Boolean(filtros.recepcion)),
       hayMas: false,
-      cargando: false,
+      cargando: CARGANDO,
       cargandoMas: false,
-      error: null,
+      error: FALLO ? new Error('RPC caída') : null,
       cargarMas: vi.fn(),
       recargar: vi.fn(),
     }),
@@ -101,8 +114,7 @@ describe('Cartera · vista previa local conectada', () => {
     expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
     expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
     expect(within(chipDe('Capital en juego')).getByText('S/ 2,000')).toBeInTheDocument()
-    const distribucion = screen.getByText('Distribución por etapa').closest('[data-slot="card"]')!
-    expect(within(distribucion as HTMLElement).getByText('1 lead')).toBeInTheDocument()
+    expect(pildorasEtapa().map((b) => b.textContent)).toEqual(['Contactado 1'])
     fireEvent.click(screen.getByRole('row', { name: 'Abrir ficha de LEAD DE AYER' }))
     expect(ABRIR_LEAD).toHaveBeenCalledWith('ayer')
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
@@ -121,8 +133,7 @@ describe('Cartera · vista previa local conectada', () => {
     expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
     expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
     expect(within(chipDe('Capital en juego')).getByText('S/ 8,000')).toBeInTheDocument()
-    const distribucion = screen.getByText('Distribución por etapa').closest('[data-slot="card"]')!
-    expect(within(distribucion as HTMLElement).getByText('1 lead')).toBeInTheDocument()
+    expect(pildorasEtapa().map((b) => b.textContent)).toEqual(['Contactado 1'])
     // Compone con la etapa: el lead web está contactado, así que «nuevo» vacía todo.
     fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'nuevo' } })
     expect(within(chipDe('Total leads')).getByText('0')).toBeInTheDocument()
@@ -253,11 +264,16 @@ function montar(leads: Lead[], estadoCierres: CierreEstado[] = []) {
   render(<Cartera />)
 }
 
-/** El mini-KPI completo (Card del StatStrip) a partir de su etiqueta. */
+/** El mini-KPI completo de la franja de cabecera a partir de su etiqueta. */
 function chipDe(label: string): HTMLElement {
-  const chip = screen.getByText(label).closest('[data-slot="card"]')
+  const chip = screen.getByText(label).closest('[data-kpi]')
   if (!(chip instanceof HTMLElement)) throw new Error(`Sin chip "${label}"`)
   return chip
+}
+
+/** Las pastillas de etapa (la distribución que filtra). */
+function pildorasEtapa(): HTMLElement[] {
+  return within(screen.getByRole('group', { name: 'Distribución por etapa' })).queryAllByRole('button')
 }
 
 describe('Cartera · chip de capital', () => {
@@ -406,5 +422,302 @@ describe('Cartera · marca de cierre anulado', () => {
 
     expect(within(filaDe('PEDRO CONVERTIDO')).queryByText('CIERRE ANULADO'))
       .not.toBeInTheDocument()
+  })
+})
+
+describe('Cartera · franja: las cifras filtran y el capital convertido', () => {
+  const NUEVO = () => lead({ id: 'l-nuevo', nombre_completo: 'LEAD NUEVO', monto_estimado: 12000 })
+  const CONV_PEN = () => lead({ id: 'l-conv-pen', nombre_completo: 'CONVERTIDO SOLES', etapa: 'convertido', monto_estimado: 80000 })
+  const CONV_USD = () => lead({ id: 'l-conv-usd', nombre_completo: 'CONVERTIDO DOLARES', etapa: 'convertido', monto_estimado: 30000, moneda: 'USD' })
+  const etapaElegida = () => (screen.getByLabelText('Filtrar por etapa') as HTMLSelectElement).value
+  const textos = () => pildorasEtapa().map((b) => b.textContent)
+
+  // ⚠️ GATE DE REALIDAD: sin payload (cargando o RPC caída) nada se inventa ni se abre.
+  it('ESTADO DE PRODUCCIÓN (sin resumen): «—» en todo, sin pastillas y nada que abrir', () => {
+    RESUMEN_CAIDO = true
+    montar([NUEVO(), CONV_PEN()])
+    for (const etiqueta of ['Total leads', 'Capital en juego', 'Activos', 'Convertidos']) {
+      expect(within(chipDe(etiqueta)).getByText('—')).toBeInTheDocument()
+    }
+    expect(within(chipDe('Capital en juego')).getByText('sin dato')).toBeInTheDocument()
+    expect(pildorasEtapa()).toHaveLength(0)
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByText(/^Convertido:/)).not.toBeInTheDocument()
+  })
+
+  it('sin resumen y con la etapa «convertido» ya elegida, la tarjeta sigue permitiendo SOLTAR el filtro', () => {
+    RESUMEN_CAIDO = true
+    montar([NUEVO(), CONV_PEN()])
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'convertido' } })
+    expect(within(chipDe('Capital convertido')).getByText('—')).toBeInTheDocument()
+    // Excepción a propósito: sin cifras no se ABRE nada, pero lo ya abierto se puede cerrar.
+    expect(chipDe('Convertidos')).not.toHaveAttribute('aria-disabled')
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(chipDe('Convertidos'))
+    expect(etapaElegida()).toBe('todas')
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('la ayuda de la franja llega al lector de pantalla como descripción del resumen', () => {
+    montar([NUEVO()])
+    expect(screen.getByRole('region', { name: 'Resumen de la cartera' }))
+      .toHaveAccessibleDescription('Los filtros actualizan juntos el listado, los indicadores y la distribución por etapa.')
+    // Las cifras que filtran explican qué hacen, sin cambiar lo que se lee en pantalla.
+    expect(chipDe('Total leads')).toHaveAccessibleName(/^Total leads 1 .*todas las etapas/)
+    expect(chipDe('Convertidos')).toHaveAccessibleName(/^Convertidos 0 .*filtra la tabla por los convertidos/)
+  })
+
+  it('la línea «Convertido: …» del capital en juego también abre su lista', () => {
+    montar([NUEVO(), CONV_PEN(), CONV_USD()])
+    // Espejo del selector E2E (gerencia-operativa.spec): la PRIMERA card que
+    // contiene «convertidos» (sin distinguir mayúsculas) debe ser la tarjeta
+    // «Convertidos», no el capital, que va antes en el DOM.
+    const primera = [...document.querySelectorAll('[data-slot="card"]')].find((c) => /convertidos/i.test(c.textContent ?? ''))
+    expect(primera).toBe(chipDe('Convertidos').closest('[data-slot="card"]'))
+    const linea = within(chipDe('Capital en juego')).getByRole('button', { name: /^Convertido: S\/ 80,000 · US\$ 30,000/ })
+    fireEvent.click(linea)
+    expect(etapaElegida()).toBe('convertido')
+    expect(screen.getByText('CONVERTIDO SOLES')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD NUEVO')).not.toBeInTheDocument()
+  })
+
+  // ⚠️ GATE DE REALIDAD: una cartera sin convertidos es lo normal para un analista nuevo.
+  it('ESTADO DE PRODUCCIÓN (sin convertidos): sin línea de convertido y «Capital convertido» honesto en cero', () => {
+    montar([NUEVO()])
+    const enJuego = chipDe('Capital en juego')
+    expect(within(enJuego).getByText('S/ 12,000')).toBeInTheDocument()
+    expect(within(enJuego).queryByText(/Convertido:/)).not.toBeInTheDocument()
+    expect(within(chipDe('Convertidos')).getByText('0')).toBeInTheDocument()
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-disabled', 'true')
+    expect(textos()).toEqual(['Nuevo 1'])
+
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'convertido' } })
+    const convertido = chipDe('Capital convertido')
+    expect(within(convertido).getByText('S/ 0')).toBeInTheDocument()
+    expect(within(convertido).getByText('Monto estimado de 0 convertidos')).toBeInTheDocument()
+    // La etapa activa se queda aunque dé cero, para poder soltarla.
+    expect(chipDe('Convertidos')).not.toHaveAttribute('aria-disabled')
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-pressed', 'true')
+    expect(textos()).toEqual(['Convertido 0'])
+    fireEvent.click(pildorasEtapa()[0]!)
+    expect(etapaElegida()).toBe('todas')
+  })
+
+  it('la tarjeta «Convertidos» filtra y el capital pasa a «Capital convertido»; otro clic lo suelta', () => {
+    montar([NUEVO(), CONV_PEN()])
+    expect(within(chipDe('Capital en juego')).getByText('S/ 12,000')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('Convertido: S/ 80,000')).toBeInTheDocument()
+    expect(chipDe('Total leads')).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(chipDe('Convertidos'))
+    expect(etapaElegida()).toBe('convertido')
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-pressed', 'true')
+    expect(chipDe('Total leads')).toHaveAttribute('aria-pressed', 'false')
+    const capital = chipDe('Capital convertido')
+    expect(within(capital).getByText('S/ 80,000')).toBeInTheDocument()
+    expect(within(capital).getByText('Monto estimado de 1 convertido')).toBeInTheDocument()
+    expect(screen.queryByText('Capital en juego')).not.toBeInTheDocument()
+    // «Confirmado» es el capital de CONTRATOS del mes: aquí no se promete.
+    expect(screen.queryByText(/Capital confirmado/)).not.toBeInTheDocument()
+    expect(screen.getByText('CONVERTIDO SOLES')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD NUEVO')).not.toBeInTheDocument()
+
+    fireEvent.click(chipDe('Convertidos'))
+    expect(etapaElegida()).toBe('todas')
+    expect(chipDe('Capital en juego')).toBeInTheDocument()
+    expect(screen.getByText('LEAD NUEVO')).toBeInTheDocument()
+  })
+
+  it('las etapas filtran con un clic y se sueltan con otro; «Total leads» limpia SOLO la etapa', () => {
+    montar([
+      NUEVO(),
+      lead({ id: 'l-ref', nombre_completo: 'LEAD REFERIDO', origen: 'referido', etapa: 'contactado', monto_estimado: 500 }),
+      CONV_PEN(),
+    ])
+    expect(textos()).toEqual(['Nuevo 1', 'Contactado 1', 'Convertido 1'])
+    const contactado = () => screen.getByRole('button', { name: 'Contactado 1' })
+    fireEvent.click(contactado())
+    expect(etapaElegida()).toBe('contactado')
+    expect(contactado()).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('LEAD REFERIDO')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD NUEVO')).not.toBeInTheDocument()
+    fireEvent.click(contactado())
+    expect(etapaElegida()).toBe('todas')
+
+    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'referido' } })
+    expect(textos()).toEqual(['Contactado 1'])
+    fireEvent.click(contactado())
+    fireEvent.click(chipDe('Total leads'))
+    expect(etapaElegida()).toBe('todas')
+    expect((screen.getByLabelText('Filtrar por origen') as HTMLSelectElement).value).toBe('referido')
+
+    fireEvent.click(contactado())
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(etapaElegida()).toBe('todas')
+    expect((screen.getByLabelText('Filtrar por origen') as HTMLSelectElement).value).toBe('todos')
+    expect(textos()).toEqual(['Nuevo 1', 'Contactado 1', 'Convertido 1'])
+  })
+
+  it.each([
+    ['solo soles', [CONV_PEN()], 'S/ 80,000', 'Monto estimado de 1 convertido', 'Convertido: S/ 80,000'],
+    ['solo dólares', [CONV_USD()], 'US$ 30,000', 'Monto estimado de 1 convertido', 'Convertido: US$ 30,000'],
+    ['las dos monedas', [CONV_PEN(), CONV_USD()], 'S/ 80,000', 'Monto estimado de 2 convertidos · +US$ 30k', 'Convertido: S/ 80,000 · US$ 30,000'],
+  ])('%s: cada moneda por su lado, NUNCA sumadas', (_, convertidos, valor, sub, linea) => {
+    montar([NUEVO(), ...convertidos])
+    expect(within(chipDe('Capital en juego')).getByText(linea)).toBeInTheDocument()
+    fireEvent.click(chipDe('Convertidos'))
+    const capital = chipDe('Capital convertido')
+    expect(within(capital).getByText(valor)).toBeInTheDocument()
+    expect(within(capital).getByText(sub)).toBeInTheDocument()
+    // 110,000 = S/ 80,000 + US$ 30,000: la suma prohibida.
+    expect(within(capital).queryByText(/110/)).not.toBeInTheDocument()
+  })
+
+  it('con la etapa «descartado» el capital lo dice claro: los descartados no suman', () => {
+    montar([NUEVO(), lead({ id: 'l-desc', nombre_completo: 'LEAD DESCARTADO', etapa: 'descartado', monto_estimado: 5000 })])
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'descartado' } })
+    const capital = chipDe('Capital en juego')
+    expect(within(capital).getByText('S/ 0')).toBeInTheDocument()
+    expect(within(capital).getByText('Los descartados no suman capital')).toBeInTheDocument()
+  })
+
+  it('rango de fechas inválido: la franja no enseña pastillas ni cifras', () => {
+    montar([NUEVO(), CONV_PEN()])
+    const hoy = fechaLima(Date.now())
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'rango' } })
+    fireEvent.change(screen.getByLabelText('Fecha inicial de recepción'), { target: { value: hoy } })
+    fireEvent.change(screen.getByLabelText('Fecha final de recepción'), { target: { value: desplazarFechaDerivaciones(hoy, -1) } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Completa ambas fechas')
+    expect(pildorasEtapa()).toHaveLength(0)
+    expect(within(chipDe('Capital en juego')).getByText('—')).toBeInTheDocument()
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('supervisor con rango de fechas: el aviso de recepción sigue igual al filtrar por etapa', () => {
+    YO = { id: 's-1', rol: 'supervisor', demo: true }
+    const recibido = `${fechaLima(Date.now())}T12:00:00-05:00`
+    LEADS = [
+      lead({ id: 'a', nombre_completo: 'LEAD A', tenencia_desde: recibido }),
+      lead({ id: 'b', nombre_completo: 'LEAD B', etapa: 'contactado', vendedor_id: 'v-2', tenencia_desde: recibido }),
+    ]
+    ESTADO_CIERRES = []
+    render(<Cartera />)
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'hoy' } })
+    expect(screen.getByText(/Recepción de los analistas de tu equipo/)).toBeInTheDocument()
+    expect(textos()).toEqual(['Nuevo 1', 'Contactado 1'])
+    fireEvent.click(screen.getByRole('button', { name: 'Contactado 1' }))
+    expect(screen.getByText('LEAD B')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD A')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(screen.getByText(/Recepción de los analistas de tu equipo/)).toBeInTheDocument()
+  })
+
+  it('gerencia desde Rendimiento: conserva la consulta del analista y las cifras filtran dentro de ella', () => {
+    YO = { id: 'g-1', rol: 'gerencia', demo: false }
+    CONSULTA_GERENCIA = { consulta: { gestionAnalista: { id: 'v-2', nombre: 'LUIS PEREZ' } }, setConsulta: vi.fn() }
+    LEADS = [
+      NUEVO(),
+      lead({ id: 'l-luis', nombre_completo: 'LEAD DE LUIS', vendedor_id: 'v-2', etapa: 'convertido', monto_estimado: 9000 }),
+      lead({ id: 'l-luis-2', nombre_completo: 'OTRO DE LUIS', vendedor_id: 'v-2', monto_estimado: 3000 }),
+    ]
+    ESTADO_CIERRES = []
+    render(<Cartera />)
+    const consulta = screen.getByRole('region', { name: 'Consulta desde Rendimiento' })
+    expect(consulta).toHaveTextContent('Leads de LUIS PEREZ')
+    expect(within(consulta).getByRole('link', { name: 'Volver a Rendimiento' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por analista')).toHaveValue('v-2')
+    expect(screen.queryByText('LEAD NUEVO')).not.toBeInTheDocument()
+
+    fireEvent.click(chipDe('Convertidos'))
+    expect(screen.getByText('LEAD DE LUIS')).toBeInTheDocument()
+    expect(screen.queryByText('OTRO DE LUIS')).not.toBeInTheDocument()
+    expect(within(chipDe('Capital convertido')).getByText('S/ 9,000')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por analista')).toHaveValue('v-2')
+    expect(screen.queryByText(/Cambiaste el filtro del listado/)).not.toBeInTheDocument()
+  })
+
+  // Foco (revisor-a11y, 28/09): en sesión real la etapa nueva es una consulta
+  // nueva y el resumen llega TARDE. El control pulsado no puede desaparecer
+  // con el foco dentro.
+  it('al pulsar una etapa, mientras llega la consulta, la pastilla sigue ahí con el foco y sin cifra vieja', () => {
+    YO = { id: 'v-1', rol: 'vendedor', demo: false }
+    LEADS = [NUEVO(), lead({ id: 'l-cont', nombre_completo: 'LEAD CONTACTADO', etapa: 'contactado', monto_estimado: 700 })]
+    ESTADO_CIERRES = []
+    const { rerender } = render(<Cartera />)
+    const contactado = screen.getByRole('button', { name: 'Contactado 1' })
+    contactado.focus()
+    CARGANDO = true
+    fireEvent.click(contactado)
+
+    const pulsada = screen.getByRole('button', { name: /^Contactado/ })
+    expect(pulsada).toHaveFocus()
+    expect(pulsada).toHaveAttribute('aria-pressed', 'true')
+    expect(pulsada).toHaveAttribute('aria-disabled', 'true')
+    expect(within(pulsada).getByText('cargando')).toBeInTheDocument()
+    expect(within(pulsada).queryByText('1')).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Distribución por etapa' })).toHaveAttribute('aria-busy', 'true')
+    // Sin resumen «Total leads» sigue enfocable y, con una etapa elegida,
+    // sirve para soltarla: lo abierto se puede cerrar.
+    expect(chipDe('Total leads')).not.toBeDisabled()
+    expect(chipDe('Total leads')).not.toHaveAttribute('aria-disabled')
+    // Una pastilla en espera no cambia el filtro.
+    fireEvent.click(screen.getByRole('button', { name: /^Nuevo/ }))
+    expect(etapaElegida()).toBe('contactado')
+
+    CARGANDO = false
+    rerender(<Cartera />)
+    expect(screen.getByRole('button', { name: 'Contactado 1' })).toHaveFocus()
+    expect(textos()).toEqual(['Contactado 1'])
+    expect(screen.getByRole('group', { name: 'Distribución por etapa' })).not.toHaveAttribute('aria-busy')
+  })
+
+  it('soltar una etapa que se queda en cero lleva el foco a «Total leads»', () => {
+    montar([NUEVO()])
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'convertido' } })
+    const pildora = screen.getByRole('button', { name: 'Convertido 0' })
+    pildora.focus()
+    fireEvent.click(pildora)
+    expect(etapaElegida()).toBe('todas')
+    expect(screen.queryByRole('button', { name: /^Convertido 0/ })).not.toBeInTheDocument()
+    expect(chipDe('Total leads')).toHaveFocus()
+    expect(chipDe('Total leads')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('abrir la línea «Convertido: …» deja el foco en la tarjeta «Convertidos», ya pulsada', () => {
+    montar([NUEVO(), CONV_PEN()])
+    const linea = within(chipDe('Capital en juego')).getByRole('button', { name: /^Convertido: S\/ 80,000/ })
+    linea.focus()
+    fireEvent.click(linea)
+    expect(chipDe('Convertidos')).toHaveFocus()
+    expect(chipDe('Convertidos')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('una tarjeta en cero no abre nada aunque se pulse', () => {
+    montar([NUEVO()])
+    fireEvent.click(chipDe('Convertidos'))
+    expect(etapaElegida()).toBe('todas')
+    expect(screen.getByText('LEAD NUEVO')).toBeInTheDocument()
+  })
+
+  it('si la consulta de la etapa pulsada FALLA, la pastilla sigue ahí con el foco y se puede soltar', () => {
+    YO = { id: 'v-1', rol: 'vendedor', demo: false }
+    LEADS = [NUEVO(), lead({ id: 'l-cont', nombre_completo: 'LEAD CONTACTADO', etapa: 'contactado', monto_estimado: 700 })]
+    ESTADO_CIERRES = []
+    const { rerender } = render(<Cartera />)
+    const contactado = screen.getByRole('button', { name: 'Contactado 1' })
+    contactado.focus()
+    FALLO = true
+    fireEvent.click(contactado)
+    rerender(<Cartera />)
+
+    const pulsada = screen.getByRole('button', { name: /^Contactado/ })
+    expect(pulsada).toHaveFocus()
+    expect(within(pulsada).getByText('sin dato')).toBeInTheDocument()
+    expect(pulsada).not.toHaveAttribute('aria-disabled')
+    expect(screen.getByRole('group', { name: 'Distribución por etapa' })).not.toHaveAttribute('aria-busy')
+    // «Total leads» también suelta la etapa aunque no haya cifras.
+    expect(chipDe('Total leads')).not.toHaveAttribute('aria-disabled')
+    fireEvent.click(pulsada)
+    expect(etapaElegida()).toBe('todas')
   })
 })
