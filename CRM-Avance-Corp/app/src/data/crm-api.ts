@@ -1016,7 +1016,7 @@ export async function obtenerRankingOrigenVendedor(
   vendedorId: string,
   signal?: AbortSignal,
 ): Promise<RankingOrigenVendedor> {
-  let consulta = cliente().schema('crm').rpc('ranking_origen_vendedor_fn', {
+  let consulta = cliente().schema('crm').rpc('ranking_origen_vendedor_v2_fn', {
     p_periodo: periodo,
     p_vendedor_id: vendedorId,
   })
