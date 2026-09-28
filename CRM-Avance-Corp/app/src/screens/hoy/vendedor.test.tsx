@@ -121,6 +121,13 @@ vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
 vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
 }))
+// El diálogo real de cierre consulta el historial del lead por react-query (sin
+// QueryClientProvider en este arnés) y tiene sus propios tests: aquí solo se
+// comprueba que la pantalla le entrega la tarea elegida.
+vi.mock('@/components/app/cerrar-tarea', () => ({
+  CerrarTareaDialog: ({ tarea }: { tarea: Tarea | null }) =>
+    tarea ? <div role="dialog" aria-label="Cerrar tarea">{tarea.titulo}</div> : null,
+}))
 vi.mock('@/data/use-estado-sla-operativo', () => ({
   useEstadoSlaOperativo: () => ({
     indice: new Map(),
@@ -733,39 +740,6 @@ describe('Hoy · analista — agenda héroe', () => {
 // mano: una cartera íntegramente en dólares se anunciaba como "S/ 0.00" con el
 // capital real en la letra chica, contradiciendo a Cartera y a Pipeline sobre
 // el mismo lead. El criterio vive ahora en lib/inteligencia (capitalPrincipal).
-describe('Hoy · analista — capital en proceso', () => {
-  it('una cartera 100 % en dólares se anuncia en dólares, no como "S/ 0.00"', () => {
-    montar({
-      leads: [lead({ id: 'l-usd', moneda: 'USD', monto_estimado: 40_000 })],
-      actividades: [contacto('l-usd', '2026-07-14T15:00:00Z')],
-    })
-
-    expect(screen.getByText(money(40_000, 'USD'))).toBeInTheDocument()
-    expect(screen.getByText('Pipeline activo (USD)')).toBeInTheDocument()
-    expect(screen.queryByText(/Pipeline activo \(PEN\)/)).not.toBeInTheDocument()
-  })
-
-  it('con las dos monedas manda el PEN y el USD se dice aparte — JAMÁS sumados', () => {
-    montar({
-      leads: [
-        lead({ id: 'l-pen', moneda: 'PEN', monto_estimado: 120_000 }),
-        lead({
-          id: 'l-usd',
-          nombre_completo: 'BRUNO DÍAZ',
-          moneda: 'USD',
-          monto_estimado: 40_000,
-        }),
-      ],
-      actividades: [contacto('l-pen', '2026-07-14T15:00:00Z'), contacto('l-usd', '2026-07-14T15:00:00Z')],
-    })
-
-    expect(screen.getByText(money(120_000))).toBeInTheDocument()
-    expect(screen.getByText('Pipeline activo (PEN) · +US$ 40k aparte')).toBeInTheDocument()
-    // Los 160 000 mixtos no existen en ninguna parte de la pantalla.
-    expect(screen.queryByText(money(160_000))).not.toBeInTheDocument()
-  })
-})
-
 describe('Hoy · analista — meta del mes', () => {
   it('distingue la consulta mensual de un mes realmente sin datos', () => {
     CONVERSION_MENSUAL_PENDING = true
@@ -1074,12 +1048,12 @@ describe('Hoy · analista — meta del mes', () => {
       cumplimientoError: true,
     })
 
-    expect(screen.getByText('S/ 900,000')).toBeInTheDocument()
+    // El pronóstico abierto (S/ 900k) no se cuela como capital confirmado.
+    expect(screen.queryByText('S/ 900k')).not.toBeInTheDocument()
     // Solo el CAPITAL depende del cumplimiento; la conversión del mes es fuente
     // independiente (RPC propia) y aquí, sin payload, dice su propio vacío.
     expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(1)
     expect(screen.getByText('Sin datos de asignación para este mes')).toBeInTheDocument()
-    expect(screen.getByText('Capital abierto')).toBeInTheDocument()
   })
 })
 
@@ -1098,10 +1072,13 @@ describe('Hoy · analista — gestiones de clientes', () => {
       ],
     })
 
-    expect(screen.getByText('Clientes por gestionar hoy')).toBeInTheDocument()
-    expect(screen.getByText('Cita con Rosa')).toBeInTheDocument()
-    expect(screen.getByText('Cliente')).toBeInTheDocument()
+    const franja = screen.getByRole('heading', { name: 'Clientes por gestionar hoy' }).closest('[data-slot="card"]')
+    if (!(franja instanceof HTMLElement)) throw new Error('sin franja postventa')
+    expect(within(franja).getByText('Cita con Rosa')).toBeInTheDocument()
+    expect(within(franja).getByText('Cliente')).toBeInTheDocument()
     expect(abrirLead).not.toHaveBeenCalled()
+    // La misma gestión es también una cita agendada: «Tus citas» la lista con su badge.
+    expect(within(panelCitas()).getByText('Cita con Rosa')).toBeInTheDocument()
   })
 })
 
@@ -1211,17 +1188,105 @@ describe('Hoy · analista — viernes de higiene', () => {
   })
 })
 
-describe('Hoy · analista — tile «Convertidos» (F3.1, H9/D1)', () => {
-  it('el rótulo dice la ventana OPERATIVA leída del payload, no un 45 afirmado por su cuenta', () => {
-    // Este número es la VISTA de cartera (ganados aún visibles), no la
-    // conversión del mes: el sub lo dice y toma la ventana del payload
-    // certificado (`ventana_convertidos_dias`), la misma que declara el RPC.
-    montar({ leads: [lead({ id: 'l-c', etapa: 'convertido' })] })
+/** La tarjeta «Tus citas», acotada: la misma cita puede pintarse también en «Ahora» o en la agenda. */
+function panelCitas(): HTMLElement {
+  const tarjeta = screen.getByRole('heading', { name: 'Tus citas' }).closest('[data-slot="card"]')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error('sin tarjeta «Tus citas»')
+  return tarjeta
+}
 
-    expect(screen.getByText('Convertidos')).toBeInTheDocument()
+describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en contexto»)', () => {
+  it('lista solo las citas pendientes (leads y clientes), la vencida primero y el resto por fecha, con modalidad', () => {
+    montar({
+      leads: [lead({ id: 'l-1' }), lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ', monto_estimado: 25_000 })],
+      tareas: [
+        // Desordenadas a propósito: el panel ordena por vence_en.
+        tarea({ id: 'c-lejana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita lejana con Bruno', vence_en: '2026-07-22T15:00:00Z', modalidad_reunion: 'sin_clasificar' }),
+        tarea({ id: 'c-manana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita con Bruno', vence_en: '2026-07-16T15:00:00Z', modalidad_reunion: 'virtual' }),
+        tarea({ id: 'c-hoy', lead_id: 'l-1', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z', modalidad_reunion: 'presencial' }),
+        tarea({ id: 'c-vencida', lead_id: 'l-1', tipo: 'reunion', titulo: 'Cita pendiente con Ana', vence_en: '2026-07-13T15:00:00Z' }),
+        tarea({ id: 'c-rosa', lead_id: null, perfil_id: 'cliente-1', vendedor_id: 'v-1', tipo: 'reunion', titulo: 'Cita con Rosa', vence_en: '2026-07-17T15:00:00Z' }),
+        // Ni una llamada ni una cita ya cerrada son citas agendadas.
+        tarea({ id: 't-llamada', lead_id: 'l-1', tipo: 'llamada', titulo: 'Llamar a Ana', vence_en: '2026-07-15T18:00:00Z' }),
+        tarea({ id: 'c-cerrada', lead_id: 'l-1', tipo: 'reunion', titulo: 'Cita cerrada con Ana', vence_en: '2026-07-15T21:00:00Z', estado: 'completada' }),
+      ],
+    })
+
+    const panel = panelCitas()
+    expect(within(panel).getByText('5 agendadas · 1 vencida')).toBeInTheDocument()
     expect(
-      screen.getByText('Ganados aún en tu cartera · ventana de 45 días'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/clientes ganados/)).not.toBeInTheDocument()
+      within(panel).getAllByRole('button', { name: /^Cerrar tarea — / }).map((b) => b.getAttribute('aria-label')),
+    ).toEqual([
+      'Cerrar tarea — Cita pendiente con Ana',
+      'Cerrar tarea — Cita con Ana',
+      'Cerrar tarea — Cita con Bruno',
+      'Cerrar tarea — Cita con Rosa',
+      'Cerrar tarea — Cita lejana con Bruno',
+    ])
+    expect(within(panel).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
+      'Vencidas',
+      'Hoy',
+      'Mañana',
+      'Próximas',
+    ])
+    // Modalidad por texto; la cita `sin_clasificar` no lleva badge.
+    expect(within(panel).getByText('Presencial')).toBeInTheDocument()
+    expect(within(panel).getByText('Virtual')).toBeInTheDocument()
+    expect(within(panel).getAllByText(/^(Presencial|Virtual)$/)).toHaveLength(2)
+    expect(within(panel).getByText('Cliente')).toBeInTheDocument()
+    expect(within(panel).getAllByText(`${money(25_000)} en juego`)).toHaveLength(2)
+    expect(within(panel).queryByText('Llamar a Ana')).not.toBeInTheDocument()
+    expect(within(panel).queryByText('Cita cerrada con Ana')).not.toBeInTheDocument()
+  })
+
+  it('sin citas pendientes dice «Sin citas agendadas» (una llamada no es una cita)', () => {
+    montar({ tareas: [tarea({ id: 't-llamada', tipo: 'llamada', titulo: 'Llamar a Ana' })] })
+
+    const panel = panelCitas()
+    expect(within(panel).getByText('Sin citas agendadas')).toBeInTheDocument()
+    expect(within(panel).getByText('Agenda la próxima cita desde la ficha del lead.')).toBeInTheDocument()
+    expect(within(panel).queryByText(/^\d+ agendada/)).not.toBeInTheDocument()
+  })
+
+  it('lista como máximo 8 citas y remite el resto a Agenda', () => {
+    montar({
+      tareas: Array.from({ length: 10 }, (_, i) =>
+        tarea({
+          id: `c-${i}`,
+          tipo: 'reunion',
+          titulo: `Cita ${i + 1} con Ana`,
+          vence_en: `2026-07-${String(16 + i).padStart(2, '0')}T15:00:00Z`,
+        }),
+      ),
+    })
+
+    const panel = panelCitas()
+    expect(within(panel).getByText('10 agendadas')).toBeInTheDocument()
+    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(8)
+    expect(within(panel).getByRole('link', { name: '+2 más — en Agenda' })).toHaveAttribute('href', '#/agenda')
+    expect(within(panel).queryByText('Cita 9 con Ana')).not.toBeInTheDocument()
+  })
+
+  it('«Cerrar tarea» abre el diálogo de cierre sin abrir la ficha; Enter sobre la fila sí la abre', () => {
+    montar({
+      tareas: [tarea({ id: 'c-hoy', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z' })],
+    })
+
+    const panel = panelCitas()
+    const fila = within(panel).getByRole('button', { name: 'Abrir ficha — Cita con Ana' })
+    const cerrar = within(panel).getByRole('button', { name: 'Cerrar tarea — Cita con Ana' })
+    // El nombre es el título; hora y día viajan como descripción (aria-describedby).
+    expect(fila).toHaveAccessibleDescription(/15:00/)
+    // Enter sobre el botón anidado NO es Enter sobre la fila (guard e.target).
+    fireEvent.keyDown(cerrar, { key: 'Enter' })
+    expect(abrirLead).not.toHaveBeenCalled()
+    fireEvent.keyDown(fila, { key: 'Enter' })
+    fireEvent.keyDown(fila, { key: ' ' })
+    expect(abrirLead).toHaveBeenCalledTimes(2)
+    expect(abrirLead).toHaveBeenCalledWith('l-1')
+
+    fireEvent.click(cerrar)
+    expect(screen.getByRole('dialog', { name: 'Cerrar tarea' })).toHaveTextContent('Cita con Ana')
+    expect(abrirLead).toHaveBeenCalledTimes(2)
   })
 })
