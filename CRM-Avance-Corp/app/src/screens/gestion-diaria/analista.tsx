@@ -562,7 +562,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
           <div className="flex items-center gap-2.5 px-5 pb-3.5 pt-2">
             <Phone aria-hidden className="size-[18px]" />
             <h3 id={`${id}-ahora`} className="text-[15px] font-extrabold">Ahora</h3>
-            {fila !== null && posicion > 0 && <span className="ml-auto text-[13px] tabular-nums text-primary-foreground/80"><span className="sr-only">Contacto </span>{posicion} de {total}<span className="sr-only"> en esta lista</span></span>}
+            {fila !== null && posicion > 0 && <span className="ml-auto text-[13px] tabular-nums text-primary-foreground/80"><span className="sr-only">Contacto</span>{' '}{posicion} de {total}{' '}<span className="sr-only">en esta lista</span></span>}
           </div>
         </div>
         {fila === null ? (

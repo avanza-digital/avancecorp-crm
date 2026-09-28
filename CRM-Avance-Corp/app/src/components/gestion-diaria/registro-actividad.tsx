@@ -10,7 +10,7 @@
 // resultado tipificado (`metadata.evento = 'revision'`); el «buscador» de
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
-import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
@@ -66,6 +66,11 @@ interface Props {
    * Supervisor y gerencia conservan su versión hasta sus propios planes.
    */
   compacto?: boolean
+  /**
+   * Compacto dentro de la ficha del supervisor (27/09/2026): el título lo pone
+   * la ficha y el foco de respaldo («Ver más» que se va, «Reintentar») va a él.
+   */
+  encabezadoExterno?: RefObject<HTMLHeadingElement | null> | undefined
 }
 
 export function RegistroActividad(props: Props) {
@@ -75,7 +80,7 @@ export function RegistroActividad(props: Props) {
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false, compacto = false }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false, compacto = false, encabezadoExterno }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
@@ -91,7 +96,8 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
   const [cursor, setCursor] = useState<CursorRegistro | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [reinicio, setReinicio] = useState(0)
-  const encabezado = useRef<HTMLHeadingElement>(null)
+  const propio = useRef<HTMLHeadingElement>(null)
+  const encabezado = encabezadoExterno ?? propio
 
   const idsEquipo = useMemo(() => (equipoSel ? analistasDelEquipo(equipo, equipoSel) : null), [equipo, equipoSel])
   const filtros = useMemo<FiltrosRegistro>(() => ({
@@ -244,6 +250,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
                     className="rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                     {item.lead_nombre}
                   </button>
+                  {mostrarAnalista && <span className="text-[12.5px] font-semibold text-[var(--muted-foreground-strong)]">· {item.autor_nombre}</span>}
                 </div>
                 {item.detalle && <p className="whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground/80">{item.detalle}</p>}
                 <p className="text-[11.5px] text-[var(--muted-foreground-strong)]">{etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual} ahora</p>
@@ -285,16 +292,34 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
       detalle={pestana === 'todo' && etapa === null ? 'Ninguna gestión registrada en el ámbito consultado.' : 'Prueba con la pestaña «Todo» u otra etapa. Esto no significa que no haya otras gestiones.'} />
   ) : compacto ? listaCompacta : lista
 
+  const pastillas = (
+    <Tabs variante="pastilla" etiqueta="Tipo de actividad" pestanas={PESTANAS_REGISTRO} valor={pestana} onCambio={setPestana}
+      className="space-y-2 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold">
+      {panel}
+    </Tabs>
+  )
+  if (compacto && encabezadoExterno) {
+    return (
+      <div className="space-y-2">
+        {mostrarAnalista && analistaIds?.length !== 1 && (
+          <label htmlFor={`${id}-analista`} className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--muted-foreground-strong)]">Analista
+            <Select id={`${id}-analista`} value={analista ?? ''} onChange={(e) => setAnalista(e.target.value || null)} className="h-9 min-h-0 w-auto min-w-48 text-[13px]">
+              <option value="">Todos los analistas</option>
+              {analistas.map((m) => <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>)}
+            </Select>
+          </label>
+        )}
+        {pastillas}
+      </div>
+    )
+  }
   if (compacto) {
     return (
       <section aria-labelledby={`${id}-titulo`} className="space-y-2">
-        <h3 ref={encabezado} tabIndex={-1} id={`${id}-titulo`} className="text-[15px] font-extrabold text-primary">
+        <h3 ref={propio} tabIndex={-1} id={`${id}-titulo`} className="text-[15px] font-extrabold text-primary">
           ¿Qué hice hoy?
         </h3>
-        <Tabs variante="pastilla" etiqueta="Tipo de actividad" pestanas={PESTANAS_REGISTRO} valor={pestana} onCambio={setPestana}
-          className="space-y-2 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold">
-          {panel}
-        </Tabs>
+        {pastillas}
       </section>
     )
   }
@@ -303,7 +328,7 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     <section aria-labelledby={`${id}-titulo`} className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 ref={encabezado} tabIndex={-1} id={`${id}-titulo`} className="text-base font-bold text-primary">
+          <h3 ref={propio} tabIndex={-1} id={`${id}-titulo`} className="text-base font-bold text-primary">
             Registro de actividad {esHoy ? 'de hoy' : `del ${dia}`}
           </h3>
           <p className="max-w-3xl text-base text-[var(--muted-foreground-strong)]">

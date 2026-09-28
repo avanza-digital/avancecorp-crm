@@ -23,7 +23,7 @@ describe('Lista útil de pendientes', () => {
     render(<PendientesSupervisor {...props} />)
     expect(screen.getByText('Sin título')).toBeVisible()
     for (const texto of ['Referencia no disponible','Tarea de perfil','Tarea de postventa']) expect(screen.getByText(texto)).toBeVisible()
-    expect(within(screen.getByRole('list')).getAllByRole('button')).toHaveLength(1)
+    expect(within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'Lead visible' })); expect(dobles.abrir).toHaveBeenCalledWith(tareaPendiente().lead_id)
   })
   it.each(['PGRST202','XX000','42501'])('distingue %s de un vacío confirmado', codigo => {
@@ -37,11 +37,72 @@ describe('Lista útil de pendientes', () => {
   it('informa página congelada y datos anteriores; filtros y refresco externo conservan foco', () => {
     dobles.lista.congelada = true; dobles.lista.error = new Error('sin red')
     const vista=render(<PendientesSupervisor {...props} />)
-    expect(screen.getByText(/Datos anteriores; la actualización falló/)).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Vencidas' }))
+    expect(screen.getByText(/Datos anteriores/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /^Vencidas/ }))
     expect(dobles.hook).toHaveBeenLastCalledWith(props.dia,props.analista,true,true,0)
-    const filtro=screen.getByRole('button', { name: 'Vencidas' }); filtro.focus()
+    const filtro=screen.getByRole('button', { name: /^Vencidas/ }); filtro.focus()
     vista.rerender(<PendientesSupervisor {...props} actualizacion={1} />)
     expect(dobles.recargar).toHaveBeenCalledOnce(); expect(filtro).toHaveFocus(); expect(filtro).toHaveAttribute('aria-pressed','true')
+  })
+  it('como el resumen: dos cuadros con número que filtran, la vencida se marca y el título no repite el lead (Miguel, 27/09)', () => {
+    dobles.lista.items = [
+      tareaPendiente(20, { tipo: 'whatsapp', titulo: 'WhatsApp — LEAD VISIBLE', vence_en: '2026-09-23T16:00:00.000001+00:00' }),
+      tareaPendiente(21, { titulo: 'Responder propuesta — Lead visible', vence_en: '2026-09-23T18:00:00.000001+00:00' }),
+    ]
+    dobles.lista.pagina = paginaPendientes(dobles.lista.items, { resumen: { tareas_pendientes: 5, tareas_vencidas: 2 } })
+    render(<PendientesSupervisor {...props} />)
+    const filtro = screen.getByRole('group', { name: 'Filtro de tareas' })
+    expect(within(filtro).getByRole('button', { name: /^Todas 5$/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(filtro).getByRole('button', { name: /^Vencidas 2$/ }))
+    expect(dobles.hook).toHaveBeenLastCalledWith(props.dia, props.analista, true, true, 0)
+    const [primera, segunda] = within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('listitem')
+    // Vence antes del corte de la consulta (17:00 UTC): vencida. La otra, después: no.
+    expect(within(primera!).getByText('Vencida')).toBeVisible()
+    expect(within(segunda!).queryByText('Vencida')).not.toBeInTheDocument()
+    // «WhatsApp — LEAD VISIBLE» ya lo dicen el tipo y el lead: sin título repetido.
+    expect(within(primera!).queryByText(/WhatsApp —/)).not.toBeInTheDocument()
+    expect(within(segunda!).getByText('Responder propuesta')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Pendientes de ANA' })).toBeInTheDocument()
+  })
+  it('las señales de leads solo aparecen con número confirmado mayor que cero', () => {
+    const vista = render(<PendientesSupervisor {...props} fila={filaEquipoPrueba({ primer_intento_vencido: 3, datos_incompletos: null })} />)
+    expect(within(screen.getByRole('list', { name: 'Leads por revisar' })).getByText('3 leads con el primer intento tarde')).toBeVisible()
+    expect(screen.queryByText(/datos por revisar/)).not.toBeInTheDocument()
+    vista.rerender(<PendientesSupervisor {...props} fila={filaEquipoPrueba({ primer_intento_vencido: null, datos_incompletos: 0 })} />)
+    expect(screen.queryByRole('list', { name: 'Leads por revisar' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/no evaluado/)).not.toBeInTheDocument()
+  })
+  it('solo recorta el nombre VERIFICADO del lead tras la raya; un sufijo cualquiera se conserva (Codex, 27/09)', () => {
+    dobles.lista.items = [
+      tareaPendiente(30, { titulo: 'Revisar propuesta — A', lead_nombre: 'Ana Pérez' }),
+      tareaPendiente(31, { titulo: 'Llamar - Lead visible' }),
+      tareaPendiente(32, { titulo: 'Responder propuesta — GLORIA NAVARRO', lead_nombre: 'GLORIA NAVARRO IBÁÑEZ' }),
+    ]
+    render(<PendientesSupervisor {...props} />)
+    expect(screen.getByText('Revisar propuesta — A')).toBeVisible()
+    expect(screen.getByText('Llamar - Lead visible')).toBeVisible()
+    expect(screen.getByText('Responder propuesta')).toBeVisible()
+  })
+  it('«Vencida» con precisión de microsegundos y sin importar el desfase horario', () => {
+    const corte = '2026-09-23T17:00:00.000001+00:00'
+    dobles.lista.items = [
+      tareaPendiente(40, { titulo: 'Mismo instante', vence_en: '2026-09-23T12:00:00.000001-05:00' }),
+      tareaPendiente(41, { titulo: 'Un microsegundo antes', vence_en: '2026-09-23T17:00:00.000000+00:00' }),
+    ]
+    dobles.lista.pagina = paginaPendientes(dobles.lista.items, { pendientes_al: corte })
+    render(<PendientesSupervisor {...props} />)
+    const [igual, antes] = within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('listitem')
+    expect(within(igual!).queryByText('Vencida')).not.toBeInTheDocument()
+    expect(within(antes!).getByText('Vencida')).toBeVisible()
+  })
+  it('«Actualizar tareas» que se va con el foco dentro lo entrega al título', () => {
+    dobles.lista.congelada = true
+    const vista = render(<PendientesSupervisor {...props} />)
+    const actualizar = screen.getByRole('button', { name: 'Actualizar tareas' })
+    actualizar.focus()
+    dobles.lista = { ...dobles.lista, congelada: false }
+    vista.rerender(<PendientesSupervisor {...props} />)
+    expect(screen.queryByRole('button', { name: 'Actualizar tareas' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pendientes de ANA' })).toHaveFocus()
   })
 })

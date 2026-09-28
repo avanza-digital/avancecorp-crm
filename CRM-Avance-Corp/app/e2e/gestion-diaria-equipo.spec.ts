@@ -4,7 +4,8 @@ import { entrarDemo, leadReal, loginReal, montarBackendReal, UID } from './_help
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
 import { fechaLima } from '../src/lib/agenda-derivada'
 
-test('Supervisor: roster demo, búsqueda y detalle con texto de al menos 16 px', async ({ page }, info) => {
+// Escala del diseño de Gestión Diaria (Miguel, 27/09/2026): el piso es 11 px, como en el analista.
+test('Supervisor: roster demo, búsqueda y detalle con texto de al menos 11 px', async ({ page }, info) => {
   await page.setViewportSize({ width: 1512, height: 805 })
   await entrarDemo(page, 'Supervisor')
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
@@ -31,7 +32,7 @@ test('Supervisor: roster demo, búsqueda y detalle con texto de al menos 16 px',
   await expect(vista.getByText('Llamadas por lead', { exact: true })).toBeVisible()
   const chicos = await vista.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*')).filter((el) =>
     el.getClientRects().length > 0 && Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
-      && Number.parseFloat(getComputedStyle(el).fontSize) < 16).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
+      && Number.parseFloat(getComputedStyle(el).fontSize) < 11).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
   expect(chicos).toEqual([])
   await page.evaluate(() => document.fonts.ready)
   expect(await page.evaluate(() => [...document.fonts].some((f) => f.family.includes('Jakarta') && f.status === 'loaded'))).toBe(true)
@@ -68,7 +69,7 @@ test('Ruta real con store vacío: cero actividad, 270 pendientes, error y revoca
   const vista = page.getByRole('region', { name: 'Mi equipo hoy', exact: true })
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toBeVisible()
   await expect(vista.getByRole('cell', { name: '270', exact: true }).first()).toBeVisible()
-  await vista.getByRole('button', { name: /Con atención/ }).click()
+  await vista.getByRole('button', { name: /^Necesitan atención/ }).click()
   await expect(vista.getByText('ANA PÉREZ', { exact: true })).toHaveCount(0)
   await expect(vista.getByText('BRUNO', { exact: true })).toBeVisible()
   await page.screenshot({ path: info.outputPath('equipo-ruta-real.png'), fullPage: true })
@@ -125,14 +126,14 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(abrirDetalle).toHaveAttribute('aria-current', 'true')
   await expect(abrirDetalle).toBeFocused()
   await expect(detalle).toBeVisible()
-  await detalle.getByText('Ver cifras por hora').click()
-  await expect(detalle.getByText('De 10:00 a 10:59: 26 llamadas, 26 contestadas')).toBeVisible()
+  // Barras del diseño (27/09): el dato viaja en una lista para el lector de pantalla, sin desplegable.
+  await expect(detalle.getByRole('list', { name: 'Llamadas por hora' }).getByText('10:00 — 26 llamadas, 26 contestadas')).toBeAttached()
   await detalle.screenshot({ path: info.outputPath('detalle-horario.png') })
   const abrirRegistro = detalle.getByRole('button', { name: 'Ver llamadas del día de Analista Real Uno' })
   await abrirRegistro.focus()
   await page.keyboard.press('Enter')
   const registro = page.getByRole('region', { name: 'Registro seleccionado', exact: true })
-  await expect(registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true })).toBeFocused()
+  await expect(registro.getByRole('heading', { name: 'Actividad de hoy', exact: true })).toBeFocused()
   await expect(registro.getByRole('tab', { name: 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(registro.getByRole('combobox', { name: 'Analista', exact: true })).toHaveCount(0)
   await registro.getByRole('tab', { name: 'Todo', exact: true }).click()
@@ -161,17 +162,18 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(page.getByRole('dialog', { name: lead.nombre_completo })).toHaveCount(0)
   await registro.getByRole('button', { name: 'Ver más' }).click()
   await expect(registro.getByRole('listitem')).toHaveCount(26)
-  await registro.getByRole('combobox', { name: 'Etapa actual del lead' }).focus()
+  // Registro compacto en la ficha (27/09): el filtro que conserva el foco es la pastilla elegida.
+  await registro.getByRole('tab', { selected: true }).focus()
   await page.setViewportSize({ width: 1512, height: 805 })
   await expect(page.getByRole('dialog', { name: 'Detalle de Analista Real Uno' })).toHaveCount(0)
-  await expect(registro.getByRole('combobox', { name: 'Etapa actual del lead' })).toBeFocused()
+  await expect(registro.getByRole('tab', { selected: true })).toBeFocused()
   await expect(registro.getByRole('listitem')).toHaveCount(26)
   await page.setViewportSize({ width: 390, height: 844 })
-  await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
+  await registro.getByRole('heading', { name: 'Actividad de hoy', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('registro-detalle.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(registro.getByRole('listitem')).toHaveCount(26)
-  await registro.getByRole('heading', { name: 'Registro de Analista Real Uno', exact: true }).scrollIntoViewIfNeeded()
+  await registro.getByRole('heading', { name: 'Actividad de hoy', exact: true }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('registro-detalle-movil.png') })
   const pestañas = registro.getByRole('tablist', { name: 'Tipo de actividad' })
@@ -188,10 +190,11 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await page.setViewportSize({ width: 1280, height: 720 })
   const pequenos = await registro.evaluate((raiz) => Array.from(raiz.querySelectorAll<HTMLElement>('*')).filter((el) =>
     el.getClientRects().length > 0 && Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
-      && Number.parseFloat(getComputedStyle(el).fontSize) < 16).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
+      && Number.parseFloat(getComputedStyle(el).fontSize) < 11).map((el) => `${el.tagName}: ${el.textContent?.slice(0, 60)}`))
   expect(pequenos).toEqual([])
   revocado = true
-  await registro.getByRole('button', { name: 'Actualizar', exact: true }).click()
+  // Sin «Actualizar» propio en la ficha: la pantalla entera se actualiza desde su cabecera.
+  await vista.locator(':scope > header').getByRole('button', { name: 'Actualizar', exact: true }).click()
   await expect(registro.getByRole('alert')).toContainText('Ya no tienes autorización')
   await expect(registro.getByRole('listitem')).toHaveCount(0)
   await detalle.getByRole('button', { name: 'Cerrar detalle', exact: true }).click()
@@ -200,7 +203,10 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
   await expect(abrirDetalle).not.toHaveAttribute('aria-current')
 })
 
-for (const medida of [{ width: 1512, height: 805, filas: 10 }, { width: 1366, height: 768, filas: 9 }]) {
+// Diseño de Gestión Diaria (27/09/2026): filas de 52 px con aire en vez de las 44 px de H2 (23/09); se ven
+// menos filas sin desplazar y el resto se alcanza dentro de la tabla, sin mover la página. Sin el tablero de
+// cifras (Miguel, 27/09: la jerarquía es de la tabla) se gana una fila en cada tamaño: 7 y 6.
+for (const medida of [{ width: 1512, height: 805, filas: 7 }, { width: 1366, height: 768, filas: 6 }]) {
   test(`H2 densidad ${medida.width}: ${medida.filas} filas, seis columnas y texto completo`, async ({ page }, info) => {
     await page.setViewportSize(medida)
     await montarBackendReal(page, { rolCrm: 'supervisor', leads: [], tareas: [] })
@@ -226,15 +232,15 @@ for (const medida of [{ width: 1512, height: 805, filas: 10 }, { width: 1366, he
       const caja = tabla.getBoundingClientRect()
       const filas = [...tabla.querySelectorAll<HTMLElement>('tr[data-analista]')].map((f) => f.getBoundingClientRect().toJSON())
       const fuentesPequenas = [...nodo.querySelectorAll<HTMLElement>('*')].filter((e) => e.getClientRects().length && !e.closest('[hidden],.sr-only')
-        && [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) && parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => e.textContent)
-      const controlesBajos = [...nodo.querySelectorAll<HTMLElement>('button,input,select')].filter((e) => e.getClientRects().length && e.getBoundingClientRect().height < 43.9).map((e) => e.textContent)
+        && [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) && parseFloat(getComputedStyle(e).fontSize) < 11).map((e) => e.textContent)
+      const controlesBajos = [...nodo.querySelectorAll<HTMLElement>('button,input,select')].filter((e) => e.getClientRects().length && e.getBoundingClientRect().height < 23.9).map((e) => e.textContent)
       const contenedor = nodo.closest<HTMLElement>('[data-vista-scroll]')!
       return { viewport: [innerWidth, innerHeight], ancho: nodo.clientWidth, tabla: caja.toJSON(), filas,
         completas: filas.filter((f) => f.bottom <= caja.bottom + .5).length, fuentesPequenas, controlesBajos,
         scrollPagina: contenedor.scrollHeight - contenedor.clientHeight, overflowTabla: tabla.scrollWidth - tabla.clientWidth }
     })
     expect(geometria.completas).toBeGreaterThanOrEqual(medida.filas)
-    expect(geometria.filas.slice(0, medida.filas).every((f) => Math.abs(f.height - 44) < .5)).toBe(true)
+    expect(geometria.filas.slice(0, medida.filas).every((f) => Math.abs(f.height - 52) < 1.5)).toBe(true)
     expect(geometria.fuentesPequenas).toEqual([])
     expect(geometria.controlesBajos).toEqual([])
     expect(geometria.scrollPagina).toBeLessThanOrEqual(1)
@@ -262,7 +268,8 @@ for (const medida of [{ width: 1512, height: 805, filas: 10 }, { width: 1366, he
       await vista.getByRole('button', { name: 'Seleccionar a ANA PÉREZ' }).click()
       await expect(dialogo).toBeVisible()
       await dialogo.getByRole('tab', { name: 'Pendientes', exact: true }).click()
-      await expect(dialogo.getByText('270', { exact: true })).toBeVisible()
+      // El Resumen nuevo también muestra 270 en su cuadro de Pendientes: se mira la pestaña Pendientes.
+      await expect(dialogo.getByLabel('Pendientes de ANA PÉREZ', { exact: true }).getByText('270', { exact: true })).toBeVisible()
       expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true)
       await page.screenshot({ path: info.outputPath('horizontal-movil.png') })
       await page.keyboard.press('Escape')
@@ -291,7 +298,8 @@ test('H2 nombre largo, varios motivos, control de foco y cambio de ruta', async 
   await seleccion.click()
   await expect(seleccion).toHaveText(nombre)
   const panel = page.getByRole('region', { name: `Detalle de ${nombre}` })
-  for (const motivo of ['Tareas vencidas', 'Primer intento fuera de plazo', 'Datos pendientes de revisar']) await expect(panel.getByText(motivo, { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '321 tareas vencidas' })).toBeVisible()
+  for (const motivo of ['Primer intento fuera de plazo', 'Datos pendientes de revisar']) await expect(panel.getByText(motivo, { exact: true })).toBeVisible()
   expect(await seleccion.evaluate((e) => e.scrollHeight <= e.clientHeight && e.scrollWidth <= e.clientWidth)).toBe(true)
   await panel.getByRole('button', { name: 'Ampliar panel' }).click()
   const dialogo = page.getByRole('dialog', { name: `Detalle de ${nombre}` })
@@ -307,5 +315,7 @@ test('H2 nombre largo, varios motivos, control de foco y cambio de ruta', async 
   await expect(seleccion).toBeFocused()
   await page.getByRole('button', { name: 'Agenda', exact: true }).click()
   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
-  await expect(page.getByText('Selecciona un analista de la tabla para consultar su día.')).toBeVisible()
+  // Al volver, la pantalla abre sola con quien más atención necesita (plan v2, 27/09), sin mover el foco.
+  await expect(page.getByRole('region', { name: `Detalle de ${nombre}` })).toBeVisible()
+  await expect(vista.getByRole('button', { name: `Seleccionar a ${nombre}` })).toHaveAttribute('aria-current', 'true')
 })
