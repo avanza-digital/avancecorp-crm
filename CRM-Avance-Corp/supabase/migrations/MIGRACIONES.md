@@ -1,3 +1,15 @@
+## 20260928180237 — Ranking: procedencia de solicitudes confirmadas de Mi cartera
+
+**EN RAMA TEMPORAL, NO PUBLICADA.** Decisión expresa de Miguel: «Cartera →
+Nueva inversión, conservando lo registrado». El lector recupera exclusivamente
+la fuente exacta de una solicitud confirmada desde Cartera, tras los canales
+ya identificados. Aplica a contratos Avance y cierres COOPAC sin lead.
+No modifica contratos, categorías financieras, conversión ni fotos antiguas.
+La RPC v2 añade `nuevo` al desglose; el cliente sigue conciliando cada moneda.
+Pruebas de captura, permisos v1/v2, cierre/foto y solicitudes sintéticas PASS;
+check completo 4.763 PASS y E2E focal desktop/mobile 1/1 PASS. Review y suite
+Docker completa en curso; no interpretar este checkpoint como publicación.
+
 ## 20260928174554 — Ranking: desglose de cartera desde operaciones registradas
 
 **EN RAMA TEMPORAL, NO PUBLICADA.** RPC v2 aditiva con el mismo ámbito de v1;
