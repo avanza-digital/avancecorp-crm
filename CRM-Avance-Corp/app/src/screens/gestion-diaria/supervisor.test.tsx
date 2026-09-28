@@ -15,6 +15,7 @@ vi.mock('@/lib/gestion-diaria-avisos-context', () => ({ useGestionDiariaAvisos: 
 vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => <p>Últimas gestiones</p> }))
 vi.mock('@/components/gestion-diaria/pendientes-supervisor', () => ({ PendientesSupervisor: () => <p>Pendientes independientes</p> }))
 vi.mock('@/components/gestion-diaria/avisos-equipo', () => ({ AvisosEquipo: () => <p>Avisos del equipo</p> }))
+vi.mock('@/components/gestion-diaria/citas-agendadas', () => ({ CitasAgendadas: (p: { ambito: string; id: string | null }) => <p>Citas de {p.ambito} {p.id}</p> }))
 vi.mock('@/components/gestion-diaria/registro-actividad', () => ({ RegistroActividad: (props: unknown) => {
   dobles.registro(props)
   const [pagina, setPagina] = useState(1)
@@ -393,5 +394,17 @@ describe('Selección automática del panel (plan v2 tras la revisión de Codex, 
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1400)
     act(() => { alMedir?.() })
     expect(screen.getByRole('region', { name: 'Detalle de MUCHAS VENCIDAS' })).toBeVisible()
+  })
+})
+
+describe('G4b: las citas agendadas del analista', () => {
+  it('«Ver citas» abre la pestaña Citas con su lista exacta y el foco en su título', () => {
+    render(<GestionDiariaSupervisor />)
+    seleccionar()
+    const panel = screen.getByRole('region', { name: 'Detalle de ANA PÉREZ' })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Ver citas agendadas de ANA PÉREZ' }))
+    expect(within(panel).getByRole('tab', { name: 'Citas' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(panel).getByText(/^Citas de analista /)).toBeInTheDocument()
+    expect(within(panel).getByRole('heading', { level: 4, name: /^Citas agendadas/ })).toHaveFocus()
   })
 })

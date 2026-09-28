@@ -13978,3 +13978,23 @@ capital. Front vivo: commit `8ec3dd1f67e1`, build
 `build-20260927T205509063Z`, preflight sobre `01d5ddc4b653` y smoke HTTP de
 `version.json`, HTML y chunks. SHA-256 de la migración:
 `1ed04fc5e8c7884d79f7d4090b1b6e1a4669a74a60e4826ac4ad54972f089191`.
+
+## 20260928044910 — Gestión Diaria: lista exacta de «Citas agendadas» (G4b)
+
+**⏸️ PENDIENTE DE APLICAR.** Plan G4 v2 aprobado por Miguel («G4a y luego G4b») y
+revisado por Codex. Lectura nueva, sin tablas ni escrituras: puerta
+`crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite, p_despues_de, p_despues_id)`
+y núcleo `private.gestion_diaria_citas_core`, ambos INVOKER bajo la RLS de
+`crm.tareas`. La definición es la de la cifra (`private.gestion_diaria_llamadas` y el
+pulso): tareas `reunion` creadas en el día Lima, sin filtrar estado ni activo en el
+SQL. Ámbito explícito decidido en el servidor: `analista` (Supervisión su árbol,
+Gerencia toda la operación), `equipo`, `fuera` y `operacion` (solo Gerencia, con la
+partición del pulso). Roles explícitos antes del ámbito; coordinación, analistas,
+lector global y rol nulo reciben 42501. Total por `cardinality(array_agg())`, como la
+cifra que lista (no abre un contador nuevo en el censo analítico).
+
+Gate `private.assert_gestion_diaria_citas()` (huellas, INVOKER, ACL, `search_path` y las
+fuentes de la cifra) enchufado a `private.assert_gestion_diaria()` con sustitución de
+fragmento único. Preflight con las huellas vivas del 27/09. Orden: la base antes del
+front; independiente de G4a (20260928043728). Reversa: `supabase/scripts/g4/reversa-g4b.sql`.
+Pruebas: `supabase/scripts/g4/test-g4b.sql` en el banco sintético G4.

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs } from '@/components/ui/tabs'
 import { RegistroActividad } from './registro-actividad'
 import { PendientesSupervisor } from './pendientes-supervisor'
+import { CitasAgendadas } from './citas-agendadas'
 import { ResumenAnalista } from './resumen-analista'
 import { UltimasGestionesSupervisor } from './ultimas-gestiones-supervisor'
 import type { FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
@@ -21,7 +22,7 @@ export interface SeleccionSupervisor {
   analista: string | null; nombre: string | null; apertura: number; pestana: PestanaRegistro; enfocar: boolean
   origen?: 'automatica' | 'usuario' | 'aviso' | undefined
 }
-type PestanaPanel = 'resumen' | 'registro' | 'pendientes'
+type PestanaPanel = 'resumen' | 'registro' | 'pendientes' | 'citas'
 
 const BOTON_ICONO = 'grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] text-[var(--muted-foreground-strong)] transition-colors hover:bg-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-11'
 
@@ -89,21 +90,28 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
   const [pestana, setPestana] = useState<PestanaPanel>(equipo || seleccion.enfocar ? 'registro' : 'resumen')
   const [registro, setRegistro] = useState<{ pestana: PestanaRegistro; apertura: number } | null>(equipo || seleccion.enfocar ? { pestana: seleccion.pestana, apertura: 0 } : null)
   const [pendientes, setPendientes] = useState<{ soloVencidas: boolean; apertura: number; enfocar: boolean } | null>(null)
+  const [citas, setCitas] = useState<{ apertura: number } | null>(null)
   const tituloRegistro = useRef<HTMLHeadingElement>(null)
+  const tituloCitas = useRef<HTMLHeadingElement>(null)
   const cuerpoResumen = useRef<HTMLDivElement>(null)
   const alInicio = () => cuerpoResumen.current?.closest('[role=tabpanel]')?.scrollTo?.({ top: 0 })
   const [focoRegistro, setFocoRegistro] = useState(0)
+  const [focoCitas, setFocoCitas] = useState(0)
   useLayoutEffect(() => {
     if (seleccion.enfocar) tituloRef.current?.focus({ preventScroll: true })
   }, [seleccion.enfocar, tituloRef])
   useLayoutEffect(() => {
     if (focoRegistro) tituloRegistro.current?.focus({ preventScroll: true })
   }, [focoRegistro])
+  useLayoutEffect(() => {
+    if (focoCitas) tituloCitas.current?.focus({ preventScroll: true })
+  }, [focoCitas])
   const cambiar = (valor: PestanaPanel) => {
     alInicio()
     setPestana(valor)
     if (valor === 'registro' && !registro) setRegistro({ pestana: 'todo', apertura: 0 })
     if (valor === 'pendientes' && !pendientes) setPendientes({ soloVencidas: false, apertura: 0, enfocar: false })
+    if (valor === 'citas' && !citas) setCitas({ apertura: 0 })
   }
   const abrirRegistro = (inicial: PestanaRegistro) => {
     alInicio()
@@ -116,12 +124,19 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
     setPendientes(p => ({ soloVencidas, apertura: (p?.apertura ?? 0) + 1, enfocar: true }))
     setPestana('pendientes')
   }
+  // G4b: «Citas agendadas» abre su lista exacta, como «Ver pendientes» abre la suya.
+  const abrirCitas = () => {
+    alInicio()
+    setCitas((c) => ({ apertura: (c?.apertura ?? 0) + 1 }))
+    setPestana('citas')
+    setFocoCitas((n) => n + 1)
+  }
   const cuerpo = 'min-w-0 px-5 py-4 [overflow-wrap:anywhere]'
   const contenido = <>
     <div ref={cuerpoResumen} className={cn(cuerpo, 'space-y-5')} hidden={pestana !== 'resumen'} inert={pestana !== 'resumen'}>
       {!fila || minimo === undefined ? <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">El resumen no está disponible. El registro conserva su consulta independiente.</p>
         : <ResumenAnalista fila={fila} dia={dia} minimo={minimo} esHoy={esHoy} ahora={ahora}
-          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={conPendientes ? abrirPendientes : undefined} />}
+          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={conPendientes ? abrirPendientes : undefined} abrirCitas={abrirCitas} />}
       {seleccion.analista !== null && <>
         <UltimasGestionesSupervisor analista={seleccion.analista} dia={dia} visible={pestana === 'resumen'} actualizacion={actualizacion} revalidar={revalidar} silencioso={silencioso} />
         <div className="space-y-2">
@@ -150,6 +165,15 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
         visible={pestana === 'pendientes'} soloVencidasInicial={pendientes.soloVencidas} apertura={pendientes.apertura}
         enfocar={pendientes.enfocar} actualizacion={actualizacion} revalidar={revalidar} />}
     </div>
+    <div className={cuerpo} hidden={pestana !== 'citas'} inert={pestana !== 'citas'}>
+      {citas && seleccion.analista !== null && <section aria-label="Citas agendadas del analista" className="space-y-2">
+        <h4 ref={tituloCitas} tabIndex={-1} className="rounded-md text-[15px] font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          {esHoy ? 'Citas agendadas hoy' : `Citas agendadas el ${FECHA_TITULO.format(new Date(`${dia}T12:00:00-05:00`))}`}
+        </h4>
+        <CitasAgendadas key={citas.apertura} dia={dia} esHoy={esHoy} ambito="analista" id={seleccion.analista} mostrarAnalista={false}
+          visible={pestana === 'citas'} actualizacion={actualizacion} revalidar={revalidar} encabezado={tituloCitas} />
+      </section>}
+    </div>
   </>
   return <>
     {oculta && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-muted px-5 py-1.5 text-[13px]">La selección está fuera de los filtros.
@@ -158,7 +182,7 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
         así el texto tras el último control se alcanza sin ratón. */}
     {equipo ? <div className="ac-scroll min-h-0 flex-1 overflow-y-auto">{contenido}</div>
       : <Tabs etiqueta="Detalle del analista" variante="subrayado" valor={pestana} onCambio={cambiar}
-        pestanas={[{ valor: 'resumen', etiqueta: 'Resumen' }, { valor: 'registro', etiqueta: 'Registro' }, ...(conPendientes ? [{ valor: 'pendientes' as const, etiqueta: 'Pendientes' }] : [])]}
+        pestanas={[{ valor: 'resumen', etiqueta: 'Resumen' }, { valor: 'registro', etiqueta: 'Registro' }, ...(conPendientes ? [{ valor: 'pendientes' as const, etiqueta: 'Pendientes' }] : []), { valor: 'citas', etiqueta: 'Citas' }]}
         className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-[22px] [&>[role=tablist]]:px-5 [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm pointer-coarse:[&>[role=tablist]>[role=tab]]:min-h-11"
         clasePanel="ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2">{contenido}</Tabs>}
   </>
