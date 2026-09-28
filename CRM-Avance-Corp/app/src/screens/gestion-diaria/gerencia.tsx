@@ -11,14 +11,13 @@ import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
 import { cifraPulso, diaPulsoValido, desplazarDia, type MetricasPulso, type PulsoGerencia } from '@/lib/gestion-diaria-pulso'
 import { presentarEquipo, type FiltrosEquipo } from '@/lib/gestion-diaria-equipo'
-import { equipoConAtencion, filasOperacion, filtrarOrdenarOperacion, filtrosDePreset, type FiltrosOperacion, type OrdenOperacion, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
+import { equipoConAtencion, filasOperacion, filtrarOrdenarOperacion, filtrosDePreset, totalOperacion, type FiltrosOperacion, type OrdenOperacion, type PresetEquipo } from '@/lib/gestion-diaria-operacion'
 import { hashDe, leerHash } from '@/lib/router'
 import { CrmApiError } from '@/data/crm-api'
 import { usePulsoGerencia, useHabitosGerencia, useDetallePulso } from '@/data/gestion-diaria-pulso-queries'
 import { ErrorConsultaGerencia } from '@/components/gestion-diaria/error-consulta-gerencia'
 import { ReporteHabitos } from '@/components/gestion-diaria/reporte-habitos'
-import { CifrasOperacion, type DestinoCifra } from '@/components/gestion-diaria/cifras-operacion'
-import { TablaEquiposGerencia } from '@/components/gestion-diaria/tabla-equipos-gerencia'
+import { TablaEquiposGerencia, type AccionEquipo } from '@/components/gestion-diaria/tabla-equipos-gerencia'
 import { PanelOperacionGerencia, type VistaOperacion } from '@/components/gestion-diaria/panel-operacion-gerencia'
 import { PanelSupervisorAdaptable } from '@/components/gestion-diaria/panel-supervisor-adaptable'
 import { VistaEquipoGerencia } from '@/components/gestion-diaria/vista-equipo-gerencia'
@@ -41,7 +40,8 @@ const METRICAS: { campo: keyof MetricasPulso; titulo: string; porcentaje?: boole
   { campo: 'sin_actividad', titulo: 'Analistas sin actividad' }, { campo: 'leads_unicos', titulo: 'Leads distintos' },
   { campo: 'llamadas_por_lead', titulo: 'Llamadas por lead' }, { campo: 'citas_agendadas', titulo: 'Citas agendadas' },
 ]
-const PESTANAS = [{ valor: 'pulso', etiqueta: 'Pulso diario' }, { valor: 'habitos', etiqueta: 'Hábitos del equipo' }] as const
+// «Pulso diario» era jerga (Miguel, 27/09): la pestaña dice lo que muestra.
+const PESTANAS = [{ valor: 'pulso', etiqueta: 'Actividad del día' }, { valor: 'habitos', etiqueta: 'Hábitos del equipo' }] as const
 const SIN_PERMISO = new CrmApiError('Permiso de gerencia revocado', '42501')
 const suscribirRuta = (cambio: () => void) => { window.addEventListener('hashchange', cambio); return () => window.removeEventListener('hashchange', cambio) }
 const fotoRuta = () => window.location.hash
@@ -66,7 +66,7 @@ export function GestionDiariaGerencia({ accesoSeguimiento }: { accesoSeguimiento
  * de la tabla. Por debajo, la ficha se abre encima.
  */
 const ANCHO_EN_LINEA = 1040
-const FILTROS_OPERACION: FiltrosOperacion = { busqueda: '', conAtencion: false, orden: 'atencion', ascendente: false }
+const FILTROS_OPERACION: FiltrosOperacion = { busqueda: '', estado: 'todos', orden: 'atencion', ascendente: false }
 const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 const FECHA_CORTE = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 const rutaDe = (tipo: 'equipo' | 'analista', id: string) => hashDe('gestion-diaria', null, undefined, undefined, { tipo, id })
@@ -123,7 +123,8 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   const filasDetalle = useMemo(() => detalle.datos ? presentarEquipo(detalle.datos) : null, [detalle.datos])
   const filasOp = useMemo(() => datos ? filasOperacion(datos, filasDetalle) : [], [datos, filasDetalle])
   const mostradas = filtrarOrdenarOperacion(filasOp, filtros)
-  const conAtencion = filasDetalle ? filasOp.filter(equipoConAtencion).length : null
+  const conteos = { atencion: filasDetalle ? filasOp.filter(equipoConAtencion).length : null, vencidas: filasOp.filter((f) => f.vencidas > 0).length }
+  const total = useMemo(() => datos ? totalOperacion(datos, filasOp) : null, [datos, filasOp])
   const grupo = datos && ruta ? datos.equipos.find((e) => ruta.tipo === 'equipo' ? e.clave === ruta.id : e.personas.some((p) => p.analista_id === ruta.id)) : undefined
   const automatica = ficha?.origen === 'automatica'
   const modal = ficha !== null && !automatica && (estrecho || ampliado)
@@ -196,12 +197,17 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
       ;(fila ?? titulo.current)?.focus({ preventScroll: true })
     })
   }
-  const abrirCifra = (destino: DestinoCifra, control: HTMLElement) => {
-    if (destino === 'citas') {
-      setFiltros((f) => ({ ...f, busqueda: '', conAtencion: false, orden: 'citas', ascendente: false }))
-      setAnuncio('Equipos ordenados por citas agendadas, de más a menos.')
-    } else if (destino === 'sin_registro') abrirFicha({ tipo: 'sin_registro' }, control, true)
-    else abrirRegistroGeneral(control, 'llamadas')
+  // Las cifras de «Toda la operación» (pie de la tabla) abren su lista exacta:
+  // llamadas en el registro general, sin registro con nombres y el resto
+  // filtrando u ordenando los equipos (revisión Codex del plan).
+  const accionTotal = (tipo: AccionEquipo, control: HTMLElement) => {
+    if (tipo === 'llamadas') abrirRegistroGeneral(control, 'llamadas')
+    else if (tipo === 'sin_registro') abrirFicha({ tipo: 'sin_registro' }, control, true)
+    else {
+      setFiltros((f) => ({ ...f, busqueda: '', estado: tipo === 'citas' ? 'todos' : tipo, orden: tipo, ascendente: false }))
+      setAnuncio(tipo === 'citas' ? 'Equipos ordenados por citas agendadas, de más a menos.'
+        : tipo === 'vencidas' ? 'Equipos con tareas vencidas, de más a menos.' : 'Equipos con analistas que necesitan atención, de más a menos.')
+    }
   }
   const ordenar = (orden: OrdenOperacion) => {
     setFiltros((f) => ({ ...f, orden, ascendente: f.orden === orden ? !f.ascendente : orden === 'nombre' }))
@@ -228,26 +234,24 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   } else if (ruta) contenido = <p role="status" className="rounded-2xl border border-border bg-card p-6 text-[13.5px]">Este equipo o autor ya no aparece en el ámbito actual.{' '}
     <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={() => volverOperacion()}>Volver a toda la operación</button></p>
   else contenido = <>
-    <CifrasOperacion pulso={datos} esHoy={esHoy} abrir={abrirCifra} />
     <div className={cn('grid min-h-0 flex-1 gap-4', estrecho ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_clamp(360px,32%,440px)]')}>
       <div className="me-equipo flex min-h-0 min-w-0 flex-col overflow-clip rounded-2xl border border-border bg-card">
         {detalle.error && !sinPermiso && <div role="alert" className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-2 text-[13px]">
           No se pudo consultar el detalle por analista: la atención y las barras no están disponibles.
           <Button variant="ghost" className="h-9 text-[13px] pointer-coarse:h-11" onClick={() => void detalle.recargar()} disabled={detalle.enVuelo}>Reintentar</Button>
         </div>}
-        <TablaEquiposGerencia filas={mostradas} total={filasOp.length} conAtencion={conAtencion} sinDetalle={detalle.error ? 'error' : 'cargando'} umbrales={detalle.datos?.umbrales ?? null}
+        <TablaEquiposGerencia filas={mostradas} total={filasOp.length} conteos={conteos} sinDetalle={detalle.error ? 'error' : 'cargando'} umbrales={detalle.datos?.umbrales ?? null}
           filtros={filtros} setFiltros={setFiltros} ordenar={ordenar}
           seleccion={ficha?.vista.tipo === 'equipo' ? ficha.vista.clave : null} seleccionar={(f, control) => abrirFicha({ tipo: 'equipo', clave: f.clave }, control, false)}
           accion={(f, tipo, control) => tipo === 'llamadas'
             ? abrirFicha({ tipo: 'registro', alcance: f.clave, pestana: 'llamadas', apertura: ++aperturas.current }, control, true)
-            : entrarEquipo(f.clave, tipo)} panelId={panelId}
+            : entrarEquipo(f.clave, tipo)} totalOperacion={total!} accionTotal={accionTotal} panelId={panelId}
           irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
-        <p className="shrink-0 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
-          Organigrama actual · Pendientes al {FECHA_CORTE.format(new Date(datos.pendientes_al))}, {horaLimaDe(datos.pendientes_al)} ·{' '}
-          <button type="button" className={cn('cursor-pointer rounded-md font-bold text-[var(--destructive-text)] underline-offset-2 hover:underline', FOCO)}
-            onClick={() => { setFiltros((f) => ({ ...f, busqueda: '', conAtencion: false, orden: 'vencidas', ascendente: false })); setAnuncio('Equipos ordenados por tareas vencidas, de más a menos.') }}>
-            {datos.vencidas_global} tareas vencidas</button> en total.
-        </p>
+        {/* El pie del supervisor: cuántos se ven y cuándo; aquí, además, de qué momento son los pendientes. */}
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
+          <p><span role="status">{mostradas.length} de {filasOp.length} equipos</span> · Actualizado {hora}</p>
+          <p>Organigrama actual · Pendientes al {FECHA_CORTE.format(new Date(datos.pendientes_al))}, {horaLimaDe(datos.pendientes_al)}</p>
+        </div>
       </div>
       <PanelSupervisorAdaptable modal={modal} cerrar={cerrarFicha} tituloRef={tituloPanel} claseAlojamiento={cn('me-panel-alojamiento flex min-h-0 min-w-0 flex-col', estrecho && 'hidden')}>
         <PanelOperacionGerencia id={panelId} vista={ficha?.vista ?? null} pulso={datos} detalle={filasDetalle} detalleFallido={Boolean(detalle.error)} esHoy={esHoy} tituloRef={tituloPanel}

@@ -7,14 +7,14 @@ import fixture from './gestion-diaria-f5.test.fixture.json'
 import { PulsoGerenciaSchema } from './gestion-diaria-pulso'
 import { DiaEquipoSchema, presentarEquipo } from './gestion-diaria-equipo'
 import {
-  atencionEquipo, barrasEquipo, filasOperacion, filtrarOrdenarOperacion, nivelEquipo, personasSinRegistro, referenciaCifra,
+  atencionEquipo, barrasEquipo, filasOperacion, filtrarOrdenarOperacion, nivelEquipo, personasSinRegistro, totalOperacion,
   type FiltrosOperacion, type OrdenOperacion,
 } from './gestion-diaria-operacion'
 
 const pulso = v.parse(PulsoGerenciaSchema, fixture.pulso)
 const detalle = presentarEquipo(v.parse(DiaEquipoSchema, fixture.equipo))
 const equipo = (nombre: string) => pulso.equipos.find((e) => e.nombre === nombre)!
-const BASE: FiltrosOperacion = { busqueda: '', conAtencion: false, orden: 'atencion', ascendente: false }
+const BASE: FiltrosOperacion = { busqueda: '', estado: 'todos', orden: 'atencion', ascendente: false }
 
 describe('filasOperacion', () => {
   it('una fila por equipo con las cifras autoritativas del pulso, «fuera» incluido', () => {
@@ -41,13 +41,16 @@ describe('filtrarOrdenarOperacion', () => {
       for (const ascendente of [true, false]) expect(filtrarOrdenarOperacion(filas, { ...BASE, orden, ascendente }).at(-1)?.fuera).toBe(true)
     }
   })
-  it('sin dato al final, búsqueda sin tildes y «Con atención»', () => {
+  it('sin dato al final, búsqueda sin tildes y las pastillas «Con atención» y «Con vencidas»', () => {
     const filas = filasOperacion(pulso, detalle)
     const porContacto = filtrarOrdenarOperacion(filas, { ...BASE, orden: 'contacto', ascendente: true }).filter((f) => !f.fuera)
     const primeroSinDato = porContacto.findIndex((f) => f.tasaContacto === null)
     if (primeroSinDato >= 0) expect(porContacto.slice(primeroSinDato).every((f) => f.tasaContacto === null)).toBe(true)
     expect(filtrarOrdenarOperacion(filas, { ...BASE, busqueda: 'anidádo' }).map((f) => f.nombre)).toEqual(['SUPERVISOR ANIDADO'])
-    expect(filtrarOrdenarOperacion(filas, { ...BASE, conAtencion: true }).every((f) => (f.atencion ?? 0) > 0)).toBe(true)
+    expect(filtrarOrdenarOperacion(filas, { ...BASE, estado: 'atencion' }).every((f) => (f.atencion ?? 0) > 0)).toBe(true)
+    const conVencidas = filtrarOrdenarOperacion(filas, { ...BASE, estado: 'vencidas' })
+    expect(conVencidas.length).toBe(filas.filter((f) => f.vencidas > 0).length)
+    expect(conVencidas.every((f) => f.vencidas > 0)).toBe(true)
   })
 })
 
@@ -78,11 +81,17 @@ describe('atencionEquipo y barrasEquipo', () => {
   })
 })
 
-describe('referenciaCifra', () => {
-  it('«Ayer» hoy, «Día anterior» en un día pasado y las jornadas de la referencia', () => {
-    expect(referenciaCifra(pulso, 'llamadas', true)).toMatch(/^Ayer \d+ · Referencia \d+ \(7 jornadas\)$/)
-    expect(referenciaCifra(pulso, 'llamadas', false)).toMatch(/^Día anterior \d+ · /)
-    expect(referenciaCifra({ ...pulso, referencia: { ...pulso.referencia, cantidad: 0 } }, 'llamadas', true)).toMatch(/ · Sin referencia$/)
+describe('totalOperacion', () => {
+  it('«Toda la operación» suma lo mismo que el pulso y la atención de los equipos', () => {
+    const filas = filasOperacion(pulso, detalle)
+    const total = totalOperacion(pulso, filas)
+    expect(total).toMatchObject({ clave: 'total', llamadas: pulso.actual.llamadas, utiles: pulso.actual.utiles, tasaContacto: pulso.actual.tasa_contacto,
+      citas: pulso.actual.citas_agendadas, vencidas: pulso.vencidas_global, analistas: pulso.actual.analistas_activos, sinRegistro: pulso.actual.sin_actividad })
+    expect(total.atencion).toBe(filas.reduce((n, f) => n + (f.atencion ?? 0), 0))
+    const conMuestra = pulso.equipos.filter((e) => e.dispersion.personas > 0)
+    if (conMuestra.length) expect(total.dispersion.minimo).toBe(Math.min(...conMuestra.map((e) => e.dispersion.minimo!)))
+    // Sin detalle, la atención de la operación es desconocida, no cero.
+    expect(totalOperacion(pulso, filasOperacion(pulso, null)).atencion).toBeNull()
   })
 })
 

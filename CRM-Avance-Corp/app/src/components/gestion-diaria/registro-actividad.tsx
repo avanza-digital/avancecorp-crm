@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { PanelCargando, PanelVacio } from '@/components/common/estado-panel'
+import { BOTON_CABECERA } from './estilos-gestion'
 
 const LIMITE_PAGINA = 25
 // Tokens de TEXTO: el chip `soft` pinta el color puro sobre un tinte al 12 %, y
@@ -69,6 +70,8 @@ interface Props {
   /**
    * Compacto dentro de la ficha del supervisor (27/09/2026): el título lo pone
    * la ficha y el foco de respaldo («Ver más» que se va, «Reintentar») va a él.
+   * Gerencia usa esta misma versión (Miguel, 27/09: «como lo ve el supervisor»)
+   * y conserva lo suyo en el mismo tamaño: filtro por equipo y CSV.
    */
   encabezadoExterno?: RefObject<HTMLHeadingElement | null> | undefined
 }
@@ -299,15 +302,33 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     </Tabs>
   )
   if (compacto && encabezadoExterno) {
+    const rotulo = 'flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--muted-foreground-strong)]'
     return (
       <div className="space-y-2">
+        {permitirEquipo && (
+          <label htmlFor={`${id}-equipo`} className={rotulo}>Equipo
+            <Select id={`${id}-equipo`} value={equipoSel ?? ''} onChange={(e) => { setEquipoSel(e.target.value || null); setAnalista(null) }} className="h-9 min-h-0 w-auto min-w-48 text-[13px]">
+              <option value="">Todos los equipos</option>
+              {supervisores.map((m) => <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>)}
+            </Select>
+          </label>
+        )}
         {mostrarAnalista && analistaIds?.length !== 1 && (
-          <label htmlFor={`${id}-analista`} className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--muted-foreground-strong)]">Analista
+          <label htmlFor={`${id}-analista`} className={rotulo}>Analista
             <Select id={`${id}-analista`} value={analista ?? ''} onChange={(e) => setAnalista(e.target.value || null)} className="h-9 min-h-0 w-auto min-w-48 text-[13px]">
               <option value="">Todos los analistas</option>
               {analistas.map((m) => <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>)}
             </Select>
           </label>
+        )}
+        {permitirExportar && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* `aria-disabled` y no `disabled`: sin filas no se exporta, pero el foco no se pierde. */}
+            <button type="button" className={BOTON_CABECERA} aria-disabled={visibles.length === 0} onClick={() => { if (visibles.length > 0) exportar() }}>
+              <Download aria-hidden className="size-4" />Exportar CSV
+            </button>
+            {aviso && !sinPermiso && <p role="status" aria-live="polite" className="text-[12.5px] text-[var(--muted-foreground-strong)]">{aviso}</p>}
+          </div>
         )}
         {pastillas}
       </div>

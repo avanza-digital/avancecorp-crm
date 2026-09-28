@@ -3,7 +3,7 @@
 // quienes no tienen registro y el registro (general o del equipo). Las cifras del
 // equipo son las del pulso; el detalle solo aporta atención y barras de sus
 // analistas activos, y lo dice (revisión Codex del plan).
-import type { JSX, ReactNode, RefObject } from 'react'
+import { useRef, type JSX, type ReactNode, type RefObject } from 'react'
 import { Title as TituloDialogo } from '@radix-ui/react-dialog'
 import { ChevronRight, ClipboardList, Maximize2, Minimize2, UserX, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
@@ -60,19 +60,24 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
   const nombre = equipo ? nombreEquipo({ fuera: equipo.clave === 'fuera', nombre: equipo.nombre }) : ''
   const titulo = vista === null ? 'Detalle de la operación' : vista.tipo === 'sin_registro' ? 'Sin registro'
     : vista.tipo === 'registro' ? vista.alcance === 'general' ? 'Registro general' : `Registro del ${nombre}` : nombre
+  // Como la ficha del supervisor (Miguel, 27/09): un nombre corto arriba y una línea
+  // debajo. Se ve el nombre del supervisor; se oye «Detalle del Equipo de …».
+  const fuera = equipo?.clave === 'fuera'
   const subtitulo = vista === null ? null : vista.tipo === 'sin_registro'
     ? `${plural(pulso.actual.sin_actividad, 'analista sin ninguna gestión', 'analistas sin ninguna gestión')} ${esHoy ? 'hoy' : 'ese día'}`
-    : equipo ? `${plural(equipo.metricas.analistas_activos, 'analista', 'analistas')} · ${equipo.metricas.con_actividad} con registro${esHoy ? ' hoy' : ''}` : esHoy ? 'Hoy' : pulso.dia
+    : vista.tipo === 'registro' ? equipo ? nombre : null
+      : equipo ? `${fuera ? '' : 'Equipo de '}${plural(equipo.metricas.analistas_activos, 'analista', 'analistas')}` : null
   return (
     <section id={id} aria-label={vista?.tipo === 'equipo' ? `Detalle del ${nombre}` : titulo} className={FICHA}>
       <header className={CABECERA_FICHA}>
         {vista?.tipo === 'equipo' && equipo ? <Avatar nombre={equipo.nombre} color="var(--accent-press)" relleno className="size-11 text-[15px]" />
-          : <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-primary">
-            {vista?.tipo === 'sin_registro' ? <UserX className="size-5" /> : vista?.tipo === 'registro' ? <ClipboardList className="size-5" /> : <Users className="size-5" />}
+          : <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-primary">
+            {vista?.tipo === 'sin_registro' ? <UserX className="size-4" /> : vista?.tipo === 'registro' ? <ClipboardList className="size-4" /> : <Users className="size-4" />}
           </span>}
         <div className="min-w-0 flex-1">
           <TituloDialogo asChild><h3 ref={tituloRef} tabIndex={-1} className={TITULO_FICHA}>
-            {vista?.tipo === 'equipo' ? <><span className="sr-only">Detalle del</span>{' '}{nombre}</> : titulo}
+            {vista?.tipo === 'equipo' && equipo ? <><span className="sr-only">{fuera ? 'Detalle del' : 'Detalle del Equipo de'}</span>{' '}{equipo.nombre}</>
+              : vista?.tipo === 'registro' && equipo ? <>Registro del equipo<span className="sr-only">: {nombre}</span></> : titulo}
           </h3></TituloDialogo>
           {subtitulo && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground-strong)]">{subtitulo}</p>}
         </div>
@@ -88,7 +93,7 @@ export function PanelOperacionGerencia({ id, vista, pulso, detalle, detalleFalli
             ? <FichaEquipo equipo={equipo} nombre={nombre} detalle={detalle} detalleFallido={detalleFallido} esHoy={esHoy} abrirVista={abrirVista} entrarEquipo={entrarEquipo} abrirPersona={abrirPersona} />
             : <p role="status" className="px-5 py-4 text-[13px]">Este equipo ya no aparece en la consulta. Elige otro de la tabla.</p>
             : vista.tipo === 'sin_registro' ? <ListaSinRegistro pulso={pulso} esHoy={esHoy} abrirPersona={abrirPersona} />
-              : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} titulo={titulo} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: vista.pestana, apertura: vista.apertura + 1 })} />}
+              : <RegistroOperacion key={`${vista.alcance}:${vista.apertura}`} vista={vista} pulso={pulso} equipo={equipo} esHoy={esHoy} actualizacion={actualizacion} revocar={revocar} abrirGeneral={() => abrirVista({ tipo: 'registro', alcance: 'general', pestana: vista.pestana, apertura: vista.apertura + 1 })} />}
       </div>
     </section>
   )
@@ -208,22 +213,29 @@ function ListaSinRegistro({ pulso, esHoy, abrirPersona }: { pulso: PulsoGerencia
   )
 }
 
-function RegistroOperacion({ vista, pulso, equipo, titulo, actualizacion, revocar, abrirGeneral }: {
-  vista: Extract<VistaOperacion, { tipo: 'registro' }>; pulso: PulsoGerencia; equipo: EquipoPulso | undefined; titulo: string
+const FECHA_TITULO = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+
+function RegistroOperacion({ vista, pulso, equipo, esHoy, actualizacion, revocar, abrirGeneral }: {
+  vista: Extract<VistaOperacion, { tipo: 'registro' }>; pulso: PulsoGerencia; equipo: EquipoPulso | undefined; esHoy: boolean
   actualizacion: number; revocar: () => void; abrirGeneral: () => void
 }): JSX.Element {
+  const tituloRegistro = useRef<HTMLHeadingElement>(null)
   // El registro del equipo lleva a todos sus autores con id (activos e inactivos); los sin autor, al general.
   const ids = equipo ? equipo.personas.flatMap((p) => p.analista_id === null ? [] : [p.analista_id]) : null
   const sinAutor = equipo?.personas.some((p) => p.analista_id === null) ?? false
   const llamadasSinAutor = equipo?.personas.reduce((n, p) => p.analista_id === null ? n + p.llamadas : n, 0) ?? 0
   return (
-    <section aria-label="Registro seleccionado" className="space-y-3 px-5 py-4">
-      <h4 className="sr-only">{titulo}</h4>
+    // Como el registro del supervisor (Miguel, 27/09): título corto con el día,
+    // filtros en pastilla y filas limpias; gerencia suma equipo y CSV en el mismo tamaño.
+    <section aria-label="Registro seleccionado" className="space-y-2 px-5 py-4">
+      <h4 ref={tituloRegistro} tabIndex={-1} className={cn('rounded-md text-[15px] font-extrabold text-primary', FOCO)}>
+        {esHoy ? 'Actividad de hoy' : `Actividad del ${FECHA_TITULO.format(new Date(`${pulso.dia}T12:00:00-05:00`))}`}
+      </h4>
       {vista.alcance === 'general'
-        ? <RegistroActividad dia={pulso.dia} analistaIds={null} mostrarAnalista permitirEquipo permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
-        : ids && ids.length > 0 ? <RegistroActividad dia={pulso.dia} analistaIds={ids} mostrarAnalista permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
+        ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={null} mostrarAnalista permitirEquipo permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
+        : ids && ids.length > 0 ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={ids} mostrarAnalista permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
           : <p className="text-[13px]">Este equipo no tiene autores con registro propio.</p>}
-      {sinAutor && <p className="text-[13px]">{llamadasSinAutor > 0 ? `${plural(llamadasSinAutor, 'llamada sin autor no aparece', 'llamadas sin autor no aparecen')} aquí: ` : 'Los registros sin autor se consultan en el '}
+      {sinAutor && <p className="text-xs text-[var(--muted-foreground-strong)]">{llamadasSinAutor > 0 ? `${plural(llamadasSinAutor, 'llamada sin autor no aparece', 'llamadas sin autor no aparecen')} aquí: ` : 'Los registros sin autor se consultan en el '}
         <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={abrirGeneral}>{llamadasSinAutor > 0 ? 'verlas en el registro general' : 'registro general del día'}</button>.</p>}
     </section>
   )

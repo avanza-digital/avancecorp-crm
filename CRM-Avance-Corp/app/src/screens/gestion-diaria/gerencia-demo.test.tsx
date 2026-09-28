@@ -38,11 +38,11 @@ describe('Gerencia en modo demo (G0)', () => {
     montar()
     const vista = screen.getByRole('region', { name: 'Toda la operación hoy' })
     expect(screen.queryByText(/requiere una sesión de gerencia/)).not.toBeInTheDocument()
-    expect(within(vista).getByRole('region', { name: 'Cifras de la operación' })).toBeInTheDocument()
+    expect(within(vista).getByRole('rowheader', { name: /^Toda la operación/ })).toBeInTheDocument()
     for (const equipo of ['Equipo de SUPERVISOR UNO', 'Equipo de SUPERVISOR DOS', 'Fuera de equipos comerciales']) {
       expect(within(vista).getByRole('button', { name: `Seleccionar ${equipo}` })).toBeInTheDocument()
     }
-    expect(vista).toHaveTextContent('1 tareas vencidas')
+    expect(within(vista).getByRole('button', { name: '1 tareas vencidas en toda la operación: ver los equipos con vencidas' })).toBeInTheDocument()
     expect(d.rpc).not.toHaveBeenCalled()
   })
   it('abre un equipo por URL con sus analistas del detalle demo, y el registro recibe sus ids', () => {

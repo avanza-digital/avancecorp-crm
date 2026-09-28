@@ -4,7 +4,7 @@
 // lo que el pulso no trae —quién necesita atención y las barras por hora— y se
 // restringe a las personas ACTIVAS que el pulso confirma en cada equipo
 // (revisión Codex del plan, 27/09).
-import { cifraPulso, type EquipoPulso, type MetricasPulso, type PulsoGerencia } from './gestion-diaria-pulso'
+import type { EquipoPulso, PulsoGerencia } from './gestion-diaria-pulso'
 import { compararGravedad, horarioConfirmado, type FilaEquipoPresentada, type FiltrosEquipo } from './gestion-diaria-equipo'
 import type { Marcador, UmbralesSchema } from './gestion-diaria-analista'
 import type * as v from 'valibot'
@@ -47,7 +47,9 @@ export function filasOperacion(pulso: PulsoGerencia, detalle: readonly FilaEquip
 
 export type OrdenOperacion = 'nombre' | 'llamadas' | 'contacto' | 'citas' | 'vencidas' | 'atencion' | 'primer_intento' | 'dispersion'
 
-export interface FiltrosOperacion { busqueda: string; conAtencion: boolean; orden: OrdenOperacion; ascendente: boolean }
+/** Las pastillas de la tabla de equipos, como las del supervisor (Miguel, 27/09): la cifra ES el filtro. */
+export type EstadoOperacion = 'todos' | 'atencion' | 'vencidas'
+export interface FiltrosOperacion { busqueda: string; estado: EstadoOperacion; orden: OrdenOperacion; ascendente: boolean }
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es').trim()
 const amplitud = (f: FilaEquipoOperacion) => f.dispersion.minimo === null || f.dispersion.maximo === null ? null : f.dispersion.maximo - f.dispersion.minimo
@@ -68,9 +70,12 @@ function valorDe(f: FilaEquipoOperacion, orden: Exclude<OrdenOperacion, 'nombre'
 export const equipoConAtencion = (f: FilaEquipoOperacion) =>
   f.atencion !== null ? f.atencion > 0 : f.vencidas > 0 || f.sinRegistro > 0 || (f.primerIntento ?? 0) > 0
 
+export const cumpleEstado = (f: FilaEquipoOperacion, estado: EstadoOperacion) =>
+  estado === 'todos' || (estado === 'atencion' ? equipoConAtencion(f) : f.vencidas > 0)
+
 export function filtrarOrdenarOperacion(filas: readonly FilaEquipoOperacion[], filtros: FiltrosOperacion): FilaEquipoOperacion[] {
   const q = normalizar(filtros.busqueda)
-  return filas.filter((f) => normalizar(f.nombre).includes(q) && (!filtros.conAtencion || equipoConAtencion(f)))
+  return filas.filter((f) => normalizar(f.nombre).includes(q) && cumpleEstado(f, filtros.estado))
     .toSorted((a, b) => {
       // «Fuera de equipos» no compite con los equipos: siempre al final.
       if (a.fuera !== b.fuera) return a.fuera ? 1 : -1
@@ -84,6 +89,31 @@ export function filtrarOrdenarOperacion(filas: readonly FilaEquipoOperacion[], f
       // Empate en atención: primero el que más vencidas arrastra.
       return filtros.orden === 'atencion' ? b.vencidas - a.vencidas || nombre : nombre
     })
+}
+
+/**
+ * La fila «Toda la operación» al pie de la tabla (Miguel, 27/09: como el
+ * supervisor, sin franja de cifras aparte): las cifras autoritativas del pulso,
+ * la atención sumada por equipo (cada analista está en un solo equipo) y la
+ * dispersión entre los extremos individuales de toda la operación.
+ */
+export function totalOperacion(pulso: PulsoGerencia, filas: readonly FilaEquipoOperacion[]): FilaEquipoOperacion {
+  const a = pulso.actual
+  const conMuestra = pulso.equipos.filter((e) => e.dispersion.personas > 0)
+  const primeros = pulso.equipos.flatMap((e) => e.primer_intento_vencido === null ? [] : [e.primer_intento_vencido])
+  return {
+    clave: 'total', nombre: 'Toda la operación', fuera: false,
+    analistas: a.analistas_activos, sinRegistro: a.sin_actividad,
+    llamadas: a.llamadas, contestadas: a.contestadas, utiles: a.utiles, tasaContacto: a.tasa_contacto,
+    citas: a.citas_agendadas, vencidas: pulso.vencidas_global,
+    primerIntento: primeros.length ? primeros.reduce((n, x) => n + x, 0) : null,
+    dispersion: conMuestra.length === 0 ? { personas: 0, minimo: null, maximo: null } : {
+      personas: conMuestra.reduce((n, e) => n + e.dispersion.personas, 0),
+      minimo: Math.min(...conMuestra.map((e) => e.dispersion.minimo!)),
+      maximo: Math.max(...conMuestra.map((e) => e.dispersion.maximo!)),
+    },
+    atencion: filas.some((f) => f.atencion === null) ? null : filas.reduce((n, f) => n + (f.atencion ?? 0), 0),
+  }
 }
 
 export interface PersonaSinRegistro { analista_id: string; nombre: string; equipo: string; clave: string }
@@ -125,19 +155,6 @@ export function barrasEquipo(detalle: readonly FilaEquipoPresentada[], equipo: E
   // «Otros autores» sale del MISMO pulso (inactivos y sin autor), no de restar dos consultas distintas (Codex).
   const otros = equipo.personas.reduce((n, p) => !p.activo || p.analista_id === null ? n + p.llamadas : n, 0)
   return { porHora: [...porHora.values()].toSorted((a, b) => a.hora - b.hora), analistas: filas.length, otros }
-}
-
-/**
- * «Ayer 92 · Referencia 88 (7 jornadas)». En un día pasado dice «Día anterior»;
- * la referencia son hasta 7 jornadas CON actividad, no 7 días calendario (Codex).
- */
-export function referenciaCifra(pulso: PulsoGerencia, campo: keyof MetricasPulso, esHoy: boolean, porcentaje = false): string {
-  // Promedios y tasas a entero, como el diseño («7 días 88»): la cifra exacta vive en «Comparar días».
-  const cifra = (n: number | null) => cifraPulso(n === null ? null : Math.round(n), porcentaje)
-  const anterior = `${esHoy ? 'Ayer' : 'Día anterior'} ${cifra(pulso.ayer.metricas[campo])}`
-  const n = pulso.referencia.cantidad
-  return n === 0 ? `${anterior} · Sin referencia`
-    : `${anterior} · Referencia ${cifra(pulso.referencia.media[campo])} (${n} ${n === 1 ? 'jornada' : 'jornadas'})`
 }
 
 /** «Equipo de SUPERVISOR UNO»; el grupo sin supervisor conserva su nombre. */
