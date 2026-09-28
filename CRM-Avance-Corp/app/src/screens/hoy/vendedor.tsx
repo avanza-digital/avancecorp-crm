@@ -586,45 +586,6 @@ function AgendaHoy({
   )
 }
 
-/** Postventa no entra al motor de prioridades de leads: tiene su propia franja
- * para que una reunión con un cliente nunca se pierda ni altere SLA, etapas o
- * capital estimado del pipeline. Cerrar aquí escribe el historial del cliente. */
-function AgendaClientesHoy({
-  eventos,
-  abrirLead,
-  onCompletar,
-}: {
-  eventos: EventoAgenda[]
-  abrirLead: (id: string) => void
-  onCompletar: (id: string) => void
-}): JSX.Element | null {
-  if (eventos.length === 0) return null
-  const vencidas = eventos.filter((evento) => evento.vencida).length
-
-  return (
-    <Card className="shrink-0 border-primary/20">
-      <SectionHead
-        icon={CalendarClock}
-        title="Clientes por gestionar hoy"
-        right={
-          <Badge color={vencidas > 0 ? '#d97706' : 'var(--primary)'}>
-            {eventos.length} {eventos.length === 1 ? 'gestión' : 'gestiones'}
-            {vencidas > 0 ? ` · ${vencidas} vencida${vencidas === 1 ? '' : 's'}` : ''}
-          </Badge>
-        }
-      />
-      <CardContent className="ac-scroll max-h-80 space-y-1 overflow-y-auto pt-0">
-        {eventos.map((evento) => (
-          <FilaAgenda key={evento.id} ev={evento} lead={undefined} abrirLead={abrirLead} onCompletar={onCompletar} />
-        ))}
-        <p className="px-2 pt-1 text-[11px] text-muted-foreground">
-          Gestiones creadas desde Mi cartera · también están disponibles en Agenda.
-        </p>
-      </CardContent>
-    </Card>
-  )
-}
-
 // ── Franja «Ahora» ───────────────────────────────────────────────────────────
 // La firma visual del analista: una hoja de llamada compacta, ordenada y con
 // máximo tres decisiones. No es otro resumen de alertas: las filas elevadas se
@@ -1039,13 +1000,24 @@ export function HoyVendedor(): JSX.Element {
     return agendaDeTareas(mias, ahora).filter((ev) => ev.vencida || esDeHoy(ev, ahora))
   }, [tareas, idsMios, ahora])
 
-  // Postventa: tareas cuyo sujeto es un cliente de Mi cartera. Se mantienen
-  // separadas del motor de leads para no contaminar SLA, etapas ni la cola,
-  // pero comparten el mismo reloj y el mismo diálogo de cierre.
+  // Postventa: tareas cuyo sujeto es un cliente de Mi cartera. Se derivan
+  // aparte porque NO entran al motor de leads (prioridades de «Ahora», SLA,
+  // etapas, cola), pero comparten el mismo reloj y el mismo diálogo de cierre.
   const agendaClientes = useMemo(() => {
     const mias = tareas.filter((t) => (t.perfil_id != null || t.inversionista_id != null) && (yo?.id == null || t.vendedor_id === yo.id))
     return agendaDeTareas(mias, ahora).filter((evento) => evento.vencida || esDeHoy(evento, ahora))
   }, [tareas, yo?.id, ahora])
+
+  // «Tu agenda de hoy» lista las DOS fuentes en una sola cronología (pedido de
+  // Miguel, 28/09/2026: la tarjeta aparte «Clientes por gestionar hoy» repetía
+  // lo que ya es agenda). El orden ES el timestamp, igual que en cada fuente:
+  // las vencidas primero y el resto por hora. Los eventos de cliente llevan
+  // `lead_id` vacío, así que `leadPorId` no les encuentra lead y el capital
+  // «en juego» sigue saliendo SOLO de los leads (nada se inventa).
+  const agendaHoy = useMemo(
+    () => [...agenda, ...agendaClientes].sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
+    [agenda, agendaClientes],
+  )
 
   // «Tus citas»: TODAS las citas pendientes del analista —de sus leads y de
   // los clientes de su cartera— SIN recortar al día: la del jueves también se
@@ -1076,7 +1048,12 @@ export function HoyVendedor(): JSX.Element {
   // Esconder de la cola TODAS las vencidas borraba de la pantalla a los leads
   // del excedente —con su capital en juego y su "Propuesta sin movimiento hace
   // 12 d"— mientras la cola, encima, se declaraba al día.
-  const listadasEnAgenda = useMemo(() => vencidasListadas(agenda), [agenda])
+  //
+  // Se corta sobre `agendaHoy` (leads + clientes) porque ESA es la lista que la
+  // tarjeta pinta: una gestión de cliente vencida ocupa un sitio de la franja
+  // ámbar y puede dejar bajo el "+N más" a una vencida de lead, que entonces
+  // tiene que seguir en la cola. Cortar solo sobre leads la perdería de las dos.
+  const listadasEnAgenda = useMemo(() => vencidasListadas(agendaHoy), [agendaHoy])
   // Por LEAD para la cola (sus filas son leads) …
   const leadsListadosEnAgenda = useMemo(() => new Set(listadasEnAgenda.map((ev) => ev.lead_id)), [listadasEnAgenda])
   // … y por TAREA para la higiene del viernes (sus filas son tareas; el id del
@@ -1131,11 +1108,13 @@ export function HoyVendedor(): JSX.Element {
   // Un speed-to-lead conserva la cola (allí vive su reloj); para el resto manda
   // lo que Agenda pinta de verdad. Las vencidas bajo su "+N" siguen en la cola o
   // en la higiene: así no duplicamos trabajo ni escondemos el excedente.
+  // Las gestiones de cliente pasan enteras (su `lead_id` vacío no está en
+  // ningún conjunto de leads): «Ahora» solo eleva leads y ellas no compiten.
   const colaBaseDespues = colaVisible.filter((item) => !leadsAhora.has(item.lead.id))
   const leadsSpeedDespues = new Set(
     colaBaseDespues.filter((item) => item.bucket === 'sin_responder').map((item) => item.lead.id),
   )
-  const agendaDespues = agenda.filter((ev) => !leadsAhora.has(ev.lead_id) && !leadsSpeedDespues.has(ev.lead_id))
+  const agendaDespues = agendaHoy.filter((ev) => !leadsAhora.has(ev.lead_id) && !leadsSpeedDespues.has(ev.lead_id))
   const eventosAgendaPintadosDespues = [
     ...vencidasListadas(agendaDespues),
     ...agendaDespues.filter((ev) => !ev.vencida),
@@ -1354,10 +1333,11 @@ export function HoyVendedor(): JSX.Element {
             {fechaLarga(ahora)} · primero resolvemos; después revisamos el contexto.
           </p>
         </div>
-        {/* Esquina derecha: el botón «GESTIÓN DIARIA» es el único protagonista;
-            la pastilla queda debajo y menor (pieza CRM-02 del UI Playground).
+        {/* Esquina derecha: el botón «GESTIÓN DIARIA» es el único protagonista
+            (pieza CRM-02 del UI Playground); sin pastilla debajo (Miguel,
+            28/09/2026: «Vista personal · solo ves tu cartera» era irrelevante).
             Es el MISMO bloque en los dos modos (activo y legado). */}
-        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        <div className="flex shrink-0 items-start sm:items-end">
           <BotonGestionDiaria
             estado={{
               vencidas: conteoGd.vencidas,
@@ -1373,10 +1353,6 @@ export function HoyVendedor(): JSX.Element {
               escribirHash('gestion-diaria')
             }}
           />
-          {/* Gris OSCURO (7,2:1) porque el texto baja a 10 px; el claro se queda en 4,76:1 (revisión a11y). */}
-          <p className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground-strong shadow-sm">
-            Vista personal · solo ves tu cartera
-          </p>
         </div>
       </header>
 
@@ -1421,15 +1397,6 @@ export function HoyVendedor(): JSX.Element {
           }}
         />
       ))}
-
-      <AgendaClientesHoy
-        eventos={agendaClientes}
-        abrirLead={abrirLead}
-        onCompletar={(id) => {
-          const tarea = tareas.find((item) => item.id === id)
-          if (tarea) setTareaACerrar(tarea)
-        }}
-      />
 
       {/* Después de las tres prioridades: solo el remanente. La proximidad
           separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
@@ -1605,12 +1572,12 @@ export function HoyVendedor(): JSX.Element {
             pantalla más allá de la ventana. Izquierda: la agenda se estira y
             desplaza sus filas dentro, con «Tu cumplimiento del mes» debajo.
             Derecha: «Tus citas» llena la columna y desplaza su lista. El
-            `lg:min-h-[26rem]` es el suelo: si lo fijo de arriba (postventa)
-            no deja sitio, la pantalla se desplaza antes que aplastar las dos
-            tarjetas. */}
+            `lg:min-h-[26rem]` es el suelo: si lo fijo de arriba (cabecera,
+            tasas autorizadas, avisos) no deja sitio, la pantalla se desplaza
+            antes que aplastar las dos tarjetas. */}
         <div className="grid min-h-0 flex-1 gap-5 lg:min-h-[26rem] lg:grid-cols-5 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
           <div className="flex min-h-0 min-w-0 flex-col gap-5 lg:col-span-3">
-            <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
+            <AgendaHoy eventos={agendaHoy} leadPorId={leadPorId} abrirLead={abrirLead}
               onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
               demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
               vencidasAbajo={0} title="Tu agenda de hoy" listaDesplazable
