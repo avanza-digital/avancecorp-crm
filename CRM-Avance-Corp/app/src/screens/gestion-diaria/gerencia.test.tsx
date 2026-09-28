@@ -154,8 +154,12 @@ describe('Gerencia con el diseño de Gestión Diaria (27/09) sobre los contratos
     fireEvent.click(within(informe).getByRole('button', { name: 'Cómo leer los hábitos' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('La alerta de tasa muy baja sigue apagada')
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar explicación' }))
+    // G3: el período vive en la barra de la tabla, que se vuelve a montar con la consulta
+    // nueva; quien lo cambió con el teclado lo sigue teniendo enfocado.
+    screen.getByLabelText(/Período hasta/).focus()
     fireEvent.change(screen.getByLabelText(/Período hasta/), { target: { value: '30' } })
     expect(periodos.at(-1)).toBe(30)
+    expect(screen.getByLabelText(/Período hasta/)).toHaveFocus()
   })
   it('el guard no monta consultas ni registro para otro rol', () => {
     yo = { ...yo, rol: 'supervisor' }; render(<GestionDiariaGerencia />)

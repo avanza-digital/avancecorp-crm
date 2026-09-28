@@ -103,6 +103,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   const [filtrosPorEquipo, setFiltrosPorEquipo] = useState<Record<string, FiltrosEquipo>>({})
   const [anuncio, setAnuncio] = useState('')
   const [pedidoFoco, setPedidoFoco] = useState(0)
+  const focoPeriodo = useRef(false)
   useSyncExternalStore(suscribirRuta, fotoRuta)
   const detalleRuta = leerHash().detalleGestion
   const ruta = detalleRuta?.tipo === 'cola' ? undefined : detalleRuta
@@ -152,6 +153,13 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   useEffect(() => { if (!ruta) equipoEnfocado.current = null; else if (grupo) equipoEnfocado.current = grupo.clave })
   // Abrir una lista lejos del control (registro, sin registro) lleva el foco a la ficha.
   useLayoutEffect(() => { if (pedidoFoco) tituloPanel.current?.focus({ preventScroll: true }) }, [pedidoFoco])
+  // El período vive en la barra de Hábitos, que se vuelve a montar con la consulta nueva:
+  // quien lo cambió con el teclado lo sigue teniendo enfocado al llegar los datos (G3).
+  useLayoutEffect(() => {
+    if (!focoPeriodo.current || activa !== 'habitos' || !habitos.datos || habitos.cargando) return
+    focoPeriodo.current = false
+    document.getElementById(`${id}-periodo`)?.focus({ preventScroll: true })
+  })
 
   const cambiarDia = (nuevo: string) => {
     if (!diaPulsoValido(nuevo, hoy)) {
@@ -220,10 +228,13 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   let contenido: ReactNode
   if (error) contenido = <ErrorConsultaGerencia error={error} recargar={consulta.recargar} enVuelo={consulta.enVuelo} />
   else if (consulta.cargando) contenido = <PanelCargando filas={6} />
-  else if (activa === 'habitos') contenido = habitos.datos && <>
-    <div className="gp-periodo"><label htmlFor={`${id}-periodo`}>Período hasta {dia}</label><Select id={`${id}-periodo`} className={cn(CONTROL, 'min-h-0')} value={dias} onChange={(e) => setDias(Number(e.target.value) as 7 | 14 | 30)}>{[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>
-    <ReporteHabitos key={`${dia}:${dias}`} datos={habitos.datos} equipos={datos?.equipos ?? []} estrecho={estrecho} alAbrirAnalista={() => setPestana('pulso')} />
-  </>
+  else if (activa === 'habitos') contenido = habitos.datos && <ReporteHabitos key={`${dia}:${dias}`} datos={habitos.datos} equipos={datos?.equipos ?? []} estrecho={estrecho}
+    alAbrirAnalista={() => setPestana('pulso')} periodo={<div className="flex items-center gap-2">
+      <label htmlFor={`${id}-periodo`} className="text-[13px] font-semibold text-[var(--muted-foreground-strong)]">Período<span className="sr-only"> hasta {dia}</span></label>
+      <div className="w-[152px]"><Select id={`${id}-periodo`} className={cn(CONTROL, 'min-h-0')} value={dias}
+        onChange={(e) => { focoPeriodo.current = document.activeElement === e.currentTarget; setDias(Number(e.target.value) as 7 | 14 | 30) }}>
+        {[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>
+    </div>} />
   else if (!datos) contenido = null
   else if (ruta && grupo) {
     const activos = new Set(grupo.personas.flatMap((p) => p.activo && p.analista_id !== null ? [p.analista_id] : []))
@@ -322,19 +333,26 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
 
 /** «Comparar días» conserva las 8 cifras con el día anterior y la referencia, y las definiciones. */
 function DialogoComparacion({ datos: d, contenido, cerrar }: { datos: PulsoGerencia; contenido: 'comparacion' | 'definiciones' | null; cerrar: () => void }) {
-  return <Dialog open={contenido !== null} onClose={cerrar} className="gp-definiciones">
+  const celda = 'border-t border-border px-3 py-2.5 text-right tabular-nums'
+  return <Dialog open={contenido !== null} onClose={cerrar} className="w-[640px]">
     <DialogHeader><DialogTitle>{contenido === 'definiciones' ? 'Fechas y definiciones' : 'Comparación de la operación'}</DialogTitle></DialogHeader>
-    <DialogBody><div className="space-y-4 text-[13.5px]">
+    <DialogBody><div className="space-y-3 text-[13.5px] leading-relaxed">
       {contenido !== 'definiciones' && <>
-        <p>Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 jornadas con actividad.</p>
-        {d.dia === fechaLima(Date.parse(d.generado_en)) && <p>Hoy en curso; referencias de jornadas completas.</p>}
-        <div className="gp-tabla-scroll" tabIndex={0} role="region" aria-label="Desplazar comparación de días"><table className="gp-comparacion-dias" aria-label="Cifras del día, anterior y referencia">
-          <thead><tr><th scope="col">Indicador</th><th scope="col">Día elegido</th><th scope="col">Anterior</th><th scope="col">Promedio / referencia</th></tr></thead>
-          <tbody>{METRICAS.map((m) => <tr key={m.campo}><th scope="row">{m.titulo}</th>
-            <td>{cifraPulso(d.actual[m.campo], m.porcentaje)}</td><td>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</td>
-            <td>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</td></tr>)}</tbody>
-        </table></div>
-        <h3 className="text-[15px] font-extrabold text-primary">Fechas y definiciones</h3>
+        <p className="text-[13px] text-[var(--muted-foreground-strong)]">Día elegido: {d.dia} · Anterior: {d.ayer.dia} completo · Referencia: {d.referencia.cantidad} de 7 jornadas con actividad.</p>
+        {d.dia === fechaLima(Date.parse(d.generado_en)) && <p className="text-[13px] text-[var(--muted-foreground-strong)]">Hoy en curso; referencias de jornadas completas.</p>}
+        {/* La tabla de la pantalla (G3): 13 px, cabecera tenue, cifras alineadas a la derecha. */}
+        <div className={cn('ac-scroll overflow-x-auto rounded-xl border border-border', FOCO)} tabIndex={0} role="region" aria-label="Desplazar comparación de días">
+          <table className="w-full min-w-[480px] border-separate border-spacing-0 text-[13px]" aria-label="Cifras del día, anterior y referencia">
+            <thead className="bg-muted/70 text-[12.5px] text-[var(--muted-foreground-strong)]"><tr>
+              <th scope="col" className="px-3 py-2 text-left font-semibold">Indicador</th><th scope="col" className="px-3 py-2 text-right font-semibold">Día elegido</th>
+              <th scope="col" className="px-3 py-2 text-right font-semibold">Anterior</th><th scope="col" className="px-3 py-2 text-right font-semibold">Promedio / referencia</th>
+            </tr></thead>
+            <tbody>{METRICAS.map((m) => <tr key={m.campo}><th scope="row" className="border-t border-border px-3 py-2.5 text-left font-semibold text-primary">{m.titulo}</th>
+              <td className={cn(celda, 'font-bold text-foreground')}>{cifraPulso(d.actual[m.campo], m.porcentaje)}</td><td className={celda}>{cifraPulso(d.ayer.metricas[m.campo], m.porcentaje)}</td>
+              <td className={celda}>{cifraPulso(d.referencia.media[m.campo], m.porcentaje)}</td></tr>)}</tbody>
+          </table>
+        </div>
+        <h3 className="pt-1 text-[15px] font-extrabold text-primary">Fechas y definiciones</h3>
       </>}
       <p>Personas y equipos corresponden al organigrama actual.</p>
       <p>Referencia: {d.referencia.dias.length ? d.referencia.dias.join(' · ') : `Sin jornadas con actividad desde ${d.referencia.busqueda_desde}.`}</p>
@@ -344,7 +362,7 @@ function DialogoComparacion({ datos: d, contenido, cerrar }: { datos: PulsoGeren
       <p>Dispersión: mínimo y máximo individual con al menos {d.minimo_llamadas_utiles} llamadas útiles. Al ordenar, se compara la amplitud entre esos extremos.</p>
       <p>Los leads distintos se deduplican en toda la operación; no se suman entre equipos.</p>
       <p>Las tareas y el primer intento vencido se consultan en el momento actual, incluso al elegir un día pasado.</p>
-      <Button variant="outline" className="h-9 text-[13px] pointer-coarse:h-11" onClick={cerrar}>{contenido === 'definiciones' ? 'Cerrar definiciones' : 'Cerrar comparación'}</Button>
+      <button type="button" className={BOTON_CABECERA} onClick={cerrar}>{contenido === 'definiciones' ? 'Cerrar definiciones' : 'Cerrar comparación'}</button>
     </div></DialogBody>
   </Dialog>
 }
