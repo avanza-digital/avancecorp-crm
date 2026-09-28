@@ -7,10 +7,12 @@ import { entrarDemo } from './_helpers'
 
 // Cada rol abre el registro con SU pregunta. Se nombran exactas porque el
 // analista trae más encabezados con «hoy» y un locator suelto casaría con varios.
+// G0 (27/09/2026): la gerencia demo abre el tablero «Toda la operación», como
+// la real, y llega al registro por «Registro general».
 const PREGUNTA_DEL_ROL = {
   Analista: '¿Qué hice hoy?',
   Supervisor: 'Mi equipo hoy',
-  Gerencia: '¿Qué está pasando hoy?',
+  Gerencia: 'Toda la operación',
 } as const
 
 for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
@@ -27,8 +29,9 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
       await expect(page.getByRole('heading', { level: 2, name: PREGUNTA_DEL_ROL[rol], exact: true })).toBeVisible()
     }
     if (rol === 'Supervisor') await page.getByRole('button', { name: 'Registro del equipo', exact: true }).click()
+    if (rol === 'Gerencia') await page.getByRole('button', { name: 'Registro general', exact: true }).click()
     await expect(page.getByRole('tablist', { name: 'Tipo de actividad' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: rol === 'Supervisor' ? 'Todo' : 'Llamadas', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: rol === 'Analista' ? 'Llamadas' : 'Todo', exact: true })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('tab', { name: 'Todo' }).click()
     await expect(page.getByRole('tab', { name: 'Todo' })).toHaveAttribute('aria-selected', 'true')
     // El demo tiene gestiones de HOY: la lista tiene filas con hora, chip y detalle.
@@ -40,8 +43,8 @@ for (const rol of ['Analista', 'Supervisor', 'Gerencia'] as const) {
     // con varios en la pantalla del analista.
     await expect(page.getByRole('tabpanel', { name: 'Todo' })).toBeVisible()
     if (rol === 'Gerencia') {
-      await expect(page.getByLabel('Día del registro')).toBeVisible()
-      await expect(page.getByRole('combobox', { name: 'Equipo' })).toBeVisible()
+      await expect(page.getByLabel('Día de la operación')).toBeVisible()
+      await expect(page.getByRole('combobox', { name: 'Equipo', exact: true })).toBeVisible()
       await expect(page.getByRole('button', { name: /Exportar CSV/ })).toBeVisible()
     } else {
       await expect(page.getByRole('button', { name: /Exportar CSV/ })).toHaveCount(0)

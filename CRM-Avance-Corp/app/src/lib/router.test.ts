@@ -47,6 +47,17 @@ describe('router por hash', () => {
     expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: null, detalleGestion })
   })
 
+  it('acepta el organigrama del modo demo (d-sup1, d-v1…) y sólo con esa forma', () => {
+    for (const detalleGestion of [{ tipo: 'equipo', id: 'd-sup1' }, { tipo: 'analista', id: 'd-v1' }] as const) {
+      escribirHash('gestion-diaria', null, true, undefined, undefined, detalleGestion)
+      expect(leerHash().detalleGestion).toEqual(detalleGestion)
+    }
+    for (const hash of ['#/gestion-diaria/equipo/d-', '#/gestion-diaria/analista/d-V1', '#/gestion-diaria/analista/x-v1', '#/gestion-diaria/equipo/d-sup1%2F..']) {
+      window.location.hash = hash
+      expect(leerHash().detalleGestion).toBeUndefined()
+    }
+  })
+
   it('permite la fila fuera de equipos y descarta detalles inválidos o de otra vista', () => {
     escribirHash('gestion-diaria', null, true, undefined, undefined, { tipo: 'equipo', id: 'fuera' })
     expect(leerHash().detalleGestion).toEqual({ tipo: 'equipo', id: 'fuera' })
