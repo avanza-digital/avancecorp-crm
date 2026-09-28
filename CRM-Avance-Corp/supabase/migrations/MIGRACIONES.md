@@ -14018,7 +14018,15 @@ Gerencia, revertir PRIMERO el front). Orden: base antes que front.
 
 ## 20260928044910 — Gestión Diaria: lista exacta de «Citas agendadas» (G4b)
 
-**⏸️ PENDIENTE DE APLICAR.** Plan G4 v2 aprobado por Miguel («G4a y luego G4b»), revisado
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 28/09/2026** (Miguel con `!`: migración y
+después `supabase/scripts/g4/registrar-20260928044910.sql`, sin errores). Verificado en
+producción (lectura): las cuatro huellas coinciden (núcleo 904d3b0a…, puerta fd2b0376…, gate
+12012959…, paraguas 58208b4f…); puerta y núcleo INVOKER con ACL exacta postgres + authenticated;
+gate y paraguas solo postgres; `search_path` vacío en las cuatro; anon sin EXECUTE en la puerta;
+`assert_gestion_diaria()` contiene «OK: citas G4b» (la migración corre además `assert_sla_*`).
+Registro: una fila `crm_gestion_diaria_citas_lista` con el cuerpo íntegro (md5 72ad83d3…, igual
+al del archivo). Front («Citas agendadas» en supervisor y gerencia) pendiente de `/release-crm`.
+Plan G4 v2 aprobado por Miguel («G4a y luego G4b»), revisado
 por Codex (plan y código) y por auditor-rls (sin P0/P1). Lectura nueva, sin tablas ni
 escrituras: puerta `crm.gestion_diaria_citas_fn(p_dia, p_ambito, p_id, p_limite,
 p_despues_de, p_despues_id)` y núcleo `private.gestion_diaria_citas_core`, ambos INVOKER
