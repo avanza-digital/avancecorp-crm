@@ -6,6 +6,8 @@ estado: SQL y frontend publicados; verificación productiva PASS
 
 # Ranking — origen acreditado y desglose de cartera
 
+Actualización posterior del mismo día: [[Ranking - desglose completo y nueva inversion de cartera (2026-09-28)]]. Resuelve el desglose legado y reduce el pendiente real de esta ficha a S/10.000. El contenido siguiente conserva la evidencia de la primera publicación.
+
 Miguel reportó una ficha de septiembre con Formulario S/ 7.500, Referido S/ 0
 con conversión 7,50 %, Cartera S/ 90.000 y Sin origen S/ 190.000. Pidió
 corregir el problema y ver renovación/upgrade dentro de Cartera.
