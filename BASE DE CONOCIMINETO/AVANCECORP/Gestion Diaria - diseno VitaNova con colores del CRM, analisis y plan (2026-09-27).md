@@ -372,7 +372,7 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
 [[Mi dia del analista - dos columnas y foco accesible (2026-09-21)]],
 [[Gestion Diaria - supervisor horizontal aprobado (2026-09-23)]], [[Fundamentos UX del CRM]].
 
-## Estado de la pantalla del supervisor (27/09 — IMPLEMENTADA, sin publicar)
+## Estado de la pantalla del supervisor (27/09 — PUBLICADA en crm.miavance.com)
 
 - **Dónde:** rama `trabajo/supervisor-diseno-20260927`, trabajada en un worktree aislado (regla de Miguel:
   «tu trabajo todo aislado no compartas entornos»). Commit `5aecbcd1`, con el vivo `01d5ddc4` integrado.
@@ -398,3 +398,30 @@ Relacionado: [[Gestion Diaria - UX gerencial publicada y verificada (2026-09-25)
   VoiceOver), parada de tabulador del scroll en modo equipo.
 - **Lecciones:** no correr `npm run check` mientras corre un E2E (el informe de cobertura dispara recargas
   del Vite que se prueba); en Docker compartido, correr con contenedor, etiqueta y volumen propios.
+
+### Ajustes de Miguel tras verla en local y publicación (27/09, 20:41 Lima)
+
+- **Jerarquía:** el tablero de 5 cifras dejó de ser un bloque; sus números son los filtros de la tabla
+  («todo número se abre»). Abrir una cifra limpia la búsqueda (Codex). «Registro del equipo» subió a la
+  cabecera (deshabilitado, no desmontado, sin foto válida). Se ven 7 analistas a 1512×805 y 6 a 1366×768.
+- **Ficha protagonista:** 360–440 px, borde azul con sombra, cabecera teñida, avatar relleno, nombre 22 px,
+  cifras 28 px.
+- **Registro y Pendientes «como el resumen»:** el registro de la ficha usa la versión compacta con título
+  «Actividad de hoy/del <día>» (sin descripción, etapa ni «Actualizar» propio; el del equipo conserva el
+  filtro por analista y dice el autor). Pendientes: dos cuadros (Todas · Vencidas) que filtran, «Vencida»
+  al microsegundo, el nombre del lead solo se quita del título si es el nombre VERIFICADO.
+- **Codex:** CHANGES_REQUESTED (2 P2) → aplicados con pruebas mutantes. Encargo en
+  `CRM-Avance-Corp/docs/encargos/2026-09-27-codex-supervisor-jerarquia-pestanas.md`.
+- **Publicación:** `/release-crm` de Miguel. Artefacto `crm-20260928T014120Z-d00e62ad1b32`, build
+  `build-20260928T014119651Z`, commit `d00e62ad`. Preflight OK contra el vivo `8ec3dd1f`. Humo: 104/116
+  byte a byte + 12 PNG recomprimidos por la CDN. `npm run check` PASS (4633). E2E Docker aislado: 68 PASS +
+  1 intermitente (H5 «consultas iguales», que falla 3/3 también en el vivo anterior sin estos cambios).
+  Fusionado a `main` en `0b238590`.
+- **Incidente de la otra sesión (Citas por equipo):** publicó `build-20260927T205509063Z` (commit
+  `8ec3dd1f`) desde una copia temporal (`/private/tmp/avancecorp-citas-release.QEsx2k`) SIN dejar su ZIP
+  ni su manifiesto en `CRM-Avance-Corp/releases/` y SIN fusionar a `main`: el preflight de cualquiera se
+  negaba. Se verificó que su ZIP = lo vivo (buildId, entrada `index-ynpMOmj8.js`, SHA-256), se copió a
+  `releases/` y su commit entró a `main` con esta fusión (trae la migración `20260927172930`; falta su
+  línea en `MIGRACIONES.md`, que llega al integrar `avancecorp/main` #116).
+- **Pendiente:** PR de integración a GitHub (sin lo de Gloria). La prueba H5 la está arreglando otra
+  sesión: su cambio (arrancar en `#/gestion-diaria`) sigue SIN commitear en el taller compartido.
