@@ -195,6 +195,18 @@ begin
     raise exception 'un analista pudo falsificar la marca';
   exception when insufficient_privilege then null;
   end;
+  begin
+    update crm.actividades set metadata='{"vendedor_anterior":null}'::jsonb
+    where lead_id='f2aa2000-0000-4000-8000-000000000003' and tipo='reasignacion';
+    raise exception 'un analista pudo alterar el evento que sostiene la marca';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from crm.actividades
+    where lead_id='f2aa2000-0000-4000-8000-000000000003' and tipo='reasignacion';
+    raise exception 'un analista pudo borrar el evento que sostiene la marca';
+  exception when insufficient_privilege then null;
+  end;
 end;
 $test$;
 

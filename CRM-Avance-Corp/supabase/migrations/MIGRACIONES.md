@@ -12,12 +12,14 @@ de leads y actividades. Se mueve y resella la exención analítica.
 
 Ensayo: migración aplicada y fixture transaccional
 `supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
-`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
+`avc_leads_reasignados_test4` (preflight/postflight de la versión actual);
 incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
 la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
-analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
-y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
-y la policy de INSERT que impide fabricar la marca. La branch temporal de
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
+UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
+verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
+permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
+`authenticated` y `anon`. La branch temporal de
 Supabase falló antes de esta migración durante el replay histórico y fue
 eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
 agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto

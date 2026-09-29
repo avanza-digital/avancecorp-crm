@@ -23,14 +23,16 @@ y comprueba su historial bajo RLS para conservar la marca si se abre desde
 otra pantalla. En demo se aplica la misma regla al historial local.
 
 Estado: implementación local y ensayo SQL aislado; pendiente de publicación.
-Verificación del 29/09: `npm run check` en `app/` PASS (4.845 tests y build),
-`app/e2e/cartera-keyset.spec.ts` en Docker 5/5 PASS. La migración actualizada
-pasó preflight y postflight en `avc_leads_reasignados_test3`, banco Docker
+Verificación del 29/09: `npm run check` en `app/` PASS (4.903 tests y build),
+`app/e2e/cartera-keyset.spec.ts` en Docker 5/5 PASS y suite E2E completa
+284 PASS / 26 omitidos. La migración actualizada
+pasó preflight y postflight en `avc_leads_reasignados_test4`, banco Docker
 aislado copiado del esquema local anterior y con los datos de configuración
 necesarios. En ese mismo banco, el fixture SQL transaccional pasó: trigger real,
 conteos, filtros, consumidor `resumen_cartera_fn`, RLS por rol y veto de
-reasignaciones inventadas. El banco `test2` también pasó antes de reforzar el
-preflight de trigger/policy y agregar el smoke del consumidor.
+INSERT/UPDATE/DELETE de eventos inventados. Una revisión secundaria detectó
+que el preflight debía rechazar también una policy ALL permisiva o permisos
+de escritura futuros; esa comprobación quedó aplicada y pasó en `test4`.
 
 Se creó una branch de prueba de Supabase de la organización confirmada por
 Miguel, pero su reproducción automática de migraciones terminó en
@@ -42,13 +44,14 @@ y RLS no arrancaron sin `SUPABASE_URL`; siguen pendientes la matriz RLS y
 advisors en branch autorizada, y regenerar los tipos desde el esquema nuevo
 (el comando actual apunta al proyecto productivo, todavía sin la firma).
 
-La primera corrida de la suite E2E completa encontró una expectativa vieja en
-`sla-operacion.spec.ts` ante la cola de «Hoy»; el caso corregido pasó 1/1. La
-segunda corrida coincidió con otras dos suites Docker en la misma máquina y
-Chromium falló al abrir la primera pantalla por saturación; se detuvo esa
-ejecución, sin atribuirle un PASS. Miguel pidió publicar solo Reasignados, por
-lo que el siguiente artefacto debe excluir los commits locales no publicados
-de «Hoy del analista». La publicación usa `$release-crm` invocado por Miguel.
+El CRM vivo cambió durante la preparación: primero salió «Hoy» v3 y después
+el anexo de contrato (commit vivo `fb79c46f8848` al 29/09). El candidato de
+rescate parte de ese commit vivo y agrega solo Reasignados a lo ya publicado;
+el preflight de Hostinger pasó. La suite E2E completa de esa app terminó
+284 PASS / 26 omitidos en un contenedor propio. El SQL no está publicado:
+faltan el gate remoto de RLS/advisors y la autorización de la migración; el
+frontend tampoco está desplegado. La publicación usa `$release-crm` invocado
+por Miguel, y necesita el conector Hostinger disponible.
 Comprobación agregada de producción el 28/09: 4.817 eventos `reasignacion`
 de agosto y setiembre, todos con la clave `vendedor_anterior`; 152 tienen un
 analista previo. La regla produce 104 leads de la cartera operativa global

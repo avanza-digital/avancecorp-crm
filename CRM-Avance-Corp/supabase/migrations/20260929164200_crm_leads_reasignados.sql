@@ -43,7 +43,16 @@ begin
            where p.polrelid='crm.actividades'::regclass and p.polcmd='a'
              and p.polname='actividades_insert' and p.polpermissive
              and p.polroles=array['authenticated'::regrole::oid]
-             and md5(pg_get_expr(p.polwithcheck,p.polrelid))='b2d6792bc6913861ca74f4398e6a12ab') then
+             and md5(pg_get_expr(p.polwithcheck,p.polrelid))='b2d6792bc6913861ca74f4398e6a12ab')
+     -- Una policy ALL permisiva se combinaría por OR con actividades_insert.
+     -- UPDATE/DELETE permitirían cambiar o borrar eventos ya emitidos.
+     or exists(select 1 from pg_policy p
+           where p.polrelid='crm.actividades'::regclass
+             and ((p.polcmd='*' and p.polpermissive) or p.polcmd in ('w','d')))
+     or has_any_column_privilege('authenticated','crm.actividades','UPDATE')
+     or has_table_privilege('authenticated','crm.actividades','DELETE')
+     or has_any_column_privilege('anon','crm.actividades','UPDATE')
+     or has_table_privilege('anon','crm.actividades','DELETE') then
     raise exception 'PREFLIGHT: fuente de reasignaciones no coincide con la version auditada';
   end if;
 end;
@@ -295,7 +304,14 @@ begin
            where p.polrelid='crm.actividades'::regclass and p.polcmd='a'
              and p.polname='actividades_insert' and p.polpermissive
              and p.polroles=array['authenticated'::regrole::oid]
-             and md5(pg_get_expr(p.polwithcheck,p.polrelid))='b2d6792bc6913861ca74f4398e6a12ab') then
+             and md5(pg_get_expr(p.polwithcheck,p.polrelid))='b2d6792bc6913861ca74f4398e6a12ab')
+     or exists(select 1 from pg_policy p
+           where p.polrelid='crm.actividades'::regclass
+             and ((p.polcmd='*' and p.polpermissive) or p.polcmd in ('w','d')))
+     or has_any_column_privilege('authenticated','crm.actividades','UPDATE')
+     or has_table_privilege('authenticated','crm.actividades','DELETE')
+     or has_any_column_privilege('anon','crm.actividades','UPDATE')
+     or has_table_privilege('anon','crm.actividades','DELETE') then
     raise exception 'POSTFLIGHT: fuente de reasignaciones cambio';
   end if;
 end;
