@@ -6,6 +6,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Leads - marca y filtro de reasignados (2026-09-28)]] — **IMPLEMENTACIÓN LOCAL:** cuenta y filtra leads con una asignación anterior a un analista; marca adicional a Sistema/Manual. Migración ensayada en banco aislado, pendiente de publicación.
+- [[Anexo de cronograma en el contrato PDF - plan v10 (2026-09-28)]] — **EN PRODUCCIÓN 29/09 (build-20260929T163327395Z, fb79c46f):** el analista imprime desde la ficha del contrato el anexo con el cronograma de liquidaciones parciales como documento aparte; el contrato PDF no cambia. Migración `20260929151350` (puertas solo service_role + núcleos + bitácora de emisiones con hash), acción «anexo» en la edge, botón en el front. Codex y auditor-rls aplicados. Pendiente: humo real de Miguel, rotar token de Hostinger, integrar #130 y PR.
 - [[Boton GESTION DIARIA en Hoy del analista (2026-09-28)]] — **PUBLICADO 28/09 (build-20260928T233226790Z, 7e9b426a):** botón animado en la esquina de «Hoy» que lleva a Gestión diaria (teléfono que suena por estado, barra de avance, rebote, pop), diseñado en el UI Playground (CRM-02) y promovido con cifras de la misma cola que el destino. Codex y a11y aplicados. PR #129.
 
 - [[Citas - validacion de cifras del supervisor Jorge (2026-09-28)]] — **VALIDADO 28/09:** 160 citas · 37 entrevistas · 40,2 % son exactas; el % divide por 92 citas CON RESULTADO (37 realizadas + 55 no asistió), no por las 160 creadas. Codex confirma. Pendientes: el pie «Total del equipo» no muestra el divisor; un «no asistió» con fecha futura (`53b4ac59`) entra al divisor el 30/09.

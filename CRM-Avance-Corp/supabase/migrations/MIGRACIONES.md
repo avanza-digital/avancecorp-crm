@@ -1,6 +1,6 @@
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
-**PENDIENTE DE PUBLICAR.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
+**✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
 añadido es que el analista ahora puede imprimir este anexo». El contrato PDF NO cambia
 (sigue en v9; ningún sellado se toca). Piezas de servidor de la acción «anexo» de la
 Edge `crm-contrato-pdf-v2`, en cuatro capas (sin saltos nuevos): dos puertas `crm.*`
