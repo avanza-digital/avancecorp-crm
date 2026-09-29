@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
+import { senalarSolicitudTasaCreada } from '@/lib/respuestas-tasa'
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
@@ -791,7 +792,9 @@ export function useSolicitarTasa() {
   return useMutation({
     mutationFn: (input: { intencion: IntencionContrato; tasaSolicitada: number; motivo: string }) =>
       solicitarTasa(input.intencion, input.tasaSolicitada, input.motivo),
-    onSuccess: async () => { await invalidarRentabilidad(queryClient) },
+    // La invalidación refresca esta pestaña; la señal avisa a las demás pestañas del navegador
+    // para que pasen al ritmo activo del aviso de respuestas sin esperar su reposo.
+    onSuccess: async () => { senalarSolicitudTasaCreada(); await invalidarRentabilidad(queryClient) },
   })
 }
 

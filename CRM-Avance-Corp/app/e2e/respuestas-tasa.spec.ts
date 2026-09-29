@@ -96,10 +96,17 @@ test('aprobación: sonido, aviso sobre otra ventana, detalle y lectura persisten
   expect(peticiones.some(p => p.p_solo_mias === true && p.p_limite === 500)).toBe(true)
 })
 
+// Ritmo adaptativo (29/09/2026): el CRM pregunta cada 15 s solo mientras hay una solicitud propia
+// pendiente (2 min en reposo). Por eso cada escenario parte de la solicitud PENDIENTE, como en la
+// realidad: primero se pide la tasa y después llega la respuesta.
 test('rechazo y tope: un timbre por lote, filtro propio, sin leer hasta abrir', async ({ page }) => {
   await montarBackendReal(page, { rolCrm: 'supervisor', rolPortal: 'analista' })
   await instrumentarPC(page)
-  let filas: ReturnType<typeof solicitud>[] = []
+  let filas: ReturnType<typeof solicitud>[] = [
+    solicitud(),
+    solicitud({ id: 'e7100000-0000-4000-8000-000000000002', cliente_nombre: 'LEAD QA TOPE' }),
+    solicitud({ id: 'e7100000-0000-4000-8000-000000000003', solicitada_por: 'otra-cuenta', cliente_nombre: 'NO REVELAR' }),
+  ]
   await page.route('**/rest/v1/rpc/solicitudes_tasa_fn', route => route.fulfill({ json: filas }))
   await loginReal(page)
   await esperarRegistro(page)
@@ -130,7 +137,7 @@ test('permiso denegado y red caída conservan bandeja; cerrar sesión retira los
   await montarBackendReal(page, { rolCrm: 'vendedor', rolPortal: 'analista', leads: [] })
   await instrumentarPC(page, 'denied')
   let caido = false
-  let filas: ReturnType<typeof solicitud>[] = []
+  let filas: ReturnType<typeof solicitud>[] = [solicitud()]
   await page.route('**/rest/v1/rpc/solicitudes_tasa_fn', route => route.fulfill(caido
     ? { status: 503, json: { message: 'Sin conexión de prueba' } } : { json: filas }))
   await loginReal(page)
@@ -153,7 +160,7 @@ test('permiso denegado y red caída conservan bandeja; cerrar sesión retira los
 })
 
 test('dos pestañas: una alerta y lectura sincronizada, enlace ajeno no revela datos', async ({ page, context }) => {
-  let filas: ReturnType<typeof solicitud>[] = []
+  let filas: ReturnType<typeof solicitud>[] = [solicitud()]
   for (const p of [page]) {
     await montarBackendReal(p, { rolCrm: 'vendedor', rolPortal: 'analista' })
     await instrumentarPC(p)

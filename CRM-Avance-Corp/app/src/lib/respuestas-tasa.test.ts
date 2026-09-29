@@ -3,7 +3,7 @@ import type { SolicitudTasa } from '@/data/crm-api'
 import {
   claveRegistroRespuestas, claveRespuestaTasa, conBloqueoRespuestas, crearSonidoRespuesta,
   esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas, leerRegistroRespuestas,
-  intervaloConsultaRespuestas, recibeRespuestasTasa, tituloRespuestaTasa,
+  CLAVE_SENAL_SOLICITUD_TASA, intervaloConsultaRespuestas, recibeRespuestasTasa, senalarSolicitudTasaCreada, tituloRespuestaTasa,
 } from './respuestas-tasa'
 
 function solicitud(cambios: Partial<SolicitudTasa> = {}): SolicitudTasa {
@@ -127,6 +127,19 @@ describe('ritmo de consulta de respuestas', () => {
   it('pregunta cada 15 s solo mientras hay una solicitud propia pendiente de Gerencia', () => {
     expect(intervaloConsultaRespuestas([pendiente()], 'v-1')).toBe(15_000)
     expect(intervaloConsultaRespuestas([solicitud(), pendiente()], 'v-1')).toBe(15_000)
+  })
+
+  it('con la última consulta fallida vuelve a 15 s aunque no haya pendientes', () => {
+    expect(intervaloConsultaRespuestas([], 'v-1', true)).toBe(15_000)
+    expect(intervaloConsultaRespuestas([solicitud()], 'v-1', true)).toBe(15_000)
+  })
+
+  it('la señal de solicitud creada escribe solo la hora y no revienta sin almacenamiento', () => {
+    senalarSolicitudTasaCreada()
+    expect(Number(localStorage.getItem(CLAVE_SENAL_SOLICITUD_TASA))).toBeGreaterThan(0)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('lleno') })
+    expect(() => senalarSolicitudTasaCreada()).not.toThrow()
+    setItem.mockRestore()
   })
 
   it('en reposo pregunta cada 2 min: sin datos, sin solicitudes, resueltas, vencidas o ajenas', () => {
