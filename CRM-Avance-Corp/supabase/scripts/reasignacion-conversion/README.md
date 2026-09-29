@@ -1,6 +1,6 @@
 # Reasignación y conversión pendiente — 29/09/2026
 
-**Estado: validada en rama remota; publicación en preparación.**
+**Estado: validada en rama remota y CI; pendiente de aprobación externa del PR #137.**
 
 La migración `20260929201813_crm_reasignacion_conversion_consistente.sql` añade
 un trigger privado AFTER UPDATE diferido al COMMIT a `crm.leads`. Una reasignación ya autorizada
@@ -75,7 +75,8 @@ Resultados:
 | test-rls.mjs remoto --contratos / --identidad-d5 | PASS — 287 / 30 comprobaciones |
 | Advisors de la rama antes/después | PASS — cero avisos nuevos |
 | Merge de la rama | PENDIENTE |
-| E2E frontend/build | NOT RUN — sin cambio de código frontend de producto |
+| CI Main actualizado: 318 archivos, 4.925 tests, tipos, build/bundle/duplicación | PASS — verify y preflight aprobados |
+| E2E frontend | NOT RUN — sin cambio de código frontend de producto |
 
 Los cinco fallos previos de guardas son: inventario de auditoría de 11 tablas
 existentes, `cron.job` ausente en esta copia y tres suites de mutantes que exigen
@@ -127,3 +128,13 @@ consumidor de la nota y recuperación canónica probada, y candados oficiales.
 No se afirma una tercera aprobación del reviewer: el cierre corresponde a los
 checks reales del PRIMARY. Producción tenía cero enlaces canónicos sin
 `leads.inversionista_id` al verificar este supuesto.
+
+## Checkpoint de integración
+
+[PR #137](https://github.com/avanza-digital/avancecorp-crm/pull/137), commit
+`d34342cc9256265bfe08169b1090bfd474e490a3`, incorpora Main `7cae24e1`.
+El 29/09 a las 22:44:29 UTC terminaron en PASS `verify`, `app-check`,
+`cambios` y `preflight`. El merge normal fue rechazado por la aprobación
+externa pendiente. No se usó override administrativo. Auto-merge no está
+habilitado en este repositorio. La rama Supabase permanece para la promoción
+tras aprobar e integrar; todavía no se instaló la candidata en producción.

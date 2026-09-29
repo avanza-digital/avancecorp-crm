@@ -42,7 +42,10 @@ Rama autorizada `reasignacion-conversion-20260929`, creada 21:45:59 UTC,
 US$0,01344/h; ref `zlqywmvvtfknypkmfpbe`. Replay histórico falló y se
 reconstruyó exclusivamente la rama con esquema vivo y fixtures sintéticos.
 Rebase incorporó el índice productivo `20260929220021`; no se copiaron clientes.
-Pendiente integrar Main según sus protecciones, merge de Supabase y retirar la rama.
+CI completo PASS: 4.925 tests en 318 archivos, tipos, build, bundle y duplicación.
+Checks `verify` y `preflight` PASS al 29/09 22:44:29 UTC. El merge normal del
+PR #137 fue rechazado por falta de aprobación externa; Miguel la gestionará.
+No se usó override. Pendiente integrar Main, merge de Supabase y retirar la rama.
 
 Relacionado: [[Conversion - conciliacion de responsable tras reasignar (2026-09-29)]],
 [[Conversion de lead con Nueva inversion - preparado 2026-09-19]],

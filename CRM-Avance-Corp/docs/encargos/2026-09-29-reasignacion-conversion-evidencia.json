@@ -114,7 +114,7 @@
       "fallos_nuevos": 0
     },
     "e2e_frontend": "NOT RUN: sin runtime frontend modificado",
-    "build_frontend": "NOT RUN local: CI en curso"
+    "build_frontend": "PASS CI; no se publica un artefacto frontend"
   },
   "edges": [
     {
@@ -253,7 +253,7 @@
   "prueba_identidad_repetida_tras_rebase": "PASS — 30 aserciones",
   "commit_pr_actualizado": "d34342cc9256265bfe08169b1090bfd474e490a3",
   "main_incorporado": "7cae24e1",
-  "pendiente": "Aprobación externa de GitHub y finalización del check verify; usuario gestionará aprobación. Auto-merge no habilitado en el repositorio.",
+  "pendiente": "Solo aprobación externa de GitHub. Merge normal rechazado por la protección de Main; sin override administrativo. Usuario gestionará aprobación. Producción todavía sin esta migración.",
   "logs_verificacion_sha256": {
     "reasignacion-conversion-test.log": "cdddc9cd1ccbcfcec51f06db5e5e50c21b7d4d533b9bae08e91c082e6e3c8db3",
     "reasignacion-concurrencia.log": "0faff7b86260c27a5f331d07ae0359af6385b0d88df490e48c774be8e72a9d05",
@@ -263,6 +263,23 @@
     "reasignacion-rls-contratos.log": "ebec80be3b7c0b6fc85c648ab0056f47c71c5cca6071fb1af01576c1ed03bb1b",
     "reasignacion-rls-identidad-rebase.log": "6a9122c05e0efa7f8699c949e95488f1a07dfbe61fc82f49fa7db4eddeeed73b",
     "reasignacion-cliente-main.log": "3ee1d0b50e279c2d276f85329d608302903e610b76c0d307899ea5d8594427b0",
-    "reasignacion-typecheck-main.log": "ba2b43a004e23d146df99c7b208872a3b253e0fd282931c06fae7710f77bf944"
+    "reasignacion-typecheck-main.log": "ba2b43a004e23d146df99c7b208872a3b253e0fd282931c06fae7710f77bf944",
+    "reasignacion-ci-main.log": "66c64a5e8d0bd7f5e0b699ad37e193717a21a6cc7315ee4c2574543df0135381"
+  },
+  "ci": {
+    "commit": "d34342cc9256265bfe08169b1090bfd474e490a3",
+    "run": "https://github.com/avanza-digital/avancecorp-crm/actions/runs/36640569789",
+    "checks": {
+      "preflight": "PASS",
+      "cambios": "PASS",
+      "app-check": "PASS",
+      "verify": "PASS"
+    },
+    "tests": 4925,
+    "archivos_test": 318,
+    "lint": "PASS — 4 avisos, cero errores",
+    "typecheck": "PASS",
+    "build_bundle_duplicacion": "PASS",
+    "finalizado_utc": "2026-09-29T22:44:29Z"
   }
 }
