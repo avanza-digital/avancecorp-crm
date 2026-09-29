@@ -1,7 +1,13 @@
 ## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Aprobado por Miguel el 29/09 («ok vamos con
-la migracion»). Primer paso del refactor por módulos, según el perfil de carga medido el mismo día
+**✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
+`20260929220021 / crm_indice_inversionistas_perfil`) → `verificar.sql`: `indice=valido`,
+`cartera_f5_fuentes` **seq=0** (antes 679), 49 ms (antes ~91), plan de `perfil_id` por
+`inversionistas_perfil_idx` y el de `perfil_id + estado <> 'fusionado'` sigue por
+`inversionistas_perfil_uidx`. Efecto en vivo (muestreo de 115 s con tráfico real de las 11 puertas):
+**545 recorridos/s → 0,8 recorridos/s**. Advisors (`supabase db advisors --linked --type all`,
+solo lectura): 242 avisos, todos de clases previas; ninguno cita el índice ni hay clase de índices
+duplicados/sin uso.** Aprobado por Miguel el 29/09 («ok vamos con la migracion»). Primer paso del refactor por módulos, según el perfil de carga medido el mismo día
 (nota del vault «CRM - perfil de carga lectura vs escritura (2026-09-29)»): el CRM es de lectura y
 `crm.inversionistas` se llevaba el 95 % de las filas leídas (22,6 M recorridos completos en ~97 h).
 
