@@ -1,3 +1,41 @@
+## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
+
+**BANCO PASS 28/09 (Docker propio a paridad 804 funciones md5 idéntico: gate ANTES 2280 ✓/37 ✗ → DESPUÉS 2383 ✓/37 ✗, los mismos 37 ajenos; bloque v3 140 ✓/0 ✗ con CRM_RLS_EXIGE_COLA_V3=1; huellas selladas puerta 1ec76074… helper 234ee27f…; registrador probado) · ✅ **EN PROD 28/09 ~20:55 Lima** por `!` de Miguel: `db query --linked --file` + registrador; en vivo puerta `1ec76074…`, helper `234ee27f…`, `assert_cola_v3()` = OK selladas, v2 intacta `ef9b56ed…`, versión registrada con el cuerpo exacto (md5 `6fbbb05e…`). Advisors: NOT RUN (MCP de Supabase desconectado al cierre; revisar en el panel).** F1 (servidor) del plan v2 aprobado por Miguel el 28/09/2026 y refutado por
+Codex (`BASE DE CONOCIMINETO/AVANCECORP/Cola del dia con clientes - plan (2026-09-28).md`). Instala la
+v3 SIN consumidores; el front cambia en F2 con clave de caché propia. Qué hace:
+- `private.tareas_clientes_autorizadas(p_uid, p_visibles, p_rol, p_global, p_ahora, p_fin_dia)`: STABLE, INVOKER,
+  sin `auth.`, sin EXECUTE para la API; la puerta le pasa la ventana del día (medianoche de Lima en UN sitio). Tareas de clientes (`perfil_id` | `inversionista_id`) del día con TODAS
+  las ramas de `tareas_select` (vendedor visible; sin vendedor + bandeja de supervisor visible; gerencia) y
+  la restrictiva de postventa (`postventa_visible_actor`). Regla de producto: lector global sin rol CRM y
+  Directorio → cero filas. Integridad ANTES del recorte (sujeto único y `vence_en` finito → 22000 con
+  `detail`); recorte: vencida `<= ahora`, de hoy `< p_fin_dia`. Mapa canónico de inversionistas una vez por
+  llamada (CTE `materialized`); nombre por perfil del grupo → lead enlazado → marcador neutro.
+- `crm.cola_accion_v3_fn(p_limite, p_senal, p_etapa, p_analista_id, p_cursor)`: misma firma que la v2,
+  DEFINER + `search_path ''` (bebe de `sla_operacion_autorizada(null,true)`); EXECUTE solo `authenticated`.
+  UNA operación: leads de la ventana SLA (idénticos a la v2) + clientes → filtros (`p_etapa` excluye
+  clientes; `p_analista_id` = responsable) → totales (+ `clientes`) → una paginación keyset por
+  `(prioridad, referencia_en, clave)` con `clave = lead:<uuid> | tarea:<uuid>`; cursor `version 2` cuyo
+  contexto cubre a los clientes (los de la v2 → 22023); `proximo_cambio_en` incluye el próximo vencimiento
+  de cliente y la medianoche de Lima; sin teléfono; `version: 3`.
+- `private.assert_cola_v3()`: dependencias por cuerpo, sin hechos crudos en la puerta, helper sin `auth.`,
+  propiedades (`pg_proc`) y ACL efectiva; md5 además. Se ejecuta en el postflight junto a
+  `assert_sla_nucleo` y `assert_gestion_diaria_analista` (la v2 y sus sellos no se tocan).
+
+**auditor-rls (28/09): CON OBSERVACIONES, sin P0/P1; P2-1, P2-2 y P3 a–d aplicados** (sellado mecánico,
+caso de conflicto restrictiva/permisiva de postventa, `coalesce(p.activo,false)`, justificación DEFINER en el
+`COMMENT`, sin `sujeto_tipo`, medianoche en un sitio, mapa canónico por llamada).
+
+**TODO integrador — sellado en DOS pasadas; el merge exige cero `SIN_SELLAR`:** (1) aplicar en banco limpio
+con `PGOPTIONS="-c crm.op_privilegiada=on"` (única forma de tolerar «SIN SELLAR»; el postflight imprime los
+md5); (2) sustituir los dos `SIN_SELLAR` de `private.assert_cola_v3` y volver a aplicar en banco limpio sin
+válvula (el postflight rechaza «SIN SELLAR»; el gate con `CRM_RLS_EXIGE_COLA_V3=1` también). Medir `EXPLAIN`
+(índice parcial candidato solo si lo justifica). Gate `test-rls.mjs` → bloque `testColaAccionV3` (se salta si
+la v3 no está instalada) ANTES y DESPUÉS en el banco Docker; advisors.
+
+**Reversa:** `drop function` de `private.assert_cola_v3()`, `crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb)`
+y `private.tareas_clientes_autorizadas(uuid,uuid[],text,boolean,timestamptz,timestamptz)` + `notify pgrst` + retirar esta
+fila. No retirar la v3 mientras haya bundles que la consuman (F2+).
+
 ## 20260928192822 / 192823 / 193048 / 194818 — Canal concreto y confirmación auditada
 
 **PUBLICADAS 28/09/2026 por merge nativo de la rama autorizada.**

@@ -5,13 +5,15 @@
 // permite retirar el chip «Crítica» sin perder información.
 import { describe, expect, it } from 'vitest'
 import {
-  COLOR_NIVEL, ETIQUETA_NIVEL, paginaDeFilas, pestanasDiarias, textoTiempoDeFila, type FilaDiaria,
+  COLOR_NIVEL, ETIQUETA_NIVEL, paginaDeFilas, pestanasDiarias, textoTiempoDeFila, type FilaDiaria, type FilaLead,
 } from './gestion-diaria-analista'
 
 const AHORA = Date.parse('2026-09-20T15:00:00Z')
 
-function fila(parcial: Partial<FilaDiaria> = {}): FilaDiaria {
+function fila(parcial: Partial<FilaLead> = {}): FilaDiaria {
   return {
+    tipo: 'lead',
+    clave: `lead:${parcial.lead_id ?? 'l1'}`,
     lead_id: 'l1',
     nombre_completo: 'ROSA QUISPE MAMANI',
     etapa: 'nuevo',

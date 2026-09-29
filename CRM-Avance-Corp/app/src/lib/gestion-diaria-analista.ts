@@ -1,11 +1,13 @@
 // Gestión Diaria — contrato del DÍA DEL ANALISTA (Fase 3) y sus helpers puros.
 // La fuente única es `crm.gestion_diaria_analista_fn` (migración 20260920041500):
 // marcador del día, compromisos desde mañana, señales por lead abierto y los
-// descartes del día con su «Deshacer». La COLA sigue saliendo de
-// `crm.cola_accion_v2_fn` (`data/sla-operacion-api.ts`): aquí se ORDENA, no se
-// recalcula. Nada de negocio se decide en esta capa: el servidor manda.
+// descartes del día con su «Deshacer». La COLA sale de `crm.cola_accion_v3_fn`
+// (`data/sla-operacion-api.ts`, desde el 29/09/2026): leads de la ventana SLA y
+// tareas de CLIENTES del día en una sola lista. Aquí se ORDENA, no se recalcula.
+// Nada de negocio se decide en esta capa: el servidor manda.
 import * as v from 'valibot'
-import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
+import type { FiltrosSla, ItemColaDia } from '@/lib/sla-operacion'
+import { nombreClienteDeTitulo } from '@/lib/nombre-cliente-tarea'
 
 /**
  * La página de la cola del día que piden Gestión diaria del analista y el
@@ -13,10 +15,17 @@ import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
  * de TanStack → una sola consulta compartida. Cambiarlos aquí cambia a los dos.
  */
 export const FILTROS_COLA_DIA: FiltrosSla = { senal: 'todas', etapa: null, analista_id: null }
-export const LIMITE_COLA_DIA = 100
+/**
+ * 200 = el máximo que admite `cola_accion_v3_fn`. Con la v3 las tareas de
+ * clientes (prioridad 20/30) van detrás de los leads sin primer intento
+ * (prioridad 10): con 100 un atasco de leads nuevos las dejaba fuera de la
+ * página (Codex, 29/09/2026). Pasado el tope, la pantalla dice «+» y el botón
+ * de «Hoy» va sin cifras: la incompletitud se dice, no se esconde.
+ */
+export const LIMITE_COLA_DIA = 200
 
-/** Ítem de la cola v2 tal como llega; el bucket es texto libre en el contrato. */
-export type ItemColaSla = ColaSlaPagina['items'][number]
+/** Ítem de la cola del día v3 tal como llega: un lead o una tarea de cliente. */
+export type { ItemColaDia }
 
 export const UmbralesSchema = v.object({
   version: v.literal(1),
@@ -126,21 +135,46 @@ export const GRUPOS_DIA = [
 export type GrupoDia = (typeof GRUPOS_DIA)[number]['clave']
 const ORDEN_GRUPO: Record<GrupoDia, number> = { primera_atencion: 0, tarea_vencida: 1, tarea_hoy: 2, sin_conversacion: 3 }
 
-export interface FilaDiaria {
-  lead_id: string
+interface FilaComun {
+  /**
+   * Identidad TIPADA de la fila (cola v3): `lead:<uuid>` o `tarea:<uuid>`. Una
+   * persona puede tener varias filas (un cliente con dos tareas = dos filas),
+   * así que la selección, lo cerrado y el «siguiente» van SIEMPRE por clave.
+   */
+  clave: string
   nombre_completo: string
-  etapa: string
   grupo: GrupoDia
   /** Instante que ordena dentro del grupo (vencimiento o límite); null al final. */
   referencia_en: string | null
+  severidad: 'critica' | 'media' | 'baja'
+}
+/** Un lead de la cola: se llama desde «Ahora» y su resultado va a su ficha. */
+export interface FilaLead extends FilaComun {
+  tipo: 'lead'
+  lead_id: string
+  etapa: string
   /** Tarea de la cola que esta fila representa, si la hay. */
   tarea_id: string | null
-  severidad: 'critica' | 'media' | 'baja'
   /** Señales del lead (F3) para el detalle de la fila; puede faltar. */
   senal: SenalCartera | null
 }
+/**
+ * Una tarea de un CLIENTE de la cartera (perfil o inversionista), del día. No
+ * tiene lead, etapa ni señales, y la cola no trae su teléfono: se registra con
+ * el cierre de tarea de siempre, por su `tarea_id`.
+ */
+export interface FilaCliente extends FilaComun {
+  tipo: 'cliente'
+  lead_id: null
+  etapa: null
+  tarea_id: string
+  senal: null
+  perfil_id: string | null
+  inversionista_id: string | null
+}
+export type FilaDiaria = FilaLead | FilaCliente
 
-/** Buckets de la cola v2 que entran al día del analista, con su grupo. */
+/** Buckets de la cola que entran al día del analista, con su grupo. */
 const GRUPO_DE_BUCKET: Record<string, GrupoDia> = {
   primera_atencion: 'primera_atencion',
   tarea_vencida: 'tarea_vencida',
@@ -148,17 +182,18 @@ const GRUPO_DE_BUCKET: Record<string, GrupoDia> = {
 }
 
 /**
- * El orden del día: los tres buckets de la cola v2 que le tocan al analista más
+ * El orden del día: los tres buckets de la cola que le tocan al analista más
  * el grupo `sin_conversacion`, que NO existe en la cola y lo estrena la F3
  * (`crm.politica_abandono`). Un lead aparece UNA sola vez, en su grupo más
- * urgente. Función pura: no llama a nada y no decide negocio, solo ordena.
+ * urgente. Las tareas de clientes entran en «Vencidas» o «Hoy» según su bucket,
+ * una fila por tarea. Función pura: no llama a nada y no decide negocio, solo ordena.
  *
  * NO se reutiliza `seleccionarPrioridadesVendedor` (screens/hoy): aquella es el
  * TOP-3 de la franja «Ahora» sobre la cola v1 y sigue gobernando esa pantalla.
  * Lo que sí comparten es el primer ítem: el speed-to-lead manda en las dos.
  */
 export function ordenarColaDiaria(
-  cola: readonly ItemColaSla[],
+  cola: readonly ItemColaDia[],
   cartera: readonly SenalCartera[],
 ): FilaDiaria[] {
   const senalPorLead = new Map(cartera.map((s) => [s.lead_id, s]))
@@ -166,9 +201,23 @@ export function ordenarColaDiaria(
   const vistos = new Set<string>()
   for (const item of cola) {
     const grupo = GRUPO_DE_BUCKET[item.bucket]
-    if (grupo === undefined || vistos.has(item.lead_id)) continue
-    vistos.add(item.lead_id)
+    if (grupo === undefined || vistos.has(item.clave)) continue
+    vistos.add(item.clave)
+    if (item.lead_id === null) {
+      filas.push({
+        tipo: 'cliente', clave: item.clave, lead_id: null, etapa: null, senal: null,
+        nombre_completo: item.sujeto.nombre,
+        grupo,
+        referencia_en: item.referencia_en,
+        tarea_id: item.tarea_id,
+        severidad: item.severidad,
+        perfil_id: item.sujeto.perfil_id,
+        inversionista_id: item.sujeto.inversionista_id,
+      })
+      continue
+    }
     filas.push({
+      tipo: 'lead', clave: item.clave,
       lead_id: item.lead_id,
       nombre_completo: item.lead.nombre_completo,
       etapa: item.lead.etapa,
@@ -180,9 +229,11 @@ export function ordenarColaDiaria(
     })
   }
   for (const s of cartera) {
-    if (!s.sin_conversacion || vistos.has(s.lead_id)) continue
-    vistos.add(s.lead_id)
+    const clave = claveDeLead(s.lead_id)
+    if (!s.sin_conversacion || vistos.has(clave)) continue
+    vistos.add(clave)
     filas.push({
+      tipo: 'lead', clave,
       lead_id: s.lead_id,
       nombre_completo: s.nombre_completo,
       etapa: s.etapa,
@@ -197,11 +248,16 @@ export function ordenarColaDiaria(
     const porGrupo = ORDEN_GRUPO[a.grupo] - ORDEN_GRUPO[b.grupo]
     if (porGrupo !== 0) return porGrupo
     // Dentro del grupo, lo más antiguo primero; sin referencia, al final.
-    if (a.referencia_en === b.referencia_en) return a.lead_id.localeCompare(b.lead_id)
+    if (a.referencia_en === b.referencia_en) return a.clave.localeCompare(b.clave)
     if (a.referencia_en === null) return 1
     if (b.referencia_en === null) return -1
     return a.referencia_en.localeCompare(b.referencia_en)
   })
+}
+
+/** La clave de un lead en la cola v3 (la misma que pone el servidor). */
+export function claveDeLead(leadId: string): string {
+  return `lead:${leadId}`
 }
 
 /**
@@ -327,14 +383,14 @@ export function siguienteTrasGuardar(
   pestanas: GruposDelDia,
   filtro: FiltroCola,
   guardado: string,
-): { filtro: FiltroCola; lead_id: string | null } {
+): { filtro: FiltroCola; clave: string | null } {
   const lista = filasDelFiltro(pestanas, filtro)
-  const indice = lista.findIndex((f) => f.lead_id === guardado)
-  const resto = lista.filter((f) => f.lead_id !== guardado)
-  if (resto.length > 0) return { filtro, lead_id: resto[Math.min(Math.max(indice, 0), resto.length - 1)]?.lead_id ?? null }
-  if (filtro === 'todo') return { filtro, lead_id: null }
-  const todo = filasDelFiltro(pestanas, 'todo').filter((f) => f.lead_id !== guardado)
-  return { filtro: 'todo', lead_id: todo[0]?.lead_id ?? null }
+  const indice = lista.findIndex((f) => f.clave === guardado)
+  const resto = lista.filter((f) => f.clave !== guardado)
+  if (resto.length > 0) return { filtro, clave: resto[Math.min(Math.max(indice, 0), resto.length - 1)]?.clave ?? null }
+  if (filtro === 'todo') return { filtro, clave: null }
+  const todo = filasDelFiltro(pestanas, 'todo').filter((f) => f.clave !== guardado)
+  return { filtro: 'todo', clave: todo[0]?.clave ?? null }
 }
 
 /** Las filas agrupadas y en orden, para pintar un bloque por grupo. */
@@ -380,6 +436,7 @@ export const COLOR_NIVEL: Record<NonNullable<Marcador['nivel']>, string> = {
  * marcar. Sin señales del servidor no se inventa nada: se dice lo que se sabe.
  */
 export function detalleDeFila(fila: FilaDiaria, sinConversacionDias: number): string {
+  if (fila.tipo === 'cliente') return 'Cliente de tu cartera · gestión agendada'
   const s = fila.senal
   if (s === null) return fila.grupo === 'primera_atencion' ? 'Ningún intento todavía' : 'Sin señales cargadas'
   if (s.numero_errado_detalle !== null) return `Número errado: ${s.numero_errado_detalle}`
@@ -498,6 +555,8 @@ export function resumenMarcador(dia: Pick<DiaAnalista, 'marcador' | 'umbrales'>)
 interface LeadDemo { id: string; nombre_completo: string; etapa: string; activo?: boolean | undefined; vendedor_id?: string | null | undefined; creado_en: string; tenencia_desde?: string | null | undefined }
 interface ActividadDemo { id: string; lead_id: string; tipo: string; detalle?: string | null | undefined; creado_en: string; autor_nombre?: string | undefined }
 interface TareaDemo { id: string; lead_id: string | null; tipo: string; titulo: string; vence_en: string; estado: string; activo: boolean; creado_en: string; modalidad_reunion?: string | null | undefined }
+/** Tarea del ámbito demo que puede ser de un CLIENTE (perfil o inversionista). */
+export interface TareaClienteDemo { id: string; lead_id: string | null; perfil_id?: string | null | undefined; inversionista_id?: string | null | undefined; vendedor_id?: string | null | undefined; titulo: string; vence_en: string; estado: string; activo: boolean }
 
 const ABIERTAS = ['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']
 const CONVERSACION = ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada']
@@ -604,9 +663,21 @@ export function diaAnalistaDesdeDemo(
   }
 }
 
-/** Las filas del día en demo: la cola v2 no corre, así que se derivan de las señales. */
-export function filasDiariasDemo(cartera: readonly SenalCartera[], ahora: number, diaLima: string): FilaDiaria[] {
-  const cola: ItemColaSla[] = []
+/**
+ * Las filas del día en demo: la cola v3 no corre, así que los leads se derivan
+ * de las señales y los clientes de las tareas del ámbito demo, con la MISMA
+ * regla del servidor (`private.tareas_clientes_autorizadas`): pendientes y
+ * activas del analista, vencidas (`vence_en <= ahora`) o de hoy (antes de la
+ * próxima medianoche de Lima). Las futuras no entran: viven en la Agenda.
+ */
+export function filasDiariasDemo(
+  cartera: readonly SenalCartera[],
+  ahora: number,
+  diaLima: string,
+  tareas: readonly TareaClienteDemo[] = [],
+  analistaId: string | null = null,
+): FilaDiaria[] {
+  const cola: ItemColaDia[] = []
   for (const s of cartera) {
     const bucket = s.llamadas_ciclo === 0 && s.etapa === 'nuevo' ? 'primera_atencion'
       : s.proxima_tarea_en !== null && Date.parse(s.proxima_tarea_en) <= ahora ? 'tarea_vencida'
@@ -614,17 +685,43 @@ export function filasDiariasDemo(cartera: readonly SenalCartera[], ahora: number
           : null
     if (bucket === null) continue
     cola.push({
+      clave: claveDeLead(s.lead_id), sujeto: { tipo: 'lead', id: s.lead_id, nombre: s.nombre_completo },
       lead_id: s.lead_id, bucket, severidad: bucket === 'tarea_vencida' ? 'critica' : 'media',
       prioridad: 0, referencia_en: bucket === 'primera_atencion' ? s.tenencia_desde ?? s.ciclo_desde : s.proxima_tarea_en,
       tarea_id: null,
       lead: { id: s.lead_id, nombre_completo: s.nombre_completo, etapa: s.etapa, analista_id: null, analista_nombre: null },
-    } as unknown as ItemColaSla)
+    } as unknown as ItemColaDia)
+  }
+  const finDelDia = Date.parse(`${diaLima}T00:00:00-05:00`) + DIA_MS
+  for (const t of tareas) {
+    const perfil = t.perfil_id ?? null
+    const inversionista = t.inversionista_id ?? null
+    const vence = Date.parse(t.vence_en)
+    if (!t.activo || t.estado !== 'pendiente' || t.lead_id !== null || (perfil === null) === (inversionista === null)
+      || (analistaId !== null && t.vendedor_id !== analistaId) || !Number.isFinite(vence) || vence >= finDelDia) continue
+    const vencida = vence <= ahora
+    cola.push({
+      clave: `tarea:${t.id}`, tarea_id: t.id, lead_id: null, lead: null, estado: null,
+      bucket: vencida ? 'tarea_vencida' : 'tarea_hoy', severidad: vencida ? 'critica' : 'media', prioridad: vencida ? 20 : 30,
+      referencia_en: t.vence_en,
+      senales: { pendientes: vencida, tareas_vencidas: vencida, primera_atencion: false, seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false },
+      sujeto: { tipo: 'cliente', perfil_id: perfil, inversionista_id: inversionista, nombre: nombreClienteDeTitulo(t.titulo) },
+    })
   }
   return ordenarColaDiaria(cola, cartera)
 }
 
 function ultimaDe(actividades: readonly ActividadDemo[]): ActividadDemo | null {
   return actividades.reduce<ActividadDemo | null>((mejor, a) => (mejor === null || a.creado_en > mejor.creado_en ? a : mejor), null)
+}
+
+/**
+ * La próxima medianoche de Lima (UTC−5, sin horario de verano) desde un
+ * instante: el final del día operativo. Lo que vence antes está «hoy»; lo que
+ * vence después ya no es de la cola del día (misma frontera que el servidor).
+ */
+export function finDelDiaLima(ahora: number): number {
+  return Date.parse(`${fechaLimaDe(new Date(ahora).toISOString())}T00:00:00-05:00`) + DIA_MS
 }
 
 function fechaLimaDe(iso: string): string {

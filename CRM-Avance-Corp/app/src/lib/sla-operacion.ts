@@ -46,18 +46,58 @@ export type CursorSla = Record<string, unknown>
 const senales = v.object({ pendientes: v.boolean(), primera_atencion: v.boolean(), tareas_vencidas: v.boolean(), seguimientos_pendientes: v.boolean(),
   revisiones: v.boolean(), datos_incompletos: v.boolean(), por_repartir: v.boolean() })
 const cursor = v.nullable(v.record(v.string(), v.unknown()))
-export const ColaSlaPaginaSchema = v.object({ ...sobre,
+const paginacion = {
   filtros: v.object({ senal: v.string(), etapa: v.nullable(v.string()), analista_id: v.nullable(v.string()) }),
   limite: v.number(), total_items: v.number(), hay_mas: v.boolean(), cursor_siguiente: cursor,
   rango: v.object({ desde: v.number(), hasta: v.number() }),
-  totales: v.object({ pendientes: v.number(), primera_atencion: v.number(), tareas_vencidas: v.number(), seguimientos_pendientes: v.number(), revisiones: v.number(), datos_incompletos: v.number(), por_repartir: v.number() }),
-  items: v.array(v.object({ lead_id: v.string(), bucket: v.string(), severidad: v.picklist(['critica', 'media', 'baja']),
-    prioridad: v.number(), referencia_en: fecha, tarea_id: v.nullable(v.string()),
-    lead: v.object({ id: v.string(), nombre_completo: v.string(), etapa: v.string(), analista_id: v.nullable(v.string()), analista_nombre: v.nullable(v.string()) }),
-    senales, estado: EstadoSlaV2Schema,
-  })),
+}
+const totalesSenales = { pendientes: v.number(), primera_atencion: v.number(), tareas_vencidas: v.number(), seguimientos_pendientes: v.number(), revisiones: v.number(), datos_incompletos: v.number(), por_repartir: v.number() }
+const itemLead = {
+  lead_id: v.string(), bucket: v.string(), severidad: v.picklist(['critica', 'media', 'baja']),
+  prioridad: v.number(), referencia_en: fecha, tarea_id: v.nullable(v.string()),
+  lead: v.object({ id: v.string(), nombre_completo: v.string(), etapa: v.string(), analista_id: v.nullable(v.string()), analista_nombre: v.nullable(v.string()) }),
+  senales, estado: EstadoSlaV2Schema,
+}
+export const ColaSlaPaginaSchema = v.object({ ...sobre, ...paginacion,
+  totales: v.object(totalesSenales),
+  items: v.array(v.object(itemLead)),
 })
 export type ColaSlaPagina = v.InferOutput<typeof ColaSlaPaginaSchema>
+
+// ── Cola del DÍA v3 (`crm.cola_accion_v3_fn`, migración 20260929004455) ──────
+// Una sola cola con los leads de la ventana SLA (idénticos a la v2) y las
+// tareas de CLIENTES del día (vencidas o de hoy). Cada ítem lleva su identidad
+// TIPADA en `clave` (`lead:<uuid>` | `tarea:<uuid>`): un cliente con dos tareas
+// son dos filas. Los ítems de cliente no traen teléfono ni lead ni estado SLA.
+// El contrato se comprueba entero: si la forma no cuadra, la cola no se pinta.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+export const ItemColaDiaLeadSchema = v.pipe(v.object({ ...itemLead,
+  clave: v.string(),
+  sujeto: v.object({ tipo: v.literal('lead'), id: v.string(), nombre: v.string() }),
+}), v.check((i) => i.clave === `lead:${i.lead_id}` && i.lead.id === i.lead_id && i.sujeto.id === i.lead_id,
+  'El ítem de lead no corresponde a su clave'))
+export const ItemColaDiaClienteSchema = v.pipe(v.object({
+  clave: v.string(), tarea_id: v.pipe(v.string(), v.regex(UUID)),
+  lead_id: v.null(), lead: v.null(), estado: v.null(),
+  bucket: v.picklist(['tarea_vencida', 'tarea_hoy']), severidad: v.picklist(['critica', 'media']),
+  prioridad: v.picklist([20, 30]), referencia_en: v.string(), senales,
+  sujeto: v.object({ tipo: v.literal('cliente'), perfil_id: v.nullable(v.string()), inversionista_id: v.nullable(v.string()), nombre: v.string() }),
+}), v.check((i) => i.clave === `tarea:${i.tarea_id}`
+  // Un solo sujeto (CHECK tareas_un_solo_sujeto) y el bucket, la severidad, la
+  // prioridad y las señales cuentan lo mismo: vencida = crítica = pendiente.
+  && (i.sujeto.perfil_id === null) !== (i.sujeto.inversionista_id === null)
+  && (i.bucket === 'tarea_vencida') === (i.severidad === 'critica')
+  && (i.bucket === 'tarea_vencida') === (i.prioridad === 20)
+  && i.senales.pendientes === (i.bucket === 'tarea_vencida') && i.senales.tareas_vencidas === i.senales.pendientes
+  && Number.isFinite(Date.parse(i.referencia_en)), 'El ítem de cliente no es coherente'))
+export const ItemColaDiaSchema = v.union([ItemColaDiaLeadSchema, ItemColaDiaClienteSchema])
+export const ColaDiaPaginaSchema = v.pipe(v.object({ ...sobre, ...paginacion, version: v.literal(3),
+  totales: v.object({ ...totalesSenales, clientes: v.pipe(v.number(), v.integer(), v.minValue(0)) }),
+  items: v.array(ItemColaDiaSchema),
+}), v.check((p) => new Set(p.items.map((i) => i.clave)).size === p.items.length, 'La cola trae claves repetidas'))
+export type ColaDiaPagina = v.InferOutput<typeof ColaDiaPaginaSchema>
+export type ItemColaDia = ColaDiaPagina['items'][number]
+export type ItemColaDiaCliente = v.InferOutput<typeof ItemColaDiaClienteSchema>
 export const ACCIONES_SLA: Record<string, string> = {
   primera_atencion: 'Contactar al cliente', tarea_vencida: 'Revisar actividad pendiente', tarea_hoy: 'Actividad de hoy',
   seguimiento: 'Retomar el contacto', revision_comercial: 'Definir el siguiente paso', datos_incompletos: 'Revisar datos',

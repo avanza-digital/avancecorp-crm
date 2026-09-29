@@ -5,8 +5,8 @@
 // del día en localStorage.
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { diaAnalistaDesdeDemo, type DiaAnalista, type ItemColaSla, type SenalCartera } from '@/lib/gestion-diaria-analista'
-import type { ColaSlaPagina } from '@/lib/sla-operacion'
+import { diaAnalistaDesdeDemo, type DiaAnalista, type ItemColaDia, type SenalCartera, type TareaClienteDemo } from '@/lib/gestion-diaria-analista'
+import type { ColaDiaPagina } from '@/lib/sla-operacion'
 import type { Yo } from '@/lib/tipos'
 
 const dobles = vi.hoisted(() => ({
@@ -15,16 +15,19 @@ const dobles = vi.hoisted(() => ({
   yo: { id: 'a1', nombre_completo: 'ANALISTA UNO', rol: 'vendedor', demo: false, puede_contratar: true } as Yo | null,
   dia: null as DiaAnalista | null,
   diaCargando: false,
-  cola: { data: undefined as ColaSlaPagina | undefined, error: null as unknown, isPending: false },
+  cola: { data: undefined as ColaDiaPagina | undefined, error: null as unknown, isPending: false },
   colaArgs: [] as unknown[],
+  // Tareas del ámbito (el store): el espejo DEMO saca de aquí las de clientes.
+  tareas: [] as TareaClienteDemo[],
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => dobles.ahora }))
 vi.mock('./gestion-diaria-queries', () => ({
   useDiaAnalista: () => ({ dia: dobles.dia, cargando: dobles.diaCargando, enVuelo: false, error: null, recargar: async () => {} }),
 }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ tareas: dobles.tareas }) }))
 vi.mock('./sla-operacion-queries', () => ({
-  useColaSlaPagina: (...args: unknown[]) => {
+  useColaDiaPagina: (...args: unknown[]) => {
     dobles.colaArgs = args
     return dobles.cola
   },
@@ -45,11 +48,21 @@ const senal = (id: string, extra: Partial<SenalCartera> = {}): SenalCartera => (
   ...extra,
 })
 
-/** Ítem de la cola v2 con lo que `ordenarColaDiaria` lee (mismo doble que en lib/gestion-diaria-analista.test.ts). */
-const item = (id: string, bucket: string, referencia: string | null): ItemColaSla => ({
+/** Ítem de lead de la cola v3 con lo que `ordenarColaDiaria` lee (mismo doble que en lib/gestion-diaria-analista.test.ts). */
+const item = (id: string, bucket: string, referencia: string | null): ItemColaDia => ({
+  clave: `lead:${id}`, sujeto: { tipo: 'lead', id, nombre: `LEAD ${id}` },
   lead_id: id, bucket, severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: 0, referencia_en: referencia, tarea_id: null,
   lead: { id, nombre_completo: `LEAD ${id}`, etapa: 'contactado', analista_id: 'a1', analista_nombre: 'ANALISTA UNO' },
-} as unknown as ItemColaSla)
+} as unknown as ItemColaDia)
+
+/** Tarea de CLIENTE de la cola v3. */
+const cliente = (tarea: string, bucket: 'tarea_vencida' | 'tarea_hoy', vence: string, inversionista = `inv-${tarea}`): ItemColaDia => ({
+  clave: `tarea:${tarea}`, tarea_id: tarea, lead_id: null, lead: null, estado: null, bucket,
+  severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: bucket === 'tarea_vencida' ? 20 : 30, referencia_en: vence,
+  senales: { pendientes: bucket === 'tarea_vencida', tareas_vencidas: bucket === 'tarea_vencida', primera_atencion: false,
+    seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false },
+  sujeto: { tipo: 'cliente', perfil_id: null, inversionista_id: inversionista, nombre: `CLIENTE ${inversionista}` },
+})
 
 /**
  * Un día con la forma del servidor (`crm.gestion_diaria_analista_fn`, versión 1),
@@ -91,13 +104,13 @@ const DIA_REAL: DiaAnalista = {
   descartados: [],
 }
 
-/** La página de la cola v2 tal como la sirve `cola_accion_v2_fn` con `senal: 'todas'` (lo que `ordenarColaDiaria` no lee va abreviado). */
-const PAGINA: ColaSlaPagina = {
-  version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-23T15:00:00Z',
-  filtros: { senal: 'todas', etapa: null, analista_id: null }, limite: 100, total_items: 6, hay_mas: false, cursor_siguiente: null,
+/** La página de la cola v3 tal como la sirve `cola_accion_v3_fn` con `senal: 'todas'` (lo que `ordenarColaDiaria` no lee va abreviado). */
+const PAGINA: ColaDiaPagina = {
+  version: 3, modo: 'activo', control_revision: 1, calculado_en: '2026-09-23T15:00:00Z',
+  filtros: { senal: 'todas', etapa: null, analista_id: null }, limite: 200, total_items: 6, hay_mas: false, cursor_siguiente: null,
   rango: { desde: 1, hasta: 6 },
   // `totales` cuenta SEÑALES de la cola, no los grupos del día: no se usan para las cifras.
-  totales: { pendientes: 5, primera_atencion: 1, tareas_vencidas: 3, seguimientos_pendientes: 1, revisiones: 0, datos_incompletos: 0, por_repartir: 0 },
+  totales: { pendientes: 5, primera_atencion: 1, tareas_vencidas: 3, seguimientos_pendientes: 1, revisiones: 0, datos_incompletos: 0, por_repartir: 0, clientes: 0 },
   items: [
     item('nuevo-sin-intento', 'primera_atencion', '2026-09-23T14:00:00Z'), // → PENDIENTE
     item('vencida-hoy', 'tarea_vencida', '2026-09-23T13:00:00Z'), // → VENCIDA
@@ -106,11 +119,20 @@ const PAGINA: ColaSlaPagina = {
     item('vencida-y-abandonado', 'tarea_vencida', '2026-09-21T15:00:00Z'), // → VENCIDA (una sola vez)
     item('seguimiento', 'seguimiento', '2026-09-23T12:00:00Z'), // bucket que no es del día → no cuenta
   ],
-} as unknown as ColaSlaPagina
+} as unknown as ColaDiaPagina
 
 describe('conteoDelDia (sesión real: cola del servidor + marcador)', () => {
   it('hechas = marcador.llamadas; vencidas = filas tarea_vencida; pendientes = sin primer intento + hoy + sin conversación, cada lead una vez', () => {
     expect(conteoDelDia(DIA_REAL, PAGINA)).toEqual({ hechas: 9, vencidas: 3, pendientes: 3 })
+  })
+
+  it('las tareas de CLIENTES cuentan como en la pantalla: una por tarea, vencida o pendiente según su bucket', () => {
+    const conClientes = { items: [...PAGINA.items,
+      cliente('c1', 'tarea_vencida', '2026-09-22T15:00:00Z'), // → VENCIDA
+      cliente('c2', 'tarea_hoy', '2026-09-23T21:00:00Z', 'inv-rosa'), // → PENDIENTE
+      cliente('c3', 'tarea_hoy', '2026-09-23T22:00:00Z', 'inv-rosa'), // → PENDIENTE (misma persona, otra tarea)
+    ] }
+    expect(conteoDelDia(DIA_REAL, conClientes)).toEqual({ hechas: 9, vencidas: 4, pendientes: 5 })
   })
 
   it('con la cola vacía solo quedan los sin conversación de la cartera', () => {
@@ -135,6 +157,7 @@ describe('useConteoGestionDiaria', () => {
     dobles.diaCargando = false
     dobles.cola = { data: PAGINA, error: null, isPending: false }
     dobles.colaArgs = []
+    dobles.tareas = []
     window.localStorage.clear()
   })
 
@@ -144,9 +167,10 @@ describe('useConteoGestionDiaria', () => {
 
   it('en sesión real pide la MISMA cola que el destino (filtros, sin cursor, LIMITE_COLA_DIA, habilitada) y cuenta con ella', () => {
     const { result } = renderHook(() => useConteoGestionDiaria())
-    expect(dobles.colaArgs).toEqual([{ senal: 'todas', etapa: null, analista_id: null }, null, 100, true])
+    expect(dobles.colaArgs).toEqual([{ senal: 'todas', etapa: null, analista_id: null }, null, 200, true])
     expect(FILTROS_COLA_DIA).toEqual({ senal: 'todas', etapa: null, analista_id: null })
-    expect(LIMITE_COLA_DIA).toBe(100)
+    // El máximo que admite la v3: con clientes detrás de los leads, 100 los dejaba fuera antes.
+    expect(LIMITE_COLA_DIA).toBe(200)
     expect(result.current).toMatchObject({ hechas: 9, vencidas: 3, pendientes: 3, disponible: true, cargando: false, yaVisitoHoy: false })
   })
 
@@ -215,6 +239,17 @@ describe('useConteoGestionDiaria', () => {
     expect(dobles.colaArgs[3]).toBe(false)
     // hechas: las dos llamadas (el WhatsApp no cuenta) · vencida: l2 · pendientes: l15 sin primer intento y l17 con tarea hoy.
     expect(result.current).toMatchObject({ hechas: 2, vencidas: 1, pendientes: 2, disponible: true, cargando: false })
+
+    // Con tareas de CLIENTES en el ámbito demo: la vencida suma a vencidas, la de hoy a pendientes y la de mañana no entra.
+    const base = { lead_id: null, estado: 'pendiente', activo: true, vendedor_id: 'd-v1', titulo: 'Llamar a ROSA' }
+    dobles.tareas = [
+      { ...base, id: 'c-venc', inversionista_id: 'inv-1', vence_en: iso(dobles.ahora - HORA_MS) },
+      { ...base, id: 'c-hoy', inversionista_id: 'inv-1', vence_en: iso(dobles.ahora + HORA_MS) },
+      { ...base, id: 'c-manana', inversionista_id: 'inv-1', vence_en: iso(dobles.ahora + DIA_MS) },
+      { ...base, id: 'c-ajena', inversionista_id: 'inv-2', vence_en: iso(dobles.ahora - HORA_MS), vendedor_id: 'd-v2' },
+    ]
+    const conClientes = renderHook(() => useConteoGestionDiaria())
+    expect(conClientes.result.current).toMatchObject({ hechas: 2, vencidas: 2, pendientes: 3, disponible: true })
   })
 
   it('marcarVisita escribe crm:gd-visita:<id> con el día Lima y yaVisitoHoy pasa a true', () => {

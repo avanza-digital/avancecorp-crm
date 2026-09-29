@@ -8421,6 +8421,498 @@ async function testGestionDiariaCitas(sessions, seed) {
   }
 }
 
+// — Cola del día con clientes (crm.cola_accion_v3_fn · plan 2026-09-28, F1) ——————————————
+// UNA cola con las filas de leads de la ventana SLA (idénticas a la v2) + las tareas de CLIENTES del
+// día (perfil_id | inversionista_id). Se mide con sesiones reales, en el banco Docker: ámbito por rol
+// (A/B, supervisor con B fuera del subárbol, gerencia, lector global y Directorio → cero filas de
+// clientes SIN confundirlo con cola vacía), la rama «sin vendedor + bandeja de supervisor visible»,
+// postventa visible/no visible por banderas y el CONFLICTO restrictiva/permisiva (auditor-rls P2-2),
+// estados fuera (hecha/cancelada/inactiva), tiempo (vencida hace días, hoy aún futura, mañana fuera,
+// medianoche exacta fuera y medianoche − 1 s dentro, instante exacto `<=`), integridad (dos sujetos /
+// vence_en no finito → 22000 sin afectar a otro actor, en una transacción del banco que se deshace
+// entera), filtros (todas/pendientes/tareas_vencidas/otras, p_etapa excluye clientes, p_analista_id no
+// amplía), paginación real con límites 1 y 2 (empates incluidos), cursores v2/manipulados rechazados
+// (22023) y ACL/forma (helper sin EXECUTE para la API; trinquete en OK y, con CRM_RLS_EXIGE_COLA_V3=1,
+// SELLADO). Antes de instalar la migración el bloque se SALTA (gate ANTES/DESPUÉS).
+async function testColaAccionV3(sessions, seed) {
+  console.log('\n— Cola del día con clientes (cola_accion_v3_fn): ámbito, tiempo, filtros, cursor y ACL —');
+  const FN = 'cola_accion_v3_fn';
+  const id = (key) => seed.profileIdByKey[key];
+  const rpc = (quien, args = {}) => sessions[quien].client.schema('crm').rpc(FN, { p_limite: 200, ...args });
+  const probe = await rpc('gerencia');
+  if (probe.error?.code === 'PGRST202') {
+    const msg = '⚠ cola v3 no instalada: cola del día con clientes SALTADA (no probado)';
+    if (process.env.CRM_RLS_EXIGE_COLA_V3 === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  const exige = process.env.CRM_RLS_EXIGE_COLA_V3 === '1';
+  const conBanco = Boolean(process.env.CRM_BANCO_PSQL_URL);
+  const clientBank = id('clientBank');
+  const clientes = (data) => (data?.items ?? []).filter((i) => i?.sujeto?.tipo === 'cliente');
+  const tareasCliente = (data) => clientes(data).map((i) => i.tarea_id);
+  const iso = (d) => new Date(d).toISOString();
+  const ms = (x) => new Date(x).getTime();
+  const lista = (ids) => ids.map((x) => `'${x}'`).join(', ');
+  // La ventana del día del helper (p_fin_dia) es la próxima medianoche de Lima del instante consultado.
+  const finDiaSql = (instanteSql) => `(((${instanteSql} at time zone 'America/Lima')::date + 1)::timestamp) at time zone 'America/Lima'`;
+  const HELPER = 'private.tareas_clientes_autorizadas(uuid,uuid[],text,boolean,timestamptz,timestamptz)';
+  const PUERTA = 'crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb)';
+  const helperSql = (actor, visibles, rol, global, ahoraSql) =>
+    `private.tareas_clientes_autorizadas('${actor}', ${visibles}, ${rol}, ${global}, ${ahoraSql}, ${finDiaSql(ahoraSql)})`;
+
+  // Reloj de Lima (UTC−5, sin horario de verano): el día operativo termina en la próxima medianoche.
+  const finDiaLima = (desde) => { const d = new Date(desde - 5 * 3600e3); d.setUTCHours(24, 0, 0, 0); return new Date(d.getTime() + 5 * 3600e3); };
+  let ahora = Date.now();
+  if (finDiaLima(ahora).getTime() - ahora < 120e3) {
+    // A menos de 2 minutos de la medianoche de Lima los casos «hoy/mañana» cambiarían de día a mitad del
+    // bloque: se espera al día siguiente (solo ocurre en esa ventana).
+    console.log('  · a menos de 2 min de la medianoche de Lima: esperando al día siguiente para medir el recorte');
+    await new Promise((resolve) => setTimeout(resolve, finDiaLima(ahora).getTime() - ahora + 2000));
+    ahora = Date.now();
+  }
+  const finDia = finDiaLima(ahora);
+  const horaLima = (diasAtras, hora) => { const d = new Date(ahora - diasAtras * 86400e3 - 5 * 3600e3); d.setUTCHours(hora, 0, 0, 0); return new Date(d.getTime() + 5 * 3600e3); };
+  const vencidaDias = horaLima(3, 12); // hace 3 días a las 12:00 de Lima (lejos de cualquier medianoche)
+  const empate = horaLima(2, 15); // hace 2 días a las 15:00 de Lima: DOS tareas con el MISMO vence_en
+  const hoyFutura = new Date(ahora + Math.max(Math.floor((finDia.getTime() - ahora) / 2), 1000)); // hoy, aún futura
+  const antesMedianoche = new Date(finDia.getTime() - 1000); // último segundo del día: dentro
+  const manana = new Date(finDia.getTime() + 10 * 3600e3); // mañana 10:00 de Lima: fuera del día
+
+  const T = {
+    vencida: randomUUID(), hoy: randomUUID(), manana: randomUUID(), empateA: randomUUID(), empateB: randomUUID(),
+    medianoche: randomUUID(), antesMedianoche: randomUUID(),
+    cancelada: randomUUID(), inactiva: randomUUID(), bandejaSup1: randomUUID(), vend3: randomUUID(),
+    hecha: randomUUID(), postventaVend1: randomUUID(), postventaVend3: randomUUID(), postventaConflicto: randomUUID(), postventaPerfil: randomUUID(),
+  };
+  const INV = { vend1: randomUUID(), vend3: randomUUID(), conPerfil: randomUUID() };
+  const FLAGS_POSTVENTA = ['resolver_en_puertas', 'ficha_360_neutral', 'postventa_neutral'];
+  let banderasPrevias = null;
+  let conPerfil = false; // identidad con perfil del grupo (solo si clientBank aún no tiene identidad en el banco)
+  const ponerBanderas = (valores) => ejecutarFueraDeBanda('banderas de postventa del bloque v3',
+    Object.entries(valores).map(([nombre, activo]) => `update crm.multiempresa_flags set activo = ${activo ? 'true' : 'false'}, actualizado_en = now() where nombre = '${nombre}';`).join('\n'));
+  const sembrarPerfil = (tareaId, titulo, venceEn, extra = {}) => requireAdmin(
+    `sembrar tarea de cliente (${titulo})`,
+    admin.schema('crm').from('tareas').insert({
+      id: tareaId, perfil_id: clientBank, tipo: 'llamada', titulo, vence_en: iso(venceEn), creado_por: id('vend1'), ...extra,
+    }),
+  );
+  const actores = ['vend1', 'vend2', 'vend3', 'sup1', 'sup1Nested', 'vendNested', 'sup2', 'gerencia'];
+  // Las tareas de clientes que ya existen en el banco (otros bloques dejan transitorias pendientes sobre
+  // clientBank) forman la LÍNEA BASE por actor: lo esperado es base + lo sembrado aquí, nada más.
+  const base = {};
+  for (const quien of actores) {
+    const r = await positive(`${quien}: línea base de la cola v3 antes de sembrar`, rpc(quien));
+    base[quien] = r ? tareasCliente(r.data) : [];
+  }
+  const esperado = (quien, mias) => sorted([...base[quien], ...mias]);
+
+  try {
+    // ── Siembra sobre el cliente de la suite (clientBank, asesor vend1): el trigger ancla vendedor=vend1 y
+    //    supervisor=sup1; dos se reubican por la vía admin (bandeja de sup1; equipo de vend3).
+    await sembrarPerfil(T.vencida, 'GATE V3 CLIENTE VENCIDA', vencidaDias);
+    await sembrarPerfil(T.hoy, 'GATE V3 CLIENTE HOY', hoyFutura);
+    await sembrarPerfil(T.manana, 'GATE V3 CLIENTE MANANA', manana);
+    await sembrarPerfil(T.medianoche, 'GATE V3 CLIENTE MEDIANOCHE EXACTA', finDia);
+    await sembrarPerfil(T.antesMedianoche, 'GATE V3 CLIENTE ULTIMO SEGUNDO', antesMedianoche);
+    await sembrarPerfil(T.empateA, 'GATE V3 CLIENTE EMPATE A', empate);
+    await sembrarPerfil(T.empateB, 'GATE V3 CLIENTE EMPATE B', empate);
+    await sembrarPerfil(T.cancelada, 'GATE V3 CLIENTE CANCELADA', vencidaDias);
+    await requireAdmin('cancelar la tarea de cliente sembrada como cancelada',
+      admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).eq('id', T.cancelada));
+    await sembrarPerfil(T.inactiva, 'GATE V3 CLIENTE INACTIVA', vencidaDias, { activo: false });
+    await sembrarPerfil(T.bandejaSup1, 'GATE V3 CLIENTE BANDEJA SUP1', vencidaDias);
+    await requireAdmin('dejar una tarea de cliente sin vendedor en la bandeja de sup1',
+      admin.schema('crm').from('tareas').update({ vendedor_id: null, asignado_supervisor_id: id('sup1') }).eq('id', T.bandejaSup1));
+    await sembrarPerfil(T.vend3, 'GATE V3 CLIENTE VEND3', vencidaDias);
+    await requireAdmin('mover una tarea de cliente al equipo de vend3 (sup2)',
+      admin.schema('crm').from('tareas').update({ vendedor_id: id('vend3'), asignado_supervisor_id: id('sup2') }).eq('id', T.vend3));
+    if (conBanco) {
+      // La HECHA nace cerrada con la válvula crm.op_tarea (como el seed); la postventa entra por el contrato
+      // del guard de F6 (postgres + crm.postventa_escrituras de la transacción): vendedor := responsable.
+      // El CONFLICTO (P2-2): identidad de vend3 con la tarea reubicada a vend1/sup1 — la permisiva se
+      // cumple para vend1 y sup1 pero la restrictiva de postventa NO.
+      conPerfil = contarFueraDeBanda('identidad con perfil clientBank', `select coalesce(cardinality(array_agg(i.id)), 0) from crm.inversionistas i where i.perfil_id = '${clientBank}'`) === 0;
+      ejecutarFueraDeBanda('sembrar tarea de cliente HECHA, postventa y conflicto (banco)', `
+        select set_config('crm.op_tarea', 'on', true);
+        insert into crm.tareas (id, perfil_id, tipo, titulo, vence_en, estado, creado_por)
+          values ('${T.hecha}', '${clientBank}', 'llamada', 'GATE V3 CLIENTE HECHA', '${iso(vencidaDias)}', 'completada', '${id('vend1')}');
+        select set_config('crm.op_tarea', 'off', true);
+        insert into crm.inversionistas (id, estado, responsable_relacion_id${conPerfil ? ', perfil_id' : ''}) values
+          ('${INV.vend1}', 'activo', '${id('vend1')}'${conPerfil ? ', null' : ''}),
+          ('${INV.vend3}', 'activo', '${id('vend3')}'${conPerfil ? ', null' : ''})${conPerfil ? `,
+          ('${INV.conPerfil}', 'activo', '${id('vend1')}', '${clientBank}')` : ''};
+        insert into crm.postventa_escrituras (transaccion, tarea_id) values
+          (pg_current_xact_id(), '${T.postventaVend1}'), (pg_current_xact_id(), '${T.postventaVend3}'),
+          (pg_current_xact_id(), '${T.postventaConflicto}')${conPerfil ? `, (pg_current_xact_id(), '${T.postventaPerfil}')` : ''};
+        insert into crm.tareas (id, inversionista_id, tipo, titulo, vence_en, creado_por) values
+          ('${T.postventaVend1}', '${INV.vend1}', 'llamada', 'GATE V3 POSTVENTA VEND1', '${iso(vencidaDias)}', '${id('vend1')}'),
+          ('${T.postventaVend3}', '${INV.vend3}', 'llamada', 'GATE V3 POSTVENTA VEND3', '${iso(vencidaDias)}', '${id('vend3')}'),
+          ('${T.postventaConflicto}', '${INV.vend3}', 'llamada', 'GATE V3 POSTVENTA CONFLICTO', '${iso(vencidaDias)}', '${id('vend3')}')${conPerfil ? `,
+          ('${T.postventaPerfil}', '${INV.conPerfil}', 'llamada', 'GATE V3 POSTVENTA CON PERFIL', '${iso(vencidaDias)}', '${id('vend1')}')` : ''};
+        update crm.tareas set vendedor_id = '${id('vend1')}', asignado_supervisor_id = '${id('sup1')}' where id = '${T.postventaConflicto}';
+        delete from crm.postventa_escrituras where transaccion = pg_current_xact_id();
+      `);
+      banderasPrevias = JSON.parse(textoFueraDeBanda('banderas de postventa antes del bloque v3',
+        `select jsonb_object_agg(nombre, activo) from crm.multiempresa_flags where nombre in (${lista(FLAGS_POSTVENTA)})`));
+      assertSeed(banderasPrevias && Object.keys(banderasPrevias).length === FLAGS_POSTVENTA.length, 'faltan banderas de postventa en el banco');
+      // Primero con la postventa APAGADA (F3 se conserva tal cual): las de inversionista no deben viajar.
+      ponerBanderas({ ficha_360_neutral: false, postventa_neutral: false });
+    }
+
+    // ── A. Ámbito por rol, con la postventa apagada ───────────────────────────────────────────────
+    const mias = {
+      vend1: [T.vencida, T.hoy, T.empateA, T.empateB, T.antesMedianoche],
+      vend2: [],
+      vend3: [T.vend3],
+      sup1: [T.vencida, T.hoy, T.empateA, T.empateB, T.antesMedianoche, T.bandejaSup1],
+      sup1Nested: [],
+      vendNested: [],
+      sup2: [T.vend3],
+      gerencia: [T.vencida, T.hoy, T.empateA, T.empateB, T.antesMedianoche, T.bandejaSup1, T.vend3],
+    };
+    const lecturas = {};
+    for (const quien of actores) {
+      const r = await positive(`${quien} lee la cola v3 (todas, límite 200)`, rpc(quien));
+      if (!r) continue;
+      lecturas[quien] = r.data;
+      const ids = tareasCliente(r.data);
+      check(r.data?.version === 3 && Array.isArray(r.data?.items) && r.data?.hay_mas === false && r.data?.cursor_siguiente === null,
+        `${quien}: payload v3 completo en una página (version 3, items, hay_mas=false, sin cursor)`);
+      check(sameStrings(ids, esperado(quien, mias[quien])),
+        `${quien}: EXACTAMENTE su línea base + ${mias[quien].length} tareas de clientes sembradas (ni ajenas, ni de mañana ni de medianoche exacta, ni cerradas/inactivas, ni postventa apagada)`,
+        JSON.stringify({ recibidas: ids.length, esperadas: esperado(quien, mias[quien]).length }));
+      check(r.data?.totales?.clientes === ids.length && r.data?.total_items === r.data.items.length,
+        `${quien}: totales.clientes = tareas de clientes devueltas (${ids.length}) y total_items = items en una sola página`);
+    }
+    const ve = (quien, tarea) => Boolean(lecturas[quien]) && tareasCliente(lecturas[quien]).includes(tarea);
+    check(lecturas.vend2 && lecturas.vend3 && !ve('vend2', T.vencida) && !ve('vend3', T.vencida) && !ve('vend2', T.hoy),
+      'analista A no ve los clientes de B: ni vend2 (mismo supervisor) ni vend3 ven las tareas de vend1');
+    check(lecturas.sup1 && lecturas.sup2 && !ve('sup1', T.vend3) && ve('sup2', T.vend3),
+      'supervisor con B fuera de su subárbol: sup1 no ve la tarea del equipo de vend3; sup2 sí');
+    check(lecturas.sup1 && lecturas.vend1 && lecturas.sup1Nested && ve('sup1', T.bandejaSup1) && !ve('vend1', T.bandejaSup1) && !ve('sup1Nested', T.bandejaSup1),
+      'tarea sin vendedor en la bandeja de sup1: la ve sup1 (asignado_supervisor_id ∈ visibles), no vend1 ni el supervisor anidado');
+    check(lecturas.gerencia && ve('gerencia', T.bandejaSup1) && ve('gerencia', T.vend3) && ve('gerencia', T.vencida),
+      'gerencia: rama propia (no vía equipo) — ve la bandeja de sup1, la tarea de vend3 y la de vend1');
+    check(lecturas.gerencia && [T.cancelada, T.inactiva, T.manana, T.medianoche, ...(conBanco ? [T.hecha] : [])].every((x) => !ve('gerencia', x)),
+      `gerencia (ve todo): cancelada, inactiva, de mañana y de medianoche exacta${conBanco ? ' y hecha' : ''} quedan fuera de la cola del día`);
+    check(lecturas.vend1 && ve('vend1', T.antesMedianoche) && !ve('vend1', T.medianoche),
+      'vend1: el último segundo del día entra; la medianoche exacta de Lima ya no (límite superior exclusivo)');
+    if (conBanco) {
+      check(lecturas.gerencia && [T.postventaVend1, T.postventaVend3, T.postventaConflicto].every((x) => !ve('gerencia', x)) && !ve('vend1', T.postventaVend1) && !ve('vend1', T.postventaConflicto),
+        'postventa APAGADA: ni gerencia ni vend1 ven ninguna tarea de inversionista, tampoco la del conflicto (restrictiva postventa_visible_actor)');
+    }
+
+    // ── B. Forma de los items (vend1) y contraste con la v2 ─────────────────────────────────────
+    const v1 = lecturas.vend1;
+    if (v1) {
+      const porId = new Map(clientes(v1).map((i) => [i.tarea_id, i]));
+      const propios = Object.values(T).map((x) => porId.get(x)).filter(Boolean);
+      const claves7 = ['primera_atencion', 'tareas_vencidas', 'seguimientos_pendientes', 'revisiones', 'datos_incompletos', 'por_repartir', 'pendientes'];
+      const senalesOk = (i, vencida) => {
+        const s = i?.senales ?? {};
+        return Object.keys(s).length === 7 && claves7.every((k) => typeof s[k] === 'boolean')
+          && s.pendientes === vencida && s.tareas_vencidas === vencida
+          && !s.primera_atencion && !s.seguimientos_pendientes && !s.revisiones && !s.datos_incompletos && !s.por_repartir;
+      };
+      check(propios.length === 5 && propios.every((i) => i.lead_id === null && i.lead === null && i.estado === null && i.clave === `tarea:${i.tarea_id}`),
+        'vend1: cada item de cliente viaja con lead_id/lead/estado nulos y clave tipada tarea:<uuid>');
+      check(propios.every((i) => i.sujeto?.tipo === 'cliente' && i.sujeto.perfil_id === clientBank && i.sujeto.inversionista_id === null
+          && i.sujeto.nombre === USER_BY_KEY.clientBank.name && !('telefono' in i.sujeto) && !('telefono' in i) && !('responsable_id' in i)),
+        'vend1: sujeto {tipo cliente, perfil_id, inversionista_id nulo, nombre del perfil}; SIN teléfono ni responsable en el payload');
+      const vencidas = [T.vencida, T.empateA, T.empateB].map((x) => porId.get(x));
+      check(vencidas.every((i) => i && i.bucket === 'tarea_vencida' && i.prioridad === 20 && i.severidad === 'critica' && senalesOk(i, true)),
+        'vend1: las vencidas (hace días y el empate) salen como tarea_vencida, prioridad 20, severidad critica, pendientes = tareas_vencidas = true');
+      const hoy = porId.get(T.hoy);
+      const ultimo = porId.get(T.antesMedianoche);
+      check(Boolean(hoy) && hoy.bucket === 'tarea_hoy' && hoy.prioridad === 30 && hoy.severidad === 'media' && senalesOk(hoy, false)
+          && Boolean(ultimo) && ultimo.bucket === 'tarea_hoy' && ultimo.prioridad === 30,
+        'vend1: la de hoy aún futura y la del último segundo salen como tarea_hoy, prioridad 30, severidad media y las 7 señales en false (solo entran en todas)');
+      check(ms(porId.get(T.vencida)?.referencia_en) === vencidaDias.getTime() && ms(hoy?.referencia_en) === hoyFutura.getTime()
+          && ms(porId.get(T.empateA)?.referencia_en) === empate.getTime() && ms(porId.get(T.empateB)?.referencia_en) === empate.getTime(),
+        'vend1: referencia_en = vence_en exacto de cada tarea de cliente');
+      const leadsV3 = (v1.items ?? []).filter((i) => i?.sujeto?.tipo === 'lead');
+      check(leadsV3.length > 0 && leadsV3.every((i) => typeof i.lead_id === 'string' && i.clave === `lead:${i.lead_id}` && i.sujeto.id === i.lead_id
+          && i.sujeto.nombre === i.lead?.nombre_completo && i.lead && i.estado && i.senales),
+        'vend1: los items de lead son los de la v2 + clave lead:<uuid> + sujeto {tipo lead, id, nombre}');
+      check(typeof v1.proximo_cambio_en === 'string' && ms(v1.proximo_cambio_en) <= hoyFutura.getTime() && ms(v1.proximo_cambio_en) <= finDia.getTime(),
+        'vend1: proximo_cambio_en no pasa del próximo vencimiento de cliente (la de hoy) ni de la medianoche de Lima');
+      const v2 = await positive('vend1 lee la v2 para contrastar los leads', sessions.vend1.client.schema('crm').rpc('cola_accion_v2_fn', { p_limite: 200 }));
+      if (v2) {
+        const idsV2 = (v2.data?.items ?? []).map((i) => i.lead_id);
+        check(sameStrings(leadsV3.map((i) => i.lead_id), idsV2) && v1.total_items === (v2.data?.total_items ?? -1) + clientes(v1).length,
+          'vend1: los leads de la v3 son EXACTAMENTE los de la v2 (mismos lead_id) y total_items = v2 + clientes');
+        const clavesV2 = Object.keys(v2.data?.items?.[0] ?? {});
+        check(clavesV2.length > 0 && leadsV3.every((i) => clavesV2.every((k) => k in i) && 'clave' in i && 'sujeto' in i),
+          'vend1: cada item de lead conserva todas las claves del item de la v2 y añade solo clave y sujeto');
+      }
+    }
+    if (lecturas.vend3) {
+      check(typeof lecturas.vend3.proximo_cambio_en === 'string' && ms(lecturas.vend3.proximo_cambio_en) <= finDia.getTime(),
+        'vend3 (sin tareas de hoy): proximo_cambio_en no pasa de la medianoche de Lima (entrada de tareas nuevas al día)');
+    }
+
+    // ── C. Lector global, Directorio y roles sin ámbito: cero filas de clientes, no cola vacía ───────
+    for (const quien of ['directorio', 'coordinador']) {
+      const r = await positive(`${quien} lee la cola v3`, rpc(quien));
+      if (!r) continue;
+      check(clientes(r.data).length === 0 && r.data?.totales?.clientes === 0,
+        `${quien}: cero filas de clientes (regla de producto: ${quien === 'directorio' ? 'lector global sin rol CRM / Directorio' : 'rol CRM sin ámbito'})`);
+      if (quien === 'directorio') {
+        check((r.data?.total_items ?? 0) > 0 && (r.data?.items ?? []).every((i) => i?.sujeto?.tipo === 'lead'),
+          'directorio: la cola NO está vacía (ve los leads como lector global) — cero clientes no se confunde con cola vacía');
+      }
+    }
+    await expectExpectedFailure('vendInactive: membresía revocada → 42501', rpc('vendInactive'), ['42501'], /no autorizado/i);
+    await expectExpectedFailure('clientBank: cliente del portal, ajeno al CRM → 42501', rpc('clientBank'), ['42501'], /no autorizado/i);
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-cola-v3'));
+    const anonRpc = await anon.schema('crm').rpc(FN, { p_limite: 10 });
+    check(isAuthorizationError(anonRpc.error), `anon no ejecuta la cola v3 (${anonRpc.error?.code ?? 'sin error!'})`);
+
+    // ── D. Filtros: nunca amplían el ámbito ─────────────────────────────────────────────────────
+    for (const senal of ['pendientes', 'tareas_vencidas']) {
+      const r = await positive(`vend1 filtra por ${senal}`, rpc('vend1', { p_senal: senal }));
+      if (!r) continue;
+      const ids = tareasCliente(r.data);
+      check([T.vencida, T.empateA, T.empateB].every((x) => ids.includes(x)) && !ids.includes(T.hoy) && !ids.includes(T.antesMedianoche),
+        `vend1 ${senal}: entran las vencidas y NO las de hoy aún futuras`);
+      check(r.data?.totales?.clientes === v1?.totales?.clientes,
+        `vend1 ${senal}: totales.clientes no cambia con la señal (se cuenta antes de la señal y del límite)`);
+    }
+    for (const senal of ['primera_atencion', 'seguimientos_pendientes', 'revisiones', 'datos_incompletos', 'por_repartir']) {
+      const r = await positive(`vend1 filtra por ${senal}`, rpc('vend1', { p_senal: senal }));
+      if (r) check(clientes(r.data).length === 0, `vend1 ${senal}: ninguna tarea de cliente (la señal no les aplica)`);
+    }
+    const etapa = await positive('vend1 filtra por etapa nuevo', rpc('vend1', { p_etapa: 'nuevo' }));
+    if (etapa) {
+      check(clientes(etapa.data).length === 0 && etapa.data?.totales?.clientes === 0,
+        'vend1 p_etapa=nuevo: excluye a los clientes (no tienen etapa), también de totales.clientes');
+    }
+    const porAnalista = await positive('sup1 pide la cola de vend1 (p_analista_id)', rpc('sup1', { p_analista_id: id('vend1') }));
+    if (porAnalista) {
+      const ids = tareasCliente(porAnalista.data);
+      check([T.vencida, T.hoy, T.empateA, T.empateB, T.antesMedianoche].every((x) => ids.includes(x)) && !ids.includes(T.bandejaSup1) && !ids.includes(T.vend3),
+        'sup1 p_analista_id=vend1: solo las tareas cuyo responsable es vend1 (fuera la bandeja sin vendedor y las de otros)');
+    }
+    const ajeno = await positive('vend1 pide la cola de vend3 (p_analista_id ajeno)', rpc('vend1', { p_analista_id: id('vend3') }));
+    if (ajeno) {
+      check(clientes(ajeno.data).length === 0 && ajeno.data?.totales?.clientes === 0,
+        'vend1 p_analista_id=vend3: el filtro no amplía el ámbito (cero clientes, nada de vend3)');
+    }
+    await expectExpectedFailure('p_limite 0 → 22023', rpc('vend1', { p_limite: 0 }), ['22023'], /limite|filtros/i);
+    await expectExpectedFailure('p_limite 201 → 22023', rpc('vend1', { p_limite: 201 }), ['22023'], /limite|filtros/i);
+    await expectExpectedFailure('p_senal desconocida → 22023', rpc('vend1', { p_senal: 'inventada' }), ['22023'], /filtros/i);
+
+    // ── E. Paginación real: límites 1 y 2 reconstruyen la cola completa (leads y clientes mezclados) ─
+    if (v1) {
+      const esperadas = (v1.items ?? []).map((i) => i.clave);
+      check(new Set(esperadas).size === esperadas.length && esperadas.every((c) => /^(lead|tarea):[0-9a-f-]{36}$/.test(c)),
+        'vend1: claves únicas y tipadas en toda la cola');
+      const iA = esperadas.indexOf(`tarea:${T.empateA}`);
+      const iB = esperadas.indexOf(`tarea:${T.empateB}`);
+      check(iA >= 0 && iB >= 0 && Math.abs(iA - iB) === 1 && (iA < iB) === (`tarea:${T.empateA}` < `tarea:${T.empateB}`),
+        'vend1: el empate de referencia_en se resuelve por clave (adyacentes y en orden de clave, collation "C")');
+      for (const limite of [1, 2]) {
+        const paginado = [];
+        let cursor = null; let ok = true; let total = null; let vueltas = 0; let motivo = '';
+        for (let vuelta = 1; vuelta <= 100; vuelta += 1) {
+          const args = { p_limite: limite };
+          if (cursor) args.p_cursor = cursor;
+          const p = await rpc('vend1', args);
+          if (p.error) { ok = false; motivo = errorText(p.error); break; }
+          vueltas = vuelta;
+          const items = p.data?.items ?? [];
+          paginado.push(...items.map((i) => i.clave));
+          if (total === null) total = p.data?.total_items;
+          if (p.data?.total_items !== total || items.length > limite) { ok = false; motivo = 'total_items o tamaño de página incoherentes'; }
+          if (items.length > 0 && (p.data?.rango?.desde !== paginado.length - items.length + 1 || p.data?.rango?.hasta !== paginado.length)) { ok = false; motivo = `rango ${JSON.stringify(p.data?.rango)} en la vuelta ${vuelta}`; }
+          if (!p.data?.hay_mas) { if (p.data?.cursor_siguiente !== null) { ok = false; motivo = 'cursor_siguiente sin hay_mas'; } break; }
+          cursor = p.data.cursor_siguiente;
+          if (!cursor || cursor.version !== 2 || typeof cursor.contexto !== 'string' || typeof cursor.clave !== 'string' || Object.keys(cursor).length !== 5) { ok = false; motivo = 'cursor v2 mal formado'; break; }
+        }
+        check(ok && new Set(paginado).size === paginado.length,
+          `vend1 límite ${limite}: ${vueltas} páginas sin repetir ninguna clave, total_items y rango coherentes, cursor version 2 con clave`, motivo);
+        check(ok && paginado.length === esperadas.length && paginado.every((c, i) => c === esperadas[i]),
+          `vend1 límite ${limite}: las páginas reconstruyen la cola completa sin huecos y en el mismo orden (empate incluido)`,
+          JSON.stringify({ paginado: paginado.length, oraculo: esperadas.length }));
+      }
+    }
+
+    // ── F. Cursores: los de la v2 y los manipulados se rechazan; el contexto lleva filtros, actor y ámbito ─
+    const primera = await positive('vend1 pide la primera página con límite 1 para probar el cursor', rpc('vend1', { p_limite: 1 }));
+    const cursorReal = primera?.data?.cursor_siguiente ?? null;
+    if (cursorReal) {
+      await expectExpectedFailure('cursor de la v2 (version 1 con lead_id) → 22023',
+        rpc('vend1', { p_limite: 1, p_cursor: { version: 1, contexto: cursorReal.contexto, prioridad: cursorReal.prioridad, referencia_en: cursorReal.referencia_en, lead_id: randomUUID() } }),
+        ['22023'], /cursor/i);
+      await expectExpectedFailure('cursor con contexto manipulado → 22023 (incompatible)',
+        rpc('vend1', { p_limite: 1, p_cursor: { ...cursorReal, contexto: 'f'.repeat(32) } }), ['22023'], /incompatible|cursor/i);
+      await expectExpectedFailure('cursor reutilizado con otro filtro (pendientes) → 22023 (el contexto lleva los filtros)',
+        rpc('vend1', { p_limite: 1, p_senal: 'pendientes', p_cursor: cursorReal }), ['22023'], /incompatible|cursor/i);
+      await expectExpectedFailure('cursor con clave sin tipo → 22023',
+        rpc('vend1', { p_limite: 1, p_cursor: { ...cursorReal, clave: randomUUID() } }), ['22023'], /cursor/i);
+      await expectExpectedFailure('cursor con una clave de más → 22023',
+        rpc('vend1', { p_limite: 1, p_cursor: { ...cursorReal, extra: 1 } }), ['22023'], /cursor/i);
+      await expectExpectedFailure('el cursor de vend1 en manos de sup1 → 22023 (el contexto lleva actor y ámbito)',
+        rpc('sup1', { p_limite: 1, p_cursor: cursorReal }), ['22023'], /incompatible|cursor/i);
+    } else {
+      fail('vend1 no obtuvo cursor_siguiente con límite 1 (la cola debería tener al menos dos filas)');
+    }
+
+    if (conBanco) {
+      const cuenta = (etiqueta, sql) => contarFueraDeBanda(`cola v3: ${etiqueta}`, sql);
+      const v1Sql = `'${id('vend1')}', array['${id('vend1')}']::uuid[], 'vendedor', false`;
+      // ── G. Postventa ENCENDIDA: la restrictiva manda igual que en la RLS, gerencia incluida, y el
+      //    CONFLICTO (permisiva satisfecha, restrictiva no) se resuelve como la RLS: fuera ─────────────
+      ponerBanderas({ resolver_en_puertas: true, ficha_360_neutral: true, postventa_neutral: true });
+      const perfilExtra = conPerfil ? [T.postventaPerfil] : [];
+      const dentro = { vend1: [T.postventaVend1, ...perfilExtra], vend3: [T.postventaVend3], sup1: [T.postventaVend1, ...perfilExtra], sup2: [T.postventaVend3],
+        gerencia: [T.postventaVend1, T.postventaVend3, T.postventaConflicto, ...perfilExtra] };
+      const fuera = { vend1: [T.postventaVend3, T.postventaConflicto], vend3: [T.postventaVend1, T.postventaConflicto], sup1: [T.postventaVend3, T.postventaConflicto],
+        sup2: [T.postventaVend1, T.postventaConflicto], gerencia: [] };
+      const lecturasOn = {};
+      for (const quien of Object.keys(dentro)) {
+        const r = await positive(`${quien} lee la cola v3 con la postventa encendida`, rpc(quien));
+        if (!r) continue;
+        lecturasOn[quien] = r.data;
+        const ids = tareasCliente(r.data);
+        check(dentro[quien].every((x) => ids.includes(x)) && fuera[quien].every((x) => !ids.includes(x)),
+          `${quien} con postventa ON: ve la postventa de su ámbito (${dentro[quien].length}) y no la ajena`);
+        check(sameStrings(ids.filter((x) => !dentro[quien].includes(x)), tareasCliente(lecturas[quien] ?? {})),
+          `${quien} con postventa ON: el resto de sus tareas de clientes no cambia`);
+      }
+      const veOn = (quien, tarea) => Boolean(lecturasOn[quien]) && tareasCliente(lecturasOn[quien]).includes(tarea);
+      check(['vend1', 'sup1', 'vend3', 'sup2'].every((q) => lecturasOn[q] && !veOn(q, T.postventaConflicto)) && veOn('gerencia', T.postventaConflicto),
+        'CONFLICTO restrictiva/permisiva: la tarea de la identidad de vend3 reubicada a vend1/sup1 NO la ven vend1 ni sup1 (permisiva sí, restrictiva no), tampoco vend3 ni sup2; gerencia sí');
+      const pv = lecturasOn.vend1;
+      const fila = pv ? clientes(pv).find((i) => i.tarea_id === T.postventaVend1) : null;
+      check(Boolean(fila) && fila.sujeto.tipo === 'cliente' && fila.sujeto.perfil_id === null && fila.sujeto.inversionista_id === INV.vend1
+          && fila.sujeto.nombre === 'Identidad pendiente de completar' && fila.bucket === 'tarea_vencida' && fila.lead_id === null,
+        'vend1: la fila de postventa lleva inversionista_id, perfil_id nulo, el marcador neutro de nombre (identidad sin perfil ni lead) y bucket vencida');
+      if (conPerfil) {
+        const filaPerfil = pv ? clientes(pv).find((i) => i.tarea_id === T.postventaPerfil) : null;
+        check(Boolean(filaPerfil) && filaPerfil.sujeto.inversionista_id === INV.conPerfil && filaPerfil.sujeto.perfil_id === null
+            && filaPerfil.sujeto.nombre === USER_BY_KEY.clientBank.name,
+          'vend1: la identidad con perfil en su grupo canónico toma el nombre del perfil (vía canónica de postventa)');
+      } else {
+        console.log('  · nombre por perfil del grupo canónico: NOT RUN (clientBank ya tiene identidad en este banco); cubierto en el ensayo efímero');
+      }
+      const dirOn = await positive('directorio lee con la postventa encendida', rpc('directorio'));
+      if (dirOn) check(clientes(dirOn.data).length === 0, 'directorio con postventa ON: sigue sin filas de clientes (regla de producto)');
+      // Helper directo con la postventa ON: el mismo conflicto, sin pasar por la puerta.
+      check(cuenta('conflicto helper vend1', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('vend1'), `array['${id('vend1')}']::uuid[]`, "'vendedor'", 'false', 'now()')} t where t.tarea_id = '${T.postventaConflicto}'`) === 0
+          && cuenta('conflicto helper gerencia', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('gerencia'), `'{}'::uuid[]`, "'gerencia'", 'false', 'now()')} t where t.tarea_id = '${T.postventaConflicto}'`) === 1,
+        'helper (postventa ON): el conflicto queda fuera para vend1 aunque sea el vendedor de la tarea; gerencia sí lo recibe');
+      ponerBanderas({ ficha_360_neutral: false, postventa_neutral: false });
+      const gOff = await positive('gerencia relee con la postventa apagada de nuevo', rpc('gerencia'));
+      if (gOff) check(!tareasCliente(gOff.data).includes(T.postventaVend1) && !tareasCliente(gOff.data).includes(T.postventaConflicto), 'postventa apagada de nuevo: las tareas de inversionista (conflicto incluido) vuelven a quedar fuera');
+      check(cuenta('conflicto helper OFF', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('gerencia'), `'{}'::uuid[]`, "'gerencia'", 'false', 'now()')} t where t.tarea_id in ('${T.postventaConflicto}', '${T.postventaVend1}')`) === 0,
+        'helper (postventa OFF): ni gerencia recibe tareas de inversionista');
+
+      // ── H. Helper directo (fuera de banda): instante exacto `<=`, recorte por la medianoche, regla de producto ─
+      const bucketEn = (instante) => textoFueraDeBanda(`bucket en ${instante}`,
+        `select t.bucket from ${helperSql(id('vend1'), `array['${id('vend1')}']::uuid[]`, "'vendedor'", 'false', `'${instante}'::timestamptz`)} t where t.tarea_id = '${T.vencida}'`);
+      check(bucketEn(iso(vencidaDias)) === 'tarea_vencida' && bucketEn(iso(new Date(vencidaDias.getTime() - 1000))) === 'tarea_hoy',
+        'helper: en el instante exacto de vence_en la tarea ya cuenta como vencida (<=); un segundo antes es de hoy');
+      check(cuenta('recorte por medianoche', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('vend1'), `array['${id('vend1')}']::uuid[]`, "'vendedor'", 'false', `'${iso(vencidaDias)}'::timestamptz`)} t where t.tarea_id in ('${T.hoy}', '${T.empateA}')`) === 0,
+        'helper: visto desde hace 3 días, ni la de hoy ni el empate de hace 2 días entran (recorte por la próxima medianoche de Lima)');
+      check(cuenta('lector global', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('directorio'), `'{}'::uuid[]`, 'null', 'true', 'now()')} t`) === 0
+          && cuenta('directorio con rol', `select coalesce(cardinality(array_agg(t.tarea_id)), 0) from ${helperSql(id('directorio'), `'{}'::uuid[]`, "'directorio'", 'true', 'now()')} t`) === 0,
+        'helper: lector global sin rol CRM y rol directorio → cero filas (regla de producto, no equivalencia con RLS)');
+
+      // ── I. Integridad en una transacción que SE DESHACE ENTERA: el CHECK tareas_un_solo_sujeto y la
+      //    cuerda de vence_en impiden sembrar la anomalía en caliente; solo dentro del ensayo se retiran.
+      const anomalia = randomUUID();
+      const infinita = randomUUID();
+      const juan = seed.leadByName.get(LEAD_BY_KEY.juan.name);
+      let salida = '';
+      try {
+        salida = psqlBancoSinSecretos(['-v', 'ON_ERROR_STOP=1', '-qAt'], { encoding: 'utf8', input: `
+begin;
+alter table crm.tareas drop constraint tareas_un_solo_sujeto;
+alter table crm.tareas drop constraint tareas_vence_en_cuerda;
+set local session_replication_role = replica;
+insert into crm.tareas (id, lead_id, perfil_id, vendedor_id, asignado_supervisor_id, tipo, titulo, vence_en, creado_por) values
+  ('${anomalia}', '${juan.id}', '${clientBank}', '${id('vend1')}', '${id('sup1')}', 'tarea', 'GATE V3 ANOMALIA DOS SUJETOS', now(), '${id('vend1')}'),
+  ('${infinita}', null, '${clientBank}', '${id('vend1')}', '${id('sup1')}', 'tarea', 'GATE V3 ANOMALIA INFINITA', 'infinity', '${id('vend1')}');
+set local session_replication_role = default;
+do $ensayo$
+declare v_code text; v_detail text; v_n integer;
+begin
+  begin
+    perform t.tarea_id from ${helperSql(id('vend1'), `array['${id('vend1')}']::uuid[]`, "'vendedor'", 'false', 'now()')} t;
+    raise exception 'SIN_ERROR';
+  exception when others then
+    get stacked diagnostics v_code = returned_sqlstate, v_detail = pg_exception_detail;
+    if v_code <> '22000' or position('${anomalia}' in v_detail) = 0 or position('${infinita}' in v_detail) = 0 then
+      raise exception 'V3_ANOMALIA_FALLO code=% detail=%', v_code, v_detail;
+    end if;
+  end;
+  select coalesce(cardinality(array_agg(t.tarea_id)), 0) into v_n
+    from ${helperSql(id('vend3'), `array['${id('vend3')}']::uuid[]`, "'vendedor'", 'false', 'now()')} t
+    where t.tarea_id in ('${anomalia}', '${infinita}');
+  if v_n <> 0 then raise exception 'V3_ANOMALIA_OTRO_ACTOR'; end if;
+end $ensayo$;
+select 'V3_ANOMALIA_OK';
+rollback;
+` }).trim();
+      } catch (error) {
+        salida = `FALLO: ${error?.stderr?.toString?.() || error?.message || String(error)}`;
+      }
+      check(salida.includes('V3_ANOMALIA_OK'),
+        'integridad: dos sujetos y vence_en infinito → 22000 con ambos ids en detail para vend1; vend3 (otro actor) no se ve afectado; todo se deshace',
+        salida.slice(0, 400));
+      check(cuenta('anomalías deshechas', `select coalesce(cardinality(array_agg(t.id)), 0) from crm.tareas t where t.id in ('${anomalia}', '${infinita}')`) === 0
+          && cuenta('checks vivos', `select coalesce(cardinality(array_agg(c.conname)), 0) from pg_constraint c where c.conrelid = 'crm.tareas'::regclass and c.conname in ('tareas_un_solo_sujeto', 'tareas_vence_en_cuerda')`) === 2,
+        'integridad: el ensayo no dejó rastro y los dos CHECK de crm.tareas siguen vivos');
+
+      // ── J. ACL y forma; trinquete propio (sellado exigible) ─────────────────────────────────────
+      check(cuenta('grants', `select coalesce(cardinality(array_agg(r.rol)), 0) from unnest(array['anon', 'authenticated', 'service_role']) r(rol)
+          where has_function_privilege(r.rol, '${HELPER}', 'EXECUTE') or has_function_privilege(r.rol, 'private.assert_cola_v3()', 'EXECUTE')
+             or has_function_privilege(r.rol, '${PUERTA}', 'EXECUTE') <> (r.rol = 'authenticated')`) === 0,
+        'ACL: el helper y el trinquete no tienen EXECUTE para la API; la puerta solo para authenticated');
+      check(cuenta('PUBLIC', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+          where p.oid in ('${HELPER}'::regprocedure, '${PUERTA}'::regprocedure, 'private.assert_cola_v3()'::regprocedure) and a.grantee = 0`) === 0,
+        'ACL: ninguna de las tres piezas conserva el EXECUTE de PUBLIC');
+      check(cuenta('forma', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+          where p.oid in ('${PUERTA}'::regprocedure, '${HELPER}'::regprocedure) and p.provolatile = 's'
+            and p.proconfig @> array['search_path=""'] and p.prosecdef = (p.oid = '${PUERTA}'::regprocedure)`) === 2,
+        'forma: puerta DEFINER y helper INVOKER, ambos STABLE y con search_path vacío');
+      check(cuenta('helper sin auth', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p where p.oid = '${HELPER}'::regprocedure and p.prosrc ~* '\\mauth\\s*\\.'`) === 0
+          && cuenta('puerta sin hechos crudos', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p where p.oid = '${PUERTA}'::regprocedure and regexp_replace(lower(p.prosrc), '--[^\\n]*', ' ', 'g') ~ '\\mcrm\\.\\s*(leads|tareas)\\M'`) === 0,
+        'cuerpos: el helper no interpreta auth. y la puerta no consulta crm.leads ni crm.tareas en crudo');
+      const veredicto = textoFueraDeBanda('trinquete v3', 'select private.assert_cola_v3()') ?? '';
+      check(veredicto.startsWith('OK'), `trinquete: private.assert_cola_v3() responde OK (${veredicto.slice(0, 80)}…)`);
+      if (veredicto.includes('SIN SELLAR')) {
+        const msg = 'huellas md5 de la v3 SIN SELLAR — sellar en private.assert_cola_v3 tras medir en el banco (el merge exige cero SIN_SELLAR)';
+        if (exige) fail(msg);
+        else console.log(`  · ${msg}`);
+      } else {
+        check(veredicto.includes('selladas'), 'trinquete: las huellas md5 de la puerta y el helper están selladas');
+      }
+    } else {
+      console.log('  · hecha, postventa/conflicto, instante exacto, integridad y ACL/forma de la cola v3: NOT RUN (sin CRM_BANCO_PSQL_URL)');
+    }
+  } finally {
+    // Retirada: las tareas de perfil se cancelan como el resto de transitorias (nunca DELETE por la API);
+    // en el banco, la postventa, la hecha y sus identidades se retiran fuera de banda (como las
+    // identidades de F2.b), y las banderas vuelven EXACTAMENTE a su estado previo.
+    await requireAdmin('cancelar las tareas de clientes del gate v3',
+      admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).in('id', Object.values(T)).eq('estado', 'pendiente').is('inversionista_id', null));
+    if (conBanco) {
+      try {
+        if (banderasPrevias) ponerBanderas(banderasPrevias);
+      } finally {
+        ejecutarFueraDeBanda('retirar postventa, hecha e identidades del gate v3', `
+          set local session_replication_role = replica;
+          delete from crm.tareas where id in (${lista([T.postventaVend1, T.postventaVend3, T.postventaConflicto, T.postventaPerfil, T.hecha])});
+          delete from crm.inversionistas where id in (${lista(Object.values(INV))});
+        `);
+      }
+    }
+  }
+}
+
 async function testGestionDiariaResultado(sessions, seed) {
   console.log('\n— Gestión Diaria: resultado tipificado de llamada (F2) —');
   const FN = 'registrar_llamada_v3';
@@ -14872,6 +15364,7 @@ async function main() {
       await testGestionDiariaCortes(sessions, verifiedSeed);
       await testGestionDiariaPendientes(sessions, verifiedSeed);
       await testGestionDiariaCitas(sessions, verifiedSeed);
+      await testColaAccionV3(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);

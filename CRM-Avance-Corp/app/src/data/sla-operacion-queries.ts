@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { crmQueryKeys } from './crm-queries'
-import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaSla, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
+import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaDia, listarColaSla, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
 import { CrmApiError } from './crm-api'
 import type { CursorSla, FiltrosSla } from '@/lib/sla-operacion'
 import { intervaloReconsultaSla } from './sla-operacion-reloj'
@@ -11,6 +11,9 @@ export const slaOperacionKeys = {
   raiz: () => [...crmQueryKeys.metricasAmbito(), 'sla-v2'] as const,
   estado: (actor: string | null, ids: string[]) => [...slaOperacionKeys.raiz(), actor, 'estado', ids] as const,
   cola: (actor: string | null, filtros: FiltrosSla, cursor: CursorSla | null, limite: number) => [...slaOperacionKeys.raiz(), actor, 'cola', filtros, cursor, limite] as const,
+  // Clave PROPIA de la cola del día v3: nunca comparte caché con la v2 (su
+  // forma es otra y un ítem v2 no tiene `clave` ni `sujeto`).
+  colaDia: (actor: string | null, filtros: FiltrosSla, cursor: CursorSla | null, limite: number) => [...slaOperacionKeys.raiz(), actor, 'cola-dia-v3', filtros, cursor, limite] as const,
   avisos: (actor: string | null) => [...slaOperacionKeys.raiz(), actor, 'avisos'] as const,
 }
 export function useResumenAvisosSla(habilitada: boolean) {
@@ -34,6 +37,15 @@ export function useColaSlaPagina(filtros: FiltrosSla, cursor: CursorSla | null, 
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.cola(yo?.id ?? null, filtros, cursor, limite),
     queryFn: ({ signal }) => listarColaSla(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
+    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
+  })
+}
+
+/** La cola del día v3 (leads + clientes). La comparten Gestión diaria del analista y el botón de «Hoy». */
+export function useColaDiaPagina(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, habilitada: boolean) {
+  const { yo } = useAuth()
+  return useQuery({ queryKey: slaOperacionKeys.colaDia(yo?.id ?? null, filtros, cursor, limite),
+    queryFn: ({ signal }) => listarColaDia(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
     refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
   })
 }
