@@ -127,7 +127,7 @@ test('corregir el correo permite continuar y un conflicto conocido conserva el f
   await expect(acceso.getByLabel('Correo de acceso Avance')).toHaveValue('corregido@example.invalid')
   await expect(page.getByRole('dialog', {name: 'Actualización pendiente'})).toHaveCount(0)
   await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
-  await expect(acceso.getByText('corregido@example.invalid', {exact: true})).toBeVisible()
+  await expect(acceso.getByRole('definition').filter({hasText: /^corregido@example\.invalid$/})).toBeVisible()
   await expect(acceso.getByRole('button', {name: 'Completar acceso Avance'})).toBeEnabled()
   await acceso.getByRole('button', {name: 'Completar acceso Avance'}).click()
   await expect(page.getByRole('dialog', {name: /Crear contrato de/})).toBeVisible()

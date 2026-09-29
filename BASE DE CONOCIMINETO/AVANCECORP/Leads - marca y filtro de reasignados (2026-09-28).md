@@ -23,9 +23,10 @@ y comprueba su historial bajo RLS para conservar la marca si se abre desde
 otra pantalla. En demo se aplica la misma regla al historial local.
 
 Estado: implementación local y ensayo SQL aislado; pendiente de publicación.
-Verificación del 29/09: `npm run check` en `app/` PASS (4.903 tests y build),
-`app/e2e/cartera-keyset.spec.ts` en Docker 5/5 PASS y suite E2E completa
-284 PASS / 26 omitidos. La migración actualizada
+Verificación del 29/09 sobre el vivo `ce9e688f28d4` más Reasignados:
+`npm run check` en `app/` PASS (317 archivos / 4.909 tests y build).
+La corrida previa sobre `fb79c46f` pasó `cartera-keyset.spec.ts` en Docker
+5/5 y la suite completa 284 PASS / 26 omitidos. La migración actualizada
 pasó preflight y postflight en `avc_leads_reasignados_test4`, banco Docker
 aislado copiado del esquema local anterior y con los datos de configuración
 necesarios. En ese mismo banco, el fixture SQL transaccional pasó: trigger real,
@@ -39,19 +40,42 @@ Miguel, pero su reproducción automática de migraciones terminó en
 `MIGRATIONS_FAILED` antes de alcanzar la firma de cartera requerida. Se
 eliminó inmediatamente para no acumular costo; no se aplicó SQL allí ni en
 producción. El fallo de replay es una limitación conocida del proyecto
-([[Diagnostico de Branching antes de F1 (2026-09-01)]]). Los preflights de seed
-y RLS no arrancaron sin `SUPABASE_URL`; siguen pendientes la matriz RLS y
-advisors en branch autorizada, y regenerar los tipos desde el esquema nuevo
-(el comando actual apunta al proyecto productivo, todavía sin la firma).
+([[Diagnostico de Branching antes de F1 (2026-09-01)]]). `seed:preflight` y
+`test:rls:preflight` PASS con la configuración real del Supabase local
+(`127.0.0.1:55321`), sin conexiones ni siembra: validan runtime, variables y
+matriz. Siguen pendientes la matriz RLS HTTP y advisors en branch autorizada. Se generaron los tipos de `public,crm` desde
+`avc_leads_reasignados_test4` con `supabase gen types typescript --db-url`
+(CLI 2.117.0): la firma completa de `cartera_filtrada_fn` coincide byte a byte
+con `database.types.ts`, incluido `p_reasignados?: boolean`. El script
+`npm run gen:types` apunta a producción, todavía sin la firma; no se ejecutó
+contra ella ni se incorporaron diferencias ajenas del banco local.
 
-El CRM vivo cambió durante la preparación: primero salió «Hoy» v3 y después
-el anexo de contrato (commit vivo `fb79c46f8848` al 29/09). El candidato de
-rescate parte de ese commit vivo y agrega solo Reasignados a lo ya publicado;
-el preflight de Hostinger pasó. La suite E2E completa de esa app terminó
-284 PASS / 26 omitidos en un contenedor propio. El SQL no está publicado:
-faltan el gate remoto de RLS/advisors y la autorización de la migración; el
-frontend tampoco está desplegado. La publicación usa `$release-crm` invocado
-por Miguel, y necesita el conector Hostinger disponible.
+El CRM vivo cambió durante la preparación: «Hoy» v3, anexo de contrato y
+«Seguimiento/Hoy del supervisor» con cola v3. La copia aislada de rescate
+`rescue/reasignados-ce9` parte del commit vivo
+`ce9e688f28d43502c6ee66eac49a6a867774d25d`
+(`build-20260929T164822097Z`) y agrega Reasignados sobre lo ya publicado.
+Conserva el anexo y la cola v3. En el E2E heredado `acceso-avance-ux.spec.ts`
+se corrigió un selector ambiguo: el correo se muestra tanto en el aviso como
+en el resumen; se verifica el valor del resumen mediante su rol `definition`.
+No cambia la aplicación de Acceso Avance. La suite E2E completa terminó
+285 PASS / 1 flaky / 26 omitidos (10,9 min): el selector heredado pasó al
+reintentar con la corrección; una repetición limpia del spec dio 3/3 PASS
+sin reintentos. Resultado final de los 286 casos ejecutables: PASS, con el
+incidente de la primera corrida conservado en el log. `npm run check:scripts` PASS en la
+copia anterior; su código, package.json y scripts son idénticos en esta base.
+
+El SQL y el frontend no están publicados: faltan el gate remoto de RLS/advisors
+y la aplicación autorizada de la migración antes del frontend. La conexión
+Hostinger incorporada en la sesión solo expone facturación, pero se verificó
+la vía local ya documentada en [[Deploy a Hostinger]]: el cliente
+`_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs` arranca el MCP oficial de hosting
+(contrato 2.x `search`/`execute`) y el token guardado permite consultar
+`crm.miavance.com`. No requiere otro token ni cambios de configuración.
+Se conserva el preflight obligatorio y la invocación humana de release.
+Lectura productiva del 29/09 al cierre: firma anterior, trigger, policy de
+INSERT, veto de UPDATE/DELETE y sello analítico siguen coincidiendo con el
+preflight; la firma de 12 argumentos aún no existe.
 Comprobación agregada de producción el 28/09: 4.817 eventos `reasignacion`
 de agosto y setiembre, todos con la clave `vendedor_anterior`; 152 tienen un
 analista previo. La regla produce 104 leads de la cartera operativa global
