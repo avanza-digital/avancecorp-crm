@@ -536,9 +536,14 @@ function fusionarLeadsConocidos(d: Datos, nuevos: readonly Lead[]): Datos {
   let cambio = false
   for (const n of nuevos) {
     const previo = porId.get(n.id)
-    if (previo === n) continue
-    if (previo && JSON.stringify(previo) === JSON.stringify(n)) continue
-    porId.set(n.id, n)
+    // Si falló solo la lectura opcional del historial, conservar un «sí»
+    // conocido de la RPC. Con titular actual, una trayectoria previa no se
+    // deshace; al aparcar, la lectura directa trae false de forma explícita.
+    const siguiente = previo?.reasignado === true && n.reasignado == null && n.vendedor_id != null
+      ? { ...n, reasignado: true } : n
+    if (previo === siguiente) continue
+    if (previo && JSON.stringify(previo) === JSON.stringify(siguiente)) continue
+    porId.set(n.id, siguiente)
     cambio = true
   }
   return cambio ? { ...d, leads: [...porId.values()] } : d
@@ -3322,16 +3327,23 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           : supervisorDestino
             ? `Bandeja de ${supervisorNuevo ?? 'supervisor'}`
             : 'Sin asignar'
+        const reasignado = vendedorDestino != null && (
+          actual.vendedor_id != null
+          || historialLocalDe(id).some((a) => a.tipo === 'reasignacion'
+            && typeof a.metadata?.vendedor_anterior === 'string')
+        )
         aplicar(
           id,
           {
             vendedor_id: vendedorDestino,
             vendedor_nombre: nuevo?.nombre_completo ?? null,
+            reasignado,
             // Al asignar analista sale de la bandeja; al parkear (null) un
             // supervisor lo retiene en la SUYA (gerencia parkea sin bandeja).
             asignado_supervisor_id: supervisorDestino,
           },
-          actividadAuto(id, 'reasignacion', `${tenenciaAnterior} → ${tenenciaNueva}`),
+          { ...actividadAuto(id, 'reasignacion', `${tenenciaAnterior} → ${tenenciaNueva}`),
+            metadata: { vendedor_anterior: actual.vendedor_id, vendedor_nuevo: vendedorDestino } },
         )
         // La actividad real la emite el trigger trg_leads_reasignacion.
         persistir(

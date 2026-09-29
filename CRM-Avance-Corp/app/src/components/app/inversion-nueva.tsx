@@ -44,6 +44,9 @@ export interface OrigenClienteExistente {busquedaId: string}
 const MOTIVO_VENTA_MINIMO = 10
 type AltaPortal = NonNullable<DatosInversion['alta_portal']>
 const mensajeRecuperacion = 'La solicitud sigue guardada en esta sesión. Consulta su estado antes de volver a enviarla.'
+const mensajeAccesoNoRegistrado = 'La solicitud aún no está registrada. Revisa los datos de acceso y vuelve a continuar.'
+const esPreparacionAcceso = (i: IntentoInversion) => i.datos.empresa === 'avance'
+  && Boolean(i.datos.alta_portal) && !i.datos.contrato?.capital && !i.correccion
 
 export function InversionNueva({actor, persona, operacion, origenLead, origenClienteExistente, onCerrar, onRevocado, onConfirmada}: {
   actor: string; persona: string; operacion?: OperacionInversion | undefined
@@ -67,6 +70,8 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   const [ocupado, setOcupado] = useState(false)
   const [recuperando, setRecuperando] = useState(guardado.intento !== null || Boolean(origenLead?.solicitudId))
   const [editar, setEditar] = useState(false)
+  const [editarPreparacion, setEditarPreparacion] = useState(false)
+  const [conflictoPreparacion, setConflictoPreparacion] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [confirmacion, setConfirmacion] = useState<ConfirmacionInversion | null>(null)
@@ -109,6 +114,8 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   const fichaQ = origenClienteExistente ? ventaCruzadaQ : origenLead ? conversionQ : carteraQ
   const revocada = fichaQ.error instanceof CrmApiError && ['42501','PT409'].includes(fichaQ.error.code)
   const ficha = fichaQ.isFetchedAfterMount && !revocada ? fichaQ.data : null
+  const solicitudLeadId = conversionQ.data?.solicitud_id ?? origenLead?.solicitudId
+  const otraSolicitudLead = solicitudLeadId && solicitudLeadId !== intento?.clave ? solicitudLeadId : null
   const verificacionPendiente = fichaQ.isError && Boolean(ficha)
   const guardar = (i: IntentoInversion) => {guardarIntentoInversion(i); setIntento(i)}
   const notificar = (r: ConfirmacionInversion) => {
@@ -128,14 +135,17 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   }, [bienvenidaId])
   const recibir = (s: SolicitudInversion) => {
     if (cerro.current) return
+    setEditarPreparacion(false)
+    setConflictoPreparacion(false)
     setSolicitud(s)
     if (s.estado === 'confirmada' && s.resultado) {setConfirmacion(s.resultado); notificar(s.resultado)}
   }
-  const recibirRecuperacion = (s: SolicitudInversion) => {
+  const recibirRecuperacion = (s: SolicitudInversion, conocido?: IntentoInversion | null) => {
     if (!solicitudCorresponde(s, persona, origenIntento) || !s.datos) {
       throw new Error('La solicitud no corresponde a este origen. Vuelve a abrir la ficha.')
     }
-    if (!intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id))
+    if (conocido?.clave === s.solicitud_id) guardar({...conocido, datos: s.datos})
+    else if (conocido === null || !intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id))
     setGuardado(previo => ({...previo, error: null}))
     setError(null)
     setEmpresa(s.datos.empresa)
@@ -157,6 +167,9 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       }).catch(e => {
         if (abort.signal.aborted) return
         if (e instanceof CrmApiError && e.code === '42501') callbacks.current.onRevocado()
+        else if (e instanceof CrmApiError && e.code === 'P0002' && intento && esPreparacionAcceso(intento) && !otraSolicitudLead) {
+          setEditarPreparacion(true); setError(null)
+        }
         else setError(mensajeDeError(e, mensajeRecuperacion))
       }).finally(() => {if (!abort.signal.aborted) setRecuperando(false)})
     return () => {cerro.current = true; abort.abort(); descargaPdf.current?.abort()}
@@ -181,12 +194,36 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   async function preparar(datos: DatosInversion, claveSolicitud: string = crypto.randomUUID()) {
     const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined,
       origenClienteExistente ? {busqueda_id: origenClienteExistente.busquedaId, motivo: motivoVenta.trim()} : undefined)
+    await enviarPreparacion(i)
+  }
+  async function recuperarPreparacion(i: IntentoInversion, permitirEditar = !conflictoPreparacion) {
+    try {recibirRecuperacion(await consultarSolicitudInversion(i.clave), i); return true}
+    catch (e) {
+      if (e instanceof CrmApiError && e.code === 'P0002' && esPreparacionAcceso(i)) {
+        if (!cerro.current && permitirEditar && !otraSolicitudLead) setEditarPreparacion(true)
+        return false
+      }
+      throw e
+    }
+  }
+  async function enviarPreparacion(i: IntentoInversion) {
     // Si el navegador no permite guardar la recuperación, no enviamos el alta.
     guardar(i)
+    setEditarPreparacion(false)
     limpiarBorradorAcceso(actor, persona, origenIntento)
     setBorradorSinGuardar(false)
-    recibir(await prepararSolicitudInversion(i))
-    if (origenLead && datos.alta_portal) await fichaQ.refetch()
+    try {recibir(await prepararSolicitudInversion(i))}
+    catch (e) {
+      // Preparar también lee después de escribir. Consultamos la misma clave
+      // antes de permitir editar: un error de lectura no prueba un rollback.
+      if (!(e instanceof CrmApiError && ['22023', 'P0409'].includes(e.code ?? '') && esPreparacionAcceso(i))) throw e
+      if (e.code === 'P0409') setConflictoPreparacion(true)
+      if (!await recuperarPreparacion(i, e.code === '22023')) {
+        if (e.code === 'P0409' && origenLead) await fichaQ.refetch()
+        throw e
+      }
+    }
+    if (origenLead && i.datos.alta_portal) await fichaQ.refetch()
   }
   async function revisarDatos(datos: DatosInversion) {
     if (!intento) {await preparar(datos); return}
@@ -227,7 +264,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
   const perfil = operacion?.fuente.perfil_id ?? ficha?.persona.perfil_id ?? perfilCreado
   const correoFicha = ficha?.persona.correo?.trim().toLowerCase() ?? ''
   const accesoCreado = solicitud?.acceso_creado === true
-  const correoFichaDistinto = Boolean(origenLead && !perfil && !accesoCreado && datos?.alta_portal
+  const correoFichaDistinto = Boolean(solicitud && origenLead && !perfil && !accesoCreado && datos?.alta_portal
     && correoFicha !== datos.alta_portal.correo.trim().toLowerCase())
   const base: DatosInversion = datos ?? {inversionista_id: ficha?.persona.inversionista_id ?? persona,
     ...(origenLead ? {lead_id: origenLead.id} : {}), empresa: empresa ?? 'avance',
@@ -325,10 +362,16 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       <Button type="submit" variant="outline" disabled={ocupado || !referencia}>Consultar solicitud</Button>
     </form>{alerta}
   </DialogBody></>
-  else if (intento && !solicitud) cuerpo = <>{cabecera('Recuperar solicitud')}<DialogBody className="space-y-4">
+  else if (intento && !solicitud && (!editarPreparacion || otraSolicitudLead)) cuerpo = <>{cabecera('Recuperar solicitud')}<DialogBody className="space-y-4">
     <p className="text-sm">{mensajeRecuperacion}</p>{alerta}
+    {otraSolicitudLead && <div className="space-y-2">
+      <p className="text-sm">Este lead ya tiene una solicitud registrada. Retómala para continuar.</p>
+      <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
+        recibirRecuperacion(await consultarSolicitudInversion(otraSolicitudLead), null)
+      })}>Retomar solicitud registrada</Button>
+    </div>}
     <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
-      try {recibirRecuperacion(await consultarSolicitudInversion(intento.clave))}
+      try {await recuperarPreparacion(intento)}
       catch (e) {
         if (e instanceof CrmApiError && e.code === 'P0002') recibir(await prepararSolicitudInversion(intento))
         else throw e
@@ -358,8 +401,9 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       limpiarBorradorCondiciones(actor, persona, origenIntento); setEditar(false)
     })}>Descartar esta corrección y revisar la versión del servidor</Button>{alerta}
   </DialogBody></>
-  else if (empresa === 'avance' && !perfil) cuerpo = <>{cabecera('Acceso Avance')}<PasosAcceso actual={1} /><DialogBody className="space-y-4">
+  else if (empresa === 'avance' && (!perfil || editarPreparacion)) cuerpo = <>{cabecera('Acceso Avance')}<PasosAcceso actual={1} /><DialogBody className="space-y-4">
     <p className="text-sm">Completa los datos de acceso para su primera inversión Avance. Después elegirás las condiciones y revisarás el contrato.</p>
+    {editarPreparacion && <p role="status" className="text-sm">{mensajeAccesoNoRegistrado}</p>}
     {correoFichaDistinto && <div role="status" className="space-y-2 rounded-xl border border-border bg-muted/20 p-3 text-sm [overflow-wrap:anywhere]">
       <p>El correo de la ficha y el de esta solicitud son distintos. Confirma cuál usará el cliente antes de crear su acceso.</p>
       <p>Ficha: <strong>{correoFicha || 'Sin correo'}</strong></p>
@@ -370,11 +414,14 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
         <Button variant="outline" disabled={ocupado} onClick={() => void ejecutar(() => revisarDatos(base))}>Conservar correo de la solicitud</Button>
       </div>}
     </div>}
-    {!intento || (editar && !accesoCreado) ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} origen={origenIntento}
+    {!intento || editarPreparacion || (editar && !accesoCreado) ? <AltaAvance key={intento?.clave ?? 'nuevo'} actor={actor} persona={persona} origen={origenIntento}
       solicitud={intento?.clave ?? null} inicial={datos?.alta_portal} correo={ficha.persona.correo ?? ''} sincronizaFicha={Boolean(origenLead)}
       telefono={ficha.persona.telefono ?? ''} ocupado={ocupado} onEstadoBorrador={estadoBorrador}
       onContinuar={alta => ejecutar(async () => {
-        if (intento) await revisarDatos({...base, alta_portal: alta})
+        // Una corrección del primer envío conserva la clave y el token. Si
+        // otro envío se confirmó entretanto, el servidor recuperará esa clave.
+        if (intento && editarPreparacion) await enviarPreparacion({...intento, datos: {...intento.datos, alta_portal: alta}})
+        else if (intento) await revisarDatos({...base, alta_portal: alta})
         else await preparar({...base, alta_portal: alta, contrato: {moneda: 'PEN'}, cronograma: [], cuenta: {}})
       })} />
       : <div className="space-y-3">
@@ -568,21 +615,27 @@ function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefon
   }
   return <form className="space-y-5" noValidate onSubmit={e => {
     e.preventDefault()
-    const nombres = datos.nombres.trim(), apellidos = datos.apellidos.trim()
-    const correoValidado = datos.correo.trim(), telefonoValidado = datos.telefono.trim()
+    const normalizarEspacios = (valor: string) => valor.replace(/\s+/g, ' ').trim()
+    const nombres = normalizarEspacios(datos.nombres), apellidos = normalizarEspacios(datos.apellidos)
+    const nombreCompleto = `${nombres} ${apellidos}`
+    const correoValidado = datos.correo.trim(), telefonoValidado = normalizarEspacios(datos.telefono)
     const domicilio = validarDomicilioLegal(datos.domicilio)
     const nuevosErrores: typeof errores = {}
-    if (!apellidos) nuevosErrores.apellidos = 'Completa los apellidos del cliente.'
-    if (!nombres) nuevosErrores.nombres = 'Completa los nombres del cliente.'
-    if (!CORREO_RE.test(correoValidado)) nuevosErrores.correo = 'Escribe un correo de acceso válido.'
+    for (const [campo, valor] of [['apellidos', apellidos], ['nombres', nombres]] as const) {
+      if (!valor) nuevosErrores[campo] = `Completa los ${campo} del cliente.`
+      else if (/\p{Cc}/u.test(valor)) nuevosErrores[campo] = `Los ${campo} contienen caracteres no válidos. Vuelve a escribirlos.`
+    }
+    if ([...nombreCompleto.toUpperCase()].length > 240) nuevosErrores.nombres = 'Los nombres y apellidos juntos no deben superar 240 caracteres.'
+    if (!CORREO_RE.test(correoValidado) || correoValidado.length > 254 || /\p{Cc}/u.test(correoValidado)) nuevosErrores.correo = 'Escribe un correo de acceso válido.'
     if (!telefonoValidado) nuevosErrores.telefono = 'Completa el teléfono del cliente.'
+    else if (/\p{Cc}/u.test(telefonoValidado) || telefonoValidado.length > 240) nuevosErrores.telefono = 'Revisa el teléfono: contiene caracteres no válidos o es demasiado largo.'
     if (!domicilio.ok) nuevosErrores.domicilio = domicilio.error
     setErrores(nuevosErrores)
     const primero = Object.keys(nuevosErrores)[0]
     if (primero) {document.getElementById(`f5-alta-${primero}`)?.focus(); return}
     if (!domicilio.ok) return
     void onContinuar({...datos, nombres, apellidos, correo: correoValidado, telefono: telefonoValidado,
-      domicilio: domicilio.valor, nombre_completo: `${nombres} ${apellidos}`})
+      domicilio: domicilio.valor, nombre_completo: nombreCompleto})
   }}>
     <fieldset className="space-y-2"><legend className="text-sm font-semibold">Identidad</legend>
       <div className="grid gap-3 sm:grid-cols-2">{campo('apellidos', 'Apellidos')}{campo('nombres', 'Nombres')}</div>

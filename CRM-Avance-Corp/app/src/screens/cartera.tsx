@@ -16,6 +16,7 @@ import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
+import { ChipReasignado } from '@/components/app/reasignado-chip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
@@ -41,10 +42,11 @@ type FiltroOrigen = 'todos' | Origen
 type FiltroProcedencia = 'todas' | Procedencia
 
 /** Texto de la procedencia para el lector de pantalla; undefined si no viaja. */
-function descripcionProcedencia(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null }): string | undefined {
-  if (l.procedencia === 'manual') return `Registro manual${l.cargado_por_nombre ? `, por ${l.cargado_por_nombre}` : ''}`
-  if (l.procedencia === 'sistema') return 'Del sistema'
-  return undefined
+function descripcionProcedencia(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null; reasignado?: boolean | null }): string | undefined {
+  const alta = l.procedencia === 'manual'
+    ? `Registro manual${l.cargado_por_nombre ? `, por ${l.cargado_por_nombre}` : ''}`
+    : l.procedencia === 'sistema' ? 'Del sistema' : null
+  return [alta, l.reasignado === true ? 'Reasignado' : null].filter(Boolean).join('; ') || undefined
 }
 /** 'todos' | 'sin_asignar' | perfil_id de un analista del ámbito. */
 type FiltroVendedor = string
@@ -161,6 +163,7 @@ export function Cartera() {
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
   const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
+  const [fReasignados, setFReasignados] = useState(false)
   const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
@@ -182,9 +185,9 @@ export function Cartera() {
   const cartera = useCarteraPaginada(
     leadsDeConsulta,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc,
+      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
         recepcion: periodo }),
-      [fEtapa, fVend, qDiferido, fOrigen, fProc, periodo],
+      [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, periodo],
     ),
   )
   // Fase 4e: el store conoce lo que la tabla muestra (verbos de escritura por id).
@@ -289,7 +292,7 @@ export function Cartera() {
   // cero, para poder soltarla con otro clic.
   const pildorasEtapa = (sinResumen ? previas.etapas : etapas).filter((e) => e.n > 0 || e.k === fEtapa)
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fVend !== 'todos' || modoFecha !== 'todas'
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fReasignados || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -440,6 +443,15 @@ export function Cartera() {
             <option value="manual">Solo registro manual</option>
           </Select>
         </div>
+        <Button type="button" variant="outline" size="sm"
+          aria-label={`Filtrar reasignados: ${resumen?.totales.reasignados ?? 'sin dato'}`}
+          aria-pressed={fReasignados}
+          aria-disabled={!fReasignados && (resumen?.totales.reasignados ?? 0) <= 0 ? true : undefined}
+          onClick={(resumen?.totales.reasignados ?? 0) > 0 || fReasignados
+            ? () => setFReasignados((actual) => !actual) : undefined}
+          className={cn('gap-1.5 tabular-nums', fReasignados && 'border-accent bg-accent/[0.08] text-accent')}>
+          Reasignados <span aria-hidden="true">{resumen?.totales.reasignados ?? '—'}</span>
+        </Button>
         <FiltroFechaCartera modo={modoFecha} rango={rangoFecha} hoy={hoy}
           invalido={!rangoValido} onModo={(modo) => {
             setModoFecha(modo)
@@ -462,7 +474,7 @@ export function Cartera() {
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
-          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFVend('todos'); setModoFecha('todas')
+          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFReasignados(false); setFVend('todos'); setModoFecha('todas')
         }}>Limpiar filtros</Button>}
         {/* La región viva queda SIEMPRE montada y solo cambia su texto: una
             región que aparece ya escrita no se anuncia de forma fiable, y es el
@@ -573,6 +585,7 @@ export function Cartera() {
                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
                                     en azul, lo del sistema en gris silencioso. */}
                                 <ChipProcedencia lead={l} />
+                                <ChipReasignado lead={l} />
                                 {descripcionProcedencia(l) && (
                                   <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
                                 )}

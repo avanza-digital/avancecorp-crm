@@ -50,6 +50,40 @@ Reversa: `drop index if exists crm.inversionistas_perfil_idx;`. Deja la fila de 
 No ejecutado: `test-rls.mjs` y `test:rls:preflight` (el preflight exige las variables del banco y el hook
 bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la matriz) y banco Docker (el
 ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
+## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test4` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
+UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
+verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
+permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
+`authenticated` y `anon`.
+
+Banco remoto `goqrvtqfovrvxhlzlhzx`: aplicación nativa `20260929195918`,
+oráculo SQL PASS, RLS HTTP focal 272/272 antes y después, filtro HTTP 41/41,
+advisors sin avisos nuevos. Historial base 389/389 exacto y 22 Edge iguales
+al padre. La suite global original falló por el fixture de canal antiguo;
+se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
+acreditar la suite global completa. SQL SHA-256:
+`67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+Producción verificada: 390 migraciones; función `7169d94239dcb191bafa3faed46f916f`, INVOKER, ACL exacta y sello vigente. Frontend `build-20260929T200401559Z`; 93 archivos HTTP con hash exacto. No hay cambios de RLS ni de tablas. Banco temporal eliminado.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
@@ -96,38 +130,6 @@ TODO integrador: `db query --linked --file` de la migración → registrador
 **Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
 4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
 expone «anexo», revertir primero front y Edge.
-
-## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
-
-**PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
-analista actual y una asignación anterior a un analista, según el evento
-`crm.actividades.tipo='reasignacion'` y `metadata.vendedor_anterior` no nulo.
-La primera entrega desde la bandeja no cuenta; A → bandeja → A sí cuenta.
-Sistema/Manual conserva la procedencia del alta y se muestra en paralelo.
-La RPC INVOKER pasa de 11 a 12 argumentos (`p_reasignados` al final) y retira
-la firma anterior; devuelve `reasignado` por fila, `resumen.totales.reasignados`
-y eco del filtro. Filas, cifra, capital y embudo usan la misma base antes de
-paginar. La consulta del historial hereda la RLS de actividades, coextensiva
-con leads. La exención analítica se mueve a la nueva firma y se resella.
-
-Ensayo: migración aplicada y fixture transaccional
-`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
-`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
-incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
-la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
-analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
-y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
-y la policy de INSERT que impide fabricar la marca. La branch temporal de
-Supabase falló antes de esta migración durante el replay histórico y fue
-eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
-agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
-y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
-anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
-comprobación de datos, no una publicación de la migración. No se aplicó en
-producción.
-Reversa coordinada: restaurar la función de 11 argumentos de
-`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
-analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
