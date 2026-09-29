@@ -1,0 +1,24 @@
+{
+  "actualizado": "2026-09-29T22:45:39Z",
+  "meta": {
+    "novedad": "F0 arrancó el 29/09 con lo que no necesita celulares: guía MacroDroid, plantillas del piloto (REGISTRO, compatibilidad) y ejemplos sintéticos (F0.4.2 hecha) en docs/gestion-diaria/piloto-telefonia/. Falta lo humano: elegir 2–3 celulares, asignar analistas y soporte, firmar el consentimiento y medir cinco días.",
+    "actualizado": "2026-09-29T22:45:39Z"
+  },
+  "fases": {
+    "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" }
+  },
+  "subfases": {
+    "F0.1": { "estado": "curso", "nota": "Plantillas y texto de aviso listos; faltan celulares, analistas, soporte y firma (personas).", "actualizado": "2026-09-29T22:42:31Z" },
+    "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" }
+  },
+  "tareas": {
+    "F0.1.3": { "done": false, "estado": "curso", "nota": "Texto de finalidad y tratamiento en REGISTRO.md §3; falta comunicarlo, firmarlo e instalar la PWA." },
+    "F0.4.1": { "done": false, "estado": "curso", "nota": "REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo." },
+    "F0.4.2": { "done": true, "at": "2026-09-29T22:45:39Z", "nota": "docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000." }
+  },
+  "cambios": [
+    { "at": "2026-09-29T22:20:53Z", "texto": "Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente." },
+    { "at": "2026-09-29T22:42:31Z", "texto": "F0 en curso: carpeta versionada docs/plans/llamadas-celular/ (PLAN.md aprobado, AVANCE.md, estado.json) y materiales del piloto en docs/gestion-diaria/piloto-telefonia/ (guía MacroDroid, REGISTRO, compatibilidad, ejemplos sintéticos)." },
+    { "at": "2026-09-29T22:45:39Z", "texto": "F0.4.2 hecha: ejemplos sintéticos de teléfonos (23 casos) verificados contra las reglas de canonización de la base. F0.1.3 y F0.4.1 en curso; el resto de F0 espera celulares y personas." }
+  ]
+}
