@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: plan v2 (corregido con la refutación de Codex), pendiente del OK de Miguel
+estado: F1 EN PROD 28/09 (migración 20260929004455); F2 (front del analista) pendiente
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -96,7 +96,20 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
    (`cola-dia-v3`), nunca compartida con la v2.
 
 ## Fases
-- **F0 — Plan v2** (esta nota) → **OK de Miguel**. Sin SQL hasta entonces.
+- **F0 — Plan v2** (esta nota) → OK de Miguel («sii», 28/09 ~19:15).
+- **F1 — HECHA y EN PROD (28/09 ~20:55)**: migración `20260929004455_crm_cola_accion_v3_clientes.sql` (commit
+  `9dc57651`): `private.tareas_clientes_autorizadas(p_uid, p_visibles, p_rol, p_global, p_ahora, p_fin_dia)` (INVOKER,
+  sin grants; RLS completa reproducida; regla de producto lector global/Directorio), `crm.cola_accion_v3_fn` (misma
+  firma que la v2, DEFINER solo `authenticated`, unión antes de paginar, clave tipada, cursor v2, contexto con clientes,
+  `totales.clientes`, `proximo_cambio_en` con clientes y medianoche, `version: 3`), `private.assert_cola_v3()` con
+  huellas selladas (puerta `1ec76074…`, helper `234ee27f…`; el postflight y el gate rechazan «SIN SELLAR»). Gate
+  `test-rls.mjs` bloque `testColaAccionV3` (140 aserciones). Banco Docker propio a paridad (804 funciones, md5 idéntico;
+  hubo que añadir el storage/auth de prod como superusuario local para que la suite llegue al final; la suite del repo
+  está desfasada con la regla «canal concreto» de hoy: 27 `origen:'otro'` → parche solo en la copia del banco):
+  ANTES 2280 ✓/37 ✗ → DESPUÉS 2383 ✓/37 ✗ (mismos 37, ajenos: PostgREST local devuelve 500 en códigos P0xxx).
+  Índices: `tareas_cola_idx` y `tareas_bandeja_idx` ya cubren al helper. Registrador fail-closed
+  `scripts/registrar-20260929004455.sql` (probado en banco, aplicado en prod: cuerpo exacto md5 `6fbbb05e…`).
+  Advisors NOT RUN al cierre (MCP desconectado): revisar en el panel. auditor-rls y Codex aplicados.
 - **F1 — Servidor** (`/nueva-migracion` → `AAAAMMDDHHMMSS_crm_cola_accion_v3_clientes.sql`): helper + puerta +
   `assert_cola_v3` + `COMMENT ON` + grants + ledger. Índice parcial candidato
   `(vendedor_id, vence_en, id) where activo and estado='pendiente' and lead_id is null` solo si `EXPLAIN` en el banco

@@ -1,6 +1,24 @@
+## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
+analista actual y una asignación anterior a un analista, según el evento
+`crm.actividades.tipo='reasignacion'` y `metadata.vendedor_anterior` no nulo.
+La primera entrega desde la bandeja no cuenta; A → bandeja → A sí cuenta.
+Sistema/Manual conserva la procedencia del alta y se muestra en paralelo.
+La RPC INVOKER pasa de 11 a 12 argumentos (`p_reasignados` al final) y retira
+la firma anterior; devuelve `reasignado` por fila, `resumen.totales.reasignados`
+y eco del filtro. Filas, cifra, capital y embudo usan la misma base antes de
+paginar. La consulta del historial hereda la RLS de actividades, coextensiva
+con leads. La exención analítica se mueve a la nueva firma y se resella.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado;
+incluye primera entrega, A → B, A → bandeja → B/A, roles de Gerencia,
+analistas, supervisor y denegación a anon. No se aplicó en producción.
+
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
-**BANCO PASS 28/09 (Docker propio a paridad 804 funciones md5 idéntico: gate ANTES 2280 ✓/37 ✗ → DESPUÉS 2383 ✓/37 ✗, los mismos 37 ajenos; bloque v3 140 ✓/0 ✗ con CRM_RLS_EXIGE_COLA_V3=1; huellas selladas puerta 1ec76074… helper 234ee27f…; registrador probado) · PENDIENTE DE PROD.** F1 (servidor) del plan v2 aprobado por Miguel el 28/09/2026 y refutado por
+**BANCO PASS 28/09 (Docker propio a paridad 804 funciones md5 idéntico: gate ANTES 2280 ✓/37 ✗ → DESPUÉS 2383 ✓/37 ✗, los mismos 37 ajenos; bloque v3 140 ✓/0 ✗ con CRM_RLS_EXIGE_COLA_V3=1; huellas selladas puerta 1ec76074… helper 234ee27f…; registrador probado) · ✅ **EN PROD 28/09 ~20:55 Lima** por `!` de Miguel: `db query --linked --file` + registrador; en vivo puerta `1ec76074…`, helper `234ee27f…`, `assert_cola_v3()` = OK selladas, v2 intacta `ef9b56ed…`, versión registrada con el cuerpo exacto (md5 `6fbbb05e…`). Advisors: NOT RUN (MCP de Supabase desconectado al cierre; revisar en el panel).** F1 (servidor) del plan v2 aprobado por Miguel el 28/09/2026 y refutado por
 Codex (`BASE DE CONOCIMINETO/AVANCECORP/Cola del dia con clientes - plan (2026-09-28).md`). Instala la
 v3 SIN consumidores; el front cambia en F2 con clave de caché propia. Qué hace:
 - `private.tareas_clientes_autorizadas(p_uid, p_visibles, p_rol, p_global, p_ahora, p_fin_dia)`: STABLE, INVOKER,
