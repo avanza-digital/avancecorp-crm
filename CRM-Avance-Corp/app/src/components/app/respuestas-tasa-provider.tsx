@@ -8,8 +8,8 @@ import { AUTH_CLEARED_EVENT } from '@/lib/seguridad'
 import { escribirHash, leerHash } from '@/lib/router'
 import {
   claveRegistroRespuestas, claveRespuestaTasa, conBloqueoRespuestas, crearSonidoRespuesta,
-  esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas, leerRegistroRespuestas,
-  recibeRespuestasTasa, tituloRespuestaTasa, type RegistroRespuestasTasa,
+  esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas, intervaloConsultaRespuestas,
+  leerRegistroRespuestas, recibeRespuestasTasa, tituloRespuestaTasa, type RegistroRespuestasTasa,
 } from '@/lib/respuestas-tasa'
 import { RespuestasTasaContext } from '@/lib/respuestas-tasa-context'
 import { DialogoRespuestasTasa } from './respuestas-tasa'
@@ -38,7 +38,10 @@ function RespuestasDeCuenta({ cuentaId, children }: { cuentaId: string; children
     queryFn: ({ signal }) => listarSolicitudesTasa(null, signal, { soloMias: true, limite: 500 }),
     enabled: !apagado,
     staleTime: 0,
-    refetchInterval: 15_000,
+    // Ritmo adaptativo: 15 s solo mientras hay una solicitud propia pendiente; 2 min en reposo.
+    // Sigue en segundo plano porque el aviso de escritorio y el sonido se entregan con la
+    // pestaña oculta; al volver a la pestaña se consulta al instante (staleTime 0).
+    refetchInterval: (query) => intervaloConsultaRespuestas(query.state.data, cuentaId),
     refetchIntervalInBackground: true,
   })
   const solicitudes = useMemo(() => (consulta.data ?? [])
