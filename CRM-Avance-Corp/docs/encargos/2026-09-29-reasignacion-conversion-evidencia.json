@@ -385,5 +385,22 @@
         "retirados": 0
       }
     }
+  },
+  "limpieza": {
+    "fecha_utc": "2026-09-29T23:03:21Z",
+    "bases_locales_eliminadas": [
+      "reasignacion_conversion_20260929",
+      "reasignacion_conversion_v2_20260929",
+      "reasignacion_conversion_v3_20260929"
+    ],
+    "sesiones_previas_en_bases": 0,
+    "entradas_temporales_eliminadas": 71,
+    "credenciales_temporales_eliminadas": true,
+    "rama_fix_eliminada": "fix/reasignacion-conversion-20260929",
+    "rama_evidencia_conservada": "docs/reasignacion-evidencias-20260929",
+    "rama_supabase_ausente_confirmada": true,
+    "procesos_de_tarea_pendientes": 0,
+    "copia_publicacion": "Se retira tras respaldar este registro en GitHub.",
+    "recursos_compartidos": "Contenedores y bases originales conservados; no pertenecen exclusivamente a esta tarea."
   }
 }

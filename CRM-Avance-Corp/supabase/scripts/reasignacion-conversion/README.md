@@ -40,11 +40,15 @@ al lead. Bandeja conserva el último responsable hasta la siguiente entrega.
 ## Verificación local
 
 Banco: base `reasignacion_conversion_v3_20260929` dentro de
-`supabase_db_avancecorp-venta-cruzada`. Es una copia aislada del esquema y los
+`supabase_db_avancecorp-venta-cruzada`. Fue una copia aislada del esquema y los
 fixtures sintéticos del banco de venta cruzada, sin datos de producción.
 No se instaló la candidata en la base original del contenedor.
 La restauración necesitó dos autores históricos inactivos sintéticos para las
 FK de configuración: no se desactivaron RLS/triggers ni se otorgaron permisos.
+
+**Banco local retirado tras el cierre.** Para repetir las pruebas, reconstruir
+primero la base aislada y sus fixtures; los comandos siguientes documentan el
+ensayo realizado. No apuntarlos a producción ni a la base original compartida.
 
 Ejecutar desde la raíz CRM, con Docker encendido y la candidata instalada:
 
@@ -155,3 +159,12 @@ Rama temporal eliminada y ausencia confirmada a las 22:55:11 UTC, tras unos
 69 minutos (aproximadamente US$0,0155 a la tarifa indicada, no factura).
 Evidencia estructurada: `docs/encargos/2026-09-29-reasignacion-conversion-evidencia.json`.
 La reversa sigue disponible y conserva los datos e historiales generados.
+
+## Limpieza solicitada
+
+El 29/09 a las 23:03 UTC se retiraron las tres bases locales creadas para esta
+tarea, 71 entradas temporales (incluidas credenciales, dumps, logs y consultas
+de diagnóstico) y la rama Git del PR ya integrado. No quedaban procesos de la
+tarea. La rama Supabase sigue ausente. Se conservan las fuentes, pruebas,
+resultados, hashes y el acta en `docs/reasignacion-evidencias-20260929`; los
+contenedores y bases originales se comparten con otros trabajos y se conservan.

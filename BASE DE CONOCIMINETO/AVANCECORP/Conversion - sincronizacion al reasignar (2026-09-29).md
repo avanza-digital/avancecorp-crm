@@ -56,3 +56,12 @@ Rama temporal eliminada 22:55:11 UTC; aproximadamente US$0,0155 (no factura).
 Relacionado: [[Conversion - conciliacion de responsable tras reasignar (2026-09-29)]],
 [[Conversion de lead con Nueva inversion - preparado 2026-09-19]],
 [[Offboarding seguro del CRM (P04)]] y [[Inicio]].
+
+## Limpieza
+
+Miguel pidió retirar lo que ya no hacía falta. El 29/09 a las 23:03 UTC se
+eliminaron las tres bases locales aisladas, 71 entradas temporales incluidas
+credenciales y dumps, y la rama Git de la corrección ya integrada. Sin procesos
+pendientes ni rama Supabase. Se conservan código, pruebas y evidencias; la rama
+`docs/reasignacion-evidencias-20260929` conserva el acta final. Los contenedores
+y bases originales compartidos no forman parte de esta limpieza.
