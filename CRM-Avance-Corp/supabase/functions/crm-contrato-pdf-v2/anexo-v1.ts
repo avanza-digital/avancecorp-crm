@@ -30,6 +30,18 @@ import {
 
 export const ANEXO_TEMPLATE_VERSION = "anexo-cronograma-v1";
 
+/**
+ * El cronograma sellado no tiene la forma que el anexo sabe imprimir. Es un
+ * error de NEGOCIO (409 en la Edge), distinto de un snapshot inválido (502) o
+ * de un fallo del renderizador (503).
+ */
+export class CronogramaIncoherenteError extends Error {
+  constructor(detalle: string) {
+    super(`Cronograma incoherente para el anexo: ${detalle}`);
+    this.name = "CronogramaIncoherenteError";
+  }
+}
+
 export type ModalidadContrato =
   | "mensual"
   | "trimestral"
@@ -150,30 +162,34 @@ function nombresAsociado(
 type Cuota = AnexoPdfDatos["cronograma"][number];
 
 /**
- * El anexo no puede contradecir el cronograma sellado (revisión de Codex,
- * 28/09/2026): exige exactamente una fila `retorno`, con el capital del
- * contrato y fechada en el vencimiento o después. Las demás filas son las
- * liquidaciones parciales (interés simple: una `cuota` por periodo; compuesto:
- * una `devolucion` al vencimiento). Cualquier otra forma aborta la emisión.
+ * El anexo no puede contradecir el cronograma sellado (revisiones de Codex,
+ * 28-29/09/2026). Forma EXACTA del generador del CRM (app/src/lib/cronograma.ts):
+ *   · siempre una única fila `retorno`, con el capital del contrato y fechada
+ *     en el vencimiento o después;
+ *   · interés simple: una o más filas `cuota`, ninguna después del vencimiento;
+ *   · interés compuesto: exactamente una fila `devolucion` fechada en el
+ *     vencimiento, y ninguna `cuota`.
+ * Cualquier otra forma aborta la emisión con CronogramaIncoherenteError.
  */
 export function clasificarCronograma(
   datos: AnexoPdfDatos,
 ): { parciales: Cuota[]; retorno: Cuota } {
+  const { contrato } = datos;
   const retornos = datos.cronograma.filter((cuota) => cuota.tipo === "retorno");
   if (retornos.length !== 1) {
-    throw new TypeError(
-      "Cronograma incoherente para el anexo: se esperaba una única fila de retorno",
+    throw new CronogramaIncoherenteError(
+      "se esperaba una única fila de retorno",
     );
   }
   const retorno = retornos[0]!;
-  if (Math.abs(retorno.montoProgramado - datos.contrato.capital) > 0.005) {
-    throw new TypeError(
-      "Cronograma incoherente para el anexo: el retorno no coincide con la contribución",
+  if (Math.abs(retorno.montoProgramado - contrato.capital) > 0.005) {
+    throw new CronogramaIncoherenteError(
+      "el retorno no coincide con la contribución",
     );
   }
-  if (retorno.fechaProgramada < datos.contrato.fechaVencimiento) {
-    throw new TypeError(
-      "Cronograma incoherente para el anexo: el retorno es anterior al vencimiento",
+  if (retorno.fechaProgramada < contrato.fechaVencimiento) {
+    throw new CronogramaIncoherenteError(
+      "el retorno es anterior al vencimiento",
     );
   }
   const parciales = datos.cronograma
@@ -182,6 +198,38 @@ export function clasificarCronograma(
       a.numeroCuota - b.numeroCuota ||
       a.fechaProgramada.localeCompare(b.fechaProgramada)
     );
+  const tipoEsperado = contrato.tipoInteres === "compuesto"
+    ? "devolucion"
+    : "cuota";
+  const extranas = parciales.filter((cuota) => cuota.tipo !== tipoEsperado);
+  if (extranas.length > 0) {
+    throw new CronogramaIncoherenteError(
+      `la fila ${extranas[0]!.numeroCuota} es de tipo «${
+        extranas[0]!.tipo
+      }» y el contrato es de interés ${contrato.tipoInteres}`,
+    );
+  }
+  if (parciales.length === 0) {
+    throw new CronogramaIncoherenteError(
+      "no hay ninguna liquidación parcial programada",
+    );
+  }
+  if (
+    parciales.some((cuota) => cuota.fechaProgramada > contrato.fechaVencimiento)
+  ) {
+    throw new CronogramaIncoherenteError(
+      "hay una liquidación parcial posterior al vencimiento",
+    );
+  }
+  if (
+    contrato.tipoInteres === "compuesto" &&
+    (parciales.length !== 1 ||
+      parciales[0]!.fechaProgramada !== contrato.fechaVencimiento)
+  ) {
+    throw new CronogramaIncoherenteError(
+      "el interés compuesto liquida una sola vez, al vencimiento",
+    );
+  }
   return { parciales, retorno };
 }
 

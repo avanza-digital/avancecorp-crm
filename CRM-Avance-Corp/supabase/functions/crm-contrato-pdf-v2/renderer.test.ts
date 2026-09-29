@@ -13,7 +13,11 @@ import {
   CONTRATO_PDF_TEMPLATE_VERSION,
 } from "./handler.ts";
 import { construirContratoPdf } from "./template-v2.ts";
-import { clasificarCronograma, construirAnexoPdf } from "./anexo-v1.ts";
+import {
+  clasificarCronograma,
+  construirAnexoPdf,
+  CronogramaIncoherenteError,
+} from "./anexo-v1.ts";
 
 function assert(condicion: unknown, mensaje: string): asserts condicion {
   if (!condicion) throw new Error(mensaje);
@@ -800,6 +804,17 @@ Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", ()
       cuota(13, "2027-08-16", 15000, "retorno"),
     ]],
     ["la forma vieja del fixture (capital_interes)", SNAPSHOT.cronograma],
+    ["una devolución en interés simple", [
+      ...CRONOGRAMA_SIMPLE.slice(0, 11),
+      cuota(12, "2027-08-17", 225, "devolucion"),
+      cuota(13, "2027-08-24", 15000, "retorno"),
+    ]],
+    ["una parcial posterior al vencimiento", [
+      ...CRONOGRAMA_SIMPLE.slice(0, 11),
+      cuota(12, "2027-08-18", 225, "cuota"),
+      cuota(13, "2027-08-24", 15000, "retorno"),
+    ]],
+    ["sin ninguna parcial", [cuota(1, "2027-08-24", 15000, "retorno")]],
   ];
   for (const [nombre, cronograma] of casos) {
     let error: unknown = null;
@@ -808,8 +823,51 @@ Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", ()
     } catch (e) {
       error = e;
     }
-    assert(error instanceof TypeError, `${nombre}: aborta con TypeError`);
+    assert(
+      error instanceof CronogramaIncoherenteError,
+      `${nombre}: aborta con CronogramaIncoherenteError`,
+    );
   }
+  const compuesto = {
+    ...base,
+    contrato: { ...base.contrato, tipoInteres: "compuesto" as const },
+  };
+  const casosCompuesto: Array<[string, typeof CRONOGRAMA_SIMPLE]> = [
+    ["cuotas mensuales en compuesto", CRONOGRAMA_SIMPLE],
+    ["devolución antes del vencimiento", [
+      cuota(1, "2027-08-16", 2700, "devolucion"),
+      cuota(2, "2027-08-24", 15000, "retorno"),
+    ]],
+    ["dos devoluciones", [
+      cuota(1, "2027-08-17", 1350, "devolucion"),
+      cuota(2, "2027-08-17", 1350, "devolucion"),
+      cuota(3, "2027-08-24", 15000, "retorno"),
+    ]],
+  ];
+  for (const [nombre, cronograma] of casosCompuesto) {
+    let error: unknown = null;
+    try {
+      clasificarCronograma({ ...compuesto, cronograma });
+    } catch (e) {
+      error = e;
+    }
+    assert(
+      error instanceof CronogramaIncoherenteError,
+      `compuesto · ${nombre}: aborta con CronogramaIncoherenteError`,
+    );
+  }
+  const bueno = clasificarCronograma({
+    ...compuesto,
+    cronograma: [
+      cuota(1, "2027-08-17", 2700, "devolucion"),
+      cuota(2, "2027-08-24", 15000, "retorno"),
+    ],
+  });
+  igual(
+    bueno.parciales.length,
+    1,
+    "compuesto: una sola liquidación al vencimiento",
+  );
   const { parciales, retorno } = clasificarCronograma({
     ...base,
     cronograma: CRONOGRAMA_SIMPLE,

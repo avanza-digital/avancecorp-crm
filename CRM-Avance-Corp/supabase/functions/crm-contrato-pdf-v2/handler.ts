@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { CronogramaIncoherenteError } from "./anexo-v1.ts";
 
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
 export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
@@ -572,6 +573,7 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
 
   function datosAnexoValidos(valor: unknown): valor is {
     contrato_id: string;
+    pdf_id: string;
     revision: number;
     template_version: string;
     generado_en: string;
@@ -581,13 +583,14 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     return esObjeto(valor) &&
       clavesExactas(valor, [
         "contrato_id",
+        "pdf_id",
         "revision",
         "template_version",
         "generado_en",
         "sha256",
         "snapshot",
       ]) &&
-      uuidCanonico(valor.contrato_id) &&
+      uuidCanonico(valor.contrato_id) && uuidCanonico(valor.pdf_id) &&
       Number.isInteger(valor.revision) && (valor.revision as number) >= 1 &&
       // La versión del CONTRATO sellado solo se transporta: el anexo no la
       // dibuja, y el CHECK de la base ya la acota. No se exige que esta edge
@@ -603,10 +606,12 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
 
   /**
    * Anexo de cronograma: documento aparte, a demanda, desde el snapshot SELLADO.
-   * La RPC deja el asiento de bitácora (quién, cuándo, contrato, revisión,
-   * plantilla) y aplica la misma regla de lectura que el PDF. No hay Storage:
-   * los bytes viajan en JSON (base64) para que `functions.invoke` los entregue
-   * sin depender de cabeceras binarias ni de CORS expuesto.
+   * 1) `contrato_pdf_anexo_snapshot` (misma regla de lectura que el PDF) da el
+   *    snapshot vigente; 2) se dibuja; 3) `contrato_pdf_anexo_emitido` deja el
+   *    asiento con el sha256 y los bytes que se van a entregar. Sin asiento no
+   *    hay entrega: la bitácora acredita anexos EMITIDOS, no solicitudes. No hay
+   *    Storage: los bytes viajan en JSON (base64) para que `functions.invoke`
+   *    los entregue sin depender de cabeceras binarias ni de CORS expuesto.
    */
   async function anexo(
     origin: string | null,
@@ -652,13 +657,28 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         resultado.data.generado_en,
       );
     } catch (error) {
-      const incoherente = error instanceof TypeError;
+      // Tres fallos distintos, tres códigos: el cronograma sellado no tiene la
+      // forma del anexo (negocio, 409), el snapshot sellado no valida (datos,
+      // 502) o el renderizador falló (503).
+      if (error instanceof CronogramaIncoherenteError) {
+        return json(origin, origenes, {
+          error: "El cronograma sellado no permite emitir el anexo",
+          codigo: "ANEXO_CRONOGRAMA_INCOHERENTE",
+        }, 409);
+      }
+      if (
+        error instanceof TypeError &&
+        error.message.startsWith("Snapshot PDF v2 inválido")
+      ) {
+        return json(origin, origenes, {
+          error: "Datos del contrato sellado inválidos",
+          codigo: "ANEXO_DATOS_INVALIDOS",
+        }, 502);
+      }
       return json(origin, origenes, {
-        error: incoherente
-          ? "El cronograma sellado no permite emitir el anexo"
-          : "No se pudo generar el anexo",
-        codigo: incoherente ? "ANEXO_CRONOGRAMA_INCOHERENTE" : "ANEXO_RENDER",
-      }, incoherente ? 409 : 503);
+        error: "No se pudo generar el anexo",
+        codigo: "ANEXO_RENDER",
+      }, 503);
     }
     if (
       render.bytes !== render.blob.size || render.bytes <= 5 ||
@@ -669,6 +689,23 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         error: "No se pudo generar el anexo",
         codigo: "ANEXO_RENDER",
       }, 503);
+    }
+    const emision = await deps.rpcAdmin("contrato_pdf_anexo_emitido", {
+      p_contrato_id: contratoId,
+      p_actor_id: actorId,
+      p_pdf_id: resultado.data.pdf_id,
+      p_template: ANEXO_PDF_TEMPLATE_VERSION,
+      p_sha256: render.sha256,
+      p_bytes: render.bytes,
+    });
+    if (emision.error) {
+      const status = statusErrorBackend(emision.error);
+      return json(origin, origenes, {
+        error: status === 403
+          ? "Contrato no encontrado o fuera de tu cartera"
+          : "No se pudo registrar la emisión del anexo",
+        codigo: "ANEXO_BITACORA",
+      }, status === 404 ? 409 : status);
     }
     const bytes = new Uint8Array(await render.blob.arrayBuffer());
     return json(origin, origenes, {

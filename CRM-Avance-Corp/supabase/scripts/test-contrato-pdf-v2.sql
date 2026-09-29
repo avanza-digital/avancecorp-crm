@@ -1102,9 +1102,14 @@ select test_support.assert_true(
     and :'anexo_uno'::jsonb->>'template_version' = :'sello_uno'::jsonb->'archivo'->>'template_version'
     and :'anexo_uno'::jsonb->'snapshot'->>'snapshotVersion' = '2'
     and :'anexo_uno'::jsonb->'snapshot'->'cronograma' is not null
-    and (:'anexo_uno'::jsonb->>'generado_en') ~ '^\d{4}-\d{2}-\d{2}T'
-    and (select count(*) from jsonb_object_keys(:'anexo_uno'::jsonb)) = 6,
-  'anexo: entrega el snapshot sellado vigente con su ficha exacta'
+    and (:'anexo_uno'::jsonb->>'generado_en') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?([+-]\d{2}:\d{2}|Z)$'
+    and (:'anexo_uno'::jsonb->>'pdf_id')::uuid = (
+      select p.id from private.contrato_pdfs p
+      where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+        and p.job_id = (:'claim_uno'::jsonb->>'job_id')::uuid
+    )
+    and (select count(*) from jsonb_object_keys(:'anexo_uno'::jsonb)) = 7,
+  'anexo: entrega el snapshot sellado vigente con su ficha exacta (fecha legible por la Edge)'
 );
 select test_support.assert_true(
   :'anexo_uno'::jsonb->'snapshot' = (
@@ -1167,47 +1172,126 @@ select test_support.assert_raises(
 );
 reset role;
 
--- Bitacora: un asiento por impresion, sin snapshot, y de solo anadir.
+-- Leer el snapshot NO deja asiento: la bitacora es de anexos EMITIDOS.
 select test_support.assert_true(
-  (
-    select count(*) = 2
-    from private.contrato_pdf_anexo_impresiones i
-    where i.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
-      and i.actor_id = '11111111-1111-4111-8111-111111111111'
-      and i.revision = 1
-      and i.template_anexo = 'anexo-cronograma-v1'
-      and i.template_version_contrato = :'anexo_uno'::jsonb->>'template_version'
-      and i.pdf_id = (
-        select p.id from private.contrato_pdfs p
-        where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
-          and p.job_id = (:'claim_uno'::jsonb->>'job_id')::uuid
-      )
-  )
-  and (select count(*) = 2 from private.contrato_pdf_anexo_impresiones),
-  'anexo: cada impresion deja su asiento y los intentos rechazados no'
+  (select count(*) = 0 from private.contrato_pdf_anexo_emisiones),
+  'anexo: leer el snapshot no deja asiento'
+);
+-- Emision: la Edge registra el anexo dibujado con su hash y sus bytes.
+set role service_role;
+select crm.contrato_pdf_anexo_emitido(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+  '11111111-1111-4111-8111-111111111111',
+  (:'anexo_uno'::jsonb->>'pdf_id')::uuid,
+  'anexo-cronograma-v1',
+  repeat('c', 64),
+  165463
+)::text as emision_uno \gset
+select crm.contrato_pdf_anexo_emitido(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+  '11111111-1111-4111-8111-111111111111',
+  (:'anexo_uno'::jsonb->>'pdf_id')::uuid,
+  'anexo-cronograma-v1',
+  repeat('c', 64),
+  165463
+)::text as emision_dos \gset
+reset role;
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_emitido(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '22222222-2222-4222-8222-222222222222',
+    (select p.id from private.contrato_pdfs p
+      where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+      order by p.revision desc limit 1),
+    'anexo-cronograma-v1',
+    repeat('c', 64),
+    165463
+  )$$,
+  'fuera de tu cartera',
+  'anexo: la emision vuelve a autorizar'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_emitido(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '11111111-1111-4111-8111-111111111111',
+    (select p.id from private.contrato_pdfs p where p.contrato_id = '44444444-4444-4444-8444-444444444444'),
+    'anexo-cronograma-v1',
+    repeat('c', 64),
+    165463
+  )$$,
+  'no corresponde a un PDF sellado de este contrato',
+  'anexo: la emision exige un sellado v2 de ESTE contrato',
+  '23514'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_emitido(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '11111111-1111-4111-8111-111111111111',
+    (select p.id from private.contrato_pdfs p
+      where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+      order by p.revision desc limit 1),
+    'anexo-cronograma-v1',
+    'no-es-un-hash',
+    165463
+  )$$,
+  'Emisión del anexo inválida',
+  'anexo: la emision exige hash y bytes validos',
+  '22023'
+);
+select test_support.assert_true(
+  (:'emision_uno'::jsonb->>'emision_id') is distinct from (:'emision_dos'::jsonb->>'emision_id')
+    and (:'emision_uno'::jsonb->>'revision')::integer = 1
+    and (
+      select count(*) = 2
+      from private.contrato_pdf_anexo_emisiones i
+      where i.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+        and i.actor_id = '11111111-1111-4111-8111-111111111111'
+        and i.revision = 1
+        and i.template_anexo = 'anexo-cronograma-v1'
+        and i.template_version_contrato = :'anexo_uno'::jsonb->>'template_version'
+        and i.sha256 = repeat('c', 64) and i.bytes = 165463
+        and i.pdf_id = (:'anexo_uno'::jsonb->>'pdf_id')::uuid
+    )
+    and (select count(*) = 2 from private.contrato_pdf_anexo_emisiones),
+  'anexo: cada emision deja su asiento con hash y bytes; los rechazos no'
 );
 select test_support.assert_true(
   not exists (
     select 1 from pg_catalog.pg_attribute a
-    where a.attrelid = 'private.contrato_pdf_anexo_impresiones'::regclass
+    where a.attrelid = 'private.contrato_pdf_anexo_emisiones'::regclass
       and a.attname in ('snapshot', 'data_antes', 'data_despues')
   ),
   'anexo: la bitacora no guarda el snapshot (datos bancarios)'
 );
 select test_support.assert_raises(
-  $$delete from private.contrato_pdf_anexo_impresiones$$,
+  $$delete from private.contrato_pdf_anexo_emisiones$$,
   'solo añadir',
   'anexo: la bitacora no se borra ni como owner'
 );
 select test_support.assert_raises(
-  $$update private.contrato_pdf_anexo_impresiones set actor_id = null$$,
+  $$update private.contrato_pdf_anexo_emisiones set actor_id = gen_random_uuid()$$,
   'solo añadir',
   'anexo: la bitacora no se reescribe ni como owner'
 );
+select test_support.assert_raises(
+  $$truncate private.contrato_pdf_anexo_emisiones$$,
+  'solo añadir',
+  'anexo: la bitacora no se vacia ni como owner'
+);
+-- Huellas de lo instalado, para el pin del registrador (se leen del log del arnés).
+select 'ANEXO_MD5 ' || p.oid::regprocedure::text || ' ' || md5(pg_get_functiondef(p.oid)) as huella
+from pg_catalog.pg_proc p
+where p.oid in (
+  'crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)'::regprocedure,
+  'crm.contrato_pdf_anexo_emitido(uuid,uuid,uuid,text,text,bigint)'::regprocedure,
+  'private.contrato_pdf_anexo_snapshot_base(uuid)'::regprocedure,
+  'private.contrato_pdf_anexo_emitido_base(uuid,uuid,uuid,text,text,bigint)'::regprocedure
+)
+order by 1;
 select test_support.assert_true(
-  not pg_catalog.has_table_privilege('service_role', 'private.contrato_pdf_anexo_impresiones', 'SELECT')
-    and not pg_catalog.has_table_privilege('authenticated', 'private.contrato_pdf_anexo_impresiones', 'SELECT')
-    and not pg_catalog.has_table_privilege('anon', 'private.contrato_pdf_anexo_impresiones', 'SELECT'),
+  not pg_catalog.has_table_privilege('service_role', 'private.contrato_pdf_anexo_emisiones', 'SELECT')
+    and not pg_catalog.has_table_privilege('authenticated', 'private.contrato_pdf_anexo_emisiones', 'SELECT')
+    and not pg_catalog.has_table_privilege('anon', 'private.contrato_pdf_anexo_emisiones', 'SELECT'),
   'anexo: ningun rol de la API lee la bitacora directamente'
 );
 
@@ -1446,7 +1530,7 @@ select test_support.assert_raises(
 reset role;
 select test_support.assert_true(
   not exists (
-    select 1 from private.contrato_pdf_anexo_impresiones
+    select 1 from private.contrato_pdf_anexo_emisiones
     where contrato_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1'
   ),
   'anexo: el intento sin sellado no deja asiento'
@@ -1501,6 +1585,15 @@ select test_support.assert_true(
   not (:'claim_bloqueado'::jsonb->>'adquirido')::boolean
     and :'claim_bloqueado'::jsonb->>'estado' = 'integridad_bloqueada',
   'estado de integridad es terminal'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'no tiene un PDF sellado',
+  'anexo: un trabajo en integridad_bloqueada no tiene anexo'
 );
 reset role;
 
@@ -1921,6 +2014,17 @@ select test_support.assert_true(
     ),
   'correccion valida crea revision 2 con snapshot actualizado'
 );
+set role service_role;
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    '12121212-1212-4121-8121-121212121212',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'no tiene un PDF sellado',
+  'anexo: con una revision nueva pendiente no se emite el anexo de la anterior'
+);
+reset role;
 
 select test_support.assert_raises(
   $$update public.contratos
@@ -2020,6 +2124,16 @@ select crm.contrato_eliminacion_preparar(
   '14141414-1414-4141-8141-141414141414',
   '77777777-7777-4777-8777-777777777777'
 )::text as preparar_admin \gset
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    '14141414-1414-4141-8141-141414141414',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'proceso de eliminación',
+  'anexo: un contrato en eliminacion no emite anexo',
+  '55000'
+);
 select test_support.assert_raises(
   $$select crm.contrato_eliminacion_finalizar(
     '14141414-1414-4141-8141-141414141414',
@@ -2437,6 +2551,27 @@ select test_support.assert_true(
   :'estado_legacy_antiguo'::jsonb->>'estado' = 'sellado'
     and :'estado_legacy_antiguo'::jsonb->'archivo' <> 'null'::jsonb,
   'un documento antiguo ya emitido sigue sellado y descargable'
+);
+
+-- ── Anexo de cronograma: reversa y reaplicación (recuperación hacia adelante) ──
+-- La reversa borra las cuatro funciones y CONSERVA la bitacora; la migracion se
+-- vuelve a aplicar encima sin perder asientos (revision de Codex, riesgo de regresion).
+\ir ../scripts/anexo-cronograma/reversa-anexo-snapshot.sql
+select test_support.assert_true(
+  to_regprocedure('crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)') is null
+    and to_regprocedure('crm.contrato_pdf_anexo_emitido(uuid,uuid,uuid,text,text,bigint)') is null
+    and to_regprocedure('private.contrato_pdf_anexo_snapshot_base(uuid)') is null
+    and to_regprocedure('private.contrato_pdf_anexo_emitido_base(uuid,uuid,uuid,text,text,bigint)') is null
+    and to_regclass('private.contrato_pdf_anexo_emisiones') is not null
+    and (select count(*) = 2 from private.contrato_pdf_anexo_emisiones),
+  'anexo: la reversa borra las funciones y conserva la bitacora'
+);
+\ir ../migrations/20260929151350_crm_contrato_pdf_anexo_snapshot.sql
+select test_support.assert_true(
+  to_regprocedure('crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)') is not null
+    and to_regprocedure('crm.contrato_pdf_anexo_emitido(uuid,uuid,uuid,text,text,bigint)') is not null
+    and (select count(*) = 2 from private.contrato_pdf_anexo_emisiones),
+  'anexo: la migracion se reaplica sobre la bitacora conservada sin perder asientos'
 );
 
 \echo CONTRATO_PDF_V2_SQL_OK

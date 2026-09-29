@@ -1,32 +1,48 @@
-## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`)
+## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **PENDIENTE DE PUBLICAR.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
 añadido es que el analista ahora puede imprimir este anexo». El contrato PDF NO cambia
-(sigue en v9; ningún sellado se toca). Una lectura nueva, solo `service_role`, para la
-acción «anexo» de la Edge `crm-contrato-pdf-v2`: devuelve el snapshot SELLADO vigente
-(el archivo visible según `private.contrato_pdf_estado_base`) con la misma regla de
-lectura que el PDF (`private.puede_leer_contrato_pdf_como`), rechaza contratos en
-eliminación y distingue con el hint `ANEXO_SIN_PDF_SELLADO` (sin sellado vigente o
-revisión nueva pendiente) de `ANEXO_SIN_SNAPSHOT` (ledger v1). Deja un asiento por
-impresión en la bitácora nueva `private.contrato_pdf_anexo_impresiones` (solo añadir,
-RLS forzada, sin lectores de la API, SIN snapshot porque lleva datos bancarios, sin FK
-para sobrevivir a la eliminación auditada). No toca `public` ni redefine funciones vivas.
+(sigue en v9; ningún sellado se toca). Piezas de servidor de la acción «anexo» de la
+Edge `crm-contrato-pdf-v2`, en cuatro capas (sin saltos nuevos): dos puertas `crm.*`
+solo `service_role` que autorizan con la misma regla de lectura que el PDF
+(`private.puede_leer_contrato_pdf_como`), rechazan eliminación y delegan; dos núcleos
+`private.*` (invoker, sin ejecutores de la API): `contrato_pdf_anexo_snapshot_base`
+bloquea la fila del contrato (mutex de reclamar) y devuelve el snapshot SELLADO vigente
+según `contrato_pdf_estado_base` con hint `ANEXO_SIN_PDF_SELLADO` (sin sellado vigente,
+revisión nueva pendiente o integridad bloqueada) o `ANEXO_SIN_SNAPSHOT` (ledger v1);
+`contrato_pdf_anexo_emitido_base` deja el asiento DESPUÉS de que la Edge dibuja el anexo,
+con sha256 y bytes de lo entregado (sin asiento no hay entrega). Bitácora nueva
+`private.contrato_pdf_anexo_emisiones`: solo añadir (UPDATE/DELETE/TRUNCATE rechazados
+también al dueño), RLS forzada, sin lectores de la API, SIN snapshot (datos bancarios) y
+SIN FK (sobrevive a la eliminación auditada; una FK a perfiles con SET NULL chocaría con
+el candado). No toca `public` ni redefine funciones vivas. `test-rls.mjs` no cubre la
+familia PDF v2 (patrón de la casa): vive en su oráculo propio.
+
+Reviews: auditor-rls CHANGES_REQUESTED (P2 FK vs candado → sin FK; P2 salto de capa →
+núcleos en `private`; P3 comment de `id`, TRUNCATE) — todos aplicados. Codex (código)
+CHANGES_REQUESTED (P1 vigencia bajo concurrencia → bloqueo de fila; P1 forma del
+cronograma → estricta por tipo de interés en la Edge; P1 FK; P1 bitácora de emitidos con
+hash → puerta `emitido`; P2 error específico de cronograma; P2 TRUNCATE; riesgo de
+reaplicación tras reversa → migración tolerante y probada) — todos aplicados.
 
 Ensayo: arnés local del PDF `supabase/scripts/run-test-contrato-pdf-v2-local.sh --run`
-con la migración incluida (`\ir`) y el bloque «Anexo de cronograma imprimible» del
-oráculo `test-contrato-pdf-v2.sql`: permisos por catálogo (ejecutar sin EXECUTE bajo
-`set role` tumba el banco), lectura del sellado con ficha exacta, snapshot = ledger,
-idempotencia, fuera de cartera, actor nulo, inexistente (misma frase), plantilla
-inválida, ledger v1, pendiente sin asiento, bitácora solo añadir ⇒
-CONTRATO_PDF_V2_SQL_OK + RUNNER_OK. Edge 70/70, front `npm run check` 4 853, e2e Docker
-2/2, revisor a11y PASS, `test:rls:preflight` PASS. auditor-rls y Codex (código): en
-curso al escribir este asiento; sus hallazgos van en el asiento al publicar.
+con la migración incluida (`\ir`) y los bloques «Anexo de cronograma imprimible» del
+oráculo `test-contrato-pdf-v2.sql`: permisos por catálogo (⚠️ ejecutar sin EXECUTE bajo
+`set role` tumba el banco), lectura del sellado con ficha exacta (fecha legible por la
+Edge), snapshot = ledger, idempotencia, fuera de cartera, actor nulo, inexistente (misma
+frase), plantilla inválida, ledger v1, integridad bloqueada, revisión nueva pendiente,
+contrato en eliminación (55000), pendiente sin asiento, emisión con hash (dos asientos),
+emisión rechazada (otro contrato 23514, hash inválido 22023, fuera de cartera), bitácora
+sin snapshot y sin UPDATE/DELETE/TRUNCATE, reversa (borra las 4 funciones, conserva la
+bitácora) y reaplicación sin perder asientos ⇒ CONTRATO_PDF_V2_SQL_OK + RUNNER_OK.
+Huellas md5(pg_get_functiondef) selladas en el registrador. Edge 71/71, front
+`npm run check` 4 853, e2e Docker 2/2, revisor a11y PASS, `test:rls:preflight` PASS.
 TODO integrador: `db query --linked --file` de la migración → registrador
 `supabase/scripts/anexo-cronograma/registrar-20260929151350.sql` → deploy de la Edge
 (DESDE `CRM-Avance-Corp/`) → `/release-crm`. `gen:types` después de aplicar.
-**Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de la
-función + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya expone
-«anexo», revertir primero front y Edge.
+**Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
+4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
+expone «anexo», revertir primero front y Edge.
 
 ## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
@@ -42,10 +58,15 @@ paginar. La consulta del historial hereda la RLS de actividades, coextensiva
 con leads. La exención analítica se mueve a la nueva firma y se resella.
 
 Ensayo: migración aplicada y fixture transaccional
-`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado;
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
 incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
 la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
-analistas y supervisor, veto de INSERT falso y denegación a anon. Lectura
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
+y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
+y la policy de INSERT que impide fabricar la marca. La branch temporal de
+Supabase falló antes de esta migración durante el replay histórico y fue
+eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
 agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
 y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
 anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
