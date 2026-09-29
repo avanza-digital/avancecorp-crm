@@ -5,7 +5,7 @@ import {
   type BackendResult,
   crearHandlerContratoPdfV2,
 } from "./handler.ts";
-import { renderizarContratoPdfV2 } from "./renderer.ts";
+import { renderizarAnexoPdfV1, renderizarContratoPdfV2 } from "./renderer.ts";
 import { crearStorageContratoPdfV2, errorBackend } from "./storage.ts";
 
 function env(nombre: string, alternativa?: string): string {
@@ -117,6 +117,7 @@ const handler = crearHandlerContratoPdfV2({
   crearActor,
   origenesAdicionales,
   renderizar: renderizarContratoPdfV2,
+  renderizarAnexo: renderizarAnexoPdfV1,
   async rpcAdmin(nombre, argumentos) {
     const { data, error } = await admin.schema("crm").rpc(nombre, argumentos);
     return resultado(data, error);

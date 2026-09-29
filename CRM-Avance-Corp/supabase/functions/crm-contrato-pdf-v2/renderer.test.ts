@@ -1,13 +1,19 @@
 import {
+  ANEXO_PDF_RENDERER_VERSION,
   CONTRATO_PDF_RENDERER_VERSION,
   PDFMAKE_VENDOR_SHA256,
+  renderizarAnexoPdfV1,
   renderizarContratoPdfV2,
   validarSnapshotContratoV2,
   verificarAssetsContratoPdfV2,
   VFS_VENDOR_SHA256,
 } from "./renderer.ts";
-import { CONTRATO_PDF_TEMPLATE_VERSION } from "./handler.ts";
+import {
+  ANEXO_PDF_TEMPLATE_VERSION,
+  CONTRATO_PDF_TEMPLATE_VERSION,
+} from "./handler.ts";
 import { construirContratoPdf } from "./template-v2.ts";
+import { clasificarCronograma, construirAnexoPdf } from "./anexo-v1.ts";
 
 function assert(condicion: unknown, mensaje: string): asserts condicion {
   if (!condicion) throw new Error(mensaje);
@@ -562,5 +568,284 @@ Deno.test("template v9 hace caber cinco co-titulares (tope del CRM) en la hoja d
   assert(
     paginasCon <= paginasSin + 1,
     `cinco co-titulares añaden a lo sumo una hoja (${paginasSin} → ${paginasCon})`,
+  );
+});
+
+// ── Anexo de cronograma (documento aparte, anexo-cronograma-v1) ─────────────
+
+function cuota(
+  numero: number,
+  fecha: string,
+  monto: number,
+  tipo: string,
+) {
+  return {
+    id: `55555555-5555-4555-8555-5555555555${String(numero).padStart(2, "0")}`,
+    numeroCuota: numero,
+    fechaProgramada: fecha,
+    montoProgramado: monto,
+    tipo,
+  };
+}
+
+/** 12 cuotas mensuales de S/ 225 + retorno del capital 7 días tras el vencimiento. */
+const CRONOGRAMA_SIMPLE = [
+  ...[
+    "2026-09-17",
+    "2026-10-17",
+    "2026-11-17",
+    "2026-12-17",
+    "2027-01-17",
+    "2027-02-17",
+    "2027-03-17",
+    "2027-04-17",
+    "2027-05-17",
+    "2027-06-17",
+    "2027-07-17",
+    "2027-08-17",
+  ].map((fecha, indice) => cuota(indice + 1, fecha, 225, "cuota")),
+  cuota(13, "2027-08-24", 15000, "retorno"),
+];
+
+const SNAPSHOT_ANEXO = { ...SNAPSHOT, cronograma: CRONOGRAMA_SIMPLE };
+const TITULAR_ANEXO = { ...SNAPSHOT.titular, tipoDocumento: "DNI" as const };
+
+const ASSETS_ANEXO = {
+  fondo: "data:image/png;base64,fondo",
+  firmaAsociante: "data:image/png;base64,firma-kirk",
+};
+
+function textos(nodo: unknown, acumulado: string[] = []): string[] {
+  if (Array.isArray(nodo)) {
+    for (const hijo of nodo) textos(hijo, acumulado);
+  } else if (nodo && typeof nodo === "object") {
+    const objeto = nodo as Record<string, unknown>;
+    if (typeof objeto.text === "string") acumulado.push(objeto.text);
+    for (const clave of ["text", "stack", "columns", "table", "body"]) {
+      if (clave in objeto) textos(objeto[clave], acumulado);
+    }
+  }
+  return acumulado;
+}
+
+Deno.test("anexo v1 produce dos PDFs byte-idénticos con la fecha fija del sellado", async () => {
+  igual(
+    ANEXO_PDF_RENDERER_VERSION,
+    ANEXO_PDF_TEMPLATE_VERSION,
+    "renderer del anexo y handler versionados juntos",
+  );
+  const fecha = "2026-08-17T20:00:00.000Z";
+  const primero = await renderizarAnexoPdfV1(SNAPSHOT_ANEXO, fecha);
+  const segundo = await renderizarAnexoPdfV1(SNAPSHOT_ANEXO, fecha);
+  igual(primero.bytes, primero.blob.size, "tamaño medido");
+  igual(primero.sha256, segundo.sha256, "hash determinista");
+  igual(primero.bytes, segundo.bytes, "tamaño determinista");
+  igual(
+    primero.sha256,
+    "9639f4a48294c631434db945e2ae60057a8fd753b69389b1392ece00b71bc3dc",
+    "golden byte a byte del anexo v1 (12 cuotas, sin co-titulares)",
+  );
+  igual(primero.bytes, 165463, "tamaño golden del anexo v1");
+  igual(
+    primero.nombreArchivo,
+    "Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf",
+    "nombre del archivo del anexo",
+  );
+  const a = new Uint8Array(await primero.blob.arrayBuffer());
+  igual(new TextDecoder().decode(a.slice(0, 5)), "%PDF-", "cabecera PDF");
+});
+
+Deno.test("anexo v1 no altera el contrato v9: mismo golden con o sin anexo cargado", async () => {
+  const contrato = await renderizarContratoPdfV2(
+    SNAPSHOT,
+    "2026-08-17T20:00:00.000Z",
+  );
+  igual(
+    contrato.sha256,
+    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
+    "el contrato sigue siendo byte a byte la v9",
+  );
+  igual(contrato.bytes, 218672, "tamaño golden v9 intacto");
+});
+
+Deno.test("anexo v1 imprime las parciales del cronograma sellado y el retorno como liquidación final", () => {
+  const definicion = construirAnexoPdf(
+    {
+      contrato: {
+        numero: "2026-01-000777",
+        capital: 15000,
+        moneda: "PEN",
+        modalidad: "mensual",
+        tipoInteres: "simple",
+        fechaInicio: "2026-08-17",
+        fechaVencimiento: "2027-08-17",
+      },
+      titular: TITULAR_ANEXO,
+      analista: { nombreCompleto: "ANALISTA PRUEBA" },
+      cotitulares: [{
+        nombreCompleto: "COTITULAR PRUEBA UNO",
+        tipoDocumento: "DNI",
+        documento: "40000001",
+      }],
+      cronograma: CRONOGRAMA_SIMPLE,
+    },
+    ASSETS_ANEXO,
+  );
+  const plano = textos(definicion.content).join("\n");
+  assert(plano.startsWith("ANEXO\n"), "título ANEXO");
+  assert(
+    plano.includes("CLIENTE PRUEBA\n y \nCOTITULAR PRUEBA UNO"),
+    "nombra al titular y al co-titular en la introducción",
+  );
+  assert(
+    plano.includes("17 de septiembre de 2026"),
+    "primera liquidación parcial",
+  );
+  assert(
+    plano.includes("17 de agosto de 2027"),
+    "última parcial (y vencimiento)",
+  );
+  igual(
+    (plano.match(/S\/ 225\.00/g) ?? []).length,
+    12,
+    "doce participaciones de S/ 225.00",
+  );
+  assert(
+    plano.includes("24 de agosto de 2027"),
+    "la liquidación final usa la fila retorno",
+  );
+  igual(
+    (plano.match(/S\/ 15,000\.00/g) ?? []).length,
+    2,
+    "la contribución aparece en datos y en la restitución",
+  );
+  assert(plano.includes("Mensual"), "modalidad legible");
+  assert(
+    plano.includes("numeral 5.3 del contrato"),
+    "remite al 5.3 del contrato",
+  );
+  assert(
+    plano.includes("EL ASOCIADO") && plano.includes("EL ASOCIANTE") &&
+      plano.includes("RUC N° 20611392088"),
+    "bloque de firmas de las dos partes",
+  );
+  igual(
+    (plano.match(/EL ASOCIADO$/gm) ?? []).length,
+    2,
+    "firman el titular y el co-titular",
+  );
+});
+
+Deno.test("anexo v1: interés compuesto lista la única liquidación al vencimiento", () => {
+  const definicion = construirAnexoPdf(
+    {
+      contrato: {
+        numero: "2026-01-000778",
+        capital: 15000,
+        moneda: "USD",
+        modalidad: "mensual",
+        tipoInteres: "compuesto",
+        fechaInicio: "2026-08-17",
+        fechaVencimiento: "2027-08-17",
+      },
+      titular: TITULAR_ANEXO,
+      analista: { nombreCompleto: "ANALISTA PRUEBA" },
+      cotitulares: [],
+      cronograma: [
+        cuota(1, "2027-08-17", 2700, "devolucion"),
+        cuota(2, "2027-08-24", 15000, "retorno"),
+      ],
+    },
+    ASSETS_ANEXO,
+  );
+  const plano = textos(definicion.content).join("\n");
+  assert(
+    plano.includes("Única, al vencimiento del contrato"),
+    "modalidad del compuesto",
+  );
+  assert(
+    plano.includes("US$ 2,700.00"),
+    "participación acumulada al vencimiento",
+  );
+  assert(!plano.includes("No se programan"), "sí hay una liquidación listada");
+});
+
+Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", () => {
+  const base = {
+    contrato: {
+      numero: "2026-01-000777",
+      capital: 15000,
+      moneda: "PEN" as const,
+      modalidad: "mensual" as const,
+      tipoInteres: "simple" as const,
+      fechaInicio: "2026-08-17",
+      fechaVencimiento: "2027-08-17",
+    },
+    titular: TITULAR_ANEXO,
+    analista: { nombreCompleto: "ANALISTA PRUEBA" },
+    cotitulares: [],
+  };
+  const casos: Array<[string, typeof CRONOGRAMA_SIMPLE]> = [
+    ["sin retorno", CRONOGRAMA_SIMPLE.slice(0, 12)],
+    ["dos retornos", [
+      ...CRONOGRAMA_SIMPLE,
+      cuota(14, "2027-08-25", 15000, "retorno"),
+    ]],
+    ["retorno distinto del capital", [
+      ...CRONOGRAMA_SIMPLE.slice(0, 12),
+      cuota(13, "2027-08-24", 14999.99, "retorno"),
+    ]],
+    ["retorno antes del vencimiento", [
+      ...CRONOGRAMA_SIMPLE.slice(0, 12),
+      cuota(13, "2027-08-16", 15000, "retorno"),
+    ]],
+    ["la forma vieja del fixture (capital_interes)", SNAPSHOT.cronograma],
+  ];
+  for (const [nombre, cronograma] of casos) {
+    let error: unknown = null;
+    try {
+      clasificarCronograma({ ...base, cronograma });
+    } catch (e) {
+      error = e;
+    }
+    assert(error instanceof TypeError, `${nombre}: aborta con TypeError`);
+  }
+  const { parciales, retorno } = clasificarCronograma({
+    ...base,
+    cronograma: CRONOGRAMA_SIMPLE,
+  });
+  igual(parciales.length, 12, "doce parciales");
+  igual(retorno.fechaProgramada, "2027-08-24", "retorno identificado");
+});
+
+Deno.test("anexo v1 con 60 cuotas cabe en varias hojas sin romper filas", async () => {
+  const cuotas = Array.from({ length: 60 }, (_, indice) => {
+    const mes = indice + 1;
+    const anio = 2026 + Math.floor((7 + mes) / 12);
+    const mesCal = ((7 + mes) % 12) + 1;
+    return cuota(
+      mes,
+      `${anio}-${String(mesCal).padStart(2, "0")}-17`,
+      225,
+      "cuota",
+    );
+  });
+  const snapshot = {
+    ...SNAPSHOT,
+    contrato: { ...SNAPSHOT.contrato, fechaVencimiento: "2031-08-17" },
+    cronograma: [...cuotas, cuota(61, "2031-08-24", 15000, "retorno")],
+  };
+  const render = await renderizarAnexoPdfV1(
+    snapshot,
+    "2026-08-17T20:00:00.000Z",
+  );
+  assert(render.bytes > 0 && render.bytes < 400_000, "tamaño razonable");
+  const texto = new TextDecoder("latin1").decode(
+    new Uint8Array(await render.blob.arrayBuffer()),
+  );
+  igual(
+    (texto.match(/\/Type \/Page[^s]/g) ?? []).length,
+    4,
+    "cuatro hojas (60 cuotas + firmas)",
   );
 });

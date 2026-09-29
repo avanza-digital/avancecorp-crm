@@ -1,5 +1,6 @@
 import { deepStrictEqual as assertEquals } from "node:assert";
 import {
+  ANEXO_PDF_TEMPLATE_VERSION,
   type BackendResult,
   CONTRATO_PDF_MAX_BYTES,
   CONTRATO_PDF_TEMPLATE_VERSION,
@@ -123,6 +124,7 @@ type FakeOptions = {
   downloadError?: { code?: string; message?: string; statusCode?: number };
   downloads?: Array<Blob | null>;
   render?: RenderResult | Error;
+  renderAnexo?: (RenderResult & { nombreArchivo: string }) | Error;
 };
 
 function fake(opciones: FakeOptions = {}) {
@@ -160,6 +162,20 @@ function fake(opciones: FakeOptions = {}) {
           }),
           sha256: "",
           bytes: 0,
+        },
+      );
+    },
+    renderizarAnexo: () => {
+      calls.push("render-anexo");
+      if (opciones.renderAnexo instanceof Error) {
+        return Promise.reject(opciones.renderAnexo);
+      }
+      return Promise.resolve(
+        opciones.renderAnexo ?? {
+          blob: new Blob(["%PDF-1.7\nanexo"], { type: "application/pdf" }),
+          sha256: "a".repeat(64),
+          bytes: 14,
+          nombreArchivo: "Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf",
         },
       );
     },
@@ -1226,4 +1242,116 @@ Deno.test("delete anterior conserva su formato de respuesta y también archiva",
     archivosEliminados: 0,
   });
   assertEquals(calls.join("|"), "auth|admin:contrato_eliminar_auditado");
+});
+
+// ── Acción «anexo»: documento aparte desde el snapshot sellado ─────────────
+
+const DATOS_ANEXO = {
+  contrato_id: CONTRATO_ID,
+  revision: 1,
+  template_version: CONTRATO_PDF_TEMPLATE_VERSION,
+  generado_en: "2026-08-17T20:00:00Z",
+  sha256: "b".repeat(64),
+  snapshot: { snapshotVersion: 2 },
+};
+
+Deno.test("anexo entrega el PDF en base64 con su hash, sin tocar Storage ni reservar", async () => {
+  const { deps, calls } = fake({
+    admin: [{ data: DATOS_ANEXO, error: null }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "anexo", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 200, "anexo generado");
+  const json = await res.json();
+  igual(json.anexo.template, ANEXO_PDF_TEMPLATE_VERSION, "versión del anexo");
+  igual(json.anexo.contrato_revision, 1, "revisión sellada usada");
+  igual(json.anexo.sha256, "a".repeat(64), "hash del render");
+  igual(json.anexo.bytes, 14, "bytes del render");
+  igual(
+    json.anexo.nombre_archivo,
+    "Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf",
+    "nombre saneado",
+  );
+  igual(atob(json.anexo.pdf_base64), "%PDF-1.7\nanexo", "bytes en base64");
+  igual(
+    calls.join(","),
+    "auth,admin:contrato_pdf_anexo_snapshot,render-anexo",
+    "solo lee el snapshot sellado y renderiza: ni reserva, ni sube, ni firma",
+  );
+});
+
+Deno.test("anexo sin PDF sellado y sin snapshot apto responden 409 con su código", async () => {
+  for (const hint of ["ANEXO_SIN_PDF_SELLADO", "ANEXO_SIN_SNAPSHOT"]) {
+    const { deps, calls } = fake({
+      admin: [{
+        data: null,
+        error: { code: "P0002", message: "sin pdf", hint },
+      }],
+    });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "anexo", contratoId: CONTRATO_ID }),
+    );
+    igual(res.status, 409, `${hint}: conflicto de negocio`);
+    const json = await res.json();
+    igual(json.codigo, hint, `${hint}: código expuesto`);
+    assert(!calls.includes("render-anexo"), `${hint}: no renderiza`);
+  }
+});
+
+Deno.test("anexo fuera de cartera responde 403 sin revelar existencia", async () => {
+  const { deps } = fake({
+    admin: [{
+      data: null,
+      error: {
+        code: "42501",
+        message: "Contrato no encontrado o fuera de tu cartera",
+      },
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "anexo", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 403, "permiso denegado");
+  const json = await res.json();
+  igual(json.codigo, "ANEXO_DATOS", "código genérico");
+  igual(
+    json.error,
+    "Contrato no encontrado o fuera de tu cartera",
+    "mismo mensaje que el PDF",
+  );
+});
+
+Deno.test("anexo con cronograma incoherente responde 409 y con datos inválidos 502", async () => {
+  const incoherente = fake({
+    admin: [{ data: DATOS_ANEXO, error: null }],
+    renderAnexo: new TypeError("Cronograma incoherente para el anexo"),
+  });
+  const res1 = await crearHandlerContratoPdfV2(incoherente.deps)(
+    request({ action: "anexo", contratoId: CONTRATO_ID }),
+  );
+  igual(res1.status, 409, "cronograma incoherente");
+  igual((await res1.json()).codigo, "ANEXO_CRONOGRAMA_INCOHERENTE", "código");
+
+  const invalidos = fake({
+    admin: [{ data: { ...DATOS_ANEXO, extra: true }, error: null }],
+  });
+  const res2 = await crearHandlerContratoPdfV2(invalidos.deps)(
+    request({ action: "anexo", contratoId: CONTRATO_ID }),
+  );
+  igual(res2.status, 502, "clave inesperada en los datos sellados");
+  igual((await res2.json()).codigo, "ANEXO_DATOS_INVALIDOS", "código");
+  assert(
+    !invalidos.calls.includes("render-anexo"),
+    "no renderiza datos inválidos",
+  );
+});
+
+Deno.test("anexo exige sesión como el resto de acciones", async () => {
+  const { deps, calls } = fake({ sesion: null });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "anexo", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 401, "sin sesión");
+  assert(!calls.some((c) => c.startsWith("admin:")), "no toca el backend");
 });

@@ -10,10 +10,18 @@ import {
   FONDO_SHA256,
 } from "./assets-v2.ts";
 import {
+  ANEXO_PDF_TEMPLATE_VERSION,
   CONTRATO_PDF_MAX_BYTES,
   CONTRATO_PDF_TEMPLATE_VERSION,
+  type RenderAnexoResult,
   type RenderResult,
 } from "./handler.ts";
+import {
+  ANEXO_TEMPLATE_VERSION,
+  type AnexoPdfDatos,
+  construirAnexoPdf,
+  nombreArchivoAnexo,
+} from "./anexo-v1.ts";
 import {
   construirContratoPdf,
   type ContratoPdfDatos,
@@ -21,6 +29,7 @@ import {
 } from "./template-v2.ts";
 
 export const CONTRATO_PDF_RENDERER_VERSION = CONTRATO_PDF_TEMPLATE_VERSION;
+export const ANEXO_PDF_RENDERER_VERSION = ANEXO_TEMPLATE_VERSION;
 export const CONTRATO_PDF_VFS_VERSION = "pdfmake-0.2.20-roboto-vfs-1";
 export const PDFMAKE_UPSTREAM_SHA256 =
   "bfd0e78ae7fd12ecf4ab0b4aae4b5eb3f97865b0ed5932f1d9e947fc91f54930";
@@ -551,5 +560,82 @@ export async function renderizarContratoPdfV2(
     blob,
     sha256: await sha256Bytes(bytes),
     bytes: blob.size,
+  };
+}
+
+function datosAnexo(snapshot: SnapshotContratoV2): AnexoPdfDatos {
+  return {
+    contrato: {
+      numero: snapshot.contrato.numero,
+      capital: snapshot.contrato.capital,
+      moneda: snapshot.contrato.moneda,
+      modalidad: snapshot.contrato.modalidad,
+      tipoInteres: snapshot.contrato.tipoInteres,
+      fechaInicio: snapshot.contrato.fechaInicio,
+      fechaVencimiento: snapshot.contrato.fechaVencimiento,
+    },
+    titular: {
+      nombreCompleto: snapshot.titular.nombreCompleto,
+      tipoDocumento: snapshot.titular.tipoDocumento,
+      documento: snapshot.titular.documento,
+      domicilio: snapshot.titular.domicilio,
+      correo: snapshot.titular.correo,
+    },
+    analista: { nombreCompleto: snapshot.analista.nombreCompleto },
+    cotitulares: snapshot.cotitulares.map((cotitular) => ({
+      nombreCompleto: cotitular.nombreCompleto,
+      tipoDocumento: cotitular.tipoDocumento,
+      documento: cotitular.documento,
+    })),
+    cronograma: snapshot.cronograma.map((cuota) => ({
+      numeroCuota: cuota.numeroCuota,
+      fechaProgramada: cuota.fechaProgramada,
+      montoProgramado: cuota.montoProgramado,
+      tipo: cuota.tipo,
+    })),
+  };
+}
+
+/**
+ * Anexo de cronograma (documento aparte). Mismo snapshot sellado, mismos
+ * recursos verificados y misma fecha fija (la del sellado del contrato) ⇒
+ * mismos bytes en cada impresión para esta versión desplegada.
+ */
+export async function renderizarAnexoPdfV1(
+  snapshotRaw: unknown,
+  generadoEn: string,
+): Promise<RenderAnexoResult> {
+  if (ANEXO_PDF_RENDERER_VERSION !== ANEXO_PDF_TEMPLATE_VERSION) {
+    throw new Error("Versión del anexo desalineada entre handler y plantilla");
+  }
+  const snapshot = validarSnapshotContratoV2(snapshotRaw);
+  const fechaFija = fechaRender(generadoEn);
+  await verificarRecursos();
+  const datos = datosAnexo(snapshot);
+  const definicion = construirAnexoPdf(datos, {
+    fondo: FONDO_DATA_URL,
+    firmaAsociante: FIRMA_DATA_URL,
+  });
+  definicion.info = {
+    ...definicion.info,
+    creator: `crm-contrato-pdf-v2/${ANEXO_PDF_RENDERER_VERSION}`,
+    producer:
+      `pdfmake/0.2.20 ${CONTRATO_PDF_VFS_VERSION} ${CONTRATO_PDF_ASSETS_VERSION}`,
+    creationDate: fechaFija,
+    modDate: fechaFija,
+  };
+  const blob = await documentoComoBlob(definicion);
+  if (blob.size <= 5 || blob.size > CONTRATO_PDF_MAX_BYTES) {
+    throw new Error("El renderer del anexo produjo un tamaño inválido");
+  }
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") {
+    throw new Error("El renderer del anexo no produjo un PDF");
+  }
+  return {
+    blob,
+    bytes: blob.size,
+    sha256: await sha256Bytes(bytes),
+    nombreArchivo: nombreArchivoAnexo(datos),
   };
 }
