@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ColaSlaPanel, DetalleSla, SlaOperacionBoundary } from './sla-operacion'
 import { CrmApiError } from '@/data/crm-api'
-import { fechaSla, puedeRegistrarGestionSla, type ColaSlaPagina, type EstadoSlaV2 } from '@/lib/sla-operacion'
-import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
+import { fechaSla, puedeRegistrarGestionSla, type ColaDiaPagina, type EstadoSlaV2 } from '@/lib/sla-operacion'
+import { useColaDiaPagina, useModoSla } from '@/data/sla-operacion-queries'
 const abrir = vi.fn()
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'actor', rol: 'supervisor', demo: false } }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -21,9 +21,9 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/data/sla-operacion-queries', () => ({
   slaOperacionKeys: { raiz: () => ['crm', 'metricas-ambito', 'sla-v2'] },
-  useColaSlaPagina: vi.fn(), useModoSla: vi.fn(), useEstadosSlaV2: vi.fn(),
+  useColaDiaPagina: vi.fn(), useModoSla: vi.fn(), useEstadosSlaV2: vi.fn(),
 }))
-const consulta = vi.mocked(useColaSlaPagina)
+const consulta = vi.mocked(useColaDiaPagina)
 const modo = vi.mocked(useModoSla)
 const estado: EstadoSlaV2 = {
   lead_id: 'l1', avisos: [], evaluacion: 'completa', motivos_datos: [],
@@ -31,17 +31,17 @@ const estado: EstadoSlaV2 = {
   compromiso: { tarea: null, validez: 'sin_tarea', hasta_en: null, cobertura_activa: false },
   etapa: { limite_original_en: '2026-09-07T10:00:00Z', limite_prorrogado_en: '2026-09-07T10:00:00Z', limite_operativo_en: '2026-09-07T10:00:00Z', techo_en: '2026-09-09T10:00:00Z', prorrogas_usadas: 0, prorrogas_restantes: 2, revision_requerida: true, motivos_revision: ['limite_operativo_agotado'] },
 }
-const primera: ColaSlaPagina = {
-  version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-07T10:00:00Z', filtros: { senal: 'todas', etapa: null, analista_id: null },
+const primera: ColaDiaPagina = {
+  version: 3, modo: 'activo', control_revision: 1, calculado_en: '2026-09-07T10:00:00Z', filtros: { senal: 'todas', etapa: null, analista_id: null },
   limite: 10, total_items: 455, hay_mas: true, rango: { desde: 1, hasta: 10 }, cursor_siguiente: { token: 'pagina2' },
-  totales: { pendientes: 455, primera_atencion: 527, tareas_vencidas: 538, seguimientos_pendientes: 527, revisiones: 455, datos_incompletos: 0, por_repartir: 3 },
-  items: [{ lead_id: 'l1', bucket: 'primera_atencion', severidad: 'critica', prioridad: 10, referencia_en: '2026-09-07T10:00:00Z', tarea_id: null,
+  totales: { pendientes: 455, primera_atencion: 527, tareas_vencidas: 538, seguimientos_pendientes: 527, revisiones: 455, datos_incompletos: 0, por_repartir: 3, clientes: 0 },
+  items: [{ clave: 'lead:l1', sujeto: { tipo: 'lead', id: 'l1', nombre: 'Oportunidad Uno' }, lead_id: 'l1', bucket: 'primera_atencion', severidad: 'critica', prioridad: 10, referencia_en: '2026-09-07T10:00:00Z', tarea_id: null,
     lead: { id: 'l1', nombre_completo: 'Oportunidad Uno', etapa: 'contactado', analista_id: 'analista', analista_nombre: 'Analista Uno' },
     senales: { pendientes: true, primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado }],
 }
-const segunda: ColaSlaPagina = { ...primera, rango: { desde: 11, hasta: 11 }, hay_mas: false, cursor_siguiente: null, items: [{ ...primera.items[0]!, lead_id: 'l2', lead: { ...primera.items[0]!.lead, id: 'l2', nombre_completo: 'Oportunidad Dos' } }] }
-function resultado(data: ColaSlaPagina | undefined, error: Error | null = null, isFetching = false) {
-  return { data, error, isFetching, refetch: vi.fn() } as unknown as ReturnType<typeof useColaSlaPagina>
+const segunda: ColaDiaPagina = { ...primera, rango: { desde: 11, hasta: 11 }, hay_mas: false, cursor_siguiente: null, items: [{ ...(primera.items[0] as Extract<ColaDiaPagina['items'][number], { lead_id: string }>), clave: 'lead:l2', sujeto: { tipo: 'lead', id: 'l2', nombre: 'Oportunidad Dos' }, lead_id: 'l2', lead: { ...(primera.items[0] as Extract<ColaDiaPagina['items'][number], { lead_id: string }>).lead, id: 'l2', nombre_completo: 'Oportunidad Dos' } }] }
+function resultado(data: ColaDiaPagina | undefined, error: Error | null = null, isFetching = false) {
+  return { data, error, isFetching, refetch: vi.fn() } as unknown as ReturnType<typeof useColaDiaPagina>
 }
 function montar(elemento = <ColaSlaPanel />) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -317,4 +317,70 @@ it('reinicia automáticamente la página cuando el servidor invalida su posició
   await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
   expect(consulta.mock.lastCall?.[1]).toBeNull()
   expect(screen.getByText('Oportunidad Uno')).toBeInTheDocument()
+})
+
+// Cola v3 (F3, 29/09/2026): las tareas de CLIENTES del día entran en el
+// «Seguimiento comercial». Sin lead, etapa ni analista: la fila dice qué es y
+// cuándo, y ENLAZA a la ficha de «Mi cartera» solo si el cliente tiene una.
+describe('cola SLA v3: tareas de clientes', () => {
+  const INV = 'dddddddd-0000-4000-8000-0000000000a1'
+  const senalesCliente = (vencida: boolean) => ({ pendientes: vencida, tareas_vencidas: vencida, primera_atencion: false,
+    seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false })
+  const cliente = (tarea: string, bucket: 'tarea_vencida' | 'tarea_hoy', sujeto: { perfil_id: string | null; inversionista_id: string | null; nombre: string }) => ({
+    clave: `tarea:${tarea}`, tarea_id: tarea, lead_id: null, lead: null, estado: null, bucket,
+    severidad: bucket === 'tarea_vencida' ? 'critica' as const : 'media' as const, prioridad: bucket === 'tarea_vencida' ? 20 as const : 30 as const,
+    referencia_en: '2026-09-07T15:00:00Z', senales: senalesCliente(bucket === 'tarea_vencida'), sujeto: { tipo: 'cliente' as const, ...sujeto },
+  })
+  const rosa = cliente('t-inv', 'tarea_vencida', { perfil_id: null, inversionista_id: INV, nombre: 'Rosa Cliente' })
+  const portal = cliente('t-portal', 'tarea_hoy', { perfil_id: 'p-1', inversionista_id: null, nombre: 'Luis Portal' })
+  // Como el SERVIDOR: con «Para atender ahora» solo entra la vencida; la de hoy, en «Todas».
+  // `totales.clientes` cuenta TODAS las del ámbito (3), sin la señal elegida.
+  const paginaDe = (senal: string): ColaDiaPagina => {
+    const clientes = senal === 'todas' ? [rosa, portal] : [rosa]
+    return { ...primera, hay_mas: false, cursor_siguiente: null, total_items: 1 + clientes.length, rango: { desde: 1, hasta: 1 + clientes.length },
+      filtros: { senal, etapa: null, analista_id: null }, totales: { ...primera.totales, clientes: 3 }, items: [primera.items[0]!, ...clientes] }
+  }
+  beforeEach(() => {
+    consulta.mockImplementation((filtros) => resultado(paginaDe(filtros.senal)))
+  })
+
+  it('ESTADO DE PRODUCCIÓN: pinta la tarea del cliente sin fingir analista ni etapa, y cuenta las de ESTA página (no totales.clientes)', () => {
+    montar()
+    const lista = screen.getByRole('list', { name: 'Oportunidades de esta página' })
+    const fila = within(lista).getByRole('link', { name: /Rosa Cliente/ })
+    expect(fila).toHaveTextContent('Cliente de la cartera')
+    expect(fila).toHaveTextContent('Gestión con cliente vencida')
+    expect(fila).toHaveTextContent('Ver en Mi cartera')
+    expect(fila).not.toHaveTextContent('Sin analista')
+    expect(screen.getByRole('status')).toHaveTextContent('1 gestión con un cliente en esta página')
+    expect(screen.getByRole('status')).not.toHaveTextContent('3')
+  })
+
+  it('enlaza a la ficha del cliente con el id que trae la cola (fresco), no a la de un lead', () => {
+    montar()
+    const fila = within(screen.getByRole('list', { name: 'Oportunidades de esta página' })).getByRole('link', { name: /Rosa Cliente/ })
+    expect(fila).toHaveAttribute('href', `#/mi-cartera/inversionista/${INV}`)
+    expect(abrir).not.toHaveBeenCalled()
+  })
+
+  it('una página calculada con OTRA revisión de reglas (caché) no se pinta mientras llega la vigente', () => {
+    consulta.mockImplementation((filtros) => resultado({ ...paginaDe(filtros.senal), control_revision: 2 }))
+    montar()
+    expect(screen.queryByRole('list', { name: 'Oportunidades de esta página' })).toBeNull()
+    expect(screen.getByText('Cargando oportunidades…')).toBeInTheDocument()
+  })
+
+  it('un cliente solo del portal (en «Todas») se lee, dice por qué no se abre y no ofrece una ficha que no existe', async () => {
+    const usuario = userEvent.setup(); montar()
+    expect(screen.queryByText('Luis Portal')).toBeNull()
+    await usuario.click(screen.getByRole('button', { name: /Todas las acciones/ }))
+    const lista = screen.getByRole('list', { name: 'Oportunidades de esta página' })
+    expect(within(lista).queryByRole('link', { name: /Luis Portal/ })).toBeNull()
+    expect(within(lista).queryByRole('button', { name: /Luis Portal/ })).toBeNull()
+    const fila = within(lista).getByText('Luis Portal').closest('li')!
+    expect(fila).toHaveTextContent('Cliente del portal')
+    expect(fila).toHaveTextContent('Sin ficha en la cartera')
+    expect(fila).toHaveTextContent('Gestión con cliente para hoy')
+    expect(screen.getByRole('status')).toHaveTextContent('2 gestiones con clientes en esta página')
+  })
 })

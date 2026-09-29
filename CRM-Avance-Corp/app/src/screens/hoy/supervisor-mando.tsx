@@ -25,7 +25,7 @@ import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
-import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
+import { useColaDiaPagina, useModoSla } from '@/data/sla-operacion-queries'
 import { estadoCasoSupervision, momentoCaso, nombresCortos } from '@/lib/cola-supervision'
 import { conteoSemaforoEquipo, lecturaAnalista, type LecturaAnalista } from '@/lib/senal-equipo'
 import { candidatosDeHoy, partesDeCosa, tresCosasDeHoy, type CosaDeHoy } from '@/lib/tres-cosas'
@@ -39,7 +39,7 @@ import { hashDe } from '@/lib/router'
 import { cn } from '@/lib/utils'
 import { usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import type { FiltrosSla } from '@/lib/sla-operacion'
+import { idFichaCliente, type FiltrosSla } from '@/lib/sla-operacion'
 import { HoySupervisor } from './supervisor'
 import { useDatosSupervisor } from './datos-supervisor'
 import { AgendaEquipoPanel } from './agenda-equipo'
@@ -110,6 +110,64 @@ function MarcaNivel({ nivel }: { nivel: LecturaAnalista['nivel'] }): JSX.Element
   )
 }
 
+/**
+ * Una tarea de CLIENTE en la cola del supervisor (v3). La columna del analista
+ * dice «Cliente», porque la cola no manda su dueño y el supervisor no gestiona
+ * al cliente: lo revisa. Con ficha es un ENLACE a la de «Mi cartera» (cambia de
+ * vista; Ctrl/Cmd+clic la abre aparte). Si es solo del portal, la fila se lee y
+ * la nota va en la línea del estado, que parte en vez de recortarse (a11y).
+ */
+function FilaClienteMando({ nombre, severidad, estado, conColumnaAnalista, idFicha, abriendo }: {
+  nombre: string
+  severidad: 'critica' | 'media'
+  estado: string
+  conColumnaAnalista: boolean
+  idFicha: string | null
+  abriendo: boolean
+}): JSX.Element {
+  const urgente = severidad === 'critica'
+  const sinFicha = idFicha === null
+  const contenido = (
+    <>
+      {conColumnaAnalista && (
+        <span className="hidden w-[118px] shrink-0 items-center gap-2 sm:flex">
+          <span className="truncate text-xs font-semibold text-muted-foreground-strong">Cliente</span>
+        </span>
+      )}
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className={cn('block text-sm font-semibold', sinFicha ? 'break-words' : 'truncate')}>{nombre}</span>
+        <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground-strong">
+          {urgente && <AlertTriangle className="size-3 shrink-0" style={{ color: 'var(--destructive-text)' }} aria-hidden />}
+          <span className={sinFicha ? 'break-words' : 'truncate'}>
+            {conColumnaAnalista && <span className="sm:hidden">Cliente · </span>}
+            {estado}{sinFicha && ' · Sin ficha en la cartera'}
+          </span>
+        </span>
+      </span>
+    </>
+  )
+  return (
+    <li data-sev={severidad} className="flex items-center gap-2 border-l-[3px] border-t border-t-border/60 pr-5" style={{ borderLeftColor: SEV_COLOR[severidad] }}>
+      {idFicha !== null ? (
+        <a
+          href={hashDe('mi-cartera', null, idFicha)}
+          aria-disabled={abriendo || undefined}
+          onClick={(e) => { if (abriendo) e.preventDefault() }}
+          aria-label={`Abrir la ficha de ${nombre}, cliente de la cartera${urgente ? ', urgente' : ''}: ${estado}`}
+          className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 py-2 pl-[17px] text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40 aria-disabled:cursor-wait"
+        >
+          {contenido}
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </a>
+      ) : (
+        <div className="flex min-h-[52px] min-w-0 flex-1 items-center gap-3.5 py-2 pl-[17px]">
+          {contenido}
+        </div>
+      )}
+    </li>
+  )
+}
+
 export function HoySupervisorMando(): JSX.Element {
   const modo = useModoSla()
   const { yo } = useAuth()
@@ -124,6 +182,7 @@ function PuestoDeMando(): JSX.Element {
   const modo = useModoSla()
   const datos = useDatosSupervisor()
   const { abrirLead } = usePanelesActions()
+
   const { yo } = useAuth()
   const { ambito, rank, tc, ahora } = datos
   const idPanelCola = useId()
@@ -161,14 +220,19 @@ function PuestoDeMando(): JSX.Element {
   }
 
   const filtros: FiltrosSla = { senal: pestana, etapa: null, analista_id: analistaId }
-  const consultaCola = useColaSlaPagina(filtros, null, COLA_VISIBLES, modo.activo)
+  // Cola v3 (29/09/2026): los leads del equipo y, además, las tareas de sus
+  // CLIENTES del día. Mismos filtros; una tarea de cliente no tiene analista en
+  // el payload, así que su fila no finge un dueño.
+  const consultaCola = useColaDiaPagina(filtros, null, COLA_VISIBLES, modo.activo)
   // Fail-closed: TanStack conserva la última respuesta tras un refetch
   // fallido; con error, la cola NO se muestra como vigente.
   const pagina = consultaCola.error ? undefined : consultaCola.data
   // Vigente = modo activo Y la MISMA revisión de reglas que el modo: la caché
   // de TanStack no conoce la revisión y, al remontar, podría servir una página
   // calculada con las reglas anteriores mientras refresca.
-  const revisionVigente = modo.data?.control_revision
+  // Sin modo confirmado (error de su relectura) no hay revisión vigente: la
+  // caché de la cola no se pinta como confirmada (Codex, 29/09/2026).
+  const revisionVigente = modo.activo && !modo.error ? modo.data?.control_revision : undefined
   const esVigente = (p: typeof pagina) => p != null && p.modo === 'activo' && p.control_revision === revisionVigente
   const paginaVigente = esVigente(pagina) ? pagina : undefined
   // Las decisiones del día miran a TODO el equipo y a una clave ESTABLE: los
@@ -176,7 +240,7 @@ function PuestoDeMando(): JSX.Element {
   // analista antes de contarlos), así que cambiar de pestaña no deja la
   // banda sin su fuente mientras llega otra respuesta. Con «Para atender
   // ahora» y sin analista, es la misma clave que la cola: TanStack la comparte.
-  const consultaEquipo = useColaSlaPagina({ senal: 'pendientes', etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
+  const consultaEquipo = useColaDiaPagina({ senal: 'pendientes', etapa: null, analista_id: null }, null, COLA_VISIBLES, modo.activo)
   const paginaEquipo = consultaEquipo.error ? undefined : consultaEquipo.data
   const paginaEquipoVigente = esVigente(paginaEquipo) ? paginaEquipo : undefined
 
@@ -187,7 +251,7 @@ function PuestoDeMando(): JSX.Element {
   const cortos = useMemo(
     () => nombresCortos([
       ...analistas.map((m) => m.nombre_completo),
-      ...(paginaVigente?.items ?? []).map((i) => i.lead.analista_nombre ?? ''),
+      ...(paginaVigente?.items ?? []).map((i) => i.lead?.analista_nombre ?? ''),
     ]),
     [analistas, paginaVigente],
   )
@@ -523,6 +587,13 @@ function PuestoDeMando(): JSX.Element {
                   // oxlint-disable-next-line jsx-a11y/no-redundant-roles
                   <ul role="list" aria-label={`${tituloCola}: ${PESTANAS.find((p) => p.id === pestana)?.label ?? ''}`} aria-busy={consultaCola.isFetching || abriendo !== null}>
                     {paginaVigente.items.map((item) => {
+                      if (item.lead_id === null) {
+                        return (
+                          <FilaClienteMando key={item.clave} nombre={item.sujeto.nombre} severidad={item.severidad}
+                            estado={`Gestión con cliente · ${momentoCaso(item.bucket, item.referencia_en, ahora)}`}
+                            conColumnaAnalista={analistaId == null} idFicha={idFichaCliente(item)} abriendo={abriendo !== null} />
+                        )
+                      }
                       const leadStore = leadPorId.get(item.lead_id)
                       const colorTira = item.severidad === 'baja' ? 'transparent' : SEV_COLOR[item.severidad]
                       const analistaFila = item.lead.analista_nombre ? corto(item.lead.analista_nombre) : 'Sin analista'
@@ -531,7 +602,7 @@ function PuestoDeMando(): JSX.Element {
                       const urgente = item.severidad === 'critica'
                       return (
                         <li
-                          key={item.lead_id}
+                          key={item.clave}
                           data-sev={item.severidad}
                           className="flex items-center gap-2 border-l-[3px] border-t border-t-border/60 pr-5"
                           style={{ borderLeftColor: colorTira }}

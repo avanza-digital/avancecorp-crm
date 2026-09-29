@@ -98,6 +98,25 @@ export const ColaDiaPaginaSchema = v.pipe(v.object({ ...sobre, ...paginacion, ve
 export type ColaDiaPagina = v.InferOutput<typeof ColaDiaPaginaSchema>
 export type ItemColaDia = ColaDiaPagina['items'][number]
 export type ItemColaDiaCliente = v.InferOutput<typeof ItemColaDiaClienteSchema>
+/**
+ * La acción de una tarea de CLIENTE en las colas (v3). Vale para cualquier rol:
+ * un cliente no tiene lead, etapa ni analista en el payload, así que la fila
+ * dice qué es y cuándo, sin fingir un dueño.
+ */
+export const ACCIONES_CLIENTE_SLA: Record<ItemColaDiaCliente['bucket'], string> = {
+  tarea_vencida: 'Gestión con cliente vencida',
+  tarea_hoy: 'Gestión con cliente para hoy',
+}
+/**
+ * El id con el que se abre la ficha de un cliente de la cola: el inversionista
+ * que trae la COLA, que es fresco (se relee cada minuto). No se prefiere una
+ * canónica guardada en el store: podría ser vieja (Codex, 29/09/2026), y la
+ * ficha ya resuelve la canónica y el ámbito en el servidor. Un cliente solo del
+ * portal (sin inversionista) no tiene ficha: null, y la fila no ofrece abrirla.
+ */
+export function idFichaCliente(item: Pick<ItemColaDiaCliente, 'sujeto'>): string | null {
+  return item.sujeto.inversionista_id
+}
 export const ACCIONES_SLA: Record<string, string> = {
   primera_atencion: 'Contactar al cliente', tarea_vencida: 'Revisar actividad pendiente', tarea_hoy: 'Actividad de hoy',
   seguimiento: 'Retomar el contacto', revision_comercial: 'Definir el siguiente paso', datos_incompletos: 'Revisar datos',
