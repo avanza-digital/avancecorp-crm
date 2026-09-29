@@ -147,3 +147,62 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
 - [ ] Rol: lector global sin rol CRM y Directorio sin filas de clientes; postventa según candado y flags.
 - [ ] Advisors de seguridad y rendimiento sin alertas nuevas; `EXPLAIN` documentado.
 - [ ] `COMMENT ON` completo; sin secretos; ACL efectiva comprobada; ledger al día.
+
+## Para retomar (pausa 28/09 ~21:30 · seguir el 29/09)
+
+**Serial de la sesión de Claude:** `ab26b668-c893-4ae9-a1cf-87fbd5fab72e`
+(`claude --resume ab26b668-c893-4ae9-a1cf-87fbd5fab72e`, desde `CRM-Avance-Corp/GESTION DIARIA`).
+
+### Estado al pausar
+- Todo commiteado en `main` local (HEAD `4e98042d`); nada de esta tarea queda sin commit. F1 EN PROD y registrada.
+- Front: NADIE consume la v3 todavía (Gestión diaria del analista y el botón de «Hoy» siguen en `cola_accion_v2_fn`).
+- Vivo en crm.miavance.com: `build-20260928T233226790Z` (commit `7e9b426a`, botón GESTIÓN DIARIA).
+- Artefacto construido y SIN publicar: `CRM-Avance-Corp/releases/crm-20260928T235425Z-7b2c9de00cc6.zip` (commit
+  `7b2c9de0`: gestiones de clientes dentro de «Tu agenda de hoy», fuera la pastilla «Vista personal»,
+  `LIMITE_COLA_DIA` unificado). Antes de publicarlo: REPETIR el preflight contra el vivo (otra sesión puede haber
+  publicado) y deploy por Miguel con `!` (`/release-crm`).
+- Banco Docker `crm-banco-cola-v3` DETENIDO con datos (volúmenes conservados). Worktree
+  `AVANCECORP-desktop-worktrees/banco-cola-v3-20260928`. Rearrancar: `cd …/banco-cola-v3-20260928/CRM-Avance-Corp &&
+  supabase start`. Retirar tras F2: `supabase stop --no-backup --project-id crm-banco-cola-v3` + `git worktree remove`.
+
+### Contrato v3 que el front debe leer (verificado en la migración `20260929004455`)
+- Sobre: igual a la v2 pero `version: 3`; `totales` añade `clientes`; `proximo_cambio_en` ya incluye el próximo
+  vencimiento de cliente y la medianoche de Lima.
+- Item LEAD: los campos de la v2 + `clave: 'lead:<lead_id>'` + `sujeto: {tipo:'lead', id, nombre}`.
+- Item CLIENTE: `clave: 'tarea:<tarea_id>'`, `tarea_id`, `lead_id: null`, `lead: null`, `estado: null`, `bucket`
+  (`tarea_vencida` | `tarea_hoy`), `prioridad` (20 | 30), `severidad` (`critica` | `media`), `referencia_en` (= `vence_en`),
+  `senales` (solo `tareas_vencidas` y `pendientes`, ambas = vencida), `sujeto: {tipo:'cliente', perfil_id,
+  inversionista_id, nombre}`. SIN teléfono y SIN `responsable_id` (se quita antes de salir).
+- Cursor: `{version: 2, contexto, prioridad, referencia_en, clave}`; cualquier otra forma → error del servidor.
+
+### F2, orden de trabajo (front del analista, `app/`)
+1. `src/lib/database.types.ts`: añadir A MANO la entrada `cola_accion_v3_fn` (mismos Args/Returns que
+   `cola_accion_v2_fn`, línea ~5036). NO correr `gen:types`: otra sesión tiene ahí un cambio a mano sin commit
+   (`p_reasignados`) y el generado lo pisaría. Commit solo de mi hunk (índice temporal `GIT_INDEX_FILE` + `git apply --cached`).
+2. `src/lib/sla-operacion.ts`: `ColaDiaV3PaginaSchema` con unión discriminada por `sujeto.tipo` (`v.union`; `v.variant`
+   exige la clave en la raíz); tipo `ItemColaDia`.
+3. `src/data/sla-operacion-api.ts`: `listarColaDia` → rpc `cola_accion_v3_fn` con las MISMAS comprobaciones de contrato
+   que `listarColaSla` (límite, filtros eco, `hay_mas` ⇔ cursor).
+4. `src/data/sla-operacion-queries.ts`: `useColaDiaPagina` con clave PROPIA `[...raiz, actor, 'cola-dia-v3', filtros,
+   cursor, limite]` (nunca la de la v2).
+5. `src/lib/gestion-diaria-analista.ts`: `FilaDiaria` con `clave` y `sujeto`; `ordenarColaDiaria` sobre items v3
+   (cliente vencido → grupo `tarea_vencida`; cliente de hoy → `tarea_hoy`); `filasDiariasDemo` con clientes (vencido,
+   de hoy, dos tareas de una misma persona, sin teléfono).
+6. `src/screens/gestion-diaria/analista.tsx`: `useColaDiaPagina`; identidad, selección, `cerrados`, siguiente fila y
+   keys de render por `clave`; `asegurarLead` y sesión de llamada SOLO en la rama lead; tarjeta **Cliente** (nombre;
+   teléfono solo si hay puerta autorizada; «Registrar resultado» → `CerrarTareaDialog`, que exige un `Tarea` completo:
+   traer la tarea por id o construirla desde el item con su rama `perfil_id`/`inversionista_id`; el éxito cierra por
+   `tarea_id`; sin ficha para solo `perfil_id`; sin enlace ficticio).
+7. `src/data/use-conteo-gestion-diaria.ts`: `useColaDiaPagina` con la misma clave que el destino (caché compartida).
+8. Pruebas: `gestion-diaria-analista.test.ts`, `analista.test.tsx`, `use-conteo-gestion-diaria.test.ts`,
+   `sla-operacion-api.test.ts`; fixture `src/data/sla-operacion-sql.test.fixture.json` → añadir `cola_v3` capturado
+   del banco (sesión autenticada de un analista de prueba, como hace `test-rls.mjs`); e2e `e2e/_sla-cola.ts` con rama
+   `cola_accion_v3_fn` (los mocks hacen ECO de los argumentos) y correr `gestion-diaria-*.spec.ts` en Docker.
+9. Codex refuta el diff (LEVEL 3: datos y alcance por rol) + `revisor-a11y`; `npm run check`; release con preflight;
+   deploy por Miguel con `!`; PR de integración a `avancecorp/main` (sin lo de Gloria).
+
+### Otros pendientes de esta tarea
+- Advisors de Supabase (seguridad y rendimiento) NOT RUN al cierre de F1: revisar en el panel.
+- Suite `supabase/scripts/test-rls.mjs` del repo desfasada con la regla «canal concreto» (27 fixtures `origen:'otro'`
+  → canal concreto) y cleanup del banco con el trigger `perfiles_domicilio_legal_no_borrar`.
+- PR #129 (contiene #128) pendiente de fusionar por Miguel → traer `avancecorp/main` al main local.
