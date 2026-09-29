@@ -22,7 +22,11 @@ etapa, origen, procedencia, analista, búsqueda y fechas. La ficha relee por id
 y comprueba su historial bajo RLS para conservar la marca si se abre desde
 otra pantalla. En demo se aplica la misma regla al historial local.
 
-Estado al 29/09 20:05 UTC: verificado en banco remoto; pendiente de integrar en producción y publicar el frontend.
+**PUBLICADO 29/09/2026.** Migración `20260929195918` integrada por `merge_branch` desde el banco validado. Producción tiene 390 migraciones, función INVOKER de 12 argumentos, ACL `postgres/authenticated`, sello analítico vigente y huella de función `7169d94239dcb191bafa3faed46f916f`, idéntica al banco. La integración nativa separó el SQL en 16 sentencias sin sus separadores; los cuerpos no cambiaron (el hash del registro concatenado es distinto al archivo por ese formato).
+
+Frontend en https://crm.miavance.com: `build-20260929T200401559Z`, fuente limpia `ec6eb4eb754ab5ff19f896564c29d7048c137348`, paquete `crm-20260929T200402Z-ec6eb4eb754a.zip`, SHA-256 `fd52c3c02b23a84f834f802d838ea0e3f3089792c7651163c8c52ddb35ede9c9`. Publicado mediante el cliente MCP oficial de Hostinger, con el token existente. Preflight y verificación del ZIP PASS. Smoke HTTP: 93 archivos (portada, versión, JS y CSS) devueltos con sus hashes exactos; portada HTTP 200. La primera petición con `curl --compressed` fue rechazada por 403; la descarga normal verificó todos los bytes. La automatización del navegador no arrancó por falta de su app-server local; no se acredita un recorrido autenticado en navegador productivo.
+
+El rescate se construyó sobre el commit vivo y su árbol de `CRM-Avance-Corp/app` coincide al byte con la integración preparada desde `avancecorp/main` (árbol `7a28cafda631616b9337057293303abb062a6a32`). La integración incorpora el anexo que ya estaba publicado y los cambios de Reasignados; no arrastra la historia local ajena. La rama de prueba fue eliminada tras verificar producción. Las 22 Edge conservan exactamente su hash y configuración tras el merge.
 
 ## Verificación
 
@@ -43,7 +47,7 @@ La suite general original se detuvo en el origen ficticio `otro`, que el sistema
 
 El replay automático se detuvo en la migración histórica 86. Se reconstruyó exclusivamente nuestra branch vacía desde estructura productiva, siguiendo el precedente del proyecto; no se copiaron clientes reales. Se verificaron 1320 columnas, 850 funciones, 331 triggers, 106 policies, 131 tablas RLS, 477 índices y 3 vistas. Tres CHECK difieren solo en asociación de AND equivalente. Se alinearon 1427 privilegios explícitos y los ocho permisos predeterminados sobrantes del arranque.
 
-Los 389 registros históricos coinciden íntegros con producción (hash `f1709d754ee3a02727e3b406288b722d`). Solo se añadió la migración de Reasignados. El cotejo posterior cambia exactamente una función: `cartera_filtrada_fn`. Las 22 Edge Functions tienen el mismo hash y configuración que producción. Los cron de la branch están desactivados. El banco cuesta US$0,01344/h y debe eliminarse al terminar.
+Los 389 registros históricos coinciden íntegros con producción (hash `f1709d754ee3a02727e3b406288b722d`). Solo se añadió la migración de Reasignados. El cotejo posterior cambia exactamente una función: `cartera_filtrada_fn`. Las 22 Edge Functions tienen el mismo hash y configuración que producción. Los cron de la branch están desactivados. El banco costaba US$0,01344/h y fue eliminado al terminar (solo esta branch).
 
 La revisión secundaria señaló policies ALL/permisos de escritura futuros; el preflight y postflight ahora los rechazan. No cambia RLS ni permite editar la marca: se deriva del evento sellado. Producción conserva sus datos y el frontend anterior puede seguir llamando la función con argumentos por defecto.
 

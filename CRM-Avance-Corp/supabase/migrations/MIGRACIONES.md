@@ -1,6 +1,6 @@
 ## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
-**PENDIENTE DE PUBLICAR.** «Reasignado» cuenta un lead con analista actual y
+**EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
 un evento de `crm.actividades.tipo='reasignacion'` anterior con
 `metadata.vendedor_anterior` no nulo. La primera
 entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
@@ -28,7 +28,7 @@ al padre. La suite global original falló por el fixture de canal antiguo;
 se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
 acreditar la suite global completa. SQL SHA-256:
 `67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
-Pendiente integración productiva; no hay cambios de RLS ni de tablas.
+Producción verificada: 390 migraciones; función `7169d94239dcb191bafa3faed46f916f`, INVOKER, ACL exacta y sello vigente. Frontend `build-20260929T200401559Z`; 93 archivos HTTP con hash exacto. No hay cambios de RLS ni de tablas. Banco temporal eliminado.
 Reversa coordinada: restaurar la función de 11 argumentos de
 `20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
 analítica y su sello, y publicar el frontend anterior en el mismo corte.
