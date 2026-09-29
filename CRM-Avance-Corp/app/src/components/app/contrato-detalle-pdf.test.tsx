@@ -10,6 +10,7 @@ import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 const toast = vi.hoisted(() => ({ error: vi.fn() }))
 const archivoPdf = vi.hoisted(() => ({
   abrir: vi.fn(),
+  anexo: vi.fn(),
   archivar: vi.fn(),
   archivarDemo: vi.fn(),
   consultar: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('@/lib/contrato-pdf-archivo', async (importOriginal) => ({
   consultarEstadoContratoPdf: archivoPdf.consultar,
   ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
   etiquetaEstadoContratoPdf: (estado: string) => estado,
+  imprimirAnexoCronograma: archivoPdf.anexo,
   obtenerContratoPdfArchivado: archivoPdf.obtener,
   descargarArchivoContratoPdf: archivoPdf.descargar,
   verArchivoContratoPdf: archivoPdf.ver,
@@ -120,6 +122,16 @@ const archivo = {
   blob: new Blob(['%PDF-1.7\ndemo'], { type: 'application/pdf' }),
 }
 
+const anexo = {
+  contratoId: contrato.id,
+  contratoRevision: 1,
+  template: 'anexo-cronograma-v1',
+  nombreArchivo: 'Anexo-2026-01-000901-ROSA.pdf',
+  sha256: 'b'.repeat(64),
+  bytes: 17,
+  blob: new Blob(['%PDF-1.7\nanexo'], { type: 'application/pdf' }),
+}
+
 const { ContratoDetalle } = await import('./contrato-detalle')
 
 function render(elemento: ReactElement) {
@@ -155,6 +167,7 @@ describe('ContratoDetalle — PDF archivado', () => {
     archivoPdf.descargar.mockReset()
     archivoPdf.ver.mockReset()
     archivoPdf.abrir.mockReset().mockReturnValue({ close: vi.fn() })
+    archivoPdf.anexo.mockReset().mockResolvedValue(anexo)
   })
 
   it('en demo archiva una vez y descarga el objeto inmutable, no regenera directo', async () => {
@@ -320,6 +333,75 @@ describe('ContratoDetalle — PDF archivado', () => {
     expect(toast.error).toHaveBeenCalledWith('El navegador bloqueó la ventana del contrato PDF.')
     expect(archivoPdf.obtener).not.toHaveBeenCalled()
   })
+  // ── Anexo de cronograma: documento aparte que el analista imprime (28/09) ──
+  it('imprime el anexo de cronograma en una pestaña reservada en el clic, sin tocar el contrato', async () => {
+    const user = userEvent.setup()
+    consultas.contrato = contrato
+    const ventana = { close: vi.fn() }
+    archivoPdf.abrir.mockReturnValue(ventana)
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+      </Dialog>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Imprimir anexo de cronograma' }))
+
+    await waitFor(() => expect(archivoPdf.ver).toHaveBeenCalledWith(anexo, ventana))
+    expect(archivoPdf.abrir).toHaveBeenCalledWith(
+      'Preparando anexo de cronograma…',
+      'Preparando el anexo de cronograma desde el contrato sellado…',
+      'anexo de cronograma',
+    )
+    expect(archivoPdf.anexo).toHaveBeenCalledWith(contrato.id)
+    expect(archivoPdf.obtener).not.toHaveBeenCalled()
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    expect(ventana.close).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('si el contrato no tiene PDF sellado, cierra la pestaña y muestra el aviso del servidor', async () => {
+    const user = userEvent.setup()
+    consultas.contrato = contrato
+    const ventana = { close: vi.fn() }
+    archivoPdf.abrir.mockReturnValue(ventana)
+    archivoPdf.anexo.mockRejectedValue(
+      new Error('El contrato todavía no tiene su PDF sellado; genera primero el contrato PDF'),
+    )
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+      </Dialog>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Imprimir anexo de cronograma' }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'El contrato todavía no tiene su PDF sellado; genera primero el contrato PDF',
+      ),
+    )
+    expect(ventana.close).toHaveBeenCalled()
+    expect(archivoPdf.ver).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Imprimir anexo de cronograma' })).toBeEnabled()
+  })
+
+  it('en modo demo no ofrece el anexo (no hay contrato sellado del que sacarlo)', () => {
+    consultas.contrato = contrato
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle
+          contratoId={contrato.id}
+          datos={{ contrato, cuotas: [], titulares: [], pdfDatos }}
+          onCerrar={() => undefined}
+        />
+      </Dialog>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Ver contrato PDF' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Imprimir anexo de cronograma' })).toBeNull()
+  })
+
   // ── El régimen documental anterior (2026-08-20) ────────────────────────────
   // «Ver contrato PDF» no muestra: si no hay documento, lo FABRICA. En un
   // contrato firmado antes del 19/08 eso acuñaba un segundo contrato para una

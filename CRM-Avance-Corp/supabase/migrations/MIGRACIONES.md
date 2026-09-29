@@ -1,3 +1,33 @@
+## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`)
+
+**PENDIENTE DE PUBLICAR.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
+añadido es que el analista ahora puede imprimir este anexo». El contrato PDF NO cambia
+(sigue en v9; ningún sellado se toca). Una lectura nueva, solo `service_role`, para la
+acción «anexo» de la Edge `crm-contrato-pdf-v2`: devuelve el snapshot SELLADO vigente
+(el archivo visible según `private.contrato_pdf_estado_base`) con la misma regla de
+lectura que el PDF (`private.puede_leer_contrato_pdf_como`), rechaza contratos en
+eliminación y distingue con el hint `ANEXO_SIN_PDF_SELLADO` (sin sellado vigente o
+revisión nueva pendiente) de `ANEXO_SIN_SNAPSHOT` (ledger v1). Deja un asiento por
+impresión en la bitácora nueva `private.contrato_pdf_anexo_impresiones` (solo añadir,
+RLS forzada, sin lectores de la API, SIN snapshot porque lleva datos bancarios, sin FK
+para sobrevivir a la eliminación auditada). No toca `public` ni redefine funciones vivas.
+
+Ensayo: arnés local del PDF `supabase/scripts/run-test-contrato-pdf-v2-local.sh --run`
+con la migración incluida (`\ir`) y el bloque «Anexo de cronograma imprimible» del
+oráculo `test-contrato-pdf-v2.sql`: permisos por catálogo (ejecutar sin EXECUTE bajo
+`set role` tumba el banco), lectura del sellado con ficha exacta, snapshot = ledger,
+idempotencia, fuera de cartera, actor nulo, inexistente (misma frase), plantilla
+inválida, ledger v1, pendiente sin asiento, bitácora solo añadir ⇒
+CONTRATO_PDF_V2_SQL_OK + RUNNER_OK. Edge 70/70, front `npm run check` 4 853, e2e Docker
+2/2, revisor a11y PASS, `test:rls:preflight` PASS. auditor-rls y Codex (código): en
+curso al escribir este asiento; sus hallazgos van en el asiento al publicar.
+TODO integrador: `db query --linked --file` de la migración → registrador
+`supabase/scripts/anexo-cronograma/registrar-20260929151350.sql` → deploy de la Edge
+(DESDE `CRM-Avance-Corp/`) → `/release-crm`. `gen:types` después de aplicar.
+**Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de la
+función + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya expone
+«anexo», revertir primero front y Edge.
+
 ## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
 **PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
@@ -13,8 +43,17 @@ con leads. La exención analítica se mueve a la nueva firma y se resella.
 
 Ensayo: migración aplicada y fixture transaccional
 `supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado;
-incluye primera entrega, A → B, A → bandeja → B/A, roles de Gerencia,
-analistas, supervisor y denegación a anon. No se aplicó en producción.
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, veto de INSERT falso y denegación a anon. Lectura
+agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
+y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
+anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
+comprobación de datos, no una publicación de la migración. No se aplicó en
+producción.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 

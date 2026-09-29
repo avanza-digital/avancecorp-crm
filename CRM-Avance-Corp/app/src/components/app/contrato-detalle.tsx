@@ -8,7 +8,7 @@ import { mensajeErrorEliminacionContrato } from '@/lib/contrato-pdf-archivo'
 // (mismo patrón que ContratoNuevo: el caller pone el Dialog, aquí va el panel).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, ExternalLink, FileText, LoaderCircle, RotateCcw, Trash2, WifiOff } from 'lucide-react'
+import { Download, ExternalLink, FileText, LoaderCircle, Printer, RotateCcw, Trash2, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ import { CODIGO_PRODUCTO_HISTORICO } from '@/components/app/producto-contrato-se
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import {
   abrirVentanaContratoPdf,
+  AnexoCronogramaError,
   archivarContratoPdfConfirmado,
   consultarEstadoContratoPdf,
   CONTRATO_DOCUMENTO_DESDE_TEXTO,
@@ -41,6 +42,7 @@ import {
   descargarArchivoContratoPdf,
   esContratoRegimenAnterior,
   etiquetaEstadoContratoPdf,
+  imprimirAnexoCronograma,
   obtenerContratoPdfArchivado,
   verArchivoContratoPdf,
   type EstadoContratoPdf,
@@ -180,7 +182,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   const [accionPdfUi, setAccionPdfUi] = useState<{
     contratoId: string
     secuencia: number
-    accion: 'ver' | 'descargar'
+    accion: 'ver' | 'descargar' | 'anexo'
   } | null>(null)
   const [estadoPdfUi, setEstadoPdfUi] = useState<EstadoPdfUi>(() => ({
     contratoId,
@@ -346,6 +348,47 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
         error instanceof Error
           ? error.message
           : 'No se pudo recuperar el contrato PDF. Inténtalo nuevamente.',
+      )
+    } finally {
+      setAccionPdfUi((actual) => (actual?.secuencia === secuenciaAccion ? null : actual))
+    }
+  }
+
+  // Anexo de cronograma: documento APARTE que el analista imprime cuando quiere
+  // (Miguel, 28/09/2026). La Edge lo dibuja desde los datos congelados del
+  // contrato sellado; aquí solo se abre en una pestaña. No existe en modo demo.
+  const ejecutarAnexo = async () => {
+    if (!contrato || accionPdf || pdfDatos) return
+    const contratoIdAccion = contratoId
+    const secuenciaAccion = ++secuenciaAccionPdfRef.current
+    const accionSigueVigente = () =>
+      contratoIdActualRef.current === contratoIdAccion
+      && secuenciaAccionPdfRef.current === secuenciaAccion
+    let ventanaAnexo: Window | null = null
+    try {
+      // La pestaña se reserva dentro del gesto del usuario, como en «Ver».
+      ventanaAnexo = abrirVentanaContratoPdf(
+        'Preparando anexo de cronograma…',
+        'Preparando el anexo de cronograma desde el contrato sellado…',
+        'anexo de cronograma',
+      )
+      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion: 'anexo' })
+      const anexo = await imprimirAnexoCronograma(contratoId)
+      if (!accionSigueVigente()) {
+        ventanaAnexo.close()
+        return
+      }
+      verArchivoContratoPdf(anexo, ventanaAnexo)
+    } catch (error) {
+      ventanaAnexo?.close()
+      if (!accionSigueVigente()) return
+      if (!(error instanceof AnexoCronogramaError)) {
+        console.error('[contrato-pdf] No se pudo generar el anexo de cronograma', error)
+      }
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo generar el anexo de cronograma. Inténtalo nuevamente.',
       )
     } finally {
       setAccionPdfUi((actual) => (actual?.secuencia === secuenciaAccion ? null : actual))
@@ -848,6 +891,24 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               )}
               Descargar contrato PDF
             </Button>
+            {/* El anexo sale del snapshot sellado, no de los bytes del PDF: por
+                eso no se bloquea con `integridad_bloqueada` como Ver/Descargar. */}
+            {!pdfDatos && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={eliminando || accionPdf != null}
+                onClick={() => void ejecutarAnexo()}
+              >
+                {accionPdf === 'anexo'
+                  ? (
+                  <LoaderCircle className="animate-spin" aria-hidden />
+                ) : (
+                  <Printer aria-hidden />
+                )}
+                Imprimir anexo de cronograma
+              </Button>
+            )}
           </>
         )}
         <Button variant="outline" size="sm" disabled={eliminando} onClick={onCerrar}>

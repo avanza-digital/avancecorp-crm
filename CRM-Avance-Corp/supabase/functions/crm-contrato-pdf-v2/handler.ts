@@ -589,7 +589,13 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       ]) &&
       uuidCanonico(valor.contrato_id) &&
       Number.isInteger(valor.revision) && (valor.revision as number) >= 1 &&
-      versionJobLegible(valor.template_version) &&
+      // La versión del CONTRATO sellado solo se transporta: el anexo no la
+      // dibuja, y el CHECK de la base ya la acota. No se exige que esta edge
+      // sepa leerla (un sellado v3/v4 seguiría dando su anexo).
+      typeof valor.template_version === "string" &&
+      valor.template_version.length >= 1 &&
+      valor.template_version.length <= 80 &&
+      !tieneControl(valor.template_version) &&
       fechaIso(valor.generado_en) &&
       typeof valor.sha256 === "string" && /^[0-9a-f]{64}$/.test(valor.sha256) &&
       esObjeto(valor.snapshot);
