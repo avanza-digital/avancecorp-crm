@@ -1,3 +1,65 @@
+## 20260929230336 — Cartera de inversionistas: el nombre del cierre externo en un solo recorrido (`private.cartera_f5_personas_visibles(uuid)`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 2 · fase 1 del refactor por módulos, aprobado por
+Miguel el 29/09 («dale, arranca la Fase 1»). Plan sin jerga en el chat; anclas en la nota del vault «CRM -
+perfil de carga lectura vs escritura (2026-09-29)».
+
+Problema medido (EXPLAIN ANALYZE como gerencia, 29/09): el listado tardaba 2.384 ms y 2.283 ms eran UN
+lateral: por cada una de las 560 personas se recorría `crm.cierres_externos` (41 filas) y, por cada fila,
+la CTE `fuentes` (718): 22.897 recorridos de la CTE. El resto de la función: ~100 ms.
+
+Cambio: ese lateral pasa a una CTE `cierres_nombre` calculada una vez (`distinct on (inversionista_id) …
+order by inversionista_id, creado_en desc, id`, el mismo desempate del `order by … limit 1`) y un `left join`
+con la misma condición `and not i.lector`. Nada más cambia: mismas CTEs y reglas de acceso, misma firma,
+dueño, ACL, STABLE, DEFINER y `search_path` vacío (el postflight lo comprueba). Ninguna puerta ni el front
+cambian; `gen:types` no aplica. Huellas `md5(pg_get_functiondef)`: viva `45b18a6af966f0ddfd137aec0b9b653d`
+→ nueva `bca76d60bd56905eff978357f539d300`. Migración idempotente y fail-closed.
+
+**Oráculo de igualdad en producción** (una transacción deshecha; `scripts/cartera-personas-visibles/ensayo-oraculo.sql`):
+gerencia, supervisor con bandeja y 2 analistas con cartera; por actor md5 de `personas_visibles()` completa,
+listado en 11 variantes (páginas 1–3, texto, empresa, estado, por vencer, sin responsable, contacto, mes,
+tamaño 10; 3 para los no gerencia), estado, ficha (3/1), gestión, postventa perfil y vencimientos:
+**46/46 iguales, 0 distintos**. Tiempos antes → después: listado gerencia 2.357–3.216 → **181–232 ms**,
+supervisor 1.215 → 185–233, analista 377–1.282 → 159–162; `personas_visibles()` gerencia 4.527 → 157 ms.
+La ficha queda en ~480 ms (su coste está en otra parte; fuera de alcance).
+
+**Ciclo ensayado en producción con rollback:** migración → reversa → migración → registrador (huellas
+bca76… → 45b1… → bca76…, fila registrada) y comprobado después: huella viva intacta, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260929230336_crm_cartera_personas_visibles_cierre_sin_bucle.sql`
+→ `supabase/scripts/cartera-personas-visibles/registrar.sql` → `verificar.sql` (solo lectura; esperado
+listado < 400 ms) → advisors. Reversa: `reversa.sql` (restaura el cuerpo vivo del 29/09 byte a byte;
+conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews (LEVEL 3, 2 rondas de Codex):** r1 (`docs/encargos/2026-09-29-codex-cartera-personas-visibles.md`)
+CHANGES_REQUESTED: P1 «registrador no ejecutable» era un artefacto del extracto (un filtro de líneas mutiló
+la transcripción; el archivo era correcto) → r2 con los archivos completos; P2 «la ruta idempotente no
+comprueba dueño/ACL» → aceptado. r2 (`…-r2.md`) CHANGES_REQUESTED: P1 «`if not (…)` deja pasar una ACL
+NULL» → aceptado (todas las guardas evalúan `is not true` y exigen `acl is not null`); P2 «reversa y
+registrador solo miran la huella» → aceptado (las tres piezas exigen dueño postgres, ACL
+`{postgres=X/postgres}`, DEFINER, STABLE y `search_path` vacío, que se guarda como `search_path=""`).
+Su petición de prueba sintética → hecha: `prueba-sintetica.sql` (VALUES: empate en `creado_en`, fuente
+duplicada, fuente sin persona, empresa avance excluida, nombre NULL y vacío, persona sin cierres, lector
+true/false): lateral viejo vs CTE nueva, `except all` en ambos sentidos = 0 y 0 (8 casos). Guardas probadas
+en negativo dentro del ciclo (funciones `pg_temp`): rechaza ACL nula, rechaza `authenticated`, acepta
+solo-postgres, rechaza dueño distinto (código 112 = esperado). Ciclo rehecho tras los cambios: verde.
+Aclaración a Codex: el ciclo concatena los CUERPOS sin `begin/commit` (`ensayo-ciclo.sql`), por eso cabe en
+una transacción deshecha. Sin tercera ronda (tope 2).
+**auditor-rls: PASS** (equivalencia semántica en todas las ramas de acceso, sin referencias sin calificar,
+sin cambios en reglas, grants, `public` ni inmutabilidad; 3 observaciones P3: el `is not true` del guard y
+los invariantes en la reversa —ya aplicados por Codex r2 antes del último ciclo— y trazabilidad del ledger
+—esta línea—). Trazabilidad: un PRIMER ciclo falló en el postflight por comparar `proconfig::text` con
+`{search_path=}` (el valor real es `search_path=""`, tercera vez que aparece la trampa); se corrigió y el
+ciclo se repitió con los archivos finales. Cobertura: 0 personas cuyo nombre salga solo del cierre externo
+y 0 filas en `crm.inversionista_datos_contacto`, así que la rama `nullif(btrim(ce.nombre_completo),'')` no
+se ejercita con datos reales de hoy; queda demostrada por análisis estático, por la prueba sintética y por
+el md5 completo de `personas_visibles()` en 4 actores. Hueco PREEXISTENTE señalado por el auditor:
+`test-rls.mjs` no cubre la cartera de inversionistas (5 casos propuestos: analista ve solo su cartera,
+supervisor solo su bandeja, coordinador 42501, miembro inactivo denegado, lector global solo perfiles
+cliente visibles); abrir como ítem aparte.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants; la visibilidad se probó por md5 con 4 actores
+reales) y banco Docker (el ensayo y el ciclo se hicieron sobre los datos reales, deshechos).
+
 ## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
 
 **✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
