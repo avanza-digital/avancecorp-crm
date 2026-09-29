@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
 export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
 export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v9";
@@ -7,6 +9,8 @@ export const CONTRATO_PDF_MAX_REQUEST_BYTES = 2 * 1024;
 export type BackendError = {
   code?: string;
   message?: string;
+  /** `hint` de PostgREST: las funciones SQL lo usan como código de negocio. */
+  hint?: string;
   statusCode?: number;
 };
 export type BackendResult = { data: unknown; error: BackendError | null };
@@ -41,6 +45,11 @@ export type RenderResult = {
   bytes: number;
 };
 
+export type RenderAnexoResult = RenderResult & { nombreArchivo: string };
+
+/** Versión de la plantilla del anexo imprimible (documento aparte del contrato). */
+export const ANEXO_PDF_TEMPLATE_VERSION = "anexo-cronograma-v1";
+
 export interface DependenciasContratoPdfV2 {
   crearActor(token: string): ActorContratoPdfV2;
   rpcAdmin(
@@ -48,6 +57,14 @@ export interface DependenciasContratoPdfV2 {
     argumentos: Record<string, unknown>,
   ): Promise<BackendResult>;
   renderizar(snapshot: unknown, renderizadoEn: string): Promise<RenderResult>;
+  /**
+   * Anexo de cronograma: se dibuja a demanda desde el snapshot SELLADO del
+   * contrato y no se guarda (decisión de Miguel, 28/09/2026).
+   */
+  renderizarAnexo(
+    snapshot: unknown,
+    generadoEn: string,
+  ): Promise<RenderAnexoResult>;
   storage: StorageContratoPdfV2;
   origenesAdicionales?: readonly string[];
 }
@@ -548,6 +565,126 @@ function esConflictoObjeto(error: BackendError): boolean {
 }
 
 export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
+  const CODIGOS_ANEXO = new Set([
+    "ANEXO_SIN_PDF_SELLADO",
+    "ANEXO_SIN_SNAPSHOT",
+  ]);
+
+  function datosAnexoValidos(valor: unknown): valor is {
+    contrato_id: string;
+    revision: number;
+    template_version: string;
+    generado_en: string;
+    sha256: string;
+    snapshot: Record<string, unknown>;
+  } {
+    return esObjeto(valor) &&
+      clavesExactas(valor, [
+        "contrato_id",
+        "revision",
+        "template_version",
+        "generado_en",
+        "sha256",
+        "snapshot",
+      ]) &&
+      uuidCanonico(valor.contrato_id) &&
+      Number.isInteger(valor.revision) && (valor.revision as number) >= 1 &&
+      // La versión del CONTRATO sellado solo se transporta: el anexo no la
+      // dibuja, y el CHECK de la base ya la acota. No se exige que esta edge
+      // sepa leerla (un sellado v3/v4 seguiría dando su anexo).
+      typeof valor.template_version === "string" &&
+      valor.template_version.length >= 1 &&
+      valor.template_version.length <= 80 &&
+      !tieneControl(valor.template_version) &&
+      fechaIso(valor.generado_en) &&
+      typeof valor.sha256 === "string" && /^[0-9a-f]{64}$/.test(valor.sha256) &&
+      esObjeto(valor.snapshot);
+  }
+
+  /**
+   * Anexo de cronograma: documento aparte, a demanda, desde el snapshot SELLADO.
+   * La RPC deja el asiento de bitácora (quién, cuándo, contrato, revisión,
+   * plantilla) y aplica la misma regla de lectura que el PDF. No hay Storage:
+   * los bytes viajan en JSON (base64) para que `functions.invoke` los entregue
+   * sin depender de cabeceras binarias ni de CORS expuesto.
+   */
+  async function anexo(
+    origin: string | null,
+    origenes: ReadonlySet<string>,
+    contratoId: string,
+    actorId: string,
+  ): Promise<Response> {
+    const resultado = await deps.rpcAdmin("contrato_pdf_anexo_snapshot", {
+      p_contrato_id: contratoId,
+      p_actor_id: actorId,
+      p_template: ANEXO_PDF_TEMPLATE_VERSION,
+    });
+    if (resultado.error) {
+      const hint = resultado.error.hint ?? "";
+      if (CODIGOS_ANEXO.has(hint)) {
+        return json(origin, origenes, {
+          error: hint === "ANEXO_SIN_PDF_SELLADO"
+            ? "El contrato todavía no tiene su PDF sellado; genera primero el contrato PDF"
+            : "El contrato no tiene datos congelados aptos para el anexo",
+          codigo: hint,
+        }, 409);
+      }
+      const status = statusErrorBackend(resultado.error);
+      return json(origin, origenes, {
+        error: status === 403
+          ? "Contrato no encontrado o fuera de tu cartera"
+          : ["55P03", "40P01"].includes(resultado.error.code ?? "")
+          ? "El contrato está siendo actualizado. Espera unos segundos y reintenta."
+          : "No se pudo preparar el anexo",
+        codigo: "ANEXO_DATOS",
+      }, status === 404 ? 409 : status);
+    }
+    if (!datosAnexoValidos(resultado.data)) {
+      return json(origin, origenes, {
+        error: "Datos del contrato sellado inválidos",
+        codigo: "ANEXO_DATOS_INVALIDOS",
+      }, 502);
+    }
+    let render: RenderAnexoResult;
+    try {
+      render = await deps.renderizarAnexo(
+        resultado.data.snapshot,
+        resultado.data.generado_en,
+      );
+    } catch (error) {
+      const incoherente = error instanceof TypeError;
+      return json(origin, origenes, {
+        error: incoherente
+          ? "El cronograma sellado no permite emitir el anexo"
+          : "No se pudo generar el anexo",
+        codigo: incoherente ? "ANEXO_CRONOGRAMA_INCOHERENTE" : "ANEXO_RENDER",
+      }, incoherente ? 409 : 503);
+    }
+    if (
+      render.bytes !== render.blob.size || render.bytes <= 5 ||
+      render.bytes > CONTRATO_PDF_MAX_BYTES ||
+      !nombreValido(render.nombreArchivo)
+    ) {
+      return json(origin, origenes, {
+        error: "No se pudo generar el anexo",
+        codigo: "ANEXO_RENDER",
+      }, 503);
+    }
+    const bytes = new Uint8Array(await render.blob.arrayBuffer());
+    return json(origin, origenes, {
+      anexo: {
+        contrato_id: contratoId,
+        contrato_revision: resultado.data.revision,
+        contrato_template_version: resultado.data.template_version,
+        template: ANEXO_PDF_TEMPLATE_VERSION,
+        nombre_archivo: render.nombreArchivo,
+        sha256: render.sha256,
+        bytes: render.bytes,
+        pdf_base64: Buffer.from(bytes).toString("base64"),
+      },
+    });
+  }
+
   const origenes = new Set(ORIGENES_PRODUCCION);
   for (const origen of deps.origenesAdicionales ?? []) origenes.add(origen);
 
@@ -594,7 +731,8 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     if (
       !esObjeto(cuerpo) || !clavesExactas(cuerpo, ["action", "contratoId"]) ||
       (cuerpo.action !== "ensure" && cuerpo.action !== "status" &&
-        cuerpo.action !== "delete" && cuerpo.action !== "delete-audited") ||
+        cuerpo.action !== "delete" && cuerpo.action !== "delete-audited" &&
+        cuerpo.action !== "anexo") ||
       !uuidCanonico(cuerpo.contratoId)
     ) {
       return json(
@@ -732,6 +870,10 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         url: firma.url,
       });
     };
+
+    if (cuerpo.action === "anexo") {
+      return await anexo(origin, origenes, contratoId, sesion.id);
+    }
 
     if (cuerpo.action === "status") {
       const result = respuestaBackend(

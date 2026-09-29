@@ -559,6 +559,7 @@ grant execute on function public.actualizar_contrato(uuid,jsonb,jsonb),
 \ir ../migrations/20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql
 \ir ../migrations/20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql
 \ir ../migrations/20260820190500_crm_documento_regimen_por_fecha_de_firma.sql
+\ir ../migrations/20260929151350_crm_contrato_pdf_anexo_snapshot.sql
 
 create schema test_support;
 
@@ -1071,6 +1072,145 @@ select test_support.assert_true(
   'finalizacion repetida deja un unico ledger'
 );
 
+-- ── Anexo de cronograma imprimible (20260929151350) ──────────────────────────
+-- La lectura es SOLO de service_role y aplica la regla de lectura del PDF.
+select test_support.assert_true(
+  not pg_catalog.has_function_privilege('anon', 'crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)', 'EXECUTE')
+    and not pg_catalog.has_function_privilege('authenticated', 'crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)', 'EXECUTE')
+    and pg_catalog.has_function_privilege('service_role', 'crm.contrato_pdf_anexo_snapshot(uuid,uuid,text)', 'EXECUTE'),
+  'anexo: la lectura del snapshot sellado es solo de service_role'
+);
+-- (El permiso se acredita por catalogo: ejecutar una funcion SIN EXECUTE bajo
+-- `set role` tumba el Postgres del banco — leccion registrada del 26/09.)
+
+set role service_role;
+select crm.contrato_pdf_anexo_snapshot(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+  '11111111-1111-4111-8111-111111111111',
+  'anexo-cronograma-v1'
+)::text as anexo_uno \gset
+select crm.contrato_pdf_anexo_snapshot(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+  '11111111-1111-4111-8111-111111111111',
+  'anexo-cronograma-v1'
+)::text as anexo_dos \gset
+reset role;
+select test_support.assert_true(
+  :'anexo_uno'::jsonb->>'contrato_id' = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+    and (:'anexo_uno'::jsonb->>'revision')::integer = 1
+    and :'anexo_uno'::jsonb->>'sha256' = repeat('1', 64)
+    and :'anexo_uno'::jsonb->>'template_version' = :'sello_uno'::jsonb->'archivo'->>'template_version'
+    and :'anexo_uno'::jsonb->'snapshot'->>'snapshotVersion' = '2'
+    and :'anexo_uno'::jsonb->'snapshot'->'cronograma' is not null
+    and (:'anexo_uno'::jsonb->>'generado_en') ~ '^\d{4}-\d{2}-\d{2}T'
+    and (select count(*) from jsonb_object_keys(:'anexo_uno'::jsonb)) = 6,
+  'anexo: entrega el snapshot sellado vigente con su ficha exacta'
+);
+select test_support.assert_true(
+  :'anexo_uno'::jsonb->'snapshot' = (
+    select p.snapshot from private.contrato_pdfs p
+    where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+      and p.job_id = (:'claim_uno'::jsonb->>'job_id')::uuid
+  ),
+  'anexo: el snapshot es EL del ledger sellado, no uno recalculado'
+);
+select test_support.assert_true(
+  :'anexo_uno'::jsonb = :'anexo_dos'::jsonb,
+  'anexo: imprimir de nuevo devuelve exactamente lo mismo'
+);
+set role service_role;
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '22222222-2222-4222-8222-222222222222',
+    'anexo-cronograma-v1'
+  )$$,
+  'fuera de tu cartera',
+  'anexo: respeta la regla de lectura del PDF (actor fuera de cartera)'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    null,
+    'anexo-cronograma-v1'
+  )$$,
+  'fuera de tu cartera',
+  'anexo: sin actor no hay lectura'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'fuera de tu cartera',
+  'anexo: un contrato inexistente responde igual que uno ajeno'
+);
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '11111111-1111-4111-8111-111111111111',
+    'contrato-aep-17-v9'
+  )$$,
+  'Plantilla del anexo',
+  'anexo: solo admite plantillas anexo-cronograma-vN'
+);
+-- El ledger v1 (sin trabajo server-side) esta sellado pero no lleva snapshot v2.
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    '44444444-4444-4444-8444-444444444444',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'datos congelados',
+  'anexo: un sellado v1 no tiene snapshot del que emitir el anexo'
+);
+reset role;
+
+-- Bitacora: un asiento por impresion, sin snapshot, y de solo anadir.
+select test_support.assert_true(
+  (
+    select count(*) = 2
+    from private.contrato_pdf_anexo_impresiones i
+    where i.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+      and i.actor_id = '11111111-1111-4111-8111-111111111111'
+      and i.revision = 1
+      and i.template_anexo = 'anexo-cronograma-v1'
+      and i.template_version_contrato = :'anexo_uno'::jsonb->>'template_version'
+      and i.pdf_id = (
+        select p.id from private.contrato_pdfs p
+        where p.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+          and p.job_id = (:'claim_uno'::jsonb->>'job_id')::uuid
+      )
+  )
+  and (select count(*) = 2 from private.contrato_pdf_anexo_impresiones),
+  'anexo: cada impresion deja su asiento y los intentos rechazados no'
+);
+select test_support.assert_true(
+  not exists (
+    select 1 from pg_catalog.pg_attribute a
+    where a.attrelid = 'private.contrato_pdf_anexo_impresiones'::regclass
+      and a.attname in ('snapshot', 'data_antes', 'data_despues')
+  ),
+  'anexo: la bitacora no guarda el snapshot (datos bancarios)'
+);
+select test_support.assert_raises(
+  $$delete from private.contrato_pdf_anexo_impresiones$$,
+  'solo añadir',
+  'anexo: la bitacora no se borra ni como owner'
+);
+select test_support.assert_raises(
+  $$update private.contrato_pdf_anexo_impresiones set actor_id = null$$,
+  'solo añadir',
+  'anexo: la bitacora no se reescribe ni como owner'
+);
+select test_support.assert_true(
+  not pg_catalog.has_table_privilege('service_role', 'private.contrato_pdf_anexo_impresiones', 'SELECT')
+    and not pg_catalog.has_table_privilege('authenticated', 'private.contrato_pdf_anexo_impresiones', 'SELECT')
+    and not pg_catalog.has_table_privilege('anon', 'private.contrato_pdf_anexo_impresiones', 'SELECT'),
+  'anexo: ningun rol de la API lee la bitacora directamente'
+);
+
 select test_support.assert_raises(
   $$update private.contrato_pdf_jobs
        set snapshot = jsonb_set(snapshot, '{snapshotVersion}', '99')
@@ -1294,6 +1434,24 @@ select test_support.assert_true(
     and (:'error_uno'::jsonb->>'reintentable')::boolean,
   'error transitorio es reintentable e idempotente'
 );
+select test_support.assert_raises(
+  $$select crm.contrato_pdf_anexo_snapshot(
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    '11111111-1111-4111-8111-111111111111',
+    'anexo-cronograma-v1'
+  )$$,
+  'no tiene un PDF sellado',
+  'anexo: sin PDF sellado (reserva con error reintentable) no hay anexo ni asiento'
+);
+reset role;
+select test_support.assert_true(
+  not exists (
+    select 1 from private.contrato_pdf_anexo_impresiones
+    where contrato_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1'
+  ),
+  'anexo: el intento sin sellado no deja asiento'
+);
+set role service_role;
 
 select crm.contrato_pdf_reclamar(
   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
