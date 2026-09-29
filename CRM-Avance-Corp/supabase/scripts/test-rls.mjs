@@ -1334,7 +1334,7 @@ async function testWrites(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'RLS CROSS TEAM TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000002',
       vendedor_id: vend3Id,
     }).select('id'),
@@ -1349,7 +1349,7 @@ async function testWrites(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'RLS DIRECTORIO TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000001',
       // Tenencia integra para que la sonda falle por RLS/rol del actor.
       vendedor_id: vend1Id,
@@ -1418,7 +1418,7 @@ async function testWrites(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'RLS CLIENTE TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000003',
       // Tenencia integra para que la sonda falle por RLS/rol del actor.
       vendedor_id: vend1Id,
@@ -1440,7 +1440,7 @@ async function testReassignmentTrigger(sessions, seed) {
     etapa: 'nuevo',
     moneda: 'PEN',
     monto_estimado: 1000,
-    origen: 'otro',
+    origen: 'oficina',
   };
 
   // Desde la creación atómica (20260804165440, en prod 2026-08-04) el INSERT
@@ -1598,7 +1598,7 @@ async function testTenencia(sessions, seed) {
     etapa: 'nuevo',
     moneda: 'PEN',
     monto_estimado: 1000,
-    origen: 'otro',
+    origen: 'oficina',
   };
 
   // ── Un lead VIEJO parkeado en la bandeja de sup1 (el caso de produccion:
@@ -1736,7 +1736,7 @@ async function testAvanceEtapa(sessions, seed) {
     etapa: 'nuevo',
     moneda: 'PEN',
     monto_estimado: 1000,
-    origen: 'otro',
+    origen: 'oficina',
     vendedor_id: vend1Id,
     asignado_supervisor_id: null,
   };
@@ -2310,7 +2310,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'ANULAR RETROCESO TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000020',
       vendedor_id: vend1Id,
     }),
@@ -2484,7 +2484,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'ANULAR SISTEMA TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000021',
       vendedor_id: vend1Id,
     }),
@@ -2537,7 +2537,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'ANULAR AJENA TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000022',
       vendedor_id: vend1Id,
     }),
@@ -2611,7 +2611,7 @@ async function testTareaFollowsLead(sessions, seed) {
       moneda: 'PEN',
       monto_estimado: 1000,
       nombre_completo: 'TAREA SIGUE AL LEAD TRANSIENT',
-      origen: 'otro',
+      origen: 'oficina',
       telefono: '999000010',
       vendedor_id: vend1Id,
     }),
@@ -3014,7 +3014,7 @@ async function testOffboardingMatrix(sessions, seed) {
     client.schema('crm').rpc('crear_lead_si_disponible', {
       p_nombre_completo: 'P04 SONDA CREACION ATOMICA',
       p_telefono: ownedLead.telefono,
-      p_origen: 'otro',
+      p_origen: 'oficina',
       p_monto_estimado: 1000,
       p_moneda: 'PEN',
       p_vendedor_id: memberId,
@@ -3218,7 +3218,7 @@ async function testOffboardingMatrix(sessions, seed) {
         id,
         nombre_completo: 'P04 DESTINO INACTIVO TRANSIENT',
         telefono: phone,
-        origen: 'otro',
+        origen: 'oficina',
         etapa: 'nuevo',
         monto_estimado: 1000,
         moneda: 'PEN',
@@ -3496,7 +3496,7 @@ async function testOffboardingMatrix(sessions, seed) {
         id: bolsaTransientId,
         nombre_completo: 'F2 TOMA BOLSA TRANSIENT',
         telefono: bolsaTransientPhone,
-        origen: 'otro',
+        origen: 'oficina',
         etapa: 'nuevo',
         monto_estimado: 1000,
         moneda: 'PEN',
@@ -9799,7 +9799,7 @@ async function testReparto(sessions, seed) {
   await expectBlockedMutation(
     'coordinador no se auto-inserta un lead (analista = él mismo)',
     coordinador.schema('crm').from('leads').insert({
-      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'otro',
+      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'oficina',
       nombre_completo: 'REPARTO AUTOINSERT TRANSIENT', telefono: '999000101',
       vendedor_id: coordId, asignado_supervisor_id: null,
     }).select('id'),
@@ -9808,7 +9808,7 @@ async function testReparto(sessions, seed) {
   await expectBlockedMutation(
     'coordinador no inserta un lead directo en la cola global',
     coordinador.schema('crm').from('leads').insert({
-      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'otro',
+      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'oficina',
       nombre_completo: 'REPARTO AUTOINSERT COLA TRANSIENT', telefono: '999000102',
       vendedor_id: null, asignado_supervisor_id: null,
     }).select('id'),
@@ -9856,7 +9856,7 @@ async function testReparto(sessions, seed) {
   // viajarian con null explicito (violando el NOT NULL, sin usar el default).
   const colaComun = {
     activo: true, asignado_supervisor_id: null, vendedor_id: null,
-    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'otro',
+    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'oficina',
     no_contactar: false,
   };
   await requireAdmin(
@@ -10301,7 +10301,7 @@ async function testDescarte(sessions, seed) {
   // la marca debe nacer del texto y la cola debe mostrarla REDACTADA.
   const colaComun = {
     activo: true, asignado_supervisor_id: null, vendedor_id: null,
-    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'otro',
+    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'oficina',
     no_contactar: false,
   };
   await requireAdmin(
@@ -11667,7 +11667,7 @@ async function testIdentidadF2bD15(sessions, seed) {
     await expectExpectedFailure('D-15 vend1 con lead nulo → 22023', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: null }), ['22023'], /obligatorio/i);
     // Paridad apagada con leads de verdad: ámbito (P0002 sin sondear), solo descartados (P0409) y reapertura = el UPDATE de hoy.
     // Un lead no nace descartado (trigger): nace nuevo y lo descarta su analista por el camino del front (UPDATE bajo RLS).
-    const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
+    const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000 };
     await requireAdmin('D-15: sembrar dos leads nuevos (vend1 y vend2)', admin.schema('crm').from('leads').insert([
       { ...base, id: L_V1, nombre_completo: 'D15 REABRIR V1 TRANSIENT', telefono: TEL_F2B(191), creado_por: vend1Id, vendedor_id: vend1Id },
       { ...base, id: L_V2, nombre_completo: 'D15 REABRIR V2 TRANSIENT', telefono: TEL_F2B(192), creado_por: vend2Id, vendedor_id: vend2Id },
@@ -12075,7 +12075,7 @@ async function testIdentidadF2bD5(sessions, seed) {
     // La conversión unificada cerró las reservas nuevas también con el flag OFF.
     // El sellado antiguo tampoco puede dejar efectos si no existe una reserva.
     await requireAdmin('D-5: sembrar un lead vivo de vend1', admin.schema('crm').from('leads').insert([
-      { id: L_V1, nombre_completo: 'D5 RESERVA V1 TRANSIENT', telefono: TEL_F2B(193), creado_por: vend1Id, vendedor_id: vend1Id, activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 },
+      { id: L_V1, nombre_completo: 'D5 RESERVA V1 TRANSIENT', telefono: TEL_F2B(193), creado_por: vend1Id, vendedor_id: vend1Id, activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000 },
     ]));
     await expectExpectedFailure('D-5 OFF la reserva legacy exige actualizar el CRM',
       sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 }), ['P0409'], /Actualiza el CRM/i);
@@ -12223,7 +12223,7 @@ async function testIdentidadF2bD13(sessions, seed) {
       const L_V1 = randomUUID();
       const L_V2 = randomUUID();
       const DNI_P = (n) => `8${RUN_IDENTIDAD}${String(n).padStart(3, '0')}`;  // 8 dígitos, distinto por corrida
-      const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
+      const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000 };
       const fijar = (clave, leadId, dni) => sessions[clave].client.schema('crm').rpc('fijar_dni_lead_fn', { p_lead_id: leadId, p_dni: dni });
       flag(false);
       await requireAdmin('D-13: sembrar dos leads sin DNI (vend1 y vend2)', admin.schema('crm').from('leads').insert([
@@ -12255,7 +12255,7 @@ async function testIdentidadF2bD13(sessions, seed) {
       // Descartado PROPIO del bloque (auditor v4.2 N3): no se toca el estado del seed.
       const idDesc = randomUUID();
       await requireAdmin('D-13: sembrar un lead y descartarlo (bandera apagada)', admin.schema('crm').from('leads').insert({
-        activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000,
+        activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
         id: idDesc, nombre_completo: 'D13 REAPERTURA TRANSIENT', telefono: TEL_F2B(183), creado_por: seed.profileIdByKey.vend1, vendedor_id: seed.profileIdByKey.vend1 }));
       await requireAdmin('D-13: descartar el lead sembrado', admin.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', idDesc));
       if (idDesc) {
@@ -12897,7 +12897,7 @@ async function testConversionMensual(sessions, seed) {
       // por alcance sigue siendo la verificacion cruzada: si el recorte dejara
       // fuera filas que el total cuenta (o al reves), aqui se rompe. El
       // agregado no desglosa referidos_recibidos y el fixture no siembra
-      // referidos fuera de roster (el lead de sup1 es origen 'otro'): esa
+      // referidos fuera de roster (el lead de sup1 es origen 'oficina'): esa
       // clave se cuadra solo contra las filas. Los cierres se cuadran
       // combinados porque el agregado declara `cierres` sin partir.
       const fuera = respuesta.data?.cobertura?.fuera_de_roster ?? {};
@@ -13406,7 +13406,7 @@ async function testIdentidadMultiempresa(sessions, seed) {
     });
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`identidad: ${etiqueta}`, sql);
   const idsPorDoc = (doc) => `(select i.inversionista_id from crm.inversionista_identificadores i where i.documento_normalizado='${doc}' and i.estado='vigente')`;
-  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
+  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
 
   try {
     // ── 0 · fixtures: leads SIN dni (el índice único de leads impide dos con el
@@ -13508,7 +13508,7 @@ async function testIdentidadMultiempresa(sessions, seed) {
     // Contrato real de la puerta (Codex): con 'ya_es_cliente' NO lanza — devuelve el estado
     // como éxito lógico y NO crea el lead. Se aserta eso.
     const altaRpc = await positive('#3 alta por RPC (crear_lead_si_disponible) con ese documento → responde ya_es_cliente',
-      sessions.vend1.client.schema('crm').rpc('crear_lead_si_disponible', { p_id: randomUUID(), p_nombre_completo: 'IDENTIDAD ALTA RPC DENEGADA TRANSIENT', p_telefono: TEL_IDENTIDAD(54), p_origen: 'otro', p_monto_estimado: 1000, p_moneda: 'PEN', p_vendedor_id: vend1Id, p_dni: doc }));
+      sessions.vend1.client.schema('crm').rpc('crear_lead_si_disponible', { p_id: randomUUID(), p_nombre_completo: 'IDENTIDAD ALTA RPC DENEGADA TRANSIENT', p_telefono: TEL_IDENTIDAD(54), p_origen: 'oficina', p_monto_estimado: 1000, p_moneda: 'PEN', p_vendedor_id: vend1Id, p_dni: doc }));
     assertions += 1;
     if (altaRpc?.data?.estado === 'ya_es_cliente' && cuenta('alta RPC no creó lead', `select count(*) from crm.leads where telefono='${TEL_IDENTIDAD(54)}'`) === 0) console.log('  ✓ #3 alta por RPC → ya_es_cliente y NO creó lead (un solo lead total)');
     else fail(`#3: alta por RPC devolvió '${altaRpc?.data?.estado}' o creó lead`);
@@ -13651,7 +13651,7 @@ async function testIdentidadF2b(sessions, seed) {
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b: ${etiqueta}`, sql);
   const invDe = (doc) => `private.inversionista_por_documento('DNI','${doc}')`;
   const lista = (arr) => `'${arr.join("','")}'`;
-  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
+  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
   const bolsa = { ...leadBase, creado_por: null, vendedor_id: null };
   const updDni = (clave, leadId, dni) => sessions[clave].client.schema('crm').from('leads').update({ dni }).eq('id', leadId).select('id');
   const actividad = (leadId, detalle) => sessions.vend1.client.schema('crm').from('actividades')
@@ -14054,7 +14054,7 @@ async function testCierresExternos(sessions, seed) {
           monto_estimado: 4000,
           no_contactar: false,
           nombre_completo: 'CIERRE EXTERNO TRANSIENT',
-          origen: 'otro',
+          origen: 'oficina',
           telefono: '999000141',
           vendedor_id: ids.vend1,
         },
@@ -14068,7 +14068,7 @@ async function testCierresExternos(sessions, seed) {
           monto_estimado: 4000,
           no_contactar: false,
           nombre_completo: 'CIERRE EXTERNO AJENO TRANSIENT',
-          origen: 'otro',
+          origen: 'oficina',
           telefono: '999000142',
           vendedor_id: ids.vend3,
         },
@@ -14082,7 +14082,7 @@ async function testCierresExternos(sessions, seed) {
           monto_estimado: 4000,
           no_contactar: false,
           nombre_completo: 'CIERRE EXTERNO USD TRANSIENT',
-          origen: 'otro',
+          origen: 'oficina',
           telefono: '999000143',
           vendedor_id: ids.vend1,
         },
