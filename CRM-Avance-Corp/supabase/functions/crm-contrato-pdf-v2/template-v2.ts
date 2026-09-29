@@ -107,7 +107,7 @@ const CENTENAS = [
 // Escala tipográfica del contrato. El cuerpo subió de 8.6 a 10 pt para que el
 // cliente lo lea sin esfuerzo; el resto acompaña en proporción y las firmas
 // quedan al mismo tamaño en las dos columnas (antes 8 pt vs 10.5 pt).
-const TIPOGRAFIA = {
+export const TIPOGRAFIA = {
   cuerpo: 9.6,
   clausula: 10.4,
   titulo: 15,
@@ -160,7 +160,7 @@ function montoEnLetras(capital: number, moneda: "PEN" | "USD"): string {
   }/100 ${unidad}`;
 }
 
-function montoVisible(capital: number, moneda: "PEN" | "USD"): string {
+export function montoVisible(capital: number, moneda: "PEN" | "USD"): string {
   const simbolo = moneda === "PEN" ? "S/" : "US$";
   return `${simbolo} ${
     capital.toLocaleString("en-US", {
@@ -176,7 +176,9 @@ function etiquetaDocumento(tipo: TipoDocumento): string {
   return "DNI";
 }
 
-function fechaPartes(iso: string): { dia: number; mes: string; anio: number } {
+export function fechaPartes(
+  iso: string,
+): { dia: number; mes: string; anio: number } {
   const [anio = 0, mes = 1, dia = 1] = iso.split("-").map(Number);
   const meses = [
     "enero",
@@ -225,7 +227,7 @@ function plazoVisible(inicioIso: string, finIso: string): string {
   return `${enteroEnLetras(meses).toLowerCase()} (${meses}) meses`;
 }
 
-function parrafo(
+export function parrafo(
   text: ContentText["text"],
   opciones: Record<string, unknown> = {},
 ): Content {
@@ -254,7 +256,7 @@ function parrafoNumerado(
   return parrafoConEtiqueta(`${clausula}.${numeral}`, text);
 }
 
-function tituloClausula(texto: string): ContentText {
+export function tituloClausula(texto: string): ContentText {
   return { text: texto, style: "clausula", margin: [0, 9, 0, 4] };
 }
 
@@ -489,9 +491,9 @@ export function nombreArchivoContrato(datos: ContratoPdfDatos): string {
   return `Contrato-${datos.contrato.numero}-${nombre}.pdf`;
 }
 
-type Cotitular = NonNullable<ContratoPdfDatos["cotitulares"]>[number];
+export type Cotitular = NonNullable<ContratoPdfDatos["cotitulares"]>[number];
 
-function documentoDe(
+export function documentoDe(
   persona: { tipoDocumento: TipoDocumento; documento: string },
 ): string {
   return `${etiquetaDocumento(persona.tipoDocumento)} N° ${persona.documento}`;
@@ -613,7 +615,7 @@ function firmaAsociante(): Column {
  * los co-titulares firman debajo, de dos en dos y rotulados EL ASOCIADO. Todo
  * va en un solo nodo indivisible para que ninguna firma caiga en otra hoja.
  */
-function bloqueFirmas(
+export function bloqueFirmas(
   titular: ContratoPdfDatos["titular"],
   documento: string,
   cotitulares: Cotitular[],

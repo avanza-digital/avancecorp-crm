@@ -409,7 +409,7 @@ export async function eliminarContratoConPdf(
   }
 }
 
-export function descargarArchivoContratoPdf(archivo: ArchivoContratoPdf): void {
+export function descargarArchivoContratoPdf(archivo: Pick<ArchivoContratoPdf, 'blob' | 'nombreArchivo'>): void {
   const url = URL.createObjectURL(archivo.blob)
   const enlace = document.createElement('a')
   enlace.href = url
@@ -422,18 +422,133 @@ export function descargarArchivoContratoPdf(archivo: ArchivoContratoPdf): void {
 }
 
 /** Debe llamarse sincrónicamente desde el click para conservar user activation. */
-export function abrirVentanaContratoPdf(): Window {
+export function abrirVentanaContratoPdf(
+  titulo = 'Preparando contrato PDF…',
+  mensaje = 'Verificando el archivo contractual privado…',
+  documento = 'contrato PDF',
+): Window {
   const ventana = window.open('about:blank', '_blank')
-  if (!ventana) throw new Error('El navegador bloqueó la ventana del contrato PDF.')
+  if (!ventana) throw new Error(`El navegador bloqueó la ventana del ${documento}.`)
   ventana.opener = null
-  ventana.document.title = 'Preparando contrato PDF…'
-  ventana.document.body.textContent = 'Verificando el archivo contractual privado…'
+  ventana.document.documentElement.lang = 'es'
+  ventana.document.title = titulo
+  ventana.document.body.textContent = mensaje
   return ventana
 }
 
-export function verArchivoContratoPdf(archivo: ArchivoContratoPdf, ventana: Window = abrirVentanaContratoPdf()): void {
+export function verArchivoContratoPdf(
+  archivo: Pick<ArchivoContratoPdf, 'blob'>,
+  ventana: Window = abrirVentanaContratoPdf(),
+): void {
   const url = URL.createObjectURL(archivo.blob)
   ventana.opener = null
   ventana.location.replace(url)
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+// ── Anexo de cronograma: documento aparte, a demanda, desde el snapshot sellado ──
+//
+// Decisión de Miguel (28/09/2026): «todo sigue igual, solo que el añadido es que
+// el analista ahora puede imprimir este anexo». El contrato PDF no cambia. El
+// anexo lo dibuja la misma Edge desde los datos CONGELADOS del contrato sellado,
+// no se guarda, y llega en JSON (base64) con su hash para verificarlo aquí.
+
+const AnexoRespuestaSchema = v.strictObject({
+  anexo: v.strictObject({
+    contrato_id: v.string(),
+    contrato_revision: v.pipe(v.number(), v.integer(), v.minValue(1)),
+    contrato_template_version: v.pipe(v.string(), v.minLength(1)),
+    template: v.pipe(v.string(), v.minLength(1)),
+    nombre_archivo: v.pipe(v.string(), v.minLength(1), v.regex(/^Anexo-[A-Za-z0-9._-]+\.pdf$/)),
+    sha256: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+    bytes: v.pipe(v.number(), v.integer(), v.minValue(6)),
+    pdf_base64: v.pipe(v.string(), v.minLength(8)),
+  }),
+})
+
+export type ArchivoAnexoCronograma = {
+  contratoId: string
+  contratoRevision: number
+  template: string
+  nombreArchivo: string
+  sha256: string
+  bytes: number
+  blob: Blob
+}
+
+/** Error de negocio del anexo, con el código que expone la Edge (ANEXO_*). */
+export class AnexoCronogramaError extends Error {
+  readonly codigo: string
+
+  constructor(mensaje: string, codigo: string) {
+    super(mensaje)
+    this.codigo = codigo
+  }
+}
+
+function base64ABytes(base64: string): Uint8Array {
+  const binario = atob(base64)
+  const bytes = new Uint8Array(binario.length)
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i)
+  return bytes
+}
+
+/**
+ * Pide a la Edge el anexo del contrato sellado y verifica hash y tamaño antes
+ * de entregar los bytes. Si el contrato no tiene PDF sellado, no tiene datos
+ * congelados aptos o está fuera de la cartera, lanza `AnexoCronogramaError`
+ * con el código del servidor.
+ */
+export async function imprimirAnexoCronograma(contratoId: string): Promise<ArchivoAnexoCronograma> {
+  exigirContratoIdCanonico(contratoId)
+  const { data, error } = await clienteSupabase().functions.invoke(CONTRATO_PDF_EDGE, {
+    body: { action: 'anexo', contratoId },
+  })
+  if (error) {
+    let mensaje = 'No se pudo preparar el anexo de cronograma.'
+    let codigo = 'ANEXO_RED'
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const cuerpo = (await error.context.clone().json()) as unknown
+        if (cuerpo != null && typeof cuerpo === 'object') {
+          if ('error' in cuerpo && typeof cuerpo.error === 'string' && cuerpo.error.trim()) {
+            mensaje = cuerpo.error
+          }
+          if ('codigo' in cuerpo && typeof cuerpo.codigo === 'string' && cuerpo.codigo.trim()) {
+            codigo = cuerpo.codigo
+          }
+        }
+      } catch {
+        // La respuesta HTTP puede no ser JSON; conservamos el diagnóstico genérico.
+      }
+    }
+    throw new AnexoCronogramaError(mensaje, codigo)
+  }
+  const resultado = v.safeParse(AnexoRespuestaSchema, data)
+  if (!resultado.success) {
+    throw new Error('La respuesta del anexo no tiene el formato esperado.')
+  }
+  const anexo = resultado.output.anexo
+  if (anexo.contrato_id !== contratoId) {
+    throw new Error('El servidor respondió con el anexo de otro contrato.')
+  }
+  const bytes = base64ABytes(anexo.pdf_base64)
+  if (bytes.byteLength !== anexo.bytes) {
+    throw new Error('El anexo recibido no coincide con el tamaño declarado.')
+  }
+  // `bytes` nace de `new Uint8Array(n)`: su buffer es un ArrayBuffer exacto.
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' })
+  await validarPdfBlob(blob)
+  if ((await sha256PdfHex(blob)) !== anexo.sha256) {
+    throw new Error('El anexo recibido no coincide con el hash declarado.')
+  }
+  return {
+    contratoId,
+    contratoRevision: anexo.contrato_revision,
+    template: anexo.template,
+    nombreArchivo: anexo.nombre_archivo,
+    sha256: anexo.sha256,
+    bytes: anexo.bytes,
+    blob,
+  }
 }

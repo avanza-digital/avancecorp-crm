@@ -13,6 +13,7 @@ export function errorBackend(error: unknown): BackendError | null {
   const valor = error as {
     code?: unknown;
     message?: unknown;
+    hint?: unknown;
     statusCode?: unknown;
     status?: unknown;
   };
@@ -35,6 +36,7 @@ export function errorBackend(error: unknown): BackendError | null {
   return {
     ...(code !== undefined ? { code } : {}),
     ...(typeof valor.message === "string" ? { message: valor.message } : {}),
+    ...(typeof valor.hint === "string" ? { hint: valor.hint } : {}),
     ...(statusCode !== undefined ? { statusCode } : {}),
   };
 }

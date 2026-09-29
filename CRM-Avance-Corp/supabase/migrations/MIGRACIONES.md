@@ -1,3 +1,84 @@
+## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test4` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
+UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
+verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
+permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
+`authenticated` y `anon`.
+
+Banco remoto `goqrvtqfovrvxhlzlhzx`: aplicación nativa `20260929195918`,
+oráculo SQL PASS, RLS HTTP focal 272/272 antes y después, filtro HTTP 41/41,
+advisors sin avisos nuevos. Historial base 389/389 exacto y 22 Edge iguales
+al padre. La suite global original falló por el fixture de canal antiguo;
+se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
+acreditar la suite global completa. SQL SHA-256:
+`67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+Producción verificada: 390 migraciones; función `7169d94239dcb191bafa3faed46f916f`, INVOKER, ACL exacta y sello vigente. Frontend `build-20260929T200401559Z`; 93 archivos HTTP con hash exacto. No hay cambios de RLS ni de tablas. Banco temporal eliminado.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
+
+## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
+
+**✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
+añadido es que el analista ahora puede imprimir este anexo». El contrato PDF NO cambia
+(sigue en v9; ningún sellado se toca). Piezas de servidor de la acción «anexo» de la
+Edge `crm-contrato-pdf-v2`, en cuatro capas (sin saltos nuevos): dos puertas `crm.*`
+solo `service_role` que autorizan con la misma regla de lectura que el PDF
+(`private.puede_leer_contrato_pdf_como`), rechazan eliminación y delegan; dos núcleos
+`private.*` (invoker, sin ejecutores de la API): `contrato_pdf_anexo_snapshot_base`
+bloquea la fila del contrato (mutex de reclamar) y devuelve el snapshot SELLADO vigente
+según `contrato_pdf_estado_base` con hint `ANEXO_SIN_PDF_SELLADO` (sin sellado vigente,
+revisión nueva pendiente o integridad bloqueada) o `ANEXO_SIN_SNAPSHOT` (ledger v1);
+`contrato_pdf_anexo_emitido_base` deja el asiento DESPUÉS de que la Edge dibuja el anexo,
+con sha256 y bytes de lo entregado (sin asiento no hay entrega). Bitácora nueva
+`private.contrato_pdf_anexo_emisiones`: solo añadir (UPDATE/DELETE/TRUNCATE rechazados
+también al dueño), RLS forzada, sin lectores de la API, SIN snapshot (datos bancarios) y
+SIN FK (sobrevive a la eliminación auditada; una FK a perfiles con SET NULL chocaría con
+el candado). No toca `public` ni redefine funciones vivas. `test-rls.mjs` no cubre la
+familia PDF v2 (patrón de la casa): vive en su oráculo propio.
+
+Reviews: auditor-rls CHANGES_REQUESTED (P2 FK vs candado → sin FK; P2 salto de capa →
+núcleos en `private`; P3 comment de `id`, TRUNCATE) — todos aplicados. Codex (código)
+CHANGES_REQUESTED (P1 vigencia bajo concurrencia → bloqueo de fila; P1 forma del
+cronograma → estricta por tipo de interés en la Edge; P1 FK; P1 bitácora de emitidos con
+hash → puerta `emitido`; P2 error específico de cronograma; P2 TRUNCATE; riesgo de
+reaplicación tras reversa → migración tolerante y probada) — todos aplicados.
+
+Ensayo: arnés local del PDF `supabase/scripts/run-test-contrato-pdf-v2-local.sh --run`
+con la migración incluida (`\ir`) y los bloques «Anexo de cronograma imprimible» del
+oráculo `test-contrato-pdf-v2.sql`: permisos por catálogo (⚠️ ejecutar sin EXECUTE bajo
+`set role` tumba el banco), lectura del sellado con ficha exacta (fecha legible por la
+Edge), snapshot = ledger, idempotencia, fuera de cartera, actor nulo, inexistente (misma
+frase), plantilla inválida, ledger v1, integridad bloqueada, revisión nueva pendiente,
+contrato en eliminación (55000), pendiente sin asiento, emisión con hash (dos asientos),
+emisión rechazada (otro contrato 23514, hash inválido 22023, fuera de cartera), bitácora
+sin snapshot y sin UPDATE/DELETE/TRUNCATE, reversa (borra las 4 funciones, conserva la
+bitácora) y reaplicación sin perder asientos ⇒ CONTRATO_PDF_V2_SQL_OK + RUNNER_OK.
+Huellas md5(pg_get_functiondef) selladas en el registrador. Edge 71/71, front
+`npm run check` 4 853, e2e Docker 2/2, revisor a11y PASS, `test:rls:preflight` PASS.
+TODO integrador: `db query --linked --file` de la migración → registrador
+`supabase/scripts/anexo-cronograma/registrar-20260929151350.sql` → deploy de la Edge
+(DESDE `CRM-Avance-Corp/`) → `/release-crm`. `gen:types` después de aplicar.
+**Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
+4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
+expone «anexo», revertir primero front y Edge.
+
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
 **BANCO PASS 28/09 (Docker propio a paridad 804 funciones md5 idéntico: gate ANTES 2280 ✓/37 ✗ → DESPUÉS 2383 ✓/37 ✗, los mismos 37 ajenos; bloque v3 140 ✓/0 ✗ con CRM_RLS_EXIGE_COLA_V3=1; huellas selladas puerta 1ec76074… helper 234ee27f…; registrador probado) · ✅ **EN PROD 28/09 ~20:55 Lima** por `!` de Miguel: `db query --linked --file` + registrador; en vivo puerta `1ec76074…`, helper `234ee27f…`, `assert_cola_v3()` = OK selladas, v2 intacta `ef9b56ed…`, versión registrada con el cuerpo exacto (md5 `6fbbb05e…`). Advisors: NOT RUN (MCP de Supabase desconectado al cierre; revisar en el panel).** F1 (servidor) del plan v2 aprobado por Miguel el 28/09/2026 y refutado por

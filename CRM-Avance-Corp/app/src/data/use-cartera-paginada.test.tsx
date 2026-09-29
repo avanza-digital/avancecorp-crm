@@ -238,6 +238,26 @@ describe('sesión real', () => {
     await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-000']) })
   })
 
+  it('activar reasignados reinicia el cursor y usa una clave de consulta distinta', async () => {
+    mocks.listarCarteraPagina
+      .mockResolvedValueOnce({ items: [lead(0)], cursor: { actualizadoEn: lead(0).actualizado_en, id: lead(0).id } })
+      .mockResolvedValueOnce({ items: [lead(1)], cursor: null })
+      .mockResolvedValueOnce({ items: [{ ...lead(2), reasignado: true }], cursor: null })
+    const { wrapper } = arnes()
+    const { result, rerender } = renderHook(
+      ({ reasignados }: { reasignados: boolean }) => useCarteraPaginada([], { reasignados }),
+      { initialProps: { reasignados: false }, wrapper },
+    )
+    await waitFor(() => { expect(result.current.leads).toHaveLength(1) })
+    act(() => { result.current.cargarMas() })
+    await waitFor(() => { expect(result.current.leads).toHaveLength(2) })
+    rerender({ reasignados: true })
+    await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(3) })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![0]).toMatchObject({ reasignados: true })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![1]).toBeNull()
+    await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-002']) })
+  })
+
   it('una página llena SIN cursor no promete más páginas', async () => {
     mocks.listarCarteraPagina.mockResolvedValue({
       items: Array.from({ length: TAMANO_PAGINA_CARTERA }, (_, i) => lead(i)),

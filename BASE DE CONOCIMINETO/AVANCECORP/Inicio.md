@@ -1,5 +1,7 @@
 ---
 
+- [[Leads - marca y filtro de reasignados (2026-09-28)]] — publicado 29/09: filtro, contador y marca; conserva Sistema/Manual.
+
 tags: [moc, inicio]
 actualizado: 2026-09-25
 ---

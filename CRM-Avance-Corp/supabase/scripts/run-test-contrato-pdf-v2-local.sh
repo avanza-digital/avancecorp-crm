@@ -23,6 +23,8 @@ readonly QA_MIGRATION_V3="$qa_supabase_dir/migrations/20260818200743_crm_contrat
 readonly QA_MIGRATION_V4="$qa_supabase_dir/migrations/20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql"
 readonly QA_MIGRATION_V5="$qa_supabase_dir/migrations/20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql"
 readonly QA_MIGRATION_REGIMEN="$qa_supabase_dir/migrations/20260820190500_crm_documento_regimen_por_fecha_de_firma.sql"
+readonly QA_MIGRATION_ANEXO="$qa_supabase_dir/migrations/20260929151350_crm_contrato_pdf_anexo_snapshot.sql"
+readonly QA_REVERSA_ANEXO="$qa_script_dir/anexo-cronograma/reversa-anexo-snapshot.sql"
 
 qa_created=0
 qa_created_oid=''
@@ -99,6 +101,8 @@ verify_sql_sources() {
     "$QA_MIGRATION_V4"
     "$QA_MIGRATION_V5"
     "$QA_MIGRATION_REGIMEN"
+    "$QA_MIGRATION_ANEXO"
+    "$QA_REVERSA_ANEXO"
   )
 
   for qa_file in "${qa_sources[@]}"; do
@@ -128,6 +132,8 @@ verify_sql_sources() {
     fail "El oráculo v2 ya no incluye exactamente la migración de plantilla v5"
   grep -Fqx '\ir ../migrations/20260820190500_crm_documento_regimen_por_fecha_de_firma.sql' "$QA_TEST_V2" || \
     fail "El oráculo v2 ya no incluye exactamente la migración del régimen documental"
+  grep -Fqx '\ir ../migrations/20260929151350_crm_contrato_pdf_anexo_snapshot.sql' "$QA_TEST_V2" || \
+    fail "El oráculo v2 ya no incluye exactamente la migración del anexo de cronograma"
   grep -Fq "current_database() <> '$QA_TEST_DB'" "$QA_TEST_V2" || \
     fail "El oráculo SQL perdió su guardia de nombre de base"
   grep -Fqx '\echo CONTRATO_PDF_V2_SQL_OK' "$QA_TEST_V2" || \
