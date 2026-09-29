@@ -476,6 +476,16 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       return resultado!
     }
 
+    it('conserva una marca de reasignado conocida si falla solo la lectura opcional del historial', async () => {
+      const conocido = { ...leadBase(), reasignado: true }
+      listarLeads.mockResolvedValueOnce([conocido])
+      const montaje = montar('gerencia')
+      await waitFor(() => expect(montaje.api().lead(conocido.id)?.reasignado).toBe(true))
+      obtenerLeadPorId.mockResolvedValue({ ...conocido, reasignado: null })
+      expect(await abrir(montaje, conocido.id)).toBe(true)
+      expect(montaje.api().lead(conocido.id)?.reasignado).toBe(true)
+    })
+
     it('incorpora una actividad leída por ID fuera del lote y rechaza respuestas de otra sesión', async () => {
       const montaje = montar('gerencia')
       await waitFor(() => expect(montaje.estado().cargando).toBe(false))

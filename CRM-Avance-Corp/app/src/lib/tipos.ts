@@ -524,6 +524,8 @@ export interface Lead {
    * migración no lo devuelve y el chip entonces NO se pinta.
    */
   procedencia?: Procedencia | null
+  /** Ya había pasado por un analista antes del reparto actual; independiente del alta. */
+  reasignado?: boolean | null
   /** Autor del alta (perfil), tal como lo sella el servidor; null para el sistema. */
   cargado_por?: string | null
   /** Nombre del autor, resuelto en pantalla con el equipo visible; null si no se conoce. */

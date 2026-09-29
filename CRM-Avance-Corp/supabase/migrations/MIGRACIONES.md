@@ -46,16 +46,15 @@ expone «anexo», revertir primero front y Edge.
 
 ## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
-**PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
-analista actual y una asignación anterior a un analista, según el evento
-`crm.actividades.tipo='reasignacion'` y `metadata.vendedor_anterior` no nulo.
-La primera entrega desde la bandeja no cuenta; A → bandeja → A sí cuenta.
-Sistema/Manual conserva la procedencia del alta y se muestra en paralelo.
-La RPC INVOKER pasa de 11 a 12 argumentos (`p_reasignados` al final) y retira
-la firma anterior; devuelve `reasignado` por fila, `resumen.totales.reasignados`
-y eco del filtro. Filas, cifra, capital y embudo usan la misma base antes de
-paginar. La consulta del historial hereda la RLS de actividades, coextensiva
-con leads. La exención analítica se mueve a la nueva firma y se resella.
+**PENDIENTE DE PUBLICAR.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
 
 Ensayo: migración aplicada y fixture transaccional
 `supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
