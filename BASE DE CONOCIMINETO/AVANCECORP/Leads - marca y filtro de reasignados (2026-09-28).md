@@ -14,7 +14,7 @@ bandeja → B y A → bandeja → A sí cuentan. Un lead aparcado sin titular ac
 no figura en la cifra de reasignados. Sistema/Manual permanece como marca
 separada: un lead puede ser «Sistema · Reasignado» o «Manual · Reasignado».
 
-La migración `20260929010707_crm_leads_reasignados.sql` amplía la cartera
+La migración `20260929164200_crm_leads_reasignados.sql` amplía la cartera
 keyset con `p_reasignados`, `reasignado` por fila y
 `resumen.totales.reasignados`. El conteo sale de la misma base filtrada que
 los indicadores y la tabla, antes de paginar; respeta la RLS y se combina con

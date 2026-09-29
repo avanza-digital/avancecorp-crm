@@ -1,3 +1,34 @@
+## 20260929164200 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**PENDIENTE DE PUBLICAR.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
+y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
+y la policy de INSERT que impide fabricar la marca. La branch temporal de
+Supabase falló antes de esta migración durante el replay histórico y fue
+eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
+agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
+y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
+anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
+comprobación de datos, no una publicación de la migración. No se aplicó en
+producción.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
+
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
@@ -43,37 +74,6 @@ TODO integrador: `db query --linked --file` de la migración → registrador
 **Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
 4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
 expone «anexo», revertir primero front y Edge.
-
-## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
-
-**PENDIENTE DE PUBLICAR.** «Reasignado» cuenta un lead con analista actual y
-un evento de `crm.actividades.tipo='reasignacion'` anterior con
-`metadata.vendedor_anterior` no nulo. La primera
-entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
-Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
-INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
-devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
-Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
-de leads y actividades. Se mueve y resella la exención analítica.
-
-Ensayo: migración aplicada y fixture transaccional
-`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
-`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
-incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
-la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
-analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
-y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
-y la policy de INSERT que impide fabricar la marca. La branch temporal de
-Supabase falló antes de esta migración durante el replay histórico y fue
-eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
-agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
-y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
-anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
-comprobación de datos, no una publicación de la migración. No se aplicó en
-producción.
-Reversa coordinada: restaurar la función de 11 argumentos de
-`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
-analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
