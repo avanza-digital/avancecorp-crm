@@ -8,7 +8,7 @@
 // PRODUCCIÓN (un día sin llamadas ni cola). Fail-closed: si el servidor cae,
 // se dice, no se pinta.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
 
 const dobles = vi.hoisted(() => ({
@@ -23,6 +23,11 @@ const dobles = vi.hoisted(() => ({
   contacto: { montajes: [] as string[], onRegistrar: null as null | (() => void), onLlamar: null as null | (() => void), real: false },
   obtenerTarea: vi.fn(async () => null as Record<string, unknown> | null),
   tareas: [] as Array<Record<string, unknown>>,
+  // Tareas del ámbito completo (el store): de aquí sale la tarea de un CLIENTE.
+  tareasAmbito: [] as Array<Record<string, unknown>>,
+  contactoCliente: { data: undefined as undefined | { telefono: string | null; contactar: boolean }, error: null as unknown, isPending: false, pedidos: [] as string[] },
+  cierre: { tarea: null as Record<string, unknown> | null, onCerrar: null as null | (() => void) },
+  abrirInversionista: vi.fn(),
   // El ámbito tiene que traer TODOS los leads de la cola: «Ahora» necesita el
   // lead para armar el panel, y sin él la pantalla manda a abrir la ficha.
   leads: [] as Array<Record<string, unknown>>,
@@ -34,6 +39,7 @@ vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: dobles.leads },
+    tareas: dobles.tareasAmbito,
     tareasDe: () => dobles.tareas,
     asegurarLead: dobles.asegurarLead,
     obtenerTareaParaRevision: dobles.obtenerTarea,
@@ -43,7 +49,26 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('@/data/gestion-diaria-queries', () => ({
   useDiaAnalista: () => ({ dia: dobles.dia, cargando: false, enVuelo: false, error: dobles.errorDia, recargar: dobles.recargar }),
 }))
-vi.mock('@/data/sla-operacion-queries', () => ({ useColaSlaPagina: () => dobles.cola }))
+vi.mock('@/data/sla-operacion-queries', () => ({ useColaDiaPagina: () => dobles.cola }))
+// El teléfono de un cliente sale de su ficha autorizada; aquí se prueba qué se pinta con él.
+vi.mock('@/data/inversionistas-queries', () => ({
+  useContactoInversionista: (_actor: string, id: string) => {
+    dobles.contactoCliente.pedidos.push(id)
+    return id === '' ? { data: undefined, error: null, isPending: true } : dobles.contactoCliente
+  },
+}))
+// El cierre de tarea tiene sus pruebas: aquí, a QUÉ tarea se abre y qué pasa al cerrarlo.
+vi.mock('@/components/app/cerrar-tarea', () => ({
+  CerrarTareaDialog: (props: { tarea: Record<string, unknown> | null; onCerrar: () => void }) => {
+    dobles.cierre.tarea = props.tarea
+    dobles.cierre.onCerrar = props.onCerrar
+    return props.tarea ? <div role="dialog" aria-label="Cerrar tarea (mock)" /> : null
+  },
+}))
+vi.mock('@/lib/router', async () => ({
+  ...await vi.importActual<typeof import('@/lib/router')>('@/lib/router'),
+  abrirInversionista: dobles.abrirInversionista,
+}))
 vi.mock('@/data/gestion-diaria-api', () => ({ deshacerResultadoLlamada: dobles.deshacer }))
 // «Lo último con este lead» (27/09/2026): el historial por lead tiene sus
 // pruebas; aquí se prueba QUÉ se pinta con él y que se pide por el lead de «Ahora».
@@ -106,6 +131,7 @@ const DIA_LLENO = {
 } as unknown as DiaAnalista
 
 const itemCola = (id: string, bucket: string, referencia: string | null) => ({
+  clave: `lead:${id}`, sujeto: { tipo: 'lead', id, nombre: id === 'l1' ? 'NUEVO SIN INTENTO' : `LEAD ${id}` },
   lead_id: id, bucket, severidad: 'media', prioridad: 0, referencia_en: referencia, tarea_id: null,
   lead: { id, nombre_completo: id === 'l1' ? 'NUEVO SIN INTENTO' : `LEAD ${id}`, etapa: 'nuevo', analista_id: 'a1', analista_nombre: 'ANALISTA UNO' },
 })
@@ -152,6 +178,9 @@ beforeEach(() => {
     { id: 't-de-la-fila', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T20:00:00Z', titulo: 'La que dice la fila' },
     { id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' },
   ]
+  dobles.tareasAmbito = []
+  dobles.contactoCliente = { data: undefined, error: null, isPending: false, pedidos: [] }
+  dobles.cierre = { tarea: null, onCerrar: null }
 })
 
 
@@ -848,5 +877,332 @@ describe('«Lo último con este lead» en «Ahora» (Miguel, 27/09/2026)', () =>
     abrirResultado()
     await waitFor(() => expect(dobles.panel.props).not.toBeNull())
     expect(screen.queryByRole('region', { name: 'Lo último con este lead' })).not.toBeInTheDocument()
+  })
+})
+
+// ── CLIENTES en la cola del día (v3, 29/09/2026) ─────────────────────────────
+// Una tarea de un cliente de la cartera es una fila más, con su clave
+// `tarea:<uuid>`. Sin lead: no hay sesión de llamada ni «Lo último con este
+// lead»; su resultado va al cierre de tarea de siempre, sobre la tarea del
+// ámbito, y el teléfono solo aparece si la ficha autorizada lo da.
+const itemCliente = (tarea: string, bucket: 'tarea_vencida' | 'tarea_hoy', vence: string, sujeto: { perfil_id?: string; inversionista_id?: string; nombre: string }) => ({
+  clave: `tarea:${tarea}`, tarea_id: tarea, lead_id: null, lead: null, estado: null, bucket,
+  severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: bucket === 'tarea_vencida' ? 20 : 30, referencia_en: vence,
+  senales: { pendientes: bucket === 'tarea_vencida', tareas_vencidas: bucket === 'tarea_vencida', primera_atencion: false,
+    seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false },
+  sujeto: { tipo: 'cliente', perfil_id: sujeto.perfil_id ?? null, inversionista_id: sujeto.inversionista_id ?? null, nombre: sujeto.nombre },
+})
+const tareaCliente = (id: string, extra: Record<string, unknown> = {}) => ({
+  id, lead_id: null, inversionista_id: 'inv-rosa', inversionista_canonico_id: 'inv-rosa-canon', vendedor_id: 'a1', tipo: 'llamada',
+  titulo: `Seguimiento ${id}`, vence_en: '2026-09-20T17:00:00Z', estado: 'pendiente', activo: true, reprogramaciones: 0, creado_en: '2026-09-19T12:00:00Z', ...extra,
+})
+
+describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
+  beforeEach(() => {
+    dobles.cola = { data: { items: [
+      itemCliente('c-venc', 'tarea_vencida', '2026-09-20T17:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' }),
+      itemCliente('c-hoy', 'tarea_hoy', '2026-09-20T22:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' }),
+      itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'),
+    ] }, error: null, refetch: vi.fn(), isFetching: false }
+    dobles.tareasAmbito = [tareaCliente('c-venc'), tareaCliente('c-hoy', { vence_en: '2026-09-20T22:00:00Z', titulo: 'Confirmar renovación' })]
+    dobles.contactoCliente = { data: { telefono: '+51 988 777 666', contactar: true }, error: null, isPending: false, pedidos: [] }
+  })
+
+  function elegirCliente(nombre: RegExp) {
+    fireEvent.click(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: nombre })[0]!)
+  }
+
+  it('cada tarea es una fila (la misma persona dos veces) y cuenta en la cola', () => {
+    render(<GestionDiariaAnalista />)
+    const lista = screen.getByRole('list', { name: /^Todo/ })
+    expect(within(lista).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(2)
+    expect(within(lista).getAllByText(/Cliente de tu cartera · gestión agendada/)).toHaveLength(2)
+    // Vencidas: la del cliente (hoy 12:00 Lima) va DETRÁS de la de ayer del lead.
+    expect(within(screen.getByRole('tablist', { name: 'Grupos de la cola' })).getByRole('tab', { name: /Vencidas/ })).toHaveTextContent('2')
+  })
+
+  it('«Ahora» con un cliente: su nombre, su tarea, su teléfono de la ficha y «Registrar resultado»; sin lead ni historial de lead', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).getByRole('button', { name: 'Abrir la ficha de ROSA CLIENTE' })).toBeInTheDocument()
+    expect(within(ahora).getByText('Cliente de tu cartera')).toBeInTheDocument()
+    expect(within(ahora).getByText('Llamada · Seguimiento c-venc')).toBeInTheDocument()
+    expect(within(ahora).getByText('+51 988 777 666')).toBeInTheDocument()
+    // En la laptop no hay radio: «Llamar» copia el número y abre el registro, como el de un lead.
+    expect(within(ahora).getByRole('button', { name: 'Llamar a ROSA CLIENTE: copia su número y abre el registro' })).toBeInTheDocument()
+    expect(within(ahora).queryByRole('link', { name: /Llamar/ })).toBeNull()
+    // El teléfono se pide por la CANÓNICA del cliente, la misma que abre su ficha.
+    expect(dobles.contactoCliente.pedidos).toContain('inv-rosa-canon')
+    expect(within(ahora).queryByText('Lo último con este lead')).toBeNull()
+    expect(screen.queryByTestId('acciones-contacto')).toBeNull()
+    // Una fila de cliente no pide leads al store.
+    expect(dobles.asegurarLead).not.toHaveBeenCalledWith('c-venc')
+  })
+
+  it('«Registrar resultado» abre el cierre de tarea con la tarea del ámbito, no con otra', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    expect(dobles.cierre.tarea).toMatchObject({ id: 'c-venc', inversionista_id: 'inv-rosa' })
+    expect(screen.getByRole('dialog', { name: 'Cerrar tarea (mock)' })).toBeInTheDocument()
+  })
+
+  it('en la laptop «Llamar» abre YA el cierre de ESA tarea y copia el número, sin esperar al portapapeles', () => {
+    // Un portapapeles que no contesta nunca: el registro no puede quedar esperándolo.
+    const copiar = vi.fn(() => new Promise<void>(() => {}))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copiar } })
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: /^Llamar a ROSA CLIENTE/ }))
+    expect(dobles.cierre.tarea).toMatchObject({ id: 'c-venc' })
+    expect(copiar).toHaveBeenCalledWith('+51 988 777 666')
+  })
+
+  it('en el celular «Llamar» es un enlace tel: con el número de la fuente única (sin espacios)', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((q: string) => ({ matches: q.includes('pointer: coarse') || q.includes('prefers-reduced-motion'), media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false })) as typeof window.matchMedia
+    try {
+      render(<GestionDiariaAnalista />)
+      elegirCliente(/ROSA CLIENTE/)
+      expect(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('link', { name: 'Llamar a ROSA CLIENTE' })).toHaveAttribute('href', 'tel:+51988777666')
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
+  it('un número que no sirve para marcar no se ofrece', () => {
+    dobles.contactoCliente = { data: { telefono: '12-34', contactar: true }, error: null, isPending: false, pedidos: [] }
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).queryByRole('button', { name: /^Llamar a/ })).toBeNull()
+    expect(within(ahora).queryByText('12-34')).toBeNull()
+    expect(within(ahora).getByRole('status')).toHaveTextContent('Su ficha no tiene un número válido.')
+  })
+
+  it('si la relectura del contacto FALLA no se pinta el número de antes (fail-closed)', () => {
+    dobles.contactoCliente = { data: { telefono: '+51 988 777 666', contactar: true }, error: new Error('ficha caída'), isPending: false, pedidos: [] }
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).queryByText('+51 988 777 666')).toBeNull()
+    expect(within(ahora).queryByRole('button', { name: /^Llamar a/ })).toBeNull()
+    expect(within(ahora).getByRole('status')).toHaveTextContent('No se pudo traer su número. Ábrelo en su ficha.')
+  })
+
+  /** Lo que hace el store al confirmar el servidor el cierre: la tarea deja de estar pendiente. */
+  function cerrarEnElStore(id: string) {
+    dobles.tareasAmbito = dobles.tareasAmbito.map((t) => (t['id'] === id ? { ...t, estado: 'completada' } : t))
+  }
+  const colaSinLaCerrada = () => ({ items: [
+    itemCliente('c-hoy', 'tarea_hoy', '2026-09-20T22:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' }),
+    itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'),
+  ] })
+
+  it('al guardar (el store ya no la tiene pendiente) «Ahora» pasa a la fila de DETRÁS —la otra tarea de la misma persona— y el foco no se pierde', async () => {
+    dobles.cola.refetch = vi.fn(async () => { dobles.cola.data = colaSinLaCerrada(); return dobles.cola })
+    render(<GestionDiariaAnalista />)
+    // «Todo»: vencida del lead l2 (ayer), vencida de ROSA (hoy), de hoy de ROSA, sin conversación l3.
+    elegirCliente(/ROSA CLIENTE/)
+    const registrar = within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' })
+    fireEvent.click(registrar)
+    cerrarEnElStore('c-venc')
+    registrar.focus()
+    act(() => { dobles.cierre.onCerrar?.() })
+    // La que venía detrás en «Todo»: la de hoy de la misma persona (su OTRA tarea), sin esperar a la red.
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).getByText('Llamada · Confirmar renovación')).toBeInTheDocument()
+    // La cerrada se tapa ya en la lista, aunque la cola todavía no se haya releído.
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(1)
+    await waitFor(() => expect(within(ahora).getByRole('button', { name: 'Abrir la ficha de ROSA CLIENTE' })).toHaveFocus())
+    await waitFor(() => expect(dobles.cola.refetch).toHaveBeenCalledTimes(1))
+    expect(dobles.recargar).toHaveBeenCalled()
+  })
+
+  it('si se cerró el diálogo sin guardar (la tarea sigue pendiente en el store), «Ahora» no cambia y no se relee nada', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    act(() => { dobles.cierre.onCerrar?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Llamada · Seguimiento c-venc')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Cerrar tarea (mock)' })).toBeNull()
+    expect(dobles.cola.refetch).not.toHaveBeenCalled()
+  })
+
+  it('si el store aplica el cierre DESPUÉS del aviso (commit posterior), también cuenta', () => {
+    const { rerender } = render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    act(() => { dobles.cierre.onCerrar?.() })
+    // Todavía nada: el store no lo refleja aún.
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Llamada · Seguimiento c-venc')).toBeInTheDocument()
+    cerrarEnElStore('c-venc')
+    rerender(<GestionDiariaAnalista />)
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Llamada · Confirmar renovación')).toBeInTheDocument()
+  })
+
+  it('reprogramada a OTRO día: sale de la cola del día y «Ahora» pasa a la siguiente', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    dobles.tareasAmbito = dobles.tareasAmbito.map((t) => (t['id'] === 'c-venc' ? { ...t, vence_en: '2099-01-02T15:00:00Z' } : t))
+    act(() => { dobles.cierre.onCerrar?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Llamada · Confirmar renovación')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(1)
+    expect(dobles.cola.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('reprogramada DENTRO de hoy: sigue en su sitio, «Ahora» no cambia y se relee su hora', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    // Una hora más tarde que la que tenía (el 20/09, antes del final del día de hoy).
+    dobles.tareasAmbito = dobles.tareasAmbito.map((t) => (t['id'] === 'c-venc' ? { ...t, vence_en: '2026-09-20T18:00:00Z' } : t))
+    act(() => { dobles.cierre.onCerrar?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Abrir la ficha de ROSA CLIENTE' })).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(2)
+    expect(dobles.cola.refetch).toHaveBeenCalledTimes(1)
+    expect(dobles.recargar).not.toHaveBeenCalled()
+  })
+
+  it('una relectura FALLIDA no destapa la cerrada, ni una cola vieja al volver; una lectura nueva sin ella retira la máscara', async () => {
+    const vieja = dobles.cola.data
+    dobles.cola.refetch = vi.fn(async () => { dobles.cola.error = new Error('cola caída'); return dobles.cola })
+    const { rerender } = render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    cerrarEnElStore('c-venc')
+    await act(async () => { dobles.cierre.onCerrar?.() })
+    rerender(<GestionDiariaAnalista />)
+    // Cola caída: no se pinta nada de ella (fail-closed).
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo leer la cola del servidor')
+    // Vuelve la cola con la foto VIEJA (aún trae la cerrada): sigue tapada.
+    dobles.cola.error = null
+    dobles.cola.data = { ...(vieja as object) }
+    rerender(<GestionDiariaAnalista />)
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(1)
+    // Lectura nueva sin ella: la máscara ya no hace falta y la lista cuadra sola.
+    dobles.cola.data = colaSinLaCerrada()
+    rerender(<GestionDiariaAnalista />)
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(1)
+  })
+
+  it('un doble aviso del diálogo cuenta UNA vez: no salta a la primera de la lista', () => {
+    dobles.cola.refetch = vi.fn(async () => { dobles.cola.data = colaSinLaCerrada(); return dobles.cola })
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    cerrarEnElStore('c-venc')
+    const aviso = dobles.cierre.onCerrar
+    act(() => { aviso?.(); aviso?.() })
+    act(() => { aviso?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Llamada · Confirmar renovación')).toBeInTheDocument()
+    expect(dobles.cola.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('una relectura lenta de un cierre anterior no pisa la persona que el analista eligió después', async () => {
+    let soltar: (() => void) | null = null
+    dobles.cola.refetch = vi.fn(() => new Promise((resolver) => { soltar = () => resolver(dobles.cola) }))
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    cerrarEnElStore('c-venc')
+    act(() => { dobles.cierre.onCerrar?.() })
+    // Mientras la cola se relee, el analista elige a otra persona.
+    fireEvent.click(within(screen.getByRole('list', { name: /^Todo/ })).getByRole('button', { name: /LEAD l2/ }))
+    await act(async () => { soltar?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Abrir la ficha de LEAD l2' })).toBeInTheDocument()
+  })
+
+  it('si la tarea todavía no está en el ámbito, lo dice y no abre otra', async () => {
+    dobles.tareasAmbito = []
+    const { toast } = await import('sonner')
+    const aviso = vi.spyOn(toast, 'error')
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).getByText('No encontramos esta gestión en tu agenda. Recarga la página para verla.')).toBeInTheDocument()
+    fireEvent.click(within(ahora).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' }))
+    expect(aviso).toHaveBeenCalledWith(expect.stringContaining('No encontramos esta gestión pendiente'))
+    expect(dobles.cierre.tarea).toBeNull()
+  })
+
+  it('la ficha del cliente se abre por su canónica', () => {
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    fireEvent.click(within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Ver la ficha del cliente ROSA CLIENTE' }))
+    expect(dobles.abrirInversionista).toHaveBeenCalledWith('inv-rosa-canon')
+    expect(dobles.abrirLead).not.toHaveBeenCalled()
+  })
+
+  it('cliente SOLO del portal (perfil): sin ficha, sin teléfono y sin enlaces falsos', () => {
+    dobles.cola = { data: { items: [itemCliente('c-portal', 'tarea_hoy', '2026-09-20T22:00:00Z', { perfil_id: 'p-1', nombre: 'LUIS PORTAL' })] }, error: null, refetch: vi.fn(), isFetching: false }
+    dobles.tareasAmbito = [tareaCliente('c-portal', { inversionista_id: null, inversionista_canonico_id: null, perfil_id: 'p-1', titulo: 'Escribir a LUIS PORTAL' })]
+    render(<GestionDiariaAnalista />)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    const nombre = within(ahora).getByRole('button', { name: 'LUIS PORTAL, sin ficha en tu cartera' })
+    expect(nombre).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(nombre)
+    expect(dobles.abrirInversionista).not.toHaveBeenCalled()
+    expect(within(ahora).getByText(/aún no tiene ficha en tu cartera/)).toBeInTheDocument()
+    expect(within(ahora).queryByRole('link', { name: /Llamar/ })).toBeNull()
+    expect(within(ahora).queryByRole('button', { name: /^Ver la ficha del cliente/ })).toBeNull()
+    // Lo fijo no se anuncia como región viva: el nombre enfocado ya lo dice.
+    expect(within(ahora).queryByRole('status')).toBeNull()
+    expect(dobles.contactoCliente.pedidos.every((id) => id === '')).toBe(true)
+  })
+
+  it('un cliente que no se puede contactar no ofrece «Llamar»', () => {
+    dobles.contactoCliente = { data: { telefono: '+51 988 777 666', contactar: false }, error: null, isPending: false, pedidos: [] }
+    render(<GestionDiariaAnalista />)
+    elegirCliente(/ROSA CLIENTE/)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).queryByText('+51 988 777 666')).toBeNull()
+    expect(within(ahora).queryByRole('link', { name: /Llamar/ })).toBeNull()
+    expect(within(ahora).getByText(/no se puede contactar ahora/)).toBeInTheDocument()
+  })
+
+  it('ESTADO DE PRODUCCIÓN: cola solo con clientes y el día vacío; «Ahora» los propone igual', () => {
+    dobles.dia = { ...DIA_LLENO, cartera: [], compromisos: [], compromisos_total: 0, descartados: [],
+      marcador: { ...DIA_LLENO.marcador, llamadas: 0, contestadas: 0, utiles: 0, tasa_contacto_pct: null, nivel: null, leads_tocados: 0, citas_agendadas: 0, por_resultado: {}, por_hora: [] } } as unknown as DiaAnalista
+    dobles.cola = { data: { items: [itemCliente('c-venc', 'tarea_vencida', '2026-09-20T17:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' })] }, error: null, refetch: vi.fn(), isFetching: false }
+    render(<GestionDiariaAnalista />)
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    expect(within(ahora).getByRole('button', { name: 'Abrir la ficha de ROSA CLIENTE' })).toBeInTheDocument()
+    expect(within(ahora).getByText(/Se pasó hace 1 h/)).toBeInTheDocument()
+  })
+
+  it('en DEMO los clientes salen de las tareas del ámbito con la regla del servidor', () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    dobles.dia = { ...DIA_LLENO, cartera: [] } as unknown as DiaAnalista
+    dobles.tareasAmbito = [
+      tareaCliente('d-venc', { titulo: 'Llamar a ROSA DEMO' }),
+      tareaCliente('d-manana', { titulo: 'Llamar a MAÑANA', vence_en: '2026-09-21T15:00:00Z' }),
+      tareaCliente('d-ajena', { titulo: 'Llamar a AJENA', vendedor_id: 'otro' }),
+    ]
+    render(<GestionDiariaAnalista />)
+    const lista = screen.getByRole('list', { name: /^Todo/ })
+    expect(within(lista).getByRole('button', { name: /ROSA DEMO/ })).toBeInTheDocument()
+    expect(within(lista).queryByRole('button', { name: /MAÑANA|AJENA/ })).toBeNull()
+    // En demo no se consulta la ficha del cliente.
+    expect(dobles.contactoCliente.pedidos.every((id) => id === '')).toBe(true)
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('Su número está en su ficha.')).toBeInTheDocument()
+  })
+
+  it('en DEMO, al guardar el cliente (el store demo lo cierra) y no quedar nadie, el foco va al título', async () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    dobles.dia = { ...DIA_LLENO, cartera: [] } as unknown as DiaAnalista
+    dobles.tareasAmbito = [tareaCliente('d-venc', { titulo: 'Llamar a ROSA DEMO' })]
+    render(<GestionDiariaAnalista />)
+    const registrar = within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA DEMO' })
+    fireEvent.click(registrar)
+    cerrarEnElStore('d-venc')
+    registrar.focus()
+    act(() => { dobles.cierre.onCerrar?.() })
+    expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText(/Nada pendiente ahora/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveFocus())
+    expect(dobles.cola.refetch).not.toHaveBeenCalled()
   })
 })

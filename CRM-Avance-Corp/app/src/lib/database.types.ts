@@ -5042,6 +5042,16 @@ export type Database = {
         }
         Returns: Json
       }
+      cola_accion_v3_fn: {
+        Args: {
+          p_analista_id?: string
+          p_cursor?: Json
+          p_etapa?: string
+          p_limite?: number
+          p_senal?: string
+        }
+        Returns: Json
+      }
       completar_domicilio_cliente: {
         Args: { p_cliente_id: string; p_domicilio: string }
         Returns: Json

@@ -1,0 +1,907 @@
+{
+  "calculado_en": "2026-09-29T15:05:40.434339+00:00",
+  "control_revision": 1,
+  "cursor_siguiente": null,
+  "filtros": {
+    "analista_id": null,
+    "etapa": null,
+    "senal": "todas"
+  },
+  "hay_mas": false,
+  "items": [
+    {
+      "bucket": "primera_atencion",
+      "clave": "lead:147c126b-5527-4600-879f-676893b81fc0",
+      "estado": {
+        "asignacion_id": "072f65f8-2793-4e81-b115-b646fc450e68",
+        "avisos": [
+          {
+            "bucket": "primera_atencion",
+            "id": "e49c7f19a2c9e8d6c8e15225e40df107",
+            "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "primera_atencion",
+            "id": "e49c7f19a2c9e8d6c8e15225e40df107",
+            "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "base": {
+          "asignacion_id": "072f65f8-2793-4e81-b115-b646fc450e68",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": null,
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "asignacion_primera_gestion_en": null,
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:47.749113+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+          "primer_contacto_en": null,
+          "primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "primera_gestion_en": null,
+          "primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": null,
+          "tarea": null,
+          "validez": "sin_tarea"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 1,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_original_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:47.749113+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:47.749113+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "6db057ba-c3e2-40d8-a156-bd59f4a11c95",
+        "evaluacion": "completa",
+        "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "primera_atencion",
+            "id": "e49c7f19a2c9e8d6c8e15225e40df107",
+            "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          },
+          "modelo": 3,
+          "proxima_accion": null,
+          "proximo_cambio_en": "2026-09-30T01:37:47.749113+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": null,
+          "autor_nombre": null,
+          "limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "referencia_en": "2026-09-29T01:37:47.749113+00:00",
+          "ultima_gestion_en": null,
+          "ultima_gestion_tipo": null,
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "147c126b-5527-4600-879f-676893b81fc0",
+        "nombre_completo": "IDENTIDAD PARIDAD OFF TRANSIENT"
+      },
+      "lead_id": "147c126b-5527-4600-879f-676893b81fc0",
+      "prioridad": 10,
+      "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": true,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "147c126b-5527-4600-879f-676893b81fc0",
+        "nombre": "IDENTIDAD PARIDAD OFF TRANSIENT",
+        "tipo": "lead"
+      },
+      "tarea_id": null
+    },
+    {
+      "bucket": "primera_atencion",
+      "clave": "lead:1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+      "estado": {
+        "asignacion_id": "9d622996-08f4-4d85-91e6-60f6f86d1153",
+        "avisos": [
+          {
+            "bucket": "primera_atencion",
+            "id": "f8c400a4f254e83d43d9dc9b351bcf1e",
+            "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "primera_atencion",
+            "id": "f8c400a4f254e83d43d9dc9b351bcf1e",
+            "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "base": {
+          "asignacion_id": "9d622996-08f4-4d85-91e6-60f6f86d1153",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": null,
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "asignacion_primera_gestion_en": null,
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:47.749113+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+          "primer_contacto_en": null,
+          "primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "primera_gestion_en": null,
+          "primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": null,
+          "tarea": null,
+          "validez": "sin_tarea"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 1,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_original_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:47.749113+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:47.749113+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "7e97ffdf-9483-4d0b-9037-740e66843b45",
+        "evaluacion": "completa",
+        "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "primera_atencion",
+            "id": "f8c400a4f254e83d43d9dc9b351bcf1e",
+            "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          },
+          "modelo": 3,
+          "proxima_accion": null,
+          "proximo_cambio_en": "2026-09-30T01:37:47.749113+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": null,
+          "autor_nombre": null,
+          "limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "referencia_en": "2026-09-29T01:37:47.749113+00:00",
+          "ultima_gestion_en": null,
+          "ultima_gestion_tipo": null,
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+        "nombre_completo": "IDENTIDAD CARRERA A TRANSIENT"
+      },
+      "lead_id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+      "prioridad": 10,
+      "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": true,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "1e60ba88-dcc7-42ea-ab3c-13ac46a70679",
+        "nombre": "IDENTIDAD CARRERA A TRANSIENT",
+        "tipo": "lead"
+      },
+      "tarea_id": null
+    },
+    {
+      "bucket": "primera_atencion",
+      "clave": "lead:c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+      "estado": {
+        "asignacion_id": "55a28f7f-2e55-4935-8ed9-60b9985a0b9c",
+        "avisos": [
+          {
+            "bucket": "primera_atencion",
+            "id": "69632a1eb1b9e5b0cf7b18b8df69286d",
+            "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "primera_atencion",
+            "id": "69632a1eb1b9e5b0cf7b18b8df69286d",
+            "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "base": {
+          "asignacion_id": "55a28f7f-2e55-4935-8ed9-60b9985a0b9c",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": null,
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "asignacion_primera_gestion_en": null,
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:47.749113+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+          "primer_contacto_en": null,
+          "primer_contacto_limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "primera_gestion_en": null,
+          "primera_gestion_limite_en": "2026-09-29T03:37:47.749113+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": null,
+          "tarea": null,
+          "validez": "sin_tarea"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 1,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_original_en": "2026-09-30T01:37:47.749113+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:47.749113+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:47.749113+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "5103e30f-3e89-4d7e-b90f-35763ab98d1a",
+        "evaluacion": "completa",
+        "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "primera_atencion",
+            "id": "69632a1eb1b9e5b0cf7b18b8df69286d",
+            "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          },
+          "modelo": 3,
+          "proxima_accion": null,
+          "proximo_cambio_en": "2026-09-30T01:37:47.749113+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": null,
+          "autor_nombre": null,
+          "limite_en": "2026-09-30T01:37:47.749113+00:00",
+          "referencia_en": "2026-09-29T01:37:47.749113+00:00",
+          "ultima_gestion_en": null,
+          "ultima_gestion_tipo": null,
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+        "nombre_completo": "IDENTIDAD AVANCE DOS TRANSIENT"
+      },
+      "lead_id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+      "prioridad": 10,
+      "referencia_en": "2026-09-29T03:37:47.749113+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": true,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "c220bef8-345b-432b-8d4f-d21fbb6bd36a",
+        "nombre": "IDENTIDAD AVANCE DOS TRANSIENT",
+        "tipo": "lead"
+      },
+      "tarea_id": null
+    },
+    {
+      "bucket": "primera_atencion",
+      "clave": "lead:71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+      "estado": {
+        "asignacion_id": "c76d1714-da41-4f97-8fa2-873bb844b368",
+        "avisos": [
+          {
+            "bucket": "primera_atencion",
+            "id": "b283c05dcadd77267ffa7848dd34a7a9",
+            "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.967481+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "primera_atencion",
+            "id": "b283c05dcadd77267ffa7848dd34a7a9",
+            "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.967481+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "base": {
+          "asignacion_id": "c76d1714-da41-4f97-8fa2-873bb844b368",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": null,
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:47.967481+00:00",
+          "asignacion_primera_gestion_en": null,
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:47.967481+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:47.967481+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:47.967481+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+          "primer_contacto_en": null,
+          "primer_contacto_limite_en": "2026-09-30T01:37:47.967481+00:00",
+          "primera_gestion_en": null,
+          "primera_gestion_limite_en": "2026-09-29T03:37:47.967481+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": null,
+          "tarea": null,
+          "validez": "sin_tarea"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 1,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:47.967481+00:00",
+          "limite_original_en": "2026-09-30T01:37:47.967481+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:47.967481+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:47.967481+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "08011b8d-2470-4110-8030-30393353dff1",
+        "evaluacion": "completa",
+        "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "primera_atencion",
+            "id": "b283c05dcadd77267ffa7848dd34a7a9",
+            "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:47.967481+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          },
+          "modelo": 3,
+          "proxima_accion": null,
+          "proximo_cambio_en": "2026-09-30T01:37:47.967481+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": null,
+          "autor_nombre": null,
+          "limite_en": "2026-09-30T01:37:47.967481+00:00",
+          "referencia_en": "2026-09-29T01:37:47.967481+00:00",
+          "ultima_gestion_en": null,
+          "ultima_gestion_tipo": null,
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+        "nombre_completo": "IDENTIDAD BANCO CANONICO TRANSIENT"
+      },
+      "lead_id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+      "prioridad": 10,
+      "referencia_en": "2026-09-29T03:37:47.967481+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": true,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "71f37f5e-3f7f-457e-a591-b718e3dbe8dd",
+        "nombre": "IDENTIDAD BANCO CANONICO TRANSIENT",
+        "tipo": "lead"
+      },
+      "tarea_id": null
+    },
+    {
+      "bucket": "primera_atencion",
+      "clave": "lead:248118fb-9fa4-49a5-b879-ced592e970d8",
+      "estado": {
+        "asignacion_id": "1b748fe9-17ec-42ce-8ff4-d1d04fed0771",
+        "avisos": [
+          {
+            "bucket": "primera_atencion",
+            "id": "0294e37f458c68d8d5ded5902988142d",
+            "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:51.731528+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "primera_atencion",
+            "id": "0294e37f458c68d8d5ded5902988142d",
+            "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:51.731528+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          }
+        ],
+        "base": {
+          "asignacion_id": "1b748fe9-17ec-42ce-8ff4-d1d04fed0771",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": null,
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:51.731528+00:00",
+          "asignacion_primera_gestion_en": null,
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:51.731528+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:51.731528+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:51.731528+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+          "primer_contacto_en": null,
+          "primer_contacto_limite_en": "2026-09-30T01:37:51.731528+00:00",
+          "primera_gestion_en": null,
+          "primera_gestion_limite_en": "2026-09-29T03:37:51.731528+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": null,
+          "tarea": null,
+          "validez": "sin_tarea"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 1,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:51.731528+00:00",
+          "limite_original_en": "2026-09-30T01:37:51.731528+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:51.731528+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:51.731528+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "500c7596-7bab-4c6a-8e5b-ed3a0fd4a9b5",
+        "evaluacion": "completa",
+        "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "primera_atencion",
+            "id": "0294e37f458c68d8d5ded5902988142d",
+            "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+            "prioridad": 10,
+            "referencia_en": "2026-09-29T03:37:51.731528+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": null
+          },
+          "modelo": 3,
+          "proxima_accion": null,
+          "proximo_cambio_en": "2026-09-30T01:37:51.731528+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": null,
+          "autor_nombre": null,
+          "limite_en": "2026-09-30T01:37:51.731528+00:00",
+          "referencia_en": "2026-09-29T01:37:51.731528+00:00",
+          "ultima_gestion_en": null,
+          "ultima_gestion_tipo": null,
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+        "nombre_completo": "D13 PUERTA DNI V1 TRANSIENT"
+      },
+      "lead_id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+      "prioridad": 10,
+      "referencia_en": "2026-09-29T03:37:51.731528+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": true,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "248118fb-9fa4-49a5-b879-ced592e970d8",
+        "nombre": "D13 PUERTA DNI V1 TRANSIENT",
+        "tipo": "lead"
+      },
+      "tarea_id": null
+    },
+    {
+      "bucket": "tarea_vencida",
+      "clave": "lead:11000000-0000-4000-8000-000000000001",
+      "estado": {
+        "asignacion_id": "6d06f165-020f-44fc-9f33-4d280fe17a07",
+        "avisos": [
+          {
+            "bucket": "tarea_vencida",
+            "id": "aea0a8db1d9a1edfadc9a6bf6e2b9466",
+            "lead_id": "11000000-0000-4000-8000-000000000001",
+            "prioridad": 20,
+            "referencia_en": "2026-07-20T15:00:00+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": "44000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "avisos_mostrados": [
+          {
+            "bucket": "tarea_vencida",
+            "id": "aea0a8db1d9a1edfadc9a6bf6e2b9466",
+            "lead_id": "11000000-0000-4000-8000-000000000001",
+            "prioridad": 20,
+            "referencia_en": "2026-07-20T15:00:00+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": "44000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "base": {
+          "asignacion_id": "6d06f165-020f-44fc-9f33-4d280fe17a07",
+          "asignacion_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "asignacion_politica_version": 6,
+          "asignacion_primer_contacto_en": "2026-09-29T01:37:34.547558+00:00",
+          "asignacion_primer_contacto_limite_en": "2026-09-30T01:37:32.836784+00:00",
+          "asignacion_primera_gestion_en": "2026-09-29T01:37:34.547558+00:00",
+          "asignacion_primera_gestion_limite_en": "2026-09-29T03:37:32.836784+00:00",
+          "ciclo_aproximado": false,
+          "ciclo_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "ciclo_politica_version": 6,
+          "etapa": "nuevo",
+          "etapa_aproximada": false,
+          "etapa_iniciada_en": "2026-09-29T01:37:59.480439+00:00",
+          "etapa_limite_en": "2026-09-30T01:37:59.480439+00:00",
+          "etapa_objetivo_minutos": 1440,
+          "etapa_politica_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "etapa_politica_version": 6,
+          "lead_id": "11000000-0000-4000-8000-000000000001",
+          "primer_contacto_en": "2026-09-29T01:37:34.547558+00:00",
+          "primer_contacto_limite_en": "2026-09-30T01:37:32.836784+00:00",
+          "primera_gestion_en": "2026-09-29T01:37:34.547558+00:00",
+          "primera_gestion_limite_en": "2026-09-29T03:37:32.836784+00:00"
+        },
+        "ciclo_n": 1,
+        "compromiso": {
+          "cobertura_activa": false,
+          "hasta_en": "2026-07-20T19:00:00+00:00",
+          "tarea": {
+            "autor_id": "4c22b03e-3c73-4b65-b322-f1379e60f97f",
+            "autor_nombre": "GERENCIA DEMO",
+            "contexto_fuente": "evento",
+            "id": "44000000-0000-4000-8000-000000000001",
+            "lead_id": "11000000-0000-4000-8000-000000000001",
+            "reprogramaciones": 0,
+            "responsable_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+            "tipo": "llamada",
+            "titulo": "LLAMAR A JUAN PEREZ DEMO",
+            "vence_en": "2026-07-20T15:00:00+00:00"
+          },
+          "validez": "valido"
+        },
+        "etapa": {
+          "episodios_en_ciclo": 2,
+          "fuera_plazo": false,
+          "limite_operativo_en": "2026-09-30T01:37:59.480439+00:00",
+          "limite_original_en": "2026-09-30T01:37:59.480439+00:00",
+          "limite_prorrogado_en": "2026-09-30T01:37:59.480439+00:00",
+          "minutos_prorrogados": 0,
+          "motivos_revision": [],
+          "politica_prorroga_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_techo_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "prorrogas_restantes": 0,
+          "prorrogas_usadas": 0,
+          "revision_requerida": false,
+          "techo_en": "2026-10-02T01:37:59.480439+00:00",
+          "techo_origen": "episodio"
+        },
+        "etapa_sla_id": "da14650d-208e-4c47-be5b-92e1665d2460",
+        "evaluacion": "completa",
+        "lead_id": "11000000-0000-4000-8000-000000000001",
+        "motivos_datos": [],
+        "operacion": {
+          "aviso_principal": {
+            "bucket": "tarea_vencida",
+            "id": "aea0a8db1d9a1edfadc9a6bf6e2b9466",
+            "lead_id": "11000000-0000-4000-8000-000000000001",
+            "prioridad": 20,
+            "referencia_en": "2026-07-20T15:00:00+00:00",
+            "severidad": "critica",
+            "solo_supervision": false,
+            "tarea_id": "44000000-0000-4000-8000-000000000001"
+          },
+          "modelo": 3,
+          "proxima_accion": {
+            "id": "44000000-0000-4000-8000-000000000001",
+            "tipo": "llamada",
+            "titulo": "LLAMAR A JUAN PEREZ DEMO",
+            "vence_en": "2026-07-20T15:00:00+00:00"
+          },
+          "proximo_cambio_en": "2026-09-30T01:37:34.549125+00:00"
+        },
+        "seguimiento": {
+          "accion_pendiente": false,
+          "autor_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+          "autor_nombre": "ANALISTA UNO",
+          "limite_en": "2026-09-30T01:37:34.549125+00:00",
+          "referencia_en": "2026-09-29T01:37:34.549125+00:00",
+          "ultima_gestion_en": "2026-09-29T01:37:34.549125+00:00",
+          "ultima_gestion_tipo": "llamada_realizada",
+          "umbral_minutos": 1440,
+          "vencido": false
+        }
+      },
+      "lead": {
+        "analista_id": "85c142d0-3b3a-42e3-a5f2-4a2254b003ec",
+        "analista_nombre": "ANALISTA UNO",
+        "etapa": "nuevo",
+        "id": "11000000-0000-4000-8000-000000000001",
+        "nombre_completo": "JUAN PEREZ DEMO"
+      },
+      "lead_id": "11000000-0000-4000-8000-000000000001",
+      "prioridad": 20,
+      "referencia_en": "2026-07-20T15:00:00+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": false,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": true
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "id": "11000000-0000-4000-8000-000000000001",
+        "nombre": "JUAN PEREZ DEMO",
+        "tipo": "lead"
+      },
+      "tarea_id": "44000000-0000-4000-8000-000000000001"
+    },
+    {
+      "bucket": "tarea_vencida",
+      "clave": "tarea:c0000000-0000-4000-8000-00000000c001",
+      "estado": null,
+      "lead": null,
+      "lead_id": null,
+      "prioridad": 20,
+      "referencia_en": "2026-09-29T13:05:40.423077+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": true,
+        "por_repartir": false,
+        "primera_atencion": false,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": true
+      },
+      "severidad": "critica",
+      "sujeto": {
+        "inversionista_id": null,
+        "nombre": "CLIENTE BANCARIO DEMO",
+        "perfil_id": "11220b7b-f695-46b0-ad94-407c60ed15f3",
+        "tipo": "cliente"
+      },
+      "tarea_id": "c0000000-0000-4000-8000-00000000c001"
+    },
+    {
+      "bucket": "tarea_hoy",
+      "clave": "tarea:c0000000-0000-4000-8000-00000000c002",
+      "estado": null,
+      "lead": null,
+      "lead_id": null,
+      "prioridad": 30,
+      "referencia_en": "2026-09-29T16:05:40.423077+00:00",
+      "senales": {
+        "datos_incompletos": false,
+        "pendientes": false,
+        "por_repartir": false,
+        "primera_atencion": false,
+        "revisiones": false,
+        "seguimientos_pendientes": false,
+        "tareas_vencidas": false
+      },
+      "severidad": "media",
+      "sujeto": {
+        "inversionista_id": null,
+        "nombre": "CLIENTE BANCARIO DEMO",
+        "perfil_id": "11220b7b-f695-46b0-ad94-407c60ed15f3",
+        "tipo": "cliente"
+      },
+      "tarea_id": "c0000000-0000-4000-8000-00000000c002"
+    }
+  ],
+  "limite": 100,
+  "modelo_avisos": 3,
+  "modo": "activo",
+  "politica_operativa_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+  "politica_operativa_version": 6,
+  "proximo_cambio_en": "2026-09-29T16:05:40.423077+00:00",
+  "rango": {
+    "desde": 1,
+    "hasta": 8
+  },
+  "total_items": 8,
+  "totales": {
+    "clientes": 2,
+    "datos_incompletos": 0,
+    "pendientes": 7,
+    "por_repartir": 0,
+    "primera_atencion": 5,
+    "revisiones": 0,
+    "seguimientos_pendientes": 0,
+    "tareas_vencidas": 2
+  },
+  "version": 3
+}

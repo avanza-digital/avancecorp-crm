@@ -65,6 +65,7 @@ import {
 import { cn } from '@/lib/utils'
 import { presentarCitas } from '@/lib/terminologia'
 import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
+import { nombreClienteDeTitulo } from '@/lib/nombre-cliente-tarea'
 
 /** Opciones de resultado por tipo de tarea (1 tap, sin formularios). */
 interface OpcionCierre {
@@ -194,7 +195,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
   const nombreSujeto =
     l?.nombre_completo ??
     (tarea.perfil_id
-      ? tarea.titulo.replace(/^(Llamar a|Escribir a|Reuni[oó]n con|Cita con|Gestionar a)\s+/i, '').trim() || 'cliente'
+      ? nombreClienteDeTitulo(tarea.titulo)
       : '')
   const opciones = opcionesDe(tarea.tipo)
 

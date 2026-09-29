@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
-import { leadReal, montarBackendReal, UID } from './_helpers'
+import { leadReal, montarBackendReal, UID, type BackendReal } from './_helpers'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
+import muestraV3 from '../src/data/sla-operacion-cola-v3-sql.test.fixture.json' with { type: 'json' }
 
 export type PedidoCola = {
   p_cursor: { inicio: number } | null
@@ -94,4 +95,67 @@ export async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervi
     } })
   })
   return { pedidos, analistaUno, analistaDos, analistaAjeno }
+}
+
+export type PedidoColaDia = PedidoCola & { p_cursor: Record<string, unknown> | null }
+
+/** Próxima medianoche de Lima (UTC−5, sin horario de verano) desde un instante. */
+export function finDelDiaLima(desde: number): number {
+  const d = new Date(desde - 5 * 3_600_000)
+  d.setUTCHours(24, 0, 0, 0)
+  return d.getTime() + 5 * 3_600_000
+}
+
+/**
+ * Cola del DÍA v3 (`cola_accion_v3_fn`) y día del analista para la sesión real
+ * del vendedor `UID`. Los leads salen de la plantilla REAL capturada en el banco
+ * (`sla-operacion-cola-v3-sql.test.fixture.json`) y las tareas de CLIENTES se
+ * calculan en cada lectura desde `backend.tareas` con la regla del servidor
+ * (pendientes y activas del analista, vencidas o de hoy en Lima): si la UI
+ * cierra una con `cerrar_tarea`, la siguiente lectura ya no la trae. La
+ * respuesta hace ECO de los argumentos. No acredita RLS: eso lo hace el banco.
+ */
+export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVencidos: { id: string; nombre_completo: string; etapa: string }[]) {
+  const pedidos: PedidoColaDia[] = []
+  const plantillaLead = muestraV3.items.find((i) => i.lead_id !== null)!
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
+    const args = route.request().postDataJSON() as PedidoColaDia
+    pedidos.push(args)
+    const ahora = Date.now()
+    const fin = finDelDiaLima(ahora)
+    const leads = leadsVencidos.map((l, i) => ({ ...plantillaLead, lead_id: l.id, clave: `lead:${l.id}`,
+      sujeto: { tipo: 'lead', id: l.id, nombre: l.nombre_completo },
+      referencia_en: new Date(ahora - (i + 30) * 3_600_000).toISOString(),
+      lead: { ...plantillaLead.lead, id: l.id, nombre_completo: l.nombre_completo, etapa: l.etapa, analista_id: UID },
+      estado: { ...plantillaLead.estado, lead_id: l.id } }))
+    const clientes = backend.tareas
+      .filter((t) => t.lead_id == null && (t.perfil_id != null || t.inversionista_id != null) && t.estado === 'pendiente'
+        && t.activo !== false && t.vendedor_id === UID && Date.parse(String(t.vence_en)) < fin)
+      .sort((a, b) => String(a.vence_en).localeCompare(String(b.vence_en)))
+      .map((t) => {
+        const vencida = Date.parse(String(t.vence_en)) <= ahora
+        return { clave: `tarea:${String(t.id)}`, tarea_id: t.id, lead_id: null, lead: null, estado: null,
+          bucket: vencida ? 'tarea_vencida' : 'tarea_hoy', severidad: vencida ? 'critica' : 'media', prioridad: vencida ? 20 : 30,
+          referencia_en: t.vence_en,
+          senales: { pendientes: vencida, tareas_vencidas: vencida, primera_atencion: false, seguimientos_pendientes: false,
+            revisiones: false, datos_incompletos: false, por_repartir: false },
+          sujeto: { tipo: 'cliente', perfil_id: t.perfil_id ?? null, inversionista_id: t.inversionista_id ?? null, nombre: String(t['nombre_cliente'] ?? 'CLIENTE') } }
+      })
+    const items = [...leads, ...clientes].slice(0, args.p_limite)
+    await route.fulfill({ json: { ...muestraV3, calculado_en: new Date(ahora).toISOString(), proximo_cambio_en: null,
+      filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null }, limite: args.p_limite,
+      total_items: items.length, rango: { desde: items.length ? 1 : 0, hasta: items.length }, hay_mas: false, cursor_siguiente: null,
+      totales: { ...muestraV3.totales, clientes: clientes.length, tareas_vencidas: items.filter((i) => i.senales.tareas_vencidas).length },
+      items } })
+  })
+  await page.route('**/rest/v1/rpc/gestion_diaria_analista_fn', async (route) => {
+    const ahora = Date.now()
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ahora))
+    await route.fulfill({ json: { version: 1, generado_en: new Date(ahora).toISOString(), dia, zona: 'America/Lima', analista_id: UID,
+      umbrales: { version: 1, bien_min_pct: 45, atencion_min_pct: 25, minimo_llamadas_utiles: 5 }, sin_conversacion_dias: 7,
+      marcador: { llamadas: 0, contestadas: 0, utiles: 0, tasa_contacto_pct: null, nivel: null, leads_tocados: 0, citas_agendadas: 0,
+        primera_llamada_en: null, ultima_llamada_en: null, por_resultado: {}, por_hora: [] },
+      compromisos: [], compromisos_total: 0, cartera: [], cartera_truncada: false, descartados: [] } })
+  })
+  return { pedidos }
 }
