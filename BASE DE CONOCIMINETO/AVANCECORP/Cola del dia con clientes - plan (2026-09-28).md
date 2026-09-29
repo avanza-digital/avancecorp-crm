@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09; F2 EN PROD 29/09 (build-20260929T155245887Z, 9a74a1d0); PR #130 por fusionar; F3 pendiente
+estado: F1 EN PROD 28/09; F2 EN PROD 29/09; F3 HECHA 29/09 (ce9e688f en main), pendiente de publicar
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -157,7 +157,23 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
     rechazó con evidencia el P2 del demo de inversionista, porque el demo no tiene esas tareas.
   - `revisor-a11y` → CHANGES_REQUESTED. Se aceptaron el foco tras guardar, «Llamar» por aparato con
     `enlaceTel`, los avisos y los nombres accesibles.
-- **F3 — Después, aparte**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
+- **F3 — HECHA el 29/09 (commit `ce9e688f` en `main`, sin publicar)**:
+  - **Pantallas:** «Seguimiento comercial» y «Hoy» del supervisor leen la v3. Ya no queda consumidor de
+    la v2 en el front: se retiraron `listarColaSla` y `useColaSlaPagina`. La función v2 del servidor sigue
+    viva (CERRAR → OBSERVAR → DERRIBAR).
+  - **Filas de cliente:** son un enlace a «Mi cartera» con el id que trae la cola. Sin ficha, la fila se
+    lee y lo dice. No se inventa analista: en «Hoy», la columna dice «Cliente».
+  - **Conteo:** el Seguimiento cuenta los clientes de la página, no `totales.clientes`, que no lleva la
+    señal.
+  - **Vigencia:** una página de otra revisión, o con el modo en error, no se pinta.
+  - **Verificación:** check 4 900 PASS; e2e 78/78 (1 intermitente ajeno) y, sobre la base con el anexo,
+    31/31.
+  - **Revisiones:** Codex (LEVEL 2): se aceptaron el conteo, la canónica vieja y los dos de vigencia.
+    `revisor-a11y`: se aceptaron el P2 de «Sin ficha» oculto en estrecho, los enlaces, la región viva y
+    el contraste.
+  - **Rebase:** la F3 se reasentó sobre el anexo de cronograma, publicado por otra sesión (vivo
+    `fb79c46f`).
+- **F3 (texto original del plan)**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
   acciones autorizadas) y, mucho después, retirar la v2 solo tras inventariar asserts, scripts y envoltorios
   (CERRAR → OBSERVAR → DERRIBAR).
 
