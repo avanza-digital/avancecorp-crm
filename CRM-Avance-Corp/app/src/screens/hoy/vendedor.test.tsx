@@ -1,5 +1,12 @@
-// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
-vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
+// Estas pruebas ejercitan la vista legada (la cola activa se verifica en
+// sla-operacion.test.tsx); `montar({ modoActivo: true })` monta el modo ACTIVO de
+// producción: agenda y citas en dos columnas que llenan la ventana.
+let MODO_SLA: { legado: boolean; activo: boolean; error: null; data?: { modo: 'activo' } } = {
+  legado: true,
+  activo: false,
+  error: null,
+}
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => MODO_SLA }))
 // Tests de integración de la pantalla "Hoy · Analista" — los cinco arreglos de
 // la auditoría 2026-07-25, cada uno con su regresión:
 //   1. la agenda héroe listaba TODA la agenda futura mientras su badge contaba
@@ -171,6 +178,15 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
     }),
   }
 })
+// La CTA «GESTIÓN DIARIA» de la cabecera cuenta el día con `useDiaAnalista`
+// (react-query, sin QueryClientProvider en este arnés): aquí se fija a mano.
+// Su mapeo tiene sus propios tests en data/use-conteo-gestion-diaria.test.ts.
+const CONTEO_GD_BASE = { vencidas: 2, pendientes: 3, hechas: 4, yaVisitoHoy: false, cargando: false, disponible: true }
+let CONTEO_GD = CONTEO_GD_BASE
+const marcarVisitaGd = vi.fn()
+vi.mock('@/data/use-conteo-gestion-diaria', () => ({
+  useConteoGestionDiaria: () => ({ ...CONTEO_GD, marcarVisita: marcarVisitaGd }),
+}))
 
 const { HoyVendedor } = await import('./vendedor')
 
@@ -251,9 +267,14 @@ function montar(
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
+    /** Modo ACTIVO de producción (dos columnas que llenan la ventana); por defecto, legado. */
+    modoActivo?: boolean
   } = {},
 ): void {
   vi.setSystemTime(over.ahora ?? MIERCOLES_10AM)
+  MODO_SLA = over.modoActivo
+    ? { legado: false, activo: true, error: null, data: { modo: 'activo' } }
+    : { legado: true, activo: false, error: null }
   YO = {
     id: 'v-1',
     nombre_completo: 'ANALISTA UNO',
@@ -275,6 +296,19 @@ function montar(
     ? (over.cumplimiento ?? null)
     : { ...over.cumplimiento, periodo: OBJETIVOS.periodo }
   render(<HoyVendedor />)
+}
+
+/**
+ * Tarjeta «Tu cumplimiento del mes». Desde el 28/09/2026 va SIEMPRE abierta
+ * (pedido de Miguel: «que siempre se vea, que no se contraiga»): ya no hay
+ * <details>/<summary> que abrir, así que se localiza por su título.
+ */
+function tarjetaCumplimiento(): HTMLElement {
+  const tarjeta = screen
+    .getByRole('heading', { name: 'Tu cumplimiento del mes' })
+    .closest('[data-slot="card"]')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error('falta la tarjeta «Tu cumplimiento del mes»')
+  return tarjeta
 }
 
 /**
@@ -542,16 +576,20 @@ describe('Hoy · analista — contrato perceptual de Ahora', () => {
     expect(screen.queryByText('Tu agenda y tu cartera están al día')).not.toBeInTheDocument()
   })
 
-  it('mantiene el cumplimiento mensual colapsado hasta que el analista lo pide', () => {
+  // Pedido de Miguel (28/09/2026): «cumplimiento del mes porfa que siempre se
+  // vea, que no se contraiga». Antes era un <details> cerrado por defecto.
+  it('muestra el cumplimiento mensual siempre abierto: nada que abrir ni contraer', () => {
     montar()
 
-    const resumen = screen.getByText('Tu cumplimiento del mes').closest('summary')
-    const detalle = resumen?.closest('details')
-    expect(detalle).not.toBeNull()
-    expect(detalle).not.toHaveAttribute('open')
-
-    fireEvent.click(resumen as HTMLElement)
-    expect(detalle).toHaveAttribute('open')
+    const tarjeta = tarjetaCumplimiento()
+    const titulo = screen.getByRole('heading', { name: 'Tu cumplimiento del mes' })
+    // Ni <details>/<summary> ni una cabecera que se comporte como botón.
+    expect(tarjeta.querySelector('details, summary')).toBeNull()
+    expect(titulo.closest('summary, details, button, [role="button"]')).toBeNull()
+    // El contenido se ve sin ninguna interacción.
+    expect(within(tarjeta).getByText('Capital confirmado')).toBeVisible()
+    expect(within(tarjeta).getByText('Conversión del mes')).toBeVisible()
+    expect(within(tarjeta).getByText('Contratos confirmados · metas y procedencia del mes')).toBeVisible()
   })
 })
 
@@ -746,7 +784,7 @@ describe('Hoy · analista — meta del mes', () => {
     montar({ cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50) })
 
     expect(screen.getByText('Consultando la conversión del mes…')).toBeInTheDocument()
-    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Conversión consultando…')
+    expect(within(tarjetaCumplimiento()).getByText(/Conversión consultando…/)).toBeInTheDocument()
     expect(screen.queryByText('Sin datos de asignación para este mes')).not.toBeInTheDocument()
   })
 
@@ -992,7 +1030,7 @@ describe('Hoy · analista — meta del mes', () => {
       cumplimiento: cumplimientoPenUsd(120_000, 20_000),
     })
 
-    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Capital consultando…')
+    expect(within(tarjetaCumplimiento()).getByText(/Capital consultando…/)).toBeInTheDocument()
     expect(screen.getByText('Consultando el tipo de cambio para consolidar los dólares…')).toBeInTheDocument()
     expect(screen.queryByText(/sin tipo de cambio: el total NO incluye los dólares/)).not.toBeInTheDocument()
   })
@@ -1057,8 +1095,19 @@ describe('Hoy · analista — meta del mes', () => {
   })
 })
 
+/** Tarjeta «Tu agenda de hoy» (héroe del día): se localiza por su título. */
+function tarjetaAgenda(): HTMLElement {
+  const tarjeta = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error('falta la tarjeta «Tu agenda de hoy»')
+  return tarjeta
+}
+
+// Las gestiones de CLIENTES de cartera (postventa) van DENTRO de «Tu agenda de
+// hoy», en la misma cronología que las de leads (pedido de Miguel, 28/09/2026:
+// la tarjeta aparte «Clientes por gestionar hoy» repetía lo que ya es agenda).
+// Siguen fuera del motor de leads: no suben a «Ahora» ni inventan capital.
 describe('Hoy · analista — gestiones de clientes', () => {
-  it('muestra en una franja postventa la reunión agendada desde Mi cartera', () => {
+  it('la gestión de un cliente de Mi cartera va dentro de «Tu agenda de hoy» con la etiqueta «Cliente», sin tarjeta aparte', () => {
     montar({
       tareas: [
         tarea({
@@ -1072,13 +1121,80 @@ describe('Hoy · analista — gestiones de clientes', () => {
       ],
     })
 
-    const franja = screen.getByRole('heading', { name: 'Clientes por gestionar hoy' }).closest('[data-slot="card"]')
-    if (!(franja instanceof HTMLElement)) throw new Error('sin franja postventa')
-    expect(within(franja).getByText('Cita con Rosa')).toBeInTheDocument()
-    expect(within(franja).getByText('Cliente')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Clientes por gestionar hoy' })).not.toBeInTheDocument()
+    const agenda = tarjetaAgenda()
+    expect(within(agenda).getByText('Cita con Rosa')).toBeInTheDocument()
+    expect(within(agenda).getByText('Cliente')).toBeInTheDocument()
+    // El badge de la cabecera la cuenta como cita de HOY…
+    expect(within(agenda).getByText('1 hoy')).toBeInTheDocument()
+    // …pero sin lead detrás no hay capital que sumar: ni chip «En juego hoy» ni «en juego» en la fila.
+    expect(within(agenda).queryByText(/en juego/i)).not.toBeInTheDocument()
     expect(abrirLead).not.toHaveBeenCalled()
+    // «Cerrar tarea» desde la agenda abre el diálogo con la tarea del cliente.
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Cerrar tarea — Cita con Rosa' }))
+    expect(screen.getByRole('dialog', { name: 'Cerrar tarea' })).toHaveTextContent('Reunión con Rosa')
     // La misma gestión es también una cita agendada: «Tus citas» la lista con su badge.
     expect(within(panelCitas()).getByText('Cita con Rosa')).toBeInTheDocument()
+  })
+
+  it('un cliente y un lead con horas cruzadas quedan en orden de hora dentro de «Tu agenda de hoy», y el capital en juego sigue siendo solo de leads', () => {
+    montar({
+      // Modo activo: sin «Ahora», la agenda pinta la jornada entera y se ve el orden.
+      modoActivo: true,
+      leads: [
+        lead({ id: 'l-1', nombre_completo: 'ANA TORRES' }),
+        lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ', monto_estimado: 5_000 }),
+      ],
+      // Se entregan DESORDENADAS y con fuentes cruzadas: el cliente cae entre los dos leads.
+      tareas: [
+        tarea({ id: 't-bruno', lead_id: 'l-2', titulo: 'Llamar a Bruno', vence_en: '2026-07-15T17:00:00Z' }),
+        tarea({
+          id: 'tc-rosa',
+          lead_id: null,
+          perfil_id: 'cliente-1',
+          vendedor_id: 'v-1',
+          tipo: 'reunion',
+          titulo: 'Reunión con Rosa',
+          vence_en: '2026-07-15T16:00:00Z',
+        }),
+        tarea({ id: 't-ana', lead_id: 'l-1', titulo: 'Llamar a Ana', vence_en: '2026-07-15T15:30:00Z' }),
+      ],
+    })
+
+    const agenda = tarjetaAgenda()
+    expect(cerrarLabels(agenda)).toEqual([
+      'Cerrar tarea — Llamar a Ana',
+      'Cerrar tarea — Cita con Rosa',
+      'Cerrar tarea — Llamar a Bruno',
+    ])
+    expect(within(agenda).getByText('3 hoy')).toBeInTheDocument()
+    // «En juego hoy» = Ana (10 000) + Bruno (5 000); la cita con Rosa no añade nada.
+    expect(within(agenda).getByText(money(15_000))).toBeInTheDocument()
+  })
+
+  it('una gestión de cliente vencida entra en la franja ámbar de la agenda sin inventar capital, y la cola remite a la agenda', () => {
+    montar({
+      tareas: [
+        tarea({
+          id: 'tc-vieja',
+          lead_id: null,
+          perfil_id: 'cliente-1',
+          vendedor_id: 'v-1',
+          titulo: 'Visitar a Rosa',
+          vence_en: '2026-07-14T20:00:00Z',
+        }),
+      ],
+    })
+
+    const agenda = tarjetaAgenda()
+    expect(within(agenda).getByText('0 hoy · 1 vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('1 vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('Vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('Visitar a Rosa')).toBeInTheDocument()
+    expect(within(agenda).queryByText(/en juego/i)).not.toBeInTheDocument()
+    // La cola de al lado no canta «al día»: lo vencido vive en la agenda, con su botón de cerrar.
+    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
+    expect(screen.getByText(/Tienes 1 seguimiento vencido/)).toBeInTheDocument()
   })
 })
 
@@ -1195,12 +1311,23 @@ function panelCitas(): HTMLElement {
   return tarjeta
 }
 
+/** Los «Cerrar tarea» de la tarjeta, en orden: una fila = un botón. */
+function cerrarLabels(panel: HTMLElement): string[] {
+  return within(panel)
+    .getAllByRole('button', { name: /^Cerrar tarea — / })
+    .map((b) => b.getAttribute('aria-label') ?? '')
+}
+
+function rotulosDia(panel: HTMLElement): string[] {
+  return within(panel).queryAllByRole('heading', { level: 4 }).map((h) => h.textContent ?? '')
+}
+
 describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en contexto»)', () => {
-  it('lista solo las citas pendientes (leads y clientes), la vencida primero y el resto por fecha, con modalidad', () => {
+  it('arranca en «Semana» (leads y clientes, agrupadas por día); «Todas» trae la vencida primero y la lejana al final, con modalidad por icono', () => {
     montar({
       leads: [lead({ id: 'l-1' }), lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ', monto_estimado: 25_000 })],
       tareas: [
-        // Desordenadas a propósito: el panel ordena por vence_en.
+        // Desordenadas a propósito: la ficha ordena por vence_en.
         tarea({ id: 'c-lejana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita lejana con Bruno', vence_en: '2026-07-22T15:00:00Z', modalidad_reunion: 'sin_clasificar' }),
         tarea({ id: 'c-manana', lead_id: 'l-2', tipo: 'reunion', titulo: 'Cita con Bruno', vence_en: '2026-07-16T15:00:00Z', modalidad_reunion: 'virtual' }),
         tarea({ id: 'c-hoy', lead_id: 'l-1', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z', modalidad_reunion: 'presencial' }),
@@ -1213,28 +1340,35 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    expect(within(panel).getByText('5 agendadas · 1 vencida')).toBeInTheDocument()
-    expect(
-      within(panel).getAllByRole('button', { name: /^Cerrar tarea — / }).map((b) => b.getAttribute('aria-label')),
-    ).toEqual([
+    // El total de la cabecera es un botón (todo número se abre) y la ficha arranca en «Semana».
+    expect(within(panel).getByRole('button', { name: '5 agendadas · 1 vencida' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(panel).getByRole('button', { name: 'Semana 3' })).toHaveAttribute('aria-pressed', 'true')
+    // La semana (mié 15 → mar 21) NO trae la vencida ni la del miércoles 22.
+    expect(cerrarLabels(panel)).toEqual(['Cerrar tarea — Cita con Ana', 'Cerrar tarea — Cita con Bruno', 'Cerrar tarea — Cita con Rosa'])
+    expect(rotulosDia(panel)).toEqual(['Hoy · Mié 15', 'Mañana · Jue 16', 'Vie 17'])
+    // Nombre del lead resuelto; el cliente de cartera conserva el título y su badge.
+    expect(within(panel).getByText('ANA TORRES')).toBeInTheDocument()
+    expect(within(panel).getByText('BRUNO DÍAZ')).toBeInTheDocument()
+    expect(within(panel).getByText('Cita con Rosa')).toBeInTheDocument()
+    expect(within(panel).getByText('Cliente')).toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Todas 5' }))
+    expect(cerrarLabels(panel)).toEqual([
       'Cerrar tarea — Cita pendiente con Ana',
       'Cerrar tarea — Cita con Ana',
       'Cerrar tarea — Cita con Bruno',
       'Cerrar tarea — Cita con Rosa',
       'Cerrar tarea — Cita lejana con Bruno',
     ])
-    expect(within(panel).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
-      'Vencidas',
-      'Hoy',
-      'Mañana',
-      'Próximas',
-    ])
-    // Modalidad por texto; la cita `sin_clasificar` no lleva badge.
-    expect(within(panel).getByText('Presencial')).toBeInTheDocument()
-    expect(within(panel).getByText('Virtual')).toBeInTheDocument()
-    expect(within(panel).getAllByText(/^(Presencial|Virtual)$/)).toHaveLength(2)
-    expect(within(panel).getByText('Cliente')).toBeInTheDocument()
-    expect(within(panel).getAllByText(`${money(25_000)} en juego`)).toHaveLength(2)
+    expect(rotulosDia(panel)).toEqual(['Vencidas', 'Hoy · Mié 15', 'Mañana · Jue 16', 'Vie 17', 'Mié 22 Jul'])
+    // Modalidad como ICONO con nombre accesible; la `sin_clasificar` no lleva ninguno.
+    expect(within(panel).getByRole('img', { name: 'Presencial' })).toBeInTheDocument()
+    expect(within(panel).getByRole('img', { name: 'Virtual' })).toBeInTheDocument()
+    expect(within(panel).getAllByRole('img')).toHaveLength(2)
+    expect(within(panel).queryByText(/^(Presencial|Virtual)$/)).not.toBeInTheDocument()
+    // El capital va fila a fila (las dos de Bruno), sin sumarse en ningún sitio.
+    expect(within(panel).getAllByText(money(25_000))).toHaveLength(2)
+    expect(within(panel).queryByText(/en juego/)).not.toBeInTheDocument()
     expect(within(panel).queryByText('Llamar a Ana')).not.toBeInTheDocument()
     expect(within(panel).queryByText('Cita cerrada con Ana')).not.toBeInTheDocument()
   })
@@ -1245,10 +1379,10 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     const panel = panelCitas()
     expect(within(panel).getByText('Sin citas agendadas')).toBeInTheDocument()
     expect(within(panel).getByText('Agenda la próxima cita desde la ficha del lead.')).toBeInTheDocument()
-    expect(within(panel).queryByText(/^\d+ agendada/)).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: /agendada/ })).not.toBeInTheDocument()
   })
 
-  it('lista como máximo 8 citas y remite el resto a Agenda', () => {
+  it('lista la semana entera sin tope ni «+N más»; «Todas» trae el resto y la salida a Agenda va en el pie', () => {
     montar({
       tareas: Array.from({ length: 10 }, (_, i) =>
         tarea({
@@ -1261,10 +1395,16 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    expect(within(panel).getByText('10 agendadas')).toBeInTheDocument()
-    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(8)
-    expect(within(panel).getByRole('link', { name: '+2 más — en Agenda' })).toHaveAttribute('href', '#/agenda')
-    expect(within(panel).queryByText('Cita 9 con Ana')).not.toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: '10 agendadas' })).toBeInTheDocument()
+    // Semana = jueves 16 → martes 21: seis citas, TODAS pintadas.
+    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(6)
+    expect(within(panel).queryByRole('button', { name: 'Cerrar tarea — Cita 9 con Ana' })).not.toBeInTheDocument()
+    expect(within(panel).queryByText(/más — en Agenda/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Todas 10' }))
+    expect(within(panel).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(10)
+    expect(within(panel).getByRole('button', { name: 'Cerrar tarea — Cita 9 con Ana' })).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Ver en Agenda ›' })).toHaveAttribute('href', '#/agenda')
   })
 
   it('«Cerrar tarea» abre el diálogo de cierre sin abrir la ficha; Enter sobre la fila sí la abre', () => {
@@ -1273,11 +1413,12 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     })
 
     const panel = panelCitas()
-    const fila = within(panel).getByRole('button', { name: 'Abrir ficha — Cita con Ana' })
+    const fila = within(panel).getByRole('button', { name: 'Abrir ficha — Cita con Ana, 15:00' })
     const cerrar = within(panel).getByRole('button', { name: 'Cerrar tarea — Cita con Ana' })
-    // El nombre es el título; hora y día viajan como descripción (aria-describedby).
+    // El nombre es título + hora; día y capital viajan como descripción (aria-describedby).
     expect(fila).toHaveAccessibleDescription(/15:00/)
-    // Enter sobre el botón anidado NO es Enter sobre la fila (guard e.target).
+    expect(fila).toHaveAccessibleDescription(/Hoy/)
+    // Enter sobre el botón anidado NO es Enter sobre la fila (guard e.target + stopPropagation).
     fireEvent.keyDown(cerrar, { key: 'Enter' })
     expect(abrirLead).not.toHaveBeenCalled()
     fireEvent.keyDown(fila, { key: 'Enter' })
@@ -1288,5 +1429,121 @@ describe('Hoy · analista — «Tus citas» (en el sitio de «Tu cartera en cont
     fireEvent.click(cerrar)
     expect(screen.getByRole('dialog', { name: 'Cerrar tarea' })).toHaveTextContent('Cita con Ana')
     expect(abrirLead).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () => {
+  it('desde lg la raíz mide el alto del <main>, la fila agenda+citas es elástica y cada lista se desplaza dentro de su tarjeta', () => {
+    montar({
+      modoActivo: true,
+      tareas: [
+        tarea({ id: 'c-hoy', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z' }),
+        tarea({ id: 'c-manana', tipo: 'reunion', titulo: 'Cita de mañana con Ana', vence_en: '2026-07-16T15:00:00Z' }),
+      ],
+    })
+    // Modo activo de verdad: sin «Ahora» ni «Pendientes», que son del legado.
+    expect(screen.queryByRole('heading', { name: 'Tu siguiente movimiento' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pendientes' })).not.toBeInTheDocument()
+
+    const raiz = screen.getByRole('heading', { name: /^Hola, / }).closest('.ac-rise')
+    expect(raiz).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:h-[calc(100svh-7rem)]', 'lg:min-h-[640px]')
+    expect(raiz).not.toHaveClass('space-y-5')
+
+    const agenda = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+    if (!(agenda instanceof HTMLElement)) throw new Error('sin agenda')
+    expect(agenda).toHaveClass('flex', 'flex-col', 'min-h-0', 'flex-1')
+    expect(agenda.querySelector('.overflow-y-auto')).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
+    // El pie «Día con espacio» sigue a las filas, no al fondo de la tarjeta.
+    expect(within(agenda).getByText(/Día con espacio/).parentElement).not.toHaveClass('mt-auto')
+
+    const columnaIzquierda = agenda.parentElement
+    if (!(columnaIzquierda instanceof HTMLElement)) throw new Error('sin columna izquierda')
+    expect(columnaIzquierda).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-3')
+    // «Tu cumplimiento del mes» va DEBAJO de la agenda, en la misma columna, sin comprimirse.
+    const cumplimiento = tarjetaCumplimiento()
+    expect(columnaIzquierda.children[0]).toBe(agenda)
+    expect(columnaIzquierda.children[1]).toBe(cumplimiento)
+    expect(cumplimiento).toHaveClass('shrink-0')
+    expect(within(cumplimiento).getByText('Capital confirmado')).toBeInTheDocument()
+
+    const fila = columnaIzquierda.parentElement
+    expect(fila).toHaveClass('grid', 'min-h-0', 'flex-1', 'lg:grid-cols-5', 'lg:items-stretch', 'lg:grid-rows-[minmax(0,1fr)]')
+
+    const citas = panelCitas()
+    expect(citas.parentElement).toBe(fila)
+    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
+    const listaCitas = citas.querySelector('.overflow-y-auto')
+    expect(listaCitas).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
+    expect(listaCitas).not.toHaveClass('max-h-[60vh]')
+    expect(within(citas).getAllByRole('button', { name: /^Cerrar tarea — / })).toHaveLength(2)
+
+    // Lo fijo no se comprime: cabecera y pie de pantalla.
+    expect(screen.getByRole('heading', { name: /^Hola, / }).closest('header')).toHaveClass('shrink-0')
+    expect(screen.getByText(/únicamente tu propia cartera/)).toHaveClass('shrink-0')
+  })
+
+  it('en legado (demo) nada lleva altura fija: apilado con scroll de página, citas a todo el ancho con tope de 60vh y el cumplimiento debajo', () => {
+    montar({ tareas: [tarea({ id: 'c-hoy', tipo: 'reunion', titulo: 'Cita con Ana', vence_en: '2026-07-15T20:00:00Z' })] })
+
+    const raiz = screen.getByRole('heading', { name: /^Hola, / }).closest('.ac-rise')
+    expect(raiz).not.toHaveClass('lg:h-[calc(100svh-7rem)]')
+    const citas = panelCitas()
+    expect(citas.parentElement).toBe(raiz)
+    expect(citas).not.toHaveClass('min-h-0')
+    expect(citas.querySelector('.overflow-y-auto')).toHaveClass('max-h-[60vh]')
+    expect(tarjetaCumplimiento().parentElement).toBe(raiz)
+    const agenda = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+    expect(agenda?.querySelector('.overflow-y-auto')).toBeNull()
+  })
+})
+
+describe('Hoy · analista — CTA «GESTIÓN DIARIA» en la cabecera (pieza CRM-02 del UI Playground)', () => {
+  afterEach(() => {
+    CONTEO_GD = CONTEO_GD_BASE
+    window.location.hash = ''
+  })
+
+  it.each([
+    ['legado', false],
+    ['activo', true],
+  ] as const)(
+    'en modo %s la cabecera pinta el enlace «GESTIÓN DIARIA» hacia #/gestion-diaria, solo, sin la pastilla «Vista personal»',
+    (_modo, modoActivo) => {
+      montar({ modoActivo })
+      const cabecera = screen.getByRole('heading', { name: /^Hola, / }).closest('header')
+      if (!(cabecera instanceof HTMLElement)) throw new Error('sin cabecera')
+      const enlace = within(cabecera).getByRole('link', {
+        name: 'Ir a Gestión diaria. 2 vencidas, 3 pendientes. 4 de 9 gestiones hechas hoy',
+      })
+      expect(enlace).toHaveAttribute('href', '#/gestion-diaria')
+      expect(within(enlace).getByText('GESTIÓN DIARIA')).toBeInTheDocument()
+      expect(within(enlace).getByText('4 de 9')).toBeInTheDocument()
+      const boton = enlace.closest('.bgd')
+      expect(boton).toHaveClass('bgd--urgente')
+      // El botón va SOLO en su esquina: la pastilla «Vista personal · solo ves
+      // tu cartera» se retiró (Miguel, 28/09/2026: «es irrelevante»).
+      expect(within(cabecera).queryByText('Vista personal · solo ves tu cartera')).not.toBeInTheDocument()
+      const columna = boton?.parentElement
+      expect(columna).toHaveClass('flex', 'shrink-0')
+      expect(columna?.children).toHaveLength(1)
+      expect(columna?.children[0]).toBe(boton)
+    },
+  )
+
+  it('al hacer clic anota la visita y navega a Gestión diaria por el hash (la vía que App.tsx escucha)', () => {
+    montar()
+    fireEvent.click(screen.getByRole('link', { name: /^Ir a Gestión diaria\./ }))
+    act(() => {
+      vi.advanceTimersByTime(420)
+    })
+    expect(marcarVisitaGd).toHaveBeenCalledTimes(1)
+    expect(window.location.hash).toBe('#/gestion-diaria')
+  })
+
+  it('mientras no hay cifras del día el botón no presume «al día»', () => {
+    CONTEO_GD = { ...CONTEO_GD_BASE, vencidas: 0, pendientes: 0, hechas: 0, disponible: false }
+    montar()
+    const enlace = screen.getByRole('link', { name: 'Ir a Gestión diaria. Sin cifras del día todavía' })
+    expect(enlace.closest('.bgd')).toHaveAttribute('data-nivel', 'sin-cifras')
   })
 })

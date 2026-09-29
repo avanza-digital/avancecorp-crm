@@ -48,6 +48,8 @@ import {
   COLOR_NIVEL, ETIQUETA_NIVEL, cuandoLimaDe, detalleDeFila, filasDelFiltro, filasDiariasDemo,
   horaLimaDe, ordenarColaDiaria, paginaDeFilas, pestanasDiarias, siguienteTrasGuardar, tiempoDeFila,
   type Descartado, type DiaAnalista, type FilaDiaria, type FiltroCola,
+  FILTROS_COLA_DIA,
+  LIMITE_COLA_DIA,
 } from '@/lib/gestion-diaria-analista'
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
 import { useColaSlaPagina } from '@/data/sla-operacion-queries'
@@ -67,7 +69,6 @@ import { primerNombre } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ColaDeHoy, FILAS_POR_PAGINA } from '@/components/gestion-diaria/cola-de-hoy'
 
-const LIMITE_COLA = 100
 type VistaDerecha = 'cola' | 'actividad' | 'seguimiento'
 
 /**
@@ -131,7 +132,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const ultimoDia = useRef<DiaAnalista | null>(null)
   useEffect(() => { if (dia.dia !== null) ultimoDia.current = dia.dia }, [dia.dia])
   // La cola del día: la misma fuente que «Seguimiento comercial», sin filtros.
-  const cola = useColaSlaPagina({ senal: 'todas', etapa: null, analista_id: null }, null, LIMITE_COLA, !yo?.demo)
+  const cola = useColaSlaPagina(FILTROS_COLA_DIA, null, LIMITE_COLA_DIA, !yo?.demo)
   const paginaCola = cola.error ? undefined : cola.data
   // La cola y el día son DOS consultas: mientras la cola no ha llegado, decir
   // «no tienes nada pendiente» sería mentir (solo estarían los sin conversación).

@@ -1,0 +1,292 @@
+/* Botón «GESTIÓN DIARIA» — la CTA de la esquina superior derecha de «Hoy» del
+   analista. Promovida del UI Playground (pieza CRM-02, aprobada por Miguel el
+   28/09/2026). Allí estaba hecha con Motion; aquí todo el movimiento es CSS
+   puro para no sumar dependencias. Las cadencias copian las de la pieza:
+   timbre fuerte cada ~2 s, suave cada ~4 s, aura de 3 latidos, brillo cada
+   ~7 s, rebote de pelota cada 3,2 s. Los estados van como clases en la raíz
+   (.bgd--urgente · --activo · --aldia · --calmo · --rebota · --descolgado) y
+   las partes con doble guion bajo. El texto es SIEMPRE blanco: el ámbar solo
+   pinta borde, aura, círculo del teléfono y barra. */
+
+.bgd {
+  --bgd-acento: var(--accent);
+
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bgd--urgente { --bgd-acento: var(--warning); }
+
+/* Piso: la sombra se encoge cuando el botón está en el aire y se ensancha al caer. */
+.bgd__sombra {
+  position: absolute;
+  right: 12%;
+  bottom: -7px;
+  left: 12%;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgb(17 30 61 / 55%), rgb(17 30 61 / 0%) 70%);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+/* La pelota: el botón entero sube, cae y se aplasta un poco sobre el piso. */
+.bgd__pelota {
+  position: relative;
+  display: inline-flex;
+  border-radius: 999px;
+  transform-origin: 50% 100%;
+}
+
+.bgd--rebota .bgd__pelota { animation: bgd-rebote 3.2s ease-out infinite; }
+.bgd--rebota .bgd__sombra { animation: bgd-sombra 3.2s ease-out infinite; }
+
+/* El rebote se detiene al pasar el cursor: el botón se queda quieto bajo la mano. */
+.bgd--rebota:hover .bgd__pelota,
+.bgd--rebota:hover .bgd__sombra { animation: none; }
+
+/* Aura que late tres veces al aparecer y se apaga (solo si hay trabajo y no entró hoy). */
+.bgd__aura {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--bgd-acento);
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  animation: bgd-aura 2s ease-out 0.4s 3 both;
+}
+
+.bgd__boton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 14px 8px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #1a2f5a, var(--primary));
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -14px rgb(17 30 61 / 80%);
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.18s ease;
+}
+
+.bgd--urgente .bgd__boton { border-color: var(--warning); }
+
+/* Hover/foco: se eleva 2 px con sombra del color del estado; tap: se encoge. */
+.bgd__boton:hover,
+.bgd__boton:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--bgd-acento) 70%, transparent);
+}
+
+.bgd__boton:active { transform: scale(0.96); }
+
+.bgd__boton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* Brillo diagonal en reposo cada ~7 s (solo si hay trabajo y no entró hoy). */
+.bgd__brillo {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 26%), transparent);
+  transform: translateX(-140%) skewX(-20deg);
+  pointer-events: none;
+  animation: bgd-brillo 7.4s ease-in-out 2s infinite;
+}
+
+/* El teléfono de casa en su círculo translúcido; suena solo según el estado. */
+.bgd__telefono {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  transform-origin: 50% 55%;
+}
+
+.bgd--urgente .bgd__telefono {
+  background: color-mix(in srgb, var(--warning) 28%, transparent);
+  animation: bgd-timbre-fuerte 1.9s ease-in-out 0.6s infinite;
+}
+
+.bgd--activo .bgd__telefono { animation: bgd-timbre-suave 4.3s ease-in-out 0.6s infinite; }
+
+/* Al hacer clic el teléfono descuelga y se queda así hasta que cambia la pantalla. */
+.bgd--descolgado .bgd__telefono { animation: bgd-descolgar 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.bgd__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.bgd__rotulo {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+}
+
+/* Avance del día dentro del botón: línea fina de 96 px + «4 de 9» (hechas de total). */
+.bgd__avance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.bgd__pista {
+  position: relative;
+  width: 96px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+  overflow: hidden;
+}
+
+.bgd__relleno {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--bgd-acento);
+  transform-origin: left center;
+  animation: bgd-llenar 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both;
+}
+
+.bgd__cuenta {
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgb(255 255 255 / 72%);
+}
+
+.bgd__flecha {
+  display: inline-flex;
+  margin-left: 2px;
+  opacity: 0.85;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.bgd__boton:hover .bgd__flecha,
+.bgd__boton:focus-visible .bgd__flecha { transform: translateX(4px); }
+
+/* ── Cuadros ────────────────────────────────────────────────────────────────
+   Cada bucle dura lo que en Motion duraba «duration + repeatDelay»; el
+   movimiento ocupa el tramo inicial y el resto del ciclo es reposo. */
+
+/* Rebote: 1,1 s de vuelo cada 3,2 s (sube 14 px, cae y se aplasta). */
+@keyframes bgd-rebote {
+  0% { transform: translateY(0) scale(1, 1); }
+  5.7% { transform: translateY(-14px) scale(0.97, 1.05); }
+  11.5% { transform: translateY(0) scale(1.08, 0.9); }
+  17.2% { transform: translateY(-6px) scale(0.99, 1.03); }
+  22.9% { transform: translateY(0) scale(1.02, 0.97); }
+  28.6% { transform: translateY(-2px) scale(1, 1.01); }
+  34.4%, 100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* La sombra respira con el rebote: se encoge en el aire, se ensancha al caer. */
+@keyframes bgd-sombra {
+  0% { transform: scaleX(1); opacity: 0.28; }
+  5.7% { transform: scaleX(0.72); opacity: 0.14; }
+  11.5% { transform: scaleX(1.12); opacity: 0.34; }
+  17.2% { transform: scaleX(0.9); opacity: 0.2; }
+  22.9% { transform: scaleX(1.04); opacity: 0.3; }
+  28.6%, 100% { transform: scaleX(1); opacity: 0.28; }
+}
+
+/* Timbre fuerte (vencidas): 0,7 s de sacudida cada 1,9 s. */
+@keyframes bgd-timbre-fuerte {
+  0% { transform: rotate(0); }
+  5.3% { transform: rotate(-18deg); }
+  10.5% { transform: rotate(16deg); }
+  15.8% { transform: rotate(-14deg); }
+  21.1% { transform: rotate(12deg); }
+  26.3% { transform: rotate(-8deg); }
+  31.6% { transform: rotate(4deg); }
+  36.8%, 100% { transform: rotate(0); }
+}
+
+/* Timbre suave (solo pendientes): 0,9 s de sacudida cada 4,3 s. */
+@keyframes bgd-timbre-suave {
+  0% { transform: rotate(0); }
+  4.2% { transform: rotate(-9deg); }
+  8.4% { transform: rotate(8deg); }
+  12.6% { transform: rotate(-6deg); }
+  16.7% { transform: rotate(4deg); }
+  20.9%, 100% { transform: rotate(0); }
+}
+
+/* Aura: crece y se apaga en 1,5 s, descansa 0,5 s; tres latidos y se queda apagada. */
+@keyframes bgd-aura {
+  0% { transform: scale(1); opacity: 0.55; }
+  75%, 100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Brillo: cruza el botón en 0,9 s y espera 6,5 s fuera de vista. */
+@keyframes bgd-brillo {
+  0% { transform: translateX(-140%) skewX(-20deg); }
+  12.2%, 100% { transform: translateX(240%) skewX(-20deg); }
+}
+
+/* El teléfono descuelga: gira −35° con un pequeño exceso, como un resorte. */
+@keyframes bgd-descolgar {
+  from { transform: rotate(0) translateY(0); opacity: 1; }
+  60% { transform: rotate(-41deg) translateY(3px); }
+  to { transform: rotate(-35deg) translateY(2px); opacity: 0.85; }
+}
+
+/* La barra de avance se llena desde cero al montar. */
+@keyframes bgd-llenar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ── Accesibilidad: sin bucles con prefers-reduced-motion ─────────────────
+   El color, el icono y la barra siguen ahí, que son las señales que informan.
+   Mismo patrón que src/index.css; se repiten los selectores compuestos para
+   ganar en especificidad a las reglas de estado de arriba. */
+@media (prefers-reduced-motion: reduce) {
+  .bgd__pelota,
+  .bgd__sombra,
+  .bgd__telefono,
+  .bgd__relleno,
+  .bgd--rebota .bgd__pelota,
+  .bgd--rebota .bgd__sombra,
+  .bgd--urgente .bgd__telefono,
+  .bgd--activo .bgd__telefono,
+  .bgd--descolgado .bgd__telefono { animation: none; }
+
+  .bgd__aura,
+  .bgd__brillo { display: none; }
+
+  .bgd__boton,
+  .bgd__flecha { transition: none; }
+
+  .bgd__boton:hover,
+  .bgd__boton:focus-visible,
+  .bgd__boton:active,
+  .bgd__boton:hover .bgd__flecha,
+  .bgd__boton:focus-visible .bgd__flecha { transform: none; }
+
+  .bgd--descolgado .bgd__telefono {
+    transform: rotate(-35deg) translateY(2px);
+    opacity: 0.85;
+  }
+}
