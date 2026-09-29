@@ -1095,8 +1095,19 @@ describe('Hoy · analista — meta del mes', () => {
   })
 })
 
+/** Tarjeta «Tu agenda de hoy» (héroe del día): se localiza por su título. */
+function tarjetaAgenda(): HTMLElement {
+  const tarjeta = screen.getByRole('heading', { name: 'Tu agenda de hoy' }).closest('[data-slot="card"]')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error('falta la tarjeta «Tu agenda de hoy»')
+  return tarjeta
+}
+
+// Las gestiones de CLIENTES de cartera (postventa) van DENTRO de «Tu agenda de
+// hoy», en la misma cronología que las de leads (pedido de Miguel, 28/09/2026:
+// la tarjeta aparte «Clientes por gestionar hoy» repetía lo que ya es agenda).
+// Siguen fuera del motor de leads: no suben a «Ahora» ni inventan capital.
 describe('Hoy · analista — gestiones de clientes', () => {
-  it('muestra en una franja postventa la reunión agendada desde Mi cartera', () => {
+  it('la gestión de un cliente de Mi cartera va dentro de «Tu agenda de hoy» con la etiqueta «Cliente», sin tarjeta aparte', () => {
     montar({
       tareas: [
         tarea({
@@ -1110,13 +1121,80 @@ describe('Hoy · analista — gestiones de clientes', () => {
       ],
     })
 
-    const franja = screen.getByRole('heading', { name: 'Clientes por gestionar hoy' }).closest('[data-slot="card"]')
-    if (!(franja instanceof HTMLElement)) throw new Error('sin franja postventa')
-    expect(within(franja).getByText('Cita con Rosa')).toBeInTheDocument()
-    expect(within(franja).getByText('Cliente')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Clientes por gestionar hoy' })).not.toBeInTheDocument()
+    const agenda = tarjetaAgenda()
+    expect(within(agenda).getByText('Cita con Rosa')).toBeInTheDocument()
+    expect(within(agenda).getByText('Cliente')).toBeInTheDocument()
+    // El badge de la cabecera la cuenta como cita de HOY…
+    expect(within(agenda).getByText('1 hoy')).toBeInTheDocument()
+    // …pero sin lead detrás no hay capital que sumar: ni chip «En juego hoy» ni «en juego» en la fila.
+    expect(within(agenda).queryByText(/en juego/i)).not.toBeInTheDocument()
     expect(abrirLead).not.toHaveBeenCalled()
+    // «Cerrar tarea» desde la agenda abre el diálogo con la tarea del cliente.
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Cerrar tarea — Cita con Rosa' }))
+    expect(screen.getByRole('dialog', { name: 'Cerrar tarea' })).toHaveTextContent('Reunión con Rosa')
     // La misma gestión es también una cita agendada: «Tus citas» la lista con su badge.
     expect(within(panelCitas()).getByText('Cita con Rosa')).toBeInTheDocument()
+  })
+
+  it('un cliente y un lead con horas cruzadas quedan en orden de hora dentro de «Tu agenda de hoy», y el capital en juego sigue siendo solo de leads', () => {
+    montar({
+      // Modo activo: sin «Ahora», la agenda pinta la jornada entera y se ve el orden.
+      modoActivo: true,
+      leads: [
+        lead({ id: 'l-1', nombre_completo: 'ANA TORRES' }),
+        lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ', monto_estimado: 5_000 }),
+      ],
+      // Se entregan DESORDENADAS y con fuentes cruzadas: el cliente cae entre los dos leads.
+      tareas: [
+        tarea({ id: 't-bruno', lead_id: 'l-2', titulo: 'Llamar a Bruno', vence_en: '2026-07-15T17:00:00Z' }),
+        tarea({
+          id: 'tc-rosa',
+          lead_id: null,
+          perfil_id: 'cliente-1',
+          vendedor_id: 'v-1',
+          tipo: 'reunion',
+          titulo: 'Reunión con Rosa',
+          vence_en: '2026-07-15T16:00:00Z',
+        }),
+        tarea({ id: 't-ana', lead_id: 'l-1', titulo: 'Llamar a Ana', vence_en: '2026-07-15T15:30:00Z' }),
+      ],
+    })
+
+    const agenda = tarjetaAgenda()
+    expect(cerrarLabels(agenda)).toEqual([
+      'Cerrar tarea — Llamar a Ana',
+      'Cerrar tarea — Cita con Rosa',
+      'Cerrar tarea — Llamar a Bruno',
+    ])
+    expect(within(agenda).getByText('3 hoy')).toBeInTheDocument()
+    // «En juego hoy» = Ana (10 000) + Bruno (5 000); la cita con Rosa no añade nada.
+    expect(within(agenda).getByText(money(15_000))).toBeInTheDocument()
+  })
+
+  it('una gestión de cliente vencida entra en la franja ámbar de la agenda sin inventar capital, y la cola remite a la agenda', () => {
+    montar({
+      tareas: [
+        tarea({
+          id: 'tc-vieja',
+          lead_id: null,
+          perfil_id: 'cliente-1',
+          vendedor_id: 'v-1',
+          titulo: 'Visitar a Rosa',
+          vence_en: '2026-07-14T20:00:00Z',
+        }),
+      ],
+    })
+
+    const agenda = tarjetaAgenda()
+    expect(within(agenda).getByText('0 hoy · 1 vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('1 vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('Vencida')).toBeInTheDocument()
+    expect(within(agenda).getByText('Visitar a Rosa')).toBeInTheDocument()
+    expect(within(agenda).queryByText(/en juego/i)).not.toBeInTheDocument()
+    // La cola de al lado no canta «al día»: lo vencido vive en la agenda, con su botón de cerrar.
+    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
+    expect(screen.getByText(/Tienes 1 seguimiento vencido/)).toBeInTheDocument()
   })
 })
 
@@ -1429,7 +1507,7 @@ describe('Hoy · analista — CTA «GESTIÓN DIARIA» en la cabecera (pieza CRM-
     ['legado', false],
     ['activo', true],
   ] as const)(
-    'en modo %s la cabecera pinta el enlace «GESTIÓN DIARIA» hacia #/gestion-diaria y la pastilla debajo, más pequeña',
+    'en modo %s la cabecera pinta el enlace «GESTIÓN DIARIA» hacia #/gestion-diaria, solo, sin la pastilla «Vista personal»',
     (_modo, modoActivo) => {
       montar({ modoActivo })
       const cabecera = screen.getByRole('heading', { name: /^Hola, / }).closest('header')
@@ -1442,13 +1520,13 @@ describe('Hoy · analista — CTA «GESTIÓN DIARIA» en la cabecera (pieza CRM-
       expect(within(enlace).getByText('4 de 9')).toBeInTheDocument()
       const boton = enlace.closest('.bgd')
       expect(boton).toHaveClass('bgd--urgente')
-      // La pastilla queda DEBAJO del botón, en la misma columna y en 10 px.
-      const pastilla = within(cabecera).getByText('Vista personal · solo ves tu cartera')
+      // El botón va SOLO en su esquina: la pastilla «Vista personal · solo ves
+      // tu cartera» se retiró (Miguel, 28/09/2026: «es irrelevante»).
+      expect(within(cabecera).queryByText('Vista personal · solo ves tu cartera')).not.toBeInTheDocument()
       const columna = boton?.parentElement
-      expect(columna).toHaveClass('flex', 'flex-col', 'gap-2')
+      expect(columna).toHaveClass('flex', 'shrink-0')
+      expect(columna?.children).toHaveLength(1)
       expect(columna?.children[0]).toBe(boton)
-      expect(columna?.children[1]).toBe(pastilla)
-      expect(pastilla).toHaveClass('text-[10px]')
     },
   )
 

@@ -10,7 +10,7 @@
 //  · `useDiaAnalista(null, null)` → `crm.gestion_diaria_analista_fn` (hoy, el
 //    propio analista): `marcador` y `cartera` (señales por lead abierto).
 //  · `useColaSlaPagina({ senal: 'todas', etapa: null, analista_id: null }, null,
-//    LIMITE_COLA, …)` → `crm.cola_accion_v2_fn`, la cola del día tal cual la
+//    LIMITE_COLA_DIA, …)` → `crm.cola_accion_v2_fn`, la cola del día tal cual la
 //    ordena el destino (`analista.tsx:134`).
 //
 // MAPEO:
@@ -30,7 +30,7 @@
 // (`dia.dia === fechaLima(ahora)`: el reloj pudo cruzar la medianoche antes del
 // refetch), con la cartera entera (`cartera_truncada === false`; el servidor la
 // recorta a 500 leads abiertos) y, en sesión real, con la cola llegada sin
-// error y SIN recortar (`hay_mas === false`). Si la página de LIMITE_COLA se
+// error y SIN recortar (`hay_mas === false`). Si la página de LIMITE_COLA_DIA se
 // queda corta NO se usan `pagina.totales`: cuentan SEÑALES de la cola
 // (`pendientes`, `seguimientos_pendientes`, `revisiones`…), no los grupos del
 // día, así que no cuadran con lo que muestra el destino; antes que una cifra
@@ -48,23 +48,20 @@ import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
+  FILTROS_COLA_DIA,
+  LIMITE_COLA_DIA,
   filasDiariasDemo,
   ordenarColaDiaria,
   type DiaAnalista,
   type FilaDiaria,
 } from '@/lib/gestion-diaria-analista'
-import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
+import type { ColaSlaPagina } from '@/lib/sla-operacion'
 import { useDiaAnalista } from './gestion-diaria-queries'
 import { useColaSlaPagina } from './sla-operacion-queries'
 
-/**
- * La MISMA página que abre Gestión diaria del analista (`analista.tsx:134`):
- * filtros y límite idénticos para que la clave de TanStack coincida y la
- * consulta se comparta. `LIMITE_COLA` repite el valor de `analista.tsx` (no
- * está exportado); si allí cambia, solo se pierde la caché compartida.
- */
-export const FILTROS_COLA: FiltrosSla = { senal: 'todas', etapa: null, analista_id: null }
-export const LIMITE_COLA = 100
+// La MISMA página que abre Gestión diaria del analista: `FILTROS_COLA_DIA` y
+// `LIMITE_COLA_DIA` viven en `lib/gestion-diaria-analista` y los usan los dos
+// consumidores, así la clave de TanStack coincide y la consulta se comparte.
 
 export interface ConteoGestionDiaria {
   /** Gestiones vencidas (ya pasó su hora). */
@@ -135,7 +132,7 @@ export function useConteoGestionDiaria(): ConteoGestionDiariaHook {
   const ahora = useAhora()
   const demo = yo?.demo === true
   const { dia, cargando: diaCargando } = useDiaAnalista(null, null)
-  const cola = useColaSlaPagina(FILTROS_COLA, null, LIMITE_COLA, !demo)
+  const cola = useColaSlaPagina(FILTROS_COLA_DIA, null, LIMITE_COLA_DIA, !demo)
   const hoy = fechaLima(ahora)
   const clave = yo ? claveVisita(yo.id) : null
   // Fail-closed también en refetch: TanStack conserva `data` cuando un refetch
