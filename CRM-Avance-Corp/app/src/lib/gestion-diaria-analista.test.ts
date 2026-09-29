@@ -4,9 +4,9 @@
 // aparezca sin su conteo.
 import { describe, expect, it } from 'vitest'
 import {
-  agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, diaAnalistaDesdeDemo, filasDelFiltro, filasDiariasDemo,
+  agruparDiaria, barrasPorHora, cuandoLimaDe, detalleDeFila, diaAnalistaDesdeDemo, filasDelFiltro, filasDiariasDemo, finDelDiaLima,
   horaLimaDe, llamadasFueraDeFranja, ordenarColaDiaria, pestanasDiarias, resumenMarcador, siguienteTrasGuardar, textoTasa, tiempoDeFila,
-  type FilaDiaria, type ItemColaSla, type SenalCartera,
+  type FilaDiaria, type FilaLead, type ItemColaDia, type SenalCartera,
 } from './gestion-diaria-analista'
 import { seleccionarPrioridadesVendedor } from '@/screens/hoy/prioridades-vendedor'
 import type { ItemCola } from './inteligencia'
@@ -21,11 +21,21 @@ const senal = (id: string, extra: Partial<SenalCartera> = {}): SenalCartera => (
   ...extra,
 })
 
-const item = (id: string, bucket: string, referencia: string | null, extra: Partial<ItemColaSla> = {}): ItemColaSla => ({
+const item = (id: string, bucket: string, referencia: string | null, extra: Record<string, unknown> = {}): ItemColaDia => ({
+  clave: `lead:${id}`, sujeto: { tipo: 'lead', id, nombre: `LEAD ${id}` },
   lead_id: id, bucket, severidad: 'media', prioridad: 0, referencia_en: referencia, tarea_id: null,
   lead: { id, nombre_completo: `LEAD ${id}`, etapa: 'nuevo', analista_id: 'a1', analista_nombre: 'ANALISTA UNO' },
   ...extra,
-} as unknown as ItemColaSla)
+} as unknown as ItemColaDia)
+
+/** Una tarea de CLIENTE de la cola v3 (sin lead, sin estado, sin teléfono). */
+const cliente = (tarea: string, bucket: 'tarea_vencida' | 'tarea_hoy', vence: string, sujeto: { perfil_id?: string; inversionista_id?: string; nombre?: string } = {}): ItemColaDia => ({
+  clave: `tarea:${tarea}`, tarea_id: tarea, lead_id: null, lead: null, estado: null, bucket,
+  severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: bucket === 'tarea_vencida' ? 20 : 30, referencia_en: vence,
+  senales: { pendientes: bucket === 'tarea_vencida', tareas_vencidas: bucket === 'tarea_vencida', primera_atencion: false,
+    seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false },
+  sujeto: { tipo: 'cliente', perfil_id: sujeto.perfil_id ?? null, inversionista_id: sujeto.perfil_id ? null : sujeto.inversionista_id ?? `inv-${tarea}`, nombre: sujeto.nombre ?? `CLIENTE ${tarea}` },
+})
 
 describe('ordenarColaDiaria', () => {
   it('pone el lead sin primer intento antes que lo vencido, lo de hoy y lo abandonado', () => {
@@ -63,6 +73,31 @@ describe('ordenarColaDiaria', () => {
     const filas = ordenarColaDiaria([item('con', 'tarea_hoy', null), item('sin', 'tarea_hoy', null)], [senal('con', { llamadas_ciclo: 3 })])
     expect(filas.find((f) => f.lead_id === 'con')?.senal?.llamadas_ciclo).toBe(3)
     expect(filas.find((f) => f.lead_id === 'sin')?.senal).toBeNull()
+  })
+
+  it('las tareas de CLIENTES entran en «Vencidas» u «Hoy», una fila por tarea y ordenadas con los leads', () => {
+    const cola = [
+      item('nuevo', 'primera_atencion', '2026-09-20T14:00:00Z'),
+      item('lv', 'tarea_vencida', '2026-09-19T15:00:00Z'),
+      cliente('c-venc', 'tarea_vencida', '2026-09-18T15:00:00Z', { inversionista_id: 'inv-1', nombre: 'ROSA CLIENTE' }),
+      cliente('c-hoy-1', 'tarea_hoy', '2026-09-20T22:00:00Z', { inversionista_id: 'inv-1', nombre: 'ROSA CLIENTE' }),
+      cliente('c-hoy-2', 'tarea_hoy', '2026-09-20T20:00:00Z', { perfil_id: 'p-1', nombre: 'SOLO PORTAL' }),
+    ]
+    const filas = ordenarColaDiaria(cola, [])
+    expect(filas.map((f) => `${f.grupo}:${f.clave}`)).toEqual([
+      'primera_atencion:lead:nuevo', 'tarea_vencida:tarea:c-venc', 'tarea_vencida:lead:lv', 'tarea_hoy:tarea:c-hoy-2', 'tarea_hoy:tarea:c-hoy-1',
+    ])
+    // La misma persona con dos tareas = dos filas, cada una con su tarea.
+    const rosa = filas.filter((f) => f.nombre_completo === 'ROSA CLIENTE')
+    expect(rosa.map((f) => f.tarea_id)).toEqual(['c-venc', 'c-hoy-1'])
+    expect(rosa.every((f) => f.tipo === 'cliente' && f.lead_id === null && f.etapa === null && f.senal === null && f.inversionista_id === 'inv-1')).toBe(true)
+    const portal = filas.find((f) => f.clave === 'tarea:c-hoy-2')
+    expect(portal).toMatchObject({ tipo: 'cliente', perfil_id: 'p-1', inversionista_id: null, severidad: 'media' })
+  })
+
+  it('una clave repetida entra UNA vez (el servidor no las repite, pero la pantalla no se fía)', () => {
+    const filas = ordenarColaDiaria([cliente('t1', 'tarea_hoy', '2026-09-20T20:00:00Z'), cliente('t1', 'tarea_hoy', '2026-09-20T20:00:00Z')], [])
+    expect(filas.map((f) => f.clave)).toEqual(['tarea:t1'])
   })
 
   it('agruparDiaria devuelve solo los grupos con filas, en el orden del día', () => {
@@ -118,8 +153,8 @@ describe('presentación del marcador', () => {
 })
 
 describe('detalleDeFila', () => {
-  const fila = (grupo: 'primera_atencion' | 'sin_conversacion' | 'tarea_hoy', s: SenalCartera | null) =>
-    ({ lead_id: 'l', nombre_completo: 'L', etapa: 'nuevo', grupo, referencia_en: null, tarea_id: null, severidad: 'media' as const, senal: s })
+  const fila = (grupo: 'primera_atencion' | 'sin_conversacion' | 'tarea_hoy', s: SenalCartera | null): FilaDiaria =>
+    ({ tipo: 'lead', clave: 'lead:l', lead_id: 'l', nombre_completo: 'L', etapa: 'nuevo', grupo, referencia_en: null, tarea_id: null, severidad: 'media' as const, senal: s })
 
   it('dice lo que se sabe y nunca inventa', () => {
     expect(detalleDeFila(fila('primera_atencion', null), 7)).toBe('Ningún intento todavía')
@@ -131,6 +166,11 @@ describe('detalleDeFila', () => {
       .toBe('Sin conversación hace 12 días (el límite es 7)')
   })
 
+  it('una tarea de cliente dice que es de la cartera, sin inventar señales de lead', () => {
+    const [f] = ordenarColaDiaria([cliente('t1', 'tarea_vencida', '2026-09-19T15:00:00Z')], [])
+    expect(detalleDeFila(f!, 7)).toBe('Cliente de tu cartera · gestión agendada')
+  })
+
   it('el número errado manda sobre todo lo demás: es lo que hay que resolver', () => {
     expect(detalleDeFila(fila('tarea_hoy', senal('l', { numero_errado_detalle: 'Contesta otra persona', llamadas_ciclo: 2 })), 7))
       .toBe('Número errado: Contesta otra persona')
@@ -139,8 +179,8 @@ describe('detalleDeFila', () => {
 
 describe('tiempoDeFila', () => {
   const AHORA = Date.parse('2026-09-20T18:00:00Z')
-  const fila = (extra: Partial<FilaDiaria> = {}): FilaDiaria =>
-    ({ lead_id: 'l', nombre_completo: 'L', etapa: 'nuevo', grupo: 'primera_atencion', referencia_en: null,
+  const fila = (extra: Partial<FilaLead> = {}): FilaDiaria =>
+    ({ tipo: 'lead', clave: 'lead:l', lead_id: 'l', nombre_completo: 'L', etapa: 'nuevo', grupo: 'primera_atencion', referencia_en: null,
       tarea_id: null, severidad: 'media', senal: null, ...extra })
 
   it('dice el tiempo que QUEDA, nunca una hora suelta ni la sigla', () => {
@@ -228,8 +268,39 @@ describe('espejo demo', () => {
 
   it('las filas del demo respetan el orden del día', () => {
     const d = diaAnalistaDesdeDemo('a1', leads, actividades, tareas, ahora, dia)
-    expect(filasDiariasDemo(d.cartera, ahora, dia).map((f) => `${f.grupo}:${f.lead_id}`))
-      .toEqual(['primera_atencion:l1', 'tarea_vencida:l3'])
+    expect(filasDiariasDemo(d.cartera, ahora, dia).map((f) => `${f.grupo}:${f.clave}`))
+      .toEqual(['primera_atencion:lead:l1', 'tarea_vencida:lead:l3'])
+  })
+
+  it('los CLIENTES del demo siguen la regla del servidor: del analista, pendientes, vencidas o de hoy', () => {
+    const d = diaAnalistaDesdeDemo('a1', leads, actividades, tareas, ahora, dia)
+    const base = { lead_id: null, estado: 'pendiente', activo: true, vendedor_id: 'a1' }
+    const deClientes = [
+      { ...base, id: 'cv', inversionista_id: 'inv-1', titulo: 'Llamar a ROSA DÍAZ', vence_en: '2026-09-19T10:00:00Z' },
+      { ...base, id: 'ch1', inversionista_id: 'inv-1', titulo: 'Llamar a ROSA DÍAZ', vence_en: '2026-09-20T20:00:00Z' },
+      { ...base, id: 'ch2', perfil_id: 'p-1', titulo: 'Escribir a LUIS PORTAL', vence_en: '2026-09-21T04:59:00Z' }, // 23:59 Lima
+      { ...base, id: 'manana', inversionista_id: 'inv-2', titulo: 'Llamar a MAÑANA', vence_en: '2026-09-21T05:00:00Z' }, // 00:00 Lima del 21
+      { ...base, id: 'ajena', inversionista_id: 'inv-3', titulo: 'Llamar a AJENA', vence_en: '2026-09-19T15:00:00Z', vendedor_id: 'a2' },
+      { ...base, id: 'hecha', inversionista_id: 'inv-4', titulo: 'Llamar a HECHA', vence_en: '2026-09-19T15:00:00Z', estado: 'completada' },
+      { ...base, id: 'inactiva', inversionista_id: 'inv-5', titulo: 'Llamar a INACTIVA', vence_en: '2026-09-19T15:00:00Z', activo: false },
+      { ...base, id: 'de-lead', lead_id: 'l2', titulo: 'Llamar a LEAD', vence_en: '2026-09-19T15:00:00Z' },
+      { ...base, id: 'dos-sujetos', perfil_id: 'p-2', inversionista_id: 'inv-6', titulo: 'Llamar a ROTA', vence_en: '2026-09-19T15:00:00Z' },
+    ]
+    const filas = filasDiariasDemo(d.cartera, ahora, dia, deClientes, 'a1')
+    expect(filas.map((f) => `${f.grupo}:${f.clave}`)).toEqual([
+      'primera_atencion:lead:l1', 'tarea_vencida:tarea:cv', 'tarea_vencida:lead:l3', 'tarea_hoy:tarea:ch1', 'tarea_hoy:tarea:ch2',
+    ])
+    expect(filas.filter((f) => f.tipo === 'cliente').map((f) => f.nombre_completo)).toEqual(['ROSA DÍAZ', 'ROSA DÍAZ', 'LUIS PORTAL'])
+  })
+})
+
+describe('finDelDiaLima', () => {
+  it('es la próxima medianoche de Lima (05:00 UTC), también a última hora del día', () => {
+    expect(new Date(finDelDiaLima(Date.parse('2026-09-20T18:00:00Z'))).toISOString()).toBe('2026-09-21T05:00:00.000Z')
+    // 23:59 de Lima del 20 = 04:59Z del 21: sigue siendo el día 20.
+    expect(new Date(finDelDiaLima(Date.parse('2026-09-21T04:59:00Z'))).toISOString()).toBe('2026-09-21T05:00:00.000Z')
+    // 00:00 de Lima del 21: ya es el día siguiente.
+    expect(new Date(finDelDiaLima(Date.parse('2026-09-21T05:00:00Z'))).toISOString()).toBe('2026-09-22T05:00:00.000Z')
   })
 })
 
@@ -241,6 +312,7 @@ describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
   )
   const grupos = pestanasDiarias(filas)
   const ids = (fs: readonly FilaDiaria[]) => fs.map((f) => f.lead_id)
+  const L = (id: string) => `lead:${id}`
 
   it('«Todo» es la cola entera en el orden de los grupos; un grupo, solo lo suyo', () => {
     expect(ids(filasDelFiltro(grupos, 'todo'))).toEqual(['n1', 'n2', 'v1', 's1'])
@@ -249,24 +321,34 @@ describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
   })
 
   it('al guardar pasa a la que venía DETRÁS en la lista que se miraba', () => {
-    expect(siguienteTrasGuardar(grupos, 'todo', 'n1')).toEqual({ filtro: 'todo', lead_id: 'n2' })
-    expect(siguienteTrasGuardar(grupos, 'todo', 'v1')).toEqual({ filtro: 'todo', lead_id: 's1' })
+    expect(siguienteTrasGuardar(grupos, 'todo', L('n1'))).toEqual({ filtro: 'todo', clave: L('n2') })
+    expect(siguienteTrasGuardar(grupos, 'todo', L('v1'))).toEqual({ filtro: 'todo', clave: L('s1') })
   })
 
   it('si el guardado era el último, pasa al nuevo último de esa lista', () => {
-    expect(siguienteTrasGuardar(grupos, 'todo', 's1')).toEqual({ filtro: 'todo', lead_id: 'v1' })
-    expect(siguienteTrasGuardar(grupos, 'primera_atencion', 'n2')).toEqual({ filtro: 'primera_atencion', lead_id: 'n1' })
+    expect(siguienteTrasGuardar(grupos, 'todo', L('s1'))).toEqual({ filtro: 'todo', clave: L('v1') })
+    expect(siguienteTrasGuardar(grupos, 'primera_atencion', L('n2'))).toEqual({ filtro: 'primera_atencion', clave: L('n1') })
   })
 
   it('si el grupo se queda vacío, sigue con la cola entera desde el principio', () => {
-    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', 'v1')).toEqual({ filtro: 'todo', lead_id: 'n1' })
+    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', L('v1'))).toEqual({ filtro: 'todo', clave: L('n1') })
   })
 
   it('un guardado que no estaba en la lista mirada deja «Ahora» en la primera de esa lista', () => {
-    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', 'n1')).toEqual({ filtro: 'tarea_vencida', lead_id: 'v1' })
+    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', L('n1'))).toEqual({ filtro: 'tarea_vencida', clave: L('v1') })
+  })
+
+  it('con dos tareas de un mismo cliente, guardar una pasa a la OTRA, no salta a la persona', () => {
+    const conCliente = pestanasDiarias(ordenarColaDiaria([
+      cliente('t1', 'tarea_vencida', '2026-09-18T10:00:00Z', { inversionista_id: 'inv-1' }),
+      cliente('t2', 'tarea_vencida', '2026-09-19T10:00:00Z', { inversionista_id: 'inv-1' }),
+      item('v9', 'tarea_vencida', '2026-09-19T11:00:00Z'),
+    ], []))
+    expect(siguienteTrasGuardar(conCliente, 'tarea_vencida', 'tarea:t1')).toEqual({ filtro: 'tarea_vencida', clave: 'tarea:t2' })
+    expect(siguienteTrasGuardar(conCliente, 'tarea_vencida', 'tarea:t2')).toEqual({ filtro: 'tarea_vencida', clave: 'lead:v9' })
   })
 
   it('con la cola vacía no inventa a nadie', () => {
-    expect(siguienteTrasGuardar(pestanasDiarias([]), 'todo', 'x')).toEqual({ filtro: 'todo', lead_id: null })
+    expect(siguienteTrasGuardar(pestanasDiarias([]), 'todo', 'lead:x')).toEqual({ filtro: 'todo', clave: null })
   })
 })

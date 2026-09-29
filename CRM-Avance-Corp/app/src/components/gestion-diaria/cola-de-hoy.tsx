@@ -48,6 +48,7 @@ export function ColaDeHoy({
   onFiltro: (filtro: FiltroCola) => void
   pagina: number
   onPagina: (pagina: number) => void
+  /** Clave de la fila elegida (`lead:<uuid>` | `tarea:<uuid>`). */
   elegido: string | null
   onElegir: (fila: FilaDiaria) => void
   ahora: number
@@ -112,12 +113,12 @@ export function ColaDeHoy({
                 {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
                 <ol role="list" aria-label={`${etiquetaFiltro} (${vista.rango})`} className="ac-scroll min-h-0 flex-1 overflow-y-auto">
                   {vista.filas.map((fila) => {
-                    const seleccionada = fila.lead_id === elegido
+                    const seleccionada = fila.clave === elegido
                     const apoyo = filtro === 'todo'
                       ? `${ETIQUETA_GRUPO[fila.grupo]} · ${detalleDeFila(fila, sinConversacionDias)}`
                       : detalleDeFila(fila, sinConversacionDias)
                     return (
-                      <li key={fila.lead_id} className="border-b border-muted">
+                      <li key={fila.clave} className="border-b border-muted">
                         <button
                           type="button"
                           {...(seleccionada ? { 'aria-current': true as const } : {})}

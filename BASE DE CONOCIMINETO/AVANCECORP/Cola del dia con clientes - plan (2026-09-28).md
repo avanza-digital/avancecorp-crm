@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09 (migración 20260929004455); F2 (front del analista) pendiente
+estado: F1 EN PROD 28/09 (migración 20260929004455); F2 (front del analista) HECHA y verificada el 29/09, SIN publicar (espera `/release-crm` de Miguel)
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -130,6 +130,33 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
   el éxito cierra por `tarea_id`; sin ficha para solo `perfil_id`, sin enlace ficticio); espejo demo con clientes
   vencidos/de hoy, dos tareas de una persona y sin teléfono; `gen:types`; tests unitarios + fixture SQL v3 +
   e2e `_sla-cola.ts` con rama v3 (Docker). Release con preflight.
+- **F2 — HECHA el 29/09 (sin publicar)**, en el worktree `AVANCECORP-desktop-worktrees/cola-v3-f2-20260929`.
+  Lo que cambió en `app/`:
+  - **Contrato y lectura**: `ColaDiaPaginaSchema` (unión lead | cliente con comprobaciones estrictas y claves
+    únicas) en `lib/sla-operacion.ts`, `listarColaDia` y `useColaDiaPagina` con clave de caché PROPIA
+    `cola-dia-v3`, y la entrada `cola_accion_v3_fn` A MANO en `database.types.ts`.
+  - **Filas**: `FilaDiaria` = `FilaLead | FilaCliente`, con `tipo` y `clave`. Selección, `cerrados`,
+    `siguienteTrasGuardar`, `key` y conteo del botón van por `clave`. Un cliente con dos tareas son dos filas.
+  - **Tarjeta «Cliente»** en «Ahora»: nombre, «Cliente de tu cartera», tiempo en palabras y la tarea del ámbito.
+    El teléfono sale de la ficha AUTORIZADA (`inversionista_ficha_fn`) y solo si `contactar` y no `no_contactar`.
+    Es fail-closed si la relectura falla y usa `enlaceTel`. En el celular «Llamar» marca; en la laptop copia el
+    número y abre el registro, como el lead. «Registrar resultado» abre `CerrarTareaDialog` con la tarea del
+    store. Un cliente solo de portal no tiene ficha ni enlace ficticio.
+  - **Cierre de un cliente**: lo decide el STORE en el primer commit tras el aviso del diálogo, no la página
+    de la cola. Solo cuenta el primer aviso. «Ahora» pasa a la fila de detrás, sin esperas de red, y el foco
+    no se pierde.
+  - **Espejo demo** con las tareas de clientes del ámbito y la misma regla del servidor.
+  - **`LIMITE_COLA_DIA`: 100 → 200**, el máximo de la v3.
+  Verificación y revisiones:
+  - `npm run check` PASS. E2E Docker de `gestion-diaria-*`, `hoy-*` y `sla-operacion`: **77/77**. Hay un e2e
+    nuevo, `gestion-diaria-clientes.spec.ts`, con el flujo completo.
+  - La muestra SQL REAL de la v3 se capturó en el banco a paridad, en una transacción deshecha
+    (`sla-operacion-cola-v3-sql.test.fixture.json`), y pasa el esquema.
+  - Revisiones: Codex pasada 1 → CHANGES_REQUESTED (2 P1 + 3 P2). Se aceptaron el teléfono fail-closed, el
+    cierre por store y las carreras. El límite se aceptó en parte (200; lo demás es riesgo aceptado). Se
+    rechazó con evidencia el P2 del demo de inversionista, porque el demo no tiene esas tareas.
+  - `revisor-a11y` → CHANGES_REQUESTED. Se aceptaron el foco tras guardar, «Llamar» por aparato con
+    `enlaceTel`, los avisos y los nombres accesibles.
 - **F3 — Después, aparte**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
   acciones autorizadas) y, mucho después, retirar la v2 solo tras inventariar asserts, scripts y envoltorios
   (CERRAR → OBSERVAR → DERRIBAR).
@@ -147,6 +174,14 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
 - [ ] Rol: lector global sin rol CRM y Directorio sin filas de clientes; postventa según candado y flags.
 - [ ] Advisors de seguridad y rendimiento sin alertas nuevas; `EXPLAIN` documentado.
 - [ ] `COMMENT ON` completo; sin secretos; ACL efectiva comprobada; ledger al día.
+
+## Estado 29/09 (sesión que retomó la pausa)
+
+- F2 hecha y verificada (ver «Fases»). Falta: segunda pasada de Codex sobre las correcciones, commit e
+  integración en el `main` local, y la publicación con `/release-crm` (Miguel), con el preflight contra el vivo.
+- `main` local integró `avancecorp/main` (#129) el 29/09 (`d20762ca`, sin cambios de archivos).
+- Banco `crm-banco-cola-v3` DETENIDO otra vez con sus datos (se usó para capturar la muestra v3). Retirarlo tras
+  publicar la F2: `supabase stop --no-backup --project-id crm-banco-cola-v3` + `git worktree remove`.
 
 ## Para retomar (pausa 28/09 ~21:30 · seguir el 29/09)
 

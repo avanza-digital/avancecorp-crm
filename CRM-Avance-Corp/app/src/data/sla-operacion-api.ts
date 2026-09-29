@@ -3,7 +3,7 @@ import { sb } from '@/lib/supabase'
 import type { Json } from '@/lib/database.types'
 import { soloPresentes } from './argumentos-rpc'
 import { CrmApiError } from './crm-api'
-import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
+import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaDiaPaginaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
 
 export async function obtenerResumenAvisosSla(signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
@@ -28,7 +28,32 @@ export async function listarColaSla(filtros: FiltrosSla, cursor: CursorSla | nul
   if (error) throw new CrmApiError(error.message, error.code)
   const parsed = v.safeParse(ColaSlaPaginaSchema, data)
   if (!parsed.success) throw new CrmApiError('No se pudo verificar la cola de seguimiento.', 'SLA_CONTRACT')
-  const pagina = parsed.output
+  return comprobarPagina(parsed.output, filtros, limite)
+}
+
+/**
+ * La cola del DÍA (v3): leads de la ventana SLA + tareas de clientes del día,
+ * en una sola paginación. Mismas comprobaciones de contrato que la v2: el
+ * servidor devuelve el eco de los filtros y del límite, y `hay_mas` va con su
+ * cursor. Solo la leen Gestión diaria del analista y el botón de «Hoy».
+ */
+export async function listarColaDia(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, signal?: AbortSignal) {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  let consulta = sb.schema('crm').rpc('cola_accion_v3_fn', {
+    p_limite: limite, p_senal: filtros.senal, p_cursor: cursor as Json | null,
+    ...soloPresentes({ p_etapa: filtros.etapa, p_analista_id: filtros.analista_id }),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(ColaDiaPaginaSchema, data)
+  if (!parsed.success) throw new CrmApiError('No se pudo verificar la cola del día.', 'SLA_CONTRACT')
+  return comprobarPagina(parsed.output, filtros, limite)
+}
+
+function comprobarPagina<P extends { limite: number; filtros: { senal: string; etapa: string | null; analista_id: string | null }; items: readonly unknown[]; hay_mas: boolean; cursor_siguiente: unknown }>(
+  pagina: P, filtros: FiltrosSla, limite: number,
+): P {
   if (pagina.limite !== limite || pagina.filtros.senal !== filtros.senal || pagina.filtros.etapa !== filtros.etapa
     || pagina.filtros.analista_id !== filtros.analista_id || pagina.items.length > limite
     || pagina.hay_mas !== (pagina.cursor_siguiente !== null)) {

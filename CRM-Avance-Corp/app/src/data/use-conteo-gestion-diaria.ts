@@ -9,9 +9,9 @@
 // FUENTES (sesión real):
 //  · `useDiaAnalista(null, null)` → `crm.gestion_diaria_analista_fn` (hoy, el
 //    propio analista): `marcador` y `cartera` (señales por lead abierto).
-//  · `useColaSlaPagina({ senal: 'todas', etapa: null, analista_id: null }, null,
-//    LIMITE_COLA_DIA, …)` → `crm.cola_accion_v2_fn`, la cola del día tal cual la
-//    ordena el destino (`analista.tsx:134`).
+//  · `useColaDiaPagina({ senal: 'todas', etapa: null, analista_id: null }, null,
+//    LIMITE_COLA_DIA, …)` → `crm.cola_accion_v3_fn` (desde el 29/09/2026), la
+//    cola del día tal cual la ordena el destino: leads y tareas de CLIENTES.
 //
 // MAPEO:
 //  · hechas     = `marcador.llamadas`: llamadas registradas HOY (contestadas +
@@ -20,11 +20,12 @@
 //                 cuentan, igual que en el marcador de la pantalla.
 //  · vencidas   = filas con `grupo === 'tarea_vencida'` de
 //                 `ordenarColaDiaria(pagina.items, dia.cartera)` (bucket
-//                 `tarea_vencida` de la cola).
+//                 `tarea_vencida` de la cola, de leads o de clientes).
 //  · pendientes = el resto de esas filas: `primera_atencion`, `tarea_hoy` y
 //                 `sin_conversacion` (este último lo añade `ordenarColaDiaria`
 //                 desde `cartera[].sin_conversacion`). Un lead cuenta UNA sola
-//                 vez, en su grupo más urgente.
+//                 vez, en su grupo más urgente; un cliente cuenta una vez POR
+//                 TAREA, como una fila de la pantalla.
 //
 // CUÁNDO HAY CIFRAS (`disponible`): solo con el día de HOY en Lima
 // (`dia.dia === fechaLima(ahora)`: el reloj pudo cruzar la medianoche antes del
@@ -37,14 +38,15 @@
 // dudosa, el botón va sin cifras. Sin `disponible`, las cifras son 0 y el
 // botón NO debe leerse como «al día» (fail-closed, como el día y la cola).
 //
-// DEMO: la cola v2 no corre (`useColaSlaPagina` va deshabilitada) y
+// DEMO: la cola v3 no corre (`useColaDiaPagina` va deshabilitada) y
 // `useDiaAnalista` devuelve el espejo `diaAnalistaDesdeDemo`; las filas salen
-// de `filasDiariasDemo(cartera, ahora, dia)`, exactamente como en el destino.
+// de `filasDiariasDemo(cartera, ahora, dia, tareas, yo)`, exactamente como en el destino.
 //
 // VISITA: `localStorage` `crm:gd-visita:<yo.id>` = 'YYYY-MM-DD' Lima del último
 // día en que entró. Todo en try/catch: puede no haber almacenamiento.
 import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
@@ -54,10 +56,11 @@ import {
   ordenarColaDiaria,
   type DiaAnalista,
   type FilaDiaria,
+  type TareaClienteDemo,
 } from '@/lib/gestion-diaria-analista'
-import type { ColaSlaPagina } from '@/lib/sla-operacion'
+import type { ColaDiaPagina } from '@/lib/sla-operacion'
 import { useDiaAnalista } from './gestion-diaria-queries'
-import { useColaSlaPagina } from './sla-operacion-queries'
+import { useColaDiaPagina } from './sla-operacion-queries'
 
 // La MISMA página que abre Gestión diaria del analista: `FILTROS_COLA_DIA` y
 // `LIMITE_COLA_DIA` viven en `lib/gestion-diaria-analista` y los usan los dos
@@ -95,14 +98,19 @@ function contarFilas(filas: readonly FilaDiaria[]): Pick<ConteoGestionDiaria, 'v
 /** Sesión real: la cola del servidor ordenada como en el destino. Función pura. */
 export function conteoDelDia(
   dia: Pick<DiaAnalista, 'marcador' | 'cartera'>,
-  pagina: Pick<ColaSlaPagina, 'items'>,
+  pagina: Pick<ColaDiaPagina, 'items'>,
 ): ConteoGestionDiaria {
   return { hechas: dia.marcador.llamadas, ...contarFilas(ordenarColaDiaria(pagina.items, dia.cartera)) }
 }
 
-/** Demo: el espejo sobre las señales de la cartera (la cola v2 no corre). Función pura. */
-export function conteoDelDiaDemo(dia: Pick<DiaAnalista, 'marcador' | 'cartera' | 'dia'>, ahora: number): ConteoGestionDiaria {
-  return { hechas: dia.marcador.llamadas, ...contarFilas(filasDiariasDemo(dia.cartera, ahora, dia.dia)) }
+/** Demo: el espejo sobre las señales de la cartera y las tareas de clientes (la cola v3 no corre). Función pura. */
+export function conteoDelDiaDemo(
+  dia: Pick<DiaAnalista, 'marcador' | 'cartera' | 'dia'>,
+  ahora: number,
+  tareas: readonly TareaClienteDemo[] = [],
+  analistaId: string | null = null,
+): ConteoGestionDiaria {
+  return { hechas: dia.marcador.llamadas, ...contarFilas(filasDiariasDemo(dia.cartera, ahora, dia.dia, tareas, analistaId)) }
 }
 
 export function claveVisita(analistaId: string): string {
@@ -131,8 +139,9 @@ export function useConteoGestionDiaria(): ConteoGestionDiariaHook {
   const { yo } = useAuth()
   const ahora = useAhora()
   const demo = yo?.demo === true
+  const { tareas } = useCRMData()
   const { dia, cargando: diaCargando } = useDiaAnalista(null, null)
-  const cola = useColaSlaPagina(FILTROS_COLA_DIA, null, LIMITE_COLA_DIA, !demo)
+  const cola = useColaDiaPagina(FILTROS_COLA_DIA, null, LIMITE_COLA_DIA, !demo)
   const hoy = fechaLima(ahora)
   const clave = yo ? claveVisita(yo.id) : null
   // Fail-closed también en refetch: TanStack conserva `data` cuando un refetch
@@ -141,10 +150,10 @@ export function useConteoGestionDiaria(): ConteoGestionDiariaHook {
   const colaCargando = !demo && cola.error == null && cola.data === undefined
   const conteo = useMemo<ConteoGestionDiaria | null>(() => {
     if (dia === null || dia.dia !== hoy || dia.cartera_truncada) return null
-    if (demo) return conteoDelDiaDemo(dia, ahora)
+    if (demo) return conteoDelDiaDemo(dia, ahora, tareas, yo?.id ?? null)
     if (pagina === undefined || pagina.hay_mas) return null
     return conteoDelDia(dia, pagina)
-  }, [ahora, demo, dia, hoy, pagina])
+  }, [ahora, demo, dia, hoy, pagina, tareas, yo?.id])
   // La visita se lee UNA vez por clave (cambiar de usuario relee) y se
   // actualiza al marcarla: sin efectos ni relecturas en cada render.
   const [visita, setVisita] = useState<{ clave: string | null; dia: string | null }>(() => ({ clave, dia: leerVisita(clave) }))
