@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol } from '@/lib/objetivos'
 import type { Actividad, Lead, Miembro, Yo } from '@/lib/tipos'
-import type { ColaSlaPagina, FiltrosSla } from '@/lib/sla-operacion'
+import type { ColaDiaPagina, FiltrosSla } from '@/lib/sla-operacion'
 import type { MetricaAgendaVendedor, MetricasAgenda } from '@/lib/metricas-agenda'
 
 // Sábado 2026-09-26, 10:00 en Lima (UTC-5).
@@ -83,13 +83,13 @@ vi.mock('@/data/use-metricas-vendedores-operativas', async () => {
 // ── Seguimiento activo: modo + cola del servidor, controlables por prueba ──
 const MODO = { legado: false, activo: true, error: null as Error | null, data: { control_revision: 1 } as { control_revision: number } | undefined }
 const REFETCH_MODO = vi.fn()
-type RespuestaCola = { data: ColaSlaPagina | undefined; error: Error | null; isFetching: boolean }
+type RespuestaCola = { data: ColaDiaPagina | undefined; error: Error | null; isFetching: boolean }
 let RESPONDER: (filtros: FiltrosSla) => RespuestaCola = () => ({ data: undefined, error: null, isFetching: false })
 const REFETCH_COLA = vi.fn()
 const pedidosCola: Array<{ filtros: FiltrosSla; limite: number; habilitada: boolean }> = []
 vi.mock('@/data/sla-operacion-queries', () => ({
   useModoSla: () => ({ ...MODO, refetch: REFETCH_MODO }),
-  useColaSlaPagina: (filtros: FiltrosSla, _cursor: unknown, limite: number, habilitada: boolean) => {
+  useColaDiaPagina: (filtros: FiltrosSla, _cursor: unknown, limite: number, habilitada: boolean) => {
     pedidosCola.push({ filtros, limite, habilitada })
     return { ...RESPONDER(filtros), refetch: REFETCH_COLA }
   },
@@ -115,9 +115,10 @@ function lead(over: Partial<Lead> = {}): Lead {
   }
 }
 
-type ItemCola = ColaSlaPagina['items'][number]
+type ItemCola = ColaDiaPagina['items'][number]
 function item(over: { lead_id: string; nombre: string; analistaId: string | null; analista: string | null; bucket?: string; severidad?: ItemCola['severidad']; referencia_en?: string | null }): ItemCola {
   return {
+    clave: `lead:${over.lead_id}`, sujeto: { tipo: 'lead', id: over.lead_id, nombre: over.nombre },
     lead_id: over.lead_id,
     bucket: over.bucket ?? 'primera_atencion',
     severidad: over.severidad ?? 'critica',
@@ -129,17 +130,17 @@ function item(over: { lead_id: string; nombre: string; analistaId: string | null
   } as unknown as ItemCola
 }
 
-const TOTALES_CERO = { pendientes: 0, primera_atencion: 0, tareas_vencidas: 0, seguimientos_pendientes: 0, revisiones: 0, datos_incompletos: 0, por_repartir: 0 }
-function pagina(items: ItemCola[], over: Partial<Omit<ColaSlaPagina, 'totales'>> & { totales?: Partial<ColaSlaPagina['totales']> } = {}): ColaSlaPagina {
+const TOTALES_CERO = { pendientes: 0, primera_atencion: 0, tareas_vencidas: 0, seguimientos_pendientes: 0, revisiones: 0, datos_incompletos: 0, por_repartir: 0, clientes: 0 }
+function pagina(items: ItemCola[], over: Partial<Omit<ColaDiaPagina, 'totales'>> & { totales?: Partial<ColaDiaPagina['totales']> } = {}): ColaDiaPagina {
   const { totales, ...resto } = over
   return {
-    version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-26T15:00:00Z', modelo_avisos: 3,
+    version: 3, modo: 'activo', control_revision: 1, calculado_en: '2026-09-26T15:00:00Z', modelo_avisos: 3,
     filtros: { senal: 'pendientes', etapa: null, analista_id: null }, limite: 7,
     total_items: items.length, hay_mas: false, cursor_siguiente: null, rango: { desde: 1, hasta: items.length },
     totales: { ...TOTALES_CERO, ...totales },
     items,
     ...resto,
-  } as ColaSlaPagina
+  } as ColaDiaPagina
 }
 
 function agenda(vendedores: Array<Partial<MetricaAgendaVendedor> & { vendedor_id: string; nombre: string }>): MetricasAgenda {
@@ -188,7 +189,7 @@ beforeEach(() => {
   AGENDA_ERROR = null
   CONVERSION = { data: undefined, isError: false }
   RESPONDER = (filtros) => {
-    const todas = colaTodo().filter((i) => filtros.analista_id == null || i.lead.analista_id === filtros.analista_id)
+    const todas = colaTodo().filter((i) => filtros.analista_id == null || i.lead?.analista_id === filtros.analista_id)
     return {
       data: pagina(todas, {
         filtros: { ...filtros },
@@ -225,8 +226,11 @@ describe('Hoy · supervisor — puesto de mando: qué pantalla se elige', () => 
   it('si el modo falla lo dice y deja reintentar', () => {
     MODO.activo = false
     MODO.error = new Error('caído')
+    // Aunque la caché conserve una página de la misma revisión, sin modo confirmado no se pinta.
+    RESPONDER = () => ({ data: pagina([item({ lead_id: 'l-1', nombre: 'ROSA CHÁVEZ', analistaId: KAREN, analista: 'KAREN ZAPATA' })], { totales: { pendientes: 1 } }), error: null, isFetching: false })
     montar()
     expect(screen.getByText(/No se pudo cargar el seguimiento/)).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: /^Pendientes del equipo/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar la carga del seguimiento' }))
     expect(REFETCH_MODO).toHaveBeenCalledTimes(1)
   })
@@ -815,5 +819,58 @@ describe('Hoy · supervisor — puesto de mando: todo número se abre, segunda t
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Detalle' }))
     expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Primeras gestiones vencidas/ })).not.toBeInTheDocument()
+  })
+})
+
+// Cola v3 (F3, 29/09/2026): las tareas de CLIENTES del equipo entran en la cola
+// del supervisor. Sin analista en el payload: la columna dice «Cliente» y la
+// fila ENLAZA a la ficha de «Mi cartera» si el cliente tiene una.
+describe('HoySupervisorMando · tareas de clientes (cola v3)', () => {
+  const INV = 'dddddddd-0000-4000-8000-0000000000a1'
+  const senalesCliente = (vencida: boolean) => ({ pendientes: vencida, tareas_vencidas: vencida, primera_atencion: false,
+    seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false })
+  const cliente = (tarea: string, bucket: 'tarea_vencida' | 'tarea_hoy', sujeto: { perfil_id: string | null; inversionista_id: string | null; nombre: string }) => ({
+    clave: `tarea:${tarea}`, tarea_id: tarea, lead_id: null, lead: null, estado: null, bucket,
+    severidad: bucket === 'tarea_vencida' ? 'critica' : 'media', prioridad: bucket === 'tarea_vencida' ? 20 : 30,
+    referencia_en: bucket === 'tarea_vencida' ? '2026-09-26T12:00:00Z' : '2099-01-01T12:00:00Z',
+    senales: senalesCliente(bucket === 'tarea_vencida'), sujeto: { tipo: 'cliente', ...sujeto },
+  }) as unknown as ItemCola
+
+  beforeEach(() => {
+    // Como el servidor: la de HOY de un cliente solo entra en «Todas»; la vencida, también en «Para atender ahora».
+    RESPONDER = (filtros) => ({ data: pagina([
+      item({ lead_id: 'l-1', nombre: 'ROSA CHÁVEZ', analistaId: KAREN, analista: 'KAREN ZAPATA' }),
+      cliente('t-inv', 'tarea_vencida', { perfil_id: null, inversionista_id: INV, nombre: 'CLIENTA INVERSIONISTA' }),
+      ...(filtros.senal === 'todas' ? [cliente('t-portal', 'tarea_hoy', { perfil_id: 'p-1', inversionista_id: null, nombre: 'CLIENTE PORTAL' })] : []),
+    ], { filtros: { senal: filtros.senal, etapa: null, analista_id: filtros.analista_id }, totales: { pendientes: 2, tareas_vencidas: 1, clientes: 2 } }), error: null, isFetching: false })
+  })
+
+  it('la tarea del cliente dice que es de un cliente, qué toca y desde cuándo, y enlaza a su ficha', () => {
+    render(<HoySupervisorMando />)
+    const fila = screen.getByRole('link', { name: /^Abrir la ficha de CLIENTA INVERSIONISTA, cliente de la cartera, urgente: Gestión con cliente · venció/ })
+    expect(fila).toHaveTextContent('Cliente')
+    expect(fila).not.toHaveTextContent('Sin analista')
+    expect(fila).toHaveAttribute('href', `#/mi-cartera/inversionista/${INV}`)
+    expect(abrirLead).not.toHaveBeenCalled()
+  })
+
+  it('mientras se abre la ficha de un lead, el enlace del cliente queda aria-disabled y no navega', () => {
+    abrirLead.mockImplementation(() => new Promise<boolean>(() => {}))
+    render(<HoySupervisorMando />)
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir ficha de ROSA CHÁVEZ/ }))
+    const fila = screen.getByRole('link', { name: /^Abrir la ficha de CLIENTA INVERSIONISTA/ })
+    expect(fila).toHaveAttribute('aria-disabled', 'true')
+    // `fireEvent.click` devuelve false si el manejador llamó a preventDefault.
+    expect(fireEvent.click(fila)).toBe(false)
+  })
+
+  it('un cliente solo del portal (en «Todas») se lee: la nota va en su línea de estado y no hay enlace', () => {
+    render(<HoySupervisorMando />)
+    expect(screen.queryByText('CLIENTE PORTAL')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Todas/ }))
+    expect(screen.queryByRole('link', { name: /CLIENTE PORTAL/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /CLIENTE PORTAL/ })).toBeNull()
+    const fila = screen.getByText('CLIENTE PORTAL').closest('li')!
+    expect(fila).toHaveTextContent(/Gestión con cliente · vence en .* · Sin ficha en la cartera/)
   })
 })

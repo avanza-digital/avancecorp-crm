@@ -73,7 +73,7 @@ test('F6 supervisor: filtros de equipo, cursor vencido y recuperación ante revo
   let cursorVencido = false
   let cursoresRechazados = 0
   let revocado = false
-  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
     const args = route.request().postDataJSON() as PedidoCola
     if (revocado) return route.fulfill({ status: 403, json: { code: '42501', message: 'Acceso revocado' } })
     if (cursorVencido && args.p_cursor) {

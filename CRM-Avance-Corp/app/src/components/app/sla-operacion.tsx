@@ -9,8 +9,9 @@ import { Select } from '@/components/ui/select'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS } from '@/lib/tipos'
-import { slaOperacionKeys, useColaSlaPagina, useEstadosSlaV2, useModoSla } from '@/data/sla-operacion-queries'
-import { ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, puedeRegistrarGestionSla, textoAvisoSla, type AvisoSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type SenalSla } from '@/lib/sla-operacion'
+import { slaOperacionKeys, useColaDiaPagina, useEstadosSlaV2, useModoSla } from '@/data/sla-operacion-queries'
+import { ACCIONES_CLIENTE_SLA, ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, idFichaCliente, puedeRegistrarGestionSla, textoAvisoSla, type AvisoSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type ItemColaDiaCliente, type SenalSla } from '@/lib/sla-operacion'
+import { hashDe } from '@/lib/router'
 
 export function SlaOperacionBoundary({ children, legado }: { children: ReactNode; legado?: ReactNode }) {
   const modo = useModoSla()
@@ -26,9 +27,17 @@ function FalloSla({ onReintentar }: { onReintentar: () => void }) {
     <Button variant="outline" size="sm" onClick={onReintentar}><RefreshCw aria-hidden /> Reintentar</Button>
   </div>
 }
+// «Seguimiento comercial» lee la cola v3 desde el 29/09/2026 (F3): los leads de
+// siempre y, además, las tareas de CLIENTES del día (vencidas o de hoy) del
+// ámbito del actor. Una fila de cliente abre su ficha de «Mi cartera» si tiene
+// una; si es solo del portal, no ofrece nada que no exista.
 export function ColaSlaPanel() {
   const { yo } = useAuth()
   const { equipo } = useCRMData()
+  // La página solo vale con la MISMA revisión de reglas que el modo vigente: la
+  // clave de la consulta no la lleva y, tras publicar reglas, la caché podría
+  // servir una página calculada con las anteriores (Codex, 29/09/2026).
+  const modoVigente = useModoSla()
   const { abrirLead } = usePanelesActions()
   const [filtros, setFiltros] = useState<FiltrosSla>({ senal: 'pendientes', etapa: null, analista_id: null })
   const [limite, setLimite] = useState(10)
@@ -36,8 +45,9 @@ export function ColaSlaPanel() {
   const [errorApertura, setErrorApertura] = useState(false)
   const [cursores, setCursores] = useState<(CursorSla | null)[]>([null])
   const cursor = cursores[cursores.length - 1] ?? null
-  const consulta = useColaSlaPagina(filtros, cursor, limite, true)
-  const pagina = consulta.error ? undefined : consulta.data
+  const consulta = useColaDiaPagina(filtros, cursor, limite, true)
+  const pagina = consulta.error || consulta.data === undefined || consulta.data.control_revision !== modoVigente.data?.control_revision
+    ? undefined : consulta.data
   const encabezado = useRef<HTMLHeadingElement>(null)
   const queryClient = useQueryClient()
   const prefijo = JSON.stringify(slaOperacionKeys.raiz()).slice(0, -1)
@@ -120,7 +130,9 @@ export function ColaSlaPanel() {
       : pagina.modo !== 'activo' ? <p role="status" className="sla-estado">Las reglas operativas están desactivadas. Actualiza la pantalla para ver el modo vigente.</p>
       : <>
         <div className="sla-resultados">
-          <p role="status" aria-live="polite">{pagina.rango.desde}–{pagina.rango.hasta} de {pagina.total_items} oportunidades · Página {cursores.length}{consulta.isFetching ? ' · Actualizando…' : ''}</p>
+          {/* La región viva dice solo lo que CAMBIA la lista; «Actualizando…» entra y
+              sale en cada relectura y haría releer la frase entera dos veces por minuto. */}
+          <p><span role="status" aria-live="polite">{pagina.rango.desde}–{pagina.rango.hasta} de {pagina.total_items} oportunidades · Página {cursores.length}{clientesEnPagina(pagina.items)}</span>{consulta.isFetching && <span aria-hidden="true"> · Actualizando…</span>}</p>
           <label htmlFor={`${id}-limite`}>Por página
             <Select id={`${id}-limite`} value={limite} onChange={(e) => { setLimite(Number(e.target.value)); setCursores([null]) }}>
               {[10, 25, 50].map((n) => <option key={n} value={n}>{n} oportunidades</option>)}
@@ -131,7 +143,9 @@ export function ColaSlaPanel() {
           : <>
             <div className="sla-columnas" aria-hidden="true"><span>Oportunidad{esSupervisor ? ' y analista' : ''}</span><span>Acción pendiente</span><span>Fecha de referencia</span><span>Ficha</span></div>
             <ul className="sla-lista" aria-label="Oportunidades de esta página" aria-busy={consulta.isFetching || abriendo !== null}>
-              {pagina.items.map((item) => <li key={item.lead_id}>
+              {pagina.items.map((item) => item.lead_id === null
+                ? <FilaClienteSla key={item.clave} item={item} idFicha={idFichaCliente(item)} deshabilitada={abriendo !== null} />
+                : <li key={item.clave}>
                 <button type="button" disabled={abriendo !== null} onClick={() => void abrirFicha(item.lead_id)} className="sla-fila">
                   <span className="sla-oportunidad">
                     <strong>{item.lead.nombre_completo}</strong>
@@ -156,6 +170,49 @@ export function ColaSlaPanel() {
         <footer className="sla-nota"><p>Una oportunidad puede tener varios pendientes. Los conteos corresponden a {esSupervisor ? 'la etapa y al analista elegidos' : 'la etapa elegida y a tu cartera'}.</p><p>Actualizado {fechaSla(pagina.calculado_en)} (Lima).</p></footer>
       </>}
   </section>
+}
+
+/**
+ * Cuántas filas de ESTA página son tareas de clientes. No se usa
+ * `totales.clientes`: el servidor cuenta ahí todas las del ámbito, sin la señal
+ * elegida, y con «Para atender ahora» no cuadraría con lo que se ve (Codex).
+ */
+function clientesEnPagina(items: readonly { lead_id: string | null }[]): string {
+  const n = items.filter((i) => i.lead_id === null).length
+  return n === 0 ? '' : n === 1 ? ' · 1 gestión con un cliente en esta página' : ` · ${n.toLocaleString('es-PE')} gestiones con clientes en esta página`
+}
+
+/**
+ * Una tarea de CLIENTE en «Seguimiento comercial». Misma rejilla que la de un
+ * lead, sin lo que un cliente no tiene: etapa, analista (la v3 no lo manda) y
+ * avisos de SLA. Con ficha es un ENLACE a su ficha de «Mi cartera» (cambia de
+ * vista, a diferencia del panel de un lead; Ctrl/Cmd+clic la abre aparte sin
+ * perder esta lista). Sin ficha (cliente solo del portal) es una fila de
+ * lectura, y lo dice en la línea que siempre se ve (revisión a11y, 29/09/2026).
+ */
+function FilaClienteSla({ item, idFicha, deshabilitada }: { item: ItemColaDiaCliente; idFicha: string | null; deshabilitada: boolean }) {
+  const contenido = <>
+    <span className="sla-oportunidad">
+      <strong>{item.sujeto.nombre}</strong>
+      <span className="sla-meta">
+        <span>{idFicha !== null ? 'Cliente de la cartera' : 'Cliente del portal'}</span>
+        {idFicha === null && <span>Sin ficha en la cartera</span>}
+      </span>
+    </span>
+    <span className="sla-accion">
+      <span className={`sla-etiqueta sla-etiqueta-${item.severidad}`}>{ACCIONES_CLIENTE_SLA[item.bucket]}</span>
+    </span>
+    <span className="sla-fecha"><span>Referencia</span>{fechaSla(item.referencia_en)} <span>(Lima)</span></span>
+  </>
+  return <li>
+    {idFicha !== null
+      ? <a href={hashDe('mi-cartera', null, idFicha)} className="sla-fila" aria-disabled={deshabilitada || undefined}
+          onClick={(e) => { if (deshabilitada) e.preventDefault() }}>
+          {contenido}
+          <span className="sla-abrir"><span>Ver en Mi cartera</span><ArrowUpRight aria-hidden /></span>
+        </a>
+      : <div className="sla-fila sla-fila-lectura">{contenido}</div>}
+  </li>
 }
 
 export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined }) {

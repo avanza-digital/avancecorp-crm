@@ -3,6 +3,38 @@ import { leadReal, montarBackendReal, UID, type BackendReal } from './_helpers'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 import muestraV3 from '../src/data/sla-operacion-cola-v3-sql.test.fixture.json' with { type: 'json' }
 
+/**
+ * Una página con la forma de la v2 llevada a la de la v3, que es la que leen
+ * todas las colas del front desde el 29/09/2026: `version: 3`,
+ * `totales.clientes` y cada lead con su `clave` y su `sujeto`, como los añade
+ * `crm.cola_accion_v3_fn`. Las tareas de clientes que ya vengan en forma v3
+ * pasan tal cual.
+ */
+export function aColaV3<T extends { items: ReadonlyArray<Record<string, unknown>>; totales?: Record<string, number> }>(pagina: T) {
+  const clientes = pagina.items.filter((i) => i['lead_id'] === null).length
+  return {
+    ...pagina,
+    version: 3,
+    totales: { ...(pagina.totales ?? {}), clientes: pagina.totales?.['clientes'] ?? clientes },
+    items: pagina.items.map((i) => (i['lead_id'] === null || i['clave'] !== undefined ? i : {
+      ...i, clave: `lead:${String(i['lead_id'])}`,
+      sujeto: { tipo: 'lead', id: i['lead_id'], nombre: (i['lead'] as { nombre_completo: string }).nombre_completo },
+    })),
+  }
+}
+
+/** Una tarea de CLIENTE para las colas simuladas (forma v3 exacta). */
+export type ClienteCola = { tarea: string; nombre: string; inversionista_id: string | null; perfil_id: string | null; vencida: boolean; responsable?: string }
+function itemCliente(c: ClienteCola, referencia: string) {
+  return {
+    clave: `tarea:${c.tarea}`, tarea_id: c.tarea, lead_id: null, lead: null, estado: null,
+    bucket: c.vencida ? 'tarea_vencida' : 'tarea_hoy', severidad: c.vencida ? 'critica' : 'media', prioridad: c.vencida ? 20 : 30,
+    referencia_en: referencia,
+    senales: { pendientes: c.vencida, tareas_vencidas: c.vencida, primera_atencion: false, seguimientos_pendientes: false, revisiones: false, datos_incompletos: false, por_repartir: false },
+    sujeto: { tipo: 'cliente', perfil_id: c.perfil_id, inversionista_id: c.inversionista_id, nombre: c.nombre },
+  }
+}
+
 export type PedidoCola = {
   p_cursor: { inicio: number } | null
   p_limite: number
@@ -11,7 +43,7 @@ export type PedidoCola = {
   p_analista_id?: string
 }
 
-export async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor' | 'vendedor', cantidad = 14) {
+export async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor' | 'vendedor', cantidad = 14, clientes: ClienteCola[] = []) {
   const analistaUno = 'aaaaaaaa-0000-4000-8000-000000000001'
   const analistaDos = 'aaaaaaaa-0000-4000-8000-000000000002'
   const analistaAjeno = 'aaaaaaaa-0000-4000-8000-000000000003'
@@ -75,24 +107,28 @@ export async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervi
       filas: args.p_lead_ids.map((id) => filas.find((fila) => fila.lead_id === id)?.estado ?? { ...muestraSql.estado.filas[0], lead_id: id }) } })
   })
   const pedidos: PedidoCola[] = []
-  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
     const args = route.request().postDataJSON() as PedidoCola
     pedidos.push(args)
-    const ambito = filas.filter((fila) => (!args.p_etapa || fila.lead.etapa === args.p_etapa)
-      && (!args.p_analista_id || fila.lead.analista_id === args.p_analista_id))
+    // Clientes con la regla del servidor: `p_etapa` los excluye, `p_analista_id` filtra a su responsable.
+    const deClientes = args.p_etapa ? [] : clientes
+      .filter((c) => !args.p_analista_id || c.responsable === args.p_analista_id)
+      .map((c) => itemCliente(c, calculado))
+    const ambito = [...filas.filter((fila) => (!args.p_etapa || fila.lead.etapa === args.p_etapa)
+      && (!args.p_analista_id || fila.lead.analista_id === args.p_analista_id)), ...deClientes]
     const filtradas = args.p_senal === 'todas' ? ambito : ambito.filter((fila) => fila.senales[args.p_senal as keyof typeof fila.senales])
     const inicio = args.p_cursor?.inicio ?? 0
     const items = filtradas.slice(inicio, inicio + args.p_limite)
     const hayMas = inicio + items.length < filtradas.length
-    const totales = Object.fromEntries(Object.keys(filas[0]!.senales).map((senal) => [senal,
-      ambito.filter((fila) => fila.senales[senal as keyof typeof fila.senales]).length]))
-    await route.fulfill({ json: { ...muestraSql.cola, calculado_en: calculado, limite: args.p_limite,
+    const totales = { ...Object.fromEntries(Object.keys(filas[0]!.senales).map((senal) => [senal,
+      ambito.filter((fila) => fila.senales[senal as keyof typeof fila.senales]).length])), clientes: deClientes.length }
+    await route.fulfill({ json: aColaV3({ ...muestraSql.cola, calculado_en: calculado, limite: args.p_limite,
       // La RPC aplica DEFAULT NULL a argumentos omitidos y devuelve ambas claves.
       filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       total_items: filtradas.length, rango: { desde: items.length ? inicio + 1 : 0, hasta: inicio + items.length },
       hay_mas: hayMas, cursor_siguiente: hayMas ? { inicio: inicio + items.length } : null,
       totales, items,
-    } })
+    }) })
   })
   return { pedidos, analistaUno, analistaDos, analistaAjeno }
 }

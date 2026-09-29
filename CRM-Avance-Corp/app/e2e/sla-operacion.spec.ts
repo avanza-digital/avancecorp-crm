@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
-import { montarColaEquipo, type PedidoCola } from './_sla-cola'
+import { aColaV3, montarColaEquipo, type PedidoCola } from './_sla-cola'
 import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 
@@ -19,16 +19,16 @@ async function colaConLeadFueraDelLote(page: Page) {
     const args = route.request().postDataJSON() as { p_lead_ids: string[] }
     await route.fulfill({ json: { ...muestraSql.estado, filas: args.p_lead_ids.map((lead_id) => ({ ...muestraSql.estado.filas[0], lead_id })) } })
   })
-  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
     const args = route.request().postDataJSON() as PedidoCola
     const original = muestraSql.cola.items[0]!
-    await route.fulfill({ json: { ...muestraSql.cola, limite: args.p_limite,
+    await route.fulfill({ json: aColaV3({ ...muestraSql.cola, limite: args.p_limite,
       filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       total_items: 1, rango: { desde: 1, hasta: 1 }, hay_mas: false, cursor_siguiente: null,
       items: [{ ...original, lead_id: lead.id,
         lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' },
         estado: { ...original.estado, lead_id: lead.id } }],
-    } })
+    }) })
   })
   return lead
 }
@@ -95,12 +95,14 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
     const args = route.request().postDataJSON() as { p_lead_ids: string[] }
     await route.fulfill({ json: { version: 2, modo: 'activo', control_revision: 1, calculado_en: calculado, filas: args.p_lead_ids.map(estado) } })
   })
-  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
     const args = route.request().postDataJSON() as typeof pedidos[number] & { p_limite: number; p_analista_id?: string }
-    pedidos.push(args)
+    // Desde la F2 la cola v3 la lee también el botón «GESTIÓN DIARIA» de «Hoy»
+    // (todas, 200): se responde, pero no cuenta como pedido del Seguimiento.
+    if (!(args.p_senal === 'todas' && args.p_limite === 200)) pedidos.push(args)
     const inicio = args.p_cursor ? 10 : 0
     const subset = leads.slice(inicio, inicio + args.p_limite)
-    await route.fulfill({ json: {
+    await route.fulfill({ json: aColaV3({
       version: 2, modo: 'activo', control_revision: 1, calculado_en: calculado,
       filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null },
       limite: args.p_limite, total_items: 12, rango: { desde: inicio + 1, hasta: inicio + subset.length },
@@ -110,7 +112,7 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
         referencia_en: calculado, tarea_id: null,
         lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' },
         senales: { pendientes: true, primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado: estado(lead.id) })),
-    } })
+    }) })
   })
   await loginReal(page)
   await page.getByRole('button', { name: 'Hoy', exact: true }).click()
@@ -421,12 +423,12 @@ test('la campana abre pendientes y el aviso recupera una actividad fuera del lot
     total_oportunidades: 1, total_avisos: 1, criticas: 1, grupos: [{ bucket: 'tarea_vencida', total: 1 }] } }))
   await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', (route) => route.fulfill({ json: { ...muestraSql.estado,
     filas: route.request().postDataJSON().p_lead_ids.length ? [estado] : [] } }))
-  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', (route) => {
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', (route) => {
     const p = route.request().postDataJSON()
-    return route.fulfill({ json: { ...muestraSql.cola, limite: p.p_limite,
+    return route.fulfill({ json: aColaV3({ ...muestraSql.cola, limite: p.p_limite,
       filtros: { senal: p.p_senal, etapa: p.p_etapa ?? null, analista_id: p.p_analista_id ?? null },
       items: [{ ...muestraSql.cola.items[0], lead_id: lead.id, estado,
-        lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' } }] } })
+        lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' } }] }) })
   })
   let lecturas = 0
   await page.route('**/rest/v1/tareas?*', (route) => {

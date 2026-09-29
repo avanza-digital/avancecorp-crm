@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09 (migración 20260929004455); F2 (front del analista) HECHA y verificada el 29/09, SIN publicar (espera `/release-crm` de Miguel)
+estado: F1 EN PROD 28/09; F2 EN PROD 29/09; F3 HECHA 29/09 (ce9e688f en main), pendiente de publicar
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -157,7 +157,23 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
     rechazó con evidencia el P2 del demo de inversionista, porque el demo no tiene esas tareas.
   - `revisor-a11y` → CHANGES_REQUESTED. Se aceptaron el foco tras guardar, «Llamar» por aparato con
     `enlaceTel`, los avisos y los nombres accesibles.
-- **F3 — Después, aparte**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
+- **F3 — HECHA el 29/09 (commit `ce9e688f` en `main`, sin publicar)**:
+  - **Pantallas:** «Seguimiento comercial» y «Hoy» del supervisor leen la v3. Ya no queda consumidor de
+    la v2 en el front: se retiraron `listarColaSla` y `useColaSlaPagina`. La función v2 del servidor sigue
+    viva (CERRAR → OBSERVAR → DERRIBAR).
+  - **Filas de cliente:** son un enlace a «Mi cartera» con el id que trae la cola. Sin ficha, la fila se
+    lee y lo dice. No se inventa analista: en «Hoy», la columna dice «Cliente».
+  - **Conteo:** el Seguimiento cuenta los clientes de la página, no `totales.clientes`, que no lleva la
+    señal.
+  - **Vigencia:** una página de otra revisión, o con el modo en error, no se pinta.
+  - **Verificación:** check 4 900 PASS; e2e 78/78 (1 intermitente ajeno) y, sobre la base con el anexo,
+    31/31.
+  - **Revisiones:** Codex (LEVEL 2): se aceptaron el conteo, la canónica vieja y los dos de vigencia.
+    `revisor-a11y`: se aceptaron el P2 de «Sin ficha» oculto en estrecho, los enlaces, la región viva y
+    el contraste.
+  - **Rebase:** la F3 se reasentó sobre el anexo de cronograma, publicado por otra sesión (vivo
+    `fb79c46f`).
+- **F3 (texto original del plan)**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
   acciones autorizadas) y, mucho después, retirar la v2 solo tras inventariar asserts, scripts y envoltorios
   (CERRAR → OBSERVAR → DERRIBAR).
 
@@ -177,8 +193,21 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
 
 ## Estado 29/09 (sesión que retomó la pausa)
 
-- F2 hecha y verificada (ver «Fases»). Falta: segunda pasada de Codex sobre las correcciones, commit e
-  integración en el `main` local, y la publicación con `/release-crm` (Miguel), con el preflight contra el vivo.
+- F2 hecha y verificada (ver «Fases»). Codex pasada 2: todo lo de la pasada 1 resuelto o retirado; 3 P2 nuevos
+  → aceptados 2 (reprogramar a otro día saca la tarea de la cola; «Llamar» en laptop abre el registro sin esperar
+  al portapapeles) y la hipótesis de orden store/commit se cubre vigilando el store 3 s; rechazado 1 con
+  evidencia (una relectura fallida no destapa nada: la cola con error no se pinta).
+- Commit publicable `9a74a1d0` (sobre `d20762ca`, SIN el anexo de cronograma, cuyo servidor aún no está en prod).
+  Artefacto `crm-20260929T155246Z-9a74a1d05806` (verificado; copiado a `CRM-Avance-Corp/releases/`), **preflight
+  OK** contra el vivo `build-20260928T233226790Z/7e9b426a`. Lleva además `7b2c9de0` (clientes en «Tu agenda de hoy»)
+  y `89a8930a`, que esperaban publicación. Integrado en `main` local: `7a48282c` (fusión, `9a74a1d0` ⊂ `main`).
+- ✅ **PUBLICADA 29/09 ~11:00 Lima**: Miguel desplegó con `!` (preflight del script OK); vivo
+  `build-20260929T155245887Z`. Smoke OK:
+  - `index-CWz0qth7.js` con sha256 idéntico al construido y la llamada a `cola_accion_v3_fn` dentro;
+  - home 200; ZIP 404; `license.md` 404; el asset anterior `index-C-4-REdx.js` 404 (sin purga).
+- ✅ **PR #130** a `avancecorp/main` (rama `integra/cola-v3-f2-20260929`, `898e1d03`): lo publicado sin lo de Gloria,
+  sin el anexo y sin la entrada del ledger de «Leads reasignados». Al fusionarla, traer `avancecorp/main` al `main` local.
+- Pendiente: retirar el banco `crm-banco-cola-v3` (detenido; solo quedan sus volúmenes) y la F3 (supervisor a la v3).
 - `main` local integró `avancecorp/main` (#129) el 29/09 (`d20762ca`, sin cambios de archivos).
 - Banco `crm-banco-cola-v3` DETENIDO otra vez con sus datos (se usó para capturar la muestra v3). Retirarlo tras
   publicar la F2: `supabase stop --no-backup --project-id crm-banco-cola-v3` + `git worktree remove`.
