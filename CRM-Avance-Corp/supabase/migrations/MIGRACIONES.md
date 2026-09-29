@@ -1,3 +1,50 @@
+## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Aprobado por Miguel el 29/09 («ok vamos con
+la migracion»). Primer paso del refactor por módulos, según el perfil de carga medido el mismo día
+(nota del vault «CRM - perfil de carga lectura vs escritura (2026-09-29)»): el CRM es de lectura y
+`crm.inversionistas` se llevaba el 95 % de las filas leídas (22,6 M recorridos completos en ~97 h).
+
+Causa medida: `private.cartera_f5_fuentes()` busca por contrato `where i.perfil_id = c.cliente_id`;
+el único índice de `perfil_id` (`inversionistas_perfil_uidx`) es PARCIAL (`estado <> 'fusionado'`) y
+esa búsqueda no repite la condición → 679 recorridos completos por llamada (uno por contrato). La
+alcanzan 11 puertas (postventa agenda/estado/ficha, cartera de inversionistas, fichas, contexto y
+solicitud de inversión). Muestreo en vivo (6 min): 189.728 recorridos ≈ 1.530 por llamada a esas
+puertas, sin recorridos en ventanas sin ellas. Descartadas por medición: `inversionista_canonica`
+(0 recorridos) y `leads_vetados_persona` (2 recorridos para 2.582 leads).
+
+Cambio: `create index if not exists inversionistas_perfil_idx on crm.inversionistas (perfil_id)` +
+`COMMENT ON INDEX`. No toca funciones, policies, grants ni `public`; no cambia contratos de la API
+ni tipos del front (`gen:types` no aplica). El índice único parcial se queda (es la regla, no el
+acelerador). Sin `CONCURRENTLY`: ~565 filas, ~70 escrituras en 4 días.
+
+**Ensayo en producción deshecho** (`supabase/scripts/indice-inversionistas-perfil/ensayo.sql`, bloque
+`DO` que crea el índice, mide y termina en `raise`): `cartera_f5_fuentes` pasa de **seq=679 idx=715,
+91 ms** a **seq=0 idx=1.394, 43 ms**; 719 filas **idénticas** (md5 `beff0bf2…` antes y después); el
+plan de `perfil_id` usa `inversionistas_perfil_idx`. Comprobado después: el índice no quedó (0).
+La definición exacta que exige el registrador se comprobó en otro ensayo deshecho (coincide).
+
+Review Codex (`docs/encargos/2026-09-29-codex-indice-inversionistas-perfil.md`): CHANGES_REQUESTED,
+aceptados los dos. **P2** el registrador podía tragarse en silencio una fila con otro nombre registrada
+entre la comprobación y el `insert … on conflict do nothing` → relectura fail-closed de la fila efectiva
+antes del commit (`REGISTRO_INDICE_PERFIL_OK`). **P3** dos comentarios prometían más de lo medido
+(«mismo orden de evaluación», «el candado dura milisegundos») → reescritos. R2 atendido con otro ensayo
+deshecho: la búsqueda con `estado <> 'fusionado'` sigue por `inversionistas_perfil_uidx` antes y después;
+la de solo `perfil_id` pasa a `inversionistas_perfil_idx` (lo añade `verificar.sql`). El registrador
+corregido se ensayó en producción terminando en `rollback` (fila leída con el nombre correcto;
+después: índice 0, registro 0).
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260929220021_crm_indice_inversionistas_perfil.sql`
+→ `supabase/scripts/indice-inversionistas-perfil/registrar.sql` (se niega si el índice no existe,
+no es válido o tiene otra definición, y relee la fila) → `verificar.sql` (solo lectura; esperado
+`seq=0`) → advisors.
+Reversa: `drop index if exists crm.inversionistas_perfil_idx;`. Deja la fila de `schema_migrations`
+(convención de la casa): anotarlo aquí el mismo día, porque un replay por historial la daría por aplicada.
+
+No ejecutado: `test-rls.mjs` y `test:rls:preflight` (el preflight exige las variables del banco y el hook
+bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la matriz) y banco Docker (el
+ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
+
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
