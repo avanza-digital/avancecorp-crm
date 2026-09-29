@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09; F2 EN PROD 29/09; F3 HECHA 29/09 (ce9e688f en main), pendiente de publicar
+estado: F1 EN PROD 28/09 · F2 EN PROD 29/09 (PR #130 fusionada) · F3 EN PROD 29/09 (build-20260929T164822097Z, ce9e688f; PR #131)
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -173,6 +173,11 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
     el contraste.
   - **Rebase:** la F3 se reasentó sobre el anexo de cronograma, publicado por otra sesión (vivo
     `fb79c46f`).
+  - ✅ **PUBLICADA 29/09 ~11:50 Lima** (Miguel con `!`): vivo `build-20260929T164822097Z`.
+    - **Smoke:** `index-D9XMRhsn.js` idéntico al construido y con el texto de la F3 dentro; home 200; ZIP y `license.md` 404.
+    - **Asset anterior:** sigue en 200 desde la CDN, pero es inmutable y el HTML (`no-store`) ya sirve el nuevo. No hizo falta purgar.
+    - **GitHub:** PR #131 (`integra/cola-v3-f3-20260929`). El `main` local integró la #130 (`77f79101`, sin cambios de archivos).
+  - Pendiente: fusionar la #131 y traer `avancecorp/main`. La v2 del servidor se retira más adelante: CERRAR → OBSERVAR → DERRIBAR.
 - **F3 (texto original del plan)**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
   acciones autorizadas) y, mucho después, retirar la v2 solo tras inventariar asserts, scripts y envoltorios
   (CERRAR → OBSERVAR → DERRIBAR).
