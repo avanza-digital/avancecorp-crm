@@ -9,6 +9,19 @@ export function esRespuestaPropia(s: SolicitudTasa, cuentaId: string): boolean {
     && !!s.resuelta_en && Number.isFinite(Date.parse(s.resuelta_en))
 }
 
+export const CONSULTA_RESPUESTAS_ACTIVA_MS = 15_000
+export const CONSULTA_RESPUESTAS_REPOSO_MS = 120_000
+
+// Solo una solicitud PROPIA que sigue pendiente de Gerencia justifica preguntar cada 15 s
+// (`estado_efectivo`: una pendiente ya vencida no espera respuesta). El resto del tiempo,
+// 2 min: medido el 29/09/2026, este sondeo era el 45 % de todas las llamadas del CRM al
+// servidor. Una solicitud creada desde otra pestaña entra en el ritmo activo en la
+// siguiente consulta de reposo.
+export function intervaloConsultaRespuestas(solicitudes: readonly SolicitudTasa[] | undefined, cuentaId: string): number {
+  const pendiente = (solicitudes ?? []).some(s => s.es_mia && s.solicitada_por === cuentaId && s.estado_efectivo === 'pendiente')
+  return pendiente ? CONSULTA_RESPUESTAS_ACTIVA_MS : CONSULTA_RESPUESTAS_REPOSO_MS
+}
+
 // La decisión de Gerencia se conserva aunque después se consuma o venza la tasa.
 export function tituloRespuestaTasa(s: SolicitudTasa): string {
   if (s.tasa_maxima_autorizada == null) return 'Tu solicitud de tasa fue rechazada'

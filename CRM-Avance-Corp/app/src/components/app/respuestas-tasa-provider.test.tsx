@@ -52,6 +52,12 @@ describe('ciclo de sesión de las respuestas del analista', () => {
     dobles.consulta = { ...dobles.consulta, isFetchedAfterMount: false, data: [respuesta()] }
     const vista = render(<RespuestasTasaProvider><Probe /></RespuestasTasaProvider>)
     expect(dobles.query).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['crm', 'rentabilidad', 'respuestas-analista', 'v-provider'], refetchIntervalInBackground: true }))
+    // Ritmo adaptativo: 2 min en reposo; 15 s solo con una solicitud propia pendiente de Gerencia.
+    const opciones = dobles.query.mock.calls.at(-1)![0] as { refetchInterval: (q: { state: { data?: SolicitudTasa[] | undefined } }) => number }
+    expect(opciones.refetchInterval({ state: { data: [respuesta()] } })).toBe(120_000)
+    expect(opciones.refetchInterval({ state: { data: undefined } })).toBe(120_000)
+    expect(opciones.refetchInterval({ state: { data: [respuesta({ estado: 'pendiente', estado_efectivo: 'pendiente', resuelta_por: null, resuelta_en: null })] } })).toBe(15_000)
+    expect(opciones.refetchInterval({ state: { data: [respuesta({ estado: 'pendiente', estado_efectivo: 'pendiente', solicitada_por: 'v-otro' })] } })).toBe(120_000)
     expect(dobles.toast).not.toHaveBeenCalled()
     dobles.consulta = { ...dobles.consulta, isFetchedAfterMount: true, dataUpdatedAt: 2,
       data: [respuesta(), respuesta({ id: 'ajena', solicitada_por: 'v-otro', cliente_nombre: 'NO REVELAR' })] }
