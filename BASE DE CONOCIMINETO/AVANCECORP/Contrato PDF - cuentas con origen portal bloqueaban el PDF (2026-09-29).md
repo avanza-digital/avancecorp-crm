@@ -1,7 +1,7 @@
 ---
 tags: [crm, contratos, pdf, cuentas-bancarias, incidente]
 fecha: 2026-09-29
-estado: edge publicada; desbloqueo del contrato 001470 pendiente de Miguel
+estado: CERRADO 29/09 — edge publicada y contrato 001470 sellado (revisión 2)
 ---
 
 # Contrato PDF: las cuentas con origen «portal» bloqueaban el PDF (2026-09-29)
@@ -32,7 +32,7 @@ Alcance medido en prod: 6 cuentas activas con origen `portal`; 2 contratos pagan
 - Codex (SECONDARY_REVIEWER, LEVEL 3): BLOCK por la coerción → corregido; de acuerdo en NO subir a v10
   y en NO abrir una transición `integridad_bloqueada → pendiente`.
 
-## Cómo se desbloquea 001470 (paso de Miguel)
+## Cómo se desbloqueó 001470 (Miguel, 29/09 18:44 Lima) — VERIFICADO
 
 `integridad_bloqueada` no se reabre: se crea una **revisión 2** y `contrato_pdf_estado_base` lee la
 última. La vía viva es la corrección de metadatos del **portal admin → Contratos → 001470 → Editar →
@@ -41,8 +41,9 @@ con snapshot fresco → `ensure` → sellado. Efectos de re-guardar el mismo nú
 `audit_log`, `actualizado_en`, la revisión nueva; no toca capital/tasa/fechas/cronograma/analista.
 `001486` se auto-sana al abrir el contrato («Ver PDF»).
 
-Verificar después (solo lectura): última revisión `sellado` con sha256 y bytes, revisión 1 conservada,
-`fecha_cierre_comercial` intacta (2026-09-28).
+Verificado en prod tras el guardado: revisión 2 `sellado` (219 006 bytes, plantilla v9, ledger `contrato_pdfs`
+con el mismo hash), revisión 1 bloqueada conservada como historial, `fecha_cierre_comercial` intacta
+(2026-09-28). `001486` sigue `pendiente` hasta que alguien lo abra.
 
 ## Lección
 
