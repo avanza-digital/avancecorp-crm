@@ -14,7 +14,7 @@ bandeja → B y A → bandeja → A sí cuentan. Un lead aparcado sin titular ac
 no figura en la cifra de reasignados. Sistema/Manual permanece como marca
 separada: un lead puede ser «Sistema · Reasignado» o «Manual · Reasignado».
 
-La migración `20260929164200_crm_leads_reasignados.sql` amplía la cartera
+La migración `20260929195918_crm_leads_reasignados.sql` amplía la cartera
 keyset con `p_reasignados`, `reasignado` por fila y
 `resumen.totales.reasignados`. El conteo sale de la misma base filtrada que
 los indicadores y la tabla, antes de paginar; respeta la RLS y se combina con
@@ -22,62 +22,31 @@ etapa, origen, procedencia, analista, búsqueda y fechas. La ficha relee por id
 y comprueba su historial bajo RLS para conservar la marca si se abre desde
 otra pantalla. En demo se aplica la misma regla al historial local.
 
-Estado: implementación local y ensayo SQL aislado; pendiente de publicación.
-Verificación del 29/09 sobre el vivo `ce9e688f28d4` más Reasignados:
-`npm run check` en `app/` PASS (317 archivos / 4.909 tests y build).
-La corrida previa sobre `fb79c46f` pasó `cartera-keyset.spec.ts` en Docker
-5/5 y la suite completa 284 PASS / 26 omitidos. La migración actualizada
-pasó preflight y postflight en `avc_leads_reasignados_test4`, banco Docker
-aislado copiado del esquema local anterior y con los datos de configuración
-necesarios. En ese mismo banco, el fixture SQL transaccional pasó: trigger real,
-conteos, filtros, consumidor `resumen_cartera_fn`, RLS por rol y veto de
-INSERT/UPDATE/DELETE de eventos inventados. Una revisión secundaria detectó
-que el preflight debía rechazar también una policy ALL permisiva o permisos
-de escritura futuros; esa comprobación quedó aplicada y pasó en `test4`.
+Estado al 29/09 20:05 UTC: verificado en banco remoto; pendiente de integrar en producción y publicar el frontend.
 
-Se creó una branch de prueba de Supabase de la organización confirmada por
-Miguel, pero su reproducción automática de migraciones terminó en
-`MIGRATIONS_FAILED` antes de alcanzar la firma de cartera requerida. Se
-eliminó inmediatamente para no acumular costo; no se aplicó SQL allí ni en
-producción. El fallo de replay es una limitación conocida del proyecto
-([[Diagnostico de Branching antes de F1 (2026-09-01)]]). `seed:preflight` y
-`test:rls:preflight` PASS con la configuración real del Supabase local
-(`127.0.0.1:55321`), sin conexiones ni siembra: validan runtime, variables y
-matriz. Siguen pendientes la matriz RLS HTTP y advisors en branch autorizada. Se generaron los tipos de `public,crm` desde
-`avc_leads_reasignados_test4` con `supabase gen types typescript --db-url`
-(CLI 2.117.0): la firma completa de `cartera_filtrada_fn` coincide byte a byte
-con `database.types.ts`, incluido `p_reasignados?: boolean`. El script
-`npm run gen:types` apunta a producción, todavía sin la firma; no se ejecutó
-contra ella ni se incorporaron diferencias ajenas del banco local.
+## Verificación
 
-El CRM vivo cambió durante la preparación: «Hoy» v3, anexo de contrato y
-«Seguimiento/Hoy del supervisor» con cola v3. La copia aislada de rescate
-`rescue/reasignados-ce9` parte del commit vivo
-`ce9e688f28d43502c6ee66eac49a6a867774d25d`
-(`build-20260929T164822097Z`) y agrega Reasignados sobre lo ya publicado.
-Conserva el anexo y la cola v3. En el E2E heredado `acceso-avance-ux.spec.ts`
-se corrigió un selector ambiguo: el correo se muestra tanto en el aviso como
-en el resumen; se verifica el valor del resumen mediante su rol `definition`.
-No cambia la aplicación de Acceso Avance. La suite E2E completa terminó
-285 PASS / 1 flaky / 26 omitidos (10,9 min): el selector heredado pasó al
-reintentar con la corrección; una repetición limpia del spec dio 3/3 PASS
-sin reintentos. Resultado final de los 286 casos ejecutables: PASS, con el
-incidente de la primera corrida conservado en el log. `npm run check:scripts` PASS en la
-copia anterior; su código, package.json y scripts son idénticos en esta base.
+- Base viva conservada: `ce9e688f28d43502c6ee66eac49a6a867774d25d`, build `build-20260929T164822097Z`; incluye anexo y cola v3 ya publicados. Copia aislada `rescue/reasignados-ce9`.
+- `npm run check`: PASS, 317 archivos / 4909 tests, cobertura, tipos, build y bundle.
+- Docker E2E completo: 285 PASS / 1 flaky / 26 omitidos. Se corrigió el selector heredado de Acceso Avance (el correo existía en aviso y resumen); repetición limpia del spec 3/3 PASS. El cambio solo afecta la prueba.
+- SQL local `avc_leads_reasignados_test4`: PASS. Tipos generados: bloque completo de `cartera_filtrada_fn` idéntico al versionado.
+- `check:scripts`: PASS de nuevo tras incorporar la corrección remota #132; preflights offline de seed/RLS PASS.
+- Banco remoto propio `reasignados-banco-manual-20260929` (`goqrvtqfovrvxhlzlhzx`): migración nativa `20260929195918`, SHA-256 `67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+- Oráculo SQL transaccional: PASS (primera entrega, A→A, A→B, bandeja, filtros, cursor, consumidor, roles y eventos no falsificables). Los leads ficticios previos se ocultan dentro de la misma transacción; ROLLBACK restaura todo.
+- Matriz HTTP focal con sesiones reales: 272/272 antes y 272/272 después. Usa las funciones de la suite general para visibilidad, jerarquía, lecturas cruzadas, escrituras, trigger y cartera/keyset. El arnés declara su alcance; no sustituye la suite global.
+- HTTP específico nuevo: 41/41; primera entrega no cuenta, reasignación real, siete roles, contador/filas, Sistema/Manual, paginación, anon y falsificación de eventos.
+- Advisors: cero avisos nuevos de seguridad o rendimiento frente a la referencia.
 
-El SQL y el frontend no están publicados: faltan el gate remoto de RLS/advisors
-y la aplicación autorizada de la migración antes del frontend. La conexión
-Hostinger incorporada en la sesión solo expone facturación, pero se verificó
-la vía local ya documentada en [[Deploy a Hostinger]]: el cliente
-`_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs` arranca el MCP oficial de hosting
-(contrato 2.x `search`/`execute`) y el token guardado permite consultar
-`crm.miavance.com`. No requiere otro token ni cambios de configuración.
-Se conserva el preflight obligatorio y la invocación humana de release.
-Lectura productiva del 29/09 al cierre: firma anterior, trigger, policy de
-INSERT, veto de UPDATE/DELETE y sello analítico siguen coincidiendo con el
-preflight; la firma de 12 argumentos aún no existe.
-Comprobación agregada de producción el 28/09: 4.817 eventos `reasignacion`
-de agosto y setiembre, todos con la clave `vendedor_anterior`; 152 tienen un
-analista previo. La regla produce 104 leads de la cartera operativa global
-actual. El dato depende del corte y de la visibilidad del usuario, por lo que
-la cifra definitiva es la que calculará el filtro en cada sesión.
+La suite general original se detuvo en el origen ficticio `otro`, que el sistema vigente rechaza. La corrección oficial #132 (`a3711aed`) ya se incorporó. El banco necesitó configuración sintética de SLA/etapas, control SLA y gestión diaria para registrar contactos; esos prerrequisitos están resueltos. La suite global completa NO se acredita como PASS; la matriz pertinente anterior sí pasó completa.
+
+## Fidelidad del banco y alcance de integración
+
+El replay automático se detuvo en la migración histórica 86. Se reconstruyó exclusivamente nuestra branch vacía desde estructura productiva, siguiendo el precedente del proyecto; no se copiaron clientes reales. Se verificaron 1320 columnas, 850 funciones, 331 triggers, 106 policies, 131 tablas RLS, 477 índices y 3 vistas. Tres CHECK difieren solo en asociación de AND equivalente. Se alinearon 1427 privilegios explícitos y los ocho permisos predeterminados sobrantes del arranque.
+
+Los 389 registros históricos coinciden íntegros con producción (hash `f1709d754ee3a02727e3b406288b722d`). Solo se añadió la migración de Reasignados. El cotejo posterior cambia exactamente una función: `cartera_filtrada_fn`. Las 22 Edge Functions tienen el mismo hash y configuración que producción. Los cron de la branch están desactivados. El banco cuesta US$0,01344/h y debe eliminarse al terminar.
+
+La revisión secundaria señaló policies ALL/permisos de escritura futuros; el preflight y postflight ahora los rechazan. No cambia RLS ni permite editar la marca: se deriva del evento sellado. Producción conserva sus datos y el frontend anterior puede seguir llamando la función con argumentos por defecto.
+
+Hostinger funciona mediante la vía local documentada en [[Deploy a Hostinger]], usando el token ya guardado; no hace falta solicitar otro ni cambiar configuración. El paquete pasa el preflight de ascendencia y conserva el build vivo.
+
+Evidencia privada (sin incluirla en el ZIP): `/private/tmp/reasignados-banco-remoto-20260929/`. El estado recuperable se guarda también en `CRM-Avance-Corp/releases/REASIGNADOS-20260929-ESTADO-ACTIVO.md`. El historial de primera branch fallida y eliminada corresponde al intento anterior, no al banco remoto vigente.

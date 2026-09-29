@@ -1,4 +1,4 @@
-## 20260929164200 — Leads reasignados (`crm.cartera_filtrada_fn`)
+## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
 **PENDIENTE DE PUBLICAR.** «Reasignado» cuenta un lead con analista actual y
 un evento de `crm.actividades.tipo='reasignacion'` anterior con
@@ -19,14 +19,16 @@ analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
 UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
 verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
 permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
-`authenticated` y `anon`. La branch temporal de
-Supabase falló antes de esta migración durante el replay histórico y fue
-eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
-agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
-y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
-anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
-comprobación de datos, no una publicación de la migración. No se aplicó en
-producción.
+`authenticated` y `anon`.
+
+Banco remoto `goqrvtqfovrvxhlzlhzx`: aplicación nativa `20260929195918`,
+oráculo SQL PASS, RLS HTTP focal 272/272 antes y después, filtro HTTP 41/41,
+advisors sin avisos nuevos. Historial base 389/389 exacto y 22 Edge iguales
+al padre. La suite global original falló por el fixture de canal antiguo;
+se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
+acreditar la suite global completa. SQL SHA-256:
+`67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+Pendiente integración productiva; no hay cambios de RLS ni de tablas.
 Reversa coordinada: restaurar la función de 11 argumentos de
 `20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
 analítica y su sello, y publicar el frontend anterior en el mismo corte.
