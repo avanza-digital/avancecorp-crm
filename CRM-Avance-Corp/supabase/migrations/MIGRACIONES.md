@@ -1,3 +1,45 @@
+## 20260929201813 — Reasignación y conversión consistentes
+
+**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
+`crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
+lleva el responsable de la persona y el borrador de conversión al nuevo analista,
+con tramos de responsabilidad, actividad y revisión auditada. La revisión del
+borrador usa `crm.revisar_solicitud_inversion_fn` sin modificarla: conserva
+datos, hash, creador, contexto de acceso y reglas de la saga/perfil.
+
+Sin RPC pública nueva, sin cambios de RLS/grants de tablas ni de objetos `public`.
+Función privada sin ejecutores API, `search_path` fijo y validación de actor/ámbito.
+La bandeja conserva el último responsable hasta la siguiente entrega; toma directa
+y derivación mantienen sus puertas y permisos. Contratos, cierres externos e
+inversiones existentes requieren la puerta gerencial de relación y conservan
+su atribución. Cuando identidad, saga, historial o una restricción impiden la
+sincronización, se deshacen únicamente sus efectos automáticos y se registra
+`reasignacion_conversion_requiere_revision`: la reasignación autorizada del lead
+continúa, y las puertas de inversión conservan el veto hasta conciliar. Así no se
+convierten los requisitos de invertir en bloqueos nuevos de reparto u offboarding.
+
+Concurrencia: después de bloquear el lead, documentos/persona/solicitud se
+adquieren sin esperar; un conflicto devuelve 40001 y revierte el movimiento
+completo. No se deshabilitan triggers ni se imita una sesión gerencial.
+
+Ensayo en copia Docker aislada: `supabase/scripts/reasignacion-conversion/test.sql`
+36 comprobaciones PASS (RLS real, supervisor/gerencia/vendedor, bandeja, toma
+directa, acceso pendiente y enlazado, rollback de saga, lote mixto, offboarding,
+restricciones, banderas e identidad sin verificar); `concurrencia.py` 4 PASS
+con dos sesiones reales y el candado documental oficial. Regresión económica
+completa `conversion-inversion/test-conversion.sql` PASS. Reversa/reinstalación
+probadas. Cliente: 88 tests PASS, incluidos dos nuevos MSW del contrato de
+reintento/éxito. Guardas: 27 PASS y 5 fallos anteriores idénticos sin la candidata,
+cero fallos nuevos. Preflights de scripts, seed/RLS offline y Edge PASS.
+Dos revisiones independientes atendidas. Rama remota: SQL 36 PASS, regresión
+económica PASS, PostgREST real 3 PASS y matrices RLS contratos 287 / identidad
+30 PASS. Advisors sin avisos nuevos. Tipos públicos no cambian.
+Detalle y límites: `supabase/scripts/reasignacion-conversion/README.md`.
+
+Reversa: `supabase/scripts/reasignacion-conversion/reversa.sql` retira únicamente
+el trigger y su función; conserva todas las asignaciones e historiales.
+
 ## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
 **EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
