@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { crmQueryKeys } from './crm-queries'
-import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaDia, listarColaSla, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
+import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaDia, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
 import { CrmApiError } from './crm-api'
 import type { CursorSla, FiltrosSla } from '@/lib/sla-operacion'
 import { intervaloReconsultaSla } from './sla-operacion-reloj'
@@ -10,6 +10,7 @@ import { intervaloReconsultaSla } from './sla-operacion-reloj'
 export const slaOperacionKeys = {
   raiz: () => [...crmQueryKeys.metricasAmbito(), 'sla-v2'] as const,
   estado: (actor: string | null, ids: string[]) => [...slaOperacionKeys.raiz(), actor, 'estado', ids] as const,
+  // Clave de la cola v2: ya sin consumidores en el front (F3, 29/09/2026).
   cola: (actor: string | null, filtros: FiltrosSla, cursor: CursorSla | null, limite: number) => [...slaOperacionKeys.raiz(), actor, 'cola', filtros, cursor, limite] as const,
   // Clave PROPIA de la cola del día v3: nunca comparte caché con la v2 (su
   // forma es otra y un ítem v2 no tiene `clave` ni `sujeto`).
@@ -33,15 +34,12 @@ export function useModoSla() {
   return { ...consulta, legado: Boolean(yo?.demo || (!consulta.error && consulta.data && consulta.data.modo !== 'activo')),
     activo: Boolean(!yo?.demo && !consulta.error && consulta.data?.modo === 'activo') }
 }
-export function useColaSlaPagina(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, habilitada: boolean) {
-  const { yo } = useAuth()
-  return useQuery({ queryKey: slaOperacionKeys.cola(yo?.id ?? null, filtros, cursor, limite),
-    queryFn: ({ signal }) => listarColaSla(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
-  })
-}
 
-/** La cola del día v3 (leads + clientes). La comparten Gestión diaria del analista y el botón de «Hoy». */
+/**
+ * La cola de acción v3 (leads + tareas de clientes), para TODAS las colas del
+ * front. Con los mismos filtros, cursor y límite, la clave es la misma y la
+ * consulta se comparte (p. ej. Gestión diaria y el botón de «Hoy»).
+ */
 export function useColaDiaPagina(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, habilitada: boolean) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.colaDia(yo?.id ?? null, filtros, cursor, limite),

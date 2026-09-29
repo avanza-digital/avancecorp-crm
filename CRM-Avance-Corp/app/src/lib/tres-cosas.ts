@@ -54,7 +54,7 @@ export interface TresCosasInput {
   vendedoresAgenda: readonly MetricaAgendaVendedor[]
   /**
    * Seguimiento activo: leads cuya primera gestión ya venció, según
-   * `totales.primera_atencion` de crm.cola_accion_v2_fn (null/ausente = sin
+   * `totales.primera_atencion` de crm.cola_accion_v3_fn (null/ausente = sin
    * dato). La señal solo existe con el plazo vencido y su aviso es crítico
    * por definición en private.sla_operacion_leads: si hay alguno, es rojo.
    */

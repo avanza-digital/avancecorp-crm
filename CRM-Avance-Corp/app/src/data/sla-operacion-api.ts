@@ -3,7 +3,7 @@ import { sb } from '@/lib/supabase'
 import type { Json } from '@/lib/database.types'
 import { soloPresentes } from './argumentos-rpc'
 import { CrmApiError } from './crm-api'
-import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaDiaPaginaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
+import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaDiaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
 
 export async function obtenerResumenAvisosSla(signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
@@ -16,31 +16,20 @@ export async function obtenerResumenAvisosSla(signal?: AbortSignal) {
   return parsed.output
 }
 
-export async function listarColaSla(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, signal?: AbortSignal) {
-  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('cola_accion_v2_fn', {
-    p_limite: limite, p_senal: filtros.senal, p_cursor: cursor as Json | null,
-    // Opcionales omitidos en vez de null: en el servidor valen NULL por defecto.
-    ...soloPresentes({ p_etapa: filtros.etapa, p_analista_id: filtros.analista_id }),
-  })
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  if (error) throw new CrmApiError(error.message, error.code)
-  const parsed = v.safeParse(ColaSlaPaginaSchema, data)
-  if (!parsed.success) throw new CrmApiError('No se pudo verificar la cola de seguimiento.', 'SLA_CONTRACT')
-  return comprobarPagina(parsed.output, filtros, limite)
-}
-
 /**
- * La cola del DÍA (v3): leads de la ventana SLA + tareas de clientes del día,
- * en una sola paginación. Mismas comprobaciones de contrato que la v2: el
- * servidor devuelve el eco de los filtros y del límite, y `hay_mas` va con su
- * cursor. Solo la leen Gestión diaria del analista y el botón de «Hoy».
+ * La cola de acción v3 (`crm.cola_accion_v3_fn`): leads de la ventana SLA +
+ * tareas de clientes del día, en una sola paginación. Es la ÚNICA lectura de
+ * la cola en el front desde el 29/09/2026: Gestión diaria del analista, el
+ * botón de «Hoy», «Seguimiento comercial» y «Hoy» del supervisor. El servidor
+ * devuelve el eco de los filtros y del límite, y `hay_mas` va con su cursor.
+ * La v2 (`cola_accion_v2_fn`) sigue viva en el servidor para los bundles
+ * viejos y los scripts; se retira después (CERRAR → OBSERVAR → DERRIBAR).
  */
 export async function listarColaDia(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
   let consulta = sb.schema('crm').rpc('cola_accion_v3_fn', {
     p_limite: limite, p_senal: filtros.senal, p_cursor: cursor as Json | null,
+    // Opcionales omitidos en vez de null: en el servidor valen NULL por defecto.
     ...soloPresentes({ p_etapa: filtros.etapa, p_analista_id: filtros.analista_id }),
   })
   if (signal) consulta = consulta.abortSignal(signal)

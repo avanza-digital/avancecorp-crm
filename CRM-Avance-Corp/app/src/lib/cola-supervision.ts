@@ -1,5 +1,6 @@
 // lib/cola-supervision.ts — cómo lee el SUPERVISOR una fila del seguimiento
-// activo (crm.cola_accion_v2_fn) en su pantalla Hoy (27/09/2026).
+// activo en su pantalla Hoy (27/09/2026; desde el 29/09 con crm.cola_accion_v3_fn,
+// que suma las tareas de clientes: esas filas usan ACCIONES_CLIENTE_SLA).
 //
 // ACCIONES_SLA habla al analista en imperativo («Contactar al cliente»); el
 // supervisor no gestiona el lead, lo revisa con su analista (textoAvisoSla con

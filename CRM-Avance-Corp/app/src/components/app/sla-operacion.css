@@ -32,9 +32,15 @@
 .sla-fila { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; padding: 16px 24px; text-align: left; align-items: center; cursor: pointer; }
 .sla-fila:hover { background: color-mix(in srgb, var(--primary) 3%, var(--card)); }
 .sla-fila:disabled { opacity: .6; cursor: wait; }
+/* Fila de un cliente con ficha: un enlace con aspecto de fila (no de enlace). */
+a.sla-fila { color: inherit; text-decoration: none; }
+.sla-fila[aria-disabled="true"] { opacity: .6; cursor: wait; }
+/* Fila de un cliente sin ficha (solo portal): se lee, no se pulsa. */
+.sla-fila-lectura { cursor: default; }
+.sla-fila-lectura:hover { background: transparent; }
 .sla-oportunidad { display: grid; gap: 5px; min-width: 0; }
 .sla-oportunidad > strong { font-size: 14px; line-height: 1.4; font-weight: 650; overflow-wrap: anywhere; }
-.sla-meta { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); }
+.sla-meta { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground-strong); }
 .sla-meta > span + span { padding-left: 8px; border-left: 1px solid var(--border); }
 .sla-accion { grid-column: 1; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
 .sla-etiqueta { display: inline-flex; border-radius: 5px; padding: 3px 7px; font-size: 12px; line-height: 1.3; font-weight: 600; }
@@ -44,7 +50,7 @@
 .sla-revision { color: #92400e; font-size: 12px; line-height: 1.7; }
 .sla-motivo { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; }
 .sla-cobertura { color: #1e40af; font-size: 12px; }
-.sla-fecha { grid-column: 1; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.sla-fecha { grid-column: 1; color: var(--muted-foreground-strong); font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .sla-fecha > span { margin-right: 6px; }
 .sla-abrir { grid-column: 2; grid-row: 1 / 4; display: flex; align-items: center; gap: 5px; color: var(--primary); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .sla-abrir svg { width: 17px; height: 17px; }
