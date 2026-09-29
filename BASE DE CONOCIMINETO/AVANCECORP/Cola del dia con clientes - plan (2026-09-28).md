@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09 (migración 20260929004455); F2 HECHA 29/09 (9a74a1d0, artefacto 9a74a1d05806 con preflight OK), pendiente del deploy de Miguel
+estado: F1 EN PROD 28/09; F2 EN PROD 29/09 (build-20260929T155245887Z, 9a74a1d0); PR #130 por fusionar; F3 pendiente
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -185,7 +185,13 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
   Artefacto `crm-20260929T155246Z-9a74a1d05806` (verificado; copiado a `CRM-Avance-Corp/releases/`), **preflight
   OK** contra el vivo `build-20260928T233226790Z/7e9b426a`. Lleva además `7b2c9de0` (clientes en «Tu agenda de hoy»)
   y `89a8930a`, que esperaban publicación. Integrado en `main` local: `7a48282c` (fusión, `9a74a1d0` ⊂ `main`).
-- Falta: el deploy (Miguel con `!`), el smoke, la PR de integración a `avancecorp/main` y retirar el banco.
+- ✅ **PUBLICADA 29/09 ~11:00 Lima**: Miguel desplegó con `!` (preflight del script OK); vivo
+  `build-20260929T155245887Z`. Smoke OK:
+  - `index-CWz0qth7.js` con sha256 idéntico al construido y la llamada a `cola_accion_v3_fn` dentro;
+  - home 200; ZIP 404; `license.md` 404; el asset anterior `index-C-4-REdx.js` 404 (sin purga).
+- ✅ **PR #130** a `avancecorp/main` (rama `integra/cola-v3-f2-20260929`, `898e1d03`): lo publicado sin lo de Gloria,
+  sin el anexo y sin la entrada del ledger de «Leads reasignados». Al fusionarla, traer `avancecorp/main` al `main` local.
+- Pendiente: retirar el banco `crm-banco-cola-v3` (detenido; solo quedan sus volúmenes) y la F3 (supervisor a la v3).
 - `main` local integró `avancecorp/main` (#129) el 29/09 (`d20762ca`, sin cambios de archivos).
 - Banco `crm-banco-cola-v3` DETENIDO otra vez con sus datos (se usó para capturar la muestra v3). Retirarlo tras
   publicar la F2: `supabase stop --no-backup --project-id crm-banco-cola-v3` + `git worktree remove`.
