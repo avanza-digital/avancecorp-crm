@@ -54,3 +54,92 @@ cifra válida es la de hoy, no esta.
 5. Funciones que solo leen marcadas `VOLATILE`: PostgREST las trata como escritura. Revisar una por
    una antes de cambiarlas: `cartera_lecturas` recibe inserts (1.213), puede ser un registro de
    lecturas hecho a propósito.
+
+## Evaluación del entorno tras el índice (29/09 ~18:00 Lima) — base del paso 2
+
+Latencias REALES hoy, medidas como gerencia dentro de una transacción deshecha (dos pasadas):
+`cartera_inversionistas_filtrada_fn` **2,3 s** (igual en pág. 1, pág. 2 o con texto) ·
+`avisos_sla_resumen_v2_fn` 1,7–2,3 s · `metricas_conversiones_fn` 1,1–1,2 s · `inversionista_ficha_fn`
+0,5–0,6 s · `postventa_agenda_fn` 0,5 s · `cumplimiento_metas_fn` 0,33 s · `cartera_filtrada_fn` 48 ms ·
+`tareas_pendientes_fn` 18 ms · `solicitudes_tasa_fn` 5–7 ms.
+
+**Causa medida de los 2,3 s de la cartera de inversionistas:** `private.cartera_f5_personas_visibles()`
+calcula las 560 personas con 4 subconsultas laterales de presentación cada una (perfil, lead, cierre
+externo, identificador) = **2.197 ms**, y `cartera_f5_listar` recorta DESPUÉS a la página de 25. Para una
+sola persona (`personas_visibles(uuid)`) tarda 68 ms; `cartera_f5_fuentes` ya está en 49 ms. → Paso 2 del
+refactor: paginar antes de presentar (mismas reglas de acceso, mismo JSON). La alcanzan 7 puertas
+(`inversionista_ficha/gestion/cuentas/documento_fn`, `postventa_perfil/vencimientos_fn`, `cartera_f5_listar`).
+
+**Sondeo de 15 s desde el front** (React Query `refetchInterval: 15_000`): `respuestas-tasa-provider.tsx`
+(`solicitudes_tasa_fn`, 91.175 llamadas = 45 % de todas las RPC, también en segundo plano),
+`postventa-queries.ts` (`postventa_estado_fn` + `postventa_agenda_fn` con `staleTime 0`: 7.900 llamadas de
+0,5 s), `inversion-nueva.tsx` (2 consultas). El SLA usa intervalo dinámico (`intervaloReconsultaSla`).
+
+**Puertas VOLATILE que solo leen (transitivo):** `postventa_agenda_fn`, `postventa_estado_fn`,
+`postventa_ficha_fn`, `cartera_inversionistas_estado_fn`, `contexto_conversion_inversion_fn`,
+`gestion_diaria_avisos_fn`, `bienvenida_inversion_estado_fn`. Las de cartera (`filtrada`, `ficha`,
+`cuentas`, `documento`) escriben a propósito en `cartera_lecturas` (`private.cartera_f5_registrar`).
+
+**Servidor sano:** caché 100 %, 41/90 conexiones (1 activa), PostgreSQL 17.6; tabla mayor
+`public.audit_log` 128 MB (115 k filas). 15 índices sin uso (88–320 kB) y 30 FK sin índice (casi todas
+`creado_por`): sin impacto a esta escala. `crm.solicitudes_tasa` figura con 0 filas vivas y tiene 90
+(estadísticas desfasadas).
+
+**Front:** `npm run check` PASS en worktree limpio (317 archivos, 4.923 tests). 115.615 líneas fuente +
+78.625 de tests; bundle 3,5 MB JS (index 686 kB, echarts 476 kB). 20 `from('tabla')` directos (leads 4,
+tareas 3, recordatorios 3, agenda_ics 3, perfiles 2, actividades 2, alertas 2, actividades_cliente 1):
+el plan de cierre de saltos (`SERVIDOR-CRM/mapa-capas-2026-09-17/PLAN-CIERRE-SALTOS.md`) sigue sin
+arrancar desde el 17/09. CodeGraph sin índice para esta carpeta (0 nodos).
+
+**Entorno:** 56 rutas sin commitear de otra sesión en la carpeta compartida (cartera, leads, `crm-api.ts`,
+`store.tsx`, migración `20260929201813`) bloquean integrar a `main` local (ya 3 PR detrás de GitHub).
+`lefthook` no está en el PATH → los hooks de commit (lint+typecheck) NO corren desde esa terminal.
+Edge espejo `crm-notificaciones-tasa`: código idéntico, el CRM tiene 2 tests extra. Docker corriendo.
+
+## Paso 2 · Fase 1 — ✅ EN PROD 29/09 ~18:25 Lima (Miguel dio el «dale» ~18:10 y aplicó con `!`)
+
+Verificado tras aplicar: huella nueva OK; `personas_visibles()` 561 filas en **90 ms** (antes 2.200–4.500);
+listado de gerencia **189 ms** con y sin texto (antes 2.300–3.200; meta < 400). Advisors: 242, sin cambios.
+PR #138 (apilada sobre #136). Apta para producción: sí. Comercialmente: la pantalla con la que gerencia y
+supervisión revisan la cartera de inversionistas responde al instante; la ficha (0,5 s) queda para otro paso.
+Sigue la **Fase 2** (front: quitar el sondeo de 15 s), pendiente del «dale».
+
+El EXPLAIN ANALYZE cambió el diseño: no hacía falta «paginar antes de presentar». De los 2.384 ms del
+listado, **2.283 ms eran UN lateral** (`ce`, el nombre del cierre externo): por cada una de las 560 personas
+recorría `crm.cierres_externos` (41) y por cada fila la CTE `fuentes` (718) → 22.897 recorridos de la CTE.
+Migración `20260929230336_crm_cartera_personas_visibles_cierre_sin_bucle`: ese lateral pasa a una CTE
+`cierres_nombre` calculada una vez (`distinct on … order by inversionista_id, creado_en desc, id`) + `left
+join … and not i.lector`. Nada más cambia. Oráculo en prod (deshecho): **46/46 idénticos** en 4 actores;
+listado gerencia 2.357–3.216 → **181–232 ms**; prueba sintética 0/0 diferencias; ciclo migración →
+idempotente → reversa → migración → registrador en verde; Codex 2 rondas (4 hallazgos aceptados, ver
+`MIGRACIONES.md`). Hoy 0 personas toman su nombre del cierre externo (todas tienen perfil o lead).
+Reversa: `supabase/scripts/cartera-personas-visibles/reversa.sql`.
+
+## Plan técnico original del paso 2 (superado por la medición de arriba; se conserva como historia)
+
+- **Fase 1 (servidor, LEVEL 3):** `private.cartera_f5_personas_visibles(uuid)` y `private.cartera_f5_listar`:
+  calcular para las 560 personas solo lo que filtra/ordena/cuenta (nombre, documento, teléfono, responsable,
+  estado, empresa/moneda/mes de fuentes) y dejar los 4 laterales de presentación (perfil, lead, cierre
+  externo, identificador) para las 25 de `pagina`. Reglas de acceso (`actor`, lector global, bandeja del
+  supervisor, demos, canónicas) intactas. Migración nueva; reversa = restaurar los cuerpos actuales
+  (huellas md5 vivas selladas en el preflight). Oráculo de igualdad en banco Docker a paridad: md5 del JSON de
+  `cartera_inversionistas_filtrada_fn` (pág. 1–3 × sin filtro/texto/empresa/responsable/estado/por_vencer)
+  y de `inversionista_ficha/cuentas/documento/gestion_fn` para 5 personas, con 3 roles (gerencia,
+  supervisor con bandeja, analista) antes y después → idéntico. Medir tiempo. auditor-rls + Codex.
+  Comprobar gates/huellas que sellen estas funciones antes de tocar (grep `personas_visibles|cartera_f5_listar`
+  en migraciones y `supabase/scripts`). Meta: 2.306 ms → ≤ 400 ms por página.
+- **Fase 2 (front, LEVEL 1–2):** `respuestas-tasa-provider.tsx` (15 s en segundo plano → Realtime si ya se usa
+  en la app; si no, 60 s solo en primer plano + refetch al foco), `postventa-queries.ts` (staleTime 0 +
+  15 s → invalidar tras escribir + refetch al foco), `inversion-nueva.tsx` (2 × 15 s → solo mientras el
+  formulario está abierto y en primer plano). Meta: −45 % de llamadas RPC (hoy 91.175 de tasas en 4 días).
+- **Diferido:** `avisos_sla_resumen_v2_fn` (1,7–2,3 s; plan SLA), `metricas_conversiones_fn` (1,1 s),
+  `postventa_tarea_json` (recorrido por tarea), VOLATILE→STABLE en 7 puertas de lectura.
+
+**Gates de producción (solo lectura, 29/09 ~18:05):** vigencia ✅ (5 puertas, tope 6) · analítica ✅ (37
+candidatos, techo 14) · vigías ✅ (0 alertas abiertas, 50 cerradas) · **auditoría ❌**: 11 tablas sin
+auditor completo (`cartera_lecturas`, `contratos_eliminados_auditoria`, `gestion_diaria_control_avisos`,
+`gestion_diaria_entregas`, `inversion_ajustes_mes_cerrado`, `inversion_backfill_lotes`,
+`inversion_cotitular_origenes`, `inversion_eventos`, `inversion_solicitud_correcciones`,
+`inversion_solicitud_revisiones`, `politica_gestion_diaria`) — trabajos de otras sesiones; se arregla con un
+auditor AFTER por fila o declarando la exención en `private.auditoria_exenciones`. `gate:realidad` NOT RUN
+(exige credenciales que el hook no deja pasar en línea).

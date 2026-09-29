@@ -1,7 +1,12 @@
 ## 20260929230336 — Cartera de inversionistas: el nombre del cierre externo en un solo recorrido (`private.cartera_f5_personas_visibles(uuid)`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 2 · fase 1 del refactor por módulos, aprobado por
-Miguel el 29/09 («dale, arranca la Fase 1»). Plan sin jerga en el chat; anclas en la nota del vault «CRM -
+**✅ EN PROD 29/09/2026 ~18:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260929230336 /
+crm_cartera_personas_visibles_cierre_sin_bucle`) → `verificar.sql`: huella `bca76d60…` OK, `personas_visibles()`
+561 filas en **90 ms** (antes 2.200–4.500), listado de gerencia pág. 1 **189 ms** y con texto **189 ms** (antes
+2.300–3.200; meta < 400). Advisors (`db advisors --type all`): 242 avisos, los mismos de antes, ninguno de esta
+función. Nota: la primera versión de `verificar.sql` estaba marcada `read only` y falló porque el listado deja
+rastro en `crm.cartera_lecturas`; corregida (termina en `raise`, nada queda) y ejecutada después.** Paso 2 ·
+fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («dale, arranca la Fase 1»). Plan sin jerga en el chat; anclas en la nota del vault «CRM -
 perfil de carga lectura vs escritura (2026-09-29)».
 
 Problema medido (EXPLAIN ANALYZE como gerencia, 29/09): el listado tardaba 2.384 ms y 2.283 ms eran UN
