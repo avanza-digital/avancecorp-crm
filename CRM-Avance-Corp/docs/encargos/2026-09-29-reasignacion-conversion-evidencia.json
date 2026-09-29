@@ -1,6 +1,6 @@
 {
   "fecha": "2026-09-29",
-  "estado": "validada_en_rama_pendiente_integracion_main",
+  "estado": "publicada_verificada",
   "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/137",
   "commit_candidato": "0c04f7d16540f98f149cea93d9e9b0571a48d287",
   "migracion_archivo": "20260929201813_crm_reasignacion_conversion_consistente.sql",
@@ -253,7 +253,7 @@
   "prueba_identidad_repetida_tras_rebase": "PASS — 30 aserciones",
   "commit_pr_actualizado": "d34342cc9256265bfe08169b1090bfd474e490a3",
   "main_incorporado": "7cae24e1",
-  "pendiente": "Solo aprobación externa de GitHub. Merge normal rechazado por la protección de Main; sin override administrativo. Usuario gestionará aprobación. Producción todavía sin esta migración.",
+  "pendiente": null,
   "logs_verificacion_sha256": {
     "reasignacion-conversion-test.log": "cdddc9cd1ccbcfcec51f06db5e5e50c21b7d4d533b9bae08e91c082e6e3c8db3",
     "reasignacion-concurrencia.log": "0faff7b86260c27a5f331d07ae0359af6385b0d88df490e48c774be8e72a9d05",
@@ -281,5 +281,109 @@
     "typecheck": "PASS",
     "build_bundle_duplicacion": "PASS",
     "finalizado_utc": "2026-09-29T22:44:29Z"
+  },
+  "publicacion": {
+    "estado": "publicada_verificada",
+    "commit_main": "43606c00d6d96446b5e2039ab8207ed0a8a81cef",
+    "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/137",
+    "sha256_sql": "3fefe303981bb94e13e00492b99128fe280a0f1151015064a6fef7176fc6ade2",
+    "merge_solicitado_utc": {
+      "current_time": "2026-09-29 22:52:35 UTC"
+    },
+    "rama_eliminada_utc": {
+      "current_time": "2026-09-29 22:55:11 UTC"
+    },
+    "verificaciones": {
+      "funcion": {
+        "acl": "{postgres=X/postgres}",
+        "huella": "412344d7e9713200ad291d2cfcd7d2e9",
+        "proconfig": [
+          "search_path=\"\"",
+          "lock_timeout=5s"
+        ],
+        "prosecdef": true
+      },
+      "trigger": {
+        "enabled": "O",
+        "diferido": true
+      },
+      "migracion": [
+        {
+          "name": "crm_reasignacion_conversion_consistente",
+          "partes": 10,
+          "version": "20260929221625"
+        }
+      ],
+      "caso_original": {
+        "lead_persona": true,
+        "estado_solicitud": "confirmada",
+        "persona_borrador": true
+      },
+      "ejecutores_api": {
+        "anon": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "resolver_activo": true,
+      "historial_previo": {
+        "n": 391,
+        "huella": "8d6af85b539463c0842cce0a73ad16cf",
+        "ultima": "20260929220021"
+      }
+    },
+    "catalogo": [
+      {
+        "clase": "columnas",
+        "huella": "ef4379894373ed679e4b85070b94e733",
+        "piezas": 1320
+      },
+      {
+        "clase": "funciones",
+        "huella": "51b7095d2696c8abc6624290c974d6f8",
+        "piezas": 851
+      },
+      {
+        "clase": "grants_columnas",
+        "huella": "e5bbbdd529eb722e8f728627fff1cefd",
+        "piezas": 7668
+      },
+      {
+        "clase": "indices",
+        "huella": "cfdef99c720999354b482e0afcbf1bfa",
+        "piezas": 478
+      },
+      {
+        "clase": "policies",
+        "huella": "dbb335032420616036a835aa84059594",
+        "piezas": 125
+      },
+      {
+        "clase": "tablas_rls",
+        "huella": "ab474bdabc4b6c8fb590af1ade8d00ac",
+        "piezas": 134
+      },
+      {
+        "clase": "triggers",
+        "huella": "2ccd18a5d3ed12e4d7085841d259bc80",
+        "piezas": 333
+      }
+    ],
+    "catalogo_igual_a_rama_probada": true,
+    "edges": {
+      "count": 22,
+      "differences": []
+    },
+    "advisors": {
+      "security": {
+        "total": 311,
+        "nuevos": [],
+        "retirados": 0
+      },
+      "performance": {
+        "total": 192,
+        "nuevos": [],
+        "retirados": 0
+      }
+    }
   }
 }

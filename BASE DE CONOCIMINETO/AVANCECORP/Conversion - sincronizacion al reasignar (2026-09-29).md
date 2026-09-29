@@ -1,12 +1,12 @@
 ---
 tags: [crm, conversion, reasignacion, backend]
 actualizado: 2026-09-29
-estado: validado-pendiente-publicacion
+estado: produccion
 ---
 
 # Conversión: sincronización al reasignar
 
-**Implementada y validada en una rama Supabase; todavía no activada en producción.**
+**PUBLICADA Y VERIFICADA el 29/09/2026, 17:55 Lima.**
 Miguel pidió la solución permanente después de la reparación puntual. PR
 [#137](https://github.com/avanza-digital/avancecorp-crm/pull/137).
 
@@ -43,9 +43,15 @@ US$0,01344/h; ref `zlqywmvvtfknypkmfpbe`. Replay histórico falló y se
 reconstruyó exclusivamente la rama con esquema vivo y fixtures sintéticos.
 Rebase incorporó el índice productivo `20260929220021`; no se copiaron clientes.
 CI completo PASS: 4.925 tests en 318 archivos, tipos, build, bundle y duplicación.
-Checks `verify` y `preflight` PASS al 29/09 22:44:29 UTC. El merge normal del
-PR #137 fue rechazado por falta de aprobación externa; Miguel la gestionará.
-No se usó override. Pendiente integrar Main, merge de Supabase y retirar la rama.
+Checks `verify` y `preflight` PASS al 29/09 22:44:29 UTC. PR #137 integrado
+en Main `43606c00` a las 22:49:27 UTC. Tras verificar igualdad de Main local
+y remoto y SHA-256 del SQL, se promovió por merge nativo de Supabase.
+Registro productivo `20260929221625`: catálogo idéntico al banco probado,
+391 migraciones anteriores conservadas, función privada sin ejecutores API,
+trigger activo/diferido y resolver ON. Las 22 Edge Functions conservan sus
+paquetes y permisos. Advisors: cero avisos nuevos. El caso original sigue
+alineado y su solicitud aparece confirmada en la relectura.
+Rama temporal eliminada 22:55:11 UTC; aproximadamente US$0,0155 (no factura).
 
 Relacionado: [[Conversion - conciliacion de responsable tras reasignar (2026-09-29)]],
 [[Conversion de lead con Nueva inversion - preparado 2026-09-19]],

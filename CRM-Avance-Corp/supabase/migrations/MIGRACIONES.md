@@ -52,7 +52,7 @@ bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la 
 ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
 ## 20260929201813 — Reasignación y conversión consistentes
 
-**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+**✅ PUBLICADA Y VERIFICADA 29/09/2026 17:55 LIMA.** Main `43606c00` (PR #137), merge nativo de la rama Supabase; registro productivo `20260929221625`. Catálogo idéntico al banco probado, 391 migraciones anteriores conservadas, cero avisos nuevos, 22 Edge Functions intactas y rama eliminada. Solución permanente autorizada
 por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
 `crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
 lleva el responsable de la persona y el borrador de conversión al nuevo analista,
