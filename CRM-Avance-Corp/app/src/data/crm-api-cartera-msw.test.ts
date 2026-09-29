@@ -27,7 +27,7 @@ function payloadFiltrado(n = 60) {
       recibido_en: '2026-09-02T12:00:00Z', recepcion_aproximada: false,
     })),
     resumen: {
-      totales: { vivos: n, abiertos: n, asignados: 0, parkeados: n, convertidos: 0, descartados: 0, asignados_pen: 0, asignados_usd: 0 },
+      totales: { vivos: n, abiertos: n, asignados: 0, parkeados: n, convertidos: 0, descartados: 0, asignados_pen: 0, asignados_usd: 0, reasignados: 0 },
       capital: { asignado: { pen: 0, usd: 0 }, parkeado: { pen: 1000 * n, usd: 0 }, ganado: { pen: 0, usd: 0 } },
       embudo: [{ etapa: 'nuevo', n }],
     },
@@ -136,6 +136,46 @@ describe('cartera integrada: listado y total del mismo filtro', () => {
     if (caso === 'valor inválido') (payload.items as Array<Record<string, unknown>>)[3]!.procedencia = 'puente'
     server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
     await expect(listarCarteraPagina({ ...filtros, procedencia: 'manual' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('cuenta reasignados en toda la base filtrada y conserva la procedencia de cada fila', async () => {
+    const payload = payloadFiltrado(2)
+    payload.resumen.totales.reasignados = 1
+    const items = payload.items.map((item, i) => ({ ...item, reasignado: i === 0,
+      procedencia: i === 0 ? 'manual' : 'sistema' }))
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json({ ...payload, reasignados: false, items })))
+    const pagina = await listarCarteraPagina(filtros, null)
+    expect(pagina.resumen?.totales.reasignados).toBe(1)
+    expect(pagina.items).toMatchObject([{ reasignado: true, procedencia: 'manual' },
+      { reasignado: false, procedencia: 'sistema' }])
+  })
+
+  it('el filtro de reasignados viaja al servidor y exige eco, cifra y filas coherentes', async () => {
+    let cuerpo: unknown
+    const payload = payloadFiltrado(2)
+    payload.resumen.totales.reasignados = 2
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json({ ...payload, reasignados: true,
+        items: payload.items.map((item) => ({ ...item, reasignado: true })) })
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, reasignados: true }, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03', p_reasignados: true })
+    expect(pagina.resumen?.totales.reasignados).toBe(2)
+    expect(pagina.items.every((lead) => lead.reasignado === true)).toBe(true)
+  })
+
+  it.each(['sin eco', 'sin cifra', 'fila sin marca'])('rechaza reasignados inconsistentes: %s', async (caso) => {
+    const payload: Record<string, unknown> = payloadFiltrado(2)
+    payload.reasignados = true
+    const resumen = payload.resumen as ReturnType<typeof payloadFiltrado>['resumen']
+    resumen.totales.reasignados = 2
+    payload.items = (payload.items as ReturnType<typeof fila>[]).map((item) => ({ ...item, reasignado: true }))
+    if (caso === 'sin eco') delete payload.reasignados
+    if (caso === 'sin cifra') delete (resumen.totales as { reasignados?: number }).reasignados
+    if (caso === 'fila sin marca') (payload.items as Array<Record<string, unknown>>)[0]!.reasignado = false
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
+    await expect(listarCarteraPagina({ ...filtros, reasignados: true }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })
 

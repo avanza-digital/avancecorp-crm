@@ -55,6 +55,7 @@ export function useCarteraPaginada(
   const texto = filtros.texto ?? ''
   const origen = filtros.origen ?? 'todos'
   const procedencia = filtros.procedencia ?? 'todas'
+  const reasignados = filtros.reasignados ?? false
   const desde = filtros.recepcion?.desde ?? (esDemo ? filtros.recepcionDemo?.desde : undefined)
   const hasta = filtros.recepcion?.hasta ?? (esDemo ? filtros.recepcionDemo?.hasta : undefined)
   const filtrosEstables = useMemo<FiltrosCartera & FiltrosCarteraLocal>(
@@ -62,8 +63,9 @@ export function useCarteraPaginada(
       // El origen solo viaja cuando recorta: «todos» es el valor neutro y no se manda.
       ...(origen !== 'todos' ? { origen } : {}),
       ...(procedencia !== 'todas' ? { procedencia } : {}),
+      ...(reasignados ? { reasignados: true } : {}),
       ...(desde != null && hasta != null ? { recepcion: { desde, hasta }, recepcionDemo: { desde, hasta } } : {}) }),
-    [etapa, vendedorId, texto, origen, procedencia, desde, hasta],
+    [etapa, vendedorId, texto, origen, procedencia, reasignados, desde, hasta],
   )
 
   const rangoValido = rangoFechaCarteraValido(filtrosEstables.recepcion ?? null, fechaLima(Date.now()))
@@ -74,7 +76,7 @@ export function useCarteraPaginada(
   // Cambiar de filtro EMPIEZA una lista nueva: conservar el número de páginas
   // dejaría la vista mostrando 150 resultados de una búsqueda que acaba de
   // cambiar (y en real el cursor viejo ni siquiera sería válido).
-  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, desde, hasta])
+  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, desde, hasta])
 
   const filtradosDemo = useMemo(
     () => (esDemo ? ordenarCarteraLocal(filtrarCarteraLocal(leadsDelAmbito, filtrosEstables)

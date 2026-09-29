@@ -8,11 +8,13 @@ vi.mock('./supabase', () => ({
 }))
 
 import {
+  AnexoCronogramaError,
   asegurarContratoPdfActualizado,
   archivarContratoPdfConfirmado,
   consultarEstadoContratoPdf,
   ContratoPdfNoSelladoError,
   eliminarContratoConPdf,
+  imprimirAnexoCronograma,
   obtenerContratoPdfArchivado,
 } from './contrato-pdf-archivo'
 
@@ -330,5 +332,97 @@ describe('cliente del archivo contractual server-side', () => {
       estado: 'integridad_bloqueada',
       reintentable: false,
     })
+  })
+})
+
+// ── Anexo de cronograma (documento aparte, desde el snapshot sellado) ────────
+
+describe('anexo de cronograma imprimible', () => {
+  beforeEach(() => {
+    supabase.invoke.mockReset()
+  })
+
+  async function respuestaAnexo(contenido = '%PDF-1.7\nanexo de cronograma', overrides: Record<string, unknown> = {}) {
+    const blob = new Blob([contenido], { type: 'application/pdf' })
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    return {
+      anexo: {
+        contrato_id: CONTRATO_ID,
+        contrato_revision: 1,
+        contrato_template_version: 'contrato-aep-17-v9',
+        template: 'anexo-cronograma-v1',
+        nombre_archivo: 'Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf',
+        sha256: await sha256(blob),
+        bytes: blob.size,
+        pdf_base64: btoa(String.fromCharCode(...bytes)),
+        ...overrides,
+      },
+    }
+  }
+
+  it('pide la acción «anexo» con JSON mínimo y entrega el PDF verificado por hash y tamaño', async () => {
+    supabase.invoke.mockResolvedValue({ data: await respuestaAnexo(), error: null })
+
+    const anexo = await imprimirAnexoCronograma(CONTRATO_ID)
+
+    expect(supabase.invoke).toHaveBeenCalledWith('crm-contrato-pdf-v2', {
+      body: { action: 'anexo', contratoId: CONTRATO_ID },
+    })
+    expect(anexo.nombreArchivo).toBe('Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf')
+    expect(anexo.template).toBe('anexo-cronograma-v1')
+    expect(anexo.contratoRevision).toBe(1)
+    expect(anexo.blob.type).toBe('application/pdf')
+    expect(await anexo.blob.text()).toBe('%PDF-1.7\nanexo de cronograma')
+  })
+
+  it('rechaza un anexo cuyo hash o tamaño no coincide con lo declarado', async () => {
+    supabase.invoke.mockResolvedValue({
+      data: await respuestaAnexo(undefined, { sha256: 'f'.repeat(64) }),
+      error: null,
+    })
+    await expect(imprimirAnexoCronograma(CONTRATO_ID)).rejects.toThrow('hash')
+
+    supabase.invoke.mockResolvedValue({
+      data: await respuestaAnexo(undefined, { bytes: 9 }),
+      error: null,
+    })
+    await expect(imprimirAnexoCronograma(CONTRATO_ID)).rejects.toThrow('tamaño')
+  })
+
+  it('rechaza el anexo de otro contrato y respuestas con claves inesperadas', async () => {
+    supabase.invoke.mockResolvedValue({
+      data: await respuestaAnexo(undefined, { contrato_id: '11111111-1111-4111-8111-111111111111' }),
+      error: null,
+    })
+    await expect(imprimirAnexoCronograma(CONTRATO_ID)).rejects.toThrow('otro contrato')
+
+    supabase.invoke.mockResolvedValue({
+      data: await respuestaAnexo(undefined, { url: 'https://x.invalid' }),
+      error: null,
+    })
+    await expect(imprimirAnexoCronograma(CONTRATO_ID)).rejects.toThrow('formato esperado')
+  })
+
+  it('expone el código de negocio de la Edge (sin PDF sellado, sin snapshot, fuera de cartera)', async () => {
+    const respuesta = new Response(
+      JSON.stringify({
+        error: 'El contrato todavía no tiene su PDF sellado; genera primero el contrato PDF',
+        codigo: 'ANEXO_SIN_PDF_SELLADO',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+    supabase.invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(respuesta) })
+
+    const intento = imprimirAnexoCronograma(CONTRATO_ID)
+    await expect(intento).rejects.toBeInstanceOf(AnexoCronogramaError)
+    await expect(intento).rejects.toMatchObject({
+      codigo: 'ANEXO_SIN_PDF_SELLADO',
+      message: 'El contrato todavía no tiene su PDF sellado; genera primero el contrato PDF',
+    })
+  })
+
+  it('rechaza UUID no canónico antes de invocar la Edge', async () => {
+    await expect(imprimirAnexoCronograma(CONTRATO_ID.toUpperCase())).rejects.toThrow('canónico')
+    expect(supabase.invoke).not.toHaveBeenCalled()
   })
 })

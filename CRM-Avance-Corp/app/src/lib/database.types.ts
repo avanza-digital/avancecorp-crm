@@ -4815,6 +4815,7 @@ export type Database = {
           p_limite?: number
           p_origen?: string
           p_procedencia?: string
+          p_reasignados?: boolean
           p_sin_asignar?: boolean
           p_texto?: string
           p_vendedor_id?: string

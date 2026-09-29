@@ -1,5 +1,7 @@
 ---
 
+- [[Leads - marca y filtro de reasignados (2026-09-28)]] — filtro y marca verificados, publicación en curso.
+
 tags: [moc, inicio]
 actualizado: 2026-09-25
 ---

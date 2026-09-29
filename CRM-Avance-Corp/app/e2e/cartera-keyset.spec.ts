@@ -58,6 +58,31 @@ test('filtrar por etapa vuelve a preguntar al servidor', async ({ page }) => {
   await expect.poll(() => estado.llamadas.rpcCarteraPagina).toBeGreaterThan(llamadasIniciales)
 })
 
+test('reasignados muestra cifra, conserva procedencia y abre la ficha con ambas marcas', async ({ page }) => {
+  const leads = [
+    leadReal({ id: 'bbbbbbbb-0000-4000-8000-000000000101', nombre_completo: 'LEAD TRANSFERIDO',
+      vendedor_id: UID, reasignado: true, alta_manual: true, creado_por: UID }),
+    leadReal({ id: 'bbbbbbbb-0000-4000-8000-000000000102', nombre_completo: 'LEAD PRIMERA ENTREGA',
+      vendedor_id: UID, reasignado: false, alta_manual: false, creado_por: null }),
+  ]
+  const estado = await montarBackendReal(page, { leads })
+  await loginReal(page)
+  await irACartera(page)
+
+  const boton = page.getByRole('button', { name: 'Filtrar reasignados: 1' })
+  await expect(boton).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('row', { name: /LEAD TRANSFERIDO/ })).toContainText('Manual')
+  await expect(page.getByRole('row', { name: /LEAD TRANSFERIDO/ })).toContainText('Reasignado')
+  const consultas = estado.llamadas.rpcCarteraPagina
+  await boton.click()
+  await expect(page.getByRole('row', { name: /LEAD TRANSFERIDO/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /LEAD PRIMERA ENTREGA/ })).toHaveCount(0)
+  await expect.poll(() => estado.llamadas.rpcCarteraPagina).toBeGreaterThan(consultas)
+  await page.getByRole('row', { name: /LEAD TRANSFERIDO/ }).click()
+  await expect(page.getByRole('dialog')).toContainText('Reasignado')
+  await expect(page.getByRole('dialog')).toContainText('Manual')
+})
+
 test('buscar por nombre viaja al servidor y no recorta lo ya cargado', async ({ page }) => {
   const estado = await montarBackendReal(page, { leads: carteraGrande() })
   await loginReal(page)
