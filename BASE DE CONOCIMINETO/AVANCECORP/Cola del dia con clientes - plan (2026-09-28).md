@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09 (migración 20260929004455); F2 (front del analista) HECHA y verificada el 29/09, SIN publicar (espera `/release-crm` de Miguel)
+estado: F1 EN PROD 28/09 (migración 20260929004455); F2 HECHA 29/09 (9a74a1d0, artefacto 9a74a1d05806 con preflight OK), pendiente del deploy de Miguel
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -177,8 +177,15 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
 
 ## Estado 29/09 (sesión que retomó la pausa)
 
-- F2 hecha y verificada (ver «Fases»). Falta: segunda pasada de Codex sobre las correcciones, commit e
-  integración en el `main` local, y la publicación con `/release-crm` (Miguel), con el preflight contra el vivo.
+- F2 hecha y verificada (ver «Fases»). Codex pasada 2: todo lo de la pasada 1 resuelto o retirado; 3 P2 nuevos
+  → aceptados 2 (reprogramar a otro día saca la tarea de la cola; «Llamar» en laptop abre el registro sin esperar
+  al portapapeles) y la hipótesis de orden store/commit se cubre vigilando el store 3 s; rechazado 1 con
+  evidencia (una relectura fallida no destapa nada: la cola con error no se pinta).
+- Commit publicable `9a74a1d0` (sobre `d20762ca`, SIN el anexo de cronograma, cuyo servidor aún no está en prod).
+  Artefacto `crm-20260929T155246Z-9a74a1d05806` (verificado; copiado a `CRM-Avance-Corp/releases/`), **preflight
+  OK** contra el vivo `build-20260928T233226790Z/7e9b426a`. Lleva además `7b2c9de0` (clientes en «Tu agenda de hoy»)
+  y `89a8930a`, que esperaban publicación. Integrado en `main` local: `7a48282c` (fusión, `9a74a1d0` ⊂ `main`).
+- Falta: el deploy (Miguel con `!`), el smoke, la PR de integración a `avancecorp/main` y retirar el banco.
 - `main` local integró `avancecorp/main` (#129) el 29/09 (`d20762ca`, sin cambios de archivos).
 - Banco `crm-banco-cola-v3` DETENIDO otra vez con sus datos (se usó para capturar la muestra v3). Retirarlo tras
   publicar la F2: `supabase stop --no-backup --project-id crm-banco-cola-v3` + `git worktree remove`.
