@@ -1,0 +1,268 @@
+{
+  "fecha": "2026-09-29",
+  "estado": "validada_en_rama_pendiente_integracion_main",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/137",
+  "commit_candidato": "0c04f7d16540f98f149cea93d9e9b0571a48d287",
+  "migracion_archivo": "20260929201813_crm_reasignacion_conversion_consistente.sql",
+  "migracion_rama": "20260929221625",
+  "sha256_sql": "3fefe303981bb94e13e00492b99128fe280a0f1151015064a6fef7176fc6ade2",
+  "funcion": {
+    "huella": "412344d7e9713200ad291d2cfcd7d2e9",
+    "prosecdef": true,
+    "proconfig": [
+      "search_path=\"\"",
+      "lock_timeout=5s"
+    ],
+    "acl": "{postgres=X/postgres}"
+  },
+  "catalogo_produccion_antes": [
+    {
+      "clase": "columnas",
+      "huella": "ef4379894373ed679e4b85070b94e733",
+      "piezas": 1320
+    },
+    {
+      "clase": "funciones",
+      "huella": "836ce68f7611cd8ded94aaf7be6f59ce",
+      "piezas": 850
+    },
+    {
+      "clase": "grants_columnas",
+      "huella": "e5bbbdd529eb722e8f728627fff1cefd",
+      "piezas": 7668
+    },
+    {
+      "clase": "indices",
+      "huella": "cfdef99c720999354b482e0afcbf1bfa",
+      "piezas": 478
+    },
+    {
+      "clase": "policies",
+      "huella": "dbb335032420616036a835aa84059594",
+      "piezas": 125
+    },
+    {
+      "clase": "tablas_rls",
+      "huella": "ab474bdabc4b6c8fb590af1ade8d00ac",
+      "piezas": 134
+    },
+    {
+      "clase": "triggers",
+      "huella": "05873ddec24bc12b3da98820a05194a9",
+      "piezas": 332
+    }
+  ],
+  "catalogo_rama_despues_rebase": [
+    {
+      "clase": "columnas",
+      "huella": "ef4379894373ed679e4b85070b94e733",
+      "piezas": 1320
+    },
+    {
+      "clase": "funciones",
+      "huella": "51b7095d2696c8abc6624290c974d6f8",
+      "piezas": 851
+    },
+    {
+      "clase": "grants_columnas",
+      "huella": "e5bbbdd529eb722e8f728627fff1cefd",
+      "piezas": 7668
+    },
+    {
+      "clase": "indices",
+      "huella": "cfdef99c720999354b482e0afcbf1bfa",
+      "piezas": 478
+    },
+    {
+      "clase": "policies",
+      "huella": "dbb335032420616036a835aa84059594",
+      "piezas": 125
+    },
+    {
+      "clase": "tablas_rls",
+      "huella": "ab474bdabc4b6c8fb590af1ade8d00ac",
+      "piezas": 134
+    },
+    {
+      "clase": "triggers",
+      "huella": "2ccd18a5d3ed12e4d7085841d259bc80",
+      "piezas": 333
+    }
+  ],
+  "historial_anterior": {
+    "filas": 390,
+    "md5": "51c42e045da72f48e6f530b722943994",
+    "corte_exclusivo": "20260929220021"
+  },
+  "rebase": "Incorporada mediante rebase_branch la migración productiva 20260929220021; catálogo idéntico salvo función/trigger de la candidata.",
+  "pruebas": {
+    "sql_local": 36,
+    "sql_remoto": 36,
+    "concurrencia": 4,
+    "postgrest": 3,
+    "rls_contratos": 287,
+    "rls_identidad_d5": 30,
+    "cliente": 88,
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "regresion_economica_local_remota": "PASS",
+    "reversa": "PASS",
+    "preflights": "PASS",
+    "guardas": {
+      "pass": 27,
+      "fallos_previos": 5,
+      "fallos_nuevos": 0
+    },
+    "e2e_frontend": "NOT RUN: sin runtime frontend modificado",
+    "build_frontend": "NOT RUN local: CI en curso"
+  },
+  "edges": [
+    {
+      "slug": "crear-cliente",
+      "verify_jwt": true,
+      "ezbr_sha256": "f43434481663f0611560be22337efcbb9cec525f37ea52882d9c69350311215f",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crear-admin",
+      "verify_jwt": true,
+      "ezbr_sha256": "310632d58f8624101daac984b364bff224a125a897997e18a4d3ca3e8042f388",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "enviar-comunicado",
+      "verify_jwt": true,
+      "ezbr_sha256": "3b541a93a67b44961e8b6d10b2f5d4ed791a63f2589b28d6becc9a31ea271082",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "enviar-push",
+      "verify_jwt": true,
+      "ezbr_sha256": "e47f091ad613cccec28d0e0922b493aa7fadbcd970abef61047d21dc58016660",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "diagnostico-push",
+      "verify_jwt": true,
+      "ezbr_sha256": "3d2074af20d07236964c44f4c3283815539682c181fd4be7a4d67313fb4715d1",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "resetear-password",
+      "verify_jwt": true,
+      "ezbr_sha256": "adb6b834236d172523d3f68465808c0c01d404de0c813ef7408b460407303681",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "eliminar-cliente",
+      "verify_jwt": true,
+      "ezbr_sha256": "c37b2d1ae7cca488b52ee988f6dae0e30df9821f75e2d9bafd161bfa512bdb87",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "notificar-pagos",
+      "verify_jwt": false,
+      "ezbr_sha256": "12a225e5cb40af2c32dcd6d4be2c3d2f04bb520b8df24b3641861b49aa96b6f7",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "importar-clientes",
+      "verify_jwt": true,
+      "ezbr_sha256": "330cebdc594086bd4afde4729bde1fbd47c9d8f2c58ce7ac507683cdffd8c38b",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "ciclo-contratos",
+      "verify_jwt": false,
+      "ezbr_sha256": "5f7d755c38273a8d6648f47d1dc64284d5b6478945fafeb96b3aac8df84a389d",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "verify_jwt": true,
+      "ezbr_sha256": "9e651b37cbc8f21ad031f1efaa1c7b8e807a658539152ea9dcce8ac6b9295dcb",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "verify_jwt": true,
+      "ezbr_sha256": "2ff317234d81cf4cbf43060ec8e6fdff0f739145bab20e763708e04225b690b6",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "verify_jwt": false,
+      "ezbr_sha256": "80c8fc49a4021fab93aad0de2d1741b8e895d36d6b69560583447592be514fdb",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-importar-leads",
+      "verify_jwt": true,
+      "ezbr_sha256": "642792caab026d4006855d90e125cf9c1b0826744be71cb6492662e0d80ce457",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-usuarios",
+      "verify_jwt": true,
+      "ezbr_sha256": "efe6488a1b327bea8dc8047346acd90dc12bd077e1cc410ce1a981e590a6d15a",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "verify_jwt": true,
+      "ezbr_sha256": "60caae9630b66cd0084a8899caf49318cdef6349466eab0529961e8d3f21edd7",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "verify_jwt": true,
+      "ezbr_sha256": "263d07d838dfa5ac84c4945f18649f7d0766a113af4e360289ae39cabdd9a7fc",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "verify_jwt": true,
+      "ezbr_sha256": "0ed4c12ef7249755e4b3e26ba1d1fc70b9b50118d079e635f62feecbb27c0855",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "verify_jwt": false,
+      "ezbr_sha256": "6bb0fef217d78ab2bedc4cc2b48b637a53d98688cc4daf48c05fdafe05409510",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "verify_jwt": true,
+      "ezbr_sha256": "283ef28a6a56ac9527f4b78aa8a77f3fd0ce588cc833e3466e409fd31fef040f",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-bienvenida",
+      "verify_jwt": false,
+      "ezbr_sha256": "df03d587c9a1c533f84b508328eb9b5087d81c2500ab0f3adc3c6978eb6ecf0a",
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "notificar-cambio-cuenta",
+      "verify_jwt": true,
+      "ezbr_sha256": "e89e698ac69b8f7640104ffc30ab21232a0c83e5ae7de804baba734e8a664ce0",
+      "status": "ACTIVE"
+    }
+  ],
+  "prueba_identidad_repetida_tras_rebase": "PASS — 30 aserciones",
+  "commit_pr_actualizado": "d34342cc9256265bfe08169b1090bfd474e490a3",
+  "main_incorporado": "7cae24e1",
+  "pendiente": "Aprobación externa de GitHub y finalización del check verify; usuario gestionará aprobación. Auto-merge no habilitado en el repositorio.",
+  "logs_verificacion_sha256": {
+    "reasignacion-conversion-test.log": "cdddc9cd1ccbcfcec51f06db5e5e50c21b7d4d533b9bae08e91c082e6e3c8db3",
+    "reasignacion-concurrencia.log": "0faff7b86260c27a5f331d07ae0359af6385b0d88df490e48c774be8e72a9d05",
+    "reasignacion-remoto-sql.log": "32b41228f22e72396cf22a945102a84c2c9e1c41518bf7fd9003221e38882367",
+    "reasignacion-remoto-economico.log": "26ac7004d3f3e474c3da1836b5f9e905f55239f042f0f7fd7e6cfdf76a4751f8",
+    "reasignacion-http-remoto.log": "af13727dafe8645ec50924181e1f2ea435daba8747f9633aa0003f8733cb1bfc",
+    "reasignacion-rls-contratos.log": "ebec80be3b7c0b6fc85c648ab0056f47c71c5cca6071fb1af01576c1ed03bb1b",
+    "reasignacion-rls-identidad-rebase.log": "6a9122c05e0efa7f8699c949e95488f1a07dfbe61fc82f49fa7db4eddeeed73b",
+    "reasignacion-cliente-main.log": "3ee1d0b50e279c2d276f85329d608302903e610b76c0d307899ea5d8594427b0",
+    "reasignacion-typecheck-main.log": "ba2b43a004e23d146df99c7b208872a3b253e0fd282931c06fae7710f77bf944"
+  }
+}
