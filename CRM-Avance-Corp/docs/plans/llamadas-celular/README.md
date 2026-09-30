@@ -2,6 +2,16 @@
 
 Esta carpeta es la copia **versionada** del plan aprobado y de su avance. Llega por git a los dos talleres; la copia de trabajo de `GESTION DIARIA/AUTOMATIZACION DE LLAMADAS/` sigue existiendo, pero git la ignora y no viaja.
 
+## Objetivo de negocio (Jhosep, 30/09/2026)
+
+> **Objetivo:** que los vendedores registren cada llamada sin esfuerzo.
+>
+> Al colgar, el celular los lleva directo a la encuesta de Gestión Diaria (la misma de «Llamar»). Según lo que marquen, se cierra la tarea pendiente o se abre la siguiente.
+>
+> **Alcance:** solo el CRM de Avance Corp, con MacroDroid en celulares Android corporativos. El analista elige siempre el resultado.
+
+Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hace** (llamadas salientes). El CRM no tiene métricas de llamadas recibidas, así que las entrantes no son el foco ahora (quedan como posible ampliación futura); en el plan aprobado siguen apareciendo (F0.3.1 «diez entrantes», F2 «entrante perdida → devolución») y su recorte es una propuesta para Miguel (`PROPUESTAS-DE-AJUSTE.md`, #8).
+
 ## Qué hay aquí
 
 | Archivo | Qué es | Quién lo escribe |

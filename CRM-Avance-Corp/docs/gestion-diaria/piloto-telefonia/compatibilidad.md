@@ -4,7 +4,7 @@ Entregable de **F0.4.1**. Una fila por celular; se completa con lo observado en 
 
 | Celular | Marca / modelo | Android | Navegador por defecto | MacroDroid | Número en salientes | Número en entrantes | Número oculto se clasifica como oculto | Fijo / internacional | Abre la PWA (vía que funcionó) | Sobrevive bloqueo / batería / 3 noches | Dirección por variable (Call Outgoing / Incoming) | Notas |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome | Play Store (versión por anotar) | PASS preliminar (4/4 salientes con número el 29/09; faltan 6 para las 10) | NOT RUN (aún no hubo entrantes) |  |  | `Open Website` → Chrome (no PWA) · `Lanzar app → Avance CRM` → PASS (abre la app en su portada) · `Send Intent` no probado (`chrome://webapks` bloqueado, sin paquete) |  |  | Corporativo; lo usa Jhosep. Android 16 queda fuera del rango 12–15 que cubre la documentación consultada: el número sí llegó en las tres primeras llamadas |
+| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome | Play Store 5.67 (sep. 2026) | PASS preliminar (4/4 salientes con número el 29/09; faltan 6 para las 10) | NOT RUN (aún no hubo entrantes) |  |  | `Open Website` → Chrome (no PWA) · `Lanzar app → Avance CRM` → PASS (abre la app en su portada) · `Send Intent` no probado (`chrome://webapks` bloqueado, sin paquete) | Noche 1/3: activo por la mañana (sin llamadas nocturnas que verificar) |  | Corporativo; lo usa Jhosep. Android 16 queda fuera del rango 12–15 que cubre la documentación consultada: el número sí llegó en las tres primeras llamadas |
 | C2 |  |  |  |  |  |  |  |  |  |  |  |  |
 | C3 |  |  |  |  |  |  |  |  |  |  |  |  |
 

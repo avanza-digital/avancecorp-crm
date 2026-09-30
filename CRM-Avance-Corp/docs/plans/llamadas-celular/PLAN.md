@@ -149,7 +149,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid de Play, batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
+- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
 - [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
 - [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia (el número llega al trigger), «Aparecer encima» y batería sin restricciones. Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
 
@@ -169,9 +169,9 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 4 llamadas salientes el 29/09, las 4 con número y nombre en el trigger; 0 entrantes probadas. Faltan 6 salientes, 10 entrantes y los casos atendida/perdida/rechazada/cancelada. Se pueden cubrir con las llamadas normales de trabajo y comparando el registro de MacroDroid con el del teléfono al final del día.
+- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 4 salientes con número (29/09). Foco del negocio (Jhosep, 30/09): las llamadas que el vendedor HACE; las entrantes se observan si ocurren, sin exigirlas (posible ampliación futura; recorte propuesto a Miguel, #8). Faltan 6 salientes y los casos atendida/no atendida/cancelada.
 - [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login.
-- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP.
+- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1, noche 1 de 3 (29→30/09): MacroDroid activo por la mañana y la macro encendida; no hubo llamadas nocturnas que verificar. Faltan 2 noches, pantalla bloqueada, batería baja, reinicio y sin red.
 
 **Evidencia / fecha de validación:** pendiente.
 

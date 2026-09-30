@@ -6,7 +6,7 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 | Celular | Marca y modelo | Android | Navegador por defecto | MacroDroid (versión) | Restricciones de batería (qué se cambió) | Fecha de alta |
 | --- | --- | --- | --- | --- | --- | --- |
-| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome (predeterminado) | Instalado desde Play Store (versión por anotar) | «Aparecer encima» activado · Batería «No restringido» · autoarranque («apps que nunca duermen»): por confirmar | 29/09/2026 |
+| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome (predeterminado) | Play Store, versión 5.67 (septiembre 2026) | «Aparecer encima» activado · Batería «No restringido» · autoarranque («apps que nunca duermen»): por confirmar | 29/09/2026 |
 | C2 |  |  |  |  |  |  |
 | C3 |  |  |  |  |  |  |
 
@@ -51,7 +51,7 @@ Una fila por celular y día. «Desde CRM» = llamadas iniciadas con el botón «
 | 29/09/2026 19:04 | C1 | F0.3.2 | retorno a PWA con «Open Website» (`#/gestion-diaria`, codificación de URL desactivada) | — | Chrome (no PWA) | — | FAIL vía 1 | Observado por Jhosep; coincide con lo documentado para Android 12+ |
 | 29/09/2026 19:20 | C1 | F0.3.2 | retorno a PWA con «Lanzar app → Avance CRM» (vía 3; la vía 2 «Send Intent» no se probó: `chrome://webapks` bloqueado en el equipo, sin nombre de paquete) | — | Se abre la app instalada, sin barra de Chrome, en su portada (Hoy) | — | PASS vía 3 | Observado por Jhosep tras una llamada de prueba |
 | 29/09/2026 19:06 | C1 | F0.3.2 | notificación con número | Sí: las tres notificaciones «Llamada Terminada» con número y nombre estaban en la barra (agrupadas bajo MacroDroid); no se vieron al momento porque Chrome se abrió encima | — | — | PASS | Captura de la barra de notificaciones, saneada |
-|  |  | F0.3.3 |  |  |  |  |  |  |
+| 30/09/2026 mañana | C1 | F0.3.3 | noche 1 de 3 (29→30/09): sin tocar MacroDroid | — | — | — | PARCIAL: MacroDroid seguía activo por la mañana y la macro con su interruptor encendido; no hubo llamadas nocturnas que verificar | Observado por Jhosep |
 
 Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número __/10 · perdidas frente al registro del teléfono __ · duplicadas __ · noches sin fallo __/3.
 
