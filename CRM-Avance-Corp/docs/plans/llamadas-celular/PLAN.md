@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 7/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 8/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,7 +195,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 7/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F1:** 8/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
@@ -209,13 +209,13 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F1.2 · Recibir el enlace
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude.
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude.
 
 - [x] **F1.2.1** Añadir ruta por número, codificando solo su segmento y preservando +, país y hash.
-- [ ] **F1.2.2** Propagar ruta en App y recuperarla tras login y carga del workspace. — EN CURSO: App conserva el número en el saneado del hash (69b4bdf2) y el receptor espera a que el store cargue tras el login (e08288ee, test). Falta comprobar en C1 que el enlace sobrevive a iniciar sesión (F1.4.2).
+- [x] **F1.2.2** Propagar ruta en App y recuperarla tras login y carga del workspace.
 - [x] **F1.2.3** Montar receptor en Hoy y reutilizar asegurarLead, RegistrarResultado y tareaQueCierra.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 30/09/2026: commits 69b4bdf2 y e08288ee; router 29 tests, App 10, receptor 15; en C1 la URL con número sobrevivió al login..
 
 ### F1.3 · Encontrar el lead
 
@@ -232,7 +232,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
 - [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash. — EN CURSO: Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular).
-- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: Retorno a la PWA por URL: PASS en C1 con el ajuste de Android (30/09). Build de la rama servida desde el PC en la Wi‑Fi (demo :5173/:5174, real :4173/:4174, HTTPS con certificado propio porque el Chrome corporativo fuerza HTTPS: ERR_SSL_PROTOCOL_ERROR con http). Jhosep probando desde C1; falta el resultado del flujo completo en el celular y la alternativa de notificación local.
+- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Build de la rama servida desde el PC (demo :5173/:5174, real :4173/:4174; HTTPS porque el Chrome corporativo fuerza HTTPS). Primer intento en C1: el número sobrevivió al login pero la demo buscó antes de cargar sus leads → corregido (3065b84e), reintento pendiente. Falta el flujo completo en el celular y la alternativa de notificación local.
 - [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1.
 
 **Evidencia / fecha de validación:** pendiente.
