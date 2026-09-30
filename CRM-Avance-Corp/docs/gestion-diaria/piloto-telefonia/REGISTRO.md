@@ -28,7 +28,7 @@ Texto base del aviso (ajustar con quien revise el tratamiento de datos; plan, se
 
 | Celular | Aviso entregado (fecha) | Firmado (fecha) | PWA instalada (fecha) | Permisos concedidos (Teléfono · Registro de llamadas · Mostrar sobre otras apps · Batería) |
 | --- | --- | --- | --- | --- |
-| C1 | No aplica: el celular lo usa el propio responsable del piloto | — | 29/09/2026 | «Aparecer encima» ✓ · Batería «No restringido» ✓ · Teléfono y Registro de llamadas: por confirmar |
+| C1 | No aplica: el celular lo usa el propio responsable del piloto | — | 29/09/2026 | «Aparecer encima» ✓ · Batería «No restringido» ✓ · Teléfono y Registro de llamadas: por confirmar · **CRM Avance Corp → «Abrir vínculos admitidos» ✓ y dominio crm.miavance.com ✓ (30/09, necesario para que la URL abra la app)** |
 | C2 |  |  |  |  |
 | C3 |  |  |  |  |
 
@@ -52,6 +52,7 @@ Una fila por celular y día. «Desde CRM» = llamadas iniciadas con el botón «
 | 29/09/2026 19:20 | C1 | F0.3.2 | retorno a PWA con «Lanzar app → Avance CRM» (vía 3; la vía 2 «Send Intent» no se probó: `chrome://webapks` bloqueado en el equipo, sin nombre de paquete) | — | Se abre la app instalada, sin barra de Chrome, en su portada (Hoy) | — | PASS vía 3 | Observado por Jhosep tras una llamada de prueba |
 | 29/09/2026 19:06 | C1 | F0.3.2 | notificación con número | Sí: las tres notificaciones «Llamada Terminada» con número y nombre estaban en la barra (agrupadas bajo MacroDroid); no se vieron al momento porque Chrome se abrió encima | — | — | PASS | Captura de la barra de notificaciones, saneada |
 | 30/09/2026 mañana | C1 | F0.3.3 | noche 1 de 3 (29→30/09): sin tocar MacroDroid | — | — | — | PARCIAL: MacroDroid seguía activo por la mañana y la macro con su interruptor encendido; no hubo llamadas nocturnas que verificar | Observado por Jhosep |
+| 30/09/2026 12:16–12:20 | C1 | F0.3.2 | retorno a PWA con «Open Website» (`#/gestion-diaria`, codificación de URL desactivada) **tras activar en Android** Ajustes → Aplicaciones → CRM Avance Corp → «Definir como predeterminada» → «Abrir vínculos admitidos» ✓ y «Direcciones web admitidas» → crm.miavance.com ✓; acción «Lanzar app» desactivada | no verificado esta vez | Se abre la app instalada, sin barra de direcciones («como si fuese la PWA»), vía «Open Website» | — | PASS vía 1 con el ajuste de Android | Observado por Jhosep tras una llamada saliente corta. Resuelve el riesgo de F1: la URL con número puede llegar a la PWA sin «Send Intent» ni `packageName` |
 
 Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número __/10 · perdidas frente al registro del teléfono __ · duplicadas __ · noches sin fallo __/3.
 

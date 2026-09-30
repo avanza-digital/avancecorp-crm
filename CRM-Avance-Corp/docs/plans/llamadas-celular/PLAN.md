@@ -151,7 +151,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 - [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
 - [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
-- [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia (el número llega al trigger), «Aparecer encima» y batería sin restricciones. Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
+- [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia, «Aparecer encima», batería sin restricciones y, desde el 30/09, «Abrir vínculos admitidos» + dominio crm.miavance.com en la app (necesario para que la URL la abra). Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -170,7 +170,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
 - [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 4 salientes con número (29/09). Foco del negocio (Jhosep, 30/09): las llamadas que el vendedor HACE; las entrantes se observan si ocurren, sin exigirlas (posible ampliación futura; recorte propuesto a Miguel, #8). Faltan 6 salientes y los casos atendida/no atendida/cancelada.
-- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login.
+- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA por URL: PASS el 30/09 con el ajuste de Android «CRM Avance Corp → Abrir vínculos admitidos + dominio crm.miavance.com» («Open Website» abre la app sin barra de direcciones); sin el ajuste abre Chrome (29/09). «Lanzar app» abre la app pero no lleva número; «Send Intent» no hizo falta. Faltan oculto, fijo, internacional, doble SIM y login.
 - [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1, noche 1 de 3 (29→30/09): MacroDroid activo por la mañana y la macro encendida; no hubo llamadas nocturnas que verificar. Faltan 2 noches, pantalla bloqueada, batería baja, reinicio y sin red.
 
 **Evidencia / fecha de validación:** pendiente.
@@ -232,7 +232,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
 - [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash.
-- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular.
+- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: Retorno real a la PWA por URL comprobado en C1 (30/09): con «Abrir vínculos admitidos» + dominio activados, «Abrir sitio web» abre la app sin barra de direcciones; la URL con número puede llegar a la app sin Send Intent. Falta probar el flujo completo con la build de la rama (servida desde el PC en la Wi‑Fi; pendiente app/.env) y la alternativa de notificación local.
 - [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1.
 
 **Evidencia / fecha de validación:** pendiente.
