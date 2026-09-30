@@ -1,3 +1,41 @@
+## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 4 · fase «Gestión Diaria» del refactor por módulos,
+aprobado por Miguel el 30/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga
+lectura vs escritura (2026-09-29)».
+
+Problema medido (30/09, producción): las vistas de Gestión Diaria piden al núcleo SLA todas las oportunidades activas:
+equipo de gerencia 1.804–1.853 ms, avisos de supervisor hasta 1.031 ms, equipo de supervisor hasta 953 ms; 1.139 de
+las 2.583 son terminales y nunca aportan (`gestion_diaria_alertas_sla` usa solo `senales.pendientes`;
+`gestion_diaria_equipo_pendientes` cuenta `primera_atencion`/`datos_incompletos`, ambas `v_usable and …`, y su salida
+se une por `left join` al roster en `gestion_diaria_equipo_core`).
+
+Cambio: en `private.gestion_diaria_alertas_sla()` y `private.gestion_diaria_equipo_pendientes()` una línea:
+`sla_operacion_autorizada(null, true)` → `sla_operacion_autorizada(private.sla_leads_operativos(), true)` (ayudante de
+20260930002929, exigido con su huella). Ambas están selladas: `assert_gestion_diaria_alertas_equipo` (md5(prosrc) de
+alertas_sla) y `assert_gestion_diaria_equipo` (md5(def) de equipo_pendientes) se RESELLAN cambiando solo la huella;
+la migración termina pasando el paraguas `assert_gestion_diaria()` y `assert_sla_avisos()`. Huellas: alertas_sla
+prosrc `bca4ff0c…` → `94bbf61c…`; equipo_pendientes def `6de28503…` → `034cbb49…`; assert_alertas_equipo
+`abb5da73…` → `02c9cd9f…`; assert_equipo `38f2de1b…` → `28f82e7d…` (todas medidas en la base en ensayos deshechos).
+Ningún adaptador `crm.*`, policy, grant ni el núcleo cambian. Idempotente (las 4 huellas nuevas + invariantes +
+guardianes) y fail-closed.
+
+**Oráculo en producción ejecutando la migración real** (transacción deshecha; `scripts/gestion-diaria-operativos/ensayo-oraculo.sql`):
+gerencia y los 4 supervisores × {`gestion_diaria_avisos_fn()`, `gestion_diaria_equipo_fn(hoy,null)`,
+`gestion_diaria_equipo_fn(hoy,yo)`} sin campos de reloj: **15/15 iguales**. Tiempos: equipo de gerencia
+**1.804–1.853 → 1.215–1.232 ms**, sup1 avisos 1.002–1.031 → 838–848 y equipo 925–953 → 738–760, sup3 876–889 →
+607–620 y 812–815 → 539–547, sup2/sup4 ±20 ms. Guardianes tras el cambio: paraguas OK (57 ms), SLA OK.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa
+(4 funciones vivas, guardianes OK) → migración → registrador (4 sentencias); después: huellas vivas intactas, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930150852_crm_gestion_diaria_solo_operativos.sql`
+→ `supabase/scripts/gestion-diaria-operativos/registrar.sql` → `verificar.sql` (termina en raise; esperado guardianes
+OK, equipo de gerencia ≤ 1.300 ms) → advisors. Reversa: `reversa.sql` (restaura las cuatro funciones vivas y pasa
+los guardianes; conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+Reviews: Codex (`docs/encargos/2026-09-30-codex-gestion-diaria-operativos.md`) y auditor-rls: ver abajo.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
+
 ## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)
 
 **✅ EN PROD 29/09/2026 ~20:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930002929 /
