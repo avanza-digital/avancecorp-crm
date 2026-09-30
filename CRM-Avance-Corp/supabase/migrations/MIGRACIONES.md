@@ -1,3 +1,40 @@
+## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
+`crm.gestion_diaria_cola_trabajo_fn`, exclusiva del analista autenticado
+(vendedor/supervisor), sobre los ayudantes autorizados de SLA y clientes.
+El núcleo SLA recibe global=false y únicamente el actor visible, usando su
+acción de atención incluso si es supervisor. Ordena todas las filas antes de paginar: pendientes, luego gestiones del día de
+Lima por hora. La actividad tipificada vigente acredita el avance por autor,
+tenencia y ciclo; deshacer lo recalcula y un compromiso posterior lo reabre a
+su hora. No cambia el reloj de conversación ni escribe marcas adicionales.
+
+Dos ayudantes privados INVOKER sin ejecutores API y una puerta DEFINER con
+`search_path` vacío, actor de `auth.uid()` y EXECUTE solo authenticated.
+La nueva RPC no concede EXECUTE a anon ni service_role; los ayudantes tampoco.
+Sin tablas, policies, índices, triggers ni objetos de public modificados.
+Cola v3 y sus consumidores conservan su contrato.
+
+Banco sintético aislado: `supabase/scripts/gestion-diaria-cola/ensayar.mjs`.
+Ensayo de 530 leads, escritor v4, orden global, páginas, reintentos, Lima,
+deshacer, exclusiones y permisos PASS. Matriz propia de esta RPC en ensayar.mjs
+(complementa test-rls.mjs, que no conoce esta puerta); supervisor con cartera
+propia, llamada contestada, dos intentos con grupo conservado, metadata histórica,
+clientes y reasignación real por gerencia PASS. Dos revisiones independientes
+atendidas con decisiones y evidencia en `docs/encargos/gestion-diaria-cola/`.
+Gate frontend integrado PASS: 4945 tests y build. E2E Docker: 289 passed, 26 skipped;
+flujo final de teclado, guardado y vuelta repetido PASS (1/1).
+Gate de realidad HTTP: parcial FAIL; ambos oráculos pendientes completados por
+SQL read-only (cero revisiones fuera de sello, cinco caminos de conversión concordantes).
+Rama remota: 530 leads, roles y diez denegaciones PASS; RLS oficial 287 aserciones PASS.
+Advisors, tipos remotos y paridad productiva documentados en RELEASE.md.
+Banco temporal eliminado; 22 Edge Functions sin cambios. Frontend pendiente de publicación.
+Tipos generados con postgres-meta del banco e incorporada sólo la nueva RPC.
+Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
+La publicación queda para la invocación humana de `$release-crm`, con rama
+Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
+
+
 ## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
 
 **✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
@@ -365,6 +402,342 @@ la nativa sin cambiar un byte del SQL aprobado inicialmente como 20260927003433.
 Ensayo remoto no equivale a publicación. Autorización productiva: «sii» de Miguel.
 Tipos no regenerados: firma, retornos y shape JSON existentes intactos.
 No se implementa aquí la restricción de nueva inversión por empresa.
+
+## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~22:45): «Sí, aplica y publica»; P04 en pagos: «Dejarlo como está»
+(riesgo heredado).**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~22:50)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-pago-declara-cuenta.sql`
+  (huella viva `5fe996af…` = ensayada). **Advisors:** sin alertas nuevas (solo el INFO esperado).
+- **Portal PUBLICADO** (commit `b2a1a1f`, SW v136): preflight OK (lo vivo era `a3b0d44`), TUS
+  archivo por archivo con el SW al final, purga, lecturas idénticas; `pagos.js?v=45` y
+  `cuentas-pago-core.js?v=4` sirven el commit.
+
+Cierra el caso del «mismo
+día» aceptado en F3: un Excel exportado con la cuenta A, depositado en A, y un cambio A→B ese mismo
+día antes de importar dejaba el pago anotado en B. Decisiones de Miguel (26/09): solo cuentas de
+pago del contrato (actual o histórica, cualquier versión); el pago manual muestra la cuenta y la
+declara; sin CCI se deduce por fecha; los pagos anteriores no cambian.
+
+Piezas:
+- `private.sellar_cuenta_cuota_pagada()` (create or replace): si la transacción trae el ajuste
+  `crm.cci_deposito` **y su testigo** (`crm.cci_deposito_testigo` = md5 del txid + CCI, que solo arma
+  la RPC en esa misma transacción), sella la cuenta del cliente con ese CCI restringida al contrato
+  (enlace actual ∪ historial de F3), `origen = 'declarado'`; otro CCI → 22023 y el pago no se
+  registra; un CCI fijado a mano sin la RPC → 22023. Sin ajuste, deduce por fecha (`registro`).
+  Corregir la fecha solo re-sella lo deducido.
+- `crm.registrar_pago_con_cuenta(p_cuota_id, p_fecha, p_monto, p_cci)` — INVOKER, EXECUTE solo
+  authenticated: monto > 0, CCI de 20 dígitos si viene; `set_config` local a la transacción;
+  `UPDATE … where estado = 'pendiente'` con la RLS de siempre (`cronograma_admin_actualiza`);
+  limpia el ajuste; devuelve la cuota o NULL.
+- `crm.contratos_cuenta_pago_cliente_fn`: `pagadas_por_cuenta` suma `declaradas` (columna al final;
+  misma firma). Constraint de `origen` admite `declarado`.
+- Toca `public` solo por lectura y por el UPDATE de la RPC bajo RLS; no crea ni cambia triggers,
+  policies ni tablas de `public`. **Pero cambia la CONDUCTA de los dos triggers de F3 sobre
+  `public.cronograma_pagos`** (el sello puede rechazar con 22023 un UPDATE cuando la declaración
+  no es válida): por eso pide el OK explícito de Miguel, como F3/F4/arreglos.
+- `service_role` queda sin EXECUTE sobre la RPC (a propósito: el portal la llama con la sesión del
+  usuario; ningún proceso de servicio registra pagos por esta vía).
+- Corregir la fecha de una cuota pagada SIN sello (las 38 de prod sin cuenta de pago) la sella como
+  `inferido` cuando el contrato ya tenga enlace: misma semántica que F3 (el auditor cazó una
+  desviación involuntaria y se restauró).
+
+Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 16 comprobaciones, 6 mutantes
+  (sin declaración, sin restricción al contrato, sin limpiar el ajuste, sin validar CCI, sin exigir
+  pendiente, sin testigo). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la
+  clave nueva). 🔴 El caso «service_role llama la RPC» se acredita por catálogo: ejecutarlo con
+  `set role service_role` TUMBA el servidor del banco (trampa conocida).
+- Registro `../scripts/cuentas-gloria/registrar-pago-declara-cuenta.sql` ensayado, con huella de las
+  4 funciones `5fe996aff266f293464c24e59764269b`. El postflight acredita además DEFINER/INVOKER y
+  volatilidad de cada función.
+- Reversa `../scripts/cuentas-gloria/reversa-pago-declara-cuenta.sql`: repone F3 + arreglos byte a
+  byte; se niega con sellos `declarado` (ensayado). Orden de reversas: F5 → arreglos → F4 → F3.
+  Tras las cuatro, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): pago manual muestra y declara la cuenta vigente; el Excel
+  «viejo» declara la cuenta con la que se exportó.
+- Hecho documentado: un admin con membresía CRM revocada (P04) marca pagos, igual que con el UPDATE
+  directo vigente (la RLS de `public.cronograma_pagos` no aplica P04; cambiarlo tocaría una policy
+  de `public` y no es de esta fase).
+- NOT RUN: gate `test-rls` (mismo motivo que F3); concurrencia con dos sesiones.
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0.** Todo aceptado con arreglo:
+  - P1: el portal convertía a `null` un CCI presente pero dañado (p. ej. convertido por Excel) y el
+    servidor deducía por fecha → ahora el portal envía la celda tal cual y el servidor rechaza lo que
+    no sea 20 dígitos (probado en navegador: la fila dañada cae en errores, la válida se registra);
+  - P2: la declaración dependía de un GUC libre → testigo por transacción que solo arma la RPC;
+  - P3: pruebas de 22023 en subtransacción y de «ya pagada + CCI ajeno» (ajuste limpio, sin sello).
+- **auditor-rls: APPROVED** (sin cambios obligatorios). Sus P3, aplicados: semántica de F3 al corregir
+  la fecha de una cuota sin sello; postflight con `prosecdef`/`provolatile`; pruebas de CCI de otro
+  cliente, UPDATE directo con ajuste vacío y `service_role` sin EXECUTE. Su P3 sobre P04 en el
+  registro de pagos queda como decisión de Miguel (ver abajo). Presupuesto LEVEL 3 agotado.
+- **Decisión pendiente de Miguel (P04):** hoy un admin con la membresía CRM revocada marca pagos
+  (igual que con el UPDATE directo vigente). Cerrarlo dentro de la RPC es barato pero parcial
+  mientras exista el UPDATE directo (anulación); cerrarlo del todo tocaría la policy de
+  `public.cronograma_pagos`.
+
+Consumidor: Pagos del portal (importación del Excel y modal «Marcar como pagado»); la ventana
+«Cuentas» de Gloria lee `declaradas`. Orden: base → portal.
+
+## 20260927020317 — Cuentas de Gloria · arreglos: motivo de F3 y marca «cuenta retirada»
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~21:15): «Sí, aplica y publica».**
+- **auditor-rls: APPROVED** (sin cambios en el SQL). Sus P3 quedan para la próxima migración de la
+  familia: reponer la guarda `proacl is null` y la precondición `rolbypassrls` en el postflight,
+  fijar el texto esperado de la constraint, actualizar `comment on column … motivo`, probar NBSP y
+  ZWSP por separado y el caso de 501 caracteres. Su P2 (ledger) era un cruce de tiempos: la fila
+  decía «se aplica en cuanto apruebe» y así era.
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:35)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-arreglos-cuentas-gloria.sql`
+  (huella viva `2d448025…` = ensayada). **Advisors:** sin alertas nuevas.
+- **Portal PUBLICADO** (commit `eb17904`, SW v135): preflight OK (lo vivo era F4 `c9ca65a`), TUS
+  archivo por archivo con el SW al final, purga, 15/15 lecturas idénticas; `clientes.js?v=56`,
+  `cambio-cuenta-core.js?v=2` y `retiro-cuenta-core.js?v=2` sirven el commit.
+
+Los dos arreglos pequeños que
+dejaron las revisiones de F3/F4, pedidos por Miguel el 26/09. No toca `public` ni `storage`.
+- **Motivo de F3** con la regla de F4: bordes sin espacios de ningún tipo y ≥5 caracteres visibles.
+  Se recrea `private.cambiar_cuenta_pago_contratos_autorizado` (mismo texto salvo dos líneas) y se
+  sustituye la constraint de `crm.contrato_cuenta_pago_cambios`, tras comprobar que ninguna fila
+  existente la incumple.
+- **`cuenta_retirada`** (columna nueva al final de `crm.contratos_cuenta_pago_cliente_fn`): la cuenta
+  física de pago del contrato abierto ya no tiene versión vigente (renovación borrada → contrato
+  reabierto con cuenta retirada). El panel del portal lo marca «⚠️ CUENTA RETIRADA: cámbiala». Una
+  cuenta corregida (versión vieja + vigente, mismo CCI) no cuenta.
+
+Precondiciones: md5 de las 3 funciones vivas de F3 y definición exacta de la constraint. Reversa
+`../scripts/cuentas-gloria/reversa-arreglos-cuentas-gloria.sql` (repone F3 byte a byte; se niega si
+la huella viva no es `2d448025afaa5d8a9734c7f4fce65799`). Orden de reversas: arreglos → F4 → F3.
+
+Banco (26/09): test `../scripts/cuentas-gloria/test-arreglos-cuentas-gloria.sql` (2 casos, 2
+mutantes); F3 y F4 en verde con los arreglos encima; registro ensayado; tras las tres reversas,
+catálogo idéntico. Portal 160/160 y navegador local con la marca visible solo en el contrato afectado.
+
+Consumidor: panel «Cuenta de pago de los contratos» del portal (`cambio-cuenta-core v2`,
+`clientes.js v56`, SW v135). Orden: base → portal.
+
+## 20260927012948 — Cuentas de Gloria · F4: retirar una cuenta bancaria del cliente
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~20:55): «Sí, aplica y publica».**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:00)** con `db query --linked --file`: sin errores,
+  con las precondiciones y el postflight en verde.
+- **Registrada** con `registrar-retirar-cuenta-cliente.sql`: la huella viva de las 5 funciones
+  coincide con la ensayada (`59937ad4…`).
+- **Advisors:** sin alertas nuevas; solo INFO esperados (RLS sin políticas en el registro, que se
+  lee por funciones, e índice recién creado).
+- **Portal PUBLICADO** (commit `f0377f5`):
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F3 (`e491420`);
+  - TUS archivo por archivo, con el SW v134 al final; purga;
+  - 12/12 lecturas idénticas; `clientes.js?v=55` y `retiro-cuenta-core.js?v=1` sirven el commit.
+
+No toca objetos de
+`public` ni de `storage`: solo lee `public.contratos`, `public.perfiles` y `storage.objects`; el
+bucket y sus políticas son los de F3. Decisiones de Miguel (26/09):
+- si la cuenta cobra contratos abiertos (`activo`/`vencido`) se bloquea y se cambia primero con F3;
+- motivo obligatorio y correo del cliente opcional;
+- sin aviso al cliente;
+- solo admin/superadmin con membresía CRM vigente (P04).
+
+Piezas:
+- `crm.cuentas_bancarias_retiros`: registro inmutable del retiro (cuenta, cliente, moneda, motivo,
+  respaldo, quién, cuándo), sin claves foráneas (como F3). Un retiro por versión; UPDATE, DELETE y
+  TRUNCATE bloqueados.
+- `crm.retirar_cuenta_cliente` (INVOKER→DEFINER):
+  - solo cuentas vigentes del cliente;
+  - rechazo `22023` con `detail = contratos_abiertos` y la lista si la cuenta **física** (cliente,
+    moneda y CCI, en cualquiera de sus versiones) cobra contratos abiertos;
+  - motivo con al menos 5 caracteres visibles (ni tabuladores ni espacios Unicode lo rellenan);
+  - idempotente por solicitud;
+  - «ya fue retirada el …» o «ya no está vigente: se reemplazó por una versión corregida»;
+  - la cuenta pasa a `activa = false` y el candado de versiones (se exige su md5) impide reactivarla.
+  - Bloquea la cuenta FOR UPDATE antes de mirar los enlaces: el alta de contrato con cuenta
+    existente y el cambio de F3 esperan y después la ven retirada.
+- `crm.retiros_cuentas_cliente_fn`: motivos para «Cuentas anteriores», con la compuerta del
+  historial (`private.puede_gestionar_cuentas_cliente`, con P04). La ruta del respaldo solo la ve el
+  admin vigente.
+
+Banco (26/09, esquema de prod, con la F3 aplicada como prerrequisito): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-retirar-cuenta-cliente.sql`: 17 comprobaciones, 10 mutantes
+  cazados. La prueba de F3 sigue en verde con F4 aplicada.
+- Registro `../scripts/cuentas-gloria/registrar-retirar-cuenta-cliente.sql` ensayado, con huella de
+  las 5 funciones `59937ad4b058238a5a1cf6ba60936644`.
+- Reversa `../scripts/cuentas-gloria/reversa-retirar-cuenta-cliente.sql`: bloquea la tabla y se
+  niega con retiros registrados (ensayado); tras revertir F4 y F3, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): «Retirar» solo para admin; rechazo con lista y atajo a F3 sin
+  subir archivo; retiro → «Cuentas anteriores» con motivo y «Ver correo».
+- NOT RUN:
+  - gate `test-rls` (mismo motivo que F3);
+  - prueba de concurrencia con dos sesiones (bloqueos razonados y confirmados por Codex y el auditor).
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0 ni P1.**
+  - P2 motivo de solo espacios o tabuladores por RPC → corregido en SQL y pantalla. F3 tiene lo mismo
+    (usa `btrim`): queda como arreglo aparte.
+  - P3 adjunto huérfano → la pantalla avisa de los contratos abiertos antes de subir; el resto,
+    riesgo aceptado como en F3.
+  - P3 campos editables al guardar → bloqueados.
+  - P3 sin prueba de concurrencia → declarado.
+- **auditor-rls CHANGES_REQUESTED.**
+  - P1 contratos abiertos por versión y no por cuenta física → corregido, con caso y mutante.
+  - P3 reversa sin bloqueo → corregido.
+  - P3 TRUNCATE → corregido.
+  - P3 aceptado: un contrato `renovado` puede volver a `activo` si se borra su renovación
+    (`trg_contratos_05_restaurar_operacion`) y quedar cobrando en una cuenta retirada. Es poco
+    probable; mostrarlo en el panel de F3 queda como mejora aparte.
+- **Riesgos heredados (no nuevos):** `public.audit_log` guarda la fila del retiro y la lee cualquier
+  `es_admin()`; `service_role` conserva UPDATE sobre `crm.cuentas_bancarias`.
+
+Consumidor: ventana «Cuentas» del portal (botón «Retirar», solo admin). Orden: base → portal.
+
+## 20260926204051 — Cuentas de Gloria · F3: cambiar la cuenta de pago por pedido del cliente
+
+**OK EXPLÍCITO DE MIGUEL (26/09, 19:40, al retomar tras la pausa): «Sí, aplícala tú»** para tocar
+`public` (dos triggers AFTER en `public.cronograma_pagos`, bloqueos FOR SHARE de `public.contratos`) y
+`storage` (bucket y 7 políticas). Riesgo del «mismo día»: **«Aceptarlo por ahora»** (la fase aparte
+«registrar a qué cuenta se depositó» queda para después).
+**✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~19:45)** con `db query --linked --file`: sin errores, y
+el postflight interno pasó (EXECUTE exacto, sin claves foráneas, RLS, 7 políticas, 2 triggers del
+sello, backfill completo). **Registrada** con `registrar-cambio-cuenta-pago.sql`: la huella viva de
+las 16 funciones coincide con la ensayada (`21bb1838…`). **Advisors:** sin alertas nuevas de
+seguridad ni de rendimiento; solo INFO esperados (RLS sin políticas en las 3 tablas, que se leen por
+funciones, e índices recién creados «sin uso»).
+- **Edge `notificar-cambio-cuenta` v1 ACTIVA (26/09, ~19:50)**, con OK de Miguel («Sí, las dos»):
+  - `verify_jwt=true`; desplegada con `npx supabase@2.114.0 functions deploy … --use-api` desde una
+    copia exacta del árbol, y los archivos vivos son idénticos;
+  - smoke: OPTIONS 200 con CORS de miavance.com; POST sin sesión 401; token inválido 401.
+  - Hueco: el `dry_run` con una sesión real de admin queda para el primer uso de Gloria.
+- **Portal PUBLICADO (26/09, ~19:55)**, commit `14b3b20`:
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F2b (`5998025`);
+  - TUS archivo por archivo, con el SW v133 al final; purga;
+  - 24/24 lecturas idénticas, y las URL versionadas (`clientes.js?v=54`, `pagos.js?v=44`,
+    `cambio-cuenta-core.js?v=1`, `cuentas-cliente-core.js?v=5`, `cuentas-pago-core.js?v=3`) sirven el
+    commit. Para retomar: mostrar el SQL a Miguel y obtener su OK explícito. Toca objetos de
+`public` (dos triggers AFTER en `public.cronograma_pagos` y bloqueos FOR SHARE de `public.contratos`)
+y de `storage` (bucket y 7 políticas); el OK se anotará aquí. Después se aplica y se registra con
+`../scripts/cuentas-gloria/registrar-cambio-cuenta-pago.sql`, se corren los advisors y se sigue el
+orden base → Edge → portal. Decisiones de Miguel (26/09): por contrato entero; solo admin/superadmin;
+aviso al cliente por portal y correo; respaldo obligatorio = el correo del cliente donde pide el cambio.
+
+Piezas:
+- Registros **sin claves foráneas**: son constancias que sobreviven a contratos, cuotas, clientes,
+  cuentas y personas, y las guardas de eliminación auditada de contratos y usuarios no ven
+  dependencias nuevas. Nada se borra (BEFORE DELETE).
+  - `crm.cuotas_cuenta_pagada`, el sello por cuota: `registro` = la cuenta vigente en la FECHA del pago
+    (corregir la fecha re-sella); `inferido` = el backfill de las pagadas con enlace (en prod, 877 de
+    915). **El registro de pagos no cambia.**
+  - `crm.contrato_cuenta_pago_cambios`: historial inmutable; solo `notificado_en` NULL→fecha.
+  - `crm.cambio_cuenta_avisos`.
+- El candado del enlace admite SOLO el cambio registrado en el historial en la misma transacción.
+- `crm.cambiar_cuenta_pago_contratos` (INVOKER→DEFINER):
+  - solo admin/superadmin activo con la membresía CRM NO revocada (P04, `private.admin_banca_vigente`);
+  - todo o nada; idempotente comparando todos los datos;
+  - el respaldo debe subirlo el mismo admin y no respaldar otra solicitud, ni por ruta ni por
+    contenido (eTag);
+  - no cambia un contrato con un aviso al cliente en curso;
+  - bloquea contratos y después enlaces, el mismo orden que el registro de un pago.
+- Lecturas solo para admin vigente; bucket privado `respaldos-cambio-cuenta` con fronteras RESTRICTIVE
+  (anon incluido).
+- Aviso en dos pasos (`reclamar`/`confirmar`, solo service_role y para un actor admin vigente):
+  - reserva de 10 min con token; `reclamar` bloquea los enlaces;
+  - se sellan solo los contratos anunciados; los superados salen como tales.
+
+Banco (26/09, esquema de prod, PG 17.6): ciclo completo en verde.
+- Aplicar.
+- Test `../scripts/cuentas-gloria/test-cambio-cuenta-pago.sql`: 34 comprobaciones, 17 mutantes cazados.
+- Ensayo del registro, con huella de las 16 funciones `21bb1838606355e1161a44fb0b66e809`.
+- Reversa `../scripts/cuentas-gloria/reversa-cambio-cuenta-pago.sql`: catálogo idéntico (2052 líneas).
+  Se niega si hay cambios registrados, pagos sellados al registrarse (ensayado) o piezas distintas.
+- Ensayo del backfill.
+- NOT RUN:
+  - gate `test-rls` (su siembra choca con el fixture P-0XX del banco);
+  - prueba del orden de bloqueos con dos sesiones (auditor-rls lo razonó correcto, P3).
+
+Revisiones:
+- **Codex R1 BLOCK:** 7 hallazgos, resueltos.
+- **auditor-rls R1 CHANGES_REQUESTED:** todo aceptado salvo el orden de bloqueos, rechazado con
+  evidencia (el pago bloquea contrato → enlace).
+- **Codex R2 BLOCK (última ronda), sin P0.** Aceptados con arreglo:
+  - aviso de una cuenta superada;
+  - reversa que borraba constancias;
+  - envío duplicado (Idempotency-Key en Resend y novedad sin duplicar);
+  - sello parcial;
+  - mismo correo con otra ruta (eTag);
+  - corrección de fecha.
+
+  **Riesgo aceptado por alcance:** «la carrera en la importación del Excel». Arreglarlo exige cambiar
+  cómo se registra un pago, que el objetivo de F3 excluye. El sello deduce la cuenta por la fecha, así
+  que un depósito a la cuenta anterior del MISMO día del cambio (o posterior, con un Excel viejo) puede
+  quedar anotado en la nueva. La importación avisa esas filas y nunca pide volver a depositar.
+  Propuesta aparte para Miguel: que el registro declare a qué cuenta se depositó. Se preparó y probó
+  (RPC con el CCI del Excel) y se retiró para respetar el alcance.
+- **auditor-rls R2: APPROVED** (sin cambios obligatorios).
+
+Consumidores: Edge `notificar-cambio-cuenta` (nueva, verify_jwt), la ventana «Cuentas» y la vista
+previa de la importación de Pagos del portal.
+
+## 20260926200757 — Cuentas de Gloria · F2b: el historial deja de tapar datos
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** (con OK explícito de Miguel: «Sí, aplícala
+tú»), registrada con firma completa; huella viva `0806cc19…`, sin `es_admin` en el cuerpo; sonda sin
+datos OK (usuario inventado → 42501, ACL {postgres, authenticated}); advisors de seguridad idénticos
+a antes. Portal publicado después (5998025). Recrea
+`private.historial_cuentas_cliente_autorizado` SIN tapado por rol (misma firma, autorización,
+filtro `activa = false` y join de personal). Decisión de Miguel (26/09): «todos los que ya ven la
+cuenta la ven completa» (admin, superadmin, Operaciones y analistas), como el CRM. Revierte a
+propósito el tapado añadido por Codex R1 en `20260926193424`; el público NO cambia. Precondición:
+FIRMA COMPLETA de la F2 (cuerpo, SECURITY, search_path y comentario de las dos funciones); huella
+nueva del núcleo `0806cc19…`. Codex R1 BLOCK (reversa sin precondición) → R2 BLOCK (firma parcial)
+→ ambas corregidas: las dos reversas y el registrador exigen la firma completa de su versión y se
+niegan ante cualquier deriva (ensayado: F2b sin F2, comentario ajeno, reversas fuera de orden).
+Banco: catálogo antes/después = solo cambia el núcleo; prueba con 3 mutantes (incluido «con
+tapado»); reversa `../scripts/cuentas-gloria/reversa-historial-sin-tapado.sql` repone la huella
+exacta. Registro: `../scripts/cuentas-gloria/registrar-historial-sin-tapado.sql` (exige la huella
+nueva). Portal: `cuentas-cliente-core.js?v=4` sin tapado; publicar DESPUÉS de aplicar esto.
+
+## 20260926193424 — Cuentas de Gloria · F2: historial de cuentas retiradas del cliente
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** con `db query --linked --file` + registrador
+(Miguel lo lanzó con `!`, se cortó sin aplicar nada; comprobado vacío, se relanzó con su «sigue»). El
+registrador acreditó la huella `md5(prosrc)` ensayada; advisors de seguridad sin avisos sobre las 2
+funciones; sonda sin datos: usuario inventado → 42501 del gate, ACL = {postgres, authenticated}.
+Portal publicado después (a233bec). Solo lectura y ADITIVA: crea
+`private.historial_cuentas_cliente_autorizado(uuid)` (SECURITY DEFINER, autoriza con
+`private.puede_gestionar_cuentas_cliente` y lee las versiones `activa = false` de
+`crm.cuentas_bancarias` + nombre de quien las retiró) y la puerta
+`crm.historial_cuentas_cliente_fn(uuid)` (SECURITY INVOKER, mismo patrón que `20260926145330`).
+EXECUTE solo a authenticated. No cambia ninguna función, política, tabla ni permiso existente.
+N°, CCI y beneficiario (nombre y DNI) salen COMPLETOS solo para `public.es_admin()` (admin/
+superadmin); al resto de autorizados, N° y CCI tapados desde el servidor (`••••` + como mucho 4,
+nunca más de la mitad) y beneficiario NULL (Codex R1 P1 + R2 PASS; auditor-rls PASS con P3-1/2/4
+aplicados: beneficiario NULL, nombre de quien retiró solo si es personal, registrador con huella).
+Banco local (55322): foto del catálogo antes/después = solo las 2 funciones nuevas; prueba
+`../scripts/cuentas-gloria/test-historial-cuentas-cliente.sql` (admin, operaciones y analista
+de cartera ven; analista ajeno, cliente y anon 42501; mismo 42501 para inexistente, no-cliente,
+inactivo y NULL; tapado en servidor; 3 mutantes cazados). Gate `test-rls.mjs` NOT RUN: la
+semilla del banco choca con un fixture de P-0XX (DNI 90000001); la matriz HTTP del historial
+queda pendiente para cuando el banco se pueda sembrar; reversa
+`../scripts/cuentas-gloria/reversa-historial-cuentas-cliente.sql` deja el catálogo idéntico.
+Registro: `../scripts/cuentas-gloria/registrar-historial-cuentas-cliente.sql` (se niega si la
+migración no está aplicada). Consumidor: ventana «Cuentas» del panel admin del portal
+(`cuentas-cliente-core.js?v=3`). Publicar el portal DESPUÉS de aplicar esto.
+
+## 20260926182748 — Portal · Pagos: se retira `public.admin_pagos_resumen()`
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026 (~18:45 UTC)** por Miguel con
+`db query --linked --file` + registrador (orden expresa: «retira eso ahora mismo»).
+Verificado después: `to_regprocedure('public.admin_pagos_resumen()')` es NULL, versión
+`20260926182748` registrada con su nombre, `pagos_admin_resumen_contratos` y
+`admin_pagos_metricas` responden, y el `pagos.js?v=43` vivo no contiene la llamada. Desde F2 (portal commit `232b2ea`) la pantalla de
+Pagos pide páginas a `pagos_admin_resumen_contratos`; la función vieja («todo de golpe»,
+~2,8 s) ya no tiene ningún consumidor: 0 funciones, vistas, triggers, jobs de cron ni
+dependencias en `pg_depend`; en el código solo un comentario y los tipos generados del CRM.
+Solo lectura, sin datos afectados. Reversa ejecutable con el cuerpo exacto y sus grants:
+`../scripts/reversa-portal-admin-pagos-resumen.sql`. Registro:
+`../scripts/registrar-portal-retira-admin-pagos-resumen.sql` (se niega si la función sigue viva).
+Pendiente tras aplicar: regenerar `database.types.ts` del CRM cuando toque (la entrada
+`admin_pagos_resumen` queda obsoleta; nada la usa).
 
 ## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
 

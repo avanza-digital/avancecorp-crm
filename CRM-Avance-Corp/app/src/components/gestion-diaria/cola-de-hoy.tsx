@@ -23,7 +23,7 @@ import {
   FILTRO_TODO, GRUPOS_DIA, detalleDeFila, filasDelFiltro, paginaDeFilas,
   type FilaDiaria, type FiltroCola, type GrupoDia,
 } from '@/lib/gestion-diaria-analista'
-import { hashDe } from '@/lib/router'
+import { textoGestion, type ColaTrabajo } from '@/lib/gestion-diaria-cola'
 
 export const FILAS_POR_PAGINA = 8
 
@@ -39,7 +39,7 @@ const ETIQUETA_GRUPO = Object.fromEntries(GRUPOS_DIA.map((g) => [g.clave, g.etiq
 const BOTON_PAGINA = 'inline-flex h-8 pointer-coarse:h-11 cursor-pointer items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-45 aria-disabled:hover:bg-card'
 
 export function ColaDeHoy({
-  idBase, pestanas, filtro, onFiltro, pagina, onPagina, elegido, onElegir, ahora, cargando, hayMas, colaCaida, sinConversacionDias,
+  idBase, pestanas, filtro, onFiltro, pagina, onPagina, elegido, onElegir, ahora, cargando, colaCaida, sinConversacionDias, trabajo,
 }: {
   /** Base de `useId()` de la pantalla: dos instancias no pueden compartir id. */
   idBase: string
@@ -53,8 +53,6 @@ export function ColaDeHoy({
   onElegir: (fila: FilaDiaria) => void
   ahora: number
   cargando: boolean
-  /** El servidor dice que hay más de lo que cabe en esta lectura. */
-  hayMas: boolean
   /**
    * La cola del servidor no llegó. Los tres primeros grupos SALEN de ella, así
    * que sus conteos no son ceros: son desconocidos. Decir «Vencidas (0)» haría
@@ -62,18 +60,22 @@ export function ColaDeHoy({
    */
   colaCaida: boolean
   sinConversacionDias: number
+  trabajo?: ColaTrabajo | undefined
 }): JSX.Element {
   const lista = filasDelFiltro(pestanas, filtro)
-  const vista = paginaDeFilas(lista, pagina, FILAS_POR_PAGINA)
+  const vista = trabajo ? {
+    filas: trabajo.items, pagina: trabajo.pagina, total: trabajo.total,
+    paginas: Math.max(1, Math.ceil(trabajo.total / trabajo.limite)),
+    rango: `${trabajo.total === 0 ? 0 : trabajo.pagina * trabajo.limite + 1}–${Math.min((trabajo.pagina + 1) * trabajo.limite, trabajo.total)} de ${trabajo.total}`,
+  } : paginaDeFilas(lista, pagina, FILAS_POR_PAGINA)
   const sinAnterior = vista.pagina === 0
   const sinSiguiente = vista.pagina >= vista.paginas - 1
-  const vacioTodo = pestanas.every((p) => p.total === 0)
-  const total = pestanas.reduce((n, p) => n + p.total, 0)
-  // Con la cola caída, lo que sale de ella no tiene conteo conocido: «?» y no
-  // «0». Con `hayMas` el conteo es un MÍNIMO.
-  const conteo = (clave: FiltroCola, n: number) => colaCaida && clave !== 'sin_conversacion' ? '?' : hayMas ? `${n}+` : String(n)
+  const vacioTodo = trabajo ? trabajo.totales.todo.total === 0 : pestanas.every((p) => p.total === 0)
+  const total = trabajo?.totales.todo.total ?? pestanas.reduce((n, p) => n + p.total, 0)
+  // Con la cola caída, lo que sale de ella no tiene conteo conocido: «?» y no «0».
+  const conteo = (clave: FiltroCola, n: number) => colaCaida ? '?' : String(trabajo?.totales[clave].total ?? n)
   const etiquetaFiltro = filtro === 'todo' ? FILTRO_TODO.etiqueta : ETIQUETA_GRUPO[filtro]
-  const ayuda = filtro === 'todo' ? 'El orden lo pone el servidor, como en tu Hoy.' : pestanas.find((p) => p.clave === filtro)?.ayuda
+  const ayuda = filtro === 'todo' ? 'Pendientes primero; gestionados al final.' : pestanas.find((p) => p.clave === filtro)?.ayuda
 
   return (
     <section role="group" aria-labelledby={`${idBase}-cola`} className="relative flex min-h-0 flex-1 flex-col">
@@ -102,6 +104,13 @@ export function ColaDeHoy({
             className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]]:border-b [&>[role=tablist]]:border-muted [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:py-3 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold [&>[role=tablist]>[role=tab]>span]:text-[12.5px] pointer-coarse:[&>[role=tablist]>[role=tab]]:min-h-11"
             clasePanel="flex min-h-0 flex-1 flex-col"
           >
+            {trabajo && trabajo.total > 0 && (
+              <p role="status" className="border-b border-muted px-[18px] py-2 text-xs font-medium text-[var(--muted-foreground-strong)]">
+                {trabajo.vuelta_completa
+                  ? 'Vuelta completada. Elige una fila para revisar su gestión. Los reintentos vuelven a su hora.'
+                  : `${trabajo.totales[filtro].pendientes} pendientes · ${trabajo.totales[filtro].gestionados} gestionados · ${trabajo.totales[filtro].programados} programados`}
+              </p>
+            )}
             {vista.total === 0 ? (
               <p role="status" className="px-[18px] py-7 text-center text-[13px] text-[var(--muted-foreground-strong)]">
                 {colaCaida && filtro !== 'sin_conversacion'
@@ -133,6 +142,7 @@ export function ColaDeHoy({
                           <span className="flex min-w-0 flex-1 flex-col gap-px">
                             <span className={cn('truncate text-sm font-bold', seleccionada ? 'text-[var(--accent-press)]' : 'text-primary')}>{fila.nombre_completo}</span>
                             <span className="truncate text-xs font-medium text-[var(--muted-foreground-strong)]">{apoyo}</span>
+                            {textoGestion(fila) && <span className="text-xs font-semibold text-[var(--accent-press)]">{textoGestion(fila)}</span>}
                           </span>
                           {seleccionada && <span className="sr-only">Elegido</span>}
                           <ChipTiempo fila={fila} ahora={ahora} className="shrink-0" />
@@ -146,7 +156,7 @@ export function ColaDeHoy({
                   {/* Se ANUNCIA: al pasar de página cambian las filas y sin esto el
                       lector de pantalla no diría nada (WCAG 4.1.3). */}
                   <p role="status" aria-live="polite" className="text-xs tabular-nums text-[var(--muted-foreground-strong)]">
-                    {vista.rango}{hayMas && <> de los cargados · <a className="font-semibold text-primary underline underline-offset-4" href={hashDe('gestion-diaria', null, undefined, undefined, { tipo: 'cola' })}>Ver todas las oportunidades</a></>}
+                    {vista.rango}
                   </p>
                   <div className="flex items-center gap-1.5">
                     {/* `aria-disabled` y no `disabled`, con la guarda en el handler:

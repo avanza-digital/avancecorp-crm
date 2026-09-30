@@ -420,6 +420,56 @@ Deno.test("PdfPrinter produce dos PDFs v9 byte-idénticos con fecha fija", async
   igual(new TextDecoder().decode(a.slice(0, 5)), "%PDF-", "cabecera PDF");
 });
 
+Deno.test("cuenta de pago registrada desde el portal: se acepta y no cambia un byte", async () => {
+  // El 29/09/2026 el contrato 2026-01-001470 quedó en integridad_bloqueada
+  // (INTEGRIDAD_SNAPSHOT_INVALIDO) porque su cuenta venía con origen «portal»,
+  // valor que el CHECK de crm.cuentas_bancarias admite desde el 25/09 y este
+  // validador aún no. Los tres orígenes rinden el mismo PDF: el origen es
+  // procedencia administrativa, no un dato del contrato.
+  const fecha = "2026-08-17T20:00:00.000Z";
+  const hashes = new Set<string>();
+  for (const origen of ["perfil", "contrato", "portal"] as const) {
+    const snapshot = structuredClone(SNAPSHOT);
+    snapshot.cuentaPago.origen = origen;
+    const validado = validarSnapshotContratoV2(snapshot);
+    igual(validado.cuentaPago.origen, origen, `origen ${origen} aceptado`);
+    const render = await renderizarContratoPdfV2(snapshot, fecha);
+    igual(render.bytes, 218672, `tamaño golden v9 con origen ${origen}`);
+    hashes.add(render.sha256);
+  }
+  igual(hashes.size, 1, "el origen de la cuenta no altera el PDF");
+  igual(
+    [...hashes][0],
+    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
+    "golden v9 intacto",
+  );
+
+  // Rechazos: un origen que la base no admite y, sobre todo, valores que NO
+  // son texto pero que una coerción `String(x)` disfrazaría ("portal" ←
+  // ["portal"]). Hallazgo P2 de Codex (29/09/2026).
+  for (
+    const invalido of [
+      "legado",
+      ["portal"],
+      [["perfil"]],
+      { toString: () => "contrato" },
+      null,
+      undefined,
+      1,
+    ]
+  ) {
+    const roto = structuredClone(SNAPSHOT) as Record<string, unknown>;
+    (roto.cuentaPago as Record<string, unknown>).origen = invalido;
+    let rechazo = false;
+    try {
+      validarSnapshotContratoV2(roto);
+    } catch (error) {
+      rechazo = error instanceof TypeError;
+    }
+    assert(rechazo, `rechaza origen ${JSON.stringify(invalido) ?? "undefined"}`);
+  }
+});
+
 // ── Plantilla v9: co-titulares (cuenta mancomunada) ────────────────────────
 
 const ASSETS_PRUEBA = {

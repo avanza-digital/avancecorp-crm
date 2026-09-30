@@ -1,0 +1,116 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La migración resuelve los hallazgos del primer review con evidencia adjunta: núcleo SLA con `accion_atencion`, `global=false` y sólo el actor (línea 126), reasignación probada de forma positiva (roles.sql 41-43), `grupo_origen` derivado de la primera gestión vigente (47-56) y `proximo_cambio_en` con la referencia de clientes (262-265). La puerta DEFINER conserva `search_path=''`, actor exclusivo de `auth.uid()`, gate de rol y ACL cerrada; los ayudantes siguen INVOKER sin ejecutores API. No veo fuga de ámbito ni SQL que rompa el contrato del front (`colaTrabajoCoherente` espeja fielmente las reglas del servidor: clamp de página, elegido anclado, `siguiente`, totales). Los hallazgos que quedan son del frontend nuevo: (1) elegir una fila distinta con el teclado desmonta la lista entera y el panel «Ahora» durante el viaje al servidor y deja el foco en `body` sin relevo, y (2) la máscara con recibo sólo se retira si la foto contiene exactamente esa `actividad_id`, así que una segunda gestión o un deshacer desde la ficha deja al lead oculto e inelegible el resto de la sesión, incluso si el servidor lo vuelve a proponer como `elegido`. Ambos son corregibles con cambios pequeños y sin tocar SQL.
+
+FINDINGS:
+
+[P2] Medium — Elegir otra fila desmonta la cola y «Ahora» y pierde el foco del teclado
+File:
+app/src/data/gestion-diaria-cola-queries.ts; app/src/screens/gestion-diaria/analista.tsx; app/src/components/gestion-diaria/cola-de-hoy.tsx
+Lines:
+queries 22-24; analista 172-181, 245-261, 383; cola-de-hoy 87-88
+Problem:
+`placeholderData` sólo conserva la foto cuando `anterior.elegido === pedido.elegido`. `elegir(f)` cambia `elegido` a otra clave, la queryKey cambia, `cola.data` pasa a `undefined`, `colaCargando` es `true` y tanto `ColaDeHoy` (skeleton en la línea 88) como `PanelAhora` («Buscando a quién llamar…») desmontan sus controles. El botón de fila que tenía el foco desaparece, el foco cae a `body`, y el `requestAnimationFrame` de la línea 257-260 no encuentra `nombreAhora.current` porque el panel está en carga. `elegir` además pone `focoPendiente.current = false`, así que el efecto de relevo de la línea 382-392 no actúa.
+Evidence:
+`useColaTrabajo` devuelve `data: undefined` para una clave nueva sin placeholder (react-query v5); `colaCargando = !yo?.demo && cola.error == null && paginaCola === undefined` (analista 181). Con el banco de 530 leads la RPC tardó del orden de segundos según el primer review, por lo que el hueco es visible y no un parpadeo.
+Impact:
+Usuario de teclado o lector de pantalla: al pulsar Enter sobre una persona, la lista y el panel desaparecen y el foco se pierde (WCAG 2.4.3). Ratón: skeleton completo en cada clic de fila. La E2E de «latencia 80 ms/foco» no está adjunta; si sólo cubre el caso «fijar con foco la persona YA elegida», este camino no está probado.
+Recommendation:
+Extender el placeholder a cualquier `pedido.elegido` que exista en `anterior.items` con el mismo prefijo de clave, `filtro` de pedido y `limite`: el servidor anclará esa fila en su página, que es la página actual, y en un filtro distinto de «todo» todos los items comparten grupo, así que la foto anterior es una previsualización correcta, no una página de otra selección. Mientras llega, pintar la selección con el `elegido` local en `ColaDeHoy` (hoy recibe `filaActiva?.clave`). Alternativa mínima: en `elegir` poner `focoPendiente.current = true` para que el relevo de 382-392 enfoque el nombre cuando llegue la persona. Añadir un E2E con latencia que elija una fila DISTINTA con Enter y afirme que el foco termina en el nombre de «Ahora», no en `body`.
+
+[P2] Medium — La máscara con recibo sólo se retira con esa `actividad_id` exacta y puede ocultar un lead pendiente el resto de la sesión
+File:
+app/src/screens/gestion-diaria/analista.tsx
+Lines:
+349-363, 477-492, 493-501, 200, 245-246
+Problem:
+Tras guardar, la fila va al final del orden (migración 232-238), así que la foto que sigue (anclada en `siguiente`, un pendiente del frente) casi nunca contiene al lead guardado y la entrada de `cerrados`/`confirmaciones` persiste. Es inocuo mientras el servidor no lo proponga, pero el efecto de la línea 484 exige `ultima_gestion.actividad_id === recibo`: si el analista registra otra llamada o deshace desde la ficha (`abrirLead` está en el propio panel, líneas 545 y 839), el servidor devuelve otra `actividad_id` o `ultima_gestion: null` y la máscara nunca se retira. `deshacer` de la línea 501 sólo limpia el deshecho hecho desde «Mi actividad».
+Evidence:
+`fila = filas.find((f) => f.clave === paginaCola?.elegido)` (200) sobre `filas` ya filtradas por `cerrados` (189): si el servidor elige al lead enmascarado, `fila` es `null`, «Ahora» dice «Nada pendiente ahora» o «Nada en este filtro» aunque `totales.pendientes > 0`, `siguiente` seguirá apuntándole tras cada guardado y `elegir` lo rechaza (246).
+Impact:
+Contradicción visible entre conteos («1 pendiente») y panel vacío, sin salida hasta recargar o cambiar de día. Reproducción: guardar «no contesta» en Gestión Diaria, abrir la ficha, registrar «contestó», volver.
+Recommendation:
+Tratar la máscara como transitoria de verdad: guardar junto al recibo la `generado_en` de la foto vigente al guardar y retirar la máscara en la primera foto válida cuyo `generado_en` sea posterior y (a) contenga la fila con `ultima_gestion.actividad_id === recibo` o con `ultima_gestion.en` posterior, o (b) no contenga la fila y el servidor no la proponga como `elegido`. Como mínimo, retirar la máscara cuando `paginaCola.elegido` o `siguiente` apunten a una clave enmascarada: el servidor es la fuente y una gestión confirmada no puede ser «anterior» a una foto que la propone. Añadir un test de pantalla con MSW que devuelva la fila con otra `actividad_id` y afirme que reaparece.
+
+[P3] Low — Doble lectura pesada en cada guardado
+File:
+app/src/screens/gestion-diaria/analista.tsx
+Lines:
+349-359; queries 25
+Problem:
+`cola.refetch()` se invoca en el mismo tick que `setElegido(siguiente.clave)`, por lo que refresca el observer de la clave ANTERIOR (ancla en el lead recién guardado); la clave nueva vuelve a consultar por `refetchOnMount: 'always'`. Son dos ejecuciones de la RPC completa por guardado, y la primera es la «recarga del ancla anterior» que el comentario de la línea 361 tiene que mitigar con la máscara.
+Recommendation:
+Omitir `cola.refetch()` en `alGuardar` cuando `siguiente.clave !== clave` (la nueva clave ya se lee al montar), o invalidar por prefijo con `queryClient.invalidateQueries` en vez de refetch del observer viejo.
+
+[P3] Low — Precedencia del grupo para gestionados: la tarea cerrada por la ÚLTIMA gestión pisa el `grupo_origen` de la primera
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+47-56, 141-142
+Problem:
+`grupo_origen` se calcula con la primera gestión del día (`primera_meta`, `primera_en`), pero en `grupos` la rama de la línea 141 (tarea cerrada por la gestión más reciente) va antes que la línea 142. Un lead atendido como `primera_atencion` a las 10:00, con reintento a las 12:00 y cerrado a las 12:05 pasa a contarse en `tarea_vencida.gestionados`.
+Impact:
+Los conteos por pastilla se mueven de grupo a lo largo del día; no afecta `vuelta_completa` ni el orden. La intención declarada («grupo_origen desde la primera gestión vigente») no se cumple en ese caso.
+Recommendation:
+Invertir el orden: `grupo_origen` primero y la tarea cerrada como fallback, o documentar la precedencia y añadir un caso al ensayo (primera atención + reintento cerrado).
+
+[P3] Low — Casts a `uuid` sobre metadata sin guarda
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+99, 145
+Problem:
+`nullif(...->>'tarea_id','')::uuid` lanza 22P02 y tumba toda la cola del analista si alguna actividad del día lleva un `tarea_id` no-uuid en metadata. Hipótesis (v4 escribe uuids), pero el radio de fallo es la pantalla entera.
+Recommendation:
+Filtrar con una expresión regular antes del cast o usar una función de cast segura ya existente en `private`, en línea con el riesgo de dependencia del contrato interno de v4 que señaló el primer review.
+
+[P3] Low — El día se valida contra el reloj del cliente
+File:
+app/src/lib/gestion-diaria-cola.ts; app/src/screens/gestion-diaria/analista.tsx
+Lines:
+cola 54; analista 117, 175
+Problem:
+`colaTrabajoCoherente` exige `c.dia === dia` con `dia = fechaLima(ahora)` del navegador. Un reloj de dispositivo desviado o el instante del cambio de día en Lima produce `GESTION_COLA_CONTRACT`, reintentado tres veces por react-query (retry por defecto) y mostrado como «No se pudo leer la cola del servidor», sin pista de la causa.
+Recommendation:
+Aceptar el `dia` del servidor como fuente y usar el eco sólo para detectar respuestas ajenas (comparar con el `dia` del último `gestion_diaria_analista_fn` o tolerar ±1 día), y poner `retry: false` para `GESTION_COLA_CONTRACT`.
+
+[P3] Low — Ramas muertas y rango desalineado en `ColaDeHoy`
+File:
+app/src/components/gestion-diaria/cola-de-hoy.tsx; app/src/screens/gestion-diaria/analista.tsx
+Lines:
+cola-de-hoy 68-73, 163; analista 183, 192, 646
+Problem:
+`hayMas` es siempre `false`, el enlace «Ver todas las oportunidades» no se puede mostrar y la rama `paginaDeFilas`/`pestanas` sólo se ejecuta sin `trabajo`, que hoy siempre llega (real y demo). `vista.rango` se calcula con `trabajo.total` mientras `vista.filas` ya viene sin los enmascarados: el estado dice «1–8 de 25» con 7 filas.
+Recommendation:
+Retirar `hayMas` y la rama sin `trabajo` (o marcarla como sólo-demo), y derivar el rango de las filas realmente pintadas o mantener las enmascaradas en el conteo de forma explícita.
+
+TEST GAPS:
+- E2E/pantalla: elegir una fila DISTINTA con Enter bajo latencia y afirmar el foco en el nombre de «Ahora» (P2 foco). La E2E de 80 ms no está adjunta; confirmar qué camino cubre.
+- Pantalla (MSW): tras guardar con recibo, foto siguiente sin la fila; luego foto con la fila y otra `actividad_id` o `ultima_gestion: null` → debe reaparecer y ser elegible (P2 máscara).
+- Pantalla: el servidor devuelve `elegido` igual a una clave enmascarada → «Ahora» no debe quedar vacío con `pendientes > 0`.
+- Ensayo SQL: primera atención + reintento cerrado → grupo esperado de la fila gestionada y `totales` por pastilla (P3 precedencia).
+- Ensayo SQL: ancla `tarea:<uuid>` de cliente, redirección de filtro por ancla de otro grupo y `total=0` (siguen sin verse en la evidencia adjunta; el primer review ya los pedía).
+- Unidad: `colaTrabajoCoherente` con el fixture real para los casos de redirección de filtro y `siguiente` en otra página (si existe, adjuntar).
+- Cambio de día/actor: `alcanceNav` cambia con un guardado en vuelo; `cerrados` se vacía y la sesión se conserva sólo si el actor es el mismo.
+
+ARCHITECTURE RISKS:
+- Cada lectura recalcula la vuelta completa (seis laterales por lead más subconsultas correlacionadas en `grupo_origen`) con `staleTime: 0`, `refetchOnWindowFocus: 'always'` y el intervalo SLA. Con carteras grandes, cada vuelta del marcador en el celular dispara la RPC completa; medir en el branch remoto antes de publicar.
+- Dependencia del contrato interno de v4 (`metadata.evento`, `resultado`, `tarea_id`, `etapa_anterior`, `deshecho_en`) sigue sin declararse ni protegerse (P3 casts).
+
+SECURITY RISKS:
+- Sin hallazgos nuevos. Verificado en la evidencia: DEFINER único con `search_path=''`, actor sólo de `auth.uid()`, gate `puede_acceder_crm` + rol `vendedor|supervisor`, validación de parámetros (208-213), ancla buscada sólo dentro de la cola autorizada (215, 242), `revoke all` + grant sólo `authenticated`, ayudantes INVOKER revocados; supervisor usa `accion_atencion` y `tareas_clientes_autorizadas` con `responsable_id=p_actor`. `sessionStorage` guarda sólo navegación por actor y día, sin PII.
+
+REGRESSION RISKS:
+- Bajo en backend: sólo funciones nuevas y preflight; `assert_cola_v3` y `assert_sla_nucleo` PASS.
+- `onGuardado` cambia de aridad; los consumidores con `() => void` siguen compilando. Sin regresión aparente.
+- Frontend: la cola ya no se pinta desde `gestion_diaria_analista_fn`; cualquier consumidor que dependiera de `pestanas` con conteos completos ahora recibe conteos de página (mitigado en `ColaDeHoy` por `trabajo.totales`).
+
+RECOMMENDED NEXT ACTIONS:
+1. Corregir el foco/skeleton al elegir otra fila (placeholder para claves presentes en `anterior.items` o `focoPendiente = true` en `elegir`) y añadir la E2E con latencia para ese camino.
+2. Hacer la máscara realmente transitoria (retirarla cuando el servidor proponga la clave o cuando la foto sea posterior al recibo) y cubrirla con un test de pantalla.
+3. Opcional antes de publicar: invertir la precedencia de grupo en 141-142, guardar los casts a `uuid`, quitar `hayMas` y la rama muerta, y medir la RPC en el branch remoto. Mantener la publicación bajo `$release-crm` como indica el ledger.
+
+CONFIDENCE:
+MEDIUM

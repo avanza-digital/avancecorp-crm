@@ -1,0 +1,123 @@
+{
+  "rama": "gestion-diaria-cola-20260930",
+  "proyecto_rama": "mnqyfcqrhcqerwjzwnpp",
+  "migracion": {
+    "version": "20260930190028",
+    "name": "crm_gestion_diaria_cola_trabajo"
+  },
+  "catalogo_base": [
+    {
+      "clase": "columnas",
+      "huella": "ef4379894373ed679e4b85070b94e733",
+      "piezas": 1320
+    },
+    {
+      "clase": "funciones",
+      "huella": "17a07a8974745dc8ba01125a6d01f976",
+      "piezas": 852
+    },
+    {
+      "clase": "grants_columnas",
+      "huella": "e5bbbdd529eb722e8f728627fff1cefd",
+      "piezas": 7668
+    },
+    {
+      "clase": "indices",
+      "huella": "cfdef99c720999354b482e0afcbf1bfa",
+      "piezas": 478
+    },
+    {
+      "clase": "policies",
+      "huella": "dbb335032420616036a835aa84059594",
+      "piezas": 125
+    },
+    {
+      "clase": "tablas_rls",
+      "huella": "ab474bdabc4b6c8fb590af1ade8d00ac",
+      "piezas": 134
+    },
+    {
+      "clase": "triggers",
+      "huella": "2ccd18a5d3ed12e4d7085841d259bc80",
+      "piezas": 333
+    }
+  ],
+  "historial_base": {
+    "migraciones": 398,
+    "ultima": "20260930172255",
+    "contenido_igual": true
+  },
+  "funciones_agregadas": [
+    {
+      "clave": "crm.gestion_diaria_cola_trabajo_fn(p_filtro text, p_pagina integer, p_limite integer, p_elegido text)",
+      "cuerpo": "c166b286f6577ebf35809dfd708a0ab4",
+      "dueno": "postgres",
+      "acl": [
+        "authenticated=X/postgres",
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "clave": "private.gestion_diaria_cola_filas(p_actor uuid, p_rol text, p_ahora timestamp with time zone)",
+      "cuerpo": "d9ae006b0d12627c7a8d7dfb41a51525",
+      "dueno": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "clave": "private.gestion_diaria_cola_hechos(p_actor uuid, p_ahora timestamp with time zone)",
+      "cuerpo": "ca61a0727945d6c0b1f096a478241310",
+      "dueno": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    }
+  ],
+  "funciones_previas_modificadas": 0,
+  "edge_functions_iguales": 22,
+  "sql_volumen": {
+    "leads": 530,
+    "resultado": "PASS"
+  },
+  "roles": "PASS",
+  "denegaciones": 10,
+  "assert_cola_v3": "PASS",
+  "assert_sla_nucleo": "PASS",
+  "tipos_rpc_generados_remoto": "MATCH",
+  "plan_sintetico": {
+    "filas": 530,
+    "planning_ms": 0.03,
+    "execution_ms": 228.075,
+    "produccion": false
+  },
+  "advisors_delta": [
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "detail": "Function `crm.gestion_diaria_cola_trabajo_fn(p_filtro text, p_pagina integer, p_limite integer, p_elegido text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/gestion_diaria_cola_trabajo_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "gestion_diaria_cola_trabajo_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_filtro text, p_pagina integer, p_limite integer, p_elegido text",
+        "security_definer": true
+      }
+    }
+  ],
+  "rls_contratos": {
+    "estado": "PASS",
+    "aserciones": 287
+  },
+  "produccion": {
+    "migraciones": 399,
+    "catalogo_igual": true,
+    "smoke_solo_lectura": {
+      "total": 111,
+      "filas": 8,
+      "dia": "2026-09-30"
+    }
+  },
+  "banco_eliminado": true
+}
