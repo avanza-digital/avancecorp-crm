@@ -1,0 +1,6 @@
+{
+  "banco": "gestion_diaria_cola_20260930",
+  "comprobado_en": "2026-09-30T17:44:08.751Z",
+  "duracion_ms": 2833,
+  "salida": "GESTION_DIARIA_COLA_OK: 530 leads, orden completo, reintentos, Lima, deshacer y permisos"
+}

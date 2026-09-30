@@ -5602,6 +5602,15 @@ export type Database = {
         }
         Returns: Json
       }
+      gestion_diaria_cola_trabajo_fn: {
+        Args: {
+          p_elegido?: string
+          p_filtro?: string
+          p_limite?: number
+          p_pagina?: number
+        }
+        Returns: Json
+      }
       gestion_diaria_equipo_fn: {
         Args: { p_dia?: string; p_supervisor_id?: string }
         Returns: Json

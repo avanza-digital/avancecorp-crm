@@ -1,3 +1,40 @@
+## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
+`crm.gestion_diaria_cola_trabajo_fn`, exclusiva del analista autenticado
+(vendedor/supervisor), sobre los ayudantes autorizados de SLA y clientes.
+El núcleo SLA recibe global=false y únicamente el actor visible, usando su
+acción de atención incluso si es supervisor. Ordena todas las filas antes de paginar: pendientes, luego gestiones del día de
+Lima por hora. La actividad tipificada vigente acredita el avance por autor,
+tenencia y ciclo; deshacer lo recalcula y un compromiso posterior lo reabre a
+su hora. No cambia el reloj de conversación ni escribe marcas adicionales.
+
+Dos ayudantes privados INVOKER sin ejecutores API y una puerta DEFINER con
+`search_path` vacío, actor de `auth.uid()` y EXECUTE solo authenticated.
+La nueva RPC no concede EXECUTE a anon ni service_role; los ayudantes tampoco.
+Sin tablas, policies, índices, triggers ni objetos de public modificados.
+Cola v3 y sus consumidores conservan su contrato.
+
+Banco sintético aislado: `supabase/scripts/gestion-diaria-cola/ensayar.mjs`.
+Ensayo de 530 leads, escritor v4, orden global, páginas, reintentos, Lima,
+deshacer, exclusiones y permisos PASS. Matriz propia de esta RPC en ensayar.mjs
+(complementa test-rls.mjs, que no conoce esta puerta); supervisor con cartera
+propia, llamada contestada, dos intentos con grupo conservado, metadata histórica,
+clientes y reasignación real por gerencia PASS. Dos revisiones independientes
+atendidas con decisiones y evidencia en `docs/encargos/gestion-diaria-cola/`.
+Gate frontend integrado PASS: 4945 tests y build. E2E Docker: 289 passed, 26 skipped;
+flujo final de teclado, guardado y vuelta repetido PASS (1/1).
+Gate de realidad HTTP: parcial FAIL; ambos oráculos pendientes completados por
+SQL read-only (cero revisiones fuera de sello, cinco caminos de conversión concordantes).
+Rama remota: 530 leads, roles y diez denegaciones PASS; RLS oficial 287 aserciones PASS.
+Advisors, tipos remotos y paridad productiva documentados en RELEASE.md.
+Banco temporal eliminado; 22 Edge Functions sin cambios. Frontend pendiente de publicación.
+Tipos generados con postgres-meta del banco e incorporada sólo la nueva RPC.
+Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
+La publicación queda para la invocación humana de `$release-crm`, con rama
+Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
+
+
 ## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
 
 **✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
