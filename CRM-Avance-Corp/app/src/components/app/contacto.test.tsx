@@ -144,7 +144,18 @@ describe('AccionesContacto en el celular (el aparato marca)', () => {
     await waitFor(() => expect(onRegistrarLlamada).toHaveBeenCalledTimes(1))
     expect(dobles.asegurarLead).toHaveBeenCalledWith('lead-1')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    // «Mi día» sigue con su propia sesión: la intención termina al delegar.
+    // «Mi día» abre su propia tarjeta: la intención sigue ABIERTA (la siguiente
+    // llamada espera) hasta que esa pantalla cierre su sesión con cerrarIntencionesDe.
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true })
+  })
+
+  it('si la instancia que delegó en «Mi día» se va, la intención se cierra con ella', async () => {
+    const { unmount } = render(<AccionesContacto lead={LEAD} onRegistrarLlamada={vi.fn()} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 4_000)
+    volver()
+    await waitFor(() => expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true }))
+    unmount()
     expect(intencionDe('v1', LEAD.id)).toBeNull()
   })
 

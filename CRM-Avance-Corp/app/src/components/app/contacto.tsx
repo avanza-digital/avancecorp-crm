@@ -160,16 +160,19 @@ export function AccionesContacto({
   // conocer el lead (sin foto inicial se relee por id bajo su RLS).
   const { asegurarLead } = useCRMData()
   // `id` es la intención reclamada (null en el camino del escritorio, que no sale
-  // de la pestaña). Toda salida sin formulario termina con ella: «Mi día» la
-  // recoge en su propia sesión; un lead fuera del ámbito o sin red pierden la
-  // pregunta, como siempre.
+  // de la pestaña). Una salida sin formulario termina con ella (lead fuera del
+  // ámbito, sin red: la pregunta se pierde, como siempre). Con formulario, sigue
+  // ABIERTA hasta que se cierre —el diálogo propio aquí; la tarjeta de «Mi día»
+  // con `cerrarIntencionesDe` al cerrar su sesión—: mientras, la siguiente
+  // llamada espera en la cola en vez de abrirse encima (visto el 30/09).
   const abrirRegistro = useCallback((canal: Canal, id: string | null) => {
     const terminar = () => { if (id) cerrarIntencion(id) }
     void asegurarLead(lead.id).then((ok) => {
       if (!vigente.current) { terminar(); return }
       if (!ok) { toast.error('Este lead ya no está disponible en tu ámbito.'); terminar(); return }
-      if (canal === 'tel' && onRegistrarLlamada) { terminar(); onRegistrarLlamada() }
-      else { tomada.current = id; setDialogo(canal) }
+      tomada.current = id
+      if (canal === 'tel' && onRegistrarLlamada) onRegistrarLlamada()
+      else setDialogo(canal)
     }).catch(() => { toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'); terminar() })
   }, [asegurarLead, lead.id, onRegistrarLlamada])
 

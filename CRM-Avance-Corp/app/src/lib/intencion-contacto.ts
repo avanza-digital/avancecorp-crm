@@ -183,6 +183,19 @@ export function cerrarIntencion(id: string): void {
   escribir(cola.filter((i) => i.id !== id))
 }
 
+/**
+ * Termina TODAS las intenciones de un lead del actor (abiertas o no). Lo usa la
+ * pantalla que abrió el formulario por su cuenta («Mi día», que registra en su
+ * tarjeta y no en el diálogo de AccionesContacto) al guardar o cerrar: hasta
+ * entonces la intención sigue abierta y la siguiente llamada espera en la cola.
+ */
+export function cerrarIntencionesDe(actor: string | null | undefined, leadId: string): void {
+  if (!actor) return
+  cola ??= cargar()
+  if (!cola.some((i) => i.actor === actor && i.leadId === leadId)) return
+  escribir(cola.filter((i) => !(i.actor === actor && i.leadId === leadId)))
+}
+
 /** Al salir de la cuenta: nada de la intención de una cuenta llega a la siguiente. */
 export function limpiarIntencionesContacto(): void {
   cola = []

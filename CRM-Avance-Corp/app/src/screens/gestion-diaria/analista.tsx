@@ -51,6 +51,7 @@ import { enlaceTel } from '@/lib/telefono'
 import { ETAPA_INFO, TIPOS_ACTIVIDAD, TIPOS_TAREA, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
 import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
+import { cerrarIntencionesDe } from '@/lib/intencion-contacto'
 import { presentarCitas } from '@/lib/terminologia'
 import {
   COLOR_NIVEL, ETIQUETA_NIVEL, cuandoLimaDe, detalleDeFila, filasDelFiltro, filasDiariasDemo,
@@ -317,6 +318,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   function cerrarSesion(id: number) {
     const actual = sesionRef.current
     if (actual?.id !== id) return
+    // La intención de contacto que abrió esta tarjeta (un tap en «Llamar» o el
+    // enlace del celular) termina aquí: mientras seguía abierta, la siguiente
+    // llamada esperaba en la cola en vez de abrirse encima (F1.1.3).
+    cerrarIntencionesDe(yo?.id, actual.lead.id)
     setSesion(null)
     setElegido(actual.fila.clave)
     requestAnimationFrame(() => {

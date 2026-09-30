@@ -87,6 +87,25 @@ describe('coordinador de la intención de contacto', () => {
     expect(m.listarIntenciones('v1', T0 + 11_000)).toHaveLength(2)
   })
 
+  it('cerrarIntencionesDe termina las del lead (abiertas o no) y deja pasar a la siguiente', async () => {
+    const m = await cargarPagina()
+    const aviso = vi.fn()
+    m.suscribirIntenciones(aviso)
+    const x = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla' }, T0)
+    m.reclamarIntencion(x.id, T0)
+    const y = m.armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'enlace', numero: '+51999888777' }, T0)
+    expect(m.intencionDe('v1', 'l2', T0)).toBeNull()
+    m.cerrarIntencionesDe('v1', 'l1')
+    expect(m.intencionDe('v1', 'l2', T0)).toBe(y)
+    // Otro actor o un lead sin intenciones no tocan nada ni avisan.
+    const avisos = aviso.mock.calls.length
+    m.cerrarIntencionesDe('v2', 'l2')
+    m.cerrarIntencionesDe('v1', 'l9')
+    m.cerrarIntencionesDe(null, 'l2')
+    expect(aviso).toHaveBeenCalledTimes(avisos)
+    expect(m.intencionDe('v1', 'l2', T0)).toBe(y)
+  })
+
   it('caduca: pasada su vigencia desaparece también del almacenamiento', async () => {
     const m = await cargarPagina()
     m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla' }, T0)
