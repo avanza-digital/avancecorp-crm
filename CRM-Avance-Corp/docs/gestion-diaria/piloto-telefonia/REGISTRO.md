@@ -56,6 +56,15 @@ Una fila por celular y día. «Desde CRM» = llamadas iniciadas con el botón «
 
 Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número __/10 · perdidas frente al registro del teléfono __ · duplicadas __ · noches sin fallo __/3.
 
+## 5b. Pruebas de F1 en el celular (F1.4.2) — build de la rama servida desde el PC, sin tocar producción
+
+| Fecha | Celular | Build | Caso | Resultado | Evidencia |
+| --- | --- | --- | --- | --- | --- |
+| 30/09/2026 12:45 | C1 | demo (Vite dev, `http://…:5173`) | Abrir la build de prueba en Chrome | FAIL primero: `ERR_SSL_PROTOCOL_ERROR` (Chrome fuerza HTTPS en el celular corporativo); se resolvió desactivando «Usar siempre conexiones seguras» y, como respaldo, sirviendo también por HTTPS con certificado propio (`:5174`, `:4174`) | Captura de Chrome |
+| 30/09/2026 12:54 | C1 | demo | Entrar a la demo como Analista | PASS (Gestión Diaria con TERESA en «Ahora») | Captura |
+| 30/09/2026 12:59 | C1 | demo | `#/gestion-diaria/llamada/<número de la persona de «Ahora»>` escrito en Chrome → recarga → login demo | PARCIAL: el número sobrevivió al login (el aviso salió con el número) pero la búsqueda corrió antes de que la demo cargara sus leads → «Ningún lead…». Corregido en `3065b84e` (espera a que haya leads) | Captura; hallazgo #1 de F1 |
+| 30/09/2026 ~13:10 | C1 | demo (con `3065b84e`) | Mismo caso, tras la corrección | PASS: entró con la encuesta de TERESA abierta en «Ahora» | Observado por Jhosep («vi la encuesta») |
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |

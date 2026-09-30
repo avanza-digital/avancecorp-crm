@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 01:05 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 01:13 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 18:05 UTC: primer intento real en C1 — la URL con número sobrevivió al login (F1.2.2 hecha, F1.2 cerrada), pero la demo buscó antes de cargar sus leads y dijo «ningún lead»: corregido en 3065b84e (espera a que haya leads) y subido; Jhosep reintenta. En el PC los cuatro caminos ya se vieron funcionar.
+**Lo último:** 30/09 18:13 UTC: en C1 ya funciona el camino completo con la build de la rama (demo): URL con número → login → encuesta de la persona de «Ahora». Siguen en el celular: avisos, la macro con {call_number} y la build real con un lead propio sin guardar.
 
 **Total:** 9 de 102 tareas · 0 de 8 fases hechas.
 
@@ -50,7 +50,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.3.3 — Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests. (30/09/2026, 11:05 a. m.)
 - **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · F1.4.1 verificada en el navegador del PC (4 caminos + limpieza del hash); F1.4.2 en prueba desde C1 con la build servida por HTTPS desde el PC; F1.4.3 con checks y guía hechos (E2E Docker NOT RUN).
     - ◐ F1.4.1 — Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular). (30/09/2026, 12:51 p. m.)
-    - ◐ F1.4.2 — C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Build de la rama servida desde el PC (demo :5173/:5174, real :4173/:4174; HTTPS porque el Chrome corporativo fuerza HTTPS). Primer intento en C1: el número sobrevivió al login pero la demo buscó antes de cargar sus leads → corregido (3065b84e), reintento pendiente. Falta el flujo completo en el celular y la alternativa de notificación local. (30/09/2026, 01:05 p. m.)
+    - ◐ F1.4.2 — C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Con la build de la rama servida desde el PC (demo): URL con número → login → encuesta de la persona correcta en «Ahora»: PASS tras corregir la espera de la demo (3065b84e). Chrome corporativo fuerza HTTPS: se sirve también por HTTPS. Faltan: avisos (sin coincidencia, descartada) en el celular, la macro con {call_number} contra la demo, la build real con un lead propio (sin guardar) y la alternativa de notificación local. (30/09/2026, 01:13 p. m.)
     - ◐ F1.4.3 — Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1. (30/09/2026, 11:34 a. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 01:13 p. m. · C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b.
 - 30/09/2026, 01:05 p. m. · C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests).
 - 30/09/2026, 12:51 p. m. · F1.4.1 verificada en el navegador del PC (demo): 4 caminos del receptor y limpieza del hash. F1.4.2: build servida desde el PC por HTTP y HTTPS; C1 fuerza HTTPS (ERR_SSL_PROTOCOL_ERROR con http).
 - 30/09/2026, 12:21 p. m. · F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1.
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 09:53 a. m. · Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes.
 - 30/09/2026, 09:46 a. m. · F0: MacroDroid 5.67 anotado en REGISTRO y compatibilidad; noche 1/3 superada en C1 (F0.3.3 en curso).
 - 29/09/2026, 07:27 p. m. · Cierre de sesión 29/09: corrección de dirección (las 4 llamadas fueron salientes; entrantes NOT RUN). Handoff escrito en docs/plans/llamadas-celular/HANDOFF-2026-09-29.md para retomar mañana.
-- 29/09/2026, 07:22 p. m. · F0.3.2: la PWA se abre como app con «Lanzar app → Avance CRM» (PASS vía 3); la notificación con número estaba en la barra (PASS). Guía actualizada con la vía 3 y cómo obtener el paquete para F1.

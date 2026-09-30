@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-09-30T18:05:09Z",
+  "actualizado": "2026-09-30T18:13:03Z",
   "meta": {
-    "novedad": "30/09 18:05 UTC: primer intento real en C1 — la URL con número sobrevivió al login (F1.2.2 hecha, F1.2 cerrada), pero la demo buscó antes de cargar sus leads y dijo «ningún lead»: corregido en 3065b84e (espera a que haya leads) y subido; Jhosep reintenta. En el PC los cuatro caminos ya se vieron funcionar.",
-    "actualizado": "2026-09-30T18:05:09Z"
+    "novedad": "30/09 18:13 UTC: en C1 ya funciona el camino completo con la build de la rama (demo): URL con número → login → encuesta de la persona de «Ahora». Siguen en el celular: avisos, la macro con {call_number} y la build real con un lead propio sin guardar.",
+    "actualizado": "2026-09-30T18:13:03Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -36,7 +36,7 @@
     "F1.3.2": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests." },
     "F1.3.3": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests." },
     "F1.4.1": { "done": false, "estado": "curso", "at": "2026-09-30T17:51:35Z", "nota": "Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular)." },
-    "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T18:05:09Z", "nota": "C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Build de la rama servida desde el PC (demo :5173/:5174, real :4173/:4174; HTTPS porque el Chrome corporativo fuerza HTTPS). Primer intento en C1: el número sobrevivió al login pero la demo buscó antes de cargar sus leads → corregido (3065b84e), reintento pendiente. Falta el flujo completo en el celular y la alternativa de notificación local." },
+    "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T18:13:03Z", "nota": "C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Con la build de la rama servida desde el PC (demo): URL con número → login → encuesta de la persona correcta en «Ahora»: PASS tras corregir la espera de la demo (3065b84e). Chrome corporativo fuerza HTTPS: se sirve también por HTTPS. Faltan: avisos (sin coincidencia, descartada) en el celular, la macro con {call_number} contra la demo, la build real con un lead propio (sin guardar) y la alternativa de notificación local." },
     "F1.4.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:34:05Z", "nota": "Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1." }
   },
   "cambios": [
@@ -59,6 +59,7 @@
     { "at": "2026-09-30T16:34:05Z", "texto": "Push de la rama (8f25ad34): pre-push con la suite completa en verde tras dar más tiempo a cliente-form.test (decisión de Jhosep). Próximo: build de prueba servida desde el PC para C1." },
     { "at": "2026-09-30T17:21:00Z", "texto": "F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1." },
     { "at": "2026-09-30T17:51:35Z", "texto": "F1.4.1 verificada en el navegador del PC (demo): 4 caminos del receptor y limpieza del hash. F1.4.2: build servida desde el PC por HTTP y HTTPS; C1 fuerza HTTPS (ERR_SSL_PROTOCOL_ERROR con http)." },
-    { "at": "2026-09-30T18:05:09Z", "texto": "C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests)." }
+    { "at": "2026-09-30T18:05:09Z", "texto": "C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests)." },
+    { "at": "2026-09-30T18:13:03Z", "texto": "C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b." }
   ]
 }
