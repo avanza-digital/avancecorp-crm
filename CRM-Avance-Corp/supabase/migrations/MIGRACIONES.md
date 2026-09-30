@@ -1,7 +1,13 @@
 ## 20260930213647 — Potencial del lead: Frío · Tibio · Estrella (`crm.marcar_potencial_lead_fn`, `crm.lead_potencial`, `crm.lead_potencial_eventos`)
 
-**⏸️ PENDIENTE: ensayada en banco Docker propio; NO aplicada en producción.** Miguel (30/09): «espera, te
-aviso cuando puedas publicar». Fase 1 del plan aprobado el 30/09 («HAZLO»); nota del vault «Potencial del
+**✅ EN PROD 30/09/2026 por `!` de Miguel** («ya podemos publicar»): migración por `db query --linked --file`
+(preflight y postflight en verde) + `registrar.sql` + `verificar.sql` → «marcas 0, eventos 0, bandera false,
+EXECUTE puerta [authenticated,postgres], EXECUTE ajeno en privadas 0, permisos API en tablas 0, registro
+crm_potencial_lead». Antes, en solo lectura: 0 objetos previos y huellas de `rol_crm`/`vendedor_ids_visibles`
+idénticas a las ensayadas. Advisors después: 248 avisos; el único de los objetos nuevos es
+`authenticated_security_definer_function_executable` de la puerta (clase existente, 237 iguales: patrón de
+todas las puertas DEFINER); ninguna clase nueva. Bandera APAGADA: nadie marca hasta la fase 3.
+Fase 1 del plan aprobado el 30/09 («HAZLO»); nota del vault «Potencial del
 lead - Frio Tibio Estrella (2026-09-30)»; diseño aprobado en la pieza CRM-05 del UI Playground.
 
 Qué hace: los analistas marcan cada lead como frío, tibio o estrella. Tipo `crm.nivel_potencial`; estado
