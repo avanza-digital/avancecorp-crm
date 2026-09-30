@@ -30,7 +30,15 @@ pasaría» → ahora el guardián exige que TODAS las llamadas a `sla_operacion_
 el ayudante (`regexp_count` de ambas formas igual y ≥ 1) y NEG4 lo prueba; R4 «la ruta idempotente no pasaba el
 paraguas» → añadido. Las tres piezas se regeneraron con la huella nueva y el ciclo se repitió con los archivos
 finales. Limitación deliberada anotada: una llamada con el resultado del ayudante en una variable sería rechazada
-por el trinquete (se escribe la llamada directa). auditor-rls: ver línea siguiente.
+por el trinquete (se escribe la llamada directa).
+**auditor-rls: APPROVE** (sin P0–P2; no toca tablas, policies, grants, triggers ni `public`; el guardián solo lee `pg_proc`;
+DEFINER conservado con ACL solo dueño; `proacl` NULL salta como verdadero positivo; reversa restaura el cuerpo vivo byte a
+byte). Revisó la versión previa: sus P3-1 (presencia vs exclusividad) y P3-3 (paraguas en la ruta idempotente) son
+exactamente lo que ya corrigió el P2/R4 de Codex arriba. P3-4 (orden de limpieza de comentarios: solo puede dar salto
+ruidoso, nunca aceptar un resumen alterado) y P3-5 (`md5(pg_get_functiondef)` puede diferir en un banco con otra
+versión mayor; fallaría en voz alta) son informativos y preexistentes. **Queda anotado como ítem aparte (P3-2):** los
+negativos NEG1–NEG4 viven solo en el ensayo manual; falta `private.assert_sla_avisos_mutantes()` invocado desde
+`test-rls.mjs`, al estilo de los otros trinquetes con mutantes.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
 
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
