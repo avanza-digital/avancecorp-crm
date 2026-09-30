@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 04:41 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 04:46 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 21:41 UTC: los tres mapas de solo lectura (actividades/Deshacer, molde de migración + gate RLS, Edge Functions/ingesta) quedaron integrados en F2-PLAN-CORTO.md: el enlace va por el actividad_id que devuelve v4 (nunca lead + hora), «autor compatible» es ámbito sobre el lead, Deshacer no desenlaza (efectos deshechos se derivan de deshecho_en), F2 es aditiva (no toca actividades ni funciones selladas), credencial por celular con hash, idempotencia origen + hash con P0409, RLS sin policies, auditoría sin teléfonos, purga con cron, reversa que conserva los hechos y el contrato de ingesta que F3 heredará. F2 sigue como análisis hasta las 7 decisiones de Miguel; PR #148 a la espera.
+**Lo último:** 30/09 21:46 UTC: Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 ya está en main, pero NO en producción: el sitio vive build-20260930T213751470Z (Coordinación, construida a las 21:37 desde la rama de rescate sobre el vivo 57e7b3b4), sin F1. La macro sigue con la URL sin número hasta el release. Antes de publicar F1, main tiene que contener lo vivo (hoy no contiene 57e7b3b4 ni la rama de rescate) o el preflight rechazará la build. F2 sigue como análisis: plan corto afinado con los tres mapas, a la espera de las 7 decisiones de Miguel.
 
 **Total:** 13 de 102 tareas · 1 de 8 fases hechas.
 
@@ -35,7 +35,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
     - ✓ F0.4.2 — docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000. (29/09/2026, 05:45 p. m.)
 
-### F1 · Formulario único y coincidencia exacta — 12/12 · hecha · 30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida (ambos órdenes una sola vez, edición no se pierde, fijo/internacional, incompleto nunca autoselecciona, RLS, tarea propia). Sin tablas ni puertas nuevas. NO publicada: producción intacta hasta el release con preflight (decisión de Miguel).
+### F1 · Formulario único y coincidencia exacta — 12/12 · hecha · 30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida (ambos órdenes una sola vez, edición no se pierde, fijo/internacional, incompleto nunca autoselecciona, RLS, tarea propia). Sin tablas ni puertas nuevas. 30/09 21:41 UTC: PR #148 aprobado y fusionado a main por Miguel (6ace8487). Sigue SIN publicar: producción vive build-20260930T213751470Z (rama de rescate de Coordinación, sin F1); el release con preflight es el siguiente paso de Miguel.
 - **F1.1 · Coordinar la intención** — 3/3 · hecha · Responsable: Claude (código) · Jhosep (prueba en C1) · Cerrada. · Evidencia: 30/09/2026: commits 6a920143, 6ca9944f, e08288ee, 5d9f21c3; tests del coordinador (13) y de AccionesContacto (20); recarga, remount, ambos órdenes, cola y dos pestañas vistos en el navegador.
     - ✓ F1.1.1 — lib/intencion-contacto.ts + 11 tests (commit 6a920143): cola por pestaña con actor, lead, canal, número, hora, caducidad (2 h) y formulario abierto; sobrevive a la recarga (sessionStorage); una cabeza a la vez. Nadie lo usa todavía: se integra en F1.1.2. (30/09/2026, 10:21 a. m.)
     - ✓ F1.1.2 — AccionesContacto y el receptor del enlace comparten la cola (6ca9944f, e08288ee); contexto mínimo en sessionStorage; auth.tsx la vacía al salir y al cambiar de identidad. Tests: AccionesContacto 19, receptor 13. (30/09/2026, 11:05 a. m.)
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 04:46 p. m. · Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza.
 - 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
 - 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
 - 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 11:34 a. m. · Push de la rama (8f25ad34): pre-push con la suite completa en verde tras dar más tiempo a cliente-form.test (decisión de Jhosep). Próximo: build de prueba servida desde el PC para C1.
 - 30/09/2026, 11:18 a. m. · F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1.
 - 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
-- 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
