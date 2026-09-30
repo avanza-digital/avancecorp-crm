@@ -115,6 +115,37 @@ idempotente → reversa → migración → registrador en verde; Codex 2 rondas 
 `MIGRACIONES.md`). Hoy 0 personas toman su nombre del cierre externo (todas tienen perfil o lead).
 Reversa: `supabase/scripts/cartera-personas-visibles/reversa.sql`.
 
+## Paso 2 · Fase 2 — ✅ EN PROD 29/09 ~18:55 Lima (solo pantalla; Miguel publicó con `!`)
+
+Build `build-20260929T235040143Z` (ZIP `crm-20260929T235041Z-6600af0a163a`, commits `6464f72e` + `6445c7cd`
+de la PR #139; publicado desde la rama de rescate `rescue/sondeo-adaptativo-20260929` = lo vivo `b131ffbe` +
+los dos commits, preflight OK). Cambios: `respuestas-tasa-provider.tsx` pregunta cada 15 s solo con una
+solicitud propia pendiente (`estado_efectivo`) o con la última consulta fallida, y cada 2 min en reposo; sigue
+en segundo plano (aviso de escritorio/sonido); `crm-queries.ts` deja una señal `storage`
+(`ac-crm-solicitud-tasa-creada-v1`, solo la hora) al crear una solicitud para que las otras pestañas consulten
+al instante; `postventa-queries.ts` 15 s → 60 s. Residual: desde otro dispositivo la pendiente se descubre en
+≤ 2 min. Verificación: check 4.929, E2E Docker 18/18 (3 escenarios de `respuestas-tasa.spec.ts` ahora parten
+de la solicitud pendiente), Codex LEVEL 2 CHANGES_REQUESTED → aplicado. Línea base de llamadas antes de
+publicar (23:51 UTC): `solicitudes_tasa_fn` 94.537, `postventa_estado_fn` 2.934, `postventa_ficha_fn` 1.070;
+la reducción se mide al día siguiente (los navegadores recargan el bundle poco a poco).
+🔑 Trampas de esta fase: el ZIP de release exige los `.env` de `app/` (copiarlos al worktree); una prueba E2E
+que salte de «sin solicitud» a «respondida» sin «pendiente» depende del sondeo fijo y ya no es realista.
+
+## Paso 3 · Fase 1 — ✅ EN PROD 29/09 ~19:35 Lima (Miguel aplicó con `!`)
+
+La lista de tareas (`tareas_pendientes_fn`, 22 ms) arrastra la agenda de postventa (`postventa_agenda_fn`) en cada
+carga de Hoy/agenda de todos (~1.300 veces al día). De sus 509–532 ms, 320–338 eran `postventa_perfil_ids` en
+`private.postventa_tarea_json`: por cada una de las 16 tareas se recorrían las 565 personas con
+`inversionista_canonica()` dos veces por fila. Migración `20260930000550_crm_postventa_tarea_json_por_familia`:
+las candidatas salen de la FAMILIA de la persona (CTE recursiva desde su raíz canónica, tope 16) y sobre ese puñado
+se aplica el mismo predicado de antes (superconjunto → idéntico también con ciclos). Verificado: agenda 16 tareas en
+**211 ms**; oráculo 13/13 idéntico (16 tareas fila a fila + 4 roles); prueba sintética 24/0; ciclo deshecho; Codex
+APPROVE; auditor-rls PASS (riesgo aceptado: hoy ninguna persona tiene padre, la rama recursiva se demuestra
+analítica y sintéticamente). PR #140 (apilada sobre #138). Reversa: `scripts/postventa-tarea-familia/reversa.sql`.
+Queda de la agenda: ~0,2 s en dos llamadas a `postventa_estado_fn` (antes y después) + `postventa_visible` por tarea.
+🔑 Trampa: la huella `md5(pg_get_functiondef)` incluye el salto de línea final que Postgres añade; calcularla en la
+base (ensayo deshecho), no en local.
+
 ## Plan técnico original del paso 2 (superado por la medición de arriba; se conserva como historia)
 
 - **Fase 1 (servidor, LEVEL 3):** `private.cartera_f5_personas_visibles(uuid)` y `private.cartera_f5_listar`:

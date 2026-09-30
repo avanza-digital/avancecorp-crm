@@ -1,7 +1,9 @@
 ## 20260930000550 — Agenda de postventa: los perfiles de la persona se buscan en su familia (`private.postventa_tarea_json`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 3 · fase 1 del refactor por módulos, aprobado por Miguel
-el 29/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+**✅ EN PROD 29/09/2026 ~19:35 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930000550 /
+crm_postventa_tarea_json_por_familia`) → `verificar.sql`: huella `bff893c5…` OK, `postventa_agenda_fn` 16 tareas en
+**211 ms** (antes ~530; meta < 250), `tareas_pendientes_fn` 26 ms. Advisors: sin cambios ni avisos de esta función
+(ver línea de cierre).** Paso 3 · fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
 escritura (2026-09-29)».
 
 Problema medido (29/09, producción): la lista de tareas (`tareas_pendientes_fn`, 22 ms) arrastra la agenda de
