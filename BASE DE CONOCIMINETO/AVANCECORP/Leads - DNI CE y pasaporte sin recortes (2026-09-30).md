@@ -1,55 +1,52 @@
 # Leads - DNI CE y pasaporte sin recortes (2026-09-30)
 
-Estado: implementado y probado localmente; SIN PUBLICAR. El usuario autorizó
-ampliar el guardado de base y probar en un banco aislado, con publicación aparte.
+Estado: **PUBLICADO y verificado** en https://crm.miavance.com el 30/09/2026.
+Miguel autorizó la publicación con «dale ya pouedes», y precisó «Solo documentos;
+mantener F1 pendiente». La pausa anterior queda levantada para documentos.
 
-El alta de leads limitaba el DNI a ocho caracteres; la edición borraba letras
-y recortaba a ocho dígitos. Un CE podía quedar guardado como otro DNI. La
-conversión rechazaba correctamente ese número distinto. El arreglo conserva
-esa defensa y añade el selector DNI/CE/pasaporte al alta y a la edición.
-
+El alta limitaba el DNI a ocho caracteres; la edición borraba letras y recortaba
+números. Un CE podía terminar guardado como otro DNI y la conversión lo rechazaba.
+Ahora alta y edición permiten DNI/CE/pasaporte y conservan el número completo.
 `crm.leads.dni` sigue siendo exclusivamente DNI. CE/pasaporte se guardan en la
-[[Identidad unificada del CRM]], conservando el número completo y sus ceros.
-Ficha y conversión consultan el mismo documento canónico; si falla esa consulta,
-no se sustituye silenciosamente por el DNI antiguo. Guardar documento y otros
-campos es atómico y el formulario espera la confirmación real.
+[[Identidad unificada del CRM]], conservando sus ceros y letras admitidas.
+Ficha y conversión consultan el mismo documento canónico; si falla la consulta,
+se bloquea el guardado/conversión y se permite reintentar. Documento y ficha se
+guardan atómicamente y el formulario espera la confirmación real.
 
-Un documento ya reconocido solo lo corrige Administración, con motivo y auditoría,
-mediante la puerta existente descrita en
-[[Correccion administrativa del documento de clientes]]. El formulario muestra
-ese permiso. Si hay enlaces históricos o varios documentos que impiden dejar
-el lead coherente, se exige conciliación y se revierte toda la operación.
-No se modificaron registros reales ni se adivinaron números que ya se recortaron.
+Un documento reconocido solo lo corrige Administración, con motivo y auditoría,
+mediante [[Correccion administrativa del documento de clientes]]. No basta el
+rol gerencia del CRM. Identidades ambiguas o enlaces históricos incoherentes se
+rechazan sin cambios parciales. No se adivinan documentos históricos truncados.
+El caso comunicado requiere ingresar el CE real completo mediante esa corrección;
+el contrato se conserva, no se elimina ni se vuelve a crear.
 
-Migración: `20260930193325_crm_documentos_lead.sql`, cuatro RPC y un validador
-privado, sin cambios a tablas/policies/triggers/public. Preflight de diez huellas
-de las funciones existentes. Banco Docker sintético `lead_documentos_20260930`.
-44 aserciones SQL, concurrencia de dos sesiones y reversa/reaplicación PASS.
-`npm run check`: 4958 tests, tipos, lint, build y bundle PASS; 33 E2E focales Docker
-PASS. Acta vigente y resultados de regresión general en
-`CRM-Avance-Corp/supabase/scripts/lead-documentos/README.md`.
+## Publicación comprobada
 
-La revisión inicial de Claude pidió cambios que se incorporaron y comprobaron;
-el intento final terminó sin dictamen válido y NO cuenta como aprobación.
-Rama remota, matriz HTTP RLS completa y advisors pendientes antes de publicar.
-Relación: [[Conversion de lead con Nueva inversion - preparado 2026-09-19]].
+- PR151 fusionado: Main `be280b6c51e5dd58139ae8c91eb1b4598696852c`.
+- El preflight rechazó su ascendencia tras el squash. Se aplicó la excepción
+  de rescate desde el vivo, con árbol idéntico a Main y preflight PASS.
+- Fuente realmente publicada: `6a9ad5e685a2c595924cc0bccf2df31678e36948`.
+- Build `build-20260930T225943345Z`;
+  ZIP `crm-20260930T225944Z-6a9ad5e685a2.zip`;
+  SHA-256 `caf2408ef5689a6068e436b4eeefd5163015819601b067cb22634e7ac0627b80`.
+- Hostinger MCP success. HTTP 200, 94 hashes de archivos y portada PASS.
+- Chrome: acceso y selector DNI/CE/pasaporte verificados; formulario cancelado.
+- SQL `20260930193325` publicado mediante merge_branch y catálogo cotejado.
+  Sin cambios a tablas/policies/triggers/public, Edge ni buckets.
+- Banco temporal autorizado eliminado; advisors sin avisos nuevos.
+- F1 Llamadas sigue pendiente, con sus módulos preservados y sin activar.
 
+Check final: 5100 tests PASS. Docker: 298 PASS, 26 omitidas, 0 fallos.
+SQL remoto 52, HTTP real 12, RLS contractual 287 e identidad D5 30: PASS.
+Concurrencia, reversa/reaplicación y equivalencia de árboles: PASS.
+Las observaciones de Claude se evaluaron con evidencia; no se obtuvo ni se
+atribuye una aprobación independiente PASS.
 
-## Preparación y espera de publicación
+Acta final: `CRM-Avance-Corp/docs/publicaciones/documentos-lead-2026-09-30.md`.
+Artefactos y recibos saneados en `CRM-Avance-Corp/releases/`. Las actas previas
+bajo `supabase/scripts/lead-documentos` conservan estados de preparación como
+historial; esta nota y el acta final registran la publicación efectiva.
 
-Miguel pidió preparar la publicación y autorizó banco remoto hasta US$1. Después
-indicó «espera mi aviso para publicar, deja todo preparado mientras»: **esperar
-nuevo aviso para producción**. Código integrado sin perder Coordinación: 5.021
-pruebas PASS, Docker 298 PASS / 26 omitidas, SQL final 52 PASS. Review evaluado y
-guardas adicionales probadas. No se hizo push, merge SQL ni deploy.
-
-Banco remoto propio eliminado: replay histórico falló y Storage no tenía tenant
-config (HTTP 400). Aplicación candidata remota, matriz HTTP y advisors NOT RUN;
-resolver ese prerrequisito al retomar. Acta técnica y próximos pasos en
-`CRM-Avance-Corp/supabase/scripts/lead-documentos/README.md`. Se conserva paquete
-preparado y copia Git limpia para integrar sin alterar trabajos del checkout
-habitual. El contrato del caso se conserva; falta ingresar el CE real completo
-mediante corrección administrativa cuando se publique.
-
-Relacionadas: [[Main unico - sincronizacion y publicacion 2026-09-04]] y
+Relacionadas: [[Main unico - sincronizacion y publicacion 2026-09-04]],
+[[Conversion de lead con Nueva inversion - preparado 2026-09-19]] y
 [[Identidad unificada de inversionistas - plan pendiente]].
