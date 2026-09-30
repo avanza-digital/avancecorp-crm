@@ -101,6 +101,31 @@ export interface RutaHash {
   inversionistaId?: string
   solicitudTasaId?: string
   detalleGestion?: DetalleGestion
+  /** El número que trae el enlace del celular al colgar (F1.2.1), tal cual llegó. */
+  llamadaNumero?: string
+}
+
+/**
+ * Vistas que reciben el enlace del celular «#/<vista>/llamada/<numero>» (plan
+ * «Llamadas desde el celular al CRM», F1.2.1): Hoy, como dice el plan, y
+ * Gestión Diaria, donde aterriza la macro del piloto (Jhosep, 30/09/2026).
+ */
+export const VISTAS_CON_LLAMADA = ['hoy', 'gestion-diaria'] as const satisfies readonly Vista[]
+
+export function admiteLlamada(vista: Vista): boolean {
+  return (VISTAS_CON_LLAMADA as readonly Vista[]).includes(vista)
+}
+
+/**
+ * El número tal cual lo deja un marcador: `+` opcional y hasta 39 caracteres
+ * entre dígitos (al menos uno), espacios, paréntesis, punto y guion. Los códigos
+ * de servicio (`*123#`) no entran: no son leads. Acota lo que viaja en el hash;
+ * canonizar y buscar es del receptor, no del router.
+ */
+const NUMERO_LLAMADA = /^\+?(?=.*\d)[0-9 ().-]{1,39}$/
+
+export function numeroLlamadaValido(valor: string): boolean {
+  return NUMERO_LLAMADA.test(valor)
 }
 
 export type DetalleGestion = { tipo: 'equipo' | 'analista'; id: string } | { tipo: 'cola' }
@@ -146,13 +171,18 @@ function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is D
     && (UUID_PERSONA.test(detalle.id) || ID_PERSONA_DEMO.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))))
 }
 
-export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): string {
+export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string): string {
   if (vista === 'gestion-diaria' && detalleGestionValido(detalleGestion)) {
     const seccion = detalleGestion.tipo === 'cola' ? 'cola' : `${detalleGestion.tipo}/${detalleGestion.id}`
     return `#/gestion-diaria/${seccion}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
   }
   if (vista === 'hoy' && !leadId && solicitudTasaId && UUID_PERSONA.test(solicitudTasaId)) return `#/hoy/solicitud-tasa/${solicitudTasaId}`
   if (vista === 'mi-cartera' && !leadId && inversionistaId && UUID_PERSONA.test(inversionistaId)) return `#/mi-cartera/inversionista/${inversionistaId}`
+  // F1.2.1: el enlace del celular. Solo se codifica SU segmento (el `+` vuelve
+  // intacto al leer) y solo sin ficha: al abrirse el lead, el número ya cumplió.
+  if (!leadId && llamadaNumero !== undefined && admiteLlamada(vista) && numeroLlamadaValido(llamadaNumero)) {
+    return `#/${vista}/llamada/${encodeURIComponent(llamadaNumero)}`
+  }
   return leadId ? `#/${vista}/lead/${encodeURIComponent(leadId)}` : `#/${vista}`
 }
 
@@ -175,7 +205,17 @@ export function leerHash(): RutaHash {
   }
   const inversionistaId = vista === 'mi-cartera' && partes[1] === 'inversionista' && partes[2] && UUID_PERSONA.test(partes[2]) ? partes[2] : undefined
   const solicitudTasaId = vista === 'hoy' && partes[1] === 'solicitud-tasa' && partes[2] && UUID_PERSONA.test(partes[2]) ? partes[2] : undefined
-  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}), ...(detalleGestion ? { detalleGestion } : {}) }
+  let llamadaNumero: string | undefined
+  if (vista && admiteLlamada(vista) && partes[1] === 'llamada' && partes[2]) {
+    try {
+      // Llega codificado (`%2B51…`) o crudo (`+51…`): las dos formas dan el mismo número.
+      const crudo = decodeURIComponent(partes[2])
+      if (numeroLlamadaValido(crudo)) llamadaNumero = crudo
+    } catch {
+      // %-escape malformado → sin número (el receptor no tiene nada que buscar)
+    }
+  }
+  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}), ...(detalleGestion ? { detalleGestion } : {}), ...(llamadaNumero ? { llamadaNumero } : {}) }
 }
 
 /**
@@ -185,8 +225,8 @@ export function leerHash(): RutaHash {
  * historial (rutas desconocidas, leads fuera de ámbito). OJO: replaceState
  * NO dispara `hashchange` — el caller ya debe tener el estado correcto.
  */
-export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion): void {
-  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId, detalleGestion)
+export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string): void {
+  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId, detalleGestion, llamadaNumero)
   if (window.location.hash === destino) return
   if (reemplazar) {
     history.replaceState(null, '', destino)
