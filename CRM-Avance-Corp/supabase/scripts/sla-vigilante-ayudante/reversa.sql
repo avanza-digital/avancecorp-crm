@@ -19,7 +19,7 @@ begin
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
     raise notice 'REVERSA: ya está el guardián vivo del 30/09 (%)', v_md5; return;
   end if;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then raise exception 'REVERSA: huella desconocida (%), no se toca', v_md5; end if;
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then raise exception 'REVERSA: huella desconocida (%), no se toca', v_md5; end if;
   execute $def$
 CREATE OR REPLACE FUNCTION private.assert_sla_avisos()
  RETURNS text

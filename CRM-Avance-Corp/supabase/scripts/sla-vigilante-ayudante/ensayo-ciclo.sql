@@ -1,4 +1,4 @@
--- ENSAYO DESHECHO del ciclo (migración → repetida → 3 NEGATIVOS → reversa → migración → registrador): cuerpos sin begin/commit; termina en raise y rollback.
+-- ENSAYO DESHECHO del ciclo (migración → repetida → 4 NEGATIVOS → reversa → migración → registrador): cuerpos sin begin/commit; termina en raise y rollback.
 begin;
 set local lock_timeout = '10s';
 do $mig$
@@ -14,8 +14,9 @@ begin
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'PREFLIGHT: dueño/ACL/definer/volatilidad/search_path del guardián vivo no son los esperados (dueño %, acl %, definer %, vol %, cfg %)', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
-  if v_md5 = 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 = '9b9edc86c3a55d89367b6d64203d38dc' then
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+    raise notice 'assert_gestion_diaria: %', left(private.assert_gestion_diaria(), 60);
     raise notice 'sla_vigilante_ayudante: ya aplicada (huella %)', v_md5;
     return;
   end if;
@@ -65,7 +66,10 @@ begin
   end if;
   select regexp_replace(regexp_replace(lower(p.prosrc),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','gs')
     into strict v_cuerpo from pg_proc p where p.oid='crm.avisos_sla_resumen_v2_fn()'::regprocedure;
-  if v_cuerpo !~ '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,' then
+  -- Toda llamada al núcleo desde el resumen debe ir acotada por el ayudante: no basta con que exista una (Codex, 30/09).
+  if regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(') < 1
+     or regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(')
+        <> regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,') then
     raise exception 'SLA avisos: el resumen dejo de evaluar solo las oportunidades operativas';
   end if;
   return 'OK: avisos derivados del nucleo, con autoridad y resumen completo';
@@ -75,7 +79,7 @@ $def$;
 
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then
     raise exception 'POSTFLIGHT: huella inesperada del guardián (%)', v_md5;
   end if;
   if (v_owner = 'postgres' and v_acl is not null and v_acl = '{postgres=X/postgres}' and v_secdef is true and v_vol = 's'
@@ -100,8 +104,9 @@ begin
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'PREFLIGHT: dueño/ACL/definer/volatilidad/search_path del guardián vivo no son los esperados (dueño %, acl %, definer %, vol %, cfg %)', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
-  if v_md5 = 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 = '9b9edc86c3a55d89367b6d64203d38dc' then
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+    raise notice 'assert_gestion_diaria: %', left(private.assert_gestion_diaria(), 60);
     raise notice 'sla_vigilante_ayudante: ya aplicada (huella %)', v_md5;
     return;
   end if;
@@ -151,7 +156,10 @@ begin
   end if;
   select regexp_replace(regexp_replace(lower(p.prosrc),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','gs')
     into strict v_cuerpo from pg_proc p where p.oid='crm.avisos_sla_resumen_v2_fn()'::regprocedure;
-  if v_cuerpo !~ '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,' then
+  -- Toda llamada al núcleo desde el resumen debe ir acotada por el ayudante: no basta con que exista una (Codex, 30/09).
+  if regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(') < 1
+     or regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(')
+        <> regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,') then
     raise exception 'SLA avisos: el resumen dejo de evaluar solo las oportunidades operativas';
   end if;
   return 'OK: avisos derivados del nucleo, con autoridad y resumen completo';
@@ -161,7 +169,7 @@ $def$;
 
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then
     raise exception 'POSTFLIGHT: huella inesperada del guardián (%)', v_md5;
   end if;
   if (v_owner = 'postgres' and v_acl is not null and v_acl = '{postgres=X/postgres}' and v_secdef is true and v_vol = 's'
@@ -174,21 +182,12 @@ $def$;
 end $mig$;
 select set_config('ensayo.h1b', md5(pg_get_functiondef('private.assert_sla_avisos()'::regprocedure)), true);
 
--- NEGATIVOS: con el guardián ampliado aplicado, cada alteración debe hacerlo saltar (cada una en su subtransacción, deshecha).
 do $neg$ declare g text; begin
-  -- NEG1: permiso de más al ayudante
-  begin
-    execute 'grant execute on function private.sla_leads_operativos() to authenticated';
-    g := private.assert_sla_avisos();
-    raise exception 'NEG1 FALLO: el guardián aceptó un ayudante ejecutable por authenticated';
-  exception when others then if sqlerrm like 'NEG1%%' then raise; end if; perform set_config('ensayo.neg1', left(sqlerrm,110), true); end;
+  begin execute 'grant execute on function private.sla_leads_operativos() to authenticated'; g := private.assert_sla_avisos(); raise exception 'NEG1 FALLO';
+  exception when others then if sqlerrm like 'NEG1%%' then raise; end if; perform set_config('ensayo.neg1', left(sqlerrm,90), true); end;
   execute 'revoke execute on function private.sla_leads_operativos() from authenticated';
-  -- NEG2: cuerpo del ayudante alterado
-  begin
-    execute $alt$create or replace function private.sla_leads_operativos() returns uuid[] language sql stable set search_path to '' as 'select ''{}''::uuid[]'$alt$;
-    g := private.assert_sla_avisos();
-    raise exception 'NEG2 FALLO: el guardián aceptó un ayudante con otro cuerpo';
-  exception when others then if sqlerrm like 'NEG2%%' then raise; end if; perform set_config('ensayo.neg2', left(sqlerrm,110), true); end;
+  begin execute $alt$create or replace function private.sla_leads_operativos() returns uuid[] language sql stable set search_path to '' as 'select ''{}''::uuid[]'$alt$; g := private.assert_sla_avisos(); raise exception 'NEG2 FALLO';
+  exception when others then if sqlerrm like 'NEG2%%' then raise; end if; perform set_config('ensayo.neg2', left(sqlerrm,90), true); end;
   execute $def$CREATE OR REPLACE FUNCTION private.sla_leads_operativos()
  RETURNS uuid[]
  LANGUAGE sql
@@ -202,11 +201,8 @@ AS $function$
   from crm.leads l
   where l.activo is true
     and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada');
-$function$$def$;
-  execute 'revoke all on function private.sla_leads_operativos() from public, anon, authenticated, service_role';
-  -- NEG3: el resumen vuelve a pedir todas las oportunidades
-  begin
-    execute $def$CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()
+$function$$def$; execute 'revoke all on function private.sla_leads_operativos() from public, anon, authenticated, service_role';
+  begin execute $def$CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
@@ -234,10 +230,43 @@ begin
   return (v_datos-'filas'-'contexto_ambito')||jsonb_build_object(
     'total_oportunidades',v_total,'total_avisos',v_avisos,'criticas',v_criticas,'grupos',v_grupos);
 end;
-$function$$def$;
-    g := private.assert_sla_avisos();
-    raise exception 'NEG3 FALLO: el guardián aceptó el resumen sin el ayudante';
-  exception when others then if sqlerrm like 'NEG3%%' then raise; end if; perform set_config('ensayo.neg3', left(sqlerrm,110), true); end;
+$function$$def$; g := private.assert_sla_avisos(); raise exception 'NEG3 FALLO';
+  exception when others then if sqlerrm like 'NEG3%%' then raise; end if; perform set_config('ensayo.neg3', left(sqlerrm,90), true); end;
+  begin execute $def$CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_datos jsonb;v_total integer;v_avisos integer;v_criticas integer;v_grupos jsonb;
+begin
+  -- Misma ventana autorizada y mismo instante que ficha y cola. El conteo
+  -- incluye toda la cartera visible, sin depender del lote local ni pagina.
+  -- Solo las oportunidades que pueden avisar: activas y en etapa comercial (las descartadas y
+  -- convertidas son «lead_terminal» en el núcleo y nunca producen avisos ni «pendientes»; 1.139 de
+  -- 2.583 el 29/09/2026). El núcleo, su autoridad y su reloj no cambian; el ayudante vive en
+  -- private porque este adaptador no puede leer hechos crudos (assert_sla_avisos).
+  v_datos:=private.sla_operacion_autorizada(private.sla_leads_operativos(),true);
+  perform private.sla_operacion_autorizada(null,true);
+  with filas as materialized (
+    select f.value from jsonb_array_elements(v_datos->'filas') f
+    where v_datos->>'modo'='activo' and (f.value#>>'{senales,pendientes}')::boolean
+  ), avisos as materialized (
+    select a.value from filas f cross join lateral jsonb_array_elements(f.value#>'{estado,avisos}') a
+  ), grupos as (
+    select a.value->>'bucket' as bucket,count(*) as total,
+      min((a.value->>'prioridad')::integer) as prioridad
+    from avisos a group by a.value->>'bucket'
+  )
+  select (select count(*) from filas),(select count(*) from avisos),
+    (select count(*) from avisos a where a.value->>'severidad'='critica'),
+    coalesce((select jsonb_agg(jsonb_build_object('bucket',g.bucket,'total',g.total) order by g.prioridad) from grupos g),'[]'::jsonb)
+  into v_total,v_avisos,v_criticas,v_grupos;
+  return (v_datos-'filas'-'contexto_ambito')||jsonb_build_object(
+    'total_oportunidades',v_total,'total_avisos',v_avisos,'criticas',v_criticas,'grupos',v_grupos);
+end;
+$function$$def$; g := private.assert_sla_avisos(); raise exception 'NEG4 FALLO: el guardián aceptó un resumen con una segunda llamada amplia';
+  exception when others then if sqlerrm like 'NEG4%%' then raise; end if; perform set_config('ensayo.neg4', left(sqlerrm,90), true); end;
   execute $def$CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -271,8 +300,7 @@ begin
     'total_oportunidades',v_total,'total_avisos',v_avisos,'criticas',v_criticas,'grupos',v_grupos);
 end;
 $function$$def$;
-  g := private.assert_sla_avisos();
-  perform set_config('ensayo.restaurado', g, true);
+  g := private.assert_sla_avisos(); perform set_config('ensayo.restaurado', g, true);
 end $neg$;
 
 do $rev$
@@ -292,7 +320,7 @@ begin
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
     raise notice 'REVERSA: ya está el guardián vivo del 30/09 (%)', v_md5; return;
   end if;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then raise exception 'REVERSA: huella desconocida (%), no se toca', v_md5; end if;
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then raise exception 'REVERSA: huella desconocida (%), no se toca', v_md5; end if;
   execute $def$
 CREATE OR REPLACE FUNCTION private.assert_sla_avisos()
  RETURNS text
@@ -349,8 +377,9 @@ begin
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'PREFLIGHT: dueño/ACL/definer/volatilidad/search_path del guardián vivo no son los esperados (dueño %, acl %, definer %, vol %, cfg %)', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
-  if v_md5 = 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 = '9b9edc86c3a55d89367b6d64203d38dc' then
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+    raise notice 'assert_gestion_diaria: %', left(private.assert_gestion_diaria(), 60);
     raise notice 'sla_vigilante_ayudante: ya aplicada (huella %)', v_md5;
     return;
   end if;
@@ -400,7 +429,10 @@ begin
   end if;
   select regexp_replace(regexp_replace(lower(p.prosrc),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','gs')
     into strict v_cuerpo from pg_proc p where p.oid='crm.avisos_sla_resumen_v2_fn()'::regprocedure;
-  if v_cuerpo !~ '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,' then
+  -- Toda llamada al núcleo desde el resumen debe ir acotada por el ayudante: no basta con que exista una (Codex, 30/09).
+  if regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(') < 1
+     or regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(')
+        <> regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,') then
     raise exception 'SLA avisos: el resumen dejo de evaluar solo las oportunidades operativas';
   end if;
   return 'OK: avisos derivados del nucleo, con autoridad y resumen completo';
@@ -410,7 +442,7 @@ $def$;
 
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then
     raise exception 'POSTFLIGHT: huella inesperada del guardián (%)', v_md5;
   end if;
   if (v_owner = 'postgres' and v_acl is not null and v_acl = '{postgres=X/postgres}' and v_secdef is true and v_vol = 's'
@@ -429,7 +461,7 @@ declare
 begin
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then
     raise exception 'REGISTRO: el guardián no tiene la huella nueva (%); aplica primero la migración 20260930154341', v_md5;
   end if;
   -- Invariantes que la huella NO cubre: dueño y ACL exacta (nunca NULL); DEFINER, STABLE y search_path vacío (guardado
@@ -486,7 +518,10 @@ begin
   end if;
   select regexp_replace(regexp_replace(lower(p.prosrc),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','gs')
     into strict v_cuerpo from pg_proc p where p.oid='crm.avisos_sla_resumen_v2_fn()'::regprocedure;
-  if v_cuerpo !~ '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,' then
+  -- Toda llamada al núcleo desde el resumen debe ir acotada por el ayudante: no basta con que exista una (Codex, 30/09).
+  if regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(') < 1
+     or regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(')
+        <> regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,') then
     raise exception 'SLA avisos: el resumen dejo de evaluar solo las oportunidades operativas';
   end if;
   return 'OK: avisos derivados del nucleo, con autoridad y resumen completo';
@@ -504,8 +539,8 @@ begin
 end $post$;
 select version, name from supabase_migrations.schema_migrations where version = '20260930154341';
 do $$ begin
-  raise exception E'CICLO (rollback)\nmig: % (esperado c90f23b0…)\nmig repetida: %\nNEG1 permiso de más: %\nNEG2 cuerpo alterado: %\nNEG3 resumen sin ayudante: %\nrestaurado: %\nreversa: % (esperado bf835965…)\nmig otra vez: %\nregistro: %',
-    current_setting('ensayo.h1',true), current_setting('ensayo.h1b',true), current_setting('ensayo.neg1',true), current_setting('ensayo.neg2',true), current_setting('ensayo.neg3',true), current_setting('ensayo.restaurado',true),
+  raise exception E'CICLO (rollback)\nmig: % (esperado 9b9edc86…)\nmig repetida (con guardián y paraguas): %\nNEG1 permiso de más: %\nNEG2 cuerpo alterado: %\nNEG3 resumen sin ayudante: %\nNEG4 resumen con segunda llamada amplia: %\nrestaurado: %\nreversa: % (esperado bf835965…)\nmig otra vez: %\nregistro: %',
+    current_setting('ensayo.h1',true), current_setting('ensayo.h1b',true), current_setting('ensayo.neg1',true), current_setting('ensayo.neg2',true), current_setting('ensayo.neg3',true), current_setting('ensayo.neg4',true), current_setting('ensayo.restaurado',true),
     current_setting('ensayo.h2',true), current_setting('ensayo.h3',true),
     (select version||' / '||name||' / '||cardinality(statements)||' sentencia(s)' from supabase_migrations.schema_migrations where version='20260930154341');
 end $$;

@@ -10,7 +10,7 @@ declare
 begin
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 is distinct from 'c90f23b049f1777eef68db925d6b8b57' then
+  if v_md5 is distinct from '9b9edc86c3a55d89367b6d64203d38dc' then
     raise exception 'REGISTRO: el guardián no tiene la huella nueva (%); aplica primero la migración 20260930154341', v_md5;
   end if;
   -- Invariantes que la huella NO cubre: dueño y ACL exacta (nunca NULL); DEFINER, STABLE y search_path vacío (guardado
@@ -67,7 +67,10 @@ begin
   end if;
   select regexp_replace(regexp_replace(lower(p.prosrc),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','gs')
     into strict v_cuerpo from pg_proc p where p.oid='crm.avisos_sla_resumen_v2_fn()'::regprocedure;
-  if v_cuerpo !~ '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,' then
+  -- Toda llamada al núcleo desde el resumen debe ir acotada por el ayudante: no basta con que exista una (Codex, 30/09).
+  if regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(') < 1
+     or regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(')
+        <> regexp_count(v_cuerpo, '\mprivate\.sla_operacion_autorizada\s*\(\s*private\.sla_leads_operativos\s*\(\s*\)\s*,') then
     raise exception 'SLA avisos: el resumen dejo de evaluar solo las oportunidades operativas';
   end if;
   return 'OK: avisos derivados del nucleo, con autoridad y resumen completo';

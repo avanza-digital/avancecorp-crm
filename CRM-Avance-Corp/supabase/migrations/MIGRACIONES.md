@@ -10,20 +10,27 @@ Cambio: el guardián `private.assert_sla_avisos()` (corre en cada migración del
 `{postgres=X/postgres}`; y `crm.avisos_sla_resumen_v2_fn` sigue pasándolo a `sla_operacion_autorizada` (regex sobre
 `prosrc` sin comentarios, como el resto del guardián). Mismo texto de OK. Nada más cambia. Cualquier cambio legítimo
 futuro del ayudante exige resellar aquí (patrón de la casa). Huellas del guardián: viva
-`bf835965ea92cb14265b08b5e5b4f121` → nueva `c90f23b049f1777eef68db925d6b8b57` (medida en la base). Idempotente
-(la ruta «ya aplicada» pasa el guardián) y fail-closed.
+`bf835965ea92cb14265b08b5e5b4f121` → nueva `9b9edc86c3a55d89367b6d64203d38dc` (medida en la base). Idempotente
+(la ruta «ya aplicada» pasa el guardián ampliado y el paraguas) y fail-closed.
 
 **Ciclo ensayado en producción con rollback** (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`): migración → repetida →
 **tres negativos** (NEG1 `grant execute` del ayudante a `authenticated` → salta «el ayudante … no es el esperado»; NEG2
 cuerpo del ayudante sustituido → mismo salto; NEG3 resumen restaurado a `(null,true)` → salta «el resumen dejo de
-evaluar solo las oportunidades operativas»; todo restaurado → guardián OK) → reversa (guardián vivo) → migración →
-registrador (1 sentencia); después: huella viva intacta, 0 registros, ACL del ayudante intacta.
+evaluar solo las oportunidades operativas»; **NEG4** resumen con la llamada acotada Y una segunda llamada amplia
+`(null,true)` → salta igual; todo restaurado → guardián OK) → reversa (guardián vivo) → migración → registrador
+(1 sentencia); después: huella viva intacta, 0 registros, ACL del ayudante intacta.
 
 Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930154341_crm_sla_vigilante_ayudante.sql`
 → `supabase/scripts/sla-vigilante-ayudante/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián ampliado OK
 y paraguas OK) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
 
-Reviews: Codex (`docs/encargos/2026-09-30-codex-sla-vigilante-ayudante.md`) y auditor-rls: ver abajo.
+**Reviews (LEVEL 2):** Codex (`docs/encargos/2026-09-30-codex-sla-vigilante-ayudante.md`) CHANGES_REQUESTED → aceptado:
+P2 «la regex solo exigía que EXISTIERA una llamada acotada; un resumen con una segunda llamada amplia `(null,true)`
+pasaría» → ahora el guardián exige que TODAS las llamadas a `sla_operacion_autorizada` del resumen vayan acotadas por
+el ayudante (`regexp_count` de ambas formas igual y ≥ 1) y NEG4 lo prueba; R4 «la ruta idempotente no pasaba el
+paraguas» → añadido. Las tres piezas se regeneraron con la huella nueva y el ciclo se repitió con los archivos
+finales. Limitación deliberada anotada: una llamada con el resultado del ayudante en una variable sería rechazada
+por el trinquete (se escribe la llamada directa). auditor-rls: ver línea siguiente.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
 
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
