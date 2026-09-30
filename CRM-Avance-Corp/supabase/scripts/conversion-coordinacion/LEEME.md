@@ -100,3 +100,20 @@ advisors → front por `/release-crm` (el front v2 exige las claves nuevas; publ
 
 Reversa: `drop` de las cuatro funciones nuevas, volver a aplicar los tres `create function` de
 `20260930185623` y borrar la versión `20260930221500` del registro.
+
+### v2b (tras las revisiones del 30/09 noche)
+
+- El oráculo ya no depende del día: E09a usa el mes ANTERIOR como rango exacto; E09b compara el
+  bruto y exige ajuste 0 solo cuando de verdad es rango; E09b2 (15 del mes anterior → hoy) afirma la
+  invariante en un rango REAL y la aditividad del divisor; E09b3 declara el cruce con un mes sellado.
+- E07 siembra la foto sellada CON desglose (`origenes_ranking.disponible = true`, `cartera` con
+  `operaciones_* ≠ conversiones_*`) para cazar la confusión de claves; la siembra apaga el trigger
+  `trg_cierre_mes_vendedor_10_ranking_origen` solo durante ese `insert` (recalcularía sobre datos
+  vivos que no existen).
+- El registrador acredita las cuatro huellas vivas (`md5(prosrc)`) contra las del artefacto probado
+  en el banco antes de registrar: puerta `b881b83ca8d4dd2f0f081d736828c8c5`, base
+  `0a43b0f3b56026bd2c5bfa4a9d8942d9`, empresa `793a98fc4385fe714fff75290320c564`, totales
+  `e97995f5ffd9109fce87f2e5dafb11a6`. Si en prod difieren, NO registra: averiguar por qué antes.
+- Payload: `cierres.otros`, `periodo.cruza_meses_sellados`, `fuente.modo`. La rama sellada lee
+  `cartera.conversiones_*` (nunca `operaciones_*`).
+

@@ -697,7 +697,8 @@ describe('conversionCoordinacion (crm.conversion_divisor_coordinacion_fn)', () =
       const datos = conversionValida()
       return HttpResponse.json({
         ...datos,
-        periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-09-15', dias: '15' },
+        fuente: { ...datos.fuente, modo: 'rango_vivo' },
+        periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-09-15', dias: '15', cruza_meses_sellados: false },
       })
     }))
     const datos = await conversionCoordinacion({ modo: 'rango', desde: '2026-09-01', hasta: '2026-09-15' })

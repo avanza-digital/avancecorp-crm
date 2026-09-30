@@ -206,6 +206,7 @@ returns table (
   cierres_referido integer,
   cierres_referido_aporte numeric,
   cierres_oficina integer,
+  cierres_otros integer,
   upgrade integer,
   renovacion integer,
   renovacion_aporte numeric,
@@ -249,7 +250,7 @@ begin
     with foto as (
       select f.*,
         coalesce((f.origenes_ranking ->> 'disponible')::boolean, false)
-          and f.cartera is not null as con_desglose
+          and f.cartera ? 'conversiones_upgrade' and f.cartera ? 'conversiones_renovacion' as con_desglose
       from crm.cierre_mes_vendedor f
       where f.periodo = p_desde
     ),
@@ -258,7 +259,8 @@ begin
         sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' = 'formulario')::integer as formulario,
         sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' = 'landing')::integer as landing,
         sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' = 'referido')::integer as referido,
-        sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' = 'oficina')::integer as oficina
+        sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' = 'oficina')::integer as oficina,
+        sum((o.fila ->> 'cierres')::integer) filter (where o.fila ->> 'origen' not in ('formulario', 'landing', 'referido', 'oficina', 'ajuste'))::integer as otros
       from foto f
       cross join lateral pg_catalog.jsonb_array_elements(
         case when pg_catalog.jsonb_typeof(f.origenes_ranking -> 'filas') = 'array'
@@ -283,9 +285,12 @@ begin
            case when f.con_desglose then coalesce(o.referido, 0) end,
            case when f.con_desglose then coalesce(o.referido, 0) * v_cierre.ponderacion_referido end,
            case when f.con_desglose then coalesce(o.oficina, 0) end,
-           case when f.con_desglose then coalesce((f.cartera ->> 'operaciones_upgrade')::integer, 0) end,
-           case when f.con_desglose then coalesce((f.cartera ->> 'operaciones_renovacion')::integer, 0) end,
-           case when f.con_desglose then coalesce((f.cartera ->> 'operaciones_renovacion')::integer, 0) * v_peso_renovacion end,
+           case when f.con_desglose then coalesce(o.otros, 0) end,
+           -- `conversiones_*` (primera operación ELEGIBLE por cliente y mes) es lo que
+           -- suma el numerador; `operaciones_*` cuenta todas y NO sirve aquí.
+           case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_upgrade')::integer, 0) end,
+           case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_renovacion')::integer, 0) end,
+           case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_renovacion')::integer, 0) * v_peso_renovacion end,
            f.con_desglose
     from foto f
     left join por_origen o on o.vendedor_id = f.vendedor_id
@@ -330,6 +335,8 @@ begin
            (count(*) filter (where e.tipo = 'cierre' and e.origen = 'referido'))::integer as cierres_referido,
            coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'cierre' and e.origen = 'referido'), 0::numeric) as cierres_referido_aporte,
            (count(*) filter (where e.tipo = 'cierre' and e.origen = 'oficina'))::integer as cierres_oficina,
+           -- Otros orígenes admitidos (otro, web, campaña, whatsapp…) tampoco pesan; se cuentan para no esconderlos.
+           (count(*) filter (where e.tipo = 'cierre' and coalesce(e.origen, '') not in ('formulario', 'landing', 'referido', 'oficina')))::integer as cierres_otros,
            (count(*) filter (where e.tipo = 'operacion' and e.categoria = 'upgrade'))::integer as upgrade,
            (count(*) filter (where e.tipo = 'operacion' and e.categoria = 'renovacion'))::integer as renovacion,
            coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'operacion' and e.categoria = 'renovacion'), 0::numeric) as renovacion_aporte
@@ -361,6 +368,7 @@ begin
          coalesce(c.cierres_referido, 0),
          coalesce(c.cierres_referido_aporte, 0::numeric),
          coalesce(c.cierres_oficina, 0),
+         coalesce(c.cierres_otros, 0),
          coalesce(c.upgrade, 0),
          coalesce(c.renovacion, 0),
          coalesce(c.renovacion_aporte, 0::numeric),
@@ -403,10 +411,12 @@ returns table (
   cierres_referido integer,
   cierres_referido_aporte numeric,
   cierres_oficina integer,
+  cierres_otros integer,
   upgrade integer,
   renovacion integer,
   renovacion_aporte numeric,
   desglose_disponible boolean,
+  cruza_sellados boolean,
   sin_analista_presente boolean,
   sin_analista_divisor integer,
   sin_analista_numerador numeric
@@ -463,13 +473,17 @@ begin
       case when v_cierre.periodo is null then coalesce(sum(f.numerador_bruto), 0::numeric) end as numerador_bruto,
       case when v_cierre.periodo is null then coalesce(sum(f.ajuste_pendiente), 0::numeric) end as ajuste_pendiente,
       -- Desglose de la empresa: suma de las filas con desglose. En un mes sellado
-      -- solo si TODAS las filas de la foto lo traen (si no, la suma mentiría).
-      coalesce(bool_and(f.desglose_disponible), v_cierre.periodo is null) as desglose_disponible,
+      -- solo si TODAS las filas de la foto lo traen Y el total no incluye producción
+      -- congelada fuera de las filas (fuera_ranking / sin analista), que no tiene
+      -- desglose: si no, la suma de partes no sería la del numerador.
+      coalesce(bool_and(f.desglose_disponible), v_cierre.periodo is null)
+        and (v_cierre.periodo is null or not exists (select 1 from fuera_foto)) as desglose_disponible,
       coalesce(sum(f.cierres_formulario), 0)::integer as cierres_formulario,
       coalesce(sum(f.cierres_landing), 0)::integer as cierres_landing,
       coalesce(sum(f.cierres_referido), 0)::integer as cierres_referido,
       coalesce(sum(f.cierres_referido_aporte), 0::numeric) as cierres_referido_aporte,
       coalesce(sum(f.cierres_oficina), 0)::integer as cierres_oficina,
+      coalesce(sum(f.cierres_otros), 0)::integer as cierres_otros,
       coalesce(sum(f.upgrade), 0)::integer as upgrade,
       coalesce(sum(f.renovacion), 0)::integer as renovacion,
       coalesce(sum(f.renovacion_aporte), 0::numeric) as renovacion_aporte
@@ -505,10 +519,17 @@ begin
     case when s.desglose_disponible then s.cierres_referido end,
     case when s.desglose_disponible then s.cierres_referido_aporte end,
     case when s.desglose_disponible then s.cierres_oficina end,
+    case when s.desglose_disponible then s.cierres_otros end,
     case when s.desglose_disponible then s.upgrade end,
     case when s.desglose_disponible then s.renovacion end,
     case when s.desglose_disponible then s.renovacion_aporte end,
     s.desglose_disponible,
+    -- Un rango libre que toca meses ya sellados se calcula EN VIVO (como la puerta
+    -- de Gerencia) y puede discrepar de la foto: se declara para que la pantalla avise.
+    (not v_es_mes) and exists (
+      select 1 from crm.periodos_cerrados pc
+      where pc.periodo between pg_catalog.date_trunc('month', p_desde)::date and v_mes
+    ),
     coalesce((select sa.presente from sin_analista sa limit 1), false),
     (select sa.divisor from sin_analista sa limit 1),
     (select sa.numerador from sin_analista sa limit 1)
@@ -606,7 +627,8 @@ begin
       'zona', 'America/Lima',
       'desde', v_desde,
       'hasta', v_hasta,
-      'dias', (v_hasta - v_desde) + 1
+      'dias', (v_hasta - v_desde) + 1,
+      'cruza_meses_sellados', v_totales.cruza_sellados
     ),
     'sellado', v_totales.sellado,
     'peso_referido', v_totales.peso_referido,
@@ -614,7 +636,11 @@ begin
     'fuente', pg_catalog.jsonb_build_object(
       'divisor', 'private.conversion_neta_por_vendedor',
       'origen', 'private.conversion_episodios',
-      'regla', 'una llegada por lead, por su alta original en Lima, en el primer analista asignado'
+      'regla', 'una llegada por lead, por su alta original en Lima, en el primer analista asignado',
+      -- 'foto' = mes sellado servido de crm.cierre_mes_vendedor; 'mensual' = mes abierto
+      -- con la pieza de Metas (bruto, ajuste, neto); 'rango_vivo' = tramo libre calculado
+      -- en vivo sin ajustes ni fotos (precedente: crm.metricas_conversiones_equipo_fn).
+      'modo', case when v_totales.sellado then 'foto' when v_es_mes then 'mensual' else 'rango_vivo' end
     ),
     'empresa', pg_catalog.jsonb_build_object(
       'divisor', v_totales.divisor,
@@ -630,7 +656,8 @@ begin
         'landing', v_totales.cierres_landing,
         'referido', v_totales.cierres_referido,
         'referido_aporte', v_totales.cierres_referido_aporte,
-        'oficina', v_totales.cierres_oficina
+        'oficina', v_totales.cierres_oficina,
+        'otros', v_totales.cierres_otros
       ) end,
       'cartera', case when v_totales.desglose_disponible then pg_catalog.jsonb_build_object(
         'upgrade', v_totales.upgrade,
@@ -663,7 +690,8 @@ begin
             'landing', f.cierres_landing,
             'referido', f.cierres_referido,
             'referido_aporte', f.cierres_referido_aporte,
-            'oficina', f.cierres_oficina
+            'oficina', f.cierres_oficina,
+            'otros', f.cierres_otros
           ) end,
           'cartera', case when f.desglose_disponible then pg_catalog.jsonb_build_object(
             'upgrade', f.upgrade,
@@ -684,7 +712,7 @@ end;
 $function$;
 
 comment on function crm.conversion_divisor_coordinacion_fn(date, date, date) is
-  'Puerta (30/09/2026, v2 con desglose de cierres y rango de fechas): conversión por analista de TODA la empresa para Coordinación (OK de Miguel: divisor, desglose por origen, numerador neto y porcentaje; después pidió de dónde salen los cierres —formulario, landing, referido con su peso, oficina sin peso, upgrade y renovación con su peso— y consultar por rango de fechas). Sin argumentos: mes vigente. p_periodo: ese mes (sellado → foto). p_desde + p_hasta: rango inclusivo en Lima, hasta 366 días, sin futuro; un mes calendario exacto se trata como ese mes; otro rango se calcula en vivo (sin ajustes de meses pagados). Autoriza con private.puede_operar_reparto_crm() (coordinador o gerencia activas; el resto 42501) y delega en los núcleos: nada se recalcula aquí. Sin PII de leads.';
+  'Puerta (30/09/2026, v2 con desglose de cierres y rango de fechas): conversión por analista de TODA la empresa para Coordinación (OK de Miguel: divisor, desglose por origen, numerador neto y porcentaje; después pidió de dónde salen los cierres —formulario, landing, referido con su peso, oficina sin peso, upgrade y renovación con su peso— y consultar por rango de fechas). Sin argumentos: mes vigente. p_periodo: ese mes (sellado → foto). p_desde + p_hasta: rango inclusivo en Lima, hasta 366 días, sin futuro; un mes calendario exacto se trata como ese mes; otro rango se calcula en vivo (sin ajustes de meses pagados; si toca meses sellados lo declara en periodo.cruza_meses_sellados y fuente.modo = rango_vivo). Los cierres de orígenes que no pesan (oficina y otros) se cuentan aparte. Autoriza con private.puede_operar_reparto_crm() (coordinador o gerencia activas; el resto 42501) y delega en los núcleos: nada se recalcula aquí. Sin PII de leads.';
 
 revoke all on function crm.conversion_divisor_coordinacion_fn(date, date, date)
   from public, anon, authenticated, service_role;
@@ -821,27 +849,46 @@ begin
     raise exception 'POSTFLIGHT: el desglose de la empresa no suma el numerador';
   end if;
 
-  -- MODO RANGO sobre datos reales: del 1 del mes vigente a hoy no puede haber
-  -- llegadas ni cierres «del futuro», así que el rango en vivo reproduce el mes
-  -- (mismas filas, divisor, formulario, landing y partes; bruto = neto porque
-  -- el rango no lleva ajuste). Si difiere, la pieza por rango no casa con la mensual.
+  -- MODO RANGO sobre datos reales. (1) Del 1 del mes vigente a hoy no puede haber
+  -- llegadas ni cierres «del futuro», así que el rango en vivo reproduce el BRUTO
+  -- del mes (mismas filas, divisor, formulario, landing y partes). El último día
+  -- del mes ese rango ES el mes (y entonces lleva su ajuste); cualquier otro día
+  -- es un rango libre sin ajuste. (2) El rango que cruza el mes anterior es aditivo
+  -- en el divisor: llegadas del 15 del mes anterior a hoy = del 15 al fin de ese
+  -- mes + del 1 a hoy, analista por analista. Ambas son ciertas cualquier día.
   if exists (
     select 1
     from private.conversion_divisor_empresa(v_mes, v_fin_mes) m
     full join private.conversion_divisor_empresa(v_mes, v_hoy) r
       on coalesce(r.analista_id, '00000000-0000-0000-0000-000000000000'::uuid)
        = coalesce(m.analista_id, '00000000-0000-0000-0000-000000000000'::uuid)
-    where m.analista_id is null and r.analista_id is not null
-       or r.analista_id is null and m.analista_id is not null
-       or m.divisor is distinct from r.divisor
-       or m.divisor_formulario is distinct from r.divisor_formulario
-       or m.cierres_formulario + m.cierres_landing + m.cierres_referido + m.upgrade + m.renovacion
-          is distinct from r.cierres_formulario + r.cierres_landing + r.cierres_referido + r.upgrade + r.renovacion
-       or m.numerador_bruto is distinct from r.numerador_bruto
-       or r.numerador is distinct from r.numerador_bruto
-       or r.ajuste_pendiente is distinct from 0::numeric
+    where (m.analista_id is null and r.analista_id is not null)
+       or (r.analista_id is null and m.analista_id is not null and m.en_nucleo)  -- una fila solo con deuda no existe en el rango
+       or (m.en_nucleo and (
+             m.divisor is distinct from r.divisor
+          or m.divisor_formulario is distinct from r.divisor_formulario
+          or m.cierres_formulario + m.cierres_landing + m.cierres_referido + m.cierres_oficina + m.cierres_otros + m.upgrade + m.renovacion
+             is distinct from r.cierres_formulario + r.cierres_landing + r.cierres_referido + r.cierres_oficina + r.cierres_otros + r.upgrade + r.renovacion
+          or m.numerador_bruto is distinct from r.numerador_bruto))
+       or (v_hoy <> v_fin_mes and r.analista_id is not null and (r.numerador is distinct from r.numerador_bruto or r.ajuste_pendiente is distinct from 0::numeric))
   ) then
-    raise exception 'POSTFLIGHT: el modo rango (1 → hoy) no reproduce el mes vigente';
+    raise exception 'POSTFLIGHT: el modo rango (1 → hoy) no reproduce el bruto del mes vigente';
+  end if;
+  if exists (
+    with a as (select * from private.conversion_divisor_empresa((v_mes - interval '1 month' + interval '14 days')::date, (v_mes - interval '1 day')::date)),
+         b as (select * from private.conversion_divisor_empresa(v_mes, v_hoy)),
+         ab as (select * from private.conversion_divisor_empresa((v_mes - interval '1 month' + interval '14 days')::date, v_hoy))
+    select 1
+    from ab
+    left join a on coalesce(a.analista_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(ab.analista_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    left join b on coalesce(b.analista_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(ab.analista_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    where ab.divisor is distinct from coalesce(a.divisor, 0) + coalesce(b.divisor, 0)
+       or ab.divisor_formulario is distinct from coalesce(a.divisor_formulario, 0) + coalesce(b.divisor_formulario, 0)
+       or ab.cierres_formulario + ab.cierres_landing + ab.cierres_referido + ab.cierres_oficina + ab.upgrade + ab.renovacion
+          is distinct from coalesce(a.cierres_formulario + a.cierres_landing + a.cierres_referido + a.cierres_oficina + a.upgrade + a.renovacion, 0)
+                         + coalesce(b.cierres_formulario + b.cierres_landing + b.cierres_referido + b.cierres_oficina + b.upgrade + b.renovacion, 0)
+  ) then
+    raise exception 'POSTFLIGHT: el rango que cruza el mes anterior no es aditivo en llegadas y conteos';
   end if;
 end;
 $postflight$;
@@ -851,10 +898,25 @@ $migracion_20260930221500$;
   v_nombre text;
   v_sentencias text[];
   v_definicion text;
+  v_firma text;
+  v_md5 text;
 begin
   if v_base is null or v_nucleo is null or v_totales is null or v_puerta is null then
     raise exception 'REGISTRO: faltan las funciones v2 de la conversión de Coordinación';
   end if;
+  -- Los cuerpos VIVOS tienen que ser exactamente los del artefacto que se registra
+  -- (huellas md5 de prosrc medidas al aplicar este mismo archivo en el banco a paridad).
+  -- Un cuerpo distinto —aunque conserve propiedades, ACL y referencias— no se registra.
+  for v_firma, v_md5 in select key, value #>> '{}' from pg_catalog.jsonb_each('{
+    "crm.conversion_divisor_coordinacion_fn(date,date,date)": "b881b83ca8d4dd2f0f081d736828c8c5",
+    "private.conversion_divisor_base(date,date)": "0a43b0f3b56026bd2c5bfa4a9d8942d9",
+    "private.conversion_divisor_empresa(date,date)": "793a98fc4385fe714fff75290320c564",
+    "private.conversion_divisor_empresa_totales(date,date)": "e97995f5ffd9109fce87f2e5dafb11a6"
+  }'::jsonb) loop
+    if (select md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure(v_firma)) is distinct from v_md5 then
+      raise exception 'REGISTRO: el cuerpo vivo de % no es el del artefacto (huella distinta de %)', v_firma, v_md5;
+    end if;
+  end loop;
   if pg_catalog.to_regprocedure('crm.conversion_divisor_coordinacion_fn(date)') is not null then
     raise exception 'REGISTRO: la firma vieja de la puerta sigue viva';
   end if;

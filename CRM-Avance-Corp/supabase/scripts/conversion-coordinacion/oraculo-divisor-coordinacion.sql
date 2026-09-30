@@ -215,7 +215,11 @@ begin
 end;
 $siembra_ok$;
 
--- Mes SELLADO sintético: dos meses atrás, con foto por persona y cobertura.
+-- Mes SELLADO sintético: dos meses atrás, con foto por persona y cobertura. La foto por
+-- persona lleva su desglose por origen escrito a mano: el trigger que lo recalcula al
+-- sellar (`trg_cierre_mes_vendedor_10_ranking_origen`, sobre datos vivos) se apaga para
+-- ESTA siembra, porque aquí no hay datos vivos de hace dos meses. Solo en banco.
+alter table crm.cierre_mes_vendedor disable trigger trg_cierre_mes_vendedor_10_ranking_origen;
 insert into crm.periodos_cerrados (periodo, cerrado_en, cerrado_por, automatico, ponderacion_referido, meta_revision, cobertura)
 values (
   (date_trunc('month', now() at time zone 'America/Lima') - interval '2 months')::date,
@@ -233,13 +237,20 @@ insert into crm.cierre_mes_vendedor (
   periodo, vendedor_id, nombre_completo, supervisor_id, supervisor_nombre, divisor, divisor_aproximado,
   divisor_por_motivo, cierres_no_referidos, cierres_referidos, cierres_de_arrastre, numerador, conversion_pct,
   estado, referidos_recibidos, referidos_dados_de_alta, referidos_aporta_pct, procedencia, ajuste_numerador, ajuste_pen, ajuste_usd,
-  conversion_objetivo
+  conversion_objetivo, cartera, origenes_ranking
 ) values (
   (date_trunc('month', now() at time zone 'America/Lima') - interval '2 months')::date,
   'c0000000-0000-4000-8000-000000000005', 'ORACULO ANA', 'c0000000-0000-4000-8000-000000000003', 'ORACULO SUPERVISORA UNO',
-  40, 0, '{"llegada": 40}'::jsonb, 4, 0, 0, 4, 10.00, 'sellado', 0, 0, null, '[]'::jsonb, 0, 0, 0,
-  8.00
+  -- numerador 4 = 2 formulario + 1 landing + 2 referidos × 0,5 (1) + 0 upgrade… no: con la foto de abajo,
+  -- partes = 2 + 1 + 2×0,5 + 1 upgrade + 2×0,5 renovación = 6 y ajuste_numerador 2 → neto 4.
+  40, 0, '{"llegada": 40}'::jsonb, 3, 2, 0, 4, 10.00, 'sellado', 2, 0, null, '[]'::jsonb, 2, 0, 0,
+  8.00,
+  -- `operaciones_*` cuenta TODAS las operaciones; `conversiones_*` solo la primera elegible por
+  -- cliente y mes, que es la que sumó el numerador. Se siembran distintas para cazar la confusión.
+  '{"conversiones_clientes": 3, "conversiones_renovacion": 2, "conversiones_upgrade": 1, "operaciones_renovacion": 5, "operaciones_upgrade": 4, "capital_renovado_pen": 0, "capital_renovado_usd": 0, "capital_adicional_pen": 0, "capital_adicional_usd": 0, "renovaciones_sin_desglose": 0}'::jsonb,
+  '{"disponible": true, "filas": [{"origen": "formulario", "leads": 20, "cierres": 2}, {"origen": "landing", "leads": 15, "cierres": 1}, {"origen": "referido", "leads": 3, "cierres": 2}, {"origen": "oficina", "leads": 2, "cierres": 1}, {"origen": "whatsapp", "leads": 1, "cierres": 1}]}'::jsonb
 );
+alter table crm.cierre_mes_vendedor enable trigger trg_cierre_mes_vendedor_10_ranking_origen;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Recorrido por las puertas REALES del reparto, como usuario autenticado.
@@ -546,16 +557,25 @@ declare
   v_fin date := (date_trunc('month', now() at time zone 'America/Lima') + interval '1 month' - interval '1 day')::date;
   v_hoy date := (now() at time zone 'America/Lima')::date;
   v_mes_sellado date := (date_trunc('month', now() at time zone 'America/Lima') - interval '2 months')::date;
+  v_mes_previo date := (date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date;
   v_pay_mes jsonb;
   v_pay jsonb;
+  v_pay_prev jsonb;
 begin
   perform set_config('request.jwt.claim.sub', v_coord::text, true);
   v_pay_mes := crm.conversion_divisor_coordinacion_fn(v_mes);
 
-  -- (a) Un rango que es exactamente el mes calendario ES el mes (misma foto, salvo el reloj).
-  v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes, v_fin);
-  if (v_pay - 'generado_en') <> (v_pay_mes - 'generado_en') then
-    raise exception 'E09a el rango 1 → fin de mes no es idéntico al mes';
+  -- (a) Un rango que es exactamente un mes calendario ES ese mes (misma foto, salvo el
+  --     reloj). Se usa el mes ANTERIOR, que siempre está completo en el pasado.
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes_previo, (v_mes - interval '1 day')::date);
+  if (v_pay - 'generado_en') <> (crm.conversion_divisor_coordinacion_fn(v_mes_previo) - 'generado_en')
+     or v_pay->'periodo'->>'modo' <> 'mes' or v_pay->'fuente'->>'modo' <> 'mensual'
+     or (v_pay->'periodo'->>'cruza_meses_sellados')::boolean is not false then
+    raise exception 'E09a el rango 1 → fin del mes anterior no es idéntico al mes: %', v_pay->'periodo';
+  end if;
+  -- (a2) El mes anterior abierto por rango tiene a ANA con L6 (alta del último día del mes anterior).
+  if (select (a->>'divisor')::int from jsonb_array_elements(v_pay->'analistas') a where a->>'analista_id' = v_ana::text) is distinct from 1 then
+    raise exception 'E09a2 el mes anterior por rango no trae la llegada de borde de ANA';
   end if;
 
   -- (b) Del 1 a hoy: modo rango (salvo el último día del mes, en que ES el mes),
@@ -566,10 +586,37 @@ begin
      or (v_pay->'periodo'->>'dias')::int <> (v_hoy - v_mes + 1)
      or (v_hoy <> v_fin and v_pay->'periodo'->'mes' <> 'null'::jsonb)
      or (v_pay->'empresa'->>'divisor')::int is distinct from (v_pay_mes->'empresa'->>'divisor')::int
-     or (v_pay->'empresa'->>'numerador')::numeric is distinct from (v_pay_mes->'empresa'->>'numerador')::numeric
-     or (v_pay->'empresa'->>'ajuste_pendiente')::numeric is distinct from 0
+     or (v_pay->'empresa'->>'numerador_bruto')::numeric is distinct from (v_pay_mes->'empresa'->>'numerador_bruto')::numeric
+     or (v_hoy <> v_fin and ((v_pay->'empresa'->>'ajuste_pendiente')::numeric is distinct from 0
+                             or (v_pay->'empresa'->>'numerador')::numeric is distinct from (v_pay->'empresa'->>'numerador_bruto')::numeric
+                             or v_pay->'fuente'->>'modo' is distinct from 'rango_vivo'))
      or (select (a->>'divisor')::int from jsonb_array_elements(v_pay->'analistas') a where a->>'analista_id' = v_ana::text) is distinct from 2 then
-    raise exception 'E09b el rango 1 → hoy no reproduce el mes: % vs %', v_pay->'empresa', v_pay_mes->'empresa';
+    raise exception 'E09b el rango 1 → hoy no reproduce el bruto del mes: % vs %', v_pay->'empresa', v_pay_mes->'empresa';
+  end if;
+
+  -- (b2) Un rango REAL cualquier día del año: del 15 del mes anterior a hoy cruza el
+  --      límite de mes, nunca es «mes exacto» y cae en modo rango_vivo; sus partes
+  --      suman su bruto, no lleva ajuste, y sus llegadas son la suma de las dos piezas.
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, (v_mes_previo + 14)::date, v_hoy);
+  v_pay_prev := crm.conversion_divisor_coordinacion_fn(null, (v_mes_previo + 14)::date, (v_mes - interval '1 day')::date);
+  if v_pay->'periodo'->>'modo' <> 'rango' or v_pay->'fuente'->>'modo' <> 'rango_vivo' or (v_pay->>'sellado')::boolean
+     or (v_pay->'periodo'->>'cruza_meses_sellados')::boolean is not false
+     or (v_pay->'empresa'->>'ajuste_pendiente')::numeric is distinct from 0
+     or (v_pay->'empresa'->>'numerador')::numeric is distinct from (v_pay->'empresa'->>'numerador_bruto')::numeric
+     or (v_pay->'empresa'->>'divisor')::int is distinct from (v_pay_prev->'empresa'->>'divisor')::int + (v_pay_mes->'empresa'->>'divisor')::int
+     or exists (
+       select 1 from jsonb_array_elements(v_pay->'analistas') a
+       where (a->>'numerador_bruto')::numeric is distinct from
+             (a#>>'{cierres,formulario}')::numeric + (a#>>'{cierres,landing}')::numeric + (a#>>'{cierres,referido_aporte}')::numeric
+             + (a#>>'{cartera,upgrade}')::numeric + (a#>>'{cartera,renovacion_aporte}')::numeric
+          or (a->>'ajuste_pendiente')::numeric is distinct from 0
+          or (a->>'numerador')::numeric is distinct from (a->>'numerador_bruto')::numeric) then
+    raise exception 'E09b2 el rango que cruza el mes anterior no cumple la invariante: %', v_pay->'empresa';
+  end if;
+  -- (b3) Un rango libre que TOCA el mes sellado lo declara.
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, (v_mes_sellado + 14)::date, v_hoy);
+  if (v_pay->'periodo'->>'cruza_meses_sellados')::boolean is not true or v_pay->'fuente'->>'modo' <> 'rango_vivo' or (v_pay->>'sellado')::boolean then
+    raise exception 'E09b3 el rango que cruza un mes sellado no lo declara: %', v_pay->'periodo';
   end if;
 
   -- (c) Un rango parcial no puede superar al mes (L1 y L2 nacieron hoy: del 1 a ayer ANA no las tiene).
@@ -640,16 +687,36 @@ begin
   where a->>'analista_id' = 'c0000000-0000-4000-8000-000000000005';
   if v_fila is null or (v_fila->>'divisor')::int is distinct from 40 or (v_fila->>'numerador')::numeric is distinct from 4
      or (v_fila->>'conversion_pct')::numeric is distinct from 10.00
-     or v_fila->'divisor_formulario' is distinct from 'null'::jsonb or v_fila->'divisor_landing' is distinct from 'null'::jsonb then
-    raise exception 'E07b la fila sellada no es la foto (40 / 4 / 10.00, sin desglose): %', v_fila;
+     or v_fila->'divisor_formulario' is distinct from 'null'::jsonb or v_fila->'divisor_landing' is distinct from 'null'::jsonb
+     or v_fila->'numerador_bruto' is distinct from 'null'::jsonb or v_fila->'ajuste_pendiente' is distinct from 'null'::jsonb then
+    raise exception 'E07b la fila sellada no es la foto (40 / 4 / 10.00, sin llegadas por origen ni bruto): %', v_fila;
+  end if;
+  -- El desglose sellado sale de la foto: origenes_ranking.filas (conteos por origen) y
+  -- cartera.conversiones_* (NO operaciones_*), con los pesos SELLADOS (0,5); y sus partes
+  -- reproducen el numerador de la foto más el ajuste que se aplicó al sellar (6 − 2 = 4).
+  if (v_fila->>'desglose_disponible')::boolean is not true
+     or (v_fila#>>'{cierres,formulario}')::int is distinct from 2 or (v_fila#>>'{cierres,landing}')::int is distinct from 1
+     or (v_fila#>>'{cierres,referido}')::int is distinct from 2 or (v_fila#>>'{cierres,referido_aporte}')::numeric is distinct from 1.0
+     or (v_fila#>>'{cierres,oficina}')::int is distinct from 1 or (v_fila#>>'{cierres,otros}')::int is distinct from 1
+     or (v_fila#>>'{cartera,upgrade}')::int is distinct from 1 or (v_fila#>>'{cartera,renovacion}')::int is distinct from 2
+     or (v_fila#>>'{cartera,renovacion_aporte}')::numeric is distinct from 1.0 then
+    raise exception 'E07b2 el desglose sellado no sale de la foto (conversiones_*, pesos sellados): %', v_fila;
+  end if;
+  if (v_fila#>>'{cierres,formulario}')::numeric + (v_fila#>>'{cierres,landing}')::numeric + (v_fila#>>'{cierres,referido_aporte}')::numeric
+     + (v_fila#>>'{cartera,upgrade}')::numeric + (v_fila#>>'{cartera,renovacion_aporte}')::numeric
+     is distinct from (v_fila->>'numerador')::numeric + 2 /* ajuste_numerador sembrado en la foto */ then
+    raise exception 'E07b3 las partes selladas no reproducen numerador + ajuste de la foto: %', v_fila;
   end if;
   -- Empresa = foto por persona (40 / 4) + fuera_ranking con conversión (5 / 1) + sin analista (3 / 0).
   if (v_pay->'empresa'->>'divisor')::int is distinct from 48 or (v_pay->'empresa'->>'numerador')::numeric is distinct from 5
      or (v_pay->'empresa'->>'conversion_pct')::numeric is distinct from round(100.0 * 5 / 48, 2)
      or (v_pay->'sin_analista'->>'divisor')::int is distinct from 3
      or v_pay->'empresa'->'divisor_formulario' is distinct from 'null'::jsonb
-     or (v_pay->>'peso_referido')::numeric is distinct from 0.5 then
-    raise exception 'E07c la empresa sellada no suma foto + fuera_ranking + sin analista: %', v_pay->'empresa';
+     or (v_pay->>'peso_referido')::numeric is distinct from 0.5
+     or (v_pay->'empresa'->>'desglose_disponible')::boolean is not false
+     or v_pay->'empresa'->'cierres' is distinct from 'null'::jsonb
+     or v_pay->'fuente'->>'modo' is distinct from 'foto' then
+    raise exception 'E07c la empresa sellada no suma foto + fuera_ranking + sin analista, o declara un desglose que no cubre el total: %', v_pay->'empresa';
   end if;
   -- Foto con conversion_sin_analista en JSON null: ausencia, no un objeto de nulos.
   v_pay := crm.conversion_divisor_coordinacion_fn((v_mes - interval '1 month')::date);
