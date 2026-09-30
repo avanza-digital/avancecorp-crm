@@ -1,8 +1,9 @@
 # Llamadas desde el celular - F1 receptor por URL y ajuste Android (2026-09-30)
 
 Estado: F1 del plan «Llamadas desde el celular al CRM» (Versión 3 aprobada por Miguel)
-terminada en la rama `feat/llamadas-f0` y preparada en el PR #148; **sin publicar**.
-Producción no cambió. F0 (piloto con el celular C1) sigue midiendo.
+terminada en la rama `feat/llamadas-f0`, aprobada y fusionada a `main` por Miguel (PR #148,
+30/09 21:41 UTC); **sin publicar**: producción vive la build de Coordinación de las 21:37 UTC,
+sin F1. F0 (piloto con el celular C1) sigue midiendo.
 
 Objetivo de negocio (Jhosep, 30/09): que los vendedores registren cada llamada sin
 esfuerzo. Al colgar, MacroDroid abre `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}`;
@@ -44,9 +45,10 @@ cola, dos pestañas, otra cuenta, supervisor, hash limpio); prueba real en C1 co
 rama servida desde el PC (macro real → Chrome → CRM → aviso con el número; build real con un
 lead propio, sin guardar). Registro sin números: `docs/gestion-diaria/piloto-telefonia/REGISTRO.md`.
 
-Siguiente: Miguel revisa el PR #148 y `PROPUESTAS-DE-AJUSTE.md` #1–#9 y decide publicar
-(merge → `npm run release:crm` → preflight → `/release-crm`); al publicar, la macro pasa a la
-URL con `{call_number}`. F2 (núcleo de eventos de llamada en la base) tiene su plan corto
+Siguiente: Miguel decide publicar F1 (`npm run release:crm` → preflight → `/release-crm`;
+antes, `main` debe contener lo vivo, hoy la rama de rescate de Coordinación, o el preflight
+rechaza) y revisa `PROPUESTAS-DE-AJUSTE.md` #1–#9; al publicar, la macro pasa a la URL con
+`{call_number}`. F2 (núcleo de eventos de llamada en la base) tiene su plan corto
 en `docs/plans/llamadas-celular/F2-PLAN-CORTO.md`, pendiente de sus 7 decisiones.
 
 Evidencia: `CRM-Avance-Corp/docs/plans/llamadas-celular/` (PLAN aprobado con casillas,
