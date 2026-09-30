@@ -38,6 +38,13 @@ vi.mock('@/data/crm-api', async (importActual) => {
 const { ClienteForm } = await import('./cliente-form')
 const { CrmApiError } = crmApi
 
+// 28 tests que teclean formularios enteros con user-event: solos pasan en ~1 s
+// cada uno, pero dentro de la suite completa (322 archivos en paralelo, y más
+// con cobertura) algunos se pasan de los 5 s por defecto y el gancho de
+// pre-push rechazaba el push (30/09/2026, taller Windows). Más tiempo, mismas
+// comprobaciones.
+vi.setConfig({ testTimeout: 15_000 })
+
 const crearCliente = vi.mocked(crmApi.crearClientePortal)
 const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
 const corregirDocumento = vi.mocked(crmApi.corregirDocumentoClienteAdmin)
