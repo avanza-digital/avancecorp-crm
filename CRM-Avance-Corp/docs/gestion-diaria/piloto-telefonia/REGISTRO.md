@@ -64,6 +64,8 @@ Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número
 | 30/09/2026 12:54 | C1 | demo | Entrar a la demo como Analista | PASS (Gestión Diaria con TERESA en «Ahora») | Captura |
 | 30/09/2026 12:59 | C1 | demo | `#/gestion-diaria/llamada/<número de la persona de «Ahora»>` escrito en Chrome → recarga → login demo | PARCIAL: el número sobrevivió al login (el aviso salió con el número) pero la búsqueda corrió antes de que la demo cargara sus leads → «Ningún lead…». Corregido en `3065b84e` (espera a que haya leads) | Captura; hallazgo #1 de F1 |
 | 30/09/2026 ~13:10 | C1 | demo (con `3065b84e`) | Mismo caso, tras la corrección | PASS: entró con la encuesta de TERESA abierta en «Ahora» | Observado por Jhosep («vi la encuesta») |
+| 30/09/2026 13:52 | C1 | producción (por error) | Macro «Abrir Sitio web» que aún apuntaba a `crm.miavance.com` | Abrió la app instalada (sin barra) en la Gestión Diaria real, sin aviso: producción no tiene el receptor. Sirvió para confirmar que la app abre por URL con el ajuste de Android | Capturas (cuenta real, sin números) |
+| 30/09/2026 ~14:05 | C1 | demo | **Macro real** con URL `http://<PC>:5173/#/gestion-diaria/llamada/{call_number}` → llamada saliente → colgar | PASS: se abrió Chrome (con barra) en el login de la demo; al entrar como Analista salió el aviso ámbar «Ningún lead de tu cartera tiene el número …» con el número marcado (no existe en la demo). El número viaja desde MacroDroid hasta el CRM y la URL queda limpia | Observado por Jhosep; el número no se transcribe |
 
 ## 6. Incidencias
 

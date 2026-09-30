@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-09-30T18:13:03Z",
+  "actualizado": "2026-09-30T18:58:43Z",
   "meta": {
-    "novedad": "30/09 18:13 UTC: en C1 ya funciona el camino completo con la build de la rama (demo): URL con número → login → encuesta de la persona de «Ahora». Siguen en el celular: avisos, la macro con {call_number} y la build real con un lead propio sin guardar.",
-    "actualizado": "2026-09-30T18:13:03Z"
+    "novedad": "30/09 18:58 UTC: prueba real en C1 superada de punta a punta con la demo: MacroDroid → URL con el número marcado → Chrome → CRM → aviso/encuesta. Queda la build real con un lead propio (sin guardar) y devolver la macro a crm.miavance.com.",
+    "actualizado": "2026-09-30T18:58:43Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -36,7 +36,7 @@
     "F1.3.2": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests." },
     "F1.3.3": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests." },
     "F1.4.1": { "done": false, "estado": "curso", "at": "2026-09-30T17:51:35Z", "nota": "Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular)." },
-    "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T18:13:03Z", "nota": "C1 (30/09): la URL abre la PWA con el ajuste de Android (PASS). Con la build de la rama servida desde el PC (demo): URL con número → login → encuesta de la persona correcta en «Ahora»: PASS tras corregir la espera de la demo (3065b84e). Chrome corporativo fuerza HTTPS: se sirve también por HTTPS. Faltan: avisos (sin coincidencia, descartada) en el celular, la macro con {call_number} contra la demo, la build real con un lead propio (sin guardar) y la alternativa de notificación local." },
+    "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T18:58:43Z", "nota": "C1 (30/09): PASS del retorno real de punta a punta con la build de la rama (demo): la macro de MacroDroid con {call_number} abrió Chrome en el CRM, el número llegó al receptor y salió el aviso (número no existente en la demo); antes, la URL escrita a mano abrió la encuesta de la persona correcta tras el login. Con el ajuste de Android la URL abre la app instalada (visto con producción). Faltan: la build real con un lead propio (sin guardar) y la alternativa de notificación local sin push." },
     "F1.4.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:34:05Z", "nota": "Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1." }
   },
   "cambios": [
@@ -60,6 +60,7 @@
     { "at": "2026-09-30T17:21:00Z", "texto": "F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1." },
     { "at": "2026-09-30T17:51:35Z", "texto": "F1.4.1 verificada en el navegador del PC (demo): 4 caminos del receptor y limpieza del hash. F1.4.2: build servida desde el PC por HTTP y HTTPS; C1 fuerza HTTPS (ERR_SSL_PROTOCOL_ERROR con http)." },
     { "at": "2026-09-30T18:05:09Z", "texto": "C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests)." },
-    { "at": "2026-09-30T18:13:03Z", "texto": "C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b." }
+    { "at": "2026-09-30T18:13:03Z", "texto": "C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b." },
+    { "at": "2026-09-30T18:58:43Z", "texto": "C1: la macro real (Abrir sitio web con {call_number}) abrió Chrome en la demo y el receptor mostró el aviso con el número marcado. El número viaja de MacroDroid al CRM. REGISTRO.md §5b." }
   ]
 }
