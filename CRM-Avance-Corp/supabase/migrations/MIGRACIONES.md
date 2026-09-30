@@ -1,3 +1,70 @@
+## 20260930172255 — Cartera F5: canónica y analista atribuido calculados una vez por llamada (`private.cartera_f5_fuentes`)
+
+**⏸️ PREPARADA 30/09/2026 (fase 1 del plan aprobado por Miguel con `/goal`); pendiente de aplicar en prod por `!` de Miguel:
+`ensayo-oraculo.sql` (aceptación deshecha) → migración → `registrar.sql` → `verificar.sql` → advisors. Al aplicar, completar
+aquí la hora, la salida de `verificar.sql` y los advisors.** Refactor por módulos; nota del vault «CRM - auditoria de indices
+(2026-09-30)».
+
+Problema medido (30/09, producción, `set local track_functions='all'` + `pg_stat_xact_user_functions` en transacción deshecha):
+la ficha de inversionista (`crm.inversionista_ficha_fn`, 490–535 ms, 1.575 llamadas en 4 días) calcula la cartera entera
+(`private.cartera_f5_fuentes()`, 726 fuentes) SIETE veces por llamada = 291 ms (ficha → `cartera_f5_exigir` ×2 →
+`cartera_inversionistas_estado_fn` ×4; `postventa_estado_fn` ×1; `cartera_f5_personas_visibles(uuid)` ×2; la CTE `fuentes`
+×1). Dentro de fuentes, por FILA se llama a `private.inversionista_canonica()` (13.408 llamadas por ficha = 218 ms) y a
+`private.analista_atribuido_cadena()` (4.795 = 123 ms), dos CTE recursivas. Hoy 0 personas con padre y 3 operaciones de
+cartera. (El recorrido de `crm.tareas` por la función en el `OR` de la ficha se ensayó primero y NO era el coste: 499 → 492 ms.)
+
+Cambio: el MISMO cuerpo con dos mapas jsonb calculados una vez por llamada (`canon_map`: id → canónica con el mismo paseo
+hacia la raíz, tope 16 y sin raíz el propio id; `atrib_map`: contrato → analista del primer ancestro «upgrade» por
+`operaciones_cartera`, visitados y tope 100) leídos con `->>`. `inversionista_canonica` y `analista_atribuido_cadena` NO
+cambian. Nada más cambia: misma firma, STABLE, SECURITY DEFINER (como estaba), `search_path` vacío, dueño y ACL
+`{postgres=X/postgres}` (nadie más la ejecuta). La nombran 11 funciones (9 DEFINER y 2 INVOKER, incluida la envoltura
+`cartera_f5_fuentes_reales`); ninguna cambia; el front no cambia. El preflight exige además las huellas del 30/09 de
+`inversionista_canonica` (`34702897…`) y `analista_atribuido_cadena` (`3c9cec30…`), cuyo criterio copian los mapas (Codex).
+La migración corre en REPEATABLE READ (las dos lecturas del oráculo ven el mismo snapshot); la reversa restaura también el
+COMMENT previo (NULL); el registro guarda 2 sentencias (función + comentario) y rechaza otro nombre u otro contenido. Huellas `md5(pg_get_functiondef)`, medidas en la base: viva `94fa33cfcca657f70a1a94f98c3bf482` → nueva
+`fa15f7765d0892c790c7a4b6822e756e`. Idempotente y fail-closed; la migración lleva su propio oráculo (mismo count y md5 del
+texto de fila antes y después, o se deshace). ⚠️ Un primer intento con subconsulta correlacionada sobre la CTE salió MÁS
+lento (82 ms); los mapas jsonb son los que bajan a 11 ms.
+
+Medido en producción (deshecho): fuentes 42 → 11 ms por llamada, 726/726 filas md5 igual; punta a punta con el reemplazo
+dentro de una transacción deshecha: **33/33 salidas idénticas** (29 fichas, agenda, estado, cartera, postventa_estado, como
+gerencia); ficha **509 → 284 ms**, agenda de postventa 164 → 97, cartera de inversionistas 193 → 126, estado 52 → 19.
+
+Banco Docker propio (`avancecorp-f5-fuentes-20260930`, imagen `supabase/postgres:17.6.1.105`, esquema `public,crm,private`
+volcado de prod; paridad de cuerpos `crm` 278 / `private` 536 con el MISMO md5 que prod): migración → repetida («ya
+aplicada») → reversa → repetida → migración → `registrar.sql` → repetido (fila `20260930172255 / crm_cartera_f5_fuentes_mapas`,
+2 sentencias); negativos: cuerpo ajeno (migración y reversa lo rechazan) y `inversionista_canonica` alterada (migración y
+registro lo rechazan). `prueba-sintetica.sql` (supabase_admin, deshecho): **13 fuentes idénticas** entre cuerpo vivo y nuevo
+y expectativas explícitas por caso: hijo y nieto fusionados (→ raíz), cadena de 17 (el nodo 1 no llega a la raíz en el tope
+16 y queda como su propia canónica; el nodo 2 sí llega), ciclo A↔B (cada uno él mismo), padre inexistente, perfil sin persona
+(identidad incoherente), identidad incoherente por inversión de otra persona, upgrades encadenados, renovación tras upgrade
+(analista del upgrade), ciclo de operaciones y upgrade con analista nulo. El empate de dos ancestros «upgrade» al mismo nivel
+NO puede darse: `operaciones_cartera.contrato_nuevo_id` es UNIQUE (`20260824231133`), la cadena es lineal (el intento de
+sembrarlo falló por esa clave). Seguridad (`contexto-seguridad.sql`, solo lectura): las 6 tablas leídas son de postgres con RLS no forzada; la función
+veía y ve todas las filas en ambas versiones.
+
+**No ejecutado:** `test-rls.mjs` (exige el stack completo con Auth y PostgREST; el cambio no toca policies, grants ni
+visibilidad, y la identidad de salida la cubren el oráculo de filas y el de 33 puertas). Advisors: al aplicar.
+
+**Reviews:** Codex r1 (LEVEL 2–3, `docs/encargos/2026-09-30-codex-cartera-f5-fuentes-mapas.md`): CHANGES_REQUESTED con
+dos P2: (1) «empates a igual nivel podrían elegir distinto» → **rechazado con evidencia**: `contrato_nuevo_id` UNIQUE hace
+lineal la cadena (un desempate delegado se ensayó y se retiró: complicaba sin caso posible; el cuerpo final es byte a byte el
+validado en prod, huella `fa15f776…`); (2) «el preflight no protege las dos funciones copiadas» → **aceptado** (huellas en
+migración y registro; negativo probado en el banco). Sus avisos menores: fixture de 17 nodos descrito mal → corregido con
+expectativas explícitas; empate y tope 100/101 → el primero imposible, el segundo idéntico en ambos cuerpos (riesgo aceptado).
+Codex r2 (`…-r2.md`, con los scripts completos y la evidencia del UNIQUE): pendiente de anotar.
+**auditor-rls: PASS** (sin P0–P2; seis P3, todos atendidos): P3-1 REPEATABLE READ en la migración ✓ · P3-2 la reversa
+restaura el COMMENT previo ✓ · P3-3 el registro lleva las 2 sentencias ✓ · P3-4 censo de llamadores cuadrado (11) ✓ · P3-5
+caso de identidad incoherente en la sintética ✓ · P3-6 los scripts de un solo uso de F9 (`multiempresa-f9/apertura-2026-09-15/
+REVERTIR.sql`, `ACTIVAR.sql`, `POSTFLIGHT.sql`) fijan la huella vieja `94fa33cf…`: una reversión de F9 tendría que recapturarla
+(precedente ya anotado en este ledger; no hay trinquete vivo que la selle).
+
+Método de aplicación: `supabase db query --linked --file supabase/scripts/cartera-f5-fuentes-mapas/ensayo-oraculo.sql` →
+`… --file supabase/migrations/20260930172255_crm_cartera_f5_fuentes_mapas.sql` → `… --file
+supabase/scripts/cartera-f5-fuentes-mapas/registrar.sql` → `verificar.sql` (termina en raise; esperado fuentes ≤ 15 ms,
+ficha < 350, agenda < 130, cartera < 160) → advisors. Reversa: `reversa.sql` (cuerpo vivo del 30/09 byte a byte; conserva la
+fila de `schema_migrations`: anotarlo aquí el mismo día).
+
 ## 20260930154341 — Vigilante permanente del ayudante del núcleo SLA (`private.assert_sla_avisos`)
 
 **✅ EN PROD 30/09/2026 ~10:57 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930154341 /
