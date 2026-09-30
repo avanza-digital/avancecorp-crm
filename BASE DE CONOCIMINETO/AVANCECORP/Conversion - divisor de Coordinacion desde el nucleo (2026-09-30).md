@@ -1,12 +1,16 @@
 ---
 tags: [crm, conversion, coordinacion, reparto, divisor]
 actualizado: 2026-09-30
-estado: preparado
+estado: produccion
 ---
 
 # Conversión: la coordinadora ve el divisor del núcleo, no el reporte de entregas
 
-**PREPARADO 30/09/2026, pendiente de que Miguel aplique la migración con `!` y publique el front.**
+<<<<<<< avancecorp/main
+**SERVIDOR EN PRODUCCIÓN 30/09/2026 (migración y registro por `!` de Miguel; Astrid 115 = 65 + 50 y Merlys 88 = 60 + 28 verificados en prod; PR #146 fusionada). Pendiente: advisors y publicar el front con `/release-crm`.**
+=======
+**EN PRODUCCIÓN 30/09/2026: servidor (migración y registro por `!` de Miguel; Astrid 115 = 65 + 50 y Merlys 88 = 60 + 28 verificados en prod; advisors sin errores) y front (release `crm-20260930T213752Z-6bb984edc63c`, build `build-20260930T213751470Z`, publicado desde la rama de rescate sobre el tip vivo `57e7b3b4`; smoke PASS). PR #146 y #147 fusionadas; la rama de rescate vuelve a `main` por la PR #149.**
+>>>>>>> rescue/conversion-coordinacion-20260930
 
 ## El síntoma y su causa real
 

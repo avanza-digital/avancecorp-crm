@@ -58,6 +58,51 @@ describe('router por hash', () => {
     }
   })
 
+  // F1.2.1 (plan «Llamadas desde el celular al CRM»): el enlace que arma el
+  // celular al colgar trae el número en su propio segmento.
+  it('la ruta por número existe solo en Hoy y Gestión Diaria, codifica su segmento y conserva el +', () => {
+    expect(hashDe('gestion-diaria', null, undefined, undefined, undefined, '+51999888777')).toBe('#/gestion-diaria/llamada/%2B51999888777')
+    expect(hashDe('hoy', null, undefined, undefined, undefined, '+51 999-888 777')).toBe('#/hoy/llamada/%2B51%20999-888%20777')
+    expect(hashDe('hoy', null, undefined, undefined, undefined, '999888777')).toBe('#/hoy/llamada/999888777')
+    // Con la ficha abierta el número ya cumplió; en otras vistas no existe.
+    expect(hashDe('hoy', 'l1', undefined, undefined, undefined, '+51999888777')).toBe('#/hoy/lead/l1')
+    expect(hashDe('cartera', null, undefined, undefined, undefined, '+51999888777')).toBe('#/cartera')
+    // Lo que no es un número de marcador no viaja en el hash (un código de
+    // servicio como *123# tampoco: no es un lead).
+    for (const raro of ['abc', '', '+', '+ ', '999888777x', '<script>', '*123#', '9'.repeat(41)]) {
+      expect(hashDe('hoy', null, undefined, undefined, undefined, raro)).toBe('#/hoy')
+    }
+    expect(hashDe('hoy', null, undefined, undefined, undefined, '(01) 445-7890')).toBe('#/hoy/llamada/(01)%20445-7890')
+  })
+
+  it('lee el número tal cual llegó, codificado o crudo, y descarta lo que no es un número', () => {
+    for (const hash of ['#/gestion-diaria/llamada/%2B51999888777', '#/gestion-diaria/llamada/+51999888777']) {
+      window.location.hash = hash
+      expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: null, llamadaNumero: '+51999888777' })
+    }
+    window.location.hash = '#/hoy/llamada/999888777'
+    expect(leerHash()).toEqual({ vista: 'hoy', leadId: null, llamadaNumero: '999888777' })
+    window.location.hash = '#/hoy/llamada/%2B51%20999-888%20777'
+    expect(leerHash().llamadaNumero).toBe('+51 999-888 777')
+    for (const hash of ['#/hoy/llamada/', '#/hoy/llamada/abc', '#/hoy/llamada/%2B', '#/hoy/llamada/*123%23', '#/hoy/llamada/%E0%A4%A',
+      '#/cartera/llamada/999888777', '#/gestion-diaria/cola/llamada/999888777', `#/hoy/llamada/${'9'.repeat(41)}`]) {
+      window.location.hash = hash
+      expect(leerHash().llamadaNumero).toBeUndefined()
+    }
+    // Detrás de «llamada» no viaja una ficha.
+    window.location.hash = '#/hoy/llamada/999888777/lead/l1'
+    expect(leerHash()).toEqual({ vista: 'hoy', leadId: null, llamadaNumero: '999888777' })
+  })
+
+  it('escribirHash conserva el número sin ficha y lo suelta al abrir una', () => {
+    escribirHash('gestion-diaria', null, true, undefined, undefined, undefined, '+51999888777')
+    expect(window.location.hash).toBe('#/gestion-diaria/llamada/%2B51999888777')
+    expect(leerHash().llamadaNumero).toBe('+51999888777')
+    escribirHash('gestion-diaria', 'l1', true, undefined, undefined, undefined, '+51999888777')
+    expect(window.location.hash).toBe('#/gestion-diaria/lead/l1')
+    expect(leerHash().llamadaNumero).toBeUndefined()
+  })
+
   it('permite la fila fuera de equipos y descarta detalles inválidos o de otra vista', () => {
     escribirHash('gestion-diaria', null, true, undefined, undefined, { tipo: 'equipo', id: 'fuera' })
     expect(leerHash().detalleGestion).toEqual({ tipo: 'equipo', id: 'fuera' })
