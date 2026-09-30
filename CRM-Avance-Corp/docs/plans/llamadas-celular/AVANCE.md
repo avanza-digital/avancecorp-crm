@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 12:21 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 12:51 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 17:21 UTC: riesgo técnico de F1 resuelto en C1 — con el ajuste de Android «CRM Avance Corp → Abrir vínculos admitidos + dominio», la URL de MacroDroid abre la PWA (sin barra de direcciones), así que la ruta con número llegará a la app sin Send Intent. Rama subida (9e0252de). Sigue: build de prueba servida desde el PC (falta app/.env) y el flujo completo en C1.
+**Lo último:** 30/09 17:51 UTC: F1 verificada en el navegador del PC contra la demo: la URL con número abre la encuesta de la persona de «Ahora», o la ficha con el diálogo si es otro lead; sin coincidencia sale el aviso con buscador; descartada se avisa; el hash queda limpio. En C1 la prueba sigue: el Chrome corporativo fuerza HTTPS, así que la build se sirve también por HTTPS (:5174 demo, :4174 real).
 
 **Total:** 8 de 102 tareas · 0 de 8 fases hechas.
 
@@ -48,8 +48,9 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.3.1 — lib/coincidencia-telefono.ts (commit cd4d31b0): E.164 completo de principal y alternativo con las dos formas canónicas de la base (regla del trigger + canonizar_contacto) y el fijo con 0; nunca se recortan 9 dígitos. 24 tests con los casos sintéticos A, B, C, E, F y D3. (30/09/2026, 10:56 a. m.)
     - ✓ F1.3.2 — data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests. (30/09/2026, 11:05 a. m.)
     - ✓ F1.3.3 — Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests. (30/09/2026, 11:05 a. m.)
-- **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · F1.4.3 casi completa (checks y guía hechos; E2E Docker NOT RUN). F1.4.1 y F1.4.2 esperan una build alcanzable desde C1: no hay .env en este clon y producción no se toca.
-    - ◐ F1.4.2 — Retorno real a la PWA por URL comprobado en C1 (30/09): con «Abrir vínculos admitidos» + dominio activados, «Abrir sitio web» abre la app sin barra de direcciones; la URL con número puede llegar a la app sin Send Intent. Falta probar el flujo completo con la build de la rama (servida desde el PC en la Wi‑Fi; pendiente app/.env) y la alternativa de notificación local. (30/09/2026, 12:21 p. m.)
+- **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · F1.4.1 verificada en el navegador del PC (4 caminos + limpieza del hash); F1.4.2 en prueba desde C1 con la build servida por HTTPS desde el PC; F1.4.3 con checks y guía hechos (E2E Docker NOT RUN).
+    - ◐ F1.4.1 — Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular). (30/09/2026, 12:51 p. m.)
+    - ◐ F1.4.2 — Retorno a la PWA por URL: PASS en C1 con el ajuste de Android (30/09). Build de la rama servida desde el PC en la Wi‑Fi (demo :5173/:5174, real :4173/:4174, HTTPS con certificado propio porque el Chrome corporativo fuerza HTTPS: ERR_SSL_PROTOCOL_ERROR con http). Jhosep probando desde C1; falta el resultado del flujo completo en el celular y la alternativa de notificación local. (30/09/2026, 12:51 p. m.)
     - ◐ F1.4.3 — Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1. (30/09/2026, 11:34 a. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
@@ -91,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 12:51 p. m. · F1.4.1 verificada en el navegador del PC (demo): 4 caminos del receptor y limpieza del hash. F1.4.2: build servida desde el PC por HTTP y HTTPS; C1 fuerza HTTPS (ERR_SSL_PROTOCOL_ERROR con http).
 - 30/09/2026, 12:21 p. m. · F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1.
 - 30/09/2026, 11:34 a. m. · Push de la rama (8f25ad34): pre-push con la suite completa en verde tras dar más tiempo a cliente-form.test (decisión de Jhosep). Próximo: build de prueba servida desde el PC para C1.
 - 30/09/2026, 11:18 a. m. · F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1.
@@ -105,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 29/09/2026, 07:27 p. m. · Cierre de sesión 29/09: corrección de dirección (las 4 llamadas fueron salientes; entrantes NOT RUN). Handoff escrito en docs/plans/llamadas-celular/HANDOFF-2026-09-29.md para retomar mañana.
 - 29/09/2026, 07:22 p. m. · F0.3.2: la PWA se abre como app con «Lanzar app → Avance CRM» (PASS vía 3); la notificación con número estaba en la barra (PASS). Guía actualizada con la vía 3 y cómo obtener el paquete para F1.
 - 29/09/2026, 07:06 p. m. · F0.3 en curso: prueba de humo en C1. Número capturado en 3/3 llamadas (PASS preliminar); «Open Website» abre Chrome y no la PWA (FAIL vía 1); notificación ejecutada pero no vista (por confirmar). Registrado en REGISTRO.md y compatibilidad.md; guía actualizada con la URL de Gestión Diaria y la vía Send Intent.
-- 29/09/2026, 06:16 p. m. · F0.1: C1 (Samsung Galaxy A16, Android 16, Chrome) registrado en REGISTRO.md y compatibilidad.md; PWA y MacroDroid instalados; Jhosep como analista piloto y soporte. Sigue la macro y la prueba de humo.
