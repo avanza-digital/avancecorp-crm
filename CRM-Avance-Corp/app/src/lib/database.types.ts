@@ -4815,6 +4815,7 @@ export type Database = {
           p_limite?: number
           p_origen?: string
           p_procedencia?: string
+          p_reasignados?: boolean
           p_sin_asignar?: boolean
           p_texto?: string
           p_vendedor_id?: string
@@ -5257,6 +5258,10 @@ export type Database = {
         }
         Returns: Json
       }
+      conversion_divisor_coordinacion_fn: {
+        Args: { p_periodo?: string }
+        Returns: Json
+      }
       conversion_estado_lead_v1: { Args: { p_lead_id: string }; Returns: Json }
       conversion_mensual_fn: { Args: { p_periodo: string }; Returns: Json }
       conversion_mensual_sin_cartera_fn: {
@@ -5598,6 +5603,15 @@ export type Database = {
           p_dia: string
           p_id?: string
           p_limite?: number
+        }
+        Returns: Json
+      }
+      gestion_diaria_cola_trabajo_fn: {
+        Args: {
+          p_elegido?: string
+          p_filtro?: string
+          p_limite?: number
+          p_pagina?: number
         }
         Returns: Json
       }

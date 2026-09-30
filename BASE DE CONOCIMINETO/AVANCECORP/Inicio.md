@@ -1,12 +1,18 @@
 ---
 
+- [[Leads - marca y filtro de reasignados (2026-09-28)]] — publicado 29/09: filtro, contador y marca; conserva Sistema/Manual.
+
 tags: [moc, inicio]
 actualizado: 2026-09-25
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Conversion - divisor de Coordinacion desde el nucleo (2026-09-30)]] — **PREPARADO 30/09 (pendiente de `!` de Miguel y release del front):** el «62 en formulario» de Astrid que veía Rosa NO era el divisor sino el reporte de ENTREGAS (excluye a propósito la entrega devuelta a la bandeja y atribuye al último receptor); el núcleo dice 65 + 50 = 115. Decisión: el reporte no cambia; puerta nueva `crm.conversion_divisor_coordinacion_fn` (gate del reparto, ámbito de toda la empresa) que lee el núcleo, y pestaña «Conversiones» en Repartir. Migración `20260930185623`, oráculo con las puertas reales del reparto (4 mutantes cazados), check 319/4959, E2E 31/31, Codex ×2 + auditor-rls + revisor-a11y aplicados.
+
 - [[Leads - marca y filtro de reasignados (2026-09-28)]] — **IMPLEMENTACIÓN LOCAL:** cuenta y filtra leads con una asignación anterior a un analista; marca adicional a Sistema/Manual. Migración ensayada en banco aislado, pendiente de publicación.
+- [[CRM - perfil de carga lectura vs escritura (2026-09-29)]] — **MEDIDO 29/09 en prod (~97 h):** el CRM es de LECTURA (13.143 M filas leídas vs 12.979 escritas); `crm.inversionistas` concentraba el 95 % (22,6 M recorridos completos por `cartera_f5_fuentes` sin índice usable en `perfil_id`). **✅ Paso 1 EN PROD 29/09:** índice `inversionistas_perfil_idx` (`20260929220021`): 545 → 0,8 recorridos/s. **✅ Paso 2 · Fase 1 EN PROD 29/09:** `cartera_f5_personas_visibles` sin el lateral por persona (`20260929230336`): lista de la cartera de inversionistas 2,3–3,2 s → **0,19 s**, resultados idénticos (46/46), Codex ×2 y auditor-rls PASS. PRs #136 y #138. **✅ Paso 2 · Fase 2 EN PROD 29/09 ~18:55:** sondeo adaptativo (tasas 15 s solo con pendiente, 2 min en reposo; postventa 60 s), build-20260929T235040143Z, PR #139; reducción de llamadas se mide el 30/09. Siguen: avisos SLA, `postventa_tarea_json`, VOLATILE→STABLE.
+
 - [[Anexo de cronograma en el contrato PDF - plan v10 (2026-09-28)]] — **EN PRODUCCIÓN 29/09 (build-20260929T163327395Z, fb79c46f):** el analista imprime desde la ficha del contrato el anexo con el cronograma de liquidaciones parciales como documento aparte; el contrato PDF no cambia. Migración `20260929151350` (puertas solo service_role + núcleos + bitácora de emisiones con hash), acción «anexo» en la edge, botón en el front. Codex y auditor-rls aplicados. Pendiente: humo real de Miguel, rotar token de Hostinger, integrar #130 y PR.
 - [[Boton GESTION DIARIA en Hoy del analista (2026-09-28)]] — **PUBLICADO 28/09 (build-20260928T233226790Z, 7e9b426a):** botón animado en la esquina de «Hoy» que lleva a Gestión diaria (teléfono que suena por estado, barra de avance, rebote, pop), diseñado en el UI Playground (CRM-02) y promovido con cifras de la misma cola que el destino. Codex y a11y aplicados. PR #129.
 

@@ -3,7 +3,7 @@ import type { SolicitudTasa } from '@/data/crm-api'
 import {
   claveRegistroRespuestas, claveRespuestaTasa, conBloqueoRespuestas, crearSonidoRespuesta,
   esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas, leerRegistroRespuestas,
-  recibeRespuestasTasa, tituloRespuestaTasa,
+  CLAVE_SENAL_SOLICITUD_TASA, intervaloConsultaRespuestas, recibeRespuestasTasa, senalarSolicitudTasaCreada, tituloRespuestaTasa,
 } from './respuestas-tasa'
 
 function solicitud(cambios: Partial<SolicitudTasa> = {}): SolicitudTasa {
@@ -117,5 +117,37 @@ describe('registro local de respuestas de tasa', () => {
     vi.stubGlobal('AudioContext', class { constructor() { throw new Error('audio no soportado') } })
     expect(await crearSonidoRespuesta().activar()).toBe(false)
     vi.unstubAllGlobals()
+  })
+})
+
+describe('ritmo de consulta de respuestas', () => {
+  const pendiente = (cambios: Partial<SolicitudTasa> = {}) =>
+    solicitud({ estado: 'pendiente', estado_efectivo: 'pendiente', resuelta_por: null, resuelta_en: null, ...cambios })
+
+  it('pregunta cada 15 s solo mientras hay una solicitud propia pendiente de Gerencia', () => {
+    expect(intervaloConsultaRespuestas([pendiente()], 'v-1')).toBe(15_000)
+    expect(intervaloConsultaRespuestas([solicitud(), pendiente()], 'v-1')).toBe(15_000)
+  })
+
+  it('con la última consulta fallida vuelve a 15 s aunque no haya pendientes', () => {
+    expect(intervaloConsultaRespuestas([], 'v-1', true)).toBe(15_000)
+    expect(intervaloConsultaRespuestas([solicitud()], 'v-1', true)).toBe(15_000)
+  })
+
+  it('la señal de solicitud creada escribe solo la hora y no revienta sin almacenamiento', () => {
+    senalarSolicitudTasaCreada()
+    expect(Number(localStorage.getItem(CLAVE_SENAL_SOLICITUD_TASA))).toBeGreaterThan(0)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('lleno') })
+    expect(() => senalarSolicitudTasaCreada()).not.toThrow()
+    setItem.mockRestore()
+  })
+
+  it('en reposo pregunta cada 2 min: sin datos, sin solicitudes, resueltas, vencidas o ajenas', () => {
+    expect(intervaloConsultaRespuestas(undefined, 'v-1')).toBe(120_000)
+    expect(intervaloConsultaRespuestas([], 'v-1')).toBe(120_000)
+    expect(intervaloConsultaRespuestas([solicitud()], 'v-1')).toBe(120_000)
+    expect(intervaloConsultaRespuestas([pendiente({ estado_efectivo: 'vencida' })], 'v-1')).toBe(120_000)
+    expect(intervaloConsultaRespuestas([pendiente({ es_mia: false })], 'v-1')).toBe(120_000)
+    expect(intervaloConsultaRespuestas([pendiente({ solicitada_por: 'v-2' })], 'v-1')).toBe(120_000)
   })
 })

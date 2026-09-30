@@ -37,6 +37,8 @@ export interface FiltrosCarteraLocal {
   origen?: Origen | 'todos'
   /** Procedencia (sistema/manual); «todas» no recorta. */
   procedencia?: Procedencia | 'todas'
+  /** Solo leads que ya estuvieron a cargo de otro analista. */
+  reasignados?: boolean
   /** Vista previa local: el servidor real conserva su contrato hasta integrar el ledger. */
   recepcionDemo?: RangoFechaCartera | null
 }
@@ -97,6 +99,7 @@ export function filtrarCarteraLocal(
     // Sin dato de procedencia el lead NO coincide con ningún recorte: un
     // «sistema» inventado sobre un lead sin sello sería un dato falso.
     if (filtros.procedencia && filtros.procedencia !== 'todas' && l.procedencia !== filtros.procedencia) return false
+    if (filtros.reasignados && (l.vendedor_id == null || l.reasignado !== true)) return false
     if (filtros.vendedorId === 'sin_asignar') {
       if (l.vendedor_id != null) return false
     } else if (filtros.vendedorId && filtros.vendedorId !== 'todos'

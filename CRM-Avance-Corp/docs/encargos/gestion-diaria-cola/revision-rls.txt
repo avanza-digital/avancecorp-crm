@@ -1,0 +1,118 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La migración no crea tablas, policies ni toca `public`; la única función DEFINER (`crm.gestion_diaria_cola_trabajo_fn`) tiene `search_path=''`, gate de sesión/rol, actor exclusivamente `auth.uid()` y ACL cerrada con grant solo a `authenticated`. Los ayudantes `private.*` son INVOKER sin grants API y filtran por `vendedor_id=p_actor`, así que no encuentro fuga de ámbito con la evidencia adjunta. Los hallazgos son de negocio y de pruebas: la vuelta del supervisor se agrupa con la acción de supervisión y no con la de atención; la prueba de reasignación pasa de forma vacía y por tanto no demuestra que el nuevo responsable reciba trabajo; el orden «último atendido queda último» depende de que el escritor v4 estampe `creado_en` con reloj de sentencia, cosa no adjunta; y varias ramas (contestó, primera_atencion, tarea_vencida/tarea_hoy por SLA, clientes, ancla `tarea:`) no se ejercen. El ledger `MIGRACIONES.md` no viene adjunto y no puedo confirmar la fila.
+
+FINDINGS:
+
+[P1] High — El supervisor obtiene grupos desde `accion_supervision`, no desde la acción de atención
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+107, 113-118, 141
+Evidence:
+`gestion_diaria_cola_filas` toma `a.value->'accion'` de `private.sla_operacion_autorizada(v_ids,true)`. En `/private/tmp/gd-autoridades.sql:71` esa función devuelve `'accion', case when v_global or v_rol='supervisor' then s.accion_supervision else s.accion_atencion end`. Para un supervisor que gestiona su cartera propia, `accion->>'bucket'` es el bucket de supervisión; si no es `primera_atencion|tarea_vencida|tarea_hoy` y el lead no está en `sin_conversacion` ni tiene gestión hoy, `grupo` queda NULL y `where g.grupo is not null` (línea 141) lo elimina de la vuelta.
+Impact:
+La puerta declara servir a «vendedor/supervisor», pero el supervisor puede perder candidatos propios (primera atención, tareas vencidas/hoy de sus leads) o recibir un grupo que no corresponde a su trabajo de analista. Es una hipótesis con confianza media: no tengo la forma de `accion_supervision` adjunta; la señal de riesgo es directa en el código.
+Recommendation:
+Para esta cola personal usar siempre la acción de atención (por ejemplo, componer sobre `private.sla_operacion_leads` con `accion_atencion`, o exponer esa clave en la respuesta de v3) y añadir una prueba con un lead PROPIO del supervisor en `etapa='nuevo'` y otro con tarea vencida, comprobando `grupo` y presencia en `items`.
+
+[P2] Medium — La prueba de reasignación es vacía y no demuestra que el nuevo responsable reciba trabajo
+File:
+supabase/scripts/gestion-diaria-cola/prueba.sql
+Lines:
+114-123
+Evidence:
+La aserción es `not exists(... where lead_id=n1 and ultima_gestion<>'null')`. Si el lead 1 no aparece en `items` del supervisor, la prueba pasa igual. Tras `tenencia_desde=clock_timestamp()` (línea 116), en `hechos` `ref.desde=greatest(conv, tenencia)` ≈ ahora, así que `sin_conversacion=false`; sin gestión propia hoy y sin bucket SLA de atención (ver P1) el lead cae a `grupo` NULL y desaparece.
+Impact:
+El comentario «el nuevo responsable recibe trabajo pendiente» no está verificado; combinado con P1, puede ocultar una pérdida real de candidatos al cambiar de tenencia.
+Recommendation:
+Afirmar `exists(... lead_id=n1 and estado_trabajo='pendiente' and ultima_gestion='null')`, y si el resultado esperado es que un lead recién reasignado sin señal NO entre en la vuelta, documentarlo y ajustar el comentario.
+
+[P2] Medium — Determinismo del orden «último atendido queda último» dentro de una misma transacción
+File:
+supabase/scripts/gestion-diaria-cola/prueba.sql; migración líneas 62, 85, 219
+Lines:
+prueba.sql 59, 69-74
+Evidence:
+Las tres llamadas vía `crm.registrar_llamada_v4` ocurren en la misma transacción. La migración ordena la gestión vigente por `a.creado_en desc, a.id desc` (línea 85) y los gestionados por `ultima_gestion.en` (línea 219) con desempate final por `clave collate "C"` (uuid aleatorio). Si v4 estampa `creado_en` con `now()` (reloj de transacción), lead 1 y lead 2 empatan y el resultado esperado en la línea 72-74 depende del orden de `gen_random_uuid()`. El propio fixture usa `statement_timestamp()` en la línea 143, lo que sugiere conciencia del problema, pero el cuerpo de v4 no está adjunto.
+Impact:
+Prueba potencialmente intermitente y, en producción, empates de gestiones en la misma sentencia (poco probable pero posible en reintentos rápidos) ordenados por uuid.
+Recommendation:
+Adjuntar o citar la línea de v4 que fija `creado_en`; si usa `now()`, separar las llamadas en el ensayo con relojes explícitos o desempatar por `actividad_id` de forma documentada.
+
+[P2] Medium — Ledger `MIGRACIONES.md` y matriz `test-rls.mjs` no adjuntos
+File:
+CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md; supabase/scripts/test-rls.mjs
+Evidence:
+El PRIMARY describe una entrada «EN DESARROLLO LOCAL» con tres funciones, pero el texto no viene en la evidencia. Las denegaciones nuevas viven en `ensayar.mjs` (líneas 14-30), no en `test-rls.mjs`. Además `service_role` pierde EXECUTE en una RPC de `crm` (migración 248-250), lo que el checklist pide documentar en el ledger.
+Impact:
+No puedo confirmar el punto 7 y 8 del checklist auditor-rls.
+Recommendation:
+Adjuntar la fila del ledger (con la nota sobre `service_role`) y decidir explícitamente si `ensayar.mjs` es el gate de permisos de esta RPC o se replica el caso permitido/denegado por rol en `test-rls.mjs`.
+
+[P3] Low — Gestionados sin acción SLA ni tarea caen al grupo `sin_conversacion` aunque hayan conversado hoy
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+122-124, 200-210
+Evidence:
+Un lead con `llamada_realizada` (contestó) hoy reinicia `conv`, `sin_conversacion=false`, la acción SLA puede retirarse y no hay `tarea_id` en la gestión; `when a.g is not null then 'sin_conversacion'` lo etiqueta ahí y suma a `totales.sin_conversacion.gestionados`.
+Impact:
+Conteos por grupo imprecisos en pantalla; no afecta `vuelta_completa` (solo cuenta pendientes).
+Recommendation:
+Conservar el grupo de origen (por ejemplo, calcular el grupo con la señal previa a la gestión o con `etapa_anterior`/bucket guardado en metadata) o etiquetar un grupo neutro `gestionado` en totales.
+
+[P3] Low — `proximo_cambio_en` ignora vencimientos de tareas de clientes
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+242-245
+Evidence:
+Solo considera `proxima_tarea.vence_en` de filas lead; las filas cliente tienen `proxima_tarea=null` (línea 157) aunque su bucket pase de `tarea_hoy` a `tarea_vencida` al vencer (autoridades línea 139).
+Impact:
+El frontend puede no refrescar la severidad de una tarea de cliente a su hora.
+Recommendation:
+Incluir `referencia_en` de filas cliente con `bucket='tarea_hoy'` en el `least`.
+
+[P3] Low — Reloj dividido en el proyector cuando se llama con `p_ahora` explícito
+File:
+supabase/migrations/20260930160812_crm_gestion_diaria_cola_trabajo.sql
+Lines:
+107 (y autoridades 44)
+Evidence:
+`gestion_diaria_cola_filas` usa `p_ahora` para hechos y ventana del día, pero `sla_operacion_autorizada` fija internamente `statement_timestamp()`. En producción coinciden (misma sentencia); en las pruebas de frontera de Lima (prueba.sql 103-112) la acción SLA se evalúa «hoy» mientras los hechos se evalúan «mañana».
+Impact:
+Las pruebas «manana»/«vence» validan solo la parte de hechos; el comentario «proyector con reloj explícito» sobrevende la cobertura.
+Recommendation:
+Documentar la limitación en el comentario de la prueba o probar la frontera con un lead cuyo grupo no dependa de SLA (ya es el caso) y decirlo.
+
+TEST GAPS:
+- Supervisor con cartera propia en la cola (P1): lead propio `nuevo`, con tarea vencida y con tarea de hoy; comprobar `grupo`, `items` y `siguiente`.
+- Resultado `contesto` vía `registrar_llamada_v4`: que `llamada_realizada` lleve `metadata.evento='resultado_llamada'` y cuente como gestión; cambio de etapa desde `nuevo` → `grupo='primera_atencion'` (línea 123).
+- Grupos derivados de bucket SLA en leads (`tarea_vencida`, `tarea_hoy`) y la regla «tarea previa pendiente con vence_en ≤ gestión = gestionado; vencimiento posterior reabre» (líneas 135-136).
+- Filas cliente: presencia solo con `responsable_id=p_actor`, exclusión de tareas de subordinados para supervisor, ancla `tarea:<uuid>` y validación de `p_elegido` para esa forma.
+- Redirección de filtro por ancla (línea 198): `p_filtro='tarea_hoy'` con `p_elegido` de otro grupo.
+- Clamp de página (`p_pagina` mayor que el total) y `total=0`.
+- Denegaciones por rol `coordinador`/`directorio` y miembro `activo=false` (rol_crm devuelve NULL → 42501), hoy no ensayadas.
+- Aserción de reasignación no vacía (P2).
+
+ARCHITECTURE RISKS:
+- Cada petición recalcula la vuelta completa (hechos con cinco laterales por lead + SLA v3 + orden jsonb). Con 530 leads tardó 2,4 s incluyendo fixture; con carteras mayores o `p_limite` pequeño y paginación frecuente puede notarse. No bloquea, pero conviene medir en el branch remoto.
+- Dependencia del contrato interno de `registrar_llamada_v4` (`metadata.evento`, `resultado`, `tarea_id`, `etapa_anterior`, `deshecho_en`) sin que la migración lo declare; un cambio en v4 rompe silenciosamente la marca de gestión.
+
+SECURITY RISKS:
+- Verificado: sin tablas/policies nuevas, sin DELETE, sin objetos `public`, DEFINER único con `search_path=''`, gate `auth.uid()`+`puede_acceder_crm`+rol, `revoke all` + grant solo `authenticated`; ayudantes INVOKER revocados; PII expuesta limitada a nombre, etapa y `detalle` de actividad de la propia cartera; ancla ajena no amplía ámbito (prueba 81-83). Ningún hallazgo de fuga con la evidencia adjunta.
+- Los ayudantes INVOKER dependen de que el propietario de la función tenga bypass RLS al ejecutarse dentro de la DEFINER, mismo patrón de `tareas_clientes_autorizadas`; confirmar que el propietario en el branch remoto coincide con el del banco.
+
+REGRESSION RISKS:
+- Bajo: solo `create function` nuevos y preflight sobre firmas de v3; `assert_cola_v3`/`assert_sla_nucleo` PASS. La retirada de EXECUTE a `service_role` solo afecta a la RPC nueva.
+
+RECOMMENDED NEXT ACTIONS:
+1. Resolver P1: usar la acción de atención para la cola personal del supervisor y añadir la prueba de supervisor con cartera propia.
+2. Endurecer la prueba de reasignación (aserción positiva) y confirmar el reloj de `creado_en` en `registrar_llamada_v4`; cubrir `contesto`, `primera_atencion`, buckets SLA, clientes y ancla `tarea:`.
+3. Adjuntar la fila de `MIGRACIONES.md` (incluyendo la nota de `service_role`) y decidir el lugar de la matriz de permisos; opcionalmente corregir P3 de grupos/`proximo_cambio_en`.
+
+CONFIDENCE:
+MEDIUM

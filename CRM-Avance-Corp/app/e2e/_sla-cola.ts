@@ -1,4 +1,8 @@
 import type { Page } from '@playwright/test'
+import { ordenarColaDiaria, type ItemColaDia } from '../src/lib/gestion-diaria-analista'
+import { paginarTrabajoDemo } from '../src/lib/gestion-diaria-cola-demo'
+import type { FilaTrabajo, PedidoColaTrabajo } from '../src/lib/gestion-diaria-cola'
+import senalSql from '../src/data/gestion-diaria-cola-sql.fixture.json' with { type: 'json' }
 import { leadReal, montarBackendReal, UID, type BackendReal } from './_helpers'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 import muestraV3 from '../src/data/sla-operacion-cola-v3-sql.test.fixture.json' with { type: 'json' }
@@ -153,10 +157,9 @@ export function finDelDiaLima(desde: number): number {
  */
 export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVencidos: { id: string; nombre_completo: string; etapa: string }[]) {
   const pedidos: PedidoColaDia[] = []
+  const pedidosTrabajo: Record<string, unknown>[] = []
   const plantillaLead = muestraV3.items.find((i) => i.lead_id !== null)!
-  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
-    const args = route.request().postDataJSON() as PedidoColaDia
-    pedidos.push(args)
+  const filasActuales = () => {
     const ahora = Date.now()
     const fin = finDelDiaLima(ahora)
     const leads = leadsVencidos.map((l, i) => ({ ...plantillaLead, lead_id: l.id, clave: `lead:${l.id}`,
@@ -177,6 +180,23 @@ export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVen
             revisiones: false, datos_incompletos: false, por_repartir: false },
           sujeto: { tipo: 'cliente', perfil_id: t.perfil_id ?? null, inversionista_id: t.inversionista_id ?? null, nombre: String(t['nombre_cliente'] ?? 'CLIENTE') } }
       })
+    return { leads, clientes, ahora }
+  }
+  await page.route('**/rest/v1/rpc/gestion_diaria_cola_trabajo_fn', async (route) => {
+    const args = route.request().postDataJSON(); pedidosTrabajo.push(args)
+    const { leads, clientes, ahora } = filasActuales()
+    const filas = ordenarColaDiaria([...leads, ...clientes] as ItemColaDia[], []).map((f) => ({ ...f,
+      ...(f.tipo === 'lead' ? { senal: { ...senalSql.items[0]!.senal, lead_id: f.lead_id, nombre_completo: f.nombre_completo, etapa: f.etapa } } : {}),
+      estado_trabajo: 'pendiente', ultima_gestion: null, proxima_tarea: null,
+    })) as FilaTrabajo[]
+    const pedido: PedidoColaTrabajo = { filtro: args.p_filtro, pagina: args.p_pagina, limite: args.p_limite, elegido: args.p_elegido ?? null }
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ahora))
+    await route.fulfill({ json: paginarTrabajoDemo(filas, pedido, UID, dia, ahora) })
+  })
+  await page.route('**/rest/v1/rpc/cola_accion_v3_fn', async (route) => {
+    const args = route.request().postDataJSON() as PedidoColaDia
+    pedidos.push(args)
+    const { leads, clientes, ahora } = filasActuales()
     const items = [...leads, ...clientes].slice(0, args.p_limite)
     await route.fulfill({ json: { ...muestraV3, calculado_en: new Date(ahora).toISOString(), proximo_cambio_en: null,
       filtros: { senal: args.p_senal, etapa: args.p_etapa ?? null, analista_id: args.p_analista_id ?? null }, limite: args.p_limite,
@@ -193,5 +213,5 @@ export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVen
         primera_llamada_en: null, ultima_llamada_en: null, por_resultado: {}, por_hora: [] },
       compromisos: [], compromisos_total: 0, cartera: [], cartera_truncada: false, descartados: [] } })
   })
-  return { pedidos }
+  return { pedidos, pedidosTrabajo }
 }

@@ -115,6 +115,9 @@ const SESSION = {
 
 export interface LeadReal {
   id: string
+  reasignado?: boolean
+  alta_manual?: boolean
+  creado_por?: string | null
   /** Solo del mock: la foto inicial (GET /leads sin id) no lo devuelve; por id sí. */
   fueraDelBoot?: boolean
   nombre_completo: string
@@ -805,6 +808,7 @@ export function carteraPaginaReal(
     p_desde?: string | null
     p_hasta?: string | null
     p_origen?: string | null
+    p_reasignados?: boolean
   },
 ): Record<string, unknown>[] {
   const corteMs = Date.now() - 45 * 86_400_000
@@ -813,6 +817,7 @@ export function carteraPaginaReal(
   const filtrados = leads.filter((l) => {
     if (!l.activo) return false
     if (args.p_origen && l.origen !== args.p_origen) return false
+    if (args.p_reasignados && (!l.reasignado || !l.vendedor_id)) return false
     if (args.p_desde) {
       const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(l.creado_en))
       if (!l.vendedor_id || fecha < args.p_desde || fecha > String(args.p_hasta)) return false
@@ -844,7 +849,10 @@ export function carteraPaginaReal(
     : ordenados
   return desde
     .slice(0, Math.max(1, Number(args.p_limite ?? 51)))
-    .map((l) => ({ ...l, genero: null, fecha_nacimiento: null, tenencia_desde: null,
+    .map((l) => ({ ...l, reasignado: Boolean(l.reasignado && l.vendedor_id),
+      procedencia: l.alta_manual || l.creado_por ? 'manual' : 'sistema',
+      cargado_por: l.creado_por ?? null,
+      genero: null, fecha_nacimiento: null, tenencia_desde: null,
       convertido_en: l.convertido_en ?? null, contrato_id: null, no_contactar: false,
       ultimo_contacto_en: null }))
 }
@@ -887,6 +895,7 @@ export function resumenCarteraReal(leads: LeadReal[]): Record<string, unknown> {
       descartados: descartados.length,
       asignados_pen: asignados.filter((l) => !esUsd(l)).length,
       asignados_usd: asignados.filter(esUsd).length,
+      reasignados: ambito.filter((l) => l.vendedor_id != null && l.reasignado).length,
     },
     capital: {
       asignado: { pen: suma(asignados, false), usd: suma(asignados, true) },
@@ -1776,6 +1785,8 @@ export interface BackendReal {
   supervisoresReparto: Record<string, unknown>[]
   /** Entregas históricas ya agregadas por día, responsable y origen. */
   entregasCoordinacion: EntregaCoordinacionReal[]
+  /** Payload literal de crm.conversion_divisor_coordinacion_fn (el período lo eco-a el handler). */
+  conversionCoordinacion: Record<string, unknown> | null
   /** Agenda de turnos y conteos que devuelve crm.agenda_reparto_diaria(). */
   agendaReparto: Record<string, unknown> | null
   /**
@@ -1944,6 +1955,7 @@ export async function montarBackendReal(
     descartados: init.descartados ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
     entregasCoordinacion: init.entregasCoordinacion ?? [],
+    conversionCoordinacion: init.conversionCoordinacion ?? null,
     agendaReparto: init.agendaReparto ?? null,
     fallarProximoReparto: init.fallarProximoReparto ?? null,
     fallarProximoDescarte: init.fallarProximoDescarte ?? null,
@@ -2702,6 +2714,15 @@ export async function montarBackendReal(
         String(body.p_hasta ?? ''),
       ))
     }
+    if (p === '/rest/v1/rpc/conversion_divisor_coordinacion_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      const periodo = String(body.p_periodo ?? '')
+      if (!estado.conversionCoordinacion) return json(route, { code: '42501', message: 'No autorizado' }, 403)
+      return json(route, {
+        ...estado.conversionCoordinacion,
+        periodo: { ...(estado.conversionCoordinacion.periodo as Record<string, unknown>), mes: periodo.slice(0, 7), desde: periodo },
+      })
+    }
     if (p === '/rest/v1/rpc/panel_distribucion_reparto') {
       return json(route, {
         version: 1,
@@ -3130,7 +3151,8 @@ export async function montarBackendReal(
       const ids = new Set(todos.map((l) => l.id))
       const resumen = resumenCarteraReal(estado.leads.filter((l) => ids.has(l.id)))
       return json(route, { version: 1, generado_en: new Date().toISOString(),
-        desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null, resumen,
+        desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
+        reasignados: body.p_reasignados ?? false, resumen,
         items: carteraPaginaReal(estado.leads, body).map((l) => ({ ...l,
           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),
       })
@@ -3352,12 +3374,22 @@ export async function montarBackendReal(
         // Servidor con estado: aplica el update a la fila (el resync lo refleja).
         const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
         const cambios = (req.postDataJSON() ?? {}) as Partial<LeadReal>
-        estado.leads = estado.leads.map((l) => (l.id === idFiltro ? { ...l, ...cambios } : l))
+        estado.leads = estado.leads.map((l) => (l.id === idFiltro ? {
+          ...l, ...cambios,
+          reasignado: 'vendedor_id' in cambios
+            ? cambios.vendedor_id != null && (l.reasignado === true || l.vendedor_id != null)
+            : l.reasignado,
+        } : l))
         return json(route, [{ id: idFiltro }])
       }
     }
 
     // ── actividades ──
+    if (p === '/rest/v1/actividades' && method === 'GET' && url.searchParams.get('select') === 'id') {
+      const id = (url.searchParams.get('lead_id') ?? '').replace(/^eq\./, '')
+      const actual = estado.leads.find((l) => l.id === id)
+      return json(route, actual?.reasignado ? [{ id: 'reasignacion-e2e' }] : [])
+    }
     if (p === '/rest/v1/actividades' && method === 'POST') {
       estado.llamadas.insertActividad += 1
       if (estado.fallarProximoInsertActividad) {

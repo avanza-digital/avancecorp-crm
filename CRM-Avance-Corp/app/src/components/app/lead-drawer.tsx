@@ -98,6 +98,7 @@ import {
   type Tarea,
 } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
+import { ChipReasignado } from '@/components/app/reasignado-chip'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { tituloProximaAccion } from '@/lib/campos-siguiente'
 import { presentarCitas } from '@/lib/terminologia'
@@ -212,6 +213,7 @@ function Ficha({ l }: { l: Lead }) {
               )}
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
               <ChipProcedencia lead={l} conNombre />
+              <ChipReasignado lead={l} />
               {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
               {l.monto_estimado == null &&
                 (escribe && !esTerminal ? (
