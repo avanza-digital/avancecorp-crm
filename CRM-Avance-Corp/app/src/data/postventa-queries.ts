@@ -5,7 +5,11 @@ import type { EmpresaInversion } from '@/lib/inversionistas'
 import { queryClient } from '@/lib/query-client'
 
 export const postventaKeys = {actor: (actor: string) => ['crm', 'postventa', actor] as const}
-const vigente = {staleTime: 0, gcTime: 0, retry: false, refetchInterval: 15_000,
+// Cada 60 s (antes 15) y solo con la pestaña visible: el sondeo únicamente detecta si Gerencia
+// apaga la postventa; las escrituras ya refrescan (refrescarPostventa), al volver a la pestaña se
+// consulta al instante y el servidor rechaza cualquier acción con la postventa apagada.
+export const POSTVENTA_REFRESCO_MS = 60_000
+const vigente = {staleTime: 0, gcTime: 0, retry: false, refetchInterval: POSTVENTA_REFRESCO_MS,
   refetchOnMount: 'always' as const, refetchOnWindowFocus: 'always' as const, refetchOnReconnect: 'always' as const}
 export function usePostventa(actor: string, habilitada = true) {
   return useQuery({...vigente, queryKey: [...postventaKeys.actor(actor), 'estado'],
