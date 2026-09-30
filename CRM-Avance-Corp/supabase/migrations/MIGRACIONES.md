@@ -1,9 +1,15 @@
 ## 20260930172255 — Cartera F5: canónica y analista atribuido calculados una vez por llamada (`private.cartera_f5_fuentes`)
 
-**⏸️ PREPARADA 30/09/2026 (fase 1 del plan aprobado por Miguel con `/goal`); pendiente de aplicar en prod por `!` de Miguel:
-`ensayo-oraculo.sql` (aceptación deshecha) → migración → `registrar.sql` → `verificar.sql` → advisors. Al aplicar, completar
-aquí la hora, la salida de `verificar.sql` y los advisors.** Refactor por módulos; nota del vault «CRM - auditoria de indices
-(2026-09-30)».
+**✅ EN PROD 30/09/2026 ~13:49 Lima (18:49 UTC) por `!` de Miguel: `ensayo-oraculo.sql` (deshecho) → 33/33 salidas idénticas,
+ficha 476 → 269 ms, agenda de postventa 159 → 98, cartera de inversionistas 178 → 125, estado 49 → 18 → migración (sin errores;
+huella `fa15f776…` y comentario comprobados) → `registrar.sql` (fila `20260930172255 / crm_cartera_f5_fuentes_mapas`, 2
+sentencias) → `verificar.sql`: huella OK, `cartera_f5_fuentes` 728 fuentes en **11,2 ms** por llamada (antes ~42), ficha de
+inversionista **302 ms** (antes ~500), `postventa_agenda_fn` **101 ms** (antes ~165), `cartera_inversionistas_filtrada_fn` **95 ms**
+(antes ~190) → advisors (`db advisors --type all`): 242 antes y 242 después, ninguno nuevo ni desaparecido, ninguno cita la
+función. Foto de tráfico real T0 (`foto-trafico.sql`, acumulado desde el 25/09 20:50 UTC) para medir el tramo posterior:
+ficha 1.577 llamadas / 1.450.499 ms (media 920), agenda 6.423 / 1.836.377 (286), cartera filtrada 2.159 / 1.547.242 (717) +
+992 / 635.541 (641), estado 3.163 / 517.110 (164). PR #144 (apilada sobre #143).** Plan por fases aprobado por Miguel con
+`/goal` el 30/09; nota del vault «CRM - auditoria de indices (2026-09-30)».
 
 Problema medido (30/09, producción, `set local track_functions='all'` + `pg_stat_xact_user_functions` en transacción deshecha):
 la ficha de inversionista (`crm.inversionista_ficha_fn`, 490–535 ms, 1.575 llamadas en 4 días) calcula la cartera entera
