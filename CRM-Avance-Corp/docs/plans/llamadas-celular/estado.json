@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-09-30T21:46:32Z",
+  "actualizado": "2026-09-30T22:07:50Z",
   "meta": {
     "novedad": "30/09 21:46 UTC: Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 ya está en main, pero NO en producción: el sitio vive build-20260930T213751470Z (Coordinación, construida a las 21:37 desde la rama de rescate sobre el vivo 57e7b3b4), sin F1. La macro sigue con la URL sin número hasta el release. Antes de publicar F1, main tiene que contener lo vivo (hoy no contiene 57e7b3b4 ni la rama de rescate) o el preflight rechazará la build. F2 sigue como análisis: plan corto afinado con los tres mapas, a la espera de las 7 decisiones de Miguel.",
     "actualizado": "2026-09-30T21:46:32Z"
@@ -71,6 +71,7 @@
     { "at": "2026-09-30T21:08:21Z", "texto": "Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado." },
     { "at": "2026-09-30T21:21:25Z", "texto": "F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL." },
     { "at": "2026-09-30T21:41:09Z", "texto": "F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel." },
-    { "at": "2026-09-30T21:46:32Z", "texto": "Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza." }
+    { "at": "2026-09-30T21:46:32Z", "texto": "Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza." },
+    { "at": "2026-09-30T22:07:50Z", "texto": "El merge del PR #148 fue squash (un solo commit en main), así que feat/llamadas-f0 dejó de compartir historia con main. Decisión de Jhosep: el trabajo sigue en la rama nueva feat/llamadas-f2, creada desde main (da7217d7) con los dos commits de docs de hoy copiados (7a6bfcb1, 89cc9473) y subida a origin. feat/llamadas-f0 queda como histórica, sin borrar." }
   ]
 }

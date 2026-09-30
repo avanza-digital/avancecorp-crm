@@ -1,6 +1,6 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 04:46 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 05:07 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 05:07 p. m. · El merge del PR #148 fue squash (un solo commit en main), así que feat/llamadas-f0 dejó de compartir historia con main. Decisión de Jhosep: el trabajo sigue en la rama nueva feat/llamadas-f2, creada desde main (da7217d7) con los dos commits de docs de hoy copiados (7a6bfcb1, 89cc9473) y subida a origin. feat/llamadas-f0 queda como histórica, sin borrar.
 - 30/09/2026, 04:46 p. m. · Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza.
 - 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
 - 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 12:21 p. m. · F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1.
 - 30/09/2026, 11:34 a. m. · Push de la rama (8f25ad34): pre-push con la suite completa en verde tras dar más tiempo a cliente-form.test (decisión de Jhosep). Próximo: build de prueba servida desde el PC para C1.
 - 30/09/2026, 11:18 a. m. · F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1.
-- 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
