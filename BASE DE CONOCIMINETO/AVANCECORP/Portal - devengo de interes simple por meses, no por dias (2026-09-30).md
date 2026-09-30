@@ -10,6 +10,17 @@ purga servidor + CDN; token desde el llavero de macOS, entrada `hostinger-api`).
 vivo byte a byte, también en las URL versionadas (`dashboard.js?v=37`, `inversion.js?v=30`,
 `devengo-simple.js?v=1`). Miguel publicó sin corregir antes los contratos del censo de abajo.
 
+**Verificado en producción tras publicar (30/09, solo lectura):** de los 677 contratos simples vigentes
+(activo/vencido), el monto final del portal (módulo publicado, TZ Lima) es igual a capital + suma de cuotas
+`tipo='cuota'` del cronograma en **675**. Antes (días/365) se desviaban más de 0,50 en 258. Los 2 que no cuadran
+son anteriores a este cambio:
+- **2026-01-000644** (6 667 USD, 18 %, mensual): la cuota exacta es 100,005 → el portal redondea a 100,01 y el
+  cronograma tiene 100. El portal enseña 1 200,12 contra 1 200: 12 céntimos.
+- **2026-01-000768** (50 000 PEN, mensual): la tasa se cambió de 15 % a 20 % el 12/08/2026, con la cuota 1 ya pagada
+  (625). El cronograma paga 625 + 11 × 833,33 = 9 791,63, y el portal calcula las 12 cuotas al 20 % (9 999,96):
+  enseña **S/ 208,33 de más**. El portal no conoce los cambios de tasa a mitad de contrato; lo robusto sería que
+  lea los montos del cronograma en vez de recalcularlos.
+
 ## El caso que lo destapó
 
 Contrato **2026-01-001511**: 20 000 USD, 15 % anual, interés simple, mensual, 29/09/2026 → 29/03/2027
