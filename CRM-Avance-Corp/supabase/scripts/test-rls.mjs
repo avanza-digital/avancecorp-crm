@@ -9701,6 +9701,75 @@ async function testReparto(sessions, seed) {
   // F2.3b: la puerta v3 tiene grant a `authenticated`, asi que el gate del
   // despachador es LO UNICO que separa a un analista de las metricas de toda
   // la casa. Se prueba con los cuatro roles: dos fuera, dos dentro.
+  // 30/09/2026: conversión por analista para Coordinación. La puerta reutiliza
+  // el gate canónico del reparto (coordinador | gerencia); el resto, 42501. El
+  // divisor es el del NÚCLEO (mismas filas que conversion_neta_por_vendedor),
+  // no el reporte de entregas: formulario + landing = divisor en cada fila.
+  {
+    // Mes vigente en Lima: la puerta rechaza meses futuros y el gate de metas es 2099.
+    const P_MES = { p_periodo: `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7)}-01` };
+    for (const [rol, cliente] of [
+      ['vendedor', sessions.vend1.client],
+      ['supervisor', sessions.sup1.client],
+      ['directorio (lector global, fuera del gate del reparto)', sessions.directorio.client],
+      ['vendInactive (membresia revocada)', sessions.vendInactive.client],
+    ]) {
+      await expectBlockedMutation(
+        `${rol} no lee la conversion por analista de Coordinacion`,
+        cliente.schema('crm').rpc('conversion_divisor_coordinacion_fn', P_MES),
+        ['42501'],
+      );
+    }
+    await expectBlockedMutation(
+      'coordinador: un mes futuro se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_periodo: '2999-01-01' }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'coordinador: un dia que no es el primero del mes se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_periodo: `${P_MES.p_periodo.slice(0, 7)}-15` }),
+      ['22023'],
+    );
+    const convSinPeriodo = await positive(
+      'coordinador sin p_periodo recibe el mes vigente en Lima',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn'),
+    );
+    if (convSinPeriodo) {
+      check(convSinPeriodo.data?.periodo?.desde === P_MES.p_periodo,
+        'sin p_periodo la puerta sirve el mes vigente', String(convSinPeriodo.data?.periodo?.desde));
+    }
+    const convCoord = await positive(
+      'coordinador obtiene la conversion por analista de toda la empresa',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', P_MES),
+    );
+    const convGer = await positive(
+      'gerencia obtiene la misma conversion por analista',
+      gerencia.schema('crm').rpc('conversion_divisor_coordinacion_fn', P_MES),
+    );
+    if (convCoord) {
+      check(convCoord.data?.version === 1 && convCoord.data?.alcance === 'global',
+        'la conversion de Coordinacion declara version 1 y alcance global');
+      check(Array.isArray(convCoord.data?.analistas), 'analistas es SIEMPRE un array');
+      const claves = [...new Set((convCoord.data?.analistas ?? []).flatMap((f) => Object.keys(f)))].sort();
+      check(claves.length === 0 || JSON.stringify(claves) === JSON.stringify([
+        'analista_id', 'conversion_pct', 'divisor', 'divisor_formulario', 'divisor_landing',
+        'en_nucleo', 'nombre', 'numerador', 'supervisor_id', 'supervisor_nombre',
+      ]), 'cada analista trae SOLO las 10 claves del contrato', claves.join(','));
+      check((convCoord.data?.analistas ?? []).every((f) => f.divisor_formulario + f.divisor_landing === f.divisor),
+        'PARIDAD: formulario + landing = divisor en cada analista (mes abierto)');
+      const sumaAnalistas = (convCoord.data?.analistas ?? []).reduce((acc, f) => acc + f.divisor, 0)
+        + (convCoord.data?.sin_analista?.divisor ?? 0);
+      check(sumaAnalistas === convCoord.data?.empresa?.divisor,
+        'PARIDAD: la empresa suma analistas + sin analista');
+      check(!JSON.stringify(convCoord.data).match(/"(lead_id|telefono|correo|dni|monto_estimado|nota)"/),
+        'la conversion de Coordinacion no expone PII ni filas de leads');
+    }
+    if (convCoord && convGer) {
+      const sinReloj = (d) => JSON.stringify({ ...d, generado_en: null });
+      check(sinReloj(convCoord.data) === sinReloj(convGer.data),
+        'gerencia y coordinador reciben el MISMO payload (ambito de toda la empresa)');
+    }
+  }
   for (const [rol, cliente] of [
     ['vendedor', sessions.vend1.client],
     ['supervisor', sessions.sup1.client],

@@ -5258,6 +5258,10 @@ export type Database = {
         }
         Returns: Json
       }
+      conversion_divisor_coordinacion_fn: {
+        Args: { p_periodo?: string }
+        Returns: Json
+      }
       conversion_estado_lead_v1: { Args: { p_lead_id: string }; Returns: Json }
       conversion_mensual_fn: { Args: { p_periodo: string }; Returns: Json }
       conversion_mensual_sin_cartera_fn: {

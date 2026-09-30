@@ -131,6 +131,11 @@ import {
   reporteDerivacionesCoordinacionConsistente,
   type ReporteDerivacionesCoordinacion,
 } from '@/lib/reporte-derivaciones-coordinacion'
+import {
+  ConversionCoordinacionSchema,
+  conversionCoordinacionConsistente,
+  type ConversionCoordinacion,
+} from '@/lib/conversion-coordinacion'
 import { ESTADOS_CONTRATO_PDF, type EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import { ResumenRepartoSchema, type ResumenReparto } from '@/lib/resumen-reparto'
 import { IngresosRepartoMesSchema, inicioDeMes, type IngresosRepartoMes } from '@/lib/ingresos-reparto'
@@ -5625,6 +5630,58 @@ export async function listarMetricasVendedores(
 }
 
 // ── Reportes históricos de derivaciones ──────────────────────────────────────
+
+/**
+ * Conversión por analista de TODA la empresa para Coordinación
+ * (`crm.conversion_divisor_coordinacion_fn`). El divisor es el del núcleo —una
+ * llegada por lead, por su alta original, en el primer analista que la
+ * recibió— y NO el reporte de entregas, que a propósito deja de sumar la
+ * entrega devuelta a la bandeja. El navegador solo pinta lo que el servidor
+ * dice; si las sumas del payload no cierran, se rechaza el paquete entero.
+ */
+export async function conversionCoordinacion(
+  periodo: string,
+  signal?: AbortSignal,
+): Promise<ConversionCoordinacion> {
+  if (!v.safeParse(FechaSchema, periodo).success || !periodo.endsWith('-01')) {
+    throw new CrmApiError('El mes de conversión no es válido.', 'PERIODO_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_periodo: periodo })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      error.code === '22023'
+        ? 'El mes de conversión no es válido.'
+        : error.code === '42501' || error.code === 'PGRST301'
+          ? 'No tienes permiso para consultar la conversión por analista.'
+          : 'No se pudo cargar la conversión por analista.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_fallida', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+  const resultado = v.safeParse(ConversionCoordinacionSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'La conversión por analista no tiene el formato esperado.',
+      'CONVERSION_COORDINACION_CONTRACT',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  if (!conversionCoordinacionConsistente(resultado.output, periodo)) {
+    const fallo = new CrmApiError(
+      'La conversión por analista no reconcilia con el núcleo y no se mostrará.',
+      'CONVERSION_COORDINACION_INCONSISTENTE',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_inconsistente', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
 
 function falloReporteDerivaciones(
   error: { code?: string | null },
