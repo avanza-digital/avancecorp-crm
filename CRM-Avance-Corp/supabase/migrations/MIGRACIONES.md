@@ -1,3 +1,46 @@
+## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 4 · fase 1 del refactor por módulos, aprobado por Miguel
+el 29/09 («DALE»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+escritura (2026-09-29)».
+
+Problema medido (29/09, producción): el contador de avisos (`avisos_sla_resumen_v2_fn`) tarda 1.735–1.792 ms como
+gerencia y ~810 como supervisor; es la puerta con más tiempo total (9.540 llamadas en 4 días, 3.005 s). Pide al
+núcleo TODAS las oportunidades activas (2.583 para gerencia) con `sla_operacion_autorizada(null,true)`; el núcleo
+evalúa la regla completa y arma la ficha de cada una (bucle plpgsql ≈1.000 ms + SELECT 174 ms + post-proceso
+≈550 ms) y el adaptador solo cuenta. 1.139 de las 2.583 están descartadas/convertidas: `lead_terminal` en
+`private.sla_operacion_leads`, nunca producen avisos ni «pendientes» ni `proximo_cambio_en`.
+
+Cambio: el adaptador pasa al núcleo solo los ids de las oportunidades activas en etapa comercial
+(`private.sla_leads_operativos()`: las mismas cuatro etapas no terminales del núcleo; INVOKER, `search_path`
+vacío, sin ejecutores de la API; vive en `private` porque `assert_sla_avisos` prohíbe al adaptador leer
+`crm.leads`). El núcleo, su autoridad, su reloj y las otras 8 puertas que lo usan NO cambian. Al final, la
+migración (y la reversa) ejecutan `private.assert_sla_avisos()`: el guardián tiene la última palabra. Huellas
+del adaptador: viva `7b5f75dfb6ac3e480659bdef3dc5ac0f` → nueva `e9ce617ab0cc33bc5614ef69e877cc71`.
+
+**Oráculo en producción** (transacción deshecha; `scripts/sla-resumen-operativos/ensayo-oraculo.sql`): 4 actores
+(gerencia, supervisor con bandeja, 2 analistas), md5 del resumen sin `calculado_en` + controles
+`estado_sla_leads_v2_fn` y `cola_accion_v3_fn`: **12/12 iguales**; guardián OK tras el cambio. Tiempos: gerencia
+**1.792 → 1.130 ms**, supervisor **813 → 633 ms**, analistas 109 → 118 (el ayudante cuesta ~8 ms; para ellos el
+núcleo ya evaluaba pocas filas). Prototipo previo con las cifras: idéntico en 4 roles.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa
+(adaptador vivo, sin ayudante, guardián OK) → migración → registrador (2 sentencias); después: huella viva
+intacta, sin ayudante, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930002929_crm_sla_resumen_solo_operativos.sql`
+→ `supabase/scripts/sla-resumen-operativos/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián OK y
+resumen de gerencia ≤ 1.200 ms) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`:
+anotarlo aquí el mismo día).
+
+Diferido a una fase aparte: `private.gestion_diaria_alertas_sla` y `private.gestion_diaria_equipo_pendientes`
+también piden `(null,true)` (1,2 y 1,6 s) pero están sellados por md5 en `assert_gestion_diaria_alertas_equipo`
+y `assert_gestion_diaria_equipo`; cambiarlos exige resellar esos gates. Fase 2 (núcleo): pre-agregar tareas por
+lead y no recalcular `sla_hechos_actuales` dentro de `sla_tareas_hechos`.
+
+Reviews: Codex (`docs/encargos/2026-09-30-codex-sla-resumen-operativos.md`) y auditor-rls: ver abajo.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants de tablas) y banco Docker (ensayos sobre datos reales,
+deshechos).
+
 ## 20260930000550 — Agenda de postventa: los perfiles de la persona se buscan en su familia (`private.postventa_tarea_json`)
 
 **✅ EN PROD 29/09/2026 ~19:35 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930000550 /
