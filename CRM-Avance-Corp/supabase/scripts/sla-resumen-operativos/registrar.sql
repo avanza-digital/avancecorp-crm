@@ -28,6 +28,9 @@ begin
     and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'REGISTRO: invariantes del ayudante incorrectos (dueño %, acl %, definer %, vol %, cfg %); no se registra', h_owner, h_acl, h_secdef, h_vol, h_cfg;
   end if;
+  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+    raise exception 'REGISTRO: el ayudante no tiene la huella esperada (%); no se registra', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
+  end if;
   if exists (select 1 from supabase_migrations.schema_migrations
              where version = '20260930002929' and coalesce(name,'') <> 'crm_sla_resumen_solo_operativos') then
     raise exception 'REGISTRO: la versión 20260930002929 ya está registrada con otro nombre';

@@ -21,7 +21,7 @@
 -- Prototipo medido en producción (deshecho): resumen IDÉNTICO para gerencia, supervisor con bandeja y
 -- dos analistas; gerencia 1.749 → 1.196 ms, supervisor 800 → 629 ms (filas evaluadas 2.583 → 1.444).
 --
--- Huellas (md5 de pg_get_functiondef del adaptador): viva 7b5f75dfb6ac3e480659bdef3dc5ac0f → nueva e9ce617ab0cc33bc5614ef69e877cc71.
+-- Huellas (md5 de pg_get_functiondef): adaptador vivo 7b5f75dfb6ac3e480659bdef3dc5ac0f → nuevo e9ce617ab0cc33bc5614ef69e877cc71; ayudante 8d478d783e4c591662388ddf7405058a.
 -- Idempotente y fail-closed; al final ejecuta private.assert_sla_avisos() (que llama a assert_sla_nucleo):
 -- si el guardián del SLA no está conforme, la transacción se deshace.
 -- Reversa: supabase/scripts/sla-resumen-operativos/reversa.sql (restaura el adaptador vivo, retira el
@@ -45,6 +45,18 @@ begin
     raise exception 'PREFLIGHT: dueño/ACL/definer/volatilidad/search_path del adaptador vivo no son los esperados (dueño %, acl %, definer %, vol %, cfg %)', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
   if v_md5 = 'e9ce617ab0cc33bc5614ef69e877cc71' and to_regprocedure('private.sla_leads_operativos()') is not null then
+    -- Ruta «ya aplicada» (Codex r1 P2): exige los MISMOS invariantes y la huella del ayudante, y pasa el
+    -- guardián, antes de dar la migración por hecha. Que exista el ayudante no prueba que sea el esperado.
+  select pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
+    into h_owner, h_acl, h_secdef, h_vol, h_cfg from pg_proc p where p.oid = 'private.sla_leads_operativos()'::regprocedure;
+    if (h_owner = 'postgres' and h_acl is not null and h_acl = '{postgres=X/postgres}' and h_secdef is false and h_vol = 's'
+    and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
+      raise exception 'PREFLIGHT (ya aplicada): el ayudante no tiene los invariantes esperados (dueño %, acl %, definer %, vol %, cfg %)', h_owner, h_acl, h_secdef, h_vol, h_cfg;
+    end if;
+    if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+      raise exception 'PREFLIGHT (ya aplicada): el ayudante no tiene la huella esperada (%)', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
+    end if;
+    raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
     raise notice 'sla_resumen_solo_operativos: ya aplicada (huella %)', v_md5;
     return;
   end if;
@@ -76,6 +88,9 @@ $def$;
   if (h_owner = 'postgres' and h_acl is not null and h_acl = '{postgres=X/postgres}' and h_secdef is false and h_vol = 's'
     and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'POSTFLIGHT: el ayudante no quedó como se esperaba (dueño %, acl %, definer %, vol %, cfg %)', h_owner, h_acl, h_secdef, h_vol, h_cfg;
+  end if;
+  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+    raise exception 'POSTFLIGHT: huella inesperada del ayudante (%)', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
   end if;
 
   -- 2) el adaptador

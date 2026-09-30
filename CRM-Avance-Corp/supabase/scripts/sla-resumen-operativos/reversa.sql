@@ -17,7 +17,10 @@ begin
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'REVERSA: invariantes del adaptador incorrectos (dueño %, acl %, definer %, vol %, cfg %); no se toca', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
-  if v_md5 = '7b5f75dfb6ac3e480659bdef3dc5ac0f' and to_regprocedure('private.sla_leads_operativos()') is null then raise notice 'REVERSA: ya está el adaptador vivo del 29/09 (%)', v_md5; return; end if;
+  if v_md5 = '7b5f75dfb6ac3e480659bdef3dc5ac0f' and to_regprocedure('private.sla_leads_operativos()') is null then
+    raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+    raise notice 'REVERSA: ya está el adaptador vivo del 29/09 (%)', v_md5; return;
+  end if;
   if v_md5 <> 'e9ce617ab0cc33bc5614ef69e877cc71' then raise exception 'REVERSA: huella desconocida del adaptador (%), no se toca', v_md5; end if;
   execute $def$
 CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()

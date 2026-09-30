@@ -18,14 +18,17 @@ vacío, sin ejecutores de la API; vive en `private` porque `assert_sla_avisos` p
 migración (y la reversa) ejecutan `private.assert_sla_avisos()`: el guardián tiene la última palabra. Huellas
 del adaptador: viva `7b5f75dfb6ac3e480659bdef3dc5ac0f` → nueva `e9ce617ab0cc33bc5614ef69e877cc71`.
 
-**Oráculo en producción** (transacción deshecha; `scripts/sla-resumen-operativos/ensayo-oraculo.sql`): 4 actores
-(gerencia, supervisor con bandeja, 2 analistas), md5 del resumen sin `calculado_en` + controles
-`estado_sla_leads_v2_fn` y `cola_accion_v3_fn`: **12/12 iguales**; guardián OK tras el cambio. Tiempos: gerencia
-**1.792 → 1.130 ms**, supervisor **813 → 633 ms**, analistas 109 → 118 (el ayudante cuesta ~8 ms; para ellos el
-núcleo ya evaluaba pocas filas). Prototipo previo con las cifras: idéntico en 4 roles.
-**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa
-(adaptador vivo, sin ayudante, guardián OK) → migración → registrador (2 sentencias); después: huella viva
-intacta, sin ayudante, 0 registros.
+**Oráculo en producción** (transacción deshecha; `scripts/sla-resumen-operativos/ensayo-oraculo.sql`): 5 actores
+(gerencia, supervisor con bandeja, 2 analistas, coordinador), md5 del resumen sin `calculado_en` + controles
+`estado_sla_leads_v2_fn` y `cola_accion_v3_fn`: **15/15 iguales**; guardián OK tras el cambio. Tiempos: gerencia
+**1.761–1.792 → 1.130–1.146 ms**, supervisor **813 → 617–633 ms**, analistas 107–123 → 117–118 (el ayudante cuesta
+~8 ms; para ellos el núcleo ya evaluaba pocas filas), coordinador 11 → 24. Prototipo previo con las cifras: idéntico.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) →
+**negativos** (NEG1: ayudante con otro cuerpo → la migración repetida se niega por huella; NEG2: ayudante con
+EXECUTE a `authenticated` → se niega por invariantes) → reversa (adaptador vivo, sin ayudante, guardián OK) →
+migración → registrador (2 sentencias); después: huella viva intacta, sin ayudante, 0 registros.
+Huella del ayudante `8d478d783e4c591662388ddf7405058a` (medida en la base; `pg_get_functiondef` añade el salto
+de línea final).
 
 Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930002929_crm_sla_resumen_solo_operativos.sql`
 → `supabase/scripts/sla-resumen-operativos/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián OK y
@@ -37,7 +40,13 @@ también piden `(null,true)` (1,2 y 1,6 s) pero están sellados por md5 en `asse
 y `assert_gestion_diaria_equipo`; cambiarlos exige resellar esos gates. Fase 2 (núcleo): pre-agregar tareas por
 lead y no recalcular `sla_hechos_actuales` dentro de `sla_tareas_hechos`.
 
-Reviews: Codex (`docs/encargos/2026-09-30-codex-sla-resumen-operativos.md`) y auditor-rls: ver abajo.
+**Reviews (LEVEL 3):** Codex r1 (`docs/encargos/2026-09-30-codex-sla-resumen-operativos.md`) CHANGES_REQUESTED:
+P2 «la ruta "ya aplicada" aceptaba un ayudante sin validar y omitía el guardián» → aceptado: la ruta idempotente
+exige invariantes + huella del ayudante y pasa el guardián; el postflight y el registrador exigen la huella del
+ayudante; la reversa pasa el guardián también en su ruta idempotente; negativos NEG1/NEG2 añadidos al ciclo. R1
+(correspondencia de etapas y metadatos): `sla_hechos_actuales` devuelve `l.etapa` como `etapa_actual` y los
+metadatos del paquete salen de `sla_operacion_control` y del reloj, no de las filas (transcrito en r2). R2:
+coordinador añadido al oráculo; lector global sin actor real (0 perfiles). Codex r2 y auditor-rls: ver abajo.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants de tablas) y banco Docker (ensayos sobre datos reales,
 deshechos).
 

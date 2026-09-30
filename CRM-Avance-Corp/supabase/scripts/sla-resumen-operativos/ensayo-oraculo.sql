@@ -1,7 +1,7 @@
 -- ENSAYO DESHECHO en producción: oráculo de igualdad antes/después de 20260930002929_crm_sla_resumen_solo_operativos. Termina SIEMPRE en raise.
 do $do$
 declare
-  v_md5 text; actores uuid[]; nombres text[]:=array['gerencia','supervisor','vendedor1','vendedor2'];
+  v_md5 text; actores uuid[]; nombres text[]:=array['gerencia','supervisor','vendedor1','vendedor2','coordinador'];
   res jsonb[]:=array['{}'::jsonb,'{}'::jsonb]; dur jsonb[]:=array['{}'::jsonb,'{}'::jsonb];
   fase int; a int; v jsonb; t0 timestamptz; iguales int:=0; distintos text[]:='{}'; k text; g text; ids uuid[];
 begin
@@ -12,6 +12,7 @@ begin
   actores := array[(select e.perfil_id from crm.equipo e where e.rol_crm='gerencia' and e.activo order by e.perfil_id limit 1)];
   actores := actores || (select l.asignado_supervisor_id from crm.leads l join crm.equipo e on e.perfil_id=l.asignado_supervisor_id and e.rol_crm='supervisor' and e.activo where l.activo and l.vendedor_id is null group by 1 order by count(*) desc limit 1);
   actores := actores || array(select l.vendedor_id from crm.leads l join crm.equipo e on e.perfil_id=l.vendedor_id and e.rol_crm='vendedor' and e.activo where l.activo and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada') group by 1 order by count(*) desc limit 2);
+  actores := actores || (select e.perfil_id from crm.equipo e where e.rol_crm='coordinador' and e.activo order by e.perfil_id limit 1);
   select array_agg(id) into ids from crm.leads where activo and etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada');
   for fase in 1..2 loop
     if fase=2 then
@@ -66,7 +67,7 @@ $function$$def$;
       select md5(pg_get_functiondef('crm.avisos_sla_resumen_v2_fn()'::regprocedure)) into v_md5;
       g := private.assert_sla_avisos();
     end if;
-    for a in 1..4 loop
+    for a in 1..5 loop
       continue when actores[a] is null;
       perform set_config('request.jwt.claim.sub', actores[a]::text, true);
       perform set_config('request.jwt.claims', json_build_object('sub', actores[a], 'role', 'authenticated')::text, true);
