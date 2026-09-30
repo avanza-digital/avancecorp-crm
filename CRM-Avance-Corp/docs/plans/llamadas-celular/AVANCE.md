@@ -1,17 +1,17 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 10:21 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 11:05 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 15:21 UTC: F1.1.1 hecha — coordinador de la intención de contacto (lib/intencion-contacto.ts, 11 tests). Antes, 12 tests de caracterización de AccionesContacto para no romper el retorno del marcador que ya funciona en producción. Sigue F1.1.2: AccionesContacto usa el coordinador y la cuenta lo limpia al salir. Pendiente de Jhosep en C1: probar «Abrir enlaces compatibles».
+**Lo último:** 30/09 16:05 UTC: el receptor del enlace está hecho (e08288ee): lee el número, busca bajo RLS y abre la misma encuesta de «Llamar»; ambiguo, sin coincidencia y error tienen su aviso con búsqueda manual. F1.3 cerrada. Ahora F1.4: checks, guía y la prueba real en C1 (necesita una build publicada en un entorno de prueba).
 
-**Total:** 2 de 102 tareas · 0 de 8 fases hechas.
+**Total:** 8 de 102 tareas · 0 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
-| F1 · Formulario único y coincidencia exacta | 1/12 | En curso | 0/4 |
+| F1 · Formulario único y coincidencia exacta | 7/12 | En curso | 1/4 |
 | F2 · Núcleo confiable y contrato de datos | 0/13 | Pendiente | 0/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
@@ -35,13 +35,22 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
     - ✓ F0.4.2 — docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000. (29/09/2026, 05:45 p. m.)
 
-### F1 · Formulario único y coincidencia exacta — 1/12 · en curso
-- **F1.1 · Coordinar la intención** — 1/3 · en curso · Responsable: Claude (código) · Jhosep (prueba en C1) · F1.1.1 hecha (coordinador con 11 tests, commit 6a920143). F1.1.2 en curso: AccionesContacto se integra al coordinador sin romper los 12 tests de caracterización (commit 9b638279).
+### F1 · Formulario único y coincidencia exacta — 7/12 · en curso
+- **F1.1 · Coordinar la intención** — 2/3 · en curso · Responsable: Claude (código) · Jhosep (prueba en C1) · F1.1.1 y F1.1.2 hechas. F1.1.3 probada con tests salvo «otra pestaña», que se comprueba a mano en F1.4.1.
     - ✓ F1.1.1 — lib/intencion-contacto.ts + 11 tests (commit 6a920143): cola por pestaña con actor, lead, canal, número, hora, caducidad (2 h) y formulario abierto; sobrevive a la recarga (sessionStorage); una cabeza a la vez. Nadie lo usa todavía: se integra en F1.1.2. (30/09/2026, 10:21 a. m.)
-    - ◐ F1.1.2 — AccionesContacto pasa a leer y escribir la cola compartida: el tap arma la intención; al volver ≥ 4 s la reclama y abre el registro; una instancia nueva la recoge tras remount o recarga; un enlace se ofrece al montar. Falta: limpiar al salir (auth.tsx) y el receptor del enlace (F1.2). (30/09/2026, 10:21 a. m.)
-- **F1.2 · Recibir el enlace** — 0/3 · pendiente · Responsable: por asignar
-- **F1.3 · Encontrar el lead** — 0/3 · pendiente · Responsable: por asignar
-- **F1.4 · Validar la experiencia** — 0/3 · pendiente · Responsable: por asignar
+    - ✓ F1.1.2 — AccionesContacto y el receptor del enlace comparten la cola (6ca9944f, e08288ee); contexto mínimo en sessionStorage; auth.tsx la vacía al salir y al cambiar de identidad. Tests: AccionesContacto 19, receptor 13. (30/09/2026, 11:05 a. m.)
+    - ◐ F1.1.3 — Probado con tests: foco y hash en los dos órdenes, recarga (sessionStorage + página), remount y cola (la segunda llamada espera a que se cierre la primera). «Otra pestaña» es por diseño (cola por pestaña) y se comprueba a mano en F1.4.1. (30/09/2026, 11:05 a. m.)
+- **F1.2 · Recibir el enlace** — 2/3 · en curso · Responsable: Claude · F1.2.1 y F1.2.3 hechas. F1.2.2 con código y tests; se cierra con la prueba del login en C1 (F1.4.2).
+    - ✓ F1.2.1 — router.ts (commit 69b4bdf2): #/hoy/llamada/<numero> y #/gestion-diaria/llamada/<numero>; solo se codifica el segmento del número (el + vuelve intacto), acotado a lo que deja un marcador (máx. 40, sin códigos *123#), se suelta al abrir la ficha. 29 tests del router en verde (3 nuevos). (30/09/2026, 10:50 a. m.)
+    - ◐ F1.2.2 — App conserva el número en el saneado del hash (69b4bdf2) y el receptor espera a que el store cargue tras el login (e08288ee, test). Falta comprobar en C1 que el enlace sobrevive a iniciar sesión (F1.4.2). (30/09/2026, 11:05 a. m.)
+    - ✓ F1.2.3 — components/app/receptor-llamada.tsx montado una vez en App (e08288ee): reutiliza asegurarLead/abrirLead, RegistrarResultado y tareaQueCierra a través de AccionesContacto (la misma encuesta de «Llamar»). 13 tests. (30/09/2026, 11:05 a. m.)
+- **F1.3 · Encontrar el lead** — 3/3 · hecha · Responsable: Claude · Cerrada. Pendiente de la prueba real en C1 (F1.4.2) para ver la coincidencia con números de verdad. · Evidencia: 30/09/2026: commits cd4d31b0 y e08288ee; 24 tests de coincidencia (casos sintéticos A, B, C, E, F, D3), 9 de la capa de datos y 13 del receptor, todos en verde.
+    - ✓ F1.3.1 — lib/coincidencia-telefono.ts (commit cd4d31b0): E.164 completo de principal y alternativo con las dos formas canónicas de la base (regla del trigger + canonizar_contacto) y el fijo con 0; nunca se recortan 9 dígitos. 24 tests con los casos sintéticos A, B, C, E, F y D3. (30/09/2026, 10:56 a. m.)
+    - ✓ F1.3.2 — data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests. (30/09/2026, 11:05 a. m.)
+    - ✓ F1.3.3 — Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests. (30/09/2026, 11:05 a. m.)
+- **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · Arranca: npm run check corriendo; guía de MacroDroid con la URL con número; luego la prueba real en C1.
+    - ◐ F1.4.2 — Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular. (30/09/2026, 11:05 a. m.)
+    - ◐ F1.4.3 — npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa. (30/09/2026, 11:05 a. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
 - **F2.1 · Cerrar el contrato** — 0/3 · pendiente · Responsable: por asignar
@@ -82,6 +91,10 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
+- 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
+- 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
+- 30/09/2026, 10:41 a. m. · F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1).
 - 30/09/2026, 10:21 a. m. · F1.1.1 hecha: coordinador de la intención de contacto con 11 tests (6a920143); antes, 12 tests de caracterización de AccionesContacto (9b638279). F1.1.2 en curso.
 - 30/09/2026, 10:07 a. m. · F1 en curso (F1.1 · F1.1.1): plan corto presentado a Jhosep con archivos, reutilización y verificación; el aterrizaje será Gestión Diaria y la ruta por número servirá también en Hoy. Empieza por tests de caracterización de AccionesContacto.
 - 30/09/2026, 09:53 a. m. · Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes.

@@ -1,15 +1,18 @@
 {
-  "actualizado": "2026-09-30T15:21:54Z",
+  "actualizado": "2026-09-30T16:05:46Z",
   "meta": {
-    "novedad": "30/09 15:21 UTC: F1.1.1 hecha — coordinador de la intención de contacto (lib/intencion-contacto.ts, 11 tests). Antes, 12 tests de caracterización de AccionesContacto para no romper el retorno del marcador que ya funciona en producción. Sigue F1.1.2: AccionesContacto usa el coordinador y la cuenta lo limpia al salir. Pendiente de Jhosep en C1: probar «Abrir enlaces compatibles».",
-    "actualizado": "2026-09-30T15:21:54Z"
+    "novedad": "30/09 16:05 UTC: el receptor del enlace está hecho (e08288ee): lee el número, busca bajo RLS y abre la misma encuesta de «Llamar»; ambiguo, sin coincidencia y error tienen su aviso con búsqueda manual. F1.3 cerrada. Ahora F1.4: checks, guía y la prueba real en C1 (necesita una build publicada en un entorno de prueba).",
+    "actualizado": "2026-09-30T16:05:46Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
     "F1": { "estado": "curso", "actualizado": "2026-09-30T15:07:11Z" }
   },
   "subfases": {
-    "F1.1": { "estado": "curso", "responsable": "Claude (código) · Jhosep (prueba en C1)", "nota": "F1.1.1 hecha (coordinador con 11 tests, commit 6a920143). F1.1.2 en curso: AccionesContacto se integra al coordinador sin romper los 12 tests de caracterización (commit 9b638279).", "actualizado": "2026-09-30T15:21:54Z" },
+    "F1.1": { "estado": "curso", "responsable": "Claude (código) · Jhosep (prueba en C1)", "nota": "F1.1.1 y F1.1.2 hechas. F1.1.3 probada con tests salvo «otra pestaña», que se comprueba a mano en F1.4.1.", "actualizado": "2026-09-30T16:05:46Z" },
+    "F1.2": { "estado": "curso", "responsable": "Claude", "nota": "F1.2.1 y F1.2.3 hechas. F1.2.2 con código y tests; se cierra con la prueba del login en C1 (F1.4.2).", "actualizado": "2026-09-30T16:05:46Z" },
+    "F1.3": { "estado": "hecha", "responsable": "Claude", "evidencia": "30/09/2026: commits cd4d31b0 y e08288ee; 24 tests de coincidencia (casos sintéticos A, B, C, E, F, D3), 9 de la capa de datos y 13 del receptor, todos en verde.", "nota": "Cerrada. Pendiente de la prueba real en C1 (F1.4.2) para ver la coincidencia con números de verdad.", "actualizado": "2026-09-30T16:05:46Z" },
+    "F1.4": { "estado": "curso", "responsable": "Claude (checks, guía) · Jhosep (C1)", "nota": "Arranca: npm run check corriendo; guía de MacroDroid con la URL con número; luego la prueba real en C1.", "actualizado": "2026-09-30T16:05:46Z" },
     "F0.1": { "estado": "curso", "responsable": "Jhosep", "nota": "C1 (Samsung A16, Android 16) registrado y con PWA + MacroDroid; falta la macro, la prueba de humo y 1–2 celulares más.", "actualizado": "2026-09-29T23:16:49Z" },
     "F0.3": { "estado": "curso", "responsable": "Jhosep", "nota": "C1: prueba de humo superada; noche 1/3 sin caerse. Prioridad: salientes (lo que el vendedor hace). Pendiente: 6 salientes más, casos especiales, bloqueo/batería/reinicio/sin red y dos noches; entrantes solo si ocurren.", "actualizado": "2026-09-30T14:53:03Z" },
     "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" }
@@ -24,7 +27,16 @@
     "F0.4.1": { "done": false, "estado": "curso", "nota": "REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo." },
     "F0.4.2": { "done": true, "at": "2026-09-29T22:45:39Z", "nota": "docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000." },
     "F1.1.1": { "done": true, "at": "2026-09-30T15:21:54Z", "nota": "lib/intencion-contacto.ts + 11 tests (commit 6a920143): cola por pestaña con actor, lead, canal, número, hora, caducidad (2 h) y formulario abierto; sobrevive a la recarga (sessionStorage); una cabeza a la vez. Nadie lo usa todavía: se integra en F1.1.2." },
-    "F1.1.2": { "done": false, "estado": "curso", "at": "2026-09-30T15:21:54Z", "nota": "AccionesContacto pasa a leer y escribir la cola compartida: el tap arma la intención; al volver ≥ 4 s la reclama y abre el registro; una instancia nueva la recoge tras remount o recarga; un enlace se ofrece al montar. Falta: limpiar al salir (auth.tsx) y el receptor del enlace (F1.2)." }
+    "F1.1.2": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "AccionesContacto y el receptor del enlace comparten la cola (6ca9944f, e08288ee); contexto mínimo en sessionStorage; auth.tsx la vacía al salir y al cambiar de identidad. Tests: AccionesContacto 19, receptor 13." },
+    "F1.1.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "Probado con tests: foco y hash en los dos órdenes, recarga (sessionStorage + página), remount y cola (la segunda llamada espera a que se cierre la primera). «Otra pestaña» es por diseño (cola por pestaña) y se comprueba a mano en F1.4.1." },
+    "F1.2.1": { "done": true, "at": "2026-09-30T15:50:05Z", "nota": "router.ts (commit 69b4bdf2): #/hoy/llamada/<numero> y #/gestion-diaria/llamada/<numero>; solo se codifica el segmento del número (el + vuelve intacto), acotado a lo que deja un marcador (máx. 40, sin códigos *123#), se suelta al abrir la ficha. 29 tests del router en verde (3 nuevos)." },
+    "F1.2.2": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "App conserva el número en el saneado del hash (69b4bdf2) y el receptor espera a que el store cargue tras el login (e08288ee, test). Falta comprobar en C1 que el enlace sobrevive a iniciar sesión (F1.4.2)." },
+    "F1.2.3": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "components/app/receptor-llamada.tsx montado una vez en App (e08288ee): reutiliza asegurarLead/abrirLead, RegistrarResultado y tareaQueCierra a través de AccionesContacto (la misma encuesta de «Llamar»). 13 tests." },
+    "F1.3.1": { "done": true, "at": "2026-09-30T15:56:58Z", "nota": "lib/coincidencia-telefono.ts (commit cd4d31b0): E.164 completo de principal y alternativo con las dos formas canónicas de la base (regla del trigger + canonizar_contacto) y el fijo con 0; nunca se recortan 9 dígitos. 24 tests con los casos sintéticos A, B, C, E, F y D3." },
+    "F1.3.2": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests." },
+    "F1.3.3": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests." },
+    "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular." },
+    "F1.4.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa." }
   },
   "cambios": [
     { "at": "2026-09-29T22:20:53Z", "texto": "Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente." },
@@ -37,6 +49,10 @@
     { "at": "2026-09-30T14:46:41Z", "texto": "F0: MacroDroid 5.67 anotado en REGISTRO y compatibilidad; noche 1/3 superada en C1 (F0.3.3 en curso)." },
     { "at": "2026-09-30T14:53:03Z", "texto": "Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes." },
     { "at": "2026-09-30T15:07:11Z", "texto": "F1 en curso (F1.1 · F1.1.1): plan corto presentado a Jhosep con archivos, reutilización y verificación; el aterrizaje será Gestión Diaria y la ruta por número servirá también en Hoy. Empieza por tests de caracterización de AccionesContacto." },
-    { "at": "2026-09-30T15:21:54Z", "texto": "F1.1.1 hecha: coordinador de la intención de contacto con 11 tests (6a920143); antes, 12 tests de caracterización de AccionesContacto (9b638279). F1.1.2 en curso." }
+    { "at": "2026-09-30T15:21:54Z", "texto": "F1.1.1 hecha: coordinador de la intención de contacto con 11 tests (6a920143); antes, 12 tests de caracterización de AccionesContacto (9b638279). F1.1.2 en curso." },
+    { "at": "2026-09-30T15:41:16Z", "texto": "F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1)." },
+    { "at": "2026-09-30T15:50:05Z", "texto": "F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso." },
+    { "at": "2026-09-30T15:56:58Z", "texto": "F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3." },
+    { "at": "2026-09-30T16:05:46Z", "texto": "F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1)." }
   ]
 }

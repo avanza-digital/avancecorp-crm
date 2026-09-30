@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 7/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,45 +195,45 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 1/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F1:** 7/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
-**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (código) · Jhosep (prueba en C1).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (código) · Jhosep (prueba en C1).
 
 - [x] **F1.1.1** Crear coordinador compartido para actor, lead, canal, número, hora, caducidad y formulario abierto.
-- [ ] **F1.1.2** Integrar AccionesContacto y receptor de enlaces; persistir contexto mínimo y limpiarlo al salir de la cuenta. — EN CURSO: AccionesContacto pasa a leer y escribir la cola compartida: el tap arma la intención; al volver ≥ 4 s la reclama y abre el registro; una instancia nueva la recoge tras remount o recarga; un enlace se ofrece al montar. Falta: limpiar al salir (auth.tsx) y el receptor del enlace (F1.2).
-- [ ] **F1.1.3** Resolver foco/hash en ambos órdenes, recarga, remount y otra pestaña; encolar la siguiente llamada.
+- [x] **F1.1.2** Integrar AccionesContacto y receptor de enlaces; persistir contexto mínimo y limpiarlo al salir de la cuenta.
+- [ ] **F1.1.3** Resolver foco/hash en ambos órdenes, recarga, remount y otra pestaña; encolar la siguiente llamada. — EN CURSO: Probado con tests: foco y hash en los dos órdenes, recarga (sessionStorage + página), remount y cola (la segunda llamada espera a que se cierre la primera). «Otra pestaña» es por diseño (cola por pestaña) y se comprueba a mano en F1.4.1.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F1.2 · Recibir el enlace
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude.
 
-- [ ] **F1.2.1** Añadir ruta por número, codificando solo su segmento y preservando +, país y hash.
-- [ ] **F1.2.2** Propagar ruta en App y recuperarla tras login y carga del workspace.
-- [ ] **F1.2.3** Montar receptor en Hoy y reutilizar asegurarLead, RegistrarResultado y tareaQueCierra.
+- [x] **F1.2.1** Añadir ruta por número, codificando solo su segmento y preservando +, país y hash.
+- [ ] **F1.2.2** Propagar ruta en App y recuperarla tras login y carga del workspace. — EN CURSO: App conserva el número en el saneado del hash (69b4bdf2) y el receptor espera a que el store cargue tras el login (e08288ee, test). Falta comprobar en C1 que el enlace sobrevive a iniciar sesión (F1.4.2).
+- [x] **F1.2.3** Montar receptor en Hoy y reutilizar asegurarLead, RegistrarResultado y tareaQueCierra.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F1.3 · Encontrar el lead
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude.
 
-- [ ] **F1.3.1** Comparar E.164 completo de principal y alternativo; probar fijo e internacional con reglas compatibles.
-- [ ] **F1.3.2** Recuperar candidatos paginados y variantes históricas; contar leads distintos y comprobar completitud.
-- [ ] **F1.3.3** Mostrar único, ambiguo, sin coincidencia, incompleto o error; ofrecer búsqueda manual donde corresponda.
+- [x] **F1.3.1** Comparar E.164 completo de principal y alternativo; probar fijo e internacional con reglas compatibles.
+- [x] **F1.3.2** Recuperar candidatos paginados y variantes históricas; contar leads distintos y comprobar completitud.
+- [x] **F1.3.3** Mostrar único, ambiguo, sin coincidencia, incompleto o error; ofrecer búsqueda manual donde corresponda.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 30/09/2026: commits cd4d31b0 y e08288ee; 24 tests de coincidencia (casos sintéticos A, B, C, E, F, D3), 9 de la capa de datos y 13 del receptor, todos en verde..
 
 ### F1.4 · Validar la experiencia
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
 - [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash.
-- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend.
-- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa.
+- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular.
+- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa.
 
 **Evidencia / fecha de validación:** pendiente.
 

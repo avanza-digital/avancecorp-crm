@@ -38,4 +38,4 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 
 ## Estado hoy
 
-Ninguna fase publicada. F0 (piloto, sin código) arrancó el 29/09/2026 con la parte que no necesita celulares: guía, plantillas y ejemplos sintéticos en `docs/gestion-diaria/piloto-telefonia/`. Lo que falta de F0 depende de personas y equipos: elegir 2–3 celulares, asignar analistas y soporte, firmar el consentimiento y medir cinco días.
+Ninguna fase publicada en producción. F0 (piloto, sin código) arrancó el 29/09/2026 y sigue en curso con C1 (Samsung A16); lo que falta depende de personas y equipos: más celulares, analistas y soporte, consentimiento y cinco días de medición. F1 (solo pantalla, sin tablas ni puertas nuevas) arrancó el 30/09/2026 por decisión de Jhosep, en paralelo, en la rama `feat/llamadas-f0`: coordinador de la intención, ruta por número, coincidencia exacta y receptor del enlace están hechos y con tests; falta la prueba real en el celular (F1.4), que necesita una build publicada en un entorno de prueba.

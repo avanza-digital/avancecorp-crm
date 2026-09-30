@@ -40,6 +40,23 @@ Lo marcado «verificado» sale de documentación oficial consultada el 29/09/202
 
 **Duración:** MacroDroid no la entrega y su «Call Active → Call Ended» no sirve en salientes: Android no avisa cuándo contesta el otro (verificado). En F0 no se mide. Si más adelante hace falta, el plan contempla Tasker (`%CODUR`, solo última saliente) o Shizuku; es una decisión aparte (sección 16 del plan).
 
+## 3b. Macro para F1 — la URL con el número (30/09/2026)
+
+Desde F1 el CRM entiende **`#/gestion-diaria/llamada/<numero>`** (también `#/hoy/llamada/<numero>`): al abrirse con esa ruta busca el lead del número en la cartera del analista y, si es uno solo, abre la misma encuesta de resultado que hoy abre «Llamar» al volver del marcador. Si hay varios, ninguno, o el número no se entiende, muestra un aviso con los candidatos o con un buscador para elegir a mano; nada se autoselecciona.
+
+**Cambio en la macro:** la acción de apertura pasa a llevar la URL
+`https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}`
+con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que llegar tal cual; el `+` del número también se entiende sin codificar). Dos maneras de que esa URL abra la app y no Chrome:
+
+1. **Ajuste de Android, sin paquete (probar primero):** Ajustes → Aplicaciones → **Avance CRM** → «Abrir de forma predeterminada» → activar «Abrir enlaces compatibles» y, si aparece, «Agregar enlace» → `crm.miavance.com`. Con eso la acción **«Abrir sitio web»** del F0 vale tal cual, solo cambiando la URL. Se prueba en C1; no está verificado en documentación.
+2. **Send Intent con el paquete del WebAPK:** Target `Activity`, Action `android.intent.action.VIEW`, Data = la URL de arriba, Package = `org.chromium.webapk.…` (se obtiene exportando la macro: el archivo trae el `packageName` de la acción «Lanzar app»).
+
+**«Lanzar app» ya no basta** para F1: abre la app pero no puede pasarle el número.
+
+**Qué mirar en el celular (F1.4.2):** que la app se abra en Gestión Diaria y aparezca la encuesta (o el aviso) para el número marcado; que funcione con la sesión ya iniciada y también si toca iniciar sesión (el número debe sobrevivir al login); que Atrás no vuelva a abrir la búsqueda; y que con la encuesta abierta una segunda llamada no la pise (espera a que se cierre la primera). Anotar cada caso en `REGISTRO.md` sin el número real.
+
+**Reversa:** volver la acción a «Lanzar app → Avance CRM» (o a la URL sin número). En el CRM, si hiciera falta, basta con no montar `ReceptorLlamada` en `App.tsx`: la ruta se ignora y todo lo demás sigue igual.
+
 ## 4. Cómo cerrar cada comprobación de F0.3
 
 | Tarea | Qué hacer | Qué anotar en `REGISTRO.md` |
