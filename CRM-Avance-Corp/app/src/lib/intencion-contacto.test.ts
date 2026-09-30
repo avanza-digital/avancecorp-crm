@@ -75,6 +75,22 @@ describe('coordinador de la intención de contacto', () => {
     expect(m.listarIntenciones('v1', T0 + 1_000)).toEqual([y])
   })
 
+  it('si la del lead ya está abierta, otra llamada al mismo lead no se encola: se devuelve la abierta sin avisar', async () => {
+    const m = await cargarPagina()
+    const aviso = vi.fn()
+    m.suscribirIntenciones(aviso)
+    const x = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla' }, T0)
+    m.reclamarIntencion(x.id, T0)
+    const avisos = aviso.mock.calls.length
+    const otra = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999888777' }, T0 + 5_000)
+    expect(otra.id).toBe(x.id)
+    expect(m.listarIntenciones('v1', T0 + 5_000)).toHaveLength(1)
+    expect(aviso).toHaveBeenCalledTimes(avisos)
+    // Otro lead sí espera detrás.
+    m.armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'enlace', numero: '+51988877766' }, T0 + 6_000)
+    expect(m.listarIntenciones('v1', T0 + 6_000)).toHaveLength(2)
+  })
+
   it('un segundo tap al mismo lead y canal renueva la pendiente en vez de duplicarla', async () => {
     const m = await cargarPagina()
     const a = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla', instancia: 'i1' }, T0)

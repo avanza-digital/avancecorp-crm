@@ -149,14 +149,14 @@ describe('AccionesContacto en el celular (el aparato marca)', () => {
     expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true })
   })
 
-  it('si la instancia que delegó en «Mi día» se va, la intención se cierra con ella', async () => {
+  it('la intención delegada en «Mi día» no muere con esta instancia: la tarjeta desmonta las acciones para pintar su formulario', async () => {
     const { unmount } = render(<AccionesContacto lead={LEAD} onRegistrarLlamada={vi.fn()} />)
     pulsar(enlaceLlamar())
     vi.setSystemTime(AHORA + 4_000)
     volver()
     await waitFor(() => expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true }))
     unmount()
-    expect(intencionDe('v1', LEAD.id)).toBeNull()
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true }) // la cierra «Mi día» al cerrar su sesión
   })
 
   it('si el lead ya no está en el ámbito lo dice y no abre nada', async () => {

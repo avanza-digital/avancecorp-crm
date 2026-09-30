@@ -610,6 +610,19 @@ describe('GestionDiariaAnalista · integración del taller y producción', () =>
     limpiarIntencionesContacto()
   })
 
+  it('si la pantalla se va con la sesión de la tarjeta viva, libera su intención para no atascar la cola', async () => {
+    limpiarIntencionesContacto()
+    const abierta = armarIntencion({ actor: 'a1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999000111' })
+    reclamarIntencion(abierta.id)
+    const { unmount } = render(<GestionDiariaAnalista />)
+    dobles.contacto.onRegistrar?.()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(intencionDe('a1', 'l1')).toMatchObject({ abierta: true })
+    unmount()
+    expect(intencionDe('a1', 'l1')).toBeNull()
+    limpiarIntencionesContacto()
+  })
+
   it('al elegir una fila se enfoca el nombre de Ahora', async () => {
     render(<GestionDiariaAnalista />)
     fireEvent.click(screen.getByRole('tab', { name: /^Vencidas/ }))

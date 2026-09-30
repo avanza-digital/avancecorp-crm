@@ -129,13 +129,17 @@ export function estaLista(intencion: IntencionContacto, ahora: number = Date.now
 /**
  * Arma (o renueva) la intención de contactar a un lead. Una PENDIENTE del mismo
  * actor, lead y canal se reemplaza —un segundo tap en «Llamar» es la misma
- * llamada, no dos—; una abierta se respeta y la nueva espera detrás.
+ * llamada, no dos—. Si la de ese lead ya está ABIERTA (su formulario está en
+ * pantalla), no se encola otra: se devuelve la abierta y no se avisa; encolarla
+ * volvería a preguntar por la misma persona al cerrar (visto el 30/09).
  */
 export function armarIntencion(
   datos: { actor: string; leadId: string; canal: Canal; origen: OrigenIntencion; numero?: string | null; instancia?: string },
   ahora: number = Date.now(),
 ): IntencionContacto {
   const actual = vigentes(ahora)
+  const yaAbierta = actual.find((i) => i.abierta && i.actor === datos.actor && i.leadId === datos.leadId && i.canal === datos.canal)
+  if (yaAbierta) return yaAbierta
   secuencia += 1
   const nueva: IntencionContacto = {
     id: `${ahora.toString(36)}-${PAGINA}-${secuencia}`,

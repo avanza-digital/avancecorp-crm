@@ -131,6 +131,15 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const sesionRef = useRef<SesionLlamada | null>(null)
   const contadorSesion = useRef(0)
   const setSesion = (s: SesionLlamada | null) => { sesionRef.current = s; setSesionEstado(s) }
+  // La intención de contacto que abrió la tarjeta es de ESTA pantalla mientras
+  // dure la sesión; si la pantalla se va con la sesión viva, se libera para que
+  // la cola de llamadas no quede atascada (F1.1.3).
+  const actorRef = useRef(yo?.id)
+  actorRef.current = yo?.id
+  useEffect(() => () => {
+    const viva = sesionRef.current
+    if (viva) cerrarIntencionesDe(actorRef.current, viva.lead.id)
+  }, [])
   const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
   // La CLAVE de la fila elegida (`lead:<uuid>` | `tarea:<uuid>`), no un lead:
   // un cliente puede tener dos tareas en la cola.

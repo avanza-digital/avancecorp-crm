@@ -162,17 +162,20 @@ export function AccionesContacto({
   // `id` es la intención reclamada (null en el camino del escritorio, que no sale
   // de la pestaña). Una salida sin formulario termina con ella (lead fuera del
   // ámbito, sin red: la pregunta se pierde, como siempre). Con formulario, sigue
-  // ABIERTA hasta que se cierre —el diálogo propio aquí; la tarjeta de «Mi día»
-  // con `cerrarIntencionesDe` al cerrar su sesión—: mientras, la siguiente
-  // llamada espera en la cola en vez de abrirse encima (visto el 30/09).
+  // ABIERTA hasta que se cierre: mientras, la siguiente llamada espera en la
+  // cola en vez de abrirse encima (visto el 30/09). El diálogo propio la cierra
+  // esta instancia (`tomada`). Al delegar en «Mi día» la intención pasa a ser de
+  // esa pantalla (`cerrarIntencionesDe` al cerrar su sesión): la tarjeta
+  // DESMONTA estas acciones para pintar su formulario, así que atarla a esta
+  // instancia la cerraría en el acto.
   const abrirRegistro = useCallback((canal: Canal, id: string | null) => {
     const terminar = () => { if (id) cerrarIntencion(id) }
     void asegurarLead(lead.id).then((ok) => {
       if (!vigente.current) { terminar(); return }
       if (!ok) { toast.error('Este lead ya no está disponible en tu ámbito.'); terminar(); return }
+      if (canal === 'tel' && onRegistrarLlamada) { onRegistrarLlamada(); return }
       tomada.current = id
-      if (canal === 'tel' && onRegistrarLlamada) onRegistrarLlamada()
-      else setDialogo(canal)
+      setDialogo(canal)
     }).catch(() => { toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'); terminar() })
   }, [asegurarLead, lead.id, onRegistrarLlamada])
 
