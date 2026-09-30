@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 0/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,13 +195,13 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 0/12 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F1:** 0/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Jhosep (prueba en C1).
 
-- [ ] **F1.1.1** Crear coordinador compartido para actor, lead, canal, número, hora, caducidad y formulario abierto.
+- [ ] **F1.1.1** Crear coordinador compartido para actor, lead, canal, número, hora, caducidad y formulario abierto. — EN CURSO: Diseño fijado: la intención de llamada (actor, lead, canal, número, hora, caducidad, formulario abierto) vive en un módulo propio fuera de React que AccionesContacto y el receptor del enlace comparten; contexto mínimo en sessionStorage, se limpia al salir. Antes de tocar AccionesContacto se escriben sus tests de caracterización.
 - [ ] **F1.1.2** Integrar AccionesContacto y receptor de enlaces; persistir contexto mínimo y limpiarlo al salir de la cuenta.
 - [ ] **F1.1.3** Resolver foco/hash en ambos órdenes, recarga, remount y otra pestaña; encolar la siguiente llamada.
 

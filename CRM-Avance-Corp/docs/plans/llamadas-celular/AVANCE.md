@@ -1,17 +1,17 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 09:53 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 10:07 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 14:53 UTC: objetivo de negocio fijado por Jhosep: que los vendedores registren cada llamada sin esfuerzo; al colgar, el celular abre la encuesta de Gestión Diaria y según el resultado se cierra la tarea o se abre la siguiente. Foco en llamadas SALIENTES; entrantes como posible ampliación futura (propuesta #8 para Miguel). Hoy: día normal con C1 y comparar registros al final.
+**Lo último:** 30/09 15:07 UTC: F1 arranca (solo pantalla, sin tablas ni puertas nuevas) en paralelo con las mediciones que faltan de F0. Aterrizaje en Gestión Diaria con una ruta #/<vista>/llamada/<numero> válida también en Hoy; la encuesta se abre por el mismo camino que hoy usa «Llamar» al volver del marcador. Primer paso: tests de caracterización de AccionesContacto. Pendiente de Jhosep en C1: probar «Abrir enlaces compatibles» para que la URL abra la app y no Chrome.
 
 **Total:** 1 de 102 tareas · 0 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
-| F1 · Formulario único y coincidencia exacta | 0/12 | Pendiente | 0/4 |
+| F1 · Formulario único y coincidencia exacta | 0/12 | En curso | 0/4 |
 | F2 · Núcleo confiable y contrato de datos | 0/13 | Pendiente | 0/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
@@ -35,8 +35,9 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
     - ✓ F0.4.2 — docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000. (29/09/2026, 05:45 p. m.)
 
-### F1 · Formulario único y coincidencia exacta — 0/12 · pendiente
-- **F1.1 · Coordinar la intención** — 0/3 · pendiente · Responsable: por asignar
+### F1 · Formulario único y coincidencia exacta — 0/12 · en curso
+- **F1.1 · Coordinar la intención** — 0/3 · en curso · Responsable: Claude (código) · Jhosep (prueba en C1) · Arranca el 30/09 en paralelo con lo que falta de F0 (decisión de Jhosep). Primero, tests de caracterización de AccionesContacto (propuesta #3) para no romper el retorno del marcador que ya funciona en producción; después el coordinador.
+    - ◐ F1.1.1 — Diseño fijado: la intención de llamada (actor, lead, canal, número, hora, caducidad, formulario abierto) vive en un módulo propio fuera de React que AccionesContacto y el receptor del enlace comparten; contexto mínimo en sessionStorage, se limpia al salir. Antes de tocar AccionesContacto se escriben sus tests de caracterización. (30/09/2026, 10:07 a. m.)
 - **F1.2 · Recibir el enlace** — 0/3 · pendiente · Responsable: por asignar
 - **F1.3 · Encontrar el lead** — 0/3 · pendiente · Responsable: por asignar
 - **F1.4 · Validar la experiencia** — 0/3 · pendiente · Responsable: por asignar
@@ -80,6 +81,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 10:07 a. m. · F1 en curso (F1.1 · F1.1.1): plan corto presentado a Jhosep con archivos, reutilización y verificación; el aterrizaje será Gestión Diaria y la ruta por número servirá también en Hoy. Empieza por tests de caracterización de AccionesContacto.
 - 30/09/2026, 09:53 a. m. · Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes.
 - 30/09/2026, 09:46 a. m. · F0: MacroDroid 5.67 anotado en REGISTRO y compatibilidad; noche 1/3 superada en C1 (F0.3.3 en curso).
 - 29/09/2026, 07:27 p. m. · Cierre de sesión 29/09: corrección de dirección (las 4 llamadas fueron salientes; entrantes NOT RUN). Handoff escrito en docs/plans/llamadas-celular/HANDOFF-2026-09-29.md para retomar mañana.

@@ -1,13 +1,15 @@
 {
-  "actualizado": "2026-09-30T14:53:03Z",
+  "actualizado": "2026-09-30T15:07:11Z",
   "meta": {
-    "novedad": "30/09 14:53 UTC: objetivo de negocio fijado por Jhosep: que los vendedores registren cada llamada sin esfuerzo; al colgar, el celular abre la encuesta de Gestión Diaria y según el resultado se cierra la tarea o se abre la siguiente. Foco en llamadas SALIENTES; entrantes como posible ampliación futura (propuesta #8 para Miguel). Hoy: día normal con C1 y comparar registros al final.",
-    "actualizado": "2026-09-30T14:53:03Z"
+    "novedad": "30/09 15:07 UTC: F1 arranca (solo pantalla, sin tablas ni puertas nuevas) en paralelo con las mediciones que faltan de F0. Aterrizaje en Gestión Diaria con una ruta #/<vista>/llamada/<numero> válida también en Hoy; la encuesta se abre por el mismo camino que hoy usa «Llamar» al volver del marcador. Primer paso: tests de caracterización de AccionesContacto. Pendiente de Jhosep en C1: probar «Abrir enlaces compatibles» para que la URL abra la app y no Chrome.",
+    "actualizado": "2026-09-30T15:07:11Z"
   },
   "fases": {
-    "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" }
+    "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
+    "F1": { "estado": "curso", "actualizado": "2026-09-30T15:07:11Z" }
   },
   "subfases": {
+    "F1.1": { "estado": "curso", "responsable": "Claude (código) · Jhosep (prueba en C1)", "nota": "Arranca el 30/09 en paralelo con lo que falta de F0 (decisión de Jhosep). Primero, tests de caracterización de AccionesContacto (propuesta #3) para no romper el retorno del marcador que ya funciona en producción; después el coordinador.", "actualizado": "2026-09-30T15:07:11Z" },
     "F0.1": { "estado": "curso", "responsable": "Jhosep", "nota": "C1 (Samsung A16, Android 16) registrado y con PWA + MacroDroid; falta la macro, la prueba de humo y 1–2 celulares más.", "actualizado": "2026-09-29T23:16:49Z" },
     "F0.3": { "estado": "curso", "responsable": "Jhosep", "nota": "C1: prueba de humo superada; noche 1/3 sin caerse. Prioridad: salientes (lo que el vendedor hace). Pendiente: 6 salientes más, casos especiales, bloqueo/batería/reinicio/sin red y dos noches; entrantes solo si ocurren.", "actualizado": "2026-09-30T14:53:03Z" },
     "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" }
@@ -20,7 +22,8 @@
     "F0.3.2": { "done": false, "estado": "curso", "nota": "C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login.", "at": "2026-09-30T00:22:07Z" },
     "F0.3.3": { "done": false, "estado": "curso", "nota": "C1, noche 1 de 3 (29→30/09): MacroDroid activo por la mañana y la macro encendida; no hubo llamadas nocturnas que verificar. Faltan 2 noches, pantalla bloqueada, batería baja, reinicio y sin red.", "at": "2026-09-30T14:46:41Z" },
     "F0.4.1": { "done": false, "estado": "curso", "nota": "REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo." },
-    "F0.4.2": { "done": true, "at": "2026-09-29T22:45:39Z", "nota": "docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000." }
+    "F0.4.2": { "done": true, "at": "2026-09-29T22:45:39Z", "nota": "docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000." },
+    "F1.1.1": { "done": false, "estado": "curso", "nota": "Diseño fijado: la intención de llamada (actor, lead, canal, número, hora, caducidad, formulario abierto) vive en un módulo propio fuera de React que AccionesContacto y el receptor del enlace comparten; contexto mínimo en sessionStorage, se limpia al salir. Antes de tocar AccionesContacto se escriben sus tests de caracterización.", "at": "2026-09-30T15:07:11Z" }
   },
   "cambios": [
     { "at": "2026-09-29T22:20:53Z", "texto": "Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente." },
@@ -31,6 +34,7 @@
     { "at": "2026-09-30T00:22:07Z", "texto": "F0.3.2: la PWA se abre como app con «Lanzar app → Avance CRM» (PASS vía 3); la notificación con número estaba en la barra (PASS). Guía actualizada con la vía 3 y cómo obtener el paquete para F1." },
     { "at": "2026-09-30T00:27:47Z", "texto": "Cierre de sesión 29/09: corrección de dirección (las 4 llamadas fueron salientes; entrantes NOT RUN). Handoff escrito en docs/plans/llamadas-celular/HANDOFF-2026-09-29.md para retomar mañana." },
     { "at": "2026-09-30T14:46:41Z", "texto": "F0: MacroDroid 5.67 anotado en REGISTRO y compatibilidad; noche 1/3 superada en C1 (F0.3.3 en curso)." },
-    { "at": "2026-09-30T14:53:03Z", "texto": "Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes." }
+    { "at": "2026-09-30T14:53:03Z", "texto": "Objetivo de negocio escrito en README.md (Jhosep, 30/09): registrar cada llamada sin esfuerzo, foco en salientes; entrantes como ampliación futura. Propuesta #8 para Miguel: acotar F0.3.1 y F2 a salientes." },
+    { "at": "2026-09-30T15:07:11Z", "texto": "F1 en curso (F1.1 · F1.1.1): plan corto presentado a Jhosep con archivos, reutilización y verificación; el aterrizaje será Gestión Diaria y la ruta por número servirá también en Hoy. Empieza por tests de caracterización de AccionesContacto." }
   ]
 }
