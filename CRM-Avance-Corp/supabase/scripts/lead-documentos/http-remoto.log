@@ -1,0 +1,13 @@
+PASS HTTP: alta CE
+PASS HTTP: lectura conserva tipo y número CE
+PASS HTTP: conversión reconoce CE
+PASS HTTP: otro equipo no lee CE
+PASS HTTP: analista no altera identidad reconocida CE
+PASS HTTP: alta PASAPORTE
+PASS HTTP: lectura conserva tipo y número PASAPORTE
+PASS HTTP: conversión reconoce PASAPORTE
+PASS HTTP: otro equipo no lee PASAPORTE
+PASS HTTP: analista no altera identidad reconocida PASAPORTE
+PASS HTTP: anónimo sin acceso documental
+PASS HTTP: CE duplicado rechaza toda el alta sin huérfanos
+PASS HTTP: 12 comprobaciones, Auth y PostgREST reales; solo fixtures sintéticos

@@ -1,0 +1,109 @@
+45bd6220-9176-4364-a9e6-4347959c25bb
+45bd6220-9176-4364-a9e6-4347959c25bb
+
+
+
+
+
+
+
+
+
+
+
+
+
+45bd6220-9176-4364-a9e6-4347959c25bb
+{"estado": "creado", "lead_id": "d0000000-0000-4000-8000-000000000004"}
+{"lead_id": "d0000000-0000-4000-8000-000000000004", "solicitud_id": null, "inversionista_id": "23a54783-2ebc-45f1-a095-6a4954fe4b62"}
+4eb1411b-a491-4896-82b1-58479e2b2dca
+
+
+
+
+
+
+45bd6220-9176-4364-a9e6-4347959c25bb
+
+{"estado": "creado", "lead_id": "d0000000-0000-4000-8000-000000000005"}
+
+
+45bd6220-9176-4364-a9e6-4347959c25bb
+
+
+8ac16897-3229-4a87-b34d-7e1bbe162a4b
+{"estado": "creado", "lead_id": "d0000000-0000-4000-8000-000000000007"}
+45bd6220-9176-4364-a9e6-4347959c25bb
+45bd6220-9176-4364-a9e6-4347959c25bb
+{"ok": true, "lead_id": "d0000000-0000-4000-8000-000000000005", "leads_afectados": 1, "inversionista_id": null}
+
+on
+off
+4eb1411b-a491-4896-82b1-58479e2b2dca
+
+
+45bd6220-9176-4364-a9e6-4347959c25bb
+{"estado": "creado", "lead_id": "d0000000-0000-4000-8000-000000000089"}
+on
+off
+
+{"tipo": "DNI", "numero": "88009989", "lead_id": "d0000000-0000-4000-8000-000000000089", "puede_corregir": false, "identificador_id": null, "inversionista_id": null}
+
+4eb1411b-a491-4896-82b1-58479e2b2dca
+
+4eb1411b-a491-4896-82b1-58479e2b2dca
+PASS: documentos del lead / banco remoto sintético, datos revertidos
+
+psql:<stdin>:247: NOTICE:  PASS: flag apagado impide alta sin perder documento
+psql:<stdin>:247: NOTICE:  PASS: alta para otro responsable denegada
+psql:<stdin>:247: NOTICE:  PASS: etapa convertido rechazada
+psql:<stdin>:247: NOTICE:  PASS: etapa descartado rechazada
+psql:<stdin>:247: NOTICE:  PASS: etapa ganado rechazada
+psql:<stdin>:247: NOTICE:  PASS: alta CE
+psql:<stdin>:247: NOTICE:  PASS: CE conserva ceros
+psql:<stdin>:247: NOTICE:  PASS: lectura del tipo CE
+psql:<stdin>:247: NOTICE:  PASS: CE no contamina DNI legado
+psql:<stdin>:247: NOTICE:  PASS: reintento CE idempotente
+psql:<stdin>:247: NOTICE:  PASS: reintento con otro documento rechazado
+psql:<stdin>:247: NOTICE:  PASS: conversión acepta el CE del alta
+psql:<stdin>:247: NOTICE:  PASS: alta pasaporte
+psql:<stdin>:247: NOTICE:  PASS: pasaporte en mayúscula
+psql:<stdin>:247: NOTICE:  PASS: conversión acepta el pasaporte del alta
+psql:<stdin>:247: NOTICE:  PASS: vendedor no cambia identidad reconocida
+psql:<stdin>:247: NOTICE:  PASS: identificador obsoleto pide recargar con código reconocido por la UI
+psql:<stdin>:247: NOTICE:  PASS: CE duplicado rechazado
+psql:<stdin>:247: NOTICE:  PASS: rechazo no deja lead huérfano
+psql:<stdin>:247: NOTICE:  PASS: validador no elimina caracteres inválidos
+psql:<stdin>:247: NOTICE:  PASS: anon no lee documentos
+psql:<stdin>:247: NOTICE:  PASS: anon no crea leads
+psql:<stdin>:247: NOTICE:  PASS: helper privado cerrado
+psql:<stdin>:247: NOTICE:  PASS: Administración corrige DNI reconocido a CE
+psql:<stdin>:247: NOTICE:  PASS: corrección y ficha se guardan juntas
+psql:<stdin>:247: NOTICE:  PASS: corrección no deja privilegios activos
+psql:<stdin>:247: NOTICE:  PASS: fallo de ficha revierte corrección administrativa
+psql:<stdin>:247: NOTICE:  PASS: corrección fallida conserva identidad previa
+psql:<stdin>:247: NOTICE:  PASS: corrección registra motivo y actor una sola vez
+psql:<stdin>:247: NOTICE:  PASS: corrección fallida no deja identificador
+psql:<stdin>:247: NOTICE:  PASS: caso del incidente: después de corregir a CE la conversión continúa
+psql:<stdin>:247: NOTICE:  PASS: edición inválida revierte también el documento
+psql:<stdin>:247: NOTICE:  PASS: edición fallida conserva lead original
+psql:<stdin>:247: NOTICE:  PASS: edición fallida no deja identidad huérfana
+psql:<stdin>:247: NOTICE:  PASS: alta con teléfono ocupado rechazada
+psql:<stdin>:247: NOTICE:  PASS: alta rechazada no deja identidad huérfana
+psql:<stdin>:247: NOTICE:  PASS: lectura fuera de ámbito denegada
+psql:<stdin>:247: NOTICE:  PASS: escritura fuera de ámbito denegada
+psql:<stdin>:247: NOTICE:  PASS: no-contactar respetado
+psql:<stdin>:247: NOTICE:  PASS: ruta DNI antigua tampoco cambia CE reconocido
+psql:<stdin>:247: NOTICE:  PASS: uid nulo denegado
+psql:<stdin>:247: NOTICE:  PASS: lectura recupera identidad por puente
+psql:<stdin>:247: NOTICE:  PASS: puente requiere conciliación explícita y revierte corrección
+psql:<stdin>:247: NOTICE:  PASS: rechazo del puente conserva documento original
+psql:<stdin>:247: NOTICE:  PASS: índice único impide dos leads directos de una persona
+psql:<stdin>:247: NOTICE:  PASS: vincular documento conserva auditoría por actor incluso con GUC privilegiada
+psql:<stdin>:247: NOTICE:  PASS: CE vacío no borra DNI legado
+psql:<stdin>:247: NOTICE:  PASS: rechazo de CE vacío conserva DNI anterior
+psql:<stdin>:247: NOTICE:  PASS: varios documentos requieren conciliación explícita
+psql:<stdin>:247: NOTICE:  PASS: rechazo de documento primario revierte operación completa
+psql:<stdin>:247: NOTICE:  PASS: miembro inactivo no lee documentos
+psql:<stdin>:247: NOTICE:  PASS: miembro inactivo no edita documentos
+

@@ -1,10 +1,10 @@
 # Documentos del lead — ensayo local, 30/09/2026
 
-Estado: corrección preparada; migración `20260930193325_crm_documentos_lead.sql`
-**NO publicada**. El 30/09 el usuario autorizó preparar la publicación y el banco
-remoto (hasta US$1), pero después ordenó: «espera mi aviso para publicar, deja todo
-preparado mientras». Esa instrucción manda: no aplicar SQL productivo, hacer merge
-de Supabase ni desplegar Hostinger hasta su nuevo aviso.
+Estado: **VALIDADA EN LOCAL Y SUPABASE REMOTO; publicación en curso**.
+Miguel levantó la espera con «dale ya pouedes» y confirmó publicar solo documentos,
+manteniendo F1 Llamadas pendiente. La autorización de organización y coste continúa
+vigente (PortalAvanceCorp, máximo US$1). Los bloques inferiores de preparación
+conservan la evidencia histórica; la retoma final se documenta al final de esta nota.
 
 ## Incidente y solución
 
@@ -160,3 +160,46 @@ de la facturación de Supabase; no se afirma una factura calculada por nosotros.
    comparar los hashes HTTP. El ZIP preparado por sí solo NO autoriza publicar.
 4. El documento real afectado requiere su CE completo correcto y permiso de
    Administración. No borrar ni recrear el contrato para resolverlo.
+
+## Retoma autorizada y validación remota, 30/09/2026
+
+Nuevo banco `lead-documentos-publicacion-20260930`, ref `saiwhmjrgqdggscfimbu`,
+creado 22:03:36 UTC. Storage sí se inicializó; el replay histórico se detuvo en
+86 migraciones. Se reconstruyó el esquema vivo sin usuarios ni documentos reales,
+preservando los servicios administrados. La restauración retiró los grants extra
+heredados por el banco y repuso los comentarios que el dump había omitido en dos
+funciones. Se restauró literalmente el juego de caracteres de un CHECK cuyo CR
+se había normalizado al leer el dump. Otros tres CHECK solo difieren en paréntesis
+redundantes de AND por la versión de PostgreSQL; se verificaron todas las FK.
+
+Paridad previa y posterior (excluyendo las cinco funciones nuevas): 858 funciones,
+333 triggers, 125 policies, 134 tablas/vistas, 1.320 columnas, 478 índices y
+7.668 grants de columna, con las mismas huellas. Esquemas/ACL normalizados iguales;
+cero triggers de aplicación deshabilitados al medir. Veintidós Edge Functions con
+los mismos paquetes y verify_jwt, y cinco buckets con los mismos límites/permisos;
+no se copió ningún objeto. Se alinearon las 400 migraciones históricas solo después
+de comprobar la paridad, conservando versiones/nombres/SQL exactos. El merge tiene
+una única migración nueva: `20260930193325`.
+
+Fixtures: 13 cuentas ficticias del seed oficial, siete leads y cinco tareas. Se
+restauraron los catálogos técnicos necesarios (SLA, empresas, flags y producto
+legacy); los autores de esas configuraciones no se copiaron. La baja histórica
+se construyó con la excepción documentada del seed y sus triggers/permisos quedaron
+repuestos antes de medir. La prueba SQL convierte temporalmente al gerente ficticio
+en admin dentro de su transacción y revierte tanto el permiso como todos sus datos.
+
+- PASS: 52 aserciones SQL de documentos con rollback.
+- PASS: 12 comprobaciones HTTP con Auth/PostgREST reales: CE/pasaporte completos,
+  preparación de conversión, duplicados sin huérfanos, ámbitos y permisos.
+- PASS: matriz RLS contractual 287; identidad D5 30.
+- PASS: advisors antes/después, cero avisos nuevos (4 seguridad / 6 rendimiento).
+- PASS final de Main integrado con F1 sin activar: `npm run check`, 5.100 tests
+  en 328 archivos; Docker 298 passed / 26 skipped / 0 failed.
+
+El commit `9815ad02` deja pendiente solo la activación de F1 y sus pruebas de
+integración; conserva sus módulos y tests unitarios. Los archivos de documentos
+no cambiaron respecto de la candidata revisada. La reactivación de F1 se explica
+ en `docs/plans/llamadas-celular/PUBLICACION-PENDIENTE-2026-09-30.md`.
+
+Evidencia: `VALIDACION-REMOTA.json`, `sql-remoto.log`, `http-remoto.log`,
+`rls-contratos-remoto.log`, `rls-identidad-remoto.log` y `e2e-main-documentos.log`.

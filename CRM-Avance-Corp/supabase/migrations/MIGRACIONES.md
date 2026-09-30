@@ -1,6 +1,6 @@
 ## 20260930193325 — Documento tipado del lead y conversión coherente
 
-**PREPARADA; SOLO APLICADA EN BANCO SINTÉTICO LOCAL. NO PUBLICADA.**
+**VALIDADA EN LOCAL Y SUPABASE REMOTO; PUBLICACIÓN AUTORIZADA EN CURSO.**
 Alta y edición con DNI/CE/PASAPORTE sin recortar números ni eliminar letras.
 `crm.leads.dni` conserva su contrato exclusivo de DNI; CE/pasaporte se guardan
 en la identidad canónica existente. Cuatro RPC: `crear_lead_documento_fn`,
@@ -110,6 +110,13 @@ Reviews (todas aplicadas; encargos y respuestas en `docs/encargos/2026-09-30-con
 Reversa: `drop function crm.conversion_divisor_coordinacion_fn(date); drop function
 private.conversion_divisor_empresa_totales(date); drop function private.conversion_divisor_empresa(date);`
 + borrar la versión del registro.
+Retoma final: Miguel autorizó publicar solo documentos. Banco remoto nuevo
+`saiwhmjrgqdggscfimbu`: SQL 52 PASS, HTTP 12 PASS, RLS contratos 287 PASS,
+identidad D5 30 PASS, advisors sin avisos nuevos. Paridad de esquema, historial,
+22 Edge Functions y cinco buckets comprobada; solo la candidata se promueve.
+Main integrado con F1 pendiente: check 5.100 PASS; Docker 298 PASS / 26 omitidos.
+Ver `supabase/scripts/lead-documentos/VALIDACION-REMOTA.json` y README actualizado.
+
 ## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
