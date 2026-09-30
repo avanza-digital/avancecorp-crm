@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 29/09/2026, 05:45 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 29/09/2026, 07:22 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** F0 arrancó el 29/09 con lo que no necesita celulares: guía MacroDroid, plantillas del piloto (REGISTRO, compatibilidad) y ejemplos sintéticos (F0.4.2 hecha) en docs/gestion-diaria/piloto-telefonia/. Falta lo humano: elegir 2–3 celulares, asignar analistas y soporte, firmar el consentimiento y medir cinco días.
+**Lo último:** 30/09 00:22 UTC: prueba de humo en C1 superada. El número llega al colgar, la notificación se ve y la app instalada se abre con «Lanzar app» (la URL directa abría Chrome, como documenta Android 12+). Siguen las 10 salientes + 10 entrantes, los casos especiales y las tres noches (F0.3), y los cinco días de línea base (F0.2).
 
 **Total:** 1 de 102 tareas · 0 de 8 fases hechas.
 
@@ -22,10 +22,14 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 ## Detalle por subfase
 
 ### F0 · Piloto y línea base — 1/12 · en curso
-- **F0.1 · Preparar el piloto** — 0/3 · en curso · Responsable: por asignar · Plantillas y texto de aviso listos; faltan celulares, analistas, soporte y firma (personas).
-    - ◐ F0.1.3 — Texto de finalidad y tratamiento en REGISTRO.md §3; falta comunicarlo, firmarlo e instalar la PWA.
+- **F0.1 · Preparar el piloto** — 0/3 · en curso · Responsable: Jhosep · C1 (Samsung A16, Android 16) registrado y con PWA + MacroDroid; falta la macro, la prueba de humo y 1–2 celulares más.
+    - ◐ F0.1.1 — C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid de Play, batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más. (29/09/2026, 06:16 p. m.)
+    - ◐ F0.1.2 — Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular. (29/09/2026, 06:16 p. m.)
+    - ◐ F0.1.3 — C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia (el número llega al trigger), «Aparecer encima» y batería sin restricciones. Aviso: no aplica al propio responsable. Pendiente para los próximos celulares. (29/09/2026, 07:06 p. m.)
 - **F0.2 · Medir la línea base** — 0/3 · pendiente · Responsable: por asignar
-- **F0.3 · Probar los equipos** — 0/3 · pendiente · Responsable: por asignar
+- **F0.3 · Probar los equipos** — 0/3 · en curso · Responsable: Jhosep · C1: el número llega (3/3, salientes y al menos una entrante por confirmar); la notificación se ve; la app se abre con «Lanzar app» (la URL directa abría Chrome). Siguen las 10+10 llamadas, los casos especiales y las tres noches.
+    - ◐ F0.3.1 — C1: 3 llamadas el 29/09 y las 3 con número y nombre del contacto en el trigger (Registro del sistema de MacroDroid). Faltan 10 salientes + 10 entrantes y los casos atendida/perdida/rechazada/cancelada. (29/09/2026, 07:06 p. m.)
+    - ◐ F0.3.2 — C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login. (29/09/2026, 07:22 p. m.)
 - **F0.4 · Cerrar viabilidad** — 1/3 · en curso · Responsable: por asignar · Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
     - ✓ F0.4.2 — docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000. (29/09/2026, 05:45 p. m.)
@@ -75,6 +79,9 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 29/09/2026, 07:22 p. m. · F0.3.2: la PWA se abre como app con «Lanzar app → Avance CRM» (PASS vía 3); la notificación con número estaba en la barra (PASS). Guía actualizada con la vía 3 y cómo obtener el paquete para F1.
+- 29/09/2026, 07:06 p. m. · F0.3 en curso: prueba de humo en C1. Número capturado en 3/3 llamadas (PASS preliminar); «Open Website» abre Chrome y no la PWA (FAIL vía 1); notificación ejecutada pero no vista (por confirmar). Registrado en REGISTRO.md y compatibilidad.md; guía actualizada con la URL de Gestión Diaria y la vía Send Intent.
+- 29/09/2026, 06:16 p. m. · F0.1: C1 (Samsung Galaxy A16, Android 16, Chrome) registrado en REGISTRO.md y compatibilidad.md; PWA y MacroDroid instalados; Jhosep como analista piloto y soporte. Sigue la macro y la prueba de humo.
 - 29/09/2026, 05:45 p. m. · F0.4.2 hecha: ejemplos sintéticos de teléfonos (23 casos) verificados contra las reglas de canonización de la base. F0.1.3 y F0.4.1 en curso; el resto de F0 espera celulares y personas.
 - 29/09/2026, 05:42 p. m. · F0 en curso: carpeta versionada docs/plans/llamadas-celular/ (PLAN.md aprobado, AVANCE.md, estado.json) y materiales del piloto en docs/gestion-diaria/piloto-telefonia/ (guía MacroDroid, REGISTRO, compatibilidad, ejemplos sintéticos).
 - 29/09/2026, 05:20 p. m. · Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente.

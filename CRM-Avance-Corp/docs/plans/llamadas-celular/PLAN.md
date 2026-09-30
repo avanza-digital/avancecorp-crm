@@ -147,11 +147,11 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F0.1 · Preparar el piloto
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería.
-- [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias.
-- [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: Texto de finalidad y tratamiento en REGISTRO.md §3; falta comunicarlo, firmarlo e instalar la PWA.
+- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid de Play, batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
+- [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
+- [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia (el número llega al trigger), «Aparecer encima» y batería sin restricciones. Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -167,10 +167,10 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F0.3 · Probar los equipos
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas.
-- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA.
+- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 3 llamadas el 29/09 y las 3 con número y nombre del contacto en el trigger (Registro del sistema de MacroDroid). Faltan 10 salientes + 10 entrantes y los casos atendida/perdida/rechazada/cancelada.
+- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login.
 - [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP.
 
 **Evidencia / fecha de validación:** pendiente.

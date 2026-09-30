@@ -6,7 +6,7 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 | Celular | Marca y modelo | Android | Navegador por defecto | MacroDroid (versión) | Restricciones de batería (qué se cambió) | Fecha de alta |
 | --- | --- | --- | --- | --- | --- | --- |
-| C1 |  |  |  |  |  |  |
+| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome (predeterminado) | Instalado desde Play Store (versión por anotar) | «Aparecer encima» activado · Batería «No restringido» · autoarranque («apps que nunca duermen»): por confirmar | 29/09/2026 |
 | C2 |  |  |  |  |  |  |
 | C3 |  |  |  |  |  |  |
 
@@ -14,11 +14,11 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 | Rol | Nombre | Celular |
 | --- | --- | --- |
-| Analista piloto |  | C1 |
+| Analista piloto | Jhosep (responsable del piloto; único celular por ahora, se irán sumando más) | C1 |
 | Analista piloto |  | C2 |
 | Analista piloto |  | C3 |
-| Soporte (instala y configura) |  | — |
-| Responsable del registro de incidencias |  | — |
+| Soporte (instala y configura) | Jhosep (configura C1 siguiendo `macrodroid.md`) | — |
+| Responsable del registro de incidencias | Jhosep | — |
 
 ## 3. Comunicación y consentimiento (F0.1.3)
 
@@ -28,7 +28,7 @@ Texto base del aviso (ajustar con quien revise el tratamiento de datos; plan, se
 
 | Celular | Aviso entregado (fecha) | Firmado (fecha) | PWA instalada (fecha) | Permisos concedidos (Teléfono · Registro de llamadas · Mostrar sobre otras apps · Batería) |
 | --- | --- | --- | --- | --- |
-| C1 |  |  |  |  |
+| C1 | No aplica: el celular lo usa el propio responsable del piloto | — | 29/09/2026 | «Aparecer encima» ✓ · Batería «No restringido» ✓ · Teléfono y Registro de llamadas: por confirmar |
 | C2 |  |  |  |  |
 | C3 |  |  |  |  |
 
@@ -44,8 +44,12 @@ Una fila por celular y día. «Desde CRM» = llamadas iniciadas con el botón «
 
 | Fecha | Celular | Tarea | Caso (saliente / entrante / atendida / perdida / rechazada / cancelada / oculto / fijo / internacional / doble SIM / bloqueado / batería / noche / reinicio / sin red) | ¿Llegó el número? | ¿Abrió la PWA? (Open Website / Send Intent / Chrome / no abrió) | ¿Quedó en el log? | Resultado (PASS / FAIL / NOT RUN) | Evidencia (captura saneada, nota) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  | F0.3.1 |  |  |  |  |  |  |
-|  |  | F0.3.2 |  |  |  |  |  |  |
+| 29/09/2026 18:57 | C1 | F0.3.1 | saliente a contacto interno (dirección por confirmar) | Sí: número y nombre del contacto en el trigger y en la notificación | Chrome (no PWA), vía «Open Website» | Sí: `F0 <número>` | PASS número · FAIL apertura PWA (vía 1) | Registro del sistema de MacroDroid, captura saneada |
+| 29/09/2026 18:58 | C1 | F0.3.1 | saliente a contacto interno (dirección por confirmar) | Sí | Chrome (no PWA), vía «Open Website» | Sí | PASS número · FAIL apertura PWA (vía 1) | Registro del sistema de MacroDroid |
+| 29/09/2026 19:04 | C1 | F0.3.1 | llamada con contacto propio (dirección por confirmar) | Sí | Chrome (no PWA), vía «Open Website» | Sí | PASS número · FAIL apertura PWA (vía 1) | Registro del sistema de MacroDroid |
+| 29/09/2026 19:04 | C1 | F0.3.2 | retorno a PWA con «Open Website» (`#/gestion-diaria`, codificación de URL desactivada) | — | Chrome (no PWA) | — | FAIL vía 1 | Observado por Jhosep; coincide con lo documentado para Android 12+ |
+| 29/09/2026 19:20 | C1 | F0.3.2 | retorno a PWA con «Lanzar app → Avance CRM» (vía 3; la vía 2 «Send Intent» no se probó: `chrome://webapks` bloqueado en el equipo, sin nombre de paquete) | — | Se abre la app instalada, sin barra de Chrome, en su portada (Hoy) | — | PASS vía 3 | Observado por Jhosep tras una llamada de prueba |
+| 29/09/2026 19:06 | C1 | F0.3.2 | notificación con número | Sí: las tres notificaciones «Llamada Terminada» con número y nombre estaban en la barra (agrupadas bajo MacroDroid); no se vieron al momento porque Chrome se abrió encima | — | — | PASS | Captura de la barra de notificaciones, saneada |
 |  |  | F0.3.3 |  |  |  |  |  |  |
 
 Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número __/10 · perdidas frente al registro del teléfono __ · duplicadas __ · noches sin fallo __/3.
