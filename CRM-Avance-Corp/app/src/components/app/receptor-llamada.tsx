@@ -132,7 +132,7 @@ export function ReceptorLlamada(): JSX.Element | null {
               : <Resultado resultado={aviso.resultado} manual={manual} onReintentar={reintentar}
                   onElegir={(lead) => elegirLead(lead, aviso.resultado.numero)} />}
           </div>
-          <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-8 shrink-0" aria-label="Cerrar el aviso de la llamada" onClick={() => setAviso(null)}>
+          <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-8 shrink-0 pointer-coarse:size-11" aria-label="Cerrar el aviso de la llamada" onClick={() => setAviso(null)}>
             <X />
           </Button>
         </div>
@@ -191,7 +191,7 @@ function Resultado({ resultado, manual, onElegir, onReintentar }: {
       return (
         <>
           <p className="font-semibold text-foreground">{resultado.mensaje}</p>
-          <Button type="button" size="sm" variant="outline" onClick={onReintentar}>Reintentar</Button>
+          <Button type="button" size="sm" variant="outline" className="text-foreground pointer-coarse:h-11" onClick={onReintentar}>Reintentar</Button>
         </>
       )
   }
@@ -202,7 +202,8 @@ function ListaLeads({ etiqueta, leads, onElegir }: { etiqueta: string; leads: re
     <ul aria-label={etiqueta} className="flex flex-wrap gap-2">
       {leads.map((l) => (
         <li key={l.id}>
-          <Button type="button" size="sm" variant="outline" className="text-foreground" onClick={() => onElegir(l)}>
+          {/* 44 px en el celular (Ley de Fitts), como la franja «Ahora» de Mi día. */}
+          <Button type="button" size="sm" variant="outline" className="text-foreground pointer-coarse:h-11" onClick={() => onElegir(l)}>
             {l.nombre_completo} · {etiquetaEtapa(l.etapa)} · {telefonoLegible(l.telefono)}
           </Button>
         </li>
@@ -248,9 +249,9 @@ function BusquedaManual({ inicial, manual, onElegir }: { inicial: string; manual
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Nombre, teléfono o DNI"
-          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 pointer-coarse:h-11"
         />
-        <Button type="submit" size="sm" variant="outline" className="h-9 text-foreground" disabled={buscando || textoBuscable(texto) === null} aria-busy={buscando || undefined}>
+        <Button type="submit" size="sm" variant="outline" className="h-9 text-foreground pointer-coarse:h-11" disabled={buscando || textoBuscable(texto) === null} aria-busy={buscando || undefined}>
           <Search /> Buscar
         </Button>
       </div>
