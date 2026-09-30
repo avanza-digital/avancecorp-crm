@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 9/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 11/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,17 +195,17 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 9/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F1:** 11/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (código) · Jhosep (prueba en C1).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude (código) · Jhosep (prueba en C1).
 
 - [x] **F1.1.1** Crear coordinador compartido para actor, lead, canal, número, hora, caducidad y formulario abierto.
 - [x] **F1.1.2** Integrar AccionesContacto y receptor de enlaces; persistir contexto mínimo y limpiarlo al salir de la cuenta.
-- [ ] **F1.1.3** Resolver foco/hash en ambos órdenes, recarga, remount y otra pestaña; encolar la siguiente llamada. — EN CURSO: Probado con tests: foco y hash en los dos órdenes, recarga (sessionStorage + página), remount y cola (la segunda llamada espera a que se cierre la primera). «Otra pestaña» es por diseño (cola por pestaña) y se comprueba a mano en F1.4.1.
+- [x] **F1.1.3** Resolver foco/hash en ambos órdenes, recarga, remount y otra pestaña; encolar la siguiente llamada.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 30/09/2026: commits 6a920143, 6ca9944f, e08288ee, 5d9f21c3; tests del coordinador (13) y de AccionesContacto (20); recarga, remount, ambos órdenes, cola y dos pestañas vistos en el navegador..
 
 ### F1.2 · Recibir el enlace
 
@@ -229,11 +229,11 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F1.4 · Validar la experiencia
 
-**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
-- [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash. — EN CURSO: Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular).
+- [x] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash.
 - [x] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend.
-- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1.
+- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Lint, typecheck, suite completa (4998 tests), cobertura 81,8 %, build, verify:bundle y dup en verde; a11y del receptor revisada; guía macrodroid.md con la URL y la reversa. Decisión de Jhosep: 15 s por test en vitest.config.ts (la suite completa tumbaba por carga un archivo distinto cada vez en el taller Windows). Falta: E2E Docker (lanzándose el 30/09 a las 20:20 UTC).
 
 **Evidencia / fecha de validación:** pendiente.
 
