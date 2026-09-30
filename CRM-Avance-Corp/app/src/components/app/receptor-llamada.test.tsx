@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Lead } from '@/lib/tipos'
-import { intencionDe, limpiarIntencionesContacto, reclamarIntencion, suscribirIntenciones } from '@/lib/intencion-contacto'
+import { armarIntencion, cerrarIntencion, intencionDe, limpiarIntencionesContacto, reclamarIntencion, suscribirIntenciones } from '@/lib/intencion-contacto'
 
 const dobles = vi.hoisted(() => ({
   yo: { id: 'v1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' },
@@ -57,7 +57,7 @@ describe('ReceptorLlamada', () => {
     dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
     render(<ReceptorLlamada />)
     expect(window.location.hash).toBe('#/gestion-diaria')
-    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'))
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
     expect(dobles.resolver).toHaveBeenCalledWith('+51999888777', expect.objectContaining({ demo: false }))
     expect(dobles.conocerLeads).toHaveBeenCalledWith([L1])
     expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', numero: '+51999888777', canal: 'tel', abierta: false })
@@ -75,9 +75,44 @@ describe('ReceptorLlamada', () => {
     })
     render(<ReceptorLlamada />)
     await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ abierta: true }))
-    await act(async () => { await esperar() })
+    // Más que la espera de reclamo: la ficha no se abre porque la intención ya está tomada.
+    await act(async () => { await esperar(800) })
     expect(dobles.abrirLead).not.toHaveBeenCalled()
     dejar()
+  })
+
+  it('la tarjeta tiene tiempo de tomar la intención: la ficha no se abre en el acto', async () => {
+    window.location.hash = '#/hoy/llamada/999888777'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
+    render(<ReceptorLlamada />)
+    await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', abierta: false }))
+    await act(async () => { await esperar(100) })
+    expect(dobles.abrirLead).not.toHaveBeenCalled()
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
+  })
+
+  it('con una encuesta abierta, la segunda llamada espera y se atiende sola al cerrarse la primera', async () => {
+    // La encuesta de otro lead está abierta (intención tomada).
+    const abierta = armarIntencion({ actor: 'v1', leadId: 'lead-9', canal: 'tel', origen: 'pantalla' })
+    reclamarIntencion(abierta.id)
+    window.location.hash = '#/hoy/llamada/999888777'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L2, terminales: [] })
+    render(<ReceptorLlamada />)
+    await waitFor(() => expect(dobles.resolver).toHaveBeenCalledTimes(1))
+    await act(async () => { await esperar(800) })
+    expect(dobles.abrirLead).not.toHaveBeenCalled()
+    expect(intencionDe('v1', 'lead-2')).toBeNull() // espera detrás de la abierta
+    act(() => { cerrarIntencion(abierta.id) })
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-2'), { timeout: 2_000 })
+  })
+
+  it('si el lead ya no es visible al abrir su ficha, la intención se cierra y la cola no se atasca', async () => {
+    window.location.hash = '#/hoy/llamada/999888777'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
+    dobles.abrirLead.mockResolvedValue(false)
+    render(<ReceptorLlamada />)
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
+    await waitFor(() => expect(intencionDe('v1', 'lead-1')).toBeNull())
   })
 
   it('número reciclado: el lead vivo es el candidato y se avisa quién más lo tuvo', async () => {
@@ -85,7 +120,7 @@ describe('ReceptorLlamada', () => {
     const L9 = lead('lead-9', 'ELENA VARGAS', '+51999888777', { etapa: 'descartado' })
     dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [L9] })
     render(<ReceptorLlamada />)
-    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'))
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
     expect(dobles.toast.info).toHaveBeenCalledWith('Ojo: este número también figura en ELENA VARGAS (descartado).')
   })
 
@@ -110,7 +145,7 @@ describe('ReceptorLlamada', () => {
     const lista = screen.getByRole('list', { name: 'Leads con este número' })
     expect(lista.querySelectorAll('li')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: /JUAN QUISPE/ }))
-    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-2'))
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-2'), { timeout: 2_000 })
     expect(intencionDe('v1', 'lead-2')).toMatchObject({ origen: 'enlace', numero: '+51999888777' })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
@@ -130,7 +165,7 @@ describe('ReceptorLlamada', () => {
     const resultados = await screen.findByRole('list', { name: 'Resultados de la búsqueda' })
     expect(dobles.buscarManual).toHaveBeenCalledWith('maría', expect.objectContaining({ demo: false }))
     fireEvent.click(resultados.querySelector('button')!)
-    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'))
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
     expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', numero: '+51999888777' })
   })
 
@@ -161,7 +196,7 @@ describe('ReceptorLlamada', () => {
     render(<ReceptorLlamada />)
     expect(await screen.findByText('No se pudo buscar el número en tus leads. Revisa tu conexión.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
-    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'))
+    await waitFor(() => expect(dobles.abrirLead).toHaveBeenCalledWith('lead-1'), { timeout: 2_000 })
     expect(dobles.resolver).toHaveBeenCalledTimes(2)
   })
 

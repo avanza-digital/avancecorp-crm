@@ -20,7 +20,7 @@ import { buscarLeadsManual, resolverNumeroLlamada, type OpcionesResolucion } fro
 import { useAuth } from '@/lib/auth-context'
 import { textoBuscable } from '@/lib/cartera-keyset'
 import { digitosParaBuscar, numeroCanonico, type Coincidencia } from '@/lib/coincidencia-telefono'
-import { armarIntencion, intencionDe } from '@/lib/intencion-contacto'
+import { armarIntencion, cerrarIntencion, intencionDe, suscribirIntenciones } from '@/lib/intencion-contacto'
 import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
 import { puedeEscribir } from '@/lib/roles'
 import { escribirHash, leerHash } from '@/lib/router'
@@ -36,6 +36,13 @@ const fotoHash = () => window.location.hash
 const MENSAJE_ERROR = 'No se pudo buscar el número en tus leads. Revisa tu conexión.'
 /** Cuánto espera la demo a que lleguen sus leads antes de buscar con lo que haya. */
 const ESPERA_DEMO_MS = 3_000
+/**
+ * Cuánto se le da a las AccionesContacto del lead (la tarjeta «Ahora», una fila
+ * de la cola) para tomar la intención antes de abrir su ficha. Con 0 ms la
+ * tarjeta perdía la carrera aunque estuviera en pantalla (visto tras el login,
+ * 30/09): React pinta la tarjeta un instante después de que la cola cambia.
+ */
+const ESPERA_RECLAMO_MS = 600
 
 type Aviso =
   | { fase: 'buscando'; numero: string }
@@ -93,16 +100,31 @@ export function ReceptorLlamada(): JSX.Element | null {
   const elegirLead = useCallback((lead: Lead, numero: string) => {
     if (!actor) return
     conocerLeads([lead])
-    const armada = armarIntencion({ actor, leadId: lead.id, canal: 'tel', origen: 'enlace', numero })
+    // Solo se arma. Si pasa a ser la cabeza de la cola, el efecto de abajo le da
+    // tiempo a las AccionesContacto del lead a tomarla y, si nadie lo hace, abre
+    // su ficha. Si otra encuesta está abierta, espera detrás (F1.1.3).
+    armarIntencion({ actor, leadId: lead.id, canal: 'tel', origen: 'enlace', numero })
     setAviso(null)
-    // Si ninguna AccionesContacto del lead la toma en este tick, su ficha lo hará.
-    setTimeout(() => {
-      const vigente = intencionDe(actor, lead.id)
-      if (vigente && vigente.id === armada.id && !vigente.abierta) void abrirLead(lead.id)
-    }, 0)
-  }, [actor, conocerLeads, abrirLead])
+  }, [actor, conocerLeads])
   const elegirRef = useRef(elegirLead)
   elegirRef.current = elegirLead
+
+  // 3) La cabeza de la cola, reactiva. Una intención del ENLACE que nadie toma en
+  //    ESPERA_RECLAMO_MS se atiende abriendo la ficha del lead; si el lead ya no
+  //    es visible, se cierra para que la cola no se atasque. Al cerrarse una
+  //    encuesta, la siguiente de la cola pasa a cabeza y llega aquí sola.
+  const cabeza = useSyncExternalStore(suscribirIntenciones, () => intencionDe(actor), () => null)
+  useEffect(() => {
+    if (!actor || !cabeza || cabeza.origen !== 'enlace' || cabeza.abierta) return
+    const { id, leadId } = cabeza
+    const reloj = setTimeout(() => {
+      const vigente = intencionDe(actor, leadId)
+      if (!vigente || vigente.id !== id || vigente.abierta) return
+      // `abrirLead` avisa con `false` si el lead ya no es visible (su tipo admite void).
+      void Promise.resolve(abrirLead(leadId)).then((visible) => { if (visible === false) cerrarIntencion(id) })
+    }, ESPERA_RECLAMO_MS)
+    return () => clearTimeout(reloj)
+  }, [cabeza, actor, abrirLead])
 
   // 2) Resolver cuando el store esté listo (tras el login termina la carga real;
   //    en la demo, cuando ya hay leads).
