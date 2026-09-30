@@ -161,6 +161,33 @@ decidir). Diferido: las dos puertas de Gestión Diaria que piden `(null,true)` (
 trinquete vivo del ayudante (auditor P2-2). PR #141 (apilada sobre #140).
 🔑 Trampa: `$function$$def$` juntos forman `$$` y cierran un bloque `DO $$`: usar etiquetas distintas al anidar.
 
+## Paso 4 · Gestión Diaria — ✅ EN PROD 30/09 ~11:05 Lima (Miguel aplicó con `!`)
+
+`private.gestion_diaria_alertas_sla` y `private.gestion_diaria_equipo_pendientes` pasan al núcleo SLA solo las
+oportunidades operativas (`sla_leads_operativos()`); sus dos guardianes resellados por huella; migración y reversa
+pasan el paraguas `assert_gestion_diaria()`, `assert_sla_avisos()` y `assert_gestion_diaria_pulso()`. Migración
+`20260930150852_crm_gestion_diaria_solo_operativos`, PR #142 (apilada sobre #141). Oráculo con la migración real
+20/20 idéntico (gerencia + 4 supervisores × avisos/equipo/equipo propio/pulso); negativo del guardián (todo se
+deshace); Codex APPROVE; auditor-rls PASS. **Resultado verificado: equipo de gerencia 1,80–1,85 → 1,35 s; avisos
+del supervisor grande 1,00–1,03 → 0,86 s; supervisores pequeños sin cambio.** 🔑 En horario laboral el oráculo
+puede dar diferencias por datos vivos entre las dos pasadas (READ COMMITTED obligatorio): repetir y mirar clave a
+clave antes de concluir. Pendiente menor: caso «analista solo con leads terminales → (0,0)» en la suite local.
+
+## Paso 4 · Fase 2 — MEDIDA Y DESCARTADA tal como se planeó (30/09 ~20:20 Lima)
+
+Con la cartera operativa (1.514 filas, gerencia): `sla_operacion_autorizada` 1.226 ms = núcleo `sla_operacion_leads`
+835–999 ms + post-proceso 312 ms (+26 ms `proximo_cambio_en` releyendo el JSON, +15 ms del conteo del adaptador).
+Dentro del núcleo, el SELECT del bucle es solo **133 ms** (`sla_hechos_actuales` 83, `sla_tareas_hechos` 84 que
+recalcula hechos, lateral de tareas por lead barato); el prototipo «tareas pre-agregadas» salió MÁS LENTO (251 ms).
+Las 3 sentencias SQL embebidas del bucle cuestan ~97 ms en total. **El coste real es el cuerpo plpgsql que arma
+la ficha JSON de cada oportunidad (~0,5 ms × 1.514 ≈ 770 ms; 7,8 MB de JSON por llamada) y su copia en el
+post-proceso (312 ms), para un contador que solo necesita 4 cifras.** La fase 2 «menos trabajo repetido en el
+SELECT» no paga: descartada. Lo que sí pagaría es un «modo resumen» del núcleo (no armar `estado`/`presentacion`
+cuando solo se cuenta): toca el motor sellado (`assert_sla_nucleo` referencia la firma exacta de
+`sla_operacion_leads(uuid[],boolean,uuid[],timestamptz)`: no se puede añadir un parámetro sin resellar) y sus 9
+puertas: es un mini-proyecto aparte (estimación: gerencia 1,27 → ~0,3–0,4 s). Alternativa no idéntica: caché del
+resumen por actor 20–30 s (decisión de Miguel).
+
 ## Plan técnico original del paso 2 (superado por la medición de arriba; se conserva como historia)
 
 - **Fase 1 (servidor, LEVEL 3):** `private.cartera_f5_personas_visibles(uuid)` y `private.cartera_f5_listar`:

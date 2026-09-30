@@ -1,7 +1,10 @@
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 4 · fase «Gestión Diaria» del refactor por módulos,
-aprobado por Miguel el 30/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga
+**✅ EN PROD 30/09/2026 ~11:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
+crm_gestion_diaria_solo_operativos`, 4 sentencias) → `verificar.sql`: las cuatro huellas nuevas OK, guardianes OK
+(paraguas, SLA, pulso), equipo de gerencia **1.350 ms** (antes 1.804–1.853; meta ≤ 1.300 rozada, con tráfico de
+mañana) y avisos del supervisor grande **864 ms** (antes 1.002–1.031). Advisors: sin clases nuevas.** Paso 4 · fase
+«Gestión Diaria» del refactor por módulos, aprobado por Miguel el 30/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga
 lectura vs escritura (2026-09-29)».
 
 Problema medido (30/09, producción): las vistas de Gestión Diaria piden al núcleo SLA todas las oportunidades activas:
