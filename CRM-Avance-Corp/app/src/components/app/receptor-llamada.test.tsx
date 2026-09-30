@@ -198,4 +198,32 @@ describe('ReceptorLlamada', () => {
     render(<ReceptorLlamada />)
     await waitFor(() => expect(dobles.resolver).toHaveBeenCalledWith('999888777', expect.objectContaining({ demo: true, leadsLocales: [L1] })))
   })
+
+  it('en la demo espera a que lleguen los leads antes de buscar (visto en C1 tras el login)', async () => {
+    window.location.hash = '#/gestion-diaria/llamada/999888777'
+    dobles.yo = { ...dobles.yo, demo: true }
+    dobles.leads = []
+    const { rerender } = render(<ReceptorLlamada />)
+    await act(async () => { await esperar() })
+    expect(dobles.resolver).not.toHaveBeenCalled()
+    dobles.leads = [L1]
+    rerender(<ReceptorLlamada />)
+    await waitFor(() => expect(dobles.resolver).toHaveBeenCalledWith('999888777', expect.objectContaining({ demo: true, leadsLocales: [L1] })))
+    expect(dobles.resolver).toHaveBeenCalledTimes(1)
+  })
+
+  it('una demo sin leads no se queda colgada: a los 3 s busca con lo que haya', async () => {
+    vi.useFakeTimers()
+    try {
+      window.location.hash = '#/gestion-diaria/llamada/999888777'
+      dobles.yo = { ...dobles.yo, demo: true }
+      dobles.leads = []
+      render(<ReceptorLlamada />)
+      expect(dobles.resolver).not.toHaveBeenCalled()
+      await act(async () => { vi.advanceTimersByTime(3_000) })
+      expect(dobles.resolver).toHaveBeenCalledWith('999888777', expect.objectContaining({ demo: true, leadsLocales: [] }))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

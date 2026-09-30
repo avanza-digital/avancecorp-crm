@@ -34,6 +34,8 @@ const suscribirHash = (cambio: () => void) => {
 const fotoHash = () => window.location.hash
 
 const MENSAJE_ERROR = 'No se pudo buscar el número en tus leads. Revisa tu conexión.'
+/** Cuánto espera la demo a que lleguen sus leads antes de buscar con lo que haya. */
+const ESPERA_DEMO_MS = 3_000
 
 type Aviso =
   | { fase: 'buscando'; numero: string }
@@ -63,6 +65,17 @@ export function ReceptorLlamada(): JSX.Element | null {
   // cada vez que el store cambia.
   const leadsLocales = useRef(ambito.leads)
   leadsLocales.current = ambito.leads
+  // La demo trae sus leads con una importación diferida y el store no lo anuncia
+  // (`cargando` es solo de la sesión real). Visto en C1 el 30/09: tras el login
+  // la búsqueda corría con la lista aún vacía y decía «ningún lead». Se espera a
+  // que haya leads, con un tope por si la demo viniera vacía.
+  const [demoAgotada, setDemoAgotada] = useState(false)
+  const demoLista = !demo || ambito.leads.length > 0 || demoAgotada
+  useEffect(() => {
+    if (!demo || !captura || ambito.leads.length > 0) return
+    const reloj = setTimeout(() => setDemoAgotada(true), ESPERA_DEMO_MS)
+    return () => clearTimeout(reloj)
+  }, [demo, captura, ambito.leads.length])
 
   // 1) Capturar el número y quitarlo del hash: Atrás no debe volver a buscar y
   //    el resto de la app sigue viendo su ruta de siempre.
@@ -91,9 +104,10 @@ export function ReceptorLlamada(): JSX.Element | null {
   const elegirRef = useRef(elegirLead)
   elegirRef.current = elegirLead
 
-  // 2) Resolver cuando el store esté listo (tras el login termina la carga real).
+  // 2) Resolver cuando el store esté listo (tras el login termina la carga real;
+  //    en la demo, cuando ya hay leads).
   useEffect(() => {
-    if (!captura || !actor || cargando) return
+    if (!captura || !actor || cargando || !demoLista) return
     const control = new AbortController()
     let vigente = true
     const canon = numeroCanonico(captura.numero)
@@ -115,7 +129,7 @@ export function ReceptorLlamada(): JSX.Element | null {
       vigente = false
       control.abort()
     }
-  }, [captura, actor, demo, cargando])
+  }, [captura, actor, demo, cargando, demoLista])
 
   if (!aviso) return null
   const reintentar = () => setCaptura((previa) => (previa ? { ...previa, intento: previa.intento + 1 } : previa))
