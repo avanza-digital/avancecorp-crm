@@ -21,6 +21,7 @@ import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
+import { ReceptorLlamada } from '@/components/app/receptor-llamada'
 import { RespuestasTasaProvider } from '@/components/app/respuestas-tasa-provider'
 import { recibeRespuestasTasa } from '@/lib/respuestas-tasa'
 import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
@@ -465,6 +466,10 @@ function Workspace() {
               ayudaAbierta={ayudaAbierta}
               onAlternarAyuda={() => setAyudaAbierta((actual) => !actual)}
             />
+            {/* F1.2.3: el enlace del celular («#/<vista>/llamada/<numero>») se
+                atiende UNA vez, aquí, sea cual sea la pantalla; se pinta solo
+                cuando hay algo que decir. */}
+            <ReceptorLlamada />
             <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>

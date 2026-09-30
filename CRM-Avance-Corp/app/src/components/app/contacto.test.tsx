@@ -264,6 +264,17 @@ describe('AccionesContacto con el coordinador de la intención (F1.1.2)', () => 
     expect(intencionDe('v1', LEAD.id)).toBeNull()
   })
 
+  it('foco y hash en el otro orden: el tap propio queda pendiente y el enlace que llega después lo ofrece sin esperar', async () => {
+    render(<AccionesContacto lead={LEAD} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 1_000)
+    // El receptor del enlace renueva la misma intención (mismo actor, lead y canal) con el número.
+    act(() => { armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', numero: '+51999888777' }) })
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    expect(dobles.asegurarLead).toHaveBeenCalledTimes(1)
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ origen: 'enlace', abierta: true })
+  })
+
   it('una intención de otro lead no la toca', async () => {
     armarIntencion({ actor: 'v1', leadId: 'lead-2', canal: 'tel', origen: 'enlace', numero: '+51988877766' })
     render(<AccionesContacto lead={LEAD} />)
