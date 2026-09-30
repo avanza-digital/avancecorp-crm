@@ -139,7 +139,7 @@ export type SnapshotContratoV2 = {
     titularDistinto: boolean;
     beneficiarioNombre: string | null;
     beneficiarioDocumento: string | null;
-    origen: "perfil" | "contrato";
+    origen: "perfil" | "contrato" | "portal";
   };
 };
 
@@ -360,7 +360,12 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
       !texto(cuenta.beneficiarioNombre, 1, 200)) ||
     (cuenta.beneficiarioDocumento !== null &&
       !/^\d{8,12}$/.test(String(cuenta.beneficiarioDocumento))) ||
-    (cuenta.origen !== "perfil" && cuenta.origen !== "contrato") ||
+    // Espejo del CHECK `cuentas_bancarias_origen_valido` (perfil, contrato,
+    // portal). Una cuenta registrada desde el portal es tan contractual como
+    // las otras dos; el origen no cambia un byte del PDF. Comparación estricta:
+    // `String(["portal"])` también daría "portal" y colaría un arreglo.
+    (cuenta.origen !== "perfil" && cuenta.origen !== "contrato" &&
+      cuenta.origen !== "portal") ||
     cuenta.moneda !== contrato.moneda ||
     (!cuenta.titularDistinto &&
       (cuenta.beneficiarioNombre !== null ||
