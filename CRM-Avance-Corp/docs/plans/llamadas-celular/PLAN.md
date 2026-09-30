@@ -277,11 +277,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F2.1 · Cerrar el contrato
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (borrador) · Miguel (decide).
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica).
 
-- [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado.
-- [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer.
-- [ ] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones.
+- [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado. — EN CURSO: Decisión provisional de Jhosep (30/09): elegible = lead activo, etapa abierta, sin «no contactar» y dentro del ámbito → pide resultado; si no, «por revisar» sin encuesta, y se re-evalúa al leer. Entrantes definidas pero apagadas (solo salientes); dirección y estado técnico van separados en el esquema. Pendiente de la ratificación de Miguel.
+- [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer. — EN CURSO: Decisión provisional de Jhosep (30/09): los números sin lead NO se guardan (perilla apagada; propuesta #10 porque choca con F5); descarte con motivo obligatorio de lista cerrada + «otro» con texto; entrante perdida definida y apagada; Deshacer no borra ni desenlaza y el enlace pasa al resultado corregido. Pendiente de la ratificación de Miguel.
+- [ ] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones. — EN CURSO: Decisión provisional de Jhosep (30/09): hora del celular si llega, si no la del servidor; analista = quien tenía el celular, fijo; retención 30 días para descartados y ambiguos sin resolver, sin número crudo; tras una reasignación (que viene de un descarte o lead libre) la llamada la ve y trabaja el nuevo analista y quién marcó se conserva para métricas. Pendiente de la ratificación de Miguel.
 
 **Evidencia / fecha de validación:** pendiente.
 
