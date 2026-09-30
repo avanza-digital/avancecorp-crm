@@ -169,7 +169,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 3 llamadas el 29/09 y las 3 con número y nombre del contacto en el trigger (Registro del sistema de MacroDroid). Faltan 10 salientes + 10 entrantes y los casos atendida/perdida/rechazada/cancelada.
+- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 4 llamadas salientes el 29/09, las 4 con número y nombre en el trigger; 0 entrantes probadas. Faltan 6 salientes, 10 entrantes y los casos atendida/perdida/rechazada/cancelada. Se pueden cubrir con las llamadas normales de trabajo y comparando el registro de MacroDroid con el del teléfono al final del día.
 - [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login.
 - [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP.
 

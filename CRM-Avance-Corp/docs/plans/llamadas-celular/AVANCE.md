@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 29/09/2026, 07:22 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 29/09/2026, 07:27 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 00:22 UTC: prueba de humo en C1 superada. El número llega al colgar, la notificación se ve y la app instalada se abre con «Lanzar app» (la URL directa abría Chrome, como documenta Android 12+). Siguen las 10 salientes + 10 entrantes, los casos especiales y las tres noches (F0.3), y los cinco días de línea base (F0.2).
+**Lo último:** Cierre 29/09 (00:27 UTC del 30): C1 listo y prueba de humo superada; 4 salientes con número, 0 entrantes aún. Se retoma mañana con HANDOFF-2026-09-29.md: usar el celular con normalidad y comparar registros al final del día (F0.3), contar llamadas desde/fuera del CRM (F0.2), versión de MacroDroid y segundo celular.
 
 **Total:** 1 de 102 tareas · 0 de 8 fases hechas.
 
@@ -27,8 +27,8 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F0.1.2 — Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular. (29/09/2026, 06:16 p. m.)
     - ◐ F0.1.3 — C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia (el número llega al trigger), «Aparecer encima» y batería sin restricciones. Aviso: no aplica al propio responsable. Pendiente para los próximos celulares. (29/09/2026, 07:06 p. m.)
 - **F0.2 · Medir la línea base** — 0/3 · pendiente · Responsable: por asignar
-- **F0.3 · Probar los equipos** — 0/3 · en curso · Responsable: Jhosep · C1: el número llega (3/3, salientes y al menos una entrante por confirmar); la notificación se ve; la app se abre con «Lanzar app» (la URL directa abría Chrome). Siguen las 10+10 llamadas, los casos especiales y las tres noches.
-    - ◐ F0.3.1 — C1: 3 llamadas el 29/09 y las 3 con número y nombre del contacto en el trigger (Registro del sistema de MacroDroid). Faltan 10 salientes + 10 entrantes y los casos atendida/perdida/rechazada/cancelada. (29/09/2026, 07:06 p. m.)
+- **F0.3 · Probar los equipos** — 0/3 · en curso · Responsable: Jhosep · C1: prueba de humo superada (número en 4/4 salientes, notificación visible, app abierta con «Lanzar app»). Pendiente: entrantes, casos especiales, bloqueo/batería/reinicio/sin red y tres noches; se cubren con el uso normal del celular.
+    - ◐ F0.3.1 — C1: 4 llamadas salientes el 29/09, las 4 con número y nombre en el trigger; 0 entrantes probadas. Faltan 6 salientes, 10 entrantes y los casos atendida/perdida/rechazada/cancelada. Se pueden cubrir con las llamadas normales de trabajo y comparando el registro de MacroDroid con el del teléfono al final del día. (29/09/2026, 07:27 p. m.)
     - ◐ F0.3.2 — C1: notificación con número y nombre PASS. Apertura de la PWA: «Open Website» abre Chrome (FAIL); «Lanzar app → Avance CRM» abre la app instalada (PASS, vía 3); «Send Intent» sin probar (chrome://webapks bloqueado en el equipo). Faltan oculto, fijo, internacional, doble SIM y login. (29/09/2026, 07:22 p. m.)
 - **F0.4 · Cerrar viabilidad** — 1/3 · en curso · Responsable: por asignar · Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
@@ -79,6 +79,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 29/09/2026, 07:27 p. m. · Cierre de sesión 29/09: corrección de dirección (las 4 llamadas fueron salientes; entrantes NOT RUN). Handoff escrito en docs/plans/llamadas-celular/HANDOFF-2026-09-29.md para retomar mañana.
 - 29/09/2026, 07:22 p. m. · F0.3.2: la PWA se abre como app con «Lanzar app → Avance CRM» (PASS vía 3); la notificación con número estaba en la barra (PASS). Guía actualizada con la vía 3 y cómo obtener el paquete para F1.
 - 29/09/2026, 07:06 p. m. · F0.3 en curso: prueba de humo en C1. Número capturado en 3/3 llamadas (PASS preliminar); «Open Website» abre Chrome y no la PWA (FAIL vía 1); notificación ejecutada pero no vista (por confirmar). Registrado en REGISTRO.md y compatibilidad.md; guía actualizada con la URL de Gestión Diaria y la vía Send Intent.
 - 29/09/2026, 06:16 p. m. · F0.1: C1 (Samsung Galaxy A16, Android 16, Chrome) registrado en REGISTRO.md y compatibilidad.md; PWA y MacroDroid instalados; Jhosep como analista piloto y soporte. Sigue la macro y la prueba de humo.
