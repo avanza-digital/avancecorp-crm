@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 8/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 9/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,7 +195,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 8/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F1:** 9/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
@@ -229,10 +229,10 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F1.4 · Validar la experiencia
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
 - [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash. — EN CURSO: Verificado en el navegador del PC (demo, 30/09): número de la persona de «Ahora» → formulario en la tarjeta; número de otro lead → su ficha con el diálogo; sin coincidencia → aviso con búsqueda manual que abre la ficha elegida; descartada → aviso «figura en…»; el hash queda limpio en todos. Capturas en .playwright-mcp/f1-*.png (local). Faltan: roles, otra cuenta, formulario en edición, dos pestañas (en el celular).
-- [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: C1 (30/09): PASS del retorno real de punta a punta con la build de la rama (demo): la macro de MacroDroid con {call_number} abrió Chrome en el CRM, el número llegó al receptor y salió el aviso (número no existente en la demo); antes, la URL escrita a mano abrió la encuesta de la persona correcta tras el login. Con el ajuste de Android la URL abre la app instalada (visto con producción). Faltan: la build real con un lead propio (sin guardar) y la alternativa de notificación local sin push.
+- [x] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend.
 - [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Checks del 30/09: lint, typecheck, suite completa 322 archivos / 4988 tests en verde (cliente-form.test necesitaba más tiempo bajo carga: 15 s por test, decisión de Jhosep, 8f25ad34), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup en verde; rama subida a origin (8f25ad34). A11y del receptor revisada en línea (fb463967). Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec) y cerrar tras la prueba real en C1.
 
 **Evidencia / fecha de validación:** pendiente.
