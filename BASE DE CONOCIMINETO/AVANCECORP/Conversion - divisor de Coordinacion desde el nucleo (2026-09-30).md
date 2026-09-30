@@ -72,3 +72,20 @@ Deuda anotada por los revisores, fuera de este alcance: el `tablist` a mano de `
 Relacionado: [[Reporte diario de derivaciones para Coordinación]],
 [[Como se mide la conversion del asesor]], [[Conversion mensual - definicion cerrada]],
 [[Leads - marca y filtro de reasignados (2026-09-28)]] y [[Inicio]].
+
+## v2 (misma tarde): de dónde salen los cierres y rango de fechas
+
+Miguel pidió, ya publicada la v1, ver **referidos, upgrade y renovación** y poder consultar
+**entre dos fechas**. La migración `20260930221500` redefine la puerta (acreditando por md5 los
+cuerpos vivos) y sus núcleos: por analista y de la empresa, cierres de formulario, landing,
+referido (cantidad · aporte al peso, hoy 0,15), oficina (no pesa), upgrade (pesa 1) y renovación
+(cantidad · aporte a 0,15), con el numerador bruto y el ajuste de meses pagados; y un modo
+**rango** (`p_desde`/`p_hasta`, inclusivos en Lima, hasta 366 días, sin futuro): un mes
+calendario exacto es ese mes (con su foto si está sellado); cualquier otro tramo se calcula en
+vivo como hace la puerta de Gerencia (peso del referido del mes de `hasta`, sin ajustes).
+Invariante que el servidor exige con datos reales y el navegador vuelve a comprobar: **partes =
+numerador bruto** y **neto = bruto − ajuste**. Setiembre real: Astrid 5 + 2 + 1×0,15 + 4 upgrade =
+11,15; empresa 65 + 25 + 19×0,15 + 24 + 3×0,15 = 117,15. Pestaña: selector «Mes / Rango de
+fechas», cabecera agrupada Llegadas / Cierres y la fórmula del numerador escrita con los pesos.
+Estado: preparada y verificada (banco Docker, oráculo v2, registrador, prod en solo lectura,
+`npm run check` 322/5045, E2E Docker); pendiente de `!` de Miguel y release del front.

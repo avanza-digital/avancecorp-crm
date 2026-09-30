@@ -68,3 +68,35 @@ mes anterior). Solo en banco.
 Reversa: `drop function crm.conversion_divisor_coordinacion_fn(date); drop function
 private.conversion_divisor_empresa_totales(date); drop function private.conversion_divisor_empresa(date);`
 y borrar la versión del registro.
+
+## v2 (30/09/2026 tarde): desglose de cierres y rango de fechas — `20260930221500`
+
+Miguel pidió, ya con la v1 publicada, (a) ver de dónde salen los cierres y (b) consultar
+por rango de fechas. La migración `20260930221500_crm_conversion_coordinacion_desglose_cierres`
+acredita por md5 los tres cuerpos vivos de la v1 y los redefine (DROP + CREATE: cambian
+firma y tipo de retorno) con un cuarto núcleo pequeño:
+
+- `private.conversion_divisor_base(desde, hasta)`: elige la pieza del núcleo según el modo
+  (mes exacto → `conversion_neta_por_vendedor`, con ajuste; rango → `conversion_mensual_por_vendedor`
+  en vivo, peso del referido del mes de `hasta`, como la puerta de Gerencia).
+- `private.conversion_divisor_empresa(desde, hasta)`: fila por analista con llegadas por origen y,
+  nuevo, cierres por origen (formulario, landing, referido con aporte, oficina sin peso) y cartera
+  (upgrade, renovación con aporte), bruto y ajuste. Mes sellado → foto (`origenes_ranking.filas` y
+  `cartera` con los pesos sellados; bruto/ajuste en null; `desglose_disponible` dice si la foto lo trae).
+- `private.conversion_divisor_empresa_totales(desde, hasta)`: totales de la empresa y sin analista.
+- `crm.conversion_divisor_coordinacion_fn(p_periodo, p_desde, p_hasta)`: sin argumentos = mes vigente;
+  `p_periodo` = ese mes; `p_desde` + `p_hasta` = rango inclusivo (Lima), ≤ 366 días, sin futuro; un mes
+  calendario exacto se trata como mes; mes y rango a la vez → 22023.
+
+Invariantes que exige el postflight sobre datos reales: partes (formulario + landing + referido×peso +
+upgrade + renovación×peso) = numerador bruto; neto = `conversion_con_ajuste(bruto, ajuste)`; conteos
+iguales a los del núcleo; y el rango «1 → hoy» reproduce el mes vigente. El oráculo añade E05f/g y E09
+(rango exacto = mes, 1 → hoy, rango que termina ayer, mes sellado por rango, 22023 para rangos
+inválidos, 42501 para un vendedor en modo rango).
+
+Orden de aplicación (Miguel con `!`): `db query --linked --file` de `20260930221500…sql` →
+`scripts/registrar-20260930221500.sql` (→ `REGISTRO_CONVERSION_DESGLOSE_OK` con cuatro huellas) →
+advisors → front por `/release-crm` (el front v2 exige las claves nuevas; publicar SQL antes que front).
+
+Reversa: `drop` de las cuatro funciones nuevas, volver a aplicar los tres `create function` de
+`20260930185623` y borrar la versión `20260930221500` del registro.

@@ -22,9 +22,14 @@
 --       por origen va en null y el núcleo vivo rechaza recalcularlo.
 --   E08 huellas: los conteos operativos y el núcleo conservan su cuerpo del
 --       30/09/2026 (este cambio no los toca).
+--   E09 (v2, desglose + rango): el desglose de cierres suma el numerador y casa con
+--       el núcleo; un rango que es el mes exacto se trata como el mes (también sellado);
+--       del 1 a hoy reproduce el mes; rangos inválidos (fechas cruzadas, futuro, > 366
+--       días, mes y rango a la vez) → 22023; un rango parcial no supera al mes.
 --
 -- Requiere un banco con el esquema de producción, `crm.conversion_pesos`,
--- las políticas SLA y la migración 20260930185623 aplicada. No deja datos.
+-- las políticas SLA y las migraciones 20260930185623 y 20260930221500 (v2) aplicadas.
+-- No deja datos.
 -- Correr con psql -f (un mensaje por sentencia): `statement_timestamp()` avanza
 -- entre llamadas y el oráculo lo tolera.
 
@@ -40,16 +45,20 @@ set local timezone = 'America/Lima';
 -- ─────────────────────────────────────────────────────────────────────────────
 do $estructura$
 declare
-  v_nucleo regprocedure := to_regprocedure('private.conversion_divisor_empresa(date)');
-  v_totales regprocedure := to_regprocedure('private.conversion_divisor_empresa_totales(date)');
-  v_puerta regprocedure := to_regprocedure('crm.conversion_divisor_coordinacion_fn(date)');
+  v_base regprocedure := to_regprocedure('private.conversion_divisor_base(date,date)');
+  v_nucleo regprocedure := to_regprocedure('private.conversion_divisor_empresa(date,date)');
+  v_totales regprocedure := to_regprocedure('private.conversion_divisor_empresa_totales(date,date)');
+  v_puerta regprocedure := to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)');
   v_cuerpo text;
 begin
-  if v_nucleo is null or v_totales is null or v_puerta is null then
-    raise exception 'E01a faltan las funciones de la conversión de Coordinación';
+  if v_base is null or v_nucleo is null or v_totales is null or v_puerta is null then
+    raise exception 'E01a faltan las funciones de la conversión de Coordinación (v2)';
   end if;
-  if (select count(*) from pg_proc p where p.oid in (v_nucleo, v_totales, v_puerta)
-        and p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""']) <> 3 then
+  if to_regprocedure('crm.conversion_divisor_coordinacion_fn(date)') is not null then
+    raise exception 'E01h la firma vieja de la puerta sigue viva junto a la nueva';
+  end if;
+  if (select count(*) from pg_proc p where p.oid in (v_base, v_nucleo, v_totales, v_puerta)
+        and p.prosecdef and p.provolatile = 's' and p.proconfig @> array['search_path=""']) <> 4 then
     raise exception 'E01b deben ser STABLE, SECURITY DEFINER y search_path vacío';
   end if;
   if not has_function_privilege('authenticated', v_puerta, 'execute')
@@ -58,12 +67,12 @@ begin
      or has_function_privilege('public', v_puerta, 'execute')
      or (select bool_or(has_function_privilege(r, f, 'execute'))
          from unnest(array['authenticated','anon','service_role','public']) r,
-              unnest(array[v_nucleo, v_totales]) f) then
+              unnest(array[v_base, v_nucleo, v_totales]) f) then
     raise exception 'E01c ACL inesperada';
   end if;
   for v_cuerpo in
     select regexp_replace(lower(p.prosrc), '--[^\n]*', ' ', 'g')
-    from pg_proc p where p.oid in (v_nucleo, v_totales, v_puerta)
+    from pg_proc p where p.oid in (v_base, v_nucleo, v_totales, v_puerta)
   loop
     if v_cuerpo ~ '\mcrm\.\s*leads\M' or v_cuerpo ~ '"leads"' or v_cuerpo ~ '\mlead_asignaciones\M' then
       raise exception 'E01d DISPERSIÓN: la conversión de Coordinación vuelve a contar leads o el ledger';
@@ -74,9 +83,13 @@ begin
   if v_cuerpo ~ '\m(from|join)\s+crm\.' or v_cuerpo ~ '\m(from|join)\s+public\.' then
     raise exception 'E01g SALTO DE CAPA: la puerta lee tablas en vez de delegar en el núcleo';
   end if;
+  select lower(p.prosrc) into v_cuerpo from pg_proc p where p.oid = v_base;
+  if v_cuerpo !~ 'private\.conversion_neta_por_vendedor\(' or v_cuerpo !~ 'private\.conversion_mensual_por_vendedor\(' then
+    raise exception 'E01e la base debe leer conversion_neta_por_vendedor (mes) y conversion_mensual_por_vendedor (rango)';
+  end if;
   select lower(p.prosrc) into v_cuerpo from pg_proc p where p.oid = v_nucleo;
-  if v_cuerpo !~ 'private\.conversion_neta_por_vendedor\(' or v_cuerpo !~ 'private\.conversion_episodios\(' then
-    raise exception 'E01e el núcleo de Coordinación debe leer conversion_neta_por_vendedor y conversion_episodios';
+  if v_cuerpo !~ 'private\.conversion_divisor_base\(' or v_cuerpo !~ 'private\.conversion_episodios\(' then
+    raise exception 'E01e el núcleo debe leer conversion_divisor_base y conversion_episodios';
   end if;
   select lower(p.prosrc) into v_cuerpo from pg_proc p where p.oid = v_puerta;
   if v_cuerpo !~ 'private\.puede_operar_reparto_crm\(\)' then
@@ -469,6 +482,7 @@ reset role;
 do $paridad$
 declare
   v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
+  v_fin date := (date_trunc('month', now() at time zone 'America/Lima') + interval '1 month' - interval '1 day')::date;
   v_pay jsonb := current_setting('oraculo.pay')::jsonb;
 begin
   if exists (
@@ -486,6 +500,21 @@ begin
        or (a->>'divisor_formulario')::int + (a->>'divisor_landing')::int <> (a->>'divisor')::int
   ) then
     raise exception 'E05a la pantalla no reproduce el núcleo fila a fila';
+  end if;
+  -- v2: cada analista trae desglose y sus partes suman el numerador bruto; el neto lleva el ajuste.
+  if exists (
+    select 1 from jsonb_array_elements(v_pay->'analistas') a
+    where (a->>'desglose_disponible')::boolean is not true
+       or (a->>'numerador_bruto')::numeric is distinct from
+          (a#>>'{cierres,formulario}')::numeric + (a#>>'{cierres,landing}')::numeric + (a#>>'{cierres,referido_aporte}')::numeric
+          + (a#>>'{cartera,upgrade}')::numeric + (a#>>'{cartera,renovacion_aporte}')::numeric
+       or (a->>'numerador')::numeric is distinct from private.conversion_con_ajuste((a->>'numerador_bruto')::numeric, (a->>'ajuste_pendiente')::numeric)
+  ) then
+    raise exception 'E05f el desglose de cierres no suma el numerador en el payload';
+  end if;
+  if v_pay->'periodo'->>'modo' is distinct from 'mes' or (v_pay->'periodo'->>'dias')::int is distinct from (v_fin - v_mes + 1)
+     or (v_pay->'periodo'->>'hasta')::date is distinct from v_fin then
+    raise exception 'E05g el período del payload no describe el mes (modo, dias, hasta inclusivo): %', v_pay->'periodo';
   end if;
   -- La fila SIN analista del núcleo (id nulo) es exactamente `sin_analista`.
   if (v_pay->'sin_analista'->>'divisor')::int is distinct from
@@ -505,6 +534,93 @@ begin
 end;
 $paridad$;
 set local role authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- E09 · Modo rango
+-- ─────────────────────────────────────────────────────────────────────────────
+do $rango$
+declare
+  v_coord uuid := 'c0000000-0000-4000-8000-000000000001';
+  v_ana uuid := 'c0000000-0000-4000-8000-000000000005';
+  v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
+  v_fin date := (date_trunc('month', now() at time zone 'America/Lima') + interval '1 month' - interval '1 day')::date;
+  v_hoy date := (now() at time zone 'America/Lima')::date;
+  v_mes_sellado date := (date_trunc('month', now() at time zone 'America/Lima') - interval '2 months')::date;
+  v_pay_mes jsonb;
+  v_pay jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', v_coord::text, true);
+  v_pay_mes := crm.conversion_divisor_coordinacion_fn(v_mes);
+
+  -- (a) Un rango que es exactamente el mes calendario ES el mes (misma foto, salvo el reloj).
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes, v_fin);
+  if (v_pay - 'generado_en') <> (v_pay_mes - 'generado_en') then
+    raise exception 'E09a el rango 1 → fin de mes no es idéntico al mes';
+  end if;
+
+  -- (b) Del 1 a hoy: modo rango (salvo el último día del mes, en que ES el mes),
+  --     reproduce las cifras del mes (nada vive en el futuro), sin ajuste.
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes, v_hoy);
+  if v_pay->'periodo'->>'modo' <> (case when v_hoy = v_fin then 'mes' else 'rango' end)
+     or (v_pay->>'sellado')::boolean
+     or (v_pay->'periodo'->>'dias')::int <> (v_hoy - v_mes + 1)
+     or (v_hoy <> v_fin and v_pay->'periodo'->'mes' <> 'null'::jsonb)
+     or (v_pay->'empresa'->>'divisor')::int is distinct from (v_pay_mes->'empresa'->>'divisor')::int
+     or (v_pay->'empresa'->>'numerador')::numeric is distinct from (v_pay_mes->'empresa'->>'numerador')::numeric
+     or (v_pay->'empresa'->>'ajuste_pendiente')::numeric is distinct from 0
+     or (select (a->>'divisor')::int from jsonb_array_elements(v_pay->'analistas') a where a->>'analista_id' = v_ana::text) is distinct from 2 then
+    raise exception 'E09b el rango 1 → hoy no reproduce el mes: % vs %', v_pay->'empresa', v_pay_mes->'empresa';
+  end if;
+
+  -- (c) Un rango parcial no puede superar al mes (L1 y L2 nacieron hoy: del 1 a ayer ANA no las tiene).
+  if v_hoy > v_mes then
+    v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes, v_hoy - 1);
+    if coalesce((select (a->>'divisor')::int from jsonb_array_elements(v_pay->'analistas') a where a->>'analista_id' = v_ana::text), 0) <> 0 then
+      raise exception 'E09c el rango que termina ayer atribuye a ANA llegadas de hoy';
+    end if;
+  end if;
+
+  -- (d) Un rango que es exactamente el mes sellado sirve la foto (sellado = true).
+  v_pay := crm.conversion_divisor_coordinacion_fn(null, v_mes_sellado, (v_mes_sellado + interval '1 month' - interval '1 day')::date);
+  if (v_pay->>'sellado')::boolean is not true or v_pay->'periodo'->>'modo' <> 'mes' then
+    raise exception 'E09d el rango del mes sellado no sirvió la foto: %', v_pay->'periodo';
+  end if;
+
+  -- (e) Rangos inválidos → 22023 (gate primero: sigue siendo la coordinadora).
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(null, v_hoy, v_hoy - 1);
+    raise exception 'E09e aceptó desde > hasta';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(null, v_hoy, v_hoy + 1);
+    raise exception 'E09f aceptó un rango con futuro';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(null, v_hoy - 366, v_hoy);
+    raise exception 'E09g aceptó un rango de más de 366 días';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(v_mes, v_mes, v_hoy);
+    raise exception 'E09h aceptó mes y rango a la vez';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(null, v_mes, null);
+    raise exception 'E09i aceptó un rango con una sola fecha';
+  exception when sqlstate '22023' then null;
+  end;
+  -- Y un vendedor con rango sigue fuera (42501 antes que cualquier validación).
+  perform set_config('request.jwt.claim.sub', v_ana::text, true);
+  begin
+    perform crm.conversion_divisor_coordinacion_fn(null, v_mes, v_hoy);
+    raise exception 'E09j un vendedor entró por el modo rango';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$rango$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- E07 · Mes sellado: foto, sin desglose, sin recalcular

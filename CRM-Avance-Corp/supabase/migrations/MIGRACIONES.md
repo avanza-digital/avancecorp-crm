@@ -1,3 +1,48 @@
+## 20260930221500 — Conversión de Coordinación v2: desglose de cierres (referidos, upgrade, renovación) y rango de fechas (`crm.conversion_divisor_coordinacion_fn(date,date,date)`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930221500.sql` → advisors → front por `/release-crm` (SQL antes que front: la pestaña v2 exige las claves nuevas).**
+
+Qué añade (pedido de Miguel el 30/09 tras publicar la v1): por analista y para la empresa, de dónde
+salen los cierres —formulario, landing, referido (cantidad y aporte al peso vigente), oficina (no
+pesa), upgrade (pesa 1), renovación (cantidad y aporte a su peso)— más `numerador_bruto` y
+`ajuste_pendiente`; y la consulta por RANGO de fechas (`p_desde`, `p_hasta` inclusivos en Lima, ≤ 366
+días, sin futuro; un mes calendario exacto es ese mes; otro rango se calcula en vivo con
+`private.conversion_mensual_por_vendedor`, el precedente de `metricas_conversiones_equipo_fn`, con el
+peso del referido del mes de `hasta` y sin ajustes de meses pagados). `periodo` lleva ahora `modo`
+('mes' | 'rango'), `dias` y `hasta` INCLUSIVO. Todo sale de los MISMOS episodios del núcleo
+(`private.conversion_episodios`, tipos `cierre` y `operacion`): se agrupa, no se define nada nuevo.
+
+Piezas: preflight que acredita por md5 los tres cuerpos vivos de la v1 (`4c73a85e…`, `c62acbc0…`,
+`9b65271a…`) y se niega si alguien los tocó; DROP + CREATE (cambian firma y tipo de retorno) de
+`private.conversion_divisor_empresa(date,date)`, `private.conversion_divisor_empresa_totales(date,date)`
+y `crm.conversion_divisor_coordinacion_fn(date,date,date)`; núcleo nuevo
+`private.conversion_divisor_base(date,date)` que elige la pieza del núcleo según el modo. Mes sellado:
+la foto (`origenes_ranking.filas` y `cartera` de `crm.cierre_mes_vendedor` con los pesos sellados;
+bruto y ajuste en null; `desglose_disponible` dice si la foto lo trae). Postflight: propiedades y
+ACL (incl. `public`) de las cuatro, sin firmas viejas, candado de dispersión, puerta sin tablas y
+ejecutada sin actor (42501), paridad con el núcleo, INVARIANTE partes = bruto y neto = con_ajuste por
+fila y empresa, y «rango 1 → hoy reproduce el mes». Front: selector «Mes / Rango de fechas» (errores
+del formulario pegados al campo, sin llamar a la puerta), tabla con cabecera agrupada (Llegadas /
+Cierres: formulario, landing, referido «n · aporte», oficina, upgrade, renovación «n · aporte»,
+ponderados), 8 cifras de empresa y la fórmula del numerador con los pesos; candado de paridad del
+navegador ampliado (partes = bruto, neto = bruto − ajuste, rango sin nombre de mes ni ajuste ni foto).
+
+Verificación 30/09 (banco Docker propio rehecho desde el dump de prod con la v1 dentro, huellas de la
+v1 iguales a prod): migración en un solo mensaje PASS; oráculo v2 → OK sin residuo (E01 cuatro
+funciones, E05f/g invariante y período, E09 rango exacto = mes, 1 → hoy, rango que termina ayer, mes
+sellado por rango, 22023 ×5, 42501 para vendedor en modo rango); registrador v2 probado (md5 =
+archivo, idempotente, rechaza otro cuerpo). Validación read-only en PROD con setiembre real: 18
+analistas y 0 filas rotas (partes = bruto, referidos/no referidos casan con el núcleo, neto =
+con_ajuste); Astrid 5 + 2 + 1×0,15 + 4 upgrade = 11,15; Merlys 6 + 1 + 2 = 9; empresa formulario 65,
+landing 25, referido 19 (2,85), oficina 11, upgrade 24, renovación 3 (0,45); rango 1 → hoy = mes para
+todos; Astrid 1–15/09: 67 llegadas / 8,15; rango 15/08–15/09 (cruza mes): 1661 llegadas, 21 analistas.
+Front: vitest 158/158 en los archivos tocados; `npm run check` y E2E Docker: ver abajo. **NOT RUN:**
+`test-rls.mjs` completo (casos nuevos añadidos: 15 claves exactas por analista, partes = bruto,
+rango 1 → hoy = mes, 22023 rango cruzado y mes + rango, 42501 vendedor en rango) y advisors.
+Reviews: Codex, auditor-rls y revisor-a11y — actas en `docs/encargos/2026-09-30-conversion-coordinacion-desglose-rango-*.md`.
+
+Reversa: `drop` de las cuatro funciones nuevas + volver a aplicar los tres `create function` de
+`20260930185623` + borrar la versión del registro.
 ## 20260930193325 — Documento tipado del lead y conversión coherente
 
 **VALIDADA EN LOCAL Y SUPABASE REMOTO; PUBLICACIÓN AUTORIZADA EN CURSO.**
@@ -33,11 +78,7 @@ evaluación del review: `supabase/scripts/lead-documentos/README.md`.
 
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 
-<<<<<<< avancecorp/main
-**✅ SERVIDOR EN PROD 30/09/2026 por `!` de Miguel: migración por `db query --linked --file` (preflight y postflight de paridad contra setiembre real en verde) + registrador → `REGISTRO_CONVERSION_DIVISOR_COORDINACION_OK` (huellas puerta `4c73a85e…`, núcleo `c62acbc0…`, totales `9b65271a…`; versión 400 del registro con el cuerpo literal, md5 `129e469e…` = archivo). Verificado en prod, solo lectura: Astrid 115 = 65 + 50 / 11.15 / 9,70 %; Merlys 88 = 60 + 28 / 9 / 10,23 %; paridad fila a fila con el núcleo. PR #146 fusionada. ⏸️ Advisors en el panel y front por `/release-crm`.**
-=======
 **✅ EN PROD 30/09/2026. Servidor por `!` de Miguel: migración por `db query --linked --file` (preflight y postflight de paridad contra setiembre real en verde) + registrador → `REGISTRO_CONVERSION_DIVISOR_COORDINACION_OK` (huellas puerta `4c73a85e…`, núcleo `c62acbc0…`, totales `9b65271a…`; versión 400 del registro, md5 `129e469e…` = archivo). Verificado en prod, solo lectura: Astrid 115 = 65 + 50 / 11.15 / 9,70 %; Merlys 88 = 60 + 28 / 9 / 10,23 %; paridad fila a fila con el núcleo. Advisors sin errores. Front ~16:38 Lima por `/release-crm`: release `crm-20260930T213752Z-6bb984edc63c` (ZIP SHA-256 `728bd278…`), build `build-20260930T213751470Z`, desde la rama de rescate `rescue/conversion-coordinacion-20260930` (tip vivo `57e7b3b4` + #146), preflight ok contra `build-20260930T195218921Z`, smoke PASS (index `CdudC-F4` idéntico, 3 lecturas estables, ZIP 404). PR #146 y #147 fusionadas; la rama de rescate vuelve a `main` por la PR #149.**
->>>>>>> rescue/conversion-coordinacion-20260930
 
 Qué arregla: la coordinadora veía en «Supervisión → analistas» el reporte de ENTREGAS
 (`reporte_derivaciones_coordinacion_fn`), que cuenta por fecha de entrega y, a propósito,
