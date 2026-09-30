@@ -6,15 +6,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ConversionCoordinacion as Datos } from '@/lib/conversion-coordinacion'
-import { payloadValido } from '@/lib/conversion-coordinacion.test'
+import type { ConsultaConversion, ConversionCoordinacion as Datos } from '@/lib/conversion-coordinacion'
+import { fechasDeConsulta } from '@/lib/conversion-coordinacion'
+import { payloadSellado, payloadValido } from '@/lib/conversion-coordinacion.test'
 
-const conversionMock = vi.fn<(periodo: string) => Promise<Datos>>()
+const conversionMock = vi.fn<(consulta: ConsultaConversion) => Promise<Datos>>()
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
   return {
     ...actual,
-    conversionCoordinacion: (periodo: string) => conversionMock(periodo),
+    conversionCoordinacion: (consulta: ConsultaConversion) => conversionMock(consulta),
   }
 })
 
@@ -24,8 +25,13 @@ const mesActual = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Lima', year: 'numeric', month: '2-digit',
 }).format(new Date()).slice(0, 7)
 
-function conPeriodo(datos: Datos, periodo: string): Datos {
-  return { ...datos, periodo: { ...datos.periodo, mes: periodo.slice(0, 7), desde: periodo } }
+/** Eco del período como lo hace la puerta: mes exacto con nombre, o rango sin nombre. */
+function conPeriodo(datos: Datos, consulta: ConsultaConversion): Datos {
+  const fechas = fechasDeConsulta(consulta)!
+  const dias = Math.round((Date.parse(`${fechas.hasta}T12:00:00Z`) - Date.parse(`${fechas.desde}T12:00:00Z`)) / 86_400_000) + 1
+  return consulta.modo === 'mes'
+    ? { ...datos, periodo: { ...datos.periodo, modo: 'mes', mes: consulta.mes, desde: fechas.desde, hasta: fechas.hasta, dias } }
+    : { ...datos, sellado: false, periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: fechas.desde, hasta: fechas.hasta, dias } }
 }
 
 /** Lo que OYE el lector: el «—» va oculto y su motivo, en sr-only. */
@@ -38,7 +44,7 @@ const textoHablado = (celda: HTMLElement) => (
 
 beforeEach(() => {
   conversionMock.mockReset()
-  conversionMock.mockImplementation(async (periodo) => conPeriodo(payloadValido(), periodo))
+  conversionMock.mockImplementation(async (consulta) => conPeriodo(payloadValido(), consulta))
 })
 afterEach(() => vi.clearAllMocks())
 
@@ -47,31 +53,43 @@ describe('ConversionCoordinacion', () => {
     render(<ConversionCoordinacion />)
 
     expect(await screen.findByRole('heading', { name: 'Conversiones' })).toBeInTheDocument()
-    expect(conversionMock).toHaveBeenCalledWith(`${mesActual}-01`)
+    expect(conversionMock).toHaveBeenCalledWith({ modo: 'mes', mes: mesActual })
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
-    expect(within(astrid).getAllByRole('cell').map((celda) => celda.textContent))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '11.15', '9.70%'])
+    // Analista · Supervisor · Llegadas (F, L, total) · Cierres (F, L, referido «n · aporte», oficina, upgrade, renovación «n · aporte», ponderados) · %
+    expect(within(astrid).getAllByRole('cell').map(textoHablado))
+      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '5', '2', '1 referidos, aportan 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+    expect(within(astrid).getAllByRole('cell')[7]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('1 · 0.15')
 
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
-    expect(within(merlys).getAllByRole('cell').map((celda) => celda.textContent))
-      .toEqual(['MERLYS GARCIA', 'SUPERVISORA', '60', '28', '88', '9', '10.23%'])
+    expect(within(merlys).getAllByRole('cell').map(textoHablado))
+      .toEqual(['MERLYS GARCIA', 'SUPERVISORA', '60', '28', '88', '6', '1', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '9', '10.23%'])
 
     // La fila sin analista: se ve «—» pero se oye «no aplica».
     const sinAnalista = within(tabla).getByRole('row', { name: /Sin analista asignado/ })
     const celdas = within(sinAnalista).getAllByRole('cell')
     expect(celdas.map(textoHablado))
-      .toEqual(['Sin analista asignado', 'no aplica', 'no aplica', 'no aplica', '2', '0', 'no aplica'])
+      .toEqual(['Sin analista asignado', 'no aplica', 'no aplica', 'no aplica', '2', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', '0', 'no aplica'])
     expect(celdas[1]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('—')
+
+    // Cabecera agrupada: Llegadas y Cierres con sus columnas.
+    expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toHaveAttribute('colspan', '7')
+    expect(within(tabla).getByRole('columnheader', { name: 'Upgrade' })).toBeInTheDocument()
 
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     const cifra = (etiqueta: string) => within(resumen).getByText(etiqueta).nextElementSibling?.textContent
     expect(cifra('Llegadas')).toBe('205')
     expect(cifra('Formulario')).toBe('126')
     expect(cifra('Landing')).toBe('79')
-    expect(cifra('Cierres ponderados')).toBe('20.15')
     expect(cifra('Conversión')).toBe('9.83%')
+    expect(cifra('Cierres directos')).toBe('14')
+    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('1 referidos, aportan 0.15')
+    expect(cifra('Upgrade')).toBe('6')
+    expect(textoHablado(within(resumen).getByText('Renovación').nextElementSibling as HTMLElement)).toBe('0 renovaciones, aportan 0')
+    expect(screen.getByTestId('formula-numerador')).toHaveTextContent(
+      'Cierres ponderados 20.15 = 14 directos (formulario y landing) + 0.15 de referidos (1 × 0.15) + 6 de upgrade + 0 de renovación (0 × 0.15). Oficina (1) no pesa.',
+    )
 
     expect(screen.getByRole('status')).toHaveTextContent('Conversión de setiembre 2026: 205 llegadas, 9.83%.')
     expect(screen.getByText(/Este conteo es distinto del reporte de entregas/)).toBeInTheDocument()
@@ -87,7 +105,7 @@ describe('ConversionCoordinacion', () => {
     await usuario.clear(mes)
     await usuario.type(mes, '2026-08')
 
-    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith('2026-08-01'))
+    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith({ modo: 'mes', mes: '2026-08' }))
     expect(screen.getByRole('status')).not.toHaveTextContent('2026-08')
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Conversión de setiembre 2026/))
     expect(mes).not.toHaveAttribute('aria-invalid')
@@ -112,15 +130,7 @@ describe('ConversionCoordinacion', () => {
   })
 
   it('en un mes sellado enseña la foto y el lector oye por qué no hay desglose por origen', async () => {
-    conversionMock.mockImplementation(async (periodo) => {
-      const datos = conPeriodo(payloadValido(), periodo)
-      return {
-        ...datos,
-        sellado: true,
-        empresa: { ...datos.empresa, divisor_formulario: null, divisor_landing: null },
-        analistas: datos.analistas.map((a) => ({ ...a, divisor_formulario: null, divisor_landing: null })),
-      }
-    })
+    conversionMock.mockImplementation(async (consulta) => conPeriodo(payloadSellado(true), consulta))
     render(<ConversionCoordinacion />)
 
     // El chip visible y, aparte, el anuncio del estado: el texto está dos veces a propósito.
@@ -128,16 +138,21 @@ describe('ConversionCoordinacion', () => {
     const tabla = screen.getByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '1 referidos, aportan 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Formulario').nextElementSibling as HTMLElement)).toBe('sin desglose: mes cerrado')
     expect(screen.getByRole('status')).toHaveTextContent(/Mes cerrado: se muestra la foto del cierre/)
   })
 
   it('sin llegadas muestra el vacío honesto y un divisor 0 no rompe nada', async () => {
-    conversionMock.mockImplementation(async (periodo) => ({
-      ...conPeriodo(payloadValido(), periodo),
-      empresa: { divisor: 0, numerador: 0, conversion_pct: null, divisor_formulario: 0, divisor_landing: 0 },
+    conversionMock.mockImplementation(async (consulta) => ({
+      ...conPeriodo(payloadValido(), consulta),
+      empresa: {
+        divisor: 0, numerador: 0, conversion_pct: null, divisor_formulario: 0, divisor_landing: 0,
+        numerador_bruto: 0, ajuste_pendiente: 0, desglose_disponible: true,
+        cierres: { formulario: 0, landing: 0, referido: 0, referido_aporte: 0, oficina: 0 },
+        cartera: { upgrade: 0, renovacion: 0, renovacion_aporte: 0 },
+      },
       sin_analista: null,
       analistas: [],
     }))
@@ -183,10 +198,12 @@ describe('ConversionCoordinacion', () => {
   })
 
   it('un mes cerrado con producción solo fuera del ranking no dice «sin llegadas»', async () => {
-    conversionMock.mockImplementation(async (periodo) => ({
-      ...conPeriodo(payloadValido(), periodo),
-      sellado: true,
-      empresa: { divisor: 5, numerador: 1, conversion_pct: 20, divisor_formulario: null, divisor_landing: null },
+    conversionMock.mockImplementation(async (consulta) => ({
+      ...conPeriodo(payloadSellado(false), consulta),
+      empresa: {
+        divisor: 5, numerador: 1, conversion_pct: 20, divisor_formulario: null, divisor_landing: null,
+        numerador_bruto: null, ajuste_pendiente: null, desglose_disponible: false, cierres: null, cartera: null,
+      },
       sin_analista: null,
       analistas: [],
     }))
@@ -211,5 +228,75 @@ describe('ConversionCoordinacion', () => {
     await screen.findByRole('table', { name: 'Conversión por analista' })
     expect(screen.queryByText('Caída')).not.toBeInTheDocument()
     expect(mes).toHaveFocus()
+  })
+
+  it('en un mes cerrado sin desglose en la foto, cada celda de cierres dice por qué', async () => {
+    conversionMock.mockImplementation(async (consulta) => conPeriodo(payloadSellado(false), consulta))
+    render(<ConversionCoordinacion />)
+
+    const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
+    const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
+    const celdas = within(astrid).getAllByRole('cell').map(textoHablado)
+    expect(celdas.slice(5, 11)).toEqual(Array(6).fill('sin desglose: mes cerrado'))
+    expect(celdas[11]).toBe('11.15')
+    expect(screen.queryByTestId('formula-numerador')).not.toBeInTheDocument()
+  })
+
+  it('cuando hay ajuste de meses pagados, la celda de ponderados lo explica', async () => {
+    conversionMock.mockImplementation(async (consulta) => {
+      const datos = conPeriodo(payloadValido(), consulta)
+      datos.analistas[1] = { ...datos.analistas[1]!, ajuste_pendiente: 1, numerador: 8 }
+      datos.empresa = { ...datos.empresa, ajuste_pendiente: 1, numerador: 19.15 }
+      return datos
+    })
+    render(<ConversionCoordinacion />)
+
+    const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
+    const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
+    expect(within(merlys).getAllByRole('cell')[11]).toHaveTextContent('8bruto 9 − ajuste 1')
+    expect(screen.getByTestId('formula-numerador')).toHaveTextContent('− 1 de ajuste de meses ya pagados = 19.15 netos')
+  })
+
+  it('en modo rango pide las dos fechas inclusivas y anuncia el rango en vivo', async () => {
+    const usuario = userEvent.setup()
+    render(<ConversionCoordinacion />)
+    await screen.findByRole('table', { name: 'Conversión por analista' })
+
+    await usuario.selectOptions(screen.getByLabelText('Tipo de período'), 'rango')
+    expect(screen.getByText(/Rango libre: cifras en vivo/, { selector: 'p:not([role="status"])' })).toBeInTheDocument()
+    const desde = screen.getByLabelText('Desde')
+    const hasta = screen.getByLabelText('Hasta')
+    await usuario.clear(desde)
+    await usuario.type(desde, '2026-09-01')
+    await usuario.clear(hasta)
+    await usuario.type(hasta, '2026-09-15')
+
+    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith({ modo: 'rango', desde: '2026-09-01', hasta: '2026-09-15' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Conversión\s+del 1 de setiembre de 2026 al 15 de setiembre de 2026:/))
+    expect(screen.getByRole('status')).toHaveTextContent('Rango libre: cifras en vivo')
+    expect(screen.queryByText(/Mes cerrado/)).not.toBeInTheDocument()
+  })
+
+  it('un rango con la fecha inicial después de la final es un error del formulario, sin llamar a la puerta', async () => {
+    const usuario = userEvent.setup()
+    render(<ConversionCoordinacion />)
+    await screen.findByRole('table', { name: 'Conversión por analista' })
+    await usuario.selectOptions(screen.getByLabelText('Tipo de período'), 'rango')
+    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith(expect.objectContaining({ modo: 'rango' })))
+    const llamadas = conversionMock.mock.calls.length
+
+    const desde = screen.getByLabelText('Desde')
+    await usuario.clear(desde)
+    await usuario.type(desde, '2026-09-20')
+    const hasta = screen.getByLabelText('Hasta')
+    await usuario.clear(hasta)
+    await usuario.type(hasta, '2026-09-10')
+
+    expect(hasta).toHaveAttribute('aria-invalid', 'true')
+    expect(hasta).toHaveAccessibleDescription('La fecha inicial no puede ser posterior a la final.')
+    expect(screen.getByRole('status')).toHaveTextContent('La fecha inicial no puede ser posterior a la final.')
+    expect(screen.queryByRole('button', { name: /Reintentar/ })).not.toBeInTheDocument()
+    // Hubo llamadas mientras se tecleaban fechas válidas intermedias; ninguna con el rango cruzado.
+    expect(conversionMock.mock.calls.slice(llamadas).every(([c]) => c.modo !== 'rango' || c.desde <= c.hasta)).toBe(true)
   })
 })

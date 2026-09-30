@@ -2720,12 +2720,21 @@ export async function montarBackendReal(
       ))
     }
     if (p === '/rest/v1/rpc/conversion_divisor_coordinacion_fn' && method === 'POST') {
-      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
-      const periodo = String(body.p_periodo ?? '')
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string; p_desde?: string; p_hasta?: string }
       if (!estado.conversionCoordinacion) return json(route, { code: '42501', message: 'No autorizado' }, 403)
+      // Eco del período como lo hace la RPC: mes exacto (con nombre) o rango inclusivo.
+      const desde = String(body.p_desde ?? body.p_periodo ?? '')
+      const [anio, mesNum] = desde.split('-').map(Number)
+      const finDeMes = new Date(Date.UTC(anio, mesNum, 0)).toISOString().slice(0, 10)
+      const hasta = String(body.p_hasta ?? finDeMes)
+      const esMes = desde.endsWith('-01') && hasta === finDeMes
+      const dias = Math.round((Date.parse(`${hasta}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1
+      const base = estado.conversionCoordinacion.periodo as Record<string, unknown>
       return json(route, {
         ...estado.conversionCoordinacion,
-        periodo: { ...(estado.conversionCoordinacion.periodo as Record<string, unknown>), mes: periodo.slice(0, 7), desde: periodo },
+        periodo: esMes
+          ? { ...base, modo: 'mes', mes: desde.slice(0, 7), desde, hasta, dias }
+          : { ...base, modo: 'rango', mes: null, mes_nombre: null, anio: null, desde, hasta, dias },
       })
     }
     if (p === '/rest/v1/rpc/panel_distribucion_reparto') {
