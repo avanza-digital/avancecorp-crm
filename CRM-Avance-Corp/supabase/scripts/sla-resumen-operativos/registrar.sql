@@ -12,7 +12,7 @@ declare
 begin
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 <> 'e9ce617ab0cc33bc5614ef69e877cc71' then
+  if v_md5 is distinct from 'e9ce617ab0cc33bc5614ef69e877cc71' then
     raise exception 'REGISTRO: el adaptador no tiene la huella nueva (%); aplica primero la migración 20260930002929', v_md5;
   end if;
   -- Invariantes del adaptador que la huella NO cubre: dueño, ACL exacta (postgres + authenticated, que exige
@@ -28,7 +28,7 @@ begin
     and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'REGISTRO: invariantes del ayudante incorrectos (dueño %, acl %, definer %, vol %, cfg %); no se registra', h_owner, h_acl, h_secdef, h_vol, h_cfg;
   end if;
-  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) is distinct from '8d478d783e4c591662388ddf7405058a' then
     raise exception 'REGISTRO: el ayudante no tiene la huella esperada (%); no se registra', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
   end if;
   if exists (select 1 from supabase_migrations.schema_migrations

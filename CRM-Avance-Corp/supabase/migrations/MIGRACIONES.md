@@ -46,7 +46,19 @@ exige invariantes + huella del ayudante y pasa el guardián; el postflight y el 
 ayudante; la reversa pasa el guardián también en su ruta idempotente; negativos NEG1/NEG2 añadidos al ciclo. R1
 (correspondencia de etapas y metadatos): `sla_hechos_actuales` devuelve `l.etapa` como `etapa_actual` y los
 metadatos del paquete salen de `sla_operacion_control` y del reloj, no de las filas (transcrito en r2). R2:
-coordinador añadido al oráculo; lector global sin actor real (0 perfiles). Codex r2 y auditor-rls: ver abajo.
+coordinador añadido al oráculo; lector global sin actor real (0 perfiles).
+**Codex r2 (`…-r2.md`): PASS**, P2 cerrado, sin hallazgos nuevos. Evidencia que pidió: `crm.leads.etapa` es NOT NULL
+(catálogo, 0 leads sin etapa), así que «etapa NULL» no existe; `proximo_cambio_en` de una fila excluida es NULL
+(`select min(c.en) … where v_usable …` en el núcleo) y el `min` del paquete lo ignora. Límite anotado: el
+registrador no vuelve a pasar el guardián (corre después del commit; la migración sí lo pasa).
+**auditor-rls: APPROVE** (visibilidad por rol intacta línea a línea, ACL del ayudante solo dueño, fail-closed).
+P2-1 «suite local del resumen por rol no corrida» → **NOT RUN declarado**: exige banco Docker con esquema de prod;
+el gate 42501 vive en `sla_operacion_autorizada` (intacta) y el oráculo cubrió 5 actores reales incl. coordinador.
+P2-2 «sin trinquete vivo del ayudante» → ítem aparte (añadir `sla_leads_operativos` a `assert_sla_nucleo` o a
+`assert_sla_avisos` en una migración pequeña). P3-2 (reversa con ayudante huérfano → lo retira) y P3-3 (huellas
+comparadas con `is distinct from`) aplicados y el ciclo repetido con esos archivos (incluye «reversa repetida con
+ayudante huérfano»); P3-5 anotado en la cabecera de la reversa; P3-4 = Codex P2, ya cerrado; P3-1 (el ayudante se
+evalúa antes del 42501, ~8 ms en un camino denegado, sin datos fuera) aceptado y documentado aquí.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants de tablas) y banco Docker (ensayos sobre datos reales,
 deshechos).
 

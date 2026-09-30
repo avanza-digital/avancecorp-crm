@@ -1,6 +1,8 @@
 -- REVERSA de 20260930002929_crm_sla_resumen_solo_operativos: restaura el adaptador VIVO del 29/09/2026 tal cual, retira el ayudante y vuelve a pasar el
 -- guardián del SLA. Se niega si el adaptador no tiene la huella nueva o sus invariantes. NO toca schema_migrations
 -- (anotarlo en MIGRACIONES.md el mismo día).
+-- ⚠️ MANTENIMIENTO (auditor-rls P3-5): si otra puerta adopta private.sla_leads_operativos() (p. ej. las de Gestión Diaria
+-- en la fase diferida), esta reversa debe dejar de borrar el ayudante: Postgres no registra dependencias de cuerpos.
 begin;
 set local lock_timeout = '10s';
 do $rev$
@@ -17,11 +19,13 @@ begin
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'REVERSA: invariantes del adaptador incorrectos (dueño %, acl %, definer %, vol %, cfg %); no se toca', v_owner, v_acl, v_secdef, v_vol, v_cfg;
   end if;
-  if v_md5 = '7b5f75dfb6ac3e480659bdef3dc5ac0f' and to_regprocedure('private.sla_leads_operativos()') is null then
+  if v_md5 = '7b5f75dfb6ac3e480659bdef3dc5ac0f' then
+    -- Ya está el adaptador vivo; si quedó un ayudante huérfano (solo alcanzable a mano), se retira (auditor-rls P3-2).
+    execute 'drop function if exists private.sla_leads_operativos()';
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
-    raise notice 'REVERSA: ya está el adaptador vivo del 29/09 (%)', v_md5; return;
+    raise notice 'REVERSA: ya está el adaptador vivo del 29/09 (%); ayudante retirado si existía', v_md5; return;
   end if;
-  if v_md5 <> 'e9ce617ab0cc33bc5614ef69e877cc71' then raise exception 'REVERSA: huella desconocida del adaptador (%), no se toca', v_md5; end if;
+  if v_md5 is distinct from 'e9ce617ab0cc33bc5614ef69e877cc71' then raise exception 'REVERSA: huella desconocida del adaptador (%), no se toca', v_md5; end if;
   execute $def$
 CREATE OR REPLACE FUNCTION crm.avisos_sla_resumen_v2_fn()
  RETURNS jsonb
@@ -56,7 +60,7 @@ $def$;
   execute 'drop function if exists private.sla_leads_operativos()';
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 <> '7b5f75dfb6ac3e480659bdef3dc5ac0f' then raise exception 'REVERSA: la huella restaurada no coincide (%)', v_md5; end if;
+  if v_md5 is distinct from '7b5f75dfb6ac3e480659bdef3dc5ac0f' then raise exception 'REVERSA: la huella restaurada no coincide (%)', v_md5; end if;
   if (v_owner = 'postgres' and v_acl is not null and v_acl = '{postgres=X/postgres,authenticated=X/postgres}' and v_secdef is true and v_vol = 's'
     and exists (select 1 from unnest(v_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'REVERSA: tras restaurar, invariantes del adaptador incorrectos (dueño %, acl %, definer %, vol %, cfg %)', v_owner, v_acl, v_secdef, v_vol, v_cfg;

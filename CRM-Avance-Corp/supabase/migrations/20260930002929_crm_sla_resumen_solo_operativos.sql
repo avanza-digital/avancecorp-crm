@@ -53,14 +53,14 @@ begin
     and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
       raise exception 'PREFLIGHT (ya aplicada): el ayudante no tiene los invariantes esperados (dueño %, acl %, definer %, vol %, cfg %)', h_owner, h_acl, h_secdef, h_vol, h_cfg;
     end if;
-    if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+    if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) is distinct from '8d478d783e4c591662388ddf7405058a' then
       raise exception 'PREFLIGHT (ya aplicada): el ayudante no tiene la huella esperada (%)', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
     end if;
     raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
     raise notice 'sla_resumen_solo_operativos: ya aplicada (huella %)', v_md5;
     return;
   end if;
-  if v_md5 <> '7b5f75dfb6ac3e480659bdef3dc5ac0f' then
+  if v_md5 is distinct from '7b5f75dfb6ac3e480659bdef3dc5ac0f' then
     raise exception 'PREFLIGHT: crm.avisos_sla_resumen_v2_fn() no es el cuerpo vivo del 29/09/2026 (huella %)', v_md5;
   end if;
 
@@ -89,7 +89,7 @@ $def$;
     and exists (select 1 from unnest(h_cfg) x where x in ('search_path=', 'search_path=""'))) is not true then
     raise exception 'POSTFLIGHT: el ayudante no quedó como se esperaba (dueño %, acl %, definer %, vol %, cfg %)', h_owner, h_acl, h_secdef, h_vol, h_cfg;
   end if;
-  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) <> '8d478d783e4c591662388ddf7405058a' then
+  if md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure)) is distinct from '8d478d783e4c591662388ddf7405058a' then
     raise exception 'POSTFLIGHT: huella inesperada del ayudante (%)', md5(pg_get_functiondef('private.sla_leads_operativos()'::regprocedure));
   end if;
 
@@ -131,7 +131,7 @@ $function$
 $def$;
   select md5(pg_get_functiondef(v_oid)), pg_get_userbyid(p.proowner), p.proacl::text, p.prosecdef, p.provolatile, p.proconfig
     into v_md5, v_owner, v_acl, v_secdef, v_vol, v_cfg from pg_proc p where p.oid = v_oid;
-  if v_md5 <> 'e9ce617ab0cc33bc5614ef69e877cc71' then
+  if v_md5 is distinct from 'e9ce617ab0cc33bc5614ef69e877cc71' then
     raise exception 'POSTFLIGHT: huella inesperada del adaptador tras el cambio (%)', v_md5;
   end if;
   if (v_owner = 'postgres' and v_acl is not null and v_acl = '{postgres=X/postgres,authenticated=X/postgres}' and v_secdef is true and v_vol = 's'
