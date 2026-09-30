@@ -1,17 +1,17 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 03:20 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 03:37 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 20:20 UTC: F1.1 cerrada y F1.4.1 hecha — en el navegador contra la demo se vieron roles, otra cuenta, formulario en edición (la segunda llamada espera y se atiende sola), dos pestañas y limpieza del hash; dos hallazgos corregidos (carrera con la tarjeta «Ahora» y la intención delegada). Para cerrar F1 solo falta la corrida E2E en Docker (F1.4.3).
+**Lo último:** 30/09 20:37 UTC: F1 CERRADA (12/12 tareas): E2E en Docker en verde (285 passed, 1 flaky ajeno que pasó al reintentar). Todo vive en la rama feat/llamadas-f0; producción no cambió. Siguiente: que Miguel decida publicar F1 (release con preflight) y revise las propuestas #1–#9; F0 sigue con sus mediciones en C1.
 
-**Total:** 12 de 102 tareas · 0 de 8 fases hechas.
+**Total:** 13 de 102 tareas · 1 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
-| F1 · Formulario único y coincidencia exacta | 11/12 | En curso | 3/4 |
+| F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
 | F2 · Núcleo confiable y contrato de datos | 0/13 | Pendiente | 0/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
@@ -35,7 +35,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F0.4.1 — REGISTRO.md, macrodroid.md y compatibilidad.md creados; falta la evidencia por equipo.
     - ✓ F0.4.2 — docs/gestion-diaria/piloto-telefonia/ejemplos-sinteticos.md: 23 casos en 6 grupos (exactos, históricos, compartidos y reciclados, contexto contradictorio, internacionales/ocultos/inválidos, completitud), reglas contrastadas con las migraciones 20260709000001 y 20260826182000. (29/09/2026, 05:45 p. m.)
 
-### F1 · Formulario único y coincidencia exacta — 11/12 · en curso
+### F1 · Formulario único y coincidencia exacta — 12/12 · hecha · 30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida (ambos órdenes una sola vez, edición no se pierde, fijo/internacional, incompleto nunca autoselecciona, RLS, tarea propia). Sin tablas ni puertas nuevas. NO publicada: producción intacta hasta el release con preflight (decisión de Miguel).
 - **F1.1 · Coordinar la intención** — 3/3 · hecha · Responsable: Claude (código) · Jhosep (prueba en C1) · Cerrada. · Evidencia: 30/09/2026: commits 6a920143, 6ca9944f, e08288ee, 5d9f21c3; tests del coordinador (13) y de AccionesContacto (20); recarga, remount, ambos órdenes, cola y dos pestañas vistos en el navegador.
     - ✓ F1.1.1 — lib/intencion-contacto.ts + 11 tests (commit 6a920143): cola por pestaña con actor, lead, canal, número, hora, caducidad (2 h) y formulario abierto; sobrevive a la recarga (sessionStorage); una cabeza a la vez. Nadie lo usa todavía: se integra en F1.1.2. (30/09/2026, 10:21 a. m.)
     - ✓ F1.1.2 — AccionesContacto y el receptor del enlace comparten la cola (6ca9944f, e08288ee); contexto mínimo en sessionStorage; auth.tsx la vacía al salir y al cambiar de identidad. Tests: AccionesContacto 19, receptor 13. (30/09/2026, 11:05 a. m.)
@@ -48,10 +48,10 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.3.1 — lib/coincidencia-telefono.ts (commit cd4d31b0): E.164 completo de principal y alternativo con las dos formas canónicas de la base (regla del trigger + canonizar_contacto) y el fijo con 0; nunca se recortan 9 dígitos. 24 tests con los casos sintéticos A, B, C, E, F y D3. (30/09/2026, 10:56 a. m.)
     - ✓ F1.3.2 — data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests. (30/09/2026, 11:05 a. m.)
     - ✓ F1.3.3 — Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests. (30/09/2026, 11:05 a. m.)
-- **F1.4 · Validar la experiencia** — 2/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · F1.4.1 y F1.4.2 hechas. F1.4.3: solo falta la corrida E2E en Docker.
+- **F1.4 · Validar la experiencia** — 3/3 · hecha · Responsable: Claude (checks, guía) · Jhosep (C1) · Cerrada. · Evidencia: 30/09/2026: navegador del PC contra la demo (4 caminos, roles, otra cuenta, cola, dos pestañas); C1 con la build de la rama (macro real, login, build real sin guardar); gate del app en verde; E2E Docker 285 passed / 1 flaky ajeno / 0 failed.
     - ✓ F1.4.1 — Verificado en el navegador del PC contra la demo (30/09): analista («Ahora» y ficha), supervisor con lead de su equipo (ficha + diálogo, sin casilla de tarea ajena), otra cuenta (al cerrar sesión la cola queda vacía), formulario en edición (la segunda llamada espera), dos pestañas (independientes) y limpieza del hash en todos los casos. Tarea propia: regla de tareaQueCierra cubierta por tests. En C1: flujo completo con demo y build real. (30/09/2026, 03:20 p. m.)
     - ✓ F1.4.2 — Retorno real en Android validado en C1 el 30/09 con la build de la rama servida desde el PC: (1) macro de MacroDroid con {call_number} → Chrome → CRM demo → aviso con el número marcado; (2) URL con número → login → encuesta de la persona de «Ahora»; (3) build real con la cuenta de Jhosep → encuesta de un lead propio (ficha + diálogo), cerrada sin registrar; (4) con el ajuste de Android la URL abre la app instalada. La alternativa de notificación local NO APLICA: la URL sí abre la PWA (plan §6, «Dos decisiones separadas»). Hallazgo corregido por el camino: la demo buscaba antes de cargar (3065b84e). Registro en REGISTRO.md §5b. (30/09/2026, 02:25 p. m.)
-    - ◐ F1.4.3 — Lint, typecheck, suite completa (4998 tests), cobertura 81,8 %, build, verify:bundle y dup en verde; a11y del receptor revisada; guía macrodroid.md con la URL y la reversa. Decisión de Jhosep: 15 s por test en vitest.config.ts (la suite completa tumbaba por carga un archivo distinto cada vez en el taller Windows). Falta: E2E Docker (lanzándose el 30/09 a las 20:20 UTC). (30/09/2026, 03:20 p. m.)
+    - ✓ F1.4.3 — PASS: lint, typecheck, suite completa (4998 tests), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup; a11y del receptor revisada en línea; E2E en Docker (imagen playwright v1.61.1, 2 workers): 285 passed, 26 skipped, 1 flaky ajeno (gestion-diaria-pulso, foco de Gerencia; pasó al reintentar), 0 failed, 12,5 min. Guía macrodroid.md con la URL y la reversa. Nota: scripts/e2e-docker.sh no arranca en Windows (rutas de Git Bash al Node de Windows); se corrió el mismo docker run a mano. Revisión Codex: no (LEVEL 2, 0–1 permitido). (30/09/2026, 03:37 p. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
 - **F2.1 · Cerrar el contrato** — 0/3 · pendiente · Responsable: por asignar
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 03:37 p. m. · F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar.
 - 30/09/2026, 03:20 p. m. · F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e).
 - 30/09/2026, 02:25 p. m. · F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel).
 - 30/09/2026, 01:58 p. m. · C1: la macro real (Abrir sitio web con {call_number}) abrió Chrome en la demo y el receptor mostró el aviso con el número marcado. El número viaja de MacroDroid al CRM. REGISTRO.md §5b.
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
 - 30/09/2026, 10:41 a. m. · F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1).
 - 30/09/2026, 10:21 a. m. · F1.1.1 hecha: coordinador de la intención de contacto con 11 tests (6a920143); antes, 12 tests de caracterización de AccionesContacto (9b638279). F1.1.2 en curso.
-- 30/09/2026, 10:07 a. m. · F1 en curso (F1.1 · F1.1.1): plan corto presentado a Jhosep con archivos, reutilización y verificación; el aterrizaje será Gestión Diaria y la ruta por número servirá también en Hoy. Empieza por tests de caracterización de AccionesContacto.

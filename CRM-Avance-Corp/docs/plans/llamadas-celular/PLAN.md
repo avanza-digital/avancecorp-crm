@@ -129,7 +129,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | Fase | Subfases | Avance inicial | Estado | Abrir checklist |
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
-| F1 · Formulario único y match exacto | 4 | 11/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
+| F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
@@ -195,7 +195,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Objetivo:** mejorar el retorno usando puertas existentes y mantener resolución manual cuando no haya identidad comprobada.
 
-**Seguimiento de F1:** 11/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F1:** 12/12 tareas completadas · Estado: hecha · Responsable nominal: por asignar.
 
 ### F1.1 · Coordinar la intención
 
@@ -229,13 +229,13 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 ### F1.4 · Validar la experiencia
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude (checks, guía) · Jhosep (C1).
 
 - [x] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash.
 - [x] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend.
-- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Lint, typecheck, suite completa (4998 tests), cobertura 81,8 %, build, verify:bundle y dup en verde; a11y del receptor revisada; guía macrodroid.md con la URL y la reversa. Decisión de Jhosep: 15 s por test en vitest.config.ts (la suite completa tumbaba por carga un archivo distinto cada vez en el taller Windows). Falta: E2E Docker (lanzándose el 30/09 a las 20:20 UTC).
+- [x] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 30/09/2026: navegador del PC contra la demo (4 caminos, roles, otra cuenta, cola, dos pestañas); C1 con la build de la rama (macro real, login, build real sin guardar); gate del app en verde; E2E Docker 285 passed / 1 flaky ajeno / 0 failed..
 
 **Entregables:** flujo de pantalla, tests de coordinador/router/teléfonos y guía móvil. Puede cambiar `crm-api.ts`; no requiere tablas ni puertas SQL nuevas.
 
