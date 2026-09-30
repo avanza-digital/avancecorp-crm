@@ -1,6 +1,6 @@
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930185623.sql` → advisors → front por `/release-crm`.**
+**✅ SERVIDOR EN PROD 30/09/2026 por `!` de Miguel: migración por `db query --linked --file` (preflight y postflight de paridad contra setiembre real en verde) + registrador → `REGISTRO_CONVERSION_DIVISOR_COORDINACION_OK` (huellas puerta `4c73a85e…`, núcleo `c62acbc0…`, totales `9b65271a…`; versión 400 del registro con el cuerpo literal, md5 `129e469e…` = archivo). Verificado en prod, solo lectura: Astrid 115 = 65 + 50 / 11.15 / 9,70 %; Merlys 88 = 60 + 28 / 9 / 10,23 %; paridad fila a fila con el núcleo. PR #146 fusionada. ⏸️ Advisors en el panel y front por `/release-crm`.**
 
 Qué arregla: la coordinadora veía en «Supervisión → analistas» el reporte de ENTREGAS
 (`reporte_derivaciones_coordinacion_fn`), que cuenta por fecha de entrega y, a propósito,
