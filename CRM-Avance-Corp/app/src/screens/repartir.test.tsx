@@ -87,7 +87,7 @@ const reporteDiarioMock = vi.fn(async (_desde: string, _hasta: string) => REPORT
 const conversionMock = vi.fn(async (consulta: { modo: 'mes'; mes: string } | { modo: 'rango'; desde: string; hasta: string }) => {
   const base = payloadConversionValido()
   if (consulta.modo === 'rango') {
-    return { ...base, periodo: { modo: 'rango' as const, mes: null, mes_nombre: null, anio: null, zona: 'America/Lima' as const, desde: consulta.desde, hasta: consulta.hasta, dias: 1 } }
+    return { ...base, fuente: { ...base.fuente, modo: 'rango_vivo' as const }, periodo: { modo: 'rango' as const, mes: null, mes_nombre: null, anio: null, zona: 'America/Lima' as const, desde: consulta.desde, hasta: consulta.hasta, dias: 1, cruza_meses_sellados: false } }
   }
   const [anio, mesNum] = consulta.mes.split('-').map(Number) as [number, number]
   const hasta = new Date(Date.UTC(anio, mesNum, 0)).toISOString().slice(0, 10)

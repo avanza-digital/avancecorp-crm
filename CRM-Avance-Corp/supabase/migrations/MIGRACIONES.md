@@ -143,6 +143,44 @@ ordenó esperar su aviso antes de publicar. Banco remoto eliminado tras fallo
 de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
 evaluación del review: `supabase/scripts/lead-documentos/README.md`.
 
+**Revisiones (30/09 noche) y qué cambió tras ellas (huellas finales del artefacto: puerta
+`b881b83c…`, base `0a43b0f3…`, empresa `793a98fc…`, totales `e97995f5…`):**
+- Codex r1 (LEVEL 3, CHANGES_REQUESTED, 5 hallazgos, todos aceptados): el navegador aplicaba el suelo
+  en cero al agregado (ahora empresa = Σ netos por persona); `desglose_disponible` de empresa exigía
+  solo las filas de la foto (ahora también que no haya producción fuera de la foto); la fórmula
+  prometía «n × peso» en rango y «=» en sellado (ahora no); el postflight y el oráculo dependían del
+  día (ahora comparan `numerador_bruto`, exigen ajuste 0 solo en rango real, y prueban el mes ANTERIOR
+  como rango exacto, el 15 del mes anterior → hoy como rango real aditivo, y un rango que toca un mes
+  sellado); el registrador no acreditaba los cuerpos vivos (ahora compara las cuatro huellas
+  `md5(prosrc)` con las del artefacto probado y se niega si difieren; mutante probado).
+- `auditor-rls` (CHANGES_REQUESTED): **P1** la rama sellada leía `cartera.operaciones_*` (todas las
+  operaciones) cuando el numerador suma `conversiones_*` (primera elegible por cliente/mes): corregido,
+  y el oráculo E07 siembra una foto con `operaciones_* ≠ conversiones_*` y afirma partes selladas =
+  numerador + `ajuste_numerador` con pesos sellados. P2: rango que toca meses sellados se calcula en
+  vivo y ahora LO DECLARA (`periodo.cruza_meses_sellados`, `fuente.modo` = 'foto' | 'mensual' |
+  'rango_vivo'; el front avisa); TDZ en `test-rls.mjs` corregido y casos de rango ampliados (futuro,
+  > 366 días, una sola fecha, gerencia = coordinador). P3: la paridad rango vs mes ignora filas que
+  solo traen deuda; cierres de otros orígenes (web, campaña, whatsapp, otro) se cuentan en
+  `cierres.otros` (no pesan); verificado que el front v1 vivo tolera el payload v2 (solo valida
+  `desde` y `mes`, `v.object`), así que la ventana SQL → front no rompe la pestaña. **P3-3 queda para
+  Miguel:** la coordinadora ahora ve `ajuste_pendiente` y `numerador_bruto` POR PERSONA (deuda de
+  cierres anulados tras pagar); no es PII, pero es un dato nuevo en su ámbito.
+- `revisor-a11y` (CHANGES_REQUESTED): P1 cabecera agrupada con `colSpan` fijos y subcolumnas ocultas
+  por ancho (desalineaba entre 1024 y 1279 px): ya no se oculta ninguna subcolumna de un grupo; P2 dos
+  `<thead>` en una tabla: `TheadCrm` admite `segundaFila` (un solo `<thead>`, `scope=col/colgroup`);
+  P2 consulta por cada dígito tecleado: espera de 350 ms al teclear fechas, `FECHA_MINIMA` 2025-01-01,
+  y el error del formulario ya no desmonta la tabla cargada; P3 `aria-invalid` por campo
+  (`camposInvalidos`), `fieldset` con leyenda, textos «del período» en rango, plural concordado, sin
+  `title` en `th` (leyenda visible), 14 px mínimos, fila «sin analista» por `CeldasCierres`.
+- Lección del oráculo: la foto sellada NO se puede sembrar con `origenes_ranking` a mano si el
+  trigger `trg_cierre_mes_vendedor_10_ranking_origen` está activo (lo recalcula sobre datos vivos que
+  no existen): se apaga solo para esa siembra, en el banco.
+
+Verificación tras las revisiones (banco Docker, 30/09 noche): migración COMMIT (v1 restaurada y v2
+reaplicada), oráculo v2b OK, registrador OK/idempotente/fail-closed (md5 del registro = md5 del
+archivo; cuerpo vivo alterado → rechazado); `npm run check` 322 archivos / 5055 pruebas PASS. E2E
+Docker y Codex r2: ver el estado final más abajo o en la nota del vault. `test-rls.mjs` sigue NOT RUN.
+
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 
 **✅ EN PROD 30/09/2026. Servidor por `!` de Miguel: migración por `db query --linked --file` (preflight y postflight de paridad contra setiembre real en verde) + registrador → `REGISTRO_CONVERSION_DIVISOR_COORDINACION_OK` (huellas puerta `4c73a85e…`, núcleo `c62acbc0…`, totales `9b65271a…`; versión 400 del registro, md5 `129e469e…` = archivo). Verificado en prod, solo lectura: Astrid 115 = 65 + 50 / 11.15 / 9,70 %; Merlys 88 = 60 + 28 / 9 / 10,23 %; paridad fila a fila con el núcleo. Advisors sin errores. Front ~16:38 Lima por `/release-crm`: release `crm-20260930T213752Z-6bb984edc63c` (ZIP SHA-256 `728bd278…`), build `build-20260930T213751470Z`, desde la rama de rescate `rescue/conversion-coordinacion-20260930` (tip vivo `57e7b3b4` + #146), preflight ok contra `build-20260930T195218921Z`, smoke PASS (index `CdudC-F4` idéntico, 3 lecturas estables, ZIP 404). PR #146 y #147 fusionadas; la rama de rescate vuelve a `main` por la PR #149.**
