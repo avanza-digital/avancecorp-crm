@@ -15,6 +15,7 @@ const dobles = vi.hoisted(() => ({
   yo: { id: 'a1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' },
   dia: null as DiaAnalista | null,
   errorDia: null as unknown,
+  gestionadas: [] as string[],
   recargar: vi.fn(async () => {}),
   cola: { data: undefined as unknown, error: null as unknown, refetch: vi.fn(), isFetching: false },
   abrirLead: vi.fn(),
@@ -49,7 +50,19 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('@/data/gestion-diaria-queries', () => ({
   useDiaAnalista: () => ({ dia: dobles.dia, cargando: false, enVuelo: false, error: dobles.errorDia, recargar: dobles.recargar }),
 }))
-vi.mock('@/data/sla-operacion-queries', () => ({ useColaDiaPagina: () => dobles.cola }))
+vi.mock('@/data/gestion-diaria-cola-queries', async () => {
+  const { ordenarColaDiaria } = await import('@/lib/gestion-diaria-analista')
+  const { paginarTrabajoDemo } = await import('@/lib/gestion-diaria-cola-demo')
+  return { useColaTrabajo: (pedido: import('@/lib/gestion-diaria-cola').PedidoColaTrabajo, dia: string) => {
+    const raw = dobles.cola.data as { items: import('@/lib/sla-operacion').ItemColaDia[] } | undefined
+    const filas = ordenarColaDiaria(raw?.items ?? [], dobles.dia?.cartera ?? []).map((f) => ({ ...f,
+      estado_trabajo: dobles.gestionadas.includes(f.clave) ? 'gestionado' : 'pendiente',
+      ultima_gestion: dobles.gestionadas.includes(f.clave) ? { actividad_id: 'act', resultado: 'no_contesto', en: '2026-09-20T18:00:00Z', tarea_id: null, etapa_anterior: 'nuevo' } : null, proxima_tarea: null,
+    })) as import('@/lib/gestion-diaria-cola').FilaTrabajo[]
+    return { ...dobles.cola, data: raw && !dobles.cola.error
+      ? paginarTrabajoDemo(filas, pedido, dobles.yo.id, dia, Date.parse('2026-09-20T18:00:00Z')) : undefined }
+  } }
+})
 // El teléfono de un cliente sale de su ficha autorizada; aquí se prueba qué se pinta con él.
 vi.mock('@/data/inversionistas-queries', () => ({
   useContactoInversionista: (_actor: string, id: string) => {
@@ -149,6 +162,7 @@ function guardarDelPanel() {
   const props = dobles.panel.props
   if (!props) throw new Error('el resultado no está abierto')
   dobles.panel.props = null
+  dobles.gestionadas.push(`lead:${(props['lead'] as { id: string }).id}`)
   ;(props['onClose'] as () => void)()
   ;(props['onGuardado'] as () => void)()
 }
@@ -159,6 +173,8 @@ function abrirResultado() {
 }
 
 beforeEach(() => {
+  sessionStorage.clear()
+  dobles.gestionadas = []
   vi.clearAllMocks()
   dobles.recargar = vi.fn(async () => {})
   dobles.contacto.montajes = []
@@ -252,12 +268,12 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
     await waitFor(() => expect(dobles.panel.props).not.toBeNull())
     expect(typeof dobles.panel.props?.onGuardado).toBe('function')
     guardarDelPanel()
-    // Mientras el servidor no contesta, el cerrado desaparece de la vista: si
-    // no, el analista volvería a llamar al mismo.
+    // La cola confirmada lo mantiene al final, incluso si las cifras del día
+    // aún se están recargando; «Ahora» propone al siguiente pendiente.
     await waitFor(() => {
       expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('LEAD l5')).toBeInTheDocument()
     })
-    expect(screen.queryByText('NUEVO SIN INTENTO')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button').at(-1)).toHaveTextContent('NUEVO SIN INTENTO')
     soltar()
   })
 
@@ -417,8 +433,8 @@ describe('GestionDiariaAnalista · lo que NO está cargado no es lo que NO exist
     // Los tres primeros salen de la cola: su conteo es DESCONOCIDO.
     expect(within(tabs).getByRole('tab', { name: /^Vencidas/ })).toHaveTextContent('Vencidas?')
     expect(within(tabs).getByRole('tab', { name: /^Hoy/ })).toHaveTextContent('Hoy?')
-    // «Sin conversación» sale del día, que sí llegó: ese conteo es real.
-    expect(within(tabs).getByRole('tab', { name: /^Sin conversación/ })).toHaveTextContent('Sin conversación1')
+    // Toda la cola viene de una única foto; ningún conteo parcial sustituye el fallo.
+    expect(within(tabs).getByRole('tab', { name: /^Sin conversación/ })).toHaveTextContent('Sin conversación?')
   })
 })
 
@@ -439,28 +455,25 @@ describe('GestionDiariaAnalista · dos resultados seguidos (carrera)', () => {
     guardarDelPanel()
   }
 
-  it('el segundo guardado NO destapa al primero cuando este termina', async () => {
+  it('dos guardados conservan ambos al final y las recargas tardías no retroceden «Ahora»', async () => {
     const sueltas = tresYControl()
     render(<GestionDiariaAnalista />)
 
-    await guardarElDeAhora()                       // cierra l1
-    await waitFor(() => expect(screen.queryAllByText('NUEVO SIN INTENTO')).toHaveLength(0))
-    await guardarElDeAhora()                       // cierra l5, con l1 aún en vuelo
-    await waitFor(() => expect(screen.queryAllByText('LEAD l5')).toHaveLength(0))
-
-    // Termina el PRIMERO. Su lead puede volver —el servidor aún lo devuelve—,
-    // pero el SEGUNDO sigue en vuelo y NO puede destaparse: antes, el `finally`
-    // del primero ponía el estado a null y l5 reaparecía con su chip viejo.
-    sueltas[0]?.()
-    await waitFor(() => expect(screen.getAllByText('NUEVO SIN INTENTO').length).toBeGreaterThan(0))
-    expect(screen.queryAllByText('LEAD l5')).toHaveLength(0)
-
-    // Y cuando termina el suyo, l5 vuelve por su cuenta.
-    sueltas[1]?.()
-    await waitFor(() => expect(screen.getAllByText('LEAD l5').length).toBeGreaterThan(0))
+    const ahora = screen.getByRole('region', { name: 'Ahora' })
+    await guardarElDeAhora()
+    await waitFor(() => expect(ahora).toHaveTextContent('LEAD l5'))
+    await guardarElDeAhora()
+    await waitFor(() => expect(ahora).toHaveTextContent('LEAD l6'))
+    const ultimas = within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button').slice(-2)
+    expect(ultimas[0]).toHaveTextContent('NUEVO SIN INTENTO')
+    expect(ultimas[1]).toHaveTextContent('LEAD l5')
+    for (const soltar of sueltas) {
+      await act(async () => { soltar() })
+      expect(ahora).toHaveTextContent('LEAD l6')
+    }
   })
 
-  it('si la recarga falla, no queda un rechazo suelto y el lead vuelve a verse', async () => {
+  it('si la recarga de cifras falla, no queda un rechazo suelto y la gestión sigue visible', async () => {
     dobles.recargar = vi.fn(async () => { throw new Error('502') })
     dobles.cola = {
       data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z')] },
@@ -470,10 +483,24 @@ describe('GestionDiariaAnalista · dos resultados seguidos (carrera)', () => {
     window.addEventListener('unhandledrejection', alRechazo)
     render(<GestionDiariaAnalista />)
     await guardarElDeAhora()
-    // `allSettled`: la otra lectura sigue su curso y el lead se destapa igual.
+    // `allSettled`: el fallo de las cifras no borra la cola confirmada.
     await waitFor(() => expect(screen.getAllByText('NUEVO SIN INTENTO').length).toBeGreaterThan(0))
     expect(alRechazo).not.toHaveBeenCalled()
     window.removeEventListener('unhandledrejection', alRechazo)
+  })
+
+  it('deshacer desde otra vista devuelve el lead a pendientes y permite elegirlo en la misma sesión', async () => {
+    tresYControl()
+    const { rerender } = render(<GestionDiariaAnalista />)
+    await guardarElDeAhora()
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent('LEAD l5'))
+    // La lectura nueva acredita el deshacer externo; no pasó por el botón de
+    // esta pantalla y no debe depender de retirar una marca local.
+    dobles.gestionadas = []
+    rerender(<GestionDiariaAnalista />)
+    fireEvent.click(within(screen.getByRole('list', { name: /^Todo/ })).getByRole('button', { name: /NUEVO SIN INTENTO/ }))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent('NUEVO SIN INTENTO'))
+    expect(screen.getByTestId('acciones-contacto')).toHaveAttribute('data-lead', 'l1')
   })
 
   it('el panel cierra la tarea que dice la FILA, no la que adivine el caché', async () => {
@@ -587,10 +614,12 @@ describe('GestionDiariaAnalista · integración del taller y producción', () =>
     dobles.contacto.onRegistrar?.()
     await waitFor(() => expect(dobles.panel.props).not.toBeNull())
     guardarDelPanel()
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent('Vuelta completada'))
+    fireEvent.click(screen.getByRole('tab', { name: /^Todo/ }))
     await waitFor(() => expect(screen.getByTestId('acciones-contacto')).toHaveAttribute('data-lead', 'l2'))
-    expect(screen.queryByText('NUEVO SIN INTENTO')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: /^Todo/ })).getAllByRole('button').at(-1)).toHaveTextContent('NUEVO SIN INTENTO')
     expect(dobles.recargar).toHaveBeenCalled()
-    expect(dobles.cola.refetch).toHaveBeenCalled()
+    expect(dobles.cola.refetch).not.toHaveBeenCalled()
     soltar()
   })
 

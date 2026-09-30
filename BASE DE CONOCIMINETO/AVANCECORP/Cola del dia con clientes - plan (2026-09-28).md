@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, cola, postventa, plan, servidor]
 fecha: 2026-09-28
-estado: F1 EN PROD 28/09; F2 EN PROD 29/09; F3 HECHA 29/09 (ce9e688f en main), pendiente de publicar
+estado: F1 EN PROD 28/09 · F2 EN PROD 29/09 (PR #130 fusionada) · F3 EN PROD 29/09 (build-20260929T164822097Z, ce9e688f; PR #131)
 nivel: LEVEL 3 (funciones del núcleo, datos, alcance por rol)
 ---
 
@@ -173,6 +173,11 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
     el contraste.
   - **Rebase:** la F3 se reasentó sobre el anexo de cronograma, publicado por otra sesión (vivo
     `fb79c46f`).
+  - ✅ **PUBLICADA 29/09 ~11:50 Lima** (Miguel con `!`): vivo `build-20260929T164822097Z`.
+    - **Smoke:** `index-D9XMRhsn.js` idéntico al construido y con el texto de la F3 dentro; home 200; ZIP y `license.md` 404.
+    - **Asset anterior:** sigue en 200 desde la CDN, pero es inmutable y el HTML (`no-store`) ya sirve el nuevo. No hizo falta purgar.
+    - **GitHub:** PR #131 (`integra/cola-v3-f3-20260929`). El `main` local integró la #130 (`77f79101`, sin cambios de archivos).
+  - Pendiente: fusionar la #131 y traer `avancecorp/main`. La v2 del servidor se retira más adelante: CERRAR → OBSERVAR → DERRIBAR.
 - **F3 (texto original del plan)**: Seguimiento y Hoy del supervisor a la v3 (navegación por sujeto, totales,
   acciones autorizadas) y, mucho después, retirar la v2 solo tras inventariar asserts, scripts y envoltorios
   (CERRAR → OBSERVAR → DERRIBAR).
@@ -265,7 +270,22 @@ incorporado abajo. Rechazadas las alternativas «lead sintético» y «dos endpo
 9. Codex refuta el diff (LEVEL 3: datos y alcance por rol) + `revisor-a11y`; `npm run check`; release con preflight;
    deploy por Miguel con `!`; PR de integración a `avancecorp/main` (sin lo de Gloria).
 
-### Otros pendientes de esta tarea
+### Pendientes cerrados el 29/09
+
+- **Advisors de Supabase** (`supabase db advisors --linked --type all`, solo lectura, 29/09): 506 avisos. La cola v3 NO
+  añade alertas nuevas. Su única entrada es `crm.cola_accion_v3_fn` en `authenticated_security_definer_function_executable`,
+  la misma clase aceptada que la v2 y otras 208 puertas `crm`. El helper y el assert (privados) no aparecen.
+  WARN previos y AJENOS a esta tarea, para que Miguel decida:
+  - `anon` puede ejecutar dos DEFINER de `public`: `es_gestor_cartera()` y `es_operaciones()`.
+  - `pg_net` está en `public`.
+  - La protección de contraseñas filtradas de Auth está apagada.
+  - `auth_rls_initplan` en `crm.gestion_diaria_control_avisos` y `crm.gestion_diaria_entregas` (política `lectura_interna`).
+  - Hay políticas permisivas múltiples en `public.audit_log`, `contratos`, `cronograma_pagos` y `perfiles`.
+- **Suite `test-rls.mjs` con canal concreto**: los 27 `origen: 'otro'` pasan a `'oficina'` (commit `d5b223e2` en `main`, PR #132).
+  El archivo resultante es byte a byte el que corrió el 28/09 en el banco a paridad: 2 383 ✓ · 37 ✗ ajenos
+  (PostgREST local responde 500 a los códigos P0xxx). Las pruebas del rechazo siguen en `--origen-concreto`.
+
+### Otros pendientes de esta tarea (histórico)
 - Advisors de Supabase (seguridad y rendimiento) NOT RUN al cierre de F1: revisar en el panel.
 - Suite `supabase/scripts/test-rls.mjs` del repo desfasada con la regla «canal concreto» (27 fixtures `origen:'otro'`
   → canal concreto) y cleanup del banco con el trigger `perfiles_domicilio_legal_no_borrar`.

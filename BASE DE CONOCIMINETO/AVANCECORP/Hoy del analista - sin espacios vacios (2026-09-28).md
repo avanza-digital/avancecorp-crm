@@ -1,7 +1,7 @@
 ---
 tags: [crm, hoy, analista, ux, pantalla]
 fecha: 2026-09-28
-estado: publicado 28/09/2026
+estado: publicado 28/09/2026 (cuatro releases)
 ---
 
 # Hoy del analista — sin espacios vacíos (2026-09-28)
@@ -75,4 +75,64 @@ del modo activo) y [[Hoy Analista - seguimiento solo en su modulo 2026-09-07]].
   local↔vivo, ZIP 404. Sin purga de caché.
 - 🔴 El MCP de Hostinger cambió de contrato (2.3.0): ver [[Deploy a Hostinger]] («MCP 2.x: search/execute»).
 
-Tarea aparte: el P2 de teclado en `FilaAgenda`. Pendiente: PR de integración a GitHub (sin lo de Gloria).
+## Segunda publicación (28/09, 14:45): la vista de PRODUCCIÓN
+
+Miguel vio producción «igual»: la captura de antes era el DEMO (modo legado). En producción (modo activo) los
+huecos eran otros: filas de agenda a todo el ancho con el texto en dos líneas y la cartera debajo, con medio
+monitor vacío. Arreglo (`3c481f7f`): **agenda (3/5) y «Tu cartera en contexto» (2/5, cifras en 2×2) en dos
+columnas** y **cada fila de agenda en una sola línea** desde `sm` (título · tipo · capital a la derecha; 58 px en
+vez de ~90). El legado conserva su franja de cuatro cifras. Publicado: build `build-20260928T194323329Z`,
+artefacto `crm-20260928T194324Z-3c481f7f1a4f`, check 4763 PASS, humo PASS (chunk de Hoy idéntico local↔vivo).
+Lección: **antes de arreglar una pantalla, mirar la vista que corre en producción, no el demo**; el modo activo
+se fuerza un momento en local con `useModoSla()` y se revierte.
+
+## Tercera publicación (28/09, 15:20): «Tus citas» y URL limpia
+
+Miguel, al ver las dos columnas: «eso de tu cartera en contexto bórralo, y pon un componente que sea mejor de solo
+citas del analista, lo veo más útil; tu agenda de hoy que siga igual». Y aparte: «acomoda las URL del CRM, está mal
+que se vea eso de version build». Hecho con dos agentes en paralelo (archivos disjuntos) y una sola release:
+
+- **«Tus citas»** (`CitasAnalista`, en `vendedor.tsx`) sustituye a «Tu cartera en contexto» junto a «Tu agenda de
+  hoy»: TODAS las citas pendientes del analista (tareas `reunion` de sus leads y de los clientes de su cartera), no
+  solo las de hoy; vencidas primero y luego Hoy · Mañana · Próximas; modalidad (presencial/virtual), capital en juego,
+  cerrar tarea y abrir ficha; máximo 8 y «+N más — en Agenda». Reutiliza `FilaAgenda`, que gana `modalidad`, una
+  descripción accesible y el guard de teclado que le faltaba (Enter sobre «Cerrar tarea» ya no abre la ficha: deuda
+  cerrada). Una cita de hoy se ve en las dos tarjetas, por diseño. Se retiraron `PulsoCartera` y sus cifras.
+- **URL limpia**: la recarga por versión nueva añade `?crm_version=build-…` para saltarse la caché de `index.html`
+  y se quedaba pegada. `limpiarMarcaDeVersion()` en `main.tsx`, antes del router, la retira con `replaceState`
+  conservando la ruta hash y el resto de parámetros (`urlSinMarcaDeVersion`, pura, con pruebas).
+
+Commits `3c68b0c5` y `553a447e`; build `build-20260928T201735530Z`, artefacto `crm-20260928T201736Z-553a447e8f53`;
+check 4777 PASS; humo PASS (chunk de Hoy con «Tus citas» y sin «cartera en contexto»; el bundle ya limpia la URL).
+El vivo previo (`5ccb30ac`, «canales concretos», de otra sesión, PR #126) quedó contenido. PR de integración **#127**.
+Deuda que sigue: contraste ≈2,8:1 del `Badge` ámbar suave (compartido, `badge.tsx`) y `role="list"` en las filas.
+
+## Cuarta publicación (28/09, 16:35): «Tus citas» v2, pantalla sin scroll y cumplimiento siempre abierto
+
+Miguel, al ver «Tus citas»: «quiero que esa ficha de citas sea más versátil, aprende a usar bien los espacios, hay
+demasiado negativo, dame una propuesta optimizada» → maqueta `GESTION DIARIA/vista-previa/tus-citas-propuesta.html`
+(A: semana + día; B: pestañas). Aprobó A con condiciones: «mantén la escala, hazlo que se adapte según la pantalla
+para no tener que hacer scroll, quiero ver toda la ficha sin hacer scroll». Aparte: «cumplimiento del mes que
+siempre se vea, que no se contraiga». Hecho con agentes en paralelo (uno por tarea, archivos disjuntos) y Codex
+refutando la propuesta (CHANGES_REQUESTED, 6 P2; aceptados: partición coherente vencidas/hoy/mañana/semana/todas,
+reloj de Lima por prop, pie sin importes porque no se abren, colores de la casa en vez del violeta de
+`COLOR_EVENTO.reunion`, `derivarReunionOperativa` para lugar/enlace, nombre accesible en la modalidad; rechazado:
+empezar por la variante B, porque Miguel aprobó A).
+
+- **`citas-analista.tsx` + `citas-analista-particion.ts`** (partición pura, probada con reloj fijo en miércoles y
+  domingo): chips-filtro con cifras, tira «Próximos 7 días» (hoy→hoy+6, `aria-current="date"`), lista por día,
+  `FilaCita` de 48 px en una línea, pie «Semana: N citas · Ver en Agenda». Sin citas, la tarjeta no se estira.
+- **Sin scroll de página en `lg+` (modo activo)**: raíz `lg:h-[calc(100svh-7rem)] lg:min-h-[640px]` (mismo mecanismo
+  que Gestión Diaria), fila `lg:grid-rows-[minmax(0,1fr)] lg:items-stretch`; izquierda agenda (`CardContent`
+  desplazable) + cumplimiento `shrink-0`; derecha citas con lista desplazable. Comprobado a 1511×812: `scrollHeight`
+  = `innerHeight`. Escala intacta.
+- **«Tu cumplimiento del mes» siempre abierto** (`aba9a24e`): sin `details`/`summary`; `demo-roles.spec.ts`
+  adaptado (NOT RUN hoy).
+- Commits `aba9a24e` + `7b72212a`; build `build-20260928T213044021Z`, artefacto `crm-20260928T213044Z-7b72212ae0b1`;
+  check 4796 PASS; humo PASS. PR **#128** (contiene también lo de la #127, aún abierta: al fusionar #128, cerrar #127).
+- 🔴 Playwright no cargó el Vite de desarrollo esta tarde (ni al agente ni a mí); el Chrome real sí. Para ver el
+  modo activo en local: forzar `useModoSla()` un momento y abrirlo en Chrome.
+
+Tarea aparte (CERRADA en esta release): el P2 de teclado en `FilaAgenda`. PR #124 FUSIONADA (squash `02242e02`, traída al local en
+`865ced05`); el segundo commit fue la PR **#125** (fusionada, traída al local) (sin lo de Gloria; al fusionarla,
+traer `avancecorp/main` al local). Las PR #122 y #123 ya están fusionadas en el `main` local (`e486a139`, `4a6e6609`).

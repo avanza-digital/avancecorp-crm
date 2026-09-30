@@ -1,6 +1,58 @@
 import { expect, test, type Page } from '@playwright/test'
 import { abrirConversionAvance, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 
+for (const ancho of [1440, 390]) {
+  test(`un analista corrige el primer rechazo sin duplicar la solicitud (${ancho}px)`, async ({page}, info) => {
+    await page.setViewportSize({width: ancho, height: 940})
+    const ficha = await abrirLeadDePrueba(page, ancho)
+    let acceso = await abrirConversionAvance(page, ficha)
+    const claves: string[] = []
+    let registrada = false
+    let altas = 0
+    page.on('request', request => {
+      if (/crm-inversion-portal|confirmar_inversion_revisada_fn/.test(request.url())) altas++
+    })
+    await page.route('**/rest/v1/rpc/preparar_inversion_fn', async route => {
+      claves.push(route.request().postDataJSON().p_clave)
+      if (claves.length === 1) return route.fulfill({status: 400, json: {
+        code: '22023', message: 'Completa el nombre legal y un correo válido para el acceso Avance',
+      }})
+      registrada = true
+      return route.fallback()
+    })
+    await page.route('**/rest/v1/rpc/solicitud_inversion_fn', async route => {
+      if (!registrada) return route.fulfill({status: 404, json: {code: 'P0002', message: 'Solicitud no encontrada'}})
+      return route.fallback()
+    })
+    await acceso.getByLabel('Apellidos', {exact: true}).fill('PRUEBA')
+    await acceso.getByLabel('Nombres', {exact: true}).fill('PERSONA')
+    await acceso.getByLabel('Correo de acceso Avance').fill('primero@example.invalid')
+    await acceso.getByLabel('Domicilio legal').fill('AVENIDA SINTETICA 123 LIMA')
+    await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+    await expect(acceso.getByRole('alert')).toContainText('Completa el nombre legal')
+    await expect(acceso.getByLabel('Nombres', {exact: true})).toHaveValue('PERSONA')
+    await expect(acceso.getByText(/La solicitud aún no está registrada/)).toBeVisible()
+    await acceso.screenshot({path: info.outputPath(`rechazo-editable-${ancho}.png`), animations: 'disabled'})
+
+    // Retomar un intento rechazado de una versión anterior tampoco lo reenvía
+    // a ciegas: conserva los datos y permite corregir con la misma referencia.
+    await acceso.getByRole('button', {name: 'Cerrar y continuar después'}).click()
+    await ficha.getByRole('button', {name: /Convertir a cliente/i}).click()
+    await page.getByRole('button', {name: 'Continuar a Nueva inversión'}).click()
+    acceso = page.getByRole('dialog', {name: 'Acceso Avance'})
+    await expect(acceso.getByLabel('Correo de acceso Avance')).toHaveValue('primero@example.invalid')
+    expect(claves).toHaveLength(1)
+    await acceso.getByLabel('Correo de acceso Avance').fill('corregido@example.invalid')
+    await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+    await expect(acceso.getByRole('button', {name: 'Completar acceso Avance'})).toBeEnabled()
+    await expect(acceso.getByRole('definition').filter({hasText: /^corregido@example\.invalid$/})).toBeVisible()
+    expect(claves).toHaveLength(2)
+    expect(claves[1]).toBe(claves[0])
+    expect(altas).toBe(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
 async function abrirLeadDePrueba(page: Page, ancho: number) {
   const lead = leadReal({
     vendedor_id: UID, nombre_completo: 'CLIENTE SINTÉTICO DE ACCESO', dni: '71309001',

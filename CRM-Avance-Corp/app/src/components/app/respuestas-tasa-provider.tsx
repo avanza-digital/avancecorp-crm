@@ -7,9 +7,10 @@ import { useAuth } from '@/lib/auth-context'
 import { AUTH_CLEARED_EVENT } from '@/lib/seguridad'
 import { escribirHash, leerHash } from '@/lib/router'
 import {
-  claveRegistroRespuestas, claveRespuestaTasa, conBloqueoRespuestas, crearSonidoRespuesta,
-  esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas, leerRegistroRespuestas,
-  recibeRespuestasTasa, tituloRespuestaTasa, type RegistroRespuestasTasa,
+  CLAVE_SENAL_SOLICITUD_TASA, claveRegistroRespuestas, claveRespuestaTasa, conBloqueoRespuestas,
+  crearSonidoRespuesta, esRespuestaPropia, guardarRegistroRespuestas, incorporarRespuestas,
+  intervaloConsultaRespuestas, leerRegistroRespuestas, recibeRespuestasTasa, tituloRespuestaTasa,
+  type RegistroRespuestasTasa,
 } from '@/lib/respuestas-tasa'
 import { RespuestasTasaContext } from '@/lib/respuestas-tasa-context'
 import { DialogoRespuestasTasa } from './respuestas-tasa'
@@ -38,9 +39,15 @@ function RespuestasDeCuenta({ cuentaId, children }: { cuentaId: string; children
     queryFn: ({ signal }) => listarSolicitudesTasa(null, signal, { soloMias: true, limite: 500 }),
     enabled: !apagado,
     staleTime: 0,
-    refetchInterval: 15_000,
+    // Ritmo adaptativo: 15 s solo mientras hay una solicitud propia pendiente o la última
+    // consulta falló; 2 min en reposo. Sigue en segundo plano porque el aviso de escritorio y
+    // el sonido se entregan con la pestaña oculta; al volver a la pestaña se consulta al
+    // instante (staleTime 0) y la señal de otra pestaña (CLAVE_SENAL_SOLICITUD_TASA) también.
+    refetchInterval: (query) => intervaloConsultaRespuestas(query.state.data, cuentaId, query.state.status === 'error'),
     refetchIntervalInBackground: true,
   })
+  const reconsultar = useRef(consulta.refetch)
+  reconsultar.current = consulta.refetch
   const solicitudes = useMemo(() => (consulta.data ?? [])
     .filter(s => esRespuestaPropia(s, cuentaId))
     .sort((a, b) => (b.resuelta_en ?? '').localeCompare(a.resuelta_en ?? '')), [consulta.data, cuentaId])
@@ -75,6 +82,8 @@ function RespuestasDeCuenta({ cuentaId, children }: { cuentaId: string; children
     const alHash = () => setAbierta(leerHash().solicitudTasaId ?? null)
     const alStorage = (e: StorageEvent) => {
       if (vigente.current && (e.key === null || e.key === claveRegistroRespuestas(cuentaId))) setRegistro(leerRegistroRespuestas(cuentaId))
+      // Otra pestaña acaba de crear una solicitud: se consulta ya, sin esperar el ritmo de reposo.
+      if (vigente.current && e.key === CLAVE_SENAL_SOLICITUD_TASA) void reconsultar.current()
     }
     // Cada documento nuevo necesita un gesto; se respeta la preferencia guardada.
     const alGesto = () => {

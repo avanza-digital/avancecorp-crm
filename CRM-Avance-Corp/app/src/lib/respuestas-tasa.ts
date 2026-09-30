@@ -9,6 +9,31 @@ export function esRespuestaPropia(s: SolicitudTasa, cuentaId: string): boolean {
     && !!s.resuelta_en && Number.isFinite(Date.parse(s.resuelta_en))
 }
 
+export const CONSULTA_RESPUESTAS_ACTIVA_MS = 15_000
+export const CONSULTA_RESPUESTAS_REPOSO_MS = 120_000
+
+// Solo una solicitud PROPIA que sigue pendiente de Gerencia justifica preguntar cada 15 s
+// (`estado_efectivo`: una pendiente ya vencida no espera respuesta). El resto del tiempo,
+// 2 min: medido el 29/09/2026, este sondeo era el 45 % de todas las llamadas del CRM al
+// servidor. Con la última consulta fallida se vuelve a 15 s: la caída se anuncia y se
+// recupera tan rápido como antes (Codex, 29/09). Una solicitud creada en OTRA pestaña del
+// mismo navegador llega por la señal de abajo; desde otro dispositivo, en la siguiente
+// consulta de reposo (≤ 2 min) y a partir de ahí cada 15 s.
+export function intervaloConsultaRespuestas(solicitudes: readonly SolicitudTasa[] | undefined, cuentaId: string, fallo = false): number {
+  if (fallo) return CONSULTA_RESPUESTAS_ACTIVA_MS
+  const pendiente = (solicitudes ?? []).some(s => s.es_mia && s.solicitada_por === cuentaId && s.estado_efectivo === 'pendiente')
+  return pendiente ? CONSULTA_RESPUESTAS_ACTIVA_MS : CONSULTA_RESPUESTAS_REPOSO_MS
+}
+
+// Señal entre pestañas del mismo navegador: al crear una solicitud se escribe una marca (solo
+// la hora, ningún dato) y las demás pestañas vuelven a consultar al instante en vez de esperar
+// su ritmo de reposo. El evento `storage` no llega a la pestaña que escribe: esa ya invalida.
+export const CLAVE_SENAL_SOLICITUD_TASA = 'ac-crm-solicitud-tasa-creada-v1'
+
+export function senalarSolicitudTasaCreada(): void {
+  try { localStorage.setItem(CLAVE_SENAL_SOLICITUD_TASA, String(Date.now())) } catch { /* sin almacenamiento: las otras pestañas siguen su ritmo */ }
+}
+
 // La decisión de Gerencia se conserva aunque después se consuma o venza la tasa.
 export function tituloRespuestaTasa(s: SolicitudTasa): string {
   if (s.tasa_maxima_autorizada == null) return 'Tu solicitud de tasa fue rechazada'

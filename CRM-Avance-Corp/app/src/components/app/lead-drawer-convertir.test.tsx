@@ -100,6 +100,160 @@ async function llenarCoop(user:ReturnType<typeof userEvent.setup>,moneda='PEN'){
   fireEvent.submit(formulario)
   await screen.findByRole('button',{name:'Confirmar inversión'})
 }
+function llenarAcceso(datos: Partial<{nombres:string;apellidos:string;correo:string;telefono:string}> = {}) {
+  for (const [etiqueta, valor] of Object.entries({Apellidos: datos.apellidos ?? 'PRUEBA', Nombres: datos.nombres ?? 'PERSONA',
+    'Correo de acceso Avance': datos.correo ?? 'persona@example.invalid', 'Teléfono': datos.telefono ?? '999123456',
+    'Domicilio legal': 'AVENIDA SINTETICA 123 LIMA'})) {
+    fireEvent.change(screen.getByLabelText(etiqueta, {exact:true}), {target:{value:valor}})
+  }
+}
+describe('Recuperar el primer acceso rechazado',()=>{
+  it('normaliza espacios copiados antes de enviar los nombres legales',async()=>{
+    const {user}=montar();await entrar(user,'Avance')
+    llenarAcceso({nombres:'  PERSONA\t SEGUNDA  ',apellidos:'  PRUEBA\u00a0 APELLIDO  '})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(vigente?.datos?.alta_portal).toMatchObject({nombres:'PERSONA SEGUNDA',apellidos:'PRUEBA APELLIDO',
+      nombre_completo:'PERSONA SEGUNDA PRUEBA APELLIDO'})
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it.each([
+    [{nombres:'PERSONA\u0001'},'Nombres','caracteres no válidos'],
+    [{nombres:'A'.repeat(130),apellidos:'B'.repeat(130)},'Nombres','240 caracteres'],
+    [{correo:'persona\u0001@example.invalid'},'Correo de acceso Avance','correo de acceso válido'],
+  ])('explica datos que el servidor rechazaría sin guardar un intento: %j',async(datos,campo,mensaje)=>{
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso(datos)
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(screen.getByLabelText(campo)).toHaveAttribute('aria-invalid','true')
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje)
+    expect(api.preparar).not.toHaveBeenCalled();expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toBeNull()
+  })
+  it('22023 permite corregir tras confirmar ausencia y conserva clave y token',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Completa el nombre legal y un correo válido para el acceso Avance','22023'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Completa el nombre legal')
+    expect(screen.getByLabelText('Nombres')).toHaveValue('PERSONA')
+    expect(screen.getByLabelText('Domicilio legal')).toHaveValue('AVENIDA SINTETICA 123 LIMA')
+    expect(screen.getByText(/La solicitud aún no está registrada/)).toBeInTheDocument()
+    const primero=leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)!
+    expect(api.consultar).toHaveBeenCalledWith(primero.clave)
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'corregido@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    const segundo=api.preparar.mock.calls[1]![0]
+    expect(segundo).toMatchObject({clave:primero.clave,token:primero.token,datos:{alta_portal:{correo:'corregido@example.invalid'}}})
+    expect(api.preparar).toHaveBeenCalledTimes(2);expect(api.corregir).not.toHaveBeenCalled()
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it('un intento antiguo inválido vuelve a campos editables sin reenviarlo automáticamente',async()=>{
+    const guardado=nuevoIntentoInversion(ACTOR_F5,PERSONA_F5,FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,
+      empresa:'avance',contrato:{moneda:'PEN'},cronograma:[],cuenta:{},alta_portal:{nombres:'PERSONA\tSEGUNDA',apellidos:'PRUEBA',
+        nombre_completo:'PERSONA\tSEGUNDA PRUEBA',correo:'',telefono:'999123456',domicilio:'AVENIDA SINTETICA 123 LIMA'}})
+    guardarIntentoInversion(guardado)
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByLabelText('Nombres')).toHaveValue('PERSONA\tSEGUNDA')
+    expect(api.preparar).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'corregido@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(api.preparar).toHaveBeenCalledWith(expect.objectContaining({clave:guardado.clave,token:guardado.token}))
+    expect(vigente?.datos?.alta_portal?.nombre_completo).toBe('PERSONA SEGUNDA PRUEBA')
+  })
+  it('una consulta incierta mantiene recuperación hasta comprobar que no existe',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    api.consultar.mockRejectedValueOnce(new TypeError('Conexión interrumpida'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Recuperar solicitud'})
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Consultar y recuperar'}))
+    expect(await screen.findByLabelText('Nombres')).toHaveValue('PERSONA')
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('recupera una escritura confirmada cuya respuesta se perdió sin preparar otra',async()=>{
+    api.preparar.mockImplementationOnce(async i=>{vigente=preparada(i.clave,i.datos);correoFicha=i.datos.alta_portal.correo;throw new TypeError('Respuesta perdida')})
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await user.click(await screen.findByRole('button',{name:'Consultar y recuperar'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('si otro envío registra la misma clave durante la edición, recupera los datos del servidor',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByLabelText('Nombres')
+    const primero=leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)!
+    vigente=preparada(primero.clave,primero.datos);correoFicha=primero.datos.alta_portal!.correo
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Clave ya utilizada','P0409'))
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'nuevo@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(screen.getByText('persona@example.invalid')).toBeInTheDocument()
+    expect(screen.queryByText('nuevo@example.invalid')).not.toBeInTheDocument()
+    expect(api.preparar.mock.calls[1]![0].clave).toBe(primero.clave)
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.datos).toEqual(vigente!.datos)
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it('un conflicto de otra inversión conserva el error sin invitar a corregir datos',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Ya existe otra inversión en preparación','P0409'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe otra inversión')
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Consultar y recuperar'}))
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(screen.queryByText(/La solicitud aún no está registrada/)).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce()
+  })
+  it.each([false,true])('retoma otra solicitud existente del lead sin reenviar el intento local (reapertura=%s)',async(reabrir)=>{
+    const otraClave='77777777-7777-4777-8777-777777777777'
+    api.preparar.mockImplementationOnce(async i=>{
+      vigente=preparada(otraClave,i.datos);correoFicha=i.datos.alta_portal.correo
+      throw new CrmApiError('Este lead ya tiene una solicitud: retómala antes de crear otra','P0409')
+    })
+    api.consultar.mockImplementation(async id=>{
+      if(id!==vigente?.solicitud_id)throw new CrmApiError('Solicitud no encontrada','P0002')
+      return vigente
+    })
+    const primera=montar();await entrar(primera.user,'Avance');llenarAcceso()
+    await primera.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Retomar solicitud registrada'})
+    let user=primera.user
+    if(reabrir){
+      primera.unmount();user=montar().user
+      await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+      await screen.findByRole('button',{name:'Retomar solicitud registrada'})
+    }
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Retomar solicitud registrada'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.clave).toBe(otraClave)
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('conserva el token del primer envío si la lectura falla con 22023 después de guardar',async()=>{
+    api.preparar.mockImplementationOnce(async i=>{
+      vigente=preparada(i.clave,i.datos);correoFicha=i.datos.alta_portal.correo
+      throw new CrmApiError('Lectura rechazada después de preparar','22023')
+    })
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toMatchObject(api.preparar.mock.calls[0]![0])
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('un permiso revocado durante la recuperación cierra el flujo sin habilitar edición',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    api.consultar.mockRejectedValueOnce(new CrmApiError('Acceso revocado','42501'))
+    const {user,onClose}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await waitFor(()=>expect(onClose).toHaveBeenCalledOnce())
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+})
 describe('Convertir a cliente usa Nueva inversión',()=>{
   it('cancelar una solicitud permite elegir otra empresa sin convertir',async()=>{
     const {user,recargar}=montar();await entrar(user,'Prodelco');await llenarCoop(user)

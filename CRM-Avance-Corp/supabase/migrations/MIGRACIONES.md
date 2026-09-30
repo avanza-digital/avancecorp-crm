@@ -1,3 +1,209 @@
+## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930185623.sql` → advisors → front por `/release-crm`.**
+
+Qué arregla: la coordinadora veía en «Supervisión → analistas» el reporte de ENTREGAS
+(`reporte_derivaciones_coordinacion_fn`), que cuenta por fecha de entrega y, a propósito,
+deja de sumar la entrega devuelta a la misma bandeja antes de gestionar (el lead queda en
+quien lo recibió después). Ese 62 de Astrid no era el divisor: el núcleo cuenta una llegada
+por lead, por su alta original en Lima, en el PRIMER analista del ledger (65 formulario +
+50 landing = 115). Hipótesis «cuenta por dueño actual» refutada (daría 63). Decisión de
+Miguel (30/09): el reporte de entregas no cambia; Coordinación lee la conversión real del
+núcleo por una puerta nueva con ámbito de TODA la empresa. **OK literal de Miguel (30/09):
+la coordinadora ve por analista y de la empresa el divisor, su desglose por origen, el
+numerador neto y el porcentaje (pestaña «Conversiones», aprobada con ese nombre); la puerta
+mensual oficial sigue denegando al coordinador.**
+
+Piezas (4 capas, sin saltos: la puerta no lee tablas): núcleo `private.conversion_divisor_empresa(date)`
+(una fila por analista) que compone `private.conversion_neta_por_vendedor` (la misma pieza que
+Metas: divisor, numerador neto y %) con el desglose por origen desde los episodios `recibido` de
+`private.conversion_episodios`; mes SELLADO → foto de `crm.cierre_mes_vendedor` (desglose por
+origen en null, nunca se recalcula). Núcleo `private.conversion_divisor_empresa_totales(date)`:
+total de la empresa y lo «sin analista» (abierto: suma de filas; sellado: foto + `cobertura.fuera_ranking`
++ `conversion_sin_analista`, solo objetos; la misma suma que la oficial). Ambos DEFINER con
+`search_path` vacío, sin autorización y sin ejecutores de la API, por instrucción del encargo y en
+paridad con `conversion_episodios`. Puerta `crm.conversion_divisor_coordinacion_fn(date default mes
+vigente)`: gate canónico del reparto (`puede_operar_reparto_crm() is not true` → 42501, antes que
+22023), valida el período, delega y da forma JSON; EXECUTE solo `authenticated`. Contrato abierto/
+sellado: en el mes abierto `analistas` trae a toda persona con llegadas o cierres; al sellar, las
+filas no rankeables pasan a `fuera_ranking` y suman al total sin aparecer como fila (semántica del
+sello). Postflight: propiedades,
+ACL, candado de dispersión (ninguna de las dos lee `crm.leads` ni `lead_asignaciones`) y
+paridad con el núcleo en el mes vigente (filas, divisor, formulario + landing = divisor).
+Front: pestaña «Conversiones» en `#/repartir` (selector de mes, resumen de empresa, tabla por
+analista, fila «sin analista», foto en mes cerrado), cliente con cinturón valibot + candado
+de paridad (`conversionCoordinacionConsistente`: si formulario + landing ≠ divisor o la
+empresa no suma, el paquete se rechaza entero). NO se tocan el núcleo, los pesos, el reporte
+de entregas, los conteos por dueño actual ni las puertas de conversión existentes.
+
+Verificación 30/09 (banco Docker propio `avancecorp-divisor-coord-20260930`, esquema de prod
+al byte, 13/13 huellas del núcleo iguales, configuración de prod sin datos personales):
+migración en un solo mensaje PASS (preflight, funciones, postflight); oráculo
+`scripts/conversion-coordinacion/oraculo-divisor-coordinacion.sql` → OK y cero filas después
+(recorre las puertas REALES del reparto: turno → repartir → derivar → devolver → derivar;
+A→B y A→B→A cuentan una vez en A y no suben a B; manual 0; referido 0; sin asignar cuenta
+en la empresa; alta 23:30 del último día del mes anterior queda en ese mes; paridad fila a
+fila con el núcleo; gerencia = coordinador; contraste con entregas; mes sellado; 42501 para
+vendedor/supervisor/directorio/coordinador inactivo/anónimo). 4 mutantes cazados (dueño
+actual, último receptor, formulario ×2, numerador +1). Registrador probado: misma md5 que el
+archivo, idempotente, rechaza otro cuerpo. Front: `npm run check` PASS (319 archivos / 4959 tests, cobertura,
+build, bundle, dup); E2E Docker `repartir.spec.ts` 31/31 (tres corridas, la última tras las reviews). Tipos: bloque generado con
+`gen types` contra el banco. **NOT RUN:** `test-rls.mjs` completo (bloque nuevo en
+`testReparto`, sintaxis verificada; requiere el banco con semilla y Auth); advisors (nube).
+Reviews (todas aplicadas; encargos y respuestas en `docs/encargos/2026-09-30-conversion-divisor-coordinacion-r{1,2}*.md`):
+- Codex r1 CHANGES_REQUESTED: P1 gate ante NULL → `is not true`; P2 foto con
+  `conversion_sin_analista: null` → solo objetos cuentan; roster `distinct on`; supervisor del mes
+  sin `coalesce` al de hoy; regex con identificadores entrecomillados; E07 con `fuera_ranking`.
+- Codex r2 CHANGES_REQUESTED: P2 mes cerrado con producción solo fuera del ranking mostraba «Sin
+  llegadas» → vacío propio («Sin filas por analista en este mes cerrado»); P3 mes futuro tecleado a
+  mano → inválido en el formulario, sin RPC; E07 con `is distinct from` (un NULL ya no pasa) y E07f:
+  la empresa sellada = `total` de `conversion_mensual_sin_cartera_fn` bajo gerencia. Riesgo que deja
+  abierto y se acepta: una foto con `conversion_sin_analista` sin `divisor` la rechazaría el esquema
+  del front (el sello siempre escribe divisor y numerador).
+- auditor-rls r1 CHANGES_REQUESTED sin P0/P1 → r2 PASS: P2 alcance del OK → constancia literal aquí y
+  en el comment; P2 salto de capa → la lectura de `periodos_cerrados` pasa al núcleo de totales; P3
+  DEFINER justificado, casos RLS extra, postflight ejecuta la puerta y comprueba `public`; r2 P3
+  `fuera_ranking` que no sea array → `[]`; P3 doble evaluación del núcleo por llamada → anotada
+  (2,3 ms en el banco; una consulta por cambio de mes).
+- revisor-a11y r1 CHANGES_REQUESTED → r2 PASS: «—» con motivo hablado, `role=status` persistente +
+  `role=group`, mes inválido como estado del formulario, foco al reintentar; r2 P3: el cambio de mes
+  no arrastra el error ni el foco pendiente, el mes inválido se anuncia, destino del foco con
+  `role=region` y carga con nombre de mes.
+
+Reversa: `drop function crm.conversion_divisor_coordinacion_fn(date); drop function
+private.conversion_divisor_empresa_totales(date); drop function private.conversion_divisor_empresa(date);`
++ borrar la versión del registro.
+## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
+`crm.gestion_diaria_cola_trabajo_fn`, exclusiva del analista autenticado
+(vendedor/supervisor), sobre los ayudantes autorizados de SLA y clientes.
+El núcleo SLA recibe global=false y únicamente el actor visible, usando su
+acción de atención incluso si es supervisor. Ordena todas las filas antes de paginar: pendientes, luego gestiones del día de
+Lima por hora. La actividad tipificada vigente acredita el avance por autor,
+tenencia y ciclo; deshacer lo recalcula y un compromiso posterior lo reabre a
+su hora. No cambia el reloj de conversación ni escribe marcas adicionales.
+
+Dos ayudantes privados INVOKER sin ejecutores API y una puerta DEFINER con
+`search_path` vacío, actor de `auth.uid()` y EXECUTE solo authenticated.
+La nueva RPC no concede EXECUTE a anon ni service_role; los ayudantes tampoco.
+Sin tablas, policies, índices, triggers ni objetos de public modificados.
+Cola v3 y sus consumidores conservan su contrato.
+
+Banco sintético aislado: `supabase/scripts/gestion-diaria-cola/ensayar.mjs`.
+Ensayo de 530 leads, escritor v4, orden global, páginas, reintentos, Lima,
+deshacer, exclusiones y permisos PASS. Matriz propia de esta RPC en ensayar.mjs
+(complementa test-rls.mjs, que no conoce esta puerta); supervisor con cartera
+propia, llamada contestada, dos intentos con grupo conservado, metadata histórica,
+clientes y reasignación real por gerencia PASS. Dos revisiones independientes
+atendidas con decisiones y evidencia en `docs/encargos/gestion-diaria-cola/`.
+Gate frontend integrado PASS: 4945 tests y build. E2E Docker: 289 passed, 26 skipped;
+flujo final de teclado, guardado y vuelta repetido PASS (1/1).
+Gate de realidad HTTP: parcial FAIL; ambos oráculos pendientes completados por
+SQL read-only (cero revisiones fuera de sello, cinco caminos de conversión concordantes).
+Rama remota: 530 leads, roles y diez denegaciones PASS; RLS oficial 287 aserciones PASS.
+Advisors, tipos remotos y paridad productiva documentados en RELEASE.md.
+Banco temporal eliminado; 22 Edge Functions sin cambios. Frontend pendiente de publicación.
+Tipos generados con postgres-meta del banco e incorporada sólo la nueva RPC.
+Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
+La publicación queda para la invocación humana de `$release-crm`, con rama
+Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
+
+
+## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
+
+**✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
+`20260929220021 / crm_indice_inversionistas_perfil`) → `verificar.sql`: `indice=valido`,
+`cartera_f5_fuentes` **seq=0** (antes 679), 49 ms (antes ~91), plan de `perfil_id` por
+`inversionistas_perfil_idx` y el de `perfil_id + estado <> 'fusionado'` sigue por
+`inversionistas_perfil_uidx`. Efecto en vivo (muestreo de 115 s con tráfico real de las 11 puertas):
+**545 recorridos/s → 0,8 recorridos/s**. Advisors (`supabase db advisors --linked --type all`,
+solo lectura): 242 avisos, todos de clases previas; ninguno cita el índice ni hay clase de índices
+duplicados/sin uso.** Aprobado por Miguel el 29/09 («ok vamos con la migracion»). Primer paso del refactor por módulos, según el perfil de carga medido el mismo día
+(nota del vault «CRM - perfil de carga lectura vs escritura (2026-09-29)»): el CRM es de lectura y
+`crm.inversionistas` se llevaba el 95 % de las filas leídas (22,6 M recorridos completos en ~97 h).
+
+Causa medida: `private.cartera_f5_fuentes()` busca por contrato `where i.perfil_id = c.cliente_id`;
+el único índice de `perfil_id` (`inversionistas_perfil_uidx`) es PARCIAL (`estado <> 'fusionado'`) y
+esa búsqueda no repite la condición → 679 recorridos completos por llamada (uno por contrato). La
+alcanzan 11 puertas (postventa agenda/estado/ficha, cartera de inversionistas, fichas, contexto y
+solicitud de inversión). Muestreo en vivo (6 min): 189.728 recorridos ≈ 1.530 por llamada a esas
+puertas, sin recorridos en ventanas sin ellas. Descartadas por medición: `inversionista_canonica`
+(0 recorridos) y `leads_vetados_persona` (2 recorridos para 2.582 leads).
+
+Cambio: `create index if not exists inversionistas_perfil_idx on crm.inversionistas (perfil_id)` +
+`COMMENT ON INDEX`. No toca funciones, policies, grants ni `public`; no cambia contratos de la API
+ni tipos del front (`gen:types` no aplica). El índice único parcial se queda (es la regla, no el
+acelerador). Sin `CONCURRENTLY`: ~565 filas, ~70 escrituras en 4 días.
+
+**Ensayo en producción deshecho** (`supabase/scripts/indice-inversionistas-perfil/ensayo.sql`, bloque
+`DO` que crea el índice, mide y termina en `raise`): `cartera_f5_fuentes` pasa de **seq=679 idx=715,
+91 ms** a **seq=0 idx=1.394, 43 ms**; 719 filas **idénticas** (md5 `beff0bf2…` antes y después); el
+plan de `perfil_id` usa `inversionistas_perfil_idx`. Comprobado después: el índice no quedó (0).
+La definición exacta que exige el registrador se comprobó en otro ensayo deshecho (coincide).
+
+Review Codex (`docs/encargos/2026-09-29-codex-indice-inversionistas-perfil.md`): CHANGES_REQUESTED,
+aceptados los dos. **P2** el registrador podía tragarse en silencio una fila con otro nombre registrada
+entre la comprobación y el `insert … on conflict do nothing` → relectura fail-closed de la fila efectiva
+antes del commit (`REGISTRO_INDICE_PERFIL_OK`). **P3** dos comentarios prometían más de lo medido
+(«mismo orden de evaluación», «el candado dura milisegundos») → reescritos. R2 atendido con otro ensayo
+deshecho: la búsqueda con `estado <> 'fusionado'` sigue por `inversionistas_perfil_uidx` antes y después;
+la de solo `perfil_id` pasa a `inversionistas_perfil_idx` (lo añade `verificar.sql`). El registrador
+corregido se ensayó en producción terminando en `rollback` (fila leída con el nombre correcto;
+después: índice 0, registro 0).
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260929220021_crm_indice_inversionistas_perfil.sql`
+→ `supabase/scripts/indice-inversionistas-perfil/registrar.sql` (se niega si el índice no existe,
+no es válido o tiene otra definición, y relee la fila) → `verificar.sql` (solo lectura; esperado
+`seq=0`) → advisors.
+Reversa: `drop index if exists crm.inversionistas_perfil_idx;`. Deja la fila de `schema_migrations`
+(convención de la casa): anotarlo aquí el mismo día, porque un replay por historial la daría por aplicada.
+
+No ejecutado: `test-rls.mjs` y `test:rls:preflight` (el preflight exige las variables del banco y el hook
+bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la matriz) y banco Docker (el
+ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
+## 20260929201813 — Reasignación y conversión consistentes
+
+**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
+`crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
+lleva el responsable de la persona y el borrador de conversión al nuevo analista,
+con tramos de responsabilidad, actividad y revisión auditada. La revisión del
+borrador usa `crm.revisar_solicitud_inversion_fn` sin modificarla: conserva
+datos, hash, creador, contexto de acceso y reglas de la saga/perfil.
+
+Sin RPC pública nueva, sin cambios de RLS/grants de tablas ni de objetos `public`.
+Función privada sin ejecutores API, `search_path` fijo y validación de actor/ámbito.
+La bandeja conserva el último responsable hasta la siguiente entrega; toma directa
+y derivación mantienen sus puertas y permisos. Contratos, cierres externos e
+inversiones existentes requieren la puerta gerencial de relación y conservan
+su atribución. Cuando identidad, saga, historial o una restricción impiden la
+sincronización, se deshacen únicamente sus efectos automáticos y se registra
+`reasignacion_conversion_requiere_revision`: la reasignación autorizada del lead
+continúa, y las puertas de inversión conservan el veto hasta conciliar. Así no se
+convierten los requisitos de invertir en bloqueos nuevos de reparto u offboarding.
+
+Concurrencia: después de bloquear el lead, documentos/persona/solicitud se
+adquieren sin esperar; un conflicto devuelve 40001 y revierte el movimiento
+completo. No se deshabilitan triggers ni se imita una sesión gerencial.
+
+Ensayo en copia Docker aislada: `supabase/scripts/reasignacion-conversion/test.sql`
+36 comprobaciones PASS (RLS real, supervisor/gerencia/vendedor, bandeja, toma
+directa, acceso pendiente y enlazado, rollback de saga, lote mixto, offboarding,
+restricciones, banderas e identidad sin verificar); `concurrencia.py` 4 PASS
+con dos sesiones reales y el candado documental oficial. Regresión económica
+completa `conversion-inversion/test-conversion.sql` PASS. Reversa/reinstalación
+probadas. Cliente: 88 tests PASS, incluidos dos nuevos MSW del contrato de
+reintento/éxito. Guardas: 27 PASS y 5 fallos anteriores idénticos sin la candidata,
+cero fallos nuevos. Preflights de scripts, seed/RLS offline y Edge PASS.
+Dos revisiones independientes atendidas. Rama remota: SQL 36 PASS, regresión
+económica PASS, PostgREST real 3 PASS y matrices RLS contratos 287 / identidad
+30 PASS. Advisors sin avisos nuevos. Tipos públicos no cambian.
+Detalle y límites: `supabase/scripts/reasignacion-conversion/README.md`.
+
+Reversa: `supabase/scripts/reasignacion-conversion/reversa.sql` retira únicamente
+el trigger y su función; conserva todas las asignaciones e historiales.
+
 ## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
 
 **EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
@@ -271,6 +477,342 @@ la nativa sin cambiar un byte del SQL aprobado inicialmente como 20260927003433.
 Ensayo remoto no equivale a publicación. Autorización productiva: «sii» de Miguel.
 Tipos no regenerados: firma, retornos y shape JSON existentes intactos.
 No se implementa aquí la restricción de nueva inversión por empresa.
+
+## 20260927024423 — Cuentas de Gloria · F5: el registro de pagos declara a qué cuenta se depositó
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~22:45): «Sí, aplica y publica»; P04 en pagos: «Dejarlo como está»
+(riesgo heredado).**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~22:50)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-pago-declara-cuenta.sql`
+  (huella viva `5fe996af…` = ensayada). **Advisors:** sin alertas nuevas (solo el INFO esperado).
+- **Portal PUBLICADO** (commit `b2a1a1f`, SW v136): preflight OK (lo vivo era `a3b0d44`), TUS
+  archivo por archivo con el SW al final, purga, lecturas idénticas; `pagos.js?v=45` y
+  `cuentas-pago-core.js?v=4` sirven el commit.
+
+Cierra el caso del «mismo
+día» aceptado en F3: un Excel exportado con la cuenta A, depositado en A, y un cambio A→B ese mismo
+día antes de importar dejaba el pago anotado en B. Decisiones de Miguel (26/09): solo cuentas de
+pago del contrato (actual o histórica, cualquier versión); el pago manual muestra la cuenta y la
+declara; sin CCI se deduce por fecha; los pagos anteriores no cambian.
+
+Piezas:
+- `private.sellar_cuenta_cuota_pagada()` (create or replace): si la transacción trae el ajuste
+  `crm.cci_deposito` **y su testigo** (`crm.cci_deposito_testigo` = md5 del txid + CCI, que solo arma
+  la RPC en esa misma transacción), sella la cuenta del cliente con ese CCI restringida al contrato
+  (enlace actual ∪ historial de F3), `origen = 'declarado'`; otro CCI → 22023 y el pago no se
+  registra; un CCI fijado a mano sin la RPC → 22023. Sin ajuste, deduce por fecha (`registro`).
+  Corregir la fecha solo re-sella lo deducido.
+- `crm.registrar_pago_con_cuenta(p_cuota_id, p_fecha, p_monto, p_cci)` — INVOKER, EXECUTE solo
+  authenticated: monto > 0, CCI de 20 dígitos si viene; `set_config` local a la transacción;
+  `UPDATE … where estado = 'pendiente'` con la RLS de siempre (`cronograma_admin_actualiza`);
+  limpia el ajuste; devuelve la cuota o NULL.
+- `crm.contratos_cuenta_pago_cliente_fn`: `pagadas_por_cuenta` suma `declaradas` (columna al final;
+  misma firma). Constraint de `origen` admite `declarado`.
+- Toca `public` solo por lectura y por el UPDATE de la RPC bajo RLS; no crea ni cambia triggers,
+  policies ni tablas de `public`. **Pero cambia la CONDUCTA de los dos triggers de F3 sobre
+  `public.cronograma_pagos`** (el sello puede rechazar con 22023 un UPDATE cuando la declaración
+  no es válida): por eso pide el OK explícito de Miguel, como F3/F4/arreglos.
+- `service_role` queda sin EXECUTE sobre la RPC (a propósito: el portal la llama con la sesión del
+  usuario; ningún proceso de servicio registra pagos por esta vía).
+- Corregir la fecha de una cuota pagada SIN sello (las 38 de prod sin cuenta de pago) la sella como
+  `inferido` cuando el contrato ya tenga enlace: misma semántica que F3 (el auditor cazó una
+  desviación involuntaria y se restauró).
+
+Banco (26/09, esquema de prod, con F3 + F4 + arreglos aplicados): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-pago-declara-cuenta.sql`: 16 comprobaciones, 6 mutantes
+  (sin declaración, sin restricción al contrato, sin limpiar el ajuste, sin validar CCI, sin exigir
+  pendiente, sin testigo). F3, F4 y arreglos siguen en verde con F5 encima (el test de F3 ignora la
+  clave nueva). 🔴 El caso «service_role llama la RPC» se acredita por catálogo: ejecutarlo con
+  `set role service_role` TUMBA el servidor del banco (trampa conocida).
+- Registro `../scripts/cuentas-gloria/registrar-pago-declara-cuenta.sql` ensayado, con huella de las
+  4 funciones `5fe996aff266f293464c24e59764269b`. El postflight acredita además DEFINER/INVOKER y
+  volatilidad de cada función.
+- Reversa `../scripts/cuentas-gloria/reversa-pago-declara-cuenta.sql`: repone F3 + arreglos byte a
+  byte; se niega con sellos `declarado` (ensayado). Orden de reversas: F5 → arreglos → F4 → F3.
+  Tras las cuatro, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): pago manual muestra y declara la cuenta vigente; el Excel
+  «viejo» declara la cuenta con la que se exportó.
+- Hecho documentado: un admin con membresía CRM revocada (P04) marca pagos, igual que con el UPDATE
+  directo vigente (la RLS de `public.cronograma_pagos` no aplica P04; cambiarlo tocaría una policy
+  de `public` y no es de esta fase).
+- NOT RUN: gate `test-rls` (mismo motivo que F3); concurrencia con dos sesiones.
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0.** Todo aceptado con arreglo:
+  - P1: el portal convertía a `null` un CCI presente pero dañado (p. ej. convertido por Excel) y el
+    servidor deducía por fecha → ahora el portal envía la celda tal cual y el servidor rechaza lo que
+    no sea 20 dígitos (probado en navegador: la fila dañada cae en errores, la válida se registra);
+  - P2: la declaración dependía de un GUC libre → testigo por transacción que solo arma la RPC;
+  - P3: pruebas de 22023 en subtransacción y de «ya pagada + CCI ajeno» (ajuste limpio, sin sello).
+- **auditor-rls: APPROVED** (sin cambios obligatorios). Sus P3, aplicados: semántica de F3 al corregir
+  la fecha de una cuota sin sello; postflight con `prosecdef`/`provolatile`; pruebas de CCI de otro
+  cliente, UPDATE directo con ajuste vacío y `service_role` sin EXECUTE. Su P3 sobre P04 en el
+  registro de pagos queda como decisión de Miguel (ver abajo). Presupuesto LEVEL 3 agotado.
+- **Decisión pendiente de Miguel (P04):** hoy un admin con la membresía CRM revocada marca pagos
+  (igual que con el UPDATE directo vigente). Cerrarlo dentro de la RPC es barato pero parcial
+  mientras exista el UPDATE directo (anulación); cerrarlo del todo tocaría la policy de
+  `public.cronograma_pagos`.
+
+Consumidor: Pagos del portal (importación del Excel y modal «Marcar como pagado»); la ventana
+«Cuentas» de Gloria lee `declaradas`. Orden: base → portal.
+
+## 20260927020317 — Cuentas de Gloria · arreglos: motivo de F3 y marca «cuenta retirada»
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~21:15): «Sí, aplica y publica».**
+- **auditor-rls: APPROVED** (sin cambios en el SQL). Sus P3 quedan para la próxima migración de la
+  familia: reponer la guarda `proacl is null` y la precondición `rolbypassrls` en el postflight,
+  fijar el texto esperado de la constraint, actualizar `comment on column … motivo`, probar NBSP y
+  ZWSP por separado y el caso de 501 caracteres. Su P2 (ledger) era un cruce de tiempos: la fila
+  decía «se aplica en cuanto apruebe» y así era.
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:35)** con `db query --linked --file`: sin errores,
+  precondiciones y postflight en verde. **Registrada** con `registrar-arreglos-cuentas-gloria.sql`
+  (huella viva `2d448025…` = ensayada). **Advisors:** sin alertas nuevas.
+- **Portal PUBLICADO** (commit `eb17904`, SW v135): preflight OK (lo vivo era F4 `c9ca65a`), TUS
+  archivo por archivo con el SW al final, purga, 15/15 lecturas idénticas; `clientes.js?v=56`,
+  `cambio-cuenta-core.js?v=2` y `retiro-cuenta-core.js?v=2` sirven el commit.
+
+Los dos arreglos pequeños que
+dejaron las revisiones de F3/F4, pedidos por Miguel el 26/09. No toca `public` ni `storage`.
+- **Motivo de F3** con la regla de F4: bordes sin espacios de ningún tipo y ≥5 caracteres visibles.
+  Se recrea `private.cambiar_cuenta_pago_contratos_autorizado` (mismo texto salvo dos líneas) y se
+  sustituye la constraint de `crm.contrato_cuenta_pago_cambios`, tras comprobar que ninguna fila
+  existente la incumple.
+- **`cuenta_retirada`** (columna nueva al final de `crm.contratos_cuenta_pago_cliente_fn`): la cuenta
+  física de pago del contrato abierto ya no tiene versión vigente (renovación borrada → contrato
+  reabierto con cuenta retirada). El panel del portal lo marca «⚠️ CUENTA RETIRADA: cámbiala». Una
+  cuenta corregida (versión vieja + vigente, mismo CCI) no cuenta.
+
+Precondiciones: md5 de las 3 funciones vivas de F3 y definición exacta de la constraint. Reversa
+`../scripts/cuentas-gloria/reversa-arreglos-cuentas-gloria.sql` (repone F3 byte a byte; se niega si
+la huella viva no es `2d448025afaa5d8a9734c7f4fce65799`). Orden de reversas: arreglos → F4 → F3.
+
+Banco (26/09): test `../scripts/cuentas-gloria/test-arreglos-cuentas-gloria.sql` (2 casos, 2
+mutantes); F3 y F4 en verde con los arreglos encima; registro ensayado; tras las tres reversas,
+catálogo idéntico. Portal 160/160 y navegador local con la marca visible solo en el contrato afectado.
+
+Consumidor: panel «Cuenta de pago de los contratos» del portal (`cambio-cuenta-core v2`,
+`clientes.js v56`, SW v135). Orden: base → portal.
+
+## 20260927012948 — Cuentas de Gloria · F4: retirar una cuenta bancaria del cliente
+
+**OK EXPLÍCITO DE MIGUEL (26/09, ~20:55): «Sí, aplica y publica».**
+- **✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~21:00)** con `db query --linked --file`: sin errores,
+  con las precondiciones y el postflight en verde.
+- **Registrada** con `registrar-retirar-cuenta-cliente.sql`: la huella viva de las 5 funciones
+  coincide con la ensayada (`59937ad4…`).
+- **Advisors:** sin alertas nuevas; solo INFO esperados (RLS sin políticas en el registro, que se
+  lee por funciones, e índice recién creado).
+- **Portal PUBLICADO** (commit `f0377f5`):
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F3 (`e491420`);
+  - TUS archivo por archivo, con el SW v134 al final; purga;
+  - 12/12 lecturas idénticas; `clientes.js?v=55` y `retiro-cuenta-core.js?v=1` sirven el commit.
+
+No toca objetos de
+`public` ni de `storage`: solo lee `public.contratos`, `public.perfiles` y `storage.objects`; el
+bucket y sus políticas son los de F3. Decisiones de Miguel (26/09):
+- si la cuenta cobra contratos abiertos (`activo`/`vencido`) se bloquea y se cambia primero con F3;
+- motivo obligatorio y correo del cliente opcional;
+- sin aviso al cliente;
+- solo admin/superadmin con membresía CRM vigente (P04).
+
+Piezas:
+- `crm.cuentas_bancarias_retiros`: registro inmutable del retiro (cuenta, cliente, moneda, motivo,
+  respaldo, quién, cuándo), sin claves foráneas (como F3). Un retiro por versión; UPDATE, DELETE y
+  TRUNCATE bloqueados.
+- `crm.retirar_cuenta_cliente` (INVOKER→DEFINER):
+  - solo cuentas vigentes del cliente;
+  - rechazo `22023` con `detail = contratos_abiertos` y la lista si la cuenta **física** (cliente,
+    moneda y CCI, en cualquiera de sus versiones) cobra contratos abiertos;
+  - motivo con al menos 5 caracteres visibles (ni tabuladores ni espacios Unicode lo rellenan);
+  - idempotente por solicitud;
+  - «ya fue retirada el …» o «ya no está vigente: se reemplazó por una versión corregida»;
+  - la cuenta pasa a `activa = false` y el candado de versiones (se exige su md5) impide reactivarla.
+  - Bloquea la cuenta FOR UPDATE antes de mirar los enlaces: el alta de contrato con cuenta
+    existente y el cambio de F3 esperan y después la ven retirada.
+- `crm.retiros_cuentas_cliente_fn`: motivos para «Cuentas anteriores», con la compuerta del
+  historial (`private.puede_gestionar_cuentas_cliente`, con P04). La ruta del respaldo solo la ve el
+  admin vigente.
+
+Banco (26/09, esquema de prod, con la F3 aplicada como prerrequisito): ciclo completo en verde.
+- Test `../scripts/cuentas-gloria/test-retirar-cuenta-cliente.sql`: 17 comprobaciones, 10 mutantes
+  cazados. La prueba de F3 sigue en verde con F4 aplicada.
+- Registro `../scripts/cuentas-gloria/registrar-retirar-cuenta-cliente.sql` ensayado, con huella de
+  las 5 funciones `59937ad4b058238a5a1cf6ba60936644`.
+- Reversa `../scripts/cuentas-gloria/reversa-retirar-cuenta-cliente.sql`: bloquea la tabla y se
+  niega con retiros registrados (ensayado); tras revertir F4 y F3, catálogo idéntico (2052 líneas).
+- Navegador local (Supabase simulado): «Retirar» solo para admin; rechazo con lista y atajo a F3 sin
+  subir archivo; retiro → «Cuentas anteriores» con motivo y «Ver correo».
+- NOT RUN:
+  - gate `test-rls` (mismo motivo que F3);
+  - prueba de concurrencia con dos sesiones (bloqueos razonados y confirmados por Codex y el auditor).
+
+Revisiones:
+- **Codex (única ronda) BLOCK, sin P0 ni P1.**
+  - P2 motivo de solo espacios o tabuladores por RPC → corregido en SQL y pantalla. F3 tiene lo mismo
+    (usa `btrim`): queda como arreglo aparte.
+  - P3 adjunto huérfano → la pantalla avisa de los contratos abiertos antes de subir; el resto,
+    riesgo aceptado como en F3.
+  - P3 campos editables al guardar → bloqueados.
+  - P3 sin prueba de concurrencia → declarado.
+- **auditor-rls CHANGES_REQUESTED.**
+  - P1 contratos abiertos por versión y no por cuenta física → corregido, con caso y mutante.
+  - P3 reversa sin bloqueo → corregido.
+  - P3 TRUNCATE → corregido.
+  - P3 aceptado: un contrato `renovado` puede volver a `activo` si se borra su renovación
+    (`trg_contratos_05_restaurar_operacion`) y quedar cobrando en una cuenta retirada. Es poco
+    probable; mostrarlo en el panel de F3 queda como mejora aparte.
+- **Riesgos heredados (no nuevos):** `public.audit_log` guarda la fila del retiro y la lee cualquier
+  `es_admin()`; `service_role` conserva UPDATE sobre `crm.cuentas_bancarias`.
+
+Consumidor: ventana «Cuentas» del portal (botón «Retirar», solo admin). Orden: base → portal.
+
+## 20260926204051 — Cuentas de Gloria · F3: cambiar la cuenta de pago por pedido del cliente
+
+**OK EXPLÍCITO DE MIGUEL (26/09, 19:40, al retomar tras la pausa): «Sí, aplícala tú»** para tocar
+`public` (dos triggers AFTER en `public.cronograma_pagos`, bloqueos FOR SHARE de `public.contratos`) y
+`storage` (bucket y 7 políticas). Riesgo del «mismo día»: **«Aceptarlo por ahora»** (la fase aparte
+«registrar a qué cuenta se depositó» queda para después).
+**✅ APLICADA EN PRODUCCIÓN EL 26/09/2026 (~19:45)** con `db query --linked --file`: sin errores, y
+el postflight interno pasó (EXECUTE exacto, sin claves foráneas, RLS, 7 políticas, 2 triggers del
+sello, backfill completo). **Registrada** con `registrar-cambio-cuenta-pago.sql`: la huella viva de
+las 16 funciones coincide con la ensayada (`21bb1838…`). **Advisors:** sin alertas nuevas de
+seguridad ni de rendimiento; solo INFO esperados (RLS sin políticas en las 3 tablas, que se leen por
+funciones, e índices recién creados «sin uso»).
+- **Edge `notificar-cambio-cuenta` v1 ACTIVA (26/09, ~19:50)**, con OK de Miguel («Sí, las dos»):
+  - `verify_jwt=true`; desplegada con `npx supabase@2.114.0 functions deploy … --use-api` desde una
+    copia exacta del árbol, y los archivos vivos son idénticos;
+  - smoke: OPTIONS 200 con CORS de miavance.com; POST sin sesión 401; token inválido 401.
+  - Hueco: el `dry_run` con una sesión real de admin queda para el primer uso de Gloria.
+- **Portal PUBLICADO (26/09, ~19:55)**, commit `14b3b20`:
+  - preflight OK (0 archivos vivos perdidos); lo vivo era F2b (`5998025`);
+  - TUS archivo por archivo, con el SW v133 al final; purga;
+  - 24/24 lecturas idénticas, y las URL versionadas (`clientes.js?v=54`, `pagos.js?v=44`,
+    `cambio-cuenta-core.js?v=1`, `cuentas-cliente-core.js?v=5`, `cuentas-pago-core.js?v=3`) sirven el
+    commit. Para retomar: mostrar el SQL a Miguel y obtener su OK explícito. Toca objetos de
+`public` (dos triggers AFTER en `public.cronograma_pagos` y bloqueos FOR SHARE de `public.contratos`)
+y de `storage` (bucket y 7 políticas); el OK se anotará aquí. Después se aplica y se registra con
+`../scripts/cuentas-gloria/registrar-cambio-cuenta-pago.sql`, se corren los advisors y se sigue el
+orden base → Edge → portal. Decisiones de Miguel (26/09): por contrato entero; solo admin/superadmin;
+aviso al cliente por portal y correo; respaldo obligatorio = el correo del cliente donde pide el cambio.
+
+Piezas:
+- Registros **sin claves foráneas**: son constancias que sobreviven a contratos, cuotas, clientes,
+  cuentas y personas, y las guardas de eliminación auditada de contratos y usuarios no ven
+  dependencias nuevas. Nada se borra (BEFORE DELETE).
+  - `crm.cuotas_cuenta_pagada`, el sello por cuota: `registro` = la cuenta vigente en la FECHA del pago
+    (corregir la fecha re-sella); `inferido` = el backfill de las pagadas con enlace (en prod, 877 de
+    915). **El registro de pagos no cambia.**
+  - `crm.contrato_cuenta_pago_cambios`: historial inmutable; solo `notificado_en` NULL→fecha.
+  - `crm.cambio_cuenta_avisos`.
+- El candado del enlace admite SOLO el cambio registrado en el historial en la misma transacción.
+- `crm.cambiar_cuenta_pago_contratos` (INVOKER→DEFINER):
+  - solo admin/superadmin activo con la membresía CRM NO revocada (P04, `private.admin_banca_vigente`);
+  - todo o nada; idempotente comparando todos los datos;
+  - el respaldo debe subirlo el mismo admin y no respaldar otra solicitud, ni por ruta ni por
+    contenido (eTag);
+  - no cambia un contrato con un aviso al cliente en curso;
+  - bloquea contratos y después enlaces, el mismo orden que el registro de un pago.
+- Lecturas solo para admin vigente; bucket privado `respaldos-cambio-cuenta` con fronteras RESTRICTIVE
+  (anon incluido).
+- Aviso en dos pasos (`reclamar`/`confirmar`, solo service_role y para un actor admin vigente):
+  - reserva de 10 min con token; `reclamar` bloquea los enlaces;
+  - se sellan solo los contratos anunciados; los superados salen como tales.
+
+Banco (26/09, esquema de prod, PG 17.6): ciclo completo en verde.
+- Aplicar.
+- Test `../scripts/cuentas-gloria/test-cambio-cuenta-pago.sql`: 34 comprobaciones, 17 mutantes cazados.
+- Ensayo del registro, con huella de las 16 funciones `21bb1838606355e1161a44fb0b66e809`.
+- Reversa `../scripts/cuentas-gloria/reversa-cambio-cuenta-pago.sql`: catálogo idéntico (2052 líneas).
+  Se niega si hay cambios registrados, pagos sellados al registrarse (ensayado) o piezas distintas.
+- Ensayo del backfill.
+- NOT RUN:
+  - gate `test-rls` (su siembra choca con el fixture P-0XX del banco);
+  - prueba del orden de bloqueos con dos sesiones (auditor-rls lo razonó correcto, P3).
+
+Revisiones:
+- **Codex R1 BLOCK:** 7 hallazgos, resueltos.
+- **auditor-rls R1 CHANGES_REQUESTED:** todo aceptado salvo el orden de bloqueos, rechazado con
+  evidencia (el pago bloquea contrato → enlace).
+- **Codex R2 BLOCK (última ronda), sin P0.** Aceptados con arreglo:
+  - aviso de una cuenta superada;
+  - reversa que borraba constancias;
+  - envío duplicado (Idempotency-Key en Resend y novedad sin duplicar);
+  - sello parcial;
+  - mismo correo con otra ruta (eTag);
+  - corrección de fecha.
+
+  **Riesgo aceptado por alcance:** «la carrera en la importación del Excel». Arreglarlo exige cambiar
+  cómo se registra un pago, que el objetivo de F3 excluye. El sello deduce la cuenta por la fecha, así
+  que un depósito a la cuenta anterior del MISMO día del cambio (o posterior, con un Excel viejo) puede
+  quedar anotado en la nueva. La importación avisa esas filas y nunca pide volver a depositar.
+  Propuesta aparte para Miguel: que el registro declare a qué cuenta se depositó. Se preparó y probó
+  (RPC con el CCI del Excel) y se retiró para respetar el alcance.
+- **auditor-rls R2: APPROVED** (sin cambios obligatorios).
+
+Consumidores: Edge `notificar-cambio-cuenta` (nueva, verify_jwt), la ventana «Cuentas» y la vista
+previa de la importación de Pagos del portal.
+
+## 20260926200757 — Cuentas de Gloria · F2b: el historial deja de tapar datos
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** (con OK explícito de Miguel: «Sí, aplícala
+tú»), registrada con firma completa; huella viva `0806cc19…`, sin `es_admin` en el cuerpo; sonda sin
+datos OK (usuario inventado → 42501, ACL {postgres, authenticated}); advisors de seguridad idénticos
+a antes. Portal publicado después (5998025). Recrea
+`private.historial_cuentas_cliente_autorizado` SIN tapado por rol (misma firma, autorización,
+filtro `activa = false` y join de personal). Decisión de Miguel (26/09): «todos los que ya ven la
+cuenta la ven completa» (admin, superadmin, Operaciones y analistas), como el CRM. Revierte a
+propósito el tapado añadido por Codex R1 en `20260926193424`; el público NO cambia. Precondición:
+FIRMA COMPLETA de la F2 (cuerpo, SECURITY, search_path y comentario de las dos funciones); huella
+nueva del núcleo `0806cc19…`. Codex R1 BLOCK (reversa sin precondición) → R2 BLOCK (firma parcial)
+→ ambas corregidas: las dos reversas y el registrador exigen la firma completa de su versión y se
+niegan ante cualquier deriva (ensayado: F2b sin F2, comentario ajeno, reversas fuera de orden).
+Banco: catálogo antes/después = solo cambia el núcleo; prueba con 3 mutantes (incluido «con
+tapado»); reversa `../scripts/cuentas-gloria/reversa-historial-sin-tapado.sql` repone la huella
+exacta. Registro: `../scripts/cuentas-gloria/registrar-historial-sin-tapado.sql` (exige la huella
+nueva). Portal: `cuentas-cliente-core.js?v=4` sin tapado; publicar DESPUÉS de aplicar esto.
+
+## 20260926193424 — Cuentas de Gloria · F2: historial de cuentas retiradas del cliente
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026** con `db query --linked --file` + registrador
+(Miguel lo lanzó con `!`, se cortó sin aplicar nada; comprobado vacío, se relanzó con su «sigue»). El
+registrador acreditó la huella `md5(prosrc)` ensayada; advisors de seguridad sin avisos sobre las 2
+funciones; sonda sin datos: usuario inventado → 42501 del gate, ACL = {postgres, authenticated}.
+Portal publicado después (a233bec). Solo lectura y ADITIVA: crea
+`private.historial_cuentas_cliente_autorizado(uuid)` (SECURITY DEFINER, autoriza con
+`private.puede_gestionar_cuentas_cliente` y lee las versiones `activa = false` de
+`crm.cuentas_bancarias` + nombre de quien las retiró) y la puerta
+`crm.historial_cuentas_cliente_fn(uuid)` (SECURITY INVOKER, mismo patrón que `20260926145330`).
+EXECUTE solo a authenticated. No cambia ninguna función, política, tabla ni permiso existente.
+N°, CCI y beneficiario (nombre y DNI) salen COMPLETOS solo para `public.es_admin()` (admin/
+superadmin); al resto de autorizados, N° y CCI tapados desde el servidor (`••••` + como mucho 4,
+nunca más de la mitad) y beneficiario NULL (Codex R1 P1 + R2 PASS; auditor-rls PASS con P3-1/2/4
+aplicados: beneficiario NULL, nombre de quien retiró solo si es personal, registrador con huella).
+Banco local (55322): foto del catálogo antes/después = solo las 2 funciones nuevas; prueba
+`../scripts/cuentas-gloria/test-historial-cuentas-cliente.sql` (admin, operaciones y analista
+de cartera ven; analista ajeno, cliente y anon 42501; mismo 42501 para inexistente, no-cliente,
+inactivo y NULL; tapado en servidor; 3 mutantes cazados). Gate `test-rls.mjs` NOT RUN: la
+semilla del banco choca con un fixture de P-0XX (DNI 90000001); la matriz HTTP del historial
+queda pendiente para cuando el banco se pueda sembrar; reversa
+`../scripts/cuentas-gloria/reversa-historial-cuentas-cliente.sql` deja el catálogo idéntico.
+Registro: `../scripts/cuentas-gloria/registrar-historial-cuentas-cliente.sql` (se niega si la
+migración no está aplicada). Consumidor: ventana «Cuentas» del panel admin del portal
+(`cuentas-cliente-core.js?v=3`). Publicar el portal DESPUÉS de aplicar esto.
+
+## 20260926182748 — Portal · Pagos: se retira `public.admin_pagos_resumen()`
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN EL 26/09/2026 (~18:45 UTC)** por Miguel con
+`db query --linked --file` + registrador (orden expresa: «retira eso ahora mismo»).
+Verificado después: `to_regprocedure('public.admin_pagos_resumen()')` es NULL, versión
+`20260926182748` registrada con su nombre, `pagos_admin_resumen_contratos` y
+`admin_pagos_metricas` responden, y el `pagos.js?v=43` vivo no contiene la llamada. Desde F2 (portal commit `232b2ea`) la pantalla de
+Pagos pide páginas a `pagos_admin_resumen_contratos`; la función vieja («todo de golpe»,
+~2,8 s) ya no tiene ningún consumidor: 0 funciones, vistas, triggers, jobs de cron ni
+dependencias en `pg_depend`; en el código solo un comentario y los tipos generados del CRM.
+Solo lectura, sin datos afectados. Reversa ejecutable con el cuerpo exacto y sus grants:
+`../scripts/reversa-portal-admin-pagos-resumen.sql`. Registro:
+`../scripts/registrar-portal-retira-admin-pagos-resumen.sql` (se niega si la función sigue viva).
+Pendiente tras aplicar: regenerar `database.types.ts` del CRM cuando toque (la entrada
+`admin_pagos_resumen` queda obsoleta; nada la usa).
 
 ## 20260926145330 — P-0XX: entradas de pantalla con SECURITY INVOKER
 
