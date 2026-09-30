@@ -11,7 +11,7 @@ begin
     if fase=2 then
       execute $x$do $mig$
 declare
-  h_a text; h_p text; h_1 text; h_2 text; r record; p_etapa text;
+  h_a text; h_p text; h_1 text; h_2 text; r record;
   v_owner text; v_acl text; v_secdef boolean; v_vol "char"; v_cfg text[];
 begin
   select md5(p.prosrc) into h_a from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure;
@@ -38,6 +38,7 @@ begin
   if h_a = '94bbf61cd1133a1ccca6d0fb5f764455' and h_p = '034cbb49d4f0fc4c6b5140a32db86b76' and h_1 = '02c9cd9fe743b311d23df60a8d335c10' and h_2 = '28f82e7d145d1ef9ff9809a9d485613a' then
   raise notice 'assert_gestion_diaria: %', left(private.assert_gestion_diaria(), 60);
   raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+  raise notice 'assert_gestion_diaria_pulso: %', left(private.assert_gestion_diaria_pulso(), 60);
     raise notice 'gestion_diaria_solo_operativos: ya aplicada';
     return;
   end if;
@@ -201,6 +202,7 @@ $def$;
   end if;
   raise notice 'assert_gestion_diaria: %', left(private.assert_gestion_diaria(), 60);
   raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
+  raise notice 'assert_gestion_diaria_pulso: %', left(private.assert_gestion_diaria_pulso(), 60);
   raise notice 'gestion_diaria_solo_operativos: aplicada';
 end $mig$;$x$;
     end if;

@@ -44,7 +44,14 @@ preflight pasa, los cuatro reemplazos se hacen y el paraguas falla → «F4: con
 de `equipo_pendientes` = `gestion_diaria_equipo_core`, `gestion_diaria_pulso_fn` (añadido al oráculo) y su guardián;
 de `alertas_sla` = `gestion_diaria_contexto` (cadena de `gestion_diaria_avisos_fn`, en el oráculo); (R2) ningún otro
 gate sella por md5 las cuatro funciones: `assert_gestion_diaria_pendientes/pulso` solo llaman a
-`assert_gestion_diaria_equipo` y el paraguas pasó tras el resellado. auditor-rls: ver línea siguiente.
+`assert_gestion_diaria_equipo` y el paraguas pasó tras el resellado.
+**auditor-rls: PASS** (guardianes byte a byte iguales salvo la huella; ningún otro gate sella las cuatro funciones;
+visibilidad por rol intacta; atómica, idempotente y fail-closed; la fila (0,0) que desaparece la absorben por `left
+join` + `coalesce` sus dos consumidores). 4 P3 opcionales: pulso en el oráculo (hecho, 20/20) · pasar también
+`assert_gestion_diaria_pulso()` en el postflight de migración y reversa (hecho; ciclo repetido con los archivos
+finales) · caso «analista solo con leads terminales → (0,0)» para la suite local de equipo (pendiente, banco Docker)
+· variable `p_etapa` sin uso retirada; queda anotado que la reversa histórica de H3
+(`scripts/gestion-diaria-horizontal/reversa.sql`) restauraría un guardián con huella vieja y se negaría sola.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
 
 ## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)

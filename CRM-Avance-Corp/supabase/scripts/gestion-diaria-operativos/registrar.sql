@@ -5,7 +5,7 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_gestion_diaria_solo_operativos'));
 do $chk$
 declare
-  h_a text; h_p text; h_1 text; h_2 text; r record; p_etapa text;
+  h_a text; h_p text; h_1 text; h_2 text; r record;
   v_owner text; v_acl text; v_secdef boolean; v_vol "char"; v_cfg text[];
 begin
   select md5(p.prosrc) into h_a from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure;
