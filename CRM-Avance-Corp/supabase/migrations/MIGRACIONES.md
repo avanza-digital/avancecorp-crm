@@ -1,3 +1,31 @@
+## 20260930154341 — Vigilante permanente del ayudante del núcleo SLA (`private.assert_sla_avisos`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Cierra el P2-2 del auditor-rls sobre `20260930002929`: el ayudante
+`private.sla_leads_operativos()` y la línea del resumen que lo usa solo se comprobaban al aplicar. Aprobado por Miguel
+el 30/09 («dale»).
+
+Cambio: el guardián `private.assert_sla_avisos()` (corre en cada migración del SLA y de Gestión Diaria vía
+`assert_gestion_diaria_equipo` → paraguas) exige además: el ayudante existe con su huella
+`8d478d783e4c591662388ddf7405058a`, dueño postgres, INVOKER, STABLE, `search_path` vacío y ACL exacta
+`{postgres=X/postgres}`; y `crm.avisos_sla_resumen_v2_fn` sigue pasándolo a `sla_operacion_autorizada` (regex sobre
+`prosrc` sin comentarios, como el resto del guardián). Mismo texto de OK. Nada más cambia. Cualquier cambio legítimo
+futuro del ayudante exige resellar aquí (patrón de la casa). Huellas del guardián: viva
+`bf835965ea92cb14265b08b5e5b4f121` → nueva `c90f23b049f1777eef68db925d6b8b57` (medida en la base). Idempotente
+(la ruta «ya aplicada» pasa el guardián) y fail-closed.
+
+**Ciclo ensayado en producción con rollback** (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`): migración → repetida →
+**tres negativos** (NEG1 `grant execute` del ayudante a `authenticated` → salta «el ayudante … no es el esperado»; NEG2
+cuerpo del ayudante sustituido → mismo salto; NEG3 resumen restaurado a `(null,true)` → salta «el resumen dejo de
+evaluar solo las oportunidades operativas»; todo restaurado → guardián OK) → reversa (guardián vivo) → migración →
+registrador (1 sentencia); después: huella viva intacta, 0 registros, ACL del ayudante intacta.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930154341_crm_sla_vigilante_ayudante.sql`
+→ `supabase/scripts/sla-vigilante-ayudante/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián ampliado OK
+y paraguas OK) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+Reviews: Codex (`docs/encargos/2026-09-30-codex-sla-vigilante-ayudante.md`) y auditor-rls: ver abajo.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
+
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
 
 **✅ EN PROD 30/09/2026 ~11:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
