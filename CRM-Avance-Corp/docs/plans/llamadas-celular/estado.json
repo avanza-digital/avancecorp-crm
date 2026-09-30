@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-09-30T20:37:28Z",
+  "actualizado": "2026-09-30T21:08:21Z",
   "meta": {
-    "novedad": "30/09 20:37 UTC: F1 CERRADA (12/12 tareas): E2E en Docker en verde (285 passed, 1 flaky ajeno que pasó al reintentar). Todo vive en la rama feat/llamadas-f0; producción no cambió. Siguiente: que Miguel decida publicar F1 (release con preflight) y revise las propuestas #1–#9; F0 sigue con sus mediciones en C1.",
-    "actualizado": "2026-09-30T20:37:28Z"
+    "novedad": "30/09 21:08 UTC: F1 lista para publicar, a la espera del OK de Miguel: pull request #148 (feat/llamadas-f0 → main) con resumen, evidencia, riesgos y los pasos del release con preflight. La rama ya incluye los 6 commits nuevos de main (5093 tests en verde). Producción sin cambios; la macro del piloto sigue sin número hasta publicar. F0 continúa con sus mediciones.",
+    "actualizado": "2026-09-30T21:08:21Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -64,6 +64,7 @@
     { "at": "2026-09-30T18:58:43Z", "texto": "C1: la macro real (Abrir sitio web con {call_number}) abrió Chrome en la demo y el receptor mostró el aviso con el número marcado. El número viaja de MacroDroid al CRM. REGISTRO.md §5b." },
     { "at": "2026-09-30T19:25:27Z", "texto": "F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel)." },
     { "at": "2026-09-30T20:20:40Z", "texto": "F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e)." },
-    { "at": "2026-09-30T20:37:28Z", "texto": "F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar." }
+    { "at": "2026-09-30T20:37:28Z", "texto": "F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar." },
+    { "at": "2026-09-30T21:08:21Z", "texto": "Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado." }
   ]
 }

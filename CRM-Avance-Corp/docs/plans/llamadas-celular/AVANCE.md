@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 03:37 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 04:08 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 20:37 UTC: F1 CERRADA (12/12 tareas): E2E en Docker en verde (285 passed, 1 flaky ajeno que pasó al reintentar). Todo vive en la rama feat/llamadas-f0; producción no cambió. Siguiente: que Miguel decida publicar F1 (release con preflight) y revise las propuestas #1–#9; F0 sigue con sus mediciones en C1.
+**Lo último:** 30/09 21:08 UTC: F1 lista para publicar, a la espera del OK de Miguel: pull request #148 (feat/llamadas-f0 → main) con resumen, evidencia, riesgos y los pasos del release con preflight. La rama ya incluye los 6 commits nuevos de main (5093 tests en verde). Producción sin cambios; la macro del piloto sigue sin número hasta publicar. F0 continúa con sus mediciones.
 
 **Total:** 13 de 102 tareas · 1 de 8 fases hechas.
 
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
 - 30/09/2026, 03:37 p. m. · F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar.
 - 30/09/2026, 03:20 p. m. · F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e).
 - 30/09/2026, 02:25 p. m. · F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel).
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
 - 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
 - 30/09/2026, 10:41 a. m. · F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1).
-- 30/09/2026, 10:21 a. m. · F1.1.1 hecha: coordinador de la intención de contacto con 11 tests (6a920143); antes, 12 tests de caracterización de AccionesContacto (9b638279). F1.1.2 en curso.
