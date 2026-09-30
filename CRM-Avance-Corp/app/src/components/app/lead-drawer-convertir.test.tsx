@@ -13,6 +13,12 @@ import {guardarIntentoInversion,leerIntentoInversion,nuevoIntentoInversion,type 
 import {ACTOR_F5,PERSONA_F5,PERFIL_F5,FUENTE_F5,fichaF5} from '@/test/fixtures/f5'
 import {DialogConvertir} from './lead-drawer'
 
+// 33 tests que teclean formularios enteros con user-event: solos pasan (~23 s en
+// total) pero dentro de la suite completa algunos superaban los 5 s por defecto y
+// el pre-push rechazaba el push (30/09/2026, taller Windows). Más tiempo, mismas
+// comprobaciones (misma decisión que en cliente-form.test).
+vi.setConfig({testTimeout:15_000})
+
 const api=vi.hoisted(()=>({persona:vi.fn(),contexto:vi.fn(),ficha:vi.fn(),preparar:vi.fn(),consultar:vi.fn(),
   corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn()}))
 vi.mock('@/data/inversion-solicitud-api',async original=>({...await original<typeof import('@/data/inversion-solicitud-api')>(),
