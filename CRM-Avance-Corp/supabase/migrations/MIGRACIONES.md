@@ -1,6 +1,53 @@
+## 20260930154341 — Vigilante permanente del ayudante del núcleo SLA (`private.assert_sla_avisos`)
+
+**✅ EN PROD 30/09/2026 ~10:57 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930154341 /
+crm_sla_vigilante_ayudante`, 1 sentencia) → `verificar.sql`: huella `9b9edc86…` OK, guardián ampliado OK (10 ms),
+paraguas OK. Advisors (`db advisors --type all`): 242, los mismos de antes, ninguna clase nueva (el único que cita
+un objeto de esta migración es el preexistente de DEFINER ejecutable por `authenticated` sobre el adaptador).
+PR #143 (apilada sobre #142).** Cierra el P2-2 del auditor-rls sobre `20260930002929`: el ayudante
+`private.sla_leads_operativos()` y la línea del resumen que lo usa solo se comprobaban al aplicar. Aprobado por Miguel
+el 30/09 («dale»).
+
+Cambio: el guardián `private.assert_sla_avisos()` (corre en cada migración del SLA y de Gestión Diaria vía
+`assert_gestion_diaria_equipo` → paraguas) exige además: el ayudante existe con su huella
+`8d478d783e4c591662388ddf7405058a`, dueño postgres, INVOKER, STABLE, `search_path` vacío y ACL exacta
+`{postgres=X/postgres}`; y `crm.avisos_sla_resumen_v2_fn` sigue pasándolo a `sla_operacion_autorizada` (regex sobre
+`prosrc` sin comentarios, como el resto del guardián). Mismo texto de OK. Nada más cambia. Cualquier cambio legítimo
+futuro del ayudante exige resellar aquí (patrón de la casa). Huellas del guardián: viva
+`bf835965ea92cb14265b08b5e5b4f121` → nueva `9b9edc86c3a55d89367b6d64203d38dc` (medida en la base). Idempotente
+(la ruta «ya aplicada» pasa el guardián ampliado y el paraguas) y fail-closed.
+
+**Ciclo ensayado en producción con rollback** (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`): migración → repetida →
+**tres negativos** (NEG1 `grant execute` del ayudante a `authenticated` → salta «el ayudante … no es el esperado»; NEG2
+cuerpo del ayudante sustituido → mismo salto; NEG3 resumen restaurado a `(null,true)` → salta «el resumen dejo de
+evaluar solo las oportunidades operativas»; **NEG4** resumen con la llamada acotada Y una segunda llamada amplia
+`(null,true)` → salta igual; todo restaurado → guardián OK) → reversa (guardián vivo) → migración → registrador
+(1 sentencia); después: huella viva intacta, 0 registros, ACL del ayudante intacta.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930154341_crm_sla_vigilante_ayudante.sql`
+→ `supabase/scripts/sla-vigilante-ayudante/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián ampliado OK
+y paraguas OK) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews (LEVEL 2):** Codex (`docs/encargos/2026-09-30-codex-sla-vigilante-ayudante.md`) CHANGES_REQUESTED → aceptado:
+P2 «la regex solo exigía que EXISTIERA una llamada acotada; un resumen con una segunda llamada amplia `(null,true)`
+pasaría» → ahora el guardián exige que TODAS las llamadas a `sla_operacion_autorizada` del resumen vayan acotadas por
+el ayudante (`regexp_count` de ambas formas igual y ≥ 1) y NEG4 lo prueba; R4 «la ruta idempotente no pasaba el
+paraguas» → añadido. Las tres piezas se regeneraron con la huella nueva y el ciclo se repitió con los archivos
+finales. Limitación deliberada anotada: una llamada con el resultado del ayudante en una variable sería rechazada
+por el trinquete (se escribe la llamada directa).
+**auditor-rls: APPROVE** (sin P0–P2; no toca tablas, policies, grants, triggers ni `public`; el guardián solo lee `pg_proc`;
+DEFINER conservado con ACL solo dueño; `proacl` NULL salta como verdadero positivo; reversa restaura el cuerpo vivo byte a
+byte). Revisó la versión previa: sus P3-1 (presencia vs exclusividad) y P3-3 (paraguas en la ruta idempotente) son
+exactamente lo que ya corrigió el P2/R4 de Codex arriba. P3-4 (orden de limpieza de comentarios: solo puede dar salto
+ruidoso, nunca aceptar un resumen alterado) y P3-5 (`md5(pg_get_functiondef)` puede diferir en un banco con otra
+versión mayor; fallaría en voz alta) son informativos y preexistentes. **Queda anotado como ítem aparte (P3-2):** los
+negativos NEG1–NEG4 viven solo en el ensayo manual; falta `private.assert_sla_avisos_mutantes()` invocado desde
+`test-rls.mjs`, al estilo de los otros trinquetes con mutantes.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
+
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
 
-**✅ EN PROD 30/09/2026 ~11:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
+**✅ EN PROD 30/09/2026 ~10:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
 crm_gestion_diaria_solo_operativos`, 4 sentencias) → `verificar.sql`: las cuatro huellas nuevas OK, guardianes OK
 (paraguas, SLA, pulso), equipo de gerencia **1.350 ms** (antes 1.804–1.853; meta ≤ 1.300 rozada, con tráfico de
 mañana) y avisos del supervisor grande **864 ms** (antes 1.002–1.031). Advisors: sin clases nuevas.** Paso 4 · fase

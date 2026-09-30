@@ -161,7 +161,7 @@ decidir). Diferido: las dos puertas de Gestión Diaria que piden `(null,true)` (
 trinquete vivo del ayudante (auditor P2-2). PR #141 (apilada sobre #140).
 🔑 Trampa: `$function$$def$` juntos forman `$$` y cierran un bloque `DO $$`: usar etiquetas distintas al anidar.
 
-## Paso 4 · Gestión Diaria — ✅ EN PROD 30/09 ~11:05 Lima (Miguel aplicó con `!`)
+## Paso 4 · Gestión Diaria — ✅ EN PROD 30/09 ~10:25 Lima (Miguel aplicó con `!`)
 
 `private.gestion_diaria_alertas_sla` y `private.gestion_diaria_equipo_pendientes` pasan al núcleo SLA solo las
 oportunidades operativas (`sla_leads_operativos()`); sus dos guardianes resellados por huella; migración y reversa
@@ -173,7 +173,23 @@ del supervisor grande 1,00–1,03 → 0,86 s; supervisores pequeños sin cambio.
 puede dar diferencias por datos vivos entre las dos pasadas (READ COMMITTED obligatorio): repetir y mirar clave a
 clave antes de concluir. Pendiente menor: caso «analista solo con leads terminales → (0,0)» en la suite local.
 
-## Paso 4 · Fase 2 — MEDIDA Y DESCARTADA tal como se planeó (30/09 ~20:20 Lima)
+## Paso 4 · Vigilante del ayudante — ✅ EN PROD 30/09 ~10:57 Lima (Miguel aplicó con `!`)
+
+El guardián `private.assert_sla_avisos()` (corre en cada migración del SLA y de Gestión Diaria a través del paraguas)
+vigila desde ahora al ayudante `private.sla_leads_operativos()`: existe con su huella `8d478d78…`, dueño postgres,
+INVOKER, STABLE, `search_path` vacío y ACL solo dueño; y **todas** las llamadas del contador `avisos_sla_resumen_v2_fn`
+al núcleo van acotadas por el ayudante (`regexp_count` de la forma acotada = total de llamadas, y ≥ 1). Mismo texto de
+OK; nada más cambia. Migración `20260930154341_crm_sla_vigilante_ayudante`, PR #143 (apilada sobre #142). Huellas del
+guardián: viva `bf835965…` → nueva `9b9edc86…`. Ciclo ensayado en prod y deshecho con **cuatro negativos** (grant del
+ayudante a `authenticated`, cuerpo del ayudante alterado, contador con `(null,true)`, contador con una llamada acotada
+y otra amplia): los cuatro saltan. Codex CHANGES_REQUESTED → aceptado (exigir igualdad de llamadas, no presencia;
+paraguas en la ruta idempotente); auditor-rls APPROVE (sin P0–P2). Verificado en vivo: guardián ampliado OK en 10 ms,
+paraguas OK, advisors 242 sin clases nuevas. Cierra el P2-2 del auditor sobre `20260930002929`. Cualquier cambio
+legítimo futuro del ayudante exige resellar aquí (patrón de la casa). Queda como ítem aparte: los cuatro negativos
+viven solo en el ensayo manual (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`); falta
+`private.assert_sla_avisos_mutantes()` desde `test-rls.mjs`, como los otros trinquetes con mutantes.
+
+## Paso 4 · Fase 2 — MEDIDA Y DESCARTADA tal como se planeó (29/09 ~20:20 Lima)
 
 Con la cartera operativa (1.514 filas, gerencia): `sla_operacion_autorizada` 1.226 ms = núcleo `sla_operacion_leads`
 835–999 ms + post-proceso 312 ms (+26 ms `proximo_cambio_en` releyendo el JSON, +15 ms del conteo del adaptador).
