@@ -5,7 +5,9 @@
 -- Casos: SINT-3 (nieto fusionado → canónica 01) · SINT-9 (cliente 10, cadena de 17 → él mismo) · SINT-13 (cliente 11 → raíz 26 en el nodo 16)
 -- · SINT-5/6 (ciclo A↔B → cada uno él mismo) · SINT-7 (padre inexistente → él mismo; upgrade con analista NULL) · SINT-8 (perfil sin
 -- persona; renovación de un upgrade sin analista → su propio analista) · SINT-4 (renovación tras upgrade → analista del upgrade)
--- · SINT-14 (identidad incoherente: perfil de la persona 01 e inversión de la 27 → identidad_coherente=false) · TX-1/TX-2 (cierres externos).
+-- · SINT-14 (identidad incoherente: perfil de la persona 01 e inversión de la 27 → identidad_coherente=false) · TX-1/TX-2 (cierres externos
+-- con persona propia) · TX-3 (cierre inicial sin persona propia, enlazado por inversión → ruta iv.cierre_externo_id) · TX-4 (cierre inicial cuya
+-- persona llega por el lead → ruta l.inversionista_id).
 -- Requiere el cuerpo NUEVO instalado (la migración aplicada en el banco). Triggers y FKs apagados con
 -- session_replication_role = replica para sembrar filas mínimas; los CHECK siguen vivos.
 begin;
@@ -95,9 +97,19 @@ insert into crm.inversiones (id, inversionista_id, empresa_id, contrato_id) valu
   (gen_random_uuid(), '00000000-0000-4000-8000-000000000010', gen_random_uuid(), '00000000-0000-4000-8000-00000000c009'),
   -- identidad INCOHERENTE (auditor-rls P3-5): K14 es del perfil 01 (persona 01) y su inversión apunta a la persona 27 (ciclo A↔B)
   (gen_random_uuid(), '00000000-0000-4000-8000-000000000027', gen_random_uuid(), '00000000-0000-4000-8000-00000000c014');
-insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion, vendedor_id, creado_por, inversionista_id, vence_en, es_cierre_inicial, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa)
-values ('00000000-0000-4000-8000-00000000ce01', 'qorilazo', 500, 'PEN', 'DNI', '00000001', 'Sintético CE', 'TX-1', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000003', date '2027-01-01', false, date '2026-01-01', date '2026-01-02', gen_random_uuid(), 'TX-1'),
-       ('00000000-0000-4000-8000-00000000ce02', 'prodelco', 500, 'PEN', 'DNI', '00000002', 'Sintético CE2', 'TX-2', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000027', date '2025-01-01', false, date '2026-01-01', date '2026-01-02', gen_random_uuid(), 'TX-2');
+insert into crm.leads (id, nombre_completo, telefono, origen, monto_estimado, inversionista_id) values
+  ('00000000-0000-4000-8000-00000000ad01', 'Lead sintético 1', '+51900000001', 'otro', 1000, null),
+  ('00000000-0000-4000-8000-00000000ad02', 'Lead sintético 2', '+51900000002', 'otro', 1000, '00000000-0000-4000-8000-000000000002');
+insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion, vendedor_id, creado_por, inversionista_id, vence_en, es_cierre_inicial, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa, lead_id)
+values ('00000000-0000-4000-8000-00000000ce01', 'qorilazo', 500, 'PEN', 'DNI', '00000001', 'Sintético CE', 'TX-1', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000003', date '2027-01-01', false, date '2026-01-01', date '2026-01-02', gen_random_uuid(), 'TX-1', null),
+       ('00000000-0000-4000-8000-00000000ce02', 'prodelco', 500, 'PEN', 'DNI', '00000002', 'Sintético CE2', 'TX-2', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000027', date '2025-01-01', false, date '2026-01-01', date '2026-01-02', gen_random_uuid(), 'TX-2', null),
+       -- TX-3: cierre inicial SIN inversionista_id propio (lead L1 sin persona); su persona llega por la ruta iv.cierre_externo_id (Codex r2):
+       -- inversión de la persona 03 → canónica 01
+       ('00000000-0000-4000-8000-00000000ce03', 'qorilazo', 500, 'PEN', 'DNI', '00000003', 'Sintético CE3', 'TX-3', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', null, date '2027-01-01', true, null, null, null, 'TX-3', '00000000-0000-4000-8000-00000000ad01'),
+       -- TX-4: cierre inicial cuyo lead L2 SÍ tiene persona (02 → canónica 01): ruta l.inversionista_id, sin inversión
+       ('00000000-0000-4000-8000-00000000ce04', 'qorilazo', 500, 'PEN', 'DNI', '00000004', 'Sintético CE4', 'TX-4', '00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000031', null, date '2027-01-01', true, null, null, null, 'TX-4', '00000000-0000-4000-8000-00000000ad02');
+insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id) values
+  (gen_random_uuid(), '00000000-0000-4000-8000-000000000003', gen_random_uuid(), '00000000-0000-4000-8000-00000000ce03');
 
 do $p$
 declare v_vieja text; v_nueva text; n_v int; n_n int; v_foto text; v_md5 text; v_esp text; v_real text;
@@ -107,14 +119,15 @@ begin
   select count(*), md5(string_agg(f::text, '|' order by f::text)) into n_v, v_vieja from pg_temp.cartera_f5_fuentes_vieja() f;
   select count(*), md5(string_agg(f::text, '|' order by f::text)) into n_n, v_nueva from private.cartera_f5_fuentes() f;
   -- foto legible: fuente → persona canónica / analista atribuido (según el cuerpo nuevo)
-  select string_agg(f.numero||'→'||coalesce(right(f.inversionista_id::text,2),'-')||'/'||coalesce(right(f.analista_origen_id::text,2),'-')||case when f.identidad_coherente then '' else '!' end, ' ' order by f.numero) into v_foto
+  select string_agg(f.numero||'→'||coalesce(right(f.inversionista_id::text,2),'-')||'/'||coalesce(right(f.analista_origen_id::text,2),'-')||case when f.identidad_coherente then '' when f.identidad_coherente is null then '?' else '!' end, ' ' order by f.numero) into v_foto
     from private.cartera_f5_fuentes() f where f.numero like 'SINT-%' or f.numero like 'TX-%';
   if n_v <> n_n or v_vieja <> v_nueva then
     raise exception 'SINTETICA: DISTINTAS (vieja % filas md5 %, nueva % filas md5 %) · nueva: %', n_v, v_vieja, n_n, v_nueva, v_foto;
   end if;
   -- Expectativas EXPLÍCITAS (además de la igualdad vieja = nueva): canónica y atribución esperadas por caso.
-  -- «!» = identidad_coherente false (dos canónicas distintas: personas[1] es la menor por array_agg(distinct), igual en ambos cuerpos)
-  v_esp := 'SINT-1→01/31 SINT-13→26/- SINT-14→01/-! SINT-2→01/32 SINT-3→01/33 SINT-4→01/33 SINT-5→27/35 SINT-6→28/35 SINT-7→29/- SINT-8→-/38! SINT-9→10/- TX-1→01/31 TX-2→27/31';  -- SINT-8: perfil sin persona → sin canónica → incoherente, en ambos cuerpos
+  -- «!» = identidad_coherente FALSE (dos canónicas distintas: personas[1] es la menor por array_agg(distinct), igual en ambos cuerpos)
+  -- «?» = identidad_coherente NULL (sin ninguna persona: cardinality(NULL) es NULL; Codex r2 P3)
+  v_esp := 'SINT-1→01/31 SINT-13→26/- SINT-14→01/-! SINT-2→01/32 SINT-3→01/33 SINT-4→01/33 SINT-5→27/35 SINT-6→28/35 SINT-7→29/- SINT-8→-/38? SINT-9→10/- TX-1→01/31 TX-2→27/31 TX-3→01/31 TX-4→01/31';  -- SINT-8: perfil sin persona → personas NULL → coherente NULL, en ambos cuerpos
   if v_foto <> v_esp then
     raise exception 'SINTETICA: la foto no es la esperada. esperada: % · real: %', v_esp, v_foto;
   end if;

@@ -34,7 +34,7 @@ Banco Docker propio (`avancecorp-f5-fuentes-20260930`, imagen `supabase/postgres
 volcado de prod; paridad de cuerpos `crm` 278 / `private` 536 con el MISMO md5 que prod): migración → repetida («ya
 aplicada») → reversa → repetida → migración → `registrar.sql` → repetido (fila `20260930172255 / crm_cartera_f5_fuentes_mapas`,
 2 sentencias); negativos: cuerpo ajeno (migración y reversa lo rechazan) y `inversionista_canonica` alterada (migración y
-registro lo rechazan). `prueba-sintetica.sql` (supabase_admin, deshecho): **13 fuentes idénticas** entre cuerpo vivo y nuevo
+registro lo rechazan). `prueba-sintetica.sql` (supabase_admin, deshecho): **15 fuentes idénticas** entre cuerpo vivo y nuevo
 y expectativas explícitas por caso: hijo y nieto fusionados (→ raíz), cadena de 17 (el nodo 1 no llega a la raíz en el tope
 16 y queda como su propia canónica; el nodo 2 sí llega), ciclo A↔B (cada uno él mismo), padre inexistente, perfil sin persona
 (identidad incoherente), identidad incoherente por inversión de otra persona, upgrades encadenados, renovación tras upgrade
@@ -52,7 +52,10 @@ lineal la cadena (un desempate delegado se ensayó y se retiró: complicaba sin 
 validado en prod, huella `fa15f776…`); (2) «el preflight no protege las dos funciones copiadas» → **aceptado** (huellas en
 migración y registro; negativo probado en el banco). Sus avisos menores: fixture de 17 nodos descrito mal → corregido con
 expectativas explícitas; empate y tope 100/101 → el primero imposible, el segundo idéntico en ambos cuerpos (riesgo aceptado).
-Codex r2 (`…-r2.md`, con los scripts completos y la evidencia del UNIQUE): pendiente de anotar.
+**Codex r2 (`…-r2.md`, con los scripts completos y la evidencia del UNIQUE): APPROVE**: retira el P2 de empates por el UNIQUE y
+acepta que la reversa no exija las huellas auxiliares; un P3 (la foto de la sintética marcaba igual `identidad_coherente` NULL y
+false) → corregido («?» = NULL, «!» = false) y añadidas las rutas que echaba en falta, cierre enlazado por inversión (TX-3) y por
+lead (TX-4): **15 fuentes idénticas**.
 **auditor-rls: PASS** (sin P0–P2; seis P3, todos atendidos): P3-1 REPEATABLE READ en la migración ✓ · P3-2 la reversa
 restaura el COMMENT previo ✓ · P3-3 el registro lleva las 2 sentencias ✓ · P3-4 censo de llamadores cuadrado (11) ✓ · P3-5
 caso de identidad incoherente en la sintética ✓ · P3-6 los scripts de un solo uso de F9 (`multiempresa-f9/apertura-2026-09-15/

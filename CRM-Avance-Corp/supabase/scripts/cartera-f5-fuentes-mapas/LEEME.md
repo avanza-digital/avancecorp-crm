@@ -14,8 +14,9 @@ Banco Docker propio (`avancecorp-f5-fuentes-20260930`, imagen `supabase/postgres
 volcado de producción; paridad de cuerpos `crm` 278 / `private` 536 con el MISMO md5 que prod): migración → repetida (ya
 aplicada) → reversa → repetida → migración → registrar → repetido; negativos: cuerpo ajeno (migración y reversa lo rechazan)
 e `inversionista_canonica` alterada (migración y registro lo rechazan).
-`prueba-sintetica.sql` (como `supabase_admin`, todo deshecho): 13 fuentes idénticas entre cuerpo vivo y nuevo, con expectativas
+`prueba-sintetica.sql` (como `supabase_admin`, todo deshecho): 15 fuentes idénticas entre cuerpo vivo y nuevo, con expectativas
 explícitas por caso: hijo y nieto fusionados, cadena de 17 (supera el tope 16), ciclo A↔B, padre inexistente, perfil sin persona,
-identidad incoherente, upgrades encadenados, renovación tras upgrade, ciclo de operaciones y analista nulo. El empate de dos
+identidad incoherente, cierres enlazados solo por inversión y solo por lead, upgrades encadenados, renovación tras upgrade,
+ciclo de operaciones y analista nulo. El empate de dos
 ancestros «upgrade» no puede darse (`contrato_nuevo_id` UNIQUE). `contexto-seguridad.sql`: solo lectura.
 Medición y prototipos: `supabase/scripts/ensayo-cartera-f5-fuentes-mapas/`.
