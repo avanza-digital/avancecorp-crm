@@ -14,7 +14,8 @@ import {ACTOR_F5,PERSONA_F5,PERFIL_F5,FUENTE_F5,fichaF5} from '@/test/fixtures/f
 import {DialogConvertir} from './lead-drawer'
 
 const api=vi.hoisted(()=>({persona:vi.fn(),contexto:vi.fn(),ficha:vi.fn(),preparar:vi.fn(),consultar:vi.fn(),
-  corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn()}))
+  corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn(),documento:vi.fn()}))
+vi.mock('@/data/documento-lead',()=>({useDocumentoLead:api.documento}))
 vi.mock('@/data/inversion-solicitud-api',async original=>({...await original<typeof import('@/data/inversion-solicitud-api')>(),
   prepararPersonaLeadInversion:api.persona,obtenerContextoConversionInversion:api.contexto,
   prepararSolicitudInversion:api.preparar,consultarSolicitudInversion:api.consultar,
@@ -53,6 +54,8 @@ const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solici
   comprobante_bucket:datos.empresa==='avance'?null:'f4-comprobantes',comprobante_ruta:datos.evidencia?.ruta??null,resultado:null,datos})
 beforeEach(()=>{
   vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null;correoFicha=fichaF5.persona.correo
+  api.documento.mockImplementation((l:Lead)=>({data:{lead_id:l.id,inversionista_id:null,identificador_id:null,
+    tipo:l.documento?.tipo??'DNI',numero:l.documento?.numero??l.dni??null,puede_corregir:false},isPending:false,isError:false}))
   api.persona.mockImplementation(async(leadId:string)=>({inversionista_id:PERSONA_F5,lead_id:leadId,solicitud_id:vigente?.solicitud_id??null}))
   api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil,correo:correoFicha}}))
   api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
@@ -81,6 +84,26 @@ async function entrar(user:ReturnType<typeof userEvent.setup>,empresa:string){
   await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
   await user.click(await screen.findByRole('button',{name:empresa}))
 }
+
+describe('Documento vinculado al convertir',()=>{
+  it.each([['CE','001234567'],['PASAPORTE','AB12345678']] as const)('precarga y utiliza %s aunque el DNI legado esté vacío',async(tipo,numero)=>{
+    api.documento.mockReturnValue({data:{lead_id:LEAD,tipo,numero,inversionista_id:PERSONA_F5,identificador_id:FUENTE_F5,puede_corregir:false}})
+    const {user}=montar({dni:null})
+    expect(screen.getByLabelText('Tipo de documento')).toHaveValue(tipo)
+    expect(screen.getByLabelText('Documento')).toHaveValue(numero)
+    expect(screen.getByLabelText('Documento')).toBeDisabled()
+    await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(api.persona).toHaveBeenCalledWith(LEAD,tipo,numero,lead.nombre_completo)
+  })
+
+  it('un error al consultar identidad no permite convertir con el DNI antiguo',()=>{
+    api.documento.mockReturnValue({data:undefined,isError:true,refetch:vi.fn()})
+    montar()
+    expect(screen.getByText(/No se pudo consultar el documento vinculado/)).toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.persona).not.toHaveBeenCalled()
+  })
+})
 async function llenarCoop(user:ReturnType<typeof userEvent.setup>,moneda='PEN'){
   if(moneda==='USD')await user.selectOptions(screen.getByLabelText('Moneda'),'USD')
   const capital=screen.getByLabelText(new RegExp('Capital.*'+moneda))

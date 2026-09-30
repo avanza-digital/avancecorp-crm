@@ -1,3 +1,4 @@
+import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, validarDocumento, normalizarDocumento, type TipoDocumento } from '@/lib/documento'
 // Modal de alta de lead (F1b) — se monta UNA vez en App.tsx y se abre con
 // usePanelesActions().abrirNuevoLead(etapa?). En demo trabaja solo en memoria;
 // en una sesión real consulta la disponibilidad y espera la RPC transaccional
@@ -256,6 +257,7 @@ function FormularioNuevoLead({
   const [telefonoAlternativo, setTelefonoAlternativo] = useState('')
   const [correo, setCorreo] = useState('')
   const [dni, setDni] = useState('')
+  const [tipoDocumento, setTipoDocumento] = useState<TipoDocumento>('DNI')
   // '' = sin dato. Sin género el avatar cae a iniciales (nunca una silueta
   // inventada), así que dejarlo vacío es una opción legítima, no un error.
   const [genero, setGenero] = useState<Genero | ''>('')
@@ -404,7 +406,7 @@ function FormularioNuevoLead({
     try {
       const resultado = await verificarDisponibilidadLead(
         telefonoConsulta,
-        /^\d{8}$/.test(dniConsulta) ? dniConsulta : null,
+        tipoDocumento === 'DNI' && /^\d{8}$/.test(dniConsulta) ? dniConsulta : null,
         control.signal,
       )
       if (!montadoRef.current || secuenciaDisponibilidadRef.current !== secuencia) return null
@@ -449,7 +451,7 @@ function FormularioNuevoLead({
       clearTimeout(reloj)
       if (controlDisponibilidadRef.current === control) controlDisponibilidadRef.current = null
     }
-  }, [yo?.demo])
+  }, [yo?.demo, tipoDocumento])
 
   const programarDisponibilidad = useCallback((telefonoConsulta: string, dniConsulta: string) => {
     invalidarDisponibilidad(telefonoConsulta)
@@ -503,7 +505,7 @@ function FormularioNuevoLead({
       const dniLimpio = dni.trim()
       const resultado = await tomarLeadLibre(
         telefono,
-        /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
+        tipoDocumento === 'DNI' && /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
       )
       if (!montadoRef.current) return
 
@@ -608,7 +610,7 @@ function FormularioNuevoLead({
       await guardarRecordatorioDisponibilidad(
         yo?.id ?? '',
         telefonoPedido,
-        /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
+        tipoDocumento === 'DNI' && /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
         aInstanteRevision(fecha),
       )
       // El guardado ES real aunque el modal ya se haya cerrado o el contacto
@@ -673,8 +675,9 @@ function FormularioNuevoLead({
       err.telefono = 'Celular peruano inválido — ej.: 987 654 321 o +51 987 654 321'
     }
     if (correo.trim() && !CORREO_RE.test(correo.trim())) err.correo = 'Correo inválido'
-    if (dni.trim() && !/^\d{8}$/.test(dni.trim())) {
-      err.dni = 'El DNI debe tener exactamente 8 dígitos'
+    const documentoValidado = validarDocumento(tipoDocumento, dni)
+    if (dni.trim() && !documentoValidado.ok) {
+      err.dni = documentoValidado.error.replace(/\.$/, '')
     }
     if (fechaNacimiento && edadCumplida(fechaNacimiento) < EDAD_MINIMA) {
       // El store re-valida lo mismo; esto solo evita el viaje de ida y vuelta.
@@ -706,7 +709,8 @@ function FormularioNuevoLead({
         telefono, // el store normaliza a +519########
         telefono_alternativo: telefonoAlternativo.trim() || null,
         correo: correo.trim() || null,
-        dni: dni.trim() || null,
+        dni: tipoDocumento === 'DNI' ? dni.trim() || null : null,
+        ...(tipoDocumento !== 'DNI' ? { documento: { tipo: tipoDocumento, numero: documentoValidado.valor || null } } : {}),
         genero: genero || null,
         fecha_nacimiento: fechaNacimiento || null,
         distrito: distrito.trim() || null,
@@ -845,13 +849,21 @@ function FormularioNuevoLead({
                 }}
               />
             </Campo>
-            <Campo label="DNI" htmlFor="nl-dni" error={errores.dni}>
+            <Campo label="Tipo de documento" htmlFor="nl-tipo-documento">
+              <Select id="nl-tipo-documento" value={tipoDocumento} onChange={(e) => {
+                setTipoDocumento(e.target.value as TipoDocumento)
+                limpiarError('dni')
+                invalidarDisponibilidad(telefono)
+              }}>
+                {TIPOS_DOCUMENTO_K.map((tipo) => <option key={tipo} value={tipo}>{TIPOS_DOCUMENTO[tipo].etiqueta}</option>)}
+              </Select>
+            </Campo>
+            <Campo label={tipoDocumento === 'DNI' ? 'DNI' : 'Documento'} htmlFor="nl-dni" error={errores.dni}>
               <Input
                 id="nl-dni"
-                inputMode="numeric"
-                maxLength={8}
+                inputMode={TIPOS_DOCUMENTO[tipoDocumento].inputmode}
                 autoComplete="off"
-                placeholder="8 dígitos (opcional)"
+                placeholder={`${TIPOS_DOCUMENTO[tipoDocumento].regla} (opcional)`}
                 value={dni}
                 aria-invalid={!!errores.dni || disponibilidad.bloquea}
                 aria-describedby={[
@@ -860,7 +872,11 @@ function FormularioNuevoLead({
                 ].filter(Boolean).join(' ') || undefined}
                 className={cn((errores.dni || disponibilidad.bloquea) && claseError)}
                 onChange={(e) => {
-                  const siguienteDni = e.target.value.replace(/\D/g, '')
+                  // Conserva letras y dígitos sobrantes para que la validación
+                  // rechace otro documento, sin convertirlo en un DNI distinto.
+                  const siguienteDni = tipoDocumento === 'DNI'
+                    ? e.target.value.replace(/[\s.-]/g, '')
+                    : normalizarDocumento(tipoDocumento, e.target.value)
                   setDni(siguienteDni)
                   limpiarError('dni')
                   // El teléfono NO cambió: la fecha/confirmación del
@@ -1249,8 +1265,8 @@ function FormularioNuevoLead({
         <VentaCruzada
           actor={yo.id}
           // Con el DNI escrito, la búsqueda ya es la llave para registrar su inversión.
-          inicial={/^\d{8}$/.test(dni.trim())
-            ? { tipo: 'documento', tipoDocumento: 'DNI', numero: dni.trim() }
+          inicial={validarDocumento(tipoDocumento, dni).ok
+            ? { tipo: 'documento', tipoDocumento, numero: normalizarDocumento(tipoDocumento, dni) }
             : { tipo: 'telefono', telefono: telefono.trim() }}
           puedeRegistrar={yo.rol === 'vendedor' || yo.rol === 'supervisor'}
           onCerrar={() => setBuscandoCliente(false)}

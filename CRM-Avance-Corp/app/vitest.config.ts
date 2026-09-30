@@ -23,6 +23,12 @@ export default defineConfig({
     // process.env a tiempo — comprobado con el bug reintroducido a propósito).
     clearMocks: true,
     restoreMocks: true,
+    // 15 s por test en vez de los 5 s por defecto (decisión de Jhosep, 30/09/2026):
+    // en el taller Windows la suite completa (320+ archivos en paralelo) hacía
+    // que formularios enteros tecleados con user-event se pasaran del límite y
+    // el pre-push rechazara el push, un archivo distinto cada vez; solos, todos
+    // pasan en segundos. Más tiempo no cambia lo que comprueban.
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'html', 'lcov'],

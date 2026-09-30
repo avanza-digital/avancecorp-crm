@@ -1,0 +1,36 @@
+✓ precondicion: seed completo y coherente verificado con service_role
+  ✓ login gerencia corresponde al correo esperado
+  ✓ login sup1 corresponde al correo esperado
+  ✓ login sup2 corresponde al correo esperado
+  ✓ login sup1Nested corresponde al correo esperado
+  ✓ login vend1 corresponde al correo esperado
+  ✓ login vend2 corresponde al correo esperado
+  ✓ login vend3 corresponde al correo esperado
+  ✓ login vend4 corresponde al correo esperado
+  ✓ login vendNested corresponde al correo esperado
+  ✓ login vendInactive corresponde al correo esperado
+  ✓ login coordinador corresponde al correo esperado
+  ✓ login directorio corresponde al correo esperado
+  ✓ login clientBank corresponde al correo esperado
+ALCANCE: identidad D-5; no sustituye la matriz global.
+
+— Identidad multiempresa F2.b [D-5]: RPC de un argumento cerradas con ON; abandonar conversión —
+  ✓ D-5 las dos firmas de un argumento y el sellado por persona llevan la transformación (marcador en el cuerpo)
+  ✓ D-5 las cuatro conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)
+  ✓ D-5 las cuatro son DEFINER de postgres con search_path vacío
+  ✓ D-5 anon abandonar → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ D-5 vend1 abandonar → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ D-5 OFF gerencia abandonar → P0409 «apagada» (superficie inerte) (rechazo esperado: P0409)
+  ✓ D-5 OFF la reserva legacy exige actualizar el CRM (rechazo esperado: P0409)
+  ✓ D-5 OFF no se sella una reserva inexistente (rechazo esperado: P0409)
+  ✓ D-5 OFF las puertas antiguas no dejan reservas ni efectos
+  ✓ D-5 ON vend1 reserva por lead (1 argumento) → P0409 «va por persona» (rechazo esperado: P0409)
+  ✓ D-5 ON vend1 sella sin persona (1 argumento) → P0409 «va por persona» (rechazo esperado: P0409)
+  ✓ D-5 ON la firma vieja no dejó reserva
+  ✓ D-5 ON gerencia abandonar un lead sin reserva por persona → P0002 (rechazo esperado: P0002)
+  ✓ D-5 ON gerencia abandonar con motivo corto → 22023 (rechazo esperado: 22023)
+  ✓ D-5 ON: un UPDATE con el DNI sin cambiar (y otra columna) pasa el trigger de D-13
+  ✓ D-5 volver a OFF no reabre la reserva legacy (rechazo esperado: P0409)
+  ✓ D-5 la transición OFF/ON/OFF conserva cero reservas
+
+✅ RLS IDENTIDAD D5 OK — 30 aserciones; gate aprobado

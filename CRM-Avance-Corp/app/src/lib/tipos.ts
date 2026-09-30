@@ -1,3 +1,4 @@
+import type { DocumentoIdentidad } from './documento'
 import type { Moneda } from './format'
 import type { Rol } from './roles'
 
@@ -491,6 +492,7 @@ export interface Lead {
   activo: boolean
   // Espejo del esquema F0 (opcionales)
   dni?: string | null // exactamente 8 dígitos si existe
+  documento?: DocumentoIdentidad // identidad tipada; en real se consulta al abrir la ficha
   genero?: Genero | null // decide la silueta del avatar; null → neutra
   fecha_nacimiento?: string | null // ISO 'YYYY-MM-DD' (sin hora)
   distrito?: string | null

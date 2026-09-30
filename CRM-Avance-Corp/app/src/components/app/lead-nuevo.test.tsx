@@ -163,6 +163,42 @@ async function completarBase(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Origen *'), 'referido')
 }
 
+describe('LeadNuevo — documento sin recortes', () => {
+  it.each([['CE', '001234567'], ['PASAPORTE', 'AB12345678']] as const)('registra %s con el número completo y sin ocupar el DNI legado', async (tipo, numero) => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    completarBaseReal()
+    await user.selectOptions(screen.getByLabelText('Tipo de documento'), tipo)
+    await user.click(screen.getByLabelText('Documento'))
+    await user.paste(numero)
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+    expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({ dni: null, documento: { tipo, numero } }))
+  })
+
+  it('un pasaporte de ocho números nunca se consulta como DNI', async () => {
+    const user = userEvent.setup()
+    montar({ demo: false })
+    completarBaseReal()
+    await user.selectOptions(screen.getByLabelText('Tipo de documento'), 'PASAPORTE')
+    await user.type(screen.getByLabelText('Documento'), '12345678')
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(verificarDisponibilidad).toHaveBeenCalled())
+    expect(verificarDisponibilidad.mock.calls.every(([, dni]) => dni === null)).toBe(true)
+  })
+
+  it.each(['001234567', 'AB12345678'])('no convierte %s en un DNI distinto al pegarlo', async (documento) => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    completarBaseReal()
+    await user.click(screen.getByLabelText('DNI'))
+    await user.paste(documento)
+    expect(screen.getByLabelText('DNI')).toHaveValue(documento)
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+    expect(screen.getByText('El DNI debe tener exactamente 8 dígitos')).toBeInTheDocument()
+    expect(crearLead).not.toHaveBeenCalled()
+  })
+})
+
 describe('LeadNuevo — responsable comercial del supervisor', () => {
   it.each([true, false])('crea un lead propio sin analistas a cargo (demo=%s)', async (demo) => {
     const { crearLead, actions } = montar({ rol: 'supervisor', demo })

@@ -14,16 +14,30 @@ import { mensajeDeError, type CondicionesTasaLead } from '@/data/crm-api'
 import { prepararPersonaLeadInversion, obtenerContextoConversionInversion } from '@/data/inversion-solicitud-api'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { InversionNueva } from './inversion-nueva'
+import { useDocumentoLead, type DocumentoLead } from '@/data/documento-lead'
+
+type Propiedades = { l: Lead; condicionesTasa?: CondicionesTasaLead | undefined; onClose: () => void }
+
+export function InversionDesdeLead(props: Propiedades) {
+  const documento = useDocumentoLead(props.l)
+  if (documento.isPending || documento.isError || !documento.data) return <Dialog open onClose={props.onClose} ariaLabel="Convertir a cliente">
+    <DialogHeader><DialogTitle>Documento del lead</DialogTitle></DialogHeader>
+    <DialogBody>{documento.isError
+      ? <PanelError mensaje="No se pudo consultar el documento vinculado. Vuelve a intentarlo." onReintentar={() => void documento.refetch()} reintentando={documento.isFetching} />
+      : <PanelCargando />}</DialogBody>
+    <DialogFooter><Button variant="outline" onClick={props.onClose}>Volver a la ficha</Button></DialogFooter>
+  </Dialog>
+  return <FormularioInversionDesdeLead key={`${props.l.id}:${documento.data.tipo}:${documento.data.numero}`} {...props} documentoInicial={documento.data} />
+}
 
 /** Adaptación de identidad; los campos y el guardado de la inversión pertenecen
  * exclusivamente a InversionNueva, igual que al entrar desde Cartera. */
-export function InversionDesdeLead({l, condicionesTasa, onClose}: {
-  l: Lead; condicionesTasa?: CondicionesTasaLead | undefined; onClose: () => void
-}) {
+function FormularioInversionDesdeLead({l, condicionesTasa, onClose, documentoInicial}: Propiedades & { documentoInicial: DocumentoLead }) {
   const {yo} = useAuth()
   const {recargar} = useCRMData()
-  const [tipo, setTipo] = useState<TipoDocumento>('DNI')
-  const [documento, setDocumento] = useState(l.dni ?? '')
+  const [tipo, setTipo] = useState<TipoDocumento>(documentoInicial.tipo)
+  const [documento, setDocumento] = useState(documentoInicial.numero ?? '')
+  const reconocido = documentoInicial.inversionista_id !== null
   const [nombre, setNombre] = useState(l.nombre_completo)
   const [preparada, setPersona] = useState<Awaited<ReturnType<typeof prepararPersonaLeadInversion>> | null>(null)
   const confirmada = useQuery({queryKey: ['crm','conversion-confirmada',yo?.id,l.id],
@@ -72,13 +86,14 @@ export function InversionDesdeLead({l, condicionesTasa, onClose}: {
           <Input id="conversion-nombre" required maxLength={180} value={nombre} disabled={ocupado} onChange={e => setNombre(e.target.value)} /></div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1"><Label htmlFor="conversion-tipo">Tipo de documento</Label>
-            <Select id="conversion-tipo" value={tipo} disabled={ocupado} onChange={e => setTipo(e.target.value as TipoDocumento)}>
+            <Select id="conversion-tipo" value={tipo} disabled={ocupado || reconocido} onChange={e => setTipo(e.target.value as TipoDocumento)}>
               {TIPOS_DOCUMENTO_K.map(k => <option key={k} value={k}>{TIPOS_DOCUMENTO[k].etiqueta}</option>)}
             </Select></div>
           <div className="space-y-1"><Label htmlFor="conversion-documento">Documento</Label>
-            <Input id="conversion-documento" required maxLength={12} inputMode={TIPOS_DOCUMENTO[tipo].inputmode}
-              value={documento} disabled={ocupado} onChange={e => setDocumento(e.target.value)} /></div>
+            <Input id="conversion-documento" required inputMode={TIPOS_DOCUMENTO[tipo].inputmode}
+              value={documento} disabled={ocupado || reconocido} onChange={e => setDocumento(e.target.value)} /></div>
         </div>
+        {reconocido && <p className="text-xs text-muted-foreground">Este documento ya está vinculado al lead. Para corregirlo, Administración debe usar «Editar» en su ficha antes de continuar.</p>}
         {error && <p role="alert" className="text-sm text-destructive-text">{error}</p>}
       </DialogBody>
       <DialogFooter><Button type="button" variant="outline" onClick={cerrar} disabled={ocupado}>Cancelar</Button>
