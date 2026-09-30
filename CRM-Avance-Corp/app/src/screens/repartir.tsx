@@ -61,6 +61,7 @@ import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estad
 import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
 import { PanelDistribucionReparto } from '@/components/app/panel-distribucion-reparto'
 import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
+import { ConversionCoordinacion } from '@/components/app/conversion-coordinacion'
 import { Paginacion } from '@/components/common/paginacion'
 import { paginar } from '@/lib/paginacion'
 import { hoyLimaIso } from '@/lib/distribucion-lecturas'
@@ -909,7 +910,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'coordinacion' | 'panel' | 'cola' | 'descartados' | 'historial'>('coordinacion')
+  const [tab, setTab] = useState<'coordinacion' | 'panel' | 'conversiones' | 'cola' | 'descartados' | 'historial'>('coordinacion')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
   const [colaKey, setColaKey] = useState(0)
@@ -925,6 +926,7 @@ export function Repartir() {
           {([
             ['coordinacion', 'Coordinación → supervisores'],
             ['panel', 'Supervisión → analistas'],
+            ['conversiones', 'Conversiones'],
             ['cola', 'Cola de nuevos'],
             ['historial', 'Historial'],
             ['descartados', 'Descartados'],
@@ -945,7 +947,7 @@ export function Repartir() {
         </div>
       </div>
 
-      {tab === 'coordinacion' ? <AgendaRepartoDiaria /> : tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
+      {tab === 'coordinacion' ? <AgendaRepartoDiaria /> : tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'conversiones' ? <ConversionCoordinacion /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
         <PanelDescartados
           onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
         />

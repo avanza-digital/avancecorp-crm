@@ -205,6 +205,58 @@ test('Supervisión → analistas permite auditar entregas por fecha, analista y 
   await expect(origen).toHaveValue('')
 })
 
+test('Conversiones: la coordinadora ve el divisor del núcleo (primer analista), no el reporte de entregas', async ({ page }) => {
+  await aterrizarComoCoordinador(page, {
+    conversionCoordinacion: {
+      version: 1,
+      generado_en: '2026-09-30T18:00:00.000Z',
+      alcance: 'global',
+      periodo: { mes: '2026-09', mes_nombre: 'setiembre', anio: 2026, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-10-01' },
+      sellado: false,
+      peso_referido: 0.5,
+      fuente: { divisor: 'private.conversion_neta_por_vendedor', origen: 'private.conversion_episodios', regla: 'una llegada por lead' },
+      empresa: { divisor: 205, numerador: 20.15, conversion_pct: 9.83, divisor_formulario: 126, divisor_landing: 79 },
+      sin_analista: { divisor: 2, numerador: 0 },
+      analistas: [
+        {
+          analista_id: '20000000-0000-4000-8000-000000000001', nombre: 'ANA TORRES',
+          supervisor_id: '10000000-0000-4000-8000-000000000001', supervisor_nombre: 'SUPERVISORA NORTE',
+          en_nucleo: true, divisor: 115, divisor_formulario: 65, divisor_landing: 50, numerador: 11.15, conversion_pct: 9.7,
+        },
+        {
+          analista_id: '20000000-0000-4000-8000-000000000002', nombre: 'BRUNO LEÓN',
+          supervisor_id: '10000000-0000-4000-8000-000000000001', supervisor_nombre: 'SUPERVISORA NORTE',
+          en_nucleo: true, divisor: 88, divisor_formulario: 60, divisor_landing: 28, numerador: 9, conversion_pct: 10.23,
+        },
+      ],
+    },
+  })
+
+  await page.getByRole('tab', { name: 'Conversiones' }).click()
+  await expect(page.getByRole('heading', { name: 'Conversiones' })).toBeVisible()
+
+  const resumen = page.locator('[aria-label="Resumen de conversión del mes"]')
+  const cifra = (etiqueta: string) => resumen.locator(':scope > div').filter({ hasText: etiqueta })
+  await expect(cifra('Llegadas').getByText('205', { exact: true })).toBeVisible()
+  await expect(cifra('Formulario').getByText('126', { exact: true })).toBeVisible()
+  await expect(cifra('Conversión').getByText('9.83%', { exact: true })).toBeVisible()
+
+  const tabla = page.getByRole('table', { name: 'Conversión por analista' })
+  const ana = tabla.getByRole('row').filter({ hasText: 'ANA TORRES' })
+  await expect(ana).toContainText('65')
+  await expect(ana).toContainText('115')
+  await expect(ana).toContainText('9.70%')
+  await expect(tabla.getByRole('row').filter({ hasText: 'Sin analista asignado' })).toContainText('2')
+  await expect(page.getByText(/Este conteo es distinto del reporte de entregas/)).toBeVisible()
+
+  // El mes elegido viaja como primer día del mes.
+  const mes = page.getByLabel('Mes de conversión')
+  const pedido = page.waitForRequest((req) => req.url().includes('/rpc/conversion_divisor_coordinacion_fn')
+    && (req.postDataJSON() as { p_periodo?: string })?.p_periodo === '2026-08-01')
+  await mes.fill('2026-08')
+  await pedido
+})
+
 test('Coordinación muestra la entrega real antes de que Supervisión la reparta a analistas', async ({ page }) => {
   const hoy = fechaLimaConDesplazamiento(0)
   await aterrizarComoCoordinador(page, {

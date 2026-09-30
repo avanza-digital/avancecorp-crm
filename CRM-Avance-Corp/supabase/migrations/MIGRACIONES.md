@@ -1,3 +1,78 @@
+## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930185623.sql` → advisors → front por `/release-crm`.**
+
+Qué arregla: la coordinadora veía en «Supervisión → analistas» el reporte de ENTREGAS
+(`reporte_derivaciones_coordinacion_fn`), que cuenta por fecha de entrega y, a propósito,
+deja de sumar la entrega devuelta a la misma bandeja antes de gestionar (el lead queda en
+quien lo recibió después). Ese 62 de Astrid no era el divisor: el núcleo cuenta una llegada
+por lead, por su alta original en Lima, en el PRIMER analista del ledger (65 formulario +
+50 landing = 115). Hipótesis «cuenta por dueño actual» refutada (daría 63). Decisión de
+Miguel (30/09): el reporte de entregas no cambia; Coordinación lee la conversión real del
+núcleo por una puerta nueva con ámbito de TODA la empresa. **OK literal de Miguel (30/09):
+la coordinadora ve por analista y de la empresa el divisor, su desglose por origen, el
+numerador neto y el porcentaje (pestaña «Conversiones», aprobada con ese nombre); la puerta
+mensual oficial sigue denegando al coordinador.**
+
+Piezas (4 capas, sin saltos: la puerta no lee tablas): núcleo `private.conversion_divisor_empresa(date)`
+(una fila por analista) que compone `private.conversion_neta_por_vendedor` (la misma pieza que
+Metas: divisor, numerador neto y %) con el desglose por origen desde los episodios `recibido` de
+`private.conversion_episodios`; mes SELLADO → foto de `crm.cierre_mes_vendedor` (desglose por
+origen en null, nunca se recalcula). Núcleo `private.conversion_divisor_empresa_totales(date)`:
+total de la empresa y lo «sin analista» (abierto: suma de filas; sellado: foto + `cobertura.fuera_ranking`
++ `conversion_sin_analista`, solo objetos; la misma suma que la oficial). Ambos DEFINER con
+`search_path` vacío, sin autorización y sin ejecutores de la API, por instrucción del encargo y en
+paridad con `conversion_episodios`. Puerta `crm.conversion_divisor_coordinacion_fn(date default mes
+vigente)`: gate canónico del reparto (`puede_operar_reparto_crm() is not true` → 42501, antes que
+22023), valida el período, delega y da forma JSON; EXECUTE solo `authenticated`. Contrato abierto/
+sellado: en el mes abierto `analistas` trae a toda persona con llegadas o cierres; al sellar, las
+filas no rankeables pasan a `fuera_ranking` y suman al total sin aparecer como fila (semántica del
+sello). Postflight: propiedades,
+ACL, candado de dispersión (ninguna de las dos lee `crm.leads` ni `lead_asignaciones`) y
+paridad con el núcleo en el mes vigente (filas, divisor, formulario + landing = divisor).
+Front: pestaña «Conversiones» en `#/repartir` (selector de mes, resumen de empresa, tabla por
+analista, fila «sin analista», foto en mes cerrado), cliente con cinturón valibot + candado
+de paridad (`conversionCoordinacionConsistente`: si formulario + landing ≠ divisor o la
+empresa no suma, el paquete se rechaza entero). NO se tocan el núcleo, los pesos, el reporte
+de entregas, los conteos por dueño actual ni las puertas de conversión existentes.
+
+Verificación 30/09 (banco Docker propio `avancecorp-divisor-coord-20260930`, esquema de prod
+al byte, 13/13 huellas del núcleo iguales, configuración de prod sin datos personales):
+migración en un solo mensaje PASS (preflight, funciones, postflight); oráculo
+`scripts/conversion-coordinacion/oraculo-divisor-coordinacion.sql` → OK y cero filas después
+(recorre las puertas REALES del reparto: turno → repartir → derivar → devolver → derivar;
+A→B y A→B→A cuentan una vez en A y no suben a B; manual 0; referido 0; sin asignar cuenta
+en la empresa; alta 23:30 del último día del mes anterior queda en ese mes; paridad fila a
+fila con el núcleo; gerencia = coordinador; contraste con entregas; mes sellado; 42501 para
+vendedor/supervisor/directorio/coordinador inactivo/anónimo). 4 mutantes cazados (dueño
+actual, último receptor, formulario ×2, numerador +1). Registrador probado: misma md5 que el
+archivo, idempotente, rechaza otro cuerpo. Front: `npm run check` PASS (319 archivos / 4959 tests, cobertura,
+build, bundle, dup); E2E Docker `repartir.spec.ts` 31/31 (tres corridas, la última tras las reviews). Tipos: bloque generado con
+`gen types` contra el banco. **NOT RUN:** `test-rls.mjs` completo (bloque nuevo en
+`testReparto`, sintaxis verificada; requiere el banco con semilla y Auth); advisors (nube).
+Reviews (todas aplicadas; encargos y respuestas en `docs/encargos/2026-09-30-conversion-divisor-coordinacion-r{1,2}*.md`):
+- Codex r1 CHANGES_REQUESTED: P1 gate ante NULL → `is not true`; P2 foto con
+  `conversion_sin_analista: null` → solo objetos cuentan; roster `distinct on`; supervisor del mes
+  sin `coalesce` al de hoy; regex con identificadores entrecomillados; E07 con `fuera_ranking`.
+- Codex r2 CHANGES_REQUESTED: P2 mes cerrado con producción solo fuera del ranking mostraba «Sin
+  llegadas» → vacío propio («Sin filas por analista en este mes cerrado»); P3 mes futuro tecleado a
+  mano → inválido en el formulario, sin RPC; E07 con `is distinct from` (un NULL ya no pasa) y E07f:
+  la empresa sellada = `total` de `conversion_mensual_sin_cartera_fn` bajo gerencia. Riesgo que deja
+  abierto y se acepta: una foto con `conversion_sin_analista` sin `divisor` la rechazaría el esquema
+  del front (el sello siempre escribe divisor y numerador).
+- auditor-rls r1 CHANGES_REQUESTED sin P0/P1 → r2 PASS: P2 alcance del OK → constancia literal aquí y
+  en el comment; P2 salto de capa → la lectura de `periodos_cerrados` pasa al núcleo de totales; P3
+  DEFINER justificado, casos RLS extra, postflight ejecuta la puerta y comprueba `public`; r2 P3
+  `fuera_ranking` que no sea array → `[]`; P3 doble evaluación del núcleo por llamada → anotada
+  (2,3 ms en el banco; una consulta por cambio de mes).
+- revisor-a11y r1 CHANGES_REQUESTED → r2 PASS: «—» con motivo hablado, `role=status` persistente +
+  `role=group`, mes inválido como estado del formulario, foco al reintentar; r2 P3: el cambio de mes
+  no arrastra el error ni el foco pendiente, el mes inválido se anuncia, destino del foco con
+  `role=region` y carga con nombre de mes.
+
+Reversa: `drop function crm.conversion_divisor_coordinacion_fn(date); drop function
+private.conversion_divisor_empresa_totales(date); drop function private.conversion_divisor_empresa(date);`
++ borrar la versión del registro.
 ## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta

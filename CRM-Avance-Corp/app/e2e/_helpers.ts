@@ -1785,6 +1785,8 @@ export interface BackendReal {
   supervisoresReparto: Record<string, unknown>[]
   /** Entregas históricas ya agregadas por día, responsable y origen. */
   entregasCoordinacion: EntregaCoordinacionReal[]
+  /** Payload literal de crm.conversion_divisor_coordinacion_fn (el período lo eco-a el handler). */
+  conversionCoordinacion: Record<string, unknown> | null
   /** Agenda de turnos y conteos que devuelve crm.agenda_reparto_diaria(). */
   agendaReparto: Record<string, unknown> | null
   /**
@@ -1953,6 +1955,7 @@ export async function montarBackendReal(
     descartados: init.descartados ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
     entregasCoordinacion: init.entregasCoordinacion ?? [],
+    conversionCoordinacion: init.conversionCoordinacion ?? null,
     agendaReparto: init.agendaReparto ?? null,
     fallarProximoReparto: init.fallarProximoReparto ?? null,
     fallarProximoDescarte: init.fallarProximoDescarte ?? null,
@@ -2710,6 +2713,15 @@ export async function montarBackendReal(
         String(body.p_desde ?? ''),
         String(body.p_hasta ?? ''),
       ))
+    }
+    if (p === '/rest/v1/rpc/conversion_divisor_coordinacion_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      const periodo = String(body.p_periodo ?? '')
+      if (!estado.conversionCoordinacion) return json(route, { code: '42501', message: 'No autorizado' }, 403)
+      return json(route, {
+        ...estado.conversionCoordinacion,
+        periodo: { ...(estado.conversionCoordinacion.periodo as Record<string, unknown>), mes: periodo.slice(0, 7), desde: periodo },
+      })
     }
     if (p === '/rest/v1/rpc/panel_distribucion_reparto') {
       return json(route, {
