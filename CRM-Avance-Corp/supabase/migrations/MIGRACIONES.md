@@ -1,6 +1,6 @@
 ## 20260930193325 — Documento tipado del lead y conversión coherente
 
-**VALIDADA EN LOCAL Y SUPABASE REMOTO; PUBLICACIÓN AUTORIZADA EN CURSO.**
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN EL 30/09/2026 MEDIANTE merge_branch.**
 Alta y edición con DNI/CE/PASAPORTE sin recortar números ni eliminar letras.
 `crm.leads.dni` conserva su contrato exclusivo de DNI; CE/pasaporte se guardan
 en la identidad canónica existente. Cuatro RPC: `crear_lead_documento_fn`,
@@ -22,7 +22,11 @@ Reversa y reaplicación PASS. Revisión inicial atendida; intento final sin VERD
 válido, no contado como aprobación independiente.
 Tipos de las cuatro RPC generados desde postgres-meta local; se conservan los otros
 cambios del árbol. Evidencia y límites en `supabase/scripts/lead-documentos/README.md`.
-Rama remota, matriz HTTP RLS completa y advisors pendientes antes de publicar.
+Cierre: SQL remoto 52, HTTP real 12, RLS contractual 287 e identidad D5 30 PASS.
+Check final 5100 tests PASS; Docker 298 passed / 26 skipped / 0 failed.
+Catálogo posterior idéntico al banco probado; Edge y Storage conservados; advisors
+sin avisos nuevos. Banco temporal eliminado. Frontend publicado y verificado.
+Acta final: `docs/publicaciones/documentos-lead-2026-09-30.md`.
 Reversa: retirar el frontend nuevo y eliminar estas cuatro RPC y el helper;
 las identidades ya guardadas siguen siendo válidas para el sistema existente.
 
