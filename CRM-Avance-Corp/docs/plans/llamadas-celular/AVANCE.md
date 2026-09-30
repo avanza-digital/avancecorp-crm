@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 04:21 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 04:41 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 21:21 UTC: mientras Miguel revisa el PR #148, arranca F2 como ANÁLISIS (sin SQL): F2-PLAN-CORTO.md con el contrato (7 decisiones para Miguel), el diseño de datos, núcleo, puertas, RLS, verificación y orden de PRs, apoyado en el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, el molde de migración+gate RLS y las Edge Functions para afinarlo.
+**Lo último:** 30/09 21:41 UTC: los tres mapas de solo lectura (actividades/Deshacer, molde de migración + gate RLS, Edge Functions/ingesta) quedaron integrados en F2-PLAN-CORTO.md: el enlace va por el actividad_id que devuelve v4 (nunca lead + hora), «autor compatible» es ámbito sobre el lead, Deshacer no desenlaza (efectos deshechos se derivan de deshecho_en), F2 es aditiva (no toca actividades ni funciones selladas), credencial por celular con hash, idempotencia origen + hash con P0409, RLS sin policies, auditoría sin teléfonos, purga con cron, reversa que conserva los hechos y el contrato de ingesta que F3 heredará. F2 sigue como análisis hasta las 7 decisiones de Miguel; PR #148 a la espera.
 
 **Total:** 13 de 102 tareas · 1 de 8 fases hechas.
 
@@ -54,8 +54,8 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.4.3 — PASS: lint, typecheck, suite completa (4998 tests), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup; a11y del receptor revisada en línea; E2E en Docker (imagen playwright v1.61.1, 2 workers): 285 passed, 26 skipped, 1 flaky ajeno (gestion-diaria-pulso, foco de Gerencia; pasó al reintentar), 0 failed, 12,5 min. Guía macrodroid.md con la URL y la reversa. Nota: scripts/e2e-docker.sh no arranca en Windows (rutas de Git Bash al Node de Windows); se corrió el mismo docker run a mano. Revisión Codex: no (LEVEL 2, 0–1 permitido). (30/09/2026, 03:37 p. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · en curso
-- **F2.1 · Cerrar el contrato** — 0/3 · en curso · Responsable: Claude (borrador) · Miguel (decide) · Borrador del contrato en F2-PLAN-CORTO.md: 7 decisiones para Miguel (elegibilidad, entrantes, descarte motivado, Deshacer, hora y atribución, retención, lead reasignado). Sin SQL hasta su OK.
-- **F2.2 · Diseñar datos e identidad** — 0/4 · en curso · Responsable: Claude (borrador) · Miguel (aprueba) · Diseño de datos propuesto en F2-PLAN-CORTO.md (asignaciones de celulares, eventos con origen+hash inmutables, enlace 1:1 a actividades, retención por singleton), justificado con el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, molde RLS y Edge Functions para afinarlo.
+- **F2.1 · Cerrar el contrato** — 0/3 · en curso · Responsable: Claude (borrador) · Miguel (decide) · Borrador del contrato en F2-PLAN-CORTO.md: 7 decisiones para Miguel (elegibilidad, entrantes, descarte motivado, Deshacer, hora y atribución, retención, lead reasignado). La #4 ya casa con lo que Deshacer hace hoy (no borra ni desenlaza; 24 h, solo el autor). Sin SQL hasta su OK.
+- **F2.2 · Diseñar datos e identidad** — 0/4 · en curso · Responsable: Claude (borrador) · Miguel (aprueba) · Diseño de datos afinado con los tres mapas de solo lectura (30/09): tablas llamadas_celular_* (asignaciones con credencial en hash, eventos con origen + hash inmutables, enlace 1:1, política de retención); el enlace va por el actividad_id que devuelve v4, «autor compatible» = ámbito sobre el lead, efectos deshechos derivados de deshecho_en; F2 aditiva (no toca actividades ni funciones selladas); RLS sin policies con puertas DEFINER; auditoría con log_audit_sin_secretos; purga con cron; molde 20260927012948; reversa que conserva los hechos. Espera el OK de Miguel.
 - **F2.3 · Aplicar ámbito y permisos** — 0/3 · pendiente · Responsable: por asignar
 - **F2.4 · Verificar el núcleo** — 0/3 · pendiente · Responsable: por asignar
 
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
 - 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
 - 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
 - 30/09/2026, 03:37 p. m. · F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar.
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 11:18 a. m. · F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1.
 - 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
 - 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
-- 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
