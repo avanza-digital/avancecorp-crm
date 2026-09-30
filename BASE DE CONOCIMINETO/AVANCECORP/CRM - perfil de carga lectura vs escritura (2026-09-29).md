@@ -146,6 +146,21 @@ Queda de la agenda: ~0,2 s en dos llamadas a `postventa_estado_fn` (antes y desp
 🔑 Trampa: la huella `md5(pg_get_functiondef)` incluye el salto de línea final que Postgres añade; calcularla en la
 base (ensayo deshecho), no en local.
 
+## Paso 4 · Fase 1 — ✅ EN PROD 29/09 ~20:05 Lima (Miguel aplicó con `!`)
+
+El contador de avisos SLA (`crm.avisos_sla_resumen_v2_fn`) pedía al núcleo las 2.583 oportunidades activas y solo
+contaba; 1.139 son terminales (descartadas/convertidas) y nunca avisan. Migración
+`20260930002929_crm_sla_resumen_solo_operativos`: nuevo `private.sla_leads_operativos()` (ids activos en las 4
+etapas comerciales; INVOKER, solo postgres) y el adaptador pasa esos ids al núcleo; el núcleo no cambia; la
+migración y la reversa terminan con `assert_sla_avisos()`. Oráculo 15/15 idéntico (5 actores); Codex ×2 (r1
+CHANGES_REQUESTED → r2 PASS); auditor-rls APPROVE. **Resultado: gerencia 1.735–1.792 → 1.256–1.289 ms (−27 %),
+supervisor ~813 → ~620; meta de ≤ 1.200 NO alcanzada del todo** (la cartera operativa creció a 1.513 y hay
+carga concurrente). Lo que queda son el bucle plpgsql del núcleo (~0,4 ms/oportunidad) y el armado del paquete:
+Fase 2 (núcleo: tareas pre-agregadas, no recalcular `sla_hechos_actuales` en `sla_tareas_hechos`) y Fase 3 (a
+decidir). Diferido: las dos puertas de Gestión Diaria que piden `(null,true)` (selladas por md5 en sus gates) y un
+trinquete vivo del ayudante (auditor P2-2). PR #141 (apilada sobre #140).
+🔑 Trampa: `$function$$def$` juntos forman `$$` y cierran un bloque `DO $$`: usar etiquetas distintas al anidar.
+
 ## Plan técnico original del paso 2 (superado por la medición de arriba; se conserva como historia)
 
 - **Fase 1 (servidor, LEVEL 3):** `private.cartera_f5_personas_visibles(uuid)` y `private.cartera_f5_listar`:

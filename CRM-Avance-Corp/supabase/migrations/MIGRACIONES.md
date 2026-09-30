@@ -1,7 +1,12 @@
 ## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 4 · fase 1 del refactor por módulos, aprobado por Miguel
-el 29/09 («DALE»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+**✅ EN PROD 29/09/2026 ~20:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930002929 /
+crm_sla_resumen_solo_operativos`, 2 sentencias) → `verificar.sql`: huella `e9ce617a…` OK, guardián OK, 1.513
+operativos (la cartera creció desde los 1.444 del ensayo), resumen de gerencia **1.289 ms** y en tres repeticiones
+1.281 / 1.651 / 1.256 ms (antes 1.735–1.792): **−27 %, por encima de la meta de 1.200 ms** — la meta se fijó con
+1.444 operativos y sin carga concurrente; queda registrada como no alcanzada del todo en esta fase. Advisors: 242,
+sin clases nuevas (el único aviso que cita el adaptador es el preexistente de DEFINER ejecutable por
+`authenticated`).** Paso 4 · fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («DALE»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
 escritura (2026-09-29)».
 
 Problema medido (29/09, producción): el contador de avisos (`avisos_sla_resumen_v2_fn`) tarda 1.735–1.792 ms como
