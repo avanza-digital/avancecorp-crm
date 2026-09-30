@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-09-30T16:05:46Z",
+  "actualizado": "2026-09-30T16:18:44Z",
   "meta": {
-    "novedad": "30/09 16:05 UTC: el receptor del enlace está hecho (e08288ee): lee el número, busca bajo RLS y abre la misma encuesta de «Llamar»; ambiguo, sin coincidencia y error tienen su aviso con búsqueda manual. F1.3 cerrada. Ahora F1.4: checks, guía y la prueba real en C1 (necesita una build publicada en un entorno de prueba).",
-    "actualizado": "2026-09-30T16:05:46Z"
+    "novedad": "30/09 16:18 UTC: F1 con todo el código hecho y verificado en unidad (8 commits en feat/llamadas-f0): lint, typecheck, 4988 tests, cobertura 81,8 %, build y bundle en verde; un archivo ajeno (cliente-form) falla por timeout solo bajo carga. Falta la prueba real en C1 (F1.4.1/F1.4.2): hace falta una build de la rama alcanzable desde el celular sin tocar producción.",
+    "actualizado": "2026-09-30T16:18:44Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -12,7 +12,7 @@
     "F1.1": { "estado": "curso", "responsable": "Claude (código) · Jhosep (prueba en C1)", "nota": "F1.1.1 y F1.1.2 hechas. F1.1.3 probada con tests salvo «otra pestaña», que se comprueba a mano en F1.4.1.", "actualizado": "2026-09-30T16:05:46Z" },
     "F1.2": { "estado": "curso", "responsable": "Claude", "nota": "F1.2.1 y F1.2.3 hechas. F1.2.2 con código y tests; se cierra con la prueba del login en C1 (F1.4.2).", "actualizado": "2026-09-30T16:05:46Z" },
     "F1.3": { "estado": "hecha", "responsable": "Claude", "evidencia": "30/09/2026: commits cd4d31b0 y e08288ee; 24 tests de coincidencia (casos sintéticos A, B, C, E, F, D3), 9 de la capa de datos y 13 del receptor, todos en verde.", "nota": "Cerrada. Pendiente de la prueba real en C1 (F1.4.2) para ver la coincidencia con números de verdad.", "actualizado": "2026-09-30T16:05:46Z" },
-    "F1.4": { "estado": "curso", "responsable": "Claude (checks, guía) · Jhosep (C1)", "nota": "Arranca: npm run check corriendo; guía de MacroDroid con la URL con número; luego la prueba real en C1.", "actualizado": "2026-09-30T16:05:46Z" },
+    "F1.4": { "estado": "curso", "responsable": "Claude (checks, guía) · Jhosep (C1)", "nota": "F1.4.3 casi completa (checks y guía hechos; E2E Docker NOT RUN). F1.4.1 y F1.4.2 esperan una build alcanzable desde C1: no hay .env en este clon y producción no se toca.", "actualizado": "2026-09-30T16:18:44Z" },
     "F0.1": { "estado": "curso", "responsable": "Jhosep", "nota": "C1 (Samsung A16, Android 16) registrado y con PWA + MacroDroid; falta la macro, la prueba de humo y 1–2 celulares más.", "actualizado": "2026-09-29T23:16:49Z" },
     "F0.3": { "estado": "curso", "responsable": "Jhosep", "nota": "C1: prueba de humo superada; noche 1/3 sin caerse. Prioridad: salientes (lo que el vendedor hace). Pendiente: 6 salientes más, casos especiales, bloqueo/batería/reinicio/sin red y dos noches; entrantes solo si ocurren.", "actualizado": "2026-09-30T14:53:03Z" },
     "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" }
@@ -36,7 +36,7 @@
     "F1.3.2": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests." },
     "F1.3.3": { "done": true, "at": "2026-09-30T16:05:46Z", "nota": "Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests." },
     "F1.4.2": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular." },
-    "F1.4.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:05:46Z", "nota": "npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa." }
+    "F1.4.3": { "done": false, "estado": "curso", "at": "2026-09-30T16:18:44Z", "nota": "Checks corridos el 30/09 (fb463967): lint y typecheck en verde; suite 4988 tests, todos en verde salvo cliente-form.test.tsx (y una vez lead-drawer-convertir) que fallan por timeout SOLO bajo la carga de la suite completa en esta máquina y pasan solos (28/28, 33/33), sin tocar nada de F1; cobertura líneas 81,8 % / ramas 75,8 % (umbral 30/26); release-config, push-tasa, build, verify:bundle y dup en verde. Revisión a11y en línea: blancos táctiles 44 px, role=status, label del buscador. Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec pertinente todavía) y cerrar con la prueba real." }
   },
   "cambios": [
     { "at": "2026-09-29T22:20:53Z", "texto": "Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente." },
@@ -53,6 +53,7 @@
     { "at": "2026-09-30T15:41:16Z", "texto": "F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1)." },
     { "at": "2026-09-30T15:50:05Z", "texto": "F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso." },
     { "at": "2026-09-30T15:56:58Z", "texto": "F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3." },
-    { "at": "2026-09-30T16:05:46Z", "texto": "F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1)." }
+    { "at": "2026-09-30T16:05:46Z", "texto": "F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1)." },
+    { "at": "2026-09-30T16:18:44Z", "texto": "F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1." }
   ]
 }

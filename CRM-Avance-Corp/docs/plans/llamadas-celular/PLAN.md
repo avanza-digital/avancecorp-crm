@@ -233,7 +233,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 - [ ] **F1.4.1** Probar roles, tarea propia, otra cuenta, formulario en edición, dos pestañas y limpieza del hash.
 - [ ] **F1.4.2** Validar retorno real en Android y alternativa de notificación local sin push del backend. — EN CURSO: Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular.
-- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa.
+- [ ] **F1.4.3** Ejecutar checks frontend, accesibilidad y E2E local pertinentes; documentar guía y reversa. — EN CURSO: Checks corridos el 30/09 (fb463967): lint y typecheck en verde; suite 4988 tests, todos en verde salvo cliente-form.test.tsx (y una vez lead-drawer-convertir) que fallan por timeout SOLO bajo la carga de la suite completa en esta máquina y pasan solos (28/28, 33/33), sin tocar nada de F1; cobertura líneas 81,8 % / ramas 75,8 % (umbral 30/26); release-config, push-tasa, build, verify:bundle y dup en verde. Revisión a11y en línea: blancos táctiles 44 px, role=status, label del buscador. Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec pertinente todavía) y cerrar con la prueba real.
 
 **Evidencia / fecha de validación:** pendiente.
 

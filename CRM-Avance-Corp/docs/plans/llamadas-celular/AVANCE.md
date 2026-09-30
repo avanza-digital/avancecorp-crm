@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 11:05 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 11:18 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 16:05 UTC: el receptor del enlace está hecho (e08288ee): lee el número, busca bajo RLS y abre la misma encuesta de «Llamar»; ambiguo, sin coincidencia y error tienen su aviso con búsqueda manual. F1.3 cerrada. Ahora F1.4: checks, guía y la prueba real en C1 (necesita una build publicada en un entorno de prueba).
+**Lo último:** 30/09 16:18 UTC: F1 con todo el código hecho y verificado en unidad (8 commits en feat/llamadas-f0): lint, typecheck, 4988 tests, cobertura 81,8 %, build y bundle en verde; un archivo ajeno (cliente-form) falla por timeout solo bajo carga. Falta la prueba real en C1 (F1.4.1/F1.4.2): hace falta una build de la rama alcanzable desde el celular sin tocar producción.
 
 **Total:** 8 de 102 tareas · 0 de 8 fases hechas.
 
@@ -48,9 +48,9 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.3.1 — lib/coincidencia-telefono.ts (commit cd4d31b0): E.164 completo de principal y alternativo con las dos formas canónicas de la base (regla del trigger + canonizar_contacto) y el fijo con 0; nunca se recortan 9 dígitos. 24 tests con los casos sintéticos A, B, C, E, F y D3. (30/09/2026, 10:56 a. m.)
     - ✓ F1.3.2 — data/coincidencia-llamada.ts (e08288ee): dígitos nacionales a cartera_pagina_fn con página de 50 (llena → incompleto), leads distintos, error operativo aparte, demo local. 9 tests. (30/09/2026, 11:05 a. m.)
     - ✓ F1.3.3 — Aviso del receptor (e08288ee): único abre la encuesta; ambiguo/incompleto listan candidatos; sin coincidencia e inválido traen búsqueda manual dentro del aviso; error con reintento; reciclado/cliente se avisa. 13 tests. (30/09/2026, 11:05 a. m.)
-- **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · Arranca: npm run check corriendo; guía de MacroDroid con la URL con número; luego la prueba real en C1.
+- **F1.4 · Validar la experiencia** — 0/3 · en curso · Responsable: Claude (checks, guía) · Jhosep (C1) · F1.4.3 casi completa (checks y guía hechos; E2E Docker NOT RUN). F1.4.1 y F1.4.2 esperan una build alcanzable desde C1: no hay .env en este clon y producción no se toca.
     - ◐ F1.4.2 — Jhosep en C1: macro con la URL https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} (Abrir enlaces compatibles o Send Intent). Antes hay que publicar la build de la rama en un entorno alcanzable desde el celular. (30/09/2026, 11:05 a. m.)
-    - ◐ F1.4.3 — npm run check en curso; revisión a11y del receptor en línea; guía macrodroid.md con la URL nueva y la reversa. (30/09/2026, 11:05 a. m.)
+    - ◐ F1.4.3 — Checks corridos el 30/09 (fb463967): lint y typecheck en verde; suite 4988 tests, todos en verde salvo cliente-form.test.tsx (y una vez lead-drawer-convertir) que fallan por timeout SOLO bajo la carga de la suite completa en esta máquina y pasan solos (28/28, 33/33), sin tocar nada de F1; cobertura líneas 81,8 % / ramas 75,8 % (umbral 30/26); release-config, push-tasa, build, verify:bundle y dup en verde. Revisión a11y en línea: blancos táctiles 44 px, role=status, label del buscador. Guía macrodroid.md con la URL nueva y la reversa. Falta: E2E Docker (NOT RUN: sin spec pertinente todavía) y cerrar con la prueba real. (30/09/2026, 11:18 a. m.)
 
 ### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
 - **F2.1 · Cerrar el contrato** — 0/3 · pendiente · Responsable: por asignar
@@ -91,6 +91,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 11:18 a. m. · F1.4.3: gate del app corrido (lint, typecheck, cobertura 81,8 %, build, bundle, dup en verde; flaky ajeno documentado); a11y del receptor revisada (fb463967). Pendiente: prueba real en C1.
 - 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
 - 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
 - 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
@@ -105,4 +106,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 29/09/2026, 06:16 p. m. · F0.1: C1 (Samsung Galaxy A16, Android 16, Chrome) registrado en REGISTRO.md y compatibilidad.md; PWA y MacroDroid instalados; Jhosep como analista piloto y soporte. Sigue la macro y la prueba de humo.
 - 29/09/2026, 05:45 p. m. · F0.4.2 hecha: ejemplos sintéticos de teléfonos (23 casos) verificados contra las reglas de canonización de la base. F0.1.3 y F0.4.1 en curso; el resto de F0 espera celulares y personas.
 - 29/09/2026, 05:42 p. m. · F0 en curso: carpeta versionada docs/plans/llamadas-celular/ (PLAN.md aprobado, AVANCE.md, estado.json) y materiales del piloto en docs/gestion-diaria/piloto-telefonia/ (guía MacroDroid, REGISTRO, compatibilidad, ejemplos sintéticos).
-- 29/09/2026, 05:20 p. m. · Tablero publicado con los textos de la Versión 3 aprobada: 8 fases, 33 subfases, 102 tareas. Todo pendiente.
