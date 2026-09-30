@@ -21,11 +21,6 @@ vi.mock('@/data/crm-api', async (importActual) => {
   return { ...actual, crearContrato: vi.fn(), completarDomicilioCliente: vi.fn() }
 })
 
-// Formularios enteros tecleados con user-event: solos pasan, pero dentro de la
-// suite completa algún test superaba los 5 s por defecto y el pre-push rechazaba
-// el push (30/09/2026, taller Windows). Más tiempo, mismas comprobaciones.
-vi.setConfig({ testTimeout: 15_000 })
-
 const archivoPdf = vi.hoisted(() => ({
   archivar: vi.fn(),
   archivarDemo: vi.fn(),
