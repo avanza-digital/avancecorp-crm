@@ -21,6 +21,8 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 | `estado.json` | El estado en datos (tareas hechas, en curso o bloqueadas, subfases, fases, novedad, cambios). Es el espejo del tablero vivo | Claude, en cada avance real |
 | `actualizar-avance.mjs` | Regenera `PLAN.md` y `AVANCE.md` desde `estado.json` (`node actualizar-avance.mjs`) | — |
 | `PROPUESTAS-DE-AJUSTE.md` | Ajustes que Claude propone al plan, con evidencia. **No cambian el plan** hasta que Miguel los apruebe | Claude |
+| `F2-PLAN-CORTO.md` | Borrador del contrato y del diseño de F2 (tablas, núcleo, RLS, verificación, orden de PRs) apoyado en el catálogo real. Sin SQL hasta el OK de Miguel; incluye las 7 decisiones que él debe fijar | Claude |
+| `HANDOFF-<fecha>.md` | Cierre de cada sesión: qué se hizo, cómo probarlo, qué falta y el prompt para retomar | Claude |
 
 ## Dónde verlo en vivo
 

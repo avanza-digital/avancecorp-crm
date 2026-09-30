@@ -130,7 +130,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F2 · Núcleo confiable | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
@@ -273,11 +273,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 0/13 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F2:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (borrador) · Miguel (decide).
 
 - [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado.
 - [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer.
@@ -287,7 +287,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F2.2 · Diseñar datos e identidad
 
-**Estado:** pendiente · **Avance:** 0/4 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (borrador) · Miguel (aprueba).
 
 - [ ] **F2.2.1** Modelar asignaciones inmutables de equipo y eventos con ID de origen estable y payload inmutable.
 - [ ] **F2.2.2** Definir tablas, índices y FK mínimos; conservar actor histórico y número crudo solo si se justifica.

@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 30/09/2026, 04:08 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 30/09/2026, 04:21 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 30/09 21:08 UTC: F1 lista para publicar, a la espera del OK de Miguel: pull request #148 (feat/llamadas-f0 → main) con resumen, evidencia, riesgos y los pasos del release con preflight. La rama ya incluye los 6 commits nuevos de main (5093 tests en verde). Producción sin cambios; la macro del piloto sigue sin número hasta publicar. F0 continúa con sus mediciones.
+**Lo último:** 30/09 21:21 UTC: mientras Miguel revisa el PR #148, arranca F2 como ANÁLISIS (sin SQL): F2-PLAN-CORTO.md con el contrato (7 decisiones para Miguel), el diseño de datos, núcleo, puertas, RLS, verificación y orden de PRs, apoyado en el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, el molde de migración+gate RLS y las Edge Functions para afinarlo.
 
 **Total:** 13 de 102 tareas · 1 de 8 fases hechas.
 
@@ -12,7 +12,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
-| F2 · Núcleo confiable y contrato de datos | 0/13 | Pendiente | 0/4 |
+| F2 · Núcleo confiable y contrato de datos | 0/13 | En curso | 0/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
@@ -53,9 +53,9 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.4.2 — Retorno real en Android validado en C1 el 30/09 con la build de la rama servida desde el PC: (1) macro de MacroDroid con {call_number} → Chrome → CRM demo → aviso con el número marcado; (2) URL con número → login → encuesta de la persona de «Ahora»; (3) build real con la cuenta de Jhosep → encuesta de un lead propio (ficha + diálogo), cerrada sin registrar; (4) con el ajuste de Android la URL abre la app instalada. La alternativa de notificación local NO APLICA: la URL sí abre la PWA (plan §6, «Dos decisiones separadas»). Hallazgo corregido por el camino: la demo buscaba antes de cargar (3065b84e). Registro en REGISTRO.md §5b. (30/09/2026, 02:25 p. m.)
     - ✓ F1.4.3 — PASS: lint, typecheck, suite completa (4998 tests), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup; a11y del receptor revisada en línea; E2E en Docker (imagen playwright v1.61.1, 2 workers): 285 passed, 26 skipped, 1 flaky ajeno (gestion-diaria-pulso, foco de Gerencia; pasó al reintentar), 0 failed, 12,5 min. Guía macrodroid.md con la URL y la reversa. Nota: scripts/e2e-docker.sh no arranca en Windows (rutas de Git Bash al Node de Windows); se corrió el mismo docker run a mano. Revisión Codex: no (LEVEL 2, 0–1 permitido). (30/09/2026, 03:37 p. m.)
 
-### F2 · Núcleo confiable y contrato de datos — 0/13 · pendiente
-- **F2.1 · Cerrar el contrato** — 0/3 · pendiente · Responsable: por asignar
-- **F2.2 · Diseñar datos e identidad** — 0/4 · pendiente · Responsable: por asignar
+### F2 · Núcleo confiable y contrato de datos — 0/13 · en curso
+- **F2.1 · Cerrar el contrato** — 0/3 · en curso · Responsable: Claude (borrador) · Miguel (decide) · Borrador del contrato en F2-PLAN-CORTO.md: 7 decisiones para Miguel (elegibilidad, entrantes, descarte motivado, Deshacer, hora y atribución, retención, lead reasignado). Sin SQL hasta su OK.
+- **F2.2 · Diseñar datos e identidad** — 0/4 · en curso · Responsable: Claude (borrador) · Miguel (aprueba) · Diseño de datos propuesto en F2-PLAN-CORTO.md (asignaciones de celulares, eventos con origen+hash inmutables, enlace 1:1 a actividades, retención por singleton), justificado con el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, molde RLS y Edge Functions para afinarlo.
 - **F2.3 · Aplicar ámbito y permisos** — 0/3 · pendiente · Responsable: por asignar
 - **F2.4 · Verificar el núcleo** — 0/3 · pendiente · Responsable: por asignar
 
@@ -92,6 +92,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
 - 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
 - 30/09/2026, 03:37 p. m. · F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar.
 - 30/09/2026, 03:20 p. m. · F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e).
@@ -106,4 +107,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 11:05 a. m. · F1.1.2, F1.2.3, F1.3.2 y F1.3.3 hechas (e08288ee): receptor del enlace + capa de datos; F1.3 cerrada. F1.4 en curso (checks, guía, prueba en C1).
 - 30/09/2026, 10:56 a. m. · F1.3.1 hecha (cd4d31b0): coincidencia exacta, 24 tests con los casos sintéticos. F1.3.2 y F1.3.3 en curso junto con el receptor F1.2.3.
 - 30/09/2026, 10:50 a. m. · F1.2.1 hecha y F1.2.2 con código (69b4bdf2): ruta por número y su propagación en App. F1.2.3 y F1.3.1 en curso.
-- 30/09/2026, 10:41 a. m. · F1.1.2 integrada en AccionesContacto y auth.tsx (6ca9944f, 18 tests); queda abierta hasta el receptor. F1.2 en curso: ruta por número (F1.2.1).

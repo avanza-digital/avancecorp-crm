@@ -1,11 +1,12 @@
 {
-  "actualizado": "2026-09-30T21:08:21Z",
+  "actualizado": "2026-09-30T21:21:25Z",
   "meta": {
-    "novedad": "30/09 21:08 UTC: F1 lista para publicar, a la espera del OK de Miguel: pull request #148 (feat/llamadas-f0 → main) con resumen, evidencia, riesgos y los pasos del release con preflight. La rama ya incluye los 6 commits nuevos de main (5093 tests en verde). Producción sin cambios; la macro del piloto sigue sin número hasta publicar. F0 continúa con sus mediciones.",
-    "actualizado": "2026-09-30T21:08:21Z"
+    "novedad": "30/09 21:21 UTC: mientras Miguel revisa el PR #148, arranca F2 como ANÁLISIS (sin SQL): F2-PLAN-CORTO.md con el contrato (7 decisiones para Miguel), el diseño de datos, núcleo, puertas, RLS, verificación y orden de PRs, apoyado en el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, el molde de migración+gate RLS y las Edge Functions para afinarlo.",
+    "actualizado": "2026-09-30T21:21:25Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
+    "F2": { "estado": "curso", "actualizado": "2026-09-30T21:21:25Z" },
     "F1": { "estado": "hecha", "evidencia": "30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida (ambos órdenes una sola vez, edición no se pierde, fijo/internacional, incompleto nunca autoselecciona, RLS, tarea propia). Sin tablas ni puertas nuevas. NO publicada: producción intacta hasta el release con preflight (decisión de Miguel).", "actualizado": "2026-09-30T20:37:28Z" }
   },
   "subfases": {
@@ -13,6 +14,8 @@
     "F1.2": { "estado": "hecha", "responsable": "Claude", "evidencia": "30/09/2026: commits 69b4bdf2 y e08288ee; router 29 tests, App 10, receptor 15; en C1 la URL con número sobrevivió al login.", "nota": "Cerrada: ruta, propagación en App y receptor en Hoy y Gestión Diaria.", "actualizado": "2026-09-30T18:05:09Z" },
     "F1.3": { "estado": "hecha", "responsable": "Claude", "evidencia": "30/09/2026: commits cd4d31b0 y e08288ee; 24 tests de coincidencia (casos sintéticos A, B, C, E, F, D3), 9 de la capa de datos y 13 del receptor, todos en verde.", "nota": "Cerrada. Pendiente de la prueba real en C1 (F1.4.2) para ver la coincidencia con números de verdad.", "actualizado": "2026-09-30T16:05:46Z" },
     "F1.4": { "estado": "hecha", "responsable": "Claude (checks, guía) · Jhosep (C1)", "evidencia": "30/09/2026: navegador del PC contra la demo (4 caminos, roles, otra cuenta, cola, dos pestañas); C1 con la build de la rama (macro real, login, build real sin guardar); gate del app en verde; E2E Docker 285 passed / 1 flaky ajeno / 0 failed.", "nota": "Cerrada.", "actualizado": "2026-09-30T20:37:28Z" },
+    "F2.1": { "estado": "curso", "responsable": "Claude (borrador) · Miguel (decide)", "nota": "Borrador del contrato en F2-PLAN-CORTO.md: 7 decisiones para Miguel (elegibilidad, entrantes, descarte motivado, Deshacer, hora y atribución, retención, lead reasignado). Sin SQL hasta su OK.", "actualizado": "2026-09-30T21:21:25Z" },
+    "F2.2": { "estado": "curso", "responsable": "Claude (borrador) · Miguel (aprueba)", "nota": "Diseño de datos propuesto en F2-PLAN-CORTO.md (asignaciones de celulares, eventos con origen+hash inmutables, enlace 1:1 a actividades, retención por singleton), justificado con el catálogo real. Tres agentes de solo lectura mapean actividades/Deshacer, molde RLS y Edge Functions para afinarlo.", "actualizado": "2026-09-30T21:21:25Z" },
     "F0.1": { "estado": "curso", "responsable": "Jhosep", "nota": "C1 (Samsung A16, Android 16) registrado y con PWA + MacroDroid; falta la macro, la prueba de humo y 1–2 celulares más.", "actualizado": "2026-09-29T23:16:49Z" },
     "F0.3": { "estado": "curso", "responsable": "Jhosep", "nota": "C1: prueba de humo superada; noche 1/3 sin caerse; 30/09: la URL abre la PWA con el ajuste de Android (PASS vía 1). Prioridad: salientes. Pendiente: 6 salientes más, casos especiales, bloqueo/batería/reinicio/sin red y dos noches; entrantes solo si ocurren.", "actualizado": "2026-09-30T17:21:00Z" },
     "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" }
@@ -65,6 +68,7 @@
     { "at": "2026-09-30T19:25:27Z", "texto": "F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel)." },
     { "at": "2026-09-30T20:20:40Z", "texto": "F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e)." },
     { "at": "2026-09-30T20:37:28Z", "texto": "F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar." },
-    { "at": "2026-09-30T21:08:21Z", "texto": "Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado." }
+    { "at": "2026-09-30T21:08:21Z", "texto": "Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado." },
+    { "at": "2026-09-30T21:21:25Z", "texto": "F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL." }
   ]
 }
