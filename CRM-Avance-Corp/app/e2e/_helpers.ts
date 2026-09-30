@@ -2725,11 +2725,13 @@ export async function montarBackendReal(
       const esMes = desde.endsWith('-01') && hasta === finDeMes
       const dias = Math.round((Date.parse(`${hasta}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1
       const base = estado.conversionCoordinacion.periodo as Record<string, unknown>
+      const fuente = estado.conversionCoordinacion.fuente as Record<string, unknown>
       return json(route, {
         ...estado.conversionCoordinacion,
+        fuente: { ...fuente, modo: esMes ? 'mensual' : 'rango_vivo' },
         periodo: esMes
-          ? { ...base, modo: 'mes', mes: desde.slice(0, 7), desde, hasta, dias }
-          : { ...base, modo: 'rango', mes: null, mes_nombre: null, anio: null, desde, hasta, dias },
+          ? { ...base, modo: 'mes', mes: desde.slice(0, 7), desde, hasta, dias, cruza_meses_sellados: false }
+          : { ...base, modo: 'rango', mes: null, mes_nombre: null, anio: null, desde, hasta, dias, cruza_meses_sellados: false },
       })
     }
     if (p === '/rest/v1/rpc/panel_distribucion_reparto') {

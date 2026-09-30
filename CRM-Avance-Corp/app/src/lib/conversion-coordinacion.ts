@@ -25,6 +25,8 @@ const CierresSchema = v.object({
   referido_aporte: NumeroRpcSchema,
   /** Oficina (walking) no pesa en el numerador; se enseña para no ocultarla. */
   oficina: EnteroNoNegativoRpcSchema,
+  /** Otros orígenes admitidos (web, campaña, whatsapp…): tampoco pesan; se cuentan para no esconderlos. */
+  otros: EnteroNoNegativoRpcSchema,
 })
 
 const CarteraSchema = v.object({
@@ -84,6 +86,8 @@ export const ConversionCoordinacionSchema = v.object({
     /** Inclusivo: el último día del mes o la fecha final del rango. */
     hasta: FechaSchema,
     dias: v.pipe(NumeroRpcSchema, v.integer(), v.minValue(1)),
+    /** Solo en rango: el tramo toca meses ya sellados y se calculó en vivo (puede diferir de la foto). */
+    cruza_meses_sellados: v.boolean(),
   }),
   sellado: v.boolean(),
   peso_referido: NumeroRpcSchema,
@@ -92,6 +96,8 @@ export const ConversionCoordinacionSchema = v.object({
     divisor: TextoNoVacioSchema,
     origen: TextoNoVacioSchema,
     regla: TextoNoVacioSchema,
+    /** 'foto' (mes sellado), 'mensual' (mes abierto, pieza de Metas) o 'rango_vivo' (tramo libre). */
+    modo: v.picklist(['foto', 'mensual', 'rango_vivo']),
   }),
   empresa: EmpresaConversionCoordinacionSchema,
   /** Llegadas sin analista atribuible: cuentan en la empresa, sin responsable inventado. */
@@ -159,10 +165,24 @@ export function motivoConsultaInvalida(consulta: ConsultaConversion, hoy: string
   const desdeOk = v.safeParse(FechaSchema, consulta.desde).success
   const hastaOk = v.safeParse(FechaSchema, consulta.hasta).success
   if (!desdeOk || !hastaOk) return 'Elige las dos fechas del rango (desde y hasta).'
+  if (consulta.desde < FECHA_MINIMA) return `El rango empieza como pronto el ${FECHA_MINIMA}.`
   if (consulta.desde > consulta.hasta) return 'La fecha inicial no puede ser posterior a la final.'
   if (consulta.hasta > hoy) return `El rango no admite fechas futuras: hasta ${hoy} como máximo.`
   if (diasInclusivos(consulta.desde, consulta.hasta) > RANGO_MAXIMO_DIAS) return `El rango máximo es de ${RANGO_MAXIMO_DIAS} días.`
   return null
+}
+
+/** Primer día consultable: el CRM no tiene llegadas anteriores y un año tecleado a medias no debe disparar consultas. */
+export const FECHA_MINIMA = '2025-01-01'
+
+/** Qué campo del rango está mal, para marcar solo ese con `aria-invalid`. */
+export function camposInvalidos(consulta: ConsultaConversion, hoy: string): { desde: boolean; hasta: boolean } {
+  if (consulta.modo === 'mes') return { desde: false, hasta: false }
+  const desdeOk = v.safeParse(FechaSchema, consulta.desde).success && consulta.desde >= FECHA_MINIMA
+  const hastaOk = v.safeParse(FechaSchema, consulta.hasta).success && consulta.hasta <= hoy
+  if (!desdeOk || !hastaOk) return { desde: !desdeOk, hasta: !hastaOk }
+  const cruzado = consulta.desde > consulta.hasta || diasInclusivos(consulta.desde, consulta.hasta) > RANGO_MAXIMO_DIAS
+  return { desde: cruzado, hasta: cruzado }
 }
 
 /** Fechas inclusivas que la consulta pide (el mes se convierte a su primer y último día). */
@@ -191,6 +211,7 @@ function desgloseConsistente(fila: {
   numerador_bruto: number | null
   ajuste_pendiente: number | null
   numerador: number | null
+  esEmpresa?: boolean
 }): boolean {
   if (!fila.desglose_disponible) {
     // Solo una foto sellada puede venir sin desglose; y entonces viene sin nada.
@@ -200,7 +221,9 @@ function desgloseConsistente(fila: {
   if (fila.sellado) return fila.numerador_bruto === null && fila.ajuste_pendiente === null
   if (fila.numerador_bruto === null || fila.ajuste_pendiente === null || fila.numerador === null) return false
   if (Math.abs(sumaDePartes(fila.cierres, fila.cartera) - fila.numerador_bruto) > EPSILON) return false
-  // Neto = bruto menos lo que se arrastra de meses ya pagados, con suelo en cero.
+  // Por persona: neto = bruto menos lo que arrastra de meses ya pagados, con suelo en cero.
+  // La empresa se comprueba aparte (suma de netos), porque el suelo es por persona.
+  if (fila.esEmpresa) return fila.numerador <= fila.numerador_bruto + EPSILON
   return Math.abs(Math.max(fila.numerador_bruto - fila.ajuste_pendiente, 0) - fila.numerador) <= EPSILON
 }
 
@@ -223,8 +246,10 @@ export function conversionCoordinacionConsistente(
   if (periodo.dias !== diasInclusivos(desde, hasta)) return false
   if (periodo.modo === 'mes') {
     if (periodo.mes === null || !desde.startsWith(periodo.mes) || periodo.mes_nombre === null || periodo.anio === null) return false
-  } else if (periodo.mes !== null || periodo.mes_nombre !== null || periodo.anio !== null || datos.sellado) {
-    // Un rango libre nunca es una foto sellada ni lleva nombre de mes.
+    if (periodo.cruza_meses_sellados) return false
+    if (datos.fuente.modo === 'rango_vivo' || datos.fuente.modo === (datos.sellado ? 'mensual' : 'foto')) return false
+  } else if (periodo.mes !== null || periodo.mes_nombre !== null || periodo.anio !== null || datos.sellado || datos.fuente.modo !== 'rango_vivo') {
+    // Un rango libre nunca es una foto sellada ni lleva nombre de mes, y siempre se declara como vivo.
     return false
   }
   if (periodo.modo === 'rango' && (datos.empresa.ajuste_pendiente !== 0
@@ -249,10 +274,15 @@ export function conversionCoordinacionConsistente(
     landing += analista.divisor_landing
   }
 
-  if (!desgloseConsistente({ ...datos.empresa, sellado: datos.sellado })) return false
+  if (!desgloseConsistente({ ...datos.empresa, sellado: datos.sellado, esEmpresa: true })) return false
   if (datos.sellado) {
+    if (datos.periodo.cruza_meses_sellados) return false
     return datos.empresa.divisor_formulario === null && datos.empresa.divisor_landing === null
   }
+  // La empresa suma los NETOS por persona (cada uno con su suelo en cero), nunca
+  // aplica un suelo al agregado: 11,15 + max(9 − 12, 0) = 11,15, no 8,15.
+  const netoEsperado = datos.analistas.reduce((acc, a) => acc + (a.numerador ?? 0), 0) + (datos.sin_analista?.numerador ?? 0)
+  if (Math.abs(netoEsperado - datos.empresa.numerador) > EPSILON) return false
   if (datos.empresa.divisor_formulario === null || datos.empresa.divisor_landing === null) return false
   if (datos.empresa.divisor_formulario + datos.empresa.divisor_landing !== datos.empresa.divisor) return false
   if (divisorAnalistas + (datos.sin_analista?.divisor ?? 0) !== datos.empresa.divisor) return false

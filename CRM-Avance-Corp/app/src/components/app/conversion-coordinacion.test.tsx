@@ -31,7 +31,7 @@ function conPeriodo(datos: Datos, consulta: ConsultaConversion): Datos {
   const dias = Math.round((Date.parse(`${fechas.hasta}T12:00:00Z`) - Date.parse(`${fechas.desde}T12:00:00Z`)) / 86_400_000) + 1
   return consulta.modo === 'mes'
     ? { ...datos, periodo: { ...datos.periodo, modo: 'mes', mes: consulta.mes, desde: fechas.desde, hasta: fechas.hasta, dias } }
-    : { ...datos, sellado: false, periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: fechas.desde, hasta: fechas.hasta, dias } }
+    : { ...datos, sellado: false, fuente: { ...datos.fuente, modo: 'rango_vivo' }, periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: fechas.desde, hasta: fechas.hasta, dias, cruza_meses_sellados: false } }
 }
 
 /** Lo que OYE el lector: el «—» va oculto y su motivo, en sr-only. */
@@ -57,9 +57,9 @@ describe('ConversionCoordinacion', () => {
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
-    // Analista · Supervisor · Llegadas (F, L, total) · Cierres (F, L, referido «n · aporte», oficina, upgrade, renovación «n · aporte», ponderados) · %
+    // Analista · Supervisor · Llegadas (F, L, total) · Cierres (F, L, referido «n · aporte», sin peso (oficina + otros), upgrade, renovación «n · aporte», ponderados) · %
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '5', '2', '1 referidos, aportan 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '5', '2', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     expect(within(astrid).getAllByRole('cell')[7]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('1 · 0.15')
 
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
@@ -84,11 +84,11 @@ describe('ConversionCoordinacion', () => {
     expect(cifra('Landing')).toBe('79')
     expect(cifra('Conversión')).toBe('9.83%')
     expect(cifra('Cierres directos')).toBe('14')
-    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('1 referidos, aportan 0.15')
+    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('1 referido, aporta 0.15')
     expect(cifra('Upgrade')).toBe('6')
     expect(textoHablado(within(resumen).getByText('Renovación').nextElementSibling as HTMLElement)).toBe('0 renovaciones, aportan 0')
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent(
-      'Cierres ponderados 20.15 = 14 directos (formulario y landing) + 0.15 de referidos (1 × 0.15) + 6 de upgrade + 0 de renovación (0 × 0.15). Oficina (1) no pesa.',
+      'Cierres ponderados 20.15 = 14 directos (formulario y landing) + 0.15 de referidos (1 × 0.15) + 6 de upgrade + 0 de renovación (0 × 0.15). Sin peso: 1 de oficina y 0 de otros orígenes.',
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Conversión de setiembre 2026: 205 llegadas, 9.83%.')
@@ -125,7 +125,8 @@ describe('ConversionCoordinacion', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Elige un mes válido (año y mes) para consultar la conversión.')
     expect(screen.queryByText(/Revisa tu conexión/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Reintentar/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    // El error del formulario no borra lo último cargado: la tabla sigue mientras se corrige el campo.
+    expect(screen.getByRole('table', { name: 'Conversión por analista' })).toBeInTheDocument()
     expect(conversionMock).toHaveBeenCalledTimes(llamadas)
   })
 
@@ -138,7 +139,7 @@ describe('ConversionCoordinacion', () => {
     const tabla = screen.getByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '1 referidos, aportan 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Formulario').nextElementSibling as HTMLElement)).toBe('sin desglose: mes cerrado')
     expect(screen.getByRole('status')).toHaveTextContent(/Mes cerrado: se muestra la foto del cierre/)
@@ -150,7 +151,7 @@ describe('ConversionCoordinacion', () => {
       empresa: {
         divisor: 0, numerador: 0, conversion_pct: null, divisor_formulario: 0, divisor_landing: 0,
         numerador_bruto: 0, ajuste_pendiente: 0, desglose_disponible: true,
-        cierres: { formulario: 0, landing: 0, referido: 0, referido_aporte: 0, oficina: 0 },
+        cierres: { formulario: 0, landing: 0, referido: 0, referido_aporte: 0, oficina: 0, otros: 0 },
         cartera: { upgrade: 0, renovacion: 0, renovacion_aporte: 0 },
       },
       sin_analista: null,
@@ -254,7 +255,9 @@ describe('ConversionCoordinacion', () => {
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell')[11]).toHaveTextContent('8bruto 9 − ajuste 1')
-    expect(screen.getByTestId('formula-numerador')).toHaveTextContent('− 1 de ajuste de meses ya pagados = 19.15 netos')
+    // La empresa no es «bruto − ajuste»: el suelo en cero va por analista, así que no se afirma esa igualdad.
+    expect(screen.getByTestId('formula-numerador')).toHaveTextContent('Ajuste de meses ya pagados: 1, descontado por analista con suelo en cero. Netos: 19.15.')
+    expect(screen.getByTestId('formula-numerador')).not.toHaveTextContent('= 19.15')
   })
 
   it('en modo rango pide las dos fechas inclusivas y anuncia el rango en vivo', async () => {
@@ -275,6 +278,50 @@ describe('ConversionCoordinacion', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Conversión\s+del 1 de setiembre de 2026 al 15 de setiembre de 2026:/))
     expect(screen.getByRole('status')).toHaveTextContent('Rango libre: cifras en vivo')
     expect(screen.queryByText(/Mes cerrado/)).not.toBeInTheDocument()
+    // En rango los pesos van por mes de cada episodio: la fórmula no promete «n × peso»,
+    // y los textos hablan «del período», no «del mes».
+    expect(screen.getByTestId('formula-numerador')).toHaveTextContent('0.15 de referidos (1) + 6 de upgrade + 0 de renovación (0)')
+    expect(screen.getByTestId('formula-numerador')).not.toHaveTextContent('×')
+    expect(screen.getByRole('region', { name: 'Conversión del período' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Resumen de conversión del período' })).toBeInTheDocument()
+  })
+
+  it('un rango que toca meses ya cerrados lo avisa en pantalla y en el estado vivo', async () => {
+    const usuario = userEvent.setup()
+    conversionMock.mockImplementation(async (consulta) => {
+      const datos = conPeriodo(payloadValido(), consulta)
+      if (consulta.modo === 'rango') datos.periodo = { ...datos.periodo, cruza_meses_sellados: true }
+      return datos
+    })
+    render(<ConversionCoordinacion />)
+    await screen.findByRole('table', { name: 'Conversión por analista' })
+    await usuario.selectOptions(screen.getByLabelText('Tipo de período'), 'rango')
+
+    expect(await screen.findByText(/Este rango toca meses ya cerrados/)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Toca meses ya cerrados y puede diferir de su foto')
+  })
+
+  it('teclear fechas no consulta por cada dígito: espera a que el usuario pare y marca solo el campo que está mal', async () => {
+    const usuario = userEvent.setup()
+    render(<ConversionCoordinacion />)
+    await screen.findByRole('table', { name: 'Conversión por analista' })
+    await usuario.selectOptions(screen.getByLabelText('Tipo de período'), 'rango')
+    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith(expect.objectContaining({ modo: 'rango' })))
+    const llamadas = conversionMock.mock.calls.length
+
+    const desde = screen.getByLabelText('Desde')
+    const hasta = screen.getByLabelText<HTMLInputElement>('Hasta')
+    await usuario.clear(desde)
+    // Un campo vacío es un error del formulario solo en ESE campo, y no borra la tabla ya cargada.
+    expect(desde).toHaveAttribute('aria-invalid', 'true')
+    expect(hasta).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByRole('table', { name: 'Conversión por analista' })).toBeInTheDocument()
+    await usuario.type(desde, '2026-09-03')
+    await usuario.clear(desde)
+    await usuario.type(desde, '2026-09-05')
+    await waitFor(() => expect(conversionMock).toHaveBeenLastCalledWith({ modo: 'rango', desde: '2026-09-05', hasta: hasta.value }))
+    // Dos fechas completas tecleadas seguidas → una sola consulta (la última), no una por cada valor intermedio.
+    expect(conversionMock.mock.calls.length - llamadas).toBe(1)
   })
 
   it('un rango con la fecha inicial después de la final es un error del formulario, sin llamar a la puerta', async () => {

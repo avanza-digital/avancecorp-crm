@@ -3,6 +3,8 @@ import { Lock, Percent } from 'lucide-react'
 import { conversionCoordinacion } from '@/data/crm-api'
 import { useAhora } from '@/lib/ahora'
 import {
+  FECHA_MINIMA,
+  camposInvalidos,
   hoyLima,
   mesActualLima,
   motivoConsultaInvalida,
@@ -23,6 +25,8 @@ import { Paginacion } from '@/components/common/paginacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 
 const POR_PAGINA = 15
+/** Tecleando fechas, cada dígito que completa una fecha válida cambiaría la consulta: se espera a que pare. */
+const ESPERA_FECHAS_MS = 350
 
 interface EstadoConversion {
   datos: DatosConversion | null
@@ -51,6 +55,7 @@ function SinDato({ motivo }: { motivo: string }) {
 
 const MOTIVO_SELLADO = 'sin desglose: mes cerrado'
 const MOTIVO_SIN_LLEGADAS = 'sin llegadas'
+const MOTIVO_NO_APLICA = 'no aplica'
 
 /** «setiembre de 2026» a partir de 'YYYY-MM', sin depender de la zona del navegador. */
 function nombreDelMes(mes: string): string {
@@ -76,17 +81,28 @@ function Porcentaje({ valor }: { valor: number | null }) {
     : <>{porcentajeConversionCanonica(valor)}</>
 }
 
-/** «19 · 2,85»: cuántos y cuánto pesan. El lector oye las dos cifras con su nombre. */
-function CantidadYAporte({ cantidad, aporte, nombre }: { cantidad: number; aporte: number; nombre: string }) {
+/** «19 · 2,85»: cuántos y cuánto pesan. El lector oye las dos cifras con su nombre, concordado. */
+function CantidadYAporte({ cantidad, aporte, nombre }: { cantidad: number; aporte: number; nombre: { uno: string; varios: string } }) {
+  const singular = cantidad === 1
   return (
     <>
       <span aria-hidden="true">{numero(cantidad)} · {numero(aporte)}</span>
-      <span className="sr-only">{numero(cantidad)} {nombre}, aportan {numero(aporte)}</span>
+      <span className="sr-only">
+        {numero(cantidad)} {singular ? nombre.uno : nombre.varios}, {singular ? 'aporta' : 'aportan'} {numero(aporte)}
+      </span>
     </>
   )
 }
 
-/** Las seis celdas de «Cierres» de una fila: por origen, cartera y el total ponderado. */
+const REFERIDO = { uno: 'referido', varios: 'referidos' }
+const RENOVACION = { uno: 'renovación', varios: 'renovaciones' }
+
+/**
+ * Las siete celdas de «Cierres» de una fila, en el MISMO orden que la cabecera:
+ * formulario, landing, referido, sin peso (oficina y otros), upgrade, renovación
+ * y el total ponderado. La fila «sin analista» pasa por aquí con todo a null para
+ * que sus celdas nunca se desalineen de la cabecera.
+ */
 function CeldasCierres({
   cierres,
   cartera,
@@ -108,19 +124,19 @@ function CeldasCierres({
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.formulario) : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.landing) : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">
-        {cierres ? <CantidadYAporte cantidad={cierres.referido} aporte={cierres.referido_aporte} nombre="referidos" /> : <SinDato motivo={motivo} />}
+        {cierres ? <CantidadYAporte cantidad={cierres.referido} aporte={cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={motivo} />}
       </Td>
-      <Td className="hidden text-right tabular-nums text-muted-foreground xl:table-cell">
-        {cierres ? numero(cierres.oficina) : <SinDato motivo={motivo} />}
+      <Td className="text-right tabular-nums text-muted-foreground">
+        {cierres ? numero(cierres.oficina + cierres.otros) : <SinDato motivo={motivo} />}
       </Td>
       <Td className="text-right tabular-nums">{cartera ? numero(cartera.upgrade) : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">
-        {cartera ? <CantidadYAporte cantidad={cartera.renovacion} aporte={cartera.renovacion_aporte} nombre="renovaciones" /> : <SinDato motivo={motivo} />}
+        {cartera ? <CantidadYAporte cantidad={cartera.renovacion} aporte={cartera.renovacion_aporte} nombre={RENOVACION} /> : <SinDato motivo={motivo} />}
       </Td>
       <Td className="text-right font-semibold tabular-nums">
         <Cifra valor={numerador} motivo="sin cierres" />
         {conAjuste ? (
-          <span className="block text-[11px] font-normal text-muted-foreground">
+          <span className="block text-xs font-normal text-muted-foreground">
             bruto {numero(bruto)} − ajuste {numero(ajuste)}
           </span>
         ) : null}
@@ -136,10 +152,10 @@ function FilaAnalista({ analista, sellado }: { analista: AnalistaConversionCoord
       <Td className="hidden text-muted-foreground lg:table-cell">
         {analista.supervisor_nombre ?? <SinDato motivo="sin supervisor" />}
       </Td>
-      <Td className="hidden text-right tabular-nums lg:table-cell">
+      <Td className="text-right tabular-nums">
         {sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={analista.divisor_formulario} motivo={MOTIVO_SIN_LLEGADAS} />}
       </Td>
-      <Td className="hidden text-right tabular-nums lg:table-cell">
+      <Td className="text-right tabular-nums">
         {sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={analista.divisor_landing} motivo={MOTIVO_SIN_LLEGADAS} />}
       </Td>
       <Td className="text-right text-base font-extrabold tabular-nums text-primary">{numero(analista.divisor)}</Td>
@@ -156,27 +172,42 @@ function FilaAnalista({ analista, sellado }: { analista: AnalistaConversionCoord
   )
 }
 
-/** «117,15 = 90 directos + 2,85 referidos (19 × 0,15) + 24 upgrade + 0,45 renovación (3 × 0,15)». */
+/**
+ * Mes abierto: «117,15 = 90 directos + 2,85 de referidos (19 × 0,15) + 24 de upgrade + 0,45
+ * de renovación (3 × 0,15)», y el ajuste aparte (se descuenta por analista, con suelo en
+ * cero, así que la empresa no es «bruto − ajuste»). Rango libre: los pesos van por mes de
+ * cada episodio, así que se enseña la cantidad sin prometer «n × peso». Mes cerrado: la foto
+ * no guarda el bruto, así que se enumeran las partes sin afirmar una igualdad.
+ */
 function formulaDelNumerador(datos: DatosConversion): string | null {
   const { cierres, cartera, numerador, numerador_bruto: bruto, ajuste_pendiente: ajuste } = datos.empresa
   if (!cierres || !cartera) return null
+  const enRango = datos.periodo.modo === 'rango'
+  const referidos = `${numero(cierres.referido_aporte)} de referidos (${numero(cierres.referido)}${enRango ? '' : ` × ${numero(datos.peso_referido)}`})`
+  const renovacion = `${numero(cartera.renovacion_aporte)} de renovación (${numero(cartera.renovacion)}${enRango ? '' : ` × ${numero(datos.peso_renovacion)}`})`
   const partes = [
     `${numero(cierres.formulario + cierres.landing)} directos (formulario y landing)`,
-    `${numero(cierres.referido_aporte)} de referidos (${numero(cierres.referido)} × ${numero(datos.peso_referido)})`,
+    referidos,
     `${numero(cartera.upgrade)} de upgrade`,
-    `${numero(cartera.renovacion_aporte)} de renovación (${numero(cartera.renovacion)} × ${numero(datos.peso_renovacion)})`,
+    renovacion,
   ]
-  const total = bruto ?? numerador
-  const cola = ajuste != null && ajuste !== 0 ? ` − ${numero(ajuste)} de ajuste de meses ya pagados = ${numero(numerador)} netos` : ''
-  return `Cierres ponderados ${numero(total)} = ${partes.join(' + ')}${cola}. Oficina (${numero(cierres.oficina)}) no pesa.`
+  const sinPeso = `Sin peso: ${numero(cierres.oficina)} de oficina y ${numero(cierres.otros)} de otros orígenes.`
+  if (datos.sellado) {
+    return `Cierres del mes cerrado: ${partes.join(', ')}. Numerador sellado: ${numero(numerador ?? 0)}. ${sinPeso}`
+  }
+  const total = bruto ?? numerador ?? 0
+  const cola = ajuste != null && ajuste !== 0
+    ? ` Ajuste de meses ya pagados: ${numero(ajuste)}, descontado por analista con suelo en cero. Netos: ${numero(numerador ?? 0)}.`
+    : ''
+  return `Cierres ponderados ${numero(total)} = ${partes.join(' + ')}.${cola} ${sinPeso}`
 }
 
 /**
- * Conversión del mes por analista, con ámbito de toda la empresa. El divisor es
- * el del NÚCLEO (la misma cifra que Metas y Ranking): una llegada por lead, por
- * su fecha de alta, en el primer analista que la recibió. No es el reporte de
- * entregas. Los cierres se abren en sus partes con los mismos episodios del
- * núcleo. El navegador no calcula nada: pinta lo que el servidor reconcilió.
+ * Conversión por analista, con ámbito de toda la empresa. El divisor es el del
+ * NÚCLEO (la misma cifra que Metas y Ranking): una llegada por lead, por su fecha
+ * de alta, en el primer analista que la recibió. No es el reporte de entregas.
+ * Los cierres se abren en sus partes con los mismos episodios del núcleo. El
+ * navegador no calcula nada: pinta lo que el servidor reconcilió.
  */
 export function ConversionCoordinacion() {
   const ahora = useAhora()
@@ -191,21 +222,37 @@ export function ConversionCoordinacion() {
   const abortRef = useRef<AbortController | null>(null)
   const contenidoRef = useRef<HTMLDivElement>(null)
   const focoPendiente = useRef(false)
-  const idAyudaMes = useId()
+  const idAyuda = useId()
   const consulta = useMemo<ConsultaConversion>(
     () => (modo === 'mes' ? { modo: 'mes', mes } : { modo: 'rango', desde, hasta }),
     [modo, mes, desde, hasta],
   )
   // Consulta inválida = estado del formulario (pegado al campo), nunca un fallo de carga.
-  const ayudaMes = motivoConsultaInvalida(consulta, hoy)
-  const mesInvalido = ayudaMes !== null
+  const ayuda = motivoConsultaInvalida(consulta, hoy)
+  const consultaInvalida = ayuda !== null
+  const invalidos = camposInvalidos(consulta, hoy)
   const claveConsulta = JSON.stringify(consulta)
+
+  // Cambiar de mes o de tipo de período consulta al momento; teclear fechas espera a que
+  // el usuario pare, para no desmontar la tabla ni anunciar una carga por cada dígito.
+  const [claveEstable, setClaveEstable] = useState(claveConsulta)
+  useEffect(() => {
+    if (claveEstable === claveConsulta) return
+    const soloFechas = modo === 'rango' && claveEstable.includes('"modo":"rango"')
+    if (!soloFechas) {
+      setClaveEstable(claveConsulta)
+      return
+    }
+    const temporizador = setTimeout(() => setClaveEstable(claveConsulta), ESPERA_FECHAS_MS)
+    return () => clearTimeout(temporizador)
+  }, [claveConsulta, claveEstable, modo])
 
   const cargar = useCallback(async (conservarError = false) => {
     abortRef.current?.abort()
-    const pedida = JSON.parse(claveConsulta) as ConsultaConversion
+    const pedida = JSON.parse(claveEstable) as ConsultaConversion
     if (motivoConsultaInvalida(pedida, hoy)) {
-      setEstado({ datos: null, cargando: false, error: null })
+      // El error del formulario no borra lo último cargado: la tabla sigue mientras se corrige.
+      setEstado((previo) => ({ ...previo, cargando: false }))
       return
     }
     const controlador = new AbortController()
@@ -225,7 +272,7 @@ export function ConversionCoordinacion() {
         error: error instanceof Error ? error.message : 'No se pudo cargar la conversión por analista.',
       })
     }
-  }, [claveConsulta, hoy])
+  }, [claveEstable, hoy])
 
   useEffect(() => {
     focoPendiente.current = false // un cambio de período cancela el aterrizaje pendiente
@@ -259,20 +306,25 @@ export function ConversionCoordinacion() {
   // perfiles fuera del roster): suma al total y no hay fila que enseñar.
   const produccionSinFilas = datos !== null && !hayFilas && datos.empresa.divisor > 0
   const formula = datos ? formulaDelNumerador(datos) : null
+  // Lo que se ve es lo último cargado: sus textos van por SU período, no por el control.
+  const periodoVisible = datos?.periodo.modo === 'rango' ? 'del período' : 'del mes'
+  const tocaSellados = datos?.periodo.cruza_meses_sellados === true
 
   const etiquetaPeriodo = (d: DatosConversion) => (
     d.periodo.modo === 'mes' && d.periodo.mes_nombre
       ? `${d.periodo.mes_nombre} ${d.periodo.anio}`
       : `del ${fechaLarga(d.periodo.desde)} al ${fechaLarga(d.periodo.hasta)}`
   )
-  const mensajeEstado = mesInvalido
-    ? ayudaMes
+  const mensajeEstado = consultaInvalida
+    ? ayuda
     : estado.cargando
       ? (modo === 'mes' ? `Cargando la conversión de ${nombreDelMes(mes)}…` : `Cargando la conversión del ${fechaLarga(desde)} al ${fechaLarga(hasta)}…`)
       : datos
         ? `Conversión ${datos.periodo.modo === 'mes' ? 'de' : ''} ${etiquetaPeriodo(datos)}: ${numero(datos.empresa.divisor)} llegadas, ${
             datos.empresa.conversion_pct == null ? 'sin conversión calculable' : porcentajeConversionCanonica(datos.empresa.conversion_pct)
-          }${datos.sellado ? '. Mes cerrado: se muestra la foto del cierre' : ''}${datos.periodo.modo === 'rango' ? '. Rango libre: cifras en vivo' : ''}.`
+          }${datos.sellado ? '. Mes cerrado: se muestra la foto del cierre' : ''}${datos.periodo.modo === 'rango' ? '. Rango libre: cifras en vivo' : ''}${
+            tocaSellados ? '. Toca meses ya cerrados y puede diferir de su foto' : ''
+          }.`
         : estado.error ?? ''
 
   const chips: Array<{ etiqueta: string; valor: React.ReactNode }> = datos ? [
@@ -281,10 +333,12 @@ export function ConversionCoordinacion() {
     { etiqueta: 'Landing', valor: datos.sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={datos.empresa.divisor_landing} motivo={MOTIVO_SIN_LLEGADAS} /> },
     { etiqueta: 'Conversión', valor: <Porcentaje valor={datos.empresa.conversion_pct} /> },
     { etiqueta: 'Cierres directos', valor: datos.empresa.cierres ? numero(datos.empresa.cierres.formulario + datos.empresa.cierres.landing) : <SinDato motivo={MOTIVO_SELLADO} /> },
-    { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre="referidos" /> : <SinDato motivo={MOTIVO_SELLADO} /> },
+    { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Upgrade', valor: datos.empresa.cartera ? numero(datos.empresa.cartera.upgrade) : <SinDato motivo={MOTIVO_SELLADO} /> },
-    { etiqueta: 'Renovación', valor: datos.empresa.cartera ? <CantidadYAporte cantidad={datos.empresa.cartera.renovacion} aporte={datos.empresa.cartera.renovacion_aporte} nombre="renovaciones" /> : <SinDato motivo={MOTIVO_SELLADO} /> },
+    { etiqueta: 'Renovación', valor: datos.empresa.cartera ? <CantidadYAporte cantidad={datos.empresa.cartera.renovacion} aporte={datos.empresa.cartera.renovacion_aporte} nombre={RENOVACION} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
   ] : []
+
+  const claseCampo = 'grid gap-1.5 text-xs font-semibold text-foreground'
 
   return (
     <Card className="overflow-hidden border-primary/15 shadow-[0_18px_45px_-38px_rgba(17,30,61,0.9)]">
@@ -307,8 +361,9 @@ export function ConversionCoordinacion() {
 
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 bg-card px-5 py-4">
         <div className="grid gap-1.5">
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+          <fieldset className="m-0 flex min-w-0 flex-wrap items-end gap-3 border-0 p-0">
+            <legend className="sr-only">Período de la conversión</legend>
+            <label className={claseCampo}>
               Período
               <Select
                 aria-label="Tipo de período"
@@ -321,58 +376,61 @@ export function ConversionCoordinacion() {
               </Select>
             </label>
             {modo === 'mes' ? (
-              <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+              <label className={claseCampo}>
                 Mes
                 <Input
                   type="month"
                   aria-label="Mes de conversión"
-                  min="2025-01"
+                  min={FECHA_MINIMA.slice(0, 7)}
                   max={mesMaximo}
                   value={mes}
-                  aria-invalid={mesInvalido || undefined}
-                  aria-describedby={mesInvalido ? idAyudaMes : undefined}
+                  aria-invalid={consultaInvalida || undefined}
+                  aria-describedby={consultaInvalida ? idAyuda : undefined}
                   onChange={(event) => setMes(event.target.value)}
                   className="w-44"
                 />
               </label>
             ) : (
               <>
-                <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+                <label className={claseCampo}>
                   Desde
                   <Input
                     type="date"
-                    aria-label="Desde"
-                    min="2025-01-01"
+                    min={FECHA_MINIMA}
                     max={hoy}
                     value={desde}
-                    aria-invalid={mesInvalido || undefined}
-                    aria-describedby={mesInvalido ? idAyudaMes : undefined}
+                    aria-invalid={invalidos.desde || undefined}
+                    aria-describedby={consultaInvalida ? idAyuda : undefined}
                     onChange={(event) => setDesde(event.target.value)}
                     className="w-44"
                   />
                 </label>
-                <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+                <label className={claseCampo}>
                   Hasta
                   <Input
                     type="date"
-                    aria-label="Hasta"
-                    min="2025-01-01"
+                    min={FECHA_MINIMA}
                     max={hoy}
                     value={hasta}
-                    aria-invalid={mesInvalido || undefined}
-                    aria-describedby={mesInvalido ? idAyudaMes : undefined}
+                    aria-invalid={invalidos.hasta || undefined}
+                    aria-describedby={consultaInvalida ? idAyuda : undefined}
                     onChange={(event) => setHasta(event.target.value)}
                     className="w-44"
                   />
                 </label>
               </>
             )}
-          </div>
-          {mesInvalido ? (
-            <p id={idAyudaMes} className="text-sm font-medium text-destructive">{ayudaMes}</p>
+          </fieldset>
+          {consultaInvalida ? (
+            <p id={idAyuda} className="text-sm font-medium text-destructive">{ayuda}</p>
           ) : modo === 'rango' ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Rango libre: cifras en vivo, sin ajustes de meses ya pagados ni fotos de cierre. Un mes completo se trata como ese mes.
+              {tocaSellados ? (
+                <span className="block font-medium text-foreground">
+                  Este rango toca meses ya cerrados: se calcula en vivo y puede diferir de la foto del cierre.
+                </span>
+              ) : null}
             </p>
           ) : null}
         </div>
@@ -383,17 +441,17 @@ export function ConversionCoordinacion() {
         ) : null}
       </div>
 
-      {mesInvalido ? null : estado.error ? (
+      {estado.error ? (
         <PanelError mensaje={estado.error} onReintentar={reintentar} reintentando={estado.cargando} />
       ) : estado.cargando ? (
         <PanelCargando filas={5} />
       ) : datos ? (
         // Destino programático del foco tras reintentar: fuera del orden de Tab,
         // sin anillo (no es un control), igual que el patrón de Repartir.
-        <div ref={contenidoRef} tabIndex={-1} role="region" aria-label="Conversión del mes" className="outline-none">
+        <div ref={contenidoRef} tabIndex={-1} role="region" aria-label={`Conversión ${periodoVisible}`} className="outline-none">
           <div
             role="group"
-            aria-label="Resumen de conversión del mes"
+            aria-label={`Resumen de conversión ${periodoVisible}`}
             className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-4"
           >
             {chips.map(({ etiqueta, valor }, indice) => (
@@ -422,49 +480,53 @@ export function ConversionCoordinacion() {
             ) : (
               <PanelVacio
                 icono={Percent}
-                titulo="Sin llegadas en este mes"
+                titulo={`Sin llegadas en este ${datos.periodo.modo === 'rango' ? 'período' : 'mes'}`}
                 detalle="Cuando entren leads por la hoja o la landing aparecerán aquí, en el analista que los recibió primero."
               />
             )
           ) : (
             <>
               <TablaEnvoltura ariaLabel="Conversión por analista">
-                <TheadCrm>
-                  <Th rowSpan={2} className="align-bottom">Analista</Th>
-                  <Th rowSpan={2} className="hidden align-bottom lg:table-cell">Supervisor</Th>
-                  <Th colSpan={3} className="text-center">Llegadas</Th>
-                  <Th colSpan={7} className="text-center">Cierres</Th>
-                  <Th rowSpan={2} className="text-right align-bottom">Conversión</Th>
-                </TheadCrm>
-                <TheadCrm>
-                  <Th className="hidden text-right lg:table-cell">Form.</Th>
-                  <Th className="hidden text-right lg:table-cell">Land.</Th>
-                  <Th className="text-right">Total</Th>
-                  <Th className="text-right">Form.</Th>
-                  <Th className="text-right">Land.</Th>
-                  <Th className="text-right" title="Cantidad · aporte al peso del referido">Referido</Th>
-                  <Th className="hidden text-right xl:table-cell" title="No pesa en la conversión">Oficina</Th>
-                  <Th className="text-right">Upgrade</Th>
-                  <Th className="text-right" title="Cantidad · aporte al peso de renovación">Renov.</Th>
-                  <Th className="text-right">Ponderados</Th>
+                {/*
+                  Cabecera agrupada en UN solo <thead>. Ninguna subcolumna de un grupo se
+                  oculta por ancho: los colSpan son fijos y una celda oculta desalinearía la
+                  cabecera del cuerpo; la envoltura desplaza en horizontal si hace falta.
+                */}
+                <TheadCrm
+                  segundaFila={(
+                    <>
+                      <Th scope="col" className="text-right">Form.</Th>
+                      <Th scope="col" className="text-right">Land.</Th>
+                      <Th scope="col" className="text-right">Total</Th>
+                      <Th scope="col" className="text-right">Form.</Th>
+                      <Th scope="col" className="text-right">Land.</Th>
+                      <Th scope="col" className="text-right">Referido</Th>
+                      <Th scope="col" className="text-right">Sin peso</Th>
+                      <Th scope="col" className="text-right">Upgrade</Th>
+                      <Th scope="col" className="text-right">Renov.</Th>
+                      <Th scope="col" className="text-right">Ponderados</Th>
+                    </>
+                  )}
+                >
+                  <Th scope="col" rowSpan={2} className="align-bottom">Analista</Th>
+                  <Th scope="col" rowSpan={2} className="hidden align-bottom lg:table-cell">Supervisor</Th>
+                  <Th scope="colgroup" colSpan={3} className="text-center">Llegadas</Th>
+                  <Th scope="colgroup" colSpan={7} className="text-center">Cierres</Th>
+                  <Th scope="col" rowSpan={2} className="text-right align-bottom">Conversión</Th>
                 </TheadCrm>
                 <tbody>
                   {analistas.visibles.map((analista) => (
                     <FilaAnalista key={analista.analista_id} analista={analista} sellado={datos.sellado} />
                   ))}
                   {sinAnalista && analistas.paginaActual === analistas.paginas - 1 ? (
-                    <tr className="border-b border-border last:border-0 bg-muted/30">
-                      <Td className="text-base font-medium text-muted-foreground">Sin analista asignado</Td>
-                      <Td className="hidden lg:table-cell text-muted-foreground"><SinDato motivo="no aplica" /></Td>
-                      <Td className="hidden text-right tabular-nums text-muted-foreground lg:table-cell"><SinDato motivo="no aplica" /></Td>
-                      <Td className="hidden text-right tabular-nums text-muted-foreground lg:table-cell"><SinDato motivo="no aplica" /></Td>
-                      <Td className="text-right text-base font-extrabold tabular-nums text-muted-foreground">{numero(sinAnalista.divisor)}</Td>
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <Td key={i} className="text-right tabular-nums text-muted-foreground"><SinDato motivo="no aplica" /></Td>
-                      ))}
-                      <Td className="hidden text-right tabular-nums text-muted-foreground xl:table-cell"><SinDato motivo="no aplica" /></Td>
-                      <Td className="text-right tabular-nums text-muted-foreground"><Cifra valor={sinAnalista.numerador} motivo="sin cierres" /></Td>
-                      <Td className="text-right tabular-nums text-muted-foreground"><SinDato motivo="no aplica" /></Td>
+                    <tr className="border-b border-border last:border-0 bg-muted/30 text-muted-foreground">
+                      <Td className="text-base font-medium">Sin analista asignado</Td>
+                      <Td className="hidden lg:table-cell"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
+                      <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
+                      <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
+                      <Td className="text-right text-base font-extrabold tabular-nums">{numero(sinAnalista.divisor)}</Td>
+                      <CeldasCierres cierres={null} cartera={null} numerador={sinAnalista.numerador} bruto={null} ajuste={null} motivo={MOTIVO_NO_APLICA} />
+                      <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
                     </tr>
                   ) : null}
                 </tbody>
@@ -481,9 +543,11 @@ export function ConversionCoordinacion() {
             </>
           )}
 
-          <p className="border-t border-border px-5 py-2 text-xs text-muted-foreground">
-            Este conteo es distinto del reporte de entregas: aquel cuenta lo entregado por fecha de entrega
-            y deja de sumar la entrega que volvió a la bandeja antes de gestionarse.
+          <p className="border-t border-border px-5 py-2 text-sm text-muted-foreground">
+            Referido y Renov. (renovación) van como «cantidad · aporte al numerador». «Sin peso» son los
+            cierres de oficina y de otros orígenes, que no suman. Este conteo es distinto del reporte de
+            entregas: aquel cuenta lo entregado por fecha de entrega y deja de sumar la entrega que volvió
+            a la bandeja antes de gestionarse.
           </p>
         </div>
       ) : null}
