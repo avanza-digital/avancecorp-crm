@@ -59,6 +59,7 @@ export const ResumenCarteraSchema = v.object({
     descartados: v.number(),
     asignados_pen: v.number(),
     asignados_usd: v.number(),
+    reasignados: v.optional(v.number()),
     operaciones_cartera: v.optional(v.number()),
   }),
   capital: v.object({
@@ -168,6 +169,7 @@ export function resumenCarteraDesdeAmbito(
       descartados: descartados.length,
       asignados_pen: asignados.filter((l) => !esUsd(l)).length,
       asignados_usd: asignados.filter((l) => esUsd(l)).length,
+      reasignados: ambito.filter((l) => l.vendedor_id != null && l.reasignado === true).length,
     },
     capital: {
       asignado: { pen: suma(asignados, false), usd: suma(asignados, true) },

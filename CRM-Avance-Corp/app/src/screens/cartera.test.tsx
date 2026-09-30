@@ -181,6 +181,31 @@ describe('Cartera · vista previa local conectada', () => {
     expect((screen.getByLabelText('Filtrar por procedencia') as HTMLSelectElement).value).toBe('todas')
   })
 
+  it('muestra cuántos fueron reasignados y conserva Sistema/Manual junto a la nueva marca', () => {
+    montarVistaPrevia('supervisor', [
+      lead({ id: 'transferido', nombre_completo: 'LEAD TRANSFERIDO', procedencia: 'manual',
+        cargado_por: 'v-1', reasignado: true, vendedor_id: 'v-2' }),
+      lead({ id: 'primera-entrega', nombre_completo: 'LEAD PRIMERA ENTREGA',
+        procedencia: 'sistema', reasignado: false, vendedor_id: 'v-2' }),
+    ])
+    const boton = screen.getByRole('button', { name: 'Filtrar reasignados: 1' })
+    expect(boton).toHaveAttribute('aria-pressed', 'false')
+    const fila = screen.getByRole('row', { name: /LEAD TRANSFERIDO/ })
+    expect(within(fila).getByText('Manual')).toBeInTheDocument()
+    expect(within(fila).getByText('Reasignado')).toBeInTheDocument()
+    expect(fila).toHaveAccessibleDescription('Registro manual, por ANA TORRES; Reasignado')
+    expect(within(screen.getByRole('row', { name: /LEAD PRIMERA ENTREGA/ })).getByText('Sistema')).toBeInTheDocument()
+    fireEvent.click(boton)
+    expect(screen.queryByText('LEAD PRIMERA ENTREGA')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filtrar reasignados: 1' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.change(screen.getByLabelText('Filtrar por procedencia'), { target: { value: 'sistema' } })
+    expect(within(chipDe('Total leads')).getByText('0')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(within(chipDe('Total leads')).getByText('5')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filtrar reasignados: 1' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('supervisor: combina la recepción con el analista elegido', () => {
     montarVistaPrevia('supervisor')
     fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })

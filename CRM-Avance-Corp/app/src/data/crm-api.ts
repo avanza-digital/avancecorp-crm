@@ -223,6 +223,7 @@ const LeadRowSchema = v.object({
   // anterior a la migración no lo devuelve y el lead debe seguir listándose
   // (sin chip) igual.
   procedencia: v.optional(v.nullable(v.picklist(['sistema', 'manual']))),
+  reasignado: v.optional(v.boolean()),
   cargado_por: v.optional(v.nullable(v.string())),
   alta_manual: v.optional(v.nullable(v.boolean())),
   creado_por: v.optional(v.nullable(v.string())),
@@ -466,6 +467,7 @@ function aLead(fila: LeadRow): Lead {
     distrito: fila.distrito,
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
     procedencia: procedenciaDeFila(fila),
+    reasignado: fila.reasignado ?? null,
     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
@@ -609,7 +611,20 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
   if (!resultado.success || resultado.output.id !== id || !resultado.output.activo) {
     throw new CrmApiError('Los datos de esta ficha no cumplen el contrato del CRM. Solicita revisión a Gerencia.', 'ROW_CONTRACT')
   }
-  return aLead(resultado.output)
+  const lead = aLead(resultado.output)
+  if (lead.vendedor_id == null) return { ...lead, reasignado: false }
+  // La ficha se relee por id al abrirse y no hereda el dato de la página
+  // keyset. El mismo historial RLS que usa la RPC permite mostrar la marca
+  // aunque se abra el lead desde la búsqueda global o desde otra pantalla.
+  let historial = cliente().schema('crm').from('actividades').select('id')
+    .eq('lead_id', id).eq('tipo', 'reasignacion')
+    .not('metadata->>vendedor_anterior', 'is', null).limit(1)
+  if (signal) historial = historial.abortSignal(signal)
+  const { data: movimientos, error: errorHistorial } = await historial
+  lanzarAbortSiCorresponde(signal)
+  // La marca es adicional: si un servidor antiguo no permite esta consulta,
+  // la ficha sigue abriéndose y no se inventa un «no reasignado».
+  return { ...lead, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
 }
 
 // ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────
@@ -627,6 +642,8 @@ export interface FiltrosCartera {
   origen?: Origen | 'todos'
   /** Procedencia (sistema/manual); «todas» es el valor neutro y no viaja. */
   procedencia?: Procedencia | 'todas'
+  /** Solo leads que ya pasaron por un analista antes del reparto actual. */
+  reasignados?: boolean
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -660,6 +677,8 @@ const CarteraFiltradaSchema = v.object({
   origen: v.optional(v.nullable(v.string())),
   // Eco de la procedencia filtrada, con la misma lógica que `origen`.
   procedencia: v.optional(v.nullable(v.string())),
+  // Presente desde la migración de reasignados; un servidor previo no inventa cero.
+  reasignados: v.optional(v.boolean()),
   items: v.array(v.object({
     ...LeadCarteraRowSchema.entries,
     recibido_en: v.nullable(v.string()),
@@ -709,6 +728,8 @@ export async function listarCarteraPagina(
   // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
   const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
+  const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
+  if (reasignadosPedidos) argumentos.p_reasignados = true
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -730,6 +751,7 @@ export async function listarCarteraPagina(
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
       filtraOrigen: origenPedido !== null,
       filtraProcedencia: procedenciaPedida !== null,
+      filtraReasignados: reasignadosPedidos,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })
@@ -750,6 +772,13 @@ export async function listarCarteraPagina(
       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
       || (payload.procedencia ?? null) !== procedenciaPedida
       || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))
+      || (payload.reasignados ?? false) !== reasignadosPedidos
+      || (reasignadosPedidos && (payload.resumen.totales.reasignados !== total
+        || payload.items.some((l) => l.reasignado !== true)))
+      || (payload.resumen.totales.reasignados != null
+        && (!Number.isSafeInteger(payload.resumen.totales.reasignados)
+          || payload.resumen.totales.reasignados < 0
+          || payload.resumen.totales.reasignados > total))
       || !Number.isSafeInteger(total) || total < payload.items.length
       || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
       || payload.items.length > TAMANO_PAGINA_CARTERA + 1

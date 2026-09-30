@@ -1,3 +1,132 @@
+## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
+
+**✅ EN PROD 29/09/2026 ~17:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila
+`20260929220021 / crm_indice_inversionistas_perfil`) → `verificar.sql`: `indice=valido`,
+`cartera_f5_fuentes` **seq=0** (antes 679), 49 ms (antes ~91), plan de `perfil_id` por
+`inversionistas_perfil_idx` y el de `perfil_id + estado <> 'fusionado'` sigue por
+`inversionistas_perfil_uidx`. Efecto en vivo (muestreo de 115 s con tráfico real de las 11 puertas):
+**545 recorridos/s → 0,8 recorridos/s**. Advisors (`supabase db advisors --linked --type all`,
+solo lectura): 242 avisos, todos de clases previas; ninguno cita el índice ni hay clase de índices
+duplicados/sin uso.** Aprobado por Miguel el 29/09 («ok vamos con la migracion»). Primer paso del refactor por módulos, según el perfil de carga medido el mismo día
+(nota del vault «CRM - perfil de carga lectura vs escritura (2026-09-29)»): el CRM es de lectura y
+`crm.inversionistas` se llevaba el 95 % de las filas leídas (22,6 M recorridos completos en ~97 h).
+
+Causa medida: `private.cartera_f5_fuentes()` busca por contrato `where i.perfil_id = c.cliente_id`;
+el único índice de `perfil_id` (`inversionistas_perfil_uidx`) es PARCIAL (`estado <> 'fusionado'`) y
+esa búsqueda no repite la condición → 679 recorridos completos por llamada (uno por contrato). La
+alcanzan 11 puertas (postventa agenda/estado/ficha, cartera de inversionistas, fichas, contexto y
+solicitud de inversión). Muestreo en vivo (6 min): 189.728 recorridos ≈ 1.530 por llamada a esas
+puertas, sin recorridos en ventanas sin ellas. Descartadas por medición: `inversionista_canonica`
+(0 recorridos) y `leads_vetados_persona` (2 recorridos para 2.582 leads).
+
+Cambio: `create index if not exists inversionistas_perfil_idx on crm.inversionistas (perfil_id)` +
+`COMMENT ON INDEX`. No toca funciones, policies, grants ni `public`; no cambia contratos de la API
+ni tipos del front (`gen:types` no aplica). El índice único parcial se queda (es la regla, no el
+acelerador). Sin `CONCURRENTLY`: ~565 filas, ~70 escrituras en 4 días.
+
+**Ensayo en producción deshecho** (`supabase/scripts/indice-inversionistas-perfil/ensayo.sql`, bloque
+`DO` que crea el índice, mide y termina en `raise`): `cartera_f5_fuentes` pasa de **seq=679 idx=715,
+91 ms** a **seq=0 idx=1.394, 43 ms**; 719 filas **idénticas** (md5 `beff0bf2…` antes y después); el
+plan de `perfil_id` usa `inversionistas_perfil_idx`. Comprobado después: el índice no quedó (0).
+La definición exacta que exige el registrador se comprobó en otro ensayo deshecho (coincide).
+
+Review Codex (`docs/encargos/2026-09-29-codex-indice-inversionistas-perfil.md`): CHANGES_REQUESTED,
+aceptados los dos. **P2** el registrador podía tragarse en silencio una fila con otro nombre registrada
+entre la comprobación y el `insert … on conflict do nothing` → relectura fail-closed de la fila efectiva
+antes del commit (`REGISTRO_INDICE_PERFIL_OK`). **P3** dos comentarios prometían más de lo medido
+(«mismo orden de evaluación», «el candado dura milisegundos») → reescritos. R2 atendido con otro ensayo
+deshecho: la búsqueda con `estado <> 'fusionado'` sigue por `inversionistas_perfil_uidx` antes y después;
+la de solo `perfil_id` pasa a `inversionistas_perfil_idx` (lo añade `verificar.sql`). El registrador
+corregido se ensayó en producción terminando en `rollback` (fila leída con el nombre correcto;
+después: índice 0, registro 0).
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260929220021_crm_indice_inversionistas_perfil.sql`
+→ `supabase/scripts/indice-inversionistas-perfil/registrar.sql` (se niega si el índice no existe,
+no es válido o tiene otra definición, y relee la fila) → `verificar.sql` (solo lectura; esperado
+`seq=0`) → advisors.
+Reversa: `drop index if exists crm.inversionistas_perfil_idx;`. Deja la fila de `schema_migrations`
+(convención de la casa): anotarlo aquí el mismo día, porque un replay por historial la daría por aplicada.
+
+No ejecutado: `test-rls.mjs` y `test:rls:preflight` (el preflight exige las variables del banco y el hook
+bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la matriz) y banco Docker (el
+ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
+## 20260929201813 — Reasignación y conversión consistentes
+
+**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
+`crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
+lleva el responsable de la persona y el borrador de conversión al nuevo analista,
+con tramos de responsabilidad, actividad y revisión auditada. La revisión del
+borrador usa `crm.revisar_solicitud_inversion_fn` sin modificarla: conserva
+datos, hash, creador, contexto de acceso y reglas de la saga/perfil.
+
+Sin RPC pública nueva, sin cambios de RLS/grants de tablas ni de objetos `public`.
+Función privada sin ejecutores API, `search_path` fijo y validación de actor/ámbito.
+La bandeja conserva el último responsable hasta la siguiente entrega; toma directa
+y derivación mantienen sus puertas y permisos. Contratos, cierres externos e
+inversiones existentes requieren la puerta gerencial de relación y conservan
+su atribución. Cuando identidad, saga, historial o una restricción impiden la
+sincronización, se deshacen únicamente sus efectos automáticos y se registra
+`reasignacion_conversion_requiere_revision`: la reasignación autorizada del lead
+continúa, y las puertas de inversión conservan el veto hasta conciliar. Así no se
+convierten los requisitos de invertir en bloqueos nuevos de reparto u offboarding.
+
+Concurrencia: después de bloquear el lead, documentos/persona/solicitud se
+adquieren sin esperar; un conflicto devuelve 40001 y revierte el movimiento
+completo. No se deshabilitan triggers ni se imita una sesión gerencial.
+
+Ensayo en copia Docker aislada: `supabase/scripts/reasignacion-conversion/test.sql`
+36 comprobaciones PASS (RLS real, supervisor/gerencia/vendedor, bandeja, toma
+directa, acceso pendiente y enlazado, rollback de saga, lote mixto, offboarding,
+restricciones, banderas e identidad sin verificar); `concurrencia.py` 4 PASS
+con dos sesiones reales y el candado documental oficial. Regresión económica
+completa `conversion-inversion/test-conversion.sql` PASS. Reversa/reinstalación
+probadas. Cliente: 88 tests PASS, incluidos dos nuevos MSW del contrato de
+reintento/éxito. Guardas: 27 PASS y 5 fallos anteriores idénticos sin la candidata,
+cero fallos nuevos. Preflights de scripts, seed/RLS offline y Edge PASS.
+Dos revisiones independientes atendidas. Rama remota: SQL 36 PASS, regresión
+económica PASS, PostgREST real 3 PASS y matrices RLS contratos 287 / identidad
+30 PASS. Advisors sin avisos nuevos. Tipos públicos no cambian.
+Detalle y límites: `supabase/scripts/reasignacion-conversion/README.md`.
+
+Reversa: `supabase/scripts/reasignacion-conversion/reversa.sql` retira únicamente
+el trigger y su función; conserva todas las asignaciones e historiales.
+
+## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test4` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
+UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
+verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
+permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
+`authenticated` y `anon`.
+
+Banco remoto `goqrvtqfovrvxhlzlhzx`: aplicación nativa `20260929195918`,
+oráculo SQL PASS, RLS HTTP focal 272/272 antes y después, filtro HTTP 41/41,
+advisors sin avisos nuevos. Historial base 389/389 exacto y 22 Edge iguales
+al padre. La suite global original falló por el fixture de canal antiguo;
+se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
+acreditar la suite global completa. SQL SHA-256:
+`67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+Producción verificada: 390 migraciones; función `7169d94239dcb191bafa3faed46f916f`, INVOKER, ACL exacta y sello vigente. Frontend `build-20260929T200401559Z`; 93 archivos HTTP con hash exacto. No hay cambios de RLS ni de tablas. Banco temporal eliminado.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
+
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
@@ -43,38 +172,6 @@ TODO integrador: `db query --linked --file` de la migración → registrador
 **Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
 4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
 expone «anexo», revertir primero front y Edge.
-
-## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
-
-**PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
-analista actual y una asignación anterior a un analista, según el evento
-`crm.actividades.tipo='reasignacion'` y `metadata.vendedor_anterior` no nulo.
-La primera entrega desde la bandeja no cuenta; A → bandeja → A sí cuenta.
-Sistema/Manual conserva la procedencia del alta y se muestra en paralelo.
-La RPC INVOKER pasa de 11 a 12 argumentos (`p_reasignados` al final) y retira
-la firma anterior; devuelve `reasignado` por fila, `resumen.totales.reasignados`
-y eco del filtro. Filas, cifra, capital y embudo usan la misma base antes de
-paginar. La consulta del historial hereda la RLS de actividades, coextensiva
-con leads. La exención analítica se mueve a la nueva firma y se resella.
-
-Ensayo: migración aplicada y fixture transaccional
-`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
-`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
-incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
-la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
-analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
-y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
-y la policy de INSERT que impide fabricar la marca. La branch temporal de
-Supabase falló antes de esta migración durante el replay histórico y fue
-eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
-agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
-y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
-anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
-comprobación de datos, no una publicación de la migración. No se aplicó en
-producción.
-Reversa coordinada: restaurar la función de 11 argumentos de
-`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
-analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
