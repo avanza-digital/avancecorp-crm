@@ -38,7 +38,6 @@ import { interpretarMiAccesoParaUsuario } from './acceso-crm'
 
 import { DEMO_YO } from './auth-demo'
 import { limpiarIntencionesSla } from '@/data/sla-operacion-comandos'
-import { limpiarIntencionesContacto } from './intencion-contacto'
 
 /** El demo refleja la autorización real del CRM, incluida Gerencia operativa. */
 const contrataEnDemo = (rol: Rol): boolean =>
@@ -193,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
       if (cancelado) return
       if (_evento === 'SIGNED_OUT') {
-        limpiarIntencionesSla(); limpiarIntentosInversion(); limpiarEnviosPostventa(); limpiarIntencionesContacto()
+        limpiarIntencionesSla(); limpiarIntentosInversion(); limpiarEnviosPostventa()
         diferir(() => { void limpiarPushTasaAlSalir() })
       }
       const userId = session?.user.id ?? null
@@ -290,8 +289,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const desactivarAvisos = eraDemo ? Promise.resolve() : limpiarPushTasaAlSalir()
     limpiarIntencionesSla()
     limpiarIntentosInversion(); limpiarEnviosPostventa()
-    // La cola de llamadas por registrar es de la cuenta que sale (F1.1.2).
-    limpiarIntencionesContacto()
     limpiarSesionDemo()
     // SALIR cancela cualquier verificación en vuelo ANTES del signOut: una
     // respuesta tardía ya no puede recolocar la identidad anterior.

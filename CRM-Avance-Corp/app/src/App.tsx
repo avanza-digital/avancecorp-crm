@@ -21,7 +21,6 @@ import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
-import { ReceptorLlamada } from '@/components/app/receptor-llamada'
 import { RespuestasTasaProvider } from '@/components/app/respuestas-tasa-provider'
 import { recibeRespuestasTasa } from '@/lib/respuestas-tasa'
 import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
@@ -404,11 +403,7 @@ function Workspace() {
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
       escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined,
         destino === 'hoy' && (ctx.rol === 'gerencia' || recibeRespuestasTasa(ctx.rol)) ? leido.solicitudTasaId : undefined,
-        destino === 'gestion-diaria' && (ctx.rol === 'gerencia' || leido.detalleGestion?.tipo === 'cola') ? leido.detalleGestion : undefined,
-        // F1.2.2: el número del enlace del celular sobrevive al saneado (y al
-        // login: este efecto corre cuando el workspace por fin monta). Lo
-        // consume el receptor; el router ya lo suelta al abrir una ficha.
-        destino === leido.vista ? leido.llamadaNumero : undefined)
+        destino === 'gestion-diaria' && (ctx.rol === 'gerencia' || leido.detalleGestion?.tipo === 'cola') ? leido.detalleGestion : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -440,8 +435,7 @@ function Workspace() {
     const ruta = leerHash()
     escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined,
       ruta.vista === vista && (rol === 'gerencia' || recibeRespuestasTasa(rol)) ? ruta.solicitudTasaId : undefined,
-      ruta.vista === vista && (rol === 'gerencia' || ruta.detalleGestion?.tipo === 'cola') ? ruta.detalleGestion : undefined,
-      ruta.vista === vista ? ruta.llamadaNumero : undefined) // compara antes de escribir → sin bucles
+      ruta.vista === vista && (rol === 'gerencia' || ruta.detalleGestion?.tipo === 'cola') ? ruta.detalleGestion : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
@@ -466,10 +460,6 @@ function Workspace() {
               ayudaAbierta={ayudaAbierta}
               onAlternarAyuda={() => setAyudaAbierta((actual) => !actual)}
             />
-            {/* F1.2.3: el enlace del celular («#/<vista>/llamada/<numero>») se
-                atiende UNA vez, aquí, sea cual sea la pantalla; se pinta solo
-                cuando hay algo que decir. */}
-            <ReceptorLlamada />
             <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>
