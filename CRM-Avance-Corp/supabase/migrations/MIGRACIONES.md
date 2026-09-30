@@ -31,7 +31,23 @@ Método de aplicación: `supabase db query --linked --file supabase/migrations/2
 < 250 ms) → advisors. Reversa: `reversa.sql` (cuerpo vivo del 29/09 byte a byte; conserva la fila de
 `schema_migrations`: anotarlo aquí el mismo día).
 
-Reviews: Codex (`docs/encargos/2026-09-30-codex-postventa-tarea-familia.md`) y auditor-rls: ver abajo.
+**Reviews:** Codex (LEVEL 2, `docs/encargos/2026-09-30-codex-postventa-tarea-familia.md`): **APPROVE**, sin
+hallazgos; dos riesgos condicionados, ambos cerrados con evidencia: (R1) «si `inversionista_canonica` viera filas
+que la CTE no ve» → medido (`contexto-seguridad.sql`): `inversionista_canonica` es DEFINER, `postventa_tarea_json`
+es INVOKER pero TODOS sus llamadores son puertas DEFINER (`postventa_agenda_fn`, `postventa_tarea_fn`,
+`postventa_agendar_fn`, `cola_accion_v3_fn`; `tareas_clientes_autorizadas` solo se llama desde `cola_accion_v3_fn`),
+así que corre como postgres (dueño de la tabla, RLS no forzada) y ambas formas ven las mismas filas; además la
+única policy de `crm.inversionistas` es todo-o-nada por rol (gerencia), sin «raíz invisible con hija visible».
+(R2) casos sintéticos → `prueba-sintetica.sql` (VALUES, réplica exacta de `inversionista_canonica`): cadena de 17
+(supera el tope 16), ciclo A↔B, padre inexistente, perfil repetido en la familia (se conserva repetido en ambas),
+persona sin perfil, singleton: **24 personas, 0 distintas**.
+**auditor-rls: PASS** (no amplía visibilidad por ningún camino: nuevo ⊆ viejo incluso bajo un rol hipotético con
+RLS; guardas fail-closed y NULL-safe; idempotencia correcta). P2 «la rama recursiva no se ejecutó con datos reales
+con padre (hoy 0)»: **riesgo aceptado** con la prueba analítica (superconjunto + predicado original) y la réplica
+sintética de arriba; no se monta banco Docker para esto (decisión de Miguel: el gasto va a la acción). P3 aceptados:
+consumidores REALES de `postventa_tarea_json` = `postventa_agenda_fn`, `postventa_tarea_fn`, `postventa_agendar_fn`
+(`tareas_clientes_autorizadas` solo la menciona en un comentario; el caso `cola_accion_v3_fn` del oráculo actúa como
+control «sin cambio»); esta fila se completa al aplicar. Con Codex + auditor-rls se alcanza el máximo de 2 reviews.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants; la función no decide visibilidad) y banco Docker (los
 ensayos se hicieron sobre los datos reales, deshechos).
 
